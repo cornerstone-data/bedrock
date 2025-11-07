@@ -1,0 +1,23 @@
+name: "Set up Python and install dependencies"
+description: "Set up Python and install dependencies"
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python 3.11.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11.13
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/0.7.8/install.sh | sh
+      shell: bash
+
+    - name: Check lockfile
+      run: |
+        uv lock --check
+      shell: bash
+
+    - name: Install Python dependencies
+      run: uv sync --all-groups
+      shell: bash
