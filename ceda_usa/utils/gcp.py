@@ -52,6 +52,7 @@ def load_from_gcs(
     retry=tenacity.retry_if_exception_type(ssl.SSLEOFError),
 )
 def download_gcs_file(gs_url: str, pth: str) -> None:
+    gs_url = gs_url.replace("\\", "/")
     client = __storage_client()
     logger.debug(f"Downloading `{gs_url}` to `{pth}`.")
 
