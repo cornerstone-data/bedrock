@@ -1,0 +1,14 @@
+from __future__ import annotations
+
+import pandas as pd
+
+from ceda_usa.extract.allocation.epa import load_co2_emissions_from_soda_ash_prodution
+from ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from ceda_usa.utils.units import MEGATONNE_TO_KG
+
+
+def allocate_soda_ash_production_and_consumption() -> pd.Series[float]:
+    sap = load_co2_emissions_from_soda_ash_prodution()
+    emissions = sap.loc["Soda Ash Production"]
+    allocated = pd.Series({"325190": emissions})
+    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG

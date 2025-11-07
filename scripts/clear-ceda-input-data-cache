@@ -1,0 +1,17 @@
+#!/bin/bash
+echo "clearing CEDA USA input data cache... this will delete the following files"
+find . -type f -path '*ceda_usa/*/input_data/*' \
+    -not -path '*/.*' \
+    -print | sort -n
+echo
+read -p "Are you sure? [y/n] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+    find . -type f -path '*ceda_usa/*/input_data/*' \
+        -not -path '*/.*' \
+        -print -delete | sort -n
+    echo "cleared CEDA USA input data cache"
+else
+    echo "not clearing cache"
+fi

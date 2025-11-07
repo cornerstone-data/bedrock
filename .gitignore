@@ -1,0 +1,30 @@
+.DS_Store
+*.pyc
+__pycache__/
+.ruff_cache/
+.pytest_cache/
+.venv/
+
+# mypy
+.mypy_cache/
+
+# Ignore notebooks and notebook checkpoints
+# If we want to actually allow notebooks in the future, we can make this specific to checkpoints
+*.ipynb
+
+# Ignore files we don't want to commit
+*.parquet
+*.eps
+*.pdf
+*.csv
+*.xlsx
+*.xls
+*.txt
+*.tmp
+*.env
+*.png
+*.mat
+*.pkl
+
+# Ignore JetBrains IDE project files
+.idea/
