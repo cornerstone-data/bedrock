@@ -32,7 +32,7 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check .
 
-  typecheck:
+  typecheck-ceda-usa:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
