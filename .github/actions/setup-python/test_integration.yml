@@ -1,0 +1,105 @@
+name: test_integration
+
+on:
+  # TODO: cron job for daily tests
+  # schedule:
+  # - cron: "0 14,17,20,23 * * 1-5" # 2PM,5PM,8PM,11PM UTC = 7AM,10AM,1PM,4PM PT every weekday
+  workflow_dispatch:
+
+env:
+  FORCE_COLOR: 2
+
+jobs:
+  test_ceda_usa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Run tests (ceda-usa)
+        run: |
+          uv run pytest -v -m ceda_integration
+
+  notify_slack_failure:
+    needs:
+      [test_ceda_usa]
+    runs-on: ubuntu-latest
+    # TODO: only alert for main (github.ref_name == 'main')
+    if: always() && (needs.test_ceda_usa.result == 'failure')
+
+    steps:
+      - name: Notify on Slack - failure
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "CEDA USA Test Status",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":warning:CEDA integration tests have failed on `${{ github.ref_name }}` :warning:. Please check the logs."
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+
+  notify_slack_success:
+    needs:
+      [test_ceda_usa]
+    runs-on: ubuntu-latest
+    if: always() && (needs.test_ceda_usa.result == 'success')
+
+    steps:
+      - name: Notify on Slack - success
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "CEDA USA Test Status",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":white_check_mark:CEDA integration tests have passed on `${{ github.ref_name }}` :white_check_mark:. Please check the logs."
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
