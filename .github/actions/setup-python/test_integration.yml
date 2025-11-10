@@ -49,7 +49,7 @@ jobs:
           channel-id: C09S03U9CH4 # #alerts-bedrock
           payload: |
             {
-              "text": "CEDA USA Test Status",
+              "text": "CEDA USA Test Failure",
               "blocks": [
                 {
                   "type": "section",
@@ -84,7 +84,7 @@ jobs:
           channel-id: C09S03U9CH4 # #alerts-bedrock
           payload: |
             {
-              "text": "CEDA USA Test Status",
+              "text": "CEDA USA Test Success",
               "blocks": [
                 {
                   "type": "section",
