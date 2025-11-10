@@ -1,9 +1,9 @@
 [project]
-name = "ceda-usa"
+name = "bedrock"
 version = "0.1.0"
-description = "CEDA emissions allocation and input-output analysis for the United States"
+description = "Core data pipeline for Cornerstone artifacts"
 authors = [
-    { name = "Watershed Climate Technologies", email = "ceda-support@watershed.com" },
+    { name = "Cornerstone Sustainability Data Initiative", email = "support@cornerstonedata.org" },
 ]
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
