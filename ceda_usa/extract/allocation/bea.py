@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import os
+import posixpath
 
 import pandas as pd
 
@@ -14,7 +15,9 @@ from ceda_usa.transform.eeio.derived_2017 import (
 from ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR, load_from_gcs
 from ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
-GCS_BEA_PCE_DIR = os.path.join(GCS_CEDA_INPUT_DIR, "BEA_PersonalConsumptionExpenditure")
+GCS_BEA_PCE_DIR = posixpath.join(
+    GCS_CEDA_INPUT_DIR, "BEA_PersonalConsumptionExpenditure"
+)
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
@@ -56,7 +59,7 @@ def load_bea_personal_consumption_expenditure() -> pd.Series[float]:
     https://apps.bea.gov/iTable/?reqid=19&step=2&isuri=1&categories=survey&_gl=1*1mu0824*_ga*MTkyNDEyMDE5LjE3MTA0NjE1MjE.*_ga_J4698JNNFT*MTcxMDQ2MTUyMC4xLjEuMTcxMDQ2MjIyNS4xNC4wLjA.#eyJhcHBpZCI6MTksInN0ZXBzIjpbMSwyLDMsM10sImRhdGEiOltbImNhdGVnb3JpZXMiLCJTdXJ2ZXkiXSxbIk5JUEFfVGFibGVfTGlzdCIsIjY1Il0sWyJGaXJzdF9ZZWFyIiwiMjAxMiJdLFsiTGFzdF9ZZWFyIiwiMjAyMyJdLFsiU2NhbGUiLCItNiJdLFsiU2VyaWVzIiwiQSJdXX0=
     """
     tbl = load_from_gcs(
-        os.path.join(
+        posixpath.join(
             GCS_BEA_PCE_DIR,
             "BEA Personal Consumption Expenditures by Major Type of Product_June27_2024.csv",
         ),

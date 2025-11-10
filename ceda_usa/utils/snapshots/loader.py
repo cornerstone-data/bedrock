@@ -1,4 +1,5 @@
 import os
+import posixpath
 
 import pandas as pd
 
@@ -6,7 +7,7 @@ from ceda_usa.utils.gcp import GCS_CEDA_USA_DIR, download_gcs_file_if_not_exists
 from ceda_usa.utils.snapshots.names import SnapshotName
 
 SNAPSHOT_BASE = os.path.dirname(__file__)
-GCS_SNAPSHOT_DIR = os.path.join(GCS_CEDA_USA_DIR, "snapshots")
+GCS_SNAPSHOT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "snapshots")
 
 
 def load_current_snapshot(name: SnapshotName) -> pd.DataFrame:
@@ -20,7 +21,7 @@ def load_snapshot(name: SnapshotName, key: str) -> pd.DataFrame:
 
 def download_snapshot(name: SnapshotName, key: str) -> None:
     local_pth = os.path.join(snapshot_local_dir(key=key), f"{name}.parquet")
-    gs_url = os.path.join(snapshot_gcs_dir(key=key), f"{name}.parquet")
+    gs_url = posixpath.join(snapshot_gcs_dir(key=key), f"{name}.parquet")
     download_gcs_file_if_not_exists(gs_url, local_pth)
 
 
@@ -36,4 +37,4 @@ def snapshot_local_dir(key: str) -> str:
 
 
 def snapshot_gcs_dir(key: str) -> str:
-    return os.path.join(GCS_SNAPSHOT_DIR, key)
+    return posixpath.join(GCS_SNAPSHOT_DIR, key)

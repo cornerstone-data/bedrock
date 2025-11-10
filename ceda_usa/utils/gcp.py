@@ -1,6 +1,7 @@
 import functools
 import logging
 import os
+import posixpath
 import ssl
 import typing as ta
 import uuid
@@ -17,8 +18,8 @@ from google.cloud.storage.blob import Blob
 logger = logging.getLogger(__name__)
 
 GCS_CEDA_USA_DIR = "gs://cornerstone-default/ceda-usa"
-GCS_CEDA_INPUT_DIR = os.path.join(GCS_CEDA_USA_DIR, "input")
-GCS_CEDA_V5_INPUT_DIR = os.path.join(GCS_CEDA_INPUT_DIR, "v5")
+GCS_CEDA_INPUT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "input")
+GCS_CEDA_V5_INPUT_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "v5")
 
 
 def download_gcs_file_if_not_exists(gs_url: str, pth: str) -> None:

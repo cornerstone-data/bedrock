@@ -1,4 +1,5 @@
 import os
+import posixpath
 import typing as ta
 
 import pandas as pd
@@ -14,7 +15,7 @@ from ceda_usa.utils.taxonomy.bea.v2017_industry import (
 )
 from ceda_usa.utils.taxonomy.utils import validate_mapping
 
-GCS_CEDA_TAXONOMY_DIR = os.path.join(GCS_CEDA_USA_DIR, "taxonomy")
+GCS_CEDA_TAXONOMY_DIR = posixpath.join(GCS_CEDA_USA_DIR, "taxonomy")
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 
@@ -27,7 +28,7 @@ def load_bea_v2017_industry_to_bea_v2017_summary() -> (
     # Same content can be found in "NAICS Codes" tab in Use_SUT_Framework_2017_DET dataset downloadable from https://www.bea.gov/industry/input-output-accounts-data
     fname = "BEA-Industry-and-Commodity-Codes-and-NAICS-Concordance.xlsx"
     pth = os.path.join(IN_DIR, fname)
-    download_gcs_file_if_not_exists(os.path.join(GCS_CEDA_TAXONOMY_DIR, fname), pth)
+    download_gcs_file_if_not_exists(posixpath.join(GCS_CEDA_TAXONOMY_DIR, fname), pth)
     df = (
         pd.read_excel(pth, sheet_name="NAICS Codes", skiprows=6)
         .loc[:, ["Unnamed: 1", "Unnamed: 3"]]

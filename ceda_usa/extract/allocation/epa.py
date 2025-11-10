@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import posixpath
 import typing as ta
 
 import pandas as pd
@@ -52,12 +53,12 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
         if year == 2022
         else {
             "main": "EPA_GHGI_2023_Selected_Tables",
-            "annex": os.path.join("EPA_GHGI_2023_Selected_Tables", "Annex"),
+            "annex": posixpath.join("EPA_GHGI_2023_Selected_Tables", "Annex"),
         }
     )
 
     if section == "A":
-        return os.path.join(
+        return posixpath.join(
             GCS_CEDA_INPUT_DIR, main_or_annex_dir["annex"], f"Table {tbl_name}.csv"
         )
 
@@ -83,7 +84,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
             5: "Chapter 5 - Agriculture",
         }
     )
-    return os.path.join(
+    return posixpath.join(
         GCS_CEDA_INPUT_DIR,
         main_or_annex_dir["main"],
         chapter_dir[int(section)],
