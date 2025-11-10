@@ -1,10 +1,11 @@
 import os
+import posixpath
 
 import pandas as pd
 
 from ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR, load_from_gcs
 
-GCS_MECS_DIR = os.path.join(GCS_CEDA_INPUT_DIR, "EIA_MECS_2018")
+GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_MECS_2018")
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
@@ -14,7 +15,7 @@ def load_mecs_2_1() -> pd.DataFrame:
     """
 
     tbl_2_1 = load_from_gcs(
-        os.path.join(GCS_MECS_DIR, "Table2_1.xlsx"),
+        posixpath.join(GCS_MECS_DIR, "Table2_1.xlsx"),
         local_dir=IN_DIR,
         loader=lambda pth: pd.read_excel(
             pth,
@@ -55,7 +56,7 @@ def load_mecs_3_1() -> pd.DataFrame:
     fuel consumption by industry in energy unit such as Btu, kWh, etc.
     """
     tbl_3_1 = load_from_gcs(
-        os.path.join(GCS_MECS_DIR, "Table3_1.xlsx"),
+        posixpath.join(GCS_MECS_DIR, "Table3_1.xlsx"),
         local_dir=IN_DIR,
         loader=lambda pth: pd.read_excel(
             pth,

@@ -1,4 +1,5 @@
 import os
+import posixpath
 
 import pandas as pd
 
@@ -9,7 +10,7 @@ from ceda_usa.utils.taxonomy.mappings.ceda_v7__ceda_v5 import CEDA_V5_TO_CEDA_V7
 # Obtained from Watershed price index source (rds_2Au4cfUuGHgFFLG37rdR),
 # which is derived from BEA price index:
 # TODO: migrate to publicly available BEA price index
-INFLATION_FACTOR_DATA_GCS_PATH = os.path.join(
+INFLATION_FACTOR_DATA_GCS_PATH = posixpath.join(
     GCS_CEDA_INPUT_DIR, "BEA_PriceIndex", "bea_price_index_2025_10_01.parquet"
 )
 

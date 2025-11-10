@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import posixpath
 import typing as ta
 
 import pandas as pd
@@ -159,7 +160,7 @@ def _load_usa_xlsx(
     """
     fname = "CEDA6IO.xlsx"
     pth = os.path.join(IN_DIR, fname)
-    download_gcs_file_if_not_exists(os.path.join(GCS_CEDA_V5_INPUT_DIR, fname), pth)
+    download_gcs_file_if_not_exists(posixpath.join(GCS_CEDA_V5_INPUT_DIR, fname), pth)
 
     df = pd.read_excel(
         pth,

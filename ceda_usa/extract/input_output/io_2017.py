@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import posixpath
 
 import pandas as pd
 from typing_extensions import deprecated
@@ -137,7 +138,7 @@ def _load_2017_detail_make_use_usa(
     """
     df = (
         load_from_gcs(
-            gs_url=os.path.join(
+            gs_url=posixpath.join(
                 GCS_USA_DIR,
                 USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name],
             ),
@@ -280,7 +281,7 @@ def _load_usa_summary_mut(
 
     df = (
         load_from_gcs(
-            gs_url=os.path.join(GCS_USA_DIR, usa_summary_mut_mapping[matrix_name]),
+            gs_url=posixpath.join(GCS_USA_DIR, usa_summary_mut_mapping[matrix_name]),
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
                 pth,
@@ -330,7 +331,7 @@ def _load_2017_detail_sut_usa(
 
     df = (
         load_from_gcs(
-            gs_url=os.path.join(
+            gs_url=posixpath.join(
                 GCS_USA_DIR, USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name]
             ),
             local_dir=IN_DIR,
