@@ -6,6 +6,8 @@ FlowByActivity and FlowBySector classes.
 from typing import List, Literal, TypeVar, TYPE_CHECKING
 import pandas as pd
 import numpy as np
+import os
+import posixpath
 import re
 from functools import partial, reduce
 from copy import deepcopy
@@ -14,6 +16,7 @@ from flowsa import (settings, literature_values, flowsa_yaml, geo, schema,
 from flowsa.common import get_catalog_info
 from flowsa.flowsa_log import log, vlog
 from flowsa.location import fips_number_key
+from ceda_usa.utils.gcp import download_gcs_file_if_not_exists
 import esupy.processed_data_mgmt
 import esupy.dqi
 
@@ -250,10 +253,19 @@ class _FlowBy(pd.DataFrame):
             log.info(f'Attempting to {attempt} {file_metadata.name_data} '
                      f'{file_metadata.category}')
             if attempt == 'download':
-                esupy.processed_data_mgmt.download_from_remote(
-                    file_metadata,
-                    paths
-                )
+                gs_url = posixpath.join(settings.GCS_FLOWSA_DIR,
+                                        file_metadata.category,
+                                        f'{file_metadata.name_data}.{file_metadata.ext}')
+                download_gcs_file_if_not_exists(
+                    gs_url=gs_url,
+                    pth=os.path.join(paths.local_path,
+                                     file_metadata.category,
+                                     gs_url.split("/")[-1])
+                    )
+                # esupy.processed_data_mgmt.download_from_remote(
+                #     file_metadata,
+                #     paths
+                # )
             if attempt == 'generate':
                 flowby_generator()
             df = esupy.processed_data_mgmt.load_preprocessed_output(
