@@ -1,0 +1,69 @@
+industry_spec:
+  default: NAICS_6
+year: 2014
+target_naics_year: 2012
+geoscale: national
+
+source_names:
+  EPA_CDDPath:
+    geoscale: national
+    year: 2014
+    # mfl_mapping: 'EPA_CDDPath'
+    activity_sets:
+      construction_spending_wood:
+        selection_fields:
+          # reclassifies Wood from 'Other' to 'Other - Wood' so that its
+          # mapping can be adjusted to only use 237990/Heavy engineering
+          # NAICS according to method in Meyer et al. 2020
+          FlowName: Wood
+          ActivityProducedBy:
+            Other: 'Other - Wood'
+          ActivityConsumedBy:
+            # reset all ActivityConsumedBy to drop for this method
+            Compost: ''
+            Fuel: ''
+            Landfill: ''
+            Mulch: ''
+            Remanufacture: ''
+        attribution_method: direct
+        attribute_on: ['SectorProducedBy']
+      construction_spending:
+        # All other data
+        exclusion_fields:
+          conditional:
+            FlowName: Wood
+            ActivityProducedBy: Other
+        selection_fields:
+          ActivityConsumedBy:
+            # reset all ActivityConsumedBy to drop for this method
+            Aggregate: ''
+            Aggregate- Drain Rock: ''
+            Aggregate- Other Construction: ''
+            Aggregate- Road Base: ''
+            Agricultural: ''
+            Compost: ''
+            Compost/Mulch: ''
+            Fill Material: ''
+            Fuel: ''
+            General Recycled: ''
+            HMA/WMA: ''
+            Landfill: ''
+            Landfill Cover: ''
+            Mulch: ''
+            Other: ''
+            Remanufacture: ''
+            Road Base: ''
+        attribution_method: proportional
+        attribute_on: ['SectorProducedBy']
+        attribution_source:
+          Census_VIP:
+            year: 2014
+            geoscale: national
+            selection_fields:
+              Class: Money
+              FlowName: Construction spending
+            attribution_method: proportional
+            attribution_source:
+              Employment_national_2014:
+                data_format: FBS
+                year: 2014

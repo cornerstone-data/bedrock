@@ -1,0 +1,14 @@
+# This file can be used to set up target NAICS for standard sectors
+# in a USEEIO summary level model. NAICS are targeted to enable 1:1
+# correspondence between NAICS and BEA Summary sectors
+
+# To use in a FBS method add
+# !include:USEEIO_summary_target.yaml
+# to the top of the method replacing the three parameters below
+
+industry_spec:
+  default: NAICS_3
+  NAICS_4: ['221', '336', '541']
+# In USEEIO models 221 (Utilities) is disaggregated to 2211, 2212, and 2213
+# '336' and '541' carry over from the BEA summary sectors
+target_naics_year: 2012

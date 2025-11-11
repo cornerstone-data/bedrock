@@ -1,0 +1,430 @@
+author: US Environmental Protection Agency
+source_name: 'Inventory of US Greenhouse Gas Emissions and Sinks: 1990-2023'
+source_url: https://www.edf.org/freedom-information-act-documents-epas-greenhouse-gas-inventory
+bib_id: EPA_GHGI
+format: csv
+url:
+  base_url: https://dmap-data-commons-ord.s3.amazonaws.com/flowsa/FlowByActivity/
+  main_zip: US_GHGI_2025_SelectedTables_main_text.zip
+  annex_zip: US_GHGI_2025_SelectedTables_annex.zip
+path:
+  base: "Table {table_name}.csv"
+  annex: "Annex/Table {table_name}.csv"
+
+url_replace_fxn: !script_function:EPA_GHGI ghg_url_helper
+call_response_fxn: !script_function:EPA_GHGI ghg_call
+parse_response_fxn: !script_function:EPA_GHGI ghg_parse
+years:
+## In the current data release, most tables are only available for the 5 most recent
+## years
+# - 2010
+# - 2011
+# - 2012
+# - 2013
+# - 2014
+# - 2015
+# - 2016
+# - 2017
+# - 2018
+- 2019
+- 2020
+- 2021
+- 2022
+- 2023
+
+
+# Special table lists
+# Flows as group headers
+multi_chem_names: ["2-1", "3-102", "4-55", "5-7", "5-29"]
+source_No_activity: ["3-25", "3-25b"]
+# Handle tables with 1 parent level category
+source_activity_1: ["3-7", "3-8", "3-9", "5-18", "5-19"]
+source_activity_1_fuel: ["3-13", "3-14", "3-15"]
+# Tables with sub categories
+source_activity_2: ["3-45", "3-64", "A-90"]
+rows_as_flows: ["4-63", "4-64", "4-100", "4-106", "4-122"]
+
+Tables:
+  "Chapter 2 - Trends in Greenhouse Gas Emissions and Removals":
+      "2-1":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2e"
+        "desc": "Table 2-1:  Recent Trends in U.S. Greenhouse Gas Emissions and Sinks (MMT CO2 Eq.)"
+
+  "Chapter 3 - Energy":
+      "3-7":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2"
+        "desc": "Table 3-7:  CO2 Emissions from Stationary Fossil Fuel Combustion (MMT CO2 Eq.)"
+        "data_reliability": 4
+      "3-8":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CH4"
+        "desc": "Table 3-8:  CH4 Emissions from Stationary Combustion (MMT CO2 Eq.)"
+        "data_reliability": 4
+      "3-9":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "N2O"
+        "desc": "Table 3-9:  N2O Emissions from Stationary Combustion (MMT CO2 Eq.)"
+        "data_reliability": 4
+
+      #"3-10": # Not a primary emissions datasource
+       # "class": "Chemicals"
+        #"unit": "MMT CO2e"
+        #"compartment": "air"
+        #"flow": "CO2e"
+        #"desc": "Table 3-10:  CO2, CH4, and N2O Emissions from Fossil Fuel Combustion by Sector (MMT CO2 Eq.)"
+
+      "3-13":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2"
+        "desc": "Table 3-13:  CO2 Emissions from Fossil Fuel Combustion in Transportation End-Use Sector"
+        "data_reliability": 4
+      "3-14":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CH4"
+        "desc": "Table 3-14:  CH4 Emissions from Mobile Combustion (MMT CO2 Eq.)"
+        "data_reliability": 4
+      "3-15":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "N2O"
+        "desc": "Table 3-15:  N2O Emissions from Mobile Combustion (MMT CO2 Eq.)"
+        "data_reliability": 4
+
+      "3-25":
+        "class": "Chemicals"
+        "unit": "Other"
+        "compartment": "air"
+        "flow": "CO2"
+        "activity": "2022 Adjusted Non-Energy Use Fossil Fuel - __type__"
+        "desc": "Table 3-25:  2023 Adjusted Non-Energy Use Fossil Fuel Consumption, Storage, and Emissions"
+        "year": "2023"
+        "melt_var": "FlowName"
+        "data_reliability": 4
+
+      "3-25b": # Represents historical dataset for table 3-25 for non-current years
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2"
+        "desc": "Table 3-25b:  Adjusted Non-Energy Use Fossil Fuel Emissions"
+        "data_reliability": 4
+
+      "3-106":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2"
+        "desc": "Table 3-106: CO2 Emissions from Wood Consumption by End-Use Sector (MMT CO2 Eq.)"
+
+# Petroleum Systems
+      "3-45":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CH4"
+        "desc": "Table 3-45:  CH4 Emissions from Petroleum Systems (MMT CO2 Eq.)"
+        "data_reliability": 4
+      "3-47":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2"
+        "desc": "Table 3-47:  CO2 Emissions from Petroleum Systems (MMT CO2)"
+        "data_reliability": 2
+      "3-49":
+        "class": "Chemicals"
+        "unit": "MT CO2e"
+        "compartment": "air"
+        "flow": "N2O"
+        "desc": "Table 3-49:  N2O Emissions from Petroleum Systems (Metric Tons CO2 Eq.)"
+        "data_reliability": 4
+
+# Natural Gas Systems
+      "3-64":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CH4"
+        "desc": "Table 3-64:  CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"
+        "data_reliability": 4
+      "3-66":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2"
+        "desc": "Table 3-66:  CO2 Emissions from Natural Gas Systems (MMT)"
+        "data_reliability": 4
+      "3-68":
+        "class": "Chemicals"
+        "unit": "MT CO2e"
+        "compartment": "air"
+        "flow": "N2O"
+        "desc": "Table 3-68: N2O Emissions from Natural Gas Systems (Metric Tons CO2 Eq.)"
+        "data_reliability": 4
+
+# International Bunker Fuels
+      "3-102":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "desc": "Table 3-102:  CO2, CH4, and N2O Emissions from International Bunker Fuels (MMT CO2 Eq.)"
+
+  "Chapter 4 - Industrial Processes and Product Use":
+      "4-16": # Emissions captured in 2-1
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2"
+        "desc": "Table 4-16:  CO2 Emissions from Other Process Uses of Carbonates (MMT CO2 Eq.)"
+
+      "4-39": # Emissions captured in 2-1
+        "class": "Chemicals"
+        "compartment": "air"
+        "flow": "N2O"
+        "activity": "Caprolactam Production"
+        "desc": "Table 4-39:  N2O Emissions from Caprolactam Production (MMT CO2 Eq.)"
+        "unit": "MMT CO2e"
+
+      "4-59":
+        "class": "Chemicals"
+        "compartment": "air"
+        "flow": "HFC-23"
+        "activity": "HCFC-22 Production"
+        "desc": "Table 4-59: HFC-23 Emissions from HCFC-22 Production (MMT CO2 Eq.)"
+        "unit": "MMT CO2e"
+
+      "4-100":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "activity": "Aluminum Production"
+        "desc": "Table 4-100:  PFC Emissions from Aluminum Production (MMT CO2 Eq.)"
+
+      "4-55":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2e"
+        "activity":
+        "desc": "Table 4-55: CO2 and CH4 Emissions from Petrochemical Production (MMT CO2 Eq.)"
+
+      "4-57": # Not a primary emissions datasource
+        "class": "Other"
+        "unit": "kt"
+        "desc": "Table 4-57:  Production of Selected Petrochemicals (kt)"
+
+      "4-63":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "activity": "Fluorochemical Production"
+        "desc": "Table 4-63:  Emissions of HFCs, PFCs, SF6, and NF3 from production of Fluorochemicals Other Than HCFC-22 (MMT CO2 Eq.)"
+
+      "4-64":
+        "class": "Chemicals"
+        "unit": "MT"
+        "compartment": "air"
+        "activity": "Fluorochemical Production"
+        "desc": "Table 4-64:  Emissions of HFCs, PFCs, SF6, and NF3 from production of Fluorochemicals Other Than HCFC-22 (Metric Tons)"
+
+      "4-106":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2e"
+        "activity": "Magnesium Production and Processing"
+        "desc": "Table 4-106: SF6, HFC-134a, FK 5-1-12 and CO2 Emissions from Magnesium Production and Processing (MMT CO2 Eq.)"
+      "4-118":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2e"
+        "desc": "Table 4-118:  PFC, HFC, SF6, NF3, and N2O Emissions from Electronics Manufacture (MMT CO2 Eq.)"
+
+      "4-122": # Used to speciate HFC emissions in 4-124
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2e"
+        "activity": "ODS Substitute"
+        "desc": "Table 4-122:  Emissions of HFCs, PFCs, and CO2 from ODS Substitutes (MMT CO2 Eq.)"
+
+      "4-124":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "HFCs and PFCs"
+        "desc": "Table 4-124:  Emissions of HFCs, PFCs, and CO2 from ODS Substitutes (MMT CO2 Eq.) by Sector"
+
+      "4-132":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "desc": "Table 4-132: SF6 and PFC Emissions from Other Product Use (MMT CO2 Eq.)"
+
+  "Chapter 5 - Agriculture":
+      "5-3":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CH4"
+        "desc": "Table 5-3:  CH4 Emissions from Enteric Fermentation (MMT CO2 Eq.)"
+        "data_reliability": 4
+      "5-7":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2e"
+        "desc": "Table 5-7:  CH4 and N2O Emissions from Manure Management (MMT CO2 Eq.)"
+
+      "5-18":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "N2O"
+        "desc": "Table 5-18:  Direct N2O Emissions from Agricultural Soils by Land Use Type and Nitrogen Input Type (MMT CO2 Eq.)"
+      "5-19":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "N2O"
+        "desc": "Table 5-19:  Indirect N2O Emissions from Agricultural Soils (MMT CO2 Eq.)"
+
+      "5-29":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "CO2e"
+        "desc": "Table 5-29: CH4 and N2O Emissions from Field Burning of Agricultural Residues (MMT CO2 Eq.)"
+
+
+Annex:
+  "Annex 2":
+      "A-5": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-5: 2023 Energy Consumption Data and CO2 Emissions from
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2023"
+      "A-6": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-6: 2022 Energy Consumption Data and CO2 Emissions from
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2022"
+      "A-7": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-7: 2021 Energy Consumption Data and CO2 Emissions from
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2021"
+      "A-8": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-8: 2020 Energy Consumption Data and CO2 Emissions from
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2020"
+      "A-9": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-9: 2019 Energy Consumption Data and CO2 Emissions from
+          Fossil Fuel Combustion by Fuel Type"
+        "year": "2019"
+      "A-10": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-10: 2018 Energy Consumption Data and CO2 Emissions from
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2018"
+      "A-11": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-11: 2017 Energy Consumption Data and CO2 Emissions from
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2017"
+      "A-12": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-12: 2016 Energy Consumption Data and CO2 Emissions from 
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2016"
+      "A-13": # Separate emissions table for each year
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": >
+          Table A-12: 2015 Energy Consumption Data and CO2 Emissions from 
+          Fossil Fuel Combustion by Fuel Type
+        "year": "2015"
+
+  "Annex 3":
+      "A-69": # Allocation datasource
+        "class": "Energy"
+        "unit": "million gallons"
+        "activity": "Fuel Consumption"
+        "desc": "Table A-69: Fuel Consumption by Fuel and Vehicle Type (million gallons unless otherwise specified)"
+
+      "A-90":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "HFCs"
+        "desc": "Table A-90: HFC Emissions from Transportation Sources (MMT CO2 Eq.)"

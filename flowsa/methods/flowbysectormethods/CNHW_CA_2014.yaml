@@ -1,0 +1,44 @@
+industry_spec:
+  default: NAICS_6
+year: 2014
+target_naics_year: 2012
+target_geoscale: state  # used for geographical correlation
+geoscale: state
+
+source_names:
+  CalRecycle_WasteCharacterization:
+    geoscale: state
+    year: 2014
+    # mfl_mapping: CalRecycle
+    activity_sets:
+      employment:
+        selection_fields:
+          PrimaryActivity: 
+          - Arts Entertainment Recreation
+          - Durable Wholesale Trucking
+          - Education
+          - Electronic Equipment
+          - Food Beverage Stores
+          - Food Nondurable Wholesale
+          - Hotel Lodging
+          - Medical Health
+          - Other Manufacturing
+          - Other Retail Trade
+          - Public Administration
+          - Restaurants
+          - Services Management Administration Support Social
+          - Services Professional Technical Financial
+          - Services Repair Personal
+          - Not Elsewhere Classified
+          Description: Generated
+        attribution_method: proportional
+        attribution_source: 
+          Employment_state_2014:
+            data_format: FBS
+            year: 2014
+      direct:
+        selection_fields:
+          PrimaryActivity:
+          - Multifamily
+          Description: Generated
+        attribution_method: direct
