@@ -68,8 +68,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "appdirs", specifier = ">=1.4.4" },
-    { name = "esupy", git = "https://github.com/USEPA/esupy.git?rev=develop" },
-    { name = "fedelemflowlist", git = "https://github.com/FLCAC-admin/fedelemflowlist.git?rev=develop" },
+    { name = "esupy", git = "https://github.com/USEPA/esupy.git" },
+    { name = "fedelemflowlist", git = "https://github.com/FLCAC-admin/fedelemflowlist.git" },
     { name = "google-api-python-client", specifier = ">=2.102.0,<3.0.0" },
     { name = "google-auth", specifier = ">=2.17.0,<3.0.0" },
     { name = "google-cloud-storage", specifier = ">=2.12.0,<3.0.0" },
@@ -80,7 +80,7 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=22.0.0" },
     { name = "pydantic", specifier = ">=2.7.1,<3.0.0" },
     { name = "pyyaml", specifier = ">=6.0,<7.0.0" },
-    { name = "stewi", git = "https://github.com/USEPA/standardizedinventories.git?rev=develop" },
+    { name = "stewi", git = "https://github.com/USEPA/standardizedinventories.git" },
     { name = "tenacity", specifier = ">=8.2.3,<9.0.0" },
     { name = "tqdm", specifier = ">=4.66.2,<5.0.0" },
     { name = "typing-extensions", specifier = ">=4.5.0,<5.0.0" },
@@ -258,7 +258,7 @@ wheels = [
 [[package]]
 name = "esupy"
 version = "0.4.2"
-source = { git = "https://github.com/USEPA/esupy.git?rev=develop#1c4b4e54f34a73588b5718c66488e95f1406c742" }
+source = { git = "https://github.com/USEPA/esupy.git#e0464c50701001501ba7bc71a608a26ebc0c2688" }
 dependencies = [
     { name = "appdirs" },
     { name = "boto3" },
@@ -280,8 +280,8 @@ wheels = [
 
 [[package]]
 name = "fedelemflowlist"
-version = "1.3.2"
-source = { git = "https://github.com/FLCAC-admin/fedelemflowlist.git?rev=develop#b546334d67be334bd0cbd09e6b7b2ff62dbd4ae5" }
+version = "1.3.1"
+source = { git = "https://github.com/FLCAC-admin/fedelemflowlist.git#fc5f26cb66efbe7f2912e718df64dcf8a0b7be4d" }
 dependencies = [
     { name = "esupy" },
     { name = "olca-schema" },
@@ -1194,7 +1194,7 @@ wheels = [
 [[package]]
 name = "stewi"
 version = "1.2.1"
-source = { git = "https://github.com/USEPA/standardizedinventories.git?rev=develop#6c6ca2007bdc156f009feaaa3aea819954b66ba6" }
+source = { git = "https://github.com/USEPA/standardizedinventories.git#bbb8147c0de1fb5531027dce9f67d97bec755f06" }
 dependencies = [
     { name = "esupy" },
     { name = "numpy" },
