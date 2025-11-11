@@ -1,9 +1,8 @@
 name: test_integration
 
 on:
-  # TODO: cron job for daily tests
-  # schedule:
-  # - cron: "0 14,17,20,23 * * 1-5" # 2PM,5PM,8PM,11PM UTC = 7AM,10AM,1PM,4PM PT every weekday
+  schedule:
+    - cron: "0 14,23 * * 1-5" # 2PM,11PM UTC = 7AM,4PM PT every weekday
   workflow_dispatch:
 
 env:
@@ -23,7 +22,7 @@ jobs:
         uses: ./.github/actions/setup-python
 
       - name: Authenticate with Google Cloud
-        uses: 'google-github-actions/auth@v2'
+        uses: "google-github-actions/auth@v2"
         with:
           project_id: cornerstone-data
           workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
@@ -34,8 +33,7 @@ jobs:
           uv run pytest -v -m ceda_integration
 
   notify_slack_failure:
-    needs:
-      [test_ceda_usa]
+    needs: [test_ceda_usa]
     runs-on: ubuntu-latest
     # TODO: only alert for main (github.ref_name == 'main')
     if: always() && (needs.test_ceda_usa.result == 'failure')
@@ -55,7 +53,7 @@ jobs:
                   "type": "section",
                   "text": {
                       "type": "mrkdwn",
-                      "text": ":warning:CEDA integration tests have failed on `${{ github.ref_name }}` :warning:. Please check the logs."
+                      "text": ":warning: integration tests have failed on `${{ github.ref_name }}` :warning:. Please check the logs."
                   },
                   "accessory": {
                     "type": "button",
@@ -70,8 +68,7 @@ jobs:
             }
 
   notify_slack_success:
-    needs:
-      [test_ceda_usa]
+    needs: [test_ceda_usa]
     runs-on: ubuntu-latest
     if: always() && (needs.test_ceda_usa.result == 'success')
 
@@ -90,7 +87,7 @@ jobs:
                   "type": "section",
                   "text": {
                       "type": "mrkdwn",
-                      "text": ":white_check_mark:CEDA integration tests have passed on `${{ github.ref_name }}` :white_check_mark:. Please check the logs."
+                      "text": ":white_check_mark: integration tests have passed on `${{ github.ref_name }}` :white_check_mark:. Please check the logs."
                   },
                   "accessory": {
                     "type": "button",
