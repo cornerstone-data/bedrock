@@ -1,0 +1,33 @@
+{
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll.ruff": "explicit"
+    }
+  },
+  "ruff.organizeImports": true,
+  "pylint.enabled": false,
+  "python.testing.pytestArgs": ["--override-ini=addopts=-s -v"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "python.analysis.typeCheckingMode": "off",
+  "cursorpyright.analysis.inlayHints.genericTypes": false,
+  "search.exclude": {
+    "coverage": true,
+    ".mypy_cache": true,
+    "cliq/analytics/ghg_dbt/logs": true,
+    "cliq/analytics/ghg_dbt/target": true,
+    "uv.lock": true
+  },
+  "editor.defaultFormatter": "ms-python.black-formatter",
+  "[sql]": {
+    "editor.defaultFormatter": "dorzey.vscode-sqlfluff"
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.mypy_cache": true
+  }
+}
