@@ -7,12 +7,17 @@ Functions to generate .bib file for a FlowBySector method
 # todo: modify the functions for recursive yaml method
 
 import pandas as pd
-from bibtexparser.bwriter import BibTexWriter
-from bibtexparser.bibdatabase import BibDatabase
+
+# from bibtexparser.bwriter import BibTexWriter
+# from bibtexparser.bibdatabase import BibDatabase
 from esupy.processed_data_mgmt import mkdir_if_missing
 
-from flowsa.common import load_values_from_literature_citations_config, \
-    get_flowsa_base_name, sourceconfigpath, load_yaml_dict
+from flowsa.common import (
+    load_values_from_literature_citations_config,
+    get_flowsa_base_name,
+    sourceconfigpath,
+    load_yaml_dict,
+)
 from flowsa.flowsa_log import log
 from flowsa.settings import outputpath, biboutputpath
 
@@ -33,17 +38,18 @@ def generate_list_of_sources_in_fbs_method(methodname):
         try:
             sources.append([fbs_k, fbs_v['year']])
         except KeyError:
-            log.info(f'Could not append {fbs_k} to datasource '
-                     'list because missing year')
+            log.info(
+                f'Could not append {fbs_k} to datasource ' 'list because missing year'
+            )
             continue
         activities = fbs_v['activity_sets']
         for aset, attr in activities.items():
             if attr['allocation_source'] != 'None':
-                sources.append([attr['allocation_source'],
-                                attr['allocation_source_year']])
+                sources.append(
+                    [attr['allocation_source'], attr['allocation_source_year']]
+                )
             if 'helper_source' in attr:
-                sources.append([attr['helper_source'],
-                                attr['helper_source_year']])
+                sources.append([attr['helper_source'], attr['helper_source_year']])
             if 'literature_sources' in attr:
                 for source, date in attr['literature_sources'].items():
                     sources.append([source, date])

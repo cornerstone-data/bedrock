@@ -26,8 +26,6 @@ dependencies = [
     "google-cloud-storage>=2.12.0,<3.0.0",
     "google-api-python-client>=2.102.0,<3.0.0",
     # Utilities
-    "appdirs>=1.4.4",
-    "bibtexparser>=1.4.3",
     "tenacity>=8.2.3,<9.0.0",
     "tqdm>=4.66.2,<5.0.0",
     "openpyxl>=3.1.2,<4.0.0",
@@ -77,6 +75,7 @@ known-first-party = ["ceda_usa"]
 [tool.ruff.lint.per-file-ignores]
 "**/__tests__/**/*.py" = ["ARG001", "ARG002"]
 "**/test_*.py" = ["ARG001", "ARG002"]
+"flowsa/*" = ["ALL"] # temporary turn off for flowsa
 
 [tool.ruff.format]
 quote-style = "single"
