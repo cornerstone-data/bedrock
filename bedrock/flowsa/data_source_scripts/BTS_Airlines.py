@@ -1,6 +1,6 @@
 import pandas as pd
 
-from bedrock.flowsa import bedrock.flowsa_yaml, settings
+from bedrock.flowsa import flowsa_yaml, settings
 from bedrock.flowsa.flowbyactivity import FlowByActivity
 
 
