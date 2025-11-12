@@ -42,7 +42,7 @@ jobs:
         uses: ./.github/actions/setup-python
 
       - name: Typecheck w/ mypy
-        run: uv run mypy ceda_usa
+        run: uv run mypy bedrock/ceda_usa
 
   test:
     runs-on: ubuntu-latest
