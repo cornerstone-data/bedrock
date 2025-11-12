@@ -34,8 +34,6 @@ name = "bedrock"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "appdirs" },
-    { name = "bibtexparser" },
     { name = "esupy" },
     { name = "fedelemflowlist" },
     { name = "google-api-python-client" },
@@ -70,8 +68,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "appdirs", specifier = ">=1.4.4" },
-    { name = "bibtexparser", specifier = ">=1.4.3" },
     { name = "esupy", git = "https://github.com/USEPA/esupy.git" },
     { name = "fedelemflowlist", git = "https://github.com/FLCAC-admin/fedelemflowlist.git" },
     { name = "google-api-python-client", specifier = ">=2.102.0,<3.0.0" },
@@ -103,15 +99,6 @@ dev = [
     { name = "types-pyyaml", specifier = ">=6.0.12.20240311,<7.0.0" },
     { name = "types-tqdm", specifier = ">=4.66.0.20240417,<5.0.0" },
 ]
-
-[[package]]
-name = "bibtexparser"
-version = "1.4.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyparsing" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/92/8d/e296c7af03757debd8fc80df2898cbed4fb69fc61ed2c9b4a1d42e923a9e/bibtexparser-1.4.3.tar.gz", hash = "sha256:a9c7ded64bc137720e4df0b1b7f12734edc1361185f1c9097048ff7c35af2b8f", size = 55582, upload-time = "2024-12-19T20:41:57.754Z" }
 
 [[package]]
 name = "black"

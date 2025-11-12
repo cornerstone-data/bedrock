@@ -1,0 +1,82 @@
+## List of current inactive method files
+
+# FlowByActivity
+BTS_Airlines:
+    Active: True
+    Status: Private data
+    Type: FileNotFoundError
+
+Census_SAS:
+    Active: True
+    Status: Runs locally, error through GitHub Actions
+    Type: SSLError
+
+EPA_NEI_Nonroad:
+    Active: True
+    Status: Max retries exceeded with url - Certificate verify failed
+    Type: SSLError
+
+EPA_NEI_Onroad:
+    Active: True
+    Status: Max retries exceeded with url - Certificate verify failed
+    Type: SSLError
+
+EPA_NEI_Nonpoint:
+    Active: True
+    Status: Max retries exceeded with url - Certificate verify failed
+    Type: SSLError
+
+EPA_SIT:
+    Active: True
+    Status: Private data
+    Type: FileNotFoundError
+
+EPA_WFR:
+    Active: True
+    Status: Report removed from EPA website
+    Type: HTTPError
+
+StateGHGI_ME:
+    Active: True
+    Status: Private data
+    Type: FileNotFoundError
+
+StateGHGI_VT:
+    Active: True
+    Status: Private data
+    Type: FileNotFoundError
+
+
+# Flow By Sectors
+CAP_HAP_national_2017_m2:
+    Active: True
+    Status: During action causes memory error; too long
+
+CAP_HAP_Nonroad_2014:
+    Active: True
+    Status: During action causes memory error; too long
+
+CAP_HAP_national_2014_m1:
+    Active: True
+    Status: Issue with CAP_HAP_Nonroad_2014 prevents method completion
+
+## CBEI models; StateGHGI year mismatch
+GHGc_state_ME_2020:
+    Active: True
+    Status: Year mismatch with GHGI
+
+GHGc_state_NY_2020:
+    Active: True
+    Status: Year mismatch with GHGI
+
+GHGc_state_VT_2020:
+    Active: True
+    Status: Year mismatch with GHGI
+
+GHG_state_supplemental_2020:
+    Active: True
+    Status: Year mismatch with GHGI
+
+GHG_state_SIT_2020:
+    Active: True
+    Status: Year mismatch with GHGI

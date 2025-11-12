@@ -1,0 +1,398 @@
+BEA_Detail_GrossOutput_IO:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2017_Detail_Code
+  sector_hierarchy: "flat"
+BEA_Detail_Make_AfterRedef:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2012_Detail_Code
+  sector_hierarchy: "flat"
+BEA_Detail_Make_BeforeRedef:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2012_Detail_Code
+  sector_hierarchy: "flat"
+BEA_Detail_Use_PRO_BeforeRedef:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2012_Detail_Code
+  sector_hierarchy: "flat"
+BEA_Summary_Make_BeforeRedef:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2012_Summary_Code
+  sector_hierarchy: "flat"
+BEA_Summary_Use_PRO_BeforeRedef:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2012_Summary_Code
+  sector_hierarchy: "flat"
+BEA_Detail_Use_SUT:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2017_Detail_Code
+  sector_hierarchy: "flat"
+BEA_Detail_Supply:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2017_Detail_Code
+  sector_hierarchy: "flat"
+BEA_Summary_Use_SUT:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2017_Summary_Code
+  sector_hierarchy: "flat"
+BEA_Summary_Supply:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2017_Summary_Code
+  sector_hierarchy: "flat"
+BEA_Marine_Bunker_Fuel:
+  data_format: FBA
+  class:
+    - Energy
+  activity_schema: None
+  sector_hierarchy: "flat"
+Blackhurst_IO:
+  data_format: FBA
+  class:
+    - Water
+  activity_schema: None
+  sector_hierarchy: "flat"
+BLM_PLS:
+  data_format: FBA
+  class:
+    - Land
+  activity_schema: None
+  sector_hierarchy: "flat"
+BLS_QCEW:
+  data_format: FBA
+  class:
+    - Employment
+    - Money
+    - Other
+  activity_schema: {2000: NAICS_2002_Code, # pulled from https://www.bls.gov/cew/classifications/industry/home.htm
+                    2001: NAICS_2002_Code,
+                    2002: NAICS_2002_Code,
+                    2003: NAICS_2002_Code,
+                    2004: NAICS_2002_Code,
+                    2005: NAICS_2002_Code,
+                    2006: NAICS_2002_Code,
+                    2007: NAICS_2007_Code,
+                    2008: NAICS_2007_Code,
+                    2009: NAICS_2007_Code,
+                    2010: NAICS_2007_Code,
+                    2011: NAICS_2012_Code,
+                    2012: NAICS_2012_Code,
+                    2013: NAICS_2012_Code,
+                    2014: NAICS_2012_Code,
+                    2015: NAICS_2012_Code,
+                    2016: NAICS_2012_Code,
+                    2017: NAICS_2017_Code,
+                    2018: NAICS_2017_Code,
+                    2019: NAICS_2017_Code,
+                    2020: NAICS_2017_Code,
+                    2021: NAICS_2017_Code,
+                    2022: NAICS_2022_Code,
+                    2023: NAICS_2022_Code,
+                    }
+  sector_hierarchy: "parent-completeChild"
+BTS_Airlines:
+  data_format: FBA
+  activity_schema: None
+BTS_TSA:
+  data_format: FBA
+  activity_schema: None
+CalRecycle_WasteCharacterization:
+  data_format: FBA
+  class:
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
+Census_ASM:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: {2018: NAICS_2017_Code}
+  sector_hierarchy: "parent-completeChild"
+Census_CBP:
+  data_format: FBA
+  class:
+    - Employment
+    - Money
+    - Other
+  activity_schema: NAICS_2012_Code
+  sector_hierarchy: "parent-completeChild"
+Census_PEP_Population:
+  data_format: FBA
+  class: Other
+  activity_schema: NAICS_2012_Code
+  sector_hierarchy: "flat"
+Census_QWI:
+  data_format: FBA
+  class:
+    - Employment
+  activity_schema: NAICS_2012_Code
+  sector_hierarchy: "parent-completeChild"
+Census_VIP:
+  data_format: FBA
+  class: Money
+  activity_schema: None
+  sector_hierarchy: "flat"
+EIA_AEO:
+  data_format: FBA
+  class:
+    - Energy
+  activity_schema: None
+  sector_hierarchy: "flat"
+EIA_CBECS_Land:
+  data_format: FBA
+  class: Land
+  activity_schema: None
+  sector_hierarchy: "flat"
+EIA_CBECS_Water:
+  data_format: FBA
+  class: Water
+  activity_schema: None
+  sector_hierarchy: "flat"
+EIA_MECS_Energy:
+  data_format: FBA
+  class:
+    - Energy
+    - Other
+    - Money
+  activity_schema: {2010: NAICS_2007_Code,
+                    2014: NAICS_2012_Code,
+                    2018: NAICS_2017_Code,
+                    }
+  sector_hierarchy: "parent-incompleteChild"
+EIA_MECS_Land:
+  data_format: FBA
+  class:
+  - Land
+  activity_schema: NAICS_2012_Code
+  sector_hierarchy: "parent-incompleteChild"
+EIA_MER:
+  data_format: FBA
+  class:
+  - Energy
+  activity_schema: None
+  sector_hierarchy: "flat"
+EIA_SEDS:
+  data_format: FBA
+  class:
+    - Energy
+    - Other
+  sector_hierarchy: "flat"
+EPA_CDDPath:
+  data_format: FBA
+  class:
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
+EPA_FactsAndFigures:
+  data_format: FBA
+  class:
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
+EPA_GHGI:
+  data_format: FBA
+  class:
+    - Chemicals
+    - Energy
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
+EPA_REI:
+  data_format: FBA
+  class:
+    - Employment
+    - Money
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
+EPA_StateGHGI:
+  data_format: FBA
+  class:
+    - Chemicals
+  activity_schema: None
+  sector_hierarchy: "flat"
+EPA_SIT:
+  data_format: FBA
+  class:
+    - Chemicals
+  activity_schema: None
+  sector_hierarchy: "flat"
+EPA_NEI_Nonpoint:
+  data_format: FBA
+  class:
+  - Chemicals
+  activity_schema: SCC
+  fedefl_mapping: NEI
+  sector_hierarchy: "flat"
+EPA_NEI_Nonroad:
+  data_format: FBA
+  class:
+  - Chemicals
+  activity_schema: SCC
+  sector_hierarchy: "flat"
+EPA_NEI_Onroad:
+  data_format: FBA
+  class:
+  - Chemicals
+  activity_schema: SCC
+  sector_hierarchy: "flat"
+EPA_WARMer:
+  data_format: FBA
+  class:
+    - Chemicals
+    - Energy
+    - Money
+    - Employment
+  activity_schema: None
+  sector_hierarchy: "flat"
+EPA_WFR:
+  data_format: FBA
+  class:
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
+NETL_EIA_PlantWater:
+  data_format: FBA
+  class:
+  - Water
+  - Energy
+  activity_schema: None
+  sector_hierarchy: "flat"
+NOAA_FisheriesLandings:
+  data_format: FBA
+  class:
+  - Money
+  activity_schema: None
+  sector_hierarchy:
+StatCan_GDP:
+  data_format: FBA
+  class:
+  - Money
+  activity_schema: NAICS_2012_Code
+  sector_hierarchy: "parent-completeChild"
+StatCan_IWS_MI:
+  data_format: FBA
+  class:
+  - Water
+  activity_schema: NAICS_2012_Code
+  sector_hierarchy: "flat"
+StatCan_LFS:
+  data_format: FBA
+  class:
+    - Employment
+  activity_schema: None
+  sector_hierarchy: "flat"
+StateGHGI:
+  data_format: FBA
+  class:
+    - Chemicals
+  activity_schema: None
+  sector_hierarchy: "flat"
+stateio:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2012_Summary_Code
+  sector_hierarchy: "flat"
+UNEP_IRP_GMFD:
+  data_format: FBA
+  class:
+    - Chemicals
+  activity_schema: None
+  sector_hierarchy: "flat"
+USDA_CoA_Cropland:
+  data_format: FBA
+  class:
+    - Land
+    - Other
+  activity_schema: None
+  sector_hierarchy: "parent-completeChild"
+USDA_CoA_Cropland_NAICS:
+  data_format: FBA
+  class:
+    - Land
+  activity_schema: NAICS_2012_Code
+  sector_hierarchy: "parent-completeChild"
+USDA_CoA_Livestock:
+  data_format: FBA
+  class:
+  - Other
+  activity_schema: None
+  sector_hierarchy: "parent-completeChild"
+USDA_ERS_FIWS:
+  data_format: FBA
+  class:
+  - Money
+  activity_schema: None
+  sector_hierarchy:
+USDA_ERS_MLU:
+  data_format: FBA
+  class:
+  - Land
+  activity_schema: None
+  sector_hierarchy: "flat"
+USDA_IWMS:
+  data_format: FBA
+  class:
+  - Water
+  activity_schema: None
+  sector_hierarchy: "flat"
+USGS_NWIS_WU:
+  data_format: FBA
+  class:
+  - Water
+  activity_schema: None
+  sector_hierarchy: "flat"
+USGS_WU_Coef:
+  data_format: FBA
+  class:
+  - Water
+  activity_schema: None
+  sector_hierarchy: "flat"
+write_FBA_California_Commercial_bySector:
+  class:
+  - Other
+  activity_schema: None
+  sector_hierarchy:
+USGS_MYB_Lead:
+  data_format: FBA
+  class:
+  - Geological
+  activity_schema: None
+  sector_hierarchy:
+USGS_MYB_ManufacturedAbrasive:
+  data_format: FBA
+  class:
+  - Geological
+  activity_schema: None
+  sector_hierarchy: ""
+USGS_MYB_SodaAsh:
+  data_format: FBA
+  class:
+  - Geological
+  activity_schema: None
+  sector_hierarchy:
+USGS_MYB_Copper:
+  data_format: FBA
+  class:
+    - Geological
+  activity_schema: None
+  sector_hierarchy:

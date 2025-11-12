@@ -1,0 +1,22 @@
+author: Statistics Canada
+source_name: Labour Force Survey
+source_url: https://www.statcan.gc.ca/eng/survey/household/3701
+bib_id: StatCan_LFS
+api_name: Stat Canada
+api_key_required: false
+format: csv  # comma delineated data
+url:
+  base_url: https://www150.statcan.gc.ca/n1/tbl/csv/14100023-eng.zip
+call_response_fxn: !script_function:StatCan_LFS sc_lfs_call
+parse_response_fxn: !script_function:StatCan_LFS sc_lfs_parse
+years:
+- 2010
+- 2011
+- 2012
+- 2013
+- 2014
+- 2015
+- 2016
+- 2016
+- 2018
+- 2019

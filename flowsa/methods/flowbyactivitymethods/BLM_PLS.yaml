@@ -1,0 +1,23 @@
+author: Bureau of Land Management
+source_name: Public Land Statistics
+source_url: https://www.blm.gov/about/data/public-land-statistics
+source_publication_date: {'2007': '2008', '2011': '2012', '2012': '2013'}
+bib_id: BLM_PLS
+api_name: BLM_PLS
+format: pfd
+url:
+  base_url: https://www.blm.gov/sites/blm.gov/files/
+  base_url_2015: https://blm-prod.opengov.ibmcloud.com/sites/blm.gov/files/documents/files/
+url_replace_fxn: !script_function:BLM_PLS blm_pls_URL_helper
+call_response_fxn: !script_function:BLM_PLS blm_pls_call
+parse_response_fxn: !script_function:BLM_PLS blm_pls_parse
+years:
+- 2007
+- 2011
+- 2012
+file_name:
+  '2007': pls07.pdf
+  '2010': pls10.pdf
+  '2011': pls2011.pdf
+  '2012': pls2012-web.pdf
+  '2015': Public%20Land%20Statistics2015%20%281%29.pdf

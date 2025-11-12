@@ -1,0 +1,23 @@
+author: US Environmental Protection Agency #U.S. EPA Office of Research and Development (ORD)?
+source_name_bib: Construction and Demolition Debris 2014 Final Disposition Estimates Using the CDDPath Method v2
+citable_url: https://doi.org/10.23719/1503167
+bib_id: EPA_CDDPath
+api_name: EPA_CDDPath
+api_key_required: false
+format: csv, excel
+url:
+  base_url: https://pasteur.epa.gov/uploads/10.23719/1503167/CDD_2014_US_Disposition_Estimates_Using_CDDPath_v2.xlsx
+file:
+  '2016': 'CDDPath_DataSet_07302020.xlsx'
+  '2017': 'CDDPath_DataSet_07302020.xlsx'
+  '2018': 'CDDPath_DataSet_07302020.xlsx'
+generation_by_source:
+  '2014': 'EPA_2016_Table5_CNHWCGenerationbySource_Extracted_UsingCNHWCPathNames.csv'
+  '2018': 
+      url: 'https://www.epa.gov/sites/default/files/2021-01/documents/2018_ff_fact_sheet_dec_2020_fnl_508.pdf'
+      pg: 21
+call_response_fxn: !script_function:EPA_CDDPath combine_cdd_path
+parse_response_fxn: !script_function:EPA_CDDPath epa_cddpath_parse
+years:
+- 2014
+- 2018

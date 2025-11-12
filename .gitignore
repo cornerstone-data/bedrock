@@ -25,6 +25,8 @@ __pycache__/
 *.png
 *.mat
 *.pkl
+!flowsa/data/**/*.csv
+!flowsa/methods/flowbysectoractivitysets/*.csv
 
 # Ignore JetBrains IDE project files
 .idea/
