@@ -25,25 +25,31 @@ def tsa_parse(*, df_list, source, year, config, **_):
 
     # Data on in-house production of transportation services for own use
     # comes from the Use table portion of the TSA
-    use = (df[df.table_name.str.match('Use')
-              & df.level_of_detail.str.match('Summary')]
-           .drop(columns=df.columns.difference(
-               list(config['parse']['rename_columns_use'].keys())
-           ))
-           .rename(columns=config['parse']['rename_columns_use'])
-           .assign(SourceName=f'{source}.use'))
+    use = (
+        df[df.table_name.str.match('Use') & df.level_of_detail.str.match('Summary')]
+        .drop(
+            columns=df.columns.difference(
+                list(config['parse']['rename_columns_use'].keys())
+            )
+        )
+        .rename(columns=config['parse']['rename_columns_use'])
+        .assign(SourceName=f'{source}.use')
+    )
     in_house = use[use.Description.str.startswith('In-house')]
 
     # Data on for-hire production of transportation services (which may
     # be done as an ancillary or secondary activity), comes from the Make
     # table portion of the TSA
-    make = (df[df.table_name.str.match('Make')
-               & df.level_of_detail.str.match('Summary')]
-            .drop(columns=df.columns.difference(
-               list(config['parse']['rename_columns_make'].keys())
-            ))
-            .rename(columns=config['parse']['rename_columns_make'])
-            .assign(SourceName=f'{source}.make'))
+    make = (
+        df[df.table_name.str.match('Make') & df.level_of_detail.str.match('Summary')]
+        .drop(
+            columns=df.columns.difference(
+                list(config['parse']['rename_columns_make'].keys())
+            )
+        )
+        .rename(columns=config['parse']['rename_columns_make'])
+        .assign(SourceName=f'{source}.make')
+    )
     for_hire = make[make.Description.str.startswith('For-hire')]
 
     df = pd.concat([in_house, for_hire])

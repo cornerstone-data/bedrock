@@ -121,17 +121,13 @@ def ni_call(*, resp, year, **_):
         generateflowbyactivity.py ('year' and 'source')
     :return: pandas dataframe of original source data
     """
-    df_legend = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                       sheet_name='Legend')
+    df_legend = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='Legend')
     if year == '2002':
-        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                        sheet_name='2002')
+        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='2002')
     elif year == '2007':
-        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                        sheet_name='2007')
+        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='2007')
     else:
-        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                        sheet_name='2012')
+        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='2012')
 
     for col_name in df_raw.columns:
         for i in range(len(df_legend)):
@@ -142,12 +138,11 @@ def ni_call(*, resp, year, **_):
 
             if col_name == df_legend.loc[i, "HUC8_1"]:
                 df_raw = df_raw.rename(
-                    columns={col_name: df_legend.loc[i, "HUC8 CODE"]})
+                    columns={col_name: df_legend.loc[i, "HUC8 CODE"]}
+                )
 
     # use "melt" fxn to convert colummns into rows
-    df = df_raw.melt(id_vars=["HUC8_1"],
-                     var_name="name",
-                     value_name="FlowAmount")
+    df = df_raw.melt(id_vars=["HUC8_1"], var_name="name", value_name="FlowAmount")
     df = df.rename(columns={"HUC8_1": "Location"})
     df_legend = df_legend.rename(columns={"HUC8 CODE": "name"})
     df_legend = name_and_unit_split(df_legend)

@@ -1,9 +1,8 @@
 import os
-import subprocess
 from pathlib import Path
+
 from esupy.processed_data_mgmt import Paths, mkdir_if_missing
 from esupy.util import get_git_hash, return_pkg_version
-
 
 MODULEPATH = Path(__file__).resolve().parent
 
@@ -46,9 +45,10 @@ scriptsFBApath = scriptpath / 'FlowByActivity_Datasets'
 
 
 # https://stackoverflow.com/a/41125461
-def memory_limit(percentage=.93):
+def memory_limit(percentage=0.93):
     # Placed here becuase older versions of Python do not have this
     import resource
+
     # noinspection PyBroadException
     try:
         max_memory = get_memory()
@@ -57,7 +57,9 @@ def memory_limit(percentage=.93):
         print("Could not determine max memory")
     else:
         soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-        resource.setrlimit(resource.RLIMIT_AS, (int(max_memory * 1024 * percentage), hard))
+        resource.setrlimit(
+            resource.RLIMIT_AS, (int(max_memory * 1024 * percentage), hard)
+        )
 
 
 def get_memory():
