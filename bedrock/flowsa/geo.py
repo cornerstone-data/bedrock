@@ -13,6 +13,7 @@ class scale(enum.Enum):
     be compared using <, >, max(), min(), etc. Note that "larger" implies
     more aggregated.
     '''
+
     NATIONAL = 5, True
     CENSUS_REGION = 4, False
     CENSUS_DIVISION = 3, False
@@ -37,8 +38,9 @@ class scale(enum.Enum):
     @classmethod
     def from_string(
         cls,
-        geoscale: Literal['national', 'census_region', 'census_division',
-                          'state', 'county']
+        geoscale: Literal[
+            'national', 'census_region', 'census_division', 'state', 'county'
+        ],
     ) -> 'scale':
         '''
         Return the appropriate geo.scale constant given a (non-case-sensitive)
@@ -70,27 +72,32 @@ def get_all_fips(year: Literal[2010, 2013, 2015] = 2015) -> pd.DataFrame:
         'State' is NaN for national level FIPS ('00000'), and 'County'
         is Nan for national and each state level FIPS.
     '''
-    return (pd
-            .read_csv(settings.datapath / 'FIPS_Crosswalk.csv',
-                      header=0, dtype=object)
-            [['State', f'FIPS_{year}', f'County_{year}', 'FIPS_Scale']]
-            .rename(columns={f'FIPS_{year}': 'FIPS',
-                             f'County_{year}': 'County'})
-            .sort_values('FIPS')
-            .reset_index(drop=True))
+    return (
+        pd.read_csv(settings.datapath / 'FIPS_Crosswalk.csv', header=0, dtype=object)[
+            ['State', f'FIPS_{year}', f'County_{year}', 'FIPS_Scale']
+        ]
+        .rename(columns={f'FIPS_{year}': 'FIPS', f'County_{year}': 'County'})
+        .sort_values('FIPS')
+        .reset_index(drop=True)
+    )
 
 
 def filtered_fips(
-        geoscale: Literal['national', 'state', 'county',
-                          scale.NATIONAL, scale.STATE, scale.COUNTY],
-        year: Literal[2010, 2013, 2015] = 2015
-    ) -> pd.DataFrame:
+    geoscale: Literal[
+        'national', 'state', 'county', scale.NATIONAL, scale.STATE, scale.COUNTY
+    ],
+    year: Literal[2010, 2013, 2015] = 2015,
+) -> pd.DataFrame:
     if geoscale == 'national' or geoscale == scale.NATIONAL:
-        return (get_all_fips(year).query('State.isnull()').drop(columns='FIPS_Scale'))
+        return get_all_fips(year).query('State.isnull()').drop(columns='FIPS_Scale')
     elif geoscale == 'state' or geoscale == scale.STATE:
-        return (get_all_fips(year).query('State.notnull() & County.isnull()').drop(columns='FIPS_Scale'))
+        return (
+            get_all_fips(year)
+            .query('State.notnull() & County.isnull()')
+            .drop(columns='FIPS_Scale')
+        )
     elif geoscale == 'county' or geoscale == scale.COUNTY:
-        return (get_all_fips(year).query('County.notnull()').drop(columns='FIPS_Scale'))
+        return get_all_fips(year).query('County.notnull()').drop(columns='FIPS_Scale')
     else:
         log.error('No FIPS list exists for the given geoscale: %s', geoscale)
         raise ValueError(geoscale)

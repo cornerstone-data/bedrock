@@ -96,39 +96,47 @@ def pi_call(*, resp, year, **_):
     :param year: year
     :return: pandas dataframe of original source data
     """
-    df_legend = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                       sheet_name='Legend')
+    df_legend = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='Legend')
     df_legend = pd.DataFrame(df_legend.loc[0:18]).reindex()
     df_legend.columns = ["HUC_8", "HUC8 CODE"]
     if year == '2002':
-        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                        sheet_name='2002')
+        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='2002')
         df_raw = df_raw.rename(
-            columns={'P_deposition': '2P_deposition',
-                     'livestock_Waste_2007': 'livestock_Waste',
-                     'livestock_demand_2007': 'livestock_demand',
-                     'livestock_production_2007': 'livestock_production',
-                     '02P_Hi_P': 'P_Hi_P', 'Surplus_2002': 'surplus'})
+            columns={
+                'P_deposition': '2P_deposition',
+                'livestock_Waste_2007': 'livestock_Waste',
+                'livestock_demand_2007': 'livestock_demand',
+                'livestock_production_2007': 'livestock_production',
+                '02P_Hi_P': 'P_Hi_P',
+                'Surplus_2002': 'surplus',
+            }
+        )
     elif year == '2007':
-        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                        sheet_name='2007')
+        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='2007')
         df_raw = df_raw.rename(
-            columns={'P_deposition': '2P_deposition',
-                     'Crop_removal_2007': 'Crop_removal',
-                     'livestock_Waste_2007': 'livestock_Waste',
-                     'livestock_demand_2007': 'livestock_demand',
-                     'livestock_production_2007': 'livestock_production',
-                     '02P_Hi_P': 'P_Hi_P', 'Surplus_2007': 'surplus'})
+            columns={
+                'P_deposition': '2P_deposition',
+                'Crop_removal_2007': 'Crop_removal',
+                'livestock_Waste_2007': 'livestock_Waste',
+                'livestock_demand_2007': 'livestock_demand',
+                'livestock_production_2007': 'livestock_production',
+                '02P_Hi_P': 'P_Hi_P',
+                'Surplus_2007': 'surplus',
+            }
+        )
     else:
-        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content),
-                                        sheet_name='2012')
+        df_raw = pd.io.excel.read_excel(io.BytesIO(resp.content), sheet_name='2012')
         df_raw = df_raw.rename(
-            columns={'P_deposition': '2P_deposition',
-                     'Crop_removal_2012': 'Crop_removal',
-                     'livestock_Waste_2012': 'livestock_Waste',
-                     'livestock_demand_2012': 'livestock_demand',
-                     'livestock_production_2012': 'livestock_production',
-                     '02P_Hi_P': 'P_Hi_P', 'Surplus_2012': 'surplus'})
+            columns={
+                'P_deposition': '2P_deposition',
+                'Crop_removal_2012': 'Crop_removal',
+                'livestock_Waste_2012': 'livestock_Waste',
+                'livestock_demand_2012': 'livestock_demand',
+                'livestock_production_2012': 'livestock_production',
+                '02P_Hi_P': 'P_Hi_P',
+                'Surplus_2012': 'surplus',
+            }
+        )
 
     for col_name in df_raw.columns:
         for i in range(len(df_legend)):
@@ -139,14 +147,13 @@ def pi_call(*, resp, year, **_):
 
             if col_name == df_legend.loc[i, "HUC_8"]:
                 df_raw = df_raw.rename(
-                    columns={col_name: df_legend.loc[i, "HUC8 CODE"]})
+                    columns={col_name: df_legend.loc[i, "HUC8 CODE"]}
+                )
     df_des = df_raw.filter(['HUC8 CODE', 'State Name'])
     df_raw = df_raw.drop(columns=['State Name', 'State FP Code'])
 
     # use "melt" fxn to convert colummns into rows
-    df = df_raw.melt(id_vars=["HUC8 CODE"],
-                     var_name="name",
-                     value_name="FlowAmount")
+    df = df_raw.melt(id_vars=["HUC8 CODE"], var_name="name", value_name="FlowAmount")
 
     df_legend = df_legend.rename(columns={"HUC8 CODE": "name"})
     df_legend = name_and_unit_split(df_legend)
@@ -154,8 +161,7 @@ def pi_call(*, resp, year, **_):
     df = pd.merge(df, df_legend, on="name")
     df = df.drop(columns=["HUC_8", "name"])
     df = df.merge(df_des, left_on='HUC8 CODE', right_on='HUC8 CODE')
-    df = df.rename(columns={"HUC8 CODE": "Location",
-                            "State Name": "Description"})
+    df = df.rename(columns={"HUC8 CODE": "Location", "State Name": "Description"})
     return df
 
 

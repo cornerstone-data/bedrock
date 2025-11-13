@@ -9,35 +9,54 @@ try:
 except ModuleNotFoundError:
     print('Install colorama for colored log output')
     console_formatter = logging.Formatter(
-        '%(asctime)s %(levelname)-8s %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
+        '%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
+    )
 else:
     init()
 
     class ColoredFormatter(logging.Formatter):
         FORMATS = {
-            logging.DEBUG: logging.Formatter('%(asctime)s ' + Fore.CYAN
-                                             + '%(levelname)-8s' + Fore.RESET
-                                             + ' %(message)s',
-                                             datefmt='%Y-%m-%d %H:%M:%S'),
-            logging.INFO: logging.Formatter('%(asctime)s ' + Fore.GREEN
-                                            + '%(levelname)-8s' + Fore.RESET
-                                            + ' %(message)s',
-                                            datefmt='%Y-%m-%d %H:%M:%S'),
-            logging.WARNING: logging.Formatter('%(asctime)s ' + Fore.YELLOW
-                                               + '%(levelname)-8s' + Fore.RESET
-                                               + ' %(message)s',
-                                               datefmt='%Y-%m-%d %H:%M:%S'),
-            logging.ERROR: logging.Formatter('%(asctime)s ' + Fore.RED
-                                             + '%(levelname)-8s' + Fore.RESET
-                                             + ' %(message)s',
-                                             datefmt='%Y-%m-%d %H:%M:%S'),
-            logging.CRITICAL: logging.Formatter('%(asctime)s ' + Fore.RED
-                                                + Style.BRIGHT
-                                                + '%(levelname)-8s'
-                                                + Style.RESET_ALL
-                                                + ' %(message)s',
-                                                datefmt='%Y-%m-%d %H:%M:%S')
+            logging.DEBUG: logging.Formatter(
+                '%(asctime)s '
+                + Fore.CYAN
+                + '%(levelname)-8s'
+                + Fore.RESET
+                + ' %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+            ),
+            logging.INFO: logging.Formatter(
+                '%(asctime)s '
+                + Fore.GREEN
+                + '%(levelname)-8s'
+                + Fore.RESET
+                + ' %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+            ),
+            logging.WARNING: logging.Formatter(
+                '%(asctime)s '
+                + Fore.YELLOW
+                + '%(levelname)-8s'
+                + Fore.RESET
+                + ' %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+            ),
+            logging.ERROR: logging.Formatter(
+                '%(asctime)s '
+                + Fore.RED
+                + '%(levelname)-8s'
+                + Fore.RESET
+                + ' %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+            ),
+            logging.CRITICAL: logging.Formatter(
+                '%(asctime)s '
+                + Fore.RED
+                + Style.BRIGHT
+                + '%(levelname)-8s'
+                + Style.RESET_ALL
+                + ' %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+            ),
         }
 
         def format(self, record):
@@ -45,16 +64,17 @@ else:
 
     console_formatter = ColoredFormatter()
 
-file_formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s',
-                                   datefmt='%Y-%m-%d %H:%M:%S')
+file_formatter = logging.Formatter(
+    '%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 
 def get_log_file_handler(name, level=logging.DEBUG):
-    h = logging.FileHandler(
-        logoutputpath / name,
-        mode='w', encoding='utf-8')
+    h = logging.FileHandler(logoutputpath / name, mode='w', encoding='utf-8')
     h.setLevel(level)
     h.setFormatter(file_formatter)
     return h
+
 
 log_file_handler = get_log_file_handler('flowsa.log', logging.INFO)
 validation_file_handler = get_log_file_handler('flowsa_validation.log')
@@ -83,10 +103,12 @@ def reset_log_file(filename, fb_meta):
     # original log file name - all log statements
     log_file = logoutputpath / "flowsa.log"
     # generate new log name
-    new_log_name = (logoutputpath / f'{filename}_v'
-                    f'{fb_meta.tool_version}'
-                    f'{"_" + fb_meta.git_hash if fb_meta.git_hash else ""}'
-                    f'.log')
+    new_log_name = (
+        logoutputpath / f'{filename}_v'
+        f'{fb_meta.tool_version}'
+        f'{"_" + fb_meta.git_hash if fb_meta.git_hash else ""}'
+        f'.log'
+    )
     # create log directory if missing
     mkdir_if_missing(logoutputpath)
     # rename the standard log file name (os.rename throws error if file
@@ -105,10 +127,12 @@ def reset_log_file(filename, fb_meta):
     # original log file name - validation
     log_file = logoutputpath / "flowsa_validation.log"
     # generate new log name
-    new_log_name = (logoutputpath / f'{filename}_v'
-                    f'{fb_meta.tool_version}'
-                    f'{"_" + fb_meta.git_hash if fb_meta.git_hash else ""}'
-                    f'_validation.log')
+    new_log_name = (
+        logoutputpath / f'{filename}_v'
+        f'{fb_meta.tool_version}'
+        f'{"_" + fb_meta.git_hash if fb_meta.git_hash else ""}'
+        f'_validation.log'
+    )
     # rename the standard log file name (os.rename throws error if file
     # already exists)
     shutil.copy(log_file, new_log_name)
