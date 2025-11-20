@@ -96,9 +96,7 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
     return df
 
 
-def get_most_recent_from_bucket(
-    sub_bucket: str, name: str, extension: str
-) -> list[str]:
+def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     """
     Sorts the bucket by most recent date for the required extension
     and returns the matching files of that name that share the same version
@@ -109,25 +107,28 @@ def get_most_recent_from_bucket(
     sub_bucket : str
         folder path to limit
     name : str
-        target file name without version or hash
-    extension : str
-        extension of file, e.g., ".parquet"
+        target file name with extension but without version or hash
 
     Returns
     ----------
     list
         Most recently created datafiles, metadata, log files
+    Examples
+    ----------
+    >>> len(get_most_recent_from_bucket("BEA_Detail_GrossOutput_IO_2021.parquet",
+                                        "flowsa/FlowByActivity"))
+    2
     """
     # sub_bucket='flowsa/FlowByActivity'
-    # name='BEA_Detail_GrossOutput_IO_2021'
-    # extension='.parquet'
+    # name='BEA_Detail_GrossOutput_IO_2021.parquet'
+    n, extension = os.path.splitext(name)
     df = list_bucket_files(sub_bucket)
     if df is None:
         return []
 
     # subset using "file_name" instead of "name" to work when a user
     # includes a GitHub version and hash
-    df = df[df['base_name'] == name]
+    df = df[df['base_name'] == n]
     df_ext = df[df['extension'] == extension]
     if len(df_ext) == 0:
         return []

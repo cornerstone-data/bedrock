@@ -17,30 +17,38 @@ from google.cloud.storage.blob import Blob
 
 logger = logging.getLogger(__name__)
 
-GCS_CEDA_USA_DIR = "gs://cornerstone-default/ceda-usa"
+GCS_CEDA = "gs://cornerstone-default"
+GCS_CEDA_USA_DIR = posixpath.join(GCS_CEDA, "ceda-usa")
 GCS_CEDA_INPUT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "input")
 GCS_CEDA_V5_INPUT_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "v5")
 
 
-def download_gcs_file_if_not_exists(gs_url: str, pth: str) -> None:
+def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> None:
     os.makedirs(os.path.dirname(pth), exist_ok=True)
     if os.path.exists(pth):
         return
-    download_gcs_file(gs_url, pth)
+    [
+        download_gcs_file(n, sub_bucket, pth)
+        for n in get_most_recent_from_bucket(name, sub_bucket)
+    ]
 
 
 def load_from_gcs(
-    gs_url: str,
+    name: str,
+    sub_bucket: str,
     local_dir: str,
     loader: ta.Callable[[str], pd.DataFrame],
     overwrite: bool = False,
 ) -> pd.DataFrame:
     """simple loader that downloads with the same name as the gcs file"""
-    pth = os.path.join(local_dir, gs_url.split("/")[-1])
+    pth = os.path.join(local_dir, name)
     if overwrite:
-        download_gcs_file(gs_url, pth)
+        [
+            download_gcs_file(n, sub_bucket, pth)
+            for n in get_most_recent_from_bucket(name, sub_bucket)
+        ]
     else:
-        download_gcs_file_if_not_exists(gs_url, pth)
+        download_gcs_file_if_not_exists(name, sub_bucket, pth)
     return loader(pth)
 
 
@@ -52,8 +60,11 @@ def load_from_gcs(
     # unclear why, but perhaps retries will help
     retry=tenacity.retry_if_exception_type(ssl.SSLEOFError),
 )
-def download_gcs_file(gs_url: str, pth: str) -> None:
+def download_gcs_file(name: str, sub_bucket: str, pth: str) -> None:
     client = __storage_client()
+
+    gs_url = posixpath.join(GCS_CEDA, sub_bucket, name)
+
     logger.debug(f"Downloading `{gs_url}` to `{pth}`.")
 
     tmp_pth = f"{pth}.{uuid.uuid4().hex}.tmp"
