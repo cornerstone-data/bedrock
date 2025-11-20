@@ -18,7 +18,7 @@ from google.cloud.storage.blob import Blob
 
 logger = logging.getLogger(__name__)
 
-GCS_CEDA = "gs://cornerstone-default"
+GCS_CORNERSTONE = "gs://cornerstone-default"
 
 
 def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> None:
@@ -60,7 +60,7 @@ def load_from_gcs(
 )
 def download_gcs_file(name: str, sub_bucket: str, pth: str) -> None:
     client = __storage_client()
-    gs_url = posixpath.join(GCS_CEDA, sub_bucket, name)
+    gs_url = posixpath.join(GCS_CORNERSTONE, sub_bucket, name)
 
     logger.debug(f"Downloading `{gs_url}` to `{pth}`.")
 
