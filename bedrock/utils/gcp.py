@@ -94,3 +94,51 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
         )
     )
     return df
+
+
+def get_most_recent_from_bucket(sub_bucket, name, extension):
+    """
+    Sorts the bucket by most recent date for the required extension
+    and returns the matching files of that name that share the same version
+    and hash
+
+    Parameters
+    ----------
+    sub_bucket : str
+        folder path to limit
+    name : str
+        target file name without version or hash
+    extension : str
+        extension of file, e.g., ".parquet"
+
+    Returns
+    ----------
+    list
+        Most recently created datafiles, metadata, log files
+    """
+    # sub_bucket='flowsa/FlowByActivity'
+    # name='BEA_Detail_GrossOutput_IO_2021'
+    # extension='.parquet'
+    df = list_bucket_files(sub_bucket)
+    if df is None:
+        return None
+
+    # subset using "file_name" instead of "name" to work when a user
+    # includes a GitHub version and hash
+    df = df[df['base_name'] == name]
+    df_ext = df[df['extension'] == extension]
+    if len(df_ext) == 0:
+        return None
+    else:
+        df_ext = (df_ext.sort_values(by=["version", "created"], ascending=False)
+                  .reset_index(drop=True))
+        # select first file name in list, extract the file version and git
+        # hash, return list of files that include version/hash (to include
+        # metadata and log files)
+        recent_file = df_ext['filename'][0]
+        vh = str(df_ext.iloc[0]['version']) + '_' + str(df_ext.iloc[0]['hash'])
+        if vh != '':
+            selected_files = [string for string in df['filename'] if vh in string]
+        else:
+            selected_files = [recent_file]
+        return selected_files
