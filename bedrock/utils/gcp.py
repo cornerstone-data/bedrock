@@ -96,7 +96,9 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
     return df
 
 
-def get_most_recent_from_bucket(sub_bucket, name, extension):
+def get_most_recent_from_bucket(
+    sub_bucket: str, name: str, extension: str
+) -> list[str]:
     """
     Sorts the bucket by most recent date for the required extension
     and returns the matching files of that name that share the same version
@@ -121,17 +123,18 @@ def get_most_recent_from_bucket(sub_bucket, name, extension):
     # extension='.parquet'
     df = list_bucket_files(sub_bucket)
     if df is None:
-        return None
+        return []
 
     # subset using "file_name" instead of "name" to work when a user
     # includes a GitHub version and hash
     df = df[df['base_name'] == name]
     df_ext = df[df['extension'] == extension]
     if len(df_ext) == 0:
-        return None
+        return []
     else:
-        df_ext = (df_ext.sort_values(by=["version", "created"], ascending=False)
-                  .reset_index(drop=True))
+        df_ext = df_ext.sort_values(
+            by=["version", "created"], ascending=False
+        ).reset_index(drop=True)
         # select first file name in list, extract the file version and git
         # hash, return list of files that include version/hash (to include
         # metadata and log files)
