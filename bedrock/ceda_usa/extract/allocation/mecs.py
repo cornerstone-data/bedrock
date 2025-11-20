@@ -3,7 +3,8 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR, load_from_gcs
+from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
+from bedrock.utils.gcp import load_from_gcs
 
 GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_MECS_2018")
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
@@ -15,7 +16,8 @@ def load_mecs_2_1() -> pd.DataFrame:
     """
 
     tbl_2_1 = load_from_gcs(
-        posixpath.join(GCS_MECS_DIR, "Table2_1.xlsx"),
+        name="Table2_1.xlsx",
+        sub_bucket=GCS_MECS_DIR,
         local_dir=IN_DIR,
         loader=lambda pth: pd.read_excel(
             pth,
@@ -56,7 +58,8 @@ def load_mecs_3_1() -> pd.DataFrame:
     fuel consumption by industry in energy unit such as Btu, kWh, etc.
     """
     tbl_3_1 = load_from_gcs(
-        posixpath.join(GCS_MECS_DIR, "Table3_1.xlsx"),
+        name="Table3_1.xlsx",
+        sub_bucket=GCS_MECS_DIR,
         local_dir=IN_DIR,
         loader=lambda pth: pd.read_excel(
             pth,

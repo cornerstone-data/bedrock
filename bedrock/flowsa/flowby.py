@@ -281,15 +281,14 @@ class _FlowBy(pd.DataFrame):
                 f'{file_metadata.category}'
             )
             if attempt == 'download':
-                gs_url = posixpath.join(
-                    settings.GCS_FLOWSA_DIR,
-                    file_metadata.category,
-                    f'{file_metadata.name_data}.{file_metadata.ext}',
-                )
                 download_gcs_file_if_not_exists(
-                    gs_url=gs_url,
+                    name=f'{file_metadata.name_data}.{file_metadata.ext}',
+                    sub_bucket=posixpath.join(
+                        settings.GCS_FLOWSA_DIR,
+                        file_metadata.category
+                        ),
                     pth=os.path.join(
-                        paths.local_path, file_metadata.category, gs_url.split("/")[-1]
+                        paths.local_path, file_metadata.category, f'{file_metadata.name_data}.{file_metadata.ext}'
                     ),
                 )
                 # esupy.processed_data_mgmt.download_from_remote(

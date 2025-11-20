@@ -3,8 +3,9 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_USA_DIR, download_gcs_file_if_not_exists
+from bedrock.ceda_usa.utils.gcp import GCS_CEDA_USA_DIR
 from bedrock.ceda_usa.utils.snapshots.names import SnapshotName
+from bedrock.utils.gcp import download_gcs_file_if_not_exists
 
 SNAPSHOT_BASE = os.path.dirname(__file__)
 GCS_SNAPSHOT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "snapshots")
@@ -21,8 +22,9 @@ def load_snapshot(name: SnapshotName, key: str) -> pd.DataFrame:
 
 def download_snapshot(name: SnapshotName, key: str) -> None:
     local_pth = os.path.join(snapshot_local_dir(key=key), f"{name}.parquet")
-    gs_url = posixpath.join(snapshot_gcs_dir(key=key), f"{name}.parquet")
-    download_gcs_file_if_not_exists(gs_url, local_pth)
+    download_gcs_file_if_not_exists(
+        f"{name}.parquet", snapshot_gcs_dir(key=key), local_pth
+    )
 
 
 def current_snapshot_key() -> str:

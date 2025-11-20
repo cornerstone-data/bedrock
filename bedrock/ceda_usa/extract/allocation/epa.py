@@ -14,8 +14,9 @@ from bedrock.ceda_usa.extract.allocation.epa_constants import (
     TBL_NUMBERS,
 )
 from bedrock.ceda_usa.transform.allocation.utils import parse_index_with_aggregates
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR, load_from_gcs
+from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 from bedrock.ceda_usa.utils.gwp import derive_ar5_to_ar6_multiplier
+from bedrock.utils.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
@@ -105,7 +106,8 @@ def _load_epa_tbl_from_gcs(
 ) -> pd.DataFrame:
     table_dir = _get_gcs_epa_dir_for_table(tbl_name)
     return load_from_gcs(
-        table_dir,
+        name=os.path.splitext(table_dir)[-1],
+        sub_bucket=os.path.split(table_dir)[0],
         local_dir=IN_DIR,
         loader=loader or pd.read_csv,
     )

@@ -12,8 +12,9 @@ from bedrock.ceda_usa.transform.eeio.derived_2017 import (
     derive_2017_V_usa,
     derive_2017_Y_personal_consumption_expenditure_usa,
 )
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR, load_from_gcs
+from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.gcp import load_from_gcs
 
 GCS_BEA_PCE_DIR = posixpath.join(
     GCS_CEDA_INPUT_DIR, "BEA_PersonalConsumptionExpenditure"
@@ -59,10 +60,8 @@ def load_bea_personal_consumption_expenditure() -> pd.Series[float]:
     https://apps.bea.gov/iTable/?reqid=19&step=2&isuri=1&categories=survey&_gl=1*1mu0824*_ga*MTkyNDEyMDE5LjE3MTA0NjE1MjE.*_ga_J4698JNNFT*MTcxMDQ2MTUyMC4xLjEuMTcxMDQ2MjIyNS4xNC4wLjA.#eyJhcHBpZCI6MTksInN0ZXBzIjpbMSwyLDMsM10sImRhdGEiOltbImNhdGVnb3JpZXMiLCJTdXJ2ZXkiXSxbIk5JUEFfVGFibGVfTGlzdCIsIjY1Il0sWyJGaXJzdF9ZZWFyIiwiMjAxMiJdLFsiTGFzdF9ZZWFyIiwiMjAyMyJdLFsiU2NhbGUiLCItNiJdLFsiU2VyaWVzIiwiQSJdXX0=
     """
     tbl = load_from_gcs(
-        posixpath.join(
-            GCS_BEA_PCE_DIR,
-            "BEA Personal Consumption Expenditures by Major Type of Product_June27_2024.csv",
-        ),
+        name="BEA Personal Consumption Expenditures by Major Type of Product_June27_2024.csv",
+        sub_bucket=GCS_BEA_PCE_DIR,
         local_dir=IN_DIR,
         loader=lambda pth: pd.read_csv(
             pth,
