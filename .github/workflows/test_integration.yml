@@ -66,37 +66,3 @@ jobs:
                 }
               ]
             }
-
-  notify_slack_success:
-    needs: [test_ceda_usa]
-    runs-on: ubuntu-latest
-    if: always() && (needs.test_ceda_usa.result == 'success')
-
-    steps:
-      - name: Notify on Slack - success
-        uses: slackapi/slack-github-action@v1.24.0
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
-        with:
-          channel-id: C09S03U9CH4 # #alerts-bedrock
-          payload: |
-            {
-              "text": "CEDA USA Test Success",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                      "type": "mrkdwn",
-                      "text": ":white_check_mark: integration tests have passed on `${{ github.ref_name }}` :white_check_mark:. Please check the logs."
-                  },
-                  "accessory": {
-                    "type": "button",
-                    "text": {
-                      "type": "plain_text",
-                      "text": "View logs"
-                    },
-                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
-                  }
-                }
-              ]
-            }
