@@ -15,7 +15,10 @@ import esupy.processed_data_mgmt
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.gcp import (
+    download_gcs_file,
+    get_most_recent_from_bucket,
+)
 from bedrock.flowsa import flowsa_yaml, geo, literature_values, naics, schema, settings
 from bedrock.flowsa.common import get_catalog_info
 from bedrock.flowsa.flowsa_log import log, vlog
@@ -281,16 +284,18 @@ class _FlowBy(pd.DataFrame):
                 f'{file_metadata.category}'
             )
             if attempt == 'download':
-                download_gcs_file_if_not_exists(
-                    name=f'{file_metadata.name_data}.{file_metadata.ext}',
-                    sub_bucket=posixpath.join(
-                        settings.GCS_FLOWSA_DIR,
-                        file_metadata.category
-                        ),
-                    pth=os.path.join(
-                        paths.local_path, file_metadata.category, f'{file_metadata.name_data}.{file_metadata.ext}'
-                    ),
+                name = f'{file_metadata.name_data}.{file_metadata.ext}'
+                sub_bucket = posixpath.join(
+                    settings.GCS_FLOWSA_DIR, file_metadata.category
                 )
+                [
+                    download_gcs_file(
+                        name=n,
+                        sub_bucket=sub_bucket,
+                        pth=os.path.join(paths.local_path, file_metadata.category, n),
+                    )
+                    for n in get_most_recent_from_bucket(name, sub_bucket)
+                ]
                 # esupy.processed_data_mgmt.download_from_remote(
                 #     file_metadata,
                 #     paths
