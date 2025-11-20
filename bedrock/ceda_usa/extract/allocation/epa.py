@@ -106,7 +106,7 @@ def _load_epa_tbl_from_gcs(
 ) -> pd.DataFrame:
     table_dir = _get_gcs_epa_dir_for_table(tbl_name)
     return load_from_gcs(
-        name=os.path.splitext(table_dir)[-1],
+        name=os.path.split(table_dir)[-1],
         sub_bucket=os.path.split(table_dir)[0],
         local_dir=IN_DIR,
         loader=loader or pd.read_csv,
