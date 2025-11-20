@@ -64,6 +64,7 @@ def download_gcs_file(name: str, sub_bucket: str, pth: str) -> None:
 
     logger.debug(f"Downloading `{gs_url}` to `{pth}`.")
 
+    os.makedirs(os.path.dirname(pth), exist_ok=True)
     tmp_pth = f"{pth}.{uuid.uuid4().hex}.tmp"
     blob = Blob.from_string(gs_url, client=client)
     blob.download_to_filename(tmp_pth)
