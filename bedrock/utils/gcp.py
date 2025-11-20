@@ -241,8 +241,11 @@ def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
         # select first file name in list, extract the file version and git
         # hash, return list of files that include version/hash (to include
         # metadata and log files)
-        recent_file = df_ext['filename'][0]
-        vh = str(df_ext.iloc[0]['version']) + '_' + str(df_ext.iloc[0]['hash'])
+        first = df_ext.iloc[0]
+        recent_file = first['filename']
+        vh = "_".join(
+            [val for val in [first['version'], first['hash']] if pd.notna(val)]
+        )
         if vh != '':
             selected_files = [string for string in df['filename'] if vh in string]
         else:
