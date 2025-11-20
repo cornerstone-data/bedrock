@@ -23,6 +23,8 @@ load_table_a17 = functools.cache(_load_table_a17)
 def allocate_transportation_fuel_usage(
     fuel: TRANSPORTATION_FUEL_TYPES,
 ) -> pd.Series[float]:
+    # NOTE: This only ingests "Aviation Gasoline" row (1.5 MMT) from Table A-5 (2023)
+    # and ignores the "Jet Fuel" row (178.9 MMT), which is likely an under-estimation.
     total_fuel_for_transport = load_table_a17().loc[fuel.value, "Trans"]
     fuel_percent_breakout = derive_fuel_percent_breakout()
 
