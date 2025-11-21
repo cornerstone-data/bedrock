@@ -6,7 +6,7 @@ from esupy.util import get_git_hash, return_pkg_version
 
 MODULEPATH = Path(__file__).resolve().parent
 
-GCS_FLOWSA_DIR = "gs://cornerstone-default/flowsa"
+GCS_FLOWSA_DIR = "flowsa"
 
 datapath = MODULEPATH / 'data'
 crosswalkpath = datapath / 'activitytosectormapping'

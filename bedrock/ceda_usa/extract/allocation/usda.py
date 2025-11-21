@@ -10,8 +10,9 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR, load_from_gcs
+from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
+from bedrock.utils.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
@@ -68,9 +69,8 @@ def _load_crop_land_area_harvested_2022() -> pd.Series[float]:
     """
     df = (
         load_from_gcs(
-            gs_url=posixpath.join(
-                GCS_CEDA_INPUT_DIR, "USDA", "USDA_Census_crop_2022.csv"
-            ),
+            name="USDA_Census_crop_2022.csv",
+            sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_csv(pth),
         )
@@ -108,9 +108,8 @@ def _load_fruits_treenuts_area_bearing_2022() -> pd.Series[float]:
     """
     df = (
         load_from_gcs(
-            gs_url=posixpath.join(
-                GCS_CEDA_INPUT_DIR, "USDA", "USDA_Census_fruits_treenuts_2022.csv"
-            ),
+            name="USDA_Census_fruits_treenuts_2022.csv",
+            sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_csv(pth),
         )
@@ -150,9 +149,8 @@ def _load_vegetables_melons_area_harvested_2022() -> pd.Series[float]:
     or via this permanent link: https://quickstats.nass.usda.gov/results/F46D2118-A8D1-3739-B352-C9635EDCEC90
     """
     df = load_from_gcs(
-        gs_url=posixpath.join(
-            GCS_CEDA_INPUT_DIR, "USDA", "USDA_Census_vegetables_2022.csv"
-        ),
+        name="USDA_Census_vegetables_2022.csv",
+        sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
         local_dir=IN_DIR,
         loader=lambda pth: pd.read_csv(pth),
     ).loc[:, ["Data Item", "Value"]]
@@ -185,9 +183,8 @@ def _load_livestock_area_operated_2022() -> pd.Series[float]:
     """
     df = (
         load_from_gcs(
-            gs_url=posixpath.join(
-                GCS_CEDA_INPUT_DIR, "USDA", "USDA_Census_livestock_2022.csv"
-            ),
+            name="USDA_Census_livestock_2022.csv",
+            sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_csv(pth),
         )
