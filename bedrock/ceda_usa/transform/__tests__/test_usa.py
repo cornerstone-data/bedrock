@@ -14,7 +14,7 @@ from bedrock.ceda_usa.utils.testing import (
 )
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 def test_b_usa_non_finetuned_snapshot(
     b_usa_non_finetuned_snapshot: pd.DataFrame,
 ) -> None:
@@ -25,7 +25,7 @@ def test_b_usa_non_finetuned_snapshot(
     )
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 def test_Adom_usa_snapshot(adom_usa_snapshot: pd.DataFrame) -> None:
     assert_snapshot_frame_equal(
         actual=derive_Aq_usa().Adom,
@@ -34,7 +34,7 @@ def test_Adom_usa_snapshot(adom_usa_snapshot: pd.DataFrame) -> None:
     )
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 def test_Aimp_usa_snapshot(aimp_usa_snapshot: pd.DataFrame) -> None:
     assert_snapshot_frame_equal(
         actual=derive_Aq_usa().Aimp,
@@ -43,7 +43,7 @@ def test_Aimp_usa_snapshot(aimp_usa_snapshot: pd.DataFrame) -> None:
     )
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 def test_scaled_q_usa_snapshot(scaled_q_usa_snapshot: pd.Series[float]) -> None:
     assert_snapshot_series_equal(
         actual=derive_Aq_usa().scaled_q,
@@ -52,7 +52,7 @@ def test_scaled_q_usa_snapshot(scaled_q_usa_snapshot: pd.Series[float]) -> None:
     )
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 def test_y_nab_usa_snapshot(y_nab_usa_snapshot: pd.Series[float]) -> None:
     assert_snapshot_series_equal(
         actual=derive_y_for_national_accounting_balance_usa(),

@@ -86,10 +86,9 @@ quote-style = "single"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-s -v -m 'not ceda_integration and not flowsa_integration'"
+addopts = "-s -v -m 'not eeio_integration'"
 markers = [
-    "ceda_integration: CEDA integration tests",
-    "flowsa_integration: flowsa integration tests",
+    "eeio_integration: integration tests for eeio model",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

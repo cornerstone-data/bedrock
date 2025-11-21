@@ -116,7 +116,7 @@ def test_co2_allocators_present() -> None:
     assert set(CO2_ALLOCATION.keys()) == {es for es in ES if es.gas == "CO2"}
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize("es,allocator", CO2_ALLOCATION.items())
 def test_co2(es: ES, allocator: AllocatorType, E_usa_es_snapshot: pd.DataFrame) -> None:
     allocated = allocator()

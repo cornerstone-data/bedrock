@@ -62,7 +62,7 @@ def test_all_industrial_ceda_codes_covered_in_3_1_mapping() -> None:
     ), f"{CEDA_INDUSTRIAL_SECTORS_DEFAULT - CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING} are CEDA industrial codes but not in CEDA <> MECS mapping; {CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING - CEDA_INDUSTRIAL_SECTORS_DEFAULT} are CEDA codes in CEDA <> MECS mapping but not in CEDA industrial codes."
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 def test_all_naics_codes_in_mecs_covered_in_mapping() -> None:
     """
     Ensure all NAICS codes in MECS 3.1 are covered in CEDA to MECS mapping
