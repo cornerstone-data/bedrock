@@ -22,6 +22,21 @@ GCS_CORNERSTONE = "gs://cornerstone-default"
 
 
 def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> None:
+    """
+    Download a file from Google Cloud Storage (GCS) if it does not already exist
+    locally. This will also download any associated metadata files (e.g.,
+    _metadta.json) or log files.
+
+    Parameters
+    ----------
+    name : str
+        Target file name with extension, but without version or hash
+    sub_bucket : str
+        Subdirectory within the GCS bucket.
+    pth : str
+        Local file path where the file should be saved, including extension.
+    """
+
     os.makedirs(os.path.dirname(pth), exist_ok=True)
     if os.path.exists(pth):
         return
@@ -38,7 +53,28 @@ def load_from_gcs(
     loader: ta.Callable[[str], pd.DataFrame],
     overwrite: bool = False,
 ) -> pd.DataFrame:
-    """simple loader that downloads with the same name as the gcs file"""
+    """
+    Download a file from GCS and load it into a DataFrame using a custom loader.
+
+    Parameters
+    ----------
+    name : str
+        Target file name with extension, but without version or hash
+    sub_bucket : str
+        Subdirectory within the GCS bucket.
+    local_dir : str
+        Local directory to store the downloaded file.
+    loader : Callable[[str], pandas.DataFrame]
+        Function that takes a file path and returns a DataFrame.
+    overwrite : bool, optional
+        If True, forces re-download even if the file exists locally. Default is False.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame loaded from the downloaded file.
+
+    """
     pth = os.path.join(local_dir, name)
     if overwrite:
         [
@@ -59,6 +95,22 @@ def load_from_gcs(
     retry=tenacity.retry_if_exception_type(ssl.SSLEOFError),
 )
 def download_gcs_file(name: str, sub_bucket: str, pth: str) -> None:
+    """
+    Download a file from GCS to a local path with retry logic.
+
+    Parameters
+    ----------
+    name : str
+        Name of the file in GCS.
+    sub_bucket : str
+        Subdirectory within the GCS bucket.
+    pth : str
+        Local file path where the file should be saved.
+
+    Notes
+    -----
+    Retries up to 3 times in case of SSL errors.
+    """
     client = __storage_client()
     gs_url = posixpath.join(GCS_CORNERSTONE, sub_bucket, name)
 
@@ -117,7 +169,21 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
     Parameters
     ----------
     sub_bucket : str
-        folder path to limit query
+        Subdirectory within the GCS bucket to filter files. Default is "" (all files).
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with columns:
+        - full_path : str
+        - last_modified : datetime
+        - created : datetime
+        - extension : str
+        - version : str or None
+        - hash : str or None
+        - base_name : str
+        - filename : str
+        - year : str or None
 
     Examples
     ----------
@@ -201,20 +267,22 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
 def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     """
     Sorts the bucket by most recent date for the required extension
-    and returns the matching files of that name that share the same version
+    and identifies the matching files of that name that share the same version
     and hash
 
     Parameters
     ----------
     sub_bucket : str
-        folder path to limit
+        Subdirectory within the GCS bucket.
     name : str
-        target file name with extension but without version or hash
+        Target file name with extension, but without version or hash
 
     Returns
     ----------
-    list
-        Most recently created datafiles, metadata, log files
+    list of str
+        List of filenames corresponding to the most recent version and hash.
+        Includes related files such as metadata and logs.
+
     Examples
     ----------
     >>> len(get_most_recent_from_bucket("BEA_Detail_GrossOutput_IO_2021.parquet",
