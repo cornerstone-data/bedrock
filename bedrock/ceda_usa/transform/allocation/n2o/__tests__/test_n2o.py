@@ -69,7 +69,7 @@ def test_n2o_allocators_present() -> None:
     assert set(N20_ALLOCATION.keys()) == {es for es in ES if es.gas == "N2O"}
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize("es,allocator", N20_ALLOCATION.items())
 def test_n2o(es: ES, allocator: AllocatorType, E_usa_es_snapshot: pd.DataFrame) -> None:
     allocated = allocator()

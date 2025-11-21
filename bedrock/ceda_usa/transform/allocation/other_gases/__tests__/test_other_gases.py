@@ -84,7 +84,7 @@ def test_other_allocators_present() -> None:
     }
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize("es,allocator", OTHER_GASES_ALLOCATION.items())
 def test_other_gases(
     es: ES, allocator: AllocatorType, E_usa_es_snapshot: pd.DataFrame

@@ -30,7 +30,7 @@ jobs:
 
       - name: Run tests (ceda-usa)
         run: |
-          uv run pytest -v -m ceda_integration
+          uv run pytest -v -m eeio_integration
 
   notify_slack_failure:
     needs: [test_ceda_usa]

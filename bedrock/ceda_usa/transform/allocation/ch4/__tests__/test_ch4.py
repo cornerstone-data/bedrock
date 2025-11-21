@@ -76,7 +76,7 @@ def test_ch4_allocators_present() -> None:
     assert set(CH4_ALLOCATION.keys()) == {es for es in ES if es.gas == "CH4"}
 
 
-@pytest.mark.ceda_integration
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize("es,allocator", CH4_ALLOCATION.items())
 def test_ch4(es: ES, allocator: AllocatorType, E_usa_es_snapshot: pd.DataFrame) -> None:
     allocated = allocator()
