@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import posixpath
 
 import pandas as pd
 from typing_extensions import deprecated
@@ -22,7 +21,6 @@ from bedrock.ceda_usa.utils.constants import (
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
 )
-from bedrock.ceda_usa.utils.gcp import load_from_gcs
 from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     USA_2017_FINAL_DEMAND_INDEX,
@@ -32,6 +30,7 @@ from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import 
     USA_2017_SUMMARY_INDUSTRY_INDEX,
 )
 from bedrock.ceda_usa.utils.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 
@@ -138,16 +137,11 @@ def _load_2017_detail_make_use_usa(
     """
     df = (
         load_from_gcs(
-            gs_url=posixpath.join(
-                GCS_USA_DIR,
-                USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name],
-            ),
+            name=USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name],
+            sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
-                pth,
-                sheet_name="2017",
-                skiprows=5,
-                dtype={"Code": str},
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
         .set_index("Code")
@@ -281,7 +275,8 @@ def _load_usa_summary_mut(
 
     df = (
         load_from_gcs(
-            gs_url=posixpath.join(GCS_USA_DIR, usa_summary_mut_mapping[matrix_name]),
+            name=usa_summary_mut_mapping[matrix_name],
+            sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
                 pth,
@@ -331,15 +326,11 @@ def _load_2017_detail_sut_usa(
 
     df = (
         load_from_gcs(
-            gs_url=posixpath.join(
-                GCS_USA_DIR, USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name]
-            ),
+            name=USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name],
+            sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
-                pth,
-                sheet_name="2017",
-                skiprows=5,
-                dtype={"Code": str},
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
         .set_index("Code")

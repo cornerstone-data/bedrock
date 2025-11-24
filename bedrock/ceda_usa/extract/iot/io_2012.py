@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import posixpath
 import typing as ta
 
 import pandas as pd
@@ -13,12 +12,10 @@ from bedrock.ceda_usa.utils.constants import (
     USA_2012_FINAL_DEMAND_CODES,
     USA_2012_INDUSTRY_CODES,
 )
-from bedrock.ceda_usa.utils.gcp import (
-    GCS_CEDA_V5_INPUT_DIR,
-    download_gcs_file_if_not_exists,
-)
+from bedrock.ceda_usa.utils.gcp import GCS_CEDA_V5_INPUT_DIR
 from bedrock.ceda_usa.utils.ghg import GHG_DETAILED
 from bedrock.ceda_usa.utils.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.gcp import download_gcs_file_if_not_exists
 
 USA_IO_VECTOR_NAMES = ta.Literal[
     "q0",
@@ -163,7 +160,9 @@ def _load_usa_xlsx(
     """
     fname = "CEDA6IO.xlsx"
     pth = os.path.join(IN_DIR, fname)
-    download_gcs_file_if_not_exists(posixpath.join(GCS_CEDA_V5_INPUT_DIR, fname), pth)
+    download_gcs_file_if_not_exists(
+        name=fname, sub_bucket=GCS_CEDA_V5_INPUT_DIR, pth=pth
+    )
 
     df = pd.read_excel(
         pth,
