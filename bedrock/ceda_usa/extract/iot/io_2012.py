@@ -160,7 +160,9 @@ def _load_usa_xlsx(
     """
     fname = "CEDA6IO.xlsx"
     pth = os.path.join(IN_DIR, fname)
-    download_gcs_file_if_not_exists(fname, GCS_CEDA_V5_INPUT_DIR, pth)
+    download_gcs_file_if_not_exists(
+        name=fname, sub_bucket=GCS_CEDA_V5_INPUT_DIR, pth=pth
+    )
 
     df = pd.read_excel(
         pth,

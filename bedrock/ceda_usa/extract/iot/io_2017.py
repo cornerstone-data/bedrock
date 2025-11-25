@@ -6,7 +6,7 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.extract.input_output.constants import GCS_USA_DIR
+from bedrock.ceda_usa.extract.iot.constants import GCS_USA_DIR
 from bedrock.ceda_usa.utils.constants import (
     USA_2017_COMMODITY_CODES,
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
@@ -141,10 +141,7 @@ def _load_2017_detail_make_use_usa(
             sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
-                pth,
-                sheet_name="2017",
-                skiprows=5,
-                dtype={"Code": str},
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
         .set_index("Code")
@@ -333,10 +330,7 @@ def _load_2017_detail_sut_usa(
             sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
-                pth,
-                sheet_name="2017",
-                skiprows=5,
-                dtype={"Code": str},
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
         .set_index("Code")

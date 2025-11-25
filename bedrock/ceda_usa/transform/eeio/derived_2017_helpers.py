@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.extract.input_output.io_2017 import USA_2017_FINAL_DEMAND_INDEX
+from bedrock.ceda_usa.extract.iot.io_2017 import USA_2017_FINAL_DEMAND_INDEX
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.ceda_usa.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
