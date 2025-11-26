@@ -8,7 +8,7 @@ GCS_USA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTables_MakeUse")
 GCS_PRICE_INDEX_INFLATION_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "BEA_PriceIndex")
 PRICE_INDEX_DETAIL_TABLES = ta.Literal["UGO304-A", "UGO305-A"]
 
-PRICE_INDEX_DETAIL_NAME_TO_BEA_2012_INDUSTRY_MAPPING: ta.Dict[str, ta.List[str]] = {
+PRICE_INDEX_DETAIL_NAME_TO_BEA_2017_INDUSTRY_MAPPING: ta.Dict[str, ta.List[str]] = {
     # adopeted from USEEIO
     "Oilseed farming": ["1111A0"],
     "Grain farming": ["1111B0"],
@@ -476,23 +476,15 @@ PRICE_INDEX_DETAIL_NAME_TO_BEA_2012_INDUSTRY_MAPPING: ta.Dict[str, ta.List[str]]
     "Solar electric power generation": ["221100"],
     "Wind electric power generation": ["221100"],
     "Electric power distribution": ["221100"],
-    "Measuring, dispensing, and other pumping equipment manufacturing": [
-        "33391A"  # this name should be mapped to "333914" if BEA 2017
-    ],
-    "Major household appliance manufacturing": [
-        "335220",
-        "335221",
-        "335222",
-        "335224",
-        "335228",
-    ],
+    "Measuring, dispensing, and other pumping equipment manufacturing": ["333914"],
+    "Major household appliance manufacturing": ["335220"],
     "Tobacco manufacturing": ["312200"],
     "State and local government (educational services)": ["GSLGE"],
     "State and local government (hospitals and health services)": ["GSLGH"],
     "State and local government (other services)": ["GSLGO"],
 }
 
-PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2012_SUMMARY_MAPPING: ta.Dict[str, str] = {
+PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2017_SUMMARY_MAPPING: ta.Dict[str, str] = {
     # manually created to replace /Crosswalk_SummaryGDPIndustrytoIO2012Schema.csv
     # which was adopeted from USEEIO
     "LINE_NUMBER_1": "",
@@ -594,9 +586,9 @@ PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2012_SUMMARY_MAPPING: ta.Dict[str, str] =
     "LINE_NUMBER_97": "GSLE",
 }
 
-PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2012_SUMMARY_MAPPING_NON_EMPTY = {
+PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2017_SUMMARY_MAPPING_NON_EMPTY = {
     k: v
-    for k, v in PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2012_SUMMARY_MAPPING.items()
+    for k, v in PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2017_SUMMARY_MAPPING.items()
     if v != ""
 }
 
