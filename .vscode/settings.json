@@ -8,12 +8,13 @@
       "source.fixAll.ruff": "explicit"
     }
   },
+  "ruff.enable": true,
   "ruff.organizeImports": true,
   "pylint.enabled": false,
+  "flake8.enabled": false,
   "python.testing.pytestArgs": ["--override-ini=addopts=-s -v"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "python.analysis.typeCheckingMode": "off",
   "cursorpyright.analysis.inlayHints.genericTypes": false,
   "search.exclude": {
     "coverage": true,
