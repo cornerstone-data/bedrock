@@ -8,6 +8,8 @@ from bedrock.ceda_usa.extract.iot.constants import (
 )
 from bedrock.utils.gcp import download_gcs_file_if_not_exists
 
+# NOTE: this is the data version used by the BEA Data Archive (https://apps.bea.gov/histdatacore/histChildLevels.html?HMI=8&oldDiv=Industry%20Accounts)
+# where "YEAR, Q2" is the major release every year that includes annual update of the Detail tables
 BEA_DATA_VERSION = "2025Q2"
 SECTOR_NAME_COL = "sector_name"
 
