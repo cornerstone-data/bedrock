@@ -17,6 +17,32 @@ from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summ
 )
 from bedrock.ceda_usa.utils.taxonomy.utils import assert_sets_equal
 
+"""
+This module assembles a comprehensive price index table for Bureau of Economic Analysis (BEA) industries by integrating two key BEA datasets:
+*Underlying Detail* and *GDP-by-industry*.
+
+- *Underlying Detail* offers the highest level of industry granularity (400+ industries),
+   but is published only once per year—typically between September and November—with data extending through the prior calendar year.
+   For instance, a release in September 2023 would include annual figures from 2017 through 2022.
+
+- *GDP-by-industry* covers broader industry aggregates (70+ groups) but is updated quarterly,
+   providing both quarterly and annual index values up to the latest available quarter.
+
+Both datasets source their price index data from the `GrossOutput.xlsx` workbook:
+- For *Underlying Detail*: the `UGO304-A` tab (annual detail).
+- For *GDP-by-industry*: `TGO104-A` (annual summary) or `TGO104-Q` (quarterly summary).
+
+While granular data is preferable, its annual publication means that, for the most current periods,
+only less detailed (but more up-to-date) GDP-by-industry indices are available.
+Thus, the approach implemented here flexibly combines the two sources: using annual underlying detail data where possible,
+then supplementing with recent quarterly GDP-by-industry aggregates for the latest periods not yet covered by the detail data.
+
+This process ensures maximum coverage of up-to-date and high-resolution price indices for each BEA industry code.
+The script also addresses special considerations, such as splitting aggregated industries (e.g., detailed disaggregation for various waste sector codes),
+to deliver a robust and complete dataset for downstream inflation and industry analyses.
+"""
+
+
 START_YEAR = 2012
 END_YEAR = 2025
 YEARS = list(range(START_YEAR, END_YEAR + 1))
