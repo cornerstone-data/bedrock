@@ -1,3 +1,4 @@
+import os
 import posixpath
 
 import pandas as pd
@@ -17,8 +18,8 @@ SUMMARY_LINE_NUMBER_COL = "summary_line_no"
 SECTOR_SUMMARY_CODE_COL = "sector_summary_code"
 
 
-IN_DIR = posixpath.join(posixpath.dirname(__file__), "input_data")
-OUT_DIR = posixpath.join(posixpath.dirname(__file__), "output_data")
+IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "output_data")
 
 
 def load_pi_summary_annual() -> pd.DataFrame:
@@ -29,7 +30,7 @@ def load_pi_summary_annual() -> pd.DataFrame:
 
     _download_summary_table()
     df = _load_from_excel(
-        fname=posixpath.join(IN_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"),
+        fname=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"),
         sheet_name="TGO104-A",
     )
 
@@ -46,7 +47,7 @@ def load_pi_summary_quarterly() -> pd.DataFrame:
     """
     _download_summary_table()
     df = _load_from_excel(
-        fname=posixpath.join(IN_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"),
+        fname=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"),
         sheet_name="TGO104-Q",
     )
 
@@ -67,7 +68,7 @@ def _download_summary_table() -> None:
         sub_bucket=posixpath.join(
             GCS_PRICE_INDEX_INFLATION_DIR, f"GdpByInd_{BEA_DATA_VERSION}"
         ),
-        pth=posixpath.join(IN_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
+        pth=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
     )
 
 
@@ -94,7 +95,7 @@ def _load_detail_table(sheet_name: PRICE_INDEX_DETAIL_TABLES) -> pd.DataFrame:
     """
     _download_detail_table()
     df = _load_from_excel(
-        fname=posixpath.join(IN_DIR, f"{BEA_DATA_VERSION}_DetailGrossOutput.xlsx"),
+        fname=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_DetailGrossOutput.xlsx"),
         sheet_name=sheet_name,
     )
 
@@ -113,7 +114,7 @@ def _download_detail_table() -> None:
         sub_bucket=posixpath.join(
             GCS_PRICE_INDEX_INFLATION_DIR, f"UGdpByInd_{BEA_DATA_VERSION}"
         ),
-        pth=posixpath.join(IN_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
+        pth=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
     )
 
 
