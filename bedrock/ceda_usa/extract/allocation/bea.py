@@ -14,7 +14,7 @@ from bedrock.ceda_usa.transform.eeio.derived_2017 import (
 )
 from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.gcp import load_from_gcs
+from bedrock.utils.io.gcp import load_from_gcs
 
 GCS_BEA_PCE_DIR = posixpath.join(
     GCS_CEDA_INPUT_DIR, "BEA_PersonalConsumptionExpenditure"
