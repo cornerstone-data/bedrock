@@ -14,7 +14,7 @@ from bedrock.ceda_usa.utils.taxonomy.bea.v2017_industry import (
     BEA_2017_INDUSTRY_CODES,
 )
 from bedrock.ceda_usa.utils.taxonomy.utils import validate_mapping
-from bedrock.utils.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 GCS_CEDA_TAXONOMY_DIR = posixpath.join(GCS_CEDA_USA_DIR, "taxonomy")
 

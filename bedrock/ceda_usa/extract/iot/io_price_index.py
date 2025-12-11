@@ -7,7 +7,7 @@ from bedrock.ceda_usa.extract.iot.constants import (
     GCS_PRICE_INDEX_INFLATION_DIR,
     PRICE_INDEX_DETAIL_TABLES,
 )
-from bedrock.utils.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 # NOTE: this is the data version used by the BEA Data Archive (https://apps.bea.gov/histdatacore/histChildLevels.html?HMI=8&oldDiv=Industry%20Accounts)
 # where "YEAR, Q2" is the major release every year that includes annual update of the Detail tables

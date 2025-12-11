@@ -15,14 +15,11 @@ import esupy.processed_data_mgmt
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.gcp import (
-    download_gcs_file,
-    get_most_recent_from_bucket,
-)
 from bedrock.flowsa import flowsa_yaml, geo, literature_values, naics, schema, settings
 from bedrock.flowsa.common import get_catalog_info
 from bedrock.flowsa.flowsa_log import log, vlog
 from bedrock.flowsa.location import fips_number_key
+from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
 
 if TYPE_CHECKING:
     from bedrock.flowsa.flowbyactivity import FlowByActivity

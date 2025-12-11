@@ -30,7 +30,7 @@ from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import 
     USA_2017_SUMMARY_INDUSTRY_INDEX,
 )
 from bedrock.ceda_usa.utils.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.utils.gcp import load_from_gcs
+from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 

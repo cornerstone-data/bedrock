@@ -16,7 +16,7 @@ from bedrock.ceda_usa.extract.allocation.epa_constants import (
 from bedrock.ceda_usa.transform.allocation.utils import parse_index_with_aggregates
 from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 from bedrock.ceda_usa.utils.gwp import derive_ar5_to_ar6_multiplier
-from bedrock.utils.gcp import load_from_gcs
+from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
