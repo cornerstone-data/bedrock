@@ -12,7 +12,7 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.dataclean import standardize_units
+from bedrock.transform.dataclean import standardize_units
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.flowsa_log import log

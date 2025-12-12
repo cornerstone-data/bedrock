@@ -22,7 +22,7 @@ from bedrock.flowsa.common import (
     load_yaml_dict,
     sourceconfigpath,
 )
-from bedrock.flowsa.dataclean import clean_df
+from bedrock.transform.dataclean import clean_df
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 from bedrock.flowsa.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata import set_fb_meta, write_metadata
