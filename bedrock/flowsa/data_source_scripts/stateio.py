@@ -15,7 +15,7 @@ from esupy.processed_data_mgmt import (
 
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import apply_county_FIPS, us_state_abbrev
-from bedrock.flowsa.metadata import set_fb_meta
+from bedrock.utils.metadata import set_fb_meta
 
 
 def parse_statior(*, source, year, config, **_):

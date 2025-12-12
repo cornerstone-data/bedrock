@@ -15,7 +15,7 @@ import pandas as pd
 import yaml
 from dotenv import load_dotenv
 
-import bedrock.flowsa.flowsa_yaml as flowsa_yaml
+import bedrock.utils.config.flowsa_yaml as flowsa_yaml
 from bedrock.flowsa.exceptions import APIError, EnvError, FlowsaMethodNotFoundError
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.schema import (

@@ -25,7 +25,7 @@ from bedrock.flowsa.common import (
 from bedrock.flowsa.dataclean import clean_df
 from bedrock.flowsa.exceptions import FBSMethodConstructionError
 from bedrock.flowsa.flowsa_log import log, reset_log_file
-from bedrock.flowsa.metadata import set_fb_meta, write_metadata
+from bedrock.utils.metadata import set_fb_meta, write_metadata
 from bedrock.flowsa.schema import flow_by_activity_fields
 from bedrock.flowsa.settings import paths
 

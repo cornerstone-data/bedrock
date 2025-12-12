@@ -2,7 +2,7 @@ from typing import Literal
 import enum
 from functools import total_ordering
 import pandas as pd
-from . import settings
+from bedrock.flowsa import settings
 from .flowsa_log import log
 
 

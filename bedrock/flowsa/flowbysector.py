@@ -13,7 +13,9 @@ import esupy.processed_data_mgmt
 import pandas as pd
 from pandas import ExcelWriter
 
-from bedrock.flowsa import common, geo, metadata, naics, settings
+from bedrock.flowsa import common, naics, settings
+from bedrock.utils.mapping import geo
+from bedrock.utils import metadata
 from bedrock.flowsa.common import get_catalog_info, load_crosswalk
 from bedrock.flowsa.flowby import _FlowBy, flowby_config, get_flowby_from_config
 from bedrock.flowsa.flowbyfunctions import collapse_fbs_sectors

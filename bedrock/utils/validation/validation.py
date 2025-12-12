@@ -14,7 +14,7 @@ from bedrock.flowsa.flowbyfunctions import aggregator, collapse_fbs_sectors
 from bedrock.flowsa.flowbysector import FlowBySector
 from bedrock.flowsa.flowsa_log import log, vlog
 from bedrock.flowsa.location import US_FIPS
-from bedrock.flowsa.metadata import set_fb_meta
+from bedrock.utils.metadata import set_fb_meta
 from bedrock.flowsa.schema import dq_fields
 from bedrock.flowsa.settings import diffpath, paths
 

@@ -15,7 +15,9 @@ import esupy.processed_data_mgmt
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa import flowsa_yaml, geo, literature_values, naics, schema, settings
+from bedrock.flowsa import literature_values, naics, schema, settings
+from bedrock.utils.mapping import geo
+from bedrock.utils.config import flowsa_yaml
 from bedrock.flowsa.common import get_catalog_info
 from bedrock.flowsa.flowsa_log import log, vlog
 from bedrock.flowsa.location import fips_number_key

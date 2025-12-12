@@ -6,7 +6,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa import geo, location
+from bedrock.utils.mapping import geo
+from bedrock.flowsa import location
 from bedrock.flowsa.common import get_catalog_info
 from bedrock.flowsa.flowby import FB, get_flowby_from_config
 from bedrock.flowsa.flowbyactivity import FlowByActivity

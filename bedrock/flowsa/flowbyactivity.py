@@ -22,13 +22,13 @@ import pandas as pd
 
 from bedrock.flowsa import (
     generateflowbyactivity,
-    geo,
-    metadata,
     naics,
     sectormapping,
     settings,
     validation,
 )
+from bedrock.utils.mapping import geo
+from bedrock.utils import metadata
 from bedrock.flowsa.exceptions import FBANotAvailableError
 from bedrock.flowsa.flowby import NAME_SEP_CHAR, _FlowBy, flowby_config
 from bedrock.flowsa.flowbyfunctions import filter_by_geoscale
