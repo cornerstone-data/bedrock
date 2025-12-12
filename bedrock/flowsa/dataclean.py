@@ -8,7 +8,8 @@ Common functions to clean and harmonize dataframes
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa import flowsa_log, literature_values, settings
+from bedrock.flowsa import flowsa_log, settings
+from bedrock.transform import literature_values
 
 
 def clean_df(df, flowbyfields, drop_description=True):

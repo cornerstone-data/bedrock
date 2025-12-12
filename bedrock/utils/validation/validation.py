@@ -11,7 +11,7 @@ from esupy.processed_data_mgmt import download_from_remote
 
 from bedrock.flowsa.common import fba_activity_fields, load_yaml_dict
 from bedrock.flowsa.flowbyfunctions import aggregator, collapse_fbs_sectors
-from bedrock.flowsa.flowbysector import FlowBySector
+from bedrock.transform.flowbysector import FlowBySector
 from bedrock.flowsa.flowsa_log import log, vlog
 from bedrock.flowsa.location import US_FIPS
 from bedrock.utils.metadata import set_fb_meta
@@ -788,7 +788,7 @@ def calculate_industry_coefficients(fbs_load, year, region, io_level, impacts=Fa
     :param impacts: bool or str, True to apply and aggregate on impacts using TRACI,
         False to compare flow/contexts, str to pass alternate method
     """
-    from bedrock.flowsa.sectormapping import get_BEA_industry_output, map_to_BEA_sectors
+    from bedrock.utils.mapping.sectormapping import get_BEA_industry_output, map_to_BEA_sectors
 
     fbs = collapse_fbs_sectors(fbs_load)
 

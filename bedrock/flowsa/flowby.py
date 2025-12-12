@@ -15,8 +15,9 @@ import esupy.processed_data_mgmt
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa import literature_values, naics, schema, settings
-from bedrock.utils.mapping import geo
+from bedrock.flowsa import schema, settings
+from bedrock.transform import literature_values
+from bedrock.utils.mapping import geo, naics
 from bedrock.utils.config import flowsa_yaml
 from bedrock.flowsa.common import get_catalog_info
 from bedrock.flowsa.flowsa_log import log, vlog
@@ -24,8 +25,8 @@ from bedrock.flowsa.location import fips_number_key
 from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
 
 if TYPE_CHECKING:
-    from bedrock.flowsa.flowbyactivity import FlowByActivity
-    from bedrock.flowsa.flowbysector import FlowBySector
+    from bedrock.extract.flowbyactivity import FlowByActivity
+    from bedrock.transform.flowbysector import FlowBySector
 
 FB = TypeVar('FB', bound='_FlowBy')
 S = TypeVar('S', bound='_FlowBySeries')
@@ -51,8 +52,8 @@ def get_flowby_from_config(
 
     :return: a FlowByActivity dataframe
     """
-    from bedrock.flowsa.flowbyactivity import FlowByActivity
-    from bedrock.flowsa.flowbysector import FlowBySector
+    from bedrock.extract.flowbyactivity import FlowByActivity
+    from bedrock.transform.flowbysector import FlowBySector
 
     external_data_path = config.get('external_data_path')
 

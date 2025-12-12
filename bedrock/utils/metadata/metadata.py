@@ -198,7 +198,7 @@ def recursive_attribution(activities, attr_source_meta, primary_source_meta, con
 
 
 def return_fbs_method_data(source_name, config):
-    from bedrock.flowsa.data_source_scripts.stewiFBS import (
+    from bedrock.extract.data_source_scripts.stewiFBS import (
         add_stewi_metadata,
         add_stewicombo_metadata,
     )
@@ -316,7 +316,7 @@ def getMetadata(source, year=None, category=None):
     :param category: string, 'FlowBySector' or 'FlowByActivity'
     :return: meta object, previously generated FBA or FBS meta
     """
-    from bedrock.flowsa.generateflowbyactivity import set_fba_name
+    from bedrock.extract.generateflowbyactivity import set_fba_name
 
     if category is None:
         log.error('Category required, specify "FlowByActivity" or ' '"FlowBySector"')

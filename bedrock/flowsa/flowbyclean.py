@@ -10,10 +10,10 @@ from bedrock.utils.mapping import geo
 from bedrock.flowsa import location
 from bedrock.flowsa.common import get_catalog_info
 from bedrock.flowsa.flowby import FB, get_flowby_from_config
-from bedrock.flowsa.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbysector import FlowBySector
+from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.transform.flowbysector import FlowBySector
 from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.naics import map_source_sectors_to_more_aggregated_sectors
+from bedrock.utils.mapping.naics import map_source_sectors_to_more_aggregated_sectors
 from bedrock.flowsa.validation import (
     compare_summation_at_sector_lengths_between_two_dfs,
 )
@@ -222,7 +222,7 @@ def estimate_suppressed_sectors_equal_attribution(
     :param fba:
     :return:
     """
-    from bedrock.flowsa.naics import map_source_sectors_to_less_aggregated_sectors
+    from bedrock.utils.mapping.naics import map_source_sectors_to_less_aggregated_sectors
 
     # todo: update function to work for any number of sector lengths
     # todo: update to loop through both sector columns, see equally_attribute()

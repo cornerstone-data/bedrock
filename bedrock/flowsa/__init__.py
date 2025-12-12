@@ -17,8 +17,6 @@ Flow-By-Sector files are loaded when running these functions
 """
 
 from bedrock.flowsa.common import seeAvailableFlowByModels
-from bedrock.flowsa.flowbyactivity import getFlowByActivity
-from bedrock.flowsa.flowbysector import collapse_FlowBySector, getFlowBySector
 
 # from bedrock.flowsa.datavisualization import (FBSscatterplot, stackedBarChart,
 #                                       plot_state_coefficients)

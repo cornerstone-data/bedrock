@@ -10,7 +10,7 @@ from esupy.dqi import get_weighted_average
 
 from bedrock.flowsa.common import fbs_collapsed_default_grouping_fields
 from bedrock.flowsa.dataclean import clean_df, standardize_units
-from bedrock.flowsa.exceptions import FBSMethodConstructionError
+from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.location import US_FIPS, get_county_FIPS, get_state_FIPS
 from bedrock.flowsa.schema import (
@@ -314,7 +314,7 @@ def load_fba_w_standardized_units(datasource, year, **kwargs):
     :return: fba df with standardized units
     """
 
-    from bedrock.flowsa.sectormapping import map_fbs_flows
+    from bedrock.utils.mapping.sectormapping import map_fbs_flows
 
     # determine if any addtional parameters required to load a Flow-By-Activity
     # add parameters to dictionary if exist in method yaml

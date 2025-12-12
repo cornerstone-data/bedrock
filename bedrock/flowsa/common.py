@@ -16,7 +16,7 @@ import yaml
 from dotenv import load_dotenv
 
 import bedrock.utils.config.flowsa_yaml as flowsa_yaml
-from bedrock.flowsa.exceptions import APIError, EnvError, FlowsaMethodNotFoundError
+from bedrock.utils.validation.exceptions import APIError, EnvError, FlowsaMethodNotFoundError
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.schema import (
     activity_fields,
