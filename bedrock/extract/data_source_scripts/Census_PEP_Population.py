@@ -10,7 +10,7 @@ import json
 
 import pandas as pd
 
-from bedrock.flowsa.common import load_env_file_key
+from bedrock.utils.config.common import load_env_file_key
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import US_FIPS, get_all_state_FIPS_2
 
@@ -41,13 +41,13 @@ def Census_pop_URL_helper(*, build_url, year, config, **_):
         'POP,DATE_DESC&for=__aggLevel__:*&DATE_=12&key=__apiKey__'
     )
 
-    # state fips required for county level 13-14
+    # state geo required for county level 13-14
     FIPS_2 = get_all_state_FIPS_2()['FIPS_2']
     # drop puerto rico
     FIPS_2 = FIPS_2[FIPS_2 != '72']
 
     for c in config['agg_levels']:
-        # this timeframe requires state fips at the county level in the url
+        # this timeframe requires state geo at the county level in the url
         if '2010' < year < '2015' and c == 'county':
             for b in FIPS_2:
                 url = build_url
@@ -135,7 +135,7 @@ def census_pop_parse(*, df_list, year, **_):
         df['county'] = df['county'].fillna('000')
         # Make FIPS as a combo of state and county codes
         df['Location'] = df['state'] + df['county']
-        # replace the null value representing the US with US fips
+        # replace the null value representing the US with US geo
         if "us" in df.columns:
             df.loc[df['us'] == '1', 'Location'] = US_FIPS
             # drop columns

@@ -15,7 +15,7 @@ import zipfile
 import pandas as pd
 import pycountry
 
-from bedrock.flowsa.common import WITHDRAWN_KEYWORD
+from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 
 
 def sc_lfs_call(*, resp, **_):

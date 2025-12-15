@@ -9,7 +9,7 @@ import json
 
 import pandas as pd
 
-from bedrock.flowsa.common import WITHDRAWN_KEYWORD
+from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import US_FIPS, abbrev_us_state
 
@@ -97,10 +97,10 @@ def acup_parse(*, df_list, source, year, **_):
         ]
     )
     # create FIPS column by combining existing columns
-    # add county fips when missing
+    # add county geo when missing
     df.loc[df['county_code'] == '', 'county_code'] = '000'
     df['Location'] = df['state_fips_code'] + df['county_code']
-    # modify national level fips
+    # modify national level geo
     df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
 
     # address non-NAICS classification data

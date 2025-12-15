@@ -12,7 +12,7 @@ import io
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.common import WITHDRAWN_KEYWORD, clean_str_and_capitalize
+from bedrock.utils.config.common import WITHDRAWN_KEYWORD, clean_str_and_capitalize
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.flowsa_log import vlog
 from bedrock.transform.literature_values import (

@@ -12,7 +12,7 @@ from tabula.io import read_pdf
 
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import US_FIPS
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.settings import externaldatapath
 
 
 def bh_parse(*, df_list, **_):

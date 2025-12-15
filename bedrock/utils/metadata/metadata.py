@@ -13,9 +13,9 @@ from esupy.processed_data_mgmt import (
     write_metadata_to_file,
 )
 
-from bedrock.flowsa.common import get_catalog_info, return_true_source_catalog_name
+from bedrock.utils.config.common import get_catalog_info, return_true_source_catalog_name
 from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.settings import (
+from bedrock.utils.config.settings import (
     GIT_HASH,
     GIT_HASH_LONG,
     PKG,
@@ -261,7 +261,7 @@ def return_fba_method_meta(sourcename, **kwargs):
     :param kwargs: requires "year" defined
     :return: meta object
     """
-    from bedrock.flowsa.bibliography import load_source_dict
+    from bedrock.publish.bibliography import load_source_dict
 
     # load info from either a FBA method yaml or the literature yaml
     fba = load_source_dict(sourcename)

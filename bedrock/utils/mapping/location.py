@@ -13,10 +13,10 @@ import pandas as pd
 import pycountry
 from esupy.remote import make_url_request
 
-from bedrock.flowsa.common import clean_str_and_capitalize
+from bedrock.utils.config.common import clean_str_and_capitalize
 from bedrock.flowsa.flowsa_log import log
 from bedrock.utils.mapping.geo import get_all_fips
-from bedrock.flowsa.settings import datapath
+from bedrock.utils.config.settings import datapath
 
 US_FIPS = "00000"
 
@@ -62,7 +62,7 @@ def update_geoscale(df, to_scale):
     Updates df['Location'] based on specified to_scale
     :param df: df, requires Location column
     :param to_scale: str, target geoscale
-    :return: df, with 5 digit fips
+    :return: df, with 5 digit geo
     """
     # code for when the "Location" is a FIPS based system
     if to_scale == 'state':

@@ -14,7 +14,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.common import load_env_file_key
+from bedrock.utils.config.common import load_env_file_key
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 
 

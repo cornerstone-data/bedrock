@@ -10,11 +10,11 @@ from io import BytesIO
 
 import pandas as pd
 
-from bedrock.flowsa.common import load_yaml_dict
+from bedrock.utils.config.common import load_yaml_dict
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.location import apply_county_FIPS
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.settings import externaldatapath
 
 data_path = externaldatapath / "StateGHGI_data"
 

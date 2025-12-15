@@ -9,14 +9,14 @@ import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
-from bedrock.flowsa.common import fba_activity_fields, load_yaml_dict
+from bedrock.utils.config.common import fba_activity_fields, load_yaml_dict
 from bedrock.flowsa.flowbyfunctions import aggregator, collapse_fbs_sectors
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.flowsa.flowsa_log import log, vlog
 from bedrock.flowsa.location import US_FIPS
 from bedrock.utils.metadata import set_fb_meta
 from bedrock.flowsa.schema import dq_fields
-from bedrock.flowsa.settings import diffpath, paths
+from bedrock.utils.config.settings import diffpath, paths
 
 
 def calculate_flowamount_diff_between_dfs(dfa_load, dfb_load):
@@ -163,7 +163,7 @@ def compare_summation_at_sector_lengths_between_two_dfs(df1, df2):
     :return: df, comparison of sector summation results by region and
     printout if any child naics sum greater than parent naics
     """
-    from bedrock.flowsa.common import load_sector_length_cw_melt
+    from bedrock.utils.config.common import load_sector_length_cw_melt
 
     # determine if activity or sector col
     col = 'Sector'

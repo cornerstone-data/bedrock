@@ -8,7 +8,7 @@ from bedrock.utils.mapping.dqi import adjust_dqi_reliability_collection_scores
 from bedrock.flowsa.flowbyfunctions import aggregator
 from bedrock.flowsa.flowsa_log import log, vlog
 
-from bedrock.flowsa import common, settings
+from bedrock.utils.config import settings, common
 
 
 def return_naics_crosswalk(year: Literal[2012, 2017]) -> pd.DataFrame:

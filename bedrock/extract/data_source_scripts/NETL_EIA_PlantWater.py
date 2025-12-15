@@ -12,7 +12,7 @@ import pandas as pd
 
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import get_county_FIPS, us_state_abbrev
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.settings import externaldatapath
 
 
 def netl_eia_parse(*, source, year, **_):
@@ -142,7 +142,7 @@ def netl_eia_parse(*, source, year, **_):
         df3["Water Source Name"] == 'lake wells', "Surface", df3['Compartment']
     )
 
-    # assign fips
+    # assign geo
     fips = get_county_FIPS()
     us_abb = pd.DataFrame(us_state_abbrev.items(), columns=['State', 'State_y'])
     fips = fips.merge(us_abb, left_on='State', right_on='State')

@@ -13,14 +13,14 @@ import esupy.processed_data_mgmt
 import pandas as pd
 from pandas import ExcelWriter
 
-from bedrock.flowsa import common, settings
+from bedrock.utils.config import settings, common
 from bedrock.utils.mapping import geo, naics
 from bedrock.utils import metadata
-from bedrock.flowsa.common import get_catalog_info, load_crosswalk
+from bedrock.utils.config.common import get_catalog_info, load_crosswalk
 from bedrock.flowsa.flowby import _FlowBy, flowby_config, get_flowby_from_config
 from bedrock.flowsa.flowbyfunctions import collapse_fbs_sectors
 from bedrock.flowsa.flowsa_log import log, reset_log_file
-from bedrock.flowsa.settings import DEFAULT_DOWNLOAD_IF_MISSING
+from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING
 
 
 class FlowBySector(_FlowBy):
@@ -385,7 +385,7 @@ class FlowBySector(_FlowBy):
         }
 
         tables_path = (
-            settings.tableoutputpath / f'{self.full_name}' f'_Display_Tables.xlsx'
+                settings.tableoutputpath / f'{self.full_name}' f'_Display_Tables.xlsx'
         )
         try:
             with ExcelWriter(tables_path) as writer:

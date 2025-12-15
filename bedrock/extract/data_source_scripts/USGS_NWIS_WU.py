@@ -11,7 +11,7 @@ import io
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.common import capitalize_first_letter, fba_activity_fields
+from bedrock.utils.config.common import capitalize_first_letter, fba_activity_fields
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.flowsa_log import vlog
@@ -139,7 +139,7 @@ def usgs_parse(*, df_list, year, **_):
     df.loc[:, "FlowAmount"] = df['FlowAmount'].str.replace("c", "", regex=True)
     df = df[df['FlowAmount'] != '-']
     df = df[df['FlowAmount'] != '']
-    # create fips codes by combining columns
+    # create geo codes by combining columns
     df.loc[:, 'Location'] = df['state_cd'] + df['county_cd']
     # drop unused columns
     df = df.drop(columns=['county_cd', 'county_nm', 'geo', 'state_cd', 'state_name'])

@@ -35,7 +35,7 @@ col_dict:
         "FlowName": "pollutant desc"
         "FlowAmount": "total emissions"
         "ActivityProducedBy": "scc"
-        "Location": "fips code"
+        "Location": "geo code"
         "Unit": "emissions uom"
         "Description": "pollutant code"
     '2020': *col_dict_2017

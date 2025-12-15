@@ -16,7 +16,7 @@ import pandas as pd
 from esupy.processed_data_mgmt import write_df_to_file
 from esupy.remote import make_url_request
 
-from bedrock.flowsa.common import (
+from bedrock.utils.config.common import (
     get_flowsa_base_name,
     load_env_file_key,
     load_yaml_dict,
@@ -27,7 +27,7 @@ from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 from bedrock.flowsa.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata import set_fb_meta, write_metadata
 from bedrock.flowsa.schema import flow_by_activity_fields
-from bedrock.flowsa.settings import paths
+from bedrock.utils.config.settings import paths
 
 
 def parse_args():

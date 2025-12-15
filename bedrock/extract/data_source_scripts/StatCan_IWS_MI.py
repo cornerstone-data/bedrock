@@ -11,7 +11,7 @@ import zipfile
 
 import pandas as pd
 
-from bedrock.flowsa.common import (
+from bedrock.utils.config.common import (
     WITHDRAWN_KEYWORD,
     fba_default_grouping_fields,
     load_crosswalk,

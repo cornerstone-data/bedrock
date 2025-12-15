@@ -194,7 +194,7 @@ Some functions allow for extra named parameters.
 - _keep_unmapped_rows_: (bool) default is False, if True will maintain any
   flows not found in mapping files.
 - _standardize_units_: (bool) default is True, if True will standardize fba
-units to SI using [unit_conversion.csv](../../flowsa/data/unit_conversion.csv).
+units to SI using [unit_conversion.csv](../../utils/mapping/unit_conversion.csv).
 - _attribute_on_: (list) specify which columns in the primary dataset 
   should be used for attribution. See REI_waste_national_2012.yaml for an 
   example. 

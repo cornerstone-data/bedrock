@@ -14,7 +14,7 @@ import pandas as pd
 
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import US_FIPS
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.settings import externaldatapath
 
 
 def usgs_coef_parse(*, year, **_):

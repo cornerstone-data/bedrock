@@ -4,7 +4,7 @@ Functions associated with data quality scoring
 
 import numpy as np
 
-from bedrock.flowsa.common import load_sector_length_cw_melt
+from bedrock.utils.config.common import load_sector_length_cw_melt
 
 
 def adjust_dqi_reliability_collection_scores(df, sector_source_year):

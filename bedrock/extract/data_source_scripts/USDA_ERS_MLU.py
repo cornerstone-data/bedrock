@@ -13,7 +13,7 @@ import io
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.common import load_crosswalk
+from bedrock.utils.config.common import load_crosswalk
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.flowsa_log import log, vlog
@@ -64,7 +64,7 @@ def mlu_parse(*, df_list, source, year, **_):
     # rename states to match with FIPS crosswalk
     df = df.replace('District of Columbia', 'District Of Columbia')
 
-    # load fips codes and merge
+    # load geo codes and merge
     fips = get_all_state_FIPS_2()
     fips['State'] = fips['State'].apply(lambda x: x.title())
     fips['FIPS_2'] = fips['FIPS_2'] + '000'

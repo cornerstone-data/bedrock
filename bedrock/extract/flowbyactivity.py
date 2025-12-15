@@ -21,9 +21,9 @@ import numpy as np
 import pandas as pd
 
 from bedrock.flowsa import (
-    settings,
     validation,
 )
+from bedrock.utils.config import settings
 from bedrock.extract import generateflowbyactivity
 from bedrock.utils.mapping import geo, naics, sectormapping
 from bedrock.utils import metadata
@@ -31,7 +31,7 @@ from bedrock.utils.validation.exceptions import FBANotAvailableError
 from bedrock.flowsa.flowby import NAME_SEP_CHAR, _FlowBy, flowby_config
 from bedrock.flowsa.flowbyfunctions import filter_by_geoscale
 from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.settings import DEFAULT_DOWNLOAD_IF_MISSING
+from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING
 
 if TYPE_CHECKING:
     from bedrock.transform.flowbysector import FlowBySector
@@ -417,7 +417,7 @@ class FlowByActivity(_FlowBy):
         :param external_config_path: str, an external path to search for a
             crosswalk.
         """
-        from bedrock.flowsa.flowbyclean import (
+        from bedrock.transform.flowbyclean import (
             define_parentincompletechild_descendants,
             drop_parentincompletechild_descendants,
         )

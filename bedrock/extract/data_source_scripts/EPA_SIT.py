@@ -18,7 +18,7 @@ from bedrock.flowsa.flowbyfunctions import (
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.location import apply_county_FIPS
 from bedrock.flowsa.schema import flow_by_activity_fields
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.settings import externaldatapath
 
 
 def epa_sit_parse(*, source, year, config, **_):

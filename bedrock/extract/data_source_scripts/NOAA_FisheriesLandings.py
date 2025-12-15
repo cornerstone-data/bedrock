@@ -25,7 +25,7 @@ import pandas as pd
 
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import get_state_FIPS
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.settings import externaldatapath
 
 
 def noaa_parse(*, year, **_):
@@ -38,7 +38,7 @@ def noaa_parse(*, year, **_):
     # Read directly into a pandas df
     df_raw = pd.read_csv(externaldatapath / "NOAA_FisheriesLandings.csv")
 
-    # read state fips from common.py
+    # read state geo from common.py
     df_state = get_state_FIPS().reset_index(drop=True)
     df_state['State'] = df_state["State"].str.lower()
 
@@ -58,13 +58,13 @@ def noaa_parse(*, year, **_):
     df["Dollars"] = df["Dollars"].apply(pd.to_numeric)
     df2 = df.groupby(['Year', 'State'], as_index=False).agg({"Dollars": sum})
 
-    # new column includes state fips
+    # new column includes state geo
     df3 = df2.merge(
         df_state[["State", "FIPS"]], how="left", left_on="State", right_on="State"
     )
 
     # data includes "process at sea", which is not associated with any
-    # fips, assign value of '99' if fips is nan, add the state name to
+    # geo, assign value of '99' if geo is nan, add the state name to
     # description and drop state name
     df3.loc[df3['State'] == 'process at sea', 'Description'] = df3['State']
     df3.loc[df3['State'] == 'process at sea', 'FIPS'] = 99

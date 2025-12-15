@@ -12,8 +12,8 @@ from collections import OrderedDict
 import pandas as pd
 from esupy.remote import make_url_request
 
-from bedrock.flowsa.common import load_env_file_key
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.common import load_env_file_key
+from bedrock.utils.config.settings import externaldatapath
 
 
 def read_ces_item_codes():

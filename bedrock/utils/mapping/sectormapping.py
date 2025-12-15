@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from esupy.mapping import apply_flow_mapping
 
-from bedrock.flowsa.common import get_flowsa_base_name, load_crosswalk
+from bedrock.utils.config.common import get_flowsa_base_name, load_crosswalk
 from bedrock.transform.dataclean import standardize_units
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.schema import dq_fields
@@ -22,7 +22,7 @@ def get_activitytosector_mapping(source, fbsconfigpath=None):
     :param source: str, the data source name
     :return: a pandas df for a standard ActivitytoSector mapping
     """
-    from bedrock.flowsa.settings import crosswalkpath
+    from bedrock.utils.config.settings import crosswalkpath
 
     # identify mapping file name
     mapfn = f'NAICS_Crosswalk_{source}'

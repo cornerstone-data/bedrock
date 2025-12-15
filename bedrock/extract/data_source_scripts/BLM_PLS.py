@@ -13,7 +13,7 @@ import re
 import pandas as pd
 from tabula.io import read_pdf
 
-from bedrock.flowsa.common import WITHDRAWN_KEYWORD
+from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.location import get_all_state_FIPS_2
 

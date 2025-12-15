@@ -25,7 +25,7 @@ from bedrock.transform.flowbysector import FlowBySector
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.location import apply_county_FIPS, update_geoscale
 from bedrock.utils.mapping.naics import convert_naics_year
-from bedrock.flowsa.settings import process_adjustmentpath
+from bedrock.utils.config.settings import process_adjustmentpath
 
 
 def stewicombo_to_sector(

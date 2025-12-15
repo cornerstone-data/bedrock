@@ -12,12 +12,12 @@ import io
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.common import WITHDRAWN_KEYWORD
+from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.extract.data_source_scripts.EIA_CBECS_Land import (
     calculate_total_facility_land_area,
 )
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyclean import load_prepare_clean_source
+from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.location import US_FIPS, get_region_and_division_codes

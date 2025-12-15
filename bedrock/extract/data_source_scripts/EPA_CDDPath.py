@@ -20,7 +20,7 @@ from bedrock.flowsa.flowbyfunctions import aggregator, assign_fips_location_syst
 from bedrock.flowsa.flowsa_log import log
 from bedrock.flowsa.location import US_FIPS
 from bedrock.flowsa.schema import flow_by_activity_mapped_fields
-from bedrock.flowsa.settings import externaldatapath
+from bedrock.utils.config.settings import externaldatapath
 
 
 def call_cddpath_model(*, resp, year, config, **_):

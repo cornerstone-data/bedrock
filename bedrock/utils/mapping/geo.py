@@ -2,7 +2,7 @@ from typing import Literal
 import enum
 from functools import total_ordering
 import pandas as pd
-from bedrock.flowsa import settings
+from ..config import settings
 from .flowsa_log import log
 
 
@@ -65,7 +65,7 @@ class scale(enum.Enum):
 
 def get_all_fips(year: Literal[2010, 2013, 2015] = 2015) -> pd.DataFrame:
     '''
-    Read fips based on year specified, year defaults to 2015
+    Read geo based on year specified, year defaults to 2015
     :param year: int, one of 2010, 2013, or 2015, default year is 2015
         because most recent year of FIPS available
     :return: df, with columns=['State', 'FIPS', 'County'] for specified year.

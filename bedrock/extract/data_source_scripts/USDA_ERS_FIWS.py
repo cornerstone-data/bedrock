@@ -47,7 +47,7 @@ def fiws_parse(*, df_list, year, **_):
     # select data for chosen year, cast year as string to match argument
     df['Year'] = df['Year'].astype(str)
     df = df[df['Year'] == year].reset_index(drop=True)
-    # add state fips codes, reading in datasets from common.py
+    # add state geo codes, reading in datasets from common.py
     fips = get_all_state_FIPS_2().reset_index(drop=True)
     # ensure capitalization of state names
     fips['State'] = fips['State'].apply(lambda x: x.title())

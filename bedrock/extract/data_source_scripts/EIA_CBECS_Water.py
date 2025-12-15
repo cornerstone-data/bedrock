@@ -10,7 +10,7 @@ import io
 
 import pandas as pd
 
-from bedrock.flowsa.common import WITHDRAWN_KEYWORD
+from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
 from bedrock.flowsa.location import US_FIPS
 
