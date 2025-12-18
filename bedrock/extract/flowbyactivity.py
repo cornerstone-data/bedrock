@@ -116,9 +116,7 @@ class FlowByActivity(_FlowBy):
             meta_name = f'{meta_name}_{git_version}'
 
         file_metadata = set_fb_meta(meta_name, 'FlowByActivity')
-        flowby_generator = partial(
-            generateFlowByActivity, source=full_name, year=year
-        )
+        flowby_generator = partial(generateFlowByActivity, source=full_name, year=year)
         return super()._getFlowBy(
             file_metadata=file_metadata,
             download_ok=download_ok,
