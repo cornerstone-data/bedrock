@@ -13,16 +13,19 @@ from esupy.processed_data_mgmt import (
     write_metadata_to_file,
 )
 
-from bedrock.utils.config.common import get_catalog_info, return_true_source_catalog_name
-from bedrock.flowsa.flowsa_log import log
+from bedrock.utils.config.common import (
+    get_catalog_info,
+    return_true_source_catalog_name,
+)
 from bedrock.utils.config.settings import (
     GIT_HASH,
     GIT_HASH_LONG,
     PKG,
     PKG_VERSION_NUMBER,
     WRITE_FORMAT,
-    paths,
+    PATHS,
 )
+from bedrock.utils.logging.flowsa_log import log
 
 
 def set_fb_meta(name_data, category):
@@ -56,7 +59,7 @@ def write_metadata(source_name, config, fb_meta, category, **kwargs):
     """
 
     fb_meta.tool_meta = return_fb_meta_data(source_name, config, category, **kwargs)
-    write_metadata_to_file(paths, fb_meta)
+    write_metadata_to_file(PATHS, fb_meta)
 
 
 def return_fb_meta_data(source_name, config, category, **kwargs):
@@ -326,7 +329,7 @@ def getMetadata(source, year=None, category=None):
         year = None
 
     name = set_fba_name(source, year)
-    meta = read_source_metadata(paths, set_fb_meta(name, category))
+    meta = read_source_metadata(PATHS, set_fb_meta(name, category))
     if meta is None:
         log.warning('No metadata found for %s', source)
         meta = {'source_meta': f'No metadata found for {name}'}

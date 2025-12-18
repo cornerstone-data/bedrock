@@ -9,14 +9,14 @@ import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
-from bedrock.utils.config.common import fba_activity_fields, load_yaml_dict
-from bedrock.flowsa.flowbyfunctions import aggregator, collapse_fbs_sectors
+from bedrock.transform.flowbyfunctions import aggregator, collapse_fbs_sectors
 from bedrock.transform.flowbysector import FlowBySector
-from bedrock.flowsa.flowsa_log import log, vlog
-from bedrock.flowsa.location import US_FIPS
-from bedrock.utils.metadata import set_fb_meta
-from bedrock.flowsa.schema import dq_fields
-from bedrock.utils.config.settings import diffpath, paths
+from bedrock.utils.config.common import fba_activity_fields, load_yaml_dict
+from bedrock.utils.config.schema import dq_fields
+from bedrock.utils.config.settings import diffpath, PATHS
+from bedrock.utils.logging.flowsa_log import log, vlog
+from bedrock.utils.mapping.location import US_FIPS
+from bedrock.utils.metadata.metadata import set_fb_meta
 
 
 def calculate_flowamount_diff_between_dfs(dfa_load, dfb_load):
@@ -459,7 +459,7 @@ def compare_FBS(df1_load, df2_load, ignore_metasources=False):
 
 def compare_single_FBS_against_remote(m, outdir=diffpath, run_single=False):
     """Action function to compare a generated FBS with that in remote"""
-    downloaded = download_from_remote(set_fb_meta(m, "FlowBySector"), paths)
+    downloaded = download_from_remote(set_fb_meta(m, "FlowBySector"), PATHS)
     if not downloaded:
         if run_single:
             # Run a single file even if no comparison available
@@ -492,7 +492,7 @@ def compare_single_FBS_against_remote(m, outdir=diffpath, run_single=False):
 def compare_single_FBA_against_remote(source, year, outdir=diffpath, run_single=False):
     """Action function to compare a generated FBA with that in remote"""
     meta_name = f'{source}_{year}'
-    downloaded = download_from_remote(set_fb_meta(meta_name, "FlowByActivity"), paths)
+    downloaded = download_from_remote(set_fb_meta(meta_name, "FlowByActivity"), PATHS)
     if not downloaded:
         if run_single:
             # Run a single file even if no comparison available
@@ -788,7 +788,10 @@ def calculate_industry_coefficients(fbs_load, year, region, io_level, impacts=Fa
     :param impacts: bool or str, True to apply and aggregate on impacts using TRACI,
         False to compare flow/contexts, str to pass alternate method
     """
-    from bedrock.utils.mapping.sectormapping import get_BEA_industry_output, map_to_BEA_sectors
+    from bedrock.utils.mapping.sectormapping import (
+        get_BEA_industry_output,
+        map_to_BEA_sectors,
+    )
 
     fbs = collapse_fbs_sectors(fbs_load)
 

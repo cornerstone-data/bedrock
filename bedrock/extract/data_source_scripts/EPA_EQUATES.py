@@ -13,7 +13,7 @@ from urllib import parse
 import pandas as pd
 
 from bedrock.transform.dataclean import standardize_units
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
 
 def equates_url_helper(*, build_url, year, config, **_):

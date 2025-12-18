@@ -11,8 +11,8 @@ import io
 
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.flowsa_log import log
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.logging.flowsa_log import log
 
 
 def unep_mfa_call(*, resp, config, **_):

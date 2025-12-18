@@ -13,8 +13,8 @@ import pandas as pd
 from tabula.io import read_pdf
 
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def epa_wfr_call(*, resp, **_):

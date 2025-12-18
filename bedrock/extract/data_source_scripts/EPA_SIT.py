@@ -11,14 +11,14 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyfunctions import (
+from bedrock.transform.flowbyfunctions import (
     assign_fips_location_system,
     load_fba_w_standardized_units,
 )
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.location import apply_county_FIPS
-from bedrock.flowsa.schema import flow_by_activity_fields
+from bedrock.utils.config.schema import flow_by_activity_fields
 from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.location import apply_county_FIPS
 
 
 def epa_sit_parse(*, source, year, config, **_):

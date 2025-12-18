@@ -9,12 +9,12 @@ from zipfile import ZipFile
 
 import pandas as pd
 
-from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.location import apply_county_FIPS
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.location import apply_county_FIPS
+from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 
 
 def epa_state_ghgi_call(*, resp, config, **_):

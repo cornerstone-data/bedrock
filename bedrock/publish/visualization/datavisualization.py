@@ -15,12 +15,12 @@ import seaborn as sns
 from plotly.subplots import make_subplots
 
 from bedrock.utils.config.common import load_crosswalk, load_yaml_dict
+from bedrock.utils.config.settings import datapath, plotoutputpath
 
 # todo: need to update fxn to use new sector_aggregation - datavis not
 #  currently working
-# from bedrock.flowsa.flowbyfunctions import sector_aggregation
-from bedrock.flowsa.flowsa_log import log
-from bedrock.utils.config.settings import datapath, plotoutputpath
+# from bedrock.transform.flowbyfunctions import sector_aggregation
+from bedrock.utils.logging.flowsa_log import log
 
 
 def addSectorNames(df, BEA=False, mappingfile=None):
@@ -542,7 +542,7 @@ def stackedBarChart(
 
 
 def plot_state_coefficients(fbs_coeff, indicator=None, sectors_to_include=None):
-    from bedrock.flowsa.location import US_FIPS, get_state_FIPS
+    from bedrock.utils.mapping.location import US_FIPS, get_state_FIPS
 
     df = fbs_coeff.merge(
         get_state_FIPS(abbrev=True), how='left', left_on='Location', right_on='FIPS'

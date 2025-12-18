@@ -10,9 +10,9 @@ as eLCI conducted water withdrawal modifications
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import get_county_FIPS, us_state_abbrev
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.mapping.location import get_county_FIPS, us_state_abbrev
 
 
 def netl_eia_parse(*, source, year, **_):

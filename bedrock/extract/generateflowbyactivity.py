@@ -16,18 +16,18 @@ import pandas as pd
 from esupy.processed_data_mgmt import write_df_to_file
 from esupy.remote import make_url_request
 
+from bedrock.transform.dataclean import clean_df
 from bedrock.utils.config.common import (
     get_flowsa_base_name,
     load_env_file_key,
     load_yaml_dict,
     sourceconfigpath,
 )
-from bedrock.transform.dataclean import clean_df
+from bedrock.utils.config.schema import flow_by_activity_fields
+from bedrock.utils.config.settings import PATHS
+from bedrock.utils.logging.flowsa_log import log, reset_log_file
+from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
-from bedrock.flowsa.flowsa_log import log, reset_log_file
-from bedrock.utils.metadata import set_fb_meta, write_metadata
-from bedrock.flowsa.schema import flow_by_activity_fields
-from bedrock.utils.config.settings import paths
 
 
 def parse_args():
@@ -185,14 +185,14 @@ def process_data_frame(*, df, source, year, config):
     # save as parquet file
     name_data = set_fba_name(source, year)
     meta = set_fb_meta(name_data, "FlowByActivity")
-    write_df_to_file(flow_df, paths, meta)
+    write_df_to_file(flow_df, PATHS, meta)
     write_metadata(source, config, meta, "FlowByActivity", year=year)
     log.info("FBA generated and saved for %s", name_data)
     # rename the log file saved to local directory
     reset_log_file(name_data, meta)
 
 
-def main(**kwargs):
+def generateFlowByActivity(**kwargs):
     """
     Generate FBA parquet(s)
     :param kwargs: 'source' and 'year'
@@ -274,4 +274,4 @@ def main(**kwargs):
 
 
 if __name__ == '__main__':
-    main()
+    generateFlowByActivity()

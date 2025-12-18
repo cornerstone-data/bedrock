@@ -23,9 +23,9 @@ Data output saved as csv, retaining assigned file name
 
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import get_state_FIPS
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.mapping.location import get_state_FIPS
 
 
 def noaa_parse(*, year, **_):

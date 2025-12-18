@@ -13,9 +13,9 @@ in scripts/write_BEA_data_from_useeior.py
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def bea_parse(*, source, year, **_):

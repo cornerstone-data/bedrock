@@ -12,9 +12,9 @@ Data output manually saved as csv, "data/external_data/USGS_WU_Coef_Raw.csv"
 
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def usgs_coef_parse(*, year, **_):

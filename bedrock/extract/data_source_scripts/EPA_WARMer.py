@@ -6,7 +6,7 @@ import re
 
 import pandas as pd
 
-from bedrock.flowsa.location import US_FIPS
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def warmer_call(*, url, **_):

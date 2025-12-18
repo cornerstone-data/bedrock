@@ -12,15 +12,15 @@ import io
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.extract.data_source_scripts.EIA_CBECS_Land import (
     calculate_total_facility_land_area,
 )
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.location import US_FIPS, get_region_and_division_codes
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.config.common import WITHDRAWN_KEYWORD
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.location import US_FIPS, get_region_and_division_codes
 
 
 def eia_mecs_URL_helper(*, build_url, config, year, **_):
@@ -430,7 +430,7 @@ def eia_mecs_energy_parse(*, df_list, source, year, **_):
     :return: df, parsed and partially formatted to flowbyactivity
         specifications
     """
-    from bedrock.flowsa.location import assign_census_regions
+    from bedrock.utils.mapping.location import assign_census_regions
 
     # concatenate dataframe list into single dataframe
     df = pd.concat(df_list, sort=True)

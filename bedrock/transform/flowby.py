@@ -15,14 +15,14 @@ import esupy.processed_data_mgmt
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa import schema
 from bedrock.transform import literature_values
-from bedrock.utils.mapping import geo, naics
-from bedrock.utils.config import flowsa_yaml, settings
 from bedrock.utils.config.common import get_catalog_info
-from bedrock.flowsa.flowsa_log import log, vlog
-from bedrock.flowsa.location import fips_number_key
+from bedrock.utils.config.flowsa_yaml import load
+from bedrock.utils.config.settings import GCS_FLOWSA_DIR, configpath, datapath, PATHS
 from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
+from bedrock.utils.logging.flowsa_log import log, vlog
+from bedrock.utils.mapping import geo, naics
+from bedrock.utils.mapping.location import fips_number_key
 
 if TYPE_CHECKING:
     from bedrock.extract.flowbyactivity import FlowByActivity
@@ -34,8 +34,8 @@ NAME_SEP_CHAR = '.'
 # ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 
-with open(settings.datapath / 'flowby_config.yaml') as f:
-    flowby_config = flowsa_yaml.load(f)
+with open(configpath / 'flowby_config.yaml') as f:
+    flowby_config = load(f)
     # ^^^ Replaces schema.py
 
 
@@ -269,7 +269,7 @@ class _FlowBy(pd.DataFrame):
         config: dict = None,
         external_data_path: str = None,
     ) -> '_FlowBy':
-        paths = deepcopy(settings.paths)
+        paths = deepcopy(PATHS)
         paths.local_path = external_data_path or paths.local_path
 
         attempt_list = (
@@ -285,9 +285,7 @@ class _FlowBy(pd.DataFrame):
             )
             if attempt == 'download':
                 name = f'{file_metadata.name_data}.{file_metadata.ext}'
-                sub_bucket = posixpath.join(
-                    settings.GCS_FLOWSA_DIR, file_metadata.category
-                )
+                sub_bucket = posixpath.join(GCS_FLOWSA_DIR, file_metadata.category)
                 [
                     download_gcs_file(
                         name=n,
@@ -351,7 +349,7 @@ class _FlowBy(pd.DataFrame):
 
         conversion_table = pd.concat(
             [
-                pd.read_csv(settings.datapath / 'unit_conversion.csv'),
+                pd.read_csv(datapath / 'unit_conversion.csv'),
                 pd.DataFrame(
                     [
                         {

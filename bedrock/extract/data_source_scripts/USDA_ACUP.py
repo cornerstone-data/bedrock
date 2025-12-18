@@ -9,9 +9,9 @@ import json
 
 import pandas as pd
 
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS, abbrev_us_state
+from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state
 
 
 def acup_url_helper(*, build_url, config, **_):

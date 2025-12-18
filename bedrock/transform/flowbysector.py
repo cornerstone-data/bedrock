@@ -13,14 +13,14 @@ import esupy.processed_data_mgmt
 import pandas as pd
 from pandas import ExcelWriter
 
-from bedrock.utils.config import settings, common
-from bedrock.utils.mapping import geo, naics
+from bedrock.transform.flowby import _FlowBy, flowby_config, get_flowby_from_config
+from bedrock.transform.flowbyfunctions import collapse_fbs_sectors
 from bedrock.utils import metadata
+from bedrock.utils.config import common, settings
 from bedrock.utils.config.common import get_catalog_info, load_crosswalk
-from bedrock.flowsa.flowby import _FlowBy, flowby_config, get_flowby_from_config
-from bedrock.flowsa.flowbyfunctions import collapse_fbs_sectors
-from bedrock.flowsa.flowsa_log import log, reset_log_file
 from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING
+from bedrock.utils.logging.flowsa_log import log, reset_log_file
+from bedrock.utils.mapping import geo, naics
 
 
 class FlowBySector(_FlowBy):
@@ -243,7 +243,7 @@ class FlowBySector(_FlowBy):
                 f'{fbs.columns[fbs.columns.duplicated()].tolist()}'
             )
         meta = metadata.set_fb_meta(method, 'FlowBySector')
-        esupy.processed_data_mgmt.write_df_to_file(fbs, settings.paths, meta)
+        esupy.processed_data_mgmt.write_df_to_file(fbs, settings.PATHS, meta)
         reset_log_file(method, meta)
         metadata.write_metadata(
             source_name=method,
@@ -385,7 +385,7 @@ class FlowBySector(_FlowBy):
         }
 
         tables_path = (
-                settings.tableoutputpath / f'{self.full_name}' f'_Display_Tables.xlsx'
+            settings.tableoutputpath / f'{self.full_name}' f'_Display_Tables.xlsx'
         )
         try:
             with ExcelWriter(tables_path) as writer:
@@ -463,7 +463,7 @@ def collapse_FlowBySector(
     :param methodname: string, Name of an available method for the given class
     :return: dataframe in flow by sector format
     """
-    from bedrock.flowsa.validation import (
+    from bedrock.utils.validation.validation import (
         check_for_negative_flowamounts,
         check_for_nonetypes_in_sector_col,
     )

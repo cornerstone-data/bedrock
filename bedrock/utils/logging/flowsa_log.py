@@ -1,11 +1,13 @@
 import logging
 import shutil
 import sys
+
 from esupy.processed_data_mgmt import mkdir_if_missing
-from .settings import logoutputpath
+
+from bedrock.utils.config.settings import logoutputpath
 
 try:
-    from colorama import init, Fore, Style
+    from colorama import Fore, Style, init
 except ModuleNotFoundError:
     print('Install colorama for colored log output')
     console_formatter = logging.Formatter(

@@ -16,9 +16,7 @@ import yaml
 from dotenv import load_dotenv
 
 import bedrock.utils.config.flowsa_yaml as flowsa_yaml
-from bedrock.utils.validation.exceptions import APIError, EnvError, FlowsaMethodNotFoundError
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.schema import (
+from bedrock.utils.config.schema import (
     activity_fields,
     flow_by_activity_fields,
     flow_by_activity_mapped_fields,
@@ -29,10 +27,16 @@ from bedrock.flowsa.schema import (
 )
 from bedrock.utils.config.settings import (
     MODULEPATH,
+    configpath,
     datapath,
     flowbysectormethodpath,
-    methodpath,
     sourceconfigpath,
+)
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.validation.exceptions import (
+    APIError,
+    EnvError,
+    FlowsaMethodNotFoundError,
 )
 
 # Sets default Sector Source Name
@@ -152,7 +156,7 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
         filename = re.sub(pattern, '', filename)
 
     if filename in ['source_catalog']:
-        folder = datapath
+        folder = configpath
     else:
         # first check if a filepath for the yaml is specified, as is the
         # case with FBS method files located outside FLOWSA
@@ -196,7 +200,7 @@ def load_values_from_literature_citations_config():
     :return: dictionary of the values from the literature information
     """
     sfile = (
-        datapath / 'bibliographyinfo' / 'values_from_literature_source_citations.yaml'
+        MODULEPATH / 'publish' / 'bibliographyinfo' / 'values_from_literature_source_citations.yaml'
     )
     with open(sfile, 'r') as f:
         config = yaml.safe_load(f)

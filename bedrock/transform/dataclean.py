@@ -8,9 +8,9 @@ Common functions to clean and harmonize dataframes
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa import flowsa_log
-from bedrock.utils.config import settings
 from bedrock.transform import literature_values
+from bedrock.utils.config import settings
+from bedrock.utils.logging.flowsa_log import log
 
 
 def clean_df(df, flowbyfields, drop_description=True):
@@ -126,7 +126,7 @@ def standardize_units(df):
             for unit in standardized.Unit.unique()
             if unit not in standardized_units
         ]
-        flowsa_log.log.warning(
+        log.warning(
             f'Some units not standardized by '
             f'standardize_units(): {unstandardized_units}.'
         )

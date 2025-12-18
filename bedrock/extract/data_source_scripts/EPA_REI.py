@@ -7,9 +7,9 @@ import re
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
-from bedrock.flowsa.location import US_FIPS
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def rei_url_helper(*, build_url, config, **_):

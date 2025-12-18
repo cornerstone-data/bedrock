@@ -16,9 +16,9 @@ import json
 
 import pandas as pd
 
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import load_env_file_key
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import get_county_FIPS
+from bedrock.utils.mapping.location import get_county_FIPS
 
 
 def census_qwi_url_helper(*, build_url, year, config, **_):

@@ -4,26 +4,26 @@ from pathlib import Path
 from esupy.processed_data_mgmt import Paths, mkdir_if_missing
 from esupy.util import get_git_hash, return_pkg_version
 
-MODULEPATH = Path(__file__).resolve().parent
+MODULEPATH = Path(__file__).resolve().parents[2]
 
 GCS_FLOWSA_DIR = "flowsa"
 
 datapath = MODULEPATH / 'data'
-crosswalkpath = datapath / 'activitytosectormapping'
-externaldatapath = datapath / 'external_data'
-process_adjustmentpath = datapath / 'process_adjustments'
+crosswalkpath = MODULEPATH / 'utils' / 'mapping' / 'activitytosectormapping'
+configpath = MODULEPATH / 'utils' / 'config'
+externaldatapath = MODULEPATH / 'extract' / 'external_data'
+process_adjustmentpath = MODULEPATH / 'extract' / 'process_adjustments'
 
-methodpath = MODULEPATH / 'methods'
-sourceconfigpath = methodpath / 'flowbyactivitymethods'
-flowbysectormethodpath = methodpath / 'flowbysectormethods'
-flowbysectoractivitysetspath = methodpath / 'flowbysectoractivitysets'
+sourceconfigpath = MODULEPATH / 'extract' / 'flowbyactivitymethods'
+flowbysectormethodpath = MODULEPATH / 'transform' / 'flowbysectormethods'
+flowbysectoractivitysetspath = MODULEPATH / 'transform' / 'flowbysectoractivitysets'
 
-datasourcescriptspath = MODULEPATH / 'data_source_scripts'
+datasourcescriptspath = MODULEPATH / 'extract' / 'data_source_scripts'
 
 # "Paths()" are a class defined in esupy
-paths = Paths()
-paths.local_path = paths.local_path / 'flowsa'
-outputpath = paths.local_path
+PATHS = Paths()
+PATHS.local_path = PATHS.local_path / 'flowsa'
+outputpath = PATHS.local_path
 fbaoutputpath = outputpath / 'FlowByActivity'
 fbsoutputpath = outputpath / 'FlowBySector'
 biboutputpath = outputpath / 'Bibliography'

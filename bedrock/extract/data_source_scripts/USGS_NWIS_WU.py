@@ -11,12 +11,12 @@ import io
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.config.common import capitalize_first_letter, fba_activity_fields
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.flowsa_log import vlog
-from bedrock.flowsa.location import US_FIPS, abbrev_us_state
-from bedrock.flowsa.validation import compare_df_units
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.config.common import capitalize_first_letter, fba_activity_fields
+from bedrock.utils.logging.flowsa_log import vlog
+from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state
+from bedrock.utils.validation.validation import compare_df_units
 
 
 def usgs_URL_helper(*, build_url, config, **_):

@@ -5,6 +5,8 @@ from typing import IO, Callable
 
 import yaml
 
+from bedrock.utils.config.settings import datasourcescriptspath
+
 
 class FlowsaLoader(yaml.SafeLoader):
     '''
@@ -105,7 +107,7 @@ class FlowsaLoader(yaml.SafeLoader):
         # If someone who understands security concerns better than I do feels
         # it is safe to change this behavior, then go ahead.
         module = importlib.import_module(
-            f'bedrock.flowsa.data_source_scripts' f'.{module_name}'
+            f'bedrock.extract.data_source_scripts.{module_name}'
         )
         return getattr(module, loader.construct_scalar(node))
 

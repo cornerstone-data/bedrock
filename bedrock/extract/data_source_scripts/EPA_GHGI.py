@@ -13,14 +13,15 @@ import zipfile
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyfunctions import (
+from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+from bedrock.transform.flowbyfunctions import (
     assign_fips_location_system,
     load_fba_w_standardized_units,
 )
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.schema import flow_by_activity_fields
+from bedrock.utils.config.schema import flow_by_activity_fields
 from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.logging.flowsa_log import log
 
 SECTOR_DICT = {
     'Res.': 'Residential',
@@ -1037,17 +1038,14 @@ if __name__ == "__main__":
         # "A-5"
     ]
     fba_list = []
-    for y in range(2019, 2024):
-        flowsa.generateflowbyactivity.main(year=y, source='EPA_GHGI')
+    for y in range(2020, 2021):
+        generateFlowByActivity(year=y, source='EPA_GHGI')
         if y == 2023:
             ls = tbl_list + ['3-25', 'A-5']
         else:
             ls = tbl_list + ['3-25b'] + [f'A-{2028-y}']
         fba = pd.concat(
-            [
-                flowsa.getFlowByActivity(f'EPA_GHGI_T_{str(t).replace("-","_")}', y)
-                for t in ls
-            ]
+            [getFlowByActivity(f'EPA_GHGI_T_{str(t).replace("-","_")}', y) for t in ls]
         )
         fba_list.append(fba)
     fba_all = pd.concat(fba_list, ignore_index=True)

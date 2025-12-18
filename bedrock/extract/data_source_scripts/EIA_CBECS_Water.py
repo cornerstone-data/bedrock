@@ -10,9 +10,9 @@ import io
 
 import pandas as pd
 
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def eia_cbecs_water_call(*, resp, **_):

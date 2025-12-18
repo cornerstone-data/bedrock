@@ -16,7 +16,7 @@ from bedrock.utils.config.common import (
     load_yaml_dict,
     sourceconfigpath,
 )
-from bedrock.flowsa.flowsa_log import log
+from bedrock.utils.logging.flowsa_log import log
 
 
 def generate_list_of_sources_in_fbs_method(methodname):

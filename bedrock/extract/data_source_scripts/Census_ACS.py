@@ -16,7 +16,7 @@ import json
 import pandas as pd
 from esupy.remote import make_url_request
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
 
 def load_acs_variables(param='profile'):

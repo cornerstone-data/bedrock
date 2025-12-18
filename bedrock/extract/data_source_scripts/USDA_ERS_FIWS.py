@@ -13,8 +13,12 @@ import zipfile
 
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS, get_all_state_FIPS_2, us_state_abbrev
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.mapping.location import (
+    US_FIPS,
+    get_all_state_FIPS_2,
+    us_state_abbrev,
+)
 
 
 def fiws_call(*, resp, **_):

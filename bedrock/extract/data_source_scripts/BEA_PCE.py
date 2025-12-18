@@ -8,8 +8,8 @@ import json
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import get_state_FIPS
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.mapping.location import get_state_FIPS
 
 
 def bea_pce_url_helper(*, build_url, config, **_):

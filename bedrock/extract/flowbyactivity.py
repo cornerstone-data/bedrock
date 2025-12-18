@@ -20,18 +20,18 @@ import fedelemflowlist
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa import (
-    validation,
-)
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+from bedrock.transform.flowby import NAME_SEP_CHAR, _FlowBy, flowby_config
+from bedrock.transform.flowbyfunctions import filter_by_geoscale
 from bedrock.utils.config import settings
-from bedrock.extract import generateflowbyactivity
-from bedrock.utils.mapping import geo, naics, sectormapping
-from bedrock.utils import metadata
-from bedrock.utils.validation.exceptions import FBANotAvailableError
-from bedrock.flowsa.flowby import NAME_SEP_CHAR, _FlowBy, flowby_config
-from bedrock.flowsa.flowbyfunctions import filter_by_geoscale
-from bedrock.flowsa.flowsa_log import log
 from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping import geo, naics, sectormapping
+from bedrock.utils.metadata.metadata import set_fb_meta
+from bedrock.utils.validation.exceptions import FBANotAvailableError
+from bedrock.utils.validation.validation import (
+    compare_geographic_totals,
+)
 
 if TYPE_CHECKING:
     from bedrock.transform.flowbysector import FlowBySector
@@ -115,9 +115,9 @@ class FlowByActivity(_FlowBy):
         if git_version is not None:
             meta_name = f'{meta_name}_{git_version}'
 
-        file_metadata = metadata.set_fb_meta(meta_name, 'FlowByActivity')
+        file_metadata = set_fb_meta(meta_name, 'FlowByActivity')
         flowby_generator = partial(
-            generateflowbyactivity.main, source=full_name, year=year
+            generateFlowByActivity, source=full_name, year=year
         )
         return super()._getFlowBy(
             file_metadata=file_metadata,
@@ -376,7 +376,7 @@ class FlowByActivity(_FlowBy):
                 self.add_primary_secondary_columns('Activity').PrimaryActivity.unique()
             )
 
-            validation.compare_geographic_totals(
+            compare_geographic_totals(
                 fba_at_target_geoscale,
                 self,
                 self.source_name,

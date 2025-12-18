@@ -8,16 +8,16 @@ Helper functions for flowbyactivity and flowbysector data
 import numpy as np
 from esupy.dqi import get_weighted_average
 
-from bedrock.utils.config.common import fbs_collapsed_default_grouping_fields
 from bedrock.transform.dataclean import clean_df, standardize_units
-from bedrock.utils.validation.exceptions import FBSMethodConstructionError
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.location import US_FIPS, get_county_FIPS, get_state_FIPS
-from bedrock.flowsa.schema import (
+from bedrock.utils.config.common import fbs_collapsed_default_grouping_fields
+from bedrock.utils.config.schema import (
     flow_by_activity_fields,
     flow_by_sector_collapsed_fields,
     flow_by_sector_fields,
 )
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.location import US_FIPS, get_county_FIPS, get_state_FIPS
+from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 
 
 def create_geoscale_list(df, geoscale, year='2015'):

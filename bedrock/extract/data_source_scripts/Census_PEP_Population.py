@@ -10,9 +10,9 @@ import json
 
 import pandas as pd
 
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import load_env_file_key
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS, get_all_state_FIPS_2
+from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
 
 
 def Census_pop_URL_helper(*, build_url, year, config, **_):

@@ -1,6 +1,6 @@
 import pytest
 
-from bedrock.flowsa import getFlowByActivity
+from bedrock.extract.flowbyactivity import getFlowByActivity
 
 
 @pytest.mark.eeio_integration

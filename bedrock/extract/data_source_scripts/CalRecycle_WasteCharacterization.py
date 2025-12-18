@@ -14,7 +14,7 @@ import os
 
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import externaldatapath
 
 

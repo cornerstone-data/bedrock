@@ -9,8 +9,8 @@ https://www.census.gov/construction/c30/c30index.html
 import numpy as np
 import pandas as pd
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def census_vip_call(*, resp, **_):

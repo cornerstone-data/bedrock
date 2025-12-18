@@ -14,7 +14,7 @@ import zipfile
 
 import pandas as pd
 
-from bedrock.flowsa.location import call_country_code
+from bedrock.utils.mapping.location import call_country_code
 
 
 def sc_gdp_call(*, resp, **_):

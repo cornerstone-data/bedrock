@@ -4,11 +4,10 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+from bedrock.transform.flowbyfunctions import aggregator
+from bedrock.utils.config import common, settings
+from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.dqi import adjust_dqi_reliability_collection_scores
-from bedrock.flowsa.flowbyfunctions import aggregator
-from bedrock.flowsa.flowsa_log import log, vlog
-
-from bedrock.utils.config import settings, common
 
 
 def return_naics_crosswalk(year: Literal[2012, 2017]) -> pd.DataFrame:

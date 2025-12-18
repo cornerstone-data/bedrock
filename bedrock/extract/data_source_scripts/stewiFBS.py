@@ -20,12 +20,12 @@ from esupy.processed_data_mgmt import read_source_metadata
 from stewicombo.globals import addChemicalMatches, compile_metadata, set_stewicombo_meta
 
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.location import apply_county_FIPS, update_geoscale
-from bedrock.utils.mapping.naics import convert_naics_year
 from bedrock.utils.config.settings import process_adjustmentpath
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.location import apply_county_FIPS, update_geoscale
+from bedrock.utils.mapping.naics import convert_naics_year
 
 
 def stewicombo_to_sector(

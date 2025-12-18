@@ -17,7 +17,7 @@ import pandas as pd
 from esupy.mapping import apply_flow_mapping
 
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
 
 def eia_mer_url_helper(*, build_url, config, **_):

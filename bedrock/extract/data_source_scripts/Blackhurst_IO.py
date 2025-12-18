@@ -10,9 +10,9 @@ Includes supporting functions for Blackhurst paper data.
 import pandas as pd
 from tabula.io import read_pdf
 
-from bedrock.flowsa.flowbyfunctions import assign_fips_location_system
-from bedrock.flowsa.location import US_FIPS
+from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.mapping.location import US_FIPS
 
 
 def bh_parse(*, df_list, **_):

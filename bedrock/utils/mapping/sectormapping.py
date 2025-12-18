@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 from esupy.mapping import apply_flow_mapping
 
-from bedrock.utils.config.common import get_flowsa_base_name, load_crosswalk
 from bedrock.transform.dataclean import standardize_units
-from bedrock.flowsa.flowsa_log import log
-from bedrock.flowsa.schema import dq_fields
+from bedrock.utils.config.common import get_flowsa_base_name, load_crosswalk
+from bedrock.utils.config.schema import dq_fields
+from bedrock.utils.logging.flowsa_log import log
 
 
 def get_activitytosector_mapping(source, fbsconfigpath=None):

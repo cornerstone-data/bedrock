@@ -14,9 +14,9 @@ import pycountry
 from esupy.remote import make_url_request
 
 from bedrock.utils.config.common import clean_str_and_capitalize
-from bedrock.flowsa.flowsa_log import log
-from bedrock.utils.mapping.geo import get_all_fips
 from bedrock.utils.config.settings import datapath
+from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.geo import get_all_fips
 
 US_FIPS = "00000"
 
