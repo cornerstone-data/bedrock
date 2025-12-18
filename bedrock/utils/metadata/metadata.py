@@ -13,11 +13,6 @@ from esupy.processed_data_mgmt import (
     write_metadata_to_file,
 )
 
-from bedrock.extract.data_source_scripts.stewiFBS import (
-    add_stewi_metadata,
-    add_stewicombo_metadata,
-)
-from bedrock.extract.generateflowbyactivity import set_fba_name
 from bedrock.publish.bibliography import load_source_dict
 from bedrock.utils.config.common import (
     get_catalog_info,
@@ -208,6 +203,11 @@ def recursive_attribution(activities, attr_source_meta, primary_source_meta, con
 
 def return_fbs_method_data(source_name, config):  # noqa: ARG001
 
+    from bedrock.extract.data_source_scripts.stewiFBS import (  # noqa: PLC0415
+        add_stewi_metadata,
+        add_stewicombo_metadata,
+    )
+
     def process_primary_source(k, v, meta):
         if k == 'stewiFBS':
             if v.get('local_inventory_name'):
@@ -319,6 +319,8 @@ def getMetadata(source, year=None, category=None):
     :param category: string, 'FlowBySector' or 'FlowByActivity'
     :return: meta object, previously generated FBA or FBS meta
     """
+    from bedrock.extract.generateflowbyactivity import set_fba_name  # noqa: PLC0415
+
     if category is None:
         log.error('Category required, specify "FlowByActivity" or ' '"FlowBySector"')
     # if category is FBS ensure year is not added to source name when
