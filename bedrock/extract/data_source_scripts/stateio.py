@@ -80,10 +80,10 @@ def parse_statior(*, source, year, config, **_):
 
 
 if __name__ == "__main__":
-
+    import bedrock
     # source = 'stateio_Industry_GO'
     # source = 'stateio_Make_Summary'
     source = 'stateio_Use_Summary'
     for y in range(2012, 2024):
-        flowsa.generateflowbyactivity.main(year=y, source=source)
-    fba = flowsa.flowbyactivity.getFlowByActivity(source, 2022)
+        bedrock.extract.generateflowbyactivity.main(year=y, source=source)
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity(source, 2022)

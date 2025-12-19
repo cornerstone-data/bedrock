@@ -393,6 +393,6 @@ def add_stewicombo_metadata(inventory_name):
 
 
 if __name__ == "__main__":
-
-    fbs = flowsa.flowbysector.FlowBySector.generateFlowBySector('CRHW_national_2017')
-    fbs = flowsa.flowbysector.FlowBySector.generateFlowBySector('TRI_DMR_state_2017')
+    import bedrock
+    fbs = bedrock.transform.flowbysector.FlowBySector.generateFlowBySector('CRHW_national_2017')
+    # fbs = bedrock.transform.flowbysector.FlowBySector.generateFlowBySector('TRI_DMR_state_2017')

@@ -87,8 +87,8 @@ def noaa_parse(*, year, **_):
 
 
 if __name__ == "__main__":
-
-    flowsa.generateflowbyactivity.main(
+    import bedrock
+    bedrock.extract.generateflowbyactivity.main(
         year='2012-2023', source='NOAA_FisheriesLandings'
     )
-    fba = flowsa.getFlowByActivity('NOAA_FisheriesLandings', year=2023)
+    fba = bedrock.extract.getflowbyactivity.getFlowByActivity('NOAA_FisheriesLandings', year=2023)

@@ -82,7 +82,7 @@ def load_source_dict(sourcename):
 #     :return: a .bib file saved in local directory
 #     """
 #
-#     from bedrock.flowsa.metadata import getMetadata
+#     from bedrock.utils.metadata import getMetadata
 #
 #     # create list of sources in method
 #     sources = generate_list_of_sources_in_fbs_method(methodname)

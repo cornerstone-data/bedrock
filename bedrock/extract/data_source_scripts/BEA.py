@@ -101,9 +101,12 @@ def bea_parse(*, source, year, **_):
 
 
 if __name__ == "__main__":
+    import bedrock
 
     for y in range(2012, 2024):
-        flowsa.generateflowbyactivity.main(year=y, source='BEA_Summary_Supply')
-        flowsa.generateflowbyactivity.main(year=y, source='BEA_Summary_Use_SUT')
-        fba = flowsa.getFlowByActivity('BEA_Summary_Supply', y)
-        fba2 = flowsa.getFlowByActivity('BEA_Summary_Use_SUT', y)
+        bedrock.extract.generateflowbyactivity.main(year=y, source='BEA_Summary_Supply')
+        bedrock.extract.generateflowbyactivity.main(
+            year=y, source='BEA_Summary_Use_SUT'
+        )
+        fba = bedrock.extract.getFlowByActivity('BEA_Summary_Supply', y)
+        fba2 = bedrock.extract.getFlowByActivity('BEA_Summary_Use_SUT', y)

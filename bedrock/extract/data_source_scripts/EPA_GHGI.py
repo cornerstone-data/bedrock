@@ -998,8 +998,8 @@ def split_HFCs_by_type(fba: FlowByActivity, **_) -> FlowByActivity:
 
 
 if __name__ == "__main__":
-
-    # fba = flowsa.return_FBA('EPA_GHGI_T_4_101', 2016)
+    import bedrock
+    # fba = bedrock.return_FBA('EPA_GHGI_T_4_101', 2016)
     # df = clean_HFC_fba(fba)
     tbl_list = [
         "2-1",

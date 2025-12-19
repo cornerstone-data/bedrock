@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 import seaborn as sns
 from plotly.subplots import make_subplots
 
+import bedrock
 from bedrock.utils.config.common import load_crosswalk, load_yaml_dict
 from bedrock.utils.config.settings import datapath, plotoutputpath
 
@@ -113,7 +114,7 @@ def FBSscatterplot(
 
     df_list = []
     for label, method in method_dict.items():
-        dfm = flowsa.flowbysector.collapse_FlowBySector(method)
+        dfm = bedrock.transform.flowbysector.collapse_FlowBySector(method)
         if plottype == 'facet_graph':
             dfm['methodname'] = dfm['Unit'].apply(lambda x: f"{label} ({x})")
         elif plottype in ('method_comparison', 'boxplot'):
@@ -124,7 +125,7 @@ def FBSscatterplot(
     if industry_spec is not None:
         # In order to reassign the industry spec, need to create and attach
         # the method config for subsequent functions to work
-        df = flowsa.flowbysector.FlowBySector(
+        df = bedrock.transform.flowbysector.FlowBySector(
             df.reset_index(drop=True), config=load_yaml_dict(method, 'FBS')
         )
         # agg sectors for data visualization
@@ -148,7 +149,7 @@ def FBSscatterplot(
     if legend_by_state:
         df = (
             df.merge(
-                flowsa.location.get_state_FIPS(abbrev=True),
+                bedrock.utils.location.get_state_FIPS(abbrev=True),
                 how='left',
                 left_on='Location',
                 right_on='FIPS',
@@ -300,7 +301,7 @@ def stackedBarChart(
     # if the df provided is a string, load the fbs method, otherwise use the
     # df provided
     if (type(df)) == str:
-        df = flowsa.flowbysector.FlowBySector.return_FBS(df)
+        df = bedrock.transform.flowbysector.FlowBySector.return_FBS(df)
 
     if generalize_AttributionSources:
         df['AttributionSources'] = np.where(
@@ -311,7 +312,7 @@ def stackedBarChart(
         for k, v in selection_fields.items():
             df = df[df[k].str.startswith(tuple(v))]
 
-    df = flowsa.flowbysector.FlowBySector(df.reset_index(drop=True))
+    df = bedrock.transform.flowbysector.FlowBySector(df.reset_index(drop=True))
     # agg sectors for data visualization
     if industry_spec is not None:
         df.config['industry_spec'] = industry_spec
@@ -323,7 +324,7 @@ def stackedBarChart(
     df = df.sector_aggregation()
     # collapse the df, if the df is not already collapsed
     if 'Sector' not in df.columns:
-        df = flowsa.flowbyfunctions.collapse_fbs_sectors(df)
+        df = bedrock.extract.flowbyfunctions.collapse_fbs_sectors(df)
 
     # convert units
     df = convert_units_for_graphics(df)
@@ -637,7 +638,7 @@ def convert_units_for_graphics(df):
 #     :return: csv file for use in generating sankey diagram
 #     """
 #
-#     df = flowsa.FlowBySector.return_FBS(
+#     df = bedrock.transform.FlowBySector.return_FBS(
 #         methodname, external_config_path=fbsconfigpath, download_sources_ok=True)
 #
 #     df = convert_units_for_graphics(df)

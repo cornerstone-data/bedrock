@@ -263,7 +263,7 @@ def VT_remove_dupicate_activities(df_subset):
 
 # %%
 if __name__ == '__main__':
-
+    import bedrock
     for y in range(2019, 2020):
-        flowsa.generateflowbyactivity.main(source='StateGHGI_NY', year=y)
-        fba = flowsa.flowbyactivity.getFlowByActivity('StateGHGI_NY', y)
+        bedrock.extract.generateflowbyactivity.main(source='StateGHGI_NY', year=y)
+        fba = bedrock.extract.flowbyactivity.getFlowByActivity('StateGHGI_NY', y)

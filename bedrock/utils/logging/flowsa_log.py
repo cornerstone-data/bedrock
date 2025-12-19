@@ -78,19 +78,19 @@ def get_log_file_handler(name, level=logging.DEBUG):
     return h
 
 
-log_file_handler = get_log_file_handler('flowsa.log', logging.INFO)
-validation_file_handler = get_log_file_handler('flowsa_validation.log')
+log_file_handler = get_log_file_handler('bedrock.log', logging.INFO)
+validation_file_handler = get_log_file_handler('bedrock_validation.log')
 
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(console_formatter)
 
-log = logging.getLogger('flowsa')
+log = logging.getLogger('bedrock')
 log.addHandler(console_handler)
 log.addHandler(log_file_handler)
 log.propagate = False
 
-vlog = logging.getLogger('flowsa.validation')
+vlog = logging.getLogger('bedrock.validation')
 vlog.setLevel(logging.DEBUG)
 vlog.addHandler(validation_file_handler)
 
@@ -103,7 +103,7 @@ def reset_log_file(filename, fb_meta):
     :param fb_meta: metadata for parquet
     """
     # original log file name - all log statements
-    log_file = logoutputpath / "flowsa.log"
+    log_file = logoutputpath / "bedrock.log"
     # generate new log name
     new_log_name = (
         logoutputpath / f'{filename}_v'
@@ -121,13 +121,13 @@ def reset_log_file(filename, fb_meta):
     for h in log.handlers:
         if isinstance(h, logging.FileHandler):
             log.removeHandler(h)
-    log.addHandler(get_log_file_handler('flowsa.log', logging.INFO))
+    log.addHandler(get_log_file_handler('bedrock.log', logging.INFO))
 
     if fb_meta.category == 'FlowByActivity':
         return
 
     # original log file name - validation
-    log_file = logoutputpath / "flowsa_validation.log"
+    log_file = logoutputpath / "bedrock_validation.log"
     # generate new log name
     new_log_name = (
         logoutputpath / f'{filename}_v'
@@ -143,4 +143,4 @@ def reset_log_file(filename, fb_meta):
     for h in vlog.handlers:
         if isinstance(h, logging.FileHandler):
             vlog.removeHandler(h)
-    vlog.addHandler(get_log_file_handler('flowsa_validation.log'))
+    vlog.addHandler(get_log_file_handler('bedrock_validation.log'))

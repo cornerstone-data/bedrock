@@ -9,7 +9,7 @@ from zipfile import ZipFile
 
 import pandas as pd
 
-from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.logging.flowsa_log import log
@@ -130,7 +130,7 @@ def allocate_flows_by_fuel(fba: FlowByActivity, **_) -> FlowByActivity:
         activity_list = alist
     source_fba = pd.concat(
         [
-            flowsa.flowbyactivity.getFlowByActivity(x, year)
+            getFlowByActivity(x, year)
             for x in fba.config['clean_parameter']['fba_source']
         ],
         ignore_index=True,
@@ -161,7 +161,7 @@ def allocate_flows_by_fuel(fba: FlowByActivity, **_) -> FlowByActivity:
     fba1 = pd.concat(
         [
             (
-                flowsa.flowbyactivity.getFlowByActivity('EPA_StateGHGI', year).query(
+                getFlowByActivity('EPA_StateGHGI', year).query(
                     'ActivityProducedBy in @activity_list'
                 )
             ),
@@ -257,6 +257,6 @@ def drop_negative_values(fbs: FlowBySector, **_) -> FlowBySector:
 
 
 if __name__ == '__main__':
-
-    flowsa.generateflowbyactivity.main(source='EPA_StateGHGI', year='2012-2022')
-    fba = flowsa.flowbyactivity.getFlowByActivity('EPA_StateGHGI', '2020')
+    import bedrock
+    bedrock.extract.generateflowbyactivity.main(source='EPA_StateGHGI', year='2012-2022')
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EPA_StateGHGI', '2020')

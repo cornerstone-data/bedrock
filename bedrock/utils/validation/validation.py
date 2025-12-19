@@ -9,11 +9,12 @@ import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
+import bedrock
 from bedrock.transform.flowbyfunctions import aggregator, collapse_fbs_sectors
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.common import fba_activity_fields, load_yaml_dict
 from bedrock.utils.config.schema import dq_fields
-from bedrock.utils.config.settings import diffpath, PATHS
+from bedrock.utils.config.settings import PATHS, diffpath
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.metadata.metadata import set_fb_meta
@@ -278,7 +279,7 @@ def compare_FBA_results(
     """
 
     # load first file (if compare to remote, this is remote file)
-    df1 = flowsa.getFlowByActivity(
+    df1 = bedrock.extract.flowbyactivity.getFlowByActivity(
         datasource=source,
         year=year,
         git_version=fba1_version,
@@ -287,10 +288,12 @@ def compare_FBA_results(
     # load second file
     if compare_to_remote:
         # Generate the FBS locally and then immediately load
-        flowsa.generateflowbyactivity.main(source=source, year=year)
-        df2 = flowsa.getFlowByActivity(datasource=source, year=year)
+        bedrock.extract.flowbyactivity.generateflowbyactivity.main(
+            source=source, year=year
+        )
+        df2 = bedrock.extract.getFlowByActivity(datasource=source, year=year)
     else:
-        df2 = flowsa.getFlowByActivity(
+        df2 = bedrock.extract.flowbyactivity.getFlowByActivity(
             datasource=source, year=year, git_version=fba2_version
         )
 
@@ -355,7 +358,7 @@ def compare_FBS_results(fbs1, fbs2, ignore_metasources=False, compare_to_remote=
     """
 
     # load first file
-    df1 = flowsa.flowbysector.getFlowBySector(
+    df1 = bedrock.transform.flowbysector.getFlowBySector(
         fbs1, download_FBS_if_missing=compare_to_remote
     )
     # load second file
@@ -363,7 +366,7 @@ def compare_FBS_results(fbs1, fbs2, ignore_metasources=False, compare_to_remote=
         # Generate the FBS locally and then immediately load
         df2 = FlowBySector.generateFlowBySector(method=fbs2, download_sources_ok=True)
     else:
-        df2 = flowsa.flowbysector.getFlowBySector(fbs2)
+        df2 = bedrock.transform.flowbysector.getFlowBySector(fbs2)
     df_m = compare_FBS(df1, df2, ignore_metasources=ignore_metasources)
 
     return df_m
@@ -496,7 +499,7 @@ def compare_single_FBA_against_remote(source, year, outdir=diffpath, run_single=
     if not downloaded:
         if run_single:
             # Run a single file even if no comparison available
-            flowsa.flowbyactivity.generateflowbyactivity.main(year=year, source=source)
+            bedrock.extract.flowbyactivity.generateflowbyactivity.main(year=year, source=source)
         else:
             print(f"{source} {year} not found in remote server. Skipping...")
         return

@@ -344,7 +344,7 @@ def get_BEA_industry_output(region, io_level, output_year, bea_year=2012):
         fba = 'BEA_Detail_GrossOutput_IO'
 
     # Get output by BEA sector
-    bea = flowsa.flowbyactivity.getFlowByActivity(fba, output_year)
+    bea = bedrock.extract.flowbyactivity.getFlowByActivity(fba, output_year)
     bea = bea.drop(
         columns=bea.columns.difference(['FlowAmount', 'ActivityProducedBy', 'Location'])
     ).rename(columns={'FlowAmount': 'Output', 'ActivityProducedBy': 'BEA'})
@@ -432,8 +432,9 @@ def append_material_code(df, v, attr):
 
 
 if __name__ == "__main__":
-    df = flowsa.sectormapping.map_to_BEA_sectors(
-        flowsa.getFlowBySector('GHG_national_2019_m1').rename(
+    import bedrock
+    df = bedrock.utils.mapping.sectormapping.map_to_BEA_sectors(
+        bedrock.transform.flowbysector.getFlowBySector('GHG_national_2019_m1').rename(
             columns={'SectorProducedBy': 'Sector'}
         ),
         region='national',

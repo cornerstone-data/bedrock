@@ -108,6 +108,7 @@ def census_sas_parse(*, df_list, year, **_):
 
 
 if __name__ == "__main__":
+    import bedrock
 
-    flowsa.generateflowbyactivity.main(source='Census_SAS', year='2013-2022')
-    fba = flowsa.getFlowByActivity('Census_SAS', 2022)
+    bedrock.extract.generateflowbyactivity.main(source='Census_SAS', year='2013-2022')
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('Census_SAS', 2022)

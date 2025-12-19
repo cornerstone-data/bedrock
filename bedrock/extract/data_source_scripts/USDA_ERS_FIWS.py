@@ -122,6 +122,9 @@ def fiws_parse(*, df_list, year, **_):
 
 
 if __name__ == "__main__":
+    import bedrock
 
-    flowsa.generateflowbyactivity.main(year='2012-2023', source='USDA_ERS_FIWS')
-    fba = flowsa.getFlowByActivity('USDA_ERS_FIWS', year=2023)
+    bedrock.extract.generateflowbyactivity.main(
+        year='2012-2023', source='USDA_ERS_FIWS'
+    )
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('USDA_ERS_FIWS', year=2023)

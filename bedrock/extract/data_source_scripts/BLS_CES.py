@@ -144,6 +144,7 @@ def bls_ces_parse(*, df_list, config, year, **_):
 
 
 if __name__ == "__main__":
+    import bedrock
 
-    flowsa.generateflowbyactivity.main(source='BLS_CES', year='2017-2019')
-    fba = flowsa.getFlowByActivity('BLS_CES', year=2017)
+    bedrock.extract.generateflowbyactivity.main(source='BLS_CES', year='2017-2019')
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('BLS_CES', year=2017)

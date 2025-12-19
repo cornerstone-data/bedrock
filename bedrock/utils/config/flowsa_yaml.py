@@ -5,7 +5,7 @@ from typing import IO, Callable
 
 import yaml
 
-from bedrock.utils.config.settings import datasourcescriptspath
+from bedrock.utils.config import settings
 
 
 class FlowsaLoader(yaml.SafeLoader):
@@ -30,9 +30,9 @@ class FlowsaLoader(yaml.SafeLoader):
 
         for folder in [
             *loader.external_paths_to_search,
-            flowsa.settings.sourceconfigpath,
-            flowsa.settings.flowbysectormethodpath,
-            flowsa.settings.datapath,
+            settings.sourceconfigpath,
+            settings.flowbysectormethodpath,
+            settings.datapath,
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)
@@ -82,7 +82,7 @@ class FlowsaLoader(yaml.SafeLoader):
 
         for folder in [
             *loader.external_paths_to_search,
-            flowsa.settings.flowbysectoractivitysetspath,
+            settings.flowbysectoractivitysetspath,
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)

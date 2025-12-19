@@ -161,6 +161,6 @@ def eia_seds_parse(*, df_list, year, config, **_):
 
 
 if __name__ == "__main__":
-
-    flowsa.generateflowbyactivity.main(source='EIA_SEDS', year=2020)
-    fba = flowsa.getFlowByActivity('EIA_SEDS', 2020)
+    import bedrock
+    bedrock.extract.generateflowbyactivity.main(source='EIA_SEDS', year=2020)
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EIA_SEDS', 2020)

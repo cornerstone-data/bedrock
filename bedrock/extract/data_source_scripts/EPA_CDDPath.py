@@ -256,8 +256,6 @@ def cdd_processing(fba, source_dict):
 
 
 if __name__ == "__main__":
-
-    flowsa.generateflowbyactivity.main(source='EPA_CDDPath', year=2018)
-    fba = flowsa.flowbyactivity.getFlowByActivity(datasource='EPA_CDDPath', year=2018)
-
-    # fbs = flowsa.return_FBS(methodname='CDD_concrete_national_2014')
+    import bedrock
+    bedrock.extract.generateflowbyactivity.main(source='EPA_CDDPath', year=2018)
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity(datasource='EPA_CDDPath', year=2018)

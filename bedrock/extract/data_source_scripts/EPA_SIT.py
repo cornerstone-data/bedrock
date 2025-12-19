@@ -258,6 +258,6 @@ def clean_up_state_data(fba: FlowByActivity, **_):
 
 
 if __name__ == '__main__':
-
-    flowsa.generateflowbyactivity.main(source='EPA_SIT', year='2012-2020')
-    fba = flowsa.flowbyactivity.getFlowByActivity('EPA_SIT', 2019)
+    import bedrock
+    bedrock.extract.generateflowbyactivity.main(source='EPA_SIT', year='2012-2020')
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EPA_SIT', 2019)

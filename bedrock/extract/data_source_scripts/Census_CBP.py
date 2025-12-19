@@ -189,6 +189,6 @@ def census_cbp_parse(*, df_list, year, **_):
 
 
 if __name__ == "__main__":
-
-    flowsa.generateflowbyactivity.main(source='Census_CBP', year='2002-2010')
-    fba = flowsa.getFlowByActivity('Census_CBP', 2001)
+    import bedrock
+    bedrock.extract.generateflowbyactivity.main(source='Census_CBP', year='2002-2010')
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('Census_CBP', 2001)

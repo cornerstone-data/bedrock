@@ -161,6 +161,6 @@ def census_EC_parse(*, df_list, year, **_):
 
 
 if __name__ == "__main__":
-
-    flowsa.generateflowbyactivity.main(source='Census_EC', year=2017)
-    fba = flowsa.getFlowByActivity('Census_EC', 2017)
+    import bedrock
+    bedrock.extract.generateflowbyactivity.main(source='Census_EC', year=2017)
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity('Census_EC', 2017)
