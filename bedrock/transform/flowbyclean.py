@@ -218,7 +218,7 @@ def estimate_suppressed_sectors_equal_attribution(
     :param fba:
     :return:
     """
-    from bedrock.utils.mapping.naics import (
+    from bedrock.utils.mapping.naics import (  # noqa: PLC0415
         map_source_sectors_to_less_aggregated_sectors,
     )
 

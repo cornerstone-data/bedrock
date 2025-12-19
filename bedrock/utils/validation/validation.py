@@ -1,6 +1,7 @@
 # validation.py (flowsa)
 # !/usr/bin/env python3
 # coding=utf-8
+# ruff: noqa: F841 unused variables
 """
 Functions to check data is loaded and transformed correctly
 """
@@ -164,7 +165,7 @@ def compare_summation_at_sector_lengths_between_two_dfs(df1, df2):
     :return: df, comparison of sector summation results by region and
     printout if any child naics sum greater than parent naics
     """
-    from bedrock.utils.config.common import load_sector_length_cw_melt
+    from bedrock.utils.config.common import load_sector_length_cw_melt  # noqa: PLC0415
 
     # determine if activity or sector col
     col = 'Sector'
@@ -499,7 +500,9 @@ def compare_single_FBA_against_remote(source, year, outdir=diffpath, run_single=
     if not downloaded:
         if run_single:
             # Run a single file even if no comparison available
-            bedrock.extract.flowbyactivity.generateflowbyactivity.main(year=year, source=source)
+            bedrock.extract.flowbyactivity.generateflowbyactivity.main(
+                year=year, source=source
+            )
         else:
             print(f"{source} {year} not found in remote server. Skipping...")
         return
@@ -791,7 +794,7 @@ def calculate_industry_coefficients(fbs_load, year, region, io_level, impacts=Fa
     :param impacts: bool or str, True to apply and aggregate on impacts using TRACI,
         False to compare flow/contexts, str to pass alternate method
     """
-    from bedrock.utils.mapping.sectormapping import (
+    from bedrock.utils.mapping.sectormapping import (  # noqa: PLC0415
         get_BEA_industry_output,
         map_to_BEA_sectors,
     )
@@ -805,7 +808,7 @@ def calculate_industry_coefficients(fbs_load, year, region, io_level, impacts=Fa
         if isinstance(impacts, bool):
             impacts = 'TRACI2.1'
         try:
-            import lciafmt
+            import lciafmt  # noqa
 
             fbs_summary = lciafmt.apply_lcia_method(fbs, impacts).rename(
                 columns={'FlowAmount': 'InvAmount', 'Impact': 'FlowAmount'}

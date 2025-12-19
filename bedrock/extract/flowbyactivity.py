@@ -21,10 +21,10 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
-from bedrock.transform.flowby import NAME_SEP_CHAR, _FlowBy, flowby_config
+from bedrock.transform.flowby import _FlowBy, flowby_config
 from bedrock.transform.flowbyfunctions import filter_by_geoscale
 from bedrock.utils.config import settings
-from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING
+from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING, NAME_SEP_CHAR
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import geo, naics, sectormapping
 from bedrock.utils.metadata.metadata import set_fb_meta
@@ -257,7 +257,7 @@ class FlowByActivity(_FlowBy):
         if self.LocationSystem.eq('Census_Region').all():
             return self
         target_geoscale = target_geoscale or self.config.get('geoscale')
-        if type(target_geoscale) == str:
+        if isinstance(target_geoscale, str):
             target_geoscale = geo.scale.from_string(target_geoscale)
 
         geoscale_by_fips = pd.concat(
@@ -650,7 +650,7 @@ class FlowByActivity(_FlowBy):
         fbs_method_name: str = None,
     ) -> 'FlowBySector':
 
-        from bedrock.transform.flowbysector import FlowBySector
+        from bedrock.transform.flowbysector import FlowBySector  # noqa: PLC0415
 
         # drop the activity columns in the FBS unless method yaml specifies
         # to keep them
@@ -769,7 +769,7 @@ class FlowByActivity(_FlowBy):
                 'set. Is this intentional?',
                 parent_fba.full_name,
             )
-            unassigned = parent_fba.query('row not in @assigned_rows')
+            unassigned = parent_fba.query('row not in @assigned_rows')  # noqa: F841
 
         return child_fba_list
 
