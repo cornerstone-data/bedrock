@@ -4,7 +4,7 @@ from typing import Literal
 
 import pandas as pd
 
-from bedrock.utils.config.settings import datapath
+from bedrock.utils.config.settings import mappingpath
 from bedrock.utils.logging.flowsa_log import log
 
 
@@ -75,7 +75,7 @@ def get_all_fips(year: Literal[2010, 2013, 2015] = 2015) -> pd.DataFrame:
         is Nan for national and each state level FIPS.
     '''
     return (
-        pd.read_csv(datapath / 'FIPS_Crosswalk.csv', header=0, dtype=object)[
+        pd.read_csv(mappingpath / 'geo' / 'FIPS_Crosswalk.csv', header=0, dtype=object)[
             ['State', f'FIPS_{year}', f'County_{year}', 'FIPS_Scale']
         ]
         .rename(columns={f'FIPS_{year}': 'FIPS', f'County_{year}': 'County'})

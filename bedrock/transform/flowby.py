@@ -1,3 +1,4 @@
+# ruff: noqa: F841 unused variables
 """
 The functions defined in this script can be applied to both
 FlowByActivity and FlowBySector classes.
@@ -18,7 +19,14 @@ import pandas as pd
 from bedrock.transform import literature_values
 from bedrock.utils.config.common import get_catalog_info
 from bedrock.utils.config.flowsa_yaml import load
-from bedrock.utils.config.settings import GCS_FLOWSA_DIR, configpath, datapath, PATHS
+from bedrock.utils.config.schema import dq_fields
+from bedrock.utils.config.settings import (
+    GCS_FLOWSA_DIR,
+    NAME_SEP_CHAR,
+    PATHS,
+    configpath,
+    mappingpath,
+)
 from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping import geo, naics
@@ -30,8 +38,6 @@ if TYPE_CHECKING:
 
 FB = TypeVar('FB', bound='_FlowBy')
 S = TypeVar('S', bound='_FlowBySeries')
-NAME_SEP_CHAR = '.'
-# ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 
 with open(configpath / 'flowby_config.yaml') as f:
@@ -52,8 +58,8 @@ def get_flowby_from_config(
 
     :return: a FlowByActivity dataframe
     """
-    from bedrock.extract.flowbyactivity import FlowByActivity
-    from bedrock.transform.flowbysector import FlowBySector
+    from bedrock.extract.flowbyactivity import FlowByActivity  # noqa: PLC0415
+    from bedrock.transform.flowbysector import FlowBySector  # noqa: PLC0415
 
     external_data_path = config.get('external_data_path')
 
@@ -349,7 +355,7 @@ class _FlowBy(pd.DataFrame):
 
         conversion_table = pd.concat(
             [
-                pd.read_csv(datapath / 'unit_conversion.csv'),
+                pd.read_csv(mappingpath / 'unit_conversion.csv'),
                 pd.DataFrame(
                     [
                         {
@@ -459,7 +465,7 @@ class _FlowBy(pd.DataFrame):
         :return: FlowBy dataset with 5 digit geo
         """
         target_geoscale = target_geoscale or self.config.get('geoscale')
-        if type(target_geoscale) == str:
+        if isinstance(target_geoscale, str):
             target_geoscale = geo.scale.from_string(target_geoscale)
 
         if target_geoscale == geo.scale.NATIONAL:
@@ -1232,7 +1238,7 @@ class _FlowBy(pd.DataFrame):
                     vlog.debug(
                         'Unattributed activities: \n {}'.format(
                             unattributable.drop(
-                                columns=schema.dq_fields
+                                columns=dq_fields
                                 + [
                                     'LocationSystem',
                                     'SectorSourceName',
@@ -1317,7 +1323,7 @@ class _FlowBy(pd.DataFrame):
                 vlog.debug(
                     'Unattributed activities: \n {}'.format(
                         unattributable.drop(
-                            columns=schema.dq_fields
+                            columns=dq_fields
                             + [
                                 'LocationSystem',
                                 'SectorSourceName',

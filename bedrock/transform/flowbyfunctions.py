@@ -18,6 +18,7 @@ from bedrock.utils.config.schema import (
 )
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS, get_county_FIPS, get_state_FIPS
+from bedrock.utils.mapping.sectormapping import map_fbs_flows
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 
 
@@ -314,8 +315,7 @@ def load_fba_w_standardized_units(datasource, year, **kwargs):
            download_if_missing, allocation_map_to_flow_list
     :return: fba df with standardized units
     """
-
-    from bedrock.utils.mapping.sectormapping import map_fbs_flows
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa
 
     # determine if any addtional parameters required to load a Flow-By-Activity
     # add parameters to dictionary if exist in method yaml
@@ -327,7 +327,9 @@ def load_fba_w_standardized_units(datasource, year, **kwargs):
     if 'download_FBA_if_missing' in kwargs:
         fba_dict['download_FBA_if_missing'] = kwargs['download_FBA_if_missing']
     # load the allocation FBA
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity(datasource, year, **fba_dict).reset_index(drop=True)
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity(
+        datasource, year, **fba_dict
+    ).reset_index(drop=True)
     # convert to standardized units either by mapping to federal
     # flow list/material flow list or by using function. Mapping will add
     # context and flowable columns
