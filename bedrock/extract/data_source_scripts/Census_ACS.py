@@ -150,5 +150,6 @@ def DP_5yr_parse(*, df_list, config, year, **_):
 
 if __name__ == "__main__":
     import bedrock
+
     bedrock.extract.generateflowbyactivity.main(source='Census_ACS', year=2018)
     fba = bedrock.extract.flowbyactivity.getFlowByActivity('Census_ACS', year=2018)

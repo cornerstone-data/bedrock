@@ -370,5 +370,6 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
 
 if __name__ == "__main__":
     import bedrock
+
     bedrock.extract.generateflowbyactivity.main(source='BLS_QCEW', year=2022)
     fba = bedrock.extract.flowbyactivity.getFlowByActivity('BLS_QCEW', year=2022)

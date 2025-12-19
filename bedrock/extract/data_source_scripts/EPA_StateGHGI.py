@@ -258,5 +258,8 @@ def drop_negative_values(fbs: FlowBySector, **_) -> FlowBySector:
 
 if __name__ == '__main__':
     import bedrock
-    bedrock.extract.generateflowbyactivity.main(source='EPA_StateGHGI', year='2012-2022')
+
+    bedrock.extract.generateflowbyactivity.main(
+        source='EPA_StateGHGI', year='2012-2022'
+    )
     fba = bedrock.extract.flowbyactivity.getFlowByActivity('EPA_StateGHGI', '2020')

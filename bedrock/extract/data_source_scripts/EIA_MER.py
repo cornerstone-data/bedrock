@@ -190,5 +190,6 @@ def map_energy_flows(fba: FlowByActivity, **_) -> FlowByActivity:
 
 if __name__ == "__main__":
     import bedrock
+
     bedrock.extract.generateflowbyactivity.main(source='EIA_MER', year='2012-2023')
     fba = bedrock.extract.flowbyactivity.getFlowByActivity('EIA_MER', 2020)

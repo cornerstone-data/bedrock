@@ -244,5 +244,6 @@ def remove_flow_overlap(df, aggregate_flow, contributing_flows):
 
 if __name__ == '__main__':
     import bedrock
+
     bedrock.extract.generateflowbyactivity.main(source='EPA_NEI_Onroad', year='2020')
     fba = bedrock.extract.flowbyactivity.getFlowByActivity('EPA_NEI_Onroad', '2020')

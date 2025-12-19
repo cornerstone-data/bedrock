@@ -81,10 +81,17 @@ def unep_mfa_parse(*, df_list, year, config, **_):
 
 if __name__ == "__main__":
     import bedrock
+
     year = '2012-2024'
     bedrock.extract.generateflowbyactivity.main(source='UNEP_IRP_GMFD', year=year)
     fba = pd.DataFrame()
     for y in range(2012, 2025):
         fba = pd.concat(
-            [fba, bedrock.extract.flowbyactivity.getFlowByActivity('UNEP_IRP_GMFD', year=y)], ignore_index=True
+            [
+                fba,
+                bedrock.extract.flowbyactivity.getFlowByActivity(
+                    'UNEP_IRP_GMFD', year=y
+                ),
+            ],
+            ignore_index=True,
         )

@@ -598,4 +598,7 @@ def coa_common_parse(df):
 
 if __name__ == "__main__":
     import bedrock
-    fba = bedrock.extract.generateflowbyactivity.main(year=2022, source='USDA_CoA_Cropland')
+
+    fba = bedrock.extract.generateflowbyactivity.main(
+        year=2022, source='USDA_CoA_Cropland'
+    )

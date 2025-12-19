@@ -257,5 +257,8 @@ def cdd_processing(fba, source_dict):
 
 if __name__ == "__main__":
     import bedrock
+
     bedrock.extract.generateflowbyactivity.main(source='EPA_CDDPath', year=2018)
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity(datasource='EPA_CDDPath', year=2018)
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity(
+        datasource='EPA_CDDPath', year=2018
+    )
