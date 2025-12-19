@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from bedrock.transform import literature_values
-from bedrock.utils.config import settings
+from bedrock.utils.config.settings import mappingpath
 from bedrock.utils.logging.flowsa_log import log
 
 
@@ -92,7 +92,7 @@ def standardize_units(df):
 
     conversion_table = pd.concat(
         [
-            pd.read_csv(settings.datapath / 'unit_conversion.csv'),
+            pd.read_csv(mappingpath / 'unit_conversion.csv'),
             pd.Series(
                 {
                     'old_unit': 'Canadian Dollar',

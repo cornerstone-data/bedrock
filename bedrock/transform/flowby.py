@@ -18,7 +18,13 @@ import pandas as pd
 from bedrock.transform import literature_values
 from bedrock.utils.config.common import get_catalog_info
 from bedrock.utils.config.flowsa_yaml import load
-from bedrock.utils.config.settings import GCS_FLOWSA_DIR, configpath, datapath, PATHS
+from bedrock.utils.config.settings import (
+    GCS_FLOWSA_DIR,
+    PATHS,
+    configpath,
+    mappingpath,
+    NAME_SEP_CHAR
+)
 from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping import geo, naics
@@ -30,8 +36,6 @@ if TYPE_CHECKING:
 
 FB = TypeVar('FB', bound='_FlowBy')
 S = TypeVar('S', bound='_FlowBySeries')
-NAME_SEP_CHAR = '.'
-# ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 
 with open(configpath / 'flowby_config.yaml') as f:
@@ -349,7 +353,7 @@ class _FlowBy(pd.DataFrame):
 
         conversion_table = pd.concat(
             [
-                pd.read_csv(datapath / 'unit_conversion.csv'),
+                pd.read_csv(mappingpath / 'unit_conversion.csv'),
                 pd.DataFrame(
                     [
                         {

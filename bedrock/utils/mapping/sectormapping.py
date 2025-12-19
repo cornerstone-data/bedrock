@@ -13,6 +13,7 @@ from esupy.mapping import apply_flow_mapping
 from bedrock.transform.dataclean import standardize_units
 from bedrock.utils.config.common import get_flowsa_base_name, load_crosswalk
 from bedrock.utils.config.schema import dq_fields
+from bedrock.utils.config.settings import crosswalkpath
 from bedrock.utils.logging.flowsa_log import log
 
 
@@ -22,13 +23,13 @@ def get_activitytosector_mapping(source, fbsconfigpath=None):
     :param source: str, the data source name
     :return: a pandas df for a standard ActivitytoSector mapping
     """
-    from bedrock.utils.config.settings import crosswalkpath
 
     # identify mapping file name
     mapfn = f'NAICS_Crosswalk_{source}'
 
     # if FBS method file loaded from outside the flowsa directory, check if
     # there is also a crosswalk
+    cwpath = None
     if fbsconfigpath is not None:
         external_mappingpath = Path(fbsconfigpath).parent / "activitytosectormapping"
         if external_mappingpath.exists():
@@ -40,10 +41,12 @@ def get_activitytosector_mapping(source, fbsconfigpath=None):
                     f"Loading {activity_mapping_source_name}.csv "
                     f"from {external_mappingpath}"
                 )
-                crosswalkpath = external_mappingpath
-    activity_mapping_source_name = get_flowsa_base_name(crosswalkpath, mapfn, 'csv')
+                cwpath = external_mappingpath
+    if not cwpath:
+        cwpath = crosswalkpath
+    activity_mapping_source_name = get_flowsa_base_name(cwpath, mapfn, 'csv')
     mapping = pd.read_csv(
-        crosswalkpath / f'{activity_mapping_source_name}.csv',
+        cwpath / f'{activity_mapping_source_name}.csv',
         dtype={'Activity': 'str', 'Sector': 'str'},
     )
     # some mapping tables will have data for multiple sources, while other

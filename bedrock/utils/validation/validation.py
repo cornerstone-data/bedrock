@@ -499,7 +499,9 @@ def compare_single_FBA_against_remote(source, year, outdir=diffpath, run_single=
     if not downloaded:
         if run_single:
             # Run a single file even if no comparison available
-            bedrock.extract.flowbyactivity.generateflowbyactivity.main(year=year, source=source)
+            bedrock.extract.flowbyactivity.generateflowbyactivity.main(
+                year=year, source=source
+            )
         else:
             print(f"{source} {year} not found in remote server. Skipping...")
         return

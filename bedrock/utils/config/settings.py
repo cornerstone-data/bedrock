@@ -9,7 +9,8 @@ MODULEPATH = Path(__file__).resolve().parents[2]
 GCS_FLOWSA_DIR = "flowsa"
 
 datapath = MODULEPATH / 'data'
-crosswalkpath = MODULEPATH / 'utils' / 'mapping' / 'activitytosectormapping'
+mappingpath = MODULEPATH / 'utils' / 'mapping'
+crosswalkpath = mappingpath / 'activitytosectormapping'
 configpath = MODULEPATH / 'utils' / 'config'
 externaldatapath = MODULEPATH / 'extract' / 'external_data'
 process_adjustmentpath = MODULEPATH / 'extract' / 'process_adjustments'
@@ -43,6 +44,8 @@ DEFAULT_DOWNLOAD_IF_MISSING = False
 scriptpath = MODULEPATH.parent / 'scripts'
 scriptsFBApath = scriptpath / 'FlowByActivity_Datasets'
 
+NAME_SEP_CHAR = '.'
+# ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 # https://stackoverflow.com/a/41125461
 def memory_limit(percentage=0.93):

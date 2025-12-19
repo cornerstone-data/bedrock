@@ -28,8 +28,8 @@ from bedrock.utils.config.schema import (
 from bedrock.utils.config.settings import (
     MODULEPATH,
     configpath,
-    datapath,
     flowbysectormethodpath,
+    mappingpath,
     sourceconfigpath,
 )
 from bedrock.utils.logging.flowsa_log import log
@@ -99,7 +99,7 @@ def load_crosswalk(crosswalk_name):
     :return: df, NAICS crosswalk over the years
     """
 
-    cw = pd.read_csv(datapath / f'{crosswalk_name}.csv', dtype="str")
+    cw = pd.read_csv(mappingpath / 'naics' / f'{crosswalk_name}.csv', dtype="str")
 
     return cw
 
