@@ -8,7 +8,7 @@ Helper functions for flowbyactivity and flowbysector data
 import numpy as np
 from esupy.dqi import get_weighted_average
 
-from bedrock.extract.flowbyactivity import getFlowByActivity
+import bedrock
 from bedrock.transform.dataclean import clean_df, standardize_units
 from bedrock.utils.config.common import fbs_collapsed_default_grouping_fields
 from bedrock.utils.config.schema import (
@@ -327,9 +327,7 @@ def load_fba_w_standardized_units(datasource, year, **kwargs):
     if 'download_FBA_if_missing' in kwargs:
         fba_dict['download_FBA_if_missing'] = kwargs['download_FBA_if_missing']
     # load the allocation FBA
-    fba = getFlowByActivity(
-        datasource, year, **fba_dict
-    ).reset_index(drop=True)
+    fba = bedrock.extract.flowbyactivity.getFlowByActivity(datasource, year, **fba_dict).reset_index(drop=True)
     # convert to standardized units either by mapping to federal
     # flow list/material flow list or by using function. Mapping will add
     # context and flowable columns
