@@ -220,7 +220,7 @@ def allocate_industrial_combustion(fba: FlowByActivity, **_) -> FlowByActivity:
     distinguish those which use EIA MECS as allocation source and those that
     use alternate source.
     """
-    from bedrock.extract.data_source_scripts.EPA_GHGI import (
+    from bedrock.extract.EPA.EPA_GHGI import (
         get_manufacturing_energy_ratios,
     )
 

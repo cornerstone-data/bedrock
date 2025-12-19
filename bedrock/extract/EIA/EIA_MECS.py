@@ -12,7 +12,7 @@ import io
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.data_source_scripts.EIA_CBECS_Land import (
+from bedrock.extract.EIA.EIA_CBECS_Land import (
     calculate_total_facility_land_area,
 )
 from bedrock.extract.flowbyactivity import FlowByActivity
