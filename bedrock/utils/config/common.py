@@ -279,7 +279,7 @@ def clean_str_and_capitalize(s):
     :param s: str
     :return: str, formatted
     """
-    if s.__class__ == str:
+    if isinstance(s.__class__, str):
         s = s.strip()
         s = s.lower()
         s = s.capitalize()

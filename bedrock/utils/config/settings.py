@@ -47,10 +47,11 @@ scriptsFBApath = scriptpath / 'FlowByActivity_Datasets'
 NAME_SEP_CHAR = '.'
 # ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
+
 # https://stackoverflow.com/a/41125461
 def memory_limit(percentage=0.93):
     # Placed here becuase older versions of Python do not have this
-    import resource
+    import resource  # noqa: PLC0415
 
     # noinspection PyBroadException
     try:

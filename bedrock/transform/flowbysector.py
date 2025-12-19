@@ -463,7 +463,7 @@ def collapse_FlowBySector(
     :param methodname: string, Name of an available method for the given class
     :return: dataframe in flow by sector format
     """
-    from bedrock.utils.validation.validation import (
+    from bedrock.utils.validation.validation import (  # noqa: PLC0415
         check_for_negative_flowamounts,
         check_for_nonetypes_in_sector_col,
     )
