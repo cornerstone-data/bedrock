@@ -21,7 +21,7 @@ flowbysectoractivitysetspath = MODULEPATH / 'transform' / 'flowbysectoractivitys
 
 # "Paths()" are a class defined in esupy
 PATHS = Paths()
-PATHS.local_path = PATHS.local_path / 'flowsa'
+PATHS.local_path = PATHS.local_path / 'bedrock'
 outputpath = PATHS.local_path
 fbaoutputpath = outputpath / 'FlowByActivity'
 fbsoutputpath = outputpath / 'FlowBySector'
