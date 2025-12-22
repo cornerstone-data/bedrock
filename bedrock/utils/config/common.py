@@ -28,9 +28,9 @@ from bedrock.utils.config.schema import (
 from bedrock.utils.config.settings import (
     MODULEPATH,
     configpath,
+    extractpath,
     flowbysectormethodpath,
     mappingpath,
-    sourceconfigpath,
 )
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.validation.exceptions import (
@@ -175,7 +175,7 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
                     f'{filename} not found in {filepath}. ' f'Checking default folders'
                 )
             if flowbytype == 'FBA':
-                folder = sourceconfigpath
+                folder = f'{extractpath}/{filename.split("_", 1)[0]}'
             elif flowbytype == 'FBS':
                 folder = flowbysectormethodpath
             else:
@@ -370,10 +370,11 @@ def seeAvailableFlowByModels(flowbytype, print_method=True):
     :param print_method: False to skip printing to console
     :return: dict or list of available models
     """
+    # todo:update function - will need to loop through folders within extract directory
 
     # fb directory contents dependent on FBA or FBS
     if flowbytype == 'FBA':
-        fb_dir = os.listdir(sourceconfigpath)
+        fb_dir = os.listdir(extractpath)  # todo: note this code does not work
     elif flowbytype == 'FBS':
         fb_dir = os.listdir(flowbysectormethodpath)
     else:

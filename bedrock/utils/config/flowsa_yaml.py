@@ -30,7 +30,7 @@ class FlowsaLoader(yaml.SafeLoader):
 
         for folder in [
             *loader.external_paths_to_search,
-            settings.sourceconfigpath,
+            settings.extractpath,
             settings.flowbysectormethodpath,
             settings.datapath,
         ]:
@@ -107,7 +107,7 @@ class FlowsaLoader(yaml.SafeLoader):
         # If someone who understands security concerns better than I do feels
         # it is safe to change this behavior, then go ahead.
         module = importlib.import_module(
-            f'bedrock.extract.data_source_scripts.{module_name}'
+            f'bedrock.extract.{module_name.split("_", 1)[0]}.{module_name}'
         )
         return getattr(module, loader.construct_scalar(node))
 

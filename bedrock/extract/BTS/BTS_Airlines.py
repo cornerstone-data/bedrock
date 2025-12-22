@@ -1,11 +1,11 @@
 import pandas as pd
 
-from bedrock.utils.config import flowsa_yaml, settings
 from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.utils.config import flowsa_yaml, settings
 
 
 def generate_fba():
-    with open(f'{settings.sourceconfigpath}BTS_Airlines.yaml') as f:
+    with open(f'{settings.extractpath}BTS_Airlines.yaml') as f:
         config = flowsa_yaml.load(f)
 
     year_list = config['years']

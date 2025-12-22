@@ -18,10 +18,10 @@ from esupy.remote import make_url_request
 
 from bedrock.transform.dataclean import clean_df
 from bedrock.utils.config.common import (
+    extractpath,
     get_flowsa_base_name,
     load_env_file_key,
     load_yaml_dict,
-    sourceconfigpath,
 )
 from bedrock.utils.config.schema import flow_by_activity_fields
 from bedrock.utils.config.settings import PATHS
@@ -211,7 +211,9 @@ def generateFlowByActivity(**kwargs):
         config = load_yaml_dict(source, flowbytype='FBA')
     except FileNotFoundError:
         log.info(f'Could not find Flow-By-Activity config file for {source}')
-        source = get_flowsa_base_name(sourceconfigpath, source, "yaml")
+        source = get_flowsa_base_name(
+            f'{extractpath}/{source.split("_", 1)[0]}', source, "yaml"
+        )
         log.info(f'Generating FBA for {source}')
         config = load_yaml_dict(source, flowbytype='FBA')
 
