@@ -8,7 +8,7 @@ from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTORS
 from bedrock.ceda_usa.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
 )
-from bedrock.utils.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 # Obtained from Watershed price index source (rds_2Au4cfUuGHgFFLG37rdR),
 # which is derived from BEA price index:

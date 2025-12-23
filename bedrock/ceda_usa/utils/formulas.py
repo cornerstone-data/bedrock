@@ -3,7 +3,7 @@ Indices
 -------
   - i: industry (+country for MRIO models)
   - c: commodity (+country for MRIO models)
-  - g: greenhouse gas
+  - g: greenhouse gas (GHG)
   - s: emissions source
 
 Matrices
@@ -14,13 +14,10 @@ Matrices
   - g (i,)  : industry output [USD]
   - A (c,c) : direct requirements [USD/USD]
   - L (c,c) : total requirements [USD/USD]
-  - B (g,c) : direct emissions factor [kgco2e/USD]
-  - M (g,c) : total (direct+upstream) emissions factor [kgco2e/USD]
-  - E (s,i) : total emissions [kgco2e]
+  - B (g,c) : direct emissions factor by GHG [kgco2e/USD]
+  - M (g,c) : total (direct+upstream) emissions factor by GHG [kgco2e/USD]
+  - E (s,i) : total emissions by GHG [kgco2e]
 
-See also
---------
-https://www.notion.so/watershedclimate/EEIO-Analysis-c47e33641c5943fda3ff97a7d3fe7568?pvs=4
 """
 
 from __future__ import annotations
@@ -33,7 +30,9 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-# golden path
+# ------------------------------#
+# core computations
+# ------------------------------#
 
 
 def compute_g(*, V: pd.DataFrame) -> pd.Series[float]:
@@ -126,7 +125,9 @@ def compute_d(*, B: pd.DataFrame) -> pd.Series[float]:
     return B.sum(axis=0)
 
 
+# ------------------------------#
 # derivations
+# ------------------------------#
 
 
 def compute_input_contribution(*, A: pd.DataFrame, N: pd.Series[float]) -> pd.DataFrame:
@@ -156,3 +157,58 @@ def compute_y_for_national_accounting_balance(
     exports: pd.Series[float],
 ) -> pd.Series[float]:
     return y_tot - y_imp + exports
+
+
+def compute_E_from_BLy(
+    *, B: pd.DataFrame, L: pd.DataFrame, y: pd.Series[float]
+) -> pd.DataFrame:
+    return B.multiply(L.multiply(y, axis=1).sum(axis=1), axis=1)
+
+
+# ------------------------------#
+# backward computation
+# ------------------------------#
+
+
+def backcompute_E_matrix_via_commodity_shortcut(
+    *, B: pd.DataFrame, q: pd.Series[float]
+) -> pd.DataFrame:
+    # E = B @ diag(q) ... scale the rows of B by q
+    return B.multiply(q, axis=1)
+
+
+def backcompute_U_matrix_via_commodity_shortcut(
+    *, A: pd.DataFrame, q: pd.Series[float]
+) -> pd.DataFrame:
+    return A.multiply(q, axis=1)
+
+
+def backcompute_q_from_Ldom_and_y_nab(
+    *, Ldom: pd.DataFrame, y_nab: pd.Series[float]
+) -> pd.Series[float]:
+    """
+    Ldom is the domestic Leontief inverse
+    ynab is y for national accounting balance, i.e. domestic final consumption + exports
+
+    This way we capture all possible uses of a commodity, including
+    1. intermediate consumption by domestic industries
+    2. domestic final consumption
+    3. exports to foreign industries and final consumption
+    """
+    return (Ldom @ np.diag(y_nab)).sum(axis=1)
+
+
+def backcompute_y_from_q_and_Aq(
+    *, A: pd.DataFrame, q: pd.Series[float]
+) -> pd.Series[float]:
+    return q - A.multiply(q, axis=1).sum(axis=1)
+
+
+# ------------------------------#
+# approximations
+# ------------------------------#
+
+
+def approximate_q_from_U(*, U: pd.DataFrame) -> pd.Series[float]:
+    # U will not contain ALL users of a commodity, so the sum is approximate
+    return U.sum(axis=1)

@@ -15,7 +15,7 @@ from bedrock.ceda_usa.utils.constants import (
 from bedrock.ceda_usa.utils.gcp import GCS_CEDA_V5_INPUT_DIR
 from bedrock.ceda_usa.utils.ghg import GHG_DETAILED
 from bedrock.ceda_usa.utils.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.utils.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 USA_IO_VECTOR_NAMES = ta.Literal[
     "q0",

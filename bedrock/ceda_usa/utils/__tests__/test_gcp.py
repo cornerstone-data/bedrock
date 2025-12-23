@@ -1,6 +1,6 @@
 import os
 
-from bedrock.utils.gcp import download_gcs_file
+from bedrock.utils.io.gcp import download_gcs_file
 
 
 def test_download_gcs_file() -> None:
