@@ -117,7 +117,10 @@ def call_urls(*, url_list, source, year, config):
             df = None
             log.info("Calling %s", url)
             resp = make_url_request(
-                url, set_cookies=set_cookies, confirm_gdrive=confirm_gdrive
+                url,
+                set_cookies=set_cookies,
+                confirm_gdrive=confirm_gdrive,
+                verify=False,
             )
             fxn = config.get("call_response_fxn")
             if callable(fxn):

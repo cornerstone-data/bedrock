@@ -1,6 +1,6 @@
 # EIA_MECS.py (flowsa)
 # !/usr/bin/env python3
-# coding=utf-8zip
+# coding=utf-8
 
 """
 MANUFACTURING ENERGY CONSUMPTION SURVEY (MECS)
@@ -15,12 +15,17 @@ import pandas as pd
 from bedrock.extract.EIA.EIA_CBECS_Land import (
     calculate_total_facility_land_area,
 )
-from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.logging.flowsa_log import log
-from bedrock.utils.mapping.location import US_FIPS, get_region_and_division_codes
+from bedrock.utils.mapping.location import (
+    US_FIPS,
+    assign_census_regions,
+    get_region_and_division_codes,
+)
 
 
 def eia_mecs_URL_helper(*, build_url, config, year, **_):
@@ -430,8 +435,6 @@ def eia_mecs_energy_parse(*, df_list, source, year, **_):
     :return: df, parsed and partially formatted to flowbyactivity
         specifications
     """
-    from bedrock.utils.mapping.location import assign_census_regions
-
     # concatenate dataframe list into single dataframe
     df = pd.concat(df_list, sort=True)
 
@@ -459,15 +462,19 @@ def eia_mecs_energy_parse(*, df_list, source, year, **_):
     df = df.dropna(subset=['ActivityConsumedBy'])
 
     df = df.assign(
-        FlowAmount=df.FlowAmount.mask(df.FlowAmount.str.isnumeric() == False, np.nan),
-        Suppressed=df.FlowAmount.where(df.FlowAmount.str.isnumeric() == False, np.nan),
-        Spread=df.Spread.mask(df.Spread.str.isnumeric() == False, np.nan),
+        FlowAmount=df.FlowAmount.mask(
+            df.FlowAmount.str.isnumeric() == False, np.nan  # noqa: E712
+        ),
+        Suppressed=df.FlowAmount.where(
+            df.FlowAmount.str.isnumeric() == False, np.nan  # noqa: E712
+        ),
+        Spread=df.Spread.mask(df.Spread.str.isnumeric() == False, np.nan),  # noqa: E712
     )
 
     return df
 
 
-def estimate_suppressed_mecs_energy(fba: FlowByActivity, **kwargs) -> FlowByActivity:
+def estimate_suppressed_mecs_energy(fba: FlowByActivity, **_kwargs) -> FlowByActivity:
     '''
     Rough first pass at an estimation method, for testing purposes. This
     will drop rows with 'D' or 'Q' values, on the grounds that as far as I can
@@ -568,7 +575,7 @@ def mecs_land_fba_cleanup(fba, **_):
     return fba
 
 
-def clean_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **kwargs):
+def clean_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **_kwargs):
     naics_3 = fba.query('ActivityConsumedBy.str.len() == 3')
     naics_4 = fba.query(
         'ActivityConsumedBy.str.len() == 4 '
@@ -590,10 +597,15 @@ def clean_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **kwargs):
     return subtracted
 
 
-def clean_mapped_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **kwargs):
-    naics_4_list = fba.config['naics_4_list']
+def clean_mapped_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **_kwargs):
+    _naics_4_list = fba.config['naics_4_list']
 
     return fba.query(
-        '~(SectorConsumedBy in @naics_4_list '
+        '~(SectorConsumedBy in @_naics_4_list '
         '& ActivityConsumedBy != SectorConsumedBy)'
     )
+
+
+if __name__ == "__main__":
+    generateFlowByActivity(source='EIA_MECS_Energy', year=2018)
+    fba = getFlowByActivity('EIA_MECS_Energy', 2018)
