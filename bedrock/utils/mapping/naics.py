@@ -203,9 +203,12 @@ def subset_sector_key(
 
         def drop_parent_sectors(sector_key):
             sector_list = sector_key['source_naics'].astype(str).tolist()
-            is_parent = lambda x: any(
-                sector != x and sector.startswith(x) for sector in sector_list
-            )
+
+            def is_parent(x):
+                return any(
+                    sector != x and sector.startswith(x) for sector in sector_list
+                )
+
             return sector_key[~sector_key['source_naics'].astype(str).apply(is_parent)]
 
         # todo: check futurewarning dataframegroupby.apply fix working as expected

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from typing_extensions import deprecated
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowby import FB, get_flowby_from_config
@@ -67,7 +68,7 @@ def load_prepare_clean_source(self: 'FB', download_sources_ok: bool = True) -> '
 
 
 def weighted_average(
-    fba: 'FlowByActivity', download_sources_ok: bool = True, **kwargs
+    fba: 'FlowByActivity', download_sources_ok: bool = True, **_kwargs
 ) -> 'FlowByActivity':
     """
     This method determines weighted average
@@ -152,7 +153,7 @@ def weighted_average(
 
 
 def substitute_nonexistent_values(
-    fb: 'FB', download_sources_ok: bool = True, **kwargs
+    fb: 'FB', download_sources_ok: bool = True, **_kwargs
 ) -> 'FB':
     """
     Fill missing values with data from another geoscale
@@ -621,9 +622,8 @@ def drop_parentincompletechild_descendants(
     return fba2
 
 
-def proxy_sector_data(
-    fba: 'FlowByActivity', download_sources_ok: bool = True, **kwargs
-) -> 'FlowByActivity':
+@deprecated("No known use")
+def proxy_sector_data(fba: 'FlowByActivity', **_kwargs) -> 'FlowByActivity':
     """
     Use a dictionary to use data for one sector as proxy data for a second
     sector.

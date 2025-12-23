@@ -80,7 +80,7 @@ known-first-party = ["bedrock"]
 [tool.ruff.lint.per-file-ignores]
 "**/__tests__/**/*.py" = ["ARG001", "ARG002"]
 "**/test_*.py" = ["ARG001", "ARG002"]
-"bedrock/extract/*" = ["ALL"] # temporary turn off for legacy flowsa FBA files
+"bedrock/extract/*/*" = ["ALL"] # temporary turn off for legacy flowsa FBA files
 "bedrock/publish/visualization/datavisualization.py" = ["ALL"] # temporary turn off
 
 [tool.ruff.format]

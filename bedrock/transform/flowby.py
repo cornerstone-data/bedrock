@@ -1274,8 +1274,8 @@ class _FlowBy(pd.DataFrame):
             right_on = attribute_cols + ['Location']
             # if replacing df location with "other" location, drop location from merge columns
             if 'Location' in self.config.get('fill_columns', []):
-                for l in (left_on, right_on):
-                    l.remove('Location')
+                for r in (left_on, right_on):
+                    r.remove('Location')
                 # if merging state with county data, merge on first 2 digits of location column using
                 # temporary "temp_location" col
                 if (self.config['geoscale'] == 'state') & (
@@ -1283,8 +1283,8 @@ class _FlowBy(pd.DataFrame):
                 ):
                     fb['temp_location'] = fb['Location'].str[:2]
                     other['temp_location'] = other['Location'].str[:2]
-                    for l in (left_on, right_on):
-                        l.append('temp_location')
+                    for r in (left_on, right_on):
+                        r.append('temp_location')
 
             merged = fb.merge(
                 other,
@@ -1637,7 +1637,7 @@ class _FlowBy(pd.DataFrame):
             ]
         )
 
-    def assign_temporal_correlation(self: FB, target_year=None, **kwargs) -> FB:
+    def assign_temporal_correlation(self: FB, target_year=None, **_kwargs) -> FB:
 
         fbs = self.copy()
         if not target_year:
@@ -1651,7 +1651,7 @@ class _FlowBy(pd.DataFrame):
         return fbs
 
     def assign_geographic_correlation(
-        self: FB, target_geoscale=None, fbs_method_name=None, **kwargs
+        self: FB, target_geoscale=None, fbs_method_name=None, **_kwargs
     ) -> FB:
 
         fbs = self.copy()
