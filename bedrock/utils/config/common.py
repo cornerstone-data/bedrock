@@ -347,7 +347,7 @@ def str2bool(v):
 
 def check_method_status():
     """Read the current method status"""
-    yaml_path = methodpath / 'method_status.yaml'
+    yaml_path = MODULEPATH / 'utils' / 'validation' / 'method_status.yaml'
     with open(yaml_path, 'r') as f:
         method_status = yaml.safe_load(f)
     return method_status

@@ -102,9 +102,9 @@ class FlowBySector(_FlowBy):
         #     except exceptions.FlowsaMethodNotFoundError:
         #         config = {}
 
-        flowby_generator = lambda x=method, y=external_config_path, z=download_sources_ok: cls.generateFlowBySector(
-            x, y, z, config=config
-        )
+        def flowby_generator(x=method, y=external_config_path, z=download_sources_ok):
+            return cls.generateFlowBySector(x, y, z, config=config)
+
         return super()._getFlowBy(
             file_metadata=file_metadata,
             download_ok=download_fbs_ok,
@@ -294,7 +294,7 @@ class FlowBySector(_FlowBy):
         external_config_path: str = None,
         download_sources_ok: bool = True,
         fbs_method_name: str = None,
-        **kwargs,
+        **_kwargs,
     ) -> 'FlowBySector':
 
         if 'activity_sets' in self.config:

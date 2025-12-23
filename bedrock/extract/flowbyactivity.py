@@ -415,7 +415,7 @@ class FlowByActivity(_FlowBy):
         :param external_config_path: str, an external path to search for a
             crosswalk.
         """
-        from bedrock.transform.flowbyclean import (
+        from bedrock.transform.flowbyclean import (  # noqa: PLC0415
             define_parentincompletechild_descendants,
             drop_parentincompletechild_descendants,
         )
