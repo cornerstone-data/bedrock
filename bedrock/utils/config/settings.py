@@ -15,15 +15,13 @@ configpath = MODULEPATH / 'utils' / 'config'
 externaldatapath = MODULEPATH / 'extract' / 'external_data'
 process_adjustmentpath = MODULEPATH / 'extract' / 'process_adjustments'
 
-sourceconfigpath = MODULEPATH / 'extract' / 'flowbyactivitymethods'
+extractpath = MODULEPATH / 'extract'
 flowbysectormethodpath = MODULEPATH / 'transform' / 'flowbysectormethods'
 flowbysectoractivitysetspath = MODULEPATH / 'transform' / 'flowbysectoractivitysets'
 
-datasourcescriptspath = MODULEPATH / 'extract' / 'data_source_scripts'
-
 # "Paths()" are a class defined in esupy
 PATHS = Paths()
-PATHS.local_path = PATHS.local_path / 'flowsa'
+PATHS.local_path = PATHS.local_path / 'bedrock'
 outputpath = PATHS.local_path
 fbaoutputpath = outputpath / 'FlowByActivity'
 fbsoutputpath = outputpath / 'FlowBySector'

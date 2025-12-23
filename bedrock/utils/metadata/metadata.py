@@ -203,7 +203,7 @@ def recursive_attribution(activities, attr_source_meta, primary_source_meta, con
 
 def return_fbs_method_data(source_name, config):  # noqa: ARG001
 
-    from bedrock.extract.data_source_scripts.stewiFBS import (  # noqa: PLC0415
+    from bedrock.extract.stewiFBS.stewiFBS import (  # noqa: PLC0415
         add_stewi_metadata,
         add_stewicombo_metadata,
     )

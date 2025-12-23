@@ -248,7 +248,7 @@ def clean_up_state_data(fba: FlowByActivity, **_):
     # (these data will later be replaced with custom data in the 'StateGHGI'
     # stage)
     if 'VT' in state_list:  # and ('StateGHGI_VT' in method['source_names'].keys())
-        from bedrock.extract.data_source_scripts.StateGHGI import (
+        from bedrock.extract.StateGHGI.StateGHGI import (
             VT_remove_dupicate_activities,
         )
 

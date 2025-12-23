@@ -11,10 +11,10 @@ Functions to generate .bib file for a FlowBySector method
 # from bibtexparser.bibdatabase import BibDatabase
 
 from bedrock.utils.config.common import (
+    extractpath,
     get_flowsa_base_name,
     load_values_from_literature_citations_config,
     load_yaml_dict,
-    sourceconfigpath,
 )
 from bedrock.utils.logging.flowsa_log import log
 
@@ -69,7 +69,9 @@ def load_source_dict(sourcename):
     except KeyError:
         # else check if file exists, then try loading
         # citation information from source yaml
-        sourcename = get_flowsa_base_name(sourceconfigpath, sourcename, "yaml")
+        sourcename = get_flowsa_base_name(
+            extractpath / sourcename.split("_", 1)[0], sourcename, "yaml"
+        )
         config = load_yaml_dict(sourcename, flowbytype='FBA')
 
     return config
