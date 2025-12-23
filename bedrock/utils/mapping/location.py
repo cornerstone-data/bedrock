@@ -14,7 +14,7 @@ import pycountry
 from esupy.remote import make_url_request
 
 from bedrock.utils.config.common import clean_str_and_capitalize
-from bedrock.utils.config.settings import datapath
+from bedrock.utils.config.settings import mappingpath
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.geo import get_all_fips
 
@@ -188,7 +188,9 @@ def get_region_and_division_codes():
     Load the Census Regions csv
     :return: pandas df of census regions
     """
-    df = pd.read_csv(datapath / "Census_Regions_and_Divisions.csv", dtype="str")
+    df = pd.read_csv(
+        mappingpath / 'geo' / "Census_Regions_and_Divisions.csv", dtype="str"
+    )
     return df
 
 
@@ -270,7 +272,7 @@ def merge_urb_cnty_pct(df):
         return None
 
     years_xwalk = extract_fips_years(  # from xwalk headers
-        pd.read_csv(datapath / 'FIPS_Crosswalk.csv', nrows=0).columns
+        pd.read_csv(mappingpath / 'geo' / 'FIPS_Crosswalk.csv', nrows=0).columns
     )
 
     if not {year} <= set(years_xwalk):  # compare data years as sets
@@ -373,7 +375,7 @@ def shift_census_cnty_tbl(df, year):
     # merges identified by duplicated 'FIPS_{year}' codes (A-->C, B-->C)
     # e.g., 51019 & 51515 --> 51019
     fips_xwalk = pd.read_csv(
-        datapath / 'FIPS_Crosswalk.csv',
+        mappingpath / 'geo' / 'FIPS_Crosswalk.csv',
         dtype=str,
         usecols=[f'FIPS_{decade}', f'FIPS_{year}'],
     )

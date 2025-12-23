@@ -13,6 +13,8 @@ in scripts/write_BEA_data_from_useeior.py
 import numpy as np
 import pandas as pd
 
+from bedrock.extract.flowbyactivity import getFlowByActivity
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import externaldatapath
 from bedrock.utils.mapping.location import US_FIPS
@@ -101,12 +103,9 @@ def bea_parse(*, source, year, **_):
 
 
 if __name__ == "__main__":
-    import bedrock
-
-    for y in range(2012, 2024):
-        bedrock.extract.generateflowbyactivity.main(year=y, source='BEA_Summary_Supply')
-        bedrock.extract.generateflowbyactivity.main(
-            year=y, source='BEA_Summary_Use_SUT'
-        )
-        fba = bedrock.extract.getFlowByActivity('BEA_Summary_Supply', y)
-        fba2 = bedrock.extract.getFlowByActivity('BEA_Summary_Use_SUT', y)
+    for y in range(2022, 2023):
+        generateFlowByActivity(year=y, source='BEA_Summary_Supply')
+        generateFlowByActivity(year=y, source='BEA_Summary_Use_SUT')
+        fba = getFlowByActivity('BEA_Summary_Supply', y)
+        fba2 = getFlowByActivity('BEA_Summary_Use_SUT', y)
+    generateFlowByActivity(year=2017, source="BEA_Detail_Use_SUT")
