@@ -1,10 +1,10 @@
 import pandas as pd
 
-from bedrock.ceda_usa.extract.iot.constants import (
+from bedrock.extract.iot.constants import (
     PRICE_INDEX_DETAIL_NAME_TO_BEA_2017_INDUSTRY_MAPPING,
     PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2017_SUMMARY_MAPPING_NON_EMPTY,
 )
-from bedrock.ceda_usa.extract.iot.io_price_index import (
+from bedrock.extract.iot.io_price_index import (
     SECTOR_NAME_COL,
     SECTOR_SUMMARY_CODE_COL,
     load_go_detail,

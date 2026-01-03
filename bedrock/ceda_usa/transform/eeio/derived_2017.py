@@ -5,7 +5,7 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.extract.iot.io_2012 import (
+from bedrock.extract.iot.io_2012 import (
     load_2012_PI_usa,
     load_2012_pR_usa,
     load_2012_UR_usa,
@@ -13,7 +13,7 @@ from bedrock.ceda_usa.extract.iot.io_2012 import (
     load_2012_VR_usa,
     load_2012_YR_usa,
 )
-from bedrock.ceda_usa.extract.iot.io_2017 import (
+from bedrock.extract.iot.io_2017 import (
     load_2017_Uimp_usa,
     load_2017_Utot_usa,
     load_2017_V_usa,
