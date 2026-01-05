@@ -4,12 +4,12 @@ import typing as ta
 
 import pandas as pd
 
+from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_ch4_and_n2o_emissions_from_manure_management,
     load_recent_trends_in_ghg_emissions_and_sinks,
 )
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 
 ALLOCATION: ta.Dict[ta.Tuple[str, str], str] = {
     ("N2Ob", "Dairy Cattle"): "112120",

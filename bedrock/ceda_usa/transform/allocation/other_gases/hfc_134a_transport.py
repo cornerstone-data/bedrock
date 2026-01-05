@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.extract.allocation.epa import (
-    load_hfc_emissions_from_ods_substitutes,
-    load_hfc_emissions_from_transportation_sources,
-)
 from bedrock.ceda_usa.transform.allocation.other_gases.constants import (
     TRANSPORTATION_SOURCE_TO_BEA_INDUSTRY_MAPPING,
 )
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
+from bedrock.extract.allocation.epa import (
+    load_hfc_emissions_from_ods_substitutes,
+    load_hfc_emissions_from_transportation_sources,
+)
 
 
 def allocate_hfc_134a_transport() -> pd.Series[float]:

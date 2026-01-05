@@ -12,6 +12,13 @@ import functools
 import numpy as np
 import pandas as pd
 
+from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.constants import (
+    TRANSPORTATION_FUEL_TYPES,
+)
+from bedrock.ceda_usa.utils.units import (
+    HEATING_OIL_MMBTU_PER_GALLON,
+    PROPANE_MMBTU_PER_GALLON,
+)
 from bedrock.extract.allocation.bea import (
     load_bea_personal_consumption_expenditure,
     load_bea_use_table,
@@ -24,13 +31,6 @@ from bedrock.extract.allocation.epa import (
     load_fuel_consumption_by_fuel_and_vehicle_type as _load_table_a94,
 )
 from bedrock.extract.allocation.epa import load_tbtu_across_fuel_types
-from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.constants import (
-    TRANSPORTATION_FUEL_TYPES,
-)
-from bedrock.ceda_usa.utils.units import (
-    HEATING_OIL_MMBTU_PER_GALLON,
-    PROPANE_MMBTU_PER_GALLON,
-)
 
 
 def get_personal_consumption_expenditure_petref_cons_purchased() -> float:
