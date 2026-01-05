@@ -4,7 +4,7 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.epa import (
     load_ch4_and_n2o_emissions_from_manure_management,
 )
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS

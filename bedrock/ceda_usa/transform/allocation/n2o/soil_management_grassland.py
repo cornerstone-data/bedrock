@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.epa import (
     load_direct_n2o_from_agricultural_soils,
     load_indirect_n2o_from_agricultural_soils,
 )
-from bedrock.ceda_usa.extract.allocation.usda import load_animal_operation_land
+from bedrock.extract.allocation.usda import load_animal_operation_land
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 

@@ -12,18 +12,18 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.bea import (
+from bedrock.extract.allocation.bea import (
     load_bea_personal_consumption_expenditure,
     load_bea_use_table,
 )
-from bedrock.ceda_usa.extract.allocation.eia import (
+from bedrock.extract.allocation.eia import (
     load_heating_oil_annual_avg_residential_price,
     load_propane_annual_avg_residential_price,
 )
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.epa import (
     load_fuel_consumption_by_fuel_and_vehicle_type as _load_table_a94,
 )
-from bedrock.ceda_usa.extract.allocation.epa import load_tbtu_across_fuel_types
+from bedrock.extract.allocation.epa import load_tbtu_across_fuel_types
 from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.constants import (
     TRANSPORTATION_FUEL_TYPES,
 )

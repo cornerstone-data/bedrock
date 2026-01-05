@@ -4,14 +4,14 @@ import functools
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.bea import load_bea_use_table
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.epa import (
     load_mmt_co2e_across_fuel_types as _load_table_a17_mmt_co2e,
 )
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.epa import (
     load_tbtu_across_fuel_types as _load_table_a17_tbtu,
 )
-from bedrock.ceda_usa.extract.allocation.mecs import load_mecs_3_1 as _load_mecs_3_1
+from bedrock.extract.allocation.mecs import load_mecs_3_1 as _load_mecs_3_1
 from bedrock.ceda_usa.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING as CEDA_INDUSTRY_TO_MECS_NAICS_MAPPING,
 )

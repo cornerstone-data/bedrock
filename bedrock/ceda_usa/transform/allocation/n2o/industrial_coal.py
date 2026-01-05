@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.epa import (
     load_n2o_emissions_from_stationary_combustion,
 )
 from bedrock.ceda_usa.transform.allocation.co2.industrial_coal import (

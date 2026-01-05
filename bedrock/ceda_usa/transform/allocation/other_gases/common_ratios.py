@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.bea import (
+from bedrock.extract.allocation.bea import (
     load_bea_make_table,
     load_bea_use_table,
 )

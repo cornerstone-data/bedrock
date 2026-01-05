@@ -3,9 +3,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.bea import load_bea_use_table
-from bedrock.ceda_usa.extract.allocation.epa import load_mmt_co2e_across_fuel_types
-from bedrock.ceda_usa.extract.allocation.mecs import load_mecs_2_1, load_mecs_3_1
+from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.epa import load_mmt_co2e_across_fuel_types
+from bedrock.extract.allocation.mecs import load_mecs_2_1, load_mecs_3_1
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 

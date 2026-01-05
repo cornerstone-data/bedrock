@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.epa import (
     load_hfc_emissions_from_ods_substitutes,
     load_hfc_emissions_from_transportation_sources,
     load_hfc_pfc_emissions_from_ods_substitutes,

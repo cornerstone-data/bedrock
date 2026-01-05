@@ -5,11 +5,11 @@ import logging
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.bea import load_bea_use_table
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,
 )
-from bedrock.ceda_usa.extract.allocation.mecs import load_mecs_2_1
+from bedrock.extract.allocation.mecs import load_mecs_2_1
 from bedrock.ceda_usa.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,

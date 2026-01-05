@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.extract.allocation.epa import (
+from bedrock.extract.allocation.epa import (
     load_ch4_and_n2o_from_field_burning,
     load_recent_trends_in_ghg_emissions_and_sinks,
 )
