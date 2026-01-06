@@ -6,7 +6,7 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.extract.iot.constants import GCS_USA_DIR
+from bedrock.extract.iot.constants import GCS_USA_DIR
 from bedrock.ceda_usa.utils.constants import (
     USA_2017_COMMODITY_CODES,
     USA_2017_DETAIL_IO_MATRIX_MAPPING,

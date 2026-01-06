@@ -4,9 +4,6 @@ import functools
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.epa import (
-    load_mmt_co2e_across_fuel_types as _load_table_a17,
-)
 from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.constants import (
     TRANSPORTATION_FUEL_TYPES,
 )
@@ -15,6 +12,9 @@ from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.derived impor
 )
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
+from bedrock.extract.allocation.epa import (
+    load_mmt_co2e_across_fuel_types as _load_table_a17,
+)
 
 derive_fuel_percent_breakout = functools.cache(_derive_fuel_percent_breakout)
 load_table_a17 = functools.cache(_load_table_a17)

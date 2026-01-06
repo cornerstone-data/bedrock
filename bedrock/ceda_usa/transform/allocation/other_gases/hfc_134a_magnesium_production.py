@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.allocation.bea import load_bea_make_table
-from bedrock.ceda_usa.extract.allocation.epa import (
-    load_recent_trends_in_ghg_emissions_and_sinks,
-)
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
+from bedrock.extract.allocation.bea import load_bea_make_table
+from bedrock.extract.allocation.epa import (
+    load_recent_trends_in_ghg_emissions_and_sinks,
+)
 
 EPA_EMISSION_SOURCE_TO_BEA_INDUSTRY_MAPPING = {
     "331410": ["331313", "331410", "331490"],

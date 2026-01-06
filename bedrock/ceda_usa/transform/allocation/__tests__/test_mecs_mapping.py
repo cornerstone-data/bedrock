@@ -4,7 +4,6 @@ import logging
 
 import pytest
 
-from bedrock.ceda_usa.extract.allocation.mecs import load_mecs_3_1
 from bedrock.ceda_usa.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
@@ -14,6 +13,7 @@ from bedrock.ceda_usa.transform.allocation.mappings.v7.ceda_mecs import (
 )
 from bedrock.ceda_usa.transform.allocation.utils import flatten_items
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.extract.allocation.mecs import load_mecs_3_1
 
 logger = logging.getLogger(__name__)
 

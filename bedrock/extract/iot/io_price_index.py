@@ -3,7 +3,7 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.ceda_usa.extract.iot.constants import (
+from bedrock.extract.iot.constants import (
     GCS_PRICE_INDEX_INFLATION_DIR,
     PRICE_INDEX_DETAIL_TABLES,
 )
