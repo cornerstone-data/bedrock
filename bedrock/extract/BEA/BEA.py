@@ -64,9 +64,6 @@ def bea_parse(*, source, year, **_):
             var_name="ActivityConsumedBy",
             value_name="FlowAmount",
         )
-
-    # TODO: Add Detail_Use_PRO_BeforeRedef
-
     elif "Summary_Supply" in source:
         filename = 'Supply_summary'
         df = _load_usa_summary_sut(filename, year)
@@ -91,9 +88,6 @@ def bea_parse(*, source, year, **_):
             var_name="ActivityConsumedBy",
             value_name="FlowAmount",
         )
-
-    # TODO: add Summary_Use_PRO_BeforeRedef
-    # TODO: add Summary_Make_BeforeRedef
     elif "GrossOutput" in source:
         df = _map_detail_table(load_go_detail())
         df = df.iloc[:, 1:]  # drop first column
@@ -144,11 +138,8 @@ if __name__ == "__main__":
         'BEA_Detail_Supply',  # Success
         'BEA_Detail_GrossOutput_IO',  # Fails due to flow amount
         'BEA_Detail_Use_SUT',  # Success
-        # 'BEA_Detail_Use_PRO_BeforeRedef',
         'BEA_Summary_Supply',  # Fails due to flow amount - GCS has older data
         'BEA_Summary_Use_SUT',  # Fails due to flow amount - GCS has older data
-        # 'BEA_Summary_Make_BeforeRedef'
-        # 'BEA_Summary_Use_PRO_BeforeRedef',
     ]
     ## COMPARISON requires that the newly generated FBA does not yet exist or it
     ## will pull itself and compare to itself
