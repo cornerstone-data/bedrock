@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from bedrock.ceda_usa.transform.allocation.constants import EmissionsSource
-from bedrock.ceda_usa.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
+from bedrock.transform.allocation.constants import EmissionsSource
+from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 
 logger = logging.getLogger(__name__)
 

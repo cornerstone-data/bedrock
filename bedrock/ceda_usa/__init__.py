@@ -9,7 +9,7 @@ __version__ = "0.1.0"
 
 # Core modules that can be imported directly
 import bedrock.ceda_usa.utils as utils
-from bedrock.ceda_usa.transform.eeio import (
+from bedrock.transform.eeio import (
     derived,
     derived_2017,
     derived_2017_helpers,

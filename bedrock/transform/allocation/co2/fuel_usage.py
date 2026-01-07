@@ -4,10 +4,10 @@ import functools
 
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.constants import (
+from bedrock.transform.allocation.transportation_fuel_use.constants import (
     TRANSPORTATION_FUEL_TYPES,
 )
-from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.derived import (
+from bedrock.transform.allocation.transportation_fuel_use.derived import (
     derive_fuel_percent_breakout as _derive_fuel_percent_breakout,
 )
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.ceda_usa.transform.eeio.derived import (
+from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
     derive_B_usa_non_finetuned,
     derive_y_for_national_accounting_balance_usa,

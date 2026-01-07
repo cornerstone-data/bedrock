@@ -8,8 +8,8 @@ import pandera.pandas as pa
 import pandera.typing as pt
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.transform.allocation.derived import derive_E_usa
-from bedrock.ceda_usa.transform.eeio.derived_2017 import (
+from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
     derive_2017_g_usa,
     derive_2017_U_set_usa,
@@ -18,7 +18,7 @@ from bedrock.ceda_usa.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
 )
-from bedrock.ceda_usa.transform.eeio.scale_abq_via_summary import (
+from bedrock.transform.eeio.scale_abq_via_summary import (
     scale_detail_A_based_on_summary_A,
     scale_detail_B_based_on_summary_q,
     scale_detail_q_based_on_summary_q,

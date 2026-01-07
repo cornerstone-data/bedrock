@@ -6,8 +6,8 @@ import typing as ta
 import pandas as pd
 import pytest
 
-from bedrock.ceda_usa.transform.allocation.constants import EmissionsSource as ES
-from bedrock.ceda_usa.transform.allocation.n2o import (
+from bedrock.transform.allocation.constants import EmissionsSource as ES
+from bedrock.transform.allocation.n2o import (
     allocate_adipic_acid,
     allocate_caprolactam_glyoxal_and_glyoxylic_acid_production,
     allocate_composting,

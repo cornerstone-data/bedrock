@@ -12,7 +12,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.constants import (
+from bedrock.transform.allocation.transportation_fuel_use.constants import (
     TRANSPORTATION_FUEL_TYPES,
 )
 from bedrock.ceda_usa.utils.units import (

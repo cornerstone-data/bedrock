@@ -4,8 +4,8 @@ import pandas as pd
 import typing as ta
 
 
-from bedrock.ceda_usa.transform.allocation.constants import EmissionsSource as ES
-from bedrock.ceda_usa.transform.allocation.co2 import (
+from bedrock.transform.allocation.constants import EmissionsSource as ES
+from bedrock.transform.allocation.co2 import (
     # fmt: off
     allocate_electricity_generation as co2_allocate_electricity_generation,
     allocate_industrial_coal as co2_allocate_industrial_coal,
@@ -48,7 +48,7 @@ from bedrock.ceda_usa.transform.allocation.co2 import (
     allocate_non_energy_fuels_transport as co2_allocate_non_energy_fuels_transport,
     # fmt: on
 )
-from bedrock.ceda_usa.transform.allocation.ch4 import (
+from bedrock.transform.allocation.ch4 import (
     # fmt: off
     allocate_abandoned_oil_and_gas_wells as ch4_allocate_abandoned_oil_and_gas_wells,
     allocate_abandoned_underground_coal_mines as ch4_allocate_abandoned_underground_coal_mines,
@@ -72,7 +72,7 @@ from bedrock.ceda_usa.transform.allocation.ch4 import (
     allocate_stationary_combustion_industrial_natural_gas as ch4_allocate_stationary_combustion_industrial_natural_gas,
     # fmt: on
 )
-from bedrock.ceda_usa.transform.allocation.n2o import (
+from bedrock.transform.allocation.n2o import (
     # fmt: off
     allocate_adipic_acid as n2o_allocate_adipic_acid,
     allocate_caprolactam_glyoxal_and_glyoxylic_acid_production as n2o_allocate_caprolactam_glyoxal_and_glyoxylic_acid_production,
@@ -99,7 +99,7 @@ from bedrock.ceda_usa.transform.allocation.n2o import (
     # fmt: on
 )
 
-from bedrock.ceda_usa.transform.allocation.other_gases import (
+from bedrock.transform.allocation.other_gases import (
     # fmt: off
     allocate_hfc_125_foams,
     allocate_hfc_125_others,

@@ -4,13 +4,13 @@ import functools
 
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.mappings.v7.ceda_mecs import (
+from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING as CEDA_INDUSTRY_TO_MECS_NAICS_MAPPING,
 )
-from bedrock.ceda_usa.transform.allocation.mappings.v7.ceda_mecs import (
+from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING as CEDA_INDUSTRY_TO_MECS_NAICS_SUBTRACTION_MAPPING,
 )
-from bedrock.ceda_usa.transform.allocation.mappings.v7.ceda_mecs import (
+from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     NON_MECS_INDUSTRIES,
 )
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS

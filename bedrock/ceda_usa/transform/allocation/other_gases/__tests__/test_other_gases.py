@@ -6,9 +6,9 @@ import typing as ta
 import pandas as pd
 import pytest
 import logging
-from bedrock.ceda_usa.transform.allocation.constants import EmissionsSource as ES
+from bedrock.transform.allocation.constants import EmissionsSource as ES
 
-from bedrock.ceda_usa.transform.allocation.other_gases import (
+from bedrock.transform.allocation.other_gases import (
     allocate_hfc_23_hcfc_22_production,
     allocate_hfc_23_semiconductor_manufacture,
     allocate_hfc_32_foams,

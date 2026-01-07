@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.transportation_fuel_use.derived import (
+from bedrock.transform.allocation.transportation_fuel_use.derived import (
     get_personal_consumption_expenditure_petref_cons_purchased,
     get_res_pet_ref_cons_for_transport,
 )

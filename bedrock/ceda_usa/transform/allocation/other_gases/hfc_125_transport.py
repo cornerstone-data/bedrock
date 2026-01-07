@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.other_gases.constants import (
+from bedrock.transform.allocation.other_gases.constants import (
     TRANSPORTATION_SOURCE_TO_BEA_INDUSTRY_MAPPING,
 )
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS

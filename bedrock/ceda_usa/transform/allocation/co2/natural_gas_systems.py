@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.ch4.natural_gas_systems import (
+from bedrock.transform.allocation.ch4.natural_gas_systems import (
     EPA_NATURAL_GAS_SYSTEMS_TO_BEA_INDUSTRY_MAPPING,
 )
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS

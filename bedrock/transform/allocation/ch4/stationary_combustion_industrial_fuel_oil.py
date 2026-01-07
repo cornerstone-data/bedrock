@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.co2 import (
+from bedrock.transform.allocation.co2 import (
     allocate_industrial_petrol as allocate_industrial_petrol_co2,
 )
 from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG

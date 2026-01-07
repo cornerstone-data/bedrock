@@ -7,7 +7,7 @@ import posixpath
 import pandas as pd
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.transform.eeio.derived_2017 import (
+from bedrock.transform.eeio.derived_2017 import (
     derive_2017_U_set_usa,
     derive_2017_V_usa,
     derive_2017_Y_personal_consumption_expenditure_usa,

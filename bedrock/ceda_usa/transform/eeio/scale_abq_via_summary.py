@@ -7,7 +7,7 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.transform.eeio.derived_2017 import (
+from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Adom_usa,
     derive_summary_Aimp_usa,
     derive_summary_q_usa,

@@ -6,7 +6,7 @@ import typing as ta
 import pandas as pd
 import pytest
 
-from bedrock.ceda_usa.transform.allocation.co2 import (
+from bedrock.transform.allocation.co2 import (
     allocate_aluminum_production,
     allocate_ammonia_production,
     allocate_cement_production,
@@ -47,7 +47,7 @@ from bedrock.ceda_usa.transform.allocation.co2 import (
     allocate_urea_fertilization,
     allocate_zinc_production,
 )
-from bedrock.ceda_usa.transform.allocation.constants import EmissionsSource as ES
+from bedrock.transform.allocation.constants import EmissionsSource as ES
 from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 if ta.TYPE_CHECKING:

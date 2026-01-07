@@ -1,7 +1,7 @@
 import pandas as pd
 
-from bedrock.ceda_usa.transform.allocation.derived import derive_E_usa_emissions_sources
-from bedrock.ceda_usa.transform.eeio.derived_2017 import (
+from bedrock.transform.allocation.derived import derive_E_usa_emissions_sources
+from bedrock.transform.eeio.derived_2017 import (
     derive_2017_g_usa,
     derive_2017_Vnorm_scrap_corrected,
 )

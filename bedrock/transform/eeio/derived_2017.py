@@ -5,7 +5,7 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.transform.eeio.derived_2017_helpers import (
+from bedrock.transform.eeio.derived_2017_helpers import (
     EXPECTED_COMMODITIES_DROPPED,
     derive_2017_scrap_weight,
     derive_2017_U_weight,
