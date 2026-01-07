@@ -64,7 +64,7 @@ def eia_aeo_url_helper(*, build_url, year, config, **_):
     return urls
 
 
-def eia_aeo_call(*, resp, year, **_):
+def eia_aeo_call(*, resp, **_):
     """
     Convert response for calling url to pandas dataframe, begin
         parsing df into FBA format

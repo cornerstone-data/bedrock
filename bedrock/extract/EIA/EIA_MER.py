@@ -39,7 +39,7 @@ def eia_mer_url_helper(*, build_url, config, **_):
     return urls
 
 
-def eia_mer_call(*, resp, config, **_):
+def eia_mer_call(*, resp, **_):
     """
     Convert response for calling url to pandas dataframe, begin
     parsing df into FBA format
@@ -93,7 +93,7 @@ def parse_tables(desc):
         return (None, None, None)
 
 
-def eia_mer_parse(*, df_list, config, **_):
+def eia_mer_parse(*, df_list, **_):
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
