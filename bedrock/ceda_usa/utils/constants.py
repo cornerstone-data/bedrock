@@ -854,6 +854,15 @@ USA_2017_DETAIL_IO_MATRIX_MAPPING = {
     "Margins": "Margins Redefinitions 2017 DET.xlsx",
 }
 
+USA_2017_DETAIL_IO_SUT_MATRIX_NAMES = ta.Literal[
+    "Supply_detail",
+    "Use_SUT_detail",
+]
+USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING = {
+    "Supply_detail": "Supply_2017_DET.xlsx",
+    "Use_SUT_detail": "Use_SUT_Framework_2017_DET.xlsx",
+}
+
 USA_2017_INDUSTRY_DESC = {
     # from GCS_CEDA_INPUT_DIR/USA_AllTablesSUP/Use_SUT_Framework_2017_DET.xlsx
     # order matters!
@@ -1719,6 +1728,15 @@ USA_SUMMARY_MUT_MAPPING_1997_2023 = {
     "Make_summary": "IOMake_After_Redefinitions_PRO_1997-2023_Summary.xlsx",
     "Use_summary": "IOUse_After_Redefinitions_PRO_1997-2023_Summary.xlsx",
     "Import_summary": "IOImportMatrices_After_Redefinitions_SUM_1997-2023.xlsx",
+}
+
+USA_SUMMARY_SUT_NAMES = ta.Literal[
+    "Supply_summary",
+    "Use_SUT_summary",
+]
+USA_SUMMARY_SUT_MAPPING_2017_2022 = {
+    "Supply_summary": "Supply_Tables_2017-2022_Summary.xlsx",
+    "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx",
 }
 
 USA_DETAIL_MUT_YEARS = ta.Literal[2007, 2012, 2017]

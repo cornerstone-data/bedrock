@@ -4,6 +4,7 @@ import typing as ta
 from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 
 GCS_USA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTables_MakeUse")
+GCS_USA_SUP_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTablesSUP")
 
 GCS_PRICE_INDEX_INFLATION_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "BEA_PriceIndex")
 PRICE_INDEX_DETAIL_TABLES = ta.Literal["UGO304-A", "UGO305-A"]

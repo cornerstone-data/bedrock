@@ -6,11 +6,12 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.extract.iot.constants import GCS_USA_DIR
 from bedrock.ceda_usa.utils.constants import (
     USA_2017_COMMODITY_CODES,
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_NAMES,
+    USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING,
+    USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
     USA_2017_FINAL_DEMAND_CODES,
     USA_2017_INDUSTRY_CODES,
     USA_2017_SUMMARY_COMMODITY_CODES,
@@ -20,6 +21,8 @@ from bedrock.ceda_usa.utils.constants import (
     USA_SUMMARY_MUT_MAPPING_1997_2023,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
+    USA_SUMMARY_SUT_MAPPING_2017_2022,
+    USA_SUMMARY_SUT_NAMES,
 )
 from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
@@ -30,6 +33,7 @@ from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import 
     USA_2017_SUMMARY_INDUSTRY_INDEX,
 )
 from bedrock.ceda_usa.utils.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
 from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
@@ -139,6 +143,34 @@ def _load_2017_detail_make_use_usa(
         load_from_gcs(
             name=USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name],
             sub_bucket=GCS_USA_DIR,
+            local_dir=IN_DIR,
+            loader=lambda pth: pd.read_excel(
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+            ),
+        )
+        .set_index("Code")
+        .fillna(0)
+    )
+    df.columns = df.columns.astype(str)
+
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+
+    return df
+
+
+def _load_2017_detail_supply_use_usa(
+    matrix_name: USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
+) -> pd.DataFrame:
+    """
+    Load 2017 USA Detail Supply and Use_SUT matrices
+    """
+    df = (
+        load_from_gcs(
+            name=USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING[matrix_name],
+            sub_bucket=GCS_USA_SUP_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
                 pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
@@ -277,6 +309,38 @@ def _load_usa_summary_mut(
         load_from_gcs(
             name=usa_summary_mut_mapping[matrix_name],
             sub_bucket=GCS_USA_DIR,
+            local_dir=IN_DIR,
+            loader=lambda pth: pd.read_excel(
+                pth,
+                sheet_name=str(year),
+                skiprows=5,
+                dtype={"Unnamed: 0": str},
+            ),
+        )
+        .set_index("Unnamed: 0")
+        .replace("...", 0)
+        .fillna(0)
+    )
+    df.columns = df.columns.astype(str)
+
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+
+    return df
+
+
+def _load_usa_summary_sut(
+    matrix_name: USA_SUMMARY_SUT_NAMES, year: USA_SUMMARY_MUT_YEARS
+) -> pd.DataFrame:
+    """
+    Load USA Summary tables in Supply-use format
+    """
+    df = (
+        load_from_gcs(
+            name=USA_SUMMARY_SUT_MAPPING_2017_2022[matrix_name],
+            sub_bucket=GCS_USA_SUP_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
                 pth,
