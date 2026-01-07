@@ -114,18 +114,32 @@ def call_urls(*, url_list, source, year, config):
     if url_list[0] is not None:
         for url in url_list:
             df = None
-            log.info("Calling %s", url)
-            resp = make_url_request(
-                url,
-                set_cookies=set_cookies,
-                confirm_gdrive=confirm_gdrive,
-                verify=False,
-            )
-            fxn = config.get("call_response_fxn")
-            if callable(fxn):
-                df = fxn(resp=resp, source=source, year=year, config=config, url=url)
-            elif fxn:
-                raise FBSMethodConstructionError(error_type='fxn_call')
+            if config.get('load_from_gcs'):
+                fxn = config.get("gcs_fxn")
+                if callable(fxn):
+                    df = fxn(source=source, year=year, config=config, url=url)
+                elif fxn:
+                    raise FBSMethodConstructionError(error_type='fxn_call')
+                else:
+                    raise FBSMethodConstructionError(
+                        message="Must indicate 'gsc_fxn' when 'load_from_gcs' is True"
+                    )
+
+            else:
+                log.info("Calling %s", url)
+                resp = make_url_request(
+                    url,
+                    set_cookies=set_cookies,
+                    confirm_gdrive=confirm_gdrive,
+                    verify=False,
+                )
+                fxn = config.get("call_response_fxn")
+                if callable(fxn):
+                    df = fxn(
+                        resp=resp, source=source, year=year, config=config, url=url
+                    )
+                elif fxn:
+                    raise FBSMethodConstructionError(error_type='fxn_call')
             if isinstance(df, pd.DataFrame):
                 data_frames_list.append(df)
             elif isinstance(df, list):
