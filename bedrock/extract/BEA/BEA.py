@@ -14,15 +14,15 @@ import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
-from bedrock.ceda_usa.extract.iot.io_2017 import (
+from bedrock.ceda_usa.transform.iot.derived_price_index import _map_detail_table
+from bedrock.extract.flowbyactivity import getFlowByActivity
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+from bedrock.extract.iot.io_2017 import (
     # _load_2017_detail_make_use_usa,
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
 )
-from bedrock.ceda_usa.extract.iot.io_price_index import load_go_detail
-from bedrock.ceda_usa.transform.iot.derived_price_index import _map_detail_table
-from bedrock.extract.flowbyactivity import getFlowByActivity
-from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+from bedrock.extract.iot.io_price_index import load_go_detail
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.settings import PATHS
 from bedrock.utils.mapping.location import US_FIPS
