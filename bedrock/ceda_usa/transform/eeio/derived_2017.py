@@ -5,25 +5,6 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.extract.iot.io_2012 import (
-    load_2012_PI_usa,
-    load_2012_pR_usa,
-    load_2012_UR_usa,
-    load_2012_URdom_usa,
-    load_2012_VR_usa,
-    load_2012_YR_usa,
-)
-from bedrock.ceda_usa.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
-    load_2017_Ytot_usa,
-    load_summary_Uimp_usa,
-    load_summary_Utot_usa,
-    load_summary_V_usa,
-    load_summary_Yimp_usa,
-    load_summary_Ytot_usa,
-)
 from bedrock.ceda_usa.transform.eeio.derived_2017_helpers import (
     EXPECTED_COMMODITIES_DROPPED,
     derive_2017_scrap_weight,
@@ -75,6 +56,25 @@ from bedrock.ceda_usa.utils.structural_reflection import (
 from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     load_usa_2017_commodity__ceda_v7_correspondence,
     load_usa_2017_industry__ceda_v7_correspondence,
+)
+from bedrock.extract.iot.io_2012 import (
+    load_2012_PI_usa,
+    load_2012_pR_usa,
+    load_2012_UR_usa,
+    load_2012_URdom_usa,
+    load_2012_VR_usa,
+    load_2012_YR_usa,
+)
+from bedrock.extract.iot.io_2017 import (
+    load_2017_Uimp_usa,
+    load_2017_Utot_usa,
+    load_2017_V_usa,
+    load_2017_Ytot_usa,
+    load_summary_Uimp_usa,
+    load_summary_Utot_usa,
+    load_summary_V_usa,
+    load_summary_Yimp_usa,
+    load_summary_Ytot_usa,
 )
 
 

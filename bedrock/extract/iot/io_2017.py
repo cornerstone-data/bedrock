@@ -6,7 +6,6 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
 from bedrock.ceda_usa.utils.constants import (
     USA_2017_COMMODITY_CODES,
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
@@ -34,6 +33,7 @@ from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import 
     USA_2017_SUMMARY_INDUSTRY_INDEX,
 )
 from bedrock.ceda_usa.utils.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
 from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")

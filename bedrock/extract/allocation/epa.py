@@ -7,7 +7,7 @@ import typing as ta
 import pandas as pd
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.extract.allocation.epa_constants import (
+from bedrock.extract.allocation.epa_constants import (
     EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2022,
     EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023,
     EPA_TABLE_NAMES,
