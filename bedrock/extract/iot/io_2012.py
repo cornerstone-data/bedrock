@@ -6,10 +6,14 @@ import typing as ta
 import pandas as pd
 from typing_extensions import deprecated
 
-from bedrock.utils.constants import (
+from bedrock.utils.taxonomy.bea.v2012_commodity import (
     USA_2012_COMMODITY_CODES,
-    USA_2012_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2012_industry import (
     USA_2012_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2012_final_demand import (
+    USA_2012_FINAL_DEMAND_CODES,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.emissions.ghg import GHG_DETAILED

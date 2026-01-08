@@ -156,3 +156,6 @@ BEA_2017_COMMODITY_SUMMARY_DESC: ta.Dict[BEA_2017_COMMODITY_SUMMARY_CODE, str] =
     "Used": "Scrap, used and secondhand goods",
     "Other": "Noncomparable imports and rest-of-the-world adjustment",
 }
+
+USA_2017_SUMMARY_COMMODITY_DESC = BEA_2017_COMMODITY_SUMMARY_CODE_DESC
+USA_2017_SUMMARY_COMMODITY_CODES = BEA_2017_COMMODITY_SUMMARY_CODES

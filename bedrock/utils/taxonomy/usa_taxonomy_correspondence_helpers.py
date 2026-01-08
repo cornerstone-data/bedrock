@@ -1,14 +1,28 @@
 import pandas as pd
 
-from bedrock.utils.constants import (
+from bedrock.utils.taxonomy.bea.v2012_commodity import (
     USA_2012_COMMODITY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2012_industry import (
     USA_2012_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_commodity import (
     USA_2017_COMMODITY_CODES,
-    USA_2017_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry import (
     USA_2017_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    USA_2017_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     USA_2017_SUMMARY_COMMODITY_CODES,
-    USA_2017_SUMMARY_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
     USA_2017_SUMMARY_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
+    USA_2017_SUMMARY_FINAL_DEMAND_CODES,
 )
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix

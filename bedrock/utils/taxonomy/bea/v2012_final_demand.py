@@ -49,3 +49,6 @@ BEA_2012_FINAL_DEMAND_CODE_DESC: ta.Dict[BEA_2012_FINAL_DEMAND_CODE, str] = {
     "F10N00": "State and local: Gross investment in intellectual property products",
     "F10S00": "State and local: Gross investment in structures",
 }
+
+USA_2012_FINAL_DEMAND_DESC = BEA_2012_FINAL_DEMAND_CODE_DESC
+USA_2012_FINAL_DEMAND_CODES = BEA_2012_FINAL_DEMAND_CODES
