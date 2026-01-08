@@ -1,14 +1,14 @@
 import typing as ta
 
-from bedrock.ceda_usa.utils.taxonomy.bea.v2012_industry import (
+from bedrock.utils.taxonomy.bea.v2012_industry import (
     BEA_2012_INDUSTRY_CODE,
     BEA_2012_INDUSTRY_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.bea.v2017_industry import (
+from bedrock.utils.taxonomy.bea.v2017_industry import (
     BEA_2017_INDUSTRY_CODE,
     BEA_2017_INDUSTRY_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.utils import validate_mapping
+from bedrock.utils.taxonomy.utils import validate_mapping
 
 
 def load_bea_v2012_industry_to_bea_v2017_industry() -> (

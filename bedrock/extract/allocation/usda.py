@@ -10,8 +10,8 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")

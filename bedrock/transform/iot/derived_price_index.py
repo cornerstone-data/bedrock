@@ -1,10 +1,10 @@
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.v2017_industry import BEA_2017_INDUSTRY_CODES
-from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
+from bedrock.utils.taxonomy.bea.v2017_industry import BEA_2017_INDUSTRY_CODES
+from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
     load_bea_v2017_industry_to_bea_v2017_summary,
 )
-from bedrock.ceda_usa.utils.taxonomy.utils import assert_sets_equal
+from bedrock.utils.taxonomy.utils import assert_sets_equal
 from bedrock.extract.iot.constants import (
     PRICE_INDEX_DETAIL_NAME_TO_BEA_2017_INDUSTRY_MAPPING,
     PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2017_SUMMARY_MAPPING_NON_EMPTY,

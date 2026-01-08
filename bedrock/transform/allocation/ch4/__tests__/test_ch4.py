@@ -6,7 +6,7 @@ import typing as ta
 import pandas as pd
 import pytest
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.transform.allocation.ch4 import (
     allocate_abandoned_oil_and_gas_wells,
     allocate_abandoned_underground_coal_mines,

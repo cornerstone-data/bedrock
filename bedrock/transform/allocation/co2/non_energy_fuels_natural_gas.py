@@ -5,8 +5,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.bea import load_bea_use_table
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,

@@ -38,7 +38,7 @@ from bedrock.transform.allocation.other_gases import (
     allocate_sf6_magnesium_production,
     allocate_sf6_semiconductor_manufacture,
 )
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 if ta.TYPE_CHECKING:

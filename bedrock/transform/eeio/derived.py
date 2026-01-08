@@ -7,26 +7,26 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.utils.constants import (
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.constants import (
     USA_2017_FINAL_DEMAND_EXPORT_CODE,
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
-from bedrock.ceda_usa.utils.disaggregation import disaggregate_vector
-from bedrock.ceda_usa.utils.formulas import (
+from bedrock.utils.math.disaggregation import disaggregate_vector
+from bedrock.utils.math.formulas import (
     compute_B_ind_matrix,
     compute_B_matrix,
     compute_y_for_national_accounting_balance,
     compute_y_imp,
 )
-from bedrock.ceda_usa.utils.handle_negatives import handle_negative_vector_values
-from bedrock.ceda_usa.utils.inflate_to_target_year import (
+from bedrock.utils.math.handle_negatives import handle_negative_vector_values
+from bedrock.utils.economic.inflate_to_target_year import (
     inflate_A_matrix,
     inflate_B_matrix,
     inflate_q_or_y,
 )
-from bedrock.ceda_usa.utils.schemas.single_region_schemas import (
+from bedrock.utils.schemas.single_region_schemas import (
     AMatrix,
     BMatrix,
     ExportsVectorSchema,
@@ -35,19 +35,19 @@ from bedrock.ceda_usa.utils.schemas.single_region_schemas import (
     UMatrix,
     YVectorSchema,
 )
-from bedrock.ceda_usa.utils.schemas.single_region_types import (
+from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,
     SingleRegionUMatrixSet,
     SingleRegionYtotAndTradeVectorSet,
     SingleRegionYVectorSet,
 )
-from bedrock.ceda_usa.utils.split_using_aggregated_weights import (
+from bedrock.utils.math.split_using_aggregated_weights import (
     split_vector_using_agg_ratio,
 )
-from bedrock.ceda_usa.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_ceda_corresp_df,
 )
-from bedrock.ceda_usa.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
 )
 from bedrock.extract.iot.io_2012 import (

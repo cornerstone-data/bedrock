@@ -7,11 +7,11 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.utils.inflation import (
+from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
-from bedrock.ceda_usa.utils.schemas.single_region_schemas import VMatrix
-from bedrock.ceda_usa.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
+from bedrock.utils.schemas.single_region_schemas import VMatrix
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
 )
 

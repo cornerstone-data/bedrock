@@ -1,6 +1,6 @@
 import typing as ta
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 NON_MECS_INDUSTRIES: ta.List[CEDA_V7_SECTOR] = [
     "1111A0",

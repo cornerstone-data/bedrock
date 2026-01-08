@@ -1,20 +1,20 @@
 import typing as ta
 
-from bedrock.ceda_usa.utils.taxonomy.bea.v2017_commodity import (
+from bedrock.utils.taxonomy.bea.v2017_commodity import (
     BEA_2017_COMMODITY_CODE,
     BEA_2017_COMMODITY_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.bea.v2017_commodity_summary import (
+from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     BEA_2017_COMMODITY_SUMMARY_CODE,
     BEA_2017_COMMODITY_SUMMARY_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
+from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
     load_bea_v2017_industry_to_bea_v2017_commodity,
 )
-from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
+from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
     load_bea_v2017_industry_to_bea_v2017_summary,
 )
-from bedrock.ceda_usa.utils.taxonomy.utils import reverse, traverse, validate_mapping
+from bedrock.utils.taxonomy.utils import reverse, traverse, validate_mapping
 
 
 def load_bea_v2017_commodity_to_bea_v2017_summary() -> (

@@ -7,11 +7,11 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.utils.constants import USA_SUMMARY_MUT_YEARS
-from bedrock.ceda_usa.utils.formulas import compute_total_industry_inputs
-from bedrock.ceda_usa.utils.schemas.single_region_schemas import AMatrix
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+from bedrock.utils.constants import USA_SUMMARY_MUT_YEARS
+from bedrock.utils.math.formulas import compute_total_industry_inputs
+from bedrock.utils.schemas.single_region_schemas import AMatrix
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     load_bea_v2017_summary_to_ceda_v7,
 )
 from bedrock.transform.eeio.derived_2017 import (

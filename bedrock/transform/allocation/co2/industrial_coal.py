@@ -4,8 +4,8 @@ import functools
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.units import COAL_MMBTU_PER_SHORT_TONNE, MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.economic.units import COAL_MMBTU_PER_SHORT_TONNE, MEGATONNE_TO_KG
 from bedrock.extract.allocation.bea import load_bea_use_table
 from bedrock.extract.allocation.epa import (
     load_mmt_co2e_across_fuel_types as _load_table_a17_mmt_co2e,

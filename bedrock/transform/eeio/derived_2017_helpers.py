@@ -10,11 +10,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
+from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     load_usa_2017_commodity__ceda_v7_correspondence,
     load_usa_2017_industry__ceda_v7_correspondence,
 )

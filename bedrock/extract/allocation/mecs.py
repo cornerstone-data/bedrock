@@ -3,7 +3,7 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.io.gcp import load_from_gcs
 
 GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_MECS_2018")

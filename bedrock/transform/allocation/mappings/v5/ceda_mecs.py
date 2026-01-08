@@ -1,6 +1,6 @@
 import typing as ta
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 # https://www.eia.gov/tools/faqs/faq.cfm?id=72&t=2
 MMBTU_PER_SHORT_TONNE_COAL = 20

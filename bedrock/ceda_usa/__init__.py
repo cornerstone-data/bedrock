@@ -8,8 +8,8 @@ as part of the CEDA (Carbon Emissions Database for Applications) EEIO database.
 __version__ = "0.1.0"
 
 # Core modules that can be imported directly
-import bedrock.ceda_usa.utils as utils
-from bedrock.ceda_usa.utils import constants
+import bedrock.utils as utils
+from bedrock.utils import constants
 from bedrock.extract.iot import io_2012, io_2017
 from bedrock.transform.eeio import (
     derived,

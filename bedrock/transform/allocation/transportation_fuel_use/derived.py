@@ -12,7 +12,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.utils.units import (
+from bedrock.utils.economic.units import (
     HEATING_OIL_MMBTU_PER_GALLON,
     PROPANE_MMBTU_PER_GALLON,
 )

@@ -1,7 +1,7 @@
 import typing as ta
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTOR
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
+from bedrock.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTOR
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 # This BEA code is renamed in CEDA V7 from CEDA V5
 # because BEA updated their sector classifications.

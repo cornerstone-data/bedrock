@@ -5,7 +5,7 @@ import dataclasses as dc
 import pandas as pd
 from pandera.typing import DataFrame
 
-from bedrock.ceda_usa.utils.schemas.single_region_schemas import (
+from bedrock.utils.schemas.single_region_schemas import (
     AMatrix,
     BMatrix,
     UMatrix,

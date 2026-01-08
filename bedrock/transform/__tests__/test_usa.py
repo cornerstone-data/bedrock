@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.ceda_usa.utils.testing import (
+from bedrock.utils.testing import (
     assert_snapshot_frame_equal,
     assert_snapshot_series_equal,
 )

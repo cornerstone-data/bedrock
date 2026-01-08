@@ -1,6 +1,6 @@
 import pandas as pd
 
-from bedrock.ceda_usa.utils.constants import (
+from bedrock.utils.constants import (
     USA_2012_COMMODITY_CODES,
     USA_2012_INDUSTRY_CODES,
     USA_2017_COMMODITY_CODES,
@@ -10,21 +10,21 @@ from bedrock.ceda_usa.utils.constants import (
     USA_2017_SUMMARY_FINAL_DEMAND_CODES,
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
-from bedrock.ceda_usa.utils.correspondence import create_correspondence_matrix
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2012_commodity__bea_v2017_commodity import (
+from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.mappings.bea_v2012_commodity__bea_v2017_commodity import (
     load_bea_v2012_commodity_to_bea_v2017_commodity,
 )
-from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2012_industry__bea_v2017_industry import (
+from bedrock.utils.taxonomy.mappings.bea_v2012_industry__bea_v2017_industry import (
     load_bea_v2012_industry_to_bea_v2017_industry,
 )
-from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2017_commodity__bea_ceda_v7 import (
+from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_ceda_v7 import (
     load_bea_v2017_commodity_to_bea_ceda_v7,
 )
-from bedrock.ceda_usa.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
+from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
     load_bea_v2017_industry_to_bea_v2017_commodity,
 )
-from bedrock.ceda_usa.utils.taxonomy.utils import traverse
+from bedrock.utils.taxonomy.utils import traverse
 
 USA_2017_INDUSTRY_INDEX = pd.Index(USA_2017_INDUSTRY_CODES, name="industry")
 USA_2017_COMMODITY_INDEX = pd.Index(USA_2017_COMMODITY_CODES, name="commodity")

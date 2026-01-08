@@ -4,7 +4,7 @@ from typing import Generator
 
 import pytest
 
-from bedrock.ceda_usa.config.usa_config import (
+from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,
     set_global_usa_config,
@@ -33,7 +33,7 @@ def test_config_via_environment_variable() -> None:
     """Test that config can be loaded from environment variable in worker processes."""
     import os
 
-    from bedrock.ceda_usa.config.usa_config import CEDA_USA_CONFIG_ENV_VAR
+    from bedrock.utils.config.usa_config import CEDA_USA_CONFIG_ENV_VAR
 
     set_global_usa_config("test_usa_config.yaml")
     assert CEDA_USA_CONFIG_ENV_VAR in os.environ

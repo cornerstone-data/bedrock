@@ -3,8 +3,8 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_USA_DIR
-from bedrock.ceda_usa.utils.snapshots.names import SnapshotName
+from bedrock.utils.io.gcp_paths import GCS_CEDA_USA_DIR
+from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 SNAPSHOT_BASE = os.path.dirname(__file__)

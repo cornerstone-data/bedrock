@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from bedrock.ceda_usa.utils.schemas.base_schemas import (
+from bedrock.utils.schemas.base_schemas import (
     CedaSingleRegionEconomicVectorBaseSchema,
     CedaSingleRegionEmissionsMatrixBase,
     CedaSingleRegionNonNegativeEconomicVectorBaseSchema,

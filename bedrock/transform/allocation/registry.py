@@ -131,7 +131,7 @@ from bedrock.transform.allocation.other_gases import (
     allocate_sf6_semiconductor_manufacture,
     # fmt: on
 )
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def zero_allocator() -> pd.Series[float]:

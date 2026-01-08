@@ -1,7 +1,7 @@
 import posixpath
 import typing as ta
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 
 GCS_USA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTables_MakeUse")
 GCS_USA_SUP_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTablesSUP")

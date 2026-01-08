@@ -4,16 +4,16 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_USA_DIR
-from bedrock.ceda_usa.utils.taxonomy.bea.v2017_commodity_summary import (
+from bedrock.utils.io.gcp_paths import GCS_CEDA_USA_DIR
+from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     BEA_2017_COMMODITY_SUMMARY_CODE,
     BEA_2017_COMMODITY_SUMMARY_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.bea.v2017_industry import (
+from bedrock.utils.taxonomy.bea.v2017_industry import (
     BEA_2017_INDUSTRY_CODE,
     BEA_2017_INDUSTRY_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.utils import validate_mapping
+from bedrock.utils.taxonomy.utils import validate_mapping
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 GCS_CEDA_TAXONOMY_DIR = posixpath.join(GCS_CEDA_USA_DIR, "taxonomy")
