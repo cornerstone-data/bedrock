@@ -5,13 +5,6 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.transform.eeio.derived_2017_helpers import (
-    EXPECTED_COMMODITIES_DROPPED,
-    derive_2017_scrap_weight,
-    derive_2017_U_weight,
-    derive_2017_V_weight,
-    derive_2017_Y_weight,
-)
 from bedrock.ceda_usa.utils.constants import (
     USA_2017_FINAL_DEMAND_EXPORT_CODE,
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
@@ -75,6 +68,13 @@ from bedrock.extract.iot.io_2017 import (
     load_summary_V_usa,
     load_summary_Yimp_usa,
     load_summary_Ytot_usa,
+)
+from bedrock.transform.eeio.derived_2017_helpers import (
+    EXPECTED_COMMODITIES_DROPPED,
+    derive_2017_scrap_weight,
+    derive_2017_U_weight,
+    derive_2017_V_weight,
+    derive_2017_Y_weight,
 )
 
 

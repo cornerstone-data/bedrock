@@ -7,7 +7,6 @@ import typing as ta
 import pandas as pd
 
 from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.transform.allocation.utils import parse_index_with_aggregates
 from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 from bedrock.ceda_usa.utils.gwp import derive_ar5_to_ar6_multiplier
 from bedrock.extract.allocation.epa_constants import (
@@ -16,6 +15,7 @@ from bedrock.extract.allocation.epa_constants import (
     EPA_TABLE_NAMES,
     TBL_NUMBERS,
 )
+from bedrock.transform.allocation.utils import parse_index_with_aggregates
 from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")

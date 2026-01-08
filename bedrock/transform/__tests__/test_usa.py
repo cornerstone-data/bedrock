@@ -3,14 +3,14 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from bedrock.ceda_usa.utils.testing import (
+    assert_snapshot_frame_equal,
+    assert_snapshot_series_equal,
+)
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
     derive_B_usa_non_finetuned,
     derive_y_for_national_accounting_balance_usa,
-)
-from bedrock.ceda_usa.utils.testing import (
-    assert_snapshot_frame_equal,
-    assert_snapshot_series_equal,
 )
 
 
