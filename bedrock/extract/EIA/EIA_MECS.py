@@ -10,7 +10,7 @@ Last updated: 8 Sept. 2020
 import io
 import os
 import posixpath
-from typing import Any
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
@@ -36,7 +36,9 @@ from bedrock.utils.mapping.location import (
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
-def eia_mecs_URL_helper(*, build_url, config, year, **_):
+def eia_mecs_URL_helper(
+    *, build_url: str, config: dict[str, Any], year: str, **_kwrags: dict[str, Any]
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url
@@ -464,7 +466,9 @@ def eia_mecs_energy_call(
     return df_data
 
 
-def eia_mecs_energy_parse(*, df_list, source, year, **_):
+def eia_mecs_energy_parse(
+    *, df_list: List[pd.DataFrame], source: str, year: str, **_kwargs: dict[str, Any]
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
