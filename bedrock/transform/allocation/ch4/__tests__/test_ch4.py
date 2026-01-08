@@ -6,7 +6,6 @@ import typing as ta
 import pandas as pd
 import pytest
 
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.transform.allocation.ch4 import (
     allocate_abandoned_oil_and_gas_wells,
     allocate_abandoned_underground_coal_mines,
@@ -30,6 +29,7 @@ from bedrock.transform.allocation.ch4 import (
     allocate_wastewater_treatment,
 )
 from bedrock.transform.allocation.constants import EmissionsSource as ES
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 if ta.TYPE_CHECKING:
     AllocatorType = ta.Callable[[], pd.Series[float]]

@@ -12,10 +12,6 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.economic.units import (
-    HEATING_OIL_MMBTU_PER_GALLON,
-    PROPANE_MMBTU_PER_GALLON,
-)
 from bedrock.extract.allocation.bea import (
     load_bea_personal_consumption_expenditure,
     load_bea_use_table,
@@ -30,6 +26,10 @@ from bedrock.extract.allocation.epa import (
 from bedrock.extract.allocation.epa import load_tbtu_across_fuel_types
 from bedrock.transform.allocation.transportation_fuel_use.constants import (
     TRANSPORTATION_FUEL_TYPES,
+)
+from bedrock.utils.economic.units import (
+    HEATING_OIL_MMBTU_PER_GALLON,
+    PROPANE_MMBTU_PER_GALLON,
 )
 
 

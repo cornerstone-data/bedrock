@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.economic.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.bea import load_bea_use_table
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,
@@ -12,6 +10,8 @@ from bedrock.transform.allocation.transportation_fuel_use.derived import (
     get_personal_consumption_expenditure_petref_cons_purchased,
     get_res_pet_ref_cons_for_transport,
 )
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_non_energy_fuels_transport() -> pd.Series[float]:

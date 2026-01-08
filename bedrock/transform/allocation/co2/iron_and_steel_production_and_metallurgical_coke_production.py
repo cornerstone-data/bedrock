@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.economic.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_recent_trends_in_ghg_emissions_and_sinks,
 )
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_iron_and_steel_production_and_metallurgical_coke_production() -> (

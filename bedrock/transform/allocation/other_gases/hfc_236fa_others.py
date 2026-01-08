@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.economic.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_hfc_emissions_from_ods_substitutes,
     load_hfc_emissions_from_transportation_sources,
@@ -12,6 +10,8 @@ from bedrock.extract.allocation.epa import (
 from bedrock.transform.allocation.other_gases.common_ratios import (
     derive_make_use_ratios_for_hfcs_from_other_sources,
 )
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_hfc_236fa_others() -> pd.Series[float]:

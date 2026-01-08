@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.economic.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_direct_n2o_from_agricultural_soils,
 )
 from bedrock.extract.allocation.usda import load_crop_land_area_harvested
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 ACTIVITIES = [
     ("Cropland", "Mineralization and Asymbiotic Fixation"),

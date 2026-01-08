@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.economic.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_pfc_hfc_sf6_nf3_n2o_emissions_from_semiconductor_manufacture,
 )
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_pfc_c2f6_semiconductor_manufacture() -> pd.Series[float]:

@@ -7,49 +7,6 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.constants import (
-    USA_2017_FINAL_DEMAND_EXPORT_CODE,
-    USA_2017_FINAL_DEMAND_IMPORT_CODE,
-    USA_2017_SUMMARY_INDUSTRY_CODES,
-)
-from bedrock.utils.math.disaggregation import disaggregate_vector
-from bedrock.utils.math.formulas import (
-    compute_B_ind_matrix,
-    compute_B_matrix,
-    compute_y_for_national_accounting_balance,
-    compute_y_imp,
-)
-from bedrock.utils.math.handle_negatives import handle_negative_vector_values
-from bedrock.utils.economic.inflate_to_target_year import (
-    inflate_A_matrix,
-    inflate_B_matrix,
-    inflate_q_or_y,
-)
-from bedrock.utils.schemas.single_region_schemas import (
-    AMatrix,
-    BMatrix,
-    ExportsVectorSchema,
-    ImportsVectorSchema,
-    QVectorSchema,
-    UMatrix,
-    YVectorSchema,
-)
-from bedrock.utils.schemas.single_region_types import (
-    SingleRegionAqMatrixSet,
-    SingleRegionUMatrixSet,
-    SingleRegionYtotAndTradeVectorSet,
-    SingleRegionYVectorSet,
-)
-from bedrock.utils.math.split_using_aggregated_weights import (
-    split_vector_using_agg_ratio,
-)
-from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
-    get_bea_v2017_summary_to_ceda_corresp_df,
-)
-from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
-    CEDA_V5_TO_CEDA_V7_CODES,
-)
 from bedrock.extract.iot.io_2012 import (
     load_2012_PC_usa,
     load_2012_PI_usa,
@@ -72,6 +29,49 @@ from bedrock.transform.eeio.scale_abq_via_summary import (
     scale_detail_A_based_on_summary_A,
     scale_detail_B_based_on_summary_q,
     scale_detail_q_based_on_summary_q,
+)
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.constants import (
+    USA_2017_FINAL_DEMAND_EXPORT_CODE,
+    USA_2017_FINAL_DEMAND_IMPORT_CODE,
+    USA_2017_SUMMARY_INDUSTRY_CODES,
+)
+from bedrock.utils.economic.inflate_to_target_year import (
+    inflate_A_matrix,
+    inflate_B_matrix,
+    inflate_q_or_y,
+)
+from bedrock.utils.math.disaggregation import disaggregate_vector
+from bedrock.utils.math.formulas import (
+    compute_B_ind_matrix,
+    compute_B_matrix,
+    compute_y_for_national_accounting_balance,
+    compute_y_imp,
+)
+from bedrock.utils.math.handle_negatives import handle_negative_vector_values
+from bedrock.utils.math.split_using_aggregated_weights import (
+    split_vector_using_agg_ratio,
+)
+from bedrock.utils.schemas.single_region_schemas import (
+    AMatrix,
+    BMatrix,
+    ExportsVectorSchema,
+    ImportsVectorSchema,
+    QVectorSchema,
+    UMatrix,
+    YVectorSchema,
+)
+from bedrock.utils.schemas.single_region_types import (
+    SingleRegionAqMatrixSet,
+    SingleRegionUMatrixSet,
+    SingleRegionYtotAndTradeVectorSet,
+    SingleRegionYVectorSet,
+)
+from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+    get_bea_v2017_summary_to_ceda_corresp_df,
+)
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
+    CEDA_V5_TO_CEDA_V7_CODES,
 )
 
 logger = logging.getLogger(__name__)
