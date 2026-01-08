@@ -9,6 +9,7 @@ https://www.epa.gov/ghgemissions/inventory-us-greenhouse-gas-emissions-and-sinks
 import io
 import re
 import zipfile
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
@@ -309,6 +310,40 @@ def ghg_call(*, resp, url, year, config, **_):
                     else:
                         log.warning(f"Error accessing {table}")
         return frames
+
+
+def ghg_load_gcs(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
+    """For each url the file gets download and stored locally from gcs"""
+    from bedrock.extract.allocation.epa import _load_epa_tbl_from_gcs  # noqa:PLC0415
+
+    df_list = []
+    for chapter, tables in kwargs.get('config')['Tables'].items():
+        for table in tables.keys():
+            if table == '3-25b':
+                # handle later
+                continue
+            print(table)
+            df = _load_epa_tbl_from_gcs(
+                table,
+                loader=lambda pth: pd.read_csv(
+                    pth, skiprows=1, encoding="ISO-8859-1", thousands=","
+                ),
+            )
+            if table == '3-13':
+                # remove notes from column headers in some years
+                cols = [c[:4] for c in list(df.columns[1:])]
+                df = df.rename(columns=dict(zip(df.columns[1:], cols)))
+            elif table == '3-25':
+                # handle later
+                continue
+            if df is not None and len(df.columns) > 1:
+                years = YEARS.copy()
+                years.remove(str(kwargs['year']))
+                df = df.drop(columns=(DROP_COLS + years), errors='ignore')
+                df["SourceName"] = f"EPA_GHGI_T_{table.replace('-', '_')}"
+            df_list.append(df)
+
+    return df_list
 
 
 def get_unnamed_cols(df):
