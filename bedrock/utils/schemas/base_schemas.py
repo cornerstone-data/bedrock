@@ -6,10 +6,10 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.utils.taxonomy.countries import CEDA_COUNTRIES, CEDA_COUNTRY
 from bedrock.utils.emissions.ghg import GHG
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR as CEDA_SECTOR
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS as CEDA_SECTORS
+from bedrock.utils.taxonomy.countries import CEDA_COUNTRIES, CEDA_COUNTRY
 
 
 def validate_country_index(

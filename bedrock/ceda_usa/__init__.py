@@ -9,7 +9,6 @@ __version__ = "0.1.0"
 
 # Core modules that can be imported directly
 import bedrock.utils as utils
-from bedrock.utils import constants
 from bedrock.extract.iot import io_2012, io_2017
 from bedrock.transform.eeio import (
     derived,
@@ -17,6 +16,7 @@ from bedrock.transform.eeio import (
     derived_2017_helpers,
     scale_abq_via_summary,
 )
+from bedrock.utils import constants
 
 __all__ = [
     "constants",

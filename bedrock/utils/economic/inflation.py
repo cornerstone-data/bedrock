@@ -3,12 +3,12 @@ import posixpath
 
 import pandas as pd
 
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTORS
 from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
 )
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 # Obtained from Watershed price index source (rds_2Au4cfUuGHgFFLG37rdR),
 # which is derived from BEA price index:

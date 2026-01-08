@@ -1,11 +1,11 @@
 import pandas as pd
 
-from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.bea.v2012_summary import BEA_2012_SUMMARY_CODES
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     BEA_2017_COMMODITY_SUMMARY_CODE,
 )
+from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_ceda_v7 import (
     load_bea_v2017_commodity_to_bea_ceda_v7,
 )

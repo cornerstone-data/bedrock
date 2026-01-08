@@ -5,6 +5,7 @@ import os
 import pandas as pd
 from typing_extensions import deprecated
 
+from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.constants import (
     USA_2017_COMMODITY_CODES,
@@ -24,6 +25,8 @@ from bedrock.utils.constants import (
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
 )
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     USA_2017_FINAL_DEMAND_INDEX,
@@ -32,9 +35,6 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_SUMMARY_FINAL_DEMAND_INDEX,
     USA_2017_SUMMARY_INDUSTRY_INDEX,
 )
-from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
-from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 

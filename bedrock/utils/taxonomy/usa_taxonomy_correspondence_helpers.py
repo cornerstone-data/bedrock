@@ -10,8 +10,8 @@ from bedrock.utils.constants import (
     USA_2017_SUMMARY_FINAL_DEMAND_CODES,
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
-from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2012_commodity__bea_v2017_commodity import (
     load_bea_v2012_commodity_to_bea_v2017_commodity,
 )
