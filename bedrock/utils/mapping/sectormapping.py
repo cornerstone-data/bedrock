@@ -257,7 +257,9 @@ def map_to_BEA_sectors(fbs_load, region, io_level, output_year, bea_year=2012):
         mapping_col = f'BEA_{bea_year}_Detail_Code'
 
     # determine naics year in df
-    naics_year = fbs_load['SectorSourceName'][0].split("_", 1)[1].split("_", 1)[0]
+    naics_year = (
+        fbs_load['SectorSourceName'][0].lower().split("_", 1)[1].split("_", 1)[0]
+    )
 
     # Prepare NAICS:BEA mapping file
     mapping = load_crosswalk(f'NAICS_to_BEA_Crosswalk_{bea_year}').rename(
