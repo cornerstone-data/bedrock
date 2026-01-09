@@ -2,7 +2,7 @@
 # !/usr/bin/env python3
 # coding=utf-8
 
-"""Common variables and functions used across flowsa"""
+"""Common variables and functions used across bedrock"""
 
 import os
 import pprint
@@ -31,6 +31,7 @@ from bedrock.utils.config.settings import (
     extractpath,
     flowbysectormethodpath,
     mappingpath,
+    transformpath
 )
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.validation.exceptions import (
@@ -177,7 +178,7 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
             if flowbytype == 'FBA':
                 folder = f'{extractpath}/{filename.split("_", 1)[0]}'
             elif flowbytype == 'FBS':
-                folder = flowbysectormethodpath
+                folder = f'{transformpath}/{filename.split("_", 1)[0]}'
             else:
                 raise KeyError('Must specify either \'FBA\' or \'FBS\'')
     yaml_path = f'{folder}/{filename}.yaml'

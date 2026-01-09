@@ -2,6 +2,7 @@ import csv
 import importlib
 from os import path
 from typing import IO, Callable
+from pathlib import Path
 
 import yaml
 
@@ -31,8 +32,9 @@ class FlowsaLoader(yaml.SafeLoader):
         for folder in [
             *loader.external_paths_to_search,
             settings.extractpath,
-            settings.flowbysectormethodpath,
             settings.datapath,
+            settings.transformpath / "common",
+            Path(__file__).resolve().parent  # current file path
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)
@@ -82,7 +84,7 @@ class FlowsaLoader(yaml.SafeLoader):
 
         for folder in [
             *loader.external_paths_to_search,
-            settings.flowbysectoractivitysetspath,
+            settings.extractpath / f'{file.split("_", 1)[0]}',
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)
