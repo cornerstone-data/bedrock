@@ -34,6 +34,7 @@ class FlowsaLoader(yaml.SafeLoader):
             settings.extractpath,
             settings.datapath,
             settings.transformpath / "common",
+            settings.transformpath / f'{file.split("_", 1)[0]}',
             Path(__file__).resolve().parent  # current file path
         ]:
             if path.exists(path.join(folder, file)):
