@@ -1,11 +1,11 @@
 import pandas as pd
 
-from bedrock.ceda_usa.utils.formulas import compute_B_ind_matrix, compute_B_matrix
 from bedrock.transform.allocation.derived import derive_E_usa_emissions_sources
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_g_usa,
     derive_2017_Vnorm_scrap_corrected,
 )
+from bedrock.utils.math.formulas import compute_B_ind_matrix, compute_B_matrix
 
 
 def derive_emissions_source_B() -> pd.DataFrame:

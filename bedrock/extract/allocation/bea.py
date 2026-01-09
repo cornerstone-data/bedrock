@@ -6,15 +6,15 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_U_set_usa,
     derive_2017_V_usa,
     derive_2017_Y_personal_consumption_expenditure_usa,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 GCS_BEA_PCE_DIR = posixpath.join(
     GCS_CEDA_INPUT_DIR, "BEA_PersonalConsumptionExpenditure"

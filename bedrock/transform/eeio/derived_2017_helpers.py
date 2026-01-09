@@ -10,15 +10,15 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
+from bedrock.extract.iot.io_2017 import USA_2017_FINAL_DEMAND_INDEX
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
 )
-from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
+from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     load_usa_2017_commodity__ceda_v7_correspondence,
     load_usa_2017_industry__ceda_v7_correspondence,
 )
-from bedrock.extract.iot.io_2017 import USA_2017_FINAL_DEMAND_INDEX
 
 # these sectors were presented in 2012 IO tables but aggregated to 1 sector in 2017 tables
 # adopt their values in 2012 tables to use as weights

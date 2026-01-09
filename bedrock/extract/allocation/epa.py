@@ -6,9 +6,6 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
-from bedrock.ceda_usa.utils.gwp import derive_ar5_to_ar6_multiplier
 from bedrock.extract.allocation.epa_constants import (
     EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2022,
     EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023,
@@ -16,7 +13,10 @@ from bedrock.extract.allocation.epa_constants import (
     TBL_NUMBERS,
 )
 from bedrock.transform.allocation.utils import parse_index_with_aggregates
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.emissions.gwp import derive_ar5_to_ar6_multiplier
 from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 

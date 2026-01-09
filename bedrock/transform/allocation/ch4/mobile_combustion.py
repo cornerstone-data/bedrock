@@ -4,12 +4,12 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.bea import load_bea_use_table
 from bedrock.extract.allocation.epa import (
     load_ch4_emissions_from_mobile_combustion,
 )
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
 
 MOBILE_SOURCE_TO_BEA_INDUSTRY_MAPPING: ta.Dict[
     ta.Tuple[str, str],

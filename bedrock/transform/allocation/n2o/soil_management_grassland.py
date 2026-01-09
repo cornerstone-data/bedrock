@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_direct_n2o_from_agricultural_soils,
     load_indirect_n2o_from_agricultural_soils,
 )
 from bedrock.extract.allocation.usda import load_animal_operation_land
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_soil_management_grassland() -> pd.Series[float]:

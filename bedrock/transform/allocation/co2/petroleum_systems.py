@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_petroleum_systems,
 )
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_petroleum_systems() -> pd.Series[float]:

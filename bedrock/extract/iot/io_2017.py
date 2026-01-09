@@ -5,18 +5,15 @@ import os
 import pandas as pd
 from typing_extensions import deprecated
 
-from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.utils.constants import (
-    USA_2017_COMMODITY_CODES,
+from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_NAMES,
     USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
-    USA_2017_FINAL_DEMAND_CODES,
-    USA_2017_INDUSTRY_CODES,
-    USA_2017_SUMMARY_COMMODITY_CODES,
-    USA_2017_SUMMARY_FINAL_DEMAND_CODES,
-    USA_2017_SUMMARY_INDUSTRY_CODES,
     USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
     USA_SUMMARY_MUT_NAMES,
@@ -24,7 +21,25 @@ from bedrock.ceda_usa.utils.constants import (
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
 )
-from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
+from bedrock.utils.taxonomy.bea.v2017_commodity import (
+    USA_2017_COMMODITY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
+    USA_2017_SUMMARY_COMMODITY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    USA_2017_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry import (
+    USA_2017_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
+    USA_2017_SUMMARY_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
+    USA_2017_SUMMARY_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     USA_2017_FINAL_DEMAND_INDEX,
     USA_2017_INDUSTRY_INDEX,
@@ -32,9 +47,6 @@ from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import 
     USA_2017_SUMMARY_FINAL_DEMAND_INDEX,
     USA_2017_SUMMARY_INDUSTRY_INDEX,
 )
-from bedrock.ceda_usa.utils.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
-from bedrock.utils.io.gcp import load_from_gcs
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 

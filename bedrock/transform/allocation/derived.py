@@ -4,11 +4,11 @@ import logging
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.correspondence import create_correspondence_matrix
-from bedrock.ceda_usa.utils.ghg import GHG_MAPPING
-from bedrock.ceda_usa.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
+from bedrock.utils.emissions.ghg import GHG_MAPPING
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 
 logger = logging.getLogger(__name__)
 
