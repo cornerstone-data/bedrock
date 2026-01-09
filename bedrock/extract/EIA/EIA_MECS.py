@@ -8,10 +8,15 @@ https://www.eia.gov/consumption/manufacturing/data/2014/
 Last updated: 8 Sept. 2020
 """
 import io
+import os
+import posixpath
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
+from requests import Response
 
+from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
 from bedrock.extract.EIA.EIA_CBECS_Land import (
     calculate_total_facility_land_area,
 )
@@ -20,6 +25,7 @@ from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import (
     US_FIPS,
@@ -27,8 +33,12 @@ from bedrock.utils.mapping.location import (
     get_region_and_division_codes,
 )
 
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
-def eia_mecs_URL_helper(*, build_url, config, year, **_):
+
+def eia_mecs_URL_helper(
+    *, build_url: str, config: dict[str, Any], year: str, **_kwrags: dict[str, Any]
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url
@@ -257,7 +267,26 @@ def eia_mecs_land_parse(*, df_list, year, **_):
     return df
 
 
-def eia_mecs_energy_call(*, resp, year, config, **_):
+def eia_mecs_energy_load_gcs(**kwargs: dict[str, Any]) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_{kwargs.get('year')}")
+    name = os.path.basename(kwargs.get('url'))
+    download_gcs_file_if_not_exists(
+        name=name,
+        sub_bucket=GCS_MECS_DIR,
+        pth=os.path.join(IN_DIR, name),
+    )
+    df = eia_mecs_energy_call(resp=None, **kwargs)
+    return df
+
+
+def eia_mecs_energy_call(
+    *,
+    resp: Response | None,
+    year: str,
+    config: dict[str, Any],
+    **kwargs: dict[str, Any],
+) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin
     parsing df into FBA format
@@ -271,10 +300,21 @@ def eia_mecs_energy_call(*, resp, year, config, **_):
     # which rows to grab)
     table_dict = config['table_dict']
 
-    # read raw data into dataframe
-    # (include both Sheet 1 (data) and Sheet 2 (relative standard errors))
-    df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name=0, header=None)
-    df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
+    if resp:
+        # read raw data from url into dataframe
+        # (include both Sheet 1 (data) and Sheet 2 (relative standard errors))
+        df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name=0, header=None)
+        df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
+
+    else:
+        # read local data from gcs
+        name = os.path.basename(kwargs.get('url'))
+        df_raw_data = pd.read_excel(
+            os.path.join(IN_DIR, name), sheet_name=0, header=None
+        )
+        df_raw_rse = pd.read_excel(
+            os.path.join(IN_DIR, name), sheet_name=1, header=None
+        )
 
     # retrieve table name from cell A3 of Excel file
     table = df_raw_data.iloc[2][0]
@@ -426,7 +466,9 @@ def eia_mecs_energy_call(*, resp, year, config, **_):
     return df_data
 
 
-def eia_mecs_energy_parse(*, df_list, source, year, **_):
+def eia_mecs_energy_parse(
+    *, df_list: List[pd.DataFrame], source: str, year: str, **_kwargs: dict[str, Any]
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
