@@ -31,21 +31,6 @@ from bedrock.transform.eeio.derived_2017_helpers import (
     derive_2017_V_weight,
     derive_2017_Y_weight,
 )
-from bedrock.utils.taxonomy.bea.v2017_final_demand import (
-    USA_2017_FINAL_DEMAND_EXPORT_CODE,
-    USA_2017_FINAL_DEMAND_IMPORT_CODE,
-    USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE,
-)
-from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
-    USA_2017_SUMMARY_INDUSTRY_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
-    USA_2017_SUMMARY_TOTAL_EXPORTS_CODE,
-    USA_2017_SUMMARY_TOTAL_IMPORTS_CODE,
-)
-from bedrock.utils.taxonomy.bea.matrix_mappings import (
-    USA_SUMMARY_MUT_YEARS,
-)
 from bedrock.utils.economic.inflate_to_target_year import inflate_usa_V_to_target_year
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
@@ -77,6 +62,21 @@ from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,
     SingleRegionUMatrixSet,
     SingleRegionYtotAndTradeVectorSet,
+)
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_SUMMARY_MUT_YEARS,
+)
+from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    USA_2017_FINAL_DEMAND_EXPORT_CODE,
+    USA_2017_FINAL_DEMAND_IMPORT_CODE,
+    USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
+    USA_2017_SUMMARY_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
+    USA_2017_SUMMARY_TOTAL_EXPORTS_CODE,
+    USA_2017_SUMMARY_TOTAL_IMPORTS_CODE,
 )
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     load_usa_2017_commodity__ceda_v7_correspondence,

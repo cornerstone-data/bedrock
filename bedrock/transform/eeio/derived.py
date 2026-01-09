@@ -31,13 +31,6 @@ from bedrock.transform.eeio.scale_abq_via_summary import (
     scale_detail_q_based_on_summary_q,
 )
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.taxonomy.bea.v2017_final_demand import (
-    USA_2017_FINAL_DEMAND_EXPORT_CODE,
-    USA_2017_FINAL_DEMAND_IMPORT_CODE,
-)
-from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
-    USA_2017_SUMMARY_INDUSTRY_CODES,
-)
 from bedrock.utils.economic.inflate_to_target_year import (
     inflate_A_matrix,
     inflate_B_matrix,
@@ -68,6 +61,13 @@ from bedrock.utils.schemas.single_region_types import (
     SingleRegionUMatrixSet,
     SingleRegionYtotAndTradeVectorSet,
     SingleRegionYVectorSet,
+)
+from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    USA_2017_FINAL_DEMAND_EXPORT_CODE,
+    USA_2017_FINAL_DEMAND_IMPORT_CODE,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
+    USA_2017_SUMMARY_INDUSTRY_CODES,
 )
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_ceda_corresp_df,

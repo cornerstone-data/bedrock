@@ -1,161 +1,90 @@
 import typing as ta
 
-BEA_2017_COMMODITY_SUMMARY_CODE = ta.Literal[
-    "111CA",  # Farms
-    "113FF",  # Forestry, fishing, and related activities
-    "211",  # Oil and gas extraction
-    "212",  # Mining, except oil and gas
-    "213",  # Support activities for mining
-    "22",  # Utilities
-    "23",  # Construction
-    "321",  # Wood products
-    "327",  # Nonmetallic mineral products
-    "331",  # Primary metals
-    "332",  # Fabricated metal products
-    "333",  # Machinery
-    "334",  # Computer and electronic products
-    "335",  # Electrical equipment, appliances, and components
-    "3361MV",  # Motor vehicles, bodies and trailers, and parts
-    "3364OT",  # Other transportation equipment
-    "337",  # Furniture and related products
-    "339",  # Miscellaneous manufacturing
-    "311FT",  # Food and beverage and tobacco products
-    "313TT",  # Textile mills and textile product mills
-    "315AL",  # Apparel and leather and allied products
-    "322",  # Paper products
-    "323",  # Printing and related support activities
-    "324",  # Petroleum and coal products
-    "325",  # Chemical products
-    "326",  # Plastics and rubber products
-    "42",  # Wholesale trade
-    "441",  # Motor vehicle and parts dealers
-    "445",  # Food and beverage stores
-    "452",  # General merchandise stores
-    "4A0",  # Other retail
-    "481",  # Air transportation
-    "482",  # Rail transportation
-    "483",  # Water transportation
-    "484",  # Truck transportation
-    "485",  # Transit and ground passenger transportation
-    "486",  # Pipeline transportation
-    "487OS",  # Other transportation and support activities
-    "493",  # Warehousing and storage
-    "511",  # Publishing industries, except internet (includes software)
-    "512",  # Motion picture and sound recording industries
-    "513",  # Broadcasting and telecommunications
-    "514",  # Data processing, internet publishing, and other information services
-    "521CI",  # Federal Reserve banks, credit intermediation, and related activities
-    "523",  # Securities, commodity contracts, and investments
-    "524",  # Insurance carriers and related activities
-    "525",  # Funds, trusts, and other financial vehicles
-    "HS",  # Housing
-    "ORE",  # Other real estate
-    "532RL",  # Rental and leasing services and lessors of intangible assets
-    "5411",  # Legal services
-    "5415",  # Computer systems design and related services
-    "5412OP",  # Miscellaneous professional, scientific, and technical services
-    "55",  # Management of companies and enterprises
-    "561",  # Administrative and support services
-    "562",  # Waste management and remediation services
-    "61",  # Educational services
-    "621",  # Ambulatory health care services
-    "622",  # Hospitals
-    "623",  # Nursing and residential care facilities
-    "624",  # Social assistance
-    "711AS",  # Performing arts, spectator sports, museums, and related activities
-    "713",  # Amusements, gambling, and recreation industries
-    "721",  # Accommodation
-    "722",  # Food services and drinking places
-    "81",  # Other services, except government
-    "GFGD",  # Federal general government (defense)
-    "GFGN",  # Federal general government (nondefense)
-    "GFE",  # Federal government enterprises
-    "GSLG",  # State and local general government
-    "GSLE",  # State and local government enterprises
-    "Used",  # Scrap, used and secondhand goods
-    "Other",  # Noncomparable imports and rest-of-the-world adjustment
-]
+from .v2017_industry_summary import USA_2017_SUMMARY_INDUSTRY_DESC
 
-BEA_2017_COMMODITY_SUMMARY_CODES: ta.List[BEA_2017_COMMODITY_SUMMARY_CODE] = list(
-    ta.get_args(BEA_2017_COMMODITY_SUMMARY_CODE)
-)
-
-
-BEA_2017_COMMODITY_SUMMARY_DESC: ta.Dict[BEA_2017_COMMODITY_SUMMARY_CODE, str] = {
-    "111CA": "Farms",
-    "113FF": "Forestry, fishing, and related activities",
-    "211": "Oil and gas extraction",
-    "212": "Mining, except oil and gas",
-    "213": "Support activities for mining",
-    "22": "Utilities",
-    "23": "Construction",
-    "321": "Wood products",
-    "327": "Nonmetallic mineral products",
-    "331": "Primary metals",
-    "332": "Fabricated metal products",
-    "333": "Machinery",
-    "334": "Computer and electronic products",
-    "335": "Electrical equipment, appliances, and components",
-    "3361MV": "Motor vehicles, bodies and trailers, and parts",
-    "3364OT": "Other transportation equipment",
-    "337": "Furniture and related products",
-    "339": "Miscellaneous manufacturing",
-    "311FT": "Food and beverage and tobacco products",
-    "313TT": "Textile mills and textile product mills",
-    "315AL": "Apparel and leather and allied products",
-    "322": "Paper products",
-    "323": "Printing and related support activities",
-    "324": "Petroleum and coal products",
-    "325": "Chemical products",
-    "326": "Plastics and rubber products",
-    "42": "Wholesale trade",
-    "441": "Motor vehicle and parts dealers",
-    "445": "Food and beverage stores",
-    "452": "General merchandise stores",
-    "4A0": "Other retail",
-    "481": "Air transportation",
-    "482": "Rail transportation",
-    "483": "Water transportation",
-    "484": "Truck transportation",
-    "485": "Transit and ground passenger transportation",
-    "486": "Pipeline transportation",
-    "487OS": "Other transportation and support activities",
-    "493": "Warehousing and storage",
-    "511": "Publishing industries, except internet (includes software)",
-    "512": "Motion picture and sound recording industries",
-    "513": "Broadcasting and telecommunications",
-    "514": "Data processing, internet publishing, and other information services",
-    "521CI": "Federal Reserve banks, credit intermediation, and related activities",
-    "523": "Securities, commodity contracts, and investments",
-    "524": "Insurance carriers and related activities",
-    "525": "Funds, trusts, and other financial vehicles",
-    "HS": "Housing",
-    "ORE": "Other real estate",
-    "532RL": "Rental and leasing services and lessors of intangible assets",
-    "5411": "Legal services",
-    "5415": "Computer systems design and related services",
-    "5412OP": "Miscellaneous professional, scientific, and technical services",
-    "55": "Management of companies and enterprises",
-    "561": "Administrative and support services",
-    "562": "Waste management and remediation services",
-    "61": "Educational services",
-    "621": "Ambulatory health care services",
-    "622": "Hospitals",
-    "623": "Nursing and residential care facilities",
-    "624": "Social assistance",
-    "711AS": "Performing arts, spectator sports, museums, and related activities",
-    "713": "Amusements, gambling, and recreation industries",
-    "721": "Accommodation",
-    "722": "Food services and drinking places",
-    "81": "Other services, except government",
-    "GFGD": "Federal general government (defense)",
-    "GFGN": "Federal general government (nondefense)",
-    "GFE": "Federal government enterprises",
-    "GSLG": "State and local general government",
-    "GSLE": "State and local government enterprises",
-    "Used": "Scrap, used and secondhand goods",
-    "Other": "Noncomparable imports and rest-of-the-world adjustment",
+USA_2017_SUMMARY_COMMODITY_DESC = {
+    **USA_2017_SUMMARY_INDUSTRY_DESC,
+    **{
+        "Used": "Scrap, used and secondhand goods",
+        "Other": "Noncomparable imports and rest-of-the-world adjustment",
+    },
 }
 
-USA_2017_SUMMARY_COMMODITY_DESC = BEA_2017_COMMODITY_SUMMARY_CODE_DESC
-USA_2017_SUMMARY_COMMODITY_CODES = BEA_2017_COMMODITY_SUMMARY_CODES
+USA_2017_SUMMARY_COMMODITY_CODES = list(USA_2017_SUMMARY_COMMODITY_DESC.keys())
+BEA_2017_COMMODITY_SUMMARY_CODE = ta.Literal[
+    "111CA",
+    "113FF",
+    "211",
+    "212",
+    "213",
+    "22",
+    "23",
+    "321",
+    "327",
+    "331",
+    "332",
+    "333",
+    "334",
+    "335",
+    "3361MV",
+    "3364OT",
+    "337",
+    "339",
+    "311FT",
+    "313TT",
+    "315AL",
+    "322",
+    "323",
+    "324",
+    "325",
+    "326",
+    "42",
+    "441",
+    "445",
+    "452",
+    "4A0",
+    "481",
+    "482",
+    "483",
+    "484",
+    "485",
+    "486",
+    "487OS",
+    "493",
+    "511",
+    "512",
+    "513",
+    "514",
+    "521CI",
+    "523",
+    "524",
+    "525",
+    "HS",
+    "ORE",
+    "532RL",
+    "5411",
+    "5415",
+    "5412OP",
+    "55",
+    "561",
+    "562",
+    "61",
+    "621",
+    "622",
+    "623",
+    "624",
+    "711AS",
+    "713",
+    "721",
+    "722",
+    "81",
+    "GFGD",
+    "GFGN",
+    "GFE",
+    "GSLG",
+    "GSLE",
+    "Used",
+    "Other",
+]
+BEA_2017_COMMODITY_SUMMARY_CODES = USA_2017_SUMMARY_COMMODITY_CODES
+BEA_2017_COMMODITY_SUMMARY_CODE_DESC: ta.Dict[BEA_2017_COMMODITY_SUMMARY_CODE, str] = USA_2017_SUMMARY_COMMODITY_DESC  # type: ignore

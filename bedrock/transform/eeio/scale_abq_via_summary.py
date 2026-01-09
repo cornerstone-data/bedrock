@@ -12,10 +12,10 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Aimp_usa,
     derive_summary_q_usa,
 )
-from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_MUT_YEARS
 from bedrock.utils.math.formulas import compute_total_industry_inputs
 from bedrock.utils.schemas.single_region_schemas import AMatrix
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_MUT_YEARS
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     load_bea_v2017_summary_to_ceda_v7,
 )
