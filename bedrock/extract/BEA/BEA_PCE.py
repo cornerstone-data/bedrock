@@ -44,7 +44,7 @@ def bea_pce_call(*, resp, **_):
     try:
         json_load = json.loads(resp.text)
         df = pd.DataFrame(data=json_load['BEAAPI']['Results']['Data'])
-    except:
+    except:  # noqa: E722
         df = pd.DataFrame()
     finally:
         return df

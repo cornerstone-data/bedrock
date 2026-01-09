@@ -44,7 +44,7 @@ After cloning the repository, in the root directory:
 ## Test CEDA matrix derivation
 
 ```bash
-uv run pytest bedrock/ceda_usa/transform/__tests__/test_usa.py -m eeio_integration
+uv run pytest bedrock.transform/__tests__/test_usa.py -m eeio_integration
 ```
 
 ## Outputs

@@ -649,7 +649,7 @@ def ghg_parse(*, df_list, year, config, **_):
                     apb_txt = df.loc[index, 'ActivityProducedBy']
                     apb_txt = strip_char(apb_txt)
                     df.loc[index, 'ActivityProducedBy'] = apb_txt
-                    if bool_apb == True:
+                    if bool_apb:
                         df.loc[index, 'FlowName'] = apbe_value
 
         elif table_name in source_No_activity:
@@ -763,7 +763,7 @@ def ghg_parse(*, df_list, year, config, **_):
                     df.loc[index, 'ActivityProducedBy'] = apbe_value
                     bool_apb = True
                 else:
-                    if bool_apb == True:
+                    if bool_apb:
                         df.loc[index, 'FlowName'] = start_activity
                         apb_txt = df.loc[index, 'ActivityProducedBy']
                         apb_txt = strip_char(apb_txt)
@@ -998,7 +998,6 @@ def split_HFCs_by_type(fba: FlowByActivity, **_) -> FlowByActivity:
 
 
 if __name__ == "__main__":
-    import bedrock
 
     # fba = bedrock.return_FBA('EPA_GHGI_T_4_101', 2016)
     # df = clean_HFC_fba(fba)
