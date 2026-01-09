@@ -293,7 +293,7 @@ def eia_mecs_energy_call(
     resp: Response | None,
     year: str,
     config: dict[str, Any],
-    **kwargs: dict[str, Any],
+    **_kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin
