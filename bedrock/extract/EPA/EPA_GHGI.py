@@ -13,6 +13,7 @@ from typing import Any, List
 
 import numpy as np
 import pandas as pd
+from typing_extensions import deprecated
 
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
@@ -128,11 +129,8 @@ def series_separate_name_and_units(series, default_flow_name, default_units):
     return {'names': names, 'units': units}
 
 
-def annex_yearly_tables(data, table=None):
+def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
     """Special handling of ANNEX Energy Tables"""
-    df = pd.read_csv(
-        data, skiprows=1, encoding="ISO-8859-1", header=[0, 1], thousands=","
-    )
     if table == "A-4":
         # Table "Energy Consumption Data by Fuel Type (TBtu) and Adjusted
         # Energy Consumption Data"
@@ -174,6 +172,7 @@ def annex_yearly_tables(data, table=None):
     return df
 
 
+@deprecated("Generating FBA from source is deprecated.")
 def ghg_call(*, resp, url, year, config, **_):
     """
     Convert response for calling url to pandas dataframe, begin parsing df
@@ -214,7 +213,7 @@ def ghg_call(*, resp, url, year, config, **_):
                         log.error(f"error reading {table}")
                         continue
                     if table in ANNEX_ENERGY_TABLES:
-                        df = annex_yearly_tables(data, table)
+                        df = _read_yearly_annex_tables(data, table)
                     else:
                         df = pd.read_csv(
                             data, skiprows=1, encoding="ISO-8859-1", thousands=","
@@ -317,25 +316,44 @@ def ghg_load_gcs(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
     from bedrock.extract.allocation.epa import _load_epa_tbl_from_gcs  # noqa:PLC0415
 
     df_list = []
-    for chapter, tables in kwargs.get('config')['Tables'].items():
+    table_dict = kwargs['config']['Tables'] | kwargs['config']['Annex']
+    for chapter, tables in table_dict.items():
         for table in tables.keys():
             if table == '3-25b':
-                # handle later
+                # TODO: handle later
                 continue
             print(table)
+            header = [0, 1] if table in (ANNEX_ENERGY_TABLES + ['3-25']) else 0
             df = _load_epa_tbl_from_gcs(
                 table,
                 loader=lambda pth: pd.read_csv(
-                    pth, skiprows=1, encoding="ISO-8859-1", thousands=","
+                    pth,
+                    skiprows=1,
+                    encoding="ISO-8859-1",
+                    thousands=",",
+                    header=header,
                 ),
             )
-            if table == '3-13':
+            if table in ANNEX_ENERGY_TABLES:
+                df = _read_yearly_annex_tables(df, table)
+            elif table == '3-13':
                 # remove notes from column headers in some years
                 cols = [c[:4] for c in list(df.columns[1:])]
                 df = df.rename(columns=dict(zip(df.columns[1:], cols)))
             elif table == '3-25':
-                # handle later
-                continue
+                # Row 0 is header, row 1 is unit
+                new_headers = []
+                for col in df.columns:
+                    new_header = 'Unnamed: 0'
+                    if 'Unnamed' not in col[0]:
+                        if 'Unnamed' not in col[1]:
+                            new_header = f'{col[0]} {col[1]}'
+                        else:
+                            new_header = col[0]
+                    else:
+                        new_header = col[1]
+                    new_headers.append(new_header)
+                df.columns = new_headers
             if df is not None and len(df.columns) > 1:
                 years = YEARS.copy()
                 years.remove(str(kwargs['year']))
@@ -1078,7 +1096,7 @@ if __name__ == "__main__":
         if y == 2023:
             ls = tbl_list + ['3-25', 'A-5']
         else:
-            ls = tbl_list + ['3-25b'] + [f'A-{2028-y}']
+            ls = tbl_list + [f'A-{2028-y}'] # + ['3-25b']
         fba = pd.concat(
             [getFlowByActivity(f'EPA_GHGI_T_{str(t).replace("-","_")}', y) for t in ls]
         )
