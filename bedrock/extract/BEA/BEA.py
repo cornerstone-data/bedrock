@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
-from bedrock.transform.iot.derived_price_index import _map_detail_table
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.extract.iot.io_2017 import (
@@ -24,6 +23,7 @@ from bedrock.extract.iot.io_2017 import (
 )
 from bedrock.extract.iot.io_price_index import load_go_detail
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.transform.iot.derived_price_index import _map_detail_table
 from bedrock.utils.config.settings import PATHS
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.metadata.metadata import set_fb_meta
