@@ -11,6 +11,7 @@ from typing import Any, List
 
 import numpy as np
 import pandas as pd
+from typing_extensions import deprecated
 
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
@@ -959,7 +960,7 @@ if __name__ == "__main__":
         if y == 2023:
             ls = tbl_list + ['3-25', 'A-5']
         else:
-            ls = tbl_list + ['3-25b'] + [f'A-{2028-y}']
+            ls = tbl_list + [f'A-{2028-y}'] # + ['3-25b']
         fba = pd.concat(
             [getFlowByActivity(f'EPA_GHGI_T_{str(t).replace("-","_")}', y) for t in ls]
         )
