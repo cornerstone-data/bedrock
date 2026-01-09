@@ -276,7 +276,15 @@ def eia_mecs_energy_load_gcs(**kwargs: dict[str, Any]) -> pd.DataFrame:
         sub_bucket=GCS_MECS_DIR,
         pth=os.path.join(IN_DIR, name),
     )
-    df = eia_mecs_energy_call(resp=None, **kwargs)
+
+    # read local data from gcs
+    name = os.path.basename(kwargs.get('url'))
+    df_raw_data = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=0, header=None)
+    df_raw_rse = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=1, header=None)
+
+    df = _eia_clean_mecs_energy(
+        df_raw_data, df_raw_rse, year=kwargs['year'], config=kwargs['config']
+    )
     return df
 
 
@@ -295,26 +303,27 @@ def eia_mecs_energy_call(
     :param config: dictionary, items in FBA method yaml
     :return: pandas dataframe of original source data
     """
+    # read raw data from url into dataframe
+    # (include both Sheet 1 (data) and Sheet 2 (relative standard errors))
+    df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name=0, header=None)
+    df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
+
+    df = _eia_clean_mecs_energy(df_raw_data, df_raw_rse, year, config)
+
+    return df
+
+
+def _eia_clean_mecs_energy(
+    df_raw_data: pd.DataFrame,
+    df_raw_rse: pd.DataFrame,
+    year: str,
+    config: dict[str, Any],
+) -> pd.DataFrame:
+    """Performs minimal pre-processing on the raw EIA tables."""
     # load dictionary containing information about each energy table
     # (the .yaml includes information such as column names, units, and
     # which rows to grab)
     table_dict = config['table_dict']
-
-    if resp:
-        # read raw data from url into dataframe
-        # (include both Sheet 1 (data) and Sheet 2 (relative standard errors))
-        df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name=0, header=None)
-        df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
-
-    else:
-        # read local data from gcs
-        name = os.path.basename(kwargs.get('url'))
-        df_raw_data = pd.read_excel(
-            os.path.join(IN_DIR, name), sheet_name=0, header=None
-        )
-        df_raw_rse = pd.read_excel(
-            os.path.join(IN_DIR, name), sheet_name=1, header=None
-        )
 
     # retrieve table name from cell A3 of Excel file
     table = df_raw_data.iloc[2][0]
