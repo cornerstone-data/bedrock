@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
-from bedrock.ceda_usa.transform.iot.derived_price_index import _map_detail_table
+from bedrock.transform.iot.derived_price_index import _map_detail_table
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.extract.iot.io_2017 import (
