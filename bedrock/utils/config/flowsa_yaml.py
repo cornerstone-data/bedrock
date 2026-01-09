@@ -1,8 +1,8 @@
 import csv
 import importlib
 from os import path
-from typing import IO, Callable
 from pathlib import Path
+from typing import IO, Callable
 
 import yaml
 
@@ -35,7 +35,7 @@ class FlowsaLoader(yaml.SafeLoader):
             settings.datapath,
             settings.transformpath / "common",
             settings.transformpath / f'{file.split("_", 1)[0]}',
-            Path(__file__).resolve().parent  # current file path
+            Path(__file__).resolve().parent,  # current file path
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)

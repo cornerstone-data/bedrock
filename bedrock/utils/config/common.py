@@ -5,7 +5,6 @@
 """Common variables and functions used across bedrock"""
 
 import os
-import pprint
 import re
 from copy import deepcopy
 from os import path
@@ -30,7 +29,7 @@ from bedrock.utils.config.settings import (
     configpath,
     extractpath,
     mappingpath,
-    transformpath
+    transformpath,
 )
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.validation.exceptions import (
@@ -361,6 +360,7 @@ def get_catalog_info(source_name: str) -> dict:
     source_catalog = load_yaml_dict('source_catalog')
     source_name = return_true_source_catalog_name(source_name)
     return source_catalog.get(source_name, {})
+
 
 # todo: modify now that FBAs and FBS are in subfolders within extract and transform
 # def seeAvailableFlowByModels(flowbytype, print_method=True):
