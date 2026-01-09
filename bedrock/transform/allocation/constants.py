@@ -11,7 +11,7 @@ from __future__ import annotations
 import enum
 import typing as ta
 
-from bedrock.ceda_usa.utils.taxonomy.bea.v2012_industry import BEA_2012_INDUSTRY_CODE
+from bedrock.utils.taxonomy.bea.v2012_industry import BEA_2012_INDUSTRY_CODE
 
 COMMERCIAL_FUEL_OIL_AND_NATURAL_GAS_SECTORS: ta.List[BEA_2012_INDUSTRY_CODE] = [
     "221300",

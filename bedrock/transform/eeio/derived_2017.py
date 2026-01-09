@@ -5,51 +5,6 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.ceda_usa.utils.constants import (
-    USA_2017_FINAL_DEMAND_EXPORT_CODE,
-    USA_2017_FINAL_DEMAND_IMPORT_CODE,
-    USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE,
-    USA_2017_SUMMARY_INDUSTRY_CODES,
-    USA_2017_SUMMARY_TOTAL_EXPORTS_CODE,
-    USA_2017_SUMMARY_TOTAL_IMPORTS_CODE,
-    USA_SUMMARY_MUT_YEARS,
-)
-from bedrock.ceda_usa.utils.formulas import (
-    compute_A_matrix,
-    compute_g,
-    compute_q,
-    compute_Unorm_matrix,
-    compute_Vnorm_matrix,
-    compute_y_imp,
-)
-from bedrock.ceda_usa.utils.handle_negatives import (
-    handle_negative_matrix_values,
-    handle_negative_vector_values,
-)
-from bedrock.ceda_usa.utils.inflate_to_target_year import inflate_usa_V_to_target_year
-from bedrock.ceda_usa.utils.schemas.single_region_schemas import (
-    AMatrix,
-    ExportsVectorSchema,
-    GVectorSchema,
-    ImportsVectorSchema,
-    QVectorSchema,
-    UMatrix,
-    VMatrix,
-    YVectorSchema,
-)
-from bedrock.ceda_usa.utils.schemas.single_region_types import (
-    SingleRegionAqMatrixSet,
-    SingleRegionUMatrixSet,
-    SingleRegionYtotAndTradeVectorSet,
-)
-from bedrock.ceda_usa.utils.structural_reflection import (
-    structural_reflect_matrix,
-    structural_reflect_vector,
-)
-from bedrock.ceda_usa.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
-    load_usa_2017_commodity__ceda_v7_correspondence,
-    load_usa_2017_industry__ceda_v7_correspondence,
-)
 from bedrock.extract.iot.io_2012 import (
     load_2012_PI_usa,
     load_2012_pR_usa,
@@ -75,6 +30,57 @@ from bedrock.transform.eeio.derived_2017_helpers import (
     derive_2017_U_weight,
     derive_2017_V_weight,
     derive_2017_Y_weight,
+)
+from bedrock.utils.economic.inflate_to_target_year import inflate_usa_V_to_target_year
+from bedrock.utils.math.formulas import (
+    compute_A_matrix,
+    compute_g,
+    compute_q,
+    compute_Unorm_matrix,
+    compute_Vnorm_matrix,
+    compute_y_imp,
+)
+from bedrock.utils.math.handle_negatives import (
+    handle_negative_matrix_values,
+    handle_negative_vector_values,
+)
+from bedrock.utils.math.structural_reflection import (
+    structural_reflect_matrix,
+    structural_reflect_vector,
+)
+from bedrock.utils.schemas.single_region_schemas import (
+    AMatrix,
+    ExportsVectorSchema,
+    GVectorSchema,
+    ImportsVectorSchema,
+    QVectorSchema,
+    UMatrix,
+    VMatrix,
+    YVectorSchema,
+)
+from bedrock.utils.schemas.single_region_types import (
+    SingleRegionAqMatrixSet,
+    SingleRegionUMatrixSet,
+    SingleRegionYtotAndTradeVectorSet,
+)
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_SUMMARY_MUT_YEARS,
+)
+from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    USA_2017_FINAL_DEMAND_EXPORT_CODE,
+    USA_2017_FINAL_DEMAND_IMPORT_CODE,
+    USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
+    USA_2017_SUMMARY_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
+    USA_2017_SUMMARY_TOTAL_EXPORTS_CODE,
+    USA_2017_SUMMARY_TOTAL_IMPORTS_CODE,
+)
+from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
+    load_usa_2017_commodity__ceda_v7_correspondence,
+    load_usa_2017_industry__ceda_v7_correspondence,
 )
 
 

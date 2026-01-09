@@ -1,6 +1,6 @@
 import typing as ta
 
-from bedrock.ceda_usa.utils.taxonomy.bea.v2012_industry import BEA_2012_INDUSTRY_CODE
+from bedrock.utils.taxonomy.bea.v2012_industry import BEA_2012_INDUSTRY_CODE
 
 TRANSPORTATION_SOURCE_TO_BEA_INDUSTRY_MAPPING: ta.Dict[
     ta.Tuple[str, str], BEA_2012_INDUSTRY_CODE

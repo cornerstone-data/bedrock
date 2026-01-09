@@ -131,6 +131,9 @@ def call_urls(
                     )
 
             else:
+                # Note: This else branch using the call_response_fxn will be deprecated once
+                # all FBAs have been shifted over to GCS, but is needed to be backwards
+                # compatible.
                 log.info("Calling %s", url)
                 resp = make_url_request(
                     url,

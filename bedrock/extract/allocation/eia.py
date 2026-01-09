@@ -3,9 +3,9 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.ceda_usa.config.usa_config import get_usa_config
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 
 GCS_EIA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_EnergyPrice")
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")

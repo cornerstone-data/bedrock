@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.ceda_usa.utils.units import MEGATONNE_TO_KG
 from bedrock.extract.allocation.epa import (
     load_ch4_emissions_from_stationary_combustion,
 )
 from bedrock.transform.allocation.co2 import (
     allocate_industrial_coal as allocate_industrial_coal_co2,
 )
+from bedrock.utils.economic.units import MEGATONNE_TO_KG
 
 
 def allocate_stationary_combustion_industrial_coal() -> pd.Series[float]:
