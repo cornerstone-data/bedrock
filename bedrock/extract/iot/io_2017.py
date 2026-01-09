@@ -7,24 +7,8 @@ from typing_extensions import deprecated
 
 from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.taxonomy.bea.v2017_commodity import (
-    USA_2017_COMMODITY_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2017_industry import (
-    USA_2017_INDUSTRY_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2017_final_demand import (
-    USA_2017_FINAL_DEMAND_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
-    USA_2017_SUMMARY_COMMODITY_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
-    USA_2017_SUMMARY_INDUSTRY_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
-    USA_2017_SUMMARY_FINAL_DEMAND_CODES,
-)
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_NAMES,
@@ -37,8 +21,24 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
 )
-from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.taxonomy.bea.v2017_commodity import (
+    USA_2017_COMMODITY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
+    USA_2017_SUMMARY_COMMODITY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    USA_2017_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry import (
+    USA_2017_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
+    USA_2017_SUMMARY_INDUSTRY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
+    USA_2017_SUMMARY_FINAL_DEMAND_CODES,
+)
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     USA_2017_FINAL_DEMAND_INDEX,

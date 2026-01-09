@@ -6,19 +6,19 @@ import typing as ta
 import pandas as pd
 from typing_extensions import deprecated
 
-from bedrock.utils.taxonomy.bea.v2012_commodity import (
-    USA_2012_COMMODITY_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2012_industry import (
-    USA_2012_INDUSTRY_CODES,
-)
-from bedrock.utils.taxonomy.bea.v2012_final_demand import (
-    USA_2012_FINAL_DEMAND_CODES,
-)
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.emissions.ghg import GHG_DETAILED
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_CEDA_V5_INPUT_DIR
+from bedrock.utils.taxonomy.bea.v2012_commodity import (
+    USA_2012_COMMODITY_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2012_final_demand import (
+    USA_2012_FINAL_DEMAND_CODES,
+)
+from bedrock.utils.taxonomy.bea.v2012_industry import (
+    USA_2012_INDUSTRY_CODES,
+)
 from bedrock.utils.taxonomy.ceda_sector_index import get_ceda_sector_index
 
 USA_IO_VECTOR_NAMES = ta.Literal[
