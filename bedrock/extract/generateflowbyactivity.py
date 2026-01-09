@@ -10,6 +10,7 @@ EX: --year 2015 --source USGS_NWIS_WU
 
 import argparse
 import time
+from typing import Any, List
 from urllib import parse
 
 import pandas as pd
@@ -29,7 +30,7 @@ from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 
 
-def parse_args():
+def parse_args() -> dict[str, Any]:
     """
     Make year and source script parameters
     :return: dictionary, 'year' and 'source'
@@ -43,7 +44,7 @@ def parse_args():
     return args
 
 
-def set_fba_name(source, year):
+def set_fba_name(source: str, year: str | None) -> str:
     """
     Generate name of FBA used when saving parquet
     :param source: str, source
@@ -53,7 +54,9 @@ def set_fba_name(source, year):
     return source if year is None else f'{source}_{year}'
 
 
-def assemble_urls_for_query(*, source, year, config):
+def assemble_urls_for_query(
+    *, source: str, year: str, config: dict[str, Any]
+) -> List[str]:
     """
     Calls on helper functions defined in source.py files to
     replace parts of the url string
@@ -92,7 +95,9 @@ def assemble_urls_for_query(*, source, year, config):
         return [build_url]
 
 
-def call_urls(*, url_list, source, year, config):
+def call_urls(
+    *, url_list: List[str], source: str, year: str, config: dict[str, Any]
+) -> List[pd.DataFrame]:
     """
     This method calls all the urls that have been generated.
     It then calls the processing method to begin processing the returned data.
@@ -114,18 +119,32 @@ def call_urls(*, url_list, source, year, config):
     if url_list[0] is not None:
         for url in url_list:
             df = None
-            log.info("Calling %s", url)
-            resp = make_url_request(
-                url,
-                set_cookies=set_cookies,
-                confirm_gdrive=confirm_gdrive,
-                verify=False,
-            )
-            fxn = config.get("call_response_fxn")
-            if callable(fxn):
-                df = fxn(resp=resp, source=source, year=year, config=config, url=url)
-            elif fxn:
-                raise FBSMethodConstructionError(error_type='fxn_call')
+            if config.get('load_from_gcs'):
+                fxn = config.get("gcs_fxn")
+                if callable(fxn):
+                    df = fxn(source=source, year=year, config=config, url=url)
+                elif fxn:
+                    raise FBSMethodConstructionError(error_type='fxn_call')
+                else:
+                    raise FBSMethodConstructionError(
+                        message="Must indicate 'gsc_fxn' when 'load_from_gcs' is True"
+                    )
+
+            else:
+                log.info("Calling %s", url)
+                resp = make_url_request(
+                    url,
+                    set_cookies=set_cookies,
+                    confirm_gdrive=confirm_gdrive,
+                    verify=False,
+                )
+                fxn = config.get("call_response_fxn")
+                if callable(fxn):
+                    df = fxn(
+                        resp=resp, source=source, year=year, config=config, url=url
+                    )
+                elif fxn:
+                    raise FBSMethodConstructionError(error_type='fxn_call')
             if isinstance(df, pd.DataFrame):
                 data_frames_list.append(df)
             elif isinstance(df, list):
@@ -135,7 +154,9 @@ def call_urls(*, url_list, source, year, config):
     return data_frames_list
 
 
-def parse_data(*, df_list, source, year, config):
+def parse_data(
+    *, df_list: List[pd.DataFrame], source: str, year: str, config: dict[str, Any]
+) -> pd.DataFrame:
     """
     Calls on functions defined in source.py files, as parsing rules
     are specific to the data source.
@@ -156,7 +177,9 @@ def parse_data(*, df_list, source, year, config):
     return df
 
 
-def process_data_frame(*, df, source, year, config):
+def process_data_frame(
+    *, df: pd.DataFrame, source: str, year: str, config: dict[str, Any]
+) -> None:
     """
     Process the given dataframe, cleaning, converting data, and
     writing the final parquet. This method was written to move code into a
@@ -194,7 +217,7 @@ def process_data_frame(*, df, source, year, config):
     reset_log_file(name_data, meta)
 
 
-def generateFlowByActivity(**kwargs):
+def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
     """
     Generate FBA parquet(s)
     :param kwargs: 'source' and 'year'
