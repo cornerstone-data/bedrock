@@ -16,16 +16,14 @@ import numpy as np
 import pandas as pd
 from requests import Response
 
-from bedrock.ceda_usa.utils.gcp import GCS_CEDA_INPUT_DIR
-from bedrock.extract.EIA.EIA_CBECS_Land import (
-    calculate_total_facility_land_area,
-)
+from bedrock.extract.EIA.EIA_CBECS_Land import calculate_total_facility_land_area
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import (
     US_FIPS,
