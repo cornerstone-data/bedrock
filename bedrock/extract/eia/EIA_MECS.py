@@ -16,7 +16,6 @@ import numpy as np
 import pandas as pd
 from requests import Response
 
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.extract.eia.EIA_CBECS_Land import calculate_total_facility_land_area
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
