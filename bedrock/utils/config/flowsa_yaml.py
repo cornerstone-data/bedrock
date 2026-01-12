@@ -124,9 +124,7 @@ class FlowsaLoader(yaml.SafeLoader):
         # For security, this constructor does NOT search external config paths.
         # If someone who understands security concerns better than I do feels
         # it is safe to change this behavior, then go ahead.
-        module = importlib.import_module(
-            f'bedrock.transform.{module_name}'
-        )
+        module = importlib.import_module(f'bedrock.transform.{module_name}')
         return getattr(module, loader.construct_scalar(node))
 
 
