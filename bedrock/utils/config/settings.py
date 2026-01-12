@@ -16,8 +16,7 @@ externaldatapath = MODULEPATH / 'extract' / 'external_data'
 process_adjustmentpath = MODULEPATH / 'extract' / 'process_adjustments'
 
 extractpath = MODULEPATH / 'extract'
-flowbysectormethodpath = MODULEPATH / 'transform' / 'flowbysectormethods'
-flowbysectoractivitysetspath = MODULEPATH / 'transform' / 'flowbysectoractivitysets'
+transformpath = MODULEPATH / 'transform'
 
 # "Paths()" are a class defined in esupy
 PATHS = Paths()

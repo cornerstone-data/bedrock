@@ -1,6 +1,7 @@
 import csv
 import importlib
 from os import path
+from pathlib import Path
 from typing import IO, Callable
 
 import yaml
@@ -31,8 +32,10 @@ class FlowsaLoader(yaml.SafeLoader):
         for folder in [
             *loader.external_paths_to_search,
             settings.extractpath,
-            settings.flowbysectormethodpath,
             settings.datapath,
+            settings.transformpath / "common",
+            settings.transformpath / f'{file.lower().split("_", 1)[0]}',
+            Path(__file__).resolve().parent,  # current file path
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)
@@ -82,7 +85,7 @@ class FlowsaLoader(yaml.SafeLoader):
 
         for folder in [
             *loader.external_paths_to_search,
-            settings.flowbysectoractivitysetspath,
+            settings.extractpath / f'{file.lower().split("_", 1)[0]}',
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)
@@ -107,7 +110,7 @@ class FlowsaLoader(yaml.SafeLoader):
         # If someone who understands security concerns better than I do feels
         # it is safe to change this behavior, then go ahead.
         module = importlib.import_module(
-            f'bedrock.extract.{module_name.split("_", 1)[0]}.{module_name}'
+            f'bedrock.extract.{module_name.lower().split("_", 1)[0]}.{module_name}'
         )
         return getattr(module, loader.construct_scalar(node))
 
@@ -121,7 +124,7 @@ class FlowsaLoader(yaml.SafeLoader):
         # For security, this constructor does NOT search external config paths.
         # If someone who understands security concerns better than I do feels
         # it is safe to change this behavior, then go ahead.
-        module = importlib.import_module(f'bedrock.flowsa.{module_name}')
+        module = importlib.import_module(f'bedrock.transform.{module_name}')
         return getattr(module, loader.construct_scalar(node))
 
 
