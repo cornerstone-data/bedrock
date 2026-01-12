@@ -125,7 +125,7 @@ class FlowsaLoader(yaml.SafeLoader):
         # If someone who understands security concerns better than I do feels
         # it is safe to change this behavior, then go ahead.
         module = importlib.import_module(
-            f'bedrock.extract.{module_name.lower().split("_", 1)[0]}.{module_name}'
+            f'bedrock.transform.{module_name}'
         )
         return getattr(module, loader.construct_scalar(node))
 
