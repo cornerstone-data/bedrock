@@ -65,22 +65,6 @@ def return_folder_path(base_path, filename):
 
         folder = folder.rsplit("_", 1)[0]
 
-    # return lowercase filename as base for folder
-    # folder = filename.lower()
-
-    # while "_" in folder:
-    #     folderpath = os.path.join(base_path, folder)
-    #     if os.path.isdir(folderpath):
-    #         return folderpath
-    #     folder = folder.rsplit("_", 1)[0]
-
-    # check if path exists after all underscores dropped
-    # folderpath = os.path.join(base_path, folder)
-    # if os.path.isdir(folderpath):
-    #     return folderpath
-
-    # return None
-
 
 # https://stackoverflow.com/a/41125461
 def memory_limit(percentage=0.93):
