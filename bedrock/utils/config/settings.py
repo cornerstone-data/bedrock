@@ -45,7 +45,7 @@ NAME_SEP_CHAR = '.'
 # ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 
-def return_folder_path(base_path, filename):
+def return_folder_path(base_path: Path | str, filename: str) -> Path:
     """
     Return the folder path of a file
 
@@ -56,18 +56,18 @@ def return_folder_path(base_path, filename):
     folder = filename.lower()
 
     while True:
-        folder_path = base_path / folder
+        folder_path = Path(base_path) / folder
         if folder_path.is_dir():
             return folder_path
 
         if "_" not in folder:
-            return None
+            raise FileNotFoundError(f"{filename} not found in {base_path}")
 
         folder = folder.rsplit("_", 1)[0]
 
 
 # https://stackoverflow.com/a/41125461
-def memory_limit(percentage=0.93):
+def memory_limit(percentage: float = 0.93) -> None:
     # Placed here becuase older versions of Python do not have this
     import resource  # noqa: PLC0415
 
@@ -84,7 +84,7 @@ def memory_limit(percentage=0.93):
         )
 
 
-def get_memory():
+def get_memory() -> int:
     with open('/proc/meminfo', 'r') as mem:
         free_memory = 0
         for i in mem:
