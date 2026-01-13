@@ -16,6 +16,7 @@ from bedrock.utils.config.common import (
     load_values_from_literature_citations_config,
     load_yaml_dict,
 )
+from bedrock.utils.config.settings import return_folder_path
 from bedrock.utils.logging.flowsa_log import log
 
 
@@ -61,7 +62,6 @@ def load_source_dict(sourcename):
     :param sourcename: string, FBA source name or value from the lit name
     :return: dictionary, the method file
     """
-
     try:
         # check if citation info is for values in the literature
         config_load = load_values_from_literature_citations_config()
@@ -69,9 +69,8 @@ def load_source_dict(sourcename):
     except KeyError:
         # else check if file exists, then try loading
         # citation information from source yaml
-        sourcename = get_flowsa_base_name(
-            extractpath / sourcename.split("_", 1)[0], sourcename, "yaml"
-        )
+        folder = return_folder_path(extractpath, sourcename)
+        sourcename = get_flowsa_base_name(folder, sourcename, "yaml")
         config = load_yaml_dict(sourcename, flowbytype='FBA')
 
     return config

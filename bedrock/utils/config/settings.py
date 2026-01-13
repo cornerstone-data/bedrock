@@ -45,6 +45,43 @@ NAME_SEP_CHAR = '.'
 # ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 
+def return_folder_path(base_path, filename):
+    """
+    Return the folder path of a file
+
+    :param base_path: path to "extract", "transform", "publish" directories
+    :param filename: string, name of file for which to return the folder path
+    """
+
+    folder = filename.lower()
+
+    while True:
+        folder_path = base_path / folder
+        if folder_path.is_dir():
+            return folder_path
+
+        if "_" not in folder:
+            return None
+
+        folder = folder.rsplit("_", 1)[0]
+
+    # return lowercase filename as base for folder
+    # folder = filename.lower()
+
+    # while "_" in folder:
+    #     folderpath = os.path.join(base_path, folder)
+    #     if os.path.isdir(folderpath):
+    #         return folderpath
+    #     folder = folder.rsplit("_", 1)[0]
+
+    # check if path exists after all underscores dropped
+    # folderpath = os.path.join(base_path, folder)
+    # if os.path.isdir(folderpath):
+    #     return folderpath
+
+    # return None
+
+
 # https://stackoverflow.com/a/41125461
 def memory_limit(percentage=0.93):
     # Placed here becuase older versions of Python do not have this
