@@ -76,6 +76,7 @@ def return_fb_meta_data(source_name, config, category, **kwargs):
 
     if category == 'FlowBySector':
         method_data = return_fbs_method_data(source_name, config)
+        sub_folder = "transform"
 
     elif category == 'FlowByActivity':
         # when FBA meta created, kwargs exist for year
@@ -84,6 +85,7 @@ def return_fb_meta_data(source_name, config, category, **kwargs):
         # return the catalog source name to ensure the method urls are correct
         # for FBAs
         source_name = return_true_source_catalog_name(source_name)
+        sub_folder = "extract"
 
     # create empty dictionary
     fb_dict = {}

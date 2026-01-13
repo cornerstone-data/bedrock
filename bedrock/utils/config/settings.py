@@ -74,8 +74,8 @@ def get_memory():
 
 
 # metadata
-PKG = "flowsa"
-PKG_VERSION_NUMBER = return_pkg_version(MODULEPATH, 'flowsa')
+PKG = "bedrock"
+PKG_VERSION_NUMBER = return_pkg_version(MODULEPATH, 'bedrock')
 GIT_HASH_LONG = os.environ.get('GITHUB_SHA') or get_git_hash('long')
 if GIT_HASH_LONG:
     GIT_HASH = GIT_HASH_LONG[0:7]
