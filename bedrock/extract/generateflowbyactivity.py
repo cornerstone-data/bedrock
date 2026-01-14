@@ -24,7 +24,7 @@ from bedrock.utils.config.common import (
     load_yaml_dict,
 )
 from bedrock.utils.config.schema import flow_by_activity_fields
-from bedrock.utils.config.settings import PATHS, extractpath
+from bedrock.utils.config.settings import PATHS, extractpath, return_folder_path
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
@@ -239,9 +239,8 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
         config = load_yaml_dict(source, flowbytype='FBA')
     except FileNotFoundError:
         log.info(f'Could not find Flow-By-Activity config file for {source}')
-        source = get_flowsa_base_name(
-            extractpath / f'{source.split("_", 1)[0]}', source, "yaml"
-        )
+        folder = return_folder_path(extractpath, source)
+        source = get_flowsa_base_name(folder, source, "yaml")
         log.info(f'Generating FBA for {source}')
         config = load_yaml_dict(source, flowbytype='FBA')
 

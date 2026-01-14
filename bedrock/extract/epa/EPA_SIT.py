@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.extract.stateghgi.StateGHGI import VT_remove_dupicate_activities
 from bedrock.transform.flowbyfunctions import (
     assign_fips_location_system,
     load_fba_w_standardized_units,
@@ -248,9 +249,6 @@ def clean_up_state_data(fba: FlowByActivity, **_):
     # (these data will later be replaced with custom data in the 'StateGHGI'
     # stage)
     if 'VT' in state_list:  # and ('StateGHGI_VT' in method['source_names'].keys())
-        from bedrock.extract.StateGHGI.StateGHGI import (
-            VT_remove_dupicate_activities,
-        )
 
         df_subset = VT_remove_dupicate_activities(df_subset)
 

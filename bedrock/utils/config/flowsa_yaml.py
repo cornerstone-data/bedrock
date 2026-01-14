@@ -7,6 +7,7 @@ from typing import IO, Callable
 import yaml
 
 from bedrock.utils.config import settings
+from bedrock.utils.config.settings import return_folder_path
 
 
 class FlowsaLoader(yaml.SafeLoader):
@@ -29,12 +30,17 @@ class FlowsaLoader(yaml.SafeLoader):
     def include(loader: 'FlowsaLoader', suffix: str, node: yaml.Node) -> dict:
         file, *keys = suffix.split(':')
 
+        try:
+            transform_file_folder = return_folder_path(settings.transformpath, file)
+        except FileNotFoundError:
+            transform_file_folder = settings.transformpath
+
         for folder in [
             *loader.external_paths_to_search,
             settings.extractpath,
             settings.datapath,
             settings.transformpath / "common",
-            settings.transformpath / f'{file.lower().split("_", 1)[0]}',
+            transform_file_folder,
             Path(__file__).resolve().parent,  # current file path
         ]:
             if path.exists(path.join(folder, file)):
@@ -83,9 +89,14 @@ class FlowsaLoader(yaml.SafeLoader):
         if not isinstance(node, yaml.ScalarNode):
             raise TypeError('Can only tag a scalar node with !from_index:')
 
+        try:
+            extract_file_folder = return_folder_path(settings.extractpath, file)
+        except FileNotFoundError:
+            extract_file_folder = settings.extractpath
+
         for folder in [
             *loader.external_paths_to_search,
-            settings.extractpath / f'{file.lower().split("_", 1)[0]}',
+            extract_file_folder,
         ]:
             if path.exists(path.join(folder, file)):
                 file = path.join(folder, file)
@@ -109,9 +120,28 @@ class FlowsaLoader(yaml.SafeLoader):
         # For security, this constructor does NOT search external config paths.
         # If someone who understands security concerns better than I do feels
         # it is safe to change this behavior, then go ahead.
-        module = importlib.import_module(
-            f'bedrock.extract.{module_name.lower().split("_", 1)[0]}.{module_name}'
-        )
+
+        # flexible module path name, dropping underscores
+        folder = module_name.lower()
+        while True:
+            try:
+                module = importlib.import_module(
+                    f'bedrock.extract.{folder}.{module_name}'
+                )
+                break
+            except ModuleNotFoundError:
+                try:
+                    # try original case
+                    folder_original = module_name[: len(folder)]
+                    module = importlib.import_module(
+                        f'bedrock.extract.{folder_original}.{module_name}'
+                    )
+                    break
+                except ModuleNotFoundError:
+                    if "_" not in folder:
+                        raise
+                    folder = folder.rsplit("_", 1)[0]
+
         return getattr(module, loader.construct_scalar(node))
 
     @staticmethod

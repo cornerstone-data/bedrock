@@ -29,6 +29,7 @@ from bedrock.utils.config.settings import (
     configpath,
     extractpath,
     mappingpath,
+    return_folder_path,
     transformpath,
 )
 from bedrock.utils.logging.flowsa_log import log
@@ -174,9 +175,9 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
                     f'{filename} not found in {filepath}. ' f'Checking default folders'
                 )
             if flowbytype == 'FBA':
-                folder = f'{extractpath}/{filename.lower().split("_", 1)[0]}'
+                folder = return_folder_path(extractpath, filename)
             elif flowbytype == 'FBS':
-                folder = f'{transformpath}/{filename.lower().split("_", 1)[0]}'
+                folder = return_folder_path(transformpath, filename)
             else:
                 raise KeyError('Must specify either \'FBA\' or \'FBS\'')
     yaml_path = f'{folder}/{filename}.yaml'
@@ -184,11 +185,16 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
     try:
         with open(yaml_path, 'r', encoding='utf-8') as f:
             config = flowsa_yaml.load(f, filepath)
-    except FileNotFoundError:
-        if 'config' in kwargs:
-            return deepcopy(kwargs['config'])
+    except FileNotFoundError as e:
+        if filename in str(e):
+            if 'config' in kwargs:
+                return deepcopy(kwargs['config'])
+            else:
+                raise FlowsaMethodNotFoundError(
+                    method_type=flowbytype, method=filename
+                ) from None
         else:
-            raise FlowsaMethodNotFoundError(method_type=flowbytype, method=filename)
+            raise e
     return config
 
 
