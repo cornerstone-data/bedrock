@@ -132,7 +132,7 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 ignore_missing_imports = true
 exclude = [
-    'bedrock/extract/BEA/',
+    'bedrock/extract/bea/',
     'bedrock/extract/blackhurst/',
     'bedrock/extract/blm/',
     'bedrock/extract/bls/',
