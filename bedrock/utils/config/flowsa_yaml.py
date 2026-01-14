@@ -30,7 +30,10 @@ class FlowsaLoader(yaml.SafeLoader):
     def include(loader: 'FlowsaLoader', suffix: str, node: yaml.Node) -> dict:
         file, *keys = suffix.split(':')
 
-        transform_file_folder = return_folder_path(settings.transformpath, file)
+        try:
+            transform_file_folder = return_folder_path(settings.transformpath, file)
+        except FileNotFoundError:
+            transform_file_folder = settings.transformpath
 
         for folder in [
             *loader.external_paths_to_search,
@@ -86,7 +89,10 @@ class FlowsaLoader(yaml.SafeLoader):
         if not isinstance(node, yaml.ScalarNode):
             raise TypeError('Can only tag a scalar node with !from_index:')
 
-        extract_file_folder = return_folder_path(settings.extractpath, file)
+        try:
+            extract_file_folder = return_folder_path(settings.extractpath, file)
+        except FileNotFoundError:
+            extract_file_folder = settings.extractpath
 
         for folder in [
             *loader.external_paths_to_search,
@@ -124,9 +130,17 @@ class FlowsaLoader(yaml.SafeLoader):
                 )
                 break
             except ModuleNotFoundError:
-                if "_" not in folder:
-                    raise
-                folder = folder.rsplit("_", 1)[0]
+                try:
+                    # try original case
+                    folder_original = module_name[: len(folder)]
+                    module = importlib.import_module(
+                        f'bedrock.extract.{folder_original}.{module_name}'
+                    )
+                    break
+                except ModuleNotFoundError:
+                    if "_" not in folder:
+                        raise
+                    folder = folder.rsplit("_", 1)[0]
 
         return getattr(module, loader.construct_scalar(node))
 

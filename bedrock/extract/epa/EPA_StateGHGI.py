@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 import pandas as pd
 
+from bedrock.extract.epa.EPA_GHGI import get_manufacturing_energy_ratios
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
@@ -220,9 +221,6 @@ def allocate_industrial_combustion(fba: FlowByActivity, **_) -> FlowByActivity:
     distinguish those which use EIA MECS as allocation source and those that
     use alternate source.
     """
-    from bedrock.extract.EPA.EPA_GHGI import (
-        get_manufacturing_energy_ratios,
-    )
 
     pct_dict = get_manufacturing_energy_ratios(fba.config.get('clean_parameter'))
 
