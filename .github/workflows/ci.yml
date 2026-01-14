@@ -41,8 +41,8 @@ jobs:
       - name: Set up Python and install dependencies
         uses: ./.github/actions/setup-python
 
-      # - name: Typecheck w/ mypy
-      #   run: uv run mypy bedrock/utils
+      - name: Typecheck w/ mypy
+        run: uv run mypy bedrock/extract/iot
 
   test:
     runs-on: ubuntu-latest
