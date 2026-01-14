@@ -70,7 +70,9 @@ def eia_mecs_URL_helper(
     return urls
 
 
-def eia_mecs_land_call(*, resp, year, **_):
+def eia_mecs_land_call(
+    *, resp: Response, year: str, **_: dict[str, Any]
+) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing df
     into FBA format
@@ -199,7 +201,9 @@ def eia_mecs_land_call(*, resp, year, **_):
     return df
 
 
-def eia_mecs_land_parse(*, df_list, year, **_):
+def eia_mecs_land_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_: dict[str, Any]
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -265,7 +269,7 @@ def eia_mecs_land_parse(*, df_list, year, **_):
     return df
 
 
-def eia_mecs_energy_load_gcs(**kwargs: dict[str, Any]) -> pd.DataFrame:
+def eia_mecs_energy_load_gcs(*, kwargs: dict[str, Any]) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
     GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_{kwargs.get('year')}")
     name = os.path.basename(kwargs.get('url'))
