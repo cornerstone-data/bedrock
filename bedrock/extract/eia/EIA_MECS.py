@@ -269,7 +269,7 @@ def eia_mecs_land_parse(
     return df
 
 
-def eia_mecs_energy_load_gcs(*, kwargs: dict[str, Any]) -> pd.DataFrame:
+def eia_mecs_energy_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
     GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_{kwargs.get('year')}")
     name = os.path.basename(kwargs.get('url'))
