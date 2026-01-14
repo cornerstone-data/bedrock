@@ -185,11 +185,16 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
     try:
         with open(yaml_path, 'r', encoding='utf-8') as f:
             config = flowsa_yaml.load(f, filepath)
-    except FileNotFoundError:
-        if 'config' in kwargs:
-            return deepcopy(kwargs['config'])
+    except FileNotFoundError as e:
+        if filename in str(e):
+            if 'config' in kwargs:
+                return deepcopy(kwargs['config'])
+            else:
+                raise FlowsaMethodNotFoundError(
+                    method_type=flowbytype, method=filename
+                ) from None
         else:
-            raise FlowsaMethodNotFoundError(method_type=flowbytype, method=filename)
+            raise e
     return config
 
 

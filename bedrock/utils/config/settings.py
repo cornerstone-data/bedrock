@@ -52,16 +52,18 @@ def return_folder_path(base_path: Path | str, filename: str) -> Path:
     :param base_path: path to "extract", "transform", "publish" directories
     :param filename: string, name of file for which to return the folder path
     """
-
+    base_path = Path(base_path)
     folder = filename.lower()
+    if "." in folder:
+        folder = folder.split(".")[0]
 
     while True:
-        folder_path = Path(base_path) / folder
+        folder_path = base_path / folder
         if folder_path.is_dir():
             return folder_path
 
         if "_" not in folder:
-            raise FileNotFoundError(f"{filename} not found in {base_path}")
+            return base_path
 
         folder = folder.rsplit("_", 1)[0]
 
