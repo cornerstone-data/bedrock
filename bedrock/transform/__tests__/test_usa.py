@@ -8,7 +8,7 @@ from bedrock.transform.eeio.derived import (
     derive_B_usa_non_finetuned,
     derive_y_for_national_accounting_balance_usa,
 )
-from bedrock.utils.testing import (
+from bedrock.utils.validation.test_helpers import (
     assert_snapshot_frame_equal,
     assert_snapshot_series_equal,
 )
