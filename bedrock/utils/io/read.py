@@ -9,7 +9,7 @@ def load_preprocessed_output(file_meta: FileMeta, pth: str) -> pd.DataFrame | No
     """
     Loads a preprocessed file
     :param file_meta: populated instance of class FileMeta
-    :param paths: instance of class Paths
+    :param paths: str, directory of file
     :return: a pandas dataframe of the datafile if exists or None if it
         doesn't exist
     """
@@ -24,10 +24,10 @@ def load_preprocessed_output(file_meta: FileMeta, pth: str) -> pd.DataFrame | No
 
 def find_file(meta: FileMeta, pth: str) -> str | None:
     """
-    Searches for file within path.local_path based on file metadata; if
-    metadata matches, returns most recently created file path object
+    Searches for file within pth based on file metadata; if
+    metadata matches, returns most recently created file path
     :param meta: populated instance of class FileMeta
-    :param paths: populated instance of class Paths
+    :param paths: str, directory of file
     :return: str with the file path if found, otherwise an empty string
     """
     if os.path.exists(pth):
