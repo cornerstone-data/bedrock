@@ -6,11 +6,13 @@ Functions for creating and loading metadata files for
 FlowByActivity (FBA) and FlowBySector (FBS) datasets
 """
 
+import json
+from typing import Any
+
 import pandas as pd
 from esupy.processed_data_mgmt import (
     FileMeta,
     read_source_metadata,
-    write_metadata_to_file,
 )
 
 from bedrock.publish.bibliography import load_source_dict
@@ -32,7 +34,7 @@ from bedrock.utils.config.settings import (
 from bedrock.utils.logging.flowsa_log import log
 
 
-def set_fb_meta(name_data, category):
+def set_fb_meta(name_data: str, category: str) -> FileMeta:
     """
     Create meta data for a parquet
     :param name_data: string, name of df
@@ -50,23 +52,37 @@ def set_fb_meta(name_data, category):
     return fb_meta
 
 
-def write_metadata(source_name, config, fb_meta, category, **kwargs):
+def write_metadata(
+    source_name: str,
+    config: dict[str, Any],
+    fb_meta: FileMeta,
+    pth: str,
+    **kwargs: dict[str, Any],
+) -> None:
     """
     Write the metadata and output as a JSON in a local directory
     :param source_name: string, source name for either a FBA or FBS dataset
     :param config: dictionary, configuration file
     :param fb_meta: object, metadata
-    :param category: string, 'FlowBySector' or 'FlowByActivity'
     :param kwargs: additional parameters, if running for FBA, define
         "year" of data
     :return: object, metadata that includes methodology for FBAs
     """
 
-    fb_meta.tool_meta = return_fb_meta_data(source_name, config, category, **kwargs)
-    write_metadata_to_file(PATHS, fb_meta)
+    fb_meta.tool_meta = return_fb_meta_data(
+        source_name, config, fb_meta.category, **kwargs
+    )
+    fname = f'{fb_meta.name_data}_v{fb_meta.tool_version}'
+    if fb_meta.git_hash is not None:
+        fname = f'{fname}_{fb_meta.git_hash}'
+    fname = f'{pth}/{fname}_metadata.json'
+    with open(fname, 'w') as fi:
+        fi.write(json.dumps(fb_meta.__dict__, indent=4))
 
 
-def return_fb_meta_data(source_name, config, category, **kwargs):
+def return_fb_meta_data(
+    source_name: str, config: dict[str, Any], category: str, **kwargs: dict[str, Any]
+) -> dict[str, Any]:
     """
     Generate the metadata specific to a Flow-by-Activity or
     Flow-By-Sector method

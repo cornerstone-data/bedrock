@@ -119,3 +119,48 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 log_cli_level = "INFO"
+
+[tool.mypy]
+python_version = "3.11"
+namespace_packages = true
+explicit_package_bases = true
+check_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = true
+disallow_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+exclude = [
+    'bedrock/extract/bea/',
+    'bedrock/extract/blackhurst/',
+    'bedrock/extract/blm/',
+    'bedrock/extract/bls/',
+    'bedrock/extract/bts/',
+    'bedrock/extract/calrecycle/',
+    'bedrock/extract/census/',
+    'bedrock/extract/eia/',
+    'bedrock/extract/epa/',
+    'bedrock/extract/netl/',
+    'bedrock/extract/noaa/',
+    'bedrock/extract/statcan/',
+    'bedrock/extract/stateghgi/',
+    'bedrock/extract/stateio/',
+    'bedrock/extract/stewifbs/',
+    'bedrock/extract/unep/',
+    'bedrock/extract/usda/',
+    'bedrock/extract/usgs/',
+    'bedrock/extract/flowbyactivity\.py',
+    'bedrock/extract/generateflowbyactivity\.py',
+    'bedrock/extract/__tests__/',
+    'bedrock/transform/',
+    'bedrock/utils/',
+    'bedrock/publish/',
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "google.*",
+    "googleapiclient.*",
+]
+ignore_missing_imports = true
