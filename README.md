@@ -29,13 +29,13 @@ After cloning the repository, in the root directory:
 4. **Confirm setup successful:**
 
     ```bash
-    uv run pytest ceda_usa/utils/__tests__/test_gcp.py
+    uv run pytest bedrock/utils/__tests__/test_gcp.py
     ```
 
-## Test CEDA matrix derivation
+## Test EEIO matrix derivation
 
 ```bash
-uv run pytest bedrock.transform/__tests__/test_usa.py -m eeio_integration
+uv run pytest bedrock/transform/__tests__/test_usa.py -m eeio_integration
 ```
 
 ## Outputs
