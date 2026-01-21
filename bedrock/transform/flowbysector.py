@@ -9,7 +9,6 @@ defined in this file are specific to FBS data.
 # to circular reasoning
 from __future__ import annotations
 
-import esupy.processed_data_mgmt
 import pandas as pd
 from pandas import ExcelWriter
 
@@ -17,7 +16,8 @@ from bedrock.transform.flowby import _FlowBy, flowby_config, get_flowby_from_con
 from bedrock.transform.flowbyfunctions import collapse_fbs_sectors
 from bedrock.utils.config import common, settings
 from bedrock.utils.config.common import get_catalog_info, load_crosswalk
-from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING
+from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING, FBS_DIR
+from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.mapping import geo, naics
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
@@ -109,7 +109,7 @@ class FlowBySector(_FlowBy):
             file_metadata=file_metadata,
             download_ok=download_fbs_ok,
             flowby_generator=flowby_generator,
-            output_path=settings.fbsoutputpath,
+            output_path=FBS_DIR,
             full_name=method,
             config=config,
             **kwargs,
@@ -243,13 +243,13 @@ class FlowBySector(_FlowBy):
                 f'{fbs.columns[fbs.columns.duplicated()].tolist()}'
             )
         meta = set_fb_meta(method, 'FlowBySector')
-        esupy.processed_data_mgmt.write_df_to_file(fbs, settings.PATHS, meta)
+        write_fb_to_file(fbs, meta, FBS_DIR)
         reset_log_file(method, meta)
         write_metadata(
             source_name=method,
             config=common.load_yaml_dict(method, 'FBS', external_config_path, **kwargs),
             fb_meta=meta,
-            category='FlowBySector',
+            pth=FBS_DIR,
         )
 
         return fbs

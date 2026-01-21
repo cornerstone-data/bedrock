@@ -81,29 +81,29 @@ known-first-party = ["bedrock"]
 "**/__tests__/**/*.py" = ["ARG001", "ARG002"]
 "**/test_*.py" = ["ARG001", "ARG002"]
 # temporary turn off for legacy flowsa FBA files
-"bedrock/extract/Blackhurst/*" = ["ALL"]
-"bedrock/extract/BLM/*" = ["ALL"]
-"bedrock/extract/BLS/*" = ["ALL"]
-"bedrock/extract/BTS/*" = ["ALL"]
-"bedrock/extract/CalRecycle/*" = ["ALL"]
-"bedrock/extract/Census/*" = ["ALL"]
-"bedrock/extract/EPA/EPA_CDDPath.py" = ["ALL"]
-"bedrock/extract/EPA/EPA_EQUATES.py" = ["ALL"]
-"bedrock/extract/EPA/EPA_FactsAndFigures.py" = ["ALL"]
-"bedrock/extract/EPA/EPA_NI.py" = ["ALL"]
-"bedrock/extract/EPA/EPA_PI.py" = ["ALL"]
-"bedrock/extract/EPA/EPA_SIT.py" = ["ALL"]
-"bedrock/extract/EPA/EPA_StateGHGI.py" = ["ALL"]
-"bedrock/extract/EPA/EPA_WFR.py" = ["ALL"]
-"bedrock/extract/NETL/*" = ["ALL"]
-"bedrock/extract/NOAA/*" = ["ALL"]
-"bedrock/extract/StatCan/*" = ["ALL"]
-"bedrock/extract/StateGHGI/*" = ["ALL"]
+"bedrock/extract/blackhurst/*" = ["ALL"]
+"bedrock/extract/blm/*" = ["ALL"]
+"bedrock/extract/bls/*" = ["ALL"]
+"bedrock/extract/bts/*" = ["ALL"]
+"bedrock/extract/calrecycle/*" = ["ALL"]
+"bedrock/extract/census/*" = ["ALL"]
+"bedrock/extract/epa/EPA_CDDPath.py" = ["ALL"]
+"bedrock/extract/epa/EPA_EQUATES.py" = ["ALL"]
+"bedrock/extract/epa/EPA_FactsAndFigures.py" = ["ALL"]
+"bedrock/extract/epa/EPA_NI.py" = ["ALL"]
+"bedrock/extract/epa/EPA_PI.py" = ["ALL"]
+"bedrock/extract/epa/EPA_SIT.py" = ["ALL"]
+"bedrock/extract/epa/EPA_StateGHGI.py" = ["ALL"]
+"bedrock/extract/epa/EPA_WFR.py" = ["ALL"]
+"bedrock/extract/netl/*" = ["ALL"]
+"bedrock/extract/noaa/*" = ["ALL"]
+"bedrock/extract/statcan/*" = ["ALL"]
+"bedrock/extract/stateghgi/*" = ["ALL"]
 "bedrock/extract/stateio/*" = ["ALL"]
-"bedrock/extract/stewiFBS/*" = ["ALL"]
-"bedrock/extract/UNEP/*" = ["ALL"]
-"bedrock/extract/USDA/*" = ["ALL"]
-"bedrock/extract/USGS/*" = ["ALL"]
+"bedrock/extract/stewifbs/*" = ["ALL"]
+"bedrock/extract/unep/*" = ["ALL"]
+"bedrock/extract/usda/*" = ["ALL"]
+"bedrock/extract/usgs/*" = ["ALL"]
 "bedrock/publish/visualization/datavisualization.py" = ["ALL"] # temporary turn off
 
 [tool.ruff.format]
@@ -119,3 +119,48 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 log_cli_level = "INFO"
+
+[tool.mypy]
+python_version = "3.11"
+namespace_packages = true
+explicit_package_bases = true
+check_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = true
+disallow_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+exclude = [
+    'bedrock/extract/bea/',
+    'bedrock/extract/blackhurst/',
+    'bedrock/extract/blm/',
+    'bedrock/extract/bls/',
+    'bedrock/extract/bts/',
+    'bedrock/extract/calrecycle/',
+    'bedrock/extract/census/',
+    'bedrock/extract/eia/',
+    'bedrock/extract/epa/',
+    'bedrock/extract/netl/',
+    'bedrock/extract/noaa/',
+    'bedrock/extract/statcan/',
+    'bedrock/extract/stateghgi/',
+    'bedrock/extract/stateio/',
+    'bedrock/extract/stewifbs/',
+    'bedrock/extract/unep/',
+    'bedrock/extract/usda/',
+    'bedrock/extract/usgs/',
+    'bedrock/extract/flowbyactivity\.py',
+    'bedrock/extract/generateflowbyactivity\.py',
+    'bedrock/extract/__tests__/',
+    'bedrock/transform/',
+    'bedrock/utils/',
+    'bedrock/publish/',
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "google.*",
+    "googleapiclient.*",
+]
+ignore_missing_imports = true

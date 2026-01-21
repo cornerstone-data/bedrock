@@ -32,7 +32,7 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check .
 
-  typecheck-ceda-usa:
+  typecheck:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -42,7 +42,7 @@ jobs:
         uses: ./.github/actions/setup-python
 
       - name: Typecheck w/ mypy
-        run: uv run mypy bedrock/ceda_usa
+        run: uv run mypy bedrock
 
   test:
     runs-on: ubuntu-latest

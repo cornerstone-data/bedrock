@@ -14,7 +14,6 @@ from typing import Any, List
 from urllib import parse
 
 import pandas as pd
-from esupy.processed_data_mgmt import write_df_to_file
 from esupy.remote import make_url_request
 
 from bedrock.transform.dataclean import clean_df
@@ -24,7 +23,8 @@ from bedrock.utils.config.common import (
     load_yaml_dict,
 )
 from bedrock.utils.config.schema import flow_by_activity_fields
-from bedrock.utils.config.settings import PATHS, extractpath
+from bedrock.utils.config.settings import FBA_DIR, extractpath, return_folder_path
+from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
@@ -131,6 +131,9 @@ def call_urls(
                     )
 
             else:
+                # Note: This else branch using the call_response_fxn will be deprecated once
+                # all FBAs have been shifted over to GCS, but is needed to be backwards
+                # compatible.
                 log.info("Calling %s", url)
                 resp = make_url_request(
                     url,
@@ -210,8 +213,8 @@ def process_data_frame(
     # save as parquet file
     name_data = set_fba_name(source, year)
     meta = set_fb_meta(name_data, "FlowByActivity")
-    write_df_to_file(flow_df, PATHS, meta)
-    write_metadata(source, config, meta, "FlowByActivity", year=year)
+    write_fb_to_file(flow_df, meta, FBA_DIR)
+    write_metadata(source, config, meta, FBA_DIR, year=year)
     log.info("FBA generated and saved for %s", name_data)
     # rename the log file saved to local directory
     reset_log_file(name_data, meta)
@@ -236,9 +239,8 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
         config = load_yaml_dict(source, flowbytype='FBA')
     except FileNotFoundError:
         log.info(f'Could not find Flow-By-Activity config file for {source}')
-        source = get_flowsa_base_name(
-            extractpath / f'{source.split("_", 1)[0]}', source, "yaml"
-        )
+        folder = return_folder_path(extractpath, source)
+        source = get_flowsa_base_name(folder, source, "yaml")
         log.info(f'Generating FBA for {source}')
         config = load_yaml_dict(source, flowbytype='FBA')
 

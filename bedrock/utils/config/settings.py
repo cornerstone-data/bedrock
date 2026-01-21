@@ -16,15 +16,14 @@ externaldatapath = MODULEPATH / 'extract' / 'external_data'
 process_adjustmentpath = MODULEPATH / 'extract' / 'process_adjustments'
 
 extractpath = MODULEPATH / 'extract'
-flowbysectormethodpath = MODULEPATH / 'transform' / 'flowbysectormethods'
-flowbysectoractivitysetspath = MODULEPATH / 'transform' / 'flowbysectoractivitysets'
+transformpath = MODULEPATH / 'transform'
 
 # "Paths()" are a class defined in esupy
 PATHS = Paths()
 PATHS.local_path = PATHS.local_path / 'bedrock'
 outputpath = PATHS.local_path
-fbaoutputpath = outputpath / 'FlowByActivity'
-fbsoutputpath = outputpath / 'FlowBySector'
+FBA_DIR = extractpath / 'output_data'
+FBS_DIR = transformpath / 'output_data'
 biboutputpath = outputpath / 'Bibliography'
 logoutputpath = outputpath / 'Log'
 diffpath = outputpath / 'FBSComparisons'
@@ -46,8 +45,31 @@ NAME_SEP_CHAR = '.'
 # ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 
+def return_folder_path(base_path: Path | str, filename: str) -> Path:
+    """
+    Return the folder path of a file
+
+    :param base_path: path to "extract", "transform", "publish" directories
+    :param filename: string, name of file for which to return the folder path
+    """
+    base_path = Path(base_path)
+    folder = filename.lower()
+    if "." in folder:
+        folder = folder.split(".")[0]
+
+    while True:
+        folder_path = base_path / folder
+        if folder_path.is_dir():
+            return folder_path
+
+        if "_" not in folder:
+            return base_path
+
+        folder = folder.rsplit("_", 1)[0]
+
+
 # https://stackoverflow.com/a/41125461
-def memory_limit(percentage=0.93):
+def memory_limit(percentage: float = 0.93) -> None:
     # Placed here becuase older versions of Python do not have this
     import resource  # noqa: PLC0415
 
@@ -64,7 +86,7 @@ def memory_limit(percentage=0.93):
         )
 
 
-def get_memory():
+def get_memory() -> int:
     with open('/proc/meminfo', 'r') as mem:
         free_memory = 0
         for i in mem:
