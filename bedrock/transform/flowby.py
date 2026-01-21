@@ -302,20 +302,20 @@ class _FlowBy(pd.DataFrame):
                 ]
             if attempt == 'generate':
                 flowby_generator()
-            df = load_preprocessed_output(file_metadata, str(pth))
-            if df is None:
-                log.info(
-                    f'{file_metadata.name_data} {file_metadata.category} '
-                    f'not found in {pth}'
-                )
-            else:
+            try:
+                df = load_preprocessed_output(file_metadata, str(pth))
                 log.info(
                     f'Successfully loaded {file_metadata.name_data} '
                     f'{file_metadata.category} from {output_path}'
                 )
                 break
+            except FileNotFoundError:
+                log.info(
+                    f'{file_metadata.name_data} {file_metadata.category} '
+                    f'not found in {pth}'
+                )
         else:
-            log.error(
+            raise FileNotFoundError(
                 f'{file_metadata.name_data} {file_metadata.category} '
                 f'could not be found locally, downloaded, or generated'
             )
