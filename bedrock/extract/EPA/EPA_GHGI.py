@@ -6,14 +6,11 @@ Inventory of US EPA GHG
 https://www.epa.gov/ghgemissions/inventory-us-greenhouse-gas-emissions-and-sinks
 """
 
-import io
 import re
-import zipfile
 from typing import Any, List
 
 import numpy as np
 import pandas as pd
-from typing_extensions import deprecated
 
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
@@ -54,24 +51,7 @@ DROP_COLS = ["Unnamed: 0"] + list(
 YEARS = list(pd.date_range(start="2010", end="2024", freq='YE').year.astype(str))
 
 
-def ghg_url_helper(*, build_url, config, **_):
-    """
-    This helper function uses the "build_url" input from generateflowbyactivity.py,
-    which is a base url for data imports that requires parts of the url text
-    string to be replaced with info specific to the data year. This function
-    does not parse the data, only modifies the urls from which data is
-    obtained.
-    :param build_url: string, base url
-    :param config: dictionary, items in FBA method yaml
-    :return: list, urls to call, concat, parse, format into Flow-By-Activity
-        format
-    """
-    main_url = f"{build_url}{config['url'].get('main_zip')}"
-    annex_url = f"{build_url}{config['url'].get('annex_zip')}"
-    return [main_url, annex_url]
-
-
-def cell_get_name(value, default_flow_name):
+def _cell_get_name(value: str, default_flow_name: str) -> str:
     """
     Given a single string value (cell), separate the name and units.
     :param value: str
@@ -92,7 +72,7 @@ def cell_get_name(value, default_flow_name):
     return name.strip()
 
 
-def cell_get_units(value, default_units):
+def _cell_get_units(value: str, default_units: str) -> str:
     """
     Given a single string value (cell), separate the name and units.
     :param value: str
@@ -114,7 +94,9 @@ def cell_get_units(value, default_units):
     return name.strip()
 
 
-def series_separate_name_and_units(series, default_flow_name, default_units):
+def series_separate_name_and_units(
+    series: pd.Series, default_flow_name: str, default_units: str
+) -> dict[str, pd.Series]:
     """
     Given a series (such as a df column), split the contents' strings into a name and units.
     An example might be converting "Carbon Stored (MMT C)" into ["Carbon Stored", "MMT C"].
@@ -124,8 +106,8 @@ def series_separate_name_and_units(series, default_flow_name, default_units):
     :param default_units: df column for units to be modified
     :return: str, flowname and units for each row in df
     """
-    names = series.apply(lambda x: cell_get_name(x, default_flow_name))
-    units = series.apply(lambda x: cell_get_units(x, default_units))
+    names = series.apply(lambda x: _cell_get_name(x, default_flow_name))
+    units = series.apply(lambda x: _cell_get_units(x, default_units))
     return {'names': names, 'units': units}
 
 
@@ -170,145 +152,6 @@ def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
     df.dropna(how='all', inplace=True)
     df = df.reset_index(drop=True)
     return df
-
-
-@deprecated("Generating FBA from source is deprecated.")
-def ghg_call(*, resp, url, year, config, **_):
-    """
-    Convert response for calling url to pandas dataframe, begin parsing df
-    into FBA format
-    :param resp: df, response from url call
-    :param url: string, url
-    :param year: year
-    :param config: dictionary, items in FBA method yaml
-    :return: pandas dataframe of original source data
-    """
-    with zipfile.ZipFile(io.BytesIO(resp.content), "r") as f:
-        frames = []
-        if any(x in url for x in ['annex', 'Annex']):
-            opath = config['path']['annex']
-            t_tables = config['Annex']
-            annex = True
-        else:
-            opath = config['path']['base']
-            t_tables = config['Tables']
-            annex = False
-        for chapter, tables in t_tables.items():
-            if annex:
-                # Annex tables are in separate folders
-                for table in tables:
-                    # print(table)
-                    df = None
-                    tbl_year = tables[table].get('year')
-                    if tbl_year is not None and tbl_year != year:
-                        # Skip tables when the year does not align with target year
-                        continue
-                    table_name = tables[table].get('table_name', table)
-                    path = opath.replace('{table_name}', table_name).replace(
-                        '{annex}', chapter
-                    )
-                    try:
-                        data = f.open(path)
-                    except KeyError:
-                        log.error(f"error reading {table}")
-                        continue
-                    if table in ANNEX_ENERGY_TABLES:
-                        df = _read_yearly_annex_tables(data, table)
-                    else:
-                        df = pd.read_csv(
-                            data, skiprows=1, encoding="ISO-8859-1", thousands=","
-                        )
-
-                    if df is not None and len(df.columns) > 1:
-                        years = YEARS.copy()
-                        years.remove(str(year))
-                        df = df.drop(columns=(DROP_COLS + years), errors='ignore')
-                        df["SourceName"] = f"EPA_GHGI_T_{table.replace('-', '_')}"
-                        frames.append(df)
-                    else:
-                        log.warning(f"Error accessing {table}")
-
-            else:
-                # Access chapter specific folders within the main zip
-                for table in tables:
-                    # print(table)
-                    df = None
-                    tbl_year = tables[table].get('year')
-                    if tbl_year is not None and tbl_year != year:
-                        # Skip tables when the year does not align with target year
-                        continue
-                    table_name = tables[table].get('table_name', table)
-                    path = f"{chapter}/{opath.replace('{table_name}', table_name)}"
-                    # Handle special case of table 3-25 in external data folder
-                    if table == "3-25b":
-                        if str(year) in ['2023']:
-                            # Skip 3-25b for current year (use 3-25 instead)
-                            continue
-                        else:
-                            df = pd.read_csv(
-                                externaldatapath / f"GHGI_Table_{table}.csv",
-                                skiprows=2,
-                                encoding="ISO-8859-1",
-                                thousands=",",
-                            )
-                    else:
-                        try:
-                            data = f.open(path)
-                        except KeyError:
-                            log.error(f"error reading {table}")
-                            continue
-                    if table in ['4-118']:
-                        # Skip two rows
-                        df = pd.read_csv(
-                            data,
-                            skiprows=2,
-                            encoding="ISO-8859-1",
-                            thousands=",",
-                            decimal=".",
-                        )
-                    elif table == "3-25":
-                        # Skip first row, but make headers the next 2 rows:
-                        df = pd.read_csv(
-                            data,
-                            skiprows=1,
-                            encoding="ISO-8859-1",
-                            header=[0, 1],
-                            thousands=",",
-                        )
-                        # Row 0 is header, row 1 is unit
-                        new_headers = []
-                        for col in df.columns:
-                            new_header = 'Unnamed: 0'
-                            if 'Unnamed' not in col[0]:
-                                if 'Unnamed' not in col[1]:
-                                    new_header = f'{col[0]} {col[1]}'
-                                else:
-                                    new_header = col[0]
-                            else:
-                                new_header = col[1]
-                            new_headers.append(new_header)
-                        df.columns = new_headers
-                    elif table != '3-25b':
-                        # Except for 3-25b already as df,
-                        # Proceed with default case
-                        df = pd.read_csv(
-                            data, skiprows=1, encoding="ISO-8859-1", thousands=","
-                        )
-
-                    if table == '3-13':
-                        # remove notes from column headers in some years
-                        cols = [c[:4] for c in list(df.columns[1:])]
-                        df = df.rename(columns=dict(zip(df.columns[1:], cols)))
-
-                    if df is not None and len(df.columns) > 1:
-                        years = YEARS.copy()
-                        years.remove(str(year))
-                        df = df.drop(columns=(DROP_COLS + years), errors='ignore')
-                        df["SourceName"] = f"EPA_GHGI_T_{table.replace('-', '_')}"
-                        frames.append(df)
-                    else:
-                        log.warning(f"Error accessing {table}")
-        return frames
 
 
 def ghg_load_gcs(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
@@ -383,7 +226,7 @@ def _load_ghg_table(table: str) -> pd.DataFrame:
         return df
 
 
-def get_unnamed_cols(df):
+def _get_unnamed_cols(df: pd.DataFrame) -> List[str]:
     """
     Get a list of all unnamed columns, used to drop them.
     :param df: df being formatted
@@ -392,19 +235,18 @@ def get_unnamed_cols(df):
     return [col for col in df.columns if "Unnamed" in col]
 
 
-def get_table_meta(source_name, config):
+def get_table_meta(source_name: str, config: dict[str, Any]) -> dict[str, Any]:
     """Find and return table meta from source_name."""
-    if "_A_" in source_name:
-        td = config['Annex']
-    else:
-        td = config['Tables']
+    td = config['Annex'] if "_A_" in source_name else config['Tables']
     for chapter in td.keys():
         for k, v in td[chapter].items():
             if source_name.endswith(k.replace("-", "_")):
                 return v
+    else:
+        raise KeyError(f"Table meta nto found for {source_name}")
 
 
-def is_consumption(source_name, config):
+def _is_consumption(source_name: str, config: dict[str, Any]) -> bool:
     """
     Determine whether the given source contains consumption or production data.
     :param source_name: df
@@ -418,7 +260,7 @@ def is_consumption(source_name, config):
     return False
 
 
-def strip_char(text):
+def strip_char(text: str) -> str:
     """
     Removes the footnote chars from the text
     """
@@ -534,7 +376,9 @@ def strip_char(text):
     return ' '.join(text.split())  # remove extra spaces between words
 
 
-def ghg_parse(*, df_list, year, config, **_):
+def ghg_parse(
+    *, df_list: List[pd.DataFrame], year: str, config: dict[str, Any], **_kwargs: Any
+) -> List[pd.DataFrame]:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -550,11 +394,10 @@ def ghg_parse(*, df_list, year, config, **_):
         log.info(f'Processing {source_name}')
 
         # Specify to ignore errors in case one of the drop_cols is missing.
-        df = df.drop(columns=get_unnamed_cols(df), errors='ignore')
-        is_cons = is_consumption(source_name, config)
+        df = df.drop(columns=_get_unnamed_cols(df), errors='ignore')
 
         # Rename to "ActivityProducedBy" or "ActivityConsumedBy":
-        if is_cons:
+        if _is_consumption(source_name, config):
             df = df.rename(columns={df.columns[0]: "ActivityConsumedBy"})
             df["ActivityProducedBy"] = 'None'
         else:
@@ -938,7 +781,7 @@ def ghg_parse(*, df_list, year, config, **_):
     return cleaned_list
 
 
-def get_manufacturing_energy_ratios(parameter_dict):
+def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str, float]:
     """Calculate energy ratio by fuel between GHGI and EIA MECS."""
     # flow correspondence between GHGI and MECS
     flow_corr = {
@@ -994,7 +837,9 @@ def get_manufacturing_energy_ratios(parameter_dict):
     return pct_dict
 
 
-def allocate_industrial_combustion(fba: FlowByActivity, **_) -> FlowByActivity:
+def allocate_industrial_combustion(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
     """
     Split industrial combustion emissions into two buckets to be further allocated.
 
@@ -1029,7 +874,7 @@ def allocate_industrial_combustion(fba: FlowByActivity, **_) -> FlowByActivity:
     return fba
 
 
-def split_HFCs_by_type(fba: FlowByActivity, **_) -> FlowByActivity:
+def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     """Speciates HFCs and PFCs for all activities based on T_4_125.
     clean_fba_before_mapping_df_fxn"""
 
