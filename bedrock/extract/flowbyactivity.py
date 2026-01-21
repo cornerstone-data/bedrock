@@ -20,7 +20,7 @@ import fedelemflowlist
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+from bedrock.extract.generateflowbyactivity import FBA_DIR, generateFlowByActivity
 from bedrock.transform.flowby import _FlowBy, flowby_config
 from bedrock.transform.flowbyfunctions import filter_by_geoscale
 from bedrock.utils.config import settings
@@ -121,7 +121,7 @@ class FlowByActivity(_FlowBy):
             file_metadata=file_metadata,
             download_ok=download_ok,
             flowby_generator=flowby_generator,
-            output_path=settings.fbaoutputpath,
+            output_path=FBA_DIR,
             full_name=full_name,
             config=config,
             **kwargs,

@@ -9,12 +9,13 @@ EX: --year 2015 --source USGS_NWIS_WU
 """
 
 import argparse
+import os
 import time
 from typing import Any, List
 from urllib import parse
 
 import pandas as pd
-from esupy.processed_data_mgmt import write_df_to_file
+from esupy.processed_data_mgmt import FileMeta
 from esupy.remote import make_url_request
 
 from bedrock.transform.dataclean import clean_df
@@ -24,10 +25,15 @@ from bedrock.utils.config.common import (
     load_yaml_dict,
 )
 from bedrock.utils.config.schema import flow_by_activity_fields
-from bedrock.utils.config.settings import PATHS, extractpath, return_folder_path
+from bedrock.utils.config.settings import (
+    extractpath,
+    return_folder_path,
+)
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
+
+FBA_DIR = os.path.join(os.path.dirname(__file__), "output_data")
 
 
 def parse_args() -> dict[str, Any]:
@@ -213,11 +219,29 @@ def process_data_frame(
     # save as parquet file
     name_data = set_fba_name(source, year)
     meta = set_fb_meta(name_data, "FlowByActivity")
-    write_df_to_file(flow_df, PATHS, meta)
-    write_metadata(source, config, meta, "FlowByActivity", year=year)
+    write_fba_to_file(flow_df, meta)
+    write_metadata(source, config, meta, FBA_DIR, year=year)
     log.info("FBA generated and saved for %s", name_data)
     # rename the log file saved to local directory
     reset_log_file(name_data, meta)
+
+
+def write_fba_to_file(df: pd.DataFrame, meta: FileMeta) -> None:
+    """
+    Stores FBA as parquet within repository directory
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        FBA to save to parquet.
+    meta: FileMeta
+        metadata object for FBA
+    """
+    fname = f'{meta.name_data}_v{meta.tool_version}'
+    if meta.git_hash is not None:
+        fname = f'{fname}_{meta.git_hash}'
+    os.makedirs(FBA_DIR, exist_ok=True)
+    df.to_parquet(f'{FBA_DIR}/{fname}.parquet')
 
 
 def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:

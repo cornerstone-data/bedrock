@@ -22,7 +22,6 @@ transformpath = MODULEPATH / 'transform'
 PATHS = Paths()
 PATHS.local_path = PATHS.local_path / 'bedrock'
 outputpath = PATHS.local_path
-fbaoutputpath = outputpath / 'FlowByActivity'
 fbsoutputpath = outputpath / 'FlowBySector'
 biboutputpath = outputpath / 'Bibliography'
 logoutputpath = outputpath / 'Log'
