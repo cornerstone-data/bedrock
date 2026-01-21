@@ -9,10 +9,7 @@ defined in this file are specific to FBS data.
 # to circular reasoning
 from __future__ import annotations
 
-import os
-
 import pandas as pd
-from esupy.processed_data_mgmt import FileMeta
 from pandas import ExcelWriter
 
 from bedrock.transform.flowby import _FlowBy, flowby_config, get_flowby_from_config
@@ -20,6 +17,7 @@ from bedrock.transform.flowbyfunctions import collapse_fbs_sectors
 from bedrock.utils.config import common, settings
 from bedrock.utils.config.common import get_catalog_info, load_crosswalk
 from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING, FBS_DIR
+from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.mapping import geo, naics
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
@@ -245,7 +243,7 @@ class FlowBySector(_FlowBy):
                 f'{fbs.columns[fbs.columns.duplicated()].tolist()}'
             )
         meta = set_fb_meta(method, 'FlowBySector')
-        write_fbs_to_file(fbs, meta)
+        write_fb_to_file(fbs, meta, FBS_DIR)
         reset_log_file(method, meta)
         write_metadata(
             source_name=method,
@@ -422,24 +420,6 @@ class _FBSSeries(pd.Series):
     @property
     def _constructor_expanddim(self) -> 'FlowBySector':
         return FlowBySector
-
-
-def write_fbs_to_file(df: pd.DataFrame, meta: FileMeta) -> None:
-    """
-    Stores FBS as parquet within repository directory
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        FBS to save to parquet.
-    meta: FileMeta
-        metadata object for FBS
-    """
-    fname = f'{meta.name_data}_v{meta.tool_version}'
-    if meta.git_hash is not None:
-        fname = f'{fname}_{meta.git_hash}'
-    os.makedirs(FBS_DIR, exist_ok=True)
-    df.to_parquet(f'{FBS_DIR}/{fname}.parquet')
 
 
 def getFlowBySector(
