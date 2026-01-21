@@ -960,7 +960,7 @@ if __name__ == "__main__":
         if y == 2023:
             ls = tbl_list + ['3-25', 'A-5']
         else:
-            ls = tbl_list + [f'A-{2028-y}'] # + ['3-25b']
+            ls = tbl_list + ['3-25b'] + [f'A-{2028-y}']
         fba = pd.concat(
             [getFlowByActivity(f'EPA_GHGI_T_{str(t).replace("-","_")}', y) for t in ls]
         )
