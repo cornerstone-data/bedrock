@@ -1,18 +1,9 @@
+import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.validation.validation import compare_FBS
-
-
-@pytest.mark.skip  # replaced by compare to remote test
-def test_generate_fbs() -> None:
-    y = 2022
-    method = f'GHG_national_{y}_m1'
-    FlowBySector.generateFlowBySector(method, download_sources_ok=False)
-    fbs = getFlowBySector(method)
-
-    assert len(fbs) > 0
 
 
 @pytest.mark.eeio_integration
