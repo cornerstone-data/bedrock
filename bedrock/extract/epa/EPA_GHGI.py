@@ -11,7 +11,6 @@ from typing import Any, List
 
 import numpy as np
 import pandas as pd
-from typing_extensions import deprecated
 
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
