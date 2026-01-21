@@ -36,7 +36,7 @@ source_No_activity: ["3-25", "3-25b"]
 source_activity_1: ["3-7", "3-8", "3-9", "5-18", "5-19"]
 source_activity_1_fuel: ["3-13", "3-14", "3-15"]
 # Tables with sub categories
-source_activity_2: ["3-45", "3-64", "A-90"]
+source_activity_2: ["3-44", "3-63", "A-90"]
 rows_as_flows: ["4-63", "4-64", "4-100", "4-106", "4-122"]
 
 Tables:
@@ -127,49 +127,49 @@ Tables:
         "desc": "Table 3-106: CO2 Emissions from Wood Consumption by End-Use Sector (MMT CO2 Eq.)"
 
 # Petroleum Systems
-      "3-45":
+      "3-44": # Note this table is labeled as 3-45 in the pdf
         "class": "Chemicals"
         "unit": "MMT CO2e"
         "compartment": "air"
         "flow": "CH4"
-        "desc": "Table 3-45:  CH4 Emissions from Petroleum Systems (MMT CO2 Eq.)"
+        "desc": "Table 3-44:  CH4 Emissions from Petroleum Systems (MMT CO2 Eq.)"
         "data_reliability": 4
-      "3-47":
+      "3-46": # Note this table is labeled as 3-47 in the pdf
         "class": "Chemicals"
         "unit": "MMT CO2e"
         "compartment": "air"
         "flow": "CO2"
-        "desc": "Table 3-47:  CO2 Emissions from Petroleum Systems (MMT CO2)"
+        "desc": "Table 3-46:  CO2 Emissions from Petroleum Systems (MMT CO2)"
         "data_reliability": 2
-      "3-49":
+      "3-48": # Note this table is labeled as 3-49 in the pdf
         "class": "Chemicals"
         "unit": "MT CO2e"
         "compartment": "air"
         "flow": "N2O"
-        "desc": "Table 3-49:  N2O Emissions from Petroleum Systems (Metric Tons CO2 Eq.)"
+        "desc": "Table 3-48:  N2O Emissions from Petroleum Systems (Metric Tons CO2 Eq.)"
         "data_reliability": 4
 
 # Natural Gas Systems
-      "3-64":
+      "3-63": # Note this table is labeled as 3-64 in the pdf
         "class": "Chemicals"
         "unit": "MMT CO2e"
         "compartment": "air"
         "flow": "CH4"
-        "desc": "Table 3-64:  CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"
+        "desc": "Table 3-63:  CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"
         "data_reliability": 4
-      "3-66":
+      "3-65": # Note this table is labeled as 3-66 in the pdf
         "class": "Chemicals"
         "unit": "MMT CO2e"
         "compartment": "air"
         "flow": "CO2"
-        "desc": "Table 3-66:  CO2 Emissions from Natural Gas Systems (MMT)"
+        "desc": "Table 3-65:  CO2 Emissions from Natural Gas Systems (MMT)"
         "data_reliability": 4
-      "3-68":
+      "3-67": # Note this table is labeled as 3-68 in the pdf
         "class": "Chemicals"
         "unit": "MT CO2e"
         "compartment": "air"
         "flow": "N2O"
-        "desc": "Table 3-68: N2O Emissions from Natural Gas Systems (Metric Tons CO2 Eq.)"
+        "desc": "Table 3-67: N2O Emissions from Natural Gas Systems (Metric Tons CO2 Eq.)"
         "data_reliability": 4
 
 # International Bunker Fuels
