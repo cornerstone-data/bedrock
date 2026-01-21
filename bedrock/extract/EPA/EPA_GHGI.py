@@ -313,55 +313,74 @@ def ghg_call(*, resp, url, year, config, **_):
 
 def ghg_load_gcs(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
     """For each url the file gets download and stored locally from gcs"""
-    from bedrock.extract.allocation.epa import _load_epa_tbl_from_gcs  # noqa:PLC0415
-
     df_list = []
     table_dict = kwargs['config']['Tables'] | kwargs['config']['Annex']
+    year = str(kwargs['year'])
     for chapter, tables in table_dict.items():
-        for table in tables.keys():
-            if table == '3-25b':
-                # TODO: handle later
+        for table, data in tables.items():
+            if data.get('year') not in (None, year):
+                # Skip tables when the year does not align with target year
                 continue
-            print(table)
-            header = [0, 1] if table in (ANNEX_ENERGY_TABLES + ['3-25']) else 0
-            df = _load_epa_tbl_from_gcs(
-                table,
-                loader=lambda pth: pd.read_csv(
-                    pth,
-                    skiprows=1,
-                    encoding="ISO-8859-1",
-                    thousands=",",
-                    header=header,
-                ),
-            )
-            if table in ANNEX_ENERGY_TABLES:
-                df = _read_yearly_annex_tables(df, table)
-            elif table == '3-13':
-                # remove notes from column headers in some years
-                cols = [c[:4] for c in list(df.columns[1:])]
-                df = df.rename(columns=dict(zip(df.columns[1:], cols)))
-            elif table == '3-25':
-                # Row 0 is header, row 1 is unit
-                new_headers = []
-                for col in df.columns:
-                    new_header = 'Unnamed: 0'
-                    if 'Unnamed' not in col[0]:
-                        if 'Unnamed' not in col[1]:
-                            new_header = f'{col[0]} {col[1]}'
-                        else:
-                            new_header = col[0]
-                    else:
-                        new_header = col[1]
-                    new_headers.append(new_header)
-                df.columns = new_headers
+            if year == '2023' and table == '3-25b':
+                # Skip 3-25b for current year (use 3-25 instead)
+                continue
+            df = _load_ghg_table(table)
             if df is not None and len(df.columns) > 1:
                 years = YEARS.copy()
-                years.remove(str(kwargs['year']))
+                years.remove(year)
                 df = df.drop(columns=(DROP_COLS + years), errors='ignore')
                 df["SourceName"] = f"EPA_GHGI_T_{table.replace('-', '_')}"
-            df_list.append(df)
+                df_list.append(df)
 
     return df_list
+
+
+def _load_ghg_table(table: str) -> pd.DataFrame:
+    """Applies branching logic to load the table correctly and returns a dataframe"""
+    from bedrock.extract.allocation.epa import _load_epa_tbl_from_gcs  # noqa:PLC0415
+
+    if table == '3-25b':
+        return pd.read_csv(
+            externaldatapath / f"GHGI_Table_{table}.csv",
+            skiprows=2,
+            encoding="ISO-8859-1",
+            thousands=",",
+        )
+
+    header = [0, 1] if table in (ANNEX_ENERGY_TABLES + ['3-25']) else 0
+    df = _load_epa_tbl_from_gcs(
+        table,
+        loader=lambda pth: pd.read_csv(
+            pth,
+            skiprows=1,
+            encoding="ISO-8859-1",
+            thousands=",",
+            header=header,
+        ),
+    )
+    if table in ANNEX_ENERGY_TABLES:
+        return _read_yearly_annex_tables(df, table)
+    elif table == '3-13':
+        # remove notes from column headers in some years
+        cols = [c[:4] for c in list(df.columns[1:])]
+        return df.rename(columns=dict(zip(df.columns[1:], cols)))
+    elif table == '3-25':
+        # Row 0 is header, row 1 is unit
+        new_headers = []
+        for col in df.columns:
+            new_header = 'Unnamed: 0'
+            if 'Unnamed' not in col[0]:
+                if 'Unnamed' not in col[1]:
+                    new_header = f'{col[0]} {col[1]}'
+                else:
+                    new_header = col[0]
+            else:
+                new_header = col[1]
+            new_headers.append(new_header)
+        df.columns = new_headers
+        return df
+    else:
+        return df
 
 
 def get_unnamed_cols(df):
@@ -1091,12 +1110,12 @@ if __name__ == "__main__":
         # "A-5"
     ]
     fba_list = []
-    for y in range(2020, 2021):
+    for y in range(2020, 2024):
         generateFlowByActivity(year=y, source='EPA_GHGI')
         if y == 2023:
             ls = tbl_list + ['3-25', 'A-5']
         else:
-            ls = tbl_list + [f'A-{2028-y}'] # + ['3-25b']
+            ls = tbl_list + ['3-25b'] + [f'A-{2028-y}']
         fba = pd.concat(
             [getFlowByActivity(f'EPA_GHGI_T_{str(t).replace("-","_")}', y) for t in ls]
         )
