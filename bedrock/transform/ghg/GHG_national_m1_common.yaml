@@ -157,7 +157,7 @@ source_names:
 
 
 ## Fossil Fuels
-  EPA_GHGI_T_3_64: &natgas #CH4 from Natural Gas Systems
+  EPA_GHGI_T_3_63: &natgas #CH4 from Natural Gas Systems
     # year: # override this
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
@@ -169,10 +169,10 @@ source_names:
         - Production
         - Transmission and Storage
     attribution_method: direct
-  EPA_GHGI_T_3_66: *natgas #CO2 from Natural Gas Systems mimics CH4
-  EPA_GHGI_T_3_68: *natgas #N2O from Natural Gas Systems, not used in original method, mimics CH4
+  EPA_GHGI_T_3_65: *natgas #CO2 from Natural Gas Systems mimics CH4
+  EPA_GHGI_T_3_67: *natgas #N2O from Natural Gas Systems, not used in original method, mimics CH4
 
-  EPA_GHGI_T_3_45: &petroleum #CH4 from Petroleum Systems
+  EPA_GHGI_T_3_44: &petroleum #CH4 from Petroleum Systems
     # year: # override this
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
@@ -184,8 +184,8 @@ source_names:
         - Refining
         - Crude Refining
     attribution_method: direct
-  EPA_GHGI_T_3_47: *petroleum #CO2 from Petroleum Systems mimics CH4
-  EPA_GHGI_T_3_49: *petroleum #N2O from Petroleum Systems, not in prior method, mimics CH4
+  EPA_GHGI_T_3_46: *petroleum #CO2 from Petroleum Systems mimics CH4
+  EPA_GHGI_T_3_48: *petroleum #N2O from Petroleum Systems, not in prior method, mimics CH4
 
 ## Agriculture
   EPA_GHGI_T_5_29: #CH4, N2O, CO and NOx from field burning of residues
