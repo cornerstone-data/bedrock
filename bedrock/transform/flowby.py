@@ -7,7 +7,6 @@ FlowByActivity and FlowBySector classes.
 import os
 import posixpath
 import re
-from copy import deepcopy
 from functools import partial, reduce
 from typing import TYPE_CHECKING, List, Literal, TypeVar
 
@@ -21,13 +20,15 @@ from bedrock.utils.config.common import get_catalog_info
 from bedrock.utils.config.flowsa_yaml import load
 from bedrock.utils.config.schema import dq_fields
 from bedrock.utils.config.settings import (
+    FBA_DIR,
+    FBS_DIR,
     GCS_FLOWSA_DIR,
     NAME_SEP_CHAR,
-    PATHS,
     configpath,
     mappingpath,
 )
 from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
+from bedrock.utils.io.read import load_preprocessed_output
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping import geo, naics
 from bedrock.utils.mapping.location import fips_number_key
@@ -275,8 +276,6 @@ class _FlowBy(pd.DataFrame):
         config: dict = None,
         external_data_path: str = None,
     ) -> '_FlowBy':
-        paths = deepcopy(PATHS)
-        paths.local_path = external_data_path or paths.local_path
 
         attempt_list = (
             ['import local', 'download', 'generate']
@@ -289,6 +288,7 @@ class _FlowBy(pd.DataFrame):
                 f'Attempting to {attempt} {file_metadata.name_data} '
                 f'{file_metadata.category}'
             )
+            pth = FBA_DIR if file_metadata.category == "FlowByActivity" else FBS_DIR
             if attempt == 'download':
                 name = f'{file_metadata.name_data}.{file_metadata.ext}'
                 sub_bucket = posixpath.join(GCS_FLOWSA_DIR, file_metadata.category)
@@ -296,23 +296,17 @@ class _FlowBy(pd.DataFrame):
                     download_gcs_file(
                         name=n,
                         sub_bucket=sub_bucket,
-                        pth=os.path.join(paths.local_path, file_metadata.category, n),
+                        pth=os.path.join(pth, n),
                     )
                     for n in get_most_recent_from_bucket(name, sub_bucket)
                 ]
-                # esupy.processed_data_mgmt.download_from_remote(
-                #     file_metadata,
-                #     paths
-                # )
             if attempt == 'generate':
                 flowby_generator()
-            df = esupy.processed_data_mgmt.load_preprocessed_output(
-                file_metadata, paths
-            )
+            df = load_preprocessed_output(file_metadata, str(pth))
             if df is None:
                 log.info(
                     f'{file_metadata.name_data} {file_metadata.category} '
-                    f'not found in {paths.local_path}'
+                    f'not found in {pth}'
                 )
             else:
                 log.info(

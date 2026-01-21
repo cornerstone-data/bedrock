@@ -25,15 +25,10 @@ from bedrock.utils.config.common import (
     load_yaml_dict,
 )
 from bedrock.utils.config.schema import flow_by_activity_fields
-from bedrock.utils.config.settings import (
-    extractpath,
-    return_folder_path,
-)
+from bedrock.utils.config.settings import FBA_DIR, extractpath, return_folder_path
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
-
-FBA_DIR = os.path.join(os.path.dirname(__file__), "output_data")
 
 
 def parse_args() -> dict[str, Any]:

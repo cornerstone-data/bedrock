@@ -20,11 +20,15 @@ import fedelemflowlist
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.generateflowbyactivity import FBA_DIR, generateFlowByActivity
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowby import _FlowBy, flowby_config
 from bedrock.transform.flowbyfunctions import filter_by_geoscale
 from bedrock.utils.config import settings
-from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING, NAME_SEP_CHAR
+from bedrock.utils.config.settings import (
+    DEFAULT_DOWNLOAD_IF_MISSING,
+    FBA_DIR,
+    NAME_SEP_CHAR,
+)
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import geo, naics, sectormapping
 from bedrock.utils.metadata.metadata import set_fb_meta
