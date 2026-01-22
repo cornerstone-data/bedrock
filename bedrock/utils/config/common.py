@@ -64,8 +64,8 @@ def load_env_file_key(env_file, key):
     the users personal API keys. The user must register with this
     API and get the key and manually add to "API_Keys.env"
 
-    See wiki for how to get an api:
-    https://github.com/USEPA/flowsa/wiki/Using-FLOWSA#api-keys
+    See README for how to generate an API key:
+    https://github.com/cornerstone-data/bedrock/blob/main/bedrock/extract/README.md
 
     :param env_file: str, name of env to load, either 'API_Key'
     or 'external_path'
@@ -74,7 +74,7 @@ def load_env_file_key(env_file, key):
     :return: str, value of the key stored in the env
     """
     if env_file == 'API_Key':
-        load_dotenv(f'{MODULEPATH}/API_Keys.env', verbose=True)
+        load_dotenv(f'{extractpath}/API_Keys.env', verbose=True)
         value = os.getenv(key)
         if value is None:
             raise APIError(api_source=key)
