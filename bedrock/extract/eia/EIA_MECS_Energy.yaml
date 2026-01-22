@@ -22,9 +22,9 @@ tables:
 # - table1_2
 # - table1_5
 - Table2_1
-# - table2_2
+- Table2_2
 - Table3_1
-# - table3_2
+- Table3_2
 # - table3_6
 # - table7_2
 # - table7_10
