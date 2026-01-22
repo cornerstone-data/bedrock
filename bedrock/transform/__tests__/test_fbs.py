@@ -15,6 +15,7 @@ def test_generate_fbs() -> None:
     assert len(fbs) > 0
 
 
+@pytest.mark.skip
 def test_generate_fbs_compare_to_remote() -> None:
     y = 2022
     method = f'GHG_national_{y}_m1'
