@@ -33,3 +33,7 @@ __pycache__/
 
 # Ignore JetBrains IDE project files
 .idea/
+
+# Ignore Cursor files
+.cursor/
+.cursorrules
