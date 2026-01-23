@@ -5,7 +5,7 @@ from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.validation.validation import compare_FBS
 
 
-@pytest.mark.skip # replaced by compare to remote test
+@pytest.mark.skip  # replaced by compare to remote test
 def test_generate_fbs() -> None:
     y = 2022
     method = f'GHG_national_{y}_m1'
