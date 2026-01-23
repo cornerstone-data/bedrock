@@ -34,6 +34,8 @@ url:
 url_replace_fxn: !script_function:USDA_CoA CoA_Cropland_URL_helper
 call_response_fxn: !script_function:USDA_CoA coa_call
 parse_response_fxn: !script_function:USDA_CoA coa_cropland_parse
+gcs_fxn: !script_function:USDA_CoA coa_load_gcs
+load_from_gcs: True
 years:
 - 2012
 - 2017

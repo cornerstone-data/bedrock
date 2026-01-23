@@ -8,16 +8,27 @@ Livestock data, and Cropland data in NAICS format
 """
 
 import json
+import os
+import posixpath
+from typing import Any, List
+from requests import Response
+from urllib.parse import urlparse, parse_qs
 
 import numpy as np
 import pandas as pd
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists, load_from_gcs
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state
 
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
-def CoA_Cropland_URL_helper(*, build_url, config, **_):
+
+def CoA_Cropland_URL_helper(
+    *, build_url: str, config: dict[str, Any], **_kwargs: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -84,7 +95,9 @@ def CoA_Cropland_URL_helper(*, build_url, config, **_):
     return urls
 
 
-def CoA_URL_helper(*, build_url, config, **_):
+def CoA_URL_helper(
+    *, build_url: str, config: dict[str, Any], **_kwargs: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -122,7 +135,7 @@ def CoA_URL_helper(*, build_url, config, **_):
     return urls
 
 
-def coa_call(*, resp, **_):
+def coa_call(*, resp: Response, **_kwargs: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing df
     into FBA format
@@ -134,10 +147,39 @@ def coa_call(*, resp, **_):
     """
     cropland_json = json.loads(resp.text)
     df_cropland = pd.DataFrame(data=cropland_json["data"])
+
+    # During API call, save a copy to csv
+    filename = f"{_kwargs['source']}_{_kwargs['year']}_{_define_filename(resp.url)}"
+    df_cropland.to_csv(f"{filename}.csv")
+
     return df_cropland
 
 
-def coa_cropland_parse(*, df_list, year, **_):
+def _define_filename(url: str) -> str:
+    """Parse the query to set the filename"""
+    query_params = parse_qs(urlparse(url).query)
+    agg_level = query_params['agg_level_desc'][0]
+    loc = ('US' if agg_level == "NATIONAL" else query_params['state_alpha'][0]) + (
+        "_County" if agg_level == "COUNTY" else ""
+    )
+    return f"{loc}_{query_params['sector_desc'][0]}"
+
+
+def coa_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    GCS_COA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"USDA_{kwargs.get('year')}")
+    filename = f"{kwargs['source']}_{kwargs['year']}_{_define_filename(kwargs['url'])}"
+    return load_from_gcs(
+        name=f"{filename}.csv",
+        sub_bucket=GCS_COA_DIR,
+        local_dir=IN_DIR,
+        loader=pd.read_csv,
+    )
+
+
+def coa_cropland_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_kwargs: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -597,8 +639,8 @@ def coa_common_parse(df):
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+    from bedrock.extract.flowbyactivity import getFlowByActivity
 
-    fba = bedrock.extract.generateflowbyactivity.main(
-        year=2022, source='USDA_CoA_Cropland'
-    )
+    generateFlowByActivity(year=2022, source='USDA_CoA_Cropland')
+    fba = getFlowByActivity('USDA_CoA_Cropland', 2022)
