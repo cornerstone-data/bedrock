@@ -6,19 +6,6 @@ from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.validation.validation import compare_FBS
 
 
-<<<<<<< HEAD
-=======
-@pytest.mark.skip # replaced by compare to remote test
-def test_generate_fbs() -> None:
-    y = 2022
-    method = f'GHG_national_{y}_m1'
-    FlowBySector.generateFlowBySector(method, download_sources_ok=False)
-    fbs = getFlowBySector(method)
-
-    assert len(fbs) > 0
-
-
->>>>>>> 793727a (perform comparison to remote on integration testing)
 @pytest.mark.eeio_integration
 def test_generate_fbs_compare_to_remote() -> None:
     y = 2022
