@@ -553,19 +553,19 @@ source_names:
 
 
 ## Fossil Fuels
-  EPA_GHGI_T_3_63: #CH4 from Natural Gas Systems
-    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_63
-  EPA_GHGI_T_3_65: #CO2 from Natural Gas Systems mimics CH4
-    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_65
-  EPA_GHGI_T_3_67: #N2O from Natural Gas Systems, not used in original method, mimics CH4
-    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_67
+  EPA_GHGI_T_3_64: #CH4 from Natural Gas Systems
+    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_64
+  EPA_GHGI_T_3_66: #CO2 from Natural Gas Systems mimics CH4
+    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_66
+  EPA_GHGI_T_3_68: #N2O from Natural Gas Systems, not used in original method, mimics CH4
+    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_68
 
-  EPA_GHGI_T_3_44: #CH4 from Petroleum Systems
-    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_44
-  EPA_GHGI_T_3_46: #CO2 from Petroleum Systems mimics CH4
-    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_46
-  EPA_GHGI_T_3_48: #N2O from Petroleum Systems, not in prior method, mimics CH4
-    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_48
+  EPA_GHGI_T_3_45: #CH4 from Petroleum Systems
+    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_45
+  EPA_GHGI_T_3_47: #CO2 from Petroleum Systems mimics CH4
+    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_47
+  EPA_GHGI_T_3_49: #N2O from Petroleum Systems, not in prior method, mimics CH4
+    !include:GHG_national_m1_common.yaml:source_names:EPA_GHGI_T_3_49
 
 ## Agriculture
   EPA_GHGI_T_5_29: #CH4, N2O, CO and NOx from field burning of residues
