@@ -190,15 +190,14 @@ def _load_ghg_table(table: str) -> pd.DataFrame:
             thousands=",",
         )
 
-    header = [0, 1] if table in (ANNEX_ENERGY_TABLES + ['3-25']) else 0
     df = _load_epa_tbl_from_gcs(
         table,
         loader=lambda pth: pd.read_csv(
             pth,
-            skiprows=1,
+            skiprows=2 if table == "4-118" else 1,
             encoding="ISO-8859-1",
             thousands=",",
-            header=header,
+            header=[0, 1] if table in (ANNEX_ENERGY_TABLES + ['3-25']) else 0,
         ),
     )
     if table in ANNEX_ENERGY_TABLES:
