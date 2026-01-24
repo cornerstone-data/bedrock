@@ -8,11 +8,10 @@ including standardized result reporting and batch diagnostic execution.
 from __future__ import annotations
 
 import dataclasses as dc
+import logging
 import typing as ta
 
 import pandas as pd
-
-import logging
 
 logger = logging.getLogger(__name__)
 
