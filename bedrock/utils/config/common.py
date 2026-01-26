@@ -8,6 +8,8 @@ import os
 import re
 from copy import deepcopy
 from os import path
+from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -44,12 +46,12 @@ SECTOR_SOURCE_NAME = 'NAICS_2012_Code'
 flow_types = ['ELEMENTARY_FLOW', 'TECHNOSPHERE_FLOW', 'WASTE_FLOW']
 
 sector_level_key = {
-    "NAICS_2": 2,
-    "NAICS_3": 3,
-    "NAICS_4": 4,
-    "NAICS_5": 5,
-    "NAICS_6": 6,
-    "NAICS_7": 7,
+    'NAICS_2': 2,
+    'NAICS_3': 3,
+    'NAICS_4': 4,
+    'NAICS_5': 5,
+    'NAICS_6': 6,
+    'NAICS_7': 7,
 }
 
 # withdrawn keyword changed to "none" over "W"
@@ -57,7 +59,7 @@ sector_level_key = {
 WITHDRAWN_KEYWORD = np.nan
 
 
-def load_env_file_key(env_file, key):
+def load_env_file_key(env_file: str, key: str) -> str:
     """
     Loads an API Key from "API_Keys.env" file using the
     'api_name' defined in the FBA source config file. The '.env' file contains
@@ -86,7 +88,7 @@ def load_env_file_key(env_file, key):
     return value
 
 
-def load_crosswalk(crosswalk_name):
+def load_crosswalk(crosswalk_name: str) -> pd.DataFrame:
     """
     Used to load the crosswalks:
 
@@ -99,35 +101,35 @@ def load_crosswalk(crosswalk_name):
     :return: df, NAICS crosswalk over the years
     """
 
-    cw = pd.read_csv(mappingpath / 'naics' / f'{crosswalk_name}.csv', dtype="str")
+    cw = pd.read_csv(mappingpath / 'naics' / f'{crosswalk_name}.csv', dtype='str')
 
     return cw
 
 
-def load_sector_length_cw_melt(year='2012'):
+def load_sector_length_cw_melt(year: str = '2012') -> pd.DataFrame:
     cw_load = load_crosswalk(f'NAICS_{year}_Crosswalk')
     cw_melt = (
-        cw_load.melt(var_name="SectorLength", value_name='Sector')
+        cw_load.melt(var_name='SectorLength', value_name='Sector')
         .drop_duplicates()
         .reset_index(drop=True)
     )
     cw_melt = cw_melt.dropna().reset_index(drop=True)
-    cw_melt['SectorLength'] = cw_melt['SectorLength'].str.replace('NAICS_', "")
+    cw_melt['SectorLength'] = cw_melt['SectorLength'].str.replace('NAICS_', '')
     cw_melt['SectorLength'] = pd.to_numeric(cw_melt['SectorLength'])
 
-    cw_melt = cw_melt[['Sector', 'SectorLength']]
+    return cast(  # type: ignore[redundant-cast]  # needed for pyright
+        pd.DataFrame, cw_melt[['Sector', 'SectorLength']]
+    )
 
-    return cw_melt
 
-
-def return_bea_codes_used_as_naics():
+def return_bea_codes_used_as_naics() -> list[Any]:
     """
 
     :return: list of BEA codes used as NAICS
     """
-    cw_list = []
-    for cw in ['Household_SectorCodes', 'Government_SectorCodes']:
-        df = load_crosswalk(cw)
+    cw_list: list[pd.DataFrame] = []
+    for cw_name in ['Household_SectorCodes', 'Government_SectorCodes']:
+        df = load_crosswalk(cw_name)
         cw_list.append(df)
     # concat data into single dataframe
     cw = pd.concat(cw_list, sort=False)
@@ -135,7 +137,12 @@ def return_bea_codes_used_as_naics():
     return code_list
 
 
-def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
+def load_yaml_dict(
+    filename: str,
+    flowbytype: str | None = None,
+    filepath: str | Path | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
     """
     Load the information in a yaml file, from source_catalog, or FBA,
     or FBS files
@@ -155,6 +162,7 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
         )
         filename = re.sub(pattern, '', filename)
 
+    folder: str | Path
     if filename in ['source_catalog']:
         folder = configpath
     else:
@@ -163,7 +171,7 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
         # if filepath is not None:
         if path.exists(path.join(str(filepath), f'{filename}.yaml')):
             log.info(f'Loading {filename} from {filepath}')
-            folder = filepath
+            folder = str(filepath)
         elif path.exists(
             path.join(str(filepath), 'flowbysectormethods/', f'{filename}.yaml')
         ):
@@ -172,19 +180,20 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
         else:
             if filepath is not None:
                 log.warning(
-                    f'{filename} not found in {filepath}. ' f'Checking default folders'
+                    f'{filename} not found in {filepath}. Checking default folders'
                 )
             if flowbytype == 'FBA':
                 folder = return_folder_path(extractpath, filename)
             elif flowbytype == 'FBS':
                 folder = return_folder_path(transformpath, filename)
             else:
-                raise KeyError('Must specify either \'FBA\' or \'FBS\'')
+                raise KeyError("Must specify either 'FBA' or 'FBS'")
     yaml_path = f'{folder}/{filename}.yaml'
 
+    filepath_str = str(filepath) if filepath is not None else None
     try:
         with open(yaml_path, 'r', encoding='utf-8') as f:
-            config = flowsa_yaml.load(f, filepath)
+            config = flowsa_yaml.load(f, filepath_str)
     except FileNotFoundError as e:
         if filename in str(e):
             if 'config' in kwargs:
@@ -198,7 +207,7 @@ def load_yaml_dict(filename, flowbytype=None, filepath=None, **kwargs):
     return config
 
 
-def load_values_from_literature_citations_config():
+def load_values_from_literature_citations_config() -> dict[str, Any]:
     """
     Load the config file that contains information on where the
     values from the literature come from
@@ -215,13 +224,13 @@ def load_values_from_literature_citations_config():
     return config
 
 
-def create_fill_na_dict(flow_by_fields):
+def create_fill_na_dict(flow_by_fields: dict[str, Any]) -> dict[str, Any]:
     """
     Dictionary for how to fill nan in different column types
     :param flow_by_fields: list of columns
     :return: dictionary for how to fill missing values by dtype
     """
-    fill_na_dict = {}
+    fill_na_dict: dict[str, Any] = {}
     for k, v in flow_by_fields.items():
         if v[0]['dtype'] in ['str', 'object']:
             fill_na_dict[k] = np.nan
@@ -230,13 +239,13 @@ def create_fill_na_dict(flow_by_fields):
     return fill_na_dict
 
 
-def get_flow_by_groupby_cols(flow_by_fields):
+def get_flow_by_groupby_cols(flow_by_fields: dict[str, Any]) -> list[str]:
     """
     Return groupby columns for a type of dataframe
     :param flow_by_fields: dictionary
     :return: list, column names
     """
-    groupby_cols = []
+    groupby_cols: list[str] = []
     for k, v in flow_by_fields.items():
         if v[0]['dtype'] == 'str':
             groupby_cols.append(k)
@@ -278,7 +287,7 @@ fba_wsec_default_grouping_fields = get_flow_by_groupby_cols(
 )
 
 
-def clean_str_and_capitalize(s):
+def clean_str_and_capitalize(s: str) -> str:
     """
     Trim whitespace, modify string so first letter capitalized.
     :param s: str
@@ -291,20 +300,20 @@ def clean_str_and_capitalize(s):
     return s
 
 
-def capitalize_first_letter(string):
+def capitalize_first_letter(string: str) -> str:
     """
     Capitalize first letter of words
     :param string: str
     :return: str, modified
     """
-    return_string = ""
-    split_array = string.split(" ")
+    return_string = ''
+    split_array = string.split(' ')
     for s in split_array:
-        return_string = return_string + " " + s.capitalize()
+        return_string = return_string + ' ' + s.capitalize()
     return return_string.strip()
 
 
-def get_flowsa_base_name(filedirectory, filename, extension):
+def get_flowsa_base_name(filedirectory: Path, filename: str, extension: str) -> str:
     """
     If filename does not match filename within flowsa due to added extensions
     onto the filename, cycle through
@@ -318,25 +327,25 @@ def get_flowsa_base_name(filedirectory, filename, extension):
     # underscore. Repeat this process until the file name exists or no
     # underscores are left.
     while '_' in filename:
-        if (filedirectory / f"{filename}.{extension}").is_file():
+        if (filedirectory / f'{filename}.{extension}').is_file():
             break
         filename, _ = filename.rsplit('_', 1)
 
     return filename
 
 
-def return_true_source_catalog_name(sourcename):
+def return_true_source_catalog_name(sourcename: str) -> str:
     """
     Drop any extensions on source name until find the name in source catalog
     """
     while (load_yaml_dict('source_catalog').get(sourcename) is None) & (
         '_' in sourcename
     ):
-        sourcename = sourcename.rsplit("_", 1)[0]
+        sourcename = sourcename.rsplit('_', 1)[0]
     return sourcename
 
 
-def str2bool(v):
+def str2bool(v: str | bool) -> bool:
     """
     Convert string to boolean
     :param v: string
@@ -350,7 +359,7 @@ def str2bool(v):
         return False
 
 
-def check_method_status():
+def check_method_status() -> dict[str, Any]:
     """Read the current method status"""
     yaml_path = MODULEPATH / 'utils' / 'validation' / 'method_status.yaml'
     with open(yaml_path, 'r') as f:
@@ -358,11 +367,11 @@ def check_method_status():
     return method_status
 
 
-def get_catalog_info(source_name: str) -> dict:
-    '''
+def get_catalog_info(source_name: str) -> dict[str, Any]:
+    """
     Retrieves the information on a given source from source_catalog.yaml.
     Replaces various pieces of code that load the source_catalog yaml.
-    '''
+    """
     source_catalog = load_yaml_dict('source_catalog')
     source_name = return_true_source_catalog_name(source_name)
     return source_catalog.get(source_name, {})
