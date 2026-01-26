@@ -18,114 +18,18 @@ from bedrock.utils.config.settings import mappingpath
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.geo import get_all_fips
 
+# =============================================================================
+# Constants
+# =============================================================================
+
 US_FIPS = "00000"
 
 # see geo.py for assignments
-fips_number_key = {"national": 5, "state": 2, "county": 1}
-
-
-def apply_county_FIPS(df, year='2015', source_state_abbrev=True):
-    """
-    Applies FIPS codes by county to dataframe containing columns with State
-    and County
-    :param df: dataframe must contain columns with 'State' and 'County', but
-        not 'Location'
-    :param year: str, FIPS year, defaults to 2015
-    :param source_state_abbrev: True or False, the state column uses
-        abbreviations
-    :return dataframe with new column 'FIPS', blanks not removed
-    """
-    # If using 2 letter abbrevations, map to state names
-    if source_state_abbrev:
-        df['State'] = df['State'].map(abbrev_us_state).fillna(df['State'])
-    df['State'] = df.apply(lambda x: clean_str_and_capitalize(x.State), axis=1)
-    if 'County' not in df:
-        df['County'] = ''
-    df['County'] = df.apply(lambda x: clean_str_and_capitalize(x.County), axis=1)
-
-    # Pull and merge FIPS on state and county
-    mapping_FIPS = get_county_FIPS(year)
-    df = df.merge(mapping_FIPS, how='left')
-
-    # Where no county match occurs, assign state FIPS instead
-    mapping_FIPS = get_state_FIPS()
-    mapping_FIPS = mapping_FIPS.drop(columns=['County'])
-    df = df.merge(mapping_FIPS, left_on='State', right_on='State', how='left')
-    df['Location'] = df['FIPS_x'].where(df['FIPS_x'].notnull(), df['FIPS_y'])
-    df = df.drop(columns=['FIPS_x', 'FIPS_y'])
-
-    return df
-
-
-def update_geoscale(df, to_scale):
-    """
-    Updates df['Location'] based on specified to_scale
-    :param df: df, requires Location column
-    :param to_scale: str, target geoscale
-    :return: df, with 5 digit geo
-    """
-    # code for when the "Location" is a FIPS based system
-    if to_scale == 'state':
-        df = df.assign(
-            Location=(
-                df['Location']
-                .apply(lambda x: str(x[0:2]))
-                .apply(lambda x: x.ljust(3 + len(x), '0') if len(x) < 5 else x)
-            )
-        )
-    elif to_scale == 'national':
-        df = df.assign(Location=US_FIPS)
-    return df
-
-
-def get_state_FIPS(year='2015', abbrev=False):
-    """
-    Filters FIPS df for state codes only
-    :param year: str, year of FIPS, defaults to 2015
-    :return: FIPS df with only state level records
-    """
-
-    fips = get_all_fips(year)
-    fips = fips.drop_duplicates(subset='State')
-    fips = fips[fips['State'].notnull()]
-    if abbrev:
-        fips['State'] = (
-            fips['State']
-            .str.title()
-            .replace(us_state_abbrev)
-            .replace({'District Of Columbia': 'DC'})
-        )
-    return fips.drop(columns='FIPS_Scale')
-
-
-def get_county_FIPS(year='2015'):
-    """
-    Filters FIPS df for county codes only
-    :param year: str, year of FIPS, defaults to 2015
-    :return: FIPS df with only county level records
-    """
-    fips = get_all_fips(year)
-    fips = fips.drop_duplicates(subset='FIPS')
-    fips = fips[fips['County'].notnull()]
-    return fips.drop(columns='FIPS_Scale')
-
-
-def get_all_state_FIPS_2(year='2015'):
-    """
-    Gets a subset of all FIPS 2 digit codes for states
-    :param year: str, year of FIPS, defaults to 2015
-    :return: df with 'State' and 'FIPS_2' cols
-    """
-
-    state_fips = get_state_FIPS(year)
-    state_fips.loc[:, 'FIPS_2'] = state_fips['FIPS'].apply(lambda x: x[0:2])
-    state_fips = state_fips[['State', 'FIPS_2']]
-    return state_fips
-
+fips_number_key: dict[str, int] = {"national": 5, "state": 2, "county": 1}
 
 # From https://gist.github.com/rogerallen/1583593
 # removed non US states, PR, MP, VI
-us_state_abbrev = {
+us_state_abbrev: dict[str, str] = {
     'Alabama': 'AL',
     'Alaska': 'AK',
     'Arizona': 'AZ',
@@ -179,11 +83,141 @@ us_state_abbrev = {
     'Wyoming': 'WY',
 }
 
+# Reverse mapping: abbreviation -> state name
 # thank you to @kinghelix and @trevormarburger for this idea
-abbrev_us_state = {abbr: state for state, abbr in us_state_abbrev.items()}
+abbrev_us_state: dict[str, str] = {
+    abbr: state for state, abbr in us_state_abbrev.items()
+}
 
 
-def get_region_and_division_codes():
+# =============================================================================
+# FIPS Code Functions
+# =============================================================================
+
+
+def get_state_FIPS(year: str = '2015', abbrev: bool = False) -> pd.DataFrame:
+    """
+    Filters FIPS df for state codes only
+    :param year: str, year of FIPS, defaults to 2015
+    :param abbrev: bool, if True return state abbreviations instead of names
+    :return: FIPS df with only state level records
+    """
+    fips = get_all_fips(int(year))  # type: ignore[arg-type]
+    fips = fips.drop_duplicates(subset='State')
+    fips = fips[fips['State'].notnull()]
+    if abbrev:
+        fips['State'] = (
+            fips['State']
+            .str.title()
+            .replace(us_state_abbrev)
+            .replace({'District Of Columbia': 'DC'})
+        )
+    return fips.drop(columns='FIPS_Scale')
+
+
+def get_county_FIPS(year: str = '2015') -> pd.DataFrame:
+    """
+    Filters FIPS df for county codes only
+    :param year: str, year of FIPS, defaults to 2015
+    :return: FIPS df with only county level records
+    """
+    fips = get_all_fips(int(year))  # type: ignore[arg-type]
+    fips = fips.drop_duplicates(subset='FIPS')
+    fips = fips[fips['County'].notnull()]
+    return fips.drop(columns='FIPS_Scale')
+
+
+def get_all_state_FIPS_2(year: str = '2015') -> pd.DataFrame:
+    """
+    Gets a subset of all FIPS 2 digit codes for states
+    :param year: str, year of FIPS, defaults to 2015
+    :return: df with 'State' and 'FIPS_2' cols
+    """
+    state_fips = get_state_FIPS(year)
+    state_fips.loc[:, 'FIPS_2'] = state_fips['FIPS'].apply(lambda x: str(x)[0:2])
+    state_fips = state_fips[['State', 'FIPS_2']]
+    return state_fips
+
+
+def apply_county_FIPS(
+    df: pd.DataFrame, year: str = '2015', source_state_abbrev: bool = True
+) -> pd.DataFrame:
+    """
+    Applies FIPS codes by county to dataframe containing columns with State
+    and County
+    :param df: dataframe must contain columns with 'State' and 'County', but
+        not 'Location'
+    :param year: str, FIPS year, defaults to 2015
+    :param source_state_abbrev: True or False, the state column uses
+        abbreviations
+    :return dataframe with new column 'FIPS', blanks not removed
+    """
+    # If using 2 letter abbrevations, map to state names
+    if source_state_abbrev:
+        df['State'] = df['State'].map(abbrev_us_state).fillna(df['State'])
+    df['State'] = df['State'].apply(lambda x: clean_str_and_capitalize(str(x)))
+    if 'County' not in df:
+        df['County'] = ''
+    df['County'] = df['County'].apply(lambda x: clean_str_and_capitalize(str(x)))
+
+    # Pull and merge FIPS on state and county
+    mapping_FIPS = get_county_FIPS(year)
+    df = df.merge(mapping_FIPS, how='left')
+
+    # Where no county match occurs, assign state FIPS instead
+    mapping_FIPS = get_state_FIPS()
+    mapping_FIPS = mapping_FIPS.drop(columns=['County'])
+    df = df.merge(mapping_FIPS, left_on='State', right_on='State', how='left')
+    df['Location'] = df['FIPS_x'].where(df['FIPS_x'].notnull(), df['FIPS_y'])
+    df = df.drop(columns=['FIPS_x', 'FIPS_y'])
+
+    return df
+
+
+def update_geoscale(df: pd.DataFrame, to_scale: str) -> pd.DataFrame:
+    """
+    Updates df['Location'] based on specified to_scale
+    :param df: df, requires Location column
+    :param to_scale: str, target geoscale
+    :return: df, with 5 digit geo
+    """
+    # code for when the "Location" is a FIPS based system
+    if to_scale == 'state':
+        df = df.assign(
+            Location=(
+                df['Location']
+                .apply(lambda x: str(x)[0:2])
+                .apply(lambda x: x.ljust(3 + len(x), '0') if len(x) < 5 else x)
+            )
+        )
+    elif to_scale == 'national':
+        df = df.assign(Location=US_FIPS)
+    return df
+
+
+def extract_fips_years(pd_series: pd.Series | pd.Index) -> np.ndarray:
+    """
+    Extract np.array of unique year ints from pd.series of 'FIPS_yyyy' strings
+    :param pd_series: pandas series or index
+    :return: numpy array of year integers
+    """
+    if isinstance(pd_series, pd.Index):
+        pd_series = pd.Series(pd_series)
+    extracted = pd_series.str.extract(r'FIPS_(\d{4})').dropna()
+    squeezed = extracted.squeeze()
+    if isinstance(squeezed, pd.Series):
+        years = squeezed.unique().astype(int)
+    else:
+        years = np.array([squeezed]).astype(int)
+    return years
+
+
+# =============================================================================
+# Census Region Functions
+# =============================================================================
+
+
+def get_region_and_division_codes() -> pd.DataFrame:
     """
     Load the Census Regions csv
     :return: pandas df of census regions
@@ -194,7 +228,7 @@ def get_region_and_division_codes():
     return df
 
 
-def assign_census_regions(df_load):
+def assign_census_regions(df_load: pd.DataFrame) -> pd.DataFrame:
     """
     Assign census regions as a LocationSystem
     :param df_load: fba or fbs
@@ -236,16 +270,29 @@ def assign_census_regions(df_load):
     return df
 
 
-def call_country_code(country):
+# =============================================================================
+# Country Code Functions
+# =============================================================================
+
+
+def call_country_code(country: str) -> str:
     """
     use pycountry to call on 3 digit iso country code
     :param country: str, name of country
     :return: str, ISO code
     """
-    return pycountry.countries.get(name=country).numeric
+    result = pycountry.countries.get(name=country)
+    if result is None:
+        raise ValueError(f"Country not found: {country}")
+    return result.numeric
 
 
-def merge_urb_cnty_pct(df):
+# =============================================================================
+# Urban/Rural Population Functions
+# =============================================================================
+
+
+def merge_urb_cnty_pct(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Merge a %-urban-population column onto a df with existing LocationSystem
     and Location columns, where the latter contains FIPS county codes.
@@ -253,10 +300,10 @@ def merge_urb_cnty_pct(df):
     :param df: pandas dataframe
     :return: pandas dataframe with new column of urban population percentages
     """
-    if any(i is None for i in df['LocationSystem']):
+    if any(i is None for i in df['LocationSystem'].tolist()):
         log.error('LocationSystem column contains one or more None values')
         return None
-    elif any('FIPS' not in i for i in set(df['LocationSystem'])):
+    elif any('FIPS' not in str(i) for i in set(df['LocationSystem'].tolist())):
         log.error('LocationSystem column contains non-FIPS labels')
         return None  # check derived from bedrock.flowsa FBA format specs
     elif any(df['Location'].str.len() != 5):
@@ -280,6 +327,8 @@ def merge_urb_cnty_pct(df):
         return None
 
     pct_urb = get_census_cnty_tbl(year)
+    if pct_urb is None:
+        return None
     df = pd.merge(df, pct_urb, how='left', on='Location')
 
     # find unmerged nan pct_pop_urb values
@@ -290,23 +339,10 @@ def merge_urb_cnty_pct(df):
             'In pct_pop_urb, "nan" values are not equal to 0%.'
         )
 
-    df = reshape_urb_rur_df(df)
-    return df
+    return reshape_urb_rur_df(df)
 
 
-def extract_fips_years(pd_series):
-    """
-    Extract np.array of unique year ints from pd.series of 'FIPS_yyyy' strings
-    :param series: pandas series
-    :return: numpy array of year integers
-    """
-    years = (
-        pd_series.str.extract(r'FIPS_(\d{4})').dropna().squeeze().unique().astype(int)
-    )
-    return years
-
-
-def get_census_cnty_tbl(year):
+def get_census_cnty_tbl(year: int) -> pd.DataFrame | None:
     """
     Read table of Census county-equivalent-level (FIPS) urban and rural
     population counts (detail in esupy/data_census/README.md), and
@@ -344,8 +380,8 @@ def get_census_cnty_tbl(year):
         log.error(f'File unavailable, check Census domain status: ' f'\n{cnty_url}')
         return None
 
-    df['STATE'] = df['STATE'].apply(lambda x: '{0:0>2}'.format(x))
-    df['COUNTY'] = df['COUNTY'].apply(lambda x: '{0:0>3}'.format(x))
+    df['STATE'] = df['STATE'].apply(lambda x: f'{x:0>2}')
+    df['COUNTY'] = df['COUNTY'].apply(lambda x: f'{x:0>3}')
     df[f'FIPS_{decade}'] = df['STATE'] + df['COUNTY']  # 5-digit county codes
     # Note: {total = urban + rural} population, for all FIPS areas
     df['pct_pop_urb'] = df['POP_URBAN'] / df['POP_COU']
@@ -354,7 +390,7 @@ def get_census_cnty_tbl(year):
     return df
 
 
-def shift_census_cnty_tbl(df, year):
+def shift_census_cnty_tbl(df: pd.DataFrame, year: int) -> pd.DataFrame:
     """
     Transform a table of Census pct_pop_urb values (by FIPS area code)
     to a specified data year via FIPS_Crosswalk.csv.
@@ -390,7 +426,7 @@ def shift_census_cnty_tbl(df, year):
     return df
 
 
-def reshape_urb_rur_df(df):
+def reshape_urb_rur_df(df: pd.DataFrame) -> pd.DataFrame | None:
     """
     Pivot a df with urban (and thereby rural) population percentage values
     to long format, such that each row is purely urban or rural. Then scale
@@ -427,7 +463,10 @@ def reshape_urb_rur_df(df):
 if __name__ == "__main__":
     df = pd.DataFrame()
     for year in [2010, 2020]:
-        pct_urb = get_census_cnty_tbl(year).rename(columns={'pct_pop_urb': str(year)})
+        pct_urb_result = get_census_cnty_tbl(year)
+        if pct_urb_result is None:
+            continue
+        pct_urb = pct_urb_result.rename(columns={'pct_pop_urb': str(year)})
         if len(df) == 0:
             df = pct_urb.copy()
         else:
