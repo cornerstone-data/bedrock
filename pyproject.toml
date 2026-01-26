@@ -14,7 +14,7 @@ dependencies = [
     "numpy>=2.2.6,<3.0.0",
     "pandera[io]>=0.26.0,<0.27.0",
     # EPA dependencies
-    "fedelemflowlist @ git+https://github.com/FLCAC-admin/fedelemflowlist.git@ghgi_2025#egg=fedelemflowlist",
+    "fedelemflowlist @ git+https://github.com/FLCAC-admin/fedelemflowlist.git#egg=fedelemflowlist",
     "esupy @ git+https://github.com/USEPA/esupy.git#egg=esupy",
     "StEWI @ git+https://github.com/USEPA/standardizedinventories.git#egg=StEWI",
     # Configuration and validation
