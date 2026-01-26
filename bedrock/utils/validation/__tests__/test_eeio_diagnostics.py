@@ -3,7 +3,6 @@
 
 import pandas as pd
 import pytest
-
 from bedrock.utils.validation.eeio_diagnostics import (
     DiagnosticResult,
     format_diagnostic_result,
