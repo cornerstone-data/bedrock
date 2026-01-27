@@ -6,9 +6,9 @@ Functions to generate .bib file for a FlowBySector method
 """
 # todo: modify the functions for recursive yaml method
 
+from __future__ import annotations
 
-# from bibtexparser.bwriter import BibTexWriter
-# from bibtexparser.bibdatabase import BibDatabase
+from typing import Any
 
 from bedrock.utils.config.common import (
     extractpath,
@@ -20,7 +20,7 @@ from bedrock.utils.config.settings import return_folder_path
 from bedrock.utils.logging.flowsa_log import log
 
 
-def generate_list_of_sources_in_fbs_method(methodname):
+def generate_list_of_sources_in_fbs_method(methodname: str) -> list[list[str]]:
     """
     Determine what FlowByActivities are used to generate a FlowBySector
     :param methodname: string, FlowBySector method
@@ -55,7 +55,7 @@ def generate_list_of_sources_in_fbs_method(methodname):
     return sources
 
 
-def load_source_dict(sourcename):
+def load_source_dict(sourcename: str) -> dict[str, Any]:
     """
     Load the yaml method file for a flowbyactivity dataset
     or for a value from the literature
