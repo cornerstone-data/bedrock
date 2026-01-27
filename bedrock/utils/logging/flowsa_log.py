@@ -1,6 +1,7 @@
 import logging
 import shutil
 import sys
+from typing import Any
 
 from esupy.processed_data_mgmt import mkdir_if_missing
 
@@ -61,8 +62,9 @@ else:
             ),
         }
 
-        def format(self, record):
-            return self.FORMATS.get(record.levelno).format(record)
+        def format(self, record: logging.LogRecord) -> str:
+            formatter = self.FORMATS.get(record.levelno, self.FORMATS[logging.INFO])
+            return formatter.format(record)
 
     console_formatter = ColoredFormatter()
 
@@ -71,7 +73,7 @@ file_formatter = logging.Formatter(
 )
 
 
-def get_log_file_handler(name, level=logging.DEBUG):
+def get_log_file_handler(name: str, level: int = logging.DEBUG) -> logging.FileHandler:
     h = logging.FileHandler(logoutputpath / name, mode='w', encoding='utf-8')
     h.setLevel(level)
     h.setFormatter(file_formatter)
@@ -95,7 +97,7 @@ vlog.setLevel(logging.DEBUG)
 vlog.addHandler(validation_file_handler)
 
 
-def reset_log_file(filename, fb_meta):
+def reset_log_file(filename: str, fb_meta: Any) -> None:
     """
     Rename the log file saved to local directory using df meta and
         reset the log
