@@ -21,7 +21,7 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists, load_from_gcs
 from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
-from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state
+from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state, to_ndigit_str
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
@@ -309,7 +309,9 @@ def coa_cropland_parse(
     )
     # create FIPS column by combining existing columns
     df.loc[df['county_code'] == '', 'county_code'] = '000'
-    df['Location'] = df['state_fips_code'] + df['county_code']
+    df['Location'] = to_ndigit_str(df['state_fips_code'], 2) + to_ndigit_str(
+        df['county_code'], 3
+    )
     df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
 
     # address non-NAICS classification data
@@ -495,7 +497,9 @@ def coa_livestock_parse(*, df_list, year, **_):
     return df
 
 
-def coa_cropland_NAICS_parse(*, df_list, year, **_):
+def coa_cropland_NAICS_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_kwargs: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -540,7 +544,9 @@ def coa_cropland_NAICS_parse(*, df_list, year, **_):
     )
     # create FIPS column by combining existing columns
     df.loc[df['county_code'] == '', 'county_code'] = '000'
-    df['Location'] = df['state_fips_code'] + df['county_code']
+    df['Location'] = to_ndigit_str(df['state_fips_code'], 2) + to_ndigit_str(
+        df['county_code'], 3
+    )
     df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
     # NAICS classification data
     # flowname
