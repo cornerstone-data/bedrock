@@ -1,9 +1,8 @@
 # ruff: noqa: PLC0415
 """Unit tests for the EEIO diagnostics module."""
 
-import pytest
-
 import pandas as pd
+import pytest
 
 from bedrock.utils.validation.eeio_diagnostics import (
     DiagnosticResult,
@@ -51,12 +50,14 @@ class TestDiagnosticResult:
 
     def test_result_with_details_dataframe(self) -> None:
         """Test a result with a details DataFrame."""
-        details_df = pd.DataFrame({
-            "sector": ["11", "21"],
-            "expected": [100.0, 200.0],
-            "actual": [105.0, 195.0],
-            "rel_diff": [0.05, 0.025],
-        })
+        details_df = pd.DataFrame(
+            {
+                "sector": ["11", "21"],
+                "expected": [100.0, 200.0],
+                "actual": [105.0, 195.0],
+                "rel_diff": [0.05, 0.025],
+            }
+        )
 
         result = DiagnosticResult(
             name="Detailed check",
@@ -170,6 +171,7 @@ class TestRunAllDiagnostics:
 
     def test_run_single_passing_diagnostic(self) -> None:
         """Test running a single passing diagnostic."""
+
         def passing_check() -> DiagnosticResult:
             return DiagnosticResult(
                 name="Passing check",
@@ -186,6 +188,7 @@ class TestRunAllDiagnostics:
 
     def test_run_multiple_diagnostics(self) -> None:
         """Test running multiple diagnostics."""
+
         def check_a() -> DiagnosticResult:
             return DiagnosticResult(
                 name="Check A",
@@ -212,6 +215,7 @@ class TestRunAllDiagnostics:
 
     def test_stop_on_failure(self) -> None:
         """Test that stop_on_failure raises RuntimeError on first failure."""
+
         def failing_check() -> DiagnosticResult:
             return DiagnosticResult(
                 name="Failing check",
