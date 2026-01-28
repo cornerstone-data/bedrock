@@ -501,7 +501,7 @@ wheels = [
 [[package]]
 name = "fedelemflowlist"
 version = "1.3.1"
-source = { git = "https://github.com/FLCAC-admin/fedelemflowlist.git#fc5f26cb66efbe7f2912e718df64dcf8a0b7be4d" }
+source = { git = "https://github.com/FLCAC-admin/fedelemflowlist.git#82bcd3678e84c56b79702175611d8cb9dec43394" }
 dependencies = [
     { name = "esupy" },
     { name = "olca-schema" },
