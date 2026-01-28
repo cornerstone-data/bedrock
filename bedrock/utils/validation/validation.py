@@ -850,7 +850,7 @@ def calculate_industry_coefficients(
         if isinstance(impacts, bool):
             impacts = 'TRACI2.1'
         try:
-            import lciafmt  # noqa: F401  # pyright: ignore[reportMissingImports]
+            import lciafmt  # noqa: F401, PLC0415  # pyright: ignore[reportMissingImports]
 
             fbs_summary = lciafmt.apply_lcia_method(fbs, impacts).rename(
                 columns={'FlowAmount': 'InvAmount', 'Impact': 'FlowAmount'}
