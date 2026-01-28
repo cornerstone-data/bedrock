@@ -499,7 +499,7 @@ def coa_common_parse(df: pd.DataFrame) -> pd.DataFrame:
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 2
     # Keep only necessary columns
-    df = df[flow_by_activity_fields]
+    df = df[[c for c in flow_by_activity_fields.keys() if c in df.columns]]
     return df
 
 
