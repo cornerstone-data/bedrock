@@ -10,7 +10,7 @@ from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.dqi import adjust_dqi_reliability_collection_scores
 
 
-def return_naics_crosswalk(year: Literal[2012, 2017]) -> pd.DataFrame:
+def return_naics_crosswalk(year: Literal[2002, 2007, 2012, 2017]) -> pd.DataFrame:
     """
     Load a naics crosswalk for 2012 or 2017 codes
 
@@ -27,7 +27,8 @@ def return_naics_crosswalk(year: Literal[2012, 2017]) -> pd.DataFrame:
 
 
 def industry_spec_key(
-    industry_spec: dict, year: Literal[2002, 2007, 2012, 2017]  # Year of NAICS code
+    industry_spec: dict[str, str | list[str]],
+    year: Literal[2002, 2007, 2012, 2017],  # Year of NAICS code
 ) -> pd.DataFrame:
     """
     Provides a key for mapping any set of NAICS codes to a given industry
@@ -64,7 +65,9 @@ def industry_spec_key(
     """
 
     naics = return_naics_crosswalk(year)
-    naics = naics.assign(target_naics=naics[industry_spec['default']])
+    default_col = industry_spec['default']
+    assert isinstance(default_col, str), "'default' must be a string column name"
+    naics = naics.assign(target_naics=naics[default_col])
     for level, industries in industry_spec.items():
         if level not in ['default', 'non_naics']:
             naics['target_naics'] = naics['target_naics'].mask(
@@ -98,12 +101,12 @@ def industry_spec_key(
 
 
 def subset_sector_key(
-    flowbyactivity,
-    activitycol,
-    sector_source_year,
-    primary_sector_key,
-    secondary_sector_key=None,
-):
+    flowbyactivity: pd.DataFrame,
+    activitycol: str,
+    sector_source_year: str,
+    primary_sector_key: pd.DataFrame,
+    secondary_sector_key: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """
     Subset the sector key to return an industry that most closely maps source sectors to target
     sectors by matching on sector length, based on the sectors that are in the FBA
@@ -127,6 +130,9 @@ def subset_sector_key(
         merge_col = "Activity"
         drop_col = "source_naics"
 
+        assert (
+            secondary_sector_key is not None
+        ), "secondary_sector_key required when Activity column present"
         primary_sector_key = primary_sector_key.merge(
             secondary_sector_key,
             how='left',
@@ -201,10 +207,10 @@ def subset_sector_key(
     # drop parent sectors if parent-completechild
     if flowbyactivity.config.get('sector_hierarchy') == 'parent-completeChild':
 
-        def drop_parent_sectors(sector_key):
+        def drop_parent_sectors(sector_key: pd.DataFrame) -> pd.DataFrame:
             sector_list = sector_key['source_naics'].astype(str).tolist()
 
-            def is_parent(x):
+            def is_parent(x: str) -> bool:
                 return any(
                     sector != x and sector.startswith(x) for sector in sector_list
                 )
@@ -233,7 +239,7 @@ def subset_sector_key(
     ].reset_index(drop=True)
 
     # function to identify which source naics most closely match to the target naics
-    def subset_target_sectors_by_source_sectors(group):
+    def subset_target_sectors_by_source_sectors(group: pd.DataFrame) -> pd.DataFrame:
         target = group["target_naics"].iloc[0]
         target_length = len(target)
 
@@ -305,14 +311,16 @@ def subset_sector_key(
 
 
 def map_target_sectors_to_less_aggregated_sectors(
-    industry_spec: dict, year: Literal[2002, 2007, 2012, 2017]
+    industry_spec: dict[str, str | list[str]], year: Literal[2002, 2007, 2012, 2017]
 ) -> pd.DataFrame:
     """
     Map target NAICS to all possible other sector lengths
     flat hierarchy
     """
     naics = return_naics_crosswalk(year)
-    naics = naics.assign(target_naics=naics[industry_spec['default']])
+    default_col = industry_spec['default']
+    assert isinstance(default_col, str), "'default' must be a string column name"
+    naics = naics.assign(target_naics=naics[default_col])
     for level, industries in industry_spec.items():
         if level not in ['default', 'non_naics']:
             naics['target_naics'] = naics['target_naics'].mask(
@@ -461,7 +469,9 @@ def year_crosswalk(
     )
 
 
-def check_if_sectors_are_naics(df_load, crosswalk_list, column_headers):
+def check_if_sectors_are_naics(
+    df_load: pd.DataFrame, crosswalk_list: list[str], column_headers: list[str]
+) -> list[str]:
     """
     Check if activity-like sectors are in fact sectors.
     Also works for the Sector column
@@ -472,36 +482,37 @@ def check_if_sectors_are_naics(df_load, crosswalk_list, column_headers):
     """
 
     # create a df of non-sectors to export
-    non_sectors_df = []
+    non_sectors_df: list[pd.DataFrame] = []
     # create a df of just the non-sectors column
-    non_sectors_list = []
+    non_sectors_list: list[pd.DataFrame] = []
     # loop through the df headers and determine if value
     # is not in crosswalk list
     for c in column_headers:
         # create df where sectors do not exist in master crosswalk
-        non_sectors = df_load[~df_load[c].isin(crosswalk_list)]
+        non_sectors_filtered = df_load[~df_load[c].isin(crosswalk_list)]
         # drop rows where c is empty
-        non_sectors = non_sectors[~non_sectors[c].isna()]
+        non_sectors_filtered = non_sectors_filtered[~non_sectors_filtered[c].isna()]
         # subset to just the sector column
-        if len(non_sectors) != 0:
-            sectors = non_sectors[[c]].rename(columns={c: 'NonSectors'})
-            non_sectors_df.append(non_sectors)
+        if len(non_sectors_filtered) != 0:
+            sectors = non_sectors_filtered[[c]].rename(columns={c: 'NonSectors'})
+            non_sectors_df.append(non_sectors_filtered)
             non_sectors_list.append(sectors)
 
+    non_sectors_result: list[str] = []
     if len(non_sectors_df) != 0:
         # concat the df and the df of sectors
         ns_list = pd.concat(non_sectors_list, sort=False, ignore_index=True)
         # print the NonSectors
-        non_sectors = ns_list['NonSectors'].drop_duplicates().tolist()
+        non_sectors_result = ns_list['NonSectors'].drop_duplicates().tolist()
         vlog.debug('There are sectors that are not target NAICS Codes')
-        vlog.debug(non_sectors)
+        vlog.debug(non_sectors_result)
 
-    return non_sectors
+    return non_sectors_result
 
 
 def generate_naics_crosswalk_conversion_ratios(
-    sectorsourcename, targetsectorsourcename
-):
+    sectorsourcename: str, targetsectorsourcename: str
+) -> pd.DataFrame:
     """
     Create a melt version of the source naics source years crosswalk to map
     naics to naics target year
@@ -546,8 +557,9 @@ def generate_naics_crosswalk_conversion_ratios(
 
     # TODO: modify how unofficial sectors are added - ensure correct mapping between years
     # append the unofficial sector codes
+    year_match = re.search(r'\d+', sectorsourcename)
     year_df = common.load_sector_length_cw_melt(
-        re.search(r'\d+', sectorsourcename).group()
+        year_match.group() if year_match else '2012'
     )
     year_df = year_df[year_df['SectorLength'] > 6]
     year_df = year_df.rename(columns={'Sector': 'source', 'SectorLength': 'length'})
@@ -580,7 +592,9 @@ def generate_naics_crosswalk_conversion_ratios(
     return ratios_df
 
 
-def return_closest_naics_year(nonsectors, mapping, targetsectorsourcename):
+def return_closest_naics_year(
+    nonsectors: list[str], mapping: pd.DataFrame, targetsectorsourcename: str
+) -> dict[str, str]:
     """
     Match sectors to the closest NAICS year to target naics using naics timeseries.
     """
@@ -604,8 +618,12 @@ def return_closest_naics_year(nonsectors, mapping, targetsectorsourcename):
 
 
 def replace_sectors_with_targetsectors(
-    df, non_naics, cw_melt, column_headers, targetsectorsourcename
-):
+    df: pd.DataFrame,
+    non_naics: list[str],
+    cw_melt: pd.DataFrame,
+    column_headers: list[str],
+    targetsectorsourcename: str,
+) -> pd.DataFrame:
     """
     Replacing sectors with those of the target yeear
     :param df:
@@ -640,7 +658,12 @@ def replace_sectors_with_targetsectors(
     return df
 
 
-def convert_naics_year(df_load, targetsectorsourcename, sectorsourcename, dfname):
+def convert_naics_year(
+    df_load: pd.DataFrame,
+    targetsectorsourcename: str,
+    sectorsourcename: str,
+    dfname: str,
+) -> pd.DataFrame:
     """
     Convert sector year
     :param df_load: df with sector columns or sector-like activities
@@ -784,13 +807,13 @@ def convert_naics_year(df_load, targetsectorsourcename, sectorsourcename, dfname
         if "NAICS" in activity_schema:
             df2 = (
                 df.drop(columns=['group_id', 'group_total']).aggregate_flowby(
-                    columns_to_group_by=df.groupby_cols
+                    columns_to_group_by=df.groupby_cols  # type: ignore[operator]
                 )
             ).reset_index(drop=True)
             df2 = df2.assign(group_id=df2.index, group_total=df2['FlowAmount'])
         else:
             df2 = df.aggregate_flowby(
-                columns_to_group_by=df.groupby_cols + ['group_id']
+                columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]
             )
     # stewi data are imported as DF, not as FBA/FBS Class Objects
     else:
@@ -816,8 +839,8 @@ def convert_naics_year(df_load, targetsectorsourcename, sectorsourcename, dfname
 
 
 def return_max_sector_level(
-    industry_spec: dict,
-) -> pd.DataFrame:
+    industry_spec: dict[str, str | list[str]],
+) -> int:
     """
     Return max sector length/level based on industry spec.
 
@@ -832,9 +855,11 @@ def return_max_sector_level(
     # list of keys in industry spec
     level_list = list(industry_spec.keys())
     # append default sector level
-    level_list.append(industry_spec['default'])
+    default_val = industry_spec['default']
+    if isinstance(default_val, str):
+        level_list.append(default_val)
 
-    n = []
+    n: list[int] = []
     for string in level_list:
         # Convert each found number to an integer and extend the result into the list n
         n.extend(map(int, re.findall(r'\d+', string)))
