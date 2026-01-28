@@ -332,12 +332,6 @@ def coa_cropland_parse(
 
     # modify contents of units column
     df.loc[df['Unit'] == 'OPERATIONS', 'Unit'] = 'p'
-    # modify contents of flowamount column, "D" is supressed data,
-    # "z" means less than half the unit is shown
-    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
-    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
     # add location system based on year of data
     df = assign_fips_location_system(df, year)
     # Add hardcoded data
@@ -391,12 +385,6 @@ def coa_livestock_parse(
         }
     )
 
-    # modify contents of flowamount column, "D" is supressed data,
-    # "z" means less than half the unit is shown
-    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
-    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    # df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = withdrawn_keyword
-    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
     # add location system based on year of data
     df = assign_fips_location_system(df, year)
     # # Add hardcoded data
@@ -461,12 +449,6 @@ def coa_cropland_NAICS_parse(
 
     # modify contents of units column
     df.loc[df['Unit'] == 'OPERATIONS', 'Unit'] = 'p'
-    # modify contents of flowamount column, "D" is supressed data,
-    # "z" means less than half the unit is shown
-    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
-    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
 
     # drop Descriptions that contain certain phrases, as these
     # data are included in other categories
@@ -497,6 +479,13 @@ def coa_common_parse(df: pd.DataFrame) -> pd.DataFrame:
         df['county_code'], 3
     )
     df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
+
+    # modify contents of flowamount column, "D" is supressed data,
+    # "z" means less than half the unit is shown
+    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
+    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
+    df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = WITHDRAWN_KEYWORD
+    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
 
     # USDA CoA 2017 states that (H) means CV >= 99.95,
     # therefore replacing with 99.95 so can convert column to int
