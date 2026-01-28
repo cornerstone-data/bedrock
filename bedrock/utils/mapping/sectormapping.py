@@ -341,6 +341,7 @@ def get_BEA_industry_output(region, io_level, output_year, bea_year=2012):
     :param output_year: year for industry output
     :param bea_year: 2012 or 2017
     """
+    from bedrock.extract.flowbyactivity import getFlowByActivity
     if region == 'state':
         fba = 'stateio_Industry_GO'
         if io_level == 'detail':
@@ -349,7 +350,7 @@ def get_BEA_industry_output(region, io_level, output_year, bea_year=2012):
         fba = 'BEA_Detail_GrossOutput_IO'
 
     # Get output by BEA sector
-    bea = bedrock.extract.flowbyactivity.getFlowByActivity(fba, output_year)
+    bea = getFlowByActivity(fba, output_year)
     bea = bea.drop(
         columns=bea.columns.difference(['FlowAmount', 'ActivityProducedBy', 'Location'])
     ).rename(columns={'FlowAmount': 'Output', 'ActivityProducedBy': 'BEA'})
