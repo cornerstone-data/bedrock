@@ -160,10 +160,11 @@ def _define_filename(url: str) -> str:
     """Parse the query to set the filename"""
     query_params = parse_qs(urlparse(url).query)
     agg_level = query_params['agg_level_desc'][0]
+    desc = (query_params['sector_desc'][0]).replace('&', '')
     loc = ('US' if agg_level == "NATIONAL" else query_params['state_alpha'][0]) + (
         "_County" if agg_level == "COUNTY" else ""
     )
-    return f"{loc}_{query_params['sector_desc'][0]}"
+    return f"{loc}_{''.join(desc.split())}"
 
 
 def coa_load_gcs(**kwargs: Any) -> pd.DataFrame:
