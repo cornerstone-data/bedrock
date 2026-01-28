@@ -345,11 +345,12 @@ def coa_cropland_parse(
     df['Activity'] = df['Activity'].str.replace(
         ", ALL UTILIZATION PRACTICES", "", regex=True
     )
-    df['ActivityProducedBy'] = np.where(
-        df["unit_desc"] == 'OPERATIONS', df["Activity"], None
+    df["ActivityProducedBy"] = (
+        df["Activity"].astype("string").where(df["unit_desc"].eq("OPERATIONS"), pd.NA)
     )
-    df['ActivityConsumedBy'] = np.where(
-        df["unit_desc"] == 'ACRES', df["Activity"], None
+
+    df["ActivityConsumedBy"] = (
+        df["Activity"].astype("string").where(df["unit_desc"].eq("ACRES"), pd.NA)
     )
 
     # rename columns to match flowbyactivity format
@@ -396,7 +397,9 @@ def coa_cropland_parse(
     return df
 
 
-def coa_livestock_parse(*, df_list, year, **_):
+def coa_livestock_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_kwargs: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -628,7 +631,7 @@ def coa_cropland_NAICS_parse(
     return df
 
 
-def coa_common_parse(df):
+def coa_common_parse(df: pd.DataFrame) -> pd.DataFrame:
     # USDA CoA 2017 states that (H) means CV >= 99.95,
     # therefore replacing with 99.95 so can convert column to int
     # (L) is a CV of <= 0.05
