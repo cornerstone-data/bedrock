@@ -1,0 +1,10 @@
+name: generate_diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
