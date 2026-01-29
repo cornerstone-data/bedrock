@@ -202,6 +202,7 @@ def coa_cropland_parse(
                 'ORGANIC STATUS',
                 'NAICS CLASSIFICATION',
                 'PRODUCERS',
+                'TYPOLOGY',
             ]
         )
     ]
