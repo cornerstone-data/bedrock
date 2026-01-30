@@ -143,6 +143,7 @@ name = "bedrock"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "esupy" },
     { name = "fedelemflowlist" },
     { name = "google-api-python-client" },
@@ -182,6 +183,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.1.7,<9.0.0" },
     { name = "esupy", git = "https://github.com/USEPA/esupy.git" },
     { name = "fedelemflowlist", git = "https://github.com/FLCAC-admin/fedelemflowlist.git" },
     { name = "google-api-python-client", specifier = ">=2.102.0,<3.0.0" },

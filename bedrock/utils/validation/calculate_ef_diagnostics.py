@@ -1,0 +1,1 @@
+"""EF diagnostics calculation."""
