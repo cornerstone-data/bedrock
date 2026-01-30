@@ -10,7 +10,7 @@ EX: --year 2015 --source USGS_NWIS_WU
 
 import argparse
 import time
-from typing import Any, List
+from typing import Any, List, Union, cast
 from urllib import parse
 
 import pandas as pd
@@ -56,7 +56,7 @@ def set_fba_name(source: str, year: str | None) -> str:
 
 def assemble_urls_for_query(
     *, source: str, year: str, config: dict[str, Any]
-) -> List[str]:
+) -> List[str | None]:
     """
     Calls on helper functions defined in source.py files to
     replace parts of the url string
@@ -220,18 +220,18 @@ def process_data_frame(
     reset_log_file(name_data, meta)
 
 
-def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
-    """
-    Generate FBA parquet(s)
-    :param kwargs: 'source' and 'year'
-    :return: parquet saved to local directory
-    """
-    # assign arguments
-    if len(kwargs) == 0:
-        kwargs = parse_args()
-
-    source = kwargs['source']
-    year = kwargs['year']
+def load_fba_config(
+    source: str | None = None,
+    year: Union[int, str] | None = None,
+) -> tuple[str, str, dict[str, Any]]:
+    """Loads the config file for the FBA"""
+    # Fill from CLI args if not provided
+    if source is None or year is None:
+        args = parse_args()
+        if source is None:
+            source = cast(str, args['source'])
+        if year is None:
+            year = cast(Union[int, str], args['year'])
 
     # assign yaml parameters (common.py fxn), drop any extensions to FBA
     # filename if run into error
@@ -244,6 +244,15 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
         log.info(f'Generating FBA for {source}')
         config = load_yaml_dict(source, flowbytype='FBA')
 
+    return (source, year, config)
+
+
+def process_fba_config(
+    source: str,
+    year: str,
+    config: dict[str, Any],
+) -> None:
+    """Process the FBA based on the config"""
     log.info("Creating dataframe list")
     # year input can either be sequential years (e.g. 2007-2009) or single year
     if '-' in str(year):
@@ -300,6 +309,20 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
 
         else:
             process_data_frame(df=dfs, source=source, year=year, config=config)
+
+
+def generateFlowByActivity(
+    source: str | None = None,
+    year: Union[int, str] | None = None,
+) -> None:
+    """
+    Generate FBA parquet(s) saved to local directory
+    :param source: data source name
+    :param year: single year as int/str or a range as 'YYYY-YYYY'
+    """
+
+    source, year, config = load_fba_config(source, year)
+    process_fba_config(source, year, config)
 
 
 if __name__ == '__main__':
