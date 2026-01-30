@@ -310,6 +310,11 @@ def eia_mecs_energy_call(
     df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name=0, header=None)
     df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
 
+    table = os.path.basename(resp.url)
+    # write table to Excel
+    with open(f"{os.path.join(IN_DIR, table)}", "wb") as f:
+        f.write(resp.content)
+
     df = _eia_clean_mecs_energy(df_raw_data, df_raw_rse, year, config)
 
     return df
