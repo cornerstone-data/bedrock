@@ -140,7 +140,7 @@ def call_urls(
                 elif fxn:
                     raise FBSMethodConstructionError(error_type='fxn_call')
 
-            if "gcs_fxn" in config:
+            else:
                 fxn = config.get("gcs_fxn")
                 if callable(fxn):
                     df = fxn(source=source, year=year, config=config, url=url)
