@@ -119,19 +119,10 @@ def call_urls(
     if url_list[0] is not None:
         for url in url_list:
             df = None
-            if config.get('load_from_gcs'):
-                fxn = config.get("gcs_fxn")
-                if callable(fxn):
-                    df = fxn(source=source, year=year, config=config, url=url)
-                elif fxn:
-                    raise FBSMethodConstructionError(error_type='fxn_call')
-                else:
-                    raise FBSMethodConstructionError(
-                        message="Must indicate 'gsc_fxn' when 'load_from_gcs' is True"
-                    )
-
-            else:
-                # Note: This else branch using the call_response_fxn will be deprecated once
+            if (config.get("extract_data_from_raw_sources")) or (
+                "gcs_fxn" not in config  # for older FBAs
+            ):
+                # The second half of this if statement will be deprecated once
                 # all FBAs have been shifted over to GCS, but is needed to be backwards
                 # compatible.
                 log.info("Calling %s", url)
@@ -148,6 +139,18 @@ def call_urls(
                     )
                 elif fxn:
                     raise FBSMethodConstructionError(error_type='fxn_call')
+
+            if "gcs_fxn" in config:
+                fxn = config.get("gcs_fxn")
+                if callable(fxn):
+                    df = fxn(source=source, year=year, config=config, url=url)
+                elif fxn:
+                    raise FBSMethodConstructionError(error_type='fxn_call')
+                else:
+                    raise FBSMethodConstructionError(
+                        message="Must indicate 'gcs_fxn' to load from GCS."
+                    )
+
             if isinstance(df, pd.DataFrame):
                 data_frames_list.append(df)
             elif isinstance(df, list):
