@@ -313,7 +313,26 @@ def compare_FBA_results(
         df2 = bedrock.extract.flowbyactivity.getFlowByActivity(
             datasource=source, year=year, git_version=fba2_version  # type: ignore[arg-type]
         )
+    df_m = _compare_fba_values(df1, df2)
+    # if no differences, print, if differences, provide df subset
+    if len(df_m) == 0:
+        log.info(f'No differences between FBA dataframes for {source}')
+    else:
+        log.info(f'Differences exist between FBA dataframes for {source}')
+        df_m = df_m.sort_values(
+            [
+                'Location',
+                'ActivityProducedBy',
+                'ActivityConsumedBy',
+                'FlowName',
+                'Class',
+            ]
+        ).reset_index(drop=True)
+    return df_m
 
+
+def _compare_fba_values(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    """Evaluate differences between two FBA dataframes"""
     df1 = df1.rename(columns={'FlowAmount': 'FlowAmount_fba1'})
     df2 = df2.rename(columns={'FlowAmount': 'FlowAmount_fba2'})
     merge_cols = [
@@ -345,20 +364,7 @@ def compare_FBA_results(
     df_m = df_m[
         df_m['FlowAmount_diff'].apply(lambda x: round(abs(x), 2) != 0)
     ].reset_index(drop=True)
-    # if no differences, print, if differences, provide df subset
-    if len(df_m) == 0:
-        log.info(f'No differences between FBA dataframes for {source}')
-    else:
-        log.info(f'Differences exist between FBA dataframes for {source}')
-        df_m = df_m.sort_values(
-            [
-                'Location',
-                'ActivityProducedBy',
-                'ActivityConsumedBy',
-                'FlowName',
-                'Class',
-            ]
-        ).reset_index(drop=True)
+
     return df_m
 
 

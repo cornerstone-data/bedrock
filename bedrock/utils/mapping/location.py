@@ -460,6 +460,74 @@ def reshape_urb_rur_df(df: pd.DataFrame) -> pd.DataFrame | None:
     return df
 
 
+def to_ndigit_str(
+    s: pd.Series,
+    digits: int,
+    fill_value: int | float | str = 0,
+    strict: bool = False,
+) -> pd.Series:
+    """
+    Convert a Series to zero-padded, fixed-width digit strings with no decimals and no NaNs.
+    Decimals are truncated toward zero.
+
+    Parameters
+    ----------
+    s : pd.Series
+        Input series containing numbers or strings (possibly with decimals or NaNs).
+    digits : int
+        Target string width; values are zero-padded to this length.
+    fill_value : int | float | str, default 0
+        Replacement for values that cannot be parsed to numeric (NaNs after coercion).
+        If str, it will be parsed numerically; non-parsable falls back to 0.
+    strict : bool, default False
+        If True, raise ValueError when any value falls outside [0, 10**digits - 1].
+        If False, values are clamped to that range.
+
+    Returns
+    -------
+    pd.Series
+        String series where each value is a zero-padded, `digits`-wide non-negative integer.
+
+    Examples
+    --------
+    >>> s = pd.Series(['1', 23, 7.9, None, 'abc'])
+    >>> to_ndigit_str(s, digits=3)
+    0    001
+    1    023
+    2    007
+    3    000
+    4    000
+    dtype: object
+    """
+    # Coerce to numeric; non-parsable -> NaN
+    s_num = pd.to_numeric(s, errors="coerce")
+
+    # If fill_value is a string, try to parse; fallback to 0 if not parsable
+    if isinstance(fill_value, str):
+        fv = pd.to_numeric(pd.Series([fill_value]), errors="coerce").iloc[0]
+        fill_value = 0 if pd.isna(fv) else fv
+
+    # Replace NaNs from coercion
+    s_num = s_num.fillna(fill_value)
+
+    # Truncate toward zero and cast to integer
+    s_int = s_num.astype(int)
+
+    # Range handling
+    lo, hi = 0, 10**digits - 1
+    if strict:
+        bad = s_int[(s_int < lo) | (s_int > hi)]
+        if not bad.empty:
+            raise ValueError(
+                f"Values out of range [{lo}, {hi}]: {bad.unique()[:10].tolist()}"
+            )
+    else:
+        s_int = s_int.clip(lo, hi)
+
+    # Zero-pad to fixed width
+    return s_int.astype(str).str.zfill(digits)
+
+
 if __name__ == "__main__":
     df = pd.DataFrame()
     for year in [2010, 2020]:

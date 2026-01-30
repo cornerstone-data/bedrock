@@ -102,7 +102,10 @@ known-first-party = ["bedrock"]
 "bedrock/extract/stateio/*" = ["ALL"]
 "bedrock/extract/stewifbs/*" = ["ALL"]
 "bedrock/extract/unep/*" = ["ALL"]
-"bedrock/extract/usda/*" = ["ALL"]
+"bedrock/extract/usda/USDA_ACUP.py" = ["ALL"]
+"bedrock/extract/usda/USDA_ERS_FIWS.py" = ["ALL"]
+"bedrock/extract/usda/USDA_ERS_MLU.py" = ["ALL"]
+"bedrock/extract/usda/USDA_IWMS.py" = ["ALL"]
 "bedrock/extract/usgs/*" = ["ALL"]
 "bedrock/publish/visualization/datavisualization.py" = ["ALL"] # temporary turn off
 
