@@ -26,10 +26,10 @@ class scale(enum.Enum):
         self.aggregation_level = aggregation_level
         self.has_fips_level = has_fips_level
 
-    def __lt__(self, other):
-        if other.__class__ is self.__class__:
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, scale):
             return self.aggregation_level < other.aggregation_level
-        elif other in [float('inf'), float('-inf')]:
+        elif isinstance(other, float) and other in [float('inf'), float('-inf')]:
             # ^^^ Add np.nan to list if such comparison is needed.
             return self.aggregation_level < other
             # ^^^ Enables pandas max and min functions to work even if
@@ -50,16 +50,16 @@ class scale(enum.Enum):
         :param geoscale: str
         :return: geo.scale constant
         '''
-        geoscale = geoscale.lower()
-        if geoscale == 'national':
+        geoscale_lower = geoscale.lower()
+        if geoscale_lower == 'national':
             return cls.NATIONAL
-        elif geoscale == 'census_region':
+        elif geoscale_lower == 'census_region':
             return cls.CENSUS_REGION
-        elif geoscale == 'census_division':
+        elif geoscale_lower == 'census_division':
             return cls.CENSUS_DIVISION
-        elif geoscale == 'state':
+        elif geoscale_lower == 'state':
             return cls.STATE
-        elif geoscale == 'county':
+        elif geoscale_lower == 'county':
             return cls.COUNTY
         else:
             raise ValueError(f'No geo.scale level corresponds to {geoscale}')

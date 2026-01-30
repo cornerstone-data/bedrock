@@ -3,11 +3,14 @@ Functions associated with data quality scoring
 """
 
 import numpy as np
+import pandas as pd
 
 from bedrock.utils.config.common import load_sector_length_cw_melt
 
 
-def adjust_dqi_reliability_collection_scores(df, sector_source_year):
+def adjust_dqi_reliability_collection_scores(
+    df: pd.DataFrame, sector_source_year: str
+) -> pd.DataFrame:
     """
     Adjust the dqi scores for
     Data Reliability, Data Collection
