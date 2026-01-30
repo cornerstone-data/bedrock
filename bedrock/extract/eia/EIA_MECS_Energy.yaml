@@ -12,7 +12,7 @@ url_replace_fxn: !script_function:EIA_MECS eia_mecs_URL_helper
 call_response_fxn: !script_function:EIA_MECS eia_mecs_energy_call
 gcs_fxn: !script_function:EIA_MECS eia_mecs_energy_load_gcs
 parse_response_fxn: !script_function:EIA_MECS eia_mecs_energy_parse
-load_from_gcs: True
+extract_data_from_raw_sources: False
 years:
 # TODO: Limited tables available on GCS at this time
 # - 2010
