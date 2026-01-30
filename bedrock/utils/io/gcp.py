@@ -15,6 +15,7 @@ import googleapiclient.discovery
 import pandas as pd
 import tenacity
 from google.cloud.storage.blob import Blob
+from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
@@ -156,9 +157,71 @@ def __credentials() -> ta.Tuple[google.auth.credentials.Credentials, ta.Any]:
     credentials, project_id = google.auth.default(
         scopes=[
             "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/spreadsheets",
         ]
     )
     return credentials, project_id
+
+
+@functools.cache
+def __sheets_client() -> googleapiclient.discovery.Resource:
+    credentials, _ = __credentials()
+    return googleapiclient.discovery.build('sheets', 'v4', credentials=credentials)
+
+
+def update_sheet_tab(
+    sheet_id: str,
+    tab: str,
+    data: pd.DataFrame,
+    clean_nans: bool = False,
+) -> None:
+    """
+    Write a DataFrame to a Google Sheets tab, creating the tab if needed.
+
+    Args:
+        sheet_id: The Google Sheets document ID
+        tab: The name of the tab to write to
+        data: The DataFrame to write
+        clean_nans: If True, replace NaN values with None
+    """
+    logger.info(f'updating data "{sheet_id}:{tab}"')
+    client = __sheets_client()
+
+    values = data.values.tolist()
+    if clean_nans:
+        clean_values = []
+        for row in values:
+            clean_row = [None if pd.isna(val) else val for val in row]
+            clean_values.append(clean_row)
+        values = clean_values
+
+    try:
+        sheet_metadata = client.spreadsheets().get(spreadsheetId=sheet_id).execute()
+        sheet_exists = any(
+            sheet["properties"]["title"] == tab
+            for sheet in sheet_metadata.get("sheets", [])
+        )
+    except HttpError:
+        sheet_exists = False
+
+    # If the sheet doesn't exist, create it
+    if not sheet_exists:
+        request_body = {"requests": [{"addSheet": {"properties": {"title": tab}}}]}
+        client.spreadsheets().batchUpdate(
+            spreadsheetId=sheet_id, body=request_body
+        ).execute()
+
+    data_range = f"'{tab}'"  # the whole tab
+
+    client.spreadsheets().values().clear(
+        spreadsheetId=sheet_id, range=data_range
+    ).execute()
+    client.spreadsheets().values().update(
+        spreadsheetId=sheet_id,
+        range=data_range,
+        valueInputOption="RAW",
+        body={"values": [data.columns.tolist()] + values},
+    ).execute()
 
 
 def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
