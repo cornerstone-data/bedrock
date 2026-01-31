@@ -177,7 +177,7 @@ def FBSscatterplot(
             imp_method = list(impact_cat.keys())[0]
             indicator = list(impact_cat.values())[0]
         try:
-            import lciafmt
+            import lciafmt  # noqa: PLC0415
 
             df_impacts = lciafmt.apply_lcia_method(df, imp_method).rename(
                 columns={'FlowAmount': 'InvAmount', 'Impact': 'FlowAmount'}
@@ -186,8 +186,6 @@ def FBSscatterplot(
             # should stay in the df
             fl = df.query('FlowUUID not in @df_impacts.FlowUUID')
             df_impacts = df_impacts.query('Indicator == @indicator')
-            ind_units = set(df_impacts['Indicator unit'])
-            # fl = fl.query('Unit in @ind_units')
             fl = fl.query('Unit == "kg CO2e"').assign(Unit='kg')
             df = pd.concat([df_impacts, fl], ignore_index=True)
             if len(df) == 0:
@@ -355,7 +353,7 @@ def stackedBarChart(
             imp_method = list(impact_cat.keys())[0]
             indicator = list(impact_cat.values())[0]
         try:
-            import lciafmt
+            import lciafmt  # noqa: PLC0415
 
             fbs_df = lciafmt.apply_lcia_method(fbs_df, imp_method).rename(
                 columns={'FlowAmount': 'InvAmount', 'Impact': 'FlowAmount'}
@@ -571,7 +569,7 @@ def plot_state_coefficients(
     indicator: str | None = None,
     sectors_to_include: list[str] | None = None,
 ) -> FacetGrid:
-    from bedrock.utils.mapping.location import US_FIPS, get_state_FIPS
+    from bedrock.utils.mapping.location import US_FIPS, get_state_FIPS  # noqa: PLC0415
 
     df = fbs_coeff.merge(
         get_state_FIPS(abbrev=True), how='left', left_on='Location', right_on='FIPS'
