@@ -4,8 +4,11 @@
 import pandas as pd
 import pytest
 
+from bedrock.transform.eeio.derived import derive_ydom_and_yimp_usa
+from bedrock.transform.eeio.derived_2017 import derive_2017_q_usa, derive_2017_U_set_usa
 from bedrock.utils.validation.eeio_diagnostics import (
     DiagnosticResult,
+    compareCommodityOutputandDomesticUseplusProductionDemand,
     format_diagnostic_result,
     run_all_diagnostics,
 )
@@ -264,3 +267,26 @@ class TestRunAllDiagnostics:
 
         assert len(results) == 2
         assert call_order == ["a", "b"]
+
+
+# @pytest.mark.eeio_integration # Remove comment when we are sure this test passes
+class TestcompareCommodityOutputandDomesticUseplusProductionDemand:
+    "Tests for the compareCommodityOuputandDomesticUseplusProductionDemand function"
+
+
+def test_compare_Uset_y_dom_and_q_usa() -> None:
+
+    U_set = derive_2017_U_set_usa()
+    y = derive_ydom_and_yimp_usa()
+    q = derive_2017_q_usa()
+
+    U_d = U_set.Udom
+    y_d = y.ydom
+
+    r_q_with_U_d_and_y_d_validation = (
+        compareCommodityOutputandDomesticUseplusProductionDemand(
+            q=q, U_d=U_d, y_d=y_d, tolerance=0.01, include_details=True
+        )
+    )
+
+    assert len(r_q_with_U_d_and_y_d_validation.failing_sectors) == 0
