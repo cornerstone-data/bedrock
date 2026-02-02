@@ -254,8 +254,10 @@ def process_fba_config(
     source: str,
     year: str,
     config: dict[str, Any],
+    call_only: bool,
 ) -> None:
-    """Process the FBA based on the config"""
+    """Process the FBA based on the config.
+    Use call_only = True to only generate the raw data without processing into FBA"""
     log.info("Creating dataframe list")
     # year input can either be sequential years (e.g. 2007-2009) or single year
     if '-' in str(year):
@@ -276,6 +278,8 @@ def process_fba_config(
     if config.get('call_all_years'):
         urls = assemble_urls_for_query(source=source, year=None, config=config)
         df_list = call_urls(url_list=urls, source=source, year=None, config=config)
+        if call_only:
+            return None
         dfs = parse_data(df_list=df_list, source=source, year=None, config=config)
         call_all_years = True
     else:
@@ -287,6 +291,9 @@ def process_fba_config(
             urls = assemble_urls_for_query(source=source, year=year, config=config)
             # create a list with data from all source urls
             df_list = call_urls(url_list=urls, source=source, year=year, config=config)
+            if call_only:
+                dfs = []
+                continue
             # concat the dataframes and parse data with specific
             # instructions from source.py
             log.info("Concat dataframe list and parse data")
@@ -317,15 +324,18 @@ def process_fba_config(
 def generateFlowByActivity(
     source: str | None = None,
     year: Union[int, str] | None = None,
+    call_only: bool = False,
 ) -> None:
     """
     Generate FBA parquet(s) saved to local directory
     :param source: data source name
     :param year: single year as int/str or a range as 'YYYY-YYYY'
+    :param call_only: bool, True to only call the urls without processing the dataframes,
+        e.g., when extracting raw data only. Default is False
     """
 
     source, year, config = load_fba_config(source, year)
-    process_fba_config(source, year, config)
+    process_fba_config(source, year, config, call_only)
 
 
 if __name__ == '__main__':
