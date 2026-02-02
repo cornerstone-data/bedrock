@@ -51,7 +51,7 @@ def write_metadata(
     config: dict[str, Any],
     fb_meta: FileMeta,
     pth: str,
-    **kwargs: dict[str, Any],
+    **kwargs: Any,
 ) -> None:
     """
     Write the metadata and output as a JSON in a local directory
