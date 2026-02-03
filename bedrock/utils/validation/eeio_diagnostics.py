@@ -11,6 +11,7 @@ import dataclasses as dc
 import logging
 import typing as ta
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,85 @@ def format_diagnostic_result(result: DiagnosticResult) -> str:
 
 
 DiagnosticCallable = ta.Callable[[], DiagnosticResult]
+
+
+def compare_commodity_output_to_domestics_use_plus_exports(
+    q: pd.Series[float],
+    U_d: pd.DataFrame,
+    y_d: pd.Series[float],
+    *,
+    tolerance: float = 0.01,
+    include_details: bool = False,
+) -> DiagnosticResult:
+    """
+    Compares the total commodity output against the summation of model domestic Use (U_D) and production demand (y_d, including exports)
+
+
+    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
+    is treated as 0.
+
+    Parameters
+    ----------
+    q
+        Float series from e.g. ``derive_2017_q_usa``
+    U_d
+        Dataframe from e.g. ``derive_2017_U_set_usa().Udom
+    y_d
+        Float series from e.g. ``derive_ydom_and_yimp_usa().ydom``
+    tolerance
+        Tolerance for |rel_diff|; default 0.05.
+    include_details
+        If True, attach a details DataFrame (sector, expected, actual, rel_diff).
+
+    Returns
+    -------
+    DiagnosticResult
+        Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
+    """
+
+    # Make sure all elements have common sectors
+    sectors = q.index.intersection(U_d.index).intersection(y_d.index)
+    if len(sectors) != len(q.index):
+        return DiagnosticResult(
+            name="Unequal number of sectors in arguments of compare_commodity_output_to_domestics_use_plus_exports",
+            passed=False,
+            tolerance=tolerance,
+            max_rel_diff=float("inf"),
+            failing_sectors=[],
+            details=None,
+        )
+
+    q_check = U_d.sum(axis=1) + y_d
+    rel_diff = (q - q_check) / q
+    rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
+    rel_diff_abs = np.abs(rel_diff)
+
+    failing_sectors = rel_diff_abs[rel_diff_abs > tolerance]
+    passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
+    max_rd = float(np.max(rel_diff_abs))
+
+    # failing_sectors = sectors[rel_diff_abs > tolerance].tolist()
+    name = "commodity output and domestics use plus exports"
+
+    details = None
+    if include_details:
+        data = {
+            "failing sectors": failing_sectors.index.tolist(),
+            "passing sectors": passing_sectors.index.tolist(),
+            "failing values": failing_sectors.values,
+            "max_rel_diff": max_rd,
+        }
+
+        details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
+
+    return DiagnosticResult(
+        name=name,
+        passed=passing_sectors,
+        tolerance=tolerance,
+        max_rel_diff=max_rd,
+        failing_sectors=failing_sectors,
+        details=details,
+    )
 
 
 def run_all_diagnostics(
