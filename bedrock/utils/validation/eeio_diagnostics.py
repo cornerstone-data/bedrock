@@ -104,7 +104,7 @@ def format_diagnostic_result(result: DiagnosticResult) -> str:
 DiagnosticCallable = ta.Callable[[], DiagnosticResult]
 
 
-def compareCommodityOutputandDomesticUseplusProductionDemand(
+def compare_commodity_output_to_domestics_use_plus_exports(
     q: pd.Series[float],
     U_d: pd.DataFrame,
     y_d: pd.Series[float],
@@ -142,7 +142,7 @@ def compareCommodityOutputandDomesticUseplusProductionDemand(
     sectors = q.index.intersection(U_d.index).intersection(y_d.index)
     if len(sectors) != len(q.index):
         return DiagnosticResult(
-            name="Unequal number of sectors in arguments of compareCommodityOutputandDomesticUseplusProductionDemand",
+            name="Unequal number of sectors in arguments of compare_commodity_output_to_domestics_use_plus_exports",
             passed=False,
             tolerance=tolerance,
             max_rel_diff=float("inf"),
@@ -160,7 +160,7 @@ def compareCommodityOutputandDomesticUseplusProductionDemand(
     max_rd = float(np.max(rel_diff_abs))
 
     # failing_sectors = sectors[rel_diff_abs > tolerance].tolist()
-    name = "CommodityOutputandDomesticUseplusProductionDemand"
+    name = "commodity output and domestics use plus exports"
 
     details = None
     if include_details:
