@@ -113,7 +113,7 @@ def compareCommodityOutputandDomesticUseplusProductionDemand(
     include_details: bool = False,
 ) -> DiagnosticResult:
     """
-    Compares the total commodity output against the summation of model domestic Use and production demand
+    Compares the total commodity output against the summation of model domestic Use (U_D) and production demand (y_d, including exports)
 
 
     Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
