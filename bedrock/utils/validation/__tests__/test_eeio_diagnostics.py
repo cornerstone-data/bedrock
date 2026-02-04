@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 
 import bedrock.utils.math.formulas as formulas
-from bedrock.transform.eeio.derived import derive_Aq_usa
 from bedrock.transform.eeio.derived_2017 import (
+    derive_2017_Aq_usa,
     derive_2017_q_usa,
     derive_2017_U_with_negatives,
     derive_2017_Ytot_usa_matrix_set,
@@ -298,14 +298,15 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     assert len(r_q_with_U_d_and_y_d_validation.failing_sectors) == 0
 
 
-@pytest.mark.eeio_integration
+# @pytest.mark.xfail(reason="Data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation.")
+# @pytest.mark.eeio_integration
 def test_compare_output_and_L_y(
     modelType: str = "Commodity",
     use_domestic: bool = False,
 ) -> None:
 
     # Load Aq model objects
-    Aq = derive_Aq_usa()
+    Aq = derive_2017_Aq_usa()
     A_d = Aq.Adom
     A_imp = Aq.Aimp
 
