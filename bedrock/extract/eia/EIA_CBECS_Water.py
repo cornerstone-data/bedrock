@@ -7,15 +7,17 @@ Pulls EIA CBECS water use data for large buildings from 2012
 """
 
 import io
+from typing import Any, List
 
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def eia_cbecs_water_call(*, resp, **_):
+def eia_cbecs_water_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -42,7 +44,9 @@ def eia_cbecs_water_call(*, resp, **_):
     return df
 
 
-def eia_cbecs_water_parse(*, df_list, year, **_):
+def eia_cbecs_water_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format

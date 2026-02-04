@@ -272,7 +272,8 @@ def eia_mecs_land_parse(
 def eia_mecs_energy_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
     GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_{kwargs.get('year')}")
-    name = os.path.basename(kwargs.get('url'))
+    url = kwargs.get('url', '')
+    name = os.path.basename(str(url))
     download_gcs_file_if_not_exists(
         name=name,
         sub_bucket=GCS_MECS_DIR,
@@ -280,7 +281,7 @@ def eia_mecs_energy_load_gcs(**kwargs: Any) -> pd.DataFrame:
     )
 
     # read local data from gcs
-    name = os.path.basename(kwargs.get('url'))
+    name = os.path.basename(str(url))
     df_raw_data = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=0, header=None)
     df_raw_rse = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=1, header=None)
 
@@ -305,12 +306,14 @@ def eia_mecs_energy_call(
     :param config: dictionary, items in FBA method yaml
     :return: pandas dataframe of original source data
     """
+    if resp is None:
+        raise ValueError("Response cannot be None")
     # read raw data from url into dataframe
     # (include both Sheet 1 (data) and Sheet 2 (relative standard errors))
     df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name=0, header=None)
     df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
 
-    table = os.path.basename(resp.url)
+    table = os.path.basename(str(resp.url))
     # write table to Excel
     with open(f"{os.path.join(IN_DIR, table)}", "wb") as f:
         f.write(resp.content)
@@ -386,38 +389,38 @@ def _eia_clean_mecs_energy(
         if table[-1] == '5':
             major_name = ""
             df_data_region = df_data_region.dropna()
-            for index, row in df_data_region.iterrows():
-                name = ""
-                minor_name = ""
+            energy_sources_data = []
+            for _, row in df_data_region.iterrows():
                 name = row["Energy Source"]
                 if "    " in str(name):
-                    minor_name = name.replace('    ', '')
+                    minor_name = str(name).replace('    ', '')
                     if "Biomass Total" == minor_name:
                         major_name = minor_name
                         minor_name = ""
                     name = str(major_name) + " " + str(minor_name)
-                    df_data_region.at[index, 'Energy Source'] = name
                 else:
-                    major_name = row["Energy Source"]
+                    major_name = str(row["Energy Source"])
+                energy_sources_data.append(name)
+            df_data_region['Energy Source'] = energy_sources_data
             df_data_region = df_data_region.rename(
                 columns={'Energy Source': 'FlowName', 'Total First Use': 'FlowAmount'}
             )
             df_data_region['NAICS Code'] = 'All Purposes'
             major_name = ""
             df_rse_region = df_rse_region.dropna()
-            for index, row in df_rse_region.iterrows():
-                name = ""
-                minor_name = ""
+            energy_sources_rse = []
+            for _, row in df_rse_region.iterrows():
                 name = row["Energy Source"]
                 if "    " in str(name):
-                    minor_name = name.replace('    ', '')
+                    minor_name = str(name).replace('    ', '')
                     if "Biomass Total" == minor_name:
                         major_name = minor_name
                         minor_name = ""
                     name = str(major_name) + " " + str(minor_name)
-                    df_rse_region.at[index, 'Energy Source'] = name
                 else:
-                    major_name = row["Energy Source"]
+                    major_name = str(row["Energy Source"])
+                energy_sources_rse.append(name)
+            df_rse_region['Energy Source'] = energy_sources_rse
             df_rse_region = df_rse_region.rename(
                 columns={'Energy Source': 'FlowName', 'Total First Use': 'Spread'}
             )
@@ -427,15 +430,15 @@ def _eia_clean_mecs_energy(
             # (all other columns are value variables)
             df_data_region = pd.melt(
                 df_data_region,
-                id_vars=df_data_region.columns[0:2],
-                value_vars=df_data_region.columns[2:],
+                id_vars=list(df_data_region.columns[0:2]),
+                value_vars=list(df_data_region.columns[2:]),
                 var_name='FlowName',
                 value_name='FlowAmount',
             )
             df_rse_region = pd.melt(
                 df_rse_region,
-                id_vars=df_rse_region.columns[0:2],
-                value_vars=df_rse_region.columns[2:],
+                id_vars=list(df_rse_region.columns[0:2]),
+                value_vars=list(df_rse_region.columns[2:]),
                 var_name='FlowName',
                 value_name='Spread',
             )
@@ -532,7 +535,9 @@ def eia_mecs_energy_parse(
     return df
 
 
-def estimate_suppressed_mecs_energy(fba: FlowByActivity, **_kwargs) -> FlowByActivity:
+def estimate_suppressed_mecs_energy(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
     '''
     Rough first pass at an estimation method, for testing purposes. This
     will drop rows with 'D' or 'Q' values, on the grounds that as far as I can
@@ -555,7 +560,9 @@ def estimate_suppressed_mecs_energy(fba: FlowByActivity, **_kwargs) -> FlowByAct
     return unsuppressed.drop(columns='Suppressed')
 
 
-def clean_mapped_mecs_energy_fba_to_state(fba: FlowByActivity, **_) -> FlowByActivity:
+def clean_mapped_mecs_energy_fba_to_state(
+    fba: FlowByActivity, **_: Any
+) -> FlowByActivity:
     """
     clean_fba_w_sec fxn that replicates drop_parentincompletechild_descendants but
     also updates regions to states for state models.
@@ -590,15 +597,17 @@ def update_regions_to_states(
         ['Region', 'SectorProducedBy']
     ).FlowAmount.transform('sum')
 
-    fba = pd.merge(
-        fba.rename(columns={'Location': 'Region'}),
-        (
-            hlp[['Region', 'Location', 'SectorProducedBy', 'Allocation']].rename(
-                columns={'SectorProducedBy': 'SectorConsumedBy'}
-            )
-        ),
-        how='left',
-        on=['Region', 'SectorConsumedBy'],
+    fba = FlowByActivity(
+        pd.merge(
+            fba.rename(columns={'Location': 'Region'}),
+            (
+                hlp[['Region', 'Location', 'SectorProducedBy', 'Allocation']].rename(
+                    columns={'SectorProducedBy': 'SectorConsumedBy'}
+                )
+            ),
+            how='left',
+            on=['Region', 'SectorConsumedBy'],
+        )
     )
     fba = (
         fba.assign(FlowAmount=lambda x: x['FlowAmount'] * x['Allocation'])
@@ -621,7 +630,7 @@ def update_regions_to_states(
     return fba
 
 
-def mecs_land_fba_cleanup(fba, **_):
+def mecs_land_fba_cleanup(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     Modify the EIA MECS Land FBA
     :param fba: df, EIA MECS Land FBA format
@@ -633,7 +642,9 @@ def mecs_land_fba_cleanup(fba, **_):
     return fba
 
 
-def clean_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **_kwargs):
+def clean_mecs_energy_fba_for_bea_summary(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
     naics_3 = fba.query('ActivityConsumedBy.str.len() == 3')
     naics_4 = fba.query(
         'ActivityConsumedBy.str.len() == 4 '
@@ -655,7 +666,9 @@ def clean_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **_kwargs):
     return subtracted
 
 
-def clean_mapped_mecs_energy_fba_for_bea_summary(fba: FlowByActivity, **_kwargs):
+def clean_mapped_mecs_energy_fba_for_bea_summary(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
     _naics_4_list = fba.config['naics_4_list']
 
     return fba.query(
