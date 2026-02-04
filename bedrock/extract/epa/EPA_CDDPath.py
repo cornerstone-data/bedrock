@@ -16,7 +16,7 @@ from typing import Any
 import pandas as pd
 from esupy.remote import headers
 from requests import Response
-from tabula.io import read_pdf  # type: ignore[import-untyped]
+from tabula.io import read_pdf
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import aggregator, assign_fips_location_system

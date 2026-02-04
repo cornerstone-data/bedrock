@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from tabula.io import read_pdf  # type: ignore[import-untyped]
+from tabula.io import read_pdf
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import US_FIPS
