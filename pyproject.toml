@@ -158,8 +158,6 @@ exclude = [
     'bedrock/extract/generateflowbyactivity\.py',
     'bedrock/extract/__tests__/',
     'bedrock/transform/',
-    'bedrock/utils/',
-    'bedrock/publish/',
 ]
 
 [[tool.mypy.overrides]]
