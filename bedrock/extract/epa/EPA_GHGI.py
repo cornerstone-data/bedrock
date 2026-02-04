@@ -7,11 +7,12 @@ https://www.epa.gov/ghgemissions/inventory-us-greenhouse-gas-emissions-and-sinks
 """
 
 import re
-from typing import Any, List
+from typing import Any, List, cast
 
 import numpy as np
 import pandas as pd
 
+from bedrock.extract.allocation.epa_constants import TBL_NUMBERS
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyfunctions import (
@@ -191,7 +192,7 @@ def _load_ghg_table(table: str) -> pd.DataFrame:
         )
 
     df = _load_epa_tbl_from_gcs(
-        table,
+        cast(TBL_NUMBERS, table),
         loader=lambda pth: pd.read_csv(
             pth,
             skiprows=2 if table == "4-118" else 1,
@@ -440,21 +441,21 @@ def ghg_parse(
                 # Append column name after dash to activity
                 activity = f"{acb.strip()} {name_split[1].split('- ')[1]}"
 
-                df.loc[index, 'Description'] = meta['desc']
+                df.at[index, 'Description'] = meta['desc']  # type: ignore[index]
                 if name_split[0] == "Emissions":
-                    df.loc[index, 'FlowName'] = meta['emission']
-                    df.loc[index, 'Unit'] = meta['emission_unit']
-                    df.loc[index, 'Class'] = meta['emission_class']
-                    df.loc[index, 'Compartment'] = meta['emission_compartment']
-                    df.loc[index, 'ActivityProducedBy'] = activity
-                    df.loc[index, 'ActivityConsumedBy'] = "None"
+                    df.at[index, 'FlowName'] = meta['emission']  # type: ignore[index]
+                    df.at[index, 'Unit'] = meta['emission_unit']  # type: ignore[index]
+                    df.at[index, 'Class'] = meta['emission_class']  # type: ignore[index]
+                    df.at[index, 'Compartment'] = meta['emission_compartment']  # type: ignore[index]
+                    df.at[index, 'ActivityProducedBy'] = activity  # type: ignore[index]
+                    df.at[index, 'ActivityConsumedBy'] = "None"  # type: ignore[index]
                 else:  # "Consumption"
-                    df.loc[index, 'FlowName'] = acb
-                    df.loc[index, 'FlowType'] = "TECHNOSPHERE_FLOW"
-                    df.loc[index, 'Unit'] = meta['unit']
-                    df.loc[index, 'Class'] = meta['class']
-                    df.loc[index, 'ActivityProducedBy'] = "None"
-                    df.loc[index, 'ActivityConsumedBy'] = source
+                    df.at[index, 'FlowName'] = acb  # type: ignore[index]
+                    df.at[index, 'FlowType'] = "TECHNOSPHERE_FLOW"  # type: ignore[index]
+                    df.at[index, 'Unit'] = meta['unit']  # type: ignore[index]
+                    df.at[index, 'Class'] = meta['class']  # type: ignore[index]
+                    df.at[index, 'ActivityProducedBy'] = "None"  # type: ignore[index]
+                    df.at[index, 'ActivityConsumedBy'] = source  # type: ignore[index]
 
         else:
             # Standard years (one or more) as column headers
@@ -511,12 +512,12 @@ def ghg_parse(
         df = assign_fips_location_system(df, str(year))
 
         # Define special table lists from config
-        multi_chem_names = config.get('multi_chem_names')
-        source_No_activity = config.get('source_No_activity')
-        source_activity_1 = config.get('source_activity_1')
-        source_activity_1_fuel = config.get('source_activity_1_fuel')
-        source_activity_2 = config.get('source_activity_2')
-        rows_as_flows = config.get('rows_as_flows')
+        multi_chem_names: list[str] = config.get('multi_chem_names') or []
+        source_No_activity: list[str] = config.get('source_No_activity') or []
+        source_activity_1: list[str] = config.get('source_activity_1') or []
+        source_activity_1_fuel: list[str] = config.get('source_activity_1_fuel') or []
+        source_activity_2: list[str] = config.get('source_activity_2') or []
+        rows_as_flows: list[str] = config.get('rows_as_flows') or []
 
         if table_name in multi_chem_names:
             bool_apb = False
@@ -846,7 +847,10 @@ def allocate_industrial_combustion(
     EIA MECS relative to EPA GHGI. Create new activities to distinguish those
     which use EIA MECS as allocation source and those that use alternate source.
     """
-    pct_dict = get_manufacturing_energy_ratios(fba.config.get('clean_parameter'))
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None:
+        raise ValueError("clean_parameter is required in config")
+    pct_dict = get_manufacturing_energy_ratios(clean_parameter)
 
     # activities reflect flows in A_14 and 3_8 and 3_9
     activities_to_split = {
@@ -868,7 +872,7 @@ def allocate_industrial_combustion(
         fba.loc[fba['ActivityProducedBy'] == activity, 'FlowAmount'] = fba[
             'FlowAmount'
         ] * (1 - pct_dict[fuel])
-        fba = pd.concat([fba, df_subset], ignore_index=True)
+        fba = FlowByActivity(pd.concat([fba, df_subset], ignore_index=True))
 
     return fba
 
@@ -881,7 +885,10 @@ def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
         attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
     }
     original_sum = fba.FlowAmount.sum()
-    tbl = fba.config.get('clean_parameter')['flow_fba']  # 4-125
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None:
+        raise ValueError("clean_parameter is required in config")
+    tbl = clean_parameter['flow_fba']  # 4-125
     splits = load_fba_w_standardized_units(
         datasource=tbl, year=fba['Year'][0], download_FBA_if_missing=True
     )
@@ -894,19 +901,19 @@ def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
         result_type='expand',
     )
     speciated_df.columns = splits['FlowName']
-    fba = pd.concat([fba, speciated_df], axis=1)
-    fba = (
-        fba.melt(
-            id_vars=[c for c in flow_by_activity_fields.keys() if c in fba],
+    combined_df = pd.concat([fba, speciated_df], axis=1)
+    melted_df = (
+        combined_df.melt(
+            id_vars=[c for c in flow_by_activity_fields.keys() if c in combined_df],
             var_name='Flow',
         )
         .drop(columns=['FlowName', 'FlowAmount'])
         .rename(columns={'Flow': 'FlowName', 'value': 'FlowAmount'})
     )
-    new_sum = fba.FlowAmount.sum()
+    new_sum = melted_df.FlowAmount.sum()
     if round(new_sum, 6) != round(original_sum, 6):
         log.warning('Error: totals do not match when splitting HFCs')
-    new_fba = FlowByActivity(fba)
+    new_fba = FlowByActivity(melted_df)
     for attr in attributes_to_save:
         setattr(new_fba, attr, attributes_to_save[attr])
 

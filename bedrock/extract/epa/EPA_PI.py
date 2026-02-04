@@ -13,10 +13,12 @@ Years = 2002, 2007, 2012
 """
 
 import io
+from typing import Any
+
 import pandas as pd
 
 
-def name_and_unit_split(df_legend):
+def name_and_unit_split(df_legend: pd.DataFrame) -> pd.DataFrame:
     for i in range(len(df_legend)):
         apb = df_legend.loc[i, "name"]
         apb_str = str(apb)
@@ -73,7 +75,7 @@ def name_and_unit_split(df_legend):
     return df_legend
 
 
-def pi_url_helper(*, build_url, **_):
+def pi_url_helper(*, build_url: str, **_: Any) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -88,7 +90,7 @@ def pi_url_helper(*, build_url, **_):
     return [url]
 
 
-def pi_call(*, resp, year, **_):
+def pi_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -140,10 +142,11 @@ def pi_call(*, resp, year, **_):
 
     for col_name in df_raw.columns:
         for i in range(len(df_legend)):
-            if '_20' in df_legend.loc[i, "HUC_8"]:
-                legend_str = str(df_legend.loc[i, "HUC_8"])
-                list = legend_str.split('_20')
-                df_legend.loc[i, "HUC_8"] = list[0]
+            huc_val = str(df_legend.loc[i, "HUC_8"])
+            if '_20' in huc_val:
+                legend_str = huc_val
+                split_list = legend_str.split('_20')
+                df_legend.loc[i, "HUC_8"] = split_list[0]
 
             if col_name == df_legend.loc[i, "HUC_8"]:
                 df_raw = df_raw.rename(
@@ -165,7 +168,7 @@ def pi_call(*, resp, year, **_):
     return df
 
 
-def pi_parse(*, df_list, year, **_):
+def pi_parse(*, df_list: list[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -174,8 +177,6 @@ def pi_parse(*, df_list, year, **_):
     :return: df, parsed and partially formatted to flowbyactivity
         specifications
     """
-    data = {}
-    row_to_use = ["Production2", "Production", "Imports for consumption"]
     df = pd.DataFrame()
     for df in df_list:
 

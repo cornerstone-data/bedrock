@@ -11,11 +11,14 @@ Last updated: 2018-11-07
 
 import os
 import re
+from typing import Any
 
 import pandas as pd
 from esupy.remote import headers
+from requests import Response
 from tabula.io import read_pdf
 
+from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import aggregator, assign_fips_location_system
 from bedrock.utils.config.schema import flow_by_activity_mapped_fields
 from bedrock.utils.config.settings import externaldatapath
@@ -23,7 +26,9 @@ from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def call_cddpath_model(*, resp, year, config, **_):
+def call_cddpath_model(
+    *, resp: Response, year: str, config: dict[str, Any], **_: Any
+) -> pd.DataFrame:
     """
     Convert response for calling url to dataframe of CDDPath model,
     begin parsing df into FBA format
@@ -87,13 +92,15 @@ def call_cddpath_model(*, resp, year, config, **_):
         names=["FlowName", "ActivityConsumedBy", "FlowAmount"],
         # specify data types
         dtype={'a': str, 'c': str, 'd': float},
-    ).fillna(method='ffill')
+    ).ffill()
     df = pd.concat([df1, df2], ignore_index=True)
 
     return df
 
 
-def epa_cddpath_parse(*, df_list, year, **_):
+def epa_cddpath_parse(
+    *, df_list: list[pd.DataFrame], year: str, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -121,7 +128,9 @@ def epa_cddpath_parse(*, df_list, year, **_):
     return df
 
 
-def combine_cdd_path(*, resp, year, config, **_):
+def combine_cdd_path(
+    *, resp: Response, year: str, config: dict[str, Any], **_: Any
+) -> pd.DataFrame:
     """Call function to generate combined dataframe from generation
     by source dataset and excel CDDPath model,
     applying the ActivityProducedBy across the flows.
@@ -155,7 +164,7 @@ def combine_cdd_path(*, resp, year, config, **_):
     return df
 
 
-def call_generation_by_source(file_dict):
+def call_generation_by_source(file_dict: dict[str, Any]) -> pd.DataFrame:
     """Extraction generation by source data from pdf"""
     pg = file_dict.get('pg')
     url = file_dict.get('url')
@@ -193,27 +202,28 @@ def call_generation_by_source(file_dict):
     return df2
 
 
-def keep_activity_consumed_by(fba, **_):
+def keep_activity_consumed_by(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """clean_allocation_fba"""
     fba['ActivityProducedBy'] = None
     return fba
 
 
-def cdd_processing(fba, source_dict):
+def cdd_processing(fba: FlowByActivity, source_dict: dict[str, Any]) -> pd.DataFrame:
     """clean_fba_df_fxn"""
     material = source_dict.get('cdd_parameter')
-    inputs = fba.loc[fba['FlowName'] == material]
-    inputs = inputs.reset_index(drop=True)
+    inputs: pd.DataFrame = fba.loc[fba['FlowName'] == material].reset_index(drop=True)
     outputs = inputs.copy()
 
-    pct_to_mixed = source_dict.get('pct_to_mixed')
+    pct_to_mixed = source_dict.get('pct_to_mixed', 0)
     inputs[f"{material} Processing"] = 1 - pct_to_mixed
     inputs["Mixed CDD Processing"] = pct_to_mixed
 
-    def melt_and_apply_percentages(df, fbacol='ActivityConsumedBy'):
+    def melt_and_apply_percentages(
+        df: pd.DataFrame, fbacol: str = 'ActivityConsumedBy'
+    ) -> pd.DataFrame:
         df = (
             df.melt(
-                id_vars=flow_by_activity_mapped_fields,
+                id_vars=list(flow_by_activity_mapped_fields.keys()),
                 value_vars=[f"{material} Processing", "Mixed CDD Processing"],
             )
             .drop(columns=[fbacol])
@@ -256,9 +266,8 @@ def cdd_processing(fba, source_dict):
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(source='EPA_CDDPath', year=2018)
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity(
-        datasource='EPA_CDDPath', year=2018
-    )
+    generateFlowByActivity(source='EPA_CDDPath', year=2018)
+    fba = getFlowByActivity(datasource='EPA_CDDPath', year=2018)

@@ -13,10 +13,12 @@ https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019JG005110
 Years = 2002, 2007, 2012
 """
 import io
+from typing import Any
+
 import pandas as pd
 
 
-def name_and_unit_split(df_legend):
+def name_and_unit_split(df_legend: pd.DataFrame) -> pd.DataFrame:
     for i in range(len(df_legend)):
         apb = df_legend.loc[i, "name"]
         apb_str = str(apb)
@@ -93,7 +95,7 @@ def name_and_unit_split(df_legend):
     return df_legend
 
 
-def ni_url_helper(*, build_url, **_):
+def ni_url_helper(*, build_url: str, **_: Any) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -111,7 +113,7 @@ def ni_url_helper(*, build_url, **_):
     return [url]
 
 
-def ni_call(*, resp, year, **_):
+def ni_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -131,10 +133,11 @@ def ni_call(*, resp, year, **_):
 
     for col_name in df_raw.columns:
         for i in range(len(df_legend)):
-            if '_20' in df_legend.loc[i, "HUC8_1"]:
+            huc_val = str(df_legend.loc[i, "HUC8_1"])
+            if '_20' in huc_val:
                 legend_str = str(df_legend.loc[i, "HUC_8"])
-                list = legend_str.split('_20')
-                df_legend.loc[i, "HUC8_1"] = list[0]
+                split_list = legend_str.split('_20')
+                df_legend.loc[i, "HUC8_1"] = split_list[0]
 
             if col_name == df_legend.loc[i, "HUC8_1"]:
                 df_raw = df_raw.rename(
@@ -152,7 +155,7 @@ def ni_call(*, resp, year, **_):
     return df
 
 
-def ni_parse(*, df_list, year, **_):
+def ni_parse(*, df_list: list[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
