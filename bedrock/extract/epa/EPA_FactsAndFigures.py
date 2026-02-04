@@ -7,16 +7,17 @@ supporting functions.
 """
 
 import io
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from tabula.io import read_pdf
+from tabula.io import read_pdf  # type: ignore[import-untyped]
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def ff_call(*, resp, year, **_):
+def ff_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -139,7 +140,7 @@ def ff_call(*, resp, year, **_):
     return df
 
 
-def ff_parse(*, df_list, year, **_):
+def ff_parse(*, df_list: list[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format

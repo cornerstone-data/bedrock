@@ -8,6 +8,7 @@ Pulls EPA Air QUAlity TimE Series (EQUATES) Project data
 import tarfile
 from io import BytesIO
 from tempfile import TemporaryFile
+from typing import Any
 from urllib import parse
 
 import pandas as pd
@@ -16,7 +17,9 @@ from bedrock.transform.dataclean import standardize_units
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
 
-def equates_url_helper(*, build_url, year, config, **_):
+def equates_url_helper(
+    *, build_url: str, year: str, config: dict[str, Any], **_: Any
+) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -34,7 +37,9 @@ def equates_url_helper(*, build_url, year, config, **_):
     return [f'{build_url}&{parse.urlencode(params)}']
 
 
-def equates_call(*, resp, year, config, **_):
+def equates_call(
+    *, resp: Any, year: str, config: dict[str, Any], **_: Any
+) -> pd.DataFrame:
     """
     Convert response to pandas dataframe
     :param resp: response from url call
@@ -47,14 +52,22 @@ def equates_call(*, resp, year, config, **_):
         temp.seek(0)
         with tarfile.open(fileobj=temp, mode='r:gz') as tar:
             tar.getmembers()  # Index the tarball
-            df_list = [
-                pd.read_csv(BytesIO(tar.extractfile(file).read()), comment='#')
-                for file in config['file_list'][int(year)]
-            ]
+            df_list = []
+            for file in config['file_list'][int(year)]:
+                extracted = tar.extractfile(file)
+                if extracted is not None:
+                    df_list.append(pd.read_csv(BytesIO(extracted.read()), comment='#'))
             return pd.concat(df_list)
 
 
-def equates_parse(*, df_list, source, year, config, **_):
+def equates_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    source: str,
+    year: str,
+    config: dict[str, Any],
+    **_: Any,
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format

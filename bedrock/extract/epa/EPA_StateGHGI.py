@@ -5,9 +5,11 @@
 Inventory of US GHGs from EPA disaggregated to States
 """
 import io
+from typing import Any
 from zipfile import ZipFile
 
 import pandas as pd
+from requests import Response
 
 from bedrock.extract.epa.EPA_GHGI import get_manufacturing_energy_ratios
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
@@ -18,7 +20,9 @@ from bedrock.utils.mapping.location import apply_county_FIPS
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 
 
-def epa_state_ghgi_call(*, resp, config, **_):
+def epa_state_ghgi_call(
+    *, resp: Response, config: dict[str, Any], **_: Any
+) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe
     :param resp: response from url call
@@ -30,7 +34,14 @@ def epa_state_ghgi_call(*, resp, config, **_):
     return df
 
 
-def epa_state_ghgi_parse(*, df_list, source, year, config, **_):
+def epa_state_ghgi_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    source: str,
+    year: str,
+    config: dict[str, Any],
+    **_: Any,
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -57,7 +68,11 @@ def epa_state_ghgi_parse(*, df_list, source, year, config, **_):
 
     states = data_df[['geo_ref']].drop_duplicates()
     flows = data_df[['ghg']].drop_duplicates()
-    year_cols = [col for col in data_df if col.startswith('Y') and len(col) == 5]
+    year_cols = [
+        col
+        for col in data_df.columns
+        if str(col).startswith('Y') and len(str(col)) == 5
+    ]
     df = (
         data_df.melt(
             id_vars=activity_cols + ['geo_ref'] + ['ghg'],
@@ -90,7 +105,9 @@ def epa_state_ghgi_parse(*, df_list, source, year, config, **_):
     return df
 
 
-def tag_biogenic_activities(fba, source_dict, **_):
+def tag_biogenic_activities(
+    fba: FlowByActivity, source_dict: dict[str, Any], **_: Any
+) -> FlowByActivity:
     """
     clean_fba_before_mapping_df_fxn to tag emissions from passed activities
     as biogenic. Activities passed as list in paramter 'activity_list'.
@@ -108,7 +125,7 @@ def tag_biogenic_activities(fba, source_dict, **_):
     return fba
 
 
-def allocate_flows_by_fuel(fba: FlowByActivity, **_) -> FlowByActivity:
+def allocate_flows_by_fuel(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     clean_fba_before_activity_sets fxn to estimate CH4 and N2O emissions by
     fuel type, using ratios derived from the national inventory as proxy
@@ -122,11 +139,13 @@ def allocate_flows_by_fuel(fba: FlowByActivity, **_) -> FlowByActivity:
     }
 
     year = fba.config.get('year')
+    if year is None:
+        raise ValueError("year is required in config")
     # combine lists of activities from CO2 activity set
     alist = fba.config['clean_parameter']['flow_ratio_source']
     if any(isinstance(i, list) for i in alist):
         # pulled from !index, so list of lists
-        activity_list = sum(alist, [])
+        activity_list: list[str] = sum(alist, [])
     else:
         activity_list = alist
     source_fba = pd.concat(
@@ -193,7 +212,8 @@ def allocate_flows_by_fuel(fba: FlowByActivity, **_) -> FlowByActivity:
     fba3 = (
         fba1.merge(fba2.reset_index())
         .melt(
-            id_vars=[c for c in fba1 if c not in fuels.keys()], value_vars=fuels.keys()
+            id_vars=[c for c in fba1 if c not in fuels.keys()],
+            value_vars=list(fuels.keys()),
         )
         .assign(Description=lambda x: x['variable'].replace(fuels))
         .assign(FlowAmount=lambda x: x['FlowAmount'] * x['value'])
@@ -212,7 +232,7 @@ def allocate_flows_by_fuel(fba: FlowByActivity, **_) -> FlowByActivity:
     return new_fba
 
 
-def allocate_industrial_combustion(fba: FlowByActivity, **_) -> FlowByActivity:
+def allocate_industrial_combustion(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     Split industrial combustion emissions into two buckets to be further allocated.
 
@@ -221,11 +241,14 @@ def allocate_industrial_combustion(fba: FlowByActivity, **_) -> FlowByActivity:
     distinguish those which use EIA MECS as allocation source and those that
     use alternate source.
     """
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None:
+        raise ValueError("clean_parameter is required in config")
 
-    pct_dict = get_manufacturing_energy_ratios(fba.config.get('clean_parameter'))
+    pct_dict = get_manufacturing_energy_ratios(clean_parameter)
 
     # activities reflect flows in A_14 and 3_8 and 3_9
-    alist = fba.config.get('clean_parameter')['activities_to_split']
+    alist = clean_parameter['activities_to_split']
     activities_to_split = {a: a.rsplit(' - ')[-1] for a in alist}
 
     for activity, fuel in activities_to_split.items():
@@ -239,12 +262,12 @@ def allocate_industrial_combustion(fba: FlowByActivity, **_) -> FlowByActivity:
         fba.loc[fba['ActivityProducedBy'] == activity, 'FlowAmount'] = fba[
             'FlowAmount'
         ] * (1 - pct_dict[fuel])
-        fba = pd.concat([fba, df_subset], ignore_index=True)
+        fba = FlowByActivity(pd.concat([fba, df_subset], ignore_index=True))
 
     return fba
 
 
-def drop_negative_values(fbs: FlowBySector, **_) -> FlowBySector:
+def drop_negative_values(fbs: FlowBySector, **_: Any) -> FlowBySector:
     ## In some cases, after handling adjustments for reassigning emissions in
     ## the StateGHGI, sectors can have negative emissions after aggregating by
     ## sector. Remove these negative values so that that state does not get
@@ -255,9 +278,7 @@ def drop_negative_values(fbs: FlowBySector, **_) -> FlowBySector:
 
 
 if __name__ == '__main__':
-    import bedrock
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(
-        source='EPA_StateGHGI', year='2012-2022'
-    )
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EPA_StateGHGI', '2020')
+    generateFlowByActivity(source='EPA_StateGHGI', year='2012-2022')
+    fba = getFlowByActivity('EPA_StateGHGI', 2020)
