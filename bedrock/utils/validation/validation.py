@@ -304,7 +304,7 @@ def compare_FBA_results(
     if compare_to_remote:
         # Generate the FBS locally and then immediately load
         bedrock.extract.generateflowbyactivity.generateFlowByActivity(
-            source=source, year=year  # type: ignore[arg-type]
+            source=source, year=year
         )
         df2 = bedrock.extract.flowbyactivity.getFlowByActivity(
             datasource=source, year=year
@@ -538,7 +538,7 @@ def compare_single_FBA_against_remote(
         if run_single:
             # Run a single file even if no comparison available
             bedrock.extract.generateflowbyactivity.generateFlowByActivity(
-                year=year, source=source  # type: ignore[arg-type]
+                year=year, source=source
             )
         else:
             print(f"{source} {year} not found in remote server. Skipping...")

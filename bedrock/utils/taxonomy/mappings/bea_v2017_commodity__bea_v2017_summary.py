@@ -36,7 +36,7 @@ def load_bea_v2017_commodity_to_bea_v2017_summary() -> (
     mapping["S00300"] = ["Other"]
     mapping["S00900"] = ["Other"]
 
-    validate_mapping(
+    validate_mapping(  # type: ignore[misc]
         mapping,
         domain=set(BEA_2017_COMMODITY_CODES),
         codomain=set(BEA_2017_COMMODITY_SUMMARY_CODES),

@@ -27,11 +27,11 @@ def load_bea_v2017_industry_to_bea_v2017_commodity() -> (
             return ["485000"]
         raise RuntimeError(f"Unexpected BEA 2012 industry code: {bea}")
 
-    mapping = {
-        bea: _map_v2017_industry_to_v2017_commodity(bea)
+    mapping: ta.Dict[BEA_2017_INDUSTRY_CODE, ta.List[BEA_2017_COMMODITY_CODE]] = {
+        bea: _map_v2017_industry_to_v2017_commodity(bea)  # type: ignore[misc, arg-type]
         for bea in BEA_2017_INDUSTRY_CODES
     }
-    validate_mapping(
+    validate_mapping(  # type: ignore[misc]
         mapping,
         domain=set(BEA_2017_INDUSTRY_CODES),
         codomain=set(BEA_2017_COMMODITY_CODES),
