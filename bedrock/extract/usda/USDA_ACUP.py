@@ -6,15 +6,17 @@
 Functions to import and parse USDA Chemical Use Survey
 """
 import json
+from typing import Any
 
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state
 
 
-def acup_url_helper(*, build_url, config, **_):
+def acup_url_helper(*, build_url: str, config: dict[str, Any], **_: Any) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -42,7 +44,7 @@ def acup_url_helper(*, build_url, config, **_):
     return urls
 
 
-def acup_call(*, resp, **_):
+def acup_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing df
     into FBA format
@@ -55,7 +57,9 @@ def acup_call(*, resp, **_):
     return df
 
 
-def acup_parse(*, df_list, source, year, **_):
+def acup_parse(
+    *, df_list: list[pd.DataFrame], source: str, year: str, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format

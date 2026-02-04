@@ -10,8 +10,10 @@ Downloads the Dec 3, 2024 update
 
 import io
 import zipfile
+from typing import Any
 
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import (
@@ -21,7 +23,7 @@ from bedrock.utils.mapping.location import (
 )
 
 
-def fiws_call(*, resp, **_):
+def fiws_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -37,7 +39,7 @@ def fiws_call(*, resp, **_):
         return df
 
 
-def fiws_parse(*, df_list, year, **_):
+def fiws_parse(*, df_list: list[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -122,9 +124,8 @@ def fiws_parse(*, df_list, year, **_):
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(
-        year='2012-2023', source='USDA_ERS_FIWS'
-    )
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('USDA_ERS_FIWS', year=2023)
+    generateFlowByActivity(year='2012-2023', source='USDA_ERS_FIWS')
+    fba = getFlowByActivity('USDA_ERS_FIWS', year=2023)
