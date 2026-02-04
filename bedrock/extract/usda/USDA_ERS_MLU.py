@@ -28,7 +28,7 @@ from bedrock.transform.literature_values import (
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
-from bedrock.utils.mapping.naics import industry_spec_key  # type: ignore[attr-defined]
+from bedrock.utils.mapping.naics import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
 
 

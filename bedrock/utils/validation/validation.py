@@ -297,7 +297,7 @@ def compare_FBA_results(
     df1 = bedrock.extract.flowbyactivity.getFlowByActivity(
         datasource=source,
         year=year,
-        git_version=fba1_version,  # type: ignore[arg-type]
+        git_version=fba1_version,
         download_FBA_if_missing=compare_to_remote,
     )
     # load second file
@@ -311,7 +311,7 @@ def compare_FBA_results(
         )
     else:
         df2 = bedrock.extract.flowbyactivity.getFlowByActivity(
-            datasource=source, year=year, git_version=fba2_version  # type: ignore[arg-type]
+            datasource=source, year=year, git_version=fba2_version
         )
     df_m = _compare_fba_values(df1, df2)
     # if no differences, print, if differences, provide df subset

@@ -14,7 +14,7 @@ gerneateflowbyactivity.py
 from __future__ import annotations
 
 from functools import partial, reduce
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import fedelemflowlist
 import numpy as np
@@ -31,8 +31,8 @@ from bedrock.utils.config.settings import (
 )
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import sectormapping
-from bedrock.utils.mapping.geo import filtered_fips, scale  # type: ignore[attr-defined]
-from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.geo import filtered_fips, scale
+from bedrock.utils.mapping.naics import (
     convert_naics_year,
     industry_spec_key,
     subset_sector_key,
@@ -259,7 +259,12 @@ class FlowByActivity(_FlowBy):
             return self
         geoscale_input = target_geoscale or self.config.get('geoscale')
         if isinstance(geoscale_input, str):
-            target_scale: scale = scale.from_string(geoscale_input)
+            target_scale: scale = scale.from_string(
+                cast(
+                    Literal['national', 'census_region', 'census_division', 'state', 'county'],
+                    geoscale_input,
+                )
+            )
         else:
             assert isinstance(
                 geoscale_input, scale
@@ -269,7 +274,13 @@ class FlowByActivity(_FlowBy):
         geoscale_by_fips = pd.concat(
             [
                 (
-                    filtered_fips(s).assign(geoscale=s, National='USA')
+                    filtered_fips(
+                        cast(
+                            Literal[scale.NATIONAL, scale.STATE, scale.COUNTY],
+                            s,
+                        )
+                    )
+                    .assign(geoscale=s.name, National='USA')
                     # ^^^ Need to have a column for each relevant scale
                     .rename(columns={'FIPS': 'Location'})
                 )
@@ -316,9 +327,12 @@ class FlowByActivity(_FlowBy):
                 if df[c].dtype == float:
                     df[c] = df[c].astype(object)
 
-        fba_with_reporting_levels = reduce(
-            lambda x, y: x.merge(y, how='left'),
-            [self, geoscale_by_fips, *highest_reporting_level_by_geoscale],
+        fba_with_reporting_levels: FlowByActivity = cast(
+            FlowByActivity,
+            reduce(
+                lambda x, y: x.merge(y, how='left'),
+                [self, geoscale_by_fips, *highest_reporting_level_by_geoscale],
+            ),
         )
 
         reporting_level_columns = [
@@ -359,7 +373,12 @@ class FlowByActivity(_FlowBy):
 
         fba_at_target_scale = (
             fba_at_source_geoscale.drop(columns='source_geoscale')
-            .convert_fips_to_geoscale(target_scale)
+            .convert_fips_to_geoscale(
+                cast(
+                    Literal[scale.NATIONAL, scale.STATE, scale.COUNTY],
+                    target_scale,
+                )
+            )
             .aggregate_flowby()
             .astype(
                 {
@@ -384,7 +403,7 @@ class FlowByActivity(_FlowBy):
                 self.full_name.split('.')[-1],
                 activities,
                 df_type='FBS',
-                subnational_geoscale=target_scale,
+                subnational_geoscale=target_scale.name.lower(),
                 # ^^^ TODO: Rewrite validation to use fb metadata
             )
 
@@ -495,7 +514,10 @@ class FlowByActivity(_FlowBy):
             )
 
         # load the naics key for the source year - will convert to target year after mapping
-        naics_key = industry_spec_key(self.config['industry_spec'], source_year)
+        naics_key = industry_spec_key(
+            self.config['industry_spec'],
+            cast(Literal[2002, 2007, 2012, 2017], source_year),
+        )
         # assign technological correlation scores
         naics_key = sectormapping.assign_technological_correlation(naics_key)
 
@@ -523,7 +545,7 @@ class FlowByActivity(_FlowBy):
                 activity_to_target_naics_crosswalk = subset_sector_key(
                     fba_w_naics,
                     f'Activity{direction}',
-                    source_year,
+                    str(source_year),
                     primary_sector_key=primary_sector_key,
                     secondary_sector_key=secondary_sector_key,
                 )
@@ -590,11 +612,14 @@ class FlowByActivity(_FlowBy):
         # sectors after mapping so we can apply the allocation ratio to the flow amount
         if source_year != self.config['target_naics_year']:
             # if FBA data are sector-like, convert the Activity column data to target sector year
-            fba_w_naics = convert_naics_year(
-                fba_w_naics,
-                f"NAICS_{fba_w_naics.config['target_naics_year']}_Code",
-                f"NAICS_{source_year}_Code",
-                self.full_name,
+            fba_w_naics = cast(
+                FlowByActivity,
+                convert_naics_year(
+                    fba_w_naics,
+                    f"NAICS_{fba_w_naics.config['target_naics_year']}_Code",
+                    f"NAICS_{source_year}_Code",
+                    self.full_name,
+                ),
             )
 
         # if activities are text-based, print out any data that are dropped
