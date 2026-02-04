@@ -136,27 +136,23 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 ignore_missing_imports = true
 exclude = [
-    'bedrock/extract/bea/',
     'bedrock/extract/blackhurst/',
     'bedrock/extract/blm/',
     'bedrock/extract/bls/',
     'bedrock/extract/bts/',
     'bedrock/extract/calrecycle/',
     'bedrock/extract/census/',
-    'bedrock/extract/eia/',
-    'bedrock/extract/epa/',
+    'bedrock/extract/cnhw/',
+    'bedrock/extract/nei/',
     'bedrock/extract/netl/',
     'bedrock/extract/noaa/',
+    'bedrock/extract/process_adjustments/',
     'bedrock/extract/statcan/',
     'bedrock/extract/stateghgi/',
     'bedrock/extract/stateio/',
     'bedrock/extract/stewifbs/',
     'bedrock/extract/unep/',
-    'bedrock/extract/usda/',
     'bedrock/extract/usgs/',
-    'bedrock/extract/flowbyactivity\.py',
-    'bedrock/extract/generateflowbyactivity\.py',
-    'bedrock/extract/__tests__/',
     'bedrock/transform/',
 ]
 
