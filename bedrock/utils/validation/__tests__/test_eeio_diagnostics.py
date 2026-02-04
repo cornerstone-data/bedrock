@@ -299,9 +299,6 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
 
 
 @pytest.mark.eeio_integration
-@pytest.mark.xfail(
-    reason="This test is failing because of data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
-)
 def test_compare_output_and_L_y(
     modelType: str = "Commodity",
     use_domestic: bool = False,
