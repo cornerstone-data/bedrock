@@ -13,8 +13,6 @@ import numpy as np
 import pandas as pd
 from esupy.mapping import apply_flow_mapping
 
-import bedrock.extract.flowbyactivity
-import bedrock.transform.flowbysector
 from bedrock.transform.dataclean import standardize_units
 from bedrock.utils.config.common import get_flowsa_base_name, load_crosswalk
 from bedrock.utils.config.schema import dq_fields
@@ -361,6 +359,8 @@ def get_BEA_industry_output(
     :param output_year: year for industry output
     :param bea_year: 2012 or 2017
     """
+    import bedrock.extract.flowbyactivity  # noqa: PLC0415
+
     if region == 'state':
         fba = 'stateio_Industry_GO'
         if io_level == 'detail':
@@ -461,6 +461,8 @@ def append_material_code(
 
 
 if __name__ == "__main__":
+    import bedrock.transform.flowbysector
+
     df = map_to_BEA_sectors(
         bedrock.transform.flowbysector.getFlowBySector('GHG_national_2019_m1').rename(
             columns={'SectorProducedBy': 'Sector'}
