@@ -30,7 +30,7 @@ from bedrock.utils.config.settings import (
     NAME_SEP_CHAR,
 )
 from bedrock.utils.logging.flowsa_log import log
-from bedrock.utils.mapping import geo, naics, sectormapping
+from bedrock.utils.mapping import sectormapping
 from bedrock.utils.mapping.geo import filtered_fips, scale  # type: ignore[attr-defined]
 from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]
     convert_naics_year,
