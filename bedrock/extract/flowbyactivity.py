@@ -14,7 +14,7 @@ gerneateflowbyactivity.py
 from __future__ import annotations
 
 from functools import partial, reduce
-from typing import TYPE_CHECKING, List, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import fedelemflowlist
 import numpy as np
@@ -30,12 +30,16 @@ from bedrock.utils.config.settings import (
     NAME_SEP_CHAR,
 )
 from bedrock.utils.logging.flowsa_log import log
-from bedrock.utils.mapping import geo, naics, sectormapping
+from bedrock.utils.mapping import sectormapping
+from bedrock.utils.mapping.geo import filtered_fips, scale
+from bedrock.utils.mapping.naics import (
+    convert_naics_year,
+    industry_spec_key,
+    subset_sector_key,
+)
 from bedrock.utils.metadata.metadata import set_fb_meta
 from bedrock.utils.validation.exceptions import FBANotAvailableError
-from bedrock.utils.validation.validation import (
-    compare_geographic_totals,
-)
+from bedrock.utils.validation.validation import compare_geographic_totals
 
 if TYPE_CHECKING:
     from bedrock.transform.flowbysector import FlowBySector
@@ -46,11 +50,11 @@ class FlowByActivity(_FlowBy):
 
     def __init__(
         self,
-        data: pd.DataFrame or '_FlowBy' = None,
-        *args,
+        data: pd.DataFrame | _FlowBy | None = None,
+        *args: Any,
         mapped: bool = False,
         w_sector: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         if isinstance(data, pd.DataFrame):
             mapped = mapped or any(
@@ -79,23 +83,23 @@ class FlowByActivity(_FlowBy):
         )
 
     @property
-    def _constructor(self) -> 'FlowByActivity':
+    def _constructor(self) -> type[FlowByActivity]:  # type: ignore[override]
         return FlowByActivity
 
     @property
-    def _constructor_sliced(self) -> '_FBASeries':
+    def _constructor_sliced(self) -> type[_FBASeries]:  # type: ignore[override]
         return _FBASeries
 
     @classmethod
     def return_FBA(
         cls,
         full_name: str,
-        year: int = None,
-        git_version: str = None,
-        config: dict = None,
+        year: int | None = None,
+        git_version: str | None = None,
+        config: dict[str, Any] | None = None,
         download_ok: bool = settings.DEFAULT_DOWNLOAD_IF_MISSING,
-        **kwargs,
-    ) -> 'FlowByActivity':
+        **kwargs: Any,
+    ) -> FlowByActivity:
         """
         Loads stored data in the FlowByActivity format. If it is not
         available, tries to download it from EPA's remote server (if
@@ -121,13 +125,13 @@ class FlowByActivity(_FlowBy):
 
         file_metadata = set_fb_meta(meta_name, 'FlowByActivity')
         flowby_generator = partial(generateFlowByActivity, source=full_name, year=year)
-        return super()._getFlowBy(
+        return super()._getFlowBy(  # type: ignore[return-value]
             file_metadata=file_metadata,
             download_ok=download_ok,
             flowby_generator=flowby_generator,
-            output_path=FBA_DIR,
+            output_path=str(FBA_DIR),
             full_name=full_name,
-            config=config,
+            config=config or {},
             **kwargs,
         )
 
@@ -149,7 +153,7 @@ class FlowByActivity(_FlowBy):
             'TargetFlowUUID',
         ]
         mapping_merge_keys = ['SourceFlowName', 'SourceUnit', 'SourceFlowContext']
-        merge_type = 'inner' if drop_unmapped_rows else 'left'
+        merge_type: Literal['inner', 'left'] = 'inner' if drop_unmapped_rows else 'left'
 
         mapping_subset = self.config.get('fedefl_mapping')
 
@@ -214,16 +218,9 @@ class FlowByActivity(_FlowBy):
 
     # TODO: Can this be generalized to a _FlowBy method?
     def convert_to_geoscale(
-        self: 'FlowByActivity',
-        target_geoscale: Literal[
-            'national',
-            'state',
-            'county',
-            geo.scale.NATIONAL,
-            geo.scale.STATE,
-            geo.scale.COUNTY,
-        ] = None,
-    ) -> 'FlowByActivity':
+        self: FlowByActivity,
+        target_geoscale: Literal['national', 'state', 'county'] | scale | None = None,
+    ) -> FlowByActivity:
         '''
         Converts, by filtering or aggregating (or both), the given dataset to
         the target geoscale.
@@ -260,53 +257,70 @@ class FlowByActivity(_FlowBy):
         '''
         if self.LocationSystem.eq('Census_Region').all():
             return self
-        target_geoscale = target_geoscale or self.config.get('geoscale')
-        if isinstance(target_geoscale, str):
-            target_geoscale = geo.scale.from_string(target_geoscale)
+        geoscale_input = target_geoscale or self.config.get('geoscale')
+        if isinstance(geoscale_input, str):
+            target_scale: scale = scale.from_string(
+                cast(
+                    Literal[
+                        'national',
+                        'census_region',
+                        'census_division',
+                        'state',
+                        'county',
+                    ],
+                    geoscale_input,
+                )
+            )
+        else:
+            assert isinstance(
+                geoscale_input, scale
+            ), 'target_geoscale must be provided or set in config'
+            target_scale = geoscale_input
 
         geoscale_by_fips = pd.concat(
             [
                 (
-                    geo.filtered_fips(scale).assign(geoscale=scale, National='USA')
+                    filtered_fips(
+                        cast(
+                            Literal[scale.NATIONAL, scale.STATE, scale.COUNTY],
+                            s,
+                        )
+                    ).assign(geoscale=s.name, National='USA')
                     # ^^^ Need to have a column for each relevant scale
                     .rename(columns={'FIPS': 'Location'})
                 )
                 # ^^^ (only FIPS for now)
-                for scale in [s for s in geo.scale if s.has_fips_level]
+                for s in [sc for sc in scale if sc.has_fips_level]
             ]
         )
 
-        geoscale_name_columns = [s.name.title() for s in geo.scale if s.has_fips_level]
+        geoscale_name_columns = [s.name.title() for s in scale if s.has_fips_level]
 
         log.info(
             f'Determining appropriate source geoscale for '
             f'{self.full_name}; target geoscale is '
-            f'{target_geoscale.name.lower()}'
+            f'{target_scale.name.lower()}'
         )
 
         highest_reporting_level_by_geoscale = [
             (
                 self.merge(geoscale_by_fips, how='inner')
-                .query('geoscale <= @scale')
+                .query('geoscale <= @sc')
                 .groupby(
                     ['ActivityProducedBy', 'ActivityConsumedBy']
-                    + [
-                        s.name.title()
-                        for s in geo.scale
-                        if s.has_fips_level and s >= scale
-                    ],
+                    + [s.name.title() for s in scale if s.has_fips_level and s >= sc],
                     dropna=False,
                 )
                 .agg({'geoscale': 'max'})
                 .reset_index()
                 .rename(
                     columns={
-                        'geoscale': f'highest_reporting_level_by_{scale.name.title()}'
+                        'geoscale': f'highest_reporting_level_by_{sc.name.title()}'
                     }
                 )
             )
-            for scale in geo.scale
-            if scale.has_fips_level and scale <= target_geoscale
+            for sc in scale
+            if sc.has_fips_level and sc <= target_scale
         ]
 
         # if an activity column is a mix of string and np.nan values but
@@ -318,15 +332,18 @@ class FlowByActivity(_FlowBy):
                 if df[c].dtype == float:
                     df[c] = df[c].astype(object)
 
-        fba_with_reporting_levels = reduce(
-            lambda x, y: x.merge(y, how='left'),
-            [self, geoscale_by_fips, *highest_reporting_level_by_geoscale],
+        fba_with_reporting_levels: FlowByActivity = cast(
+            FlowByActivity,
+            reduce(
+                lambda x, y: x.merge(y, how='left'),
+                [self, geoscale_by_fips, *highest_reporting_level_by_geoscale],
+            ),
         )
 
         reporting_level_columns = [
             f'highest_reporting_level_by_{s.name.title()}'
-            for s in geo.scale
-            if s.has_fips_level and s <= target_geoscale
+            for s in scale
+            if s.has_fips_level and s <= target_scale
         ]
 
         fba_at_source_geoscale = (
@@ -335,7 +352,7 @@ class FlowByActivity(_FlowBy):
                     reporting_level_columns
                 ].apply(
                     lambda row: max(
-                        (v for v in row if isinstance(v, geo.scale)), default=np.nan
+                        (v for v in row if isinstance(v, scale)), default=np.nan
                     ),
                     axis=1,
                 )
@@ -359,9 +376,14 @@ class FlowByActivity(_FlowBy):
                 fba_at_source_geoscale.source_geoscale.unique()[0].name.lower(),
             )
 
-        fba_at_target_geoscale = (
+        fba_at_target_scale = (
             fba_at_source_geoscale.drop(columns='source_geoscale')
-            .convert_fips_to_geoscale(target_geoscale)
+            .convert_fips_to_geoscale(
+                cast(
+                    Literal[scale.NATIONAL, scale.STATE, scale.COUNTY],
+                    target_scale,
+                )
+            )
             .aggregate_flowby()
             .astype(
                 {
@@ -371,7 +393,7 @@ class FlowByActivity(_FlowBy):
             )
         )
 
-        if target_geoscale != geo.scale.NATIONAL:
+        if target_scale != scale.NATIONAL:
             # TODO: This block of code can be simplified a great deal once
             #       validation.py is rewritten to use the FB config dictionary
             activities = list(
@@ -379,24 +401,24 @@ class FlowByActivity(_FlowBy):
             )
 
             compare_geographic_totals(
-                fba_at_target_geoscale,
+                fba_at_target_scale,
                 self,
                 self.source_name,
                 self.config,
                 self.full_name.split('.')[-1],
                 activities,
                 df_type='FBS',
-                subnational_geoscale=target_geoscale,
+                subnational_geoscale=target_scale.name.lower(),
                 # ^^^ TODO: Rewrite validation to use fb metadata
             )
 
-        return fba_at_target_geoscale.reset_index(drop=True)
+        return fba_at_target_scale.reset_index(drop=True)
 
     def map_to_sectors(
-        self: 'FlowByActivity',
+        self: FlowByActivity,
         target_year: Literal[2002, 2007, 2012, 2017, 2022],
-        external_config_path: str = None,
-    ) -> 'FlowByActivity':
+        external_config_path: str | None = None,
+    ) -> FlowByActivity:
         """
         Maps the activities in the calling dataframe to industries/sectors, but
         does not perform any attribution. Columns for SectorProducedBy and
@@ -497,7 +519,10 @@ class FlowByActivity(_FlowBy):
             )
 
         # load the naics key for the source year - will convert to target year after mapping
-        naics_key = naics.industry_spec_key(self.config['industry_spec'], source_year)
+        naics_key = industry_spec_key(
+            self.config['industry_spec'],
+            cast(Literal[2002, 2007, 2012, 2017], source_year),
+        )
         # assign technological correlation scores
         naics_key = sectormapping.assign_technological_correlation(naics_key)
 
@@ -522,10 +547,10 @@ class FlowByActivity(_FlowBy):
                     primary_sector_key = activity_to_source_naics_crosswalk
                     secondary_sector_key = naics_key
 
-                activity_to_target_naics_crosswalk = naics.subset_sector_key(
+                activity_to_target_naics_crosswalk = subset_sector_key(
                     fba_w_naics,
                     f'Activity{direction}',
-                    source_year,
+                    str(source_year),
                     primary_sector_key=primary_sector_key,
                     secondary_sector_key=secondary_sector_key,
                 )
@@ -592,11 +617,14 @@ class FlowByActivity(_FlowBy):
         # sectors after mapping so we can apply the allocation ratio to the flow amount
         if source_year != self.config['target_naics_year']:
             # if FBA data are sector-like, convert the Activity column data to target sector year
-            fba_w_naics = naics.convert_naics_year(
-                fba_w_naics,
-                f"NAICS_{fba_w_naics.config['target_naics_year']}_Code",
-                f"NAICS_{source_year}_Code",
-                self.full_name,
+            fba_w_naics = cast(
+                FlowByActivity,
+                convert_naics_year(
+                    fba_w_naics,
+                    f"NAICS_{fba_w_naics.config['target_naics_year']}_Code",
+                    f"NAICS_{source_year}_Code",
+                    self.full_name,
+                ),
             )
 
         # if activities are text-based, print out any data that are dropped
@@ -646,13 +674,13 @@ class FlowByActivity(_FlowBy):
         return fba_w_naics2
 
     def prepare_fbs(
-        self: 'FlowByActivity',
-        external_config_path: str = None,
+        self: FlowByActivity,
+        external_config_path: str | None = None,
         download_sources_ok: bool = True,
         skip_select_by: bool = False,
         retain_activity_columns: bool = False,
-        fbs_method_name: str = None,
-    ) -> 'FlowBySector':
+        fbs_method_name: str | None = None,
+    ) -> FlowBySector:
 
         from bedrock.transform.flowbysector import FlowBySector  # noqa: PLC0415
 
@@ -664,22 +692,25 @@ class FlowByActivity(_FlowBy):
 
         if 'activity_sets' in self.config:
             try:
-                return pd.concat(
-                    [
-                        fba.prepare_fbs(
-                            external_config_path=external_config_path,
-                            download_sources_ok=download_sources_ok,
-                            skip_select_by=True,
-                            retain_activity_columns=retain_activity_columns,
-                            fbs_method_name=fbs_method_name,
-                        )
-                        for fba in (
-                            self.select_by_fields()
-                            .function_socket('clean_fba_before_activity_sets')
-                            .activity_sets()
-                        )
-                    ]
-                ).reset_index(drop=True)
+                return FlowBySector(
+                    pd.concat(
+                        [
+                            fba.prepare_fbs(
+                                external_config_path=external_config_path,
+                                download_sources_ok=download_sources_ok,
+                                skip_select_by=True,
+                                retain_activity_columns=retain_activity_columns,
+                                fbs_method_name=fbs_method_name,
+                            )
+                            for fba in (
+                                self.select_by_fields()
+                                .function_socket('clean_fba_before_activity_sets')
+                                .activity_sets()
+                            )
+                        ]
+                    ).reset_index(drop=True),
+                    convert_df_to_flowby=True,
+                )
             except ValueError:
                 return FlowBySector(pd.DataFrame(), convert_df_to_flowby=True)
         log.info(f'Processing FlowBySector for {self.full_name}')
@@ -699,7 +730,7 @@ class FlowByActivity(_FlowBy):
             .assign_geographic_correlation(fbs_method_name=fbs_method_name)
             .convert_to_geoscale()
             .attribute_flows_to_sectors(
-                external_config_path=external_config_path,
+                external_config_path=external_config_path,  # type: ignore[arg-type]
                 download_sources_ok=download_sources_ok,
             )  # recursive call to prepare_fbs
             .drop(columns=drop_cols)
@@ -708,7 +739,7 @@ class FlowByActivity(_FlowBy):
             convert_df_to_flowby=True,
         )
 
-    def activity_sets(self) -> List['FlowByActivity']:
+    def activity_sets(self) -> list[FlowByActivity]:  # type: ignore[override]
         '''
         This function breaks up an FBA dataset into its activity sets, if its
         config dictionary specifies activity sets, and returns a list of the
@@ -732,8 +763,8 @@ class FlowByActivity(_FlowBy):
         }
         parent_fba = self.reset_index(names='row')
 
-        child_fba_list = []
-        assigned_rows = set()
+        child_fba_list: list[FlowByActivity] = []
+        assigned_rows: set[Any] = set()
         for activity_set, activity_config in activities.items():
             log.info('Creating FlowByActivity for %s', activity_set)
 
@@ -850,21 +881,21 @@ class _FBASeries(pd.Series):
     _metadata = [*FlowByActivity()._metadata]
 
     @property
-    def _constructor(self) -> '_FBASeries':
+    def _constructor(self) -> type[_FBASeries]:
         return _FBASeries
 
     @property
-    def _constructor_expanddim(self) -> 'FlowByActivity':
+    def _constructor_expanddim(self) -> type[FlowByActivity]:
         return FlowByActivity
 
 
 def getFlowByActivity(
     datasource: str,
     year: int,
-    git_version: str = None,
-    flowclass=None,
-    geographic_level=None,
-    download_FBA_if_missing=DEFAULT_DOWNLOAD_IF_MISSING,
+    git_version: str | None = None,
+    flowclass: str | list[str] | None = None,
+    geographic_level: str | None = None,
+    download_FBA_if_missing: bool = DEFAULT_DOWNLOAD_IF_MISSING,
 ) -> pd.DataFrame:
     """
     Retrieves stored data in the FlowByActivity format
