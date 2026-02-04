@@ -273,10 +273,6 @@ class TestRunAllDiagnostics:
         assert call_order == ["a", "b"]
 
 
-class Test_compare_commodity_output_to_domestics_use_plus_exports:
-    "Tests for the compareCommodityOuputandDomesticUseplusProductionDemand function"
-
-
 @pytest.mark.eeio_integration
 @pytest.mark.xfail(
     reason="This test is failing because of data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
