@@ -11,16 +11,20 @@ Last updated: September 8, 2020
 
 import io
 import re
+from typing import Any, List, Tuple
 
 import numpy as np
 import pandas as pd
 from esupy.mapping import apply_flow_mapping
+from requests import Response
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
 
-def eia_mer_url_helper(*, build_url, config, **_):
+def eia_mer_url_helper(
+    *, build_url: str, config: dict[str, Any], **_: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url
@@ -39,7 +43,7 @@ def eia_mer_url_helper(*, build_url, config, **_):
     return urls
 
 
-def eia_mer_call(*, resp, **_):
+def eia_mer_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin
     parsing df into FBA format
@@ -52,7 +56,9 @@ def eia_mer_call(*, resp, **_):
     return df
 
 
-def parse_tables(desc):
+def parse_tables(
+    desc: str,
+) -> Tuple[str | None, str | None, str | None]:
     """
     Based on description field of {Tbl}: {description}
     returns tuple of (FlowName, ActivityProducedBy, ActivityConsumedBy)
@@ -93,7 +99,7 @@ def parse_tables(desc):
         return (None, None, None)
 
 
-def eia_mer_parse(*, df_list, **_):
+def eia_mer_parse(*, df_list: List[pd.DataFrame], **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -148,7 +154,7 @@ def eia_mer_parse(*, df_list, **_):
     return df
 
 
-def invert_heat_content(fba: FlowByActivity, **_) -> FlowByActivity:
+def invert_heat_content(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """Convert units for the heat content values to align with those in the fba,
     invert these values to use attribution_method: multiplication instead of
     attribution_method: division. clean_fba_w_sec fxn"""
@@ -181,7 +187,7 @@ def invert_heat_content(fba: FlowByActivity, **_) -> FlowByActivity:
     return fba
 
 
-def map_energy_flows(fba: FlowByActivity, **_) -> FlowByActivity:
+def map_energy_flows(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """Maps energy flows to the FEDEFL after attribution.
     clean_fba_after_attribution fxn"""
     fba = apply_flow_mapping(fba, 'EIA_MER', 'ELEMENTARY_FLOW', ignore_source_name=True)
@@ -189,7 +195,8 @@ def map_energy_flows(fba: FlowByActivity, **_) -> FlowByActivity:
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(source='EIA_MER', year='2012-2023')
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EIA_MER', 2020)
+    generateFlowByActivity(source='EIA_MER', year='2012-2023')
+    fba = getFlowByActivity('EIA_MER', 2020)
