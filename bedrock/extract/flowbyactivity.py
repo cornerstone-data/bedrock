@@ -261,7 +261,13 @@ class FlowByActivity(_FlowBy):
         if isinstance(geoscale_input, str):
             target_scale: scale = scale.from_string(
                 cast(
-                    Literal['national', 'census_region', 'census_division', 'state', 'county'],
+                    Literal[
+                        'national',
+                        'census_region',
+                        'census_division',
+                        'state',
+                        'county',
+                    ],
                     geoscale_input,
                 )
             )
@@ -279,8 +285,7 @@ class FlowByActivity(_FlowBy):
                             Literal[scale.NATIONAL, scale.STATE, scale.COUNTY],
                             s,
                         )
-                    )
-                    .assign(geoscale=s.name, National='USA')
+                    ).assign(geoscale=s.name, National='USA')
                     # ^^^ Need to have a column for each relevant scale
                     .rename(columns={'FIPS': 'Location'})
                 )
