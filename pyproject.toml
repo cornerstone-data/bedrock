@@ -142,8 +142,6 @@ exclude = [
     'bedrock/extract/bts/',
     'bedrock/extract/calrecycle/',
     'bedrock/extract/census/',
-    'bedrock/extract/cnhw/',
-    'bedrock/extract/nei/',
     'bedrock/extract/netl/',
     'bedrock/extract/noaa/',
     'bedrock/extract/process_adjustments/',
