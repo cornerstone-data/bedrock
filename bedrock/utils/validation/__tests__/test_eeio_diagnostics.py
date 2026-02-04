@@ -4,6 +4,8 @@
 import pandas as pd
 import pytest
 
+import bedrock.utils.math.formulas as formulas
+from bedrock.transform.eeio.derived import derive_Aq_usa
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_q_usa,
     derive_2017_U_with_negatives,
@@ -13,6 +15,7 @@ from bedrock.transform.eeio.derived_2017 import (
 from bedrock.utils.validation.eeio_diagnostics import (
     DiagnosticResult,
     compare_commodity_output_to_domestics_use_plus_exports,
+    compare_output_vs_leontief_x_demand,
     format_diagnostic_result,
     run_all_diagnostics,
 )
@@ -293,3 +296,44 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     )
 
     assert len(r_q_with_U_d_and_y_d_validation.failing_sectors) == 0
+
+
+@pytest.mark.eeio_integration
+@pytest.mark.xfail(
+    reason="This test is failing because of data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
+)
+def test_compare_output_and_L_y(
+    modelType: str = "Commodity",
+    use_domestic: bool = False,
+) -> None:
+
+    # Load Aq model objects
+    Aq = derive_Aq_usa()
+    A_d = Aq.Adom
+    A_imp = Aq.Aimp
+
+    # Load y vectors
+    y_set = derive_2017_Ytot_usa_matrix_set()
+    y_imp = derive_detail_y_imp_usa()
+
+    # Load output value
+    if modelType == "Commodity":
+        output = derive_2017_q_usa()
+    else:
+        # TODO: For industry models need to add g = output via derive_2017_g_usa(). Using q = output for now.
+        output = derive_2017_q_usa()
+
+    # Compute appropriate L and y
+    if use_domestic:
+        y = y_set.ytot - y_imp + y_set.exports  # y_d
+        L = formulas.compute_L_matrix(A=A_d)  # L_d
+    else:
+        y = y_set.ytot  # total y (non-domestic)
+        L = formulas.compute_L_matrix(
+            A=(A_d + A_imp)
+        )  # Is this correct? total L (non domestic)
+
+    r_output_L_y_validation = compare_output_vs_leontief_x_demand(
+        output=output, L=L, y=y, tolerance=0.01, include_details=True
+    )
+    assert len(r_output_L_y_validation.failing_sectors) == 0
