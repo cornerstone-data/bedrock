@@ -14,6 +14,8 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+import bedrock.utils.math.formulas as formulas
+
 logger = logging.getLogger(__name__)
 
 
@@ -179,6 +181,91 @@ def compare_commodity_output_to_domestics_use_plus_exports(
         tolerance=tolerance,
         max_rel_diff=max_rd,
         failing_sectors=failing_sectors,
+        details=details,
+    )
+
+
+def compare_output_vs_leontief_x_demand(
+    output: pd.Series[float],
+    L: pd.DataFrame,
+    y: pd.Series[float],
+    *,
+    tolerance: float = 0.01,
+    include_details: bool = False,
+) -> DiagnosticResult:
+    """
+    Compares the total sector output (commodity or industry) against
+    the model result calculation of L @ y.
+    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
+    is treated as 0.
+
+    Parameters
+    ----------
+    output
+        Float series. If commodity model, output = q from ``derive_2017_q_usa``; if industry model, output = g  from ``derive_2017_g_usa``
+    L
+        Dataframe. Leontief inverse (total or domestic)
+    y
+        Float series. National accounting balance final demand (y_nab)
+    use_domestic
+        If True, use the domestic Leontief inverse and final demand. Default is False.
+    tolerance
+        Tolerance for |rel_diff|; default 0.01.
+    include_details
+        If True, attach a details DataFrame (sector, expected, actual, rel_diff).
+
+    Returns
+    -------
+    DiagnosticResult
+        Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
+    """
+
+    # Make sure all elements have common sectors: TODO: make this a new function as it is called in several validation functions
+    sectors = output.index.intersection(L.index).intersection(y.index)
+    if len(sectors) != len(output.index):
+        return DiagnosticResult(
+            name="Unequal number of sectors in arguments of compare_commodity_output_to_domestics_use_plus_exports",
+            passed=False,
+            tolerance=tolerance,
+            max_rel_diff=float("inf"),
+            failing_sectors=[],
+            details=None,
+        )
+
+    # calculate scaling factor
+    output_check = formulas.backcompute_q_from_L_and_y(L=L, y=y)
+
+    rel_diff = (output - output_check) / output
+    rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
+    rel_diff_abs = np.abs(rel_diff)
+
+    failing_sectors = rel_diff_abs[rel_diff_abs > tolerance]
+    passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
+    max_rd = float(np.max(rel_diff_abs))
+
+    # failing_sectors = sectors[rel_diff_abs > tolerance].tolist()
+    name = "compare output and L * y"
+
+    details = None
+    if include_details:
+        data = {
+            # "failing sectors": failing_sectors.index.tolist(),
+            # "passing sectors": passing_sectors.index.tolist(),
+            # "failing values": failing_sectors.values, # not sure why this is not working as in the previous validation function
+            "failing sectors": list(getattr(failing_sectors, "index", [])),
+            "passing sectors": list(getattr(passing_sectors, "index", [])),
+            "failing values": np.array(failing_sectors).tolist(),
+            "max_rel_diff": max_rd,
+        }
+        details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
+
+    passed = len(output) == len(passing_sectors)
+    return DiagnosticResult(
+        name=name,
+        passed=passed,
+        tolerance=tolerance,
+        max_rel_diff=max_rd,
+        failing_sectors=list(getattr(failing_sectors, "index", [])),
         details=details,
     )
 
