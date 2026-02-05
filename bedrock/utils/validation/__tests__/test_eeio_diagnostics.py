@@ -7,6 +7,7 @@ import pytest
 import bedrock.utils.math.formulas as formulas
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
+    derive_2017_g_usa,
     derive_2017_q_usa,
     derive_2017_U_with_negatives,
     derive_2017_Ytot_usa_matrix_set,
@@ -305,10 +306,8 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     [
         ("Commodity", False),
         ("Commodity", True),
-        ("Industry", False),
-        ("Industry", True),
     ],
-)
+)  # TODO: add industry parameters when Industry models become available [("Industry", False), ("Industry", True)]
 def test_compare_output_and_L_y(
     modelType: str,
     use_domestic: bool,
@@ -316,8 +315,8 @@ def test_compare_output_and_L_y(
 
     # Load Aq model objects
     Aq = derive_2017_Aq_usa()
-    A_d = Aq.Adom
-    A_imp = Aq.Aimp
+    Adom = Aq.Adom
+    Aimp = Aq.Aimp
 
     # Load y vectors
     y_set = derive_2017_Ytot_usa_matrix_set()
@@ -328,16 +327,16 @@ def test_compare_output_and_L_y(
         output = derive_2017_q_usa()
     else:
         # TODO: For industry models need to add g = output via derive_2017_g_usa(). Using q = output for now.
-        output = derive_2017_q_usa()
+        output = derive_2017_g_usa()
 
     # Compute appropriate L and y
     if use_domestic:
         y = y_set.ytot - y_imp + y_set.exports  # y_d
-        L = formulas.compute_L_matrix(A=A_d)  # L_d
+        L = formulas.compute_L_matrix(A=Adom)  # L_d
     else:
-        y = y_set.ytot  # total y (non-domestic)
+        y = y_set.ytot + y_set.exports + y_set.imports  # total y (non-domestic)
         L = formulas.compute_L_matrix(
-            A=(A_d + A_imp)
+            A=(Adom + Aimp)
         )  # Is this correct? total L (non domestic)
 
     r_output_L_y_validation = compare_output_vs_leontief_x_demand(
