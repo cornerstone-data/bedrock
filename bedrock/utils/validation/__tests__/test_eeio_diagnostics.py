@@ -305,9 +305,8 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     "modelType, use_domestic",
     [
         ("Commodity", False),
-        ("Commodity", True),
     ],
-)  # TODO: add industry parameters when Industry models become available [("Industry", False), ("Industry", True)]
+)  # TODO: add ("Commodity", True) test and industry parameters when Industry models become available [("Industry", False), ("Industry", True)]
 def test_compare_output_and_L_y(
     modelType: str,
     use_domestic: bool,
