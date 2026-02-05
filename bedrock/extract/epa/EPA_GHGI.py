@@ -464,14 +464,9 @@ def ghg_parse(
         # set suppressed values to 0 but mark as suppressed
         # otherwise set non-numeric to nan
         try:
-            df['Suppressed'] = (
-                df['FlowAmount']
-                .astype(str)
-                .str.strip()
-                .eq('+')
-                .replace({True: '+', False: np.nan})
-                .infer_objects(copy=False)
-            )
+            flow_stripped = df['FlowAmount'].astype(str).str.strip()
+            # mark '+' as suppressed, everything else NaN
+            df['Suppressed'] = flow_stripped.where(flow_stripped == '+', np.nan)
             df['FlowAmount'] = (
                 df['FlowAmount']
                 .astype(str)
