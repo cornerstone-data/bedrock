@@ -310,8 +310,8 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     ],
 )
 def test_compare_output_and_L_y(
-    modelType: str = "Commodity",
-    use_domestic: bool = False,
+    modelType: str,
+    use_domestic: bool,
 ) -> None:
 
     # Load Aq model objects
