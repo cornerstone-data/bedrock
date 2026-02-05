@@ -15,8 +15,7 @@ import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
 import bedrock
-import bedrock.extract.flowbyactivity
-import bedrock.extract.generateflowbyactivity
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyfunctions import aggregator, collapse_fbs_sectors
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.common import fba_activity_fields, load_yaml_dict
@@ -292,9 +291,10 @@ def compare_FBA_results(
     :param compare_to_remote:
     :return:
     """
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0451
 
     # load first file (if compare to remote, this is remote file)
-    df1 = bedrock.extract.flowbyactivity.getFlowByActivity(
+    df1 = getFlowByActivity(
         datasource=source,
         year=year,
         git_version=fba1_version,
@@ -303,16 +303,10 @@ def compare_FBA_results(
     # load second file
     if compare_to_remote:
         # Generate the FBS locally and then immediately load
-        bedrock.extract.generateflowbyactivity.generateFlowByActivity(
-            source=source, year=year
-        )
-        df2 = bedrock.extract.flowbyactivity.getFlowByActivity(
-            datasource=source, year=year
-        )
+        generateFlowByActivity(source=source, year=year)
+        df2 = getFlowByActivity(datasource=source, year=year)
     else:
-        df2 = bedrock.extract.flowbyactivity.getFlowByActivity(
-            datasource=source, year=year, git_version=fba2_version
-        )
+        df2 = getFlowByActivity(datasource=source, year=year, git_version=fba2_version)
     df_m = _compare_fba_values(df1, df2)
     # if no differences, print, if differences, provide df subset
     if len(df_m) == 0:
@@ -537,9 +531,7 @@ def compare_single_FBA_against_remote(
     if not downloaded:
         if run_single:
             # Run a single file even if no comparison available
-            bedrock.extract.generateflowbyactivity.generateFlowByActivity(
-                year=year, source=source
-            )
+            generateFlowByActivity(year=year, source=source)
         else:
             print(f"{source} {year} not found in remote server. Skipping...")
         return
