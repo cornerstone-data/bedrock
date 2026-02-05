@@ -305,17 +305,22 @@ class FlowByActivity(_FlowBy):
         highest_reporting_level_by_geoscale = [
             (
                 self.merge(geoscale_by_fips, how='inner')
-                .query('geoscale <= @sc')
+                .loc[lambda df: df['geoscale'].str.lower().map(scale.from_string) <= sc]
+                .assign(
+                    geoscale_scale=lambda df: df['geoscale']
+                    .str.lower()
+                    .map(scale.from_string)
+                )
                 .groupby(
                     ['ActivityProducedBy', 'ActivityConsumedBy']
                     + [s.name.title() for s in scale if s.has_fips_level and s >= sc],
                     dropna=False,
                 )
-                .agg({'geoscale': 'max'})
+                .agg({'geoscale_scale': lambda x: max(x)})
                 .reset_index()
                 .rename(
                     columns={
-                        'geoscale': f'highest_reporting_level_by_{sc.name.title()}'
+                        'geoscale_scale': f'highest_reporting_level_by_{sc.name.title()}'
                     }
                 )
             )
@@ -357,7 +362,12 @@ class FlowByActivity(_FlowBy):
                     axis=1,
                 )
             )
-            .query('geoscale == source_geoscale')
+            .loc[
+                lambda df: df['geoscale']
+                == df['source_geoscale'].map(
+                    lambda s: s.name if isinstance(s, scale) else np.nan
+                )
+            ]
             .drop(
                 columns=(['geoscale', *geoscale_name_columns, *reporting_level_columns])
             )
