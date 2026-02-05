@@ -300,6 +300,15 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
 
 # @pytest.mark.xfail(reason="Data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation.")
 # @pytest.mark.eeio_integration
+@pytest.mark.parametrize(
+    "modelType, use_domestic",
+    [
+        ("Commodity", False),
+        ("Commodity", True),
+        ("Industry", False),
+        ("Industry", True),
+    ],
+)
 def test_compare_output_and_L_y(
     modelType: str = "Commodity",
     use_domestic: bool = False,
