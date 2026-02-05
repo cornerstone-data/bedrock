@@ -333,7 +333,7 @@ def test_compare_output_and_L_y(
         y = y_set.ytot - y_imp + y_set.exports  # y_d
         L = formulas.compute_L_matrix(A=Adom)  # L_d
     else:
-        y = y_set.ytot + y_set.exports + y_set.imports  # total y (non-domestic)
+        y = y_set.ytot + y_set.exports - y_set.imports  # total y (non-domestic)
         L = formulas.compute_L_matrix(
             A=(Adom + Aimp)
         )  # Is this correct? total L (non domestic)
@@ -341,4 +341,5 @@ def test_compare_output_and_L_y(
     r_output_L_y_validation = compare_output_vs_leontief_x_demand(
         output=output, L=L, y=y, tolerance=0.01, include_details=True
     )
+    print(len(r_output_L_y_validation.failing_sectors))
     assert len(r_output_L_y_validation.failing_sectors) == 0
