@@ -38,8 +38,8 @@ def epa_state_ghgi_parse(
     *,
     df_list: list[pd.DataFrame],
     source: str,
-    year: str,
-    config: dict[str, Any],
+    year: str,  # noqa: ARG001
+    config: dict[str, Any],  # noqa: ARG001
     **_: Any,
 ) -> pd.DataFrame:
     """
@@ -66,8 +66,6 @@ def epa_state_ghgi_parse(
         'sub_category_5',
     ]
 
-    states = data_df[['geo_ref']].drop_duplicates()
-    flows = data_df[['ghg']].drop_duplicates()
     year_cols = [
         col
         for col in data_df.columns
@@ -95,8 +93,6 @@ def epa_state_ghgi_parse(
         )
         .drop(columns=activity_cols)
     )
-
-    activities = df[['ActivityProducedBy']].drop_duplicates()
 
     df = apply_county_FIPS(df)
     df = assign_fips_location_system(df, '2015')
@@ -141,13 +137,7 @@ def allocate_flows_by_fuel(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     year = fba.config.get('year')
     if year is None:
         raise ValueError("year is required in config")
-    # combine lists of activities from CO2 activity set
-    alist = fba.config['clean_parameter']['flow_ratio_source']
-    if any(isinstance(i, list) for i in alist):
-        # pulled from !index, so list of lists
-        activity_list: list[str] = sum(alist, [])
-    else:
-        activity_list = alist
+
     source_fba = pd.concat(
         [
             getFlowByActivity(x, year)
