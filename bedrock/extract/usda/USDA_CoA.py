@@ -579,6 +579,39 @@ def coa_cropland_NAICS_parse(*, df_list, year, **_):
 
     return df
 
+def usda_coa_cropland_ceda_parse(*, df_list, year, **_):
+    """
+    Hardcoded 2018 data
+    """
+    df = pd.DataFrame({
+        "ActivityConsumedBy": ["1111A0", "1111B0", "111200", "111300", "111900"],
+        "FlowAmount": [86552100, 151633000, 5252810, 4770430, 102512817],
+        "Year": year,
+        "Location": '00000',
+        "FlowName": 'USDA_CoA_Cropland_CEDA',
+        "Unit": "ACRES",
+        "Class": "Land",
+    })
+
+    return df
+
+
+def usda_coa_livestock_ceda_parse(*, df_list, year, **_):
+    """
+    Hardcoded 2018 data
+    """
+
+    df = pd.DataFrame({
+        "ActivityConsumedBy": ["112120", "1121A0", "112300", "112A00"],
+        "FlowAmount": [17398455, 376699018, 5916544, 78659536],
+        "Year": year,
+        "Location": '00000',
+        "FlowName": 'USDA_CoA_Livestock_CEDA',
+        "Unit": "ACRES",
+        "Class": "Land",
+    })
+
+    return df
 
 def coa_common_parse(df):
     # USDA CoA 2017 states that (H) means CV >= 99.95,
