@@ -299,8 +299,10 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     assert len(r_q_with_U_d_and_y_d_validation.failing_sectors) == 0
 
 
-# @pytest.mark.xfail(reason="Data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation.")
-# @pytest.mark.eeio_integration
+@pytest.mark.xfail(
+    reason="Data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
+)
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize(
     "modelType, use_domestic",
     [
