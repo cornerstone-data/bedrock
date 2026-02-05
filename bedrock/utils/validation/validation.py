@@ -291,7 +291,7 @@ def compare_FBA_results(
     :param compare_to_remote:
     :return:
     """
-    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0451
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
 
     # load first file (if compare to remote, this is remote file)
     df1 = getFlowByActivity(
