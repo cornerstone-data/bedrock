@@ -138,7 +138,7 @@ def combine_cdd_path(
     # Extract generation by source data from link or file in externaldatapath
     df_csv = None
     file = config['generation_by_source'].get(year)
-    if type(file) == dict:
+    if isinstance(file, dict):
         df_csv = call_generation_by_source(file)
     if df_csv is None:
         # if not available, default to 2014 ratios

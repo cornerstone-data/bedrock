@@ -9,7 +9,6 @@ import io
 from string import ascii_uppercase
 from typing import Any
 
-import numpy as np
 import pandas as pd
 from requests import Response
 from tabula.io import read_pdf
@@ -168,7 +167,6 @@ def split_problem_column(df: pd.DataFrame) -> pd.DataFrame:
     :return: df
     """
     t = str.maketrans('', '', ascii_uppercase)
-    seven_array_corrected: list[str] = []
     restaurants_list = []
     sports_list = []
     hospitals_list = []

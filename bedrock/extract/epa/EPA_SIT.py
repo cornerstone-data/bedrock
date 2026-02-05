@@ -24,7 +24,7 @@ from bedrock.utils.mapping.location import apply_county_FIPS
 
 
 def epa_sit_parse(
-    *, source: str, year: str, config: dict[str, Any], **_: Any
+    *, source: str, year: str, config: dict[str, Any], **_: Any  # noqa: ARG001
 ) -> pd.DataFrame:
 
     # initialize the dataframe
