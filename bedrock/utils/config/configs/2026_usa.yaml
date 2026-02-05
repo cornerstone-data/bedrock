@@ -1,12 +1,13 @@
 #####
 # Model base settings
 #####
-model_base_year: 2023
+model_base_year: 2024
 
 #####
 # Data selection
 #####
-usa_ghg_data_year: 2023
+usa_io_data_year: 2024
+usa_ghg_data_year: 2024
 
 #####
 # Methodology selection
