@@ -96,7 +96,7 @@ def get_usa_config() -> USAConfig:
         if env_usa_config_file:
             _usa_config = _load_usa_config_from_file_name(env_usa_config_file)
         else:
-            set_global_usa_config("usa_2026.yaml")
+            set_global_usa_config("v8_ceda_2025_usa.yaml")
     assert _usa_config is not None
     return _usa_config
 
