@@ -5,6 +5,8 @@
 Common functions to clean and harmonize dataframes
 """
 
+from typing import List
+
 import numpy as np
 import pandas as pd
 
@@ -13,7 +15,11 @@ from bedrock.utils.config.settings import mappingpath
 from bedrock.utils.logging.flowsa_log import log
 
 
-def clean_df(df, flowbyfields, drop_description=True):
+def clean_df(
+    df: pd.DataFrame,
+    flowbyfields: dict[str, List[dict[str, str | bool]]],
+    drop_description: bool = True,
+) -> pd.DataFrame:
     """
     Modify a dataframe to ensure all columns are present and column
     datatypes correct
@@ -37,7 +43,10 @@ def clean_df(df, flowbyfields, drop_description=True):
     return df
 
 
-def add_missing_flow_by_fields(flowby_partial_df, flowbyfields):
+def add_missing_flow_by_fields(
+    flowby_partial_df: pd.DataFrame,
+    flowbyfields: dict[str, List[dict[str, str | bool]]],
+) -> pd.DataFrame:
     """
     Add in missing fields to have a complete and ordered df
     :param flowby_partial_df: Either flowbyactivity or flowbysector df
@@ -51,17 +60,19 @@ def add_missing_flow_by_fields(flowby_partial_df, flowbyfields):
             if response and col not in flowby_partial_df.columns:
                 flowby_partial_df[col] = np.nan
     # convert all None, 'nan' to np.nan
-    flowby_partial_df = flowby_partial_df.replace(
-        {'None': np.nan, 'nan': np.nan}
-    ).infer_objects(copy=False)
+    obj_cols = flowby_partial_df.select_dtypes(include=['object', 'string']).columns
+    flowby_partial_df[obj_cols] = flowby_partial_df[obj_cols].mask(
+        flowby_partial_df[obj_cols].isin(['None', 'nan'])
+    )
     # convert data types to match those defined in flow_by_activity_fields
     for k, v in flowbyfields.items():
         if k in flowby_partial_df.columns:
             flowby_partial_df[k] = flowby_partial_df[k].astype(v[0]['dtype'])
             if v[0]['dtype'] in ['string', 'str', 'object']:
-                flowby_partial_df[k] = (
-                    flowby_partial_df[k].fillna(np.nan).infer_objects(copy=False)
-                )
+                s = flowby_partial_df[k].astype(pd.StringDtype())
+                # optional normalization if those sentinel strings can appear:
+                s = s.mask(s.isin(['None', 'nan']))
+                flowby_partial_df[k] = s
             else:
                 flowby_partial_df[k] = (
                     flowby_partial_df[k].fillna(0).infer_objects(copy=False)
@@ -77,7 +88,7 @@ def add_missing_flow_by_fields(flowby_partial_df, flowbyfields):
     return flowby_df
 
 
-def standardize_units(df):
+def standardize_units(df: pd.DataFrame) -> pd.DataFrame:
     """
     Convert unit to standard using csv
     Timeframe is over one year
@@ -104,15 +115,17 @@ def standardize_units(df):
             .T,
         ]
     )
+    # Ensure numeric dtype to avoid future downcasting warnings on fillna
+    conversion_table['conversion_factor'] = pd.to_numeric(
+        conversion_table['conversion_factor'], errors='coerce'
+    )
 
     standardized = (
         df.assign(Unit=df.Unit.str.strip())
         .merge(conversion_table, how='left', left_on='Unit', right_on='old_unit')
         .assign(
             Unit=lambda x: x.new_unit.mask(x.new_unit.isna(), x.Unit),
-            conversion_factor=lambda x: x.conversion_factor.fillna(1).infer_objects(
-                copy=False
-            ),
+            conversion_factor=lambda x: x.conversion_factor.fillna(1.0),
             FlowAmount=lambda x: x.FlowAmount * x.conversion_factor,
         )
         .drop(columns=['old_unit', 'new_unit', 'conversion_factor'])

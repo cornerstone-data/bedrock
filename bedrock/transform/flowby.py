@@ -612,8 +612,14 @@ class _FlowBy(pd.DataFrame):
             **{k: v for k, v in other_fields.items() if isinstance(v, dict)},
         }
 
+        # Ensure string-like columns use a dedicated string dtype before replace
+        string_cols = [k for k in replace_dict.keys() if k in filtered_fb.columns]
+
         replaced_fb = (
-            filtered_fb.replace(replace_dict)
+            filtered_fb.assign(
+                **{col: filtered_fb[col].astype('string') for col in string_cols}
+            )
+            .replace(replace_dict)
             .infer_objects(copy=False)
             .drop(columns=['PrimaryActivity', 'PrimarySector'], errors='ignore')
             .reset_index(drop=True)
