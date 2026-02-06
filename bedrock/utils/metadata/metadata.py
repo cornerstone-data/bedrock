@@ -24,6 +24,9 @@ from bedrock.utils.config.settings import (
     PKG,
     PKG_VERSION_NUMBER,
     WRITE_FORMAT,
+    extractpath,
+    return_folder_path,
+    transformpath,
 )
 from bedrock.utils.logging.flowsa_log import log
 
@@ -89,6 +92,8 @@ def return_fb_meta_data(
 
     if category == 'FlowBySector':
         method_data = return_fbs_method_data(source_name, config)
+        folder_path = return_folder_path(transformpath, source_name)
+        subset_path = "/".join(folder_path.parts[-2:])
 
     elif category == 'FlowByActivity':
         # when FBA meta created, kwargs exist for year
@@ -97,13 +102,15 @@ def return_fb_meta_data(
         # return the catalog source name to ensure the method urls are correct
         # for FBAs
         source_name = return_true_source_catalog_name(source_name)
+        folder_path = return_folder_path(extractpath, source_name)
+        subset_path = "/".join(folder_path.parts[-2:])
 
     # create empty dictionary
     fb_dict = {}
     # add url of FlowBy method at time of commit
     fb_dict['method_url'] = (
-        f'https://github.com/USEPA/flowsa/blob/{GIT_HASH_LONG}/flowsa/'
-        f'methods/{category.lower()}methods/{source_name}.yaml'
+        f'https://github.com/cornerstone-data/bedrock/blob/{GIT_HASH_LONG}/bedrock/'
+        f'{subset_path}/{source_name}.yaml'
     )
 
     fb_dict.update(method_data)
