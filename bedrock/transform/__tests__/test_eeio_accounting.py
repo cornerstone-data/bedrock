@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_g_usa,
@@ -20,8 +21,7 @@ from bedrock.utils.economic.inflation import (
 from bedrock.utils.math.formulas import compute_Vnorm_matrix
 
 
-# TODO: Review this function
-# @pytest.mark.eeio_integration
+@pytest.mark.eeio_integration
 def test_commodity_industry_output_cpi_consistency(
     base_year: int = 2017,
     target_year: int = 2022,
@@ -37,7 +37,7 @@ def test_commodity_industry_output_cpi_consistency(
     x = derive_2017_g_usa()  # industry output
 
     # Commodity mix matrix C_m (commodity x industry) (Marketshares transposed)
-    # This is equivalent to generateCommodityMixMatrix in useeior which also uses V and q
+    # This is equivalent to generateCommodityMixMatrix in useeior which also uses t(V) and x
     C_m = V.divide(x, axis=0).T.fillna(0)
 
     # Market share matrix M_s (industry x commodity)
