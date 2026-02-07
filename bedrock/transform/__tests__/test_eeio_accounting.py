@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
-import bedrock.utils.math.formulas as formulas
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_g_usa,
     derive_2017_q_usa,
@@ -19,20 +17,15 @@ from bedrock.transform.eeio.derived_2017 import (
 from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
+from bedrock.utils.math.formulas import compute_Vnorm_matrix
 
 
 # TODO: Review this function
-@pytest.mark.parametrize(
-    "base_year, target_year, tolerance",
-    [
-        (2017, 2023, 0.05),
-    ],
-)
 # @pytest.mark.eeio_integration
 def test_commodity_industry_output_cpi_consistency(
-    base_year: int,
-    target_year: int,
-    tolerance: float,
+    base_year: int = 2017,
+    target_year: int = 2022,
+    tolerance: float = 0.05,
 ) -> None:
     """Test that commodity output adjusted by CPI equals market share matrix times CPI-adjusted industry output."""
     # 2024 is the upper limit of the inflation factors data
@@ -43,23 +36,25 @@ def test_commodity_industry_output_cpi_consistency(
     q = derive_2017_q_usa()  # commodity output
     x = derive_2017_g_usa()  # industry output
 
-    # Market share matrix C_m (industry x commodity)
+    # Commodity mix matrix C_m (commodity x industry) (Marketshares transposed)
+    # This is equivalent to generateCommodityMixMatrix in useeior which also uses V and q
+    C_m = V.divide(x, axis=0).T.fillna(0)
+
+    # Market share matrix M_s (industry x commodity)
     # This is equivalent to generateMarketSharesfromMake in useeior which also uses V and q
-    C_m = formulas.compute_Vnorm_matrix(V=V, q=q)
+    M_s = compute_Vnorm_matrix(V=V, q=q)
 
     # CPI vectors from bedrock's inflation utilities
     # This is equivalent to Detail_CPI_IO_17sch.rda which in turn is the same as model$MultiYearIndustryCPI
     industry_CPI = obtain_inflation_factors_from_reference_data()
 
-    # Create commodity CPI by multiplying an I x 1 matrix @ a C x I matrix which yields a C x 1 matrix
+    # Create commodity CPI by multiplying an I x 1 matrix @ a I x C matrix which yields a C x 1 matrix
     # for each column of industry_CPI, which are the various years
     commodity_CPI = pd.DataFrame().reindex_like(industry_CPI)
     for i in range(len(industry_CPI.columns)):
-        commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ C_m
+        commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ M_s
 
-    # Calculate CPI ratios.
-    # Cannot use inflate_q_or_y from inflate_to_target_year.py for x_check as the
-    # formula required is different than for q_check, so calculating both here.
+    # Calculate CPI ratios
     industry_CPI_ratio = industry_CPI[target_year] / industry_CPI[base_year]
     commodity_CPI_ratio = commodity_CPI[target_year] / commodity_CPI[base_year]
 
