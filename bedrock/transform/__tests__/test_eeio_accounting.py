@@ -28,7 +28,7 @@ from bedrock.utils.economic.inflation import (
         (2017, 2023, 0.01),
     ],
 )
-@pytest.mark.eeio_integration
+# @pytest.mark.eeio_integration
 def test_commodity_industry_output_cpi_consistency(
     base_year: int,
     target_year: int,
