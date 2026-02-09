@@ -16,9 +16,12 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel
 
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
+from bedrock.utils.snapshots.loader import load_current_snapshot
+from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 
 
@@ -239,5 +242,74 @@ def inflation_adjust_ef_denom_to_new_base_year(
 
 
 def pull_efs_for_diagnostics() -> EfsForDiagnostics:
-    """Load and prepare all emission factor data for diagnostics."""
-    raise NotImplementedError("pull_efs_for_diagnostics is not yet implemented.")
+    """Load and prepare all emission factor data for diagnostics.
+
+    This function:
+    1. Derives new D and N from current matrices (B and M)
+    2. Loads old D and N from GCS snapshots
+    3. Applies inflation adjustment to old values
+    4. Packages everything into a EfsForDiagnostics object
+
+    Returns:
+        EfsForDiagnostics with new and old EF data for comparison
+    """
+    # Late-binding imports - these depend on global config
+    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
+        derive_Aq_usa,
+        derive_B_usa_non_finetuned,
+    )
+    from bedrock.utils.math.formulas import (  # noqa: PLC0415
+        compute_d,
+        compute_L_matrix,
+        compute_M_matrix,
+        compute_n,
+    )
+
+    config = get_usa_config()
+    new_base_year = config.model_base_year
+    B_snapshot_name: SnapshotName = "B_USA_non_finetuned"
+    Adom_snapshot_name: SnapshotName = "Adom_USA"
+    Aimp_snapshot_name: SnapshotName = "Aimp_USA"
+
+    B_new = derive_B_usa_non_finetuned()
+    Aq_set = derive_Aq_usa()
+    L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
+    M_new = compute_M_matrix(B=B_new, L=L_new)
+
+    D_new = compute_d(B=B_new)
+    N_new = compute_n(M=M_new)
+
+    # Uses the snapshot version specified in bedrock/utils/snapshots/.SNAPSHOT_KEY
+    B_old = load_current_snapshot(B_snapshot_name)
+    Adom_old = load_current_snapshot(Adom_snapshot_name)
+    Aimp_old = load_current_snapshot(Aimp_snapshot_name)
+
+    L_old = compute_L_matrix(A=Adom_old + Aimp_old)
+    M_old = compute_M_matrix(B=B_old, L=L_old)
+
+    D_old_raw = compute_d(B=B_old)
+    N_old_raw = compute_n(M=M_old)
+
+    D_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
+        old_ef_vector=D_old_raw,
+        new_base_year=new_base_year,
+        old_base_year=2023,
+    )
+    N_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
+        old_ef_vector=N_old_raw,
+        new_base_year=new_base_year,
+        old_base_year=2023,
+    )
+
+    return EfsForDiagnostics(
+        D_new=D_new.to_frame(),
+        N_new=N_new.to_frame(),
+        D_old=OldEfSet(
+            raw=D_old_raw.to_frame(),
+            inflated=D_old_inflated.to_frame(),
+        ),
+        N_old=OldEfSet(
+            raw=N_old_raw.to_frame(),
+            inflated=N_old_inflated.to_frame(),
+        ),
+    )
