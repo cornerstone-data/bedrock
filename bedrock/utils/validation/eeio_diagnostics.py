@@ -14,7 +14,13 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-import bedrock.utils.math.formulas as formulas
+from bedrock.utils.economic.inflation import (
+    obtain_inflation_factors_from_reference_data,
+)
+from bedrock.utils.math.formulas import (
+    backcompute_q_from_L_and_y,
+    compute_Vnorm_matrix,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +110,91 @@ def format_diagnostic_result(result: DiagnosticResult) -> str:
 
 
 DiagnosticCallable = ta.Callable[[], DiagnosticResult]
+
+
+def run_all_diagnostics(
+    diagnostics: ta.List[DiagnosticCallable],
+    *,
+    log_results: bool = True,
+    stop_on_failure: bool = False,
+) -> ta.List[DiagnosticResult]:
+    """
+    Execute a list of diagnostic functions and collect results.
+
+    Runs each diagnostic callable, optionally logging results and handling
+    failures according to the specified behavior.
+
+    Args:
+        diagnostics: List of callable functions that each return a DiagnosticResult.
+        log_results: If True, log each result using logger. Defaults to True.
+        stop_on_failure: If True, stop execution on first failure. Defaults to False.
+
+    Returns:
+        List of DiagnosticResult objects from all executed diagnostics.
+
+    Raises:
+        RuntimeError: If stop_on_failure is True and a diagnostic fails.
+
+    Example:
+        >>> def check_row_sums() -> DiagnosticResult:
+        ...     # Perform check...
+        ...     return DiagnosticResult(
+        ...         name="Row sum check",
+        ...         passed=True,
+        ...         tolerance=0.01,
+        ...         max_rel_diff=0.001,
+        ...         failing_sectors=[]
+        ...     )
+        >>> results = run_all_diagnostics([check_row_sums])
+    """
+    results: ta.List[DiagnosticResult] = []
+
+    for diagnostic in diagnostics:
+        try:
+            result = diagnostic()
+            results.append(result)
+
+            if log_results:
+                formatted = format_diagnostic_result(result)
+                if result.passed:
+                    logger.info(formatted)
+                else:
+                    logger.warning(formatted)
+
+            if stop_on_failure and not result.passed:
+                raise RuntimeError(
+                    f"Diagnostic '{result.name}' failed. "
+                    f"Max relative difference: {result.max_rel_diff:.4f} "
+                    f"(tolerance: {result.tolerance:.4f})"
+                )
+
+        except Exception as e:
+            if isinstance(e, RuntimeError) and stop_on_failure:
+                raise
+            # Log unexpected errors but continue with other diagnostics
+            logger.error(f"Error running diagnostic: {e}")
+            # Create a failed result for the error case
+            error_result = DiagnosticResult(
+                name=f"Error in {diagnostic.__name__ if hasattr(diagnostic, '__name__') else 'unknown'}",
+                passed=False,
+                tolerance=0.0,
+                max_rel_diff=float("inf"),
+                failing_sectors=[],
+                details=None,
+            )
+            results.append(error_result)
+
+    # Log summary
+    if log_results and results:
+        passed_count = sum(1 for r in results if r.passed)
+        total_count = len(results)
+        summary = f"Diagnostics complete: {passed_count}/{total_count} passed"
+        if passed_count == total_count:
+            logger.info(summary)
+        else:
+            logger.warning(summary)
+
+    return results
 
 
 def compare_commodity_output_to_domestics_use_plus_exports(
@@ -233,7 +324,7 @@ def compare_output_vs_leontief_x_demand(
         )
 
     # calculate scaling factor
-    output_check = formulas.backcompute_q_from_L_and_y(L=L, y=y)
+    output_check = backcompute_q_from_L_and_y(L=L, y=y)
 
     rel_diff = (output - output_check) / output
     rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
@@ -270,86 +361,48 @@ def compare_output_vs_leontief_x_demand(
     )
 
 
-def run_all_diagnostics(
-    diagnostics: ta.List[DiagnosticCallable],
-    *,
-    log_results: bool = True,
-    stop_on_failure: bool = False,
-) -> ta.List[DiagnosticResult]:
-    """
-    Execute a list of diagnostic functions and collect results.
+def commodity_industry_output_cpi_consistency(
+    V: pd.DataFrame,
+    q: pd.Series[float],
+    x: pd.Series[float],
+    base_year: int,
+    target_year: int,
+    tolerance: float,
+) -> None:
+    """Test that commodity output adjusted by CPI equals market share matrix times CPI-adjusted industry output."""
 
-    Runs each diagnostic callable, optionally logging results and handling
-    failures according to the specified behavior.
+    # Commodity mix matrix C_m (commodity x industry) (Marketshares transposed)
+    # This is equivalent to generateCommodityMixMatrix in useeior which also uses t(V) and x
+    C_m = V.divide(x, axis=0).T.fillna(0)
 
-    Args:
-        diagnostics: List of callable functions that each return a DiagnosticResult.
-        log_results: If True, log each result using logger. Defaults to True.
-        stop_on_failure: If True, stop execution on first failure. Defaults to False.
+    # Market share matrix M_s (industry x commodity)
+    # This is equivalent to generateMarketSharesfromMake in useeior which also uses V and q
+    M_s = compute_Vnorm_matrix(V=V, q=q)
 
-    Returns:
-        List of DiagnosticResult objects from all executed diagnostics.
+    # CPI vectors from bedrock's inflation utilities
+    # This is equivalent to Detail_CPI_IO_17sch.rda which in turn is the same as model$MultiYearIndustryCPI
+    industry_CPI = obtain_inflation_factors_from_reference_data()
 
-    Raises:
-        RuntimeError: If stop_on_failure is True and a diagnostic fails.
+    # Create commodity CPI by multiplying an I x 1 matrix @ a I x C matrix which yields a C x 1 matrix
+    # for each column of industry_CPI, which are the various years
+    commodity_CPI = pd.DataFrame().reindex_like(industry_CPI)
+    for i in range(len(industry_CPI.columns)):
+        commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ M_s
 
-    Example:
-        >>> def check_row_sums() -> DiagnosticResult:
-        ...     # Perform check...
-        ...     return DiagnosticResult(
-        ...         name="Row sum check",
-        ...         passed=True,
-        ...         tolerance=0.01,
-        ...         max_rel_diff=0.001,
-        ...         failing_sectors=[]
-        ...     )
-        >>> results = run_all_diagnostics([check_row_sums])
-    """
-    results: ta.List[DiagnosticResult] = []
+    # Calculate CPI ratios
+    industry_CPI_ratio = industry_CPI[target_year] / industry_CPI[base_year]
+    commodity_CPI_ratio = commodity_CPI[target_year] / commodity_CPI[base_year]
 
-    for diagnostic in diagnostics:
-        try:
-            result = diagnostic()
-            results.append(result)
+    # Calculate q_check and x_check
+    q_check = q * commodity_CPI_ratio
+    x_check = C_m @ (x * industry_CPI_ratio)
 
-            if log_results:
-                formatted = format_diagnostic_result(result)
-                if result.passed:
-                    logger.info(formatted)
-                else:
-                    logger.warning(formatted)
-
-            if stop_on_failure and not result.passed:
-                raise RuntimeError(
-                    f"Diagnostic '{result.name}' failed. "
-                    f"Max relative difference: {result.max_rel_diff:.4f} "
-                    f"(tolerance: {result.tolerance:.4f})"
-                )
-
-        except Exception as e:
-            if isinstance(e, RuntimeError) and stop_on_failure:
-                raise
-            # Log unexpected errors but continue with other diagnostics
-            logger.error(f"Error running diagnostic: {e}")
-            # Create a failed result for the error case
-            error_result = DiagnosticResult(
-                name=f"Error in {diagnostic.__name__ if hasattr(diagnostic, '__name__') else 'unknown'}",
-                passed=False,
-                tolerance=0.0,
-                max_rel_diff=float("inf"),
-                failing_sectors=[],
-                details=None,
-            )
-            results.append(error_result)
-
-    # Log summary
-    if log_results and results:
-        passed_count = sum(1 for r in results if r.passed)
-        total_count = len(results)
-        summary = f"Diagnostics complete: {passed_count}/{total_count} passed"
-        if passed_count == total_count:
-            logger.info(summary)
-        else:
-            logger.warning(summary)
-
-    return results
+    # Convert pandas Series to numpy arrays of float64 for compatibility with assert_allclose
+    q_check_arr = np.asarray(q_check.values, dtype=np.float64)
+    x_check_arr = np.asarray(x_check.values, dtype=np.float64)
+    np.testing.assert_allclose(
+        q_check_arr,
+        x_check_arr,
+        rtol=tolerance,
+        err_msg="CPI-adjusted commodity output should equal C_m @ (CPI-adjusted industry output)",
+    )
