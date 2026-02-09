@@ -32,7 +32,7 @@ def test_commodity_industry_output_cpi_consistency(
     q = derive_2017_q_usa()  # commodity output
     x = derive_2017_g_usa()  # industry output
 
-    commodity_industry_output_cpi_consistency(
+    r_c_x_cpi_consistency = commodity_industry_output_cpi_consistency(
         V=V,
         q=q,
         x=x,
@@ -41,3 +41,5 @@ def test_commodity_industry_output_cpi_consistency(
         tolerance=tolerance,
         include_details=True,
     )
+
+    assert len(r_c_x_cpi_consistency.failing_sectors) == 0
