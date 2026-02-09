@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def calculate_national_accounting_balance_diagnostics(
     sheet_id: str,
 ) -> None:
-    """Validate that the EEIO model conserves total emissions.
+    """Validate that the US portion of Cornerstone's MRIO model conserves total emissions.
 
     Checks whether sum(BLy) (total production-induced emissions from the
     IO framework) matches sum(E_orig) (total original emissions data)
