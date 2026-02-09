@@ -198,6 +198,67 @@ def run_all_diagnostics(
     return results
 
 
+def validate_result(
+    name: str,
+    value: pd.Series[float],
+    value_check: pd.Series[float],
+    *,
+    tolerance: float = 0.01,
+    include_details: bool = False,
+) -> DiagnosticResult:
+    """
+    Helper function to compare and format validation results
+    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
+    is treated as 0.
+
+    Parameters
+    ----------
+    name - string value identifying the diagnostic being run
+    value - original value to check
+        Float series from e.g. ``derive_2017_q_usa``
+    value_check - computed value to compare against original
+        Float series obtained from calcualtion
+    tolerance
+        Tolerance for |rel_diff|; default 0.05.
+    include_details
+        If True, attach a details DataFrame (sector, expected, actual, rel_diff).
+
+    Returns
+    -------
+    DiagnosticResult
+        Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
+
+    """
+    rel_diff = (value - value_check) / value
+    rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
+    rel_diff_abs = np.abs(rel_diff)
+
+    failing_sectors = rel_diff_abs[rel_diff_abs > tolerance]
+    passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
+    max_rd = float(np.max(rel_diff_abs))
+
+    details = None
+    if include_details:
+        data = {
+            "failing sectors": list(getattr(failing_sectors, "index", [])),
+            "passing sectors": list(getattr(passing_sectors, "index", [])),
+            "failing values": np.array(failing_sectors).tolist(),
+            "max_rel_diff": max_rd,
+        }
+
+        details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
+
+    passed = len(value) == len(passing_sectors)
+    return DiagnosticResult(
+        name=name,
+        passed=passed,
+        tolerance=tolerance,
+        max_rel_diff=max_rd,
+        failing_sectors=list(getattr(failing_sectors, "index", [])),
+        details=details,
+    )
+
+
 def compare_commodity_output_to_domestics_use_plus_exports(
     q: pd.Series[float],
     U_d: pd.DataFrame,
@@ -208,7 +269,6 @@ def compare_commodity_output_to_domestics_use_plus_exports(
 ) -> DiagnosticResult:
     """
     Compares the total commodity output against the summation of model domestic Use (U_D) and production demand (y_d, including exports)
-
 
     Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
     is treated as 0.
@@ -245,6 +305,12 @@ def compare_commodity_output_to_domestics_use_plus_exports(
         )
 
     q_check = U_d.sum(axis=1) + y_d
+    name = "commodity output and domestics use plus exports"
+
+    d_result = validate_result(
+        name, q, q_check, tolerance=tolerance, include_details=include_details
+    )
+    """  
     rel_diff = (q - q_check) / q
     rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
     rel_diff_abs = np.abs(rel_diff)
@@ -253,15 +319,14 @@ def compare_commodity_output_to_domestics_use_plus_exports(
     passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
     max_rd = float(np.max(rel_diff_abs))
 
-    # failing_sectors = sectors[rel_diff_abs > tolerance].tolist()
-    name = "commodity output and domestics use plus exports"
+
 
     details = None
     if include_details:
         data = {
-            "failing sectors": failing_sectors.index.tolist(),
-            "passing sectors": passing_sectors.index.tolist(),
-            "failing values": failing_sectors.values,
+            "failing sectors": list(getattr(failing_sectors, "index", [])),
+            "passing sectors": list(getattr(passing_sectors, "index", [])),
+            "failing values": np.array(failing_sectors).tolist(),
             "max_rel_diff": max_rd,
         }
 
@@ -275,6 +340,8 @@ def compare_commodity_output_to_domestics_use_plus_exports(
         failing_sectors=failing_sectors,
         details=details,
     )
+    """
+    return d_result
 
 
 def compare_output_vs_leontief_x_demand(
@@ -326,7 +393,12 @@ def compare_output_vs_leontief_x_demand(
 
     # calculate scaling factor
     output_check = backcompute_q_from_L_and_y(L=L, y=y)
+    name = "compare output and L * y"
 
+    d_result = validate_result(
+        name, output, output_check, tolerance=tolerance, include_details=include_details
+    )
+    """
     rel_diff = (output - output_check) / output
     rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
     rel_diff_abs = np.abs(rel_diff)
@@ -335,15 +407,9 @@ def compare_output_vs_leontief_x_demand(
     passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
     max_rd = float(np.max(rel_diff_abs))
 
-    # failing_sectors = sectors[rel_diff_abs > tolerance].tolist()
-    name = "compare output and L * y"
-
     details = None
     if include_details:
         data = {
-            # "failing sectors": failing_sectors.index.tolist(),
-            # "passing sectors": passing_sectors.index.tolist(),
-            # "failing values": failing_sectors.values, # not sure why this is not working as in the previous validation function
             "failing sectors": list(getattr(failing_sectors, "index", [])),
             "passing sectors": list(getattr(passing_sectors, "index", [])),
             "failing values": np.array(failing_sectors).tolist(),
@@ -360,6 +426,8 @@ def compare_output_vs_leontief_x_demand(
         failing_sectors=list(getattr(failing_sectors, "index", [])),
         details=details,
     )
+    """
+    return d_result
 
 
 def commodity_industry_output_cpi_consistency(
@@ -369,7 +437,8 @@ def commodity_industry_output_cpi_consistency(
     base_year: int,
     target_year: int,
     tolerance: float,
-) -> None:
+    include_details: bool = False,
+) -> DiagnosticResult:
     """Test that commodity output adjusted by CPI equals market share matrix times CPI-adjusted industry output."""
 
     # Commodity mix matrix C_m (commodity x industry) (Marketshares transposed)
@@ -398,7 +467,9 @@ def commodity_industry_output_cpi_consistency(
     q_check = q * commodity_CPI_ratio
     x_check = C_m @ (x * industry_CPI_ratio)
 
-    # Convert pandas Series to numpy arrays of float64 for compatibility with assert_allclose
+    name = "commodity_industry_output_cpi_consistency"
+
+    """     # Convert pandas Series to numpy arrays of float64 for compatibility with assert_allclose
     q_check_arr = np.asarray(q_check.values, dtype=np.float64)
     x_check_arr = np.asarray(x_check.values, dtype=np.float64)
     np.testing.assert_allclose(
@@ -406,4 +477,9 @@ def commodity_industry_output_cpi_consistency(
         x_check_arr,
         rtol=tolerance,
         err_msg="CPI-adjusted commodity output should equal C_m @ (CPI-adjusted industry output)",
+    ) """
+    d_result = validate_result(
+        name, q_check, x_check, tolerance=tolerance, include_details=include_details
     )
+
+    return d_result
