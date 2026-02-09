@@ -21,6 +21,7 @@ def test_commodity_industry_output_cpi_consistency(
     base_year: int = 2017,
     target_year: int = 2022,
     tolerance: float = 0.05,
+    include_details: bool = False,
 ) -> None:
     """Test that commodity output adjusted by CPI equals market share matrix times CPI-adjusted industry output."""
     # 2024 is the upper limit of the inflation factors data
@@ -32,5 +33,11 @@ def test_commodity_industry_output_cpi_consistency(
     x = derive_2017_g_usa()  # industry output
 
     commodity_industry_output_cpi_consistency(
-        V=V, q=q, x=x, base_year=base_year, target_year=target_year, tolerance=tolerance
+        V=V,
+        q=q,
+        x=x,
+        base_year=base_year,
+        target_year=target_year,
+        tolerance=tolerance,
+        include_details=True,
     )
