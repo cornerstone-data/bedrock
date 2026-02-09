@@ -1,3 +1,13 @@
+"""Helper functions for diagnostics.
+
+This module provides:
+- Pydantic models for structuring EF comparison data
+- Core comparison functions (diff, percent diff)
+- Summary statistics calculations
+- Inflation adjustment for EF denominators
+- Data loading for diagnostics
+"""
+
 from __future__ import annotations
 
 import typing as ta
@@ -256,7 +266,7 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     )
 
     config = get_usa_config()
-    new_base_year = config.ceda_base_year
+    new_base_year = config.model_base_year
     B_snapshot_name: SnapshotName = "B_USA_non_finetuned"
     Adom_snapshot_name: SnapshotName = "Adom_USA"
     Aimp_snapshot_name: SnapshotName = "Aimp_USA"

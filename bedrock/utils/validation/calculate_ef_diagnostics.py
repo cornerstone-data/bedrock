@@ -19,7 +19,19 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_ef_diagnostics(sheet_id: str) -> None:
-    """Calculate EF diagnostics for US EEIO model."""
+    """Calculate EF diagnostics for the US portion of Cornerstone's MRIO model.
+
+    Compares current emission factors (EFs) against a previous snapshot release,
+    writing results to a Google Sheet. The following tabs are produced:
+
+    - N_and_diffs: Total EFs new vs old, with absolute and percent diffs.
+    - D_and_diffs: Direct EFs new vs old.
+    - N_and_D_summary_stats: Summary statistics of percent diffs.
+    - output_contrib_new_vs_old: Top N contributing sectors to each EF's change,
+      derived from the output contribution matrix.
+
+    Old EFs are inflation-adjusted to the current base year before comparison.
+    """
     # Late-binding import - depends on global config
     from bedrock.transform.eeio.derived import derive_Aq_usa
     from bedrock.utils.math.formulas import (
@@ -118,16 +130,6 @@ def diff_and_perc_diff_two_output_contribution_matrices(
 
     For each sector (column), finds the top N contributing sectors (rows)
     by absolute percentage of total difference.
-
-    Args:
-        matrix_old: Old output contribution matrix (sector x sector)
-        matrix_new: New output contribution matrix (sector x sector)
-        old_val_name: Name for old values in output columns
-        new_val_name: Name for new values in output columns
-        top_N: Number of top contributors to extract per sector
-
-    Returns:
-        DataFrame with top contributors per sector and their diff stats
     """
     assert top_N > 0, "top_N must be greater than 0"
 
@@ -143,12 +145,9 @@ def diff_and_perc_diff_two_output_contribution_matrices(
         col_values_old = matrix_old_values[:, i]
         col_values_new = matrix_new_values[:, i]
         col_values_diff = diff_df_values[:, i]
-
-        diff_sum = col_values_diff.sum()
-        if np.abs(diff_sum) < 1e-10:
-            col_values_perc_diff = np.zeros_like(col_values_diff)
-        else:
-            col_values_perc_diff = np.nan_to_num((col_values_diff / diff_sum), nan=0.0)
+        col_values_perc_diff = np.nan_to_num(
+            (col_values_diff / col_values_diff.sum()), nan=0.0
+        )
 
         col_sum_old = np.nansum(col_values_old)
         col_sum_new = np.nansum(col_values_new)
