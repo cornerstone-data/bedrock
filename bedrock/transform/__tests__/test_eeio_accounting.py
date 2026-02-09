@@ -6,8 +6,6 @@ times CPI-adjusted industry output (ValidateModel.R#L200-L240).
 
 from __future__ import annotations
 
-import pytest
-
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_g_usa,
     derive_2017_q_usa,
@@ -18,7 +16,7 @@ from bedrock.utils.validation.eeio_diagnostics import (
 )
 
 
-@pytest.mark.eeio_integration
+# @pytest.mark.eeio_integration
 def test_commodity_industry_output_cpi_consistency(
     base_year: int = 2017,
     target_year: int = 2022,

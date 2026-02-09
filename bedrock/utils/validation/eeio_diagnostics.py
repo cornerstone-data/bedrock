@@ -19,6 +19,7 @@ from bedrock.utils.economic.inflation import (
 )
 from bedrock.utils.math.formulas import (
     backcompute_q_from_L_and_y,
+    compute_commodity_mix_matrix,
     compute_Vnorm_matrix,
 )
 
@@ -373,7 +374,7 @@ def commodity_industry_output_cpi_consistency(
 
     # Commodity mix matrix C_m (commodity x industry) (Marketshares transposed)
     # This is equivalent to generateCommodityMixMatrix in useeior which also uses t(V) and x
-    C_m = V.divide(x, axis=0).T.fillna(0)
+    C_m = compute_commodity_mix_matrix(V=V, x=x)
 
     # Market share matrix M_s (industry x commodity)
     # This is equivalent to generateMarketSharesfromMake in useeior which also uses V and q
