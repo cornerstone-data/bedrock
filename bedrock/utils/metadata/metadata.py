@@ -8,10 +8,11 @@ FlowByActivity (FBA) and FlowBySector (FBS) datasets
 
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from esupy.processed_data_mgmt import FileMeta
+from esupy.processed_data_mgmt import FileMeta, Paths
 
 from bedrock.publish.bibliography import load_source_dict
 from bedrock.utils.config.common import (
@@ -347,7 +348,7 @@ def return_fba_method_meta(sourcename: str, **kwargs: Any) -> dict[str, Any]:
     return fba_dict
 
 
-def find_file(meta, paths):
+def find_file(meta: FileMeta, paths: Paths) -> Path | None:
     """
     Searches for file within path.local_path based on file metadata; if
     metadata matches, returns most recently created file path object
@@ -376,7 +377,9 @@ def find_file(meta, paths):
     return None
 
 
-def read_source_metadata(paths, meta, force_JSON=False):
+def read_source_metadata(
+    paths: Paths, meta: FileMeta, force_JSON: bool = False
+) -> dict[str, Any] | None:
     """return the locally saved metadata dictionary from JSON,
     meta should reflect the outputfile for which the metadata is associated
 
