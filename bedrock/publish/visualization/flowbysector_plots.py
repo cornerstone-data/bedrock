@@ -1,12 +1,15 @@
-# datavisualization.py (flowsa)
+# flowbysector_plots.py (flowsa)
 # !/usr/bin/env python3
 # coding=utf-8
 """
 Functions to plot Flow-By-Sector results
 """
 
+from __future__ import annotations
+
 import random
 import textwrap
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -14,7 +17,8 @@ import plotly.graph_objects as go
 import seaborn as sns
 from plotly.subplots import make_subplots
 
-import bedrock
+from bedrock.transform.flowbyfunctions import collapse_fbs_sectors
+from bedrock.transform.flowbysector import FlowBySector, collapse_FlowBySector
 from bedrock.utils.config.common import load_crosswalk, load_yaml_dict
 from bedrock.utils.config.settings import datapath, plotoutputpath
 
@@ -22,9 +26,16 @@ from bedrock.utils.config.settings import datapath, plotoutputpath
 #  currently working
 # from bedrock.transform.flowbyfunctions import sector_aggregation
 from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.location import get_state_FIPS
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from seaborn import FacetGrid
 
 
-def addSectorNames(df, BEA=False, mappingfile=None):
+def addSectorNames(
+    df: pd.DataFrame, BEA: bool = False, mappingfile: str | None = None
+) -> pd.DataFrame:
     """
     Add column to an FBS df with the sector names
     :param df: FBS df with singular "Sector" column or SectorProducedBy and
@@ -77,18 +88,18 @@ def addSectorNames(df, BEA=False, mappingfile=None):
 
 
 def FBSscatterplot(
-    method_dict,
-    plottype,
-    sector_length_display=None,
-    sectors_to_include=None,
-    impact_cat=None,
-    industry_spec=None,
-    sector_names=True,
-    legend_by_state=False,
-    legend_title='Flow-By-Sector Method',
-    axis_title=None,
-    plot_title=None,
-):
+    method_dict: dict[str, str],
+    plottype: str,
+    sector_length_display: int | None = None,
+    sectors_to_include: list[str] | None = None,
+    impact_cat: str | dict[str, str] | None = None,
+    industry_spec: dict[str, Any] | None = None,
+    sector_names: bool = True,
+    legend_by_state: bool = False,
+    legend_title: str = 'Flow-By-Sector Method',
+    axis_title: str | None = None,
+    plot_title: str | None = None,
+) -> FacetGrid | Axes | None:
     """
     Plot the results of FBS models. Graphic can either be a faceted
     scatterplot or a method comparison
@@ -114,7 +125,7 @@ def FBSscatterplot(
 
     df_list = []
     for label, method in method_dict.items():
-        dfm = bedrock.transform.flowbysector.collapse_FlowBySector(method)
+        dfm = collapse_FlowBySector(method)
         if plottype == 'facet_graph':
             dfm['methodname'] = dfm['Unit'].apply(lambda x: f"{label} ({x})")
         elif plottype in ('method_comparison', 'boxplot'):
@@ -125,7 +136,7 @@ def FBSscatterplot(
     if industry_spec is not None:
         # In order to reassign the industry spec, need to create and attach
         # the method config for subsequent functions to work
-        df = bedrock.transform.flowbysector.FlowBySector(
+        df = FlowBySector(
             df.reset_index(drop=True), config=load_yaml_dict(method, 'FBS')
         )
         # agg sectors for data visualization
@@ -149,7 +160,7 @@ def FBSscatterplot(
     if legend_by_state:
         df = (
             df.merge(
-                bedrock.utils.location.get_state_FIPS(abbrev=True),
+                get_state_FIPS(abbrev=True),
                 how='left',
                 left_on='Location',
                 right_on='FIPS',
@@ -159,14 +170,14 @@ def FBSscatterplot(
         )
 
     if impact_cat:
-        if type(impact_cat) == str:
+        if isinstance(impact_cat, str):
             imp_method = 'TRACI2.1'
             indicator = impact_cat
         else:
             imp_method = list(impact_cat.keys())[0]
             indicator = list(impact_cat.values())[0]
         try:
-            import lciafmt
+            import lciafmt  # noqa: PLC0415
 
             df_impacts = lciafmt.apply_lcia_method(df, imp_method).rename(
                 columns={'FlowAmount': 'InvAmount', 'Impact': 'FlowAmount'}
@@ -175,19 +186,17 @@ def FBSscatterplot(
             # should stay in the df
             fl = df.query('FlowUUID not in @df_impacts.FlowUUID')
             df_impacts = df_impacts.query('Indicator == @indicator')
-            ind_units = set(df_impacts['Indicator unit'])
-            # fl = fl.query('Unit in @ind_units')
             fl = fl.query('Unit == "kg CO2e"').assign(Unit='kg')
             df = pd.concat([df_impacts, fl], ignore_index=True)
             if len(df) == 0:
                 log.exception(f'Impact category: {indicator} not found')
-                return
+                return None
         except ImportError:
             log.exception('lciafmt not installed')
-            return
+            return None
         except AttributeError:
             log.exception('check lciafmt branch')
-            return
+            return None
     df = convert_units_for_graphics(df)
 
     # subset df
@@ -254,31 +263,31 @@ def FBSscatterplot(
     return g
 
 
-def customwrap(s, width=30):
+def customwrap(s: str, width: int = 30) -> str:
     return "<br>".join(textwrap.wrap(s, width=width))
 
 
 def stackedBarChart(
-    df,
-    impact_cat=None,
-    selection_fields=None,
-    industry_spec=None,
-    stacking_col='AttributionSources',
-    generalize_AttributionSources=False,
-    plot_title=None,
-    index_cols=None,
-    orientation='h',
-    grouping_variable=None,
-    sector_variable='Sector',
-    subplot=None,
-    subplot_order=None,
-    rows=1,
-    cols=1,
-    filename='flowsaBarChart',
-    axis_title=None,
-    graphic_width=1200,
-    graphic_height=1200,
-):
+    df: str | pd.DataFrame,
+    impact_cat: str | dict[str, str] | None = None,
+    selection_fields: dict[str, list[str]] | None = None,
+    industry_spec: dict[str, Any] | None = None,
+    stacking_col: str = 'AttributionSources',
+    generalize_AttributionSources: bool = False,
+    plot_title: str | None = None,
+    index_cols: list[str] | None = None,
+    orientation: str = 'h',
+    grouping_variable: str | None = None,
+    sector_variable: str = 'Sector',
+    subplot: str | None = None,
+    subplot_order: dict[str, int] | None = None,
+    rows: int = 1,
+    cols: int = 1,
+    filename: str | None = 'flowsaBarChart',
+    axis_title: str | None = None,
+    graphic_width: int = 1200,
+    graphic_height: int = 1200,
+) -> go.Figure | None:
     """
     Create a grouped, stacked barchart by sector code. If impact=True,
     group data by context as well as sector
@@ -300,95 +309,105 @@ def stackedBarChart(
     """
     # if the df provided is a string, load the fbs method, otherwise use the
     # df provided
-    if (type(df)) == str:
-        df = bedrock.transform.flowbysector.FlowBySector.return_FBS(df)
+    fbs_df: pd.DataFrame
+    if isinstance(df, str):
+        fbs_df = FlowBySector.return_FBS(df)
+    else:
+        fbs_df = df
 
     if generalize_AttributionSources:
-        df['AttributionSources'] = np.where(
-            df['AttributionSources'] != 'Direct', 'Allocated', df['AttributionSources']
+        fbs_df['AttributionSources'] = np.where(
+            fbs_df['AttributionSources'] != 'Direct',
+            'Allocated',
+            fbs_df['AttributionSources'],
         )
 
     if selection_fields is not None:
         for k, v in selection_fields.items():
-            df = df[df[k].str.startswith(tuple(v))]
+            fbs_df = fbs_df[fbs_df[k].str.startswith(tuple(v))]
 
-    df = bedrock.transform.flowbysector.FlowBySector(df.reset_index(drop=True))
+    fbs_df = FlowBySector(fbs_df.reset_index(drop=True))
     # agg sectors for data visualization
     if industry_spec is not None:
-        df.config['industry_spec'] = industry_spec
+        fbs_df.config['industry_spec'] = industry_spec
     # determine naics year in df
-    df.config['target_naics_year'] = (
-        df['SectorSourceName'][0].split("_", 1)[1].split("_", 1)[0]
+    fbs_df.config['target_naics_year'] = (
+        fbs_df['SectorSourceName'][0].split("_", 1)[1].split("_", 1)[0]
     )
 
-    df = df.sector_aggregation()
+    fbs_df = fbs_df.sector_aggregation()
     # collapse the df, if the df is not already collapsed
-    if 'Sector' not in df.columns:
-        df = bedrock.extract.flowbyfunctions.collapse_fbs_sectors(df)
+    if 'Sector' not in fbs_df.columns:
+        fbs_df = collapse_fbs_sectors(fbs_df)
 
     # convert units
-    df = convert_units_for_graphics(df)
+    fbs_df = convert_units_for_graphics(fbs_df)
 
     if index_cols is None:
         index_cols = ["Location", "Sector", "Unit"]
     if impact_cat:
-        if type(impact_cat) == str:
+        if isinstance(impact_cat, str):
             imp_method = 'TRACI2.1'
             indicator = impact_cat
         else:
             imp_method = list(impact_cat.keys())[0]
             indicator = list(impact_cat.values())[0]
         try:
-            import lciafmt
+            import lciafmt  # noqa: PLC0415
 
-            df = lciafmt.apply_lcia_method(df, imp_method).rename(
+            fbs_df = lciafmt.apply_lcia_method(fbs_df, imp_method).rename(
                 columns={'FlowAmount': 'InvAmount', 'Impact': 'FlowAmount'}
             )
             var = 'Indicator'
-            df = df.query('Indicator == @indicator').reset_index(drop=True)
-            df_unit = df['Indicator unit'][0]
-            sort_cols = [sector_variable, stacking_col]
-            if len(df) == 0:
+            fbs_df = fbs_df.query('Indicator == @indicator').reset_index(drop=True)
+            df_unit = fbs_df['Indicator unit'][0]
+            sort_cols: list[str] = [sector_variable, stacking_col]
+            if len(fbs_df) == 0:
                 log.exception(f'Impact category: {indicator} not found')
-                return
+                return None
         except ImportError:
             log.exception('lciafmt not installed')
-            return
+            return None
         except AttributeError:
             log.exception('check lciafmt branch')
-            return
+            return None
     else:
         if grouping_variable is None:
             # combine the flowable and context columns for graphing
-            df['Flow'] = df['Flowable'] + ', ' + df['Context']
+            fbs_df['Flow'] = fbs_df['Flowable'] + ', ' + fbs_df['Context']
             var = 'Flow'
         else:
             var = grouping_variable
-        df_unit = df['Unit'][0]
+        df_unit = fbs_df['Unit'][0]
         sort_cols = [sector_variable, var, stacking_col]
     index_cols = index_cols + [var]
 
     # if only single var in df, do not include in the graph on axis
-    var_count = df[var].nunique()
+    var_count = fbs_df[var].nunique()
 
     # If 'AttributionSources' value is null, replace with 'Direct
     try:
-        df['AttributionSources'] = df['AttributionSources'].fillna('Direct')
+        fbs_df['AttributionSources'] = fbs_df['AttributionSources'].fillna('Direct')
     except KeyError:
         pass
     # aggregate by location/sector/unit and optionally 'context'
-    df2 = df.groupby(index_cols + [stacking_col], as_index=False).agg(
+    df2 = fbs_df.groupby(index_cols + [stacking_col], as_index=False).agg(
         {"FlowAmount": sum}
     )
 
     # determine list of subplots, use specified order if given in a dictionary
     try:
-        primary_sort_col = [subplot]
+        primary_sort_col: list[str | None] = [subplot]
         if subplot_order is not None:
             df2['order'] = df2[subplot].map(subplot_order)
             primary_sort_col = ['order']
+        sort_by_cols: list[str] = [
+            c
+            for c in primary_sort_col + [sector_variable, grouping_variable]
+            if c is not None
+        ]
         df2 = (
-            df2.sort_values(primary_sort_col + [sector_variable, grouping_variable])
+            df2.sort_values(sort_by_cols)
             .reset_index(drop=True)
             .drop(columns='order', errors='ignore')
         )
@@ -398,16 +417,18 @@ def stackedBarChart(
         plot_list = None
 
     # fill in non existent data with 0s to enable accurate sorting of sectors
-    subset_cols = ['Location', 'Unit', var, subplot]
-    flows = df2[df2.columns.intersection(subset_cols)].drop_duplicates()
+    subset_cols: list[str | None] = ['Location', 'Unit', var, subplot]
+    flows = df2[
+        df2.columns.intersection([c for c in subset_cols if c is not None])
+    ].drop_duplicates()
     # match all possible stacking variables
     flows[stacking_col] = [
-        df[stacking_col].unique().tolist() for _ in range(len(flows))
+        fbs_df[stacking_col].unique().tolist() for _ in range(len(flows))
     ]
     flows = flows.explode(stacking_col)
     # match all possible sector variables
     flows[sector_variable] = [
-        df[sector_variable].unique().tolist() for _ in range(len(flows))
+        fbs_df[sector_variable].unique().tolist() for _ in range(len(flows))
     ]
     flows = flows.explode(sector_variable)
 
@@ -476,6 +497,7 @@ def stackedBarChart(
         fig.update_yaxes(title_text="Sector", tickmode='linear')
     else:
         s = 0
+        assert plot_list is not None  # plot_list is set when subplot is not None
         for row in range(1, rows + 1):
             for col in range(1, cols + 1):
                 df3 = pd.DataFrame(
@@ -542,8 +564,12 @@ def stackedBarChart(
     return fig
 
 
-def plot_state_coefficients(fbs_coeff, indicator=None, sectors_to_include=None):
-    from bedrock.utils.mapping.location import US_FIPS, get_state_FIPS
+def plot_state_coefficients(
+    fbs_coeff: pd.DataFrame,
+    indicator: str | None = None,
+    sectors_to_include: list[str] | None = None,
+) -> FacetGrid:
+    from bedrock.utils.mapping.location import US_FIPS, get_state_FIPS  # noqa: PLC0415
 
     df = fbs_coeff.merge(
         get_state_FIPS(abbrev=True), how='left', left_on='Location', right_on='FIPS'
@@ -579,7 +605,7 @@ def plot_state_coefficients(fbs_coeff, indicator=None, sectors_to_include=None):
     return g
 
 
-def convert_units_for_graphics(df):
+def convert_units_for_graphics(df: pd.DataFrame) -> pd.DataFrame:
     """
     Convert units for easier display in graphics
     :param df:

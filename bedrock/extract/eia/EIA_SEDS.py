@@ -9,9 +9,11 @@ https://www.eia.gov/state/seds/
 """
 
 import io
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import (
@@ -21,7 +23,9 @@ from bedrock.utils.mapping.location import (
 )
 
 
-def eia_seds_url_helper(*, build_url, config, **_):
+def eia_seds_url_helper(
+    *, build_url: str, config: dict[str, Any], **_: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url
@@ -33,15 +37,15 @@ def eia_seds_url_helper(*, build_url, config, **_):
     :return: list, urls to call, concat, parse, format into
         Flow-By-Activity format
     """
-    urls = []
+    urls: List[str] = []
     url = build_url
-    csvs = config.get('csvs')
+    csvs = config.get('csvs', [])
     for csv in csvs:
         urls.append(url + csv)
     return urls
 
 
-def eia_seds_call(*, resp, year, **_):
+def eia_seds_call(*, resp: Response, year: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin
     parsing df into FBA format
@@ -58,7 +62,9 @@ def eia_seds_call(*, resp, year, **_):
     return df
 
 
-def eia_seds_parse(*, df_list, year, config, **_):
+def eia_seds_parse(
+    *, df_list: List[pd.DataFrame], year: str, config: dict[str, Any], **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -161,7 +167,8 @@ def eia_seds_parse(*, df_list, year, config, **_):
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(source='EIA_SEDS', year=2020)
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EIA_SEDS', 2020)
+    generateFlowByActivity(source='EIA_SEDS', year=2020)
+    fba = getFlowByActivity('EIA_SEDS', 2020)

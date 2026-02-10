@@ -7,6 +7,7 @@ Pulls EPA National Emissions Inventory (NEI) data for nonpoint sources
 
 import io
 from os import path
+from typing import Any
 from zipfile import ZipFile
 
 import numpy as np
@@ -19,7 +20,9 @@ from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import merge_urb_cnty_pct
 
 
-def epa_nei_url_helper(*, build_url, year, config, **_):
+def epa_nei_url_helper(
+    *, build_url: str, year: str, config: dict[str, Any], **_: Any
+) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -46,7 +49,7 @@ def epa_nei_url_helper(*, build_url, year, config, **_):
     return [url]
 
 
-def epa_nei_call(*, resp, **_):
+def epa_nei_call(*, resp: Any, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling _1 to pandas dataframe
     :param _1: string, url (unused)
@@ -65,7 +68,14 @@ def epa_nei_call(*, resp, **_):
     return pd.concat(df_list)
 
 
-def epa_nei_global_parse(*, df_list, source, year, config, **_):
+def epa_nei_global_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    source: str,
+    year: str,
+    config: dict[str, Any],
+    **_: Any,
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -111,7 +121,14 @@ def epa_nei_global_parse(*, df_list, source, year, config, **_):
     return df
 
 
-def epa_nei_onroad_parse(*, df_list, source, year, config, **_):
+def epa_nei_onroad_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    source: str,
+    year: str,
+    config: dict[str, Any],
+    **_: Any,
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -130,7 +147,14 @@ def epa_nei_onroad_parse(*, df_list, source, year, config, **_):
     return df
 
 
-def epa_nei_nonroad_parse(*, df_list, source, year, config, **_):
+def epa_nei_nonroad_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    source: str,
+    year: str,
+    config: dict[str, Any],
+    **_: Any,
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -150,7 +174,14 @@ def epa_nei_nonroad_parse(*, df_list, source, year, config, **_):
     return df
 
 
-def epa_nei_nonpoint_parse(*, df_list, source, year, config, **_):
+def epa_nei_nonpoint_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    source: str,
+    year: str,
+    config: dict[str, Any],
+    **_: Any,
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -171,7 +202,7 @@ def epa_nei_nonpoint_parse(*, df_list, source, year, config, **_):
     return df
 
 
-def clean_NEI_fba(fba: FlowByActivity, **_) -> FlowByActivity:
+def clean_NEI_fba(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     Clean up the NEI FBA for use in FBS creation
     :param fba: df, FBA format
@@ -183,24 +214,28 @@ def clean_NEI_fba(fba: FlowByActivity, **_) -> FlowByActivity:
 
     # Remove the portion of PM10 that is PM2.5 to eliminate double counting,
     # rename resulting FlowName
-    fba = remove_flow_overlap(
+    fba_df = remove_flow_overlap(
         fba, 'PM10 Primary (Filt + Cond)', ['PM2.5 Primary (Filt + Cond)']
     )
 
-    fba['FlowName'] = np.where(
-        fba['FlowName'] == 'PM10 Primary (Filt + Cond)', "PM10-PM2.5", fba['FlowName']
+    fba_df['FlowName'] = np.where(
+        fba_df['FlowName'] == 'PM10 Primary (Filt + Cond)',
+        "PM10-PM2.5",
+        fba_df['FlowName'],
     )
     # Drop zero values to reduce size
-    fba = fba.query('FlowAmount != 0').reset_index(drop=True)
+    fba_df = fba_df.query('FlowAmount != 0').reset_index(drop=True)
 
     apply_urban_rural = fba.config.get('apply_urban_rural', False)
     if apply_urban_rural:
         log.info(
             f'Splitting {fba.full_name} into urban and rural ' 'quantities by FIPS.'
         )
-        fba = merge_urb_cnty_pct(fba)
+        fba_df_result = merge_urb_cnty_pct(FlowByActivity(fba_df))
+        if fba_df_result is not None:
+            fba_df = fba_df_result
 
-    new_fba = FlowByActivity(fba)
+    new_fba = FlowByActivity(fba_df)
     for attr in attributes_to_save:
         setattr(new_fba, attr, attributes_to_save[attr])
     # to reduce the file size of the FBA and avoid memory errors, consolidate
@@ -210,7 +245,9 @@ def clean_NEI_fba(fba: FlowByActivity, **_) -> FlowByActivity:
     return new_fba
 
 
-def remove_flow_overlap(df, aggregate_flow, contributing_flows):
+def remove_flow_overlap(
+    df: pd.DataFrame, aggregate_flow: str, contributing_flows: list[str]
+) -> pd.DataFrame:
     """
     Quantity of contributing flows is subtracted from aggregate flow and the
     aggregate flow quantity is updated. Modeled after function of same name in
@@ -223,15 +260,17 @@ def remove_flow_overlap(df, aggregate_flow, contributing_flows):
     match_conditions = ['ActivityProducedBy', 'Compartment', 'Location', 'Year']
 
     df_contributing_flows = df.loc[df['FlowName'].isin(contributing_flows)]
-    df_contributing_flows = df_contributing_flows.groupby(
+    df_contributing_flows_grouped: pd.DataFrame = df_contributing_flows.groupby(
         match_conditions, as_index=False
-    )['FlowAmount'].sum()
+    ).agg({'FlowAmount': 'sum'})
 
-    df_contributing_flows['FlowName'] = aggregate_flow
-    df_contributing_flows['ContributingAmount'] = df_contributing_flows['FlowAmount']
-    df_contributing_flows.drop(columns=['FlowAmount'], inplace=True)
+    df_contributing_flows_grouped['FlowName'] = aggregate_flow
+    df_contributing_flows_grouped['ContributingAmount'] = df_contributing_flows_grouped[
+        'FlowAmount'
+    ]
+    df_contributing_flows_grouped.drop(columns=['FlowAmount'], inplace=True)
     df = df.merge(
-        df_contributing_flows, how='left', on=match_conditions.append('FlowName')
+        df_contributing_flows_grouped, how='left', on=match_conditions + ['FlowName']
     )
     df[['ContributingAmount']] = df[['ContributingAmount']].fillna(value=0)
     df['FlowAmount'] = df['FlowAmount'] - df['ContributingAmount']
@@ -243,7 +282,8 @@ def remove_flow_overlap(df, aggregate_flow, contributing_flows):
 
 
 if __name__ == '__main__':
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(source='EPA_NEI_Onroad', year='2020')
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EPA_NEI_Onroad', '2020')
+    generateFlowByActivity(source='EPA_NEI_Onroad', year='2020')
+    fba = getFlowByActivity('EPA_NEI_Onroad', 2020)

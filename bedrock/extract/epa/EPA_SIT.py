@@ -7,6 +7,7 @@ data directory. Parses EPA SIT data to flowbyactivity format.
 """
 
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -22,7 +23,9 @@ from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import apply_county_FIPS
 
 
-def epa_sit_parse(*, source, year, config, **_):
+def epa_sit_parse(
+    *, source: str, year: str, config: dict[str, Any], **_: Any  # noqa: ARG001
+) -> pd.DataFrame:
 
     # initialize the dataframe
     df0 = pd.DataFrame()
@@ -151,7 +154,7 @@ def epa_sit_parse(*, source, year, config, **_):
     return df0
 
 
-def disaggregate_emissions(fba: FlowByActivity, **_) -> FlowByActivity:
+def disaggregate_emissions(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     clean_fba_before_mapping_df_fxn to assign specific flow names to flows
     that are an amalgamation of multiple different GHGs
@@ -162,7 +165,7 @@ def disaggregate_emissions(fba: FlowByActivity, **_) -> FlowByActivity:
         attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
     }
     # dictionary of activities where GHG emissions need to be disaggregated
-    activity_dict = fba.config.get('clean_activity_dict')
+    activity_dict = fba.config.get('clean_activity_dict') or {}
     year = fba.config.get('year')
     # for all activities included in the dictionary...
     for activity_name, activity_properties in activity_dict.items():
@@ -223,7 +226,7 @@ def disaggregate_emissions(fba: FlowByActivity, **_) -> FlowByActivity:
     return new_fba
 
 
-def clean_up_state_data(fba: FlowByActivity, **_):
+def clean_up_state_data(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     clean_fba_before_activity_sets to:
 
@@ -236,7 +239,7 @@ def clean_up_state_data(fba: FlowByActivity, **_):
     have opted to use custom methods (e.g., Vermont estimates emissions from
     natural gas distribution separately from the SIT tool).
     """
-    state_list = fba.config.get('state_list')
+    state_list = fba.config.get('state_list') or []
 
     # (i) drop all states OTHER THAN those selected for alternative data sources
     state_df = pd.DataFrame(state_list, columns=['State'])
@@ -256,7 +259,8 @@ def clean_up_state_data(fba: FlowByActivity, **_):
 
 
 if __name__ == '__main__':
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(source='EPA_SIT', year='2012-2020')
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('EPA_SIT', 2019)
+    generateFlowByActivity(source='EPA_SIT', year='2012-2020')
+    fba = getFlowByActivity('EPA_SIT', 2019)

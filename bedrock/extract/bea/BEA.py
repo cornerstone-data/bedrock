@@ -10,14 +10,15 @@ Source csv files for BEA data are documented
 in scripts/write_BEA_data_from_useeior.py
 """
 
+from typing import Any, cast
+
 import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
-from bedrock.extract.iot.io_2017 import (
-    # _load_2017_detail_make_use_usa,
+from bedrock.extract.iot.io_2017 import (  # _load_2017_detail_make_use_usa,
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
 )
@@ -27,10 +28,11 @@ from bedrock.transform.iot.derived_price_index import _map_detail_table
 from bedrock.utils.config.settings import PATHS
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.metadata.metadata import set_fb_meta
+from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_MUT_YEARS
 
 
 # %%
-def bea_parse(*, source, year, **_):
+def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
     """
     Parse BEA data for GrossOutput, Make, and Use tables
     :param source:
@@ -39,10 +41,11 @@ def bea_parse(*, source, year, **_):
     """
     ## Case Detail_Supply
     if "Detail_Use_SUT" in source:
-        filename = 'Use_SUT_detail'
-        df = _load_2017_detail_supply_use_usa(filename)
+        df = _load_2017_detail_supply_use_usa('Use_SUT_detail')
         df = df.iloc[:, 1:]  # drop first column
-        df = df.iloc[: df.index.get_loc('VAPRO') + 1]  # drop everything after last row
+        loc = df.index.get_loc('VAPRO')
+        assert isinstance(loc, int)
+        df = df.iloc[: loc + 1]  # drop everything after last row
         df = df.reset_index()
         df = df.rename(columns={'Code': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
@@ -52,11 +55,12 @@ def bea_parse(*, source, year, **_):
             value_name="FlowAmount",
         )
     elif "Detail_Supply" in source:
-        filename = 'Supply_detail'
-        df = _load_2017_detail_supply_use_usa(filename)
+        df = _load_2017_detail_supply_use_usa('Supply_detail')
         df = df.iloc[:, 1:]  # drop first column
-        df = df.iloc[: df.index.get_loc('T017') + 1]  # drop everything after the total
-        df = np.transpose(df)
+        loc = df.index.get_loc('T017')
+        assert isinstance(loc, int)
+        df = df.iloc[: loc + 1]  # drop everything after the total
+        df = pd.DataFrame(np.transpose(df))
         df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
@@ -65,10 +69,9 @@ def bea_parse(*, source, year, **_):
             value_name="FlowAmount",
         )
     elif "Summary_Supply" in source:
-        filename = 'Supply_summary'
-        df = _load_usa_summary_sut(filename, year)
+        df = _load_usa_summary_sut('Supply_summary', cast(USA_SUMMARY_MUT_YEARS, year))
         df = df.iloc[1:, 1:]  # drop first row and column
-        df = np.transpose(df)
+        df = pd.DataFrame(np.transpose(df))
         df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
@@ -77,8 +80,7 @@ def bea_parse(*, source, year, **_):
             value_name="FlowAmount",
         )
     elif "Summary_Use_SUT" in source:
-        filename = 'Use_SUT_summary'
-        df = _load_usa_summary_sut(filename, year)
+        df = _load_usa_summary_sut('Use_SUT_summary', cast(USA_SUMMARY_MUT_YEARS, year))
         df = df.iloc[1:, 1:]  # drop first row and column
         df = df.reset_index()
         df = df.rename(columns={'Unnamed: 0': 'ActivityProducedBy'})

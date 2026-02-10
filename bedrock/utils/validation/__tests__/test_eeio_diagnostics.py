@@ -4,8 +4,19 @@
 import pandas as pd
 import pytest
 
+import bedrock.utils.math.formulas as formulas
+from bedrock.transform.eeio.derived_2017 import (
+    derive_2017_Aq_usa,
+    derive_2017_g_usa,
+    derive_2017_q_usa,
+    derive_2017_U_with_negatives,
+    derive_2017_Ytot_usa_matrix_set,
+    derive_detail_y_imp_usa,
+)
 from bedrock.utils.validation.eeio_diagnostics import (
     DiagnosticResult,
+    compare_commodity_output_to_domestics_use_plus_exports,
+    compare_output_vs_leontief_x_demand,
     format_diagnostic_result,
     run_all_diagnostics,
 )
@@ -264,3 +275,73 @@ class TestRunAllDiagnostics:
 
         assert len(results) == 2
         assert call_order == ["a", "b"]
+
+
+@pytest.mark.eeio_integration
+@pytest.mark.xfail(
+    reason="This test is failing because of data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
+)
+def test_compare_Uset_y_dom_and_q_usa() -> None:
+    U_set = derive_2017_U_with_negatives()
+    y_set = derive_2017_Ytot_usa_matrix_set()
+    y_imp = derive_detail_y_imp_usa()
+    q = derive_2017_q_usa()
+
+    U_d = U_set.Udom
+    y_d = y_set.ytot - y_imp + y_set.exports
+
+    r_q_with_U_d_and_y_d_validation = (
+        compare_commodity_output_to_domestics_use_plus_exports(
+            q=q, U_d=U_d, y_d=y_d, tolerance=0.01, include_details=True
+        )
+    )
+
+    assert len(r_q_with_U_d_and_y_d_validation.failing_sectors) == 0
+
+
+@pytest.mark.xfail(
+    reason="Data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
+)
+@pytest.mark.eeio_integration
+@pytest.mark.parametrize(
+    "modelType, use_domestic",
+    [
+        ("Commodity", False),
+    ],
+)  # TODO: add ("Commodity", True) test and industry parameters when Industry models become available [("Industry", False), ("Industry", True)]
+def test_compare_output_and_L_y(
+    modelType: str,
+    use_domestic: bool,
+) -> None:
+
+    # Load Aq model objects
+    Aq = derive_2017_Aq_usa()
+    Adom = Aq.Adom
+    Aimp = Aq.Aimp
+
+    # Load y vectors
+    y_set = derive_2017_Ytot_usa_matrix_set()
+    y_imp = derive_detail_y_imp_usa()
+
+    # Load output value
+    if modelType == "Commodity":
+        output = derive_2017_q_usa()
+    else:
+        # TODO: For industry models need to add g = output via derive_2017_g_usa(). Using q = output for now.
+        output = derive_2017_g_usa()
+
+    # Compute appropriate L and y
+    if use_domestic:
+        y = y_set.ytot - y_imp + y_set.exports  # y_d
+        L = formulas.compute_L_matrix(A=Adom)  # L_d
+    else:
+        y = y_set.ytot + y_set.exports - y_set.imports  # total y (non-domestic)
+        L = formulas.compute_L_matrix(
+            A=(Adom + Aimp)
+        )  # Is this correct? total L (non domestic)
+
+    r_output_L_y_validation = compare_output_vs_leontief_x_demand(
+        output=output, L=L, y=y, tolerance=0.01, include_details=True
+    )
+    print(len(r_output_L_y_validation.failing_sectors))
+    assert len(r_output_L_y_validation.failing_sectors) == 0

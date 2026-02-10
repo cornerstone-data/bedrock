@@ -10,7 +10,7 @@ url:
 
 parse_response_fxn: !script_function:EPA_GHGI ghg_parse
 gcs_fxn: !script_function:EPA_GHGI ghg_load_gcs
-load_from_gcs: True
+extract_data_from_raw_sources: False # Not available
 years:
 ## In the current data release, most tables are only available for the 5 most recent
 ## years

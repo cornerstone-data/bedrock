@@ -25,11 +25,11 @@ def load_bea_v2012_commodity_to_bea_v2017_commodity() -> (
             return ["333914"]
         raise RuntimeError(f"Unexpected BEA 2012 commodity code: {bea}")
 
-    mapping = {
-        bea: _map_v2012_commodity_to_v2017_commodity(bea)
+    mapping: ta.Dict[BEA_2012_COMMODITY_CODE, ta.List[BEA_2017_COMMODITY_CODE]] = {
+        bea: _map_v2012_commodity_to_v2017_commodity(bea)  # type: ignore[misc, arg-type]
         for bea in BEA_2012_COMMODITY_CODES
     }
-    validate_mapping(
+    validate_mapping(  # type: ignore[misc]
         mapping,
         domain=set(BEA_2012_COMMODITY_CODES),
         codomain=set(BEA_2017_COMMODITY_CODES),

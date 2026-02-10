@@ -4,9 +4,11 @@
 """ """
 
 import json
+from typing import Any
 
 import numpy as np
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import get_state_FIPS
@@ -14,7 +16,9 @@ from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.extract.allocation.bea import GCS_BEA_PCE_DIR,IN_DIR
 
 
-def bea_pce_url_helper(*, build_url, config, **_):
+def bea_pce_url_helper(
+    *, build_url: str, config: dict[str, Any], **_: Any
+) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -36,7 +40,7 @@ def bea_pce_url_helper(*, build_url, config, **_):
     return urls
 
 
-def bea_pce_call(*, resp, **_):
+def bea_pce_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe,
     begin parsing df into FBA format
@@ -52,7 +56,7 @@ def bea_pce_call(*, resp, **_):
         return df
 
 
-def bea_pce_parse(*, df_list, year, **_):
+def bea_pce_parse(*, df_list: list[pd.DataFrame], year: int, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -140,12 +144,13 @@ def bea_pce_ceda_parse(*, df_list, year, **_):
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(source='BEA_PCE', year=2023)
+    generateFlowByActivity(source='BEA_PCE', year=2023)
     fba = pd.DataFrame()
     for y in range(2023, 2024):
         fba = pd.concat(
-            [fba, bedrock.extract.flowbyactivity.getFlowByActivity('BEA_PCE', y)],
+            [fba, getFlowByActivity('BEA_PCE', y)],
             ignore_index=True,
         )
