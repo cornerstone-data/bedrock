@@ -7,10 +7,11 @@ FlowByActivity (FBA) and FlowBySector (FBS) datasets
 """
 
 import json
+import os
 from typing import Any
 
 import pandas as pd
-from esupy.processed_data_mgmt import FileMeta, read_source_metadata
+from esupy.processed_data_mgmt import FileMeta
 
 from bedrock.publish.bibliography import load_source_dict
 from bedrock.utils.config.common import (
@@ -18,9 +19,10 @@ from bedrock.utils.config.common import (
     return_true_source_catalog_name,
 )
 from bedrock.utils.config.settings import (
+    FBA_DIR,
+    FBS_DIR,
     GIT_HASH,
     GIT_HASH_LONG,
-    PATHS,
     PKG,
     PKG_VERSION_NUMBER,
     WRITE_FORMAT,
@@ -345,6 +347,58 @@ def return_fba_method_meta(sourcename: str, **kwargs: Any) -> dict[str, Any]:
     return fba_dict
 
 
+def find_file(meta, paths):
+    """
+    Searches for file within path.local_path based on file metadata; if
+    metadata matches, returns most recently created file path object
+    :param meta: populated instance of class FileMeta
+    :param paths: populated instance of class Paths
+    :return: str with the file path if found, otherwise an empty string
+    """
+    if paths.exists():
+        with os.scandir(str(paths)) as files:
+            # List all file satisfying the criteria in the passed metadata
+            matches = [
+                f
+                for f in files
+                if f.name.startswith(meta.name_data)
+                and meta.ext.lower() in f.name.lower()
+            ]
+            # Sort files in reverse order by ctime (creation time on Windows,
+            # last metadata modification time on Unix)
+            sorted_matches = sorted(
+                matches, key=lambda f: f.stat().st_ctime, reverse=True
+            )
+        # Return the path to the most recent matching file, or '' if no
+        # match exists.
+        if sorted_matches:
+            return paths / sorted_matches[0].name
+    return None
+
+
+def read_source_metadata(paths, meta, force_JSON=False):
+    """return the locally saved metadata dictionary from JSON,
+    meta should reflect the outputfile for which the metadata is associated
+
+    :param meta: object of class FileMeta used to load the outputfile
+    :param paths: object of class Paths
+    :param force_JSON: bool, searches based on named JSON instead of outputfile
+    :return: metadata dictionary
+    """
+    if force_JSON:
+        meta.ext = 'json'
+        path = find_file(meta, paths)
+    else:
+        p = find_file(meta, paths)
+        path = p.parent / f'{p.stem}_metadata.json' if p else None
+    try:
+        metadata = json.loads(path.read_text())
+        return metadata
+    except (FileNotFoundError, AttributeError):
+        log.warning(f'metadata not found for {meta.name_data}')
+        return None
+
+
 def getMetadata(
     source: str, year: int | str | None = None, category: str | None = None
 ) -> dict[str, Any]:
@@ -358,17 +412,21 @@ def getMetadata(
     """
     from bedrock.extract.generateflowbyactivity import set_fba_name  # noqa: PLC0415
 
+    if category == "FlowByActivity":
+        file_path = FBA_DIR
     if category is None:
         log.error('Category required, specify "FlowByActivity" or ' '"FlowBySector"')
         category = 'FlowBySector'  # Default to avoid type errors
+        file_path = FBS_DIR
     # if category is FBS ensure year is not added to source name when
     # looking for metadata
     if category == 'FlowBySector':
         year = None
+        file_path = FBS_DIR
 
     year_str = str(year) if isinstance(year, int) else year
     name = set_fba_name(source, year_str)
-    meta = read_source_metadata(PATHS, set_fb_meta(name, category))
+    meta = read_source_metadata(file_path, set_fb_meta(name, category))
     if meta is None:
         log.warning('No metadata found for %s', source)
         meta = {'source_meta': f'No metadata found for {name}'}
