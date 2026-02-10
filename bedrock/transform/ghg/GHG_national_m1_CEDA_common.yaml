@@ -1,0 +1,899 @@
+# This is the general method reference file for method 1 (Summary)
+# Year-specific GHG_national_m1 files import this file to define attribution rules
+# that are further customized
+# m1 for the GHG national utilizes a summary level sector attribution
+
+
+!include:USEEIO_summary_target.yaml
+# year: &ghgi_year 2023
+target_naics_year: 2017
+geoscale: national
+
+mecs_year: &mecs_year 2018
+
+_attribution_sources:
+  # TODO: evaluate re-adding
+  # CEDA uses tables 2.1 and 3.1
+#  EIA_MECS_Energy: &mecs_energy
+#    year: *mecs_year
+#    selection_fields: &mecs_energy_default_selection
+#      Class: Energy # or Other (for non-energy use)
+#      Unit: Trillion Btu
+#      # FlowName: Coal # override this
+#      Location: '00000'
+#      Description:
+#        - Table 2.2 # applies to Class Other
+#        - Table 3.2 # applies to Class Energy
+#    exclusion_fields:
+#      ActivityConsumedBy: '31-33'
+#    estimate_suppressed: !script_function:EIA_MECS estimate_suppressed_mecs_energy
+#    # attribution_method: proportional
+#    # attribution_source: # Include in main method
+#    #   BEA_Summary_Use_SUT:
+#    #     <<: *bea_summary
+#    #     selection_fields:
+#    #       ActivityProducedBy: {'XXXXX': ''}
+
+  # TODO: note this is a flowsa table, not ceda
+  BEA: &bea # 2017 Make and Use tables
+    year: 2017
+    activity_to_sector_mapping: BEA_2017_Detail
+    exclusion_fields:
+      # Drop irrelevant final demand and total sectors
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
+                           'T001', 'T004', 'T007', 'T019']
+      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                           'MCIF']
+    attribution_method: equal
+
+
+source_names:
+  EPA_GHGI_T_2_1: #U.S. GHG emissions
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      direct:
+        selection_fields:
+          PrimaryActivity:
+            - Abandoned Oil and Gas Wells #CH4 - same as flowsa
+            - Abandoned Underground Coal Mines #CH4 - same as flowsa
+            - Adipic Acid Production #N2O - same as flowsa
+            - Aluminum Production #CO2 - same as flowsa
+            - Ammonia Production #CO2 - same as flowsa
+            - Anaerobic Digestion at Biogas Facilities #CH4 new activity # TODO: flowsa code, included in ceda?
+            - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O - same as flowsa
+            - Carbide Production and Consumption #CO2, CH4 - same as flowsa, in ceda labeled silicon_carbide_production_and_consumption, TODO: find ch4 data in ceda
+            - Cement Production #CO2 - same as flowsa
+            - Coal Mining #CO2, CH4 #TODO: find co2 in ceda
+            - Composting #CH4, N2O - same as flowsa
+            - Electronics Industry  # N20 - note different than flowsa, which uses T 4_118 # todo: check on data out of T 2_1
+            - Ferroalloy Production #CO2, CH4 #TODO: find ch4 in ceda
+            - Glass Production #CO2 - same as flowsa
+            - Landfills #CH4 - same as flowsa
+            - Lime Production #CO2 - same as flowsa
+            - Incineration of Waste #CO2, #N2O - same as flowsa
+            - Iron and Steel Production & Metallurgical Coke Production #CO2, CH4 #TODO: find ch4 in ceda
+            - Nitric Acid Production #N2O - same as flowsa
+            - Phosphoric Acid Production #CO2 - same as flowsa
+            - Rice Cultivation #CH4 - same as flowsa
+#            - Soda Ash Production #CO2 - # TODO: ceda pulls this data from table 4-51, implemented below
+            - Titanium Dioxide Production #CO2 - same as flowsa
+            - Wastewater Treatment #CH4, N2O - same as flowsa
+            - Zinc Production #CO2 - same as flowsa
+          FlowName: ["CO2", "CH4", "N2O"] # HFCs and other flows are pulled elsewhere
+        attribution_method: direct
+
+      electricity_transmission:
+        selection_fields:
+          PrimaryActivity:
+#            - Electrical Transmission and Distribution #SF6 - does not exist in ceda, old name?
+            - Electrical Equipment #SF6 updated name for this activity in 2024 release - same as flowsa
+          FlowName: SF6
+        attribution_method: direct
+
+      # updated from flowsa version, which proportionally attributes using BEA Detail Supply, to additionally attribute to gov sectors
+      electric_power:
+        selection_fields:
+          PrimaryActivity:
+            Electric Power Sector: Electric Power #CO2 - different attribution than flowsa
+        attribution_method: direct
+
+      liming: # liming of agricultural soils - note: flowsa uses proportional by BEA Detail Use SUT
+        selection_fields:
+          PrimaryActivity: Liming #CO2 - different attribution than flowsa
+        attribution_method: direct
+
+      urea:
+        selection_fields:
+          PrimaryActivity:
+            - Urea Consumption for Non-Agricultural Purposes #CO2 - same as flowsa
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:  # TODO: update to use ceda version of table
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'325310': ''} # Fertilizers
+
+      urea_fertilizer:
+        selection_fields:
+          PrimaryActivity: Urea Fertilization #CO2 - same as flowsa
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:  # TODO: update to use ceda version of table
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'325310': ''} # Fertilizers
+
+      carbonate_use:
+        selection_fields:
+          PrimaryActivity: Other Process Uses of Carbonates #CO2 - same as flowsa
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT: # TODO: update to CEDA version of this table
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'325180': ''} # Other Basic Inorganic Chemicals
+
+      lead: # todo: why is this not in the "direct" activity set?
+        selection_fields:
+          PrimaryActivity: Lead Production #CO2 - same as flowsa
+        attribution_method: direct
+
+      nitrous_oxide_use:
+        selection_fields:
+          PrimaryActivity: N2O from Product Uses #N2O - same as flowsa
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:  # TODO: use ceda bea table
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'325120': ''} # Industrial gases
+
+      # newly added code for ceda
+      direct_other_emissions:
+        selection_fields:
+          PrimaryActivity:
+          - Fluorochemical Production  # other -  flowsa pulls from EPA_GHGI_T_4_63 and EPA_GHGI_T_4_64
+          - Electronics Industry  # other -  flowsa pulls from EPA_GHGI_T_4_118
+          FlowName: ["Other PFCs", "Other HFCs"] # todo: check if this includes all other - ceda has hfc 23, nf3, sf6 for electronics
+        attribution_method: direct
+
+      # newly added code for ceda, flowsa pulls magnesium from EPA_GHGI_T_4_106
+      magnesium:
+        selection_fields:
+          PrimaryActivity:
+          - Magnesium Production and Processing  # other (hfc 134a, sf6)  - different table than flowsa
+          FlowName: ["Other PFCs", "Other HFCs"] # todo: check if this includes all "other"
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy:
+                '331410': ''
+                '331490': ''
+                '331520': ''
+
+
+## Fossil Fuels
+  EPA_GHGI_T_3_64: &natgas #CH4 from Natural Gas Systems
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity:
+        - Distribution  # same as flowsa
+#        - Post-Meter  # incldued in flowsa, not in ceda
+#        - Exploration  # included in flowsa, not in ceda
+        - Processing  # same as flowsa
+        - Production  # same as flowsa
+        - Transmission and Storage  # same as flowsa
+    attribution_method: direct
+  EPA_GHGI_T_3_66: *natgas #CO2 from Natural Gas Systems mimics CH4 - same as flowsa, with exception of diff activities as noted above
+#  EPA_GHGI_T_3_68: *natgas #N2O from Natural Gas Systems, not used in original method, mimics CH4 - included in flowsa, not in ceda
+
+# below is flowsa code for petroleum systems - ceda uses different activities (same tables), ceda code is below
+#  EPA_GHGI_T_3_45: &petroleum #CH4 from Petroleum Systems
+#    # year: # override this
+#    fedefl_mapping: GHGI_AR5_100
+#    selection_fields:
+#      PrimaryActivity:
+#        - Crude Oil Transportation
+#        - Transportation
+#        - Exploration
+#        - Production
+#        - Refining
+#        - Crude Refining
+#    attribution_method: direct
+#  EPA_GHGI_T_3_47: *petroleum #CO2 from Petroleum Systems mimics CH4
+#  EPA_GHGI_T_3_49: *petroleum #N2O from Petroleum Systems, not in prior method, mimics CH4
+
+  # new code for ceda, as petroleum systems different than flowsa
+  EPA_GHGI_T_3_45: #CH4 from Petroleum Systems - same table as flowsa
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity:
+        - Total  # different activity than flowsa, flowsa has a list
+    attribution_method: direct
+  EPA_GHGI_T_3_47:  #CO2 from Petroleum Systems, does NOT mimic CH4 like in flowsa - same table as flowsa
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity:
+#        - Crude Oil Transportation - only in flowsa
+#        - Transportation - only in flowsa
+        - Exploration - same as flowsa
+        - Production - same as flowsa
+#        - Refining - only in flowsa
+        - Crude Refining - same as flowsa
+    attribution_method: direct
+
+## Agriculture
+#  TODO: check what is included in flowsa 2023, ceda has data for ch4 and n20 only, but did have "CH4, N2O, CO, and NOx Emissions" for 2022 data, stated in def load_ch4_and_n2o_from_field_burning()
+  # note - table 5_29 allocation is different than flowsa, as flowsa only directly attributes, while ceda proportionally attributes n20
+  EPA_GHGI_T_5_29: #CH4, N2O, CO and NOx from field burning of residues
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      direct_ch4:  # ch4
+        selection_fields:
+          PrimaryActivity:
+    #        - Chickpeas  # only in flowsa, not in ceda
+            - Cotton  # same as flowsa
+    #        - Maize  # only in flowsa, not in ceda todo: check if same as corn?
+            - Rice  # same as flowsa
+            - Soybeans  # same as flowsa
+            - Wheat  # same as flowsa
+            - Corn  # not included in flowsa, only in ceda todo: check if same as maize?
+            - Lentils  # not included in flowsa, only in ceda
+            - Sugarcane  # not included in flowsa, only in ceda
+          FlowName: ["CH4"]
+        attribution_method: direct
+      proportional_n20:  #n20
+        selection_fields:
+          PrimaryActivity:
+    #        - Chickpeas  # only in flowsa, not in ceda
+            - Cotton  # same as flowsa
+    #        - Maize  # only in flowsa, not in ceda todo: check if same as corn?
+            - Rice  # same as flowsa
+            - Soybeans  # same as flowsa
+            - Wheat  # same as flowsa
+            - Corn  # not included in flowsa, only in ceda todo: check if same as maize?
+            - Lentils  # not included in flowsa, only in ceda
+            - Sugarcane  # not included in flowsa, only in ceda
+          FlowName: ["N2O"]
+        attribution_method: proportional  # todo: need to proportionally attribute by table 2-1
+
+  EPA_GHGI_T_5_3:  &animals #CH4 from Enteric Fermentation
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity:  # todo: likely not an issue, but flowsa lists the activities for all emissions, while ceda code does not have all activities for all emissions
+        - American Bison  # same as flowsa - ch4 manure
+        - Beef Cattle  # same as flowsa - n20, ch4  manure
+        - Dairy Cattle  # same as flowsa - n20, ch4 manure
+        - Goats  # same as flowsa - n20, ch4 manure
+        - Horses  # same as flowsa - n20, ch4 manure
+        - Mules and Asses  # same as flowsa, ch4 manure
+        - Sheep  # same as flowsa - n20, ch4 manure
+        - Swine  # same as flowsa - n20, ch4 manure
+        - Poultry  # same as flowsa - n20, ch4 manure (not in ceda enteric fermintation)
+    attribution_method: direct
+  EPA_GHGI_T_5_7:
+    <<: *animals #CH4, mimics enteric fermentation #todo: move N2O from manure, which flowsa captures here, to instead be laoded from T 2_1 and then allocated with table 5-7
+    selection_fields:
+      FlowName: ["CH4"]
+
+  EPA_GHGI_T_5_18: #Direct N2O emissions from agricultural soils
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      # todo: update this chunk of code. ceda's base number is pulled from bea use table and allocated using T 5_18
+#      fertilizer_use:
+#        selection_fields:
+#          PrimaryActivity:
+#            - Organic Amendment Cropland  # same as flowsa
+#            - Residue N Cropland  # same as flowsa
+#            - Synthetic Fertilizer Cropland  # same as flowsa
+#        attribution_method: direct
+
+      cropland:
+        selection_fields:
+          PrimaryActivity:
+            - Mineralization and Asymbiotic Fixation Cropland  # same as flowsa
+            - Drained Organic Soils Cropland  # same as flowsa
+        attribution_method: direct
+
+      # todo: update this chunk of code. ceda's base number is pulled from hardcoded 2018 COA data and allocated using T 5_18
+#      pasture: &pasture
+#        selection_fields:
+#          PrimaryActivity:
+#            - All activities Grassland  # todo: check activity name, as it is "Grassland" in ceda code
+#        attribution_method: equal
+
+
+  EPA_GHGI_T_5_19: #Indirect N2O emissions from agricultural soils
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      # todo: update this chunk of code. ceda's base number is pulled from bea use table and allocated using T 5_19
+#      fertilizer_use:
+#        selection_fields:
+#          PrimaryActivity:
+#            - Volatilization & Atm. Deposition Cropland  # same as flowsa
+#            - Surface Leaching & Run-Off Cropland  # same as flowsa
+#        attribution_method: direct
+      # todo: update this chunk of code. ceda's base number is pulled from hardcoded 2018 COA data and allocated using T 5_19
+#      pasture:
+#        selection_fields:
+#          PrimaryActivity:
+#            - All activities Grassland
+#        attribution_method: equal
+
+
+# TODO: update all mobile sources to reflect ceda method
+### Mobile Sources
+#  EPA_GHGI_T_3_13: #CO2 from mobile combustion
+#    fedefl_mapping: GHGI_AR5_100
+#    activity_sets:
+#      direct_petroleum:
+#        selection_fields:
+#          PrimaryActivity:
+#            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
+#            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
+#            Commercial Aircraft Jet Fuel: Commercial Aircraft
+#            Military Aircraft Jet Fuel: Military Aircraft
+#            Buses Gasoline: Buses
+#            Buses LPG: Buses
+#            Motorcycles Gasoline: Motorcycles
+#            Rail Distillate Fuel Oil: Rail
+#            Recreational Boats Distillate Fuel Oil: Recreational Boats
+#            Recreational Boats Gasoline: Recreational Boats
+#            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
+#            Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
+#            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
+#            Medium- and Heavy-Duty Trucks LPG: Medium- and Heavy-Duty Trucks
+#            Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks
+#            Light-Duty Trucks LPG: Light-Duty Trucks - Households
+#            Passenger Cars LPG: Passenger Cars - Households
+#        attribution_method: direct
+#
+#      direct_ng:
+#        selection_fields:
+#          PrimaryActivity:
+#            Buses Natural Gas: Buses
+#            Pipeline Natural Gas: Pipeline Natural Gas
+#
+#      petroleum_fuels:
+#        selection_fields:
+#          PrimaryActivity:
+#            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+#            Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
+#            Passenger Cars Distillate Fuel Oil: Passenger Cars
+#            Passenger Cars Gasoline: Passenger Cars
+#            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks
+#            Light-Duty Trucks Gasoline: Light-Duty Trucks
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+#
+#  EPA_GHGI_T_3_14: &mobile #CH4 from mobile combustion
+#    fedefl_mapping: GHGI_AR5_100
+#    activity_sets:
+#      direct_gasoline: # empty in some years (<0.05 MMT CO2eq)
+#        selection_fields:
+#          PrimaryActivity:
+#            Motorcycles Gasoline On-Road: Motorcycles
+#            Medium- and Heavy-Duty Trucks and Buses Gasoline On-Road: Medium- and Heavy-Duty Trucks and Buses
+#        attribution_method: direct
+#
+#      direct_non_road:
+#        selection_fields:
+#          PrimaryActivity:
+#            Rail Non-Road: Rail
+#            Ships and Boats Non-Road: Ships and Boats
+#            Aircraft Non-Road: General Aviation Aircraft
+#        attribution_method: direct
+#
+#      petroleum_fuels_diesel:
+#        selection_fields:
+#          PrimaryActivity:
+#            Passenger Cars Diesel On-Road: Passenger Cars
+#            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks
+#            Medium- and Heavy-Duty Buses Diesel On-Road: Buses - Distillate Fuel Oil
+#            Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+#
+#      petroleum_fuels_gasoline:
+#        selection_fields:
+#          PrimaryActivity:
+#            Passenger Cars Gasoline On-Road: Passenger Cars
+#            Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+#
+#      construction_and_mining: #this set is allocated by purchases of construction equipment
+#        selection_fields:
+#          PrimaryActivity: Construction/Mining Equipment Non-Road
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'333120': ''} # purchases of construction/mining equipment
+#
+#      farm_non_road: #this set is allocated by purchases of farm machinery
+#        selection_fields:
+#          PrimaryActivity: Agricultural Equipment Non-Road
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'333111': ''} # purchases of farm machinery
+#
+#      other_non_road: #this set is allocated by purchases of petroleum refining
+#        selection_fields:
+#          PrimaryActivity: Other Non-Road
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+#
+#      alt_fuel_on_road: #this set is allocated by purchases of natural gas
+#        selection_fields: # empty in some years (<0.05 MMT CO2eq)
+#          PrimaryActivity:
+#            All activities Alternative Fuel On-Road: Alternative Fuel On-Road
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'221200': ''} # purchases of natural gas
+#
+#  EPA_GHGI_T_3_15: *mobile #N2O from mobile combustion duplicates method for CH4
+
+
+## Stationary Combustion
+  GHGI_CO2_stationary_combustion: # CO2 emissions from stationary combustion
+    fedefl_mapping: GHGI_AR5_100
+    # year: # override this
+    clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
+    clean_parameter: # Override each year for use in allocate_industrial_combustion
+        energy_fba: 'EIA_MECS_Energy'
+        year: *mecs_year
+        ghg_fba: 'EPA_GHGI_T_A_10' # 2018 Table
+    activity_sets:
+      direct_attribution: #direct allocation
+        selection_fields:
+          PrimaryActivity: Total (All Fuels) Residential
+        attribution_method: direct
+
+      non_manufacturing_coal:
+        selection_fields:
+          PrimaryActivity:
+            Commercial Coal Commercial: Coal Commercial
+            Industrial Other Coal Industrial: Coal Industrial
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'212100': ''} # purchases of coal
+
+      # TODO: examine ceda code for natural gas - does it include non mnaufactring and manufacturing?
+      non_manufacturing_natural_gas: # Applies to non-manufacturing sectors like ag and mining
+        selection_fields:
+          PrimaryActivity:
+            - Natural Gas Commercial
+            - Natural Gas Industrial
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'221200': ''} # purchases of natural gas
+
+
+      coal_manufacturing_co2: # Industrial Coal for Manufacturing
+        selection_fields:
+          PrimaryActivity:
+            Industrial Other Coal Industrial - Manufacturing: Coal Industrial - Manufacturing
+        attribution_method: proportional
+        attribution_source:
+          EIA_MECS_Energy:
+            <<: *mecs_energy
+            selection_fields:
+              <<: *mecs_energy_default_selection
+              FlowName:
+                - Coal
+                - Coke and Breeze
+            # attribution_source: TODO do we need attribution of MECS data?
+            #   BEA_Summary_Use_SUT:
+            #     <<: *bea_summary
+            #     selection_fields:
+            #       ActivityProducedBy: {'212100': ''} # purchases of coal
+
+      natural_gas_manufacturing: # Industrial Natural Gas for manufacturing
+        selection_fields:
+          PrimaryActivity:
+            - Natural Gas Industrial - Manufacturing
+        attribution_method: proportional
+        attribution_source:
+          EIA_MECS_Energy:
+            <<: *mecs_energy
+            selection_fields:
+              <<: *mecs_energy_default_selection
+              FlowName: Natural Gas
+            # attribution_source:
+            #   BEA_Summary_Use_SUT:
+            #     <<: *bea_summary
+            #     selection_fields:
+            #       ActivityProducedBy: {'221200': ''} # purchases of natural gas
+
+      petroleum: # Petroleum
+        selection_fields:
+          PrimaryActivity:
+            - Total Petroleum Commercial
+            - Total Petroleum Industrial
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+
+
+  EPA_GHGI_T_3_8:  &stationary_combustion # CH4 emissions from stationary combustion
+    # year: #override this with ghgi_year
+    clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
+    clean_parameter: # Override each year for use in allocate_industrial_combustion
+        energy_fba: 'EIA_MECS_Energy'
+        year: *mecs_year
+        ghg_fba: 'EPA_GHGI_T_A_10' # 2018 Table
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      residential:
+        selection_fields:
+          PrimaryActivity:
+            - Fuel Oil Residential
+            - Coal Residential
+            - Natural Gas Residential
+            - Wood Residential
+        attribution_method: direct
+
+# todo: update for ceda approach, "elctric power" only to 221100 BEA, no specific electricy types, does not use bea to allocate
+#      electric_power:
+#        selection_fields:
+#          PrimaryActivity:
+#            Coal Electric Power: Coal Electric Power
+#            Natural Gas Electric Power: Natural Gas Electric Power
+#            Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
+#            Fuel Oil Electric Power: Fuel Oil Electric Power
+#            Wood Electric Power: Wood Electric Power
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Supply:
+#            <<: *bea
+#            selection_fields:
+#              ActivityConsumedBy: {'221100': ''}  # Electricity
+
+      fuel_oil:
+        selection_fields:
+          PrimaryActivity:
+            - Fuel Oil Commercial  # same as flowsa
+#            - Fuel Oil Industrial  # TODO: move industrial to different approach, ceda uses mecs to allocate
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''}  # purchases of refinery products
+
+      natural_gas_nonmanufacturing:  # Commercial Natural gas
+        selection_fields:
+          PrimaryActivity:
+            Natural gas Commercial: Natural Gas Commercial # fix capitalization - same as flowsa
+            Natural gas Industrial: Natural Gas Industrial # fix capitalization
+            Natural Gas Commercial: Natural Gas Commercial
+            Natural Gas Industrial: Natural Gas Industrial
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:  # todo: upate to ceda version
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'221200': ''}  # purchases of natural gas
+
+      # TODO: check if included in ceda
+#      coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
+#        selection_fields:
+#          PrimaryActivity: Coal Industrial
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_SUT:
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'212100': ''}  # purchases of coal
+
+      # todo: check ceda if industrial coal is manufacturing or nonmanufacturing
+      coal_manufacturing:
+        selection_fields:
+          PrimaryActivity: Coal Industrial - Manufacturing
+        attribution_method: proportional
+        attribution_source:
+          EIA_MECS_Energy:
+            <<: *mecs_energy
+            selection_fields:
+              <<: *mecs_energy_default_selection
+              FlowName: Coal
+            # attribution_source:
+            #   BEA_Summary_Use_SUT:
+            #     <<: *bea_summary
+            #     selection_fields:
+            #       ActivityProducedBy: {'212100': ''} # purchases of coal
+
+      ng_manufacturing:
+        selection_fields:
+          PrimaryActivity:
+            - Natural gas Industrial - Manufacturing
+            - Natural Gas Industrial - Manufacturing
+        attribution_method: proportional
+        attribution_source:
+          EIA_MECS_Energy:
+            <<: *mecs_energy
+            selection_fields:
+              <<: *mecs_energy_default_selection
+              FlowName: Natural Gas
+            # attribution_source:
+            #   BEA_Summary_Use_SUT:
+            #     <<: *bea_summary
+            #     selection_fields:
+            #       ActivityProducedBy: {'221200': ''} # purchases of natural gas
+
+    #Intentionally left out 'Wood Commercial' and 'Wood Industrial'
+
+  EPA_GHGI_T_3_9: *stationary_combustion # N2O emissions from stationary combustion
+
+  EPA_GHGI_T_4_51: #U.S. GHG emissions # todo: need to incorporate into 2023 ghg yaml
+    # year: # override this
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      direct:
+        selection_fields:
+          PrimaryActivity:
+            - Soda Ash Production #CO2 - note flowsa pulls from 2_1, which is the approach to take in merge
+          FlowName: ["CO2"]
+        attribution_method: direct
+
+## Other sources
+  EPA_GHGI_T_4_55: #CO2 for selected petrochemicals
+    # year: # override with ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity:
+        - Acrylonitrile
+        - Carbon Black
+        - Ethylene
+        - Ethylene Dichloride
+        - Ethylene Oxide
+        - Methanol
+    attribution_method: direct
+
+  GHGI_nonenergy_fossil_fuel_emissions: # Fossil fuel for non-energy uses
+    # year: #override with ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      coal:
+        selection_fields:
+          PrimaryActivity:
+            - Industry Industrial Coking Coal
+            - Industry Industrial Other Coal
+        attribution_method: direct
+
+      petroleum_neu: # consumed petroleum products
+        selection_fields:
+          PrimaryActivity:
+            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
+            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
+            Industry LPG: Industry Petroleum Products Non-energy
+            Industry Lubricants: Industry Petroleum Products Non-energy
+            Industry Miscellaneous Products: Industry Petroleum Products Non-energy
+            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
+            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
+            Industry Pentanes Plus: Industry Petroleum Products Non-energy
+            Industry Petroleum Coke: Industry Petroleum Products Non-energy
+            Industry Special Naphtha: Industry Petroleum Products Non-energy
+            Industry Still Gas: Industry Petroleum Products Non-energy
+            Industry Waxes: Industry Petroleum Products Non-energy
+            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
+            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
+        attribution_method: proportional
+        attribution_source:
+          EIA_MECS_Energy:
+            <<: *mecs_energy
+            selection_fields:
+              Class: Other
+              Unit: Trillion Btu
+              FlowName:
+                - Residual Fuel Oil
+                - Distillate Fuel Oil
+                - Hydrocarbon Gas Liquids, excluding natural gasoline
+            # attribution_source:
+            #   BEA_Summary_Use_SUT:
+            #     <<: *bea_summary
+            #     selection_fields:
+            #       ActivityProducedBy: {'324110': ''} # purchases of refineries
+
+      natural_gas_neu: # consumed nat gas to chemical plants
+        selection_fields:
+          PrimaryActivity: Industry Natural Gas to Chemical Plants
+        attribution_method: proportional
+        attribution_source:
+          EIA_MECS_Energy:
+            <<: *mecs_energy
+            selection_fields:
+              Class: Other
+              FlowName: Natural Gas
+              Unit: Trillion Btu
+            # attribution_source:
+            #   BEA_Summary_Use_SUT:
+            #     <<: *bea_summary
+            #     selection_fields:
+            #       ActivityProducedBy: {'221200': ''} # purchases of natural gas
+
+      transportation_lubricants:
+        selection_fields:
+          PrimaryActivity: Transportation Lubricants
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # use of petroleum products
+
+## Other Emissions
+  EPA_GHGI_T_4_59: # HFCs from HCFC-22 production
+    # year: # override with ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity: HCFC-22 Production
+    attribution_method: direct
+
+# note - below code is how flowsa handles fluorochemical production
+#  EPA_GHGI_T_4_63: # Fluorochemical production (in CO2e)
+#    # year: # override with ghgi_year
+#    fedefl_mapping: GHGI_AR5_100
+#    selection_fields:
+#      PrimaryActivity: Fluorochemical Production
+#      FlowName: ["Other PFCs", "Other HFCs"]
+#    attribution_method: direct
+#
+#  EPA_GHGI_T_4_64: # Fluorochemical production (in MT)
+#    # year: # override with ghgi_year
+#    fedefl_mapping: GHGI_AR5_100
+#    selection_fields:
+#      PrimaryActivity: Fluorochemical Production
+#    exclusion_fields:
+#      FlowName: ["Other PFCs", "Other HFCs"]
+#    attribution_method: direct
+
+  EPA_GHGI_T_4_118: # HFCs and other emissions from electronics manufacture
+    # year: # override with ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity:
+#        - Electronics Industry  # ceda pulls from t_2_1 and directly attributes, moving there
+        - Semiconductors  # pfcs - same as flowsa
+        - PV
+        - MEMS
+    attribution_method: direct
+
+  EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
+    # year: # override with ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    attribution_method: direct
+
+  EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
+    clean_fba_before_activity_sets: !script_function:EPA_GHGI split_HFCs_by_type
+    clean_parameter:
+        # Proportions of specific HFCs are assigned based on national total
+        flow_fba: EPA_GHGI_T_4_122
+    # year: # override with ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      households:
+        selection_fields:
+          PrimaryActivity:
+            - Domestic Refrigeration
+            - Residential Stationary Air Conditioning
+        attribution_method: direct
+
+      refrigerants:
+        selection_fields:
+          PrimaryActivity:
+            - Commercial Refrigeration
+            - Industrial Process Refrigeration
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+
+      air_conditioning:
+        selection_fields:
+          PrimaryActivity:
+            - Commercial Stationary Air Conditioning
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+
+      # TODO: look into foams further, as ceda also uses Table 4_122 for allocation before allocating with BEA
+      foams:
+        selection_fields:
+          PrimaryActivity:
+            - Foams
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:  # TODO: replace with CEDA table
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy:
+                '326140': '' # Polystyrene foam
+                '326150': '' # Urethane and other foam
+
+
+  EPA_GHGI_T_A_90: # HFCs from Transportation
+    # year: # override with ghgi_year
+    clean_fba_before_mapping: !script_function:EPA_GHGI split_HFCs_by_type
+    clean_parameter:
+        # Proportions of specific HFCs are assigned based on national total
+        flow_fba: EPA_GHGI_T_4_122
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity:
+        Mobile AC - Passenger Cars: Passenger Cars - Households
+        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households
+        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles
+        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses
+        # Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses #excluded
+        Comfort Cooling for Trains and Buses - Rail: Rail
+        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks
+        Refrigerated Transport - Rail: Rail
+        Refrigerated Transport - Ships and Boats: Ships and Boats
+    attribution_method: direct
+
+
+  EPA_GHGI_T_4_100: # PFCs from aluminum production
+    # year: # override with ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity: Aluminum Production  # same as flowsa # todo: check includes both c2f6 and cf4
+    attribution_method: direct
+
+
+# note - below code is flowsa, ceda proportionally attributes from T 2_1
+#  EPA_GHGI_T_4_106: # HFCs, SF6, CO2 from magnesium production
+#    # year: # override with ghgi_year
+#    fedefl_mapping: GHGI_AR5_100
+#    selection_fields:
+#      PrimaryActivity: Magnesium Production and Processing
+#    attribution_method: direct
