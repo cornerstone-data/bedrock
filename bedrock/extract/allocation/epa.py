@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import os
 import posixpath
 import typing as ta
@@ -120,6 +121,7 @@ def _load_epa_tbl_from_gcs(
     )
 
 
+@functools.cache
 def load_n2o_emissions_from_stationary_combustion() -> pd.Series[float]:
     """N2O Emissions from Stationary Combustion (MMT CO2 Eq.)"""
     tbl = _map_special_string_to_zero_in_tbl(
@@ -155,6 +157,7 @@ def load_n2o_emissions_from_stationary_combustion() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_recent_trends_in_ghg_emissions_and_sinks() -> pd.Series[float]:
     """
     Recent Trends in U.S. Greenhouse Gas Emissions and Sinks (MMT CO2 Eq.)
@@ -255,6 +258,7 @@ def load_recent_trends_in_ghg_emissions_and_sinks() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_ch4_emissions_from_enteric_fermentation() -> pd.Series[float]:
     """CH4 Emissions from Enteric Fermentation (MMT CO2 Eq.)"""
     tbl = _load_epa_tbl_from_gcs(
@@ -277,6 +281,7 @@ def load_ch4_emissions_from_enteric_fermentation() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_ch4_emissions_from_natural_gas_systems() -> pd.Series[float]:
     """CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"""
     tbl = _load_epa_tbl_from_gcs(
@@ -295,6 +300,7 @@ def load_ch4_emissions_from_natural_gas_systems() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_co2_emissions_from_fossil_fuels_for_non_energy_uses() -> pd.Series[float]:
     """Adjusted Non-Energy Use Fossil Fuel Consumption, Storage, and Emissions (MMT CO2)"""
     tbl = _map_special_string_to_zero_in_tbl(
@@ -337,6 +343,7 @@ def load_co2_emissions_from_fossil_fuels_for_non_energy_uses() -> pd.Series[floa
     return tbl.loc[:, "(MMT CO2 Eq.)"]
 
 
+@functools.cache
 def load_co2_emissions_from_natural_gas_systems() -> pd.Series[float]:
     """CO2 Emissions from Natural Gas Systems (MMT)"""
     tbl = (
@@ -358,6 +365,7 @@ def load_co2_emissions_from_natural_gas_systems() -> pd.Series[float]:
     return tbl.loc[:, _get_epa_data_year()]
 
 
+@functools.cache
 def load_direct_n2o_from_agricultural_soils() -> pd.Series[float]:
     """Direct N2O from Agricultural Soils"""
     tbl = (
@@ -406,6 +414,7 @@ def load_direct_n2o_from_agricultural_soils() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_indirect_n2o_from_agricultural_soils() -> pd.Series[float]:
     """Indirect N2O from Agricultural Soils (MMT CO2 Eq.)"""
     tbl = (
@@ -446,6 +455,7 @@ def load_indirect_n2o_from_agricultural_soils() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_ch4_and_n2o_emissions_from_manure_management() -> pd.Series[float]:
     """CH4 and N2O Emissions from Manure Management (MMT CO2 Eq.)"""
 
@@ -490,6 +500,7 @@ def load_ch4_and_n2o_emissions_from_manure_management() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_ch4_emissions_from_petroleum_systems() -> pd.Series[float]:
     """CH4 Emissions from Petroleum Systems (MMT CO2 Eq.)"""
     tbl = _load_epa_tbl_from_gcs(
@@ -516,6 +527,7 @@ def load_ch4_emissions_from_petroleum_systems() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_co2_emissions_from_petroleum_systems() -> pd.Series[float]:
     """CO2 Emissions from Petroleum Systems (MMT CO2)"""
     tbl = _map_special_string_to_zero_in_tbl(
@@ -537,6 +549,7 @@ def load_co2_emissions_from_petroleum_systems() -> pd.Series[float]:
     return tbl.loc[:, _get_epa_data_year()]
 
 
+@functools.cache
 def load_ch4_and_n2o_from_field_burning() -> pd.Series[float]:
     """
     if config year 2022:
@@ -579,6 +592,7 @@ def load_ch4_and_n2o_from_field_burning() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_ch4_emissions_from_stationary_combustion() -> pd.Series[float]:
     """CH4 Emissions from Stationary Combustion (MMT CO2 Eq.)"""
 
@@ -611,6 +625,7 @@ def load_ch4_emissions_from_stationary_combustion() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_n2o_emissions_from_mobile_combustion() -> pd.Series[float]:
     """N2O Emissions from Mobile Combustion (MMT CO2 Eq.)"""
     tbl = _map_special_string_to_zero_in_tbl(
@@ -681,6 +696,7 @@ def load_n2o_emissions_from_mobile_combustion() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_co2_emissions_from_petrochemical_production() -> pd.Series[float]:
     tbl = (
         _map_special_string_to_zero_in_tbl(
@@ -703,6 +719,7 @@ def load_co2_emissions_from_petrochemical_production() -> pd.Series[float]:
     return tbl.loc["CO2":"CH4", _get_epa_data_year()][1:-1]  # type: ignore
 
 
+@functools.cache
 def load_ch4_emissions_from_petrochemical_production() -> pd.Series[float]:
     tbl = (
         _map_special_string_to_zero_in_tbl(
@@ -734,6 +751,7 @@ def load_ch4_emissions_from_petrochemical_production() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_co2_emissions_from_soda_ash_prodution() -> pd.Series[float]:
     """CO2 Emissions from Soda Ash Production (MMT CO2 Eq.)"""
     tbl = _load_epa_tbl_from_gcs(
@@ -748,6 +766,7 @@ def load_co2_emissions_from_soda_ash_prodution() -> pd.Series[float]:
     return tbl.loc[:, _get_epa_data_year()]
 
 
+@functools.cache
 def load_fuel_consumption_by_fuel_and_vehicle_type() -> pd.Series[float]:
     """
     Fuel Consumption by Fuel and Vehicle Type (million gallons unless otherwise specified)
@@ -856,6 +875,7 @@ def load_fuel_consumption_by_fuel_and_vehicle_type() -> pd.Series[float]:
     return total_fuel_usage
 
 
+@functools.cache
 def load_ch4_emissions_from_mobile_combustion() -> pd.Series[float]:
     """CH4 Emissions from Mobile Combustion (MMT CO2 Eq.)"""
     tbl = _map_special_string_to_zero_in_tbl(
@@ -912,6 +932,7 @@ def load_ch4_emissions_from_mobile_combustion() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_hfc_emissions_from_transportation_sources() -> pd.Series[float]:
     """
     HFC Emissions from Transportation Sources (MMT CO2 Eq.)
@@ -949,6 +970,7 @@ def load_hfc_emissions_from_transportation_sources() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_hfc_emissions_from_ods_substitutes() -> pd.Series[float]:
     """
     Emissions of HFCs from ODS substitutes
@@ -970,6 +992,7 @@ def load_hfc_emissions_from_ods_substitutes() -> pd.Series[float]:
     return tbl.loc[:, _get_epa_data_year()]
 
 
+@functools.cache
 def load_hfc_pfc_emissions_from_ods_substitutes() -> pd.Series[float]:
     """
     Emissions of HFCs, PFCs, and CO2 from ODS Substitutes (MMT CO2 Eq.) by Sector
@@ -1036,6 +1059,7 @@ def load_hfc_pfc_emissions_from_ods_substitutes() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_pfc_emissions_from_aluminum_production() -> pd.Series[float]:
     """
     PFC Emissions from Aluminum Production
@@ -1070,6 +1094,7 @@ def load_pfc_emissions_from_aluminum_production() -> pd.Series[float]:
         )
 
 
+@functools.cache
 def load_pfc_hfc_sf6_nf3_n2o_emissions_from_semiconductor_manufacture() -> (
     pd.Series[float]
 ):
@@ -1119,6 +1144,7 @@ def load_pfc_hfc_sf6_nf3_n2o_emissions_from_semiconductor_manufacture() -> (
         )
 
 
+@functools.cache
 def load_mmt_co2e_across_fuel_types() -> pd.DataFrame:
     """
     Energy Consumption Data and CO2 Emissions from Fossil Fuel Combustion by Fuel Type
@@ -1144,6 +1170,7 @@ def load_mmt_co2e_across_fuel_types() -> pd.DataFrame:
     )
 
 
+@functools.cache
 def load_tbtu_across_fuel_types() -> pd.DataFrame:
     """
     Energy Consumption Data by Fuel Type (TBtu) and Adjusted Energy Consumption Data

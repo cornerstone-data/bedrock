@@ -1,3 +1,4 @@
+import functools
 import os
 import posixpath
 
@@ -10,6 +11,7 @@ GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_MECS_2018")
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
+@functools.cache
 def load_mecs_2_1() -> pd.DataFrame:
     """
     non-fuel consumption by industry in energy unit such as Btu, kWh, etc.
@@ -53,6 +55,7 @@ def load_mecs_2_1() -> pd.DataFrame:
     return tbl_2_1
 
 
+@functools.cache
 def load_mecs_3_1() -> pd.DataFrame:
     """
     fuel consumption by industry in energy unit such as Btu, kWh, etc.
