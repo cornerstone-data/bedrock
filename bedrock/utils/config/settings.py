@@ -128,7 +128,7 @@ def return_pkg_version(MODULEPATH: Path, package_name: str) -> str:
     return version(package_name)
 
 
-def get_git_hash(MODULEPATH: Path, length='short'):
+def get_git_hash(MODULEPATH: Path, length: str = 'short') -> str | None:
     """
     Returns git_hash of current directory or None if no git found
     :param MODULEPATH: Path, module path

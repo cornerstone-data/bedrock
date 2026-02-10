@@ -380,7 +380,8 @@ def find_file(meta: FileMeta, paths: Paths) -> Path | None:
 def read_source_metadata(
     paths: Paths, meta: FileMeta, force_JSON: bool = False
 ) -> dict[str, Any] | None:
-    """return the locally saved metadata dictionary from JSON,
+    """
+    return the locally saved metadata dictionary from JSON,
     meta should reflect the outputfile for which the metadata is associated
 
     :param meta: object of class FileMeta used to load the outputfile
@@ -389,16 +390,20 @@ def read_source_metadata(
     :return: metadata dictionary
     """
     if force_JSON:
-        meta.ext = 'json'
+        meta.ext = "json"
         path = find_file(meta, paths)
     else:
         p = find_file(meta, paths)
-        path = p.parent / f'{p.stem}_metadata.json' if p else None
+        path = p.parent / f"{p.stem}_metadata.json" if p else None
+
+    if path is None:
+        log.warning(f"metadata not found for {meta.name_data}")
+        return None
+
     try:
-        metadata = json.loads(path.read_text())
-        return metadata
-    except (FileNotFoundError, AttributeError):
-        log.warning(f'metadata not found for {meta.name_data}')
+        return json.loads(path.read_text())
+    except FileNotFoundError:
+        log.warning(f"metadata not found for {meta.name_data}")
         return None
 
 
