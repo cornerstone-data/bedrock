@@ -10,7 +10,7 @@ EX: --year 2015 --source USGS_NWIS_WU
 
 import argparse
 import time
-from typing import Any, List
+from typing import Any, List, Optional, Union, cast
 from urllib import parse
 
 import pandas as pd
@@ -55,8 +55,8 @@ def set_fba_name(source: str, year: str | None) -> str:
 
 
 def assemble_urls_for_query(
-    *, source: str, year: str, config: dict[str, Any]
-) -> List[str]:
+    *, source: str, year: Optional[str], config: dict[str, Any]
+) -> List[str | None]:
     """
     Calls on helper functions defined in source.py files to
     replace parts of the url string
@@ -96,7 +96,11 @@ def assemble_urls_for_query(
 
 
 def call_urls(
-    *, url_list: List[str], source: str, year: str, config: dict[str, Any]
+    *,
+    url_list: List[str | None],
+    source: str,
+    year: Optional[str],
+    config: dict[str, Any],
 ) -> List[pd.DataFrame]:
     """
     This method calls all the urls that have been generated.
@@ -119,19 +123,10 @@ def call_urls(
     if url_list[0] is not None:
         for url in url_list:
             df = None
-            if config.get('load_from_gcs'):
-                fxn = config.get("gcs_fxn")
-                if callable(fxn):
-                    df = fxn(source=source, year=year, config=config, url=url)
-                elif fxn:
-                    raise FBSMethodConstructionError(error_type='fxn_call')
-                else:
-                    raise FBSMethodConstructionError(
-                        message="Must indicate 'gsc_fxn' when 'load_from_gcs' is True"
-                    )
-
-            else:
-                # Note: This else branch using the call_response_fxn will be deprecated once
+            if (config.get("extract_data_from_raw_sources")) or (
+                "gcs_fxn" not in config  # for older FBAs
+            ):
+                # The second half of this if statement will be deprecated once
                 # all FBAs have been shifted over to GCS, but is needed to be backwards
                 # compatible.
                 log.info("Calling %s", url)
@@ -148,6 +143,18 @@ def call_urls(
                     )
                 elif fxn:
                     raise FBSMethodConstructionError(error_type='fxn_call')
+
+            else:
+                fxn = config.get("gcs_fxn")
+                if callable(fxn):
+                    df = fxn(source=source, year=year, config=config, url=url)
+                elif fxn:
+                    raise FBSMethodConstructionError(error_type='fxn_call')
+                else:
+                    raise FBSMethodConstructionError(
+                        message="Must indicate 'gcs_fxn' to load from GCS."
+                    )
+
             if isinstance(df, pd.DataFrame):
                 data_frames_list.append(df)
             elif isinstance(df, list):
@@ -158,7 +165,11 @@ def call_urls(
 
 
 def parse_data(
-    *, df_list: List[pd.DataFrame], source: str, year: str, config: dict[str, Any]
+    *,
+    df_list: List[pd.DataFrame],
+    source: str,
+    year: Optional[str],
+    config: dict[str, Any],
 ) -> pd.DataFrame:
     """
     Calls on functions defined in source.py files, as parsing rules
@@ -213,25 +224,25 @@ def process_data_frame(
     # save as parquet file
     name_data = set_fba_name(source, year)
     meta = set_fb_meta(name_data, "FlowByActivity")
-    write_fb_to_file(flow_df, meta, FBA_DIR)
-    write_metadata(source, config, meta, FBA_DIR, year=year)
+    write_fb_to_file(flow_df, meta, str(FBA_DIR))
+    write_metadata(source, config, meta, str(FBA_DIR), year=year)
     log.info("FBA generated and saved for %s", name_data)
     # rename the log file saved to local directory
     reset_log_file(name_data, meta)
 
 
-def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
-    """
-    Generate FBA parquet(s)
-    :param kwargs: 'source' and 'year'
-    :return: parquet saved to local directory
-    """
-    # assign arguments
-    if len(kwargs) == 0:
-        kwargs = parse_args()
-
-    source = kwargs['source']
-    year = kwargs['year']
+def load_fba_config(
+    source: str | None = None,
+    year: Union[int, str] | None = None,
+) -> tuple[str, Union[int, str], dict[str, Any]]:
+    """Loads the config file for the FBA"""
+    # Fill from CLI args if not provided
+    if source is None or year is None:
+        args = parse_args()
+        if source is None:
+            source = cast(str, args['source'])
+        if year is None:
+            year = cast(Union[int, str], args['year'])
 
     # assign yaml parameters (common.py fxn), drop any extensions to FBA
     # filename if run into error
@@ -244,6 +255,17 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
         log.info(f'Generating FBA for {source}')
         config = load_yaml_dict(source, flowbytype='FBA')
 
+    return (source, year, config)
+
+
+def process_fba_config(
+    source: str,
+    year: Union[int, str],
+    config: dict[str, Any],
+    call_only: bool,
+) -> None:
+    """Process the FBA based on the config.
+    Use call_only = True to only generate the raw data without processing into FBA"""
     log.info("Creating dataframe list")
     # year input can either be sequential years (e.g. 2007-2009) or single year
     if '-' in str(year):
@@ -251,7 +273,7 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
         year_iter = list(range(int(years[0]), int(years[1]) + 1))
     else:
         # Else only a single year defined, create an array of one:
-        year_iter = [year]
+        year_iter = [int(year)]
 
     # check that year(s) are listed in the method yaml, return warning if not
     years_list = list(set(list(map(int, year_iter))).difference(config['years']))
@@ -264,6 +286,8 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
     if config.get('call_all_years'):
         urls = assemble_urls_for_query(source=source, year=None, config=config)
         df_list = call_urls(url_list=urls, source=source, year=None, config=config)
+        if call_only:
+            return None
         dfs = parse_data(df_list=df_list, source=source, year=None, config=config)
         call_all_years = True
     else:
@@ -275,6 +299,9 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
             urls = assemble_urls_for_query(source=source, year=year, config=config)
             # create a list with data from all source urls
             df_list = call_urls(url_list=urls, source=source, year=year, config=config)
+            if call_only:
+                dfs = pd.DataFrame()
+                continue
             # concat the dataframes and parse data with specific
             # instructions from source.py
             log.info("Concat dataframe list and parse data")
@@ -300,6 +327,23 @@ def generateFlowByActivity(**kwargs: dict[str, str | bool]) -> None:
 
         else:
             process_data_frame(df=dfs, source=source, year=year, config=config)
+
+
+def generateFlowByActivity(
+    source: str | None = None,
+    year: Union[int, str] | None = None,
+    call_only: bool = False,
+) -> None:
+    """
+    Generate FBA parquet(s) saved to local directory
+    :param source: data source name
+    :param year: single year as int/str or a range as 'YYYY-YYYY'
+    :param call_only: bool, True to only call the urls without processing the dataframes,
+        e.g., when extracting raw data only. Default is False
+    """
+
+    source, year, config = load_fba_config(source, year)
+    process_fba_config(source, year, config, call_only)
 
 
 if __name__ == '__main__':

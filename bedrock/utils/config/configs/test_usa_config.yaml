@@ -1,7 +1,7 @@
 #####
-# CEDA base year
+# Model base settings
 #####
-ceda_base_year: 2023
+model_base_year: 2023
 
 #####
 # Data selection

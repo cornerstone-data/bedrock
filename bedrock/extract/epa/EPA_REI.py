@@ -3,6 +3,7 @@
 EPA REI
 """
 import re
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def rei_url_helper(*, build_url, config, **_):
+def rei_url_helper(*, build_url: str, config: dict[str, Any], **_: Any) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -34,7 +35,7 @@ def rei_url_helper(*, build_url, config, **_):
     return urls
 
 
-def rei_call(*, url, **_):
+def rei_call(*, url: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -47,12 +48,15 @@ def rei_call(*, url, **_):
     df = pd.read_csv(url)
     # append filename for use in parsing
     fn = re.search('sourcedata/REI_(.*).csv', url)
-    df['Description'] = fn.group(1)
+    if fn is not None:
+        df['Description'] = fn.group(1)
 
     return df
 
 
-def primary_factors_parse(*, df_list, year, **_):
+def primary_factors_parse(
+    *, df_list: list[pd.DataFrame], year: str, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -68,7 +72,7 @@ def primary_factors_parse(*, df_list, year, **_):
             df.iloc[0, 1] = 'ActivityProducedBy'
             df = (
                 df.drop(df.columns[0], axis=1)
-                .rename(columns=df.iloc[0])
+                .rename(columns=df.iloc[0].to_dict())
                 .rename(columns={'primaryfactors': 'Description'})
                 .drop(df.index[0])
                 .reset_index(drop=True)
@@ -92,7 +96,7 @@ def primary_factors_parse(*, df_list, year, **_):
             df.iloc[0, 1] = 'FlowName'
             df = (
                 df.drop(df.columns[0], axis=1)
-                .rename(columns=df.iloc[0])
+                .rename(columns=df.iloc[0].to_dict())
                 .rename(columns={'useintersection': 'Description'})
                 .drop(df.index[0])
                 .reset_index(drop=True)
@@ -164,7 +168,7 @@ def primary_factors_parse(*, df_list, year, **_):
     return df2
 
 
-def rei_waste_national_cleanup(fbs: FlowBySector, **_) -> FlowBySector:
+def rei_waste_national_cleanup(fbs: FlowBySector, **_: Any) -> FlowBySector:
     """
     Drop imports/exports from rei waste national FBS
     """

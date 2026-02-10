@@ -4,16 +4,13 @@ source_url: https://www.edf.org/freedom-information-act-documents-epas-greenhous
 bib_id: EPA_GHGI
 format: csv
 url:
-  base_url: https://dmap-data-commons-ord.s3.amazonaws.com/flowsa/FlowByActivity/
-  main_zip: US_GHGI_2025_SelectedTables_main_text.zip
-  annex_zip: US_GHGI_2025_SelectedTables_annex.zip
-path:
-  base: "Table {table_name}.csv"
-  annex: "Annex/Table {table_name}.csv"
+  base_url: https://library.edf.org/AssetLink/i33nm4cm05pe16j633jj6sk3o6mgxynb.zip
+  main_zip: 2025 Main Report Tables.zip
+  annex_zip: 2025 Annex Tables.zip
 
-url_replace_fxn: !script_function:EPA_GHGI ghg_url_helper
-call_response_fxn: !script_function:EPA_GHGI ghg_call
 parse_response_fxn: !script_function:EPA_GHGI ghg_parse
+gcs_fxn: !script_function:EPA_GHGI ghg_load_gcs
+extract_data_from_raw_sources: False # Not available
 years:
 ## In the current data release, most tables are only available for the 5 most recent
 ## years

@@ -2,7 +2,7 @@ import csv
 import importlib
 from os import path
 from pathlib import Path
-from typing import IO, Callable
+from typing import Any, Callable, TextIO, cast
 
 import yaml
 
@@ -11,23 +11,23 @@ from bedrock.utils.config.settings import return_folder_path
 
 
 class FlowsaLoader(yaml.SafeLoader):
-    '''
+    """
     Custom YAML loader implementing !include: tag to allow inheriting
     arbitrary nodes from other yaml files.
-    '''
+    """
 
-    def __init__(self, stream: IO) -> None:
+    def __init__(self, stream: TextIO) -> None:
         super().__init__(stream)
         self.add_multi_constructor('!include:', self.include)
         self.add_multi_constructor('!from_index:', self.from_index)
         self.add_multi_constructor('!script_function:', self.script_function)
         self.add_multi_constructor('!clean_function:', self.clean_function)
         self.add_constructor('!external_config', self.external_config)
-        self.external_paths_to_search = []
-        self.external_path_to_pass = None
+        self.external_paths_to_search: list[str | Path] = []
+        self.external_path_to_pass: str | None = None
 
     @staticmethod
-    def include(loader: 'FlowsaLoader', suffix: str, node: yaml.Node) -> dict:
+    def include(loader: 'FlowsaLoader', suffix: str, node: yaml.Node) -> dict[str, Any]:
         file, *keys = suffix.split(':')
 
         try:
@@ -39,40 +39,40 @@ class FlowsaLoader(yaml.SafeLoader):
             *loader.external_paths_to_search,
             settings.extractpath,
             settings.datapath,
-            settings.transformpath / "common",
+            settings.transformpath / 'common',
             transform_file_folder,
             Path(__file__).resolve().parent,  # current file path
         ]:
-            if path.exists(path.join(folder, file)):
-                file = path.join(folder, file)
+            if path.exists(path.join(str(folder), file)):
+                file = path.join(str(folder), file)
                 break
         else:
             raise FileNotFoundError(f'{file} not found')
 
         with open(file) as f:
-            branch = load(f, loader.external_path_to_pass)
+            branch: Any = load(f, loader.external_path_to_pass)
 
         while keys:
             branch = branch[keys.pop(0)]
 
         if isinstance(node, yaml.MappingNode):
             if isinstance(branch, dict):
-                context = loader.construct_mapping(node)
-                branch.update(context)
+                mapping_context = loader.construct_mapping(node)
+                branch.update(mapping_context)
             else:
                 raise TypeError(f'{suffix} is not a mapping/dict')
 
         elif isinstance(node, yaml.SequenceNode):
             if isinstance(branch, list):
-                context = loader.construct_sequence(node)
-                branch.extend(context)
+                sequence_context = loader.construct_sequence(node)
+                branch.extend(sequence_context)
             else:
                 raise TypeError(f'{suffix} is not a sequence/list')
 
-        return branch
+        return cast(dict[str, Any], branch)
 
     @staticmethod
-    def external_config(loader: 'FlowsaLoader', node: yaml.Node) -> str or list:
+    def external_config(loader: 'FlowsaLoader', node: yaml.Node) -> str | list[str]:
         if isinstance(node, yaml.SequenceNode):
             paths = loader.construct_sequence(node)
             loader.external_paths_to_search.extend(paths)
@@ -85,7 +85,9 @@ class FlowsaLoader(yaml.SafeLoader):
             raise TypeError('Cannot tag a mapping node with !external_config')
 
     @staticmethod
-    def from_index(loader: 'FlowsaLoader', file: str, node: yaml.ScalarNode) -> list:
+    def from_index(
+        loader: 'FlowsaLoader', file: str, node: yaml.ScalarNode
+    ) -> list[str]:
         if not isinstance(node, yaml.ScalarNode):
             raise TypeError('Can only tag a scalar node with !from_index:')
 
@@ -98,8 +100,8 @@ class FlowsaLoader(yaml.SafeLoader):
             *loader.external_paths_to_search,
             extract_file_folder,
         ]:
-            if path.exists(path.join(folder, file)):
-                file = path.join(folder, file)
+            if path.exists(path.join(str(folder), file)):
+                file = path.join(str(folder), file)
                 break
         else:
             raise FileNotFoundError(f'{file} not found')
@@ -113,7 +115,7 @@ class FlowsaLoader(yaml.SafeLoader):
     @staticmethod
     def script_function(
         loader: 'FlowsaLoader', module_name: str, node: yaml.ScalarNode
-    ) -> Callable:
+    ) -> Callable[..., Any]:
         if not isinstance(node, yaml.ScalarNode):
             raise TypeError('Can only tag scalar node with !script_function:')
 
@@ -138,16 +140,16 @@ class FlowsaLoader(yaml.SafeLoader):
                     )
                     break
                 except ModuleNotFoundError:
-                    if "_" not in folder:
+                    if '_' not in folder:
                         raise
-                    folder = folder.rsplit("_", 1)[0]
+                    folder = folder.rsplit('_', 1)[0]
 
         return getattr(module, loader.construct_scalar(node))
 
     @staticmethod
     def clean_function(
         loader: 'FlowsaLoader', module_name: str, node: yaml.ScalarNode
-    ) -> Callable:
+    ) -> Callable[..., Any]:
         if not isinstance(node, yaml.ScalarNode):
             raise TypeError('Can only tag scalar node with !clean_function:')
 
@@ -158,7 +160,7 @@ class FlowsaLoader(yaml.SafeLoader):
         return getattr(module, loader.construct_scalar(node))
 
 
-def load(stream: IO, external_path: str = None) -> dict:
+def load(stream: TextIO, external_path: str | None = None) -> dict[str, Any]:
     loader = FlowsaLoader(stream)
     if external_path:
         loader.external_paths_to_search.append(external_path)

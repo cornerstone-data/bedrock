@@ -10,10 +10,7 @@ import json
 from typing import Any
 
 import pandas as pd
-from esupy.processed_data_mgmt import (
-    FileMeta,
-    read_source_metadata,
-)
+from esupy.processed_data_mgmt import FileMeta, read_source_metadata
 
 from bedrock.publish.bibliography import load_source_dict
 from bedrock.utils.config.common import (
@@ -57,7 +54,7 @@ def write_metadata(
     config: dict[str, Any],
     fb_meta: FileMeta,
     pth: str,
-    **kwargs: dict[str, Any],
+    **kwargs: Any,
 ) -> None:
     """
     Write the metadata and output as a JSON in a local directory
@@ -122,13 +119,19 @@ def return_fb_meta_data(
 
 
 def get_source_metadata(
-    source, nested_attr, attr_source_meta, primary_source_meta, config, v
-):
+    source: str,
+    nested_attr: dict[str, Any] | None,
+    attr_source_meta: dict[str, Any],
+    primary_source_meta: dict[str, Any],
+    config: dict[str, Any],
+    v: dict[str, Any],
+) -> None:
     if source not in attr_source_meta:
         try:
-            if source in config.get('sources_to_cache', ()):
-                nested_attr = config.get('sources_to_cache')[source]
-            year = nested_attr.get('year', v.get('year'))
+            sources_to_cache = config.get('sources_to_cache', {})
+            if sources_to_cache and source in sources_to_cache:
+                nested_attr = sources_to_cache[source]
+            year = nested_attr.get('year', v.get('year')) if nested_attr else None
         except AttributeError:
             year = None
 
@@ -164,44 +167,51 @@ def get_source_metadata(
 
 
 def process_nested_sources(
-    attr_dict, attr_source_meta, primary_source_meta, config, v, nested_attr=None
-):
+    attr_dict: dict[str, Any] | list[Any] | str | None,
+    attr_source_meta: dict[str, Any],
+    primary_source_meta: dict[str, Any],
+    config: dict[str, Any],
+    v: dict[str, Any],
+    nested_attr: dict[str, Any] | None = None,
+) -> None:
     if isinstance(attr_dict, list):
-        for nested_attr in attr_dict:
+        for item in attr_dict:
             nested_attr_dict = (
-                nested_attr.get('attribution_source')
-                or nested_attr.get('attribute')
-                or nested_attr.get('clean_source')
+                item.get('attribution_source')
+                or item.get('attribute')
+                or item.get('clean_source')
             )
             process_nested_sources(
                 nested_attr_dict, attr_source_meta, primary_source_meta, config, v
             )
-    else:
-        try:
-            for source, nested_attr in attr_dict.items():
-                get_source_metadata(
-                    source,
-                    nested_attr,
-                    attr_source_meta,
-                    primary_source_meta,
-                    config,
-                    v,
-                )
-        except AttributeError:
-            # Handle the case where attr_dict is a string
-            if attr_dict is not None:
-                source = attr_dict
-                get_source_metadata(
-                    source,
-                    nested_attr,
-                    attr_source_meta,
-                    primary_source_meta,
-                    config,
-                    v,
-                )
+    elif isinstance(attr_dict, dict):
+        for source, nested_attr_item in attr_dict.items():
+            get_source_metadata(
+                source,
+                nested_attr_item,
+                attr_source_meta,
+                primary_source_meta,
+                config,
+                v,
+            )
+    elif isinstance(attr_dict, str):
+        # Handle the case where attr_dict is a string
+        get_source_metadata(
+            attr_dict,
+            nested_attr,
+            attr_source_meta,
+            primary_source_meta,
+            config,
+            v,
+        )
 
 
-def recursive_attribution(activities, attr_source_meta, primary_source_meta, config):
+def recursive_attribution(
+    activities: dict[str, Any],
+    attr_source_meta: dict[str, Any],
+    primary_source_meta: dict[str, Any],
+    config: dict[str, Any],
+) -> None:
     for aset, attr in activities.items():
         attr_dict = (
             attr.get('attribution_source')
@@ -224,14 +234,16 @@ def recursive_attribution(activities, attr_source_meta, primary_source_meta, con
             primary_source_meta['attribution_source_meta'] = attr_source_meta
 
 
-def return_fbs_method_data(source_name, config):  # noqa: ARG001
+def return_fbs_method_data(
+    source_name: str, config: dict[str, Any]  # noqa: ARG001
+) -> dict[str, Any]:
 
     from bedrock.extract.stewifbs.stewiFBS import (  # noqa: PLC0415
         add_stewi_metadata,
         add_stewicombo_metadata,
     )
 
-    def process_primary_source(k, v, meta):
+    def process_primary_source(k: str, v: dict[str, Any], meta: dict[str, Any]) -> bool:
         if k == 'stewiFBS':
             if v.get('local_inventory_name'):
                 meta['primary_source_meta'][k] = add_stewicombo_metadata(
@@ -243,7 +255,7 @@ def return_fbs_method_data(source_name, config):  # noqa: ARG001
         return False
 
     # Create empty dictionary for storing meta data
-    meta = {'primary_source_meta': {}}
+    meta: dict[str, Any] = {'primary_source_meta': {}}
 
     # subset the FBS dictionary into a dictionary of source names
     fb = config['source_names']
@@ -273,7 +285,7 @@ def return_fbs_method_data(source_name, config):  # noqa: ARG001
                 continue
 
         # initiate nested dictionary
-        attr_source_meta = {}
+        attr_source_meta: dict[str, Any] = {}
         # subset activity data and allocate to sector
         recursive_attribution(
             activities, attr_source_meta, meta['primary_source_meta'][k], config
@@ -282,7 +294,7 @@ def return_fbs_method_data(source_name, config):  # noqa: ARG001
     return meta
 
 
-def return_fba_method_meta(sourcename, **kwargs):
+def return_fba_method_meta(sourcename: str, **kwargs: Any) -> dict[str, Any]:
     """
     Return meta for a FlowByActivity method
     :param sourcename: string, the FlowByActivity sourcename
@@ -333,7 +345,9 @@ def return_fba_method_meta(sourcename, **kwargs):
     return fba_dict
 
 
-def getMetadata(source, year=None, category=None):
+def getMetadata(
+    source: str, year: int | str | None = None, category: str | None = None
+) -> dict[str, Any]:
     """
     Use the esupy package functions to return the metadata for
     a FBA or FBS used to generate a FBS
@@ -346,12 +360,14 @@ def getMetadata(source, year=None, category=None):
 
     if category is None:
         log.error('Category required, specify "FlowByActivity" or ' '"FlowBySector"')
+        category = 'FlowBySector'  # Default to avoid type errors
     # if category is FBS ensure year is not added to source name when
     # looking for metadata
     if category == 'FlowBySector':
         year = None
 
-    name = set_fba_name(source, year)
+    year_str = str(year) if isinstance(year, int) else year
+    name = set_fba_name(source, year_str)
     meta = read_source_metadata(PATHS, set_fb_meta(name, category))
     if meta is None:
         log.warning('No metadata found for %s', source)

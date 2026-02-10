@@ -6,11 +6,16 @@
 Functions to check data is loaded and transformed correctly
 """
 
+from __future__ import annotations
+
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
 from esupy.processed_data_mgmt import download_from_remote
 
 import bedrock
+from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyfunctions import aggregator, collapse_fbs_sectors
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.common import fba_activity_fields, load_yaml_dict
@@ -21,7 +26,9 @@ from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.metadata.metadata import set_fb_meta
 
 
-def calculate_flowamount_diff_between_dfs(dfa_load, dfb_load):
+def calculate_flowamount_diff_between_dfs(
+    dfa_load: pd.DataFrame, dfb_load: pd.DataFrame
+) -> None:
     """
     Calculate the differences in FlowAmounts between two dfs
     :param dfa_load: df, initial df
@@ -157,7 +164,9 @@ def calculate_flowamount_diff_between_dfs(dfa_load, dfb_load):
         )
 
 
-def compare_summation_at_sector_lengths_between_two_dfs(df1, df2):
+def compare_summation_at_sector_lengths_between_two_dfs(
+    df1: pd.DataFrame, df2: pd.DataFrame
+) -> None:
     """
     Check summed 'FlowAmount' values at each sector length
     :param df1: df, first df of values with sector columns
@@ -234,7 +243,7 @@ def compare_summation_at_sector_lengths_between_two_dfs(df1, df2):
         )
 
 
-def check_for_nonetypes_in_sector_col(df):
+def check_for_nonetypes_in_sector_col(df: pd.DataFrame) -> pd.DataFrame:
     """
     Check for NoneType in columns where datatype = string
     :param df: df with columns where datatype = object
@@ -246,22 +255,26 @@ def check_for_nonetypes_in_sector_col(df):
     return df
 
 
-def check_for_negative_flowamounts(df):
+def check_for_negative_flowamounts(df: pd.DataFrame) -> pd.DataFrame:
     """
     Check for negative FlowAmounts in a dataframe 'FlowAmount' column
     :param df: df, requires 'FlowAmount' column
     :return: df, unchanged
     """
     # return a warning if there are negative flowamount values
-    if (df['FlowAmount'].values < 0).any():
+    if (df['FlowAmount'] < 0).any():
         vlog.warning('There are negative FlowAmounts')
 
     return df
 
 
 def compare_FBA_results(
-    source, year, fba1_version=None, fba2_version=None, compare_to_remote=False
-):
+    source: str,
+    year: int,
+    fba1_version: Optional[str] = None,
+    fba2_version: Optional[str] = None,
+    compare_to_remote: bool = False,
+) -> pd.DataFrame:
     """
     Compare two FBA dataframes. Can specify version and git hash. Example:
 
@@ -278,9 +291,10 @@ def compare_FBA_results(
     :param compare_to_remote:
     :return:
     """
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
 
     # load first file (if compare to remote, this is remote file)
-    df1 = bedrock.extract.flowbyactivity.getFlowByActivity(
+    df1 = getFlowByActivity(
         datasource=source,
         year=year,
         git_version=fba1_version,
@@ -289,15 +303,30 @@ def compare_FBA_results(
     # load second file
     if compare_to_remote:
         # Generate the FBS locally and then immediately load
-        bedrock.extract.flowbyactivity.generateflowbyactivity.main(
-            source=source, year=year
-        )
-        df2 = bedrock.extract.getFlowByActivity(datasource=source, year=year)
+        generateFlowByActivity(source=source, year=year)
+        df2 = getFlowByActivity(datasource=source, year=year)
     else:
-        df2 = bedrock.extract.flowbyactivity.getFlowByActivity(
-            datasource=source, year=year, git_version=fba2_version
-        )
+        df2 = getFlowByActivity(datasource=source, year=year, git_version=fba2_version)
+    df_m = _compare_fba_values(df1, df2)
+    # if no differences, print, if differences, provide df subset
+    if len(df_m) == 0:
+        log.info(f'No differences between FBA dataframes for {source}')
+    else:
+        log.info(f'Differences exist between FBA dataframes for {source}')
+        df_m = df_m.sort_values(
+            [
+                'Location',
+                'ActivityProducedBy',
+                'ActivityConsumedBy',
+                'FlowName',
+                'Class',
+            ]
+        ).reset_index(drop=True)
+    return df_m
 
+
+def _compare_fba_values(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    """Evaluate differences between two FBA dataframes"""
     df1 = df1.rename(columns={'FlowAmount': 'FlowAmount_fba1'})
     df2 = df2.rename(columns={'FlowAmount': 'FlowAmount_fba2'})
     merge_cols = [
@@ -329,24 +358,16 @@ def compare_FBA_results(
     df_m = df_m[
         df_m['FlowAmount_diff'].apply(lambda x: round(abs(x), 2) != 0)
     ].reset_index(drop=True)
-    # if no differences, print, if differences, provide df subset
-    if len(df_m) == 0:
-        log.info(f'No differences between FBA dataframes for {source}')
-    else:
-        log.info(f'Differences exist between FBA dataframes for {source}')
-        df_m = df_m.sort_values(
-            [
-                'Location',
-                'ActivityProducedBy',
-                'ActivityConsumedBy',
-                'FlowName',
-                'Class',
-            ]
-        ).reset_index(drop=True)
+
     return df_m
 
 
-def compare_FBS_results(fbs1, fbs2, ignore_metasources=False, compare_to_remote=False):
+def compare_FBS_results(
+    fbs1: str,
+    fbs2: str,
+    ignore_metasources: bool = False,
+    compare_to_remote: bool = False,
+) -> pd.DataFrame:
     """
     Compare results for two methods
     :param fbs1: str, name of method 1
@@ -365,7 +386,9 @@ def compare_FBS_results(fbs1, fbs2, ignore_metasources=False, compare_to_remote=
     # load second file
     if compare_to_remote:
         # Generate the FBS locally and then immediately load
-        df2 = FlowBySector.generateFlowBySector(method=fbs2, download_sources_ok=True)
+        df2 = pd.DataFrame(
+            FlowBySector.generateFlowBySector(method=fbs2, download_sources_ok=True)
+        )
     else:
         df2 = bedrock.transform.flowbysector.getFlowBySector(fbs2)
     df_m = compare_FBS(df1, df2, ignore_metasources=ignore_metasources)
@@ -373,7 +396,11 @@ def compare_FBS_results(fbs1, fbs2, ignore_metasources=False, compare_to_remote=
     return df_m
 
 
-def compare_FBS(df1_load, df2_load, ignore_metasources=False):
+def compare_FBS(
+    df1_load: pd.DataFrame,
+    df2_load: pd.DataFrame,
+    ignore_metasources: bool = False,
+) -> pd.DataFrame:
     """Assess differences between two FBS dataframes."""
     df1 = pd.DataFrame(df1_load.rename(columns={'FlowAmount': 'FlowAmount_fbs1'}))
     df2 = pd.DataFrame(df2_load.rename(columns={'FlowAmount': 'FlowAmount_fbs2'}))
@@ -461,7 +488,9 @@ def compare_FBS(df1_load, df2_load, ignore_metasources=False):
     return df_m
 
 
-def compare_single_FBS_against_remote(m, outdir=diffpath, run_single=False):
+def compare_single_FBS_against_remote(
+    m: str, outdir: str = diffpath, run_single: bool = False
+) -> None:
     """Action function to compare a generated FBS with that in remote"""
     downloaded = download_from_remote(set_fb_meta(m, "FlowBySector"), PATHS)
     if not downloaded:
@@ -493,16 +522,16 @@ def compare_single_FBS_against_remote(m, outdir=diffpath, run_single=False):
         print(f"***No differences found in {m}***")
 
 
-def compare_single_FBA_against_remote(source, year, outdir=diffpath, run_single=False):
+def compare_single_FBA_against_remote(
+    source: str, year: int, outdir: str = diffpath, run_single: bool = False
+) -> None:
     """Action function to compare a generated FBA with that in remote"""
     meta_name = f'{source}_{year}'
     downloaded = download_from_remote(set_fb_meta(meta_name, "FlowByActivity"), PATHS)
     if not downloaded:
         if run_single:
             # Run a single file even if no comparison available
-            bedrock.extract.flowbyactivity.generateflowbyactivity.main(
-                year=year, source=source
-            )
+            generateFlowByActivity(year=year, source=source)
         else:
             print(f"{source} {year} not found in remote server. Skipping...")
         return
@@ -530,13 +559,13 @@ def compare_single_FBA_against_remote(source, year, outdir=diffpath, run_single=
 
 
 def compare_national_state_fbs(
-    dataname=None,
-    year=None,
-    method=None,
-    nationalname=None,
-    statename=None,
-    compare_metasources=False,
-):
+    dataname: Optional[str] = None,
+    year: Optional[str] = None,
+    method: Optional[str] = None,
+    nationalname: Optional[str] = None,
+    statename: Optional[str] = None,
+    compare_metasources: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Developed to compare national and state FBS. Either include
     dataname/year/method OR specify nationalname/statename if want to
@@ -554,8 +583,11 @@ def compare_national_state_fbs(
     :return:
     """
     # declare string versions of national and state dataframes
+    n: str
+    s: str
     if nationalname is not None:
         n = nationalname
+        assert statename is not None, "statename must be provided with nationalname"
         s = statename
     else:
         if method is None:
@@ -625,15 +657,15 @@ def compare_national_state_fbs(
 
 
 def compare_geographic_totals(
-    df_subset,
-    df_load,
-    sourcename,
-    attr,
-    activity_set,
-    activity_names,
-    df_type='FBA',
-    subnational_geoscale=None,
-):
+    df_subset: pd.DataFrame,
+    df_load: pd.DataFrame,
+    sourcename: str,
+    attr: dict[str, Any],
+    activity_set: str,
+    activity_names: list[str],
+    df_type: str = 'FBA',
+    subnational_geoscale: Optional[str] = None,
+) -> None:
     """
     Check for any data loss between the geoscale used and published
     national data
@@ -740,7 +772,9 @@ def compare_geographic_totals(
                 )
 
 
-def rename_column_values_for_comparison(df, sourcename):
+def rename_column_values_for_comparison(
+    df: pd.DataFrame, sourcename: str
+) -> pd.DataFrame:
     """
     To compare some datasets at different geographic scales,
     must rename FlowName and Compartments to those available at national level
@@ -766,7 +800,7 @@ def rename_column_values_for_comparison(df, sourcename):
     return df
 
 
-def compare_df_units(df1_load, df2_load):
+def compare_df_units(df1_load: pd.DataFrame, df2_load: pd.DataFrame) -> None:
     """
     Determine what units are in each df prior to merge
     :param df1_load:
@@ -783,7 +817,13 @@ def compare_df_units(df1_load, df2_load):
         log.info('Merging df with %s and df with %s units', df1, df2)
 
 
-def calculate_industry_coefficients(fbs_load, year, region, io_level, impacts=False):
+def calculate_industry_coefficients(
+    fbs_load: pd.DataFrame,
+    year: int,
+    region: str,
+    io_level: str,
+    impacts: bool | str = False,
+) -> pd.DataFrame:
     """
     Generates sector coefficients (flow/$) for all sectors for all locations.
 
@@ -808,7 +848,7 @@ def calculate_industry_coefficients(fbs_load, year, region, io_level, impacts=Fa
         if isinstance(impacts, bool):
             impacts = 'TRACI2.1'
         try:
-            import lciafmt  # noqa
+            import lciafmt  # noqa: F401, PLC0415  # pyright: ignore[reportMissingImports]
 
             fbs_summary = lciafmt.apply_lcia_method(fbs, impacts).rename(
                 columns={'FlowAmount': 'InvAmount', 'Impact': 'FlowAmount'}

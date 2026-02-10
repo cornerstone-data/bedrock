@@ -10,15 +10,19 @@ https://www.eia.gov/outlooks/aeo/
 import json
 import math
 import re
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import load_env_file_key
 
 
-def eia_aeo_url_helper(*, build_url, year, config, **_):
+def eia_aeo_url_helper(
+    *, build_url: str, year: str, config: dict[str, Any], **_: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -64,7 +68,7 @@ def eia_aeo_url_helper(*, build_url, year, config, **_):
     return urls
 
 
-def eia_aeo_call(*, resp, **_):
+def eia_aeo_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin
         parsing df into FBA format
@@ -96,7 +100,7 @@ def eia_aeo_call(*, resp, **_):
     return df
 
 
-def eia_aeo_parse(*, df_list, year, **_):
+def eia_aeo_parse(*, df_list: List[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -107,13 +111,17 @@ def eia_aeo_parse(*, df_list, year, **_):
     # concat dataframes
     df = pd.concat(df_list, sort=False, ignore_index=True)
     df['Year'] = year
-    df['Location'] = np.where(df['regionId'].isin(['0-0', '1-0']), '00000', None)
+    df['Location'] = np.where(df['regionId'].isin(['0-0', '1-0']), '00000', '')
     df = df.rename(columns={year: "FlowAmount"})
 
-    for index, row in df.iterrows():
+    flow_names = []
+    activity_consumed_by = []
+    for _idx, row in df.iterrows():
         # split the string based on :
         name_array = row["Description"].split(":")
         name_array = [n.strip() for n in name_array]
+        apb_string = ""
+        name_string = ""
         if len(name_array) == 4:
             # Except when 3rd value is 'Natural Gas'
             if name_array[2] == 'Natural Gas':
@@ -135,8 +143,10 @@ def eia_aeo_parse(*, df_list, year, **_):
             name_string = name_array[1]
         else:
             print(name_array)
-        df.loc[index, 'FlowName'] = clean_string(name_string, 'flow')
-        df.loc[index, 'ActivityConsumedBy'] = clean_string(apb_string, 'activity')
+        flow_names.append(clean_string(name_string, 'flow'))
+        activity_consumed_by.append(clean_string(apb_string, 'activity'))
+    df['FlowName'] = flow_names
+    df['ActivityConsumedBy'] = activity_consumed_by
     df = assign_fips_location_system(df, year)
     # hard code data
     df['SourceName'] = 'EIA_AEO'
@@ -149,7 +159,7 @@ def eia_aeo_parse(*, df_list, year, **_):
     return df
 
 
-def clean_string(s, string_type):
+def clean_string(s: str, string_type: str) -> str:
     # Adjustments to flow and activity strings
     s = re.sub(', United States(.*)', '', s)
     s = re.sub(', Reference(.*)', '', s)

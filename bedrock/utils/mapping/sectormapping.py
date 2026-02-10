@@ -4,6 +4,9 @@
 """
 Contains mapping functions
 """
+from __future__ import annotations
+
+import typing as ta
 from pathlib import Path
 
 import numpy as np
@@ -17,7 +20,9 @@ from bedrock.utils.config.settings import crosswalkpath
 from bedrock.utils.logging.flowsa_log import log
 
 
-def get_activitytosector_mapping(source, fbsconfigpath=None):
+def get_activitytosector_mapping(
+    source: str, fbsconfigpath: ta.Optional[str] = None
+) -> pd.DataFrame:
     """
     Gets  the activity-to-sector mapping
     :param source: str, the data source name
@@ -62,7 +67,7 @@ def get_activitytosector_mapping(source, fbsconfigpath=None):
         return mapping
 
 
-def assign_technological_correlation(mapping):
+def assign_technological_correlation(mapping: pd.DataFrame) -> pd.DataFrame:
     """
     Assign technological correlation sources based on the difference between source and target sectors using
     https://github.com/USEPA/esupy/blob/main/DataQualityPedigreeMatrix.md
@@ -126,7 +131,7 @@ def assign_technological_correlation(mapping):
     return mapping.drop(columns=['sourceLength', 'targetLength', 'SectorDifference'])
 
 
-def convert_units_to_annual(df):
+def convert_units_to_annual(df: pd.DataFrame) -> pd.DataFrame:
     """
     Convert data and units to annual flows
     :param df: df with 'FlowAmount' and 'Unit' column
@@ -142,12 +147,12 @@ def convert_units_to_annual(df):
 
 
 def map_flows(
-    fba,
-    from_fba_source,
-    flow_type='ELEMENTARY_FLOW',
-    ignore_source_name=False,
-    **kwargs,
-):
+    fba: pd.DataFrame,
+    from_fba_source: str,
+    flow_type: str = 'ELEMENTARY_FLOW',
+    ignore_source_name: bool = False,
+    **kwargs: ta.Any,
+) -> pd.DataFrame:
     """
     Applies mapping via esupy from fedelemflowlist or material
     flow list to convert flows to standardized list of flows
@@ -206,7 +211,12 @@ def map_flows(
     return mapped_df
 
 
-def map_fbs_flows(fbs, from_fba_source, v, **kwargs):
+def map_fbs_flows(
+    fbs: pd.DataFrame,
+    from_fba_source: str,
+    v: ta.Dict[str, ta.Any],
+    **kwargs: ta.Any,
+) -> ta.Tuple[pd.DataFrame, str]:
     """
     Identifies the mapping file and applies mapping to fbs flows
     :param fbs: flow-by-sector dataframe
@@ -237,7 +247,13 @@ def map_fbs_flows(fbs, from_fba_source, v, **kwargs):
     return fbs_mapped, mapping_files
 
 
-def map_to_BEA_sectors(fbs_load, region, io_level, output_year, bea_year=2012):
+def map_to_BEA_sectors(
+    fbs_load: pd.DataFrame,
+    region: str,
+    io_level: str,
+    output_year: int,
+    bea_year: int = 2012,
+) -> pd.DataFrame:
     """
     Map FBS sectors from NAICS to BEA, allocating by gross industry output.
 
@@ -333,7 +349,9 @@ def map_to_BEA_sectors(fbs_load, region, io_level, output_year, bea_year=2012):
     return fbs
 
 
-def get_BEA_industry_output(region, io_level, output_year, bea_year=2012):
+def get_BEA_industry_output(
+    region: str, io_level: str, output_year: int, bea_year: int = 2012
+) -> pd.DataFrame:
     """
     Get FlowByActivity for industry output from state or national datasets
     :param region: str, 'state' or 'national'
@@ -341,6 +359,8 @@ def get_BEA_industry_output(region, io_level, output_year, bea_year=2012):
     :param output_year: year for industry output
     :param bea_year: 2012 or 2017
     """
+    import bedrock.extract.flowbyactivity  # noqa: PLC0415
+
     if region == 'state':
         fba = 'stateio_Industry_GO'
         if io_level == 'detail':
@@ -373,7 +393,9 @@ def get_BEA_industry_output(region, io_level, output_year, bea_year=2012):
     return bea
 
 
-def map_to_material_crosswalk(df, source, source_attr):
+def map_to_material_crosswalk(
+    df: pd.DataFrame, source: str, source_attr: ta.Dict[str, ta.Any]
+) -> pd.DataFrame:
     """
     Map df to a material crosswalk specified in the FBS method yaml.
     Material crosswalk will standardize material names
@@ -407,7 +429,9 @@ def map_to_material_crosswalk(df, source, source_attr):
     return mapped_df
 
 
-def append_material_code(df, v, attr):
+def append_material_code(
+    df: pd.DataFrame, v: ta.Dict[str, ta.Any], attr: ta.Dict[str, ta.Any]
+) -> pd.DataFrame:
     """
     Append the sector commodity code to sectors using file specified in FBS
     method yaml
@@ -437,13 +461,13 @@ def append_material_code(df, v, attr):
 
 
 if __name__ == "__main__":
-    import bedrock
+    import bedrock.transform.flowbysector
 
-    df = bedrock.utils.mapping.sectormapping.map_to_BEA_sectors(
+    df = map_to_BEA_sectors(
         bedrock.transform.flowbysector.getFlowBySector('GHG_national_2019_m1').rename(
             columns={'SectorProducedBy': 'Sector'}
         ),
         region='national',
         io_level='summary',
-        output_year='2019',
+        output_year=2019,
     )

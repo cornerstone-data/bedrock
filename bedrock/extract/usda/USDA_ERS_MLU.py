@@ -9,9 +9,11 @@ Last updated: Thursday, April 16, 2020
 """
 
 import io
+from typing import Any
 
 import numpy as np
 import pandas as pd
+from requests import Response
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
@@ -30,7 +32,7 @@ from bedrock.utils.mapping.naics import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
 
 
-def mlu_call(*, resp, **_):
+def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe,
     begin parsing df into FBA format
@@ -42,7 +44,9 @@ def mlu_call(*, resp, **_):
     return df
 
 
-def mlu_parse(*, df_list, source, year, **_):
+def mlu_parse(
+    *, df_list: list[pd.DataFrame], source: str, year: str, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -91,7 +95,9 @@ def mlu_parse(*, df_list, source, year, **_):
     return dfm3
 
 
-def attribute_transportation_sector_fees_to_target_sectors(fba, sector_col):
+def attribute_transportation_sector_fees_to_target_sectors(
+    fba: FlowByActivity, sector_col: str
+) -> pd.DataFrame:
     """
     Equally attribute highway fees to all the sectors the fees are mapped to
     :param fba:
@@ -124,7 +130,9 @@ def attribute_transportation_sector_fees_to_target_sectors(fba, sector_col):
     return df_fha2
 
 
-def validate_land_attribution(fba, attributed_fba):
+def validate_land_attribution(
+    fba: FlowByActivity, attributed_fba: pd.DataFrame
+) -> None:
     """
     Function specific to validating the land attribution methods, as data
     is dropped
@@ -145,7 +153,7 @@ def validate_land_attribution(fba, attributed_fba):
 
 
 def allocate_usda_ers_mlu_land_in_urban_areas(
-    fba: FlowByActivity, **_
+    fba: FlowByActivity, **_: Any
 ) -> FlowByActivity:
     """
     This function is used to allocate the USDA_ERS_MLU activity 'land in
@@ -289,11 +297,11 @@ def allocate_usda_ers_mlu_land_in_urban_areas(
     # calculate the percent change in df caused by attribution
     validate_land_attribution(fba, allocated_urban_areas_df)
 
-    return allocated_urban_areas_df
+    return FlowByActivity(allocated_urban_areas_df)
 
 
 def allocate_usda_ers_mlu_land_in_rural_transportation_areas(
-    fba: FlowByActivity, **_
+    fba: FlowByActivity, **_: Any
 ) -> FlowByActivity:
     """
     This function is used to allocate the USDA_ERS_MLU activity
@@ -380,10 +388,10 @@ def allocate_usda_ers_mlu_land_in_rural_transportation_areas(
     # calculate the percent change in df caused by attribution
     validate_land_attribution(fba, allocated_rural_trans)
 
-    return allocated_rural_trans
+    return FlowByActivity(allocated_rural_trans)
 
 
-def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_) -> FlowByActivity:
+def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     Function only designed for national model
 
@@ -413,8 +421,8 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_) -> FlowByActivity
     rural_res = get_area_of_rural_land_occupied_by_houses_2013()
 
     # household codes
-    household = load_crosswalk('Household_SectorCodes')
-    household = household['Code'].drop_duplicates().tolist()
+    household_df = load_crosswalk('Household_SectorCodes')
+    household = household_df['Code'].drop_duplicates().tolist()
 
     # if it is state data, take weighted avg using land area
     if fba.config['geoscale'] == 'state':

@@ -8,16 +8,28 @@ Livestock data, and Cropland data in NAICS format
 """
 
 import json
+import os
+import posixpath
+from typing import Any, List
+from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
-from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state
+from bedrock.utils.config.schema import flow_by_activity_fields
+from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state, to_ndigit_str
+
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
-def CoA_Cropland_URL_helper(*, build_url, config, **_):
+def CoA_Cropland_URL_helper(
+    *, build_url: str, config: dict[str, Any], **_kwargs: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -84,7 +96,9 @@ def CoA_Cropland_URL_helper(*, build_url, config, **_):
     return urls
 
 
-def CoA_URL_helper(*, build_url, config, **_):
+def CoA_URL_helper(
+    *, build_url: str, config: dict[str, Any], **_kwargs: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -122,7 +136,7 @@ def CoA_URL_helper(*, build_url, config, **_):
     return urls
 
 
-def coa_call(*, resp, **_):
+def coa_call(*, resp: Response, **_kwargs: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing df
     into FBA format
@@ -134,10 +148,40 @@ def coa_call(*, resp, **_):
     """
     cropland_json = json.loads(resp.text)
     df_cropland = pd.DataFrame(data=cropland_json["data"])
+
+    # During API call, save a copy to csv
+    filename = f"{_kwargs['source']}_{_kwargs['year']}_{_define_filename(resp.url)}"
+    df_cropland.to_csv(posixpath.join(IN_DIR, f"{filename}.csv"))
+
     return df_cropland
 
 
-def coa_cropland_parse(*, df_list, year, **_):
+def _define_filename(url: str) -> str:
+    """Parse the query to set the filename"""
+    query_params = parse_qs(urlparse(url).query)
+    agg_level = query_params['agg_level_desc'][0]
+    desc = (query_params['sector_desc'][0]).replace('&', '')
+    loc = ('US' if agg_level == "NATIONAL" else query_params['state_alpha'][0]) + (
+        "_County" if agg_level == "COUNTY" else ""
+    )
+    return f"{loc}_{''.join(desc.split())}"
+
+
+def coa_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    GCS_COA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"USDA_{kwargs.get('year')}")
+    filename = f"{kwargs['source']}_{kwargs['year']}_{_define_filename(kwargs['url'])}"
+    return load_from_gcs(
+        name=f"{filename}.csv",
+        sub_bucket=GCS_COA_DIR,
+        local_dir=IN_DIR,
+        loader=pd.read_csv,
+    )
+
+
+def coa_cropland_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_kwargs: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -158,6 +202,7 @@ def coa_cropland_parse(*, df_list, year, **_):
                 'ORGANIC STATUS',
                 'NAICS CLASSIFICATION',
                 'PRODUCERS',
+                'TYPOLOGY',
             ]
         )
     ]
@@ -235,40 +280,6 @@ def coa_cropland_parse(*, df_list, year, **_):
     df = pd.concat([df_fc, df_ftn, df_h, df_v, df_fla], sort=False).reset_index(
         drop=True
     )
-    # drop unused columns
-    df = df.drop(
-        columns=[
-            'agg_level_desc',
-            'location_desc',
-            'state_alpha',
-            'sector_desc',
-            'country_code',
-            'begin_code',
-            'watershed_code',
-            'reference_period_desc',
-            'asd_desc',
-            'county_name',
-            'source_desc',
-            'congr_district_code',
-            'asd_code',
-            'week_ending',
-            'freq_desc',
-            'load_time',
-            'zip_5',
-            'watershed_desc',
-            'region_desc',
-            'state_ansi',
-            'state_name',
-            'country_name',
-            'county_ansi',
-            'end_code',
-            'group_desc',
-        ]
-    )
-    # create FIPS column by combining existing columns
-    df.loc[df['county_code'] == '', 'county_code'] = '000'
-    df['Location'] = df['state_fips_code'] + df['county_code']
-    df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
 
     # address non-NAICS classification data
     # use info from other columns to determine flow name
@@ -301,11 +312,12 @@ def coa_cropland_parse(*, df_list, year, **_):
     df['Activity'] = df['Activity'].str.replace(
         ", ALL UTILIZATION PRACTICES", "", regex=True
     )
-    df['ActivityProducedBy'] = np.where(
-        df["unit_desc"] == 'OPERATIONS', df["Activity"], None
+    df["ActivityProducedBy"] = (
+        df["Activity"].astype("string").where(df["unit_desc"].eq("OPERATIONS"), pd.NA)
     )
-    df['ActivityConsumedBy'] = np.where(
-        df["unit_desc"] == 'ACRES', df["Activity"], None
+
+    df["ActivityConsumedBy"] = (
+        df["Activity"].astype("string").where(df["unit_desc"].eq("ACRES"), pd.NA)
     )
 
     # rename columns to match flowbyactivity format
@@ -318,29 +330,9 @@ def coa_cropland_parse(*, df_list, year, **_):
             "short_desc": "Description",
         }
     )
-    # drop remaining unused columns
-    df = df.drop(
-        columns=[
-            'Activity',
-            'class_desc',
-            'commodity_desc',
-            'domain_desc',
-            'state_fips_code',
-            'county_code',
-            'statisticcat_desc',
-            'prodn_practice_desc',
-            'domaincat_desc',
-            'util_practice_desc',
-        ]
-    )
+
     # modify contents of units column
     df.loc[df['Unit'] == 'OPERATIONS', 'Unit'] = 'p'
-    # modify contents of flowamount column, "D" is supressed data,
-    # "z" means less than half the unit is shown
-    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
-    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
     # add location system based on year of data
     df = assign_fips_location_system(df, year)
     # Add hardcoded data
@@ -352,7 +344,9 @@ def coa_cropland_parse(*, df_list, year, **_):
     return df
 
 
-def coa_livestock_parse(*, df_list, year, **_):
+def coa_livestock_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_kwargs: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -371,41 +365,7 @@ def coa_livestock_parse(*, df_list, year, **_):
     df = df[df['prodn_practice_desc'] == 'ALL PRODUCTION PRACTICES']
     # drop specialized class descriptions
     df = df[~df['class_desc'].str.contains("BREEDING|MARKET")]
-    # drop unused columns
-    df = df.drop(
-        columns=[
-            'agg_level_desc',
-            'location_desc',
-            'state_alpha',
-            'sector_desc',
-            'country_code',
-            'begin_code',
-            'watershed_code',
-            'reference_period_desc',
-            'asd_desc',
-            'county_name',
-            'source_desc',
-            'congr_district_code',
-            'asd_code',
-            'week_ending',
-            'freq_desc',
-            'load_time',
-            'zip_5',
-            'watershed_desc',
-            'region_desc',
-            'state_ansi',
-            'state_name',
-            'country_name',
-            'county_ansi',
-            'end_code',
-            'group_desc',
-            'util_practice_desc',
-        ]
-    )
-    # create FIPS column by combining existing columns
-    df.loc[df['county_code'] == '', 'county_code'] = '000'
-    df['Location'] = df['state_fips_code'] + df['county_code']
-    df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
+
     # combine column information to create activity information,
     # and create two new columns for activities
     # drop this column later
@@ -425,23 +385,7 @@ def coa_livestock_parse(*, df_list, year, **_):
             "short_desc": "Description",
         }
     )
-    # drop remaining unused columns
-    df = df.drop(
-        columns=[
-            'class_desc',
-            'commodity_desc',
-            'state_fips_code',
-            'county_code',
-            'statisticcat_desc',
-            'prodn_practice_desc',
-        ]
-    )
-    # modify contents of flowamount column, "D" is supressed data,
-    # "z" means less than half the unit is shown
-    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
-    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    # df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = withdrawn_keyword
-    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
+
     # add location system based on year of data
     df = assign_fips_location_system(df, year)
     # # Add hardcoded data
@@ -453,7 +397,9 @@ def coa_livestock_parse(*, df_list, year, **_):
     return df
 
 
-def coa_cropland_NAICS_parse(*, df_list, year, **_):
+def coa_cropland_NAICS_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_kwargs: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -466,40 +412,7 @@ def coa_cropland_NAICS_parse(*, df_list, year, **_):
     df = df[df['domain_desc'] == 'NAICS CLASSIFICATION']
     # only want ag land and farm operations
     df = df[df['short_desc'].str.contains("AG LAND|FARM OPERATIONS")]
-    # drop unused columns
-    df = df.drop(
-        columns=[
-            'agg_level_desc',
-            'location_desc',
-            'state_alpha',
-            'sector_desc',
-            'country_code',
-            'begin_code',
-            'watershed_code',
-            'reference_period_desc',
-            'asd_desc',
-            'county_name',
-            'source_desc',
-            'congr_district_code',
-            'asd_code',
-            'week_ending',
-            'freq_desc',
-            'load_time',
-            'zip_5',
-            'watershed_desc',
-            'region_desc',
-            'state_ansi',
-            'state_name',
-            'country_name',
-            'county_ansi',
-            'end_code',
-            'group_desc',
-        ]
-    )
-    # create FIPS column by combining existing columns
-    df.loc[df['county_code'] == '', 'county_code'] = '000'
-    df['Location'] = df['state_fips_code'] + df['county_code']
-    df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
+
     # NAICS classification data
     # flowname
     df.loc[:, 'FlowName'] = (
@@ -534,29 +447,9 @@ def coa_cropland_NAICS_parse(*, df_list, year, **_):
             "short_desc": "Description",
         }
     )
-    # drop remaining unused columns
-    df = df.drop(
-        columns=[
-            'Activity',
-            'class_desc',
-            'commodity_desc',
-            'domain_desc',
-            'state_fips_code',
-            'county_code',
-            'statisticcat_desc',
-            'prodn_practice_desc',
-            'domaincat_desc',
-            'util_practice_desc',
-        ]
-    )
+
     # modify contents of units column
     df.loc[df['Unit'] == 'OPERATIONS', 'Unit'] = 'p'
-    # modify contents of flowamount column, "D" is supressed data,
-    # "z" means less than half the unit is shown
-    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
-    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = WITHDRAWN_KEYWORD
-    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
 
     # drop Descriptions that contain certain phrases, as these
     # data are included in other categories
@@ -580,7 +473,21 @@ def coa_cropland_NAICS_parse(*, df_list, year, **_):
     return df
 
 
-def coa_common_parse(df):
+def coa_common_parse(df: pd.DataFrame) -> pd.DataFrame:
+
+    # create FIPS column by combining existing columns
+    df['Location'] = to_ndigit_str(df['state_fips_code'], 2) + to_ndigit_str(
+        df['county_code'], 3
+    )
+    df.loc[df['Location'] == '99000', 'Location'] = US_FIPS
+
+    # modify contents of flowamount column, "D" is supressed data,
+    # "z" means less than half the unit is shown
+    df['FlowAmount'] = df['FlowAmount'].str.strip()  # trim whitespace
+    df.loc[df['FlowAmount'] == "(D)", 'FlowAmount'] = WITHDRAWN_KEYWORD
+    df.loc[df['FlowAmount'] == "(Z)", 'FlowAmount'] = WITHDRAWN_KEYWORD
+    df['FlowAmount'] = df['FlowAmount'].str.replace(",", "", regex=True)
+
     # USDA CoA 2017 states that (H) means CV >= 99.95,
     # therefore replacing with 99.95 so can convert column to int
     # (L) is a CV of <= 0.05
@@ -592,13 +499,14 @@ def coa_common_parse(df):
     df['MeasureofSpread'] = "RSD"
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 2
-
+    # Keep only necessary columns
+    df = df[[c for c in flow_by_activity_fields.keys() if c in df.columns]]
     return df
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    fba = bedrock.extract.generateflowbyactivity.main(
-        year=2022, source='USDA_CoA_Cropland'
-    )
+    generateFlowByActivity(year=2022, source='USDA_CoA_Cropland')
+    fba = getFlowByActivity('USDA_CoA_Cropland', 2022)

@@ -33,11 +33,11 @@ def test_config_via_environment_variable() -> None:
     """Test that config can be loaded from environment variable in worker processes."""
     import os
 
-    from bedrock.utils.config.usa_config import CEDA_USA_CONFIG_ENV_VAR
+    from bedrock.utils.config.usa_config import USA_CONFIG_ENV_VAR
 
     set_global_usa_config("test_usa_config.yaml")
-    assert CEDA_USA_CONFIG_ENV_VAR in os.environ
-    assert os.environ[CEDA_USA_CONFIG_ENV_VAR] == "test_usa_config.yaml"
+    assert USA_CONFIG_ENV_VAR in os.environ
+    assert os.environ[USA_CONFIG_ENV_VAR] == "test_usa_config.yaml"
 
     # reset config (mimick a worker process with a new
     # memory space) and reload the config from env variable

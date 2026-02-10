@@ -1,0 +1,53 @@
+name: generate_diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      sheet_id:
+        description: 'Google Sheets ID to write test data'
+        required: true
+        type: string
+
+env:
+  FORCE_COLOR: 2
+
+jobs:
+  test_sheets_write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Write test DataFrame to Google Sheets
+        run: |
+          uv run python -c "
+          import pandas as pd
+          from bedrock.utils.io.gcp import update_sheet_tab
+
+          # Create a simple test DataFrame
+          df = pd.DataFrame({
+              'name': ['Alice', 'Bob', 'Charlie'],
+              'value': [1, 2, 3],
+              'timestamp': ['2026-01-30', '2026-01-30', '2026-01-30'],
+          })
+
+          update_sheet_tab(
+              sheet_id='${{ github.event.inputs.sheet_id }}',
+              tab='diagnostics_test',
+              data=df,
+          )
+          print('Successfully wrote test data to Google Sheets!')
+          "

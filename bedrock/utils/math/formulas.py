@@ -23,6 +23,7 @@ Matrices
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 import numpy as np
 import pandas as pd
@@ -72,6 +73,20 @@ def compute_Vnorm_matrix(*, V: pd.DataFrame, q: pd.Series[float]) -> pd.DataFram
     how much of each industry contribute to the production of each commodity.
     """
     return V.divide(q, axis=1).fillna(0)
+
+
+def compute_commodity_mix_matrix(
+    *, V: pd.DataFrame, x: pd.Series[float]
+) -> pd.DataFrame:
+    """
+    V is the Make matrix (industry x commodity)
+
+    x is the commodity output vector (industry x 1).
+
+    This function generates the commodity mix matrix (commodity x industry) that shows
+    the commodity composition of industry output.
+    """
+    return V.divide(x, axis=0).T.fillna(0)
 
 
 def compute_A_matrix(*, U_norm: pd.DataFrame, V_norm: pd.DataFrame) -> pd.DataFrame:
@@ -183,19 +198,60 @@ def backcompute_U_matrix_via_commodity_shortcut(
     return A.multiply(q, axis=1)
 
 
-def backcompute_q_from_Ldom_and_y_nab(
-    *, Ldom: pd.DataFrame, y_nab: pd.Series[float]
+def backcompute_q_from_L_and_y(
+    *,
+    L: Annotated[pd.DataFrame, "Domestic Leontief inverse (Ldom)"],
+    y: Annotated[pd.Series[float], "National accounting balance final demand (y_nab)"],
 ) -> pd.Series[float]:
     """
-    Ldom is the domestic Leontief inverse
-    ynab is y for national accounting balance, i.e. domestic final consumption + exports
+    Backcompute commodity output q from Leontief inverse L and final demand y.
 
-    This way we capture all possible uses of a commodity, including
+    .. warning::
+        **CRITICAL**: This function requires a matching pair of L and y:
+        - L must be the **domestic** Leontief inverse (Ldom)
+        - y must be the **national accounting balance** final demand (y_nab),
+          i.e., domestic final consumption + exports
+
+        Using mismatched pairs (e.g., total L with domestic y, or domestic L
+        with total y) will produce incorrect results.
+
+    This way we capture all possible uses of a commodity, including:
     1. intermediate consumption by domestic industries
     2. domestic final consumption
     3. exports to foreign industries and final consumption
+
+    Parameters
+    ----------
+    L : pd.DataFrame
+        The domestic Leontief inverse matrix (Ldom)
+    y : pd.Series[float]
+        Final demand for national accounting balance (y_nab)
+
+    Returns
+    -------
+    pd.Series[float]
+        Commodity output vector q
+
+    Raises
+    ------
+    ValueError
+        If L is not square, or if L and y have mismatched indices
     """
-    return (Ldom @ np.diag(y_nab)).sum(axis=1)
+    # Validation with helpful error messages
+    if not L.index.equals(L.columns):
+        raise ValueError(
+            "L must be a square matrix (Leontief inverse). "
+            f"Expected L.index == L.columns, but got shape {L.shape}"
+        )
+    if not L.index.equals(y.index):
+        raise ValueError(
+            "L and y must have matching indices. "
+            f"L.index length: {len(L.index)}, y.index length: {len(y.index)}. "
+            "This function requires L to be the domestic Leontief inverse (Ldom) "
+            "and y to be the national accounting balance final demand (y_nab)."
+        )
+
+    return (L @ np.diag(y)).sum(axis=1)
 
 
 def backcompute_y_from_q_and_Aq(

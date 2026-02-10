@@ -7,9 +7,10 @@ Scrapes data from 2018 Wasted Food Report.
 
 import io
 from string import ascii_uppercase
+from typing import Any
 
-import numpy as np
 import pandas as pd
+from requests import Response
 from tabula.io import read_pdf
 
 from bedrock.extract.flowbyactivity import FlowByActivity
@@ -17,7 +18,7 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def epa_wfr_call(*, resp, **_):
+def epa_wfr_call(*, resp: Response, **_: Any) -> list[pd.DataFrame]:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -80,7 +81,7 @@ def epa_wfr_call(*, resp, **_):
     return result_list
 
 
-def epa_wfr_parse(*, df_list, year, **_):
+def epa_wfr_parse(*, df_list: list[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -105,7 +106,7 @@ def epa_wfr_parse(*, df_list, year, **_):
     return df
 
 
-def drop_rows(df):
+def drop_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
     This drops the column headers for the table which ended up being scraped as
     4 rows. We are also dropping all rows with null values under the
@@ -122,7 +123,7 @@ def drop_rows(df):
     return df
 
 
-def fix_row_names(df):
+def fix_row_names(df: pd.DataFrame) -> pd.DataFrame:
     """
     The Scrape from the PDF caused some of the names to end up in more than
     1 row. This also caused artificial rows which have been dealt with in
@@ -153,7 +154,7 @@ def fix_row_names(df):
     return df
 
 
-def split_problem_column(df):
+def split_problem_column(df: pd.DataFrame) -> pd.DataFrame:
     """
      When the table was scraped from the PDF the 7th and 8th columns were
      not correct. Depending on the page the table was printed on the seventh
@@ -166,7 +167,6 @@ def split_problem_column(df):
     :return: df
     """
     t = str.maketrans('', '', ascii_uppercase)
-    seven_array_corrected = []
     restaurants_list = []
     sports_list = []
     hospitals_list = []
@@ -227,7 +227,7 @@ def split_problem_column(df):
     return df
 
 
-def reorder_df(df):
+def reorder_df(df: pd.DataFrame) -> pd.DataFrame:
     """
     Melts the pandas dataframe into flow by activity format.
     Drops any rows where flow amount is -
@@ -249,15 +249,15 @@ def reorder_df(df):
     return df
 
 
-def return_REI_fraction_foodwaste_treated_commodities():
+def return_REI_fraction_foodwaste_treated_commodities() -> dict[str, dict[str, float]]:
     """
     Return dictionary of how the food waste is used after entering
     waste management pathways - fractions are pulled from EPA REI
     https://www.epa.gov/smm/recycling-economic-information-rei-report
     :return: dict, food waste pathway food use
     """
-    pathway_attribution = {
-        'Animal Feed': {'Fresh wheat, corn': 1},  # Fresh wheat, corn, (1111B0)
+    pathway_attribution: dict[str, dict[str, float]] = {
+        'Animal Feed': {'Fresh wheat, corn': 1.0},  # Fresh wheat, corn, (1111B0)
         'Animal meal, meat, fats, oils, and tallow': {
             'Dog and cat food manufacturing': 0.31,
             'Other animal food manufacturing': 0.54,
@@ -267,7 +267,7 @@ def return_REI_fraction_foodwaste_treated_commodities():
             'Toilet preparation manufacturing': 0.03,
             'Printing ink manufacturing': 0.03,
         },
-        'Biodiesel': {'Gasoline': 1},  # 324110
+        'Biodiesel': {'Gasoline': 1.0},  # 324110
         'Anaerobic Digestion': {
             'Natural gas': 0.0469
         },  # 221200, On a mass basis, there is 0.0469 kg biogas per kg waste
@@ -293,7 +293,7 @@ def foodwaste_use(fba: FlowByActivity) -> FlowByActivity:
     :param source_dict:
     :return:
     """
-    use = fba.config.get('activity_parameters')
+    use = fba.config.get('activity_parameters') or []
     outputs = fba.loc[fba['ActivityConsumedBy'].isin(use)].reset_index(drop=True)
     outputs['ActivityProducedBy'] = outputs['ActivityConsumedBy']
     outputs = outputs.drop(columns='ActivityConsumedBy')
@@ -309,14 +309,14 @@ def foodwaste_use(fba: FlowByActivity) -> FlowByActivity:
     for k, v in replace_keys.items():
         fw_tmt[v] = fw_tmt.pop(k)
 
-    fw_tmt = (
+    fw_tmt_df = (
         pd.DataFrame(fw_tmt)
         .rename_axis(index='ActivityConsumedBy', columns='ActivityProducedBy')
         .stack()
-        .rename('Multiplier')
-        .reset_index()
     )
-    outputs3 = outputs2.merge(fw_tmt, how='left')
+    fw_tmt_df.name = 'Multiplier'
+    fw_tmt_series = fw_tmt_df.reset_index()
+    outputs3 = outputs2.merge(fw_tmt_series, how='left')
 
     outputs3['FlowName'] = outputs3['FlowName'].apply(lambda x: f"{x} Treated")
     # update flowamount with multiplier fractions
@@ -324,19 +324,18 @@ def foodwaste_use(fba: FlowByActivity) -> FlowByActivity:
     outputs3 = outputs3.drop(columns='Multiplier')
 
     # also in wasted food report - APB "food banks" are the output from the ACB "Food Donation"
-    fba['FlowName'] = np.where(
-        fba['ActivityProducedBy'] == 'Food Banks',
-        fba["FlowName"].apply(lambda x: f"{x} Treated"),
-        fba["FlowName"],
+    is_food_banks = fba['ActivityProducedBy'] == 'Food Banks'
+    fba.loc[is_food_banks, 'FlowName'] = fba.loc[is_food_banks, 'FlowName'].apply(
+        lambda x: f"{x} Treated"
     )
 
-    df1 = pd.concat([fba, outputs3], ignore_index=True)
+    df1 = FlowByActivity(pd.concat([fba, outputs3], ignore_index=True))
     df2 = df1.aggregate_flowby()
 
     return df2
 
 
-def reset_wfr_APB(fba, **_):
+def reset_wfr_APB(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     For "Waste_national_2018", only interested in total food waste that
     enters a waste management pathway, not interested in where the food

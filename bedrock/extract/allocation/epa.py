@@ -57,6 +57,12 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
             "annex": posixpath.join("EPA_GHGI_2023_Selected_Tables", "Annex"),
         }
     )
+    # # TODO: eventually go to the full set of csv tables for 2023
+    # # replacing the above if else chunk
+    # main_or_annex_dir = {
+    #     "main": f"EPA_GHGI_{year}_Main_Tables",
+    #     "annex": f"EPA_GHGI_{year}_Annex_Tables",
+    # }
 
     if section == "A":
         return posixpath.join(
@@ -76,13 +82,14 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
         }
         if year == 2022
         else {
-            # we have fewer 2023 tables because the EPA did not publish
-            # their tables. The data we do have was digitized by the USEEIO team
-            # from the Environment Defense Fund's version of the 2023 GHG inventory report.
+            1: "Chapter 1 - Introduction",
             2: "Chapter 2 - Trends in Greenhouse Gas Emissions and Removals",
             3: "Chapter 3 - Energy",
             4: "Chapter 4 - Industrial Processes and Product Use",
             5: "Chapter 5 - Agriculture",
+            6: "Chatper 6 - LULUCF",
+            7: "Chapter 7 - Waste",
+            9: "Chatper 9 - Recalculations and Improvements",
         }
     )
     return posixpath.join(

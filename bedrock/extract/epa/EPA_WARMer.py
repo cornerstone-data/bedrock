@@ -3,13 +3,14 @@
 EPA WARMer
 """
 import re
+from typing import Any
 
 import pandas as pd
 
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def warmer_call(*, url, **_):
+def warmer_call(*, url: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -24,7 +25,7 @@ def warmer_call(*, url, **_):
     return df
 
 
-def warmer_parse(*, df_list, year, **_):
+def warmer_parse(*, df_list: list[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -48,9 +49,11 @@ def warmer_parse(*, df_list, year, **_):
 
     # Add description of materials - set material to the values in between the
     # characters 'of ' and ';' of the Activity Name - if ';' exists in string
-    df['Description'] = df['ActivityProducedBy'].apply(
-        lambda x: re.search('of (.*)', x).group(1)
-    )
+    def extract_description(x: str) -> str:
+        match = re.search('of (.*)', x)
+        return match.group(1) if match else ''
+
+    df['Description'] = df['ActivityProducedBy'].apply(extract_description)
     df['Description'] = df['Description'].apply(lambda x: x.split(';', 1)[0])
 
     # add new column info

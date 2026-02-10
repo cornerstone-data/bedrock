@@ -8,15 +8,17 @@ Water Management Survey data
 """
 
 import json
+from typing import Any
 
 import pandas as pd
+from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def iwms_url_helper(*, build_url, config, **_):
+def iwms_url_helper(*, build_url: str, config: dict[str, Any], **_: Any) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -39,7 +41,7 @@ def iwms_url_helper(*, build_url, config, **_):
     return urls_iwms
 
 
-def iwms_call(*, resp, **_):
+def iwms_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing df
     into FBA format
@@ -52,7 +54,7 @@ def iwms_call(*, resp, **_):
     return df_iwms
 
 
-def iwms_parse(*, df_list, year, **_):
+def iwms_parse(*, df_list: list[pd.DataFrame], year: str, **_: Any) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format

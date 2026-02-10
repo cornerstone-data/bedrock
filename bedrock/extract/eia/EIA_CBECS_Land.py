@@ -8,10 +8,13 @@ https://www.eia.gov/consumption/commercial/reports/2012/energyusage/index.php
 Last updated: Monday, August 17, 2020
 """
 import io
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
+from requests import Response
 
+from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.literature_values import (
     get_commercial_and_manufacturing_floorspace_to_land_area_ratio,
@@ -22,7 +25,9 @@ from bedrock.utils.mapping.location import US_FIPS, get_region_and_division_code
 from bedrock.utils.validation.validation import calculate_flowamount_diff_between_dfs
 
 
-def eia_cbecs_land_URL_helper(*, build_url, config, **_):
+def eia_cbecs_land_URL_helper(
+    *, build_url: str, config: dict[str, Any], **_: Any
+) -> List[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -35,7 +40,7 @@ def eia_cbecs_land_URL_helper(*, build_url, config, **_):
         Flow-By-Activity format
     """
     # initiate url list for coa cropland data
-    urls = []
+    urls: List[str] = []
     # replace "__xlsx_name__" in build_url to create three urls
     for x in config['xlsx']:
         url = build_url
@@ -45,7 +50,7 @@ def eia_cbecs_land_URL_helper(*, build_url, config, **_):
     return urls
 
 
-def eia_cbecs_land_call(*, resp, url, **_):
+def eia_cbecs_land_call(*, resp: Response, url: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin
     parsing df into FBA format
@@ -172,7 +177,9 @@ def eia_cbecs_land_call(*, resp, url, **_):
     return df
 
 
-def eia_cbecs_land_parse(*, df_list, year, **_):
+def eia_cbecs_land_parse(
+    *, df_list: List[pd.DataFrame], year: str, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -251,7 +258,9 @@ def eia_cbecs_land_parse(*, df_list, year, **_):
     return df
 
 
-def standardize_eia_cbecs_land_activity_names(df, column_to_standardize):
+def standardize_eia_cbecs_land_activity_names(
+    df: pd.DataFrame, column_to_standardize: str
+) -> pd.DataFrame:
     """
     Activity names vary across csvs. Standardize
     :param df: df, any format
@@ -289,7 +298,7 @@ def standardize_eia_cbecs_land_activity_names(df, column_to_standardize):
     return df
 
 
-def cbecs_land_fba_cleanup(fba, **_):
+def cbecs_land_fba_cleanup(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     Clean up the land fba for use in allocation
     :param fba: df, eia cbecs land flowbyactivity format
@@ -308,7 +317,9 @@ def cbecs_land_fba_cleanup(fba, **_):
     return fba2
 
 
-def calculate_floorspace_based_on_number_of_floors(fba_load):
+def calculate_floorspace_based_on_number_of_floors(
+    fba_load: FlowByActivity,
+) -> FlowByActivity:
     """
     Estimate total floorspace for each building type based on data
     on the number of floors for each building type.
@@ -388,7 +399,7 @@ def calculate_floorspace_based_on_number_of_floors(fba_load):
     return fba4.drop(columns=['DivisionFactor'])
 
 
-def disaggregate_eia_cbecs_mercentile(df_load):
+def disaggregate_eia_cbecs_mercentile(df_load: FlowByActivity) -> FlowByActivity:
     """
     Determine the number of floors for malls and non malls based on
     mercentile data
@@ -449,10 +460,10 @@ def disaggregate_eia_cbecs_mercentile(df_load):
     # drop mercantile to prevent double counting
     df = df[df['ActivityConsumedBy'] != 'Mercantile']
 
-    return df
+    return FlowByActivity(df)
 
 
-def disaggregate_eia_cbecs_vacant_and_other(df_load):
+def disaggregate_eia_cbecs_vacant_and_other(df_load: FlowByActivity) -> FlowByActivity:
     """
     Identify land use for vancant and other
     :param df_load: df, eia cbecs land fba
@@ -472,10 +483,10 @@ def disaggregate_eia_cbecs_vacant_and_other(df_load):
     # all other rows that have information on floors, sum
     df_nvno = df_load[df_load['Description'].str.contains('floors')]
     df_nvno = df_nvno[df_nvno['ActivityConsumedBy'] != 'All buildings']
-    df_nvno = df_nvno.groupby(
+    df_nvno_grouped: pd.DataFrame = df_nvno.groupby(
         ['Unit', 'Location', 'LocationSystem', 'Year', 'Description'], as_index=False
     ).agg({'FlowAmount': "sum"})
-    df_act = df_nvno.rename(columns={'FlowAmount': 'NonVacantNonOther'})
+    df_act = df_nvno_grouped.rename(columns={'FlowAmount': 'NonVacantNonOther'})
 
     # merge df and subtract to determine FlowAmount to allocate to
     # vacant and other activities
@@ -506,10 +517,10 @@ def disaggregate_eia_cbecs_vacant_and_other(df_load):
     # concat with original df
     df = pd.concat([df_load, df_vo2], ignore_index=True, sort=False)
 
-    return df
+    return FlowByActivity(df)
 
 
-def calculate_total_facility_land_area(df):
+def calculate_total_facility_land_area(df: FlowByActivity) -> FlowByActivity:
     """
     In land use calculations, in addition to the provided floor area
     of buildings, estimate other related land area associated with
