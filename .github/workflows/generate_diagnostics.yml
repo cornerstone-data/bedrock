@@ -54,7 +54,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
         with:
-          channel-id: C089KJ6KRFF # #alerts-ceda
+          channel-id: C09S03U9CH4 # #alerts-bedrock
           payload: |
             {
               "text": "Bedrock Diagnostics Generation Failure",
@@ -88,7 +88,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
         with:
-          channel-id: C089KJ6KRFF # #alerts-ceda
+          channel-id: C09S03U9CH4 # #alerts-bedrock
           payload: |
             {
               "text": "Bedrock Diagnostics Generation Success",
