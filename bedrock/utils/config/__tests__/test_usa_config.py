@@ -20,7 +20,7 @@ def reset_global_usa_config_before_test() -> Generator[None, None, None]:
 def test_global_usa_config() -> None:
     set_global_usa_config("test_usa_config.yaml")
     usa_config = get_usa_config()
-    assert usa_config.usa_ghg_data_year == 2022
+    assert usa_config.usa_ghg_data_year == 2023
 
 
 def test_cannot_call_global_usa_config_twice() -> None:
@@ -43,4 +43,4 @@ def test_config_via_environment_variable() -> None:
     # memory space) and reload the config from env variable
     reset_usa_config(should_reset_env_var=False)
     usa_config = get_usa_config()
-    assert usa_config.usa_ghg_data_year == 2022
+    assert usa_config.usa_ghg_data_year == 2023
