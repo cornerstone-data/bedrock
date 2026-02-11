@@ -13,7 +13,7 @@ class USAConfig(BaseModel):
     #####
     # Model base settings
     #####
-    model_base_year: ta.Literal[2022, 2023, 2024] = 2022
+    model_base_year: ta.Literal[2022, 2023, 2024] = 2023
     bea_io_level: ta.Literal["detail", "summary"] = "detail"
     bea_io_scheme: ta.Literal[2017, 2022] = 2017  # documentation purposes
     price_type: ta.Literal["producer", "purchaser"] = "producer"
@@ -22,10 +22,15 @@ class USAConfig(BaseModel):
     #####
     # Data selection
     #####
-    usa_io_data_year: ta.Literal[2022, 2023, 2024] = 2022
-    usa_ghg_data_year: ta.Literal[2022, 2023, 2024] = 2022
+    usa_base_io_data_year: ta.Literal[2012, 2017] = (
+        2017  # BEA's benchmark year for Detail Input-Output data
+    )
+    usa_io_data_year: ta.Literal[2022, 2023, 2024] = (
+        2022  # CEDA's legacy USA IO data year
+    )
+    usa_ghg_data_year: ta.Literal[2023, 2024] = 2023
 
-    ipcc_ar_version: ta.Literal["AR5", "AR6"] = "AR5"
+    ipcc_ar_version: ta.Literal["AR5", "AR6"] = "AR6"
 
     #####
     # Methodology selection
