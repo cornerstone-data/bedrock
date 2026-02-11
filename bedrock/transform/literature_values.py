@@ -10,7 +10,7 @@ specified here and can be called on using functions.
 import numpy as np
 
 
-def get_Canadian_to_USD_exchange_rate(year):
+def get_Canadian_to_USD_exchange_rate(year: int) -> float:
     """
     Return exchange rate (Canadian $/USD)
     From https://www.federalreserve.gov/releases/h10/current/ on 10/28/2025
@@ -45,11 +45,11 @@ def get_Canadian_to_USD_exchange_rate(year):
         2024: 1.3699,
     }
 
-    exchange_rate = er.get(year, np.nan)
+    exchange_rate: float = er.get(year, np.nan)
     return exchange_rate
 
 
-def get_area_of_urban_land_occupied_by_houses_2013():
+def get_area_of_urban_land_occupied_by_houses_2013() -> float:
     """
     Reported area of urban land occupied by houses in 2013 from the USDA
     ERS Major Land Uses Report
@@ -67,7 +67,7 @@ def get_area_of_urban_land_occupied_by_houses_2013():
     return area_urban_residence
 
 
-def get_area_of_rural_land_occupied_by_houses_2013():
+def get_area_of_rural_land_occupied_by_houses_2013() -> float:
     """
     Reported area of urban land occupied by houses in 2013 from the
     USDA ERS Major Land Uses Report
@@ -84,7 +84,7 @@ def get_area_of_rural_land_occupied_by_houses_2013():
     return area_rural_residence
 
 
-def get_commercial_and_manufacturing_floorspace_to_land_area_ratio():
+def get_commercial_and_manufacturing_floorspace_to_land_area_ratio() -> float:
     """
     The additional land area associated with commercial and
     manufacturing buildings (parking, sinage, landscaping)
@@ -98,7 +98,7 @@ def get_commercial_and_manufacturing_floorspace_to_land_area_ratio():
     return floor_space_to_land_area_ratio
 
 
-def get_open_space_fraction_of_urban_area():
+def get_open_space_fraction_of_urban_area() -> float:
     """
     Assumption on the fraction of urban areas that is open space
 
@@ -111,7 +111,7 @@ def get_open_space_fraction_of_urban_area():
     return value
 
 
-def get_urban_land_use_for_airports():
+def get_urban_land_use_for_airports() -> float:
     """
     Based on Lin Zeng's 2020 paper
     :return: number, fraction of land used for airports
@@ -122,7 +122,7 @@ def get_urban_land_use_for_airports():
     return value
 
 
-def get_urban_land_use_for_railroads():
+def get_urban_land_use_for_railroads() -> float:
     """
     Based on Lin Zeng's 2020 paper
     :return: number, fraction of land used for railroads
@@ -133,7 +133,7 @@ def get_urban_land_use_for_railroads():
     return value
 
 
-def get_fraction_of_urban_local_road_area_for_parking():
+def get_fraction_of_urban_local_road_area_for_parking() -> float:
     """
     Based on Lin Zeng's 2020 paper
     :return: number, fraction of road area used for parking
@@ -144,7 +144,7 @@ def get_fraction_of_urban_local_road_area_for_parking():
     return value
 
 
-def get_transportation_sectors_based_on_FHA_fees():
+def get_transportation_sectors_based_on_FHA_fees() -> dict[str, dict[str, object]]:
     """
     Values from https://www.fhwa.dot.gov/policy/hcas/addendum.cfm
     Website accessed 11/02/2020
