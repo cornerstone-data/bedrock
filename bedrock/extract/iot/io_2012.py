@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import os
 import typing as ta
 
@@ -45,6 +46,7 @@ USA_FINAL_DEMAND_INDEX = pd.Index(USA_2012_FINAL_DEMAND_CODES, name="final_deman
 GHG_DETAILED_INDEX = pd.Index(GHG_DETAILED)
 
 
+@functools.cache
 def load_2012_VR_usa() -> pd.DataFrame:
     """
     Redefined Make matrix in producer's price
@@ -56,6 +58,7 @@ def load_2012_VR_usa() -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_2012_UR_usa() -> pd.DataFrame:
     """
     Redefined Use matrix in producer's price
@@ -67,6 +70,7 @@ def load_2012_UR_usa() -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_2012_URdom_usa() -> pd.DataFrame:
     """
     Redefined Domestic portion of Use matrix in producer's price
@@ -78,6 +82,7 @@ def load_2012_URdom_usa() -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_2012_PI_usa() -> pd.DataFrame:
     """
     400 industry X 405 industry matrix that reduces # of industry
@@ -88,6 +93,7 @@ def load_2012_PI_usa() -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_2012_PC_usa() -> pd.DataFrame:
     """
     401 commodity X 400 commodity matrix that reduces # of commodity
@@ -98,6 +104,7 @@ def load_2012_PC_usa() -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_2012_gR_usa() -> pd.Series[float]:
     """
     Redefined industry output vector
@@ -108,6 +115,7 @@ def load_2012_gR_usa() -> pd.Series[float]:
     return ser
 
 
+@functools.cache
 def load_2012_pR_usa() -> pd.Series[float]:
     """
     Redefined scrap fraction vector
@@ -117,6 +125,7 @@ def load_2012_pR_usa() -> pd.Series[float]:
     return ser
 
 
+@functools.cache
 def load_2012_qR_usa() -> pd.Series[float]:
     """
     Redefined commodity output vector

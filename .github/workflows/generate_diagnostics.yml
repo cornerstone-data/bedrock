@@ -3,8 +3,13 @@ name: generate_diagnostics
 on:
   workflow_dispatch:
     inputs:
+      config_name:
+        description: "USA config name (without .yaml extension)"
+        required: true
+        type: string
+        default: "v8_ceda_2025_usa"
       sheet_id:
-        description: 'Google Sheets ID to write test data'
+        description: "Google Sheets ID for EF diagnostics"
         required: true
         type: string
 
@@ -12,9 +17,9 @@ env:
   FORCE_COLOR: 2
 
 jobs:
-  test_sheets_write:
+  diagnostics:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60
     permissions:
       id-token: write
       contents: read
@@ -25,29 +30,83 @@ jobs:
         uses: ./.github/actions/setup-python
 
       - name: Authenticate with Google Cloud
-        uses: 'google-github-actions/auth@v2'
+        uses: "google-github-actions/auth@v2"
         with:
           project_id: cornerstone-data
           workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
           service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
 
-      - name: Write test DataFrame to Google Sheets
+      - name: Generate diagnostics
+        id: generate
         run: |
-          uv run python -c "
-          import pandas as pd
-          from bedrock.utils.io.gcp import update_sheet_tab
+          uv run python bedrock/utils/validation/generate_diagnostics.py \
+            --sheet_id "${{ github.event.inputs.sheet_id }}" \
+            --config_name "${{ github.event.inputs.config_name }}"
 
-          # Create a simple test DataFrame
-          df = pd.DataFrame({
-              'name': ['Alice', 'Bob', 'Charlie'],
-              'value': [1, 2, 3],
-              'timestamp': ['2026-01-30', '2026-01-30', '2026-01-30'],
-          })
+  notify_slack_failure:
+    needs: diagnostics
+    runs-on: ubuntu-latest
+    if: always() && needs.diagnostics.result == 'failure'
 
-          update_sheet_tab(
-              sheet_id='${{ github.event.inputs.sheet_id }}',
-              tab='diagnostics_test',
-              data=df,
-          )
-          print('Successfully wrote test data to Google Sheets!')
-          "
+    steps:
+      - name: Notify on Slack - failure
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "Bedrock Diagnostics Generation Failure",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":warning: *Bedrock Diagnostics Generation Failure*\nDiagnostics failed on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}\n*Target Google Sheets URL:* https://docs.google.com/spreadsheets/d/${{ github.event.inputs.sheet_id }}"
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+
+  notify_slack_success:
+    needs: diagnostics
+    runs-on: ubuntu-latest
+    if: always() && needs.diagnostics.result == 'success'
+
+    steps:
+      - name: Notify on Slack - success
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "Bedrock Diagnostics Generation Success",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":white_check_mark: *Bedrock Diagnostics Generation Success*\nDiagnostics generated on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}\n*Google Sheets URL:* https://docs.google.com/spreadsheets/d/${{ github.event.inputs.sheet_id }}"
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
