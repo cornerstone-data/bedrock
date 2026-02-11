@@ -88,7 +88,7 @@ def get_flowby_from_config(
         return FlowBySector.return_FBS(
             method=name,
             config=config,
-            external_config_path=external_config_path,  # type: ignore[arg-type]
+            external_config_path=external_config_path,
             download_sources_ok=download_sources_ok,
             download_fbs_ok=download_sources_ok,
             external_data_path=external_data_path,
