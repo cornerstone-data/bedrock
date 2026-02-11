@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import pandas as pd
 
@@ -34,15 +35,16 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
         columns=CEDA_V7_SECTORS,
     )
 
-    # TODO: to improve performance, parallelize this.
-    # However, in out last attempt, we found that the allocators shared too many of the same
-    # data and downloading them would cause race conditions. We need to make
-    # the GCS download helpers thread-safe.
+    total_start = time.time()
     for es, allocator in ALLOCATED_EMISSIONS_REGISTRY.items():
         logger.info(f"Allocating {es}")
         allocated = allocator()
         if allocated.isna().any():
             raise ValueError(f"NaNs found in {es} allocator")
         E_usa.loc[es.value, :] += allocated
+
+    logger.info(
+        f"[TIMING] All {len(ALLOCATED_EMISSIONS_REGISTRY)} allocations completed in {time.time() - total_start:.1f}s"
+    )
 
     return E_usa
