@@ -30,20 +30,20 @@ from bedrock.utils.config.settings import (
 from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
 from bedrock.utils.io.read import load_preprocessed_output
 from bedrock.utils.logging.flowsa_log import log, vlog
-from bedrock.utils.mapping.geo import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.geo import (
     filtered_fips as geo_filtered_fips,
 )
-from bedrock.utils.mapping.geo import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.geo import (
     get_all_fips as geo_get_all_fips,
 )
-from bedrock.utils.mapping.geo import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.geo import (
     scale as geo_scale,
 )
 from bedrock.utils.mapping.location import fips_number_key
-from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.naics import (
     convert_naics_year as naics_convert_naics_year,
 )
-from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.naics import (
     map_target_sectors_to_less_aggregated_sectors as naics_map_to_less_aggregated,
 )
 
@@ -468,7 +468,7 @@ class _FlowBy(pd.DataFrame):
         """
         target_geoscale = target_geoscale or self.config.get('geoscale')
         if isinstance(target_geoscale, str):
-            target_geoscale = geo_scale.from_string(target_geoscale)
+            target_geoscale = geo_scale.from_string(target_geoscale)  # type: ignore[arg-type]
 
         if target_geoscale == geo_scale.NATIONAL:
             return self.assign(**{column: geo_filtered_fips('national').FIPS.values[0]})
@@ -802,7 +802,7 @@ class _FlowBy(pd.DataFrame):
                     f"NAICS_{self.config['target_naics_year']}_Code"
                     != grouped['SectorSourceName'][0]
                 ):
-                    grouped = naics_convert_naics_year(
+                    grouped = naics_convert_naics_year(  # type: ignore[assignment]
                         grouped,
                         f"NAICS_{self.config['target_naics_year']}_Code",
                         grouped['SectorSourceName'][0],
@@ -1727,7 +1727,7 @@ class _FlowBy(pd.DataFrame):
                 try:
                     loc_match = re.search(r"\d{4}", fbs['LocationSystem'][0])
                     assert loc_match is not None
-                    fips = geo_get_all_fips(int(loc_match.group())).rename(
+                    fips = geo_get_all_fips(int(loc_match.group())).rename(  # type: ignore[arg-type]
                         columns={
                             'FIPS': 'Location',
                             'FIPS_Scale': 'GeographicalCorrelation',
