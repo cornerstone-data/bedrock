@@ -1,8 +1,9 @@
 import os
+import subprocess
+from importlib.metadata import version
 from pathlib import Path
 
 from esupy.processed_data_mgmt import Paths, mkdir_if_missing
-from esupy.util import get_git_hash, return_pkg_version
 
 MODULEPATH = Path(__file__).resolve().parents[2]
 
@@ -96,14 +97,63 @@ def get_memory() -> int:
     return free_memory
 
 
+def return_pkg_version(MODULEPATH: Path, package_name: str) -> str:
+    """
+    Return package version, first look for git tag, then look for installed package version
+    :param MODULEPATH: str, package path
+    :param packagename: str, such as "bedrock"
+    """
+
+    # return version with git describe
+    try:
+        # set path to package repository, necessary if running method files
+        # outside the package repo
+        tags = (
+            subprocess.check_output(
+                ["git", "describe", "--tags", "--always", "--match", "v[0-9]*"],
+                cwd=MODULEPATH,
+            )
+            .decode()
+            .strip()
+        )
+
+        if tags.startswith("v"):
+            return tags.split("-", 1)[0].replace("v", "")
+
+    # If it's a hash, pass
+    except subprocess.CalledProcessError:
+        pass
+
+    # else return installed package version
+    return version(package_name)
+
+
+def get_git_hash(MODULEPATH: Path, length: str = 'short') -> str | None:
+    """
+    Returns git_hash of current directory or None if no git found
+    :param MODULEPATH: Path, module path
+    :param length: str, 'short' for 7-digit, 'long' for full git hash
+    :return git_hash: str
+    """
+    try:
+        git_hash = (
+            subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=MODULEPATH)
+            .decode()
+            .strip()
+        )
+
+        return git_hash if length == 'long' else git_hash[:7]
+
+    except Exception:
+        return None
+
+
 # metadata
-PKG = "flowsa"
-PKG_VERSION_NUMBER = return_pkg_version(MODULEPATH, 'flowsa')
-GIT_HASH_LONG = os.environ.get('GITHUB_SHA') or get_git_hash('long')
-if GIT_HASH_LONG:
-    GIT_HASH = GIT_HASH_LONG[0:7]
-else:
-    GIT_HASH = None
+PKG = "bedrock"
+PKG_VERSION_NUMBER = return_pkg_version(MODULEPATH, PKG)
+GIT_HASH_LONG = os.environ.get('GITHUB_SHA') or get_git_hash(MODULEPATH, 'long')
+GIT_HASH = GIT_HASH_LONG[:7] if GIT_HASH_LONG else None
+
 
 # Common declaration of write format for package data products
 WRITE_FORMAT = "parquet"
