@@ -9,7 +9,7 @@ env:
   FORCE_COLOR: 2
 
 jobs:
-  test_ceda_usa:
+  test_cornerstone_usa:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -28,15 +28,15 @@ jobs:
           workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
           service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
 
-      - name: Run tests (ceda-usa)
+      - name: Run tests (cornerstone-usa)
         run: |
           uv run pytest -v -m eeio_integration
 
   notify_slack_failure:
-    needs: [test_ceda_usa]
+    needs: [test_cornerstone_usa]
     runs-on: ubuntu-latest
     # TODO: only alert for main (github.ref_name == 'main')
-    if: always() && (needs.test_ceda_usa.result == 'failure')
+    if: always() && (needs.test_cornerstone_usa.result == 'failure')
 
     steps:
       - name: Notify on Slack - failure
@@ -47,7 +47,7 @@ jobs:
           channel-id: C09S03U9CH4 # #alerts-bedrock
           payload: |
             {
-              "text": "CEDA USA Test Failure",
+              "text": "Cornerstone USA Test Failure",
               "blocks": [
                 {
                   "type": "section",
