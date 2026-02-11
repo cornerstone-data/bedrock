@@ -747,7 +747,9 @@ class _FlowBy(pd.DataFrame):
         return aggregated  # type: ignore[return-value]
 
     def attribute_flows_to_sectors(
-        self: FB, external_config_path: str | None = None, download_sources_ok: bool = True
+        self: FB,
+        external_config_path: str | None = None,
+        download_sources_ok: bool = True,
     ) -> FB:
         """
         The calling FBA has its activities mapped to sectors, then its flows
@@ -1390,9 +1392,7 @@ class _FlowBy(pd.DataFrame):
             .reset_index(drop=True)
         )
 
-    def multiplication_attribution(
-        self: 'FB', other: 'FlowBySector'
-    ) -> '_FlowBy':
+    def multiplication_attribution(self: 'FB', other: 'FlowBySector') -> '_FlowBy':
         """
         This method takes flows from the calling FBA which are mapped to
         multiple sectors and multiplies them by flows from other (an FBS).
@@ -1653,7 +1653,9 @@ class _FlowBy(pd.DataFrame):
             ]
         )
 
-    def assign_temporal_correlation(self: FB, target_year: int | None = None, **_kwargs: Any) -> FB:
+    def assign_temporal_correlation(
+        self: FB, target_year: int | None = None, **_kwargs: Any
+    ) -> FB:
 
         fbs = self.copy()
         if not target_year:
@@ -1692,9 +1694,11 @@ class _FlowBy(pd.DataFrame):
                     return None
 
                 # if target geoscale not defined, first try pulling from config, else pull from method name
-                target_geoscale = self.config.get(
-                    'target_geoscale'
-                ) or (extract_target_geoscale(fbs_method_name) if fbs_method_name else None)
+                target_geoscale = self.config.get('target_geoscale') or (
+                    extract_target_geoscale(fbs_method_name)
+                    if fbs_method_name
+                    else None
+                )
                 if target_geoscale is None:
                     # if there isn't a target geoscale or method name, return FBS without appending geo correlation
                     return self
@@ -1723,9 +1727,7 @@ class _FlowBy(pd.DataFrame):
                 try:
                     loc_match = re.search(r"\d{4}", fbs['LocationSystem'][0])
                     assert loc_match is not None
-                    fips = geo_get_all_fips(
-                        int(loc_match.group())
-                    ).rename(
+                    fips = geo_get_all_fips(int(loc_match.group())).rename(
                         columns={
                             'FIPS': 'Location',
                             'FIPS_Scale': 'GeographicalCorrelation',
@@ -1859,9 +1861,7 @@ class _FlowBy(pd.DataFrame):
         #     to_parquet method inherited from DatFrame from working, so this
         #     casts the data back to plain DataFrame to write to a parquet.
 
-    def astype(  # type: ignore[misc]
-        self: FB, *args: Any, **kwargs: Any
-    ) -> FB:
+    def astype(self: FB, *args: Any, **kwargs: Any) -> FB:  # type: ignore[misc]
         '''
         Overrides DataFrame.astype(). Necessary only for pandas >= 1.5.0.
         With this update, DataFrame.astype() calls the constructor method
