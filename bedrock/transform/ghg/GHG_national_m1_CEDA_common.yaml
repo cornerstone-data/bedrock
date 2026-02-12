@@ -304,19 +304,28 @@ source_names:
 #            - Synthetic Fertilizer Cropland  # same as flowsa
 #        attribution_method: direct
 
+      # flowsa uses direct attribution, ceda proportionally attributes
       cropland:
         selection_fields:
           PrimaryActivity:
-            - Mineralization and Asymbiotic Fixation Cropland  # same as flowsa
-            - Drained Organic Soils Cropland  # same as flowsa
-        attribution_method: direct
+            - Mineralization and Asymbiotic Fixation Cropland
+            - Drained Organic Soils Cropland
+        attribution_method: proportional
+        attribution_source:
+          USDA_CoA_Cropland_CEDA:
+            year: 2018
+            attribution_method: equal
 
-      # todo: update this chunk of code. ceda's base number is pulled from hardcoded 2018 COA data and allocated using T 5_18
-#      pasture: &pasture
-#        selection_fields:
-#          PrimaryActivity:
-#            - All activities Grassland  # todo: check activity name, as it is "Grassland" in ceda code
-#        attribution_method: equal
+      # note different than flowsa - flows directly attributes, while ceda uses hard coded 2018 coa data
+      pasture: &pasture
+        selection_fields:
+          PrimaryActivity:
+            - All activities Grassland
+        attribution_method: proportional
+        attribution_source:
+          USDA_CoA_Livestock_CEDA:
+            year: 2018
+            attribution_method: equal
 
 
   EPA_GHGI_T_5_19: #Indirect N2O emissions from agricultural soils
@@ -716,12 +725,12 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-        - Acrylonitrile
-        - Carbon Black
-        - Ethylene
-        - Ethylene Dichloride
-        - Ethylene Oxide
-        - Methanol
+        - Acrylonitrile  # same as flowsa
+        - Carbon Black  # same as flowsa
+        - Ethylene  # same as flowsa
+#        - Ethylene Dichloride  # only in flowsa
+        - Ethylene Oxide  # same as flowsa
+        - Methanol  # same as flowsa
     attribution_method: direct
 
   GHGI_nonenergy_fossil_fuel_emissions: # Fossil fuel for non-energy uses
@@ -731,30 +740,30 @@ source_names:
       coal:
         selection_fields:
           PrimaryActivity:
-            - Industry Industrial Coking Coal
-            - Industry Industrial Other Coal
+            - Industry Industrial Coking Coal  # same as flowsa
+            - Industry Industrial Other Coal  # same as flowsa
         attribution_method: direct
 
       petroleum_neu: # consumed petroleum products
         selection_fields:
           PrimaryActivity:
-            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
-            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
-            Industry LPG: Industry Petroleum Products Non-energy
-            Industry Lubricants: Industry Petroleum Products Non-energy
-            Industry Miscellaneous Products: Industry Petroleum Products Non-energy
-            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
-            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
-            Industry Pentanes Plus: Industry Petroleum Products Non-energy
-            Industry Petroleum Coke: Industry Petroleum Products Non-energy
-            Industry Special Naphtha: Industry Petroleum Products Non-energy
-            Industry Still Gas: Industry Petroleum Products Non-energy
-            Industry Waxes: Industry Petroleum Products Non-energy
-            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
-            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
+            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy  # same as flowsa
+            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy  # same as flowsa
+#            Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
+            Industry Lubricants: Industry Petroleum Products Non-energy  # same as flowsa
+            Industry Miscellaneous Products: Industry Petroleum Products Non-energy  # same as flowsa
+            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy  # same as flowsa
+            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy  # same as flowsa
+#            Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
+            Industry Petroleum Coke: Industry Petroleum Products Non-energy  # same as flowsa
+            Industry Special Naphtha: Industry Petroleum Products Non-energy  # same as flowsa
+            Industry Still Gas: Industry Petroleum Products Non-energy  # same as flowsa
+            Industry Waxes: Industry Petroleum Products Non-energy  # same as flowsa
+            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants  # same as flowsa
+            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants  # same as flowsa
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:
+          EIA_MECS_Energy:  # todo update to ceda table 2-1
             <<: *mecs_energy
             selection_fields:
               Class: Other
@@ -769,6 +778,7 @@ source_names:
             #     selection_fields:
             #       ActivityProducedBy: {'324110': ''} # purchases of refineries
 
+      # todo: update to proportionally attribute using mecs 2-1 and bea - although is allocating by bea necessary for fbs?
       natural_gas_neu: # consumed nat gas to chemical plants
         selection_fields:
           PrimaryActivity: Industry Natural Gas to Chemical Plants
@@ -788,7 +798,7 @@ source_names:
 
       transportation_lubricants:
         selection_fields:
-          PrimaryActivity: Transportation Lubricants
+          PrimaryActivity: Transportation Lubricants  # todo: determine if this is the same as ("Transportation", "TOTAL") in ceda
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_SUT:
@@ -853,15 +863,15 @@ source_names:
       households:
         selection_fields:
           PrimaryActivity:
-            - Domestic Refrigeration
-            - Residential Stationary Air Conditioning
+            - Domestic Refrigeration  # same as flowsa
+            - Residential Stationary Air Conditioning  # same as flowsa
         attribution_method: direct
 
       refrigerants:
         selection_fields:
           PrimaryActivity:
-            - Commercial Refrigeration
-            - Industrial Process Refrigeration
+            - Commercial Refrigeration  # todo: check on terminology, ceda uses "refrigeration/air conditionaing"
+            - Industrial Process Refrigeration  # todo: check on terminology, ceda uses "refrigeration/air conditionaing"
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_SUT:
@@ -872,7 +882,7 @@ source_names:
       air_conditioning:
         selection_fields:
           PrimaryActivity:
-            - Commercial Stationary Air Conditioning
+            - Commercial Stationary Air Conditioning  # todo: check on terminology, ceda uses "refrigeration/air conditionaing"
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_SUT:
@@ -880,19 +890,18 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
-      # TODO: look into foams further, as ceda also uses Table 4_122 for allocation before allocating with BEA
       foams:
         selection_fields:
           PrimaryActivity:
             - Foams
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_SUT:  # TODO: replace with CEDA table
+          BEA_Detail_Use_SUT:  # TODO: replace with CEDA make table
             <<: *bea
             selection_fields:
               ActivityProducedBy:
-                '326140': '' # Polystyrene foam
-                '326150': '' # Urethane and other foam
+                '326140': '' # Polystyrene foam  - same as flowsa
+                '326150': '' # Urethane and other foam  - same as flowsa
 
 
   EPA_GHGI_T_A_90: # HFCs from Transportation
@@ -905,15 +914,15 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-        Mobile AC - Passenger Cars: Passenger Cars - Households
-        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households
-        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles
-        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses
-        # Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses #excluded
-        Comfort Cooling for Trains and Buses - Rail: Rail
-        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks
-        Refrigerated Transport - Rail: Rail
-        Refrigerated Transport - Ships and Boats: Ships and Boats
+#        Mobile AC - Passenger Cars: Passenger Cars - Households  # only in flowsa, note in ceda to consider
+#        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households  # only in flowsa, note in ceda to consider
+        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles  # same as flowsa
+        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses  # same as flowsa
+        # Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses #excluded in flowsa too # only in flowsa
+#        Comfort Cooling for Trains and Buses - Rail: Rail  # only in flowsa
+        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks  # same as flowsa
+        Refrigerated Transport - Rail: Rail  # same as flowsa
+        Refrigerated Transport - Ships and Boats: Ships and Boats  # same as flowsa
     attribution_method: direct
 
 
