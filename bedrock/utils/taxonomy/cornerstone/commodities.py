@@ -1,4 +1,4 @@
-COMMODITIES = {
+REF_COMMODITIES = {
     # order matters
     '1111A0': 'Fresh soybeans, canola, flaxseeds, and other oilseeds',
     '1111B0': 'Fresh wheat, corn, rice, and other grains',
@@ -405,4 +405,9 @@ COMMODITIES = {
     'GSLGO': 'State and local government other services',
     'S00203': 'Other state and local government enterprises',
     'S00402': 'Used and secondhand goods',
+}
+
+
+WASTE_DISAGG_COMMODITIES = {
+    '562000': ['562111', '562HAZ', '562212', '562213', '562910', '562920', '562OTH']
 }
