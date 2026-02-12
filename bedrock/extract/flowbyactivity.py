@@ -935,5 +935,5 @@ def getFlowByActivity(
         fba = fba.query('Class == @flowclass')
     # if geographic level specified, only load rows in geo level
     if geographic_level is not None:
-        fba = filter_by_geoscale(fba, geographic_level)
+        fba = filter_by_geoscale(fba, geographic_level)  # type: ignore[assignment]
     return pd.DataFrame(fba.reset_index(drop=True))

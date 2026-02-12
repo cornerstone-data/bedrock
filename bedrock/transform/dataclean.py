@@ -5,6 +5,8 @@
 Common functions to clean and harmonize dataframes
 """
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -13,7 +15,11 @@ from bedrock.utils.config.settings import mappingpath
 from bedrock.utils.logging.flowsa_log import log
 
 
-def clean_df(df, flowbyfields, drop_description=True):
+def clean_df(
+    df: pd.DataFrame,
+    flowbyfields: Any,
+    drop_description: bool = True,
+) -> pd.DataFrame:
     """
     Modify a dataframe to ensure all columns are present and column
     datatypes correct
@@ -37,7 +43,10 @@ def clean_df(df, flowbyfields, drop_description=True):
     return df
 
 
-def add_missing_flow_by_fields(flowby_partial_df, flowbyfields):
+def add_missing_flow_by_fields(
+    flowby_partial_df: pd.DataFrame,
+    flowbyfields: Any,
+) -> pd.DataFrame:
     """
     Add in missing fields to have a complete and ordered df
     :param flowby_partial_df: Either flowbyactivity or flowbysector df
@@ -77,7 +86,7 @@ def add_missing_flow_by_fields(flowby_partial_df, flowbyfields):
     return flowby_df
 
 
-def standardize_units(df):
+def standardize_units(df: pd.DataFrame) -> pd.DataFrame:
     """
     Convert unit to standard using csv
     Timeframe is over one year
