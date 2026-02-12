@@ -10,6 +10,7 @@ from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
+from bedrock.utils.config.settings import FBS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -48,3 +49,28 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
     )
 
     return E_usa
+
+
+def derive_E_usa_long() -> pd.DataFrame:
+    """
+    Return a long-form DataFrame of ghg emissions data allocated to BEA sectors
+    """
+
+    df = derive_E_usa_emissions_sources()
+
+    # melt
+    dfm = df.stack().reset_index()
+    dfm.columns = ["emissions_source", "BEA", "FlowAmount"]
+
+    # add column of the ghg emission type
+    dfm["Flowable"] = dfm["emissions_source"].map(lambda es: EmissionsSource(es).gas)
+
+    # clean up df
+    dfm = dfm[["Flowable", "BEA", "emissions_source", "FlowAmount"]]
+    dfm = dfm[dfm["FlowAmount"] != 0].reset_index(drop=True)
+
+    # save to FlowBySector output directory
+    dfm.to_parquet(FBS_DIR / "E_usa.parquet", index=False)
+
+    return dfm
+
