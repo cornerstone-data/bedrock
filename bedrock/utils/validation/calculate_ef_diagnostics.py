@@ -15,6 +15,7 @@ from bedrock.utils.validation.diagnostics_helpers import (
     calculate_summary_stats_for_ef_diff_dataframe,
     construct_ef_diff_dataframe,
 )
+from bedrock.utils.validation.significant_sectors import SIGNIFICANT_SECTORS
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,17 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
     logger.info(
         f"[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s"
+    )
+
+    # Compare D and N for significant sectors
+    significant_sectors = [sector["sector"] for sector in SIGNIFICANT_SECTORS]
+    significant_sectors_comparison = D_comparison.loc[significant_sectors].join(
+        N_comparison.loc[significant_sectors].drop(columns=["sector_name"])
+    )
+    update_sheet_tab(
+        sheet_id,
+        "D_and_N_significant_sectors",
+        significant_sectors_comparison.reset_index(),
     )
 
     # Summary statistics
