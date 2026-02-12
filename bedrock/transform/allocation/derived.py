@@ -7,10 +7,10 @@ import pandas as pd
 
 from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
+from bedrock.utils.config.settings import FBS_DIR
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
-from bedrock.utils.config.settings import FBS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -73,4 +73,3 @@ def derive_E_usa_long() -> pd.DataFrame:
     dfm.to_parquet(FBS_DIR / "E_usa.parquet", index=False)
 
     return dfm
-

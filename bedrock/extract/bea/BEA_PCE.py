@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 from requests import Response
 
+from bedrock.extract.allocation.bea import GCS_BEA_PCE_DIR, IN_DIR
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
-from bedrock.utils.mapping.location import get_state_FIPS
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.extract.allocation.bea import GCS_BEA_PCE_DIR,IN_DIR
+from bedrock.utils.mapping.location import get_state_FIPS
 
 
 def bea_pce_url_helper(
@@ -101,7 +101,6 @@ def bea_pce_parse(*, df_list: list[pd.DataFrame], year: int, **_: Any) -> pd.Dat
     return df
 
 
-
 def bea_pce_ceda_parse(*, df_list, year, **_):
     """
     Latest BEA Personal Consumption Expenditure by Major Type of Product from
@@ -126,11 +125,11 @@ def bea_pce_ceda_parse(*, df_list, year, **_):
     df = tbl[[year]]
     df = df.rename(columns={'2023': 'Year'})
     df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
-    df = (df
-          .assign(Location='00000')
-          .assign(FlowName='Personal consumption expenditures')
-          .assign(Unit='Dollars / p')
-          )
+    df = (
+        df.assign(Location='00000')
+        .assign(FlowName='Personal consumption expenditures')
+        .assign(Unit='Dollars / p')
+    )
 
     # add location system based on year of data
     df = assign_fips_location_system(df, year)

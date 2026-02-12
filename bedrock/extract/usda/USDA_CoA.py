@@ -10,7 +10,7 @@ Livestock data, and Cropland data in NAICS format
 import json
 import os
 import posixpath
-from typing import Any, List
+from typing import Any, Dict, List
 from urllib.parse import parse_qs, urlparse
 
 import numpy as np
@@ -472,39 +472,49 @@ def coa_cropland_NAICS_parse(
 
     return df
 
-def usda_coa_cropland_ceda_parse(*, df_list, year, **_):
+
+def usda_coa_cropland_ceda_parse(
+    *, df_list: List[pd.DataFrame], year: int, **_: Dict[str, Any]
+) -> pd.DataFrame:
     """
     Hardcoded 2018 data
     """
-    df = pd.DataFrame({
-        "ActivityConsumedBy": ["1111A0", "1111B0", "111200", "111300", "111900"],
-        "FlowAmount": [86552100, 151633000, 5252810, 4770430, 102512817],
-        "Year": year,
-        "Location": '00000',
-        "FlowName": 'USDA_CoA_Cropland_CEDA',
-        "Unit": "ACRES",
-        "Class": "Land",
-    })
+    df = pd.DataFrame(
+        {
+            "ActivityConsumedBy": ["1111A0", "1111B0", "111200", "111300", "111900"],
+            "FlowAmount": [86552100, 151633000, 5252810, 4770430, 102512817],
+            "Year": year,
+            "Location": '00000',
+            "FlowName": 'USDA_CoA_Cropland_CEDA',
+            "Unit": "ACRES",
+            "Class": "Land",
+        }
+    )
 
     return df
 
 
-def usda_coa_livestock_ceda_parse(*, df_list, year, **_):
+def usda_coa_livestock_ceda_parse(
+    *, df_list: List[pd.DataFrame], year: int, **_: Dict[str, Any]
+) -> pd.DataFrame:
     """
     Hardcoded 2018 data
     """
 
-    df = pd.DataFrame({
-        "ActivityConsumedBy": ["112120", "1121A0", "112300", "112A00"],
-        "FlowAmount": [17398455, 376699018, 5916544, 78659536],
-        "Year": year,
-        "Location": '00000',
-        "FlowName": 'USDA_CoA_Livestock_CEDA',
-        "Unit": "ACRES",
-        "Class": "Land",
-    })
+    df = pd.DataFrame(
+        {
+            "ActivityConsumedBy": ["112120", "1121A0", "112300", "112A00"],
+            "FlowAmount": [17398455, 376699018, 5916544, 78659536],
+            "Year": year,
+            "Location": '00000',
+            "FlowName": 'USDA_CoA_Livestock_CEDA',
+            "Unit": "ACRES",
+            "Class": "Land",
+        }
+    )
 
     return df
+
 
 def coa_common_parse(df: pd.DataFrame) -> pd.DataFrame:
 
