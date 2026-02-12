@@ -8,6 +8,7 @@ import pandas as pd
 from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import getFlowBySector
+from bedrock.utils.config.settings import FBS_DIR
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.mapping.sectormapping import map_to_BEA_sectors
@@ -127,6 +128,30 @@ def load_E_from_flowsa() -> pd.DataFrame:
     return E_usa
 
 
+def derive_E_usa_long() -> pd.DataFrame:
+    """
+    Return a long-form DataFrame of ghg emissions data allocated to BEA sectors
+    """
+
+    df = derive_E_usa_emissions_sources()
+
+    # melt
+    dfm = df.stack().reset_index()
+    dfm.columns = ["emissions_source", "BEA", "FlowAmount"]
+
+    # add column of the ghg emission type
+    dfm["Flowable"] = dfm["emissions_source"].map(lambda es: EmissionsSource(es).gas)
+
+    # clean up df
+    dfm = dfm[["Flowable", "BEA", "emissions_source", "FlowAmount"]]
+    dfm = dfm[dfm["FlowAmount"] != 0].reset_index(drop=True)
+
+    # save to FlowBySector output directory
+    dfm.to_parquet(FBS_DIR / "E_usa.parquet", index=False)
+
+    return dfm
+
+  
 if __name__ == "__main__":
     df1 = load_E_from_flowsa()
     df2 = derive_E_usa()

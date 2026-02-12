@@ -1,0 +1,12 @@
+author: ''
+source_name: ''
+source_url: ''
+source_publication_date: ''
+bib_id: ''
+api_name: None
+api_key_required: false
+format: csv
+url: None
+parse_response_fxn: !script_function:BEA_PCE bea_pce_ceda_parse
+years:
+  - 2023
