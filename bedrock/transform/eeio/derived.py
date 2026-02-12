@@ -15,7 +15,7 @@ from bedrock.extract.iot.io_2012 import (
     load_2012_YR_usa,
 )
 from bedrock.extract.iot.io_2017 import load_summary_Uimp_usa
-from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.allocation.derived import derive_E_usa, load_E_from_flowsa
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
     derive_2017_g_usa,
@@ -80,7 +80,11 @@ logger = logging.getLogger(__name__)
 @functools.cache
 @pa.check_output(BMatrix.to_schema())
 def derive_B_usa_non_finetuned() -> pt.DataFrame[BMatrix]:
-    E_usa = derive_E_usa()
+    flowsa = True  # TODO: temporary toggle
+    if flowsa:
+        E_usa = load_E_from_flowsa()
+    else:
+        E_usa = derive_E_usa()
     # B_usa_2017 has 2022 emissions but 2017 economic data
     b_usa_2017 = derive_B_usa_via_vnorm(E_usa=E_usa)
     # Scale the economic data part of B_usa_2017 to 2022
