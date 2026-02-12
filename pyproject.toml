@@ -139,18 +139,6 @@ exclude = [
     'bedrock/extract/unep/',
     'bedrock/extract/usgs/',
     'bedrock/extract/epa/',  # TODO: re-enable after fixing type errors (triggered by transform annotations)
-    'bedrock/transform/crhw/',
-    'bedrock/transform/rei/',
-    'bedrock/transform/food_waste/',
-    'bedrock/transform/water/',
-    'bedrock/transform/cnhw/',
-    'bedrock/transform/energy/',
-    'bedrock/transform/cap_hap/',
-    'bedrock/transform/employment/',
-    'bedrock/transform/grdrel/',
-    'bedrock/transform/detail/',
-    'bedrock/transform/tri_dmr/',
-    'bedrock/transform/raw_material_extraction/',
 ]
 
 [[tool.mypy.overrides]]
