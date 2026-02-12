@@ -101,7 +101,7 @@ def bea_pce_parse(*, df_list: list[pd.DataFrame], year: int, **_: Any) -> pd.Dat
     return df
 
 
-def bea_pce_ceda_parse(*, df_list, year, **_):
+def bea_pce_ceda_parse(*, year: int, **_) -> pd.DataFrame:
     """
     Latest BEA Personal Consumption Expenditure by Major Type of Product from
     https://apps.bea.gov/iTable/?reqid=19&step=2&isuri=1&categories=survey&_gl=1*1mu0824*_ga*MTkyNDEyMDE5LjE3MTA0NjE1MjE.*_ga_J4698JNNFT*MTcxMDQ2MTUyMC4xLjEuMTcxMDQ2MjIyNS4xNC4wLjA.#eyJhcHBpZCI6MTksInN0ZXBzIjpbMSwyLDMsM10sImRhdGEiOltbImNhdGVnb3JpZXMiLCJTdXJ2ZXkiXSxbIk5JUEFfVGFibGVfTGlzdCIsIjY1Il0sWyJGaXJzdF9ZZWFyIiwiMjAxMiJdLFsiTGFzdF9ZZWFyIiwiMjAyMyJdLFsiU2NhbGUiLCItNiJdLFsiU2VyaWVzIiwiQSJdXX0=
