@@ -473,9 +473,7 @@ def coa_cropland_NAICS_parse(
     return df
 
 
-def usda_coa_cropland_ceda_parse(
-    *, year: int, **_: Dict[str, Any]
-) -> pd.DataFrame:
+def usda_coa_cropland_ceda_parse(*, year: int, **_: Dict[str, Any]) -> pd.DataFrame:
     """
     Hardcoded 2018 data
     """
@@ -494,9 +492,7 @@ def usda_coa_cropland_ceda_parse(
     return df
 
 
-def usda_coa_livestock_ceda_parse(
-    *, year: int, **_: Dict[str, Any]
-) -> pd.DataFrame:
+def usda_coa_livestock_ceda_parse(*, year: int, **_: Dict[str, Any]) -> pd.DataFrame:
     """
     Hardcoded 2018 data
     """
