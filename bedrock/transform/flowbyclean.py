@@ -3,24 +3,30 @@
 # to circular reasoning
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.transform.flowby import FB, get_flowby_from_config
+from bedrock.transform.flowby import FB, _FlowBy, get_flowby_from_config
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.common import get_catalog_info
 from bedrock.utils.logging.flowsa_log import log
-from bedrock.utils.mapping import geo
+from bedrock.utils.mapping.geo import (  # type: ignore[attr-defined]
+    filtered_fips as geo_filtered_fips,
+)
 from bedrock.utils.mapping.location import US_FIPS
-from bedrock.utils.mapping.naics import map_source_sectors_to_more_aggregated_sectors
+from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]
+    map_source_sectors_to_more_aggregated_sectors,
+)
 from bedrock.utils.validation.validation import (
     compare_summation_at_sector_lengths_between_two_dfs,
 )
 
 
-def return_primary_flow_column(self: FB, flowtype='FBA') -> FB:
+def return_primary_flow_column(self: FB, flowtype: str = 'FBA') -> str:
     """
     Determine activitiy column with values
     :param self: fbs df with two sector columns
@@ -63,13 +69,15 @@ def load_prepare_clean_source(self: 'FB', download_sources_ok: bool = True) -> '
             **config,
         },
         download_sources_ok=download_sources_ok,
-    ).prepare_fbs(download_sources_ok=download_sources_ok)
+    ).prepare_fbs(  # type: ignore[operator]
+        download_sources_ok=download_sources_ok
+    )
     return clean_fbs.reset_index(drop=True)
 
 
 def weighted_average(
-    fba: 'FlowByActivity', download_sources_ok: bool = True, **_kwargs
-) -> 'FlowByActivity':
+    fba: FlowByActivity, download_sources_ok: bool = True, **_kwargs: Any
+) -> FlowByActivity:
     """
     This method determines weighted average
     """
@@ -79,7 +87,7 @@ def weighted_average(
 
     log.info('Taking weighted average of %s by %s.', fba.full_name, other.full_name)
 
-    fba_geoscale, other_geoscale, fba, other = fba.harmonize_geoscale(other)
+    fba_geoscale, other_geoscale, fba, other = fba.harmonize_geoscale(other)  # type: ignore[assignment, arg-type]
 
     # merge dfs
     merged = fba.merge(
@@ -99,7 +107,9 @@ def weighted_average(
     # drop rows where flow is 0
     merged = merged[merged['FlowAmount'] != 0]
     # replace terms
-    for original, replacement in fba.config.get('replacement_dictionary').items():
+    for original, replacement in (
+        fba.config.get('replacement_dictionary') or {}
+    ).items():
         with pd.option_context('future.no_silent_downcasting', True):
             merged = merged.replace({original: replacement}).infer_objects(copy=False)
 
@@ -153,8 +163,8 @@ def weighted_average(
 
 
 def substitute_nonexistent_values(
-    fb: 'FB', download_sources_ok: bool = True, **_kwargs
-) -> 'FB':
+    fb: FB, download_sources_ok: bool = True, **_kwargs: Any
+) -> _FlowBy:
     """
     Fill missing values with data from another geoscale
     """
@@ -168,7 +178,7 @@ def substitute_nonexistent_values(
 
     # merge all possible national data with each state
     state_geo = pd.concat(
-        [geo.filtered_fips(fb.config['geoscale'])[['FIPS']].assign(Location=US_FIPS)]
+        [geo_filtered_fips(fb.config['geoscale'])[['FIPS']].assign(Location=US_FIPS)]
     ).reset_index(drop=True)
 
     other = (
@@ -185,9 +195,9 @@ def substitute_nonexistent_values(
         suffixes=(None, '_y'),
     ).fillna({'FlowAmount': 0})
     # fill in missing data
-    new_col_data = [col for col in merged if col.endswith('_y')]
+    new_col_data = [col for col in merged.columns if str(col).endswith('_y')]
     for c in new_col_data:
-        original_col = c.replace('_y', '')
+        original_col = str(c).replace('_y', '')
         if merged[original_col].dtype != 'string':
             merged[original_col] = np.where(
                 merged[original_col] == 0, merged[c], merged[original_col]
@@ -219,7 +229,7 @@ def estimate_suppressed_sectors_equal_attribution(
     :param fba:
     :return:
     """
-    from bedrock.utils.mapping.naics import (  # noqa: PLC0415
+    from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]  # noqa: PLC0415
         map_source_sectors_to_less_aggregated_sectors,
     )
 
@@ -333,7 +343,7 @@ def estimate_suppressed_sectors_equal_attribution(
         verify_integrity=True,
     )
 
-    def fill_suppressed(flows, level: int, activity):
+    def fill_suppressed(flows: pd.DataFrame, level: int, activity: str) -> pd.DataFrame:
         parent = flows[flows[activity].str.len() == level]
         children = flows[flows[activity].str.len() == level + 1]
         null_children = children[children['flow_suppressed']]
@@ -366,7 +376,7 @@ def estimate_suppressed_sectors_equal_attribution(
             'location',
             'category',
         ]
-        unsuppressed = unsuppressed.groupby(level=groupcols).apply(
+        unsuppressed = unsuppressed.groupby(level=groupcols).apply(  # type: ignore[assignment]
             fill_suppressed, level, col
         )
     unsuppressed['Year'] = unsuppressed['Year'].astype('int')
@@ -386,7 +396,7 @@ def estimate_suppressed_sectors_equal_attribution(
     return aggregated
 
 
-def attribute_national_to_states(fba: FlowByActivity, **_) -> FlowByActivity:
+def attribute_national_to_states(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """
     Propogates national data to all states to enable for use in state methods.
     Allocates sectors across states based on employment.
@@ -411,7 +421,7 @@ def attribute_national_to_states(fba: FlowByActivity, **_) -> FlowByActivity:
     hlp = hlp.assign(Location_merge='00000')
 
     # todo: generalize so works for data sources other than employment FBS
-    fba = pd.merge(
+    fba = pd.merge(  # type: ignore[assignment]
         fba.rename(columns={'Location': 'Location_merge'}),
         (
             hlp[
@@ -441,8 +451,8 @@ def attribute_national_to_states(fba: FlowByActivity, **_) -> FlowByActivity:
 
 
 def calculate_flow_per_person(
-    fbs: 'FlowBySector', download_sources_ok: bool = True, **_
-) -> 'FlowBySector':
+    fbs: FlowBySector, download_sources_ok: bool = True, **_: Any
+) -> FlowBySector:
     """
     Calculates FlowAmount per person (or other metric) per year based on
     dataset name passed in "clean_parameter"
@@ -481,7 +491,7 @@ def calculate_flow_per_person(
 
 
 def define_parentincompletechild_descendants(
-    fba: FlowByActivity, activity_col='ActivityConsumedBy', **_
+    fba: FlowByActivity, activity_col: str = 'ActivityConsumedBy', **_: Any
 ) -> FlowByActivity:
     '''
     This function helps address the unique structure of the EIA MECS dataset.
@@ -590,7 +600,7 @@ def define_parentincompletechild_descendants(
 
 
 def drop_parentincompletechild_descendants(
-    fba: FlowByActivity, sector_col='SectorConsumedBy', **_
+    fba: FlowByActivity, sector_col: str = 'SectorConsumedBy', **_: Any
 ) -> FlowByActivity:
     '''
     This function finishes handling the over-attribution issue described in
@@ -623,7 +633,7 @@ def drop_parentincompletechild_descendants(
 
 
 @deprecated("No known use")
-def proxy_sector_data(fba: 'FlowByActivity', **_kwargs) -> 'FlowByActivity':
+def proxy_sector_data(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     """
     Use a dictionary to use data for one sector as proxy data for a second
     sector.
