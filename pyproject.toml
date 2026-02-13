@@ -138,7 +138,6 @@ exclude = [
     'bedrock/extract/stewifbs/',
     'bedrock/extract/unep/',
     'bedrock/extract/usgs/',
-    'bedrock/extract/epa/',  # TODO: re-enable after fixing type errors (triggered by transform annotations)
 ]
 
 [[tool.mypy.overrides]]
