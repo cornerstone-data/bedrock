@@ -733,13 +733,8 @@ def ghg_parse(
                         df = df.drop(index)
                     else:
                         if apbe_value == 'N2O':
-                            df.loc[index, 'ActivityProducedBy'] = re.findall(  # type: ignore[index]
-                                r'\(.*?\)', apb_value
-                            )[
-                                0
-                            ][
-                                1:-1
-                            ]
+                            match = re.findall(r'\(.*?\)', apb_value)[0][1:-1]
+                            df.loc[index, 'ActivityProducedBy'] = match  # type: ignore[index]
                             df.loc[index, 'FlowName'] = 'N2O'  # type: ignore[index]
                         else:
                             df.loc[index, 'ActivityProducedBy'] = apbe_value  # type: ignore[index]
