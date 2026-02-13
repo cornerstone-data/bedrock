@@ -7,7 +7,7 @@ data directory. Parses EPA SIT data to flowbyactivity format.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -24,23 +24,26 @@ from bedrock.utils.mapping.location import apply_county_FIPS
 
 
 def epa_sit_parse(
-    *, source: str, year: str, config: dict[str, Any], **_: Any  # noqa: ARG001
+    *,
+    source: str,
+    year: str,  # noqa: ARG001
+    config: dict[str, Any],
+    **_: Any,  # noqa: ARG001
 ) -> pd.DataFrame:
-
     # initialize the dataframe
     df0 = pd.DataFrame()
 
     # for each state listed in the method file...
     for state, state_dict in config['state_list'].items():
-        if not Path.is_dir(externaldatapath / f"SIT_data/{state}/"):
-            log.warning(f"Skipping {state}, data not found")
+        if not Path.is_dir(externaldatapath / f'SIT_data/{state}/'):
+            log.warning(f'Skipping {state}, data not found')
             continue
         log.info(f'Parsing data for {state}...')
         schema_dict = config['files'].get(state_dict['schema'], {})
         # for each Excel data file listed in the .yaml...
         for file, file_dict in schema_dict['workbooks'].items():
             log.info(f'Loading data from {file}...')
-            filepath = externaldatapath / f"SIT_data/{state}/{file}"
+            filepath = externaldatapath / f'SIT_data/{state}/{file}'
             # dictionary containing Excel sheet-specific information
 
             if not Path.exists(filepath):
@@ -66,7 +69,7 @@ def epa_sit_parse(
                         sheet_dict.get('skiprowstart', 0),
                         sheet_dict.get('skiprowend', 0),
                     ),
-                    usecols="B:AG",
+                    usecols='B:AG',
                     nrows=sheet_dict.get('nrows'),
                 )
                 df.columns = df.columns.map(str)
@@ -104,8 +107,7 @@ def epa_sit_parse(
                             )
                         else:
                             df.loc[ind, 'ActivityProducedBy'] = (
-                                f'{sheetandtable}, {active_header}, '
-                                f'{active_subheader}'
+                                f'{sheetandtable}, {active_header}, {active_subheader}'
                             )
                     # for level 3 headers (only occur in IndirectCO2 and Agriculture tabs)...
                     else:
@@ -141,7 +143,7 @@ def epa_sit_parse(
     # add general hardcoded data
     df0['Class'] = 'Chemicals'
     df0['SourceName'] = source
-    df0['FlowType'] = "ELEMENTARY_FLOW"
+    df0['FlowType'] = 'ELEMENTARY_FLOW'
     df0['Compartment'] = 'air'
     df0['DataReliability'] = 5
     df0['DataCollection'] = 5
@@ -177,7 +179,9 @@ def disaggregate_emissions(fba: FlowByActivity, **_: Any) -> FlowByActivity:
             # name of table to be used for proportional split
             table_name = activity_properties.get('disaggregation_data_source')
             # load percentages to be used for proportional split
-            splits = load_fba_w_standardized_units(datasource=table_name, year=year)
+            splits = load_fba_w_standardized_units(
+                datasource=cast(str, table_name), year=cast(int, year)
+            )
             drop_rows = activity_properties.get('drop_rows')
             # there are certain circumstances where one or more rows need to be
             # excluded from the table
@@ -252,7 +256,6 @@ def clean_up_state_data(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     # (these data will later be replaced with custom data in the 'StateGHGI'
     # stage)
     if 'VT' in state_list:  # and ('StateGHGI_VT' in method['source_names'].keys())
-
         df_subset = VT_remove_dupicate_activities(df_subset)
 
     return df_subset
