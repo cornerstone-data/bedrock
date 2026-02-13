@@ -60,23 +60,23 @@ def add_missing_flow_by_fields(
             if response and col not in flowby_partial_df.columns:
                 flowby_partial_df[col] = np.nan
     # convert all None, 'nan' to np.nan
-    obj_cols = flowby_partial_df.select_dtypes(include=['object', 'string']).columns
-    flowby_partial_df[obj_cols] = flowby_partial_df[obj_cols].mask(
-        flowby_partial_df[obj_cols].isin(['None', 'nan'])
-    )
+    with pd.option_context('future.no_silent_downcasting', True):
+        flowby_partial_df = flowby_partial_df.replace(
+            {'None': np.nan, 'nan': np.nan}
+        ).infer_objects(copy=False)
     # convert data types to match those defined in flow_by_activity_fields
-    for k, v in flowbyfields.items():
-        if k in flowby_partial_df.columns:
-            flowby_partial_df[k] = flowby_partial_df[k].astype(v[0]['dtype'])
-            if v[0]['dtype'] in ['string', 'str', 'object']:
-                s = flowby_partial_df[k].astype(pd.StringDtype())
-                # optional normalization if those sentinel strings can appear:
-                s = s.mask(s.isin(['None', 'nan']))
-                flowby_partial_df[k] = s
-            else:
-                flowby_partial_df[k] = (
-                    flowby_partial_df[k].fillna(0).infer_objects(copy=False)
-                )
+    with pd.option_context('future.no_silent_downcasting', True):
+        for k, v in flowbyfields.items():
+            if k in flowby_partial_df.columns:
+                flowby_partial_df[k] = flowby_partial_df[k].astype(v[0]['dtype'])
+                if v[0]['dtype'] in ['string', 'str', 'object']:
+                    flowby_partial_df[k] = (
+                        flowby_partial_df[k].fillna(np.nan).infer_objects(copy=False)
+                    )
+                else:
+                    flowby_partial_df[k] = (
+                        flowby_partial_df[k].fillna(0).infer_objects(copy=False)
+                    )
     # convert all None, 'nan' to np.nan
     with pd.option_context('future.no_silent_downcasting', True):
         flowby_partial_df = flowby_partial_df.replace(
