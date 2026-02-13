@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import typing as ta
 
 import numpy as np
@@ -14,6 +15,7 @@ from bedrock.utils.validation.diagnostics_helpers import (
     calculate_summary_stats_for_ef_diff_dataframe,
     construct_ef_diff_dataframe,
 )
+from bedrock.utils.validation.significant_sectors import SIGNIFICANT_SECTORS
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +28,15 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
 
     - N_and_diffs: Total EFs new vs old, with absolute and percent diffs.
     - D_and_diffs: Direct EFs new vs old.
+    - D_and_N_significant_sectors: Combined D and N comparisons for significant sectors.
     - N_and_D_summary_stats: Summary statistics of percent diffs.
     - output_contrib_new_vs_old: Top N contributing sectors to each EF's change,
       derived from the output contribution matrix.
 
     Old EFs are inflation-adjusted to the current base year before comparison.
+
+    Args:
+        sheet_id: Google Sheets spreadsheet ID to write results to.
     """
     # Late-binding import - depends on global config
     from bedrock.transform.eeio.derived import derive_Aq_usa
@@ -40,7 +46,11 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
     from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
+    t0 = time.time()
     efs = pull_efs_for_diagnostics()
+    logger.info(
+        f"[TIMING] pull_efs_for_diagnostics completed in {time.time() - t0:.1f}s"
+    )
 
     logger.info("------ Calculating EF Diagnostics ------")
 
@@ -51,10 +61,14 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         ef_old=efs.N_old,
     )
 
+    t0 = time.time()
     update_sheet_tab(
         sheet_id,
         "N_and_diffs",
         N_comparison.reset_index(),
+    )
+    logger.info(
+        f"[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s"
     )
 
     # Compare D (direct EFs) new vs old
@@ -64,10 +78,25 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         ef_old=efs.D_old,
     )
 
+    t0 = time.time()
     update_sheet_tab(
         sheet_id,
         "D_and_diffs",
         D_comparison.reset_index(),
+    )
+    logger.info(
+        f"[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s"
+    )
+
+    # Compare D and N for significant sectors
+    significant_sectors = [sector["sector"] for sector in SIGNIFICANT_SECTORS]
+    significant_sectors_comparison = D_comparison.loc[significant_sectors].join(
+        N_comparison.loc[significant_sectors].drop(columns=["sector_name"])
+    )
+    update_sheet_tab(
+        sheet_id,
+        "D_and_N_significant_sectors",
+        significant_sectors_comparison.reset_index(),
     )
 
     # Summary statistics
@@ -83,13 +112,18 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         cols_to_summarize=["D_perc_diff"],
     )
 
+    t0 = time.time()
     update_sheet_tab(
         sheet_id,
         "N_and_D_summary_stats",
         pd.concat([N_summary, D_summary]),
     )
+    logger.info(
+        f"[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s"
+    )
 
     # Compare output contribution
+    t0 = time.time()
     Aq_set = derive_Aq_usa()
     L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
 
@@ -111,11 +145,16 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         old_val_name="old",
         new_val_name="new",
     )
+    logger.info(f"[TIMING] Output contribution computed in {time.time() - t0:.1f}s")
 
+    t0 = time.time()
     update_sheet_tab(
         sheet_id,
         "output_contrib_new_vs_old",
         OC_comparison,
+    )
+    logger.info(
+        f"[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s"
     )
 
 
@@ -145,9 +184,13 @@ def diff_and_perc_diff_two_output_contribution_matrices(
         col_values_old = matrix_old_values[:, i]
         col_values_new = matrix_new_values[:, i]
         col_values_diff = diff_df_values[:, i]
-        col_values_perc_diff = np.nan_to_num(
-            (col_values_diff / col_values_diff.sum()), nan=0.0
-        )
+        diff_sum = col_values_diff.sum()
+
+        # Handle floating point error
+        if np.abs(diff_sum) < 1e-10:
+            col_values_perc_diff = np.zeros_like(col_values_diff)
+        else:
+            col_values_perc_diff = np.nan_to_num((col_values_diff / diff_sum), nan=0.0)
 
         col_sum_old = np.nansum(col_values_old)
         col_sum_new = np.nansum(col_values_new)

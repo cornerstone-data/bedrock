@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import os
 
 import pandas as pd
@@ -67,6 +68,7 @@ IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 #         > Import Matrices/After Redefinitions
 
 
+@functools.cache
 def load_2017_V_usa() -> pd.DataFrame:
     """
     Make table, industry x commodity, after redefintion, in producer price
@@ -83,6 +85,7 @@ def load_2017_V_usa() -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_2017_Utot_usa() -> pd.DataFrame:
     """
     Use table, commodity x industry, after redefintion, in producer price
@@ -100,6 +103,7 @@ def load_2017_Utot_usa() -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_2017_Uimp_usa() -> pd.DataFrame:
     """
     Import table, commodity x industry, after redefintion, in producer price
@@ -221,6 +225,7 @@ def _load_2017_detail_supply_use_usa(
     return df
 
 
+@functools.cache
 def load_summary_V_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     """
     Make table, industry x commodity, after redefintion, in producer price
@@ -240,6 +245,7 @@ def load_summary_V_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_summary_Utot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     """
     Use table, commodity x industry, after redefintion, in producer price
@@ -260,6 +266,7 @@ def load_summary_Utot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_summary_Uimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     """
     Use table, commodity x industry, after redefintion, in producer price
@@ -280,6 +287,7 @@ def load_summary_Uimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_summary_Ytot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     """
     Final demand, commodity x final demand category, after redefintion, in producer price
@@ -302,6 +310,7 @@ def load_summary_Ytot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     return df
 
 
+@functools.cache
 def load_summary_Yimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     """
     Final demand from imports, commodity x final demand category, after redefintion, in producer price

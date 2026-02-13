@@ -1,3 +1,5 @@
+import functools
+
 import pandas as pd
 
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
@@ -60,6 +62,7 @@ USA_2017_SUMMARY_FINAL_DEMAND_INDEX = pd.Index(
 )
 
 
+@functools.cache
 def load_usa_2017_commodity__ceda_v7_correspondence() -> pd.DataFrame:
     return create_correspondence_matrix(
         load_bea_v2017_commodity_to_bea_ceda_v7(),  # type: ignore
@@ -71,6 +74,7 @@ def load_usa_2017_commodity__ceda_v7_correspondence() -> pd.DataFrame:
     ).astype(float)
 
 
+@functools.cache
 def load_usa_2017_industry__ceda_v7_correspondence() -> pd.DataFrame:
     return create_correspondence_matrix(
         traverse(
@@ -85,6 +89,7 @@ def load_usa_2017_industry__ceda_v7_correspondence() -> pd.DataFrame:
     ).astype(float)
 
 
+@functools.cache
 def load_usa_2012_industry__usa_2017_industry_correspondence() -> pd.DataFrame:
     return create_correspondence_matrix(
         load_bea_v2012_industry_to_bea_v2017_industry(),  # type: ignore
@@ -96,6 +101,7 @@ def load_usa_2012_industry__usa_2017_industry_correspondence() -> pd.DataFrame:
     ).astype(float)
 
 
+@functools.cache
 def load_usa_2012_commodity__usa_2017_commodity_correspondence() -> pd.DataFrame:
     return create_correspondence_matrix(
         load_bea_v2012_commodity_to_bea_v2017_commodity(),  # type: ignore
@@ -107,6 +113,7 @@ def load_usa_2012_commodity__usa_2017_commodity_correspondence() -> pd.DataFrame
     ).astype(float)
 
 
+@functools.cache
 def load_usa_2012_commodity__ceda_v7_correspondence() -> pd.DataFrame:
     return create_correspondence_matrix(
         traverse(load_bea_v2012_commodity_to_bea_v2017_commodity(), load_bea_v2017_commodity_to_bea_ceda_v7()),  # type: ignore
@@ -118,6 +125,7 @@ def load_usa_2012_commodity__ceda_v7_correspondence() -> pd.DataFrame:
     ).astype(float)
 
 
+@functools.cache
 def load_usa_2012_industry__ceda_v7_correspondence() -> pd.DataFrame:
     return create_correspondence_matrix(
         traverse(

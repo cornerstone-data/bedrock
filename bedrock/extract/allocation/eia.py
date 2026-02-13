@@ -1,3 +1,4 @@
+import functools
 import os
 import posixpath
 
@@ -11,6 +12,7 @@ GCS_EIA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_EnergyPrice")
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
+@functools.cache
 def load_propane_annual_avg_residential_price() -> float:
     """
     monthly price in $ per gallon from https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=M_EPLLPA_PRS_NUS_DPG&f=M
@@ -33,6 +35,7 @@ def load_propane_annual_avg_residential_price() -> float:
     return annual_avg_price
 
 
+@functools.cache
 def load_heating_oil_annual_avg_residential_price() -> float:
     """
     monthly price in $ per gallon from https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=M_EPD2F_PRS_NUS_DPG&f=M

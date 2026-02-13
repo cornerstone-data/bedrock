@@ -13,7 +13,7 @@ class USAConfig(BaseModel):
     #####
     # Model base settings
     #####
-    model_base_year: ta.Literal[2022, 2023, 2024] = 2022
+    model_base_year: ta.Literal[2022, 2023, 2024] = 2023
     bea_io_level: ta.Literal["detail", "summary"] = "detail"
     bea_io_scheme: ta.Literal[2017, 2022] = 2017  # documentation purposes
     price_type: ta.Literal["producer", "purchaser"] = "producer"
@@ -22,19 +22,32 @@ class USAConfig(BaseModel):
     #####
     # Data selection
     #####
-    usa_io_data_year: ta.Literal[2022, 2023, 2024] = 2022
-    usa_ghg_data_year: ta.Literal[2022, 2023, 2024] = 2022
+    usa_base_io_data_year: ta.Literal[2012, 2017] = (
+        2017  # BEA's benchmark year for Detail Input-Output data
+    )
+    usa_io_data_year: ta.Literal[2022, 2023, 2024] = (
+        2022  # CEDA's legacy USA IO data year
+    )
+    usa_ghg_data_year: ta.Literal[2023, 2024] = 2023
 
-    ipcc_ar_version: ta.Literal["AR5", "AR6"] = "AR5"
+    ipcc_ar_version: ta.Literal["AR5", "AR6"] = "AR6"
 
     #####
     # Methodology selection
     #####
+    ### Schema/Taxonomy selection
+    use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
     ### IO Methodology selection
-    # TODO: Add IO methodology selection
+    transform_b_matrix_with_useeio_method: bool = False  # DRI: mo.li
+    implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
+    # TODO: Add transform_a_matrix after we decide what to do
     ### GHG Methodology selection
     usa_ghg_methodology: ta.Literal["national", "state"] = "national"
-    # TODO: Add more GHG methodology selection
+    update_transportation_ghg_method: bool = False  # DRI: catherine.birney
+    attribute_electricity_ghg_to_221100: bool = False  # DRI: catherine.birney
+    use_full_ghg_for_ng_and_petro_systems: bool = False  # DRI: ben.young
+    soda_ash_ghg_from_table_2_1: bool = False  # DRI: catherine.birney
+    hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
 
     @property
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:

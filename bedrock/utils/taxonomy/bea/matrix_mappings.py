@@ -65,6 +65,7 @@ USA_SUMMARY_MUT_YEARS = ta.Literal[
     2021,
     2022,
     2023,
+    2024,
 ]
 
 USA_2017_TAX_LESS_SUBSIDIES_CODE = ta.Literal["TOP", "SUB"]

@@ -77,6 +77,7 @@ from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import CEDA_V5_TO_CEDA_V7_
 logger = logging.getLogger(__name__)
 
 
+@functools.cache
 @pa.check_output(BMatrix.to_schema())
 def derive_B_usa_non_finetuned() -> pt.DataFrame[BMatrix]:
     E_usa = derive_E_usa()
@@ -151,6 +152,7 @@ def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_r
     )
 
 
+@functools.cache
 @pa.check_output(YVectorSchema)
 def derive_y_for_national_accounting_balance_usa() -> pd.Series[float]:
     """
@@ -247,6 +249,7 @@ def derive_ydom_and_yimp_usa() -> SingleRegionYVectorSet:
     )
 
 
+@functools.cache
 def derive_Aq_usa() -> SingleRegionAqMatrixSet:
     """
     This function derives Aq_usa in `target_year` USD.

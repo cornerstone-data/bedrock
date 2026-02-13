@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
@@ -116,6 +118,7 @@ def derive_2017_Aq_usa() -> SingleRegionAqMatrixSet:
     )
 
 
+@functools.cache
 def derive_2017_U_set_usa() -> SingleRegionUMatrixSet:
     Uset_with_negatives = derive_2017_U_with_negatives()
 
@@ -131,6 +134,7 @@ def derive_2017_U_set_usa() -> SingleRegionUMatrixSet:
     )
 
 
+@functools.cache
 @pa.check_output(VMatrix.to_schema())
 def derive_2017_V_usa() -> pt.DataFrame[VMatrix]:
     V_2017 = load_2017_V_usa()
@@ -147,6 +151,7 @@ def derive_2017_V_usa() -> pt.DataFrame[VMatrix]:
     return pt.DataFrame[VMatrix](V_2017_structural_reflected)
 
 
+@functools.cache
 @pa.check_output(GVectorSchema)
 def derive_2017_g_usa() -> pd.Series[float]:
     return compute_g(V=derive_2017_V_usa())
@@ -171,6 +176,7 @@ def derive_q_from_U_usa_and_Ytot_usa() -> pd.Series[float]:
     )
 
 
+@functools.cache
 @pa.check_output(VMatrix.to_schema())
 def derive_2017_Vnorm_scrap_corrected(
     apply_inflation: bool = False, target_year: int = 0
@@ -199,6 +205,7 @@ def derive_2017_Vnorm_scrap_corrected(
     return pt.DataFrame[VMatrix](V_scrap_corrected)
 
 
+@functools.cache
 def derive_2017_U_with_negatives() -> SingleRegionUMatrixSet:
     Utot_usa = load_2017_Utot_usa()
     Uimp_usa = load_2017_Uimp_usa()
@@ -318,6 +325,7 @@ def derive_detail_VA_usa() -> pd.DataFrame:
     return VA_ceda_usa
 
 
+@functools.cache
 def derive_summary_Adom_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     Udom_norm = handle_negative_matrix_values(
         compute_Unorm_matrix(
@@ -337,6 +345,7 @@ def derive_summary_Adom_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     return A
 
 
+@functools.cache
 def derive_summary_Aimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     Uimp_norm = handle_negative_matrix_values(
         compute_Unorm_matrix(
@@ -355,6 +364,7 @@ def derive_summary_Aimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     return A
 
 
+@functools.cache
 def derive_summary_q_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.Series[float]:
     return compute_q(V=load_summary_V_usa(year))
 
@@ -410,5 +420,6 @@ def derive_summary_Yimp_usa(
     )
 
 
+@functools.cache
 def _derive_summary_g_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.Series[float]:
     return compute_g(V=load_summary_V_usa(year))

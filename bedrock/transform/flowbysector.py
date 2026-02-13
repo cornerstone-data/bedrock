@@ -9,6 +9,9 @@ defined in this file are specific to FBS data.
 # to circular reasoning
 from __future__ import annotations
 
+from functools import partial
+from typing import Any
+
 import pandas as pd
 from pandas import ExcelWriter
 
@@ -19,7 +22,12 @@ from bedrock.utils.config.common import get_catalog_info, load_crosswalk
 from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING, FBS_DIR
 from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
-from bedrock.utils.mapping import geo, naics
+from bedrock.utils.mapping.geo import (
+    scale as geo_scale,
+)
+from bedrock.utils.mapping.naics import (
+    industry_spec_key as naics_industry_spec_key,
+)
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 
 
@@ -28,11 +36,11 @@ class FlowBySector(_FlowBy):
 
     def __init__(
         self,
-        data: pd.DataFrame or '_FlowBy' = None,
-        *args,
+        data: pd.DataFrame | _FlowBy | None = None,
+        *args: Any,
         collapsed: bool = False,
         w_activity: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         if isinstance(data, pd.DataFrame):
             collapsed = collapsed or any(
@@ -59,23 +67,23 @@ class FlowBySector(_FlowBy):
         )
 
     @property
-    def _constructor(self) -> 'FlowBySector':
+    def _constructor(self) -> type[FlowBySector]:
         return FlowBySector
 
     @property
-    def _constructor_sliced(self) -> '_FBSSeries':
+    def _constructor_sliced(self) -> type[_FBSSeries]:  # type: ignore[override]
         return _FBSSeries
 
     @classmethod
     def return_FBS(
         cls,
         method: str,
-        config: dict = None,
-        external_config_path: str = None,
+        config: dict[str, Any] | None = None,
+        external_config_path: str | None = None,
         download_sources_ok: bool = settings.DEFAULT_DOWNLOAD_IF_MISSING,
         download_fbs_ok: bool = settings.DEFAULT_DOWNLOAD_IF_MISSING,
-        **kwargs,
-    ) -> 'FlowBySector':
+        **kwargs: Any,
+    ) -> FlowBySector:
         '''
         Loads stored FlowBySector output. If it is not
         available, tries to download it from EPA's remote server (if
@@ -102,14 +110,19 @@ class FlowBySector(_FlowBy):
         #     except exceptions.FlowsaMethodNotFoundError:
         #         config = {}
 
-        def flowby_generator(x=method, y=external_config_path, z=download_sources_ok):
-            return cls.generateFlowBySector(x, y, z, config=config)
+        flowby_generator = partial(
+            cls.generateFlowBySector,
+            method,
+            external_config_path,
+            download_sources_ok,
+            config=config,
+        )
 
-        return super()._getFlowBy(
+        return super()._getFlowBy(  # type: ignore[return-value]
             file_metadata=file_metadata,
             download_ok=download_fbs_ok,
             flowby_generator=flowby_generator,
-            output_path=FBS_DIR,
+            output_path=str(FBS_DIR),
             full_name=method,
             config=config,
             **kwargs,
@@ -119,12 +132,12 @@ class FlowBySector(_FlowBy):
     def generateFlowBySector(
         cls,
         method: str,
-        external_config_path: str = None,
+        external_config_path: str | None = None,
         download_sources_ok: bool = settings.DEFAULT_DOWNLOAD_IF_MISSING,
         retain_activity_columns: bool = False,
-        append_sector_names=False,
-        **kwargs,
-    ) -> 'FlowBySector':
+        append_sector_names: bool = False,
+        **kwargs: Any,
+    ) -> FlowBySector:
         '''
         Generates a FlowBySector dataset.
         :param method: str, name of FlowBySector method .yaml file to use.
@@ -158,7 +171,7 @@ class FlowBySector(_FlowBy):
                 },
                 external_config_path=external_config_path,
                 download_sources_ok=download_sources_ok,
-            ).prepare_fbs(
+            ).prepare_fbs(  # type: ignore[operator]
                 external_config_path=external_config_path,
                 download_sources_ok=download_sources_ok,
                 retain_activity_columns=retain_activity_columns,
@@ -183,7 +196,7 @@ class FlowBySector(_FlowBy):
                     },
                     external_config_path=external_config_path,
                     download_sources_ok=download_sources_ok,
-                ).prepare_fbs(
+                ).prepare_fbs(  # type: ignore[operator]
                     external_config_path=external_config_path,
                     download_sources_ok=download_sources_ok,
                     retain_activity_columns=retain_activity_columns,
@@ -195,12 +208,12 @@ class FlowBySector(_FlowBy):
 
         fbs.full_name = method
         fbs.config = method_config
-        fbs = fbs.assign_temporal_correlation()
+        fbs = fbs.assign_temporal_correlation()  # type: ignore[operator]
         # drop year from LocationSystem for FBS use with USEEIO
         fbs['LocationSystem'] = fbs['LocationSystem'].str.split('_').str[0]
         # aggregate to target geoscale
         fbs = fbs.convert_fips_to_geoscale(
-            geo.scale.from_string(fbs.config.get('geoscale'))
+            geo_scale.from_string(fbs.config.get('geoscale'))
         ).aggregate_flowby()
         # aggregate to target sector
         fbs = fbs.sector_aggregation()
@@ -243,18 +256,20 @@ class FlowBySector(_FlowBy):
                 f'{fbs.columns[fbs.columns.duplicated()].tolist()}'
             )
         meta = set_fb_meta(method, 'FlowBySector')
-        write_fb_to_file(fbs, meta, FBS_DIR)
+        write_fb_to_file(fbs, meta, str(FBS_DIR))
         reset_log_file(method, meta)
         write_metadata(
             source_name=method,
             config=common.load_yaml_dict(method, 'FBS', external_config_path, **kwargs),
             fb_meta=meta,
-            pth=FBS_DIR,
+            pth=str(FBS_DIR),
         )
 
         return fbs
 
-    def sector_aggregation(self, industry_spec=None):
+    def sector_aggregation(
+        self, industry_spec: dict[str, Any] | None = None
+    ) -> FlowBySector:
         """
         In the event activity sets in an FBS are at a less aggregated target
         sector level than the overall target level, aggregate the sectors to
@@ -263,7 +278,7 @@ class FlowBySector(_FlowBy):
         """
         if industry_spec is None:
             industry_spec = self.config['industry_spec']
-        naics_key = naics.industry_spec_key(
+        naics_key = naics_industry_spec_key(
             industry_spec, self.config['target_naics_year']
         )
 
@@ -290,18 +305,18 @@ class FlowBySector(_FlowBy):
         return fbs
 
     def prepare_fbs(
-        self: 'FlowBySector',
-        external_config_path: str = None,
+        self: FlowBySector,
+        external_config_path: str | None = None,
         download_sources_ok: bool = True,
-        fbs_method_name: str = None,
-        **_kwargs,
-    ) -> 'FlowBySector':
+        fbs_method_name: str | None = None,
+        **_kwargs: Any,
+    ) -> FlowBySector:
 
         if 'activity_sets' in self.config:
             try:
-                return pd.concat(
+                return pd.concat(  # type: ignore[return-value]
                     [
-                        fbs.prepare_fbs()
+                        fbs.prepare_fbs()  # type: ignore[operator]
                         for fbs in (self.select_by_fields().activity_sets())
                     ]
                 ).reset_index(drop=True)
@@ -320,8 +335,9 @@ class FlowBySector(_FlowBy):
         )
 
     def display_tables(
-        self: 'FlowBySector', display_tables: dict = None
-    ) -> pd.DataFrame:
+        self: FlowBySector,
+        display_tables: dict[str, Any] | None = None,
+    ) -> dict[str, pd.DataFrame] | None:
         display_tables = display_tables or self.config.get('display_tables')
         if display_tables is None:
             log.error(
@@ -331,8 +347,9 @@ class FlowBySector(_FlowBy):
             return None
 
         def convert_industry_spec(
-            fb_at_source_naics: 'FlowBySector', industry_spec: dict = None
-        ) -> 'FlowBySector':
+            fb_at_source_naics: FlowBySector,
+            industry_spec: dict[str, Any] | None = None,
+        ) -> FlowBySector:
             '''
             This is here because it's only for display purposes. It can be
             replaced once there's a proper method for converting an FBS to
@@ -342,7 +359,7 @@ class FlowBySector(_FlowBy):
                 return fb_at_source_naics
             fb_at_target_naics = (
                 fb_at_source_naics.merge(
-                    naics.industry_spec_key(
+                    naics_industry_spec_key(
                         industry_spec, fb_at_source_naics.config['target_naics_year']
                     ),
                     how='left',
@@ -414,20 +431,20 @@ class _FBSSeries(pd.Series):
     _metadata = [*FlowBySector()._metadata]
 
     @property
-    def _constructor(self) -> '_FBSSeries':
+    def _constructor(self) -> type[_FBSSeries]:
         return _FBSSeries
 
     @property
-    def _constructor_expanddim(self) -> 'FlowBySector':
+    def _constructor_expanddim(self) -> type[FlowBySector]:
         return FlowBySector
 
 
 def getFlowBySector(
-    methodname,
-    fbsconfigpath=None,
-    download_FBAs_if_missing=DEFAULT_DOWNLOAD_IF_MISSING,
-    download_FBS_if_missing=DEFAULT_DOWNLOAD_IF_MISSING,
-    **kwargs,
+    methodname: str,
+    fbsconfigpath: str | None = None,
+    download_FBAs_if_missing: bool = DEFAULT_DOWNLOAD_IF_MISSING,
+    download_FBS_if_missing: bool = DEFAULT_DOWNLOAD_IF_MISSING,
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """
     Loads stored FlowBySector output or generates it if it doesn't exist,
@@ -453,10 +470,10 @@ def getFlowBySector(
 
 
 def collapse_FlowBySector(
-    methodname,
-    fbsconfigpath=None,
-    download_FBAs_if_missing=DEFAULT_DOWNLOAD_IF_MISSING,
-    download_FBS_if_missing=DEFAULT_DOWNLOAD_IF_MISSING,
+    methodname: str,
+    fbsconfigpath: str | None = None,
+    download_FBAs_if_missing: bool = DEFAULT_DOWNLOAD_IF_MISSING,
+    download_FBS_if_missing: bool = DEFAULT_DOWNLOAD_IF_MISSING,
 ) -> pd.DataFrame:
     """
     Returns fbs with one sector column in place of two

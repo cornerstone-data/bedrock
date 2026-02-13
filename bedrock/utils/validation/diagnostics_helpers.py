@@ -10,6 +10,8 @@ This module provides:
 
 from __future__ import annotations
 
+import logging
+import time
 import typing as ta
 
 import numpy as np
@@ -23,6 +25,8 @@ from bedrock.utils.economic.inflation import (
 from bedrock.utils.snapshots.loader import load_current_snapshot
 from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
+
+logger = logging.getLogger(__name__)
 
 
 class OldEfSet(BaseModel):
@@ -271,25 +275,38 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     Adom_snapshot_name: SnapshotName = "Adom_USA"
     Aimp_snapshot_name: SnapshotName = "Aimp_USA"
 
+    t0 = time.time()
     B_new = derive_B_usa_non_finetuned()
+    logger.info(
+        f"[TIMING] derive_B_usa_non_finetuned completed in {time.time() - t0:.1f}s"
+    )
+
+    t0 = time.time()
     Aq_set = derive_Aq_usa()
+    logger.info(f"[TIMING] derive_Aq_usa completed in {time.time() - t0:.1f}s")
+
+    t0 = time.time()
     L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
     M_new = compute_M_matrix(B=B_new, L=L_new)
-
     D_new = compute_d(B=B_new)
     N_new = compute_n(M=M_new)
+    logger.info(f"[TIMING] New L, M, D, N matrices computed in {time.time() - t0:.1f}s")
 
     # Uses the snapshot version specified in bedrock/utils/snapshots/.SNAPSHOT_KEY
+    t0 = time.time()
     B_old = load_current_snapshot(B_snapshot_name)
     Adom_old = load_current_snapshot(Adom_snapshot_name)
     Aimp_old = load_current_snapshot(Aimp_snapshot_name)
+    logger.info(f"[TIMING] Old snapshots loaded in {time.time() - t0:.1f}s")
 
+    t0 = time.time()
     L_old = compute_L_matrix(A=Adom_old + Aimp_old)
     M_old = compute_M_matrix(B=B_old, L=L_old)
-
     D_old_raw = compute_d(B=B_old)
     N_old_raw = compute_n(M=M_old)
+    logger.info(f"[TIMING] Old L, M, D, N matrices computed in {time.time() - t0:.1f}s")
 
+    t0 = time.time()
     D_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
         old_ef_vector=D_old_raw,
         new_base_year=new_base_year,
@@ -300,6 +317,7 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         new_base_year=new_base_year,
         old_base_year=2023,
     )
+    logger.info(f"[TIMING] Inflation adjustment completed in {time.time() - t0:.1f}s")
 
     return EfsForDiagnostics(
         D_new=D_new.to_frame(),

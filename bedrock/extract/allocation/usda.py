@@ -4,6 +4,7 @@ USDA YEAR = 2022
 
 from __future__ import annotations
 
+import functools
 import os
 import posixpath
 import typing as ta
@@ -17,6 +18,7 @@ from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
+@functools.cache
 def load_crop_land_area_harvested() -> pd.Series[float]:
     # harvested = pd.concat(
     #     [
@@ -35,6 +37,7 @@ def load_crop_land_area_harvested() -> pd.Series[float]:
     return harvested
 
 
+@functools.cache
 def load_animal_operation_land() -> pd.Series[float]:  # acres
     # _load_livestock_area_operated_2022 doesn't provide reasonable area operated of livestock
     # so we choose to use 2018 data, unit is acres

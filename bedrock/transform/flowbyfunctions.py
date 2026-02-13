@@ -5,7 +5,10 @@
 Helper functions for flowbyactivity and flowbysector data
 """
 
+from typing import Any
+
 import numpy as np
+import pandas as pd
 from esupy.dqi import get_weighted_average
 
 import bedrock
@@ -22,7 +25,9 @@ from bedrock.utils.mapping.sectormapping import map_fbs_flows
 from bedrock.utils.validation.exceptions import FBSMethodConstructionError
 
 
-def create_geoscale_list(df, geoscale, year='2015'):
+def create_geoscale_list(
+    df: pd.DataFrame, geoscale: str, year: str = '2015'
+) -> list[str]:
     """
     Create a list of FIPS associated with given geoscale
 
@@ -33,7 +38,7 @@ def create_geoscale_list(df, geoscale, year='2015'):
     """
 
     # filter by geoscale depends on Location System
-    fips = []
+    fips: list[str] = []
     if geoscale == "national":
         fips.append(US_FIPS)
     elif df['LocationSystem'].str.contains('FIPS').any():
@@ -48,7 +53,7 @@ def create_geoscale_list(df, geoscale, year='2015'):
     return fips
 
 
-def filter_by_geoscale(df, geoscale):
+def filter_by_geoscale(df: pd.DataFrame, geoscale: str) -> pd.DataFrame:
     """
     Filter flowbyactivity by FIPS at the given scale
     :param df: Either flowbyactivity or flowbysector
@@ -68,18 +73,25 @@ def filter_by_geoscale(df, geoscale):
         return df
 
 
-def aggregator(df, groupbycols, retain_zeros=True, flowcolname='FlowAmount'):
+def aggregator(
+    df: pd.DataFrame,
+    groupbycols: list[str] | dict[str, Any],
+    retain_zeros: bool = True,
+    flowcolname: str = 'FlowAmount',
+) -> pd.DataFrame:
     """
     Aggregates flowbyactivity or flowbysector 'FlowAmount' column in df and
     generate weighted average values based on FlowAmount values for numeric
     columns
     :param df: df, Either flowbyactivity or flowbysector
-    :param groupbycols: list, Either flowbyactivity or flowbysector columns
+    :param groupbycols: list or dict of flowbyactivity or flowbysector columns
     :param retain_zeros, bool, default True, if set to True, all rows that
     have a FlowAmount = 0 will be returned in df. If False, those rows will
     be dropped
     :return: df, with aggregated columns
     """
+    if isinstance(groupbycols, dict):
+        groupbycols = list(groupbycols.keys())
     # drop group_id from cols before aggregating
     df = df.drop(columns='group_id', errors='ignore').reset_index(drop=True)
 
@@ -111,9 +123,9 @@ def aggregator(df, groupbycols, retain_zeros=True, flowcolname='FlowAmount'):
 
     df_dfg = df.groupby(groupbycols, dropna=False).agg({flowcolname: ['sum']})
 
-    def is_identical(s):
+    def is_identical(s: pd.Series[Any]) -> bool:
         a = s.to_numpy()
-        return (a[0] == a).all()
+        return bool((a[0] == a).all())
 
     # run through other columns creating weighted average
     for e in column_headers:
@@ -128,15 +140,17 @@ def aggregator(df, groupbycols, retain_zeros=True, flowcolname='FlowAmount'):
     return df_dfg
 
 
-def remove_parent_sectors_from_crosswalk(cw_load, sector_list):
+def remove_parent_sectors_from_crosswalk(
+    cw_load: pd.DataFrame, sector_list: list[str]
+) -> pd.DataFrame:
     """
     Remove parent sectors to a list of sectors from the crosswalk
     :return:
     """
-    cw_filtered = cw_load.applymap(lambda x: x in sector_list)
+    cw_filtered = cw_load.applymap(lambda x: x in sector_list)  # type: ignore[operator]
     locations = cw_filtered[cw_filtered > 0].stack().index.tolist()
     for r, i in locations:
-        col_index = cw_load.columns.get_loc(i)
+        col_index: int = cw_load.columns.get_loc(i)  # type: ignore[assignment]
         cw_load.iloc[r, 0:col_index] = np.nan
 
     return cw_load
@@ -171,7 +185,7 @@ def remove_parent_sectors_from_crosswalk(cw_load, sector_list):
 #         # determine if activities are sector-like, if aggregating a df with a
 #         # 'SourceName'
 #         sector_like_activities = check_activities_sector_like(df_load)
-#         # if activities are sector like, drop columns while running ag then
+#         # if activities are sector-like, drop columns while running ag then
 #         # add back in
 #         if sector_like_activities:
 #             # subset df
@@ -226,7 +240,9 @@ def remove_parent_sectors_from_crosswalk(cw_load, sector_list):
 #     return df.reset_index(drop=True)
 
 
-def assign_fips_location_system(df, year_of_data):
+def assign_fips_location_system(
+    df: pd.DataFrame, year_of_data: int | str
+) -> pd.DataFrame:
     """
     Add location system based on year of data. County level FIPS
     change over the years.
@@ -252,7 +268,7 @@ def assign_fips_location_system(df, year_of_data):
     return df
 
 
-def collapse_fbs_sectors(fbs):
+def collapse_fbs_sectors(fbs: pd.DataFrame) -> pd.DataFrame:
     """
     Collapses the Sector Produced/Consumed into a single column named "Sector"
     uses based on identified rules for flowtypes
@@ -304,7 +320,9 @@ def collapse_fbs_sectors(fbs):
     return fbs_collapsed
 
 
-def load_fba_w_standardized_units(datasource, year, **kwargs):
+def load_fba_w_standardized_units(
+    datasource: str, year: int, **kwargs: Any
+) -> pd.DataFrame:
     """
     Standardize how a FBA is loaded for allocation purposes when
     generating a FBS. Important to immediately convert the df units to

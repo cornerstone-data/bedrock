@@ -22,6 +22,7 @@ GCS_BEA_PCE_DIR = posixpath.join(
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
+@functools.cache
 def load_bea_make_table() -> pd.DataFrame:
     """
     This is a wrapper function that loads the latest BEA Supply table.
@@ -54,6 +55,7 @@ def load_bea_use_table() -> pd.DataFrame:
     return pd.concat([(U_set.Udom + U_set.Uimp).T, Y_usa.T])
 
 
+@functools.cache
 def load_bea_personal_consumption_expenditure() -> pd.Series[float]:
     """
     Latest BEA Personal Consumption Expenditure by Major Type of Product from

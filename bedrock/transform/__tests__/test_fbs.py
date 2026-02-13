@@ -15,15 +15,16 @@ def test_generate_fbs() -> None:
     assert len(fbs) > 0
 
 
-@pytest.mark.eeio_integration
-def test_generate_fbs_compare_to_remote() -> None:
-    y = 2022
-    method = f'GHG_national_{y}_m1'
-    # If need to compare to EPA remote download directly via esupy
-    # f = set_fb_meta(method, 'FlowBySector')
-    # download_from_remote(f, PATHS)
-    # fbs_remote = getFlowBySector(method)
+METHODS = [
+    pytest.param("GHG_national_2022_m1", id="m1"),
+    pytest.param("GHG_national_2022_m2", id="m2", marks=pytest.mark.xfail),
+    # m2 will fail due to minor updates in USDA data see #136
+]
 
+
+@pytest.mark.eeio_integration
+@pytest.mark.parametrize("method", METHODS)
+def test_generate_fbs_compare_to_remote(method: str) -> None:
     # Download and load from GCS (local directory needs to be empty of this
     # method to force download)
     fbs_remote = getFlowBySector(method, download_FBS_if_missing=True)
@@ -48,4 +49,4 @@ def test_generate_fbs_compare_to_remote() -> None:
 
 if __name__ == "__main__":
     # test_generate_fbs()
-    test_generate_fbs_compare_to_remote()
+    test_generate_fbs_compare_to_remote(method='GHG_national_2022_m1')
