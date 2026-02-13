@@ -117,7 +117,9 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # ^^ this may drop some sectors from the flowsa dataset
 
     # Convert values to CO2e
-    ghg_mapping = {k: v for k, v in GWP100_AR6_CEDA.items() if k in E_usa.index}
+    ghg_mapping: dict[str, float] = {
+        k: v for k, v in GWP100_AR6_CEDA.items() if k in E_usa.index
+    }
     ghg_mapping['CH4'] = GWP100_AR6_CEDA['CH4_fossil']
     ghg_mapping['HFCs'] = 1
     ghg_mapping['PFCs'] = 1
@@ -140,7 +142,7 @@ def derive_E_usa_long() -> pd.DataFrame:
     dfm.columns = ["emissions_source", "BEA", "FlowAmount"]
 
     # add column of the ghg emission type
-    dfm["Flowable"] = dfm["emissions_source"].map(lambda es: EmissionsSource(es).gas)
+    dfm["Flowable"] = dfm["emissions_source"].map(lambda es: EmissionsSource(es).gas)  # type: ignore
 
     # clean up df
     dfm = dfm[["Flowable", "BEA", "emissions_source", "FlowAmount"]]
@@ -151,7 +153,7 @@ def derive_E_usa_long() -> pd.DataFrame:
 
     return dfm
 
-  
+
 if __name__ == "__main__":
     df1 = load_E_from_flowsa()
     df2 = derive_E_usa()

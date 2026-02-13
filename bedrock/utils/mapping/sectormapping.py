@@ -359,7 +359,7 @@ def get_BEA_industry_output(
     :param output_year: year for industry output
     :param bea_year: 2012 or 2017
     """
-    from bedrock.extract.flowbyactivity import getFlowByActivity
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
 
     if region == 'state':
         fba = 'stateio_Industry_GO'
