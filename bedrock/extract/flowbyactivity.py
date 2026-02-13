@@ -83,7 +83,7 @@ class FlowByActivity(_FlowBy):
         )
 
     @property
-    def _constructor(self) -> type[FlowByActivity]:  # type: ignore[override]
+    def _constructor(self) -> type[FlowByActivity]:
         return FlowByActivity
 
     @property
@@ -740,7 +740,7 @@ class FlowByActivity(_FlowBy):
             .assign_geographic_correlation(fbs_method_name=fbs_method_name)
             .convert_to_geoscale()
             .attribute_flows_to_sectors(
-                external_config_path=external_config_path,  # type: ignore[arg-type]
+                external_config_path=external_config_path,
                 download_sources_ok=download_sources_ok,
             )  # recursive call to prepare_fbs
             .drop(columns=drop_cols)
@@ -935,5 +935,5 @@ def getFlowByActivity(
         fba = fba.query('Class == @flowclass')
     # if geographic level specified, only load rows in geo level
     if geographic_level is not None:
-        fba = filter_by_geoscale(fba, geographic_level)
+        fba = filter_by_geoscale(fba, geographic_level)  # type: ignore[assignment]
     return pd.DataFrame(fba.reset_index(drop=True))

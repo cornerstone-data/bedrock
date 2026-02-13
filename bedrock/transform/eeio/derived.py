@@ -72,13 +72,12 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_ceda_corresp_df,
 )
-from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
-    CEDA_V5_TO_CEDA_V7_CODES,
-)
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import CEDA_V5_TO_CEDA_V7_CODES
 
 logger = logging.getLogger(__name__)
 
 
+@functools.cache
 @pa.check_output(BMatrix.to_schema())
 def derive_B_usa_non_finetuned() -> pt.DataFrame[BMatrix]:
     E_usa = derive_E_usa()
@@ -92,7 +91,7 @@ def derive_B_usa_non_finetuned() -> pt.DataFrame[BMatrix]:
             target_year=get_usa_config().usa_io_data_year,
         ),
         original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().ceda_base_year,
+        target_year=get_usa_config().model_base_year,
     )
 
     return pt.DataFrame[BMatrix](B_usa)
@@ -123,7 +122,7 @@ def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_r
             corresp_df=summary_to_ceda_corresp_df,
         ),
         original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().ceda_base_year,
+        target_year=get_usa_config().model_base_year,
     )
     exports = inflate_q_or_y(
         disaggregate_vector(
@@ -132,7 +131,7 @@ def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_r
             corresp_df=summary_to_ceda_corresp_df,
         ),
         original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().ceda_base_year,
+        target_year=get_usa_config().model_base_year,
     )
     imports = inflate_q_or_y(
         handle_negative_vector_values(
@@ -143,7 +142,7 @@ def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_r
             )
         ),
         original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().ceda_base_year,
+        target_year=get_usa_config().model_base_year,
     )
 
     return SingleRegionYtotAndTradeVectorSet(
@@ -153,6 +152,7 @@ def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_r
     )
 
 
+@functools.cache
 @pa.check_output(YVectorSchema)
 def derive_y_for_national_accounting_balance_usa() -> pd.Series[float]:
     """
@@ -202,7 +202,7 @@ def derive_y_for_national_accounting_balance_usa() -> pd.Series[float]:
             weight_series=y_national_acct_balance_detail_2017,
         ),
         original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().ceda_base_year,
+        target_year=get_usa_config().model_base_year,
     )
 
     # NOTE: original y values have some negative values
@@ -249,6 +249,7 @@ def derive_ydom_and_yimp_usa() -> SingleRegionYVectorSet:
     )
 
 
+@functools.cache
 def derive_Aq_usa() -> SingleRegionAqMatrixSet:
     """
     This function derives Aq_usa in `target_year` USD.
@@ -289,16 +290,16 @@ def derive_Aq_usa() -> SingleRegionAqMatrixSet:
     # TODO: type inflate_A_matrix as DataFrame[AMatrix]
     Adom = inflate_A_matrix(  # type: ignore[assignment]
         Adom,
-        target_year=get_usa_config().ceda_base_year,
+        target_year=get_usa_config().model_base_year,
         original_year=target_year,
     )
     Aimp = inflate_A_matrix(  # type: ignore[assignment]
         Aimp,
-        target_year=get_usa_config().ceda_base_year,
+        target_year=get_usa_config().model_base_year,
         original_year=target_year,
     )
     q = inflate_q_or_y(
-        q, target_year=get_usa_config().ceda_base_year, original_year=target_year
+        q, target_year=get_usa_config().model_base_year, original_year=target_year
     )
 
     return SingleRegionAqMatrixSet(

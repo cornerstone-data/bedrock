@@ -16,7 +16,9 @@ from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state
 
 
-def acup_url_helper(*, build_url: str, config: dict[str, Any], **_: Any) -> list[str]:
+def acup_url_helper(
+    *, build_url: str, config: dict[str, Any], **_: Any  # noqa: ARG001
+) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text

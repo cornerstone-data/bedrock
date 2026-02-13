@@ -75,6 +75,20 @@ def compute_Vnorm_matrix(*, V: pd.DataFrame, q: pd.Series[float]) -> pd.DataFram
     return V.divide(q, axis=1).fillna(0)
 
 
+def compute_commodity_mix_matrix(
+    *, V: pd.DataFrame, x: pd.Series[float]
+) -> pd.DataFrame:
+    """
+    V is the Make matrix (industry x commodity)
+
+    x is the commodity output vector (industry x 1).
+
+    This function generates the commodity mix matrix (commodity x industry) that shows
+    the commodity composition of industry output.
+    """
+    return V.divide(x, axis=0).T.fillna(0)
+
+
 def compute_A_matrix(*, U_norm: pd.DataFrame, V_norm: pd.DataFrame) -> pd.DataFrame:
     """
     U_norm is the normalized Use matrix (commodity x industry) representing "industries use commodities".

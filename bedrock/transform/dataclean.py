@@ -5,7 +5,7 @@
 Common functions to clean and harmonize dataframes
 """
 
-from typing import List
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from bedrock.utils.logging.flowsa_log import log
 
 def clean_df(
     df: pd.DataFrame,
-    flowbyfields: dict[str, List[dict[str, str | bool]]],
+    flowbyfields: Any,
     drop_description: bool = True,
 ) -> pd.DataFrame:
     """
@@ -45,7 +45,7 @@ def clean_df(
 
 def add_missing_flow_by_fields(
     flowby_partial_df: pd.DataFrame,
-    flowbyfields: dict[str, List[dict[str, str | bool]]],
+    flowbyfields: Any,
 ) -> pd.DataFrame:
     """
     Add in missing fields to have a complete and ordered df
