@@ -304,28 +304,23 @@ def _derive_detail_Ytot_with_trade_usa() -> pd.DataFrame:
 
 
 def derive_detail_VA_usa() -> pd.DataFrame:
+    # TODO: figure out how to create a weight with the right dimensions, 3x400, and cols, CEDA ind.
+    # Idea: just create that dataframe with VA2017 values.
     VA = load_2017_value_added_usa()
-    corresp_industry_ceda = load_usa_2017_industry__ceda_v7_correspondence()
-    EXPECTED_INDUSTRIES_DROPPED = {
-        # these industries are intentionally not mapped to CEDA v7 sectors
-        "331314",
-        "33131B",
-        "335220",
-        "S00101",
-        "S00201",
-        "S00202",
-    }
+    corresp_industry = load_usa_2017_industry__ceda_v7_correspondence()
+
+    # Calculating weights by aggregating the 2017 VA values along the column axis to align with CEDA-schema industries
+    VA_weights = VA @ corresp_industry.T
 
     VA_ceda_usa = structural_reflect_matrix(
         row_corresp_df=pd.DataFrame(
-            np.eye(len(VA.columns)),
-            index=VA.columns,
-            columns=VA.columns,
+            np.eye(len(VA.index)),
+            index=VA.index,
+            columns=VA.index,
         ),
-        col_corresp_df=corresp_industry_ceda,
+        col_corresp_df=corresp_industry,
         df_base=VA,
-        df_weights=VA,
-        expected_col_dropped=EXPECTED_INDUSTRIES_DROPPED,
+        df_weights=VA_weights,
     )
     return VA_ceda_usa
 
