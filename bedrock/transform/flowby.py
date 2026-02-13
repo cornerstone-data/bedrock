@@ -275,7 +275,7 @@ class _FlowBy(pd.DataFrame):
         return [
             str(x)
             for x in self
-            if self[x].dtype in ['int', 'object', 'int32', 'int64']
+            if self[x].dtype in ['int', 'object', 'int32', 'int64', 'string']
             and x not in ['Description', 'group_id']
         ]
 
