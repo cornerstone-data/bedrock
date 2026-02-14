@@ -3,10 +3,7 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.extract.iot.constants import (
-    GCS_PRICE_INDEX_INFLATION_DIR,
-    PRICE_INDEX_DETAIL_TABLES,
-)
+from bedrock.extract.iot.constants import GCS_GDP_DETAIL_TABLES, GCS_GDP_DIR
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 
 # NOTE: this is the data version used by the BEA Data Archive (https://apps.bea.gov/histdatacore/histChildLevels.html?HMI=8&oldDiv=Industry%20Accounts)
@@ -65,9 +62,7 @@ def _download_summary_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(
-            GCS_PRICE_INDEX_INFLATION_DIR, f"GdpByInd_{BEA_DATA_VERSION}"
-        ),
+        sub_bucket=posixpath.join(GCS_GDP_DIR, f"GdpByInd_{BEA_DATA_VERSION}"),
         pth=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
     )
 
@@ -88,7 +83,7 @@ def load_go_detail() -> pd.DataFrame:
     return _load_detail_table("UGO305-A")
 
 
-def _load_detail_table(sheet_name: PRICE_INDEX_DETAIL_TABLES) -> pd.DataFrame:
+def _load_detail_table(sheet_name: GCS_GDP_DETAIL_TABLES) -> pd.DataFrame:
     """
     Download (if needed) and load a detail-level BEA price index or gross output
     table by sheet name, asserting that sector names remain unique.
@@ -111,9 +106,7 @@ def _download_detail_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(
-            GCS_PRICE_INDEX_INFLATION_DIR, f"UGdpByInd_{BEA_DATA_VERSION}"
-        ),
+        sub_bucket=posixpath.join(GCS_GDP_DIR, f"UGdpByInd_{BEA_DATA_VERSION}"),
         pth=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
     )
 
