@@ -16,7 +16,8 @@ from bedrock.transform.eeio.derived_2017 import (
 )
 from bedrock.utils.validation.eeio_diagnostics import (
     commodity_industry_output_cpi_consistency,
-    compare_industry_output_in_make_and_use,
+    # compare_industry_output_in_make_and_use,
+    compare_output_from_make_and_use,
 )
 
 
@@ -52,8 +53,9 @@ def test_commodity_industry_output_cpi_consistency(
 @pytest.mark.skip
 @pytest.mark.eeio_integration
 def test_compare_industry_output_in_make_and_use(
+    output: str = "Commodity",
     tolerance: float = 0.05,
-    include_details: bool = False,
+    include_details: bool = True,
 ) -> None:
     """Test that the industry ouput from the Make and Use tables are the same."""
 
@@ -61,11 +63,12 @@ def test_compare_industry_output_in_make_and_use(
     U_set = derive_2017_U_with_negatives()  # Use table output
     U = U_set.Udom + U_set.Uimp
 
-    r_x_in_V_and_U = compare_industry_output_in_make_and_use(
+    r_output_in_V_and_U = compare_output_from_make_and_use(
+        output=output,
         V=V,
         U=U,
         tolerance=tolerance,
-        include_details=True,
+        include_details=include_details,
     )
 
-    assert len(r_x_in_V_and_U.failing_sectors) == 0
+    assert len(r_output_in_V_and_U.failing_sectors) == 0

@@ -14,7 +14,10 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.eeio.derived_2017 import derive_detail_VA_usa
+from bedrock.transform.eeio.derived_2017 import (
+    derive_2017_Ytot_usa_matrix_set,
+    derive_detail_VA_usa,
+)
 from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
@@ -486,20 +489,40 @@ def commodity_industry_output_cpi_consistency(
     return d_result
 
 
-def compare_industry_output_in_make_and_use(
+def compare_output_from_make_and_use(
+    output: str,
     V: pd.DataFrame,
     U: pd.DataFrame,
     tolerance: float,
     include_details: bool = False,
 ) -> DiagnosticResult:
     """Check that industry output from Use and Make tables are the same"""
-    VA = derive_detail_VA_usa()
-    x_make = V.sum(axis=1)
-    x_use = U.sum(axis=0) + VA.sum(axis=0)
 
-    name = "compare_industry_output_in_make_and_use"
-    d_result = validate_result(
-        name, x_make, x_use, tolerance=tolerance, include_details=include_details
-    )
+    if output == "Industry":
+        VA = derive_detail_VA_usa()
+        x_make = V.sum(axis=1)
+        x_use = U.sum(axis=0) + VA.sum(axis=0)
+
+        name = "compare_industry_output_from_make_and_use"
+        d_result = validate_result(
+            name, x_make, x_use, tolerance=tolerance, include_details=include_details
+        )
+    elif output == "Commodity":
+        y_set = derive_2017_Ytot_usa_matrix_set()
+        q_make = V.sum(axis=0)
+        q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
+
+        name = "compare_commodity_output_from_make_and_use"
+        d_result = validate_result(
+            name, q_make, q_use, tolerance=tolerance, include_details=include_details
+        )
+    else:
+        d_result = DiagnosticResult(
+            name="invalid output parameter requested for comparison between make and use, select commodity or industry",
+            passed=False,
+            tolerance=tolerance,
+            max_rel_diff=0.005,
+            failing_sectors=[],
+        )
 
     return d_result
