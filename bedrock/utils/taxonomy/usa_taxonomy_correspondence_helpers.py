@@ -27,6 +27,9 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
     USA_2017_SUMMARY_FINAL_DEMAND_CODES,
 )
+from bedrock.utils.taxonomy.bea.v2017_value_added import (
+    USA_2017_VALUE_ADDED_CODES,
+)
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2012_commodity__bea_v2017_commodity import (
     load_bea_v2012_commodity_to_bea_v2017_commodity,
@@ -45,6 +48,7 @@ from bedrock.utils.taxonomy.utils import traverse
 USA_2017_INDUSTRY_INDEX = pd.Index(USA_2017_INDUSTRY_CODES, name="industry")
 USA_2017_COMMODITY_INDEX = pd.Index(USA_2017_COMMODITY_CODES, name="commodity")
 USA_2017_FINAL_DEMAND_INDEX = pd.Index(USA_2017_FINAL_DEMAND_CODES, name="final_demand")
+USA_2017_VALUE_ADDED_INDEX = pd.Index(USA_2017_VALUE_ADDED_CODES, name="value_added")
 CEDA_V7_SECTOR_INDEX = pd.Index(CEDA_V7_SECTORS, name="industry")
 
 USA_2017_SUMMARY_INDUSTRY_INDEX = pd.Index(

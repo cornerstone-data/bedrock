@@ -40,6 +40,9 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
     USA_2017_SUMMARY_FINAL_DEMAND_CODES,
 )
+from bedrock.utils.taxonomy.bea.v2017_value_added import (
+    USA_2017_VALUE_ADDED_CODES,
+)
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     USA_2017_FINAL_DEMAND_INDEX,
@@ -47,6 +50,7 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_SUMMARY_COMMODITY_INDEX,
     USA_2017_SUMMARY_FINAL_DEMAND_INDEX,
     USA_2017_SUMMARY_INDUSTRY_INDEX,
+    USA_2017_VALUE_ADDED_INDEX,
 )
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
@@ -129,6 +133,22 @@ def load_2017_Ytot_usa() -> pd.DataFrame:
     )
     df.index = USA_2017_COMMODITY_INDEX.copy()
     df.columns = USA_2017_FINAL_DEMAND_INDEX.copy()
+
+    return df
+
+
+def load_2017_value_added_usa() -> pd.DataFrame:
+    """
+    Value added (total), VA category x industry, after redefintion, in producer price
+    unit is USD, original unit is million USD
+    """
+    df = _load_2017_detail_make_use_usa("Use_detail")
+    df = (
+        df.loc[USA_2017_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_VALUE_ADDED_INDEX.copy()
+    df.columns = USA_2017_INDUSTRY_INDEX.copy()
 
     return df
 

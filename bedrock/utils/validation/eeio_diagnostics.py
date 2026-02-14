@@ -14,6 +14,7 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+from bedrock.transform.eeio.derived_2017 import derive_detail_VA_usa
 from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
@@ -480,6 +481,25 @@ def commodity_industry_output_cpi_consistency(
     ) """
     d_result = validate_result(
         name, q_check, x_check, tolerance=tolerance, include_details=include_details
+    )
+
+    return d_result
+
+
+def compare_industry_output_in_make_and_use(
+    V: pd.DataFrame,
+    U: pd.DataFrame,
+    tolerance: float,
+    include_details: bool = False,
+) -> DiagnosticResult:
+    """Check that industry output from Use and Make tables are the same"""
+    VA = derive_detail_VA_usa()
+    x_make = V.sum(axis=1)
+    x_use = U.sum(axis=0) + VA.sum(axis=0)
+
+    name = "compare_industry_output_in_make_and_use"
+    d_result = validate_result(
+        name, x_make, x_use, tolerance=tolerance, include_details=include_details
     )
 
     return d_result
