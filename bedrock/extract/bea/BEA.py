@@ -18,7 +18,8 @@ from esupy.processed_data_mgmt import download_from_remote
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
-from bedrock.extract.iot.io_2017 import (  # _load_2017_detail_make_use_usa,
+from bedrock.extract.iot.io_2017 import (
+    _load_2017_detail_make_use_usa,
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
 )
@@ -39,7 +40,6 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
     :param year:
     :return:
     """
-    ## Case Detail_Supply
     if "Detail_Use_SUT" in source:
         df = _load_2017_detail_supply_use_usa('Use_SUT_detail')
         df = df.iloc[:, 1:]  # drop first column
@@ -68,6 +68,36 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
             var_name="ActivityConsumedBy",
             value_name="FlowAmount",
         )
+    elif "Detail_Use_AfterRedef" in source:
+        df = _load_2017_detail_make_use_usa('Use_detail')
+        df = df.iloc[:, 1:]  # drop first column
+        loc = df.index.get_loc('V00300')
+        assert isinstance(loc, int)
+        df = df.iloc[: loc + 1]  # drop everything after last row
+        df = df.reset_index()
+        df = df.rename(columns={'Code': 'ActivityProducedBy'})
+        # use "melt" fxn to convert colummns into rows
+        df = df.melt(
+            id_vars=["ActivityProducedBy"],
+            var_name="ActivityConsumedBy",
+            value_name="FlowAmount",
+        )
+
+    elif "Detail_Make_AfterRedef" in source:
+        df = _load_2017_detail_make_use_usa('Make_detail')
+        df = df.iloc[:, 1:]  # drop first column
+        loc = df.index.get_loc('T007')
+        assert isinstance(loc, int)
+        df = df.iloc[: loc + 1]  # drop everything after the total
+        df = pd.DataFrame(np.transpose(df))
+        df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
+        # use "melt" fxn to convert colummns into rows
+        df = df.melt(
+            id_vars=["ActivityProducedBy"],
+            var_name="ActivityConsumedBy",
+            value_name="FlowAmount",
+        )
+
     elif "Summary_Supply" in source:
         df = _load_usa_summary_sut('Supply_summary', cast(USA_SUMMARY_MUT_YEARS, year))
         df = df.iloc[1:, 1:]  # drop first row and column
@@ -140,6 +170,8 @@ if __name__ == "__main__":
         'BEA_Detail_Supply',  # Success
         'BEA_Detail_GrossOutput_IO',  # Fails due to flow amount
         'BEA_Detail_Use_SUT',  # Success
+        # 'BEA_Detail_Use_AfterRedef',
+        # 'BEA_Detail_Make_AfterRedef',
         'BEA_Summary_Supply',  # Fails due to flow amount - GCS has older data
         'BEA_Summary_Use_SUT',  # Fails due to flow amount - GCS has older data
     ]
