@@ -1,5 +1,8 @@
 import typing as ta
 
+# 405 commodities.
+# COMMODITY is the Literal type (for static type checking); COMMODITIES is the runtime list.
+# COMMODITY_DESC maps each code to its description; key order must match the Literal order.
 COMMODITY = ta.Literal[
     '1111A0',  # Fresh soybeans, canola, flaxseeds, and other oilseeds
     '1111B0',  # Fresh wheat, corn, rice, and other grains
@@ -818,7 +821,7 @@ COMMODITY_DESC: ta.Dict[COMMODITY, str] = {
     'S00402': 'Used and secondhand goods',
 }
 
-WASTE_DISAGG_COMMODITIES = {
+WASTE_DISAGG_COMMODITIES: ta.Dict[str, ta.List[COMMODITY]] = {
     '562000': [
         '562111',
         '562HAZ',

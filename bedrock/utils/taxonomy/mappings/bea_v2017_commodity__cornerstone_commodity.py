@@ -4,7 +4,11 @@ from bedrock.utils.taxonomy.bea.v2017_commodity import (
     BEA_2017_COMMODITY_CODE,
     BEA_2017_COMMODITY_CODES,
 )
-from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES, COMMODITY
+from bedrock.utils.taxonomy.cornerstone.commodities import (
+    COMMODITIES,
+    COMMODITY,
+    WASTE_DISAGG_COMMODITIES,
+)
 from bedrock.utils.taxonomy.utils import validate_mapping
 
 
@@ -15,15 +19,7 @@ def load_bea_v2017_commodity_to_bea_cornerstone_commodity() -> (
         bea: BEA_2017_COMMODITY_CODE,
     ) -> ta.List[COMMODITY]:
         if bea == '562000':  # Waste disaggregation
-            return [
-                '562111',
-                '562HAZ',
-                '562212',
-                '562213',
-                '562910',
-                '562920',
-                '562OTH',
-            ]
+            return WASTE_DISAGG_COMMODITIES['562000']
         if bea in {  # Drop these commodities
             'S00401',  # Scrap
             'S00300',  # Noncomparable imports

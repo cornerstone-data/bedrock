@@ -1,5 +1,8 @@
 import typing as ta
 
+# 405 industries.
+# INDUSTRY is the Literal type (for static type checking); INDUSTRIES is the runtime list.
+# INDUSTRY_DESC maps each code to its description; key order must match the Literal order.
 INDUSTRY = ta.Literal[
     '1111A0',  # Oilseed farming
     '1111B0',  # Grain farming
@@ -819,7 +822,7 @@ INDUSTRY_DESC: ta.Dict[INDUSTRY, str] = {
     'S00203': 'Other state and local government enterprises',
 }
 
-WASTE_DISAGG_INDUSTRIES = {
+WASTE_DISAGG_INDUSTRIES: ta.Dict[str, ta.List[INDUSTRY]] = {
     '562000': [
         '562111',
         '562HAZ',
