@@ -53,9 +53,9 @@ def test_commodity_industry_output_cpi_consistency(
 @pytest.mark.skip
 @pytest.mark.eeio_integration
 def test_compare_industry_output_in_make_and_use(
-    output: str = "Commodity",
-    tolerance: float = 0.05,
-    include_details: bool = True,
+    output: str,
+    tolerance: float,
+    include_details: bool,
 ) -> None:
     """Test that the industry ouput from the Make and Use tables are the same."""
 
