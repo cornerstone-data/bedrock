@@ -6,8 +6,8 @@ from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 GCS_USA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTables_MakeUse")
 GCS_USA_SUP_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTablesSUP")
 
-GCS_PRICE_INDEX_INFLATION_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "BEA_PriceIndex")
-PRICE_INDEX_DETAIL_TABLES = ta.Literal["UGO304-A", "UGO305-A"]
+GCS_GDP_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "BEA_PriceIndex")
+GCS_GDP_DETAIL_TABLES = ta.Literal["UGO304-A", "UGO305-A"]
 
 PRICE_INDEX_DETAIL_NAME_TO_BEA_2017_INDUSTRY_MAPPING: ta.Dict[str, ta.List[str]] = {
     # adopeted from USEEIO

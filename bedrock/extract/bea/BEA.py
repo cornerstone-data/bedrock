@@ -22,7 +22,7 @@ from bedrock.extract.iot.io_2017 import (  # _load_2017_detail_make_use_usa,
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
 )
-from bedrock.extract.iot.io_price_index import load_go_detail
+from bedrock.extract.iot.gdp import load_go_detail
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.iot.derived_price_index import _map_detail_table
 from bedrock.utils.config.settings import PATHS
