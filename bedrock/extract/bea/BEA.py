@@ -24,7 +24,7 @@ from bedrock.extract.iot.io_2017 import (  # _load_2017_detail_make_use_usa,
 )
 from bedrock.extract.iot.gdp import load_go_detail
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
-from bedrock.transform.iot.derived_price_index import _map_detail_table
+from bedrock.transform.iot.helpers import map_detail_table
 from bedrock.utils.config.settings import PATHS
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.metadata.metadata import set_fb_meta
@@ -91,7 +91,7 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
             value_name="FlowAmount",
         )
     elif "GrossOutput" in source:
-        df = _map_detail_table(load_go_detail())
+        df = map_detail_table(load_go_detail())
         df = df.iloc[:, 1:]  # drop first column
         df = df.rename(columns={'sector_code': 'ActivityProducedBy'})
         df = (
