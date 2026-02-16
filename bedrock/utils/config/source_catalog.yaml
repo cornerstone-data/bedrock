@@ -8,7 +8,13 @@ BEA_Detail_Make_AfterRedef:
   data_format: FBA
   class:
     - Money
-  activity_schema: BEA_2012_Detail_Code
+  activity_schema: BEA_2017_Detail_Code
+  sector_hierarchy: "flat"
+BEA_Detail_Use_AfterRedef:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2017_Detail_Code
   sector_hierarchy: "flat"
 BEA_Detail_Make_BeforeRedef:
   data_format: FBA
