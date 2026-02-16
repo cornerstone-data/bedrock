@@ -15,6 +15,7 @@ from bedrock.utils.validation.diagnostics_helpers import (
     calculate_summary_stats_for_ef_diff_dataframe,
     construct_ef_diff_dataframe,
 )
+from bedrock.utils.validation.significant_sectors import SIGNIFICANT_SECTORS
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,15 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
 
     - N_and_diffs: Total EFs new vs old, with absolute and percent diffs.
     - D_and_diffs: Direct EFs new vs old.
+    - D_and_N_significant_sectors: Combined D and N comparisons for significant sectors.
     - N_and_D_summary_stats: Summary statistics of percent diffs.
     - output_contrib_new_vs_old: Top N contributing sectors to each EF's change,
       derived from the output contribution matrix.
 
     Old EFs are inflation-adjusted to the current base year before comparison.
+
+    Args:
+        sheet_id: Google Sheets spreadsheet ID to write results to.
     """
     # Late-binding import - depends on global config
     from bedrock.transform.eeio.derived import derive_Aq_usa
@@ -81,6 +86,17 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
     logger.info(
         f"[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s"
+    )
+
+    # Compare D and N for significant sectors
+    significant_sectors = [sector["sector"] for sector in SIGNIFICANT_SECTORS]
+    significant_sectors_comparison = D_comparison.loc[significant_sectors].join(
+        N_comparison.loc[significant_sectors].drop(columns=["sector_name"])
+    )
+    update_sheet_tab(
+        sheet_id,
+        "D_and_N_significant_sectors",
+        significant_sectors_comparison.reset_index(),
     )
 
     # Summary statistics

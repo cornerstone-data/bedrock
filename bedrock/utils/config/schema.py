@@ -6,7 +6,9 @@ Dictionaries for Flow-By-Activity and Flow-By-Sector datasets
 and their variations
 """
 
-flow_by_activity_fields = {
+from typing import List
+
+flow_by_activity_fields: dict[str, List[dict[str, str | bool]]] = {
     'Class': [{'dtype': 'str'}, {'required': True}],
     'SourceName': [{'dtype': 'str'}, {'required': True}],
     'FlowName': [{'dtype': 'str'}, {'required': True}],

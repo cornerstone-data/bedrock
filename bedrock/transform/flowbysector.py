@@ -22,10 +22,10 @@ from bedrock.utils.config.common import get_catalog_info, load_crosswalk
 from bedrock.utils.config.settings import DEFAULT_DOWNLOAD_IF_MISSING, FBS_DIR
 from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
-from bedrock.utils.mapping.geo import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.geo import (
     scale as geo_scale,
 )
-from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.naics import (
     industry_spec_key as naics_industry_spec_key,
 )
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata

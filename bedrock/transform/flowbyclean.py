@@ -14,11 +14,11 @@ from bedrock.transform.flowby import FB, _FlowBy, get_flowby_from_config
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.common import get_catalog_info
 from bedrock.utils.logging.flowsa_log import log
-from bedrock.utils.mapping.geo import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.geo import (
     filtered_fips as geo_filtered_fips,
 )
 from bedrock.utils.mapping.location import US_FIPS
-from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]
+from bedrock.utils.mapping.naics import (
     map_source_sectors_to_more_aggregated_sectors,
 )
 from bedrock.utils.validation.validation import (
@@ -229,7 +229,7 @@ def estimate_suppressed_sectors_equal_attribution(
     :param fba:
     :return:
     """
-    from bedrock.utils.mapping.naics import (  # type: ignore[attr-defined]  # noqa: PLC0415
+    from bedrock.utils.mapping.naics import (  # noqa: PLC0415
         map_source_sectors_to_less_aggregated_sectors,
     )
 

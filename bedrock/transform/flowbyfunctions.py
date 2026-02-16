@@ -185,7 +185,7 @@ def remove_parent_sectors_from_crosswalk(
 #         # determine if activities are sector-like, if aggregating a df with a
 #         # 'SourceName'
 #         sector_like_activities = check_activities_sector_like(df_load)
-#         # if activities are source-like, drop columns while running ag then
+#         # if activities are sector-like, drop columns while running ag then
 #         # add back in
 #         if sector_like_activities:
 #             # subset df
