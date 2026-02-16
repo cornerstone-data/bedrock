@@ -1,0 +1,17 @@
+#####
+# Model base settings
+#####
+
+#####
+# Data selection
+#####
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+
+
+#####
+# Bugfix
+#####

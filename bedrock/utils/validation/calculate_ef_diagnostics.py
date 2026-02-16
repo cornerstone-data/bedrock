@@ -8,16 +8,54 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.snapshots.loader import load_current_snapshot
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 from bedrock.utils.validation.diagnostics_helpers import (
+    align_efs_across_schemas,
     calculate_summary_stats_for_ef_diff_dataframe,
     construct_ef_diff_dataframe,
+    get_aligned_sector_desc,
 )
 from bedrock.utils.validation.significant_sectors import SIGNIFICANT_SECTORS
 
 logger = logging.getLogger(__name__)
+
+
+def _add_comparison_type_column(
+    df: pd.DataFrame,
+    mapped_sectors: ta.Dict[str, str],
+) -> pd.DataFrame:
+    """Append a ``comparison_type`` column indicating how each row was compared.
+
+    Direct (1:1) sectors are labelled ``"direct"``; mapped sectors use the
+    label from *mapped_sectors*.
+    """
+    df['comparison_type'] = df.index.map(
+        lambda code: mapped_sectors.get(code, 'direct')
+    )
+    return df
+
+
+def _build_sector_mapping_notes(
+    mapped_sectors: ta.Dict[str, str],
+    old_ef: pd.DataFrame,
+    new_ef: pd.DataFrame,
+) -> pd.DataFrame:
+    """Build a small DataFrame documenting which sectors were mapped or excluded."""
+    rows: ta.List[ta.Dict[str, str]] = []
+    for code, comparison_type in mapped_sectors.items():
+        rows.append({'sector': code, 'comparison_type': comparison_type})
+    # Report new-only sectors (present in new but absent from old and not mapped)
+    old_idx = set(old_ef.index)
+    new_idx = set(new_ef.index)
+    new_only = sorted(new_idx - old_idx - set(mapped_sectors.keys()))
+    for code in new_only:
+        rows.append(
+            {'sector': code, 'comparison_type': 'excluded (new-only, no baseline)'}
+        )
+    return pd.DataFrame(rows)
 
 
 def calculate_ef_diagnostics(sheet_id: str) -> None:
@@ -32,8 +70,13 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     - N_and_D_summary_stats: Summary statistics of percent diffs.
     - output_contrib_new_vs_old: Top N contributing sectors to each EF's change,
       derived from the output contribution matrix.
+    - sector_mapping_notes (cornerstone only): Documents mapped/excluded sectors.
 
     Old EFs are inflation-adjusted to the current base year before comparison.
+
+    When ``use_cornerstone_2026_model_schema`` is active, old (CEDA v7) and new
+    (cornerstone) EF vectors are aligned before comparison so that sectors with
+    different granularity are still comparable.
 
     Args:
         sheet_id: Google Sheets spreadsheet ID to write results to.
@@ -46,116 +89,159 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
     from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
+    config = get_usa_config()
+    use_cornerstone = config.use_cornerstone_2026_model_schema
+
     t0 = time.time()
-    efs = pull_efs_for_diagnostics()
+    efs_raw = pull_efs_for_diagnostics()
     logger.info(
-        f"[TIMING] pull_efs_for_diagnostics completed in {time.time() - t0:.1f}s"
+        f'[TIMING] pull_efs_for_diagnostics completed in {time.time() - t0:.1f}s'
     )
 
-    logger.info("------ Calculating EF Diagnostics ------")
+    # When the cornerstone schema is active, align old/new sector indices
+    active_mappings: ta.Dict[str, str] = {}
+    if use_cornerstone:
+        logger.info('Aligning EF vectors across CEDA v7 / cornerstone schemas')
+        efs, active_mappings = align_efs_across_schemas(efs_raw)
+        sector_desc: ta.Optional[ta.Dict[str, str]] = get_aligned_sector_desc()
+    else:
+        efs = efs_raw
+        sector_desc = None  # use default CEDA_V7_SECTOR_DESC
+
+    logger.info('------ Calculating EF Diagnostics ------')
 
     # Compare N (total EFs) new vs old
     N_comparison = construct_ef_diff_dataframe(
-        ef_name="N",
+        ef_name='N',
         ef_new=efs.N_new,
         ef_old=efs.N_old,
+        sector_desc=sector_desc,
     )
+
+    if use_cornerstone:
+        _add_comparison_type_column(N_comparison, active_mappings)
 
     t0 = time.time()
     update_sheet_tab(
         sheet_id,
-        "N_and_diffs",
+        'N_and_diffs',
         N_comparison.reset_index(),
     )
     logger.info(
-        f"[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s"
+        f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
     # Compare D (direct EFs) new vs old
     D_comparison = construct_ef_diff_dataframe(
-        ef_name="D",
+        ef_name='D',
         ef_new=efs.D_new,
         ef_old=efs.D_old,
+        sector_desc=sector_desc,
     )
+
+    if use_cornerstone:
+        _add_comparison_type_column(D_comparison, active_mappings)
 
     t0 = time.time()
     update_sheet_tab(
         sheet_id,
-        "D_and_diffs",
+        'D_and_diffs',
         D_comparison.reset_index(),
     )
     logger.info(
-        f"[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s"
+        f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
     # Compare D and N for significant sectors
-    significant_sectors = [sector["sector"] for sector in SIGNIFICANT_SECTORS]
-    significant_sectors_comparison = D_comparison.loc[significant_sectors].join(
-        N_comparison.loc[significant_sectors].drop(columns=["sector_name"])
+    significant_sectors = [sector['sector'] for sector in SIGNIFICANT_SECTORS]
+    # When aligned, some significant sectors may not be in the index (e.g. if
+    # they were removed).  Filter to those present.
+    available_significant = [s for s in significant_sectors if s in D_comparison.index]
+    drop_cols = ['sector_name']
+    if use_cornerstone:
+        drop_cols.append('comparison_type')
+    significant_sectors_comparison = D_comparison.loc[available_significant].join(
+        N_comparison.loc[available_significant].drop(columns=drop_cols)
     )
     update_sheet_tab(
         sheet_id,
-        "D_and_N_significant_sectors",
+        'D_and_N_significant_sectors',
         significant_sectors_comparison.reset_index(),
     )
 
     # Summary statistics
     N_summary = calculate_summary_stats_for_ef_diff_dataframe(
-        ef_name="N",
+        ef_name='N',
         ef_comparison=N_comparison,
-        cols_to_summarize=["N_perc_diff"],
+        cols_to_summarize=['N_perc_diff'],
     )
 
     D_summary = calculate_summary_stats_for_ef_diff_dataframe(
-        ef_name="D",
+        ef_name='D',
         ef_comparison=D_comparison,
-        cols_to_summarize=["D_perc_diff"],
+        cols_to_summarize=['D_perc_diff'],
     )
 
     t0 = time.time()
     update_sheet_tab(
         sheet_id,
-        "N_and_D_summary_stats",
+        'N_and_D_summary_stats',
         pd.concat([N_summary, D_summary]),
     )
     logger.info(
-        f"[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s"
+        f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
     )
+
+    # Sector mapping notes (cornerstone only)
+    if use_cornerstone:
+        mapping_notes = _build_sector_mapping_notes(
+            active_mappings,
+            old_ef=efs_raw.D_old.raw,
+            new_ef=efs_raw.D_new,
+        )
+        update_sheet_tab(sheet_id, 'sector_mapping_notes', mapping_notes)
+        logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution
-    t0 = time.time()
-    Aq_set = derive_Aq_usa()
-    L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
+    if use_cornerstone:
+        logger.info(
+            'Skipping output contribution comparison — schemas differ. '
+            'OC comparison requires matching matrix dimensions.'
+        )
+    else:
+        t0 = time.time()
+        Aq_set = derive_Aq_usa()
+        L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
 
-    OC_new = compute_output_contribution(
-        L=L_new, D=ta.cast("pd.Series[float]", efs.D_new.squeeze())
-    )
+        OC_new = compute_output_contribution(
+            L=L_new, D=ta.cast('pd.Series[float]', efs.D_new.squeeze())
+        )
 
-    Adom_old = load_current_snapshot("Adom_USA")
-    Aimp_old = load_current_snapshot("Aimp_USA")
-    L_old = compute_L_matrix(A=Adom_old + Aimp_old)
+        Adom_old = load_current_snapshot('Adom_USA')
+        Aimp_old = load_current_snapshot('Aimp_USA')
+        L_old = compute_L_matrix(A=Adom_old + Aimp_old)
 
-    OC_old = compute_output_contribution(
-        L=L_old, D=ta.cast("pd.Series[float]", efs.D_old.inflated.squeeze())
-    )
+        OC_old = compute_output_contribution(
+            L=L_old, D=ta.cast('pd.Series[float]', efs.D_old.inflated.squeeze())
+        )
 
-    OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
-        OC_old,
-        OC_new,
-        old_val_name="old",
-        new_val_name="new",
-    )
-    logger.info(f"[TIMING] Output contribution computed in {time.time() - t0:.1f}s")
+        OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
+            OC_old,
+            OC_new,
+            old_val_name='old',
+            new_val_name='new',
+        )
+        logger.info(f'[TIMING] Output contribution computed in {time.time() - t0:.1f}s')
 
-    t0 = time.time()
-    update_sheet_tab(
-        sheet_id,
-        "output_contrib_new_vs_old",
-        OC_comparison,
-    )
-    logger.info(
-        f"[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s"
-    )
+        t0 = time.time()
+        update_sheet_tab(
+            sheet_id,
+            'output_contrib_new_vs_old',
+            OC_comparison,
+        )
+        logger.info(
+            f'[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s'
+        )
 
 
 def diff_and_perc_diff_two_output_contribution_matrices(
@@ -170,7 +256,7 @@ def diff_and_perc_diff_two_output_contribution_matrices(
     For each sector (column), finds the top N contributing sectors (rows)
     by absolute percentage of total difference.
     """
-    assert top_N > 0, "top_N must be greater than 0"
+    assert top_N > 0, 'top_N must be greater than 0'
 
     diff_df = matrix_new - matrix_old
 
@@ -205,18 +291,18 @@ def diff_and_perc_diff_two_output_contribution_matrices(
         df_data.extend(
             [
                 {
-                    "EF_sector": ef_sector,
-                    "EF_sector_name": CEDA_V7_SECTOR_DESC[ef_sector],  # type: ignore[index]
-                    "contributor_sector": contributor_index[idx],
-                    "contributor_sector_name": CEDA_V7_SECTOR_DESC[
+                    'EF_sector': ef_sector,
+                    'EF_sector_name': CEDA_V7_SECTOR_DESC[ef_sector],  # type: ignore[index]
+                    'contributor_sector': contributor_index[idx],
+                    'contributor_sector_name': CEDA_V7_SECTOR_DESC[
                         contributor_index[idx]
                     ],
-                    f"EF_contributor_{old_val_name}": col_values_old[idx],
-                    f"EF_sum_{old_val_name}": col_sum_old,
-                    f"EF_contributor_{new_val_name}": col_values_new[idx],
-                    f"EF_sum_{new_val_name}": col_sum_new,
-                    "EF_diff": col_values_diff[idx],
-                    "EF_perc_diff": col_values_perc_diff[idx],
+                    f'EF_contributor_{old_val_name}': col_values_old[idx],
+                    f'EF_sum_{old_val_name}': col_sum_old,
+                    f'EF_contributor_{new_val_name}': col_values_new[idx],
+                    f'EF_sum_{new_val_name}': col_sum_new,
+                    'EF_diff': col_values_diff[idx],
+                    'EF_perc_diff': col_values_perc_diff[idx],
                 }
                 for idx in top_indices
             ]
