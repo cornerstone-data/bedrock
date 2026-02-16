@@ -156,7 +156,8 @@ source_names:
           PrimaryActivity:
           - Fluorochemical Production  # other -  flowsa pulls from EPA_GHGI_T_4_63 and EPA_GHGI_T_4_64
           - Electronics Industry  # other -  flowsa pulls from EPA_GHGI_T_4_118
-          FlowName: ["Other PFCs", "Other HFCs"] # todo: check if this includes all other - ceda has hfc 23, nf3, sf6 for electronics
+#          FlowName: ["Other PFCs", "Other HFCs"] # terminology for EPA_GHGI_T_4_63, which is used in flowsa
+          FlowName: ['HFCs', 'NF3','SF6']  # todo: note that flurochemical and electronics have PFC data, but ceda does not load it?
         attribution_method: direct
 
       # newly added code for ceda, flowsa pulls magnesium from EPA_GHGI_T_4_106
@@ -164,7 +165,7 @@ source_names:
         selection_fields:
           PrimaryActivity:
           - Magnesium Production and Processing  # other (hfc 134a, sf6)  - different table than flowsa
-          FlowName: ["Other PFCs", "Other HFCs", "SF6", "HFCs"] # todo: want HFCs and SF6 - at what point does flowsa code add "other"?
+          FlowName: ["SF6", "HFCs"]  # flowsa uses "Other PFCs", "Other HFCs" because pulls from diff table
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Make_AfterRedef:  # confirmed ceda uses BEA Make
