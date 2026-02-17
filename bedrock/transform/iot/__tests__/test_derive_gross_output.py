@@ -191,6 +191,6 @@ def test_2017_redefinition_roundtrip() -> None:
     pd.testing.assert_series_equal(gap, column_sum_gap, check_names=False, rtol=1e-10)
 
     # 3. Absolute per-industry error < $11M (≤ 10 in BEA's million-dollar units)
-    assert gap.abs().max() <= 11_000_000, (
-        f'Max abs gap {gap.abs().max():.0f} exceeds BEA rounding tolerance'
-    )
+    assert (
+        gap.abs().max() <= 11_000_000
+    ), f'Max abs gap {gap.abs().max():.0f} exceeds BEA rounding tolerance'
