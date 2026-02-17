@@ -12,6 +12,10 @@ USA_2017_DETAIL_IO_MATRIX_MAPPING = {
     "Margins": "Margins Redefinitions 2017 DET.xlsx",
 }
 
+USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING = {
+    "Make_detail_before_redef": "IOMake_Before_Redefinitions_2017_Detail.xlsx",
+}
+
 USA_2017_DETAIL_IO_SUT_MATRIX_NAMES = ta.Literal[
     "Supply_detail",
     "Use_SUT_detail",

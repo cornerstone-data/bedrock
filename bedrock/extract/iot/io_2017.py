@@ -11,6 +11,7 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_NAMES,
     USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING,
@@ -78,6 +79,46 @@ def load_2017_V_usa() -> pd.DataFrame:
         _load_2017_detail_make_use_usa("Make_detail")
         .loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES]
         .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_INDUSTRY_INDEX
+    df.columns = USA_2017_COMMODITY_INDEX
+    return df
+
+
+@functools.cache
+def load_2017_V_before_redef_usa() -> pd.DataFrame:
+    """
+    Make table, industry x commodity, before redefinition, in producer price.
+    unit is USD, original unit is million USD.
+
+    This table contains co-production (off-diagonal) entries that represent
+    secondary products — i.e., commodities produced by industries other than
+    the industry that primarily produces them.
+    """
+    df = (
+        load_from_gcs(
+            name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
+                "Make_detail_before_redef"
+            ],
+            sub_bucket=GCS_USA_DIR,
+            local_dir=IN_DIR,
+            loader=lambda pth: pd.read_excel(
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+            ),
+        )
+        .set_index("Code")
+        .fillna(0)
+    )
+    df.columns = df.columns.astype(str)
+
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+
+    df = (
+        df.loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     df.index = USA_2017_INDUSTRY_INDEX
