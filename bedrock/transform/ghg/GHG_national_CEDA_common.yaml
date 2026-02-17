@@ -36,7 +36,7 @@ _attribution_sources:
   # TODO: note this is a flowsa table, not ceda, update for ceda?
   BEA: &bea # 2017 Make and Use tables
     year: 2017
-    activity_to_sector_mapping: BEA_2017_Detail
+    activity_to_sector_mapping: CEDA_2017_Detail
     exclusion_fields:
       # Drop irrelevant final demand and total sectors
       ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
