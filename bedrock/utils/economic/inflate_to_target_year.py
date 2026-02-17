@@ -11,9 +11,7 @@ from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
 from bedrock.utils.schemas.single_region_schemas import VMatrix
-from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
-    CEDA_V5_TO_CEDA_V7_CODES,
-)
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import CEDA_V5_TO_CEDA_V7_CODES
 
 get_price_index = functools.cache(
     lambda: obtain_inflation_factors_from_reference_data()
@@ -58,7 +56,7 @@ def inflate_usa_V_to_target_year(
 def inflate_A_matrix(
     A: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
-    price_index = obtain_inflation_factors_from_reference_data()
+    price_index = get_price_index()
 
     price_ratio = price_index[target_year] / price_index[original_year]
     return pd.DataFrame(
@@ -71,7 +69,7 @@ def inflate_A_matrix(
 def inflate_B_matrix(
     B: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
-    price_index = obtain_inflation_factors_from_reference_data()
+    price_index = get_price_index()
 
     price_ratio = price_index[original_year] / price_index[target_year]
     return B * price_ratio.loc[B.columns].values
@@ -80,7 +78,7 @@ def inflate_B_matrix(
 def inflate_q_or_y(
     q_or_y: pd.Series[float], original_year: int, target_year: int
 ) -> pd.Series[float]:
-    price_index = obtain_inflation_factors_from_reference_data()
+    price_index = get_price_index()
 
     price_ratio = price_index[target_year] / price_index[original_year]
     return q_or_y * price_ratio.loc[q_or_y.index]
