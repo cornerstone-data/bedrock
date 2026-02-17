@@ -6,6 +6,8 @@ times CPI-adjusted industry output (ValidateModel.R#L200-L240).
 
 from __future__ import annotations
 
+import typing as ta
+
 import pytest
 
 from bedrock.transform.eeio.derived_2017 import (
@@ -16,7 +18,6 @@ from bedrock.transform.eeio.derived_2017 import (
 )
 from bedrock.utils.validation.eeio_diagnostics import (
     commodity_industry_output_cpi_consistency,
-    # compare_industry_output_in_make_and_use,
     compare_output_from_make_and_use,
 )
 
@@ -52,8 +53,12 @@ def test_commodity_industry_output_cpi_consistency(
 
 @pytest.mark.skip
 @pytest.mark.eeio_integration
+@pytest.mark.parametrize(
+    "output, tolerance, include_details",
+    [("Commodity", 0.05, True), ("Industry", 0.05, True)],
+)
 def test_compare_industry_output_in_make_and_use(
-    output: str,
+    output: ta.Literal['Industry', 'Commodity'],
     tolerance: float,
     include_details: bool,
 ) -> None:

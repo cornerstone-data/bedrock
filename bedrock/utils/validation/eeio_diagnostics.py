@@ -353,7 +353,7 @@ def compare_output_vs_leontief_x_demand(
         Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
     """
 
-    # Make sure all elements have common sectors: TODO: make this a new function as it is called in several validation functions
+    # Make sure all elements have common sectors:
     sectors = output.index.intersection(L.index).intersection(y.index)
     if len(sectors) != len(output.index):
         return DiagnosticResult(
@@ -423,7 +423,7 @@ def commodity_industry_output_cpi_consistency(
 
 
 def compare_output_from_make_and_use(
-    output: str,
+    output: ta.Literal['Industry', 'Commodity'],
     V: pd.DataFrame,
     U: pd.DataFrame,
     tolerance: float,
@@ -450,12 +450,8 @@ def compare_output_from_make_and_use(
             name, q_make, q_use, tolerance=tolerance, include_details=include_details
         )
     else:
-        d_result = DiagnosticResult(
-            name="invalid output parameter requested for comparison between make and use, select commodity or industry",
-            passed=False,
-            tolerance=tolerance,
-            max_rel_diff=0.005,
-            failing_sectors=[],
+        raise ValueError(
+            'invalid output parameter requested for comparison between make and use, select commodity or industry'
         )
 
     return d_result
