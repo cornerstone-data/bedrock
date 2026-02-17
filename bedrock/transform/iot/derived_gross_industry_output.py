@@ -41,7 +41,20 @@ def derive_gross_output_after_redefinition(target_year: int) -> pd.Series:
     ratios = compute_coproduction_ratios(V_before_redef, V_after_redef)
 
     go_detail = map_detail_table(load_go_detail())
+    unmapped = go_detail[go_detail[SECTOR_CODE_COL].isna()]
+    if not unmapped.empty:
+        logger.warning(
+            'Unmapped GO detail sectors: %d rows (examples: %s)',
+            len(unmapped),
+            unmapped['sector_name'].head(10).tolist(),
+        )
+
     go_detail = go_detail.dropna(subset=[SECTOR_CODE_COL])
+    if go_detail.empty:
+        raise ValueError(
+            'No mapped sectors found in gross output detail table after applying '
+            'detail-to-industry mapping.'
+        )
 
     year_col: int | str
     if target_year in go_detail.columns:
@@ -138,9 +151,23 @@ def compute_coproduction_ratios(
         DataFrame with columns ``source_industry``, ``destination_industry``,
         ``ratio``.
     """
+    if V_after_redef is not None:
+        if not V_before_redef.index.equals(V_after_redef.index):
+            raise ValueError(
+                'V_before_redef and V_after_redef industry indexes must match exactly.'
+            )
+        if not V_before_redef.columns.equals(V_after_redef.columns):
+            raise ValueError(
+                'V_before_redef and V_after_redef commodity columns must match exactly.'
+            )
+
     V_movement = (
         V_before_redef - V_after_redef if V_after_redef is not None else V_before_redef
     )
+    if V_movement.isna().any().any():
+        raise ValueError(
+            'NaN encountered in V_movement; check input table alignment.'
+        )
     coproduction = extract_coproduction_entries(V_movement)
 
     g = V_before_redef.sum(axis=1)
