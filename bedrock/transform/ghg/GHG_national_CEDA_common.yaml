@@ -421,9 +421,9 @@ source_names:
       petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
-            Passenger Cars Diesel On-Road: Passenger Cars
-            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks
-            Medium- and Heavy-Duty Buses Diesel On-Road: Buses - Distillate Fuel Oil
+            Passenger Cars Diesel On-Road: Passenger Cars # needs to be household only in CEDA
+            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
+            Medium- and Heavy-Duty Buses Diesel On-Road: Buses # needs to be 485 only in CEDA
             Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
         attribution_method: proportional
         attribution_source:
@@ -435,8 +435,8 @@ source_names:
       petroleum_fuels_gasoline:
         selection_fields:
           PrimaryActivity:
-            Passenger Cars Gasoline On-Road: Passenger Cars
-            Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks
+            Passenger Cars Gasoline On-Road: Passenger Cars - Households # needs to be household only in CEDA
+            Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
@@ -474,6 +474,7 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
+    # NOTE THIS ACTIVITY SET IS NOT INCLUDED FOR N2O in CEDA (but is for CH4)
       alt_fuel_on_road: #this set is allocated by purchases of natural gas
         selection_fields: # empty in some years (<0.05 MMT CO2eq)
           PrimaryActivity:
