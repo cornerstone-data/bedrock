@@ -351,141 +351,141 @@ source_names:
 
 # TODO: update all mobile sources to reflect ceda method
 ### Mobile Sources
-#  EPA_GHGI_T_3_13: #CO2 from mobile combustion
-#    activity_to_sector_mapping: EPA_GHGI_CEDA
-#    fedefl_mapping: GHGI_AR5_100
-#    activity_sets:
-#      direct_petroleum:
-#        selection_fields:
-#          PrimaryActivity:
-#            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
-#            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
-#            Commercial Aircraft Jet Fuel: Commercial Aircraft
-#            Military Aircraft Jet Fuel: Military Aircraft
-#            Buses Gasoline: Buses
-#            Buses LPG: Buses
-#            Motorcycles Gasoline: Motorcycles
-#            Rail Distillate Fuel Oil: Rail
-#            Recreational Boats Distillate Fuel Oil: Recreational Boats
-#            Recreational Boats Gasoline: Recreational Boats
-#            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
-#            Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
-#            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
-#            Medium- and Heavy-Duty Trucks LPG: Medium- and Heavy-Duty Trucks
-#            Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks
-#            Light-Duty Trucks LPG: Light-Duty Trucks - Households
-#            Passenger Cars LPG: Passenger Cars - Households
-#        attribution_method: direct
-#
-#      direct_ng:
-#        selection_fields:
-#          PrimaryActivity:
-#            Buses Natural Gas: Buses
-#            Pipeline Natural Gas: Pipeline Natural Gas
-#
-#      petroleum_fuels:
-#        selection_fields:
-#          PrimaryActivity:
-#            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-#            Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
-#            Passenger Cars Distillate Fuel Oil: Passenger Cars
-#            Passenger Cars Gasoline: Passenger Cars
-#            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks
-#            Light-Duty Trucks Gasoline: Light-Duty Trucks
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
-#
-#  EPA_GHGI_T_3_14: &mobile #CH4 from mobile combustion
-#    activity_to_sector_mapping: EPA_GHGI_CEDA
-#    fedefl_mapping: GHGI_AR5_100
-#    activity_sets:
-#      direct_gasoline: # empty in some years (<0.05 MMT CO2eq)
-#        selection_fields:
-#          PrimaryActivity:
-#            Motorcycles Gasoline On-Road: Motorcycles
-#            Medium- and Heavy-Duty Trucks and Buses Gasoline On-Road: Medium- and Heavy-Duty Trucks and Buses
-#        attribution_method: direct
-#
-#      direct_non_road:
-#        selection_fields:
-#          PrimaryActivity:
-#            Rail Non-Road: Rail
-#            Ships and Boats Non-Road: Ships and Boats
-#            Aircraft Non-Road: General Aviation Aircraft
-#        attribution_method: direct
-#
-#      petroleum_fuels_diesel:
-#        selection_fields:
-#          PrimaryActivity:
-#            Passenger Cars Diesel On-Road: Passenger Cars
-#            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks
-#            Medium- and Heavy-Duty Buses Diesel On-Road: Buses - Distillate Fuel Oil
-#            Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
-#
-#      petroleum_fuels_gasoline:
-#        selection_fields:
-#          PrimaryActivity:
-#            Passenger Cars Gasoline On-Road: Passenger Cars
-#            Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
-#
-#      construction_and_mining: #this set is allocated by purchases of construction equipment
-#        selection_fields:
-#          PrimaryActivity: Construction/Mining Equipment Non-Road
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'333120': ''} # purchases of construction/mining equipment
-#
-#      farm_non_road: #this set is allocated by purchases of farm machinery
-#        selection_fields:
-#          PrimaryActivity: Agricultural Equipment Non-Road
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'333111': ''} # purchases of farm machinery
-#
-#      other_non_road: #this set is allocated by purchases of petroleum refining
-#        selection_fields:
-#          PrimaryActivity: Other Non-Road
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef: # flowsa uses BEA_SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'324110': ''} # purchases of refinery products
-#
-#      alt_fuel_on_road: #this set is allocated by purchases of natural gas
-#        selection_fields: # empty in some years (<0.05 MMT CO2eq)
-#          PrimaryActivity:
-#            All activities Alternative Fuel On-Road: Alternative Fuel On-Road
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'221200': ''} # purchases of natural gas
-#
-#  EPA_GHGI_T_3_15: *mobile #N2O from mobile combustion duplicates method for CH4
+  EPA_GHGI_T_3_13: #CO2 from mobile combustion
+    activity_to_sector_mapping: EPA_GHGI_CEDA
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      direct_petroleum:
+        selection_fields:
+          PrimaryActivity:
+            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
+            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
+            Commercial Aircraft Jet Fuel: Commercial Aircraft
+            Military Aircraft Jet Fuel: Military Aircraft
+            Buses Gasoline: Buses
+            Buses LPG: Buses
+            Motorcycles Gasoline: Motorcycles
+            Rail Distillate Fuel Oil: Rail
+            Recreational Boats Distillate Fuel Oil: Recreational Boats
+            Recreational Boats Gasoline: Recreational Boats
+            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
+            Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
+            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
+            Medium- and Heavy-Duty Trucks LPG: Medium- and Heavy-Duty Trucks
+            Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks
+            Light-Duty Trucks LPG: Light-Duty Trucks - Households
+            Passenger Cars LPG: Passenger Cars - Households
+        attribution_method: direct
+
+      direct_ng:
+        selection_fields:
+          PrimaryActivity:
+            Buses Natural Gas: Buses
+            Pipeline Natural Gas: Pipeline Natural Gas
+
+      petroleum_fuels:
+        selection_fields:
+          PrimaryActivity:
+            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+            Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
+            Passenger Cars Distillate Fuel Oil: Passenger Cars
+            Passenger Cars Gasoline: Passenger Cars
+            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks
+            Light-Duty Trucks Gasoline: Light-Duty Trucks
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+
+  EPA_GHGI_T_3_14: &mobile #CH4 from mobile combustion
+    activity_to_sector_mapping: EPA_GHGI_CEDA
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      direct_gasoline: # empty in some years (<0.05 MMT CO2eq)
+        selection_fields:
+          PrimaryActivity:
+            Motorcycles Gasoline On-Road: Motorcycles
+            Medium- and Heavy-Duty Trucks and Buses Gasoline On-Road: Medium- and Heavy-Duty Trucks and Buses
+        attribution_method: direct
+
+      direct_non_road:
+        selection_fields:
+          PrimaryActivity:
+            Rail Non-Road: Rail
+            Ships and Boats Non-Road: Ships and Boats
+            Aircraft Non-Road: General Aviation Aircraft
+        attribution_method: direct
+
+      petroleum_fuels_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Diesel On-Road: Passenger Cars
+            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks
+            Medium- and Heavy-Duty Buses Diesel On-Road: Buses - Distillate Fuel Oil
+            Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+
+      petroleum_fuels_gasoline:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Gasoline On-Road: Passenger Cars
+            Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+
+      construction_and_mining: #this set is allocated by purchases of construction equipment
+        selection_fields:
+          PrimaryActivity: Construction/Mining Equipment Non-Road
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333120': ''} # purchases of construction/mining equipment
+
+      farm_non_road: #this set is allocated by purchases of farm machinery
+        selection_fields:
+          PrimaryActivity: Agricultural Equipment Non-Road
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333111': ''} # purchases of farm machinery
+
+      other_non_road: #this set is allocated by purchases of petroleum refining
+        selection_fields:
+          PrimaryActivity: Other Non-Road
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef: # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+
+      alt_fuel_on_road: #this set is allocated by purchases of natural gas
+        selection_fields: # empty in some years (<0.05 MMT CO2eq)
+          PrimaryActivity:
+            All activities Alternative Fuel On-Road: Alternative Fuel On-Road
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'221200': ''} # purchases of natural gas
+
+  EPA_GHGI_T_3_15: *mobile #N2O from mobile combustion duplicates method for CH4
 
 
 ## Stationary Combustion

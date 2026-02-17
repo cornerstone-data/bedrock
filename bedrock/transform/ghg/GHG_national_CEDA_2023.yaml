@@ -52,14 +52,14 @@ source_names:
 #    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_5_19
 #    year: *ghgi_year
 
-#  "EPA_GHGI_T_3_13": #CO2 from mobile combustion
-#    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_3_13
-#    year: *ghgi_year
+  "EPA_GHGI_T_3_13": #CO2 from mobile combustion
+    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_3_13
+    year: *ghgi_year
 
-#  "EPA_GHGI_T_3_14": &T_3_14 #CH4 from mobile combustion
-#    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_3_14
-#    year: *ghgi_year
-#  "EPA_GHGI_T_3_15": *T_3_14 #N2O from mobile combustion duplicates method for CH4
+  "EPA_GHGI_T_3_14": &T_3_14 #CH4 from mobile combustion
+    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_3_14
+    year: *ghgi_year
+  "EPA_GHGI_T_3_15": *T_3_14 #N2O from mobile combustion duplicates method for CH4
 
   "EPA_GHGI_T_4_55": #CO2 for selected petrochemicals
     !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_4_55
