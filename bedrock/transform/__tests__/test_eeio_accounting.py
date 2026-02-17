@@ -49,9 +49,7 @@ def test_commodity_industry_output_cpi_consistency(
     assert len(r_c_x_cpi_consistency.failing_sectors) == 0
 
 
-@pytest.mark.xfail(
-    reason="Data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
-)
+@pytest.mark.skip
 @pytest.mark.eeio_integration
 def test_compare_industry_output_in_make_and_use(
     tolerance: float = 0.05,

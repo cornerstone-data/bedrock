@@ -304,8 +304,7 @@ def _derive_detail_Ytot_with_trade_usa() -> pd.DataFrame:
 
 
 def derive_detail_VA_usa() -> pd.DataFrame:
-    # TODO: figure out how to create a weight with the right dimensions, 3x400, and cols, CEDA ind.
-    # Idea: just create that dataframe with VA2017 values.
+    "Derives the value added portion of the 2017 detail Use tables in the ceda_v7 schema"
     VA = load_2017_value_added_usa()
     corresp_industry = load_usa_2017_industry__ceda_v7_correspondence()
 
