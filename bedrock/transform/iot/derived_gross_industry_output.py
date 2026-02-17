@@ -5,12 +5,16 @@ import logging
 import numpy as np
 import pandas as pd
 
+from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT_YEARS
+
 SECTOR_CODE_COL = 'sector_code'
 
 logger = logging.getLogger(__name__)
 
 
-def derive_gross_output_after_redefinition(target_year: int) -> pd.Series:
+def derive_gross_output_after_redefinition(
+    target_year: USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+) -> pd.Series:
     """
     Derive after-redefinition gross industry output for a target year.
 
@@ -165,9 +169,7 @@ def compute_coproduction_ratios(
         V_before_redef - V_after_redef if V_after_redef is not None else V_before_redef
     )
     if V_movement.isna().any().any():
-        raise ValueError(
-            'NaN encountered in V_movement; check input table alignment.'
-        )
+        raise ValueError('NaN encountered in V_movement; check input table alignment.')
     coproduction = extract_coproduction_entries(V_movement)
 
     g = V_before_redef.sum(axis=1)
