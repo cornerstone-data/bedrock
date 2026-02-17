@@ -203,7 +203,9 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
             old_ef=efs_raw.D_old.raw,
             new_ef=efs_raw.D_new,
         )
-        update_sheet_tab(sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True)
+        update_sheet_tab(
+            sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
+        )
         logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution
