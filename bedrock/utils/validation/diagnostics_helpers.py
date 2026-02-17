@@ -83,9 +83,9 @@ class EfsForDiagnostics(BaseModel):
 
 def _waste_disagg() -> ta.Tuple[str, ta.List[str]]:
     """Return (old_code, new_subsector_codes) from the cornerstone taxonomy."""
-    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
+    from bedrock.utils.taxonomy.cornerstone.commodities import (
         WASTE_DISAGG_COMMODITIES,
-    )
+    )  # noqa: PLC0415
 
     ((old_code, new_codes),) = WASTE_DISAGG_COMMODITIES.items()
     return old_code, list(new_codes)
@@ -97,9 +97,9 @@ def get_aligned_sector_desc() -> ta.Dict[str, str]:
     Combines CEDA v7 descriptions with cornerstone-only codes so that every
     sector in the aligned index has a human-readable name.
     """
-    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
+    from bedrock.utils.taxonomy.cornerstone.commodities import (
         COMMODITY_DESC,
-    )
+    )  # noqa: PLC0415
 
     desc: ta.Dict[str, str] = dict(CEDA_V7_SECTOR_DESC)  # type: ignore[arg-type]
     for code, name in COMMODITY_DESC.items():
@@ -114,102 +114,123 @@ def compute_active_mapped_sectors(
 ) -> ta.Dict[str, str]:
     """Determine which sector mappings are active based on the actual indices.
 
-    Only returns mappings where the relevant codes actually exist in the old
-    and new EF vectors.  This makes alignment robust to partially-enabled
-    config flags (e.g. cornerstone schema on but waste disaggregation off).
+    Returns a dict keyed by *every* code involved in a taxonomy change
+    (both old-only and new-only codes) so that the ``comparison_type`` column
+    in the output sheet clearly labels each row.
+
+    Mapping labels:
+      - ``old-only (waste aggregate)``  – old aggregate that was disaggregated
+      - ``new-only (waste subsector)``   – new subsectors of the above
+      - ``old-only (appliance detail)``  – old detail codes that were aggregated
+      - ``new-only (appliance aggregate)`` – new aggregate of the above
+      - ``old-only (aluminum)`` / ``new-only (aluminum)`` – aluminum split
     """
     waste_old, waste_new = _waste_disagg()
     old_idx = set(old_ef.index)
     new_idx = set(new_ef.index)
     active: ta.Dict[str, str] = {}
 
-    # Waste: mapping needed only when old has the aggregate but new has subsectors
+    # Waste: old has aggregate 562000, new has subsectors
     if waste_old in old_idx and waste_old not in new_idx:
         if all(c in new_idx for c in waste_new):
-            active[waste_old] = 'disaggregated (summed new)'
+            active[waste_old] = 'old-only (waste aggregate)'
+            for c in waste_new:
+                active[c] = 'new-only (waste subsector)'
 
-    # Appliances: mapping needed only when new has 335220 but old has the 4 codes
+    # Appliances: old has 4 detail codes, new aggregates to 335220
     if _APPLIANCE_NEW_CODE in new_idx and _APPLIANCE_NEW_CODE not in old_idx:
         if all(c in old_idx for c in _APPLIANCE_OLD_CODES):
-            active[_APPLIANCE_NEW_CODE] = 'aggregated (summed old)'
+            active[_APPLIANCE_NEW_CODE] = 'new-only (appliance aggregate)'
+            for c in _APPLIANCE_OLD_CODES:
+                active[c] = 'old-only (appliance detail)'
 
-    # Aluminum: mapping needed only when new has extra 33131B that old lacks
+    # Aluminum: old has 331313 only; new splits into 331313 + 33131B
     if _ALUMINUM_NEW_EXTRA_CODE in new_idx and _ALUMINUM_NEW_EXTRA_CODE not in old_idx:
-        active[_ALUMINUM_OLD_CODE] = 'disaggregated (summed new)'
+        active[_ALUMINUM_NEW_EXTRA_CODE] = 'new-only (aluminum)'
 
     return active
 
 
-def _compute_aligned_index(
+def _compute_full_union_index(
     old_ef: pd.DataFrame,
     new_ef: pd.DataFrame,
-    active_mappings: ta.Dict[str, str],
 ) -> ta.List[str]:
-    """Compute the common aligned index for old and new EF vectors.
-
-    Starts with codes present in both indices, then appends mapped codes
-    that only exist on one side (e.g. ``562000`` from old, ``335220`` from new).
-    Codes that are new-only with no baseline counterpart are excluded.
-    """
-    waste_old, _ = _waste_disagg()
-    old_idx = set(old_ef.index)
-    new_idx = set(new_ef.index)
-    direct_shared = sorted(old_idx & new_idx)
-
-    extra: ta.List[str] = []
-    if waste_old in active_mappings:
-        extra.append(waste_old)
-    if _APPLIANCE_NEW_CODE in active_mappings:
-        extra.append(_APPLIANCE_NEW_CODE)
-
-    return direct_shared + extra
+    """Full sorted union of old and new indices — every sector appears."""
+    return sorted(set(old_ef.index) | set(new_ef.index))
 
 
-def _align_old_ef(
-    old_ef: pd.DataFrame,
-    aligned_index: ta.List[str],
+# A fill-map entry: target_code → source (single code or list to sum).
+FillMap = ta.Dict[str, ta.Union[str, ta.List[str]]]
+
+
+def _build_fill_maps(
     active_mappings: ta.Dict[str, str],
-) -> pd.DataFrame:
-    """Reindex an old (CEDA v7) EF vector onto the aligned index.
+) -> ta.Tuple[FillMap, FillMap]:
+    """Build fill maps for gaps created by disaggregation / aggregation.
 
-    For the appliance group (if active), the four old codes are summed into
-    335220.  All other codes are looked up directly.
-    """
-    appliance_active = _APPLIANCE_NEW_CODE in active_mappings
-    rows: ta.Dict[str, float] = {}
-    for code in aligned_index:
-        if code == _APPLIANCE_NEW_CODE and appliance_active:
-            rows[code] = float(old_ef.loc[_APPLIANCE_OLD_CODES].values.sum())
-        else:
-            rows[code] = float(old_ef.loc[code].values[0])
-    return pd.DataFrame.from_dict(rows, orient='index', columns=old_ef.columns)
+    Returns ``(old_fill_map, new_fill_map)`` where each dict maps a gap code
+    to the source code(s) in the *same* EF vector whose value should be used.
 
+    Old-side fills (codes missing from old EF):
+      - Waste subsectors (562111 …) ← old aggregate 562000
+      - Appliance aggregate (335220) ← sum of old detail codes
+      - Aluminum new code (33131B) ← old 331313
 
-def _align_new_ef(
-    new_ef: pd.DataFrame,
-    aligned_index: ta.List[str],
-    active_mappings: ta.Dict[str, str],
-) -> pd.DataFrame:
-    """Reindex a new (cornerstone) EF vector onto the aligned index.
-
-    For waste (if active), subsectors are summed into the aggregate code.
-    For aluminum (if active), 331313 + 33131B are summed into 331313.
-    All other codes are looked up directly.
+    New-side fills (codes missing from new EF):
+      - Waste aggregate (562000) ← sum of new subsectors
+      - Appliance detail codes (335221 …) ← new aggregate 335220
     """
     waste_old, waste_new = _waste_disagg()
-    waste_active = waste_old in active_mappings
-    aluminum_active = _ALUMINUM_OLD_CODE in active_mappings
-    rows: ta.Dict[str, float] = {}
-    for code in aligned_index:
-        if code == waste_old and waste_active:
-            rows[code] = float(new_ef.loc[waste_new].values.sum())
-        elif code == _ALUMINUM_OLD_CODE and aluminum_active:
-            rows[code] = float(
-                new_ef.loc[[_ALUMINUM_OLD_CODE, _ALUMINUM_NEW_EXTRA_CODE]].values.sum()
-            )
+    old_fill: FillMap = {}
+    new_fill: FillMap = {}
+
+    # Waste: disaggregated in new schema
+    if waste_old in active_mappings:
+        for c in waste_new:
+            old_fill[c] = waste_old
+        new_fill[waste_old] = waste_new
+
+    # Appliances: aggregated in new schema
+    if _APPLIANCE_NEW_CODE in active_mappings:
+        old_fill[_APPLIANCE_NEW_CODE] = _APPLIANCE_OLD_CODES
+        for c in _APPLIANCE_OLD_CODES:
+            new_fill[c] = _APPLIANCE_NEW_CODE
+
+    # Aluminum: disaggregated in new schema
+    if _ALUMINUM_NEW_EXTRA_CODE in active_mappings:
+        old_fill[_ALUMINUM_NEW_EXTRA_CODE] = _ALUMINUM_OLD_CODE
+
+    return old_fill, new_fill
+
+
+def _reindex_and_fill(
+    ef: pd.DataFrame,
+    full_index: ta.List[str],
+    fill_map: FillMap,
+) -> pd.DataFrame:
+    """Reindex an EF vector and fill gaps using related sectors from the same vector.
+
+    For each target code in *fill_map*, if the reindexed result has NaN, look up
+    the source code(s) in the **original** *ef*:
+      - single code  → copy its value
+      - list of codes → take their **mean** (not sum), because D and N are
+        per-dollar intensities — summing intensities would inflate the filled
+        value by the number of subcategories.
+    """
+    result = ef.reindex(full_index)
+    for target, source in fill_map.items():
+        if target not in result.index:
+            continue
+        if not pd.isna(result.loc[target].values[0]):
+            continue
+        if isinstance(source, list):
+            present = [s for s in source if s in ef.index]
+            if present:
+                result.loc[target] = ef.loc[present].values.mean()
         else:
-            rows[code] = float(new_ef.loc[code].values[0])
-    return pd.DataFrame.from_dict(rows, orient='index', columns=new_ef.columns)
+            if source in ef.index:
+                result.loc[target] = ef.loc[source].values[0]
+    return result
 
 
 def align_efs_across_schemas(
@@ -224,23 +245,24 @@ def align_efs_across_schemas(
         A tuple of (aligned EfsForDiagnostics, active mapped-sectors dict).
     """
     active_mappings = compute_active_mapped_sectors(efs.D_old.raw, efs.D_new)
-    aligned_index = _compute_aligned_index(efs.D_old.raw, efs.D_new, active_mappings)
+    full_index = _compute_full_union_index(efs.D_old.raw, efs.D_new)
+    old_fill, new_fill = _build_fill_maps(active_mappings)
 
     logger.info(
-        f'Schema alignment: {len(aligned_index)} sectors in common index, '
+        f'Schema alignment: {len(full_index)} sectors in full union index, '
         f'{len(active_mappings)} active mappings: {active_mappings}'
     )
 
     aligned_efs = EfsForDiagnostics(
-        D_new=_align_new_ef(efs.D_new, aligned_index, active_mappings),
-        N_new=_align_new_ef(efs.N_new, aligned_index, active_mappings),
+        D_new=_reindex_and_fill(efs.D_new, full_index, new_fill),
+        N_new=_reindex_and_fill(efs.N_new, full_index, new_fill),
         D_old=OldEfSet(
-            raw=_align_old_ef(efs.D_old.raw, aligned_index, active_mappings),
-            inflated=_align_old_ef(efs.D_old.inflated, aligned_index, active_mappings),
+            raw=_reindex_and_fill(efs.D_old.raw, full_index, old_fill),
+            inflated=_reindex_and_fill(efs.D_old.inflated, full_index, old_fill),
         ),
         N_old=OldEfSet(
-            raw=_align_old_ef(efs.N_old.raw, aligned_index, active_mappings),
-            inflated=_align_old_ef(efs.N_old.inflated, aligned_index, active_mappings),
+            raw=_reindex_and_fill(efs.N_old.raw, full_index, old_fill),
+            inflated=_reindex_and_fill(efs.N_old.inflated, full_index, old_fill),
         ),
     )
     return aligned_efs, active_mappings
@@ -454,12 +476,12 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         EfsForDiagnostics with new and old EF data for comparison
     """
     # Late-binding imports - these depend on global config
-    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
-        derive_Aq_usa,
+    from bedrock.transform.eeio.derived import (
+        derive_Aq_usa,  # noqa: PLC0415
         derive_B_usa_non_finetuned,
     )
-    from bedrock.utils.math.formulas import (  # noqa: PLC0415
-        compute_d,
+    from bedrock.utils.math.formulas import (
+        compute_d,  # noqa: PLC0415
         compute_L_matrix,
         compute_M_matrix,
         compute_n,
