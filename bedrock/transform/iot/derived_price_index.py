@@ -1,7 +1,6 @@
 import pandas as pd
 
 from bedrock.extract.iot.constants import (
-    PRICE_INDEX_DETAIL_NAME_TO_BEA_2017_INDUSTRY_MAPPING,
     PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2017_SUMMARY_MAPPING_NON_EMPTY,
 )
 from bedrock.extract.iot.gdp import (
@@ -13,9 +12,6 @@ from bedrock.extract.iot.gdp import (
 )
 from bedrock.transform.iot.helpers import map_detail_table, map_pi_summary__detail
 from bedrock.utils.taxonomy.bea.v2017_industry import BEA_2017_INDUSTRY_CODES
-from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
-    load_bea_v2017_industry_to_bea_v2017_summary,
-)
 from bedrock.utils.taxonomy.utils import assert_sets_equal
 
 """

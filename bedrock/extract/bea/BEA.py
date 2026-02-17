@@ -18,11 +18,11 @@ from esupy.processed_data_mgmt import download_from_remote
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+from bedrock.extract.iot.gdp import load_go_detail
 from bedrock.extract.iot.io_2017 import (  # _load_2017_detail_make_use_usa,
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
 )
-from bedrock.extract.iot.gdp import load_go_detail
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.iot.helpers import map_detail_table
 from bedrock.utils.config.settings import PATHS
