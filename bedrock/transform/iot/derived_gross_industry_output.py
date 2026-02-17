@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-SECTOR_CODE_COL = "sector_code"
+SECTOR_CODE_COL = 'sector_code'
 
 logger = logging.getLogger(__name__)
 
@@ -50,18 +50,18 @@ def derive_gross_output_after_redefinition(target_year: int) -> pd.Series:
         year_col = str(target_year)
     else:
         available = sorted(
-            c for c in go_detail.columns if c not in ("sector_name", SECTOR_CODE_COL)
+            c for c in go_detail.columns if c not in ('sector_name', SECTOR_CODE_COL)
         )
         raise ValueError(
-            f"Target year {target_year} not found in gross output time series. "
-            f"Available columns: {available}"
+            f'Target year {target_year} not found in gross output time series. '
+            f'Available columns: {available}'
         )
 
     go_before = go_detail.set_index(SECTOR_CODE_COL)[year_col]
     assert isinstance(go_before, pd.Series)
 
     if not go_before.index.is_unique:
-        logger.warning("Duplicate sector codes in gross output; aggregating by sum.")
+        logger.warning('Duplicate sector codes in gross output; aggregating by sum.')
         go_before = go_before.groupby(level=0).sum()
 
     return adjust_gross_output(go_before, ratios)
@@ -95,7 +95,7 @@ def extract_coproduction_entries(V_before_redef: pd.DataFrame) -> pd.DataFrame:
     is_nonzero = stacked.values != 0
 
     coproduction = stacked[is_off_diagonal & is_nonzero].reset_index()
-    coproduction.columns = pd.Index(["source_industry", "commodity", "value"])
+    coproduction.columns = pd.Index(['source_industry', 'commodity', 'value'])
     return coproduction
 
 
@@ -145,18 +145,18 @@ def compute_coproduction_ratios(
 
     g = V_before_redef.sum(axis=1)
     source_g: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
-        g.reindex(coproduction["source_industry"].values).values, dtype=float
+        g.reindex(coproduction['source_industry'].values).values, dtype=float
     )
     coprod_values: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
-        coproduction["value"].values, dtype=float
+        coproduction['value'].values, dtype=float
     )
     ratio = np.where(source_g != 0, coprod_values / source_g, 0.0)
 
     return pd.DataFrame(
         {
-            "source_industry": coproduction["source_industry"].values,
-            "destination_industry": coproduction["commodity"].values,
-            "ratio": ratio,
+            'source_industry': coproduction['source_industry'].values,
+            'destination_industry': coproduction['commodity'].values,
+            'ratio': ratio,
         }
     )
 
@@ -191,24 +191,24 @@ def adjust_gross_output(
     """
     go_adjusted = go_before.copy().astype(float)
 
-    valid_mask = coproduction_ratios["source_industry"].isin(
+    valid_mask = coproduction_ratios['source_industry'].isin(
         go_before.index
-    ) & coproduction_ratios["destination_industry"].isin(go_before.index)
+    ) & coproduction_ratios['destination_industry'].isin(go_before.index)
 
     skipped = coproduction_ratios[~valid_mask]
     if len(skipped) > 0:
-        missing_sources = set(skipped["source_industry"]) - set(go_before.index)
-        missing_dests = set(skipped["destination_industry"]) - set(go_before.index)
+        missing_sources = set(skipped['source_industry']) - set(go_before.index)
+        missing_dests = set(skipped['destination_industry']) - set(go_before.index)
         if missing_sources:
             logger.warning(
-                "Skipping co-production entries for source industries "
-                "not in gross output: %s",
+                'Skipping co-production entries for source industries '
+                'not in gross output: %s',
                 missing_sources,
             )
         if missing_dests:
             logger.warning(
-                "Skipping co-production entries for destination industries "
-                "not in gross output: %s",
+                'Skipping co-production entries for destination industries '
+                'not in gross output: %s',
                 missing_dests,
             )
 
@@ -216,18 +216,18 @@ def adjust_gross_output(
     if valid_ratios.empty:
         return go_adjusted
 
-    ratio_arr = np.asarray(valid_ratios["ratio"].values, dtype=float)
-    source_keys = list(valid_ratios["source_industry"])
+    ratio_arr = np.asarray(valid_ratios['ratio'].values, dtype=float)
+    source_keys = list(valid_ratios['source_industry'])
     source_go_arr = np.asarray(go_before.loc[source_keys].values, dtype=float)
     movements = ratio_arr * source_go_arr
 
     subtractions = (
-        pd.Series(movements, index=valid_ratios["source_industry"].values)
+        pd.Series(movements, index=valid_ratios['source_industry'].values)
         .groupby(level=0)
         .sum()
     )
     additions = (
-        pd.Series(movements, index=valid_ratios["destination_industry"].values)
+        pd.Series(movements, index=valid_ratios['destination_industry'].values)
         .groupby(level=0)
         .sum()
     )
