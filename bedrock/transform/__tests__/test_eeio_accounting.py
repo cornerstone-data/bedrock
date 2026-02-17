@@ -6,17 +6,21 @@ times CPI-adjusted industry output (ValidateModel.R#L200-L240).
 
 from __future__ import annotations
 
+import pytest
+
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_g_usa,
     derive_2017_q_usa,
+    derive_2017_U_with_negatives,
     derive_2017_V_usa,
 )
 from bedrock.utils.validation.eeio_diagnostics import (
     commodity_industry_output_cpi_consistency,
+    compare_industry_output_in_make_and_use,
 )
 
 
-# @pytest.mark.eeio_integration
+@pytest.mark.eeio_integration
 def test_commodity_industry_output_cpi_consistency(
     base_year: int = 2017,
     target_year: int = 2022,
@@ -43,3 +47,25 @@ def test_commodity_industry_output_cpi_consistency(
     )
 
     assert len(r_c_x_cpi_consistency.failing_sectors) == 0
+
+
+@pytest.mark.skip
+@pytest.mark.eeio_integration
+def test_compare_industry_output_in_make_and_use(
+    tolerance: float = 0.05,
+    include_details: bool = False,
+) -> None:
+    """Test that the industry ouput from the Make and Use tables are the same."""
+
+    V = derive_2017_V_usa()  # Make table
+    U_set = derive_2017_U_with_negatives()  # Use table output
+    U = U_set.Udom + U_set.Uimp
+
+    r_x_in_V_and_U = compare_industry_output_in_make_and_use(
+        V=V,
+        U=U,
+        tolerance=tolerance,
+        include_details=True,
+    )
+
+    assert len(r_x_in_V_and_U.failing_sectors) == 0
