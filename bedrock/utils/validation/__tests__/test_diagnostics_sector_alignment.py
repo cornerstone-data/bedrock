@@ -69,19 +69,19 @@ class TestAlignEfsAcrossSchemas:
         # Shared sectors pass through
         assert result.D_old.raw.loc['1111A0', 'v'] == pytest.approx(1.0)
         assert result.D_new.loc['1111A0', 'v'] == pytest.approx(1.1)
-        # Waste: new subsectors summed into 562000
+        # Waste: new subsectors averaged into 562000 (mean, not sum, for intensities)
         assert result.D_old.raw.loc['562000', 'v'] == pytest.approx(50.0)
-        assert result.D_new.loc['562000', 'v'] == pytest.approx(70.0)
-        # Appliances: old 4 codes summed into 335220
-        assert result.D_old.raw.loc['335220', 'v'] == pytest.approx(20.0)
+        assert result.D_new.loc['562000', 'v'] == pytest.approx(10.0)
+        # Appliances: old 4 codes averaged into 335220 (mean for intensities)
+        assert result.D_old.raw.loc['335220', 'v'] == pytest.approx(5.0)
         assert result.D_new.loc['335220', 'v'] == pytest.approx(18.0)
-        # Aluminum: new 331313 + 33131B summed into 331313
+        # Aluminum: 331313 exists in both schemas; 33131B filled on old side only
         assert result.D_old.raw.loc['331313', 'v'] == pytest.approx(12.0)
-        assert result.D_new.loc['331313', 'v'] == pytest.approx(12.0)
-        # S00402 excluded
-        assert 'S00402' not in result.D_new.index
-        # All 3 mappings active
-        assert len(active) == 3
+        assert result.D_new.loc['331313', 'v'] == pytest.approx(8.0)
+        # S00402 is new-only, present in the full union index (no exclusion logic)
+        assert 'S00402' in result.D_new.index
+        # Active mappings: 8 waste + 5 appliance + 1 aluminum = 14 individual codes
+        assert len(active) == 14
 
     def test_partial_schema_no_aluminum_split(self) -> None:
         """When 33131B is absent from new, aluminum mapping is skipped (no KeyError)."""
