@@ -14,7 +14,10 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.eeio.derived_2017 import derive_detail_VA_usa
+from bedrock.transform.eeio.derived_2017 import (
+    derive_2017_Ytot_usa_matrix_set,
+    derive_detail_VA_usa,
+)
 from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
@@ -311,37 +314,7 @@ def compare_commodity_output_to_domestics_use_plus_exports(
     d_result = validate_result(
         name, q, q_check, tolerance=tolerance, include_details=include_details
     )
-    """  
-    rel_diff = (q - q_check) / q
-    rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
-    rel_diff_abs = np.abs(rel_diff)
 
-    failing_sectors = rel_diff_abs[rel_diff_abs > tolerance]
-    passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
-    max_rd = float(np.max(rel_diff_abs))
-
-
-
-    details = None
-    if include_details:
-        data = {
-            "failing sectors": list(getattr(failing_sectors, "index", [])),
-            "passing sectors": list(getattr(passing_sectors, "index", [])),
-            "failing values": np.array(failing_sectors).tolist(),
-            "max_rel_diff": max_rd,
-        }
-
-        details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
-
-    return DiagnosticResult(
-        name=name,
-        passed=passing_sectors,
-        tolerance=tolerance,
-        max_rel_diff=max_rd,
-        failing_sectors=failing_sectors,
-        details=details,
-    )
-    """
     return d_result
 
 
@@ -380,7 +353,7 @@ def compare_output_vs_leontief_x_demand(
         Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
     """
 
-    # Make sure all elements have common sectors: TODO: make this a new function as it is called in several validation functions
+    # Make sure all elements have common sectors:
     sectors = output.index.intersection(L.index).intersection(y.index)
     if len(sectors) != len(output.index):
         return DiagnosticResult(
@@ -399,35 +372,7 @@ def compare_output_vs_leontief_x_demand(
     d_result = validate_result(
         name, output, output_check, tolerance=tolerance, include_details=include_details
     )
-    """
-    rel_diff = (output - output_check) / output
-    rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
-    rel_diff_abs = np.abs(rel_diff)
 
-    failing_sectors = rel_diff_abs[rel_diff_abs > tolerance]
-    passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
-    max_rd = float(np.max(rel_diff_abs))
-
-    details = None
-    if include_details:
-        data = {
-            "failing sectors": list(getattr(failing_sectors, "index", [])),
-            "passing sectors": list(getattr(passing_sectors, "index", [])),
-            "failing values": np.array(failing_sectors).tolist(),
-            "max_rel_diff": max_rd,
-        }
-        details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
-
-    passed = len(output) == len(passing_sectors)
-    return DiagnosticResult(
-        name=name,
-        passed=passed,
-        tolerance=tolerance,
-        max_rel_diff=max_rd,
-        failing_sectors=list(getattr(failing_sectors, "index", [])),
-        details=details,
-    )
-    """
     return d_result
 
 
@@ -470,15 +415,6 @@ def commodity_industry_output_cpi_consistency(
 
     name = "commodity_industry_output_cpi_consistency"
 
-    """     # Convert pandas Series to numpy arrays of float64 for compatibility with assert_allclose
-    q_check_arr = np.asarray(q_check.values, dtype=np.float64)
-    x_check_arr = np.asarray(x_check.values, dtype=np.float64)
-    np.testing.assert_allclose(
-        q_check_arr,
-        x_check_arr,
-        rtol=tolerance,
-        err_msg="CPI-adjusted commodity output should equal C_m @ (CPI-adjusted industry output)",
-    ) """
     d_result = validate_result(
         name, q_check, x_check, tolerance=tolerance, include_details=include_details
     )
@@ -486,20 +422,36 @@ def commodity_industry_output_cpi_consistency(
     return d_result
 
 
-def compare_industry_output_in_make_and_use(
+def compare_output_from_make_and_use(
+    output: ta.Literal['Industry', 'Commodity'],
     V: pd.DataFrame,
     U: pd.DataFrame,
     tolerance: float,
     include_details: bool = False,
 ) -> DiagnosticResult:
     """Check that industry output from Use and Make tables are the same"""
-    VA = derive_detail_VA_usa()
-    x_make = V.sum(axis=1)
-    x_use = U.sum(axis=0) + VA.sum(axis=0)
 
-    name = "compare_industry_output_in_make_and_use"
-    d_result = validate_result(
-        name, x_make, x_use, tolerance=tolerance, include_details=include_details
-    )
+    if output == "Industry":
+        VA = derive_detail_VA_usa()
+        x_make = V.sum(axis=1)
+        x_use = U.sum(axis=0) + VA.sum(axis=0)
+
+        name = "compare_industry_output_from_make_and_use"
+        d_result = validate_result(
+            name, x_make, x_use, tolerance=tolerance, include_details=include_details
+        )
+    elif output == "Commodity":
+        y_set = derive_2017_Ytot_usa_matrix_set()
+        q_make = V.sum(axis=0)
+        q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
+
+        name = "compare_commodity_output_from_make_and_use"
+        d_result = validate_result(
+            name, q_make, q_use, tolerance=tolerance, include_details=include_details
+        )
+    else:
+        raise ValueError(
+            'invalid output parameter requested for comparison between make and use, select commodity or industry'
+        )
 
     return d_result

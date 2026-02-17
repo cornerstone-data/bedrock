@@ -303,6 +303,7 @@ def _derive_detail_Ytot_with_trade_usa() -> pd.DataFrame:
     return Ytot_with_trade_usa
 
 
+@functools.cache
 def derive_detail_VA_usa() -> pd.DataFrame:
     "Derives the value added portion of the 2017 detail Use tables in the ceda_v7 schema"
     VA = load_2017_value_added_usa()
@@ -311,7 +312,7 @@ def derive_detail_VA_usa() -> pd.DataFrame:
     # Calculating weights by aggregating the 2017 VA values along the column axis to align with CEDA-schema industries
     VA_weights = VA @ corresp_industry.T
 
-    VA_ceda_usa = structural_reflect_matrix(
+    VA_usa = structural_reflect_matrix(
         row_corresp_df=pd.DataFrame(
             np.eye(len(VA.index)),
             index=VA.index,
@@ -321,7 +322,7 @@ def derive_detail_VA_usa() -> pd.DataFrame:
         df_base=VA,
         df_weights=VA_weights,
     )
-    return VA_ceda_usa
+    return VA_usa
 
 
 @functools.cache
