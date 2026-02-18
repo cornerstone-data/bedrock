@@ -380,17 +380,28 @@ source_names:
       direct_ng:
         selection_fields:
           PrimaryActivity:
-            Buses Natural Gas: Buses
+            Buses Natural Gas: Pipeline Natural Gas # all natural gas allocated to pipelines in CEDA
             Pipeline Natural Gas: Pipeline Natural Gas
+        attribution_method: direct
 
-      petroleum_fuels:
+      petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
             Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
             Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
             Passenger Cars Distillate Fuel Oil: Passenger Cars
+            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks - Households
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+
+      petroleum_fuels_gasoline:
+        selection_fields:
+          PrimaryActivity:
             Passenger Cars Gasoline: Passenger Cars
-            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks
             Light-Duty Trucks Gasoline: Light-Duty Trucks
         attribution_method: proportional
         attribution_source:
@@ -421,28 +432,28 @@ source_names:
       petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
-            Passenger Cars Diesel On-Road: Passenger Cars # needs to be household only in CEDA
+            Passenger Cars Diesel On-Road: Passenger Cars - Households # needs to be household only in CEDA
             Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
-            Medium- and Heavy-Duty Buses Diesel On-Road: Buses # needs to be 485 only in CEDA
+            Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Trucks and Buses # assigned to to 484 only in CEDA
             Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+        attribution_method: direct
+        # attribution_source:
+        #   BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+        #     <<: *bea
+        #     selection_fields:
+        #       ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
       petroleum_fuels_gasoline:
         selection_fields:
           PrimaryActivity:
             Passenger Cars Gasoline On-Road: Passenger Cars - Households # needs to be household only in CEDA
             Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+        attribution_method: direct
+        # attribution_source:
+        #   BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+        #     <<: *bea
+        #     selection_fields:
+        #       ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
       construction_and_mining: #this set is allocated by purchases of construction equipment
         selection_fields:
