@@ -4,10 +4,11 @@ from bedrock.extract.iot.constants import (
     PRICE_INDEX_DETAIL_NAME_TO_BEA_2017_INDUSTRY_MAPPING,
 )
 from bedrock.extract.iot.gdp import SECTOR_NAME_COL, SECTOR_SUMMARY_CODE_COL
-from bedrock.transform.iot.derived_price_index import SECTOR_CODE_COL
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
     load_bea_v2017_industry_to_bea_v2017_summary,
 )
+
+SECTOR_CODE_COL = "sector_code"
 
 
 def map_pi_summary__detail(pi_summary: pd.DataFrame) -> pd.DataFrame:
