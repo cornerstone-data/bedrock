@@ -99,8 +99,8 @@ from bedrock.utils.taxonomy.cornerstone.commodities import (
 )
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES as _CS_INDUSTRIES
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
-    load_usa_2017_commodity__ceda_v7_correspondence,
     load_usa_2017_commodity__cornerstone_commodity_correspondence,
+    load_usa_2017_industry__ceda_v7_correspondence,
     load_usa_2017_industry__cornerstone_industry_correspondence,
 )
 
@@ -337,25 +337,29 @@ def _bea_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series[float]]:
 
 
 @functools.cache
-def _ceda_v7_commodity_corresp() -> pd.DataFrame:
-    """BEA 2017 commodity → CEDA v7 correspondence (rows=CEDA v7, cols=BEA 2017 commodity)."""
-    return load_usa_2017_commodity__ceda_v7_correspondence()
+def _ceda_v7_industry_corresp() -> pd.DataFrame:
+    """CEDA v7 → BEA 2017 industry correspondence (rows=CEDA v7, cols=BEA industry)."""
+    return load_usa_2017_industry__ceda_v7_correspondence()
 
 
 @functools.cache
-def _g_weighted_ceda_corresp() -> pd.DataFrame:
-    """CEDA v7 → BEA commodity correspondence, row-normalized by industry output.
+def _g_weighted_ceda_industry_corresp() -> pd.DataFrame:
+    """CEDA v7 → BEA industry correspondence, row-normalized by industry output (g).
 
-    The raw correspondence has shape (CEDA_v7 × BEA_commodity) with binary 1s.
-    When one CEDA v7 sector maps to multiple BEA codes (e.g. CEDA 331313 →
-    BEA {331313, 33131B}), a plain matmul would duplicate the emission into
-    both BEA columns.  Instead, we weight each column by its BEA industry
-    output (g) and then row-normalize, so emissions are **split** proportionally
-    rather than duplicated.
+    Handles two kinds of one-to-many mappings:
+
+    * **Disaggregation** — one CEDA v7 sector covers multiple BEA codes
+      (e.g. CEDA 331313 → BEA {331313, 33131B}).
+    * **Government aggregation** — one CEDA v7 sector covers private + govt
+      industries (e.g. CEDA 221100 → BEA {221100, S00101, S00202}).
+
+    In both cases, weighting by g and row-normalizing ensures emissions are
+    **split** proportionally by industry output rather than duplicated or
+    concentrated in a single BEA industry.
 
     For 1:1 mappings the result is identical (weight / weight = 1.0).
     """
-    corresp = _ceda_v7_commodity_corresp()  # (CEDA_v7 × BEA_commodity)
+    corresp = _ceda_v7_industry_corresp()  # (CEDA_v7 × BEA_industry)
     g = _bea_g()
     g_aligned = g.reindex(corresp.columns, fill_value=0.0)
     weighted = corresp.multiply(g_aligned, axis=1)
@@ -367,15 +371,15 @@ def _g_weighted_ceda_corresp() -> pd.DataFrame:
 def _bea_E() -> pd.DataFrame:
     """E (ghg × BEA_industry) in BEA space.
 
-    Maps CEDA v7 E to BEA commodity codes using a g-weighted correspondence
-    so that when a CEDA v7 sector covers multiple BEA codes (e.g. 331313 →
-    {331313, 33131B}), emissions are split proportionally by industry output
-    rather than duplicated.  Then reindexes to BEA industry codes.
+    Maps CEDA v7 E directly to BEA **industry** space using a g-weighted
+    industry correspondence.  This correctly handles cases where one CEDA v7
+    sector maps to multiple BEA industries — both disaggregation (331313 →
+    {331313, 33131B}) and government aggregation (221100 → {221100, S00101,
+    S00202}).  Emissions are split proportionally by industry output.
     """
     E_ceda = derive_E_usa()
-    corresp = _g_weighted_ceda_corresp()
-    E_bea_commodity = E_ceda @ corresp
-    return E_bea_commodity.reindex(columns=_bea_g().index, fill_value=0.0)
+    corresp = _g_weighted_ceda_industry_corresp()
+    return E_ceda @ corresp
 
 
 @functools.cache
@@ -617,9 +621,9 @@ def _scale_cornerstone_A(
     for col in oob_idx:
         A_scaled[col] *= 0.98 / total_industry_inputs[col]
 
-    assert (
-        compute_total_industry_inputs(A=A_scaled) <= 1
-    ).all(), 'A column sums exceed 1 after scaling.'
+    assert (compute_total_industry_inputs(A=A_scaled) <= 1).all(), (
+        'A column sums exceed 1 after scaling.'
+    )
 
     return A_scaled
 
