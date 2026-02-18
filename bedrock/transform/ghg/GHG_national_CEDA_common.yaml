@@ -17,7 +17,7 @@ _attribution_sources:
     year: *mecs_year
     selection_fields: &mecs_energy_default_selection
       Class: Energy # or Other (for non-energy use)
-      Unit: Trillion Btu
+      # Unit: Trillion Btu
       # FlowName: Coal # override this
       Location: '00000'
       Description:
@@ -547,7 +547,7 @@ source_names:
             Industrial Other Coal Industrial - Manufacturing: Coal Industrial - Manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:
+          EIA_MECS_Energy_CEDA:
             <<: *mecs_energy
             selection_fields:
               <<: *mecs_energy_default_selection
@@ -566,7 +566,7 @@ source_names:
             - Natural Gas Industrial - Manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:
+          EIA_MECS_Energy_CEDA:
             <<: *mecs_energy
             selection_fields:
               <<: *mecs_energy_default_selection
@@ -647,7 +647,7 @@ source_names:
             - Fuel Oil Industrial
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:  # todo: update mecs table used? - check this attribution
+          EIA_MECS_Energy_CEDA:  # todo: update mecs table used? - check this attribution
             <<: *mecs_energy
             selection_fields:
               <<: *mecs_energy_default_selection
@@ -684,7 +684,7 @@ source_names:
           PrimaryActivity: Coal Industrial - Manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:  # todo: update mecs table used?
+          EIA_MECS_Energy_CEDA:  # todo: update mecs table used?
             <<: *mecs_energy
             selection_fields:
               <<: *mecs_energy_default_selection
@@ -704,7 +704,7 @@ source_names:
             - Natural Gas Industrial - Manufacturing  # only in flowsa, CEDA does not call on manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:  # todo: update for ceda to use table 3-1?
+          EIA_MECS_Energy_CEDA:  # todo: update for ceda to use table 3-1?
             <<: *mecs_energy
             selection_fields:
               <<: *mecs_energy_default_selection
@@ -776,11 +776,11 @@ source_names:
             Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants  # same as flowsa
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:  # todo update to ceda table 2-1
+          EIA_MECS_Energy_CEDA:  # todo update to ceda table 2-1
             <<: *mecs_energy
             selection_fields:
               Class: Other
-              Unit: Trillion Btu
+              # Unit: Trillion Btu
               FlowName:
                 - Residual Fuel Oil
                 - Distillate Fuel Oil
@@ -797,12 +797,12 @@ source_names:
           PrimaryActivity: Industry Natural Gas to Chemical Plants
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy:
+          EIA_MECS_Energy_CEDA:
             <<: *mecs_energy
             selection_fields:
               Class: Other
               FlowName: Natural Gas
-              Unit: Trillion Btu
+              # Unit: Trillion Btu
             # attribution_source:
             #   BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
             #     <<: *bea_summary
