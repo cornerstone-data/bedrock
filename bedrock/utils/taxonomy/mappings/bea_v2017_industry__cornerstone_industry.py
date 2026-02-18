@@ -12,7 +12,7 @@ from bedrock.utils.taxonomy.cornerstone.industries import (
 from bedrock.utils.taxonomy.utils import validate_mapping
 
 
-def load_bea_v2017_industry_to_bea_cornerstone_industry() -> (
+def load_bea_v2017_industry_to_cornerstone_industry() -> (
     ta.Dict[BEA_2017_INDUSTRY_CODE, ta.List[INDUSTRY]]
 ):
     def _map_v2017_industry_to_cornerstone_industry(

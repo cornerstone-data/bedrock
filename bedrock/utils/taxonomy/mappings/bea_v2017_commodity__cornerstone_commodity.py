@@ -12,7 +12,7 @@ from bedrock.utils.taxonomy.cornerstone.commodities import (
 from bedrock.utils.taxonomy.utils import validate_mapping
 
 
-def load_bea_v2017_commodity_to_bea_cornerstone_commodity() -> (
+def load_bea_v2017_commodity_to_cornerstone_commodity() -> (
     ta.Dict[BEA_2017_COMMODITY_CODE, ta.List[COMMODITY]]
 ):
     def _map_v2017_commodity_to_cornerstone_commodity(

@@ -126,6 +126,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         sheet_id,
         'N_and_diffs',
         N_comparison.reset_index(),
+        clean_nans=True,
     )
     logger.info(
         f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
@@ -147,6 +148,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         sheet_id,
         'D_and_diffs',
         D_comparison.reset_index(),
+        clean_nans=True,
     )
     logger.info(
         f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
@@ -167,6 +169,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         sheet_id,
         'D_and_N_significant_sectors',
         significant_sectors_comparison.reset_index(),
+        clean_nans=True,
     )
 
     # Summary statistics
@@ -187,6 +190,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         sheet_id,
         'N_and_D_summary_stats',
         pd.concat([N_summary, D_summary]),
+        clean_nans=True,
     )
     logger.info(
         f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
@@ -199,7 +203,9 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
             old_ef=efs_raw.D_old.raw,
             new_ef=efs_raw.D_new,
         )
-        update_sheet_tab(sheet_id, 'sector_mapping_notes', mapping_notes)
+        update_sheet_tab(
+            sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
+        )
         logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution
@@ -238,6 +244,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
             sheet_id,
             'output_contrib_new_vs_old',
             OC_comparison,
+            clean_nans=True,
         )
         logger.info(
             f'[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s'
