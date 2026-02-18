@@ -53,13 +53,17 @@ def bea_q() -> pd.Series[float]:
 
 @functools.cache
 def bea_Vnorm_scrap_corrected() -> pd.DataFrame:
-    """Scrap-corrected V_norm in BEA 2017 space."""
+    """Scrap-corrected V_norm in BEA 2017 space.
+
+    Matches CEDA v7's column-wise correction: each commodity column j is
+    divided by (1 − scrap_j / q_j), where scrap_j is the scrap output of the
+    industry sharing code j.
+    """
     V = load_2017_V_usa()
     q = bea_q()
-    g = bea_g()
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
     scrap = V.loc[:, 'S00401']
-    return Vnorm.divide((1.0 - (scrap / g).fillna(0.0)), axis=0)
+    return Vnorm.divide((1.0 - (scrap / q).fillna(0.0)))
 
 
 # ---------------------------------------------------------------------------
