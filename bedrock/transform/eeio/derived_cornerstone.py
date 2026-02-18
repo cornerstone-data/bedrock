@@ -59,8 +59,8 @@ from bedrock.transform.eeio.cornerstone_year_scaling import (
     scale_cornerstone_q,
 )
 from bedrock.transform.eeio.derived_2017 import (
-    derive_summary_Ytot_usa_matrix_set,
     derive_summary_Yimp_usa,
+    derive_summary_Ytot_usa_matrix_set,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
@@ -304,16 +304,31 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     model_year = cfg.model_base_year
 
     Adom = inflate_cornerstone_A_matrix(
-        scale_cornerstone_A(base.Adom, target_year=io_year, original_year=detail_year, dom_or_imp_or_total='dom'),
-        original_year=io_year, target_year=model_year,
+        scale_cornerstone_A(
+            base.Adom,
+            target_year=io_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='dom',
+        ),
+        original_year=io_year,
+        target_year=model_year,
     )
     Aimp = inflate_cornerstone_A_matrix(
-        scale_cornerstone_A(base.Aimp, target_year=io_year, original_year=detail_year, dom_or_imp_or_total='imp'),
-        original_year=io_year, target_year=model_year,
+        scale_cornerstone_A(
+            base.Aimp,
+            target_year=io_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='imp',
+        ),
+        original_year=io_year,
+        target_year=model_year,
     )
     q = inflate_cornerstone_q_or_y(
-        scale_cornerstone_q(base.scaled_q, target_year=io_year, original_year=detail_year),
-        original_year=io_year, target_year=model_year,
+        scale_cornerstone_q(
+            base.scaled_q, target_year=io_year, original_year=detail_year
+        ),
+        original_year=io_year,
+        target_year=model_year,
     )
 
     return SingleRegionAqMatrixSet(
@@ -403,13 +418,20 @@ def derive_cornerstone_Y_and_trade_scaled() -> SingleRegionYtotAndTradeVectorSet
         target_year=cfg.model_base_year,
     )
     ytot = _disaggregate_and_inflate_vector(
-        summary_Y.ytot, detail_2017.ytot, **common,  # type: ignore[arg-type]
+        summary_Y.ytot,
+        detail_2017.ytot,
+        **common,  # type: ignore[arg-type]
     )
     exports = _disaggregate_and_inflate_vector(
-        summary_Y.exports, detail_2017.exports, **common,  # type: ignore[arg-type]
+        summary_Y.exports,
+        detail_2017.exports,
+        **common,  # type: ignore[arg-type]
     )
     imports = _disaggregate_and_inflate_vector(
-        summary_Y.imports, detail_2017.imports, clip_negatives=True, **common,  # type: ignore[arg-type]
+        summary_Y.imports,
+        detail_2017.imports,
+        clip_negatives=True,
+        **common,  # type: ignore[arg-type]
     )
 
     return SingleRegionYtotAndTradeVectorSet(
