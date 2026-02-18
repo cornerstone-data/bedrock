@@ -79,6 +79,7 @@ def load_go_detail() -> pd.DataFrame:
     """
     Load the detail-level BEA gross output table (UGO305-A) for the configured
     BEA data vintage from the local Excel workbook.
+    Unit is million USD
     """
     return _load_detail_table("UGO305-A")
 

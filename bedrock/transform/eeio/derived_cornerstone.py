@@ -37,11 +37,7 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_Ytot_usa,
     load_summary_Uimp_usa,
 )
-from bedrock.transform.eeio.cornerstone_bea_intermediates import (
-    bea_Aq,
-    bea_B,
-    bea_E,
-)
+from bedrock.transform.eeio.cornerstone_bea_intermediates import bea_Aq, bea_B, bea_E
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
     CS_INDUSTRY_LIST,
@@ -146,9 +142,9 @@ def derive_cornerstone_Vnorm_scrap_corrected(
     V = derive_cornerstone_V()
 
     if apply_inflation:
-        from bedrock.utils.economic.inflate_cornerstone_to_target_year import (  # noqa: PLC0415
+        from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
             get_cornerstone_price_ratio,
-        )
+        )  # noqa: PLC0415
 
         price_ratio = get_cornerstone_price_ratio(2017, target_year)
         V = pd.DataFrame(
@@ -366,15 +362,18 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
     cfg = get_usa_config()
-    return inflate_cornerstone_B_matrix(
-        scale_cornerstone_B(
-            B=derive_cornerstone_B_via_vnorm(),
-            original_year=cfg.usa_detail_original_year,
-            target_year=cfg.usa_io_data_year,
-        ),
-        original_year=cfg.usa_io_data_year,
-        target_year=cfg.model_base_year,
-    )
+    if cfg.transform_b_matrix_with_useeio_method:
+        return derive_cornerstone_B_via_vnorm()
+    else:
+        return inflate_cornerstone_B_matrix(
+            scale_cornerstone_B(
+                B=derive_cornerstone_B_via_vnorm(),
+                original_year=cfg.usa_detail_original_year,
+                target_year=cfg.usa_io_data_year,
+            ),
+            original_year=cfg.usa_io_data_year,
+            target_year=cfg.model_base_year,
+        )
 
 
 # ---------------------------------------------------------------------------

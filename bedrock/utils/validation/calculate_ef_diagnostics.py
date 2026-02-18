@@ -111,26 +111,26 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     logger.info('------ Calculating EF Diagnostics ------')
 
     # Compare N (total EFs) new vs old
-    N_comparison = construct_ef_diff_dataframe(
-        ef_name='N',
-        ef_new=efs.N_new,
-        ef_old=efs.N_old,
-        sector_desc=sector_desc,
-    )
+    # N_comparison = construct_ef_diff_dataframe(
+    #     ef_name='N',
+    #     ef_new=efs.N_new,
+    #     ef_old=efs.N_old,
+    #     sector_desc=sector_desc,
+    # )
 
-    if use_cornerstone:
-        _add_comparison_type_column(N_comparison, active_mappings)
+    # if use_cornerstone:
+    #     _add_comparison_type_column(N_comparison, active_mappings)
 
-    t0 = time.time()
-    update_sheet_tab(
-        sheet_id,
-        'N_and_diffs',
-        N_comparison.reset_index(),
-        clean_nans=True,
-    )
-    logger.info(
-        f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
-    )
+    # t0 = time.time()
+    # update_sheet_tab(
+    #     sheet_id,
+    #     'N_and_diffs',
+    #     N_comparison.reset_index(),
+    #     clean_nans=True,
+    # )
+    # logger.info(
+    #     f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
+    # )
 
     # Compare D (direct EFs) new vs old
     D_comparison = construct_ef_diff_dataframe(
@@ -142,7 +142,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
 
     if use_cornerstone:
         _add_comparison_type_column(D_comparison, active_mappings)
-
+    breakpoint()
     t0 = time.time()
     update_sheet_tab(
         sheet_id,

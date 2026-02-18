@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT_YEARS
 
 SECTOR_CODE_COL = 'sector_code'
@@ -81,7 +82,7 @@ def derive_gross_output_after_redefinition(
         logger.warning('Duplicate sector codes in gross output; aggregating by sum.')
         go_before = go_before.groupby(level=0).sum()
 
-    return adjust_gross_output(go_before, ratios)
+    return adjust_gross_output(go_before, ratios) * MILLION_CURRENCY_TO_CURRENCY
 
 
 def extract_coproduction_entries(V_before_redef: pd.DataFrame) -> pd.DataFrame:
