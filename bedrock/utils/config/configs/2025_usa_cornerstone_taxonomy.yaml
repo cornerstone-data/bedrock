@@ -12,7 +12,6 @@
 # Methodology selection
 #####
 use_cornerstone_2026_model_schema: True
-transform_b_matrix_with_useeio_method: True
 
 
 #####
