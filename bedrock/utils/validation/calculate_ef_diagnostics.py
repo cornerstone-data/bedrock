@@ -108,105 +108,105 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         efs = efs_raw
         sector_desc = None  # use default CEDA_V7_SECTOR_DESC
 
-    # logger.info('------ Calculating EF Diagnostics ------')
+    logger.info('------ Calculating EF Diagnostics ------')
 
-    # # Compare N (total EFs) new vs old
-    # N_comparison = construct_ef_diff_dataframe(
-    #     ef_name='N',
-    #     ef_new=efs.N_new,
-    #     ef_old=efs.N_old,
-    #     sector_desc=sector_desc,
-    # )
+    # Compare N (total EFs) new vs old
+    N_comparison = construct_ef_diff_dataframe(
+        ef_name='N',
+        ef_new=efs.N_new,
+        ef_old=efs.N_old,
+        sector_desc=sector_desc,
+    )
 
-    # if use_cornerstone:
-    #     _add_comparison_type_column(N_comparison, active_mappings)
+    if use_cornerstone:
+        _add_comparison_type_column(N_comparison, active_mappings)
 
-    # t0 = time.time()
-    # update_sheet_tab(
-    #     sheet_id,
-    #     'N_and_diffs',
-    #     N_comparison.reset_index(),
-    #     clean_nans=True,
-    # )
-    # logger.info(
-    #     f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
-    # )
+    t0 = time.time()
+    update_sheet_tab(
+        sheet_id,
+        'N_and_diffs',
+        N_comparison.reset_index(),
+        clean_nans=True,
+    )
+    logger.info(
+        f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
+    )
 
-    # # Compare D (direct EFs) new vs old
-    # D_comparison = construct_ef_diff_dataframe(
-    #     ef_name='D',
-    #     ef_new=efs.D_new,
-    #     ef_old=efs.D_old,
-    #     sector_desc=sector_desc,
-    # )
+    # Compare D (direct EFs) new vs old
+    D_comparison = construct_ef_diff_dataframe(
+        ef_name='D',
+        ef_new=efs.D_new,
+        ef_old=efs.D_old,
+        sector_desc=sector_desc,
+    )
 
-    # if use_cornerstone:
-    #     _add_comparison_type_column(D_comparison, active_mappings)
+    if use_cornerstone:
+        _add_comparison_type_column(D_comparison, active_mappings)
 
-    # t0 = time.time()
-    # update_sheet_tab(
-    #     sheet_id,
-    #     'D_and_diffs',
-    #     D_comparison.reset_index(),
-    #     clean_nans=True,
-    # )
-    # logger.info(
-    #     f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
-    # )
+    t0 = time.time()
+    update_sheet_tab(
+        sheet_id,
+        'D_and_diffs',
+        D_comparison.reset_index(),
+        clean_nans=True,
+    )
+    logger.info(
+        f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
+    )
 
-    # # Compare D and N for significant sectors
-    # significant_sectors = [sector['sector'] for sector in SIGNIFICANT_SECTORS]
-    # # When aligned, some significant sectors may not be in the index (e.g. if
-    # # they were removed).  Filter to those present.
-    # available_significant = [s for s in significant_sectors if s in D_comparison.index]
-    # drop_cols = ['sector_name']
-    # if use_cornerstone:
-    #     drop_cols.append('comparison_type')
-    # significant_sectors_comparison = D_comparison.loc[available_significant].join(
-    #     N_comparison.loc[available_significant].drop(columns=drop_cols)
-    # )
-    # update_sheet_tab(
-    #     sheet_id,
-    #     'D_and_N_significant_sectors',
-    #     significant_sectors_comparison.reset_index(),
-    #     clean_nans=True,
-    # )
+    # Compare D and N for significant sectors
+    significant_sectors = [sector['sector'] for sector in SIGNIFICANT_SECTORS]
+    # When aligned, some significant sectors may not be in the index (e.g. if
+    # they were removed).  Filter to those present.
+    available_significant = [s for s in significant_sectors if s in D_comparison.index]
+    drop_cols = ['sector_name']
+    if use_cornerstone:
+        drop_cols.append('comparison_type')
+    significant_sectors_comparison = D_comparison.loc[available_significant].join(
+        N_comparison.loc[available_significant].drop(columns=drop_cols)
+    )
+    update_sheet_tab(
+        sheet_id,
+        'D_and_N_significant_sectors',
+        significant_sectors_comparison.reset_index(),
+        clean_nans=True,
+    )
 
-    # # Summary statistics
-    # N_summary = calculate_summary_stats_for_ef_diff_dataframe(
-    #     ef_name='N',
-    #     ef_comparison=N_comparison,
-    #     cols_to_summarize=['N_perc_diff'],
-    # )
+    # Summary statistics
+    N_summary = calculate_summary_stats_for_ef_diff_dataframe(
+        ef_name='N',
+        ef_comparison=N_comparison,
+        cols_to_summarize=['N_perc_diff'],
+    )
 
-    # D_summary = calculate_summary_stats_for_ef_diff_dataframe(
-    #     ef_name='D',
-    #     ef_comparison=D_comparison,
-    #     cols_to_summarize=['D_perc_diff'],
-    # )
+    D_summary = calculate_summary_stats_for_ef_diff_dataframe(
+        ef_name='D',
+        ef_comparison=D_comparison,
+        cols_to_summarize=['D_perc_diff'],
+    )
 
-    # t0 = time.time()
-    # update_sheet_tab(
-    #     sheet_id,
-    #     'N_and_D_summary_stats',
-    #     pd.concat([N_summary, D_summary]),
-    #     clean_nans=True,
-    # )
-    # logger.info(
-    #     f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
-    # )
+    t0 = time.time()
+    update_sheet_tab(
+        sheet_id,
+        'N_and_D_summary_stats',
+        pd.concat([N_summary, D_summary]),
+        clean_nans=True,
+    )
+    logger.info(
+        f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
+    )
 
-    # # Sector mapping notes (cornerstone only)
-    # if use_cornerstone:
-    #     mapping_notes = _build_sector_mapping_notes(
-    #         active_mappings,
-    #         old_ef=efs_raw.D_old.raw,
-    #         new_ef=efs_raw.D_new,
-    #     )
-    #     update_sheet_tab(
-    #         sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
-    #     )
-    #     logger.info('Wrote sector_mapping_notes tab')
+    # Sector mapping notes (cornerstone only)
+    if use_cornerstone:
+        mapping_notes = _build_sector_mapping_notes(
+            active_mappings,
+            old_ef=efs_raw.D_old.raw,
+            new_ef=efs_raw.D_new,
+        )
+        update_sheet_tab(
+            sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
+        )
+        logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution
     if use_cornerstone:
