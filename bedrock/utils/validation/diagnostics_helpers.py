@@ -83,9 +83,9 @@ class EfsForDiagnostics(BaseModel):
 
 def _waste_disagg() -> ta.Tuple[str, ta.List[str]]:
     """Return (old_code, new_subsector_codes) from the cornerstone taxonomy."""
-    from bedrock.utils.taxonomy.cornerstone.commodities import (
+    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
         WASTE_DISAGG_COMMODITIES,
-    )  # noqa: PLC0415
+    )
 
     ((old_code, new_codes),) = WASTE_DISAGG_COMMODITIES.items()
     return old_code, list(new_codes)
@@ -97,9 +97,9 @@ def get_aligned_sector_desc() -> ta.Dict[str, str]:
     Combines CEDA v7 descriptions with cornerstone-only codes so that every
     sector in the aligned index has a human-readable name.
     """
-    from bedrock.utils.taxonomy.cornerstone.commodities import (
+    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
         COMMODITY_DESC,
-    )  # noqa: PLC0415
+    )
 
     desc: ta.Dict[str, str] = dict(CEDA_V7_SECTOR_DESC)  # type: ignore[arg-type]
     for code, name in COMMODITY_DESC.items():
@@ -476,12 +476,12 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         EfsForDiagnostics with new and old EF data for comparison
     """
     # Late-binding imports - these depend on global config
-    from bedrock.transform.eeio.derived import (
-        derive_Aq_usa,  # noqa: PLC0415
+    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
+        derive_Aq_usa,
         derive_B_usa_non_finetuned,
     )
-    from bedrock.utils.math.formulas import (
-        compute_d,  # noqa: PLC0415
+    from bedrock.utils.math.formulas import (  # noqa: PLC0415
+        compute_d,
         compute_L_matrix,
         compute_M_matrix,
         compute_n,
@@ -561,15 +561,19 @@ def compute_effective_g_comparison() -> pd.DataFrame:
 
     Returns a DataFrame indexed by BEA detail industry code, sorted by g_ratio.
     """
-    from bedrock.transform.eeio.cornerstone_bea_intermediates import bea_g
-    from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
-    from bedrock.transform.iot.derived_gross_industry_output import (
+    from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
+        bea_g,
+    )
+    from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
+        derive_summary_q_usa,
+    )
+    from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415
         derive_gross_output_after_redefinition,
     )
-    from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
+    from bedrock.utils.economic.inflate_cornerstone_to_target_year import (  # noqa: PLC0415
         get_cornerstone_price_ratio,
     )
-    from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
+    from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
         load_bea_v2017_commodity_to_bea_v2017_summary,
     )
 
