@@ -286,14 +286,18 @@ source_names:
     activity_to_sector_mapping: EPA_GHGI_CEDA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      # todo: update this chunk of code. ceda's base number is pulled from bea use table and allocated using T 5_18
-#      fertilizer_use:
-#        selection_fields:
-#          PrimaryActivity:
-#            - Organic Amendment Cropland  # same as flowsa
-#            - Residue N Cropland  # same as flowsa
-#            - Synthetic Fertilizer Cropland  # same as flowsa
-#        attribution_method: direct
+      fertilizer_use:
+        selection_fields:
+          PrimaryActivity:
+            - Organic Amendment Cropland  # same as flowsa
+            - Residue N Cropland  # same as flowsa
+            - Synthetic Fertilizer Cropland  # same as flowsa
+        attribution_method: proportional  # note - different than flowsa, which uses direct attribution
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
       # flowsa uses direct attribution, ceda proportionally attributes
       cropland:
@@ -324,13 +328,17 @@ source_names:
     activity_to_sector_mapping: EPA_GHGI_CEDA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      # todo: update this chunk of code. ceda's base number is pulled from bea use table and allocated using T 5_19
-#      fertilizer_use:
-#        selection_fields:
-#          PrimaryActivity:
-#            - Volatilization & Atm. Deposition Cropland  # same as flowsa
-#            - Surface Leaching & Run-Off Cropland  # same as flowsa
-#        attribution_method: direct
+      fertilizer_use:
+        selection_fields:
+          PrimaryActivity:
+            - Volatilization & Atm. Deposition Cropland  # same as flowsa
+            - Surface Leaching & Run-Off Cropland  # same as flowsa
+        attribution_method: proportional  # note different than flowsa, which uses direct
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'325310': ''} # fertilizer sectors
       pasture:
         selection_fields:
           PrimaryActivity:

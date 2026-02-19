@@ -49,9 +49,9 @@ source_names:
   "EPA_GHGI_T_5_18": #Direct N2O emissions from agricultural soils
     !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_5_18
     year: *ghgi_year
-#  "EPA_GHGI_T_5_19": #Indirect N2O emissions from agricultural soils
-#    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_5_19
-#    year: *ghgi_year
+  "EPA_GHGI_T_5_19": #Indirect N2O emissions from agricultural soils
+    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_5_19
+    year: *ghgi_year
 
   "EPA_GHGI_T_3_13": #CO2 from mobile combustion
     !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_3_13
