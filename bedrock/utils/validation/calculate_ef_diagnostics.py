@@ -238,7 +238,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
             new_val_name='new',
         )
         logger.info(f'[TIMING] Output contribution computed in {time.time() - t0:.1f}s')
-        breakpoint()
+
         t0 = time.time()
         update_sheet_tab(
             sheet_id,
