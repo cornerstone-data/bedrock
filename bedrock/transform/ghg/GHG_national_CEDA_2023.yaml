@@ -11,7 +11,8 @@ mecs_year: &mecs_year 2018
 _industrial_allocation_dict: &industrial_dict
     energy_fba: 'EIA_MECS_Energy'
     year: *mecs_year
-    ghg_fba: 'EPA_GHGI_T_A_10' # 2018 Table
+    ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
+    ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
 
 
 source_names:

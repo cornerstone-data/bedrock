@@ -499,7 +499,8 @@ source_names:
     clean_parameter: # Override each year for use in allocate_industrial_combustion
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
-        ghg_fba: 'EPA_GHGI_T_A_10' # 2018 Table
+        # ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
+        ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
     activity_sets:
       direct_attribution: #direct allocation
         selection_fields:
@@ -591,7 +592,8 @@ source_names:
     clean_parameter: # Override each year for use in allocate_industrial_combustion
         energy_fba: 'EIA_MECS_Energy'  # todo: udpate for ceda to mecs table 3-1?
         year: *mecs_year
-        ghg_fba: 'EPA_GHGI_T_A_10' # 2018 Table
+        # ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
+        ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
       # todo: check if this has any impact. in ceda, no ch4 emissions, but there are n20 emissions. likely keep code as is
