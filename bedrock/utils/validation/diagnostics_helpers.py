@@ -605,19 +605,19 @@ def compute_effective_g_comparison() -> pd.DataFrame:
 
     g_eff_old = g_2017 * q_scale * pi_scale
 
-    common = g_new.index.intersection(g_eff_old.index)
+    common = g_new.index.intersection(g_eff_old.index).sort_values()
     comp = pd.DataFrame(
         {
-            'g_new': g_new.reindex(common),
-            'g_eff_old': g_eff_old.reindex(common),
-            'g_2017': g_2017.reindex(common),
-            'q_scale': q_scale.reindex(common),
-            'pi_scale': pi_scale.reindex(common),
+            f'g_{cfg.usa_ghg_data_year}_after_redef': g_new.reindex(common),
+            'g_eff_old_path': g_eff_old.reindex(common),
+            'g_2017_benchmark': g_2017.reindex(common),
+            f'q_{cfg.usa_io_data_year}_over_q_{cfg.usa_detail_original_year}': q_scale.reindex(common),
+            f'pi_{cfg.model_base_year}_over_pi_{cfg.usa_io_data_year}': pi_scale.reindex(common),
         }
     )
-    comp['g_ratio'] = comp['g_new'] / comp['g_eff_old']
+    comp['g_new_over_g_old'] = comp[f'g_{cfg.usa_ghg_data_year}_after_redef'] / comp['g_eff_old_path']
 
     sector_desc = get_aligned_sector_desc()
     comp.insert(0, 'sector_name', comp.index.map(sector_desc))
 
-    return comp.sort_values('g_ratio')
+    return comp
