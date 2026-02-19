@@ -209,46 +209,47 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution
+    t0 = time.time()
+    Aq_set = derive_Aq_usa()
+    L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
+
+    OC_new = compute_output_contribution(
+        L=L_new, D=ta.cast('pd.Series[float]', efs_raw.D_new.squeeze())
+    )
+
+    Adom_old = load_current_snapshot('Adom_USA')
+    Aimp_old = load_current_snapshot('Aimp_USA')
+    L_old = compute_L_matrix(A=Adom_old + Aimp_old)
+
+    OC_old = compute_output_contribution(
+        L=L_old, D=ta.cast('pd.Series[float]', efs_raw.D_old.inflated.squeeze())
+    )
+
     if use_cornerstone:
-        logger.info(
-            'Skipping output contribution comparison — schemas differ. '
-            'OC comparison requires matching matrix dimensions.'
-        )
-    else:
-        t0 = time.time()
-        Aq_set = derive_Aq_usa()
-        L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
+        full_idx = OC_new.index.union(OC_old.index).sort_values()
+        full_cols = OC_new.columns.union(OC_old.columns).sort_values()
+        OC_new = OC_new.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
+        OC_old = OC_old.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
 
-        OC_new = compute_output_contribution(
-            L=L_new, D=ta.cast('pd.Series[float]', efs.D_new.squeeze())
-        )
+    OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
+        OC_old,
+        OC_new,
+        old_val_name='old',
+        new_val_name='new',
+        sector_desc=sector_desc,
+    )
+    logger.info(f'[TIMING] Output contribution computed in {time.time() - t0:.1f}s')
 
-        Adom_old = load_current_snapshot('Adom_USA')
-        Aimp_old = load_current_snapshot('Aimp_USA')
-        L_old = compute_L_matrix(A=Adom_old + Aimp_old)
-
-        OC_old = compute_output_contribution(
-            L=L_old, D=ta.cast('pd.Series[float]', efs.D_old.inflated.squeeze())
-        )
-
-        OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
-            OC_old,
-            OC_new,
-            old_val_name='old',
-            new_val_name='new',
-        )
-        logger.info(f'[TIMING] Output contribution computed in {time.time() - t0:.1f}s')
-
-        t0 = time.time()
-        update_sheet_tab(
-            sheet_id,
-            'output_contrib_new_vs_old',
-            OC_comparison,
-            clean_nans=True,
-        )
-        logger.info(
-            f'[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s'
-        )
+    t0 = time.time()
+    update_sheet_tab(
+        sheet_id,
+        'output_contrib_new_vs_old',
+        OC_comparison,
+        clean_nans=True,
+    )
+    logger.info(
+        f'[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s'
+    )
 
 
 def diff_and_perc_diff_two_output_contribution_matrices(
@@ -257,6 +258,7 @@ def diff_and_perc_diff_two_output_contribution_matrices(
     old_val_name: str,
     new_val_name: str,
     top_N: int = 5,
+    sector_desc: ta.Optional[ta.Dict[str, str]] = None,
 ) -> pd.DataFrame:
     """Extract top N contributors and column sums for each EF sector.
 
@@ -265,7 +267,12 @@ def diff_and_perc_diff_two_output_contribution_matrices(
     """
     assert top_N > 0, 'top_N must be greater than 0'
 
-    matrix_old = matrix_old.reindex(index=matrix_new.index, columns=matrix_new.columns)
+    _desc: ta.Dict[str, str] = sector_desc or ta.cast(
+        ta.Dict[str, str], CEDA_V7_SECTOR_DESC
+    )
+    matrix_old = matrix_old.reindex(
+        index=matrix_new.index, columns=matrix_new.columns, fill_value=0.0
+    )
     diff_df = matrix_new - matrix_old
 
     # Use numpy for performance
@@ -293,22 +300,26 @@ def diff_and_perc_diff_two_output_contribution_matrices(
         else:
             col_values_perc_diff = np.nan_to_num((col_values_diff / diff_sum), nan=0.0)
 
-        # Use argpartition for O(n) instead of full sort
         if len(col_values_old) > top_N:
-            top_indices = np.argpartition(np.abs(col_values_perc_diff), -top_N)[-top_N:]
+            top_unsorted = np.argpartition(np.abs(col_values_perc_diff), -top_N)[
+                -top_N:
+            ]
+            top_indices = top_unsorted[
+                np.argsort(-np.abs(col_values_perc_diff[top_unsorted]))
+            ]
         else:
-            top_indices = np.arange(len(col_values_perc_diff))
+            top_indices = np.argsort(-np.abs(col_values_perc_diff))
 
         contributor_index = matrix_new.index
         df_data.extend(
             [
                 {
                     'EF_sector': ef_sector,
-                    'EF_sector_name': CEDA_V7_SECTOR_DESC[ef_sector],  # type: ignore[index]
+                    'EF_sector_name': _desc.get(ef_sector, ef_sector),
                     'contributor_sector': contributor_index[idx],
-                    'contributor_sector_name': CEDA_V7_SECTOR_DESC[
-                        contributor_index[idx]
-                    ],
+                    'contributor_sector_name': _desc.get(
+                        contributor_index[idx], contributor_index[idx]
+                    ),
                     f'EF_contributor_{old_val_name}': col_values_old[idx],
                     f'EF_sum_{old_val_name}': col_sum_old,
                     f'EF_contributor_{new_val_name}': col_values_new[idx],
