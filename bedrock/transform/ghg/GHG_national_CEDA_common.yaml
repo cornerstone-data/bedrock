@@ -331,12 +331,15 @@ source_names:
 #            - Volatilization & Atm. Deposition Cropland  # same as flowsa
 #            - Surface Leaching & Run-Off Cropland  # same as flowsa
 #        attribution_method: direct
-      # todo: update this chunk of code. ceda's base number is pulled from hardcoded 2018 COA data and allocated using T 5_19
-#      pasture:
-#        selection_fields:
-#          PrimaryActivity:
-#            - All activities Grassland
-#        attribution_method: equal
+      pasture:
+        selection_fields:
+          PrimaryActivity:
+            - All activities Grassland
+        attribution_method: proportional
+        attribution_source:
+          USDA_CoA_Livestock_CEDA:
+            year: 2018
+            attribution_method: equal
 
 
 # TODO: update all mobile sources to reflect ceda method
