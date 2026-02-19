@@ -80,6 +80,9 @@ known-first-party = ["bedrock"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__tests__/**/*.py" = ["ARG001", "ARG002"]
+# Lazy imports to break circular dependencies / defer heavy GCS loads
+"bedrock/transform/iot/derived_gross_industry_output.py" = ["PLC0415"]
+"bedrock/transform/iot/__tests__/test_derive_gross_output.py" = ["PLC0415"]
 "**/test_*.py" = ["ARG001", "ARG002"]
 # temporary turn off for legacy flowsa FBA files
 "bedrock/extract/blackhurst/*" = ["ALL"]

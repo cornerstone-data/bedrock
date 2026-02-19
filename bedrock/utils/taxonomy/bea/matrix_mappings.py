@@ -12,6 +12,10 @@ USA_2017_DETAIL_IO_MATRIX_MAPPING = {
     "Margins": "Margins Redefinitions 2017 DET.xlsx",
 }
 
+USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING = {
+    "Make_detail_before_redef": "IOMake_Before_Redefinitions_2017_Detail.xlsx",
+}
+
 USA_2017_DETAIL_IO_SUT_MATRIX_NAMES = ta.Literal[
     "Supply_detail",
     "Use_SUT_detail",
@@ -67,6 +71,7 @@ USA_SUMMARY_MUT_YEARS = ta.Literal[
     2023,
     2024,
 ]
+USA_GROSS_INDUSTRY_OUTPUT_YEARS = USA_SUMMARY_MUT_YEARS
 
 USA_2017_TAX_LESS_SUBSIDIES_CODE = ta.Literal["TOP", "SUB"]
 USA_2017_TAX_LESS_SUBSIDIES_CODES: ta.List[USA_2017_TAX_LESS_SUBSIDIES_CODE] = list(
