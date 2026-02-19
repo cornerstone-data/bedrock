@@ -17,6 +17,10 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_V_usa,
 )
 from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.iot.derived_gross_industry_output import (
+    derive_gross_output_after_redefinition,
+)
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
     compute_g,
@@ -129,7 +133,12 @@ def bea_E() -> pd.DataFrame:
 def bea_B() -> pd.DataFrame:
     """B (ghg × BEA_commodity).  B = (E / g) @ V_norm."""
     E = bea_E()
-    g = bea_g()
+    if get_usa_config().transform_b_matrix_with_useeio_method:
+        g = derive_gross_output_after_redefinition(
+            target_year=get_usa_config().usa_ghg_data_year
+        )
+    else:
+        g = bea_g()  # this is 2017 g
     Vnorm = bea_Vnorm_scrap_corrected()
     Bi = E.divide(g, axis=1).fillna(0.0)
     return Bi @ Vnorm
