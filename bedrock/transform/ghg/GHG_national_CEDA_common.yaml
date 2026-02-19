@@ -33,7 +33,6 @@ _attribution_sources:
     #     selection_fields:
     #       ActivityProducedBy: {'XXXXX': ''}
 
-  # TODO: note this is a flowsa table, not ceda, update for ceda?
   BEA: &bea # 2017 Make and Use tables
     year: 2017
     activity_to_sector_mapping: CEDA_2017_Detail
@@ -65,9 +64,9 @@ source_names:
             - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O - same as flowsa
             - Carbide Production and Consumption #CO2, CH4 - same as flowsa, in ceda labeled silicon_carbide_production_and_consumption, TODO: find ch4 data in ceda
             - Cement Production #CO2 - same as flowsa
-            - Coal Mining #CO2, CH4 #TODO: find co2 in ceda
+            - Coal Mining #CO2, CH4 - todo: note no co2 in ceda? so need to exclude coal mining co2?
             - Composting #CH4, N2O - same as flowsa
-            - Electronics Industry  # N20 - note different than flowsa, which uses T 4_118 # todo: check on data out of T 2_1
+            - Electronics Industry  # N20 - note different than flowsa, which uses T 4_118
             - Ferroalloy Production #CO2, CH4 - note that ch4 in ceda has no emissions to allocate, true of flowsa as well?
             - Glass Production #CO2 - same as flowsa
             - Landfills #CH4 - same as flowsa
@@ -176,6 +175,33 @@ source_names:
                 '331490': ''
                 '331520': ''
 
+      # Note: the flowamounts out of T_5_29 for 2023 are all 0 (except for "all activities" which we do not use)
+      # this means no emissions are returned todo: check output from ceda
+      field_burning_n20:
+        selection_fields:
+          PrimaryActivity:
+            - Field Burning of Agricultural Residues
+          FlowName: ["N2O"] # ch4 pulled from T_5_29
+        attribution_method: proportional
+        attribution_source:
+          EPA_GHGI_T_5_29:
+            # year: # override this
+            activity_to_sector_mapping: EPA_GHGI_CEDA
+#            fedefl_mapping: GHGI_AR5_100
+            selection_fields:
+              PrimaryActivity:
+        #        - Chickpeas  # only in flowsa, not in ceda
+                - Cotton  # same as flowsa
+        #        - Maize  # only in flowsa, not in ceda todo: check if same as corn?
+                - Rice  # same as flowsa
+                - Soybeans  # same as flowsa
+                - Wheat  # same as flowsa
+                - Corn  # not included in flowsa, only in ceda todo: check if same as maize?
+                - Lentils  # not included in flowsa, only in ceda
+                - Sugarcane  # not included in flowsa, only in ceda
+              FlowName: ["N2O"]
+            attribution_method: direct
+
 
 ## Fossil Fuels
   EPA_GHGI_T_3_64: &natgas #CH4 from Natural Gas Systems
@@ -224,8 +250,9 @@ source_names:
     attribution_method: direct
 
 ## Agriculture
-#  TODO: check what is included in flowsa 2023, ceda has data for ch4 and n20 only, but did have "CH4, N2O, CO, and NOx Emissions" for 2022 data, stated in def load_ch4_and_n2o_from_field_burning()
-  # note - table 5_29 allocation is different than flowsa, as flowsa only directly attributes, while ceda proportionally attributes n20
+  # note - field burning is allocated differently in flowsa. ch4 emissions are pulled from 5_29 and directly attributed.
+  # However, n20 data totals are pulled table 2_1 and the T_5_29 data are used to proportionally attribute
+  # flowsa only directly attributes data from 5_29, does not use T 2_1 data
   EPA_GHGI_T_5_29: #CH4, N2O, CO and NOx from field burning of residues
     # year: # override this
     activity_to_sector_mapping: EPA_GHGI_CEDA
@@ -245,20 +272,6 @@ source_names:
             - Sugarcane  # not included in flowsa, only in ceda
           FlowName: ["CH4"]
         attribution_method: direct
-      proportional_n20:  #n20
-        selection_fields:
-          PrimaryActivity:
-    #        - Chickpeas  # only in flowsa, not in ceda
-            - Cotton  # same as flowsa
-    #        - Maize  # only in flowsa, not in ceda todo: check if same as corn?
-            - Rice  # same as flowsa
-            - Soybeans  # same as flowsa
-            - Wheat  # same as flowsa
-            - Corn  # not included in flowsa, only in ceda todo: check if same as maize?
-            - Lentils  # not included in flowsa, only in ceda
-            - Sugarcane  # not included in flowsa, only in ceda
-          FlowName: ["N2O"]
-        attribution_method: proportional  # todo: need to proportionally attribute by table 2-1
 
   EPA_GHGI_T_5_3:  &animals #CH4 from Enteric Fermentation
     # year: # override this
