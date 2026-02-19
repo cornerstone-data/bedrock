@@ -265,6 +265,7 @@ def diff_and_perc_diff_two_output_contribution_matrices(
     """
     assert top_N > 0, 'top_N must be greater than 0'
 
+    matrix_old = matrix_old.reindex(index=matrix_new.index, columns=matrix_new.columns)
     diff_df = matrix_new - matrix_old
 
     # Use numpy for performance
@@ -277,16 +278,20 @@ def diff_and_perc_diff_two_output_contribution_matrices(
         col_values_old = matrix_old_values[:, i]
         col_values_new = matrix_new_values[:, i]
         col_values_diff = diff_df_values[:, i]
-        diff_sum = col_values_diff.sum()
-
-        # Handle floating point error
-        if np.abs(diff_sum) < 1e-10:
-            col_values_perc_diff = np.zeros_like(col_values_diff)
-        else:
-            col_values_perc_diff = np.nan_to_num((col_values_diff / diff_sum), nan=0.0)
 
         col_sum_old = np.nansum(col_values_old)
         col_sum_new = np.nansum(col_values_new)
+
+        diff_sum = col_values_diff.sum()
+        diff_is_noise = col_sum_new == 0 or np.abs(diff_sum / col_sum_new) < 1e-12
+
+        if diff_is_noise:
+            # Diffs are floating-point noise — rank by absolute contribution
+            col_values_perc_diff = np.where(
+                col_sum_new != 0, col_values_new / col_sum_new, 0.0
+            )
+        else:
+            col_values_perc_diff = np.nan_to_num((col_values_diff / diff_sum), nan=0.0)
 
         # Use argpartition for O(n) instead of full sort
         if len(col_values_old) > top_N:
