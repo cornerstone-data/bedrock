@@ -191,8 +191,10 @@ class TestDiffAndPercDiffTwoOutputContributionMatrices:
         )
 
         # col_values_new / col_sum_new for each column (each col sums to ~1.0)
-        expected = [0.5, 0.3, 0.2, 0.1, 0.6, 0.3, 0.2, 0.1, 0.7]
-        np.testing.assert_allclose(result["EF_perc_diff"].values, expected, atol=1e-10)
+        expected = np.array([0.5, 0.3, 0.2, 0.1, 0.6, 0.3, 0.2, 0.1, 0.7])
+        np.testing.assert_allclose(
+            np.asarray(result["EF_perc_diff"].values, dtype=float), expected, atol=1e-10
+        )
 
     def test_column_sums_are_correct(self) -> None:
         old, new = self._build_oc_matrices()
