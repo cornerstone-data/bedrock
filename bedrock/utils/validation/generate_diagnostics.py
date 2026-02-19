@@ -5,7 +5,9 @@ import logging
 import time
 
 import click
+import pandas as pd
 
+from bedrock.utils.config.settings import GIT_BRANCH, GIT_HASH_LONG, GIT_PR_URL
 from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
 
@@ -51,10 +53,17 @@ def generate_diagnostics(
 
     logger.info("----- Updating config summary -----")
     t0 = time.time()
+    config_df = get_usa_config().to_dataframe(config_name)
+    git_metadata = pd.DataFrame([
+        {"config_field": "git_commit", "value": GIT_HASH_LONG or "unknown"},
+        {"config_field": "git_branch", "value": GIT_BRANCH or "unknown"},
+        {"config_field": "git_pr_url", "value": GIT_PR_URL or "N/A"},
+    ])
+    config_df = pd.concat([git_metadata, config_df], ignore_index=True)
     update_sheet_tab(
         sheet_id,
         "config_summary",
-        get_usa_config().to_dataframe(config_name),
+        config_df,
     )
     logger.info(f"[TIMING] Config summary update completed in {time.time() - t0:.1f}s")
     logger.info(

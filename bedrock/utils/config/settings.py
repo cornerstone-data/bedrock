@@ -148,11 +148,45 @@ def get_git_hash(MODULEPATH: Path, length: str = 'short') -> str | None:
         return None
 
 
+def get_git_branch(module_path: Path) -> str | None:
+    try:
+        return (
+            subprocess.check_output(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=module_path
+            )
+            .decode()
+            .strip()
+        )
+    except Exception:
+        return None
+
+
+def get_git_pr_url(module_path: Path) -> str | None:
+    try:
+        return (
+            subprocess.check_output(
+                ['gh', 'pr', 'view', '--json', 'url', '-q', '.url'],
+                cwd=module_path,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        ) or None
+    except Exception:
+        return None
+
+
 # metadata
 PKG = "bedrock"
 PKG_VERSION_NUMBER = return_pkg_version(MODULEPATH, PKG)
 GIT_HASH_LONG = os.environ.get('GITHUB_SHA') or get_git_hash(MODULEPATH, 'long')
 GIT_HASH = GIT_HASH_LONG[:7] if GIT_HASH_LONG else None
+GIT_BRANCH = (
+    os.environ.get('GITHUB_HEAD_REF')
+    or os.environ.get('GITHUB_REF_NAME')
+    or get_git_branch(MODULEPATH)
+)
+GIT_PR_URL = get_git_pr_url(MODULEPATH)
 
 
 # Common declaration of write format for package data products

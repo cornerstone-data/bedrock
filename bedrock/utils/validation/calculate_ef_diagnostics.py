@@ -185,11 +185,23 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         cols_to_summarize=['D_perc_diff'],
     )
 
+    N_sig_summary = calculate_summary_stats_for_ef_diff_dataframe(
+        ef_name='N_significant_sectors',
+        ef_comparison=significant_sectors_comparison,
+        cols_to_summarize=['N_perc_diff'],
+    )
+
+    D_sig_summary = calculate_summary_stats_for_ef_diff_dataframe(
+        ef_name='D_significant_sectors',
+        ef_comparison=significant_sectors_comparison,
+        cols_to_summarize=['D_perc_diff'],
+    )
+
     t0 = time.time()
     update_sheet_tab(
         sheet_id,
         'N_and_D_summary_stats',
-        pd.concat([N_summary, D_summary]),
+        pd.concat([N_summary, D_summary, N_sig_summary, D_sig_summary]),
         clean_nans=True,
     )
     logger.info(
