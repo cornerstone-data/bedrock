@@ -108,105 +108,105 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         efs = efs_raw
         sector_desc = None  # use default CEDA_V7_SECTOR_DESC
 
-    logger.info('------ Calculating EF Diagnostics ------')
+    # logger.info('------ Calculating EF Diagnostics ------')
 
-    # Compare N (total EFs) new vs old
-    N_comparison = construct_ef_diff_dataframe(
-        ef_name='N',
-        ef_new=efs.N_new,
-        ef_old=efs.N_old,
-        sector_desc=sector_desc,
-    )
+    # # Compare N (total EFs) new vs old
+    # N_comparison = construct_ef_diff_dataframe(
+    #     ef_name='N',
+    #     ef_new=efs.N_new,
+    #     ef_old=efs.N_old,
+    #     sector_desc=sector_desc,
+    # )
 
-    if use_cornerstone:
-        _add_comparison_type_column(N_comparison, active_mappings)
+    # if use_cornerstone:
+    #     _add_comparison_type_column(N_comparison, active_mappings)
 
-    t0 = time.time()
-    update_sheet_tab(
-        sheet_id,
-        'N_and_diffs',
-        N_comparison.reset_index(),
-        clean_nans=True,
-    )
-    logger.info(
-        f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
-    )
+    # t0 = time.time()
+    # update_sheet_tab(
+    #     sheet_id,
+    #     'N_and_diffs',
+    #     N_comparison.reset_index(),
+    #     clean_nans=True,
+    # )
+    # logger.info(
+    #     f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
+    # )
 
-    # Compare D (direct EFs) new vs old
-    D_comparison = construct_ef_diff_dataframe(
-        ef_name='D',
-        ef_new=efs.D_new,
-        ef_old=efs.D_old,
-        sector_desc=sector_desc,
-    )
+    # # Compare D (direct EFs) new vs old
+    # D_comparison = construct_ef_diff_dataframe(
+    #     ef_name='D',
+    #     ef_new=efs.D_new,
+    #     ef_old=efs.D_old,
+    #     sector_desc=sector_desc,
+    # )
 
-    if use_cornerstone:
-        _add_comparison_type_column(D_comparison, active_mappings)
+    # if use_cornerstone:
+    #     _add_comparison_type_column(D_comparison, active_mappings)
 
-    t0 = time.time()
-    update_sheet_tab(
-        sheet_id,
-        'D_and_diffs',
-        D_comparison.reset_index(),
-        clean_nans=True,
-    )
-    logger.info(
-        f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
-    )
+    # t0 = time.time()
+    # update_sheet_tab(
+    #     sheet_id,
+    #     'D_and_diffs',
+    #     D_comparison.reset_index(),
+    #     clean_nans=True,
+    # )
+    # logger.info(
+    #     f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
+    # )
 
-    # Compare D and N for significant sectors
-    significant_sectors = [sector['sector'] for sector in SIGNIFICANT_SECTORS]
-    # When aligned, some significant sectors may not be in the index (e.g. if
-    # they were removed).  Filter to those present.
-    available_significant = [s for s in significant_sectors if s in D_comparison.index]
-    drop_cols = ['sector_name']
-    if use_cornerstone:
-        drop_cols.append('comparison_type')
-    significant_sectors_comparison = D_comparison.loc[available_significant].join(
-        N_comparison.loc[available_significant].drop(columns=drop_cols)
-    )
-    update_sheet_tab(
-        sheet_id,
-        'D_and_N_significant_sectors',
-        significant_sectors_comparison.reset_index(),
-        clean_nans=True,
-    )
+    # # Compare D and N for significant sectors
+    # significant_sectors = [sector['sector'] for sector in SIGNIFICANT_SECTORS]
+    # # When aligned, some significant sectors may not be in the index (e.g. if
+    # # they were removed).  Filter to those present.
+    # available_significant = [s for s in significant_sectors if s in D_comparison.index]
+    # drop_cols = ['sector_name']
+    # if use_cornerstone:
+    #     drop_cols.append('comparison_type')
+    # significant_sectors_comparison = D_comparison.loc[available_significant].join(
+    #     N_comparison.loc[available_significant].drop(columns=drop_cols)
+    # )
+    # update_sheet_tab(
+    #     sheet_id,
+    #     'D_and_N_significant_sectors',
+    #     significant_sectors_comparison.reset_index(),
+    #     clean_nans=True,
+    # )
 
-    # Summary statistics
-    N_summary = calculate_summary_stats_for_ef_diff_dataframe(
-        ef_name='N',
-        ef_comparison=N_comparison,
-        cols_to_summarize=['N_perc_diff'],
-    )
+    # # Summary statistics
+    # N_summary = calculate_summary_stats_for_ef_diff_dataframe(
+    #     ef_name='N',
+    #     ef_comparison=N_comparison,
+    #     cols_to_summarize=['N_perc_diff'],
+    # )
 
-    D_summary = calculate_summary_stats_for_ef_diff_dataframe(
-        ef_name='D',
-        ef_comparison=D_comparison,
-        cols_to_summarize=['D_perc_diff'],
-    )
+    # D_summary = calculate_summary_stats_for_ef_diff_dataframe(
+    #     ef_name='D',
+    #     ef_comparison=D_comparison,
+    #     cols_to_summarize=['D_perc_diff'],
+    # )
 
-    t0 = time.time()
-    update_sheet_tab(
-        sheet_id,
-        'N_and_D_summary_stats',
-        pd.concat([N_summary, D_summary]),
-        clean_nans=True,
-    )
-    logger.info(
-        f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
-    )
+    # t0 = time.time()
+    # update_sheet_tab(
+    #     sheet_id,
+    #     'N_and_D_summary_stats',
+    #     pd.concat([N_summary, D_summary]),
+    #     clean_nans=True,
+    # )
+    # logger.info(
+    #     f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
+    # )
 
-    # Sector mapping notes (cornerstone only)
-    if use_cornerstone:
-        mapping_notes = _build_sector_mapping_notes(
-            active_mappings,
-            old_ef=efs_raw.D_old.raw,
-            new_ef=efs_raw.D_new,
-        )
-        update_sheet_tab(
-            sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
-        )
-        logger.info('Wrote sector_mapping_notes tab')
+    # # Sector mapping notes (cornerstone only)
+    # if use_cornerstone:
+    #     mapping_notes = _build_sector_mapping_notes(
+    #         active_mappings,
+    #         old_ef=efs_raw.D_old.raw,
+    #         new_ef=efs_raw.D_new,
+    #     )
+    #     update_sheet_tab(
+    #         sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
+    #     )
+    #     logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution
     if use_cornerstone:
@@ -238,7 +238,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
             new_val_name='new',
         )
         logger.info(f'[TIMING] Output contribution computed in {time.time() - t0:.1f}s')
-
+        breakpoint()
         t0 = time.time()
         update_sheet_tab(
             sheet_id,
@@ -265,6 +265,7 @@ def diff_and_perc_diff_two_output_contribution_matrices(
     """
     assert top_N > 0, 'top_N must be greater than 0'
 
+    matrix_old = matrix_old.reindex(index=matrix_new.index, columns=matrix_new.columns)
     diff_df = matrix_new - matrix_old
 
     # Use numpy for performance
@@ -277,16 +278,20 @@ def diff_and_perc_diff_two_output_contribution_matrices(
         col_values_old = matrix_old_values[:, i]
         col_values_new = matrix_new_values[:, i]
         col_values_diff = diff_df_values[:, i]
-        diff_sum = col_values_diff.sum()
-
-        # Handle floating point error
-        if np.abs(diff_sum) < 1e-10:
-            col_values_perc_diff = np.zeros_like(col_values_diff)
-        else:
-            col_values_perc_diff = np.nan_to_num((col_values_diff / diff_sum), nan=0.0)
 
         col_sum_old = np.nansum(col_values_old)
         col_sum_new = np.nansum(col_values_new)
+
+        diff_sum = col_values_diff.sum()
+        diff_is_noise = col_sum_new == 0 or np.abs(diff_sum / col_sum_new) < 1e-12
+
+        if diff_is_noise:
+            # Diffs are floating-point noise — rank by absolute contribution
+            col_values_perc_diff = np.where(
+                col_sum_new != 0, col_values_new / col_sum_new, 0.0
+            )
+        else:
+            col_values_perc_diff = np.nan_to_num((col_values_diff / diff_sum), nan=0.0)
 
         # Use argpartition for O(n) instead of full sort
         if len(col_values_old) > top_N:
