@@ -83,9 +83,9 @@ class EfsForDiagnostics(BaseModel):
 
 def _waste_disagg() -> ta.Tuple[str, ta.List[str]]:
     """Return (old_code, new_subsector_codes) from the cornerstone taxonomy."""
-    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
+    from bedrock.utils.taxonomy.cornerstone.commodities import (
         WASTE_DISAGG_COMMODITIES,
-    )
+    )  # noqa: PLC0415
 
     ((old_code, new_codes),) = WASTE_DISAGG_COMMODITIES.items()
     return old_code, list(new_codes)
@@ -97,9 +97,9 @@ def get_aligned_sector_desc() -> ta.Dict[str, str]:
     Combines CEDA v7 descriptions with cornerstone-only codes so that every
     sector in the aligned index has a human-readable name.
     """
-    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
+    from bedrock.utils.taxonomy.cornerstone.commodities import (
         COMMODITY_DESC,
-    )
+    )  # noqa: PLC0415
 
     desc: ta.Dict[str, str] = dict(CEDA_V7_SECTOR_DESC)  # type: ignore[arg-type]
     for code, name in COMMODITY_DESC.items():
@@ -476,12 +476,12 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         EfsForDiagnostics with new and old EF data for comparison
     """
     # Late-binding imports - these depend on global config
-    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
-        derive_Aq_usa,
+    from bedrock.transform.eeio.derived import (
+        derive_Aq_usa,  # noqa: PLC0415
         derive_B_usa_non_finetuned,
     )
-    from bedrock.utils.math.formulas import (  # noqa: PLC0415
-        compute_d,
+    from bedrock.utils.math.formulas import (
+        compute_d,  # noqa: PLC0415
         compute_L_matrix,
         compute_M_matrix,
         compute_n,
@@ -549,3 +549,71 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
             inflated=N_old_inflated.to_frame(),
         ),
     )
+
+
+def compute_effective_g_comparison() -> pd.DataFrame:
+    """Compare the B-matrix denominator (g) between the Cornerstone and legacy paths.
+
+    The Cornerstone path uses detail-level observed gross output for the target year
+    (after co-production redefinition).  The legacy path uses 2017 benchmark g,
+    year-scaled at the ~70 summary level, then inflated.  This function
+    reconstructs the legacy effective g so the two can be compared side by side.
+
+    Returns a DataFrame indexed by BEA detail industry code, sorted by g_ratio.
+    """
+    from bedrock.transform.eeio.cornerstone_bea_intermediates import bea_g
+    from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
+    from bedrock.transform.iot.derived_gross_industry_output import (
+        derive_gross_output_after_redefinition,
+    )
+    from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
+        get_cornerstone_price_ratio,
+    )
+    from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
+        load_bea_v2017_commodity_to_bea_v2017_summary,
+    )
+
+    cfg = get_usa_config()
+
+    g_new = derive_gross_output_after_redefinition(cfg.usa_ghg_data_year)
+
+    g_2017 = bea_g()
+
+    q_ratio_summary = (
+        derive_summary_q_usa(cfg.usa_io_data_year)
+        / derive_summary_q_usa(cfg.usa_detail_original_year)
+    ).fillna(1.0)
+
+    detail_to_summary = load_bea_v2017_commodity_to_bea_v2017_summary()
+    detail_to_summary_series = pd.Series(
+        {code: summaries[0] for code, summaries in detail_to_summary.items()}
+    )
+    q_scale = (
+        detail_to_summary_series.map(q_ratio_summary)
+        .fillna(1.0)
+        .reindex(g_2017.index, fill_value=1.0)
+    )
+
+    # PI_target / PI_original — inflation from IO data year to model base year
+    pi_scale = get_cornerstone_price_ratio(
+        cfg.usa_io_data_year, cfg.model_base_year
+    ).reindex(g_2017.index, fill_value=1.0)
+
+    g_eff_old = g_2017 * q_scale * pi_scale
+
+    common = g_new.index.intersection(g_eff_old.index)
+    comp = pd.DataFrame(
+        {
+            'g_new': g_new.reindex(common),
+            'g_eff_old': g_eff_old.reindex(common),
+            'g_2017': g_2017.reindex(common),
+            'q_scale': q_scale.reindex(common),
+            'pi_scale': pi_scale.reindex(common),
+        }
+    )
+    comp['g_ratio'] = comp['g_new'] / comp['g_eff_old']
+
+    sector_desc = get_aligned_sector_desc()
+    comp.insert(0, 'sector_name', comp.index.map(sector_desc))
+
+    return comp.sort_values('g_ratio')
