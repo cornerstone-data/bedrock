@@ -142,9 +142,9 @@ def derive_cornerstone_Vnorm_scrap_corrected(
     V = derive_cornerstone_V()
 
     if apply_inflation:
-        from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
+        from bedrock.utils.economic.inflate_cornerstone_to_target_year import (  # noqa: PLC0415
             get_cornerstone_price_ratio,
-        )  # noqa: PLC0415
+        )
 
         price_ratio = get_cornerstone_price_ratio(2017, target_year)
         V = pd.DataFrame(
