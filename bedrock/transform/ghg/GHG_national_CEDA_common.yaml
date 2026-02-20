@@ -81,11 +81,13 @@ source_names:
           FlowName: ["CO2", "CH4", "N2O"] # HFCs and other flows are pulled elsewhere
         attribution_method: direct
       direct2:
+        selection_fields:
           PrimaryActivity:
             - Incineration of Waste #N2O only, CO2 not in CEDA
           FlowName: ["N2O"]
         attribution_method: direct
       direct3:
+        selection_fields:
           PrimaryActivity:
             - Coal Mining # CH4 only,  co2 coal mining not in ceda
           FlowName: ["CH4"]
@@ -394,7 +396,6 @@ source_names:
             attribution_method: equal
 
 
-# TODO: update all mobile sources to reflect ceda method
 ### Mobile Sources
   EPA_GHGI_T_3_13: #CO2 from mobile combustion
     activity_to_sector_mapping: EPA_GHGI_CEDA
@@ -455,10 +456,10 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
-  EPA_GHGI_T_3_14: &mobile #CH4 from mobile combustion
+  EPA_GHGI_T_3_14: #CH4 from mobile combustion
     activity_to_sector_mapping: EPA_GHGI_CEDA
     fedefl_mapping: GHGI_AR5_100
-    activity_sets:
+    activity_sets: &mobile
       direct_gasoline: # empty in some years (<0.05 MMT CO2eq)
         selection_fields:
           PrimaryActivity:
@@ -474,19 +475,15 @@ source_names:
             Aircraft Non-Road: General Aviation Aircraft
         attribution_method: direct
 
-      petroleum_fuels_diesel:
-        selection_fields:
-          PrimaryActivity:
-            Passenger Cars Diesel On-Road: Passenger Cars - Households # needs to be household only in CEDA
-            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
-            Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Trucks and Buses # assigned to to 484 only in CEDA
-            Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-        attribution_method: direct
-        # attribution_source:
-        #   BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-        #     <<: *bea
-        #     selection_fields:
-        #       ActivityProducedBy: {'324110': ''} # purchases of refinery products
+      # # Missing from CEDA for CH4
+      # petroleum_fuels_diesel:
+      #   selection_fields:
+      #     PrimaryActivity:
+      #       Passenger Cars Diesel On-Road: Passenger Cars - Households # needs to be household only in CEDA
+      #       Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
+      #       Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Trucks and Buses # assigned to to 484 only in CEDA
+      #       Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+      #   attribution_method: direct
 
       petroleum_fuels_gasoline:
         selection_fields:
@@ -542,8 +539,23 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
-  EPA_GHGI_T_3_15: *mobile #N2O from mobile combustion duplicates method for CH4
-
+  EPA_GHGI_T_3_15: #N2O from mobile combustion duplicates method for CH4
+  # except for some errors (N2O is missing alt_fuel while CH4 is missing petroleum diesel)
+    activity_to_sector_mapping: EPA_GHGI_CEDA
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+      <<: *mobile
+      petroleum_fuels_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Diesel On-Road: Passenger Cars - Households # needs to be household only in CEDA
+            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
+            Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Trucks and Buses # assigned to to 484 only in CEDA
+            Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks # assigned to 484 only in CEDA
+        attribution_method: direct
+      alt_fuel_on_road:
+        selection_fields: # empty in some years (<0.05 MMT CO2eq)
+          PrimaryActivity: Skip me # need to bypass this activity set to skip it.
 
 ## Stationary Combustion
   GHGI_CO2_stationary_combustion: # CO2 emissions from stationary combustion
