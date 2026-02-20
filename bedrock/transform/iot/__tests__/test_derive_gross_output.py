@@ -48,7 +48,8 @@ class TestComputeCoproductionRatios:
     def test_known_ratios(self) -> None:
         """Ratios match hand computation: value / row total."""
         V = _make_V([[800, 200], [50, 950]], ['A', 'B'])
-        ratios = compute_coproduction_ratios(V)
+        V_after = _make_V([[1000, 0], [0, 1000]], ['A', 'B'])
+        ratios = compute_coproduction_ratios(V, V_after)
 
         a_to_b = ratios[ratios['source_industry'] == 'A']
         assert a_to_b['ratio'].iloc[0] == pytest.approx(200 / 1000)
@@ -70,7 +71,8 @@ class TestAdjustGrossOutput:
                 B = 1000 + 200 - 100 = 1100
         """
         V = _make_V([[900, 100], [50, 450]], ['A', 'B'])
-        ratios = compute_coproduction_ratios(V)
+        V_after = _make_V([[1000, 0], [0, 500]], ['A', 'B'])
+        ratios = compute_coproduction_ratios(V, V_after)
 
         go_before = pd.Series([2000.0, 1000.0], index=pd.Index(['A', 'B']))
         go_after = adjust_gross_output(go_before, ratios)
