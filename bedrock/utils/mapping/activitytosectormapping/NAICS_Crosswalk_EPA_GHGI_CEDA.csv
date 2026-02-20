@@ -90,12 +90,12 @@ EPA_GHGI_CEDA,Mules and Asses,NAICS_2017_Code,11292,,112A00,"EPA_GHGI_T_5_3, EPA
 EPA_GHGI_CEDA,Sheep,NAICS_2017_Code,11241,,112A00,"EPA_GHGI_T_5_3, EPA_GHGI_T_5_7"
 EPA_GHGI_CEDA,Swine,NAICS_2017_Code,1122,,112A00,"EPA_GHGI_T_5_3, EPA_GHGI_T_5_7"
 EPA_GHGI_CEDA,Poultry,NAICS_2017_Code,1123,,112300,"EPA_GHGI_T_5_3, EPA_GHGI_T_5_7"
-EPA_GHGI_CEDA,Acrylonitrile,NAICS_2017_Code,325199,,325411 (incorrect in original?),EPA_GHGI_T_4_46
-EPA_GHGI_CEDA,Carbon Black,NAICS_2017_Code,325180,,3252A0 (incorrect in original?),EPA_GHGI_T_4_46
+EPA_GHGI_CEDA,Acrylonitrile,NAICS_2017_Code,325411,,325411 (incorrect in original?),EPA_GHGI_T_4_46
+EPA_GHGI_CEDA,Carbon Black,NAICS_2017_Code,325212,,3252A0 (incorrect in original?),EPA_GHGI_T_4_46
 EPA_GHGI_CEDA,Ethylene,NAICS_2017_Code,324110,,324110,EPA_GHGI_T_4_46
 EPA_GHGI_CEDA,Ethylene Dichloride,NAICS_2017_Code,325120,,not mapped,EPA_GHGI_T_4_46
-EPA_GHGI_CEDA,Ethylene Oxide,NAICS_2017_Code,325199,,325411 (incorrect in original?),EPA_GHGI_T_4_46
-EPA_GHGI_CEDA,Methanol,NAICS_2017_Code,325199,,325411 (incorrect in original?),EPA_GHGI_T_4_46
+EPA_GHGI_CEDA,Ethylene Oxide,NAICS_2017_Code,325411,,325411 (incorrect in original?),EPA_GHGI_T_4_46
+EPA_GHGI_CEDA,Methanol,NAICS_2017_Code,325411,,325411 (incorrect in original?),EPA_GHGI_T_4_46
 EPA_GHGI_CEDA,Industry Industrial Coking Coal,NAICS_2017_Code,212210,,2122A0 (incorrect in original?),EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Industry Industrial Other Coal,NAICS_2017_Code,212210,,2122A0 (incorrect in original?),EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,31,,"31, 32, 33",EPA_GHGI_T_3_22
