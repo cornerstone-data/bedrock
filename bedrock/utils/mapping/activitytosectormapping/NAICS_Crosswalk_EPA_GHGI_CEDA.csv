@@ -38,6 +38,8 @@ EPA_GHGI_CEDA,Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221
 EPA_GHGI_CEDA,Liming,NAICS_2017_Code,11111,,1111A0,EPA_GHGI_T_2_1
 EPA_GHGI_CEDA,Urea Fertilization,NAICS_2017_Code,111,,"111, 112",EPA_GHGI_T_2_1
 EPA_GHGI_CEDA,Urea Fertilization,NAICS_2017_Code,112,,,EPA_GHGI_T_2_1
+EPA_GHGI_CEDA,Manure Management,NAICS_2017_Code,112,,,EPA_GHGI_T_2_1
+EPA_GHGI_CEDA,Field Burning of Agricultural Residues,NAICS_2017_Code,111,,,EPA_GHGI_T_2_1
 EPA_GHGI_CEDA,Rice Cultivation,NAICS_2017_Code,11116,,1111B0,EPA_GHGI_T_2_1
 EPA_GHGI_CEDA,Anaerobic Digestion at Biogas Facilities,NAICS_2017_Code,562219,,new in GHGI since 2018,EPA_GHGI_T_2_1
 EPA_GHGI_CEDA,Agricultural Equipment Non-Road,NAICS_2017_Code,111,,"111, 112, 113, 114","EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
