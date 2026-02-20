@@ -176,8 +176,8 @@ class TestDiffAndPercDiffTwoOutputContributionMatrices:
         # 3 sectors × 2 top contributors = 6 rows
         assert len(result) == 6
 
-    def test_near_zero_diff_avoids_floating_point_noise(self) -> None:
-        """When diff sum is negligible (<1e-10), perc_diff should be exactly zero."""
+    def test_near_zero_diff_shows_contribution_fractions(self) -> None:
+        """When diff sum is negligible, perc_diff falls back to contribution fractions."""
         idx = pd.Index(SECTORS)
         matrix = pd.DataFrame(
             np.array([[0.5, 0.1, 0.2], [0.3, 0.6, 0.1], [0.2, 0.3, 0.7]]),
@@ -190,7 +190,11 @@ class TestDiffAndPercDiffTwoOutputContributionMatrices:
             matrix, perturbed, old_val_name="old", new_val_name="new"
         )
 
-        assert (result["EF_perc_diff"] == 0.0).all()
+        # col_values_new / col_sum_new, sorted descending by abs value per column
+        expected = np.array([0.5, 0.3, 0.2, 0.6, 0.3, 0.1, 0.7, 0.2, 0.1])
+        np.testing.assert_allclose(
+            np.asarray(result["EF_perc_diff"].values, dtype=float), expected, atol=1e-10
+        )
 
     def test_column_sums_are_correct(self) -> None:
         old, new = self._build_oc_matrices()

@@ -11,6 +11,7 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_NAMES,
     USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING,
@@ -40,6 +41,9 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
     USA_2017_SUMMARY_FINAL_DEMAND_CODES,
 )
+from bedrock.utils.taxonomy.bea.v2017_value_added import (
+    USA_2017_VALUE_ADDED_CODES,
+)
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     USA_2017_FINAL_DEMAND_INDEX,
@@ -47,6 +51,7 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_SUMMARY_COMMODITY_INDEX,
     USA_2017_SUMMARY_FINAL_DEMAND_INDEX,
     USA_2017_SUMMARY_INDUSTRY_INDEX,
+    USA_2017_VALUE_ADDED_INDEX,
 )
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
@@ -74,6 +79,46 @@ def load_2017_V_usa() -> pd.DataFrame:
         _load_2017_detail_make_use_usa("Make_detail")
         .loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES]
         .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_INDUSTRY_INDEX
+    df.columns = USA_2017_COMMODITY_INDEX
+    return df
+
+
+@functools.cache
+def load_2017_V_before_redef_usa() -> pd.DataFrame:
+    """
+    Make table, industry x commodity, before redefinition, in producer price.
+    unit is USD, original unit is million USD.
+
+    This table contains co-production (off-diagonal) entries that represent
+    secondary products — i.e., commodities produced by industries other than
+    the industry that primarily produces them.
+    """
+    df = (
+        load_from_gcs(
+            name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
+                "Make_detail_before_redef"
+            ],
+            sub_bucket=GCS_USA_DIR,
+            local_dir=IN_DIR,
+            loader=lambda pth: pd.read_excel(
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+            ),
+        )
+        .set_index("Code")
+        .fillna(0)
+    )
+    df.columns = df.columns.astype(str)
+
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+
+    df = (
+        df.loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     df.index = USA_2017_INDUSTRY_INDEX
@@ -129,6 +174,22 @@ def load_2017_Ytot_usa() -> pd.DataFrame:
     )
     df.index = USA_2017_COMMODITY_INDEX.copy()
     df.columns = USA_2017_FINAL_DEMAND_INDEX.copy()
+
+    return df
+
+
+def load_2017_value_added_usa() -> pd.DataFrame:
+    """
+    Value added (total), VA category x industry, after redefintion, in producer price
+    unit is USD, original unit is million USD
+    """
+    df = _load_2017_detail_make_use_usa("Use_detail")
+    df = (
+        df.loc[USA_2017_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_VALUE_ADDED_INDEX.copy()
+    df.columns = USA_2017_INDUSTRY_INDEX.copy()
 
     return df
 

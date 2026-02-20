@@ -19,6 +19,7 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_Uimp_usa,
     load_2017_Utot_usa,
     load_2017_V_usa,
+    load_2017_value_added_usa,
     load_2017_Ytot_usa,
     load_summary_Uimp_usa,
     load_summary_Utot_usa,
@@ -300,6 +301,28 @@ def _derive_detail_Ytot_with_trade_usa() -> pd.DataFrame:
     Ytot_with_trade_usa.index.name = "sector"
 
     return Ytot_with_trade_usa
+
+
+@functools.cache
+def derive_detail_VA_usa() -> pd.DataFrame:
+    "Derives the value added portion of the 2017 detail Use tables in the ceda_v7 schema"
+    VA = load_2017_value_added_usa()
+    corresp_industry = load_usa_2017_industry__ceda_v7_correspondence()
+
+    # Calculating weights by aggregating the 2017 VA values along the column axis to align with CEDA-schema industries
+    VA_weights = VA @ corresp_industry.T
+
+    VA_usa = structural_reflect_matrix(
+        row_corresp_df=pd.DataFrame(
+            np.eye(len(VA.index)),
+            index=VA.index,
+            columns=VA.index,
+        ),
+        col_corresp_df=corresp_industry,
+        df_base=VA,
+        df_weights=VA_weights,
+    )
+    return VA_usa
 
 
 @functools.cache

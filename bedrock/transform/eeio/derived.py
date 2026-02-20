@@ -4,7 +4,6 @@ import functools
 import logging
 
 import pandas as pd
-import pandera.pandas as pa
 import pandera.typing as pt
 
 from bedrock.extract.iot.io_2012 import (
@@ -15,7 +14,7 @@ from bedrock.extract.iot.io_2012 import (
     load_2012_YR_usa,
 )
 from bedrock.extract.iot.io_2017 import load_summary_Uimp_usa
-from bedrock.transform.allocation.derived import derive_E_usa, load_E_from_flowsa
+from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
     derive_2017_g_usa,
@@ -24,6 +23,14 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Ytot_usa_matrix_set,
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
+)
+from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_Aq_scaled,
+    derive_cornerstone_B_non_finetuned,
+    derive_cornerstone_detail_Ytot_matrix_set,
+    derive_cornerstone_Y_and_trade_scaled,
+    derive_cornerstone_y_nab,
+    derive_cornerstone_ydom_and_yimp,
 )
 from bedrock.transform.eeio.scale_abq_via_summary import (
     scale_detail_A_based_on_summary_A,
@@ -78,27 +85,25 @@ logger = logging.getLogger(__name__)
 
 
 @functools.cache
-@pa.check_output(BMatrix.to_schema())
-def derive_B_usa_non_finetuned() -> pt.DataFrame[BMatrix]:
-    flowsa = True  # TODO: temporary toggle
-    if flowsa:
-        E_usa = load_E_from_flowsa()
+def derive_B_usa_non_finetuned() -> pd.DataFrame:
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return derive_cornerstone_B_non_finetuned()
     else:
         E_usa = derive_E_usa()
-    # B_usa_2017 has 2022 emissions but 2017 economic data
-    b_usa_2017 = derive_B_usa_via_vnorm(E_usa=E_usa)
-    # Scale the economic data part of B_usa_2017 to 2022
-    B_usa = inflate_B_matrix(
-        scale_detail_B_based_on_summary_q(
-            B=b_usa_2017,
-            original_year=get_usa_config().usa_detail_original_year,
-            target_year=get_usa_config().usa_io_data_year,
-        ),
-        original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().model_base_year,
-    )
+        # B_usa_2017 has 2022 emissions but 2017 economic data
+        b_usa_2017 = derive_B_usa_via_vnorm(E_usa=E_usa)
+        # Scale the economic data part of B_usa_2017 to 2022
+        B_usa = inflate_B_matrix(
+            scale_detail_B_based_on_summary_q(
+                B=b_usa_2017,
+                original_year=get_usa_config().usa_detail_original_year,
+                target_year=get_usa_config().usa_io_data_year,
+            ),
+            original_year=get_usa_config().usa_io_data_year,
+            target_year=get_usa_config().model_base_year,
+        )
 
-    return pt.DataFrame[BMatrix](B_usa)
+        return pt.DataFrame[BMatrix](BMatrix.validate(B_usa))
 
 
 def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection() -> (
@@ -111,53 +116,55 @@ def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_r
     - split the reflected `target_year` detail Y and Trade Matrix into `target_year` detail Y and Trade Matrix,
       using weights derived from `target_year` summary Y and Trade Matrix
     """
-    detail_2017_YandTradeset = derive_2017_Ytot_usa_matrix_set()
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return derive_cornerstone_Y_and_trade_scaled()
+    else:
+        detail_2017_YandTradeset = derive_2017_Ytot_usa_matrix_set()
 
-    summary_to_ceda_corresp_df = get_bea_v2017_summary_to_ceda_corresp_df()
+        summary_to_ceda_corresp_df = get_bea_v2017_summary_to_ceda_corresp_df()
 
-    summary_Y_matrix_set = derive_summary_Ytot_usa_matrix_set(
-        get_usa_config().usa_io_data_year
-    )
+        summary_Y_matrix_set = derive_summary_Ytot_usa_matrix_set(
+            get_usa_config().usa_io_data_year
+        )
 
-    ytot = inflate_q_or_y(
-        disaggregate_vector(
-            base_series=summary_Y_matrix_set.ytot,
-            weight_series=detail_2017_YandTradeset.ytot,
-            corresp_df=summary_to_ceda_corresp_df,
-        ),
-        original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().model_base_year,
-    )
-    exports = inflate_q_or_y(
-        disaggregate_vector(
-            base_series=summary_Y_matrix_set.exports,
-            weight_series=detail_2017_YandTradeset.exports,
-            corresp_df=summary_to_ceda_corresp_df,
-        ),
-        original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().model_base_year,
-    )
-    imports = inflate_q_or_y(
-        handle_negative_vector_values(
+        ytot = inflate_q_or_y(
             disaggregate_vector(
-                base_series=summary_Y_matrix_set.imports,
-                weight_series=detail_2017_YandTradeset.imports,
+                base_series=summary_Y_matrix_set.ytot,
+                weight_series=detail_2017_YandTradeset.ytot,
                 corresp_df=summary_to_ceda_corresp_df,
-            )
-        ),
-        original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().model_base_year,
-    )
+            ),
+            original_year=get_usa_config().usa_io_data_year,
+            target_year=get_usa_config().model_base_year,
+        )
+        exports = inflate_q_or_y(
+            disaggregate_vector(
+                base_series=summary_Y_matrix_set.exports,
+                weight_series=detail_2017_YandTradeset.exports,
+                corresp_df=summary_to_ceda_corresp_df,
+            ),
+            original_year=get_usa_config().usa_io_data_year,
+            target_year=get_usa_config().model_base_year,
+        )
+        imports = inflate_q_or_y(
+            handle_negative_vector_values(
+                disaggregate_vector(
+                    base_series=summary_Y_matrix_set.imports,
+                    weight_series=detail_2017_YandTradeset.imports,
+                    corresp_df=summary_to_ceda_corresp_df,
+                )
+            ),
+            original_year=get_usa_config().usa_io_data_year,
+            target_year=get_usa_config().model_base_year,
+        )
 
-    return SingleRegionYtotAndTradeVectorSet(
-        ytot=YVectorSchema.validate(ytot),
-        exports=ExportsVectorSchema.validate(exports),
-        imports=ImportsVectorSchema.validate(imports),
-    )
+        return SingleRegionYtotAndTradeVectorSet(
+            ytot=YVectorSchema.validate(ytot),
+            exports=ExportsVectorSchema.validate(exports),
+            imports=ImportsVectorSchema.validate(imports),
+        )
 
 
 @functools.cache
-@pa.check_output(YVectorSchema)
 def derive_y_for_national_accounting_balance_usa() -> pd.Series[float]:
     """
     We get Y for national accounting balance via the following equations:
@@ -172,48 +179,56 @@ def derive_y_for_national_accounting_balance_usa() -> pd.Series[float]:
     - calculate 2022 summary y_nab
     - scale 2017 detail y_nab to 2022 detail y_nab using 2022 summary y_nab
     """
-    detail_2017_YandTradeset = derive_2017_Ytot_usa_matrix_set()
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return derive_cornerstone_y_nab()
+    else:
+        detail_2017_YandTradeset = derive_2017_Ytot_usa_matrix_set()
 
-    y_national_acct_balance_detail_2017 = compute_y_for_national_accounting_balance(
-        y_tot=detail_2017_YandTradeset.ytot,
-        y_imp=compute_y_imp(
-            imports=detail_2017_YandTradeset.imports,
-            Uimp=derive_2017_U_set_usa().Uimp,
-        ),
-        exports=detail_2017_YandTradeset.exports,
-    )
+        y_national_acct_balance_detail_2017 = compute_y_for_national_accounting_balance(
+            y_tot=detail_2017_YandTradeset.ytot,
+            y_imp=compute_y_imp(
+                imports=detail_2017_YandTradeset.imports,
+                Uimp=derive_2017_U_set_usa().Uimp,
+            ),
+            exports=detail_2017_YandTradeset.exports,
+        )
 
-    summary_2022_Y_matrix_set = derive_summary_Ytot_usa_matrix_set(
-        get_usa_config().usa_io_data_year
-    )
+        summary_2022_Y_matrix_set = derive_summary_Ytot_usa_matrix_set(
+            get_usa_config().usa_io_data_year
+        )
 
-    y_national_acct_balance_summary_2022 = compute_y_for_national_accounting_balance(
-        y_tot=summary_2022_Y_matrix_set.ytot,
-        y_imp=compute_y_imp(
-            imports=summary_2022_Y_matrix_set.imports,
-            Uimp=load_summary_Uimp_usa(get_usa_config().usa_io_data_year).loc[
-                USA_2017_SUMMARY_INDUSTRY_CODES, USA_2017_SUMMARY_INDUSTRY_CODES
-            ],
-        ),
-        exports=summary_2022_Y_matrix_set.exports,
-    )
+        y_national_acct_balance_summary_2022 = (
+            compute_y_for_national_accounting_balance(
+                y_tot=summary_2022_Y_matrix_set.ytot,
+                y_imp=compute_y_imp(
+                    imports=summary_2022_Y_matrix_set.imports,
+                    Uimp=load_summary_Uimp_usa(get_usa_config().usa_io_data_year).loc[
+                        USA_2017_SUMMARY_INDUSTRY_CODES,
+                        USA_2017_SUMMARY_INDUSTRY_CODES,
+                    ],
+                ),
+                exports=summary_2022_Y_matrix_set.exports,
+            )
+        )
 
-    summary_to_ceda_corresp_df = get_bea_v2017_summary_to_ceda_corresp_df()
-    y_national_acct_balance_detail_2022 = inflate_q_or_y(
-        disaggregate_vector(
-            corresp_df=summary_to_ceda_corresp_df,
-            base_series=y_national_acct_balance_summary_2022,
-            weight_series=y_national_acct_balance_detail_2017,
-        ),
-        original_year=get_usa_config().usa_io_data_year,
-        target_year=get_usa_config().model_base_year,
-    )
+        summary_to_ceda_corresp_df = get_bea_v2017_summary_to_ceda_corresp_df()
+        y_national_acct_balance_detail_2022 = inflate_q_or_y(
+            disaggregate_vector(
+                corresp_df=summary_to_ceda_corresp_df,
+                base_series=y_national_acct_balance_summary_2022,
+                weight_series=y_national_acct_balance_detail_2017,
+            ),
+            original_year=get_usa_config().usa_io_data_year,
+            target_year=get_usa_config().model_base_year,
+        )
 
-    # NOTE: original y values have some negative values
-    # that will distort the scaling process that uses the ytot here in non-US countries.
-    # We make a data assumption here to set them to 0 in order to make the scaling process valid.
-    # TODO: this is a temporary solution, we need a y pandera type to enforce this data assumption.
-    return handle_negative_vector_values(y_national_acct_balance_detail_2022)
+        # NOTE: original y values have some negative values
+        # that will distort the scaling process that uses the ytot here in non-US countries.
+        # We make a data assumption here to set them to 0 in order to make the scaling process valid.
+        # TODO: this is a temporary solution, we need a y pandera type to enforce this data assumption.
+        return YVectorSchema.validate(
+            handle_negative_vector_values(y_national_acct_balance_detail_2022)
+        )
 
 
 def derive_ydom_and_yimp_usa() -> SingleRegionYVectorSet:
@@ -225,32 +240,35 @@ def derive_ydom_and_yimp_usa() -> SingleRegionYVectorSet:
     2. Get 2022 summary ydom and yimp
     3. Split 2022 detail ytot to ydom and yimp using 2022 summary ydom and yimp ratios
     """
-    # Load summary 2022 ytot and yimp
-    summary_2022_ytot = derive_summary_Ytot_usa_matrix_set(2022).ytot
-    summary_2022_yimp = derive_summary_Yimp_usa(2022).sum(axis=1)
-    # Derive ydom over ytot ratio
-    # NOTE: in case some yimp values are larger than ytot values, causing ydom to be negative,
-    # which could be reasonable but we don't want to take negative ydom values.
-    # We handle this by setting ydom to 0 when yimp is larger than ytot.
-    summary_2022_ydom_over_ytot_ratio = handle_negative_vector_values(
-        1 - (summary_2022_yimp / summary_2022_ytot).fillna(0.0)
-    )
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return derive_cornerstone_ydom_and_yimp()
+    else:
+        # Load summary 2022 ytot and yimp
+        summary_2022_ytot = derive_summary_Ytot_usa_matrix_set(2022).ytot
+        summary_2022_yimp = derive_summary_Yimp_usa(2022).sum(axis=1)
+        # Derive ydom over ytot ratio
+        # NOTE: in case some yimp values are larger than ytot values, causing ydom to be negative,
+        # which could be reasonable but we don't want to take negative ydom values.
+        # We handle this by setting ydom to 0 when yimp is larger than ytot.
+        summary_2022_ydom_over_ytot_ratio = handle_negative_vector_values(
+            1 - (summary_2022_yimp / summary_2022_ytot).fillna(0.0)
+        )
 
-    # Derive 2022 detail ytot
-    detail_2022_ytot = disaggregate_vector(
-        corresp_df=get_bea_v2017_summary_to_ceda_corresp_df(),
-        base_series=summary_2022_ytot,
-        weight_series=derive_2017_Ytot_usa_matrix_set().ytot,
-    )
-    # Split detail 2022 ytot to ydom and yimp
-    ydom, yimp = split_vector_using_agg_ratio(
-        base_series=detail_2022_ytot,
-        agg_ratio_series=summary_2022_ydom_over_ytot_ratio,
-        corresp_df=get_bea_v2017_summary_to_ceda_corresp_df(),
-    )
-    return SingleRegionYVectorSet(
-        ydom=YVectorSchema.validate(ydom), yimp=YVectorSchema.validate(yimp)
-    )
+        # Derive 2022 detail ytot
+        detail_2022_ytot = disaggregate_vector(
+            corresp_df=get_bea_v2017_summary_to_ceda_corresp_df(),
+            base_series=summary_2022_ytot,
+            weight_series=derive_2017_Ytot_usa_matrix_set().ytot,
+        )
+        # Split detail 2022 ytot to ydom and yimp
+        ydom, yimp = split_vector_using_agg_ratio(
+            base_series=detail_2022_ytot,
+            agg_ratio_series=summary_2022_ydom_over_ytot_ratio,
+            corresp_df=get_bea_v2017_summary_to_ceda_corresp_df(),
+        )
+        return SingleRegionYVectorSet(
+            ydom=YVectorSchema.validate(ydom), yimp=YVectorSchema.validate(yimp)
+        )
 
 
 @functools.cache
@@ -264,53 +282,58 @@ def derive_Aq_usa() -> SingleRegionAqMatrixSet:
 
     For q, we get 2017 detail q from 2017 detail IOTs, then inflate it to `target_year` USD.
     """
-    detail_2017_Aq_set = derive_2017_Aq_usa()
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return derive_cornerstone_Aq_scaled()
+    else:
+        detail_2017_Aq_set = derive_2017_Aq_usa()
 
-    target_year = get_usa_config().usa_io_data_year
-    original_year = get_usa_config().usa_detail_original_year
+        target_year = get_usa_config().usa_io_data_year
+        original_year = get_usa_config().usa_detail_original_year
 
-    Adom = scale_detail_A_based_on_summary_A(
-        A=detail_2017_Aq_set.Adom,
-        target_year=target_year,
-        original_year=original_year,
-        dom_or_imp_or_total="dom",
-    )
-    Aimp = scale_detail_A_based_on_summary_A(
-        A=detail_2017_Aq_set.Aimp,
-        target_year=target_year,
-        original_year=original_year,
-        dom_or_imp_or_total="imp",
-    )
+        Adom = scale_detail_A_based_on_summary_A(
+            A=detail_2017_Aq_set.Adom,
+            target_year=target_year,
+            original_year=original_year,
+            dom_or_imp_or_total='dom',
+        )
+        Aimp = scale_detail_A_based_on_summary_A(
+            A=detail_2017_Aq_set.Aimp,
+            target_year=target_year,
+            original_year=original_year,
+            dom_or_imp_or_total='imp',
+        )
 
-    q = scale_detail_q_based_on_summary_q(
-        q=detail_2017_Aq_set.scaled_q,
-        target_year=target_year,
-        original_year=original_year,
-    )
-    assert q is not None, "q in derive_Aq_usa() is None"
+        q = scale_detail_q_based_on_summary_q(
+            q=detail_2017_Aq_set.scaled_q,
+            target_year=target_year,
+            original_year=original_year,
+        )
+        assert q is not None, 'q in derive_Aq_usa() is None'
 
-    # NOTE: the Adom/Aimp/q being passed in are already in `target_year`.
-    # We just need to inflate them to CEDA base year.
-    # TODO: type inflate_A_matrix as DataFrame[AMatrix]
-    Adom = inflate_A_matrix(  # type: ignore[assignment]
-        Adom,
-        target_year=get_usa_config().model_base_year,
-        original_year=target_year,
-    )
-    Aimp = inflate_A_matrix(  # type: ignore[assignment]
-        Aimp,
-        target_year=get_usa_config().model_base_year,
-        original_year=target_year,
-    )
-    q = inflate_q_or_y(
-        q, target_year=get_usa_config().model_base_year, original_year=target_year
-    )
+        # NOTE: the Adom/Aimp/q being passed in are already in `target_year`.
+        # We just need to inflate them to CEDA base year.
+        # TODO: type inflate_A_matrix as DataFrame[AMatrix]
+        Adom = inflate_A_matrix(  # type: ignore[assignment]
+            Adom,
+            target_year=get_usa_config().model_base_year,
+            original_year=target_year,
+        )
+        Aimp = inflate_A_matrix(  # type: ignore[assignment]
+            Aimp,
+            target_year=get_usa_config().model_base_year,
+            original_year=target_year,
+        )
+        q = inflate_q_or_y(
+            q,
+            target_year=get_usa_config().model_base_year,
+            original_year=target_year,
+        )
 
-    return SingleRegionAqMatrixSet(
-        Adom=pt.DataFrame[AMatrix](Adom),
-        Aimp=pt.DataFrame[AMatrix](Aimp),
-        scaled_q=QVectorSchema.validate(q),
-    )
+        return SingleRegionAqMatrixSet(
+            Adom=pt.DataFrame[AMatrix](Adom),
+            Aimp=pt.DataFrame[AMatrix](Aimp),
+            scaled_q=QVectorSchema.validate(q),
+        )
 
 
 def derive_B_usa_via_vnorm(*, E_usa: pd.DataFrame) -> pd.DataFrame:
@@ -320,8 +343,8 @@ def derive_B_usa_via_vnorm(*, E_usa: pd.DataFrame) -> pd.DataFrame:
     Bi = compute_B_ind_matrix(E=E_usa, g=g)
     Bc = compute_B_matrix(B_ind=Bi, V_norm=Vnorm)
 
-    Bc.columns.name = "sector"
-    Bc.index.name = "ghg"
+    Bc.columns.name = 'sector'
+    Bc.index.name = 'ghg'
     return Bc
 
 
@@ -390,32 +413,35 @@ def derive_v7_detail_Ytot_usa_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
 
     NOTE: Ytot_usa can't be negative, because we need to use it to ABSR Ytot of other countries.
     """
-    detail_2017_YandTradeset = derive_2017_Ytot_usa_matrix_set()
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return derive_cornerstone_detail_Ytot_matrix_set()
+    else:
+        detail_2017_YandTradeset = derive_2017_Ytot_usa_matrix_set()
 
-    summary_to_ceda_corresp_df = get_bea_v2017_summary_to_ceda_corresp_df()
+        summary_to_ceda_corresp_df = get_bea_v2017_summary_to_ceda_corresp_df()
 
-    summary_Y_matrix_set = derive_summary_Ytot_usa_matrix_set(year=2022)
+        summary_Y_matrix_set = derive_summary_Ytot_usa_matrix_set(year=2022)
 
-    ytot = disaggregate_vector(
-        base_series=summary_Y_matrix_set.ytot,
-        weight_series=detail_2017_YandTradeset.ytot,
-        corresp_df=summary_to_ceda_corresp_df,
-    )
-    exports = disaggregate_vector(
-        base_series=summary_Y_matrix_set.exports,
-        weight_series=detail_2017_YandTradeset.exports,
-        corresp_df=summary_to_ceda_corresp_df,
-    )
-    imports = handle_negative_vector_values(
-        disaggregate_vector(
-            base_series=summary_Y_matrix_set.imports,
-            weight_series=detail_2017_YandTradeset.imports,
+        ytot = disaggregate_vector(
+            base_series=summary_Y_matrix_set.ytot,
+            weight_series=detail_2017_YandTradeset.ytot,
             corresp_df=summary_to_ceda_corresp_df,
         )
-    )
+        exports = disaggregate_vector(
+            base_series=summary_Y_matrix_set.exports,
+            weight_series=detail_2017_YandTradeset.exports,
+            corresp_df=summary_to_ceda_corresp_df,
+        )
+        imports = handle_negative_vector_values(
+            disaggregate_vector(
+                base_series=summary_Y_matrix_set.imports,
+                weight_series=detail_2017_YandTradeset.imports,
+                corresp_df=summary_to_ceda_corresp_df,
+            )
+        )
 
-    return SingleRegionYtotAndTradeVectorSet(
-        ytot=YVectorSchema.validate(ytot),
-        exports=ExportsVectorSchema.validate(exports),
-        imports=ImportsVectorSchema.validate(imports),
-    )
+        return SingleRegionYtotAndTradeVectorSet(
+            ytot=YVectorSchema.validate(ytot),
+            exports=ExportsVectorSchema.validate(exports),
+            imports=ImportsVectorSchema.validate(imports),
+        )
