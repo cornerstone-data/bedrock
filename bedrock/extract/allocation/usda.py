@@ -6,13 +6,10 @@ from __future__ import annotations
 
 import functools
 import os
-import posixpath
 import typing as ta
 
 import pandas as pd
 
-from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
@@ -48,159 +45,6 @@ def load_animal_operation_land() -> pd.Series[float]:  # acres
 
     assert animal_operation_land.index.is_unique
     return animal_operation_land
-
-
-def _load_crop_land_area_harvested_2022() -> pd.Series[float]:
-    """
-    download USDA Census of Agriculture 2022 data from quickstats.nass.usda.gov
-        Select Commodity:
-            Program: CENSUS
-            Sector: CROPS
-            Group: FIELD CROPS
-            Commodity: (all)
-            Category: AREA HARVESTED
-            Data Item: (all)
-            Domain: AREA HARVESTED
-        Select Location:
-            Geographic Level: NATIONAL
-            State: US TOTAL
-        Select Time:
-            Year: 2022
-            Period Type: ANNUAL
-            Period: YEAR
-    or via this permanent link: https://quickstats.nass.usda.gov/results/9BDE0EC5-C418-3862-9EA8-19CE47D43E6F
-    """
-    df = (
-        load_from_gcs(
-            name="USDA_Census_crop_2022.csv",
-            sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
-            local_dir=IN_DIR,
-            loader=lambda pth: pd.read_csv(pth),
-        )
-        .loc[:, ["Data Item", "Value"]]
-        .replace([" (D)", " (Z)"], 0)
-    )
-    df = df.loc[df["Data Item"].str.endswith(" - ACRES HARVESTED")]
-    df.index = pd.Index(
-        df["Data Item"].str.split(" - ").str[0].map(CROP_TO_CEDA_V7_SECTOR_MAPPING)
-    )
-    df["Value"] = df["Value"].str.replace(",", "").astype(float)
-
-    return df.groupby(level=0).sum()["Value"]
-
-
-def _load_fruits_treenuts_area_bearing_2022() -> pd.Series[float]:
-    """
-    download USDA Census of Agriculture 2022 data from quickstats.nass.usda.gov
-        Select Commodity:
-            Program: CENSUS
-            Sector: CROPS
-            Group: FRUITS & TREE NUTS
-            Commodity: (all)
-            Category: AREA BEARING
-            Data Item: (all)
-            Domain: AREA BEARING & NON-BEARING
-        Select Location:
-            Geographic Level: NATIONAL
-            State: US TOTAL
-        Select Time:
-            Year: 2022
-            Period Type: ANNUAL
-            Period: YEAR
-    or via this permanent link: https://quickstats.nass.usda.gov/results/7201E731-3AFD-3BA1-B059-9C02EB37AA32
-    """
-    df = (
-        load_from_gcs(
-            name="USDA_Census_fruits_treenuts_2022.csv",
-            sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
-            local_dir=IN_DIR,
-            loader=lambda pth: pd.read_csv(pth),
-        )
-        .loc[:, ["Data Item", "Value"]]
-        .replace(" (D)", 0)
-    )
-    df = df.loc[df["Data Item"].str.endswith(" - ACRES BEARING")]
-    df["Value"] = df["Value"].str.replace(",", "").astype(float).fillna(0.0)
-
-    return pd.Series(df["Value"].sum(), index=["111300"])
-
-
-def _load_vegetables_melons_area_harvested_2022() -> pd.Series[float]:
-    """
-    download USDA Census of Agriculture 2022 data from quickstats.nass.usda.gov
-        Select Commodity:
-            Program: CENSUS
-            Sector: CROPS
-            Group: VEGETABLES
-            Commodity: VEGETABLE TOTALS
-            Category:
-                AREA HARVESTED
-                AREA IN PRODUCTION
-            Data Item:
-                VEGETABLE TOTALS, IN THE OPEN - ACRES HARVESTED
-                VEGETABLE TOTALS, IN THE OPEN - ACRES IN PRODUCTION
-            Domain:
-                AREA HARVESTED, FRESH MARKET & PROCESSING
-                AREA IN PRODUCTION
-        Select Location:
-            Geographic Level: NATIONAL
-            State: US TOTAL
-        Select Time:
-            Year: 2022
-            Period Type: ANNUAL
-            Period: YEAR
-    or via this permanent link: https://quickstats.nass.usda.gov/results/F46D2118-A8D1-3739-B352-C9635EDCEC90
-    """
-    df = load_from_gcs(
-        name="USDA_Census_vegetables_2022.csv",
-        sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
-        local_dir=IN_DIR,
-        loader=lambda pth: pd.read_csv(pth),
-    ).loc[:, ["Data Item", "Value"]]
-    df = df.loc[df["Data Item"].str.endswith(" - ACRES HARVESTED")]
-    df["Value"] = df["Value"].str.replace(",", "").astype(float).fillna(0.0)
-
-    return pd.Series(df["Value"].sum(), index=["111200"])
-
-
-def _load_livestock_area_operated_2022() -> pd.Series[float]:
-    """
-    download USDA Census of Agriculture 2022 data from quickstats.nass.usda.gov
-        Select Commodity:
-            Program: CENSUS
-            Sector: ANIMALS & PRODUCTS
-            Group: (all)
-            Commodity: (all)
-            Category: INVENTORY
-            Data Item: (all)
-            Domain: AREA OPERATED
-        Select Location:
-            Geographic Level: NATIONAL
-            State: US TOTAL
-        Select Time:
-            Year: 2022
-            Period Type: POINT IN TIME
-            Period: END OF DEC
-    or via this permanent link: https://quickstats.nass.usda.gov/results/BA48CEBE-6950-3882-AFD5-4DD8D3A37247
-    https://quickstats.nass.usda.gov/results/79D457AE-E98F-3004-8F32-6AE0C33594C0
-    """
-    df = (
-        load_from_gcs(
-            name="USDA_Census_livestock_2022.csv",
-            sub_bucket=posixpath.join(GCS_CEDA_INPUT_DIR, "USDA"),
-            local_dir=IN_DIR,
-            loader=lambda pth: pd.read_csv(pth),
-        )
-        .loc[:, ["Data Item", "Value"]]
-        .replace([" (D)", " (Z)"], 0)
-    )
-    df = df.loc[df["Data Item"].str.endswith(" - INVENTORY")]
-    df.index = pd.Index(
-        df["Data Item"].str.split(" - ").str[0].map(LIVESTOCK_TO_CEDA_V7_SECTOR_MAPPING)
-    )
-    df["Value"] = df["Value"].str.replace(",", "").astype(float)
-
-    return df.groupby(level=0).sum()["Value"]
 
 
 CROP_TO_CEDA_V7_SECTOR_MAPPING: dict[str, ta.Literal[CEDA_V7_SECTOR]] = {

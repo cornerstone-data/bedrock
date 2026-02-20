@@ -96,7 +96,7 @@ def standardize_units(df: pd.DataFrame) -> pd.DataFrame:
     :param df: df, Either flowbyactivity or flowbysector
     :return: df, with standarized units
     """
-
+    # TODO: this functions is a duplcate of flowby._FlowBy.standardize_units
     year = df['Year'][0]
 
     exchange_rate = literature_values.get_Canadian_to_USD_exchange_rate(year)

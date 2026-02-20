@@ -421,7 +421,7 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByAct
     rural_res = get_area_of_rural_land_occupied_by_houses_2013()
 
     # household codes
-    household_df = load_crosswalk('Household_SectorCodes')
+    household_df = load_crosswalk('FinalDemand_SectorCodes')
     household = household_df['Code'].drop_duplicates().tolist()
 
     # if it is state data, take weighted avg using land area

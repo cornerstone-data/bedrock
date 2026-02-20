@@ -806,7 +806,7 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
     # Load energy consumption data by fuel from GHGI
     ghgi = load_fba_w_standardized_units(
         datasource=cast(str, parameter_dict.get('ghg_fba')),
-        year=cast(int, mecs_year),
+        year=cast(int, parameter_dict.get('ghgi_year', mecs_year)),
         flowclass='Energy',
         download_FBA_if_missing=True,
     )
@@ -828,6 +828,13 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
         pct = np.minimum(mecs_energy / ghgi_energy, 1)
         pct_dict[label] = pct
 
+    # based on 2018 datasets
+    # {'Coal': np.float64(0.7599),
+    #  'Natural Gas': np.float64(0.6822)}
+
+    # based on 2018 MECS / 2023 GHGI
+    # {'Coal': np.float64(1.0),
+    #  'Natural Gas': np.float64(0.6540)}
     return pct_dict
 
 
@@ -915,6 +922,7 @@ def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
 
 
 if __name__ == '__main__':
+
     # fba = bedrock.return_FBA('EPA_GHGI_T_4_101', 2016)
     # df = clean_HFC_fba(fba)
     tbl_list = [
