@@ -111,7 +111,10 @@ EPA_GHGI_CEDA,Industry Natural Gas to Chemical Plants,NAICS_2017_Code,33,,,EPA_G
 EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,48,,"48, 491, 492, S00500, S00600, GSLGO, S00201, S00203, F01000",EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,491,,,EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,492,,,EPA_GHGI_T_3_22
-EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,92,,,EPA_GHGI_T_3_22
+EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,S00500,,,EPA_GHGI_T_3_22
+EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,S00600,,,EPA_GHGI_T_3_22
+EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,GSLGO,,,EPA_GHGI_T_3_22
+EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,S00203,,,EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Transportation Lubricants,NAICS_2017_Code,F01000,,,EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Coal Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_CEDA,Fuel Oil Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
