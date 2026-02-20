@@ -74,7 +74,7 @@ source_names:
             - Nitric Acid Production #N2O - same as flowsa
             - Phosphoric Acid Production #CO2 - same as flowsa
             - Rice Cultivation #CH4 - same as flowsa
-#            - Soda Ash Production #CO2 - # TODO: ceda pulls this data from table 4-51, implemented below
+            - Soda Ash Production #CO2 - ceda pulls this data from table 4-51, but same data
             - Titanium Dioxide Production #CO2 - same as flowsa
             - Wastewater Treatment #CH4, N2O - same as flowsa
             - Zinc Production #CO2 - same as flowsa
@@ -778,17 +778,6 @@ source_names:
 
   EPA_GHGI_T_3_9: *stationary_combustion # N2O emissions from stationary combustion
 
-  EPA_GHGI_T_4_51: #U.S. GHG emissions # todo: need to incorporate into 2023 ghg yaml
-    # year: # override this
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    fedefl_mapping: GHGI_AR5_100
-    activity_sets:
-      direct:
-        selection_fields:
-          PrimaryActivity:
-            - Soda Ash Production #CO2 - note flowsa pulls from 2_1, which is the approach to take in merge
-          FlowName: ["CO2"]
-        attribution_method: direct
 
 ## Other sources
   EPA_GHGI_T_4_55: #CO2 for selected petrochemicals

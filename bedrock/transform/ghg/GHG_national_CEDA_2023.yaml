@@ -153,8 +153,3 @@ source_names:
               year: *mecs_year
 
   "EPA_GHGI_T_3_9": *T_3_8 # N2O emissions from stationary combustion
-
-  # ceda only tables, not in flowsa method
-  "EPA_GHGI_T_4_51": # CO2 soda ash production
-    !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_4_51
-    year: *ghgi_year
