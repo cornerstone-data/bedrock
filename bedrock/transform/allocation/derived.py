@@ -6,14 +6,20 @@ import time
 
 import pandas as pd
 
-from bedrock.extract.allocation.epa_constants import return_emissions_source_table_numbers
+from bedrock.extract.allocation.epa_constants import (
+    return_emissions_source_table_numbers,
+)
 from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
-from bedrock.transform.flowbysector import getFlowBySector
+from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.settings import FBS_DIR
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
-from bedrock.utils.mapping.sectormapping import map_to_BEA_sectors
+from bedrock.utils.mapping.sectormapping import (
+    get_activitytosector_mapping,
+    map_to_BEA_sectors,
+)
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
@@ -60,17 +66,71 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
 
 
 # %%
+
+
+def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
+
+    # Because the schema for the FBS is mixed digit, first need to expand the schema all the way
+    # to 6 digits prior to mapping back to the CEDA schema. In doing this mapping we only need
+    # to assign a 1:1 mapping (hence drop duplicates, keep = first). When the mapping is reversed
+    # back to CEDA we don't want to expand the FBS.
+
+    # Prepare NAICS:BEA mapping file
+    cw = load_crosswalk('NAICS_2017_Crosswalk')
+    cols_to_stack = ["NAICS_3", "NAICS_4", "NAICS_5"]
+    cw_stack = (
+        cw.astype({c: "string" for c in cols_to_stack + ["NAICS_6"]})
+        .melt(
+            id_vars="NAICS_6",
+            value_vars=cols_to_stack,
+            var_name="level",
+            value_name="NAICS",
+        )
+        .dropna(subset=["NAICS_6", "NAICS"])[["NAICS", "NAICS_6"]]
+        .drop_duplicates(subset='NAICS', keep='first')
+        .reset_index(drop=True)
+    )
+    fbs2 = fbs.merge(
+        cw_stack,
+        how='left',
+        left_on='SectorProducedBy',
+        right_on='NAICS',
+        validate="m:1",
+    )
+    fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
+
+    mapping = (
+        get_activitytosector_mapping('CEDA_2025')
+        # we don't want to map back to the sectors that are aggregated so keep only first
+        # this assumes that the first listed mapping is the priority.
+        # TODO: update to rely on the reported CEDA schema.
+        .drop_duplicates(subset='Sector', keep='first')
+    )
+    fbs2 = (
+        fbs2.merge(
+            mapping[['Activity', 'Sector']],
+            how='left',
+            left_on='NAICS_6',
+            right_on=['Sector'],
+            validate="m:1",
+        )
+        .assign(SectorProducedBy=lambda x: x['Activity'].fillna(x['NAICS_6']))
+        .drop(columns=['Activity', 'NAICS', 'NAICS_6', 'Sector'])
+    )
+
+    ## re assign SPB and aggregate using exisiting functions
+    fbs3 = pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
+
+    # TODO: add test to confirm no data loss
+
+    return fbs3
+
+
 def load_E_from_flowsa() -> pd.DataFrame:
 
-    fbs = getFlowBySector(methodname='GHG_national_2022_m1')
-    fbs = fbs.assign(Sector=fbs['SectorProducedBy']).drop(
-        columns=['SectorProducedBy', 'SectorConsumedBy']
-    )
+    fbs = getFlowBySector(methodname='GHG_national_CEDA_2023')
 
-    # map from NAICS to BEA schema
-    fbs = map_to_BEA_sectors(
-        fbs, region='national', io_level='detail', output_year=2022, bea_year=2017
-    )
+    fbs = map_to_CEDA(fbs)
 
     # Align flow names with temporary mapping
     gas_map = {
@@ -109,6 +169,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
     ghg_mapping['HFCs'] = 1  # should already be in CO2e
     ghg_mapping['PFCs'] = 1  # should already be in CO2e
     fbs['CO2e'] = fbs['FlowAmount'] * fbs['Flowable'].map(ghg_mapping)
+
+    # fbs.to_csv('GHG_CEDA_fbs_bea.csv')
 
     # aggregate and set FlowName as index, sectors as columns
     E_usa = fbs.pivot_table(
