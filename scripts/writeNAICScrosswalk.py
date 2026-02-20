@@ -230,7 +230,8 @@ def write_annual_naics_crosswalk(year):
     # load BEA codes that will act as NAICS
     house = load_crosswalk('FinalDemand_SectorCodes')
     govt = load_crosswalk('Government_SectorCodes')
-    bea = pd.concat([house, govt], ignore_index=True).rename(
+    bea_custom = load_crosswalk('BEA_CustomCodes')
+    bea = pd.concat([house, govt, bea_custom], ignore_index=True).rename(
         columns={'Code': f'NAICS_{year}_Code', 'NAICS_Level_to_Use_For': 'secLength'}
     )
     bea = bea[[f'NAICS_{year}_Code', 'secLength']]
@@ -366,7 +367,6 @@ def write_sector_level_crosswalk():
 
 
 if __name__ == '__main__':
-    # update_naics_crosswalk()
     write_naics_year_concordance()
     write_annual_naics_crosswalk('2002')
     write_annual_naics_crosswalk('2007')
