@@ -60,18 +60,16 @@ source_names:
             - Adipic Acid Production #N2O - same as flowsa
             - Aluminum Production #CO2 - same as flowsa
             - Ammonia Production #CO2 - same as flowsa
-            - Anaerobic Digestion at Biogas Facilities #CH4 new activity # TODO: flowsa code, included in ceda?
+            # - Anaerobic Digestion at Biogas Facilities #CH4 new activity # TODO: flowsa code, included in ceda?
             - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O - same as flowsa
-            - Carbide Production and Consumption #CO2, CH4 - same as flowsa, in ceda labeled silicon_carbide_production_and_consumption, TODO: find ch4 data in ceda
+            # - Carbide Production and Consumption #CO2, CH4 - not in ceda
             - Cement Production #CO2 - same as flowsa
-            - Coal Mining #CO2, CH4 - todo: note no co2 in ceda? so need to exclude coal mining co2?
             - Composting #CH4, N2O - same as flowsa
             - Electronics Industry  # N2O - note different than flowsa, which uses T 4_118
             - Ferroalloy Production #CO2, CH4 - note that ch4 in ceda has no emissions to allocate, true of flowsa as well?
             - Glass Production #CO2 - same as flowsa
             - Landfills #CH4 - same as flowsa
             - Lime Production #CO2 - same as flowsa
-            - Incineration of Waste #CO2, #N2O - same as flowsa
             - Iron and Steel Production & Metallurgical Coke Production #CO2, CH4 #TODO: find ch4 in ceda
             - Nitric Acid Production #N2O - same as flowsa
             - Phosphoric Acid Production #CO2 - same as flowsa
@@ -81,6 +79,16 @@ source_names:
             - Wastewater Treatment #CH4, N2O - same as flowsa
             - Zinc Production #CO2 - same as flowsa
           FlowName: ["CO2", "CH4", "N2O"] # HFCs and other flows are pulled elsewhere
+        attribution_method: direct
+      direct2:
+          PrimaryActivity:
+            - Incineration of Waste #N2O only, CO2 not in CEDA
+          FlowName: ["N2O"]
+        attribution_method: direct
+      direct3:
+          PrimaryActivity:
+            - Coal Mining # CH4 only,  co2 coal mining not in ceda
+          FlowName: ["CH4"]
         attribution_method: direct
 
       electricity_transmission:
