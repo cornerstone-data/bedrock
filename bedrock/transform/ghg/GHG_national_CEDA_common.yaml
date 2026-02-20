@@ -66,7 +66,7 @@ source_names:
             - Cement Production #CO2 - same as flowsa
             - Coal Mining #CO2, CH4 - todo: note no co2 in ceda? so need to exclude coal mining co2?
             - Composting #CH4, N2O - same as flowsa
-            - Electronics Industry  # N20 - note different than flowsa, which uses T 4_118
+            - Electronics Industry  # N2O - note different than flowsa, which uses T 4_118
             - Ferroalloy Production #CO2, CH4 - note that ch4 in ceda has no emissions to allocate, true of flowsa as well?
             - Glass Production #CO2 - same as flowsa
             - Landfills #CH4 - same as flowsa
@@ -177,7 +177,7 @@ source_names:
 
       # Note: the flowamounts out of T_5_29 for 2023 are all 0 (except for "all activities" which we do not use)
       # this means no emissions are returned todo: check output from ceda
-      field_burning_n20:
+      field_burning_n2O:
         selection_fields:
           PrimaryActivity:
             - Field Burning of Agricultural Residues
@@ -199,6 +199,29 @@ source_names:
                 - Corn  # not included in flowsa, only in ceda todo: check if same as maize?
                 - Lentils  # not included in flowsa, only in ceda
                 - Sugarcane  # not included in flowsa, only in ceda
+              FlowName: ["N2O"]
+            attribution_method: direct
+
+      # todo: determine why manure management data is being dropped before attribution step, results in empty df
+      manure_management_n2O:
+        selection_fields:
+          PrimaryActivity:
+            - Manure Management  # n2O  - different table than flowsa
+          FlowName: ["N2O"]  # flowsa pulls ch4 from diff table
+        attribution_method: proportional
+        attribution_source:
+          EPA_GHGI_T_5_7:
+            # year: # override this
+            activity_to_sector_mapping: EPA_GHGI_CEDA
+            selection_fields:
+              PrimaryActivity:
+                - Beef Cattle  # same as flowsa - n2O, ch4  manure
+                - Dairy Cattle  # same as flowsa - n2O, ch4 manure
+                - Goats  # same as flowsa - n2O, ch4 manure
+                - Horses  # same as flowsa - n2O, ch4 manure
+                - Sheep  # same as flowsa - n2O, ch4 manure
+                - Swine  # same as flowsa - n2O, ch4 manure
+                - Poultry  # same as flowsa - n2O, ch4 manure (not in ceda enteric fermintation)
               FlowName: ["N2O"]
             attribution_method: direct
 
@@ -251,7 +274,7 @@ source_names:
 
 ## Agriculture
   # note - field burning is allocated differently in flowsa. ch4 emissions are pulled from 5_29 and directly attributed.
-  # However, n20 data totals are pulled table 2_1 and the T_5_29 data are used to proportionally attribute
+  # However, n2O data totals are pulled table 2_1 and the T_5_29 data are used to proportionally attribute
   # flowsa only directly attributes data from 5_29, does not use T 2_1 data
   EPA_GHGI_T_5_29: #CH4, N2O, CO and NOx from field burning of residues
     # year: # override this
@@ -263,11 +286,11 @@ source_names:
           PrimaryActivity:
     #        - Chickpeas  # only in flowsa, not in ceda
             - Cotton  # same as flowsa
-    #        - Maize  # only in flowsa, not in ceda todo: check if same as corn?
+    #        - Maize  # only in flowsa, not in ceda - same as corn?
             - Rice  # same as flowsa
             - Soybeans  # same as flowsa
             - Wheat  # same as flowsa
-            - Corn  # not included in flowsa, only in ceda todo: check if same as maize?
+            - Corn  # not included in flowsa, only in ceda -  same as maize?
             - Lentils  # not included in flowsa, only in ceda
             - Sugarcane  # not included in flowsa, only in ceda
           FlowName: ["CH4"]
@@ -278,21 +301,21 @@ source_names:
     activity_to_sector_mapping: EPA_GHGI_CEDA
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
-      PrimaryActivity:  # todo: likely not an issue, but flowsa lists the activities for all emissions, while ceda code does not have all activities for all emissions
+      PrimaryActivity:  # note: likely not an issue, but flowsa lists the activities for all emissions, while ceda code does not have all activities for all emissions
         - American Bison  # same as flowsa - ch4 manure
-        - Beef Cattle  # same as flowsa - n20, ch4  manure
-        - Dairy Cattle  # same as flowsa - n20, ch4 manure
-        - Goats  # same as flowsa - n20, ch4 manure
-        - Horses  # same as flowsa - n20, ch4 manure
+        - Beef Cattle  # same as flowsa - n2O, ch4  manure
+        - Dairy Cattle  # same as flowsa - n2O, ch4 manure
+        - Goats  # same as flowsa - n2O, ch4 manure
+        - Horses  # same as flowsa - n2O, ch4 manure
         - Mules and Asses  # same as flowsa, ch4 manure
-        - Sheep  # same as flowsa - n20, ch4 manure
-        - Swine  # same as flowsa - n20, ch4 manure
-        - Poultry  # same as flowsa - n20, ch4 manure (not in ceda enteric fermintation)
+        - Sheep  # same as flowsa - n2O, ch4 manure
+        - Swine  # same as flowsa - n2O, ch4 manure
+        - Poultry  # same as flowsa - n2O, ch4 manure (not in ceda enteric fermintation)
     attribution_method: direct
-  EPA_GHGI_T_5_7:
-    <<: *animals #CH4, mimics enteric fermentation #todo: move N2O from manure, which flowsa captures here, to instead be laoded from T 2_1 and then allocated with table 5-7
+  EPA_GHGI_T_5_7:  # note ceda pulls n2o data from t_2_1 and uses t_5_7 as attribution source, flowsa pulls all from 5_7
+    <<: *animals #CH4, mimics enteric fermentation
     selection_fields:
-      FlowName: ["CH4"]
+      FlowName: ["CH4"]  # n2o loaded from T 2_1
 
   EPA_GHGI_T_5_18: #Direct N2O emissions from agricultural soils
     # year: # override this
@@ -620,7 +643,7 @@ source_names:
         ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      # todo: check if this has any impact. in ceda, no ch4 emissions, but there are n20 emissions. likely keep code as is
+      # todo: check if this has any impact. in ceda, no ch4 emissions, but there are n2O emissions. likely keep code as is
       residential:
         selection_fields:
           PrimaryActivity:
