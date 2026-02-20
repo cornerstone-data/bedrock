@@ -12,6 +12,11 @@ on:
         description: "Google Sheets ID for EF diagnostics"
         required: true
         type: string
+      pr_url:
+        description: "PR URL associated with this diagnostics run (optional)"
+        required: false
+        type: string
+        default: ""
 
 env:
   FORCE_COLOR: 2
@@ -41,7 +46,9 @@ jobs:
         run: |
           uv run python bedrock/utils/validation/generate_diagnostics.py \
             --sheet_id "${{ github.event.inputs.sheet_id }}" \
-            --config_name "${{ github.event.inputs.config_name }}"
+            --config_name "${{ github.event.inputs.config_name }}" \
+            --git_branch "${{ github.ref_name }}" \
+            ${{ github.event.inputs.pr_url && format('--pr_url "{0}"', github.event.inputs.pr_url) || '' }}
 
   notify_slack_failure:
     needs: diagnostics

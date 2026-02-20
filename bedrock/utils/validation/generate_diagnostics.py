@@ -24,9 +24,13 @@ logger = logging.getLogger(__name__)
     type=str,
     default='v8_ceda_2025_usa',
 )
+@click.option('--git_branch', default=None, type=str, help='Override git branch name')
+@click.option('--pr_url', default=None, type=str, help='Override PR URL')
 def generate_diagnostics(
     sheet_id: str,
     config_name: str,
+    git_branch: str | None,
+    pr_url: str | None,
 ) -> None:
     total_start = time.time()
     set_global_usa_config(config_name)
@@ -57,8 +61,11 @@ def generate_diagnostics(
     git_metadata = pd.DataFrame(
         [
             {'config_field': 'git_commit', 'value': GIT_HASH_LONG or 'unknown'},
-            {'config_field': 'git_branch', 'value': GIT_BRANCH or 'unknown'},
-            {'config_field': 'git_pr_url', 'value': GIT_PR_URL or 'N/A'},
+            {
+                'config_field': 'git_branch',
+                'value': git_branch or GIT_BRANCH or 'unknown',
+            },
+            {'config_field': 'git_pr_url', 'value': pr_url or GIT_PR_URL or 'N/A'},
         ]
     )
     config_df = pd.concat([git_metadata, config_df], ignore_index=True)
