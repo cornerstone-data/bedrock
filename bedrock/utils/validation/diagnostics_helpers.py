@@ -611,11 +611,17 @@ def compute_effective_g_comparison() -> pd.DataFrame:
             f'g_{cfg.usa_ghg_data_year}_after_redef': g_new.reindex(common),
             'g_eff_old_path': g_eff_old.reindex(common),
             'g_2017_benchmark': g_2017.reindex(common),
-            f'q_{cfg.usa_io_data_year}_over_q_{cfg.usa_detail_original_year}': q_scale.reindex(common),
-            f'pi_{cfg.model_base_year}_over_pi_{cfg.usa_io_data_year}': pi_scale.reindex(common),
+            f'q_{cfg.usa_io_data_year}_over_q_{cfg.usa_detail_original_year}': q_scale.reindex(
+                common
+            ),
+            f'pi_{cfg.model_base_year}_over_pi_{cfg.usa_io_data_year}': pi_scale.reindex(
+                common
+            ),
         }
     )
-    comp['g_new_over_g_old'] = comp[f'g_{cfg.usa_ghg_data_year}_after_redef'] / comp['g_eff_old_path']
+    comp['g_new_over_g_old'] = (
+        comp[f'g_{cfg.usa_ghg_data_year}_after_redef'] / comp['g_eff_old_path']
+    )
 
     sector_desc = get_aligned_sector_desc()
     comp.insert(0, 'sector_name', comp.index.map(sector_desc))
