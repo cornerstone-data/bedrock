@@ -4,6 +4,11 @@ S00101,NAICS_3,Federal electric utilities
 S00101,NAICS_4,Federal electric utilities
 S00101,NAICS_5,Federal electric utilities
 S00101,NAICS_6,Federal electric utilities
+S00102,NAICS_2,
+S00102,NAICS_3,
+S00102,NAICS_4,
+S00102,NAICS_5,
+S00102,NAICS_6,
 S00201,NAICS_2,State and local government passenger transit
 S00201,NAICS_3,State and local government passenger transit
 S00201,NAICS_4,State and local government passenger transit
@@ -19,3 +24,28 @@ S00203,NAICS_3,Other state and local government enterprises
 S00203,NAICS_4,Other state and local government enterprises
 S00203,NAICS_5,Other state and local government enterprises
 S00203,NAICS_6,Other state and local government enterprises
+S00500,NAICS_2,
+S00500,NAICS_3,
+S00500,NAICS_4,
+S00500,NAICS_5,
+S00500,NAICS_6,
+S00600,NAICS_2,
+S00600,NAICS_3,
+S00600,NAICS_4,
+S00600,NAICS_5,
+S00600,NAICS_6,
+GSLGE,NAICS_2,
+GSLGE,NAICS_3,
+GSLGE,NAICS_4,
+GSLGE,NAICS_5,
+GSLGE,NAICS_6,
+GSLGH,NAICS_2,
+GSLGH,NAICS_3,
+GSLGH,NAICS_4,
+GSLGH,NAICS_5,
+GSLGH,NAICS_6,
+GSLGO,NAICS_2,
+GSLGO,NAICS_3,
+GSLGO,NAICS_4,
+GSLGO,NAICS_5,
+GSLGO,NAICS_6,
