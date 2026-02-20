@@ -13,7 +13,7 @@ _repo_root = Path(__file__).resolve().parents[2]
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from scripts.ceda_fbs_registry_eval.overlap import run_overlap_assessment
+from scripts.ceda_fbs_registry_eval.overlap import run_overlap_assessment  # noqa: E402
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 MAPPING_PATH = OUTPUT_DIR / "fbs_slice_to_registry_mapping.csv"

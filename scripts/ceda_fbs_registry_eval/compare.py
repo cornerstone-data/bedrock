@@ -2,6 +2,7 @@
 Temporary: harmonization (preserving MetaSources), slice filter, and FBS vs registry comparison.
 Section 2 of CEDA FBS vs Registry alignment plan.
 """
+
 from __future__ import annotations
 
 import logging
@@ -60,7 +61,9 @@ def harmonize_fbs_long_preserve_metasources(
         fbs, region="national", io_level="detail", output_year=2022, bea_year=2017
     )
     fbs["Flowable"] = fbs["Flowable"].map(GAS_MAP).fillna(fbs["Flowable"])
-    ghg_mapping: dict[str, float] = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    ghg_mapping: dict[str, float] = {
+        str(k): float(v) for k, v in GWP100_AR6_CEDA.items()
+    }
     ghg_mapping["CH4"] = float(GWP100_AR6_CEDA["CH4_fossil"])
     ghg_mapping["HFCs"] = 1.0
     ghg_mapping["PFCs"] = 1.0
@@ -75,9 +78,9 @@ def harmonize_fbs_long_preserve_metasources(
     sector_to_ceda = {k: v[0] for k, v in bea_mapping.items()}
     fbs["SectorCEDA"] = fbs["Sector"].map(sector_to_ceda)
     fbs = fbs.dropna(subset=["SectorCEDA"])
-    out_df = fbs.groupby(
-        ["Gas", "SectorCEDA", "MetaSources"], as_index=False
-    )["FlowAmount"].sum()
+    out_df = fbs.groupby(["Gas", "SectorCEDA", "MetaSources"], as_index=False)[
+        "FlowAmount"
+    ].sum()
     out_df = out_df.rename(columns={"SectorCEDA": "Sector", "FlowAmount": "CO2e"})
     return out_df[["Gas", "Sector", "MetaSources", "CO2e"]]
 
@@ -115,9 +118,7 @@ def compare_fbs_slice_to_registry(
     Returns a report dict with totals_by_gas, diff, rel_diff, optional diff_df.
     If FBS slice is empty or registry source has no row, logs warning and returns None.
     """
-    es_member = next(
-        (e for e in EmissionsSource if e.value == emissions_source), None
-    )
+    es_member = next((e for e in EmissionsSource if e.value == emissions_source), None)
     if es_member is None:
         logger.warning("Unknown EmissionsSource %s, skipping pair", emissions_source)
         return None
@@ -131,9 +132,7 @@ def compare_fbs_slice_to_registry(
     if registry_df is None:
         registry_df = derive_E_usa_emissions_sources()
     if emissions_source not in registry_df.index:
-        logger.warning(
-            "Registry has no row for %s, skipping pair", emissions_source
-        )
+        logger.warning("Registry has no row for %s, skipping pair", emissions_source)
         return None
     reg_row: pd.Series[float] = (
         registry_df.loc[emissions_source].reindex(CEDA_V7_SECTORS).fillna(0)
@@ -206,9 +205,7 @@ def run_batch_comparison(
 
     # Load or compute registry DataFrame; cache to output_dir when provided
     cache_path = (
-        Path(output_dir) / _E_USA_EMISSIONS_SOURCES_CACHE
-        if output_dir
-        else None
+        Path(output_dir) / _E_USA_EMISSIONS_SOURCES_CACHE if output_dir else None
     )
     if cache_path and cache_path.exists():
         registry_df = pd.read_parquet(cache_path)

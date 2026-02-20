@@ -3,6 +3,7 @@ Temporary: run a single FBS source or activity set by generating a temporary
 method YAML (Option B). Section 3 of CEDA FBS vs Registry alignment plan.
 Temp files are for iteration only and should not be committed.
 """
+
 from __future__ import annotations
 
 import copy
@@ -87,6 +88,7 @@ def _sanitize_for_dump(obj: Any) -> Any:
     if isinstance(obj, (str, int, float, bool, type(None))):
         return obj
     return str(obj)
+
 
 if __name__ == "__main__":
     df = run_single_fbs_slice("EPA_GHGI_T_2_1", activity_set="electric_power")

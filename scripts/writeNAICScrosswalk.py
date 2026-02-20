@@ -1,7 +1,7 @@
 # writeNAICScrosswalk.py
 # !/usr/bin/env python3
 # coding=utf-8
-
+# ruff: noqa
 """
 
 Loops through the data source crosswalks to find any NAICS not in

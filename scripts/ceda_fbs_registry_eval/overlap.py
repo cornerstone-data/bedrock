@@ -134,7 +134,9 @@ def _extract_activities_from_allocation_modules() -> dict[str, list[str]]:
                 continue
             stem = path.stem
             text = path.read_text(encoding="utf-8")
-            activities = list({m.group(1).strip() for m in _LOC_ACTIVITY_PATTERN.finditer(text)})
+            activities = list(
+                {m.group(1).strip() for m in _LOC_ACTIVITY_PATTERN.finditer(text)}
+            )
             if activities:
                 stem_to_activities[stem] = activities
     return stem_to_activities
@@ -278,9 +280,9 @@ def build_overlap_report(
                     "activity_match": activity_match,
                     "match_quality": match_quality,
                     "fbs_primary_activities": r.get("primary_activities", "") or "",
-                    "registry_activities": "|".join(reg_activities)
-                    if reg_activities
-                    else "",
+                    "registry_activities": (
+                        "|".join(reg_activities) if reg_activities else ""
+                    ),
                 }
             )
     overlap_df = pd.DataFrame(overlaps)

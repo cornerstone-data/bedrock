@@ -13,7 +13,7 @@ _repo_root = Path(__file__).resolve().parents[2]
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from scripts.ceda_fbs_registry_eval.compare import run_batch_comparison
+from scripts.ceda_fbs_registry_eval.compare import run_batch_comparison  # noqa: E402
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 MAPPING_PATH = OUTPUT_DIR / "fbs_slice_to_registry_mapping.csv"
@@ -35,7 +35,6 @@ def main() -> None:
     print(f"Compared {summary['compared'].sum()} of {len(summary)} pairs.")
     print(f"Summary written to {OUTPUT_DIR / 'comparison_summary.csv'}")
 
-#%%
 
 if __name__ == "__main__":
     main()
