@@ -549,3 +549,81 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
             inflated=N_old_inflated.to_frame(),
         ),
     )
+
+
+def compute_effective_g_comparison() -> pd.DataFrame:
+    """Compare the B-matrix denominator (g) between the Cornerstone and legacy paths.
+
+    The Cornerstone path uses detail-level observed gross output for the target year
+    (after co-production redefinition).  The legacy path uses 2017 benchmark g,
+    year-scaled at the ~70 summary level, then inflated.  This function
+    reconstructs the legacy effective g so the two can be compared side by side.
+
+    Returns a DataFrame indexed by BEA detail industry code, sorted by g_ratio.
+    """
+    from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
+        bea_g,
+    )
+    from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
+        derive_summary_q_usa,
+    )
+    from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415
+        derive_gross_output_after_redefinition,
+    )
+    from bedrock.utils.economic.inflate_cornerstone_to_target_year import (  # noqa: PLC0415
+        get_cornerstone_price_ratio,
+    )
+    from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
+        load_bea_v2017_commodity_to_bea_v2017_summary,
+    )
+
+    cfg = get_usa_config()
+
+    g_new = derive_gross_output_after_redefinition(cfg.usa_ghg_data_year)
+
+    g_2017 = bea_g()
+
+    q_ratio_summary = (
+        derive_summary_q_usa(cfg.usa_io_data_year)
+        / derive_summary_q_usa(cfg.usa_detail_original_year)
+    ).fillna(1.0)
+
+    detail_to_summary = load_bea_v2017_commodity_to_bea_v2017_summary()
+    detail_to_summary_series = pd.Series(
+        {code: summaries[0] for code, summaries in detail_to_summary.items()}
+    )
+    q_scale = (
+        detail_to_summary_series.map(q_ratio_summary)
+        .fillna(1.0)
+        .reindex(g_2017.index, fill_value=1.0)
+    )
+
+    # PI_target / PI_original — inflation from IO data year to model base year
+    pi_scale = get_cornerstone_price_ratio(
+        cfg.usa_io_data_year, cfg.model_base_year
+    ).reindex(g_2017.index, fill_value=1.0)
+
+    g_eff_old = g_2017 * q_scale * pi_scale
+
+    common = g_new.index.intersection(g_eff_old.index).sort_values()
+    comp = pd.DataFrame(
+        {
+            f'g_{cfg.usa_ghg_data_year}_after_redef': g_new.reindex(common),
+            'g_eff_old_path': g_eff_old.reindex(common),
+            'g_2017_benchmark': g_2017.reindex(common),
+            f'q_{cfg.usa_io_data_year}_over_q_{cfg.usa_detail_original_year}': q_scale.reindex(
+                common
+            ),
+            f'pi_{cfg.model_base_year}_over_pi_{cfg.usa_io_data_year}': pi_scale.reindex(
+                common
+            ),
+        }
+    )
+    comp['g_new_over_g_old'] = (
+        comp[f'g_{cfg.usa_ghg_data_year}_after_redef'] / comp['g_eff_old_path']
+    )
+
+    sector_desc = get_aligned_sector_desc()
+    comp.insert(0, 'sector_name', comp.index.map(sector_desc))
+
+    return comp
