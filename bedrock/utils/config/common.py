@@ -92,7 +92,8 @@ def load_crosswalk(crosswalk_name: str) -> pd.DataFrame:
     """
     Used to load the crosswalks:
 
-    'NAICS_2012_Crosswalk', 'Sector_2012_Names', 'Sector_2017_Names','FinalDemand_SectorCodes',
+    'NAICS_2012_Crosswalk', 'Sector_2012_Names', 'Sector_2017_Names',
+    'FinalDemand_SectorCodes', 'BEA_CustomCodes',
     'Government_SectorCodes', 'NAICS_to_BEA_Crosswalk_2012',
     'NAICS_to_BEA_Crosswalk_2017', 'NAICS_Year_Concordance'
 
