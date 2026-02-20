@@ -4,7 +4,7 @@
 # m1 for the GHG national utilizes a summary level sector attribution
 
 
-!include:USEEIOv2_detail_target.yaml
+!include:CEDA_2025_target.yaml
 # year: &ghgi_year 2023
 target_naics_year: 2017
 geoscale: national
@@ -35,7 +35,7 @@ _attribution_sources:
 
   BEA: &bea # 2017 Make and Use tables
     year: 2017
-    activity_to_sector_mapping: CEDA_2017_Detail
+    activity_to_sector_mapping: CEDA_2025
     exclusion_fields:
       # Drop irrelevant final demand and total sectors
       ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
