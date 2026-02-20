@@ -212,7 +212,6 @@ source_names:
               FlowName: ["N2O"]
             attribution_method: direct
 
-      # todo: determine why manure management data is being dropped before attribution step, results in empty df
       manure_management_n2O:
         selection_fields:
           PrimaryActivity:
@@ -921,12 +920,14 @@ source_names:
     # year: # override with ghgi_year
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      households:
-        selection_fields:
-          PrimaryActivity:
-            - Domestic Refrigeration  # same as flowsa
-            - Residential Stationary Air Conditioning  # same as flowsa
-        attribution_method: direct
+
+      # exclude household data, as does not exist in ceda
+#      households:
+#        selection_fields:
+#          PrimaryActivity:
+#            - Domestic Refrigeration
+#            - Residential Stationary Air Conditioning
+#        attribution_method: direct
 
       refrigerants:
         selection_fields:
@@ -992,7 +993,7 @@ source_names:
     activity_to_sector_mapping: EPA_GHGI_CEDA
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
-      PrimaryActivity: Aluminum Production  # same as flowsa # todo: check includes both c2f6 and cf4
+      PrimaryActivity: Aluminum Production  # same as flowsa
     attribution_method: direct
 
 
