@@ -945,49 +945,18 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
-
-      # below code is how flowsa handles refrigeration and air conditioning, leave commented out
-      # note that flowsa includes household data
-#      households:
-#        selection_fields:
-#          PrimaryActivity:
-#            - Domestic Refrigeration
-#            - Residential Stationary Air Conditioning
-#        attribution_method: direct
-#      refrigerants:
-#        selection_fields:
-#          PrimaryActivity:
-#            - Commercial Refrigeration
-#            - Industrial Process Refrigeration
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make, flowsa uses bea SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
-#      air_conditioning:
-#        selection_fields:
-#          PrimaryActivity:
-#            - Commercial Stationary Air Conditioning
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
-
-#      foams:
-#        selection_fields:
-#          PrimaryActivity:
-#            - Foams
-#        attribution_method: proportional
-#        attribution_source:
-#          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make table - flowsa uses SUT
-#            <<: *bea
-#            selection_fields:
-#              ActivityProducedBy:
-#                '326140': '' # Polystyrene foam  - same as flowsa
-#                '326150': '' # Urethane and other foam  - same as flowsa
+      foams:
+        selection_fields:
+          PrimaryActivity:
+            - Foams
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make table - flowsa uses SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy:
+                '326140': '' # Polystyrene foam  - same as flowsa
+                '326150': '' # Urethane and other foam  - same as flowsa
 
 
   EPA_GHGI_T_A_90: # HFCs from Transportation
