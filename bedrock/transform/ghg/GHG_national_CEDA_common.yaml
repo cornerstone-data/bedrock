@@ -159,14 +159,23 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'325120': ''} # Industrial gases
 
-      # newly added code for ceda
-      direct_other_emissions:
+#     newly added code for ceda
+      fluorochemical:
         selection_fields:
           PrimaryActivity:
           - Fluorochemical Production  # other -  flowsa pulls from EPA_GHGI_T_4_63 and EPA_GHGI_T_4_64
+          FlowName:
+            HFCs: HFC-23  # ceda assigns HFC type in epa.py
+        attribution_method: direct
+
+      electronics_industry:
+        selection_fields:
+          PrimaryActivity:
           - Electronics Industry  # other -  flowsa pulls from EPA_GHGI_T_4_118
-#          FlowName: ["Other PFCs", "Other HFCs"] # terminology for EPA_GHGI_T_4_63, which is used in flowsa
-          FlowName: ['HFCs', 'NF3','SF6']  # todo: note that flurochemical and electronics have PFC data, but ceda does not load it?
+          FlowName:
+            HFCs: HFC-23  # ceda assigns HFC type in epa.py
+            NF3: NF3
+            SF6: SF6
         attribution_method: direct
 
       # newly added code for ceda, flowsa pulls magnesium from EPA_GHGI_T_4_106
@@ -174,7 +183,9 @@ source_names:
         selection_fields:
           PrimaryActivity:
           - Magnesium Production and Processing  # other (hfc 134a, sf6)  - different table than flowsa
-          FlowName: ["SF6", "HFCs"]  # flowsa uses "Other PFCs", "Other HFCs" because pulls from diff table
+          FlowName:
+            SF6: SF6
+            HFCs: HFC-134a  # ceda assigns hfc type in epa.py
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Make_AfterRedef:  # confirmed ceda uses BEA Make
@@ -921,19 +932,12 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
 
-      # exclude household data, as does not exist in ceda
-#      households:
-#        selection_fields:
-#          PrimaryActivity:
-#            - Domestic Refrigeration
-#            - Residential Stationary Air Conditioning
-#        attribution_method: direct
-
-      refrigerants:
+      # todo: need to subtract out "total" from table A-90
+      # todo: add activyt to mapping file
+      refrigerants_AC:
         selection_fields:
           PrimaryActivity:
-            - Commercial Refrigeration  # todo: check on terminology, ceda uses "refrigeration/air conditionaing"
-            - Industrial Process Refrigeration  # todo: check on terminology, ceda uses "refrigeration/air conditionaing"
+            - Refrigeration/Air Conditioning
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make, flowsa uses bea SUT
@@ -941,29 +945,49 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
-      air_conditioning:
-        selection_fields:
-          PrimaryActivity:
-            - Commercial Stationary Air Conditioning  # todo: check on terminology, ceda uses "refrigeration/air conditionaing"
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
-      foams:
-        selection_fields:
-          PrimaryActivity:
-            - Foams
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make table - flowsa uses SUT
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy:
-                '326140': '' # Polystyrene foam  - same as flowsa
-                '326150': '' # Urethane and other foam  - same as flowsa
+      # below code is how flowsa handles refrigeration and air conditioning, leave commented out
+      # note that flowsa includes household data
+#      households:
+#        selection_fields:
+#          PrimaryActivity:
+#            - Domestic Refrigeration
+#            - Residential Stationary Air Conditioning
+#        attribution_method: direct
+#      refrigerants:
+#        selection_fields:
+#          PrimaryActivity:
+#            - Commercial Refrigeration
+#            - Industrial Process Refrigeration
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make, flowsa uses bea SUT
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+#      air_conditioning:
+#        selection_fields:
+#          PrimaryActivity:
+#            - Commercial Stationary Air Conditioning
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+
+#      foams:
+#        selection_fields:
+#          PrimaryActivity:
+#            - Foams
+#        attribution_method: proportional
+#        attribution_source:
+#          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make table - flowsa uses SUT
+#            <<: *bea
+#            selection_fields:
+#              ActivityProducedBy:
+#                '326140': '' # Polystyrene foam  - same as flowsa
+#                '326150': '' # Urethane and other foam  - same as flowsa
 
 
   EPA_GHGI_T_A_90: # HFCs from Transportation
