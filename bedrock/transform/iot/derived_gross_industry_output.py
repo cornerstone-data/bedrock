@@ -119,18 +119,13 @@ def extract_coproduction_entries(V_before_redef: pd.DataFrame) -> pd.DataFrame:
 
 def compute_coproduction_ratios(
     V_before_redef: pd.DataFrame,
-    V_after_redef: pd.DataFrame | None = None,
+    V_after_redef: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Compute co-production movement ratios from the benchmark Make tables.
 
-    When only *V_before_redef* is supplied the ratio uses the full
-    off-diagonal value (original behaviour)::
-
-        ratio(i, c) = V_before_redef[i, c] / g_before[i]
-
-    When *V_after_redef* is also supplied the ratio is **constrained** to
-    the amount actually moved during BEA's redefinition process::
+    The ratio is constrained to the amount actually moved during BEA's
+    redefinition process::
 
         ratio(i, c) = (V_before_redef[i, c] - V_after_redef[i, c]) / g_before[i]
 
@@ -145,10 +140,9 @@ def compute_coproduction_ratios(
     ----------
     V_before_redef : pd.DataFrame
         Make table (industry x commodity), before redefinitions.
-    V_after_redef : pd.DataFrame or None
-        Make table (industry x commodity), after redefinitions.  When
-        provided the movement delta ``V_before_redef - V_after_redef``
-        is used as the numerator.
+    V_after_redef : pd.DataFrame
+        Make table (industry x commodity), after redefinitions.  The movement
+        delta ``V_before_redef - V_after_redef`` is used as the numerator.
 
     Returns
     -------
@@ -156,19 +150,16 @@ def compute_coproduction_ratios(
         DataFrame with columns ``source_industry``, ``destination_industry``,
         ``ratio``.
     """
-    if V_after_redef is not None:
-        if not V_before_redef.index.equals(V_after_redef.index):
-            raise ValueError(
-                'V_before_redef and V_after_redef industry indexes must match exactly.'
-            )
-        if not V_before_redef.columns.equals(V_after_redef.columns):
-            raise ValueError(
-                'V_before_redef and V_after_redef commodity columns must match exactly.'
-            )
+    if not V_before_redef.index.equals(V_after_redef.index):
+        raise ValueError(
+            'V_before_redef and V_after_redef industry indexes must match exactly.'
+        )
+    if not V_before_redef.columns.equals(V_after_redef.columns):
+        raise ValueError(
+            'V_before_redef and V_after_redef commodity columns must match exactly.'
+        )
 
-    V_movement = (
-        V_before_redef - V_after_redef if V_after_redef is not None else V_before_redef
-    )
+    V_movement = V_before_redef - V_after_redef
     if V_movement.isna().any().any():
         raise ValueError('NaN encountered in V_movement; check input table alignment.')
     coproduction = extract_coproduction_entries(V_movement)

@@ -5,7 +5,9 @@ import logging
 import time
 
 import click
+import pandas as pd
 
+from bedrock.utils.config.settings import GIT_BRANCH, GIT_HASH_LONG, GIT_PR_URL
 from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
 
@@ -13,18 +15,22 @@ logger = logging.getLogger(__name__)
 
 
 @click.command(
-    help="Run diagnostics comparing current EEIO model against previous release"
+    help='Run diagnostics comparing current EEIO model against previous release'
 )
-@click.option("--sheet_id", required=True, type=str)
+@click.option('--sheet_id', required=True, type=str)
 @click.option(
-    "--config_name",
+    '--config_name',
     required=True,
     type=str,
-    default="v8_ceda_2025_usa",
+    default='v8_ceda_2025_usa',
 )
+@click.option('--git_branch', default=None, type=str, help='Override git branch name')
+@click.option('--pr_url', default=None, type=str, help='Override PR URL')
 def generate_diagnostics(
     sheet_id: str,
     config_name: str,
+    git_branch: str | None,
+    pr_url: str | None,
 ) -> None:
     total_start = time.time()
     set_global_usa_config(config_name)
@@ -37,31 +43,43 @@ def generate_diagnostics(
         calculate_national_accounting_balance_diagnostics,
     )
 
-    logger.info("----- Calculating and writing diagnostics -----")
+    logger.info('----- Calculating and writing diagnostics -----')
 
     t0 = time.time()
     calculate_ef_diagnostics(sheet_id=sheet_id)
-    logger.info(f"[TIMING] EF diagnostics completed in {time.time() - t0:.1f}s")
+    logger.info(f'[TIMING] EF diagnostics completed in {time.time() - t0:.1f}s')
 
     t0 = time.time()
     calculate_national_accounting_balance_diagnostics(sheet_id=sheet_id)
     logger.info(
-        f"[TIMING] National accounting balance diagnostics completed in {time.time() - t0:.1f}s"
+        f'[TIMING] National accounting balance diagnostics completed in {time.time() - t0:.1f}s'
     )
 
-    logger.info("----- Updating config summary -----")
+    logger.info('----- Updating config summary -----')
     t0 = time.time()
+    config_df = get_usa_config().to_dataframe(config_name)
+    git_metadata = pd.DataFrame(
+        [
+            {'config_field': 'git_commit', 'value': GIT_HASH_LONG or 'unknown'},
+            {
+                'config_field': 'git_branch',
+                'value': git_branch or GIT_BRANCH or 'unknown',
+            },
+            {'config_field': 'git_pr_url', 'value': pr_url or GIT_PR_URL or 'N/A'},
+        ]
+    )
+    config_df = pd.concat([git_metadata, config_df], ignore_index=True)
     update_sheet_tab(
         sheet_id,
-        "config_summary",
-        get_usa_config().to_dataframe(config_name),
+        'config_summary',
+        config_df,
     )
-    logger.info(f"[TIMING] Config summary update completed in {time.time() - t0:.1f}s")
+    logger.info(f'[TIMING] Config summary update completed in {time.time() - t0:.1f}s')
     logger.info(
-        f"[TIMING] Total diagnostics completed in {time.time() - total_start:.1f}s"
+        f'[TIMING] Total diagnostics completed in {time.time() - total_start:.1f}s'
     )
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(message)s')
     generate_diagnostics()

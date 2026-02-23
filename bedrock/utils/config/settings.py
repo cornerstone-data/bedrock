@@ -7,7 +7,7 @@ from esupy.processed_data_mgmt import Paths, mkdir_if_missing
 
 MODULEPATH = Path(__file__).resolve().parents[2]
 
-GCS_FLOWSA_DIR = "flowsa"
+GCS_FLOWSA_DIR = 'flowsa'
 
 datapath = MODULEPATH / 'data'
 mappingpath = MODULEPATH / 'utils' / 'mapping'
@@ -55,18 +55,18 @@ def return_folder_path(base_path: Path | str, filename: str) -> Path:
     """
     base_path = Path(base_path)
     folder = filename.lower()
-    if "." in folder:
-        folder = folder.split(".")[0]
+    if '.' in folder:
+        folder = folder.split('.')[0]
 
     while True:
         folder_path = base_path / folder
         if folder_path.is_dir():
             return folder_path
 
-        if "_" not in folder:
+        if '_' not in folder:
             return base_path
 
-        folder = folder.rsplit("_", 1)[0]
+        folder = folder.rsplit('_', 1)[0]
 
 
 # https://stackoverflow.com/a/41125461
@@ -77,9 +77,9 @@ def memory_limit(percentage: float = 0.93) -> None:
     # noinspection PyBroadException
     try:
         max_memory = get_memory()
-        print(f"Max Memory: {max_memory}")
+        print(f'Max Memory: {max_memory}')
     except Exception:
-        print("Could not determine max memory")
+        print('Could not determine max memory')
     else:
         soft, hard = resource.getrlimit(resource.RLIMIT_AS)
         resource.setrlimit(
@@ -110,15 +110,15 @@ def return_pkg_version(MODULEPATH: Path, package_name: str) -> str:
         # outside the package repo
         tags = (
             subprocess.check_output(
-                ["git", "describe", "--tags", "--always", "--match", "v[0-9]*"],
+                ['git', 'describe', '--tags', '--always', '--match', 'v[0-9]*'],
                 cwd=MODULEPATH,
             )
             .decode()
             .strip()
         )
 
-        if tags.startswith("v"):
-            return tags.split("-", 1)[0].replace("v", "")
+        if tags.startswith('v'):
+            return tags.split('-', 1)[0].replace('v', '')
 
     # If it's a hash, pass
     except subprocess.CalledProcessError:
@@ -148,12 +148,46 @@ def get_git_hash(MODULEPATH: Path, length: str = 'short') -> str | None:
         return None
 
 
+def get_git_branch(module_path: Path) -> str | None:
+    try:
+        return (
+            subprocess.check_output(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=module_path
+            )
+            .decode()
+            .strip()
+        )
+    except Exception:
+        return None
+
+
+def get_git_pr_url(module_path: Path) -> str | None:
+    try:
+        return (
+            subprocess.check_output(
+                ['gh', 'pr', 'view', '--json', 'url', '-q', '.url'],
+                cwd=module_path,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        ) or None
+    except Exception:
+        return None
+
+
 # metadata
-PKG = "bedrock"
+PKG = 'bedrock'
 PKG_VERSION_NUMBER = return_pkg_version(MODULEPATH, PKG)
 GIT_HASH_LONG = os.environ.get('GITHUB_SHA') or get_git_hash(MODULEPATH, 'long')
 GIT_HASH = GIT_HASH_LONG[:7] if GIT_HASH_LONG else None
+GIT_BRANCH = (
+    os.environ.get('GITHUB_HEAD_REF')
+    or os.environ.get('GITHUB_REF_NAME')
+    or get_git_branch(MODULEPATH)
+)
+GIT_PR_URL = get_git_pr_url(MODULEPATH)
 
 
 # Common declaration of write format for package data products
-WRITE_FORMAT = "parquet"
+WRITE_FORMAT = 'parquet'
