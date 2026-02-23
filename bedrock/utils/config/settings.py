@@ -15,6 +15,7 @@ crosswalkpath = mappingpath / 'activitytosectormapping'
 configpath = MODULEPATH / 'utils' / 'config'
 externaldatapath = MODULEPATH / 'extract' / 'external_data'
 process_adjustmentpath = MODULEPATH / 'extract' / 'process_adjustments'
+disaggregationpath = MODULEPATH / 'extract' / 'disaggregation'
 
 extractpath = MODULEPATH / 'extract'
 transformpath = MODULEPATH / 'transform'

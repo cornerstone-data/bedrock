@@ -1,0 +1,27 @@
+# This config runs the Cornerstone 2026 model schema with waste disaggregation
+# enabled. Waste disaggregation splits sector 562000 into 7 sub-sectors using
+# weights from WasteDisaggregationDetail2017_Make.csv and WasteDisaggregationDetail2017_Use.csv.
+#
+# IMPORTANT: Disaggregation logic must consult get_usa_config().implement_waste_disaggregation
+# and cannot proceed without this flag being True. Load this config file via
+# set_global_usa_config("2025_usa_cornerstone_waste_disaggregation") to enable
+# weight-based waste disaggregation in the EEIO pipeline.
+
+#####
+# Model base settings
+#####
+
+#####
+# Data selection
+#####
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+implement_waste_disaggregation: True
+
+
+#####
+# Bugfix
+#####

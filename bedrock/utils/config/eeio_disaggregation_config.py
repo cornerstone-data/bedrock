@@ -9,13 +9,17 @@ Config contract:
   must be True. Disaggregation targets the cornerstone schema only.
 - Weight files: WasteDisaggregationDetail2017_Make.csv and
   WasteDisaggregationDetail2017_Use.csv
+- Disaggregation logic MUST consult get_usa_config().implement_waste_disaggregation
+  and CANNOT proceed without this flag being True. The user must load a config
+  file (e.g. 2025_usa_cornerstone_waste_disaggregation.yaml) that sets this
+  tag. The disaggregation code path must gate execution on this check.
 
 Reference: .cursor/Disagg_project/implementation-steps_v2.md
 """
 
 from pathlib import Path
 
-from bedrock.utils.config.settings import MODULEPATH
+from bedrock.utils.config.settings import disaggregationpath
 
 WEIGHT_SOURCE = "WasteDisaggregationDetail2017"
 MAKE_WEIGHT_FILENAME = "WasteDisaggregationDetail2017_Make.csv"
@@ -30,7 +34,7 @@ def get_waste_disaggregation_data_path() -> Path:
     Returns:
         Path to bedrock/extract/disaggregation/
     """
-    return MODULEPATH / "extract" / "disaggregation"
+    return disaggregationpath
 
 
 def get_waste_disaggregation_weight_source() -> str:
