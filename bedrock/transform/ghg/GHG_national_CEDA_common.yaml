@@ -632,19 +632,28 @@ source_names:
               FlowName: Natural Gas
               Description: 'energy'
 
-      petroleum: # Petroleum
+      petroleum_industrial: # Petroleum
         selection_fields:
           PrimaryActivity:
-            - Total Petroleum Commercial  # same as flowsa
-            - Total Petroleum Industrial  # todo: re examine
+            - Total Petroleum Industrial
         attribution_method: proportional
         attribution_source:
           EIA_MECS_Energy_Allocation_CEDA:
             <<: *mecs_energy_alloc
             selection_fields:
-              FlowName: Natural Gas
+              FlowName: Petroleum
               Description: 'energy'
 
+      petroleum_commercial: # Petroleum
+        selection_fields:
+          PrimaryActivity:
+            - Total Petroleum Commercial  # same as flowsa
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
   EPA_GHGI_T_3_8:  &stationary_combustion # CH4 emissions from stationary combustion
     # year: #override this with ghgi_year

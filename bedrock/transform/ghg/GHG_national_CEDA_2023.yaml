@@ -132,6 +132,12 @@ source_names:
           EIA_MECS_Energy_Allocation_CEDA:
             !include:GHG_national_CEDA_common.yaml:source_names:GHGI_CO2_stationary_combustion:activity_sets:natural_gas_manufacturing:attribution_source:EIA_MECS_Energy_Allocation_CEDA
               year: *mecs_year
+      petroleum_industrial:
+        !include:GHG_national_CEDA_common.yaml:source_names:GHGI_CO2_stationary_combustion:activity_sets:petroleum_industrial
+        attribution_source:
+          EIA_MECS_Energy_Allocation_CEDA:
+            !include:GHG_national_CEDA_common.yaml:source_names:GHGI_CO2_stationary_combustion:activity_sets:petroleum_industrial:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
 
   "EPA_GHGI_T_3_8": &T_3_8 # CH4 emissions from stationary combustion
     !include:GHG_national_CEDA_common.yaml:source_names:EPA_GHGI_T_3_8
