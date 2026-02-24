@@ -299,6 +299,10 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     detail_year = cfg.usa_detail_original_year
     model_year = cfg.model_base_year
 
+    # USEEIO method: return 2017 base A unchanged — no scaling, no inflation.
+    if cfg.scale_a_matrix_with_useeio_method:
+        return base
+
     Adom = inflate_cornerstone_A_matrix(
         scale_cornerstone_A(
             base.Adom,

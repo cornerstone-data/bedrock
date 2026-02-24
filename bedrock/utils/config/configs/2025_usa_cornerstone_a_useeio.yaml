@@ -1,0 +1,4 @@
+# Tests USEEIO's approach for deriving the A matrix (Issue #182).
+# No scaling or inflation applied — 2017 technology mix assumed representative of target year.
+use_cornerstone_2026_model_schema: True
+scale_a_matrix_with_useeio_method: True
