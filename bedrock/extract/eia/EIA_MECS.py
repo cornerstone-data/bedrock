@@ -535,6 +535,74 @@ def eia_mecs_energy_parse(
     return df
 
 
+def eia_mecs_energy_ceda_parse(*, df_list: Any, year: int | str, **_: Any) -> pd.DataFrame:
+    """
+    Build an FBA from industrial and non-energy-fuels allocation outputs.
+    Simulates an EIA_MECS-style FBA for CEDA using the same allocation logic
+    as the GHG pipeline.
+
+    Sources (distinguished by FlowName and AllocationSource):
+    - industrial_coal: _allocate_industrial_coal_to_industries_energy_allocation
+    - industrial_petrol: allocate_industrial_petrol
+    - industrial_natural_gas: _allocate_industrial_nat_gas_to_industries_energy_allocation
+    - non_energy_fuels_coal_coke: allocate_non_energy_fuels_coal_coke
+    - non_energy_fuels_natural_gas: allocate_non_energy_fuels_natural_gas
+    - non_energy_fuels_petrol: allocate_non_energy_fuels_petrol
+    - non_energy_fuels_transport: allocate_non_energy_fuels_transport
+
+    Units: all allocation functions return kg CO2e.
+    """
+    from bedrock.transform.allocation.co2.industrial_coal import (
+        _allocate_industrial_coal_to_industries_energy_allocation,
+    )
+    from bedrock.transform.allocation.co2.industrial_natural_gas import (
+        _allocate_industrial_nat_gas_to_industries_energy_allocation,
+    )
+    from bedrock.transform.allocation.co2.industrial_petrol import (
+        allocate_industrial_petrol,
+    )
+    from bedrock.transform.allocation.co2.non_energy_fuels_coal_coke import (
+        allocate_non_energy_fuels_coal_coke,
+    )
+    from bedrock.transform.allocation.co2.non_energy_fuels_natural_gas import (
+        allocate_non_energy_fuels_natural_gas,
+    )
+    from bedrock.transform.allocation.co2.non_energy_fuels_petrol import (
+        allocate_non_energy_fuels_petrol,
+    )
+    from bedrock.transform.allocation.co2.non_energy_fuels_transport import (
+        allocate_non_energy_fuels_transport,
+    )
+
+    # (AllocationSource, FlowName, series) — FlowName and AllocationSource distinguish each file
+    sources: List[tuple[str, str, Any]] = [
+        ("industrial_coal", "Coal", _allocate_industrial_coal_to_industries_energy_allocation()),
+        ("industrial_petrol", "Petroleum", allocate_industrial_petrol()),
+        ("industrial_natural_gas", "Natural Gas", _allocate_industrial_nat_gas_to_industries_energy_allocation()),
+        ("non_energy_fuels_coal_coke", "Coal and Coke", allocate_non_energy_fuels_coal_coke()),
+        ("non_energy_fuels_natural_gas", "Natural Gas", allocate_non_energy_fuels_natural_gas()),
+        ("non_energy_fuels_petrol", "Petroleum", allocate_non_energy_fuels_petrol()),
+        ("non_energy_fuels_transport", "Transport", allocate_non_energy_fuels_transport()),
+    ]
+    index = sources[0][2].index
+
+    rows: List[dict[str, Any]] = []
+    for sector in index:
+        for allocation_source, flow_name, series in sources:
+            amount = float(series.get(sector, 0.0))
+            rows.append({
+                "ActivityConsumedBy": sector,
+                "FlowName": flow_name,
+                "Description": ("non energy" if "non_energy" in allocation_source else "energy"),
+                "FlowAmount": amount,
+                "Year": year,
+                "Location": US_FIPS,
+                "Unit": "kg CO2e",
+                "Class": "Other",
+            })
+    return pd.DataFrame(rows)
+
+
 def estimate_suppressed_mecs_energy(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:

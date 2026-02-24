@@ -183,6 +183,11 @@ EIA_MECS_Energy:
                     2018: NAICS_2017_Code,
                     }
   sector_hierarchy: "parent-incompleteChild"
+EIA_MECS_Energy_Allocation_CEDA:
+  data_format: FBA
+  class: Other
+  activity_schema: None
+  sector_hierarchy: "flat"
 EIA_MECS_Land:
   data_format: FBA
   class:
