@@ -303,6 +303,30 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
+    # Summary tables only: scale 2017 → model_year directly using summary A ratios,
+    # skipping the intermediate io_year step and price inflation.
+    if cfg.scale_a_matrix_with_summary_tables:
+        Adom = scale_cornerstone_A(
+            base.Adom,
+            target_year=model_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='dom',
+        )
+        Aimp = scale_cornerstone_A(
+            base.Aimp,
+            target_year=model_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='imp',
+        )
+        q = scale_cornerstone_q(
+            base.scaled_q, target_year=model_year, original_year=detail_year
+        )
+        return SingleRegionAqMatrixSet(
+            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
+            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
+            scaled_q=q,
+        )
+
     # Price index only: inflate 2017 → model_year directly using price index,
     # skipping the summary table scaling step entirely.
     if cfg.scale_a_matrix_with_price_index:
