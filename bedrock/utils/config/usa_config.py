@@ -40,7 +40,9 @@ class USAConfig(BaseModel):
     ### IO Methodology selection
     transform_b_matrix_with_useeio_method: bool = False  # DRI: mo.li
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
-    # TODO: Add transform_a_matrix after we decide what to do
+    scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
+    scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
+    scale_a_matrix_with_price_index: bool = False  # DRI: mo.li
     ### GHG Methodology selection
     usa_ghg_methodology: ta.Literal["national", "state"] = "national"
     update_transportation_ghg_method: bool = False  # DRI: catherine.birney
