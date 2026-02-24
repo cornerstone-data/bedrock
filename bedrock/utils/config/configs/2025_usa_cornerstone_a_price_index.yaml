@@ -1,0 +1,4 @@
+# Tests price-index-only approach for deriving the A matrix (Issue #182).
+# A is inflated directly 2017 → target year using price index, no summary table scaling.
+use_cornerstone_2026_model_schema: True
+scale_a_matrix_with_price_index: True
