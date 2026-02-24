@@ -381,15 +381,9 @@ def _load_usa_summary_mut(
     Load USA Summary SUT matrix
     """
 
-    usa_summary_mut_mapping = (
-        USA_SUMMARY_MUT_MAPPING_1997_2022
-        if get_usa_config().usa_io_data_year == 2022
-        else USA_SUMMARY_MUT_MAPPING_1997_2023
-    )
-
     df = (
         load_from_gcs(
-            name=usa_summary_mut_mapping[matrix_name],
+            name=USA_SUMMARY_MUT_MAPPING_1997_2023[matrix_name],
             sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
