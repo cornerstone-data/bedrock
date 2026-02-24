@@ -43,10 +43,10 @@ class USAConfig(BaseModel):
     # TODO: Add transform_a_matrix after we decide what to do
     ### GHG Methodology selection
     usa_ghg_methodology: ta.Literal["national", "state"] = "national"
-    update_transportation_ghg_method: bool = False  # DRI: catherine.birney
-    attribute_electricity_ghg_to_221100: bool = False  # DRI: catherine.birney
-    use_full_ghg_for_ng_and_petro_systems: bool = False  # DRI: ben.young
-    soda_ash_ghg_from_table_2_1: bool = False  # DRI: catherine.birney
+    update_transportation_ghg_method: bool = False  # DRI: ben.young
+    update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: (
+        bool
+    ) = False  # DRI: catherine.birney
     hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
 
     @property
