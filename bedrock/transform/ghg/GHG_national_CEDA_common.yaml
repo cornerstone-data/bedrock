@@ -889,11 +889,11 @@ source_names:
         - MEMS
     attribution_method: direct
 
-  EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
-    # year: # override with ghgi_year
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    fedefl_mapping: GHGI_AR5_100
-    attribution_method: direct
+  # EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
+  #   # year: # override with ghgi_year
+  #   activity_to_sector_mapping: EPA_GHGI_CEDA
+  #   fedefl_mapping: GHGI_AR5_100
+  #   attribution_method: direct
 
   EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
     activity_to_sector_mapping: EPA_GHGI_CEDA
