@@ -893,10 +893,10 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-#        - Electronics Industry  # ceda pulls from t_2_1 and directly attributes, moving there
         - Semiconductors  # pfcs - same as flowsa
         - PV
         - MEMS
+      FlowName: ["CF4", "C2F6", "C3F8"] # HFCs and other flows are pulled elsewhere
     attribution_method: direct
 
   # EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
