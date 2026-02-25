@@ -15,6 +15,7 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_MATRIX_NAMES,
     USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
+    USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
@@ -379,9 +380,12 @@ def _load_usa_summary_mut(
     Load USA Summary SUT matrix
     """
 
+    mapping = (
+        USA_SUMMARY_MUT_MAPPING_1997_2023 if year > 2022 else USA_SUMMARY_MUT_MAPPING_1997_2022
+    )
     df = (
         load_from_gcs(
-            name=USA_SUMMARY_MUT_MAPPING_1997_2023[matrix_name],
+            name=mapping[matrix_name],
             sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
