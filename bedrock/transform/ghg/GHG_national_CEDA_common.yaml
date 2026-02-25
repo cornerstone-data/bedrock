@@ -63,9 +63,8 @@ source_names:
             - Adipic Acid Production #N2O - same as flowsa
             - Aluminum Production #CO2 - same as flowsa
             - Ammonia Production #CO2 - same as flowsa
-            # - Anaerobic Digestion at Biogas Facilities #CH4 new activity # TODO: flowsa code, included in ceda?
             - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O - same as flowsa
-            # - Carbide Production and Consumption #CO2, CH4 - not in ceda
+            - Carbide Production and Consumption #CO2 only, CH4 is not in ceda
             - Cement Production #CO2 - same as flowsa
             - Composting #CH4, N2O - same as flowsa
             - Electronics Industry  # N2O - note different than flowsa, which uses T 4_118
