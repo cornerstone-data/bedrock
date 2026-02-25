@@ -7,7 +7,6 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
@@ -16,7 +15,6 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_MATRIX_NAMES,
     USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
-    USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
