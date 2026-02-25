@@ -1,0 +1,15 @@
+# FBA built from derive_fuel_percent_breakout for use as attribution source
+# for 3_13 petroleum_fuels_gasoline and petroleum_fuels_diesel (replacing BEA).
+# Year matches table A-17 (energy consumption / CO2 by fuel type).
+author: CEDA allocation
+source_name: Transportation fuel allocation (derived)
+source_url: ''
+source_publication_date: ''
+bib_id: ''
+api_name: None
+api_key_required: false
+format: csv
+url: None
+parse_response_fxn: !script_function:BEA_CEDA_transport_allocation ceda_transport_allocation_parse
+years:
+  - 2023

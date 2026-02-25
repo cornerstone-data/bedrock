@@ -400,23 +400,21 @@ source_names:
       direct_petroleum:
         selection_fields:
           PrimaryActivity:
-            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
-            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
-            Commercial Aircraft Jet Fuel: Commercial Aircraft
-            Military Aircraft Jet Fuel: Military Aircraft
-            Buses Gasoline: Buses
             Buses LPG: Buses
-            Motorcycles Gasoline: Motorcycles
-            Rail Distillate Fuel Oil: Rail
-            Recreational Boats Distillate Fuel Oil: Recreational Boats
-            Recreational Boats Gasoline: Recreational Boats
-            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
             Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
-            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
             Medium- and Heavy-Duty Trucks LPG: Medium- and Heavy-Duty Trucks
             Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks
             Light-Duty Trucks LPG: Light-Duty Trucks - Households
             Passenger Cars LPG: Passenger Cars - Households
+        attribution_method: direct
+
+      direct_jet:
+        selection_fields:
+          PrimaryActivity:
+            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
+            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
+            Commercial Aircraft Jet Fuel: Commercial Aircraft
+            Military Aircraft Jet Fuel: Military Aircraft
         attribution_method: direct
 
       direct_ng:
@@ -428,29 +426,42 @@ source_names:
 
       petroleum_fuels_diesel:
         selection_fields:
-          PrimaryActivity:
-            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-            Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
-            Passenger Cars Distillate Fuel Oil: Passenger Cars
-            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks - Households
+          PrimaryActivity: # lump all data together before allocating
+            # These should be direct
+            Rail Distillate Fuel Oil: All Transport - Diesel
+            Recreational Boats Distillate Fuel Oil: All Transport - Diesel
+            Ships and Non-Recreational Boats Distillate Fuel Oil: All Transport - Diesel
+            # These should be proportional
+            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: All Transport - Diesel
+            Buses Distillate Fuel Oil: All Transport - Diesel
+            Passenger Cars Distillate Fuel Oil: All Transport - Diesel
+            Light-Duty Trucks Distillate Fuel Oil: All Transport - Diesel
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA SUT
-            <<: *bea
+          BEA_CEDA_transport_allocation:
+            activity_to_sector_mapping: CEDA_2025
+            year: 2023
             selection_fields:
-              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+              FlowName: Distillate Fuel Oil
 
       petroleum_fuels_gasoline:
         selection_fields:
-          PrimaryActivity:
-            Passenger Cars Gasoline: Passenger Cars
-            Light-Duty Trucks Gasoline: Light-Duty Trucks
+          PrimaryActivity: # lump all data together before allocating
+            # These should be direct
+            Medium- and Heavy-Duty Trucks Gasoline: All Transport - Gasoline
+            Buses Gasoline: All Transport - Gasoline
+            Motorcycles Gasoline: All Transport - Gasoline
+            Recreational Boats Gasoline: All Transport - Gasoline
+            # These should be proportional
+            Passenger Cars Gasoline: All Transport - Gasoline
+            Light-Duty Trucks Gasoline: All Transport - Gasoline
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA SUT
-            <<: *bea
+          BEA_CEDA_transport_allocation:
+            activity_to_sector_mapping: CEDA_2025
+            year: 2023
             selection_fields:
-              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+              FlowName: Motor Gasoline
 
   EPA_GHGI_T_3_14: #CH4 from mobile combustion
     activity_to_sector_mapping: EPA_GHGI_CEDA
@@ -620,19 +631,28 @@ source_names:
               FlowName: Natural Gas
               Description: 'energy'
 
-      petroleum: # Petroleum
+      petroleum_industrial: # Petroleum
         selection_fields:
           PrimaryActivity:
-            - Total Petroleum Commercial  # same as flowsa
-            - Total Petroleum Industrial  # todo: re examine
+            - Total Petroleum Industrial
         attribution_method: proportional
         attribution_source:
           EIA_MECS_Energy_Allocation_CEDA:
             <<: *mecs_energy_alloc
             selection_fields:
-              FlowName: Natural Gas
+              FlowName: Petroleum
               Description: 'energy'
 
+      petroleum_commercial: # Petroleum
+        selection_fields:
+          PrimaryActivity:
+            - Total Petroleum Commercial  # same as flowsa
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
   EPA_GHGI_T_3_8:  &stationary_combustion # CH4 emissions from stationary combustion
     # year: #override this with ghgi_year
@@ -868,11 +888,11 @@ source_names:
         - MEMS
     attribution_method: direct
 
-  EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
-    # year: # override with ghgi_year
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    fedefl_mapping: GHGI_AR5_100
-    attribution_method: direct
+  # EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
+  #   # year: # override with ghgi_year
+  #   activity_to_sector_mapping: EPA_GHGI_CEDA
+  #   fedefl_mapping: GHGI_AR5_100
+  #   attribution_method: direct
 
   EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
     activity_to_sector_mapping: EPA_GHGI_CEDA

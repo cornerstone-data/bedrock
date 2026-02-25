@@ -163,9 +163,20 @@ def load_E_from_flowsa() -> pd.DataFrame:
     }
     fbs['Flowable'] = fbs['Flowable'].map(gas_map).fillna(fbs['Flowable'])
 
+    # CH4: use CH4_non_fossil when meta source is table 5_* or when in 2_1 and sector starts with 1 or 562 or 2213
+    # to align with CH4_NON_FOSSIL defined in extract/allocation/epa.py
+    meta = fbs['MetaSources'].astype(str)
+    sector = fbs['SectorProducedBy'].astype(str)
+    ch4_non_fossil_mask = meta.str.contains('_5_', regex=False, na=False) | (
+        meta.str.contains('2_1', regex=False, na=False)
+        & sector.str.match(r'^(1|562|2213)', na=False)
+    )
+    fbs.loc[ch4_non_fossil_mask & (fbs['Flowable'] == 'CH4_fossil'), 'Flowable'] = (
+        'CH4_non_fossil'
+    )
+
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
-    ghg_mapping['CH4'] = GWP100_AR6_CEDA['CH4_fossil']
     ghg_mapping['HFCs'] = 1  # should already be in CO2e
     ghg_mapping['PFCs'] = 1  # should already be in CO2e
     fbs['CO2e'] = fbs['FlowAmount'] * fbs['Flowable'].map(ghg_mapping)
@@ -175,7 +186,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # aggregate and set FlowName as index, sectors as columns
     E_usa = fbs.pivot_table(
         index='Flowable',
-        columns='Sector',
+        columns='SectorProducedBy',
         values='CO2e',
         aggfunc='sum',
         fill_value=0,
@@ -184,9 +195,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # Collapse across flows
     reverse = {m: g for g, members in GHG_MAPPING.items() for m in members}
     # some flows are not in GHG_MAPPING for some reason
-    reverse['CH4_fossil'] = 'CH4'
     reverse['HFC-227ea'] = 'HFCs'
     reverse['c-C4F8'] = 'PFCs'
+    reverse['CH4_fossil'] = 'CH4'
+    reverse['CH4_non_fossil'] = 'CH4'
     new_index = E_usa.index.map(lambda x: reverse.get(x, x))
     E_usa = E_usa.groupby(new_index).agg('sum')
 
@@ -197,10 +209,12 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     # Target column set is CEDA_V7_SECTORS
     # set(E_usa.columns) - set(CEDA_V7_SECTORS)
-    # {'33131B', '335220'}
+    # {'331314', '335220'}
 
     # set(CEDA_V7_SECTORS) - set(E_usa.columns)
     # {'335221', '335222', '335224', '335228', '4200ID', '814000'}
+
+    E_usa = E_usa.reindex(columns=CEDA_V7_SECTORS, fill_value=0)
 
     return E_usa
 

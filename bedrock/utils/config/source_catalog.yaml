@@ -70,6 +70,11 @@ BEA_Marine_Bunker_Fuel:
     - Energy
   activity_schema: None
   sector_hierarchy: "flat"
+BEA_CEDA_transport_allocation:
+  data_format: FBA
+  class: Other
+  activity_schema: None
+  sector_hierarchy: "flat"
 Blackhurst_IO:
   data_format: FBA
   class:

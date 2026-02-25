@@ -101,8 +101,7 @@ EPA_GHGI_CEDA,Industry Industrial Other Coal,NAICS_2017_Code,212210,,2122A0 (inc
 EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,31,,"31, 32, 33",EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324110,,,EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324199,,,EPA_GHGI_T_3_22
-EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324121,,Used in CEDA,
-EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324122,,Used in CEDA,
+EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,32412,,Used in CEDA,
 EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,325,,,EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,326,,,EPA_GHGI_T_3_22
 EPA_GHGI_CEDA,Industry Petroleum Products Non-energy,NAICS_2017_Code,327,,,EPA_GHGI_T_3_22
@@ -385,6 +384,25 @@ EPA_GHGI_CEDA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Cod
 EPA_GHGI_CEDA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
 EPA_GHGI_CEDA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00102,,,EPA_GHGI_T_3_13
 EPA_GHGI_CEDA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00203,,,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,482,,482000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,483,,483000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,487,,48A000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,S00102,,S00102,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Diesel,NAICS_2017_Code,S00203,,S00203,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Gasoline,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Gasoline,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Gasoline,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Gasoline,NAICS_2017_Code,492,,492000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Gasoline,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Gasoline,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
+EPA_GHGI_CEDA,All Transport - Gasoline,NAICS_2017_Code,S00600,,S00600,EPA_GHGI_T_3_13
 EPA_GHGI_CEDA,Motorcycles,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_CEDA,Passenger Cars - Households,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
 EPA_GHGI_CEDA,Passenger Cars,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
