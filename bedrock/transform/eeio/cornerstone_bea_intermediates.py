@@ -16,7 +16,7 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_Utot_usa,
     load_2017_V_usa,
 )
-from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.allocation.derived import get_E_usa
 from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output_after_redefinition,
 )
@@ -126,7 +126,7 @@ def _g_weighted_ceda_industry_corresp() -> pd.DataFrame:
 @functools.cache
 def bea_E() -> pd.DataFrame:
     """E (ghg × BEA_industry) — CEDA v7 emissions mapped to BEA industry space."""
-    return derive_E_usa() @ _g_weighted_ceda_industry_corresp()
+    return get_E_usa() @ _g_weighted_ceda_industry_corresp()
 
 
 @functools.cache

@@ -14,6 +14,7 @@ from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.settings import FBS_DIR
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.mapping.sectormapping import (
@@ -27,6 +28,14 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity imp
 )
 
 logger = logging.getLogger(__name__)
+
+
+def get_E_usa() -> pd.DataFrame:
+    """Return E_usa (ghg × CEDA v7 sectors). Branches on config load_E_from_flowsa."""
+    if get_usa_config().load_E_from_flowsa:
+        # TODO: update future FBS calls with if else gating here
+        return load_E_from_flowsa()
+    return derive_E_usa()
 
 
 def derive_E_usa() -> pd.DataFrame:

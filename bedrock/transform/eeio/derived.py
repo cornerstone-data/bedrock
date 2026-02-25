@@ -14,7 +14,7 @@ from bedrock.extract.iot.io_2012 import (
     load_2012_YR_usa,
 )
 from bedrock.extract.iot.io_2017 import load_summary_Uimp_usa
-from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.allocation.derived import get_E_usa
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
     derive_2017_g_usa,
@@ -89,7 +89,7 @@ def derive_B_usa_non_finetuned() -> pd.DataFrame:
     if get_usa_config().use_cornerstone_2026_model_schema:
         return derive_cornerstone_B_non_finetuned()
     else:
-        E_usa = derive_E_usa()
+        E_usa = get_E_usa()
         # B_usa_2017 has 2022 emissions but 2017 economic data
         b_usa_2017 = derive_B_usa_via_vnorm(E_usa=E_usa)
         # Scale the economic data part of B_usa_2017 to 2022
