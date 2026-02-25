@@ -194,8 +194,6 @@ source_names:
                 '331490': ''
                 '331520': ''
 
-      # Note: the flowamounts out of T_5_29 for 2023 are all 0 (except for "all activities" which we do not use)
-      # this means no emissions are returned todo: check output from ceda
       field_burning_n2O:
         selection_fields:
           PrimaryActivity:
@@ -203,22 +201,23 @@ source_names:
           FlowName: ["N2O"] # ch4 pulled from T_5_29
         attribution_method: proportional
         attribution_source:
+          # ceda uses CH4 data to allocate, not n20 data. The n20 data in 5-29 for specific crops is all 0
           EPA_GHGI_T_5_29:
             # year: # override this
             activity_to_sector_mapping: EPA_GHGI_CEDA
-#            fedefl_mapping: GHGI_AR5_100
             selection_fields:
               PrimaryActivity:
         #        - Chickpeas  # only in flowsa, not in ceda
                 - Cotton  # same as flowsa
-        #        - Maize  # only in flowsa, not in ceda todo: check if same as corn?
+        #        - Maize  # only in flowsa, not in ceda - same as corn?
                 - Rice  # same as flowsa
                 - Soybeans  # same as flowsa
                 - Wheat  # same as flowsa
-                - Corn  # not included in flowsa, only in ceda todo: check if same as maize?
+                - Corn  # not included in flowsa, only in ceda - same as maize?
                 - Lentils  # not included in flowsa, only in ceda
                 - Sugarcane  # not included in flowsa, only in ceda
-              FlowName: ["N2O"]
+              FlowName:
+                CH4: N2O # replacing flow name
             attribution_method: direct
 
       manure_management_n2O:
