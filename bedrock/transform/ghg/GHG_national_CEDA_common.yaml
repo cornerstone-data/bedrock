@@ -412,23 +412,21 @@ source_names:
       direct_petroleum:
         selection_fields:
           PrimaryActivity:
-            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
-            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
-            Commercial Aircraft Jet Fuel: Commercial Aircraft
-            Military Aircraft Jet Fuel: Military Aircraft
-            Buses Gasoline: Buses
             Buses LPG: Buses
-            Motorcycles Gasoline: Motorcycles
-            Rail Distillate Fuel Oil: Rail
-            Recreational Boats Distillate Fuel Oil: Recreational Boats
-            Recreational Boats Gasoline: Recreational Boats
-            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
             Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
-            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
             Medium- and Heavy-Duty Trucks LPG: Medium- and Heavy-Duty Trucks
             Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks
             Light-Duty Trucks LPG: Light-Duty Trucks - Households
             Passenger Cars LPG: Passenger Cars - Households
+        attribution_method: direct
+
+      direct_jet:
+        selection_fields:
+          PrimaryActivity:
+            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
+            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
+            Commercial Aircraft Jet Fuel: Commercial Aircraft
+            Military Aircraft Jet Fuel: Military Aircraft
         attribution_method: direct
 
       direct_ng:
@@ -441,28 +439,41 @@ source_names:
       petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
+            # These should be direct
+            Rail Distillate Fuel Oil: Rail
+            Recreational Boats Distillate Fuel Oil: Recreational Boats
+            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
+            # These should be proportional
             Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
             Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
             Passenger Cars Distillate Fuel Oil: Passenger Cars
             Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks - Households
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA SUT
-            <<: *bea
+          BEA_CEDA_transport_allocation:
+            activity_to_sector_mapping: CEDA_2025
+            year: 2023
             selection_fields:
-              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+              FlowName: Distillate Fuel Oil
 
       petroleum_fuels_gasoline:
         selection_fields:
           PrimaryActivity:
+            # These should be direct
+            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
+            Buses Gasoline: Buses
+            Motorcycles Gasoline: Motorcycles
+            Recreational Boats Gasoline: Recreational Boats
+            # These should be proportional
             Passenger Cars Gasoline: Passenger Cars
             Light-Duty Trucks Gasoline: Light-Duty Trucks
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA SUT
-            <<: *bea
+          BEA_CEDA_transport_allocation:
+            activity_to_sector_mapping: CEDA_2025
+            year: 2023
             selection_fields:
-              ActivityProducedBy: {'324110': ''} # purchases of refinery products
+              FlowName: Motor Gasoline
 
   EPA_GHGI_T_3_14: #CH4 from mobile combustion
     activity_to_sector_mapping: EPA_GHGI_CEDA
