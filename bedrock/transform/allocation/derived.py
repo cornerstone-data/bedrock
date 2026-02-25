@@ -197,6 +197,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # some flows are not in GHG_MAPPING for some reason
     reverse['HFC-227ea'] = 'HFCs'
     reverse['c-C4F8'] = 'PFCs'
+    reverse['CH4_fossil'] = 'CH4'
+    reverse['CH4_non_fossil'] = 'CH4'
     new_index = E_usa.index.map(lambda x: reverse.get(x, x))
     E_usa = E_usa.groupby(new_index).agg('sum')
 
@@ -211,6 +213,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     # set(CEDA_V7_SECTORS) - set(E_usa.columns)
     # {'335221', '335222', '335224', '335228', '4200ID', '814000'}
+
+    E_usa = E_usa.reindex(columns=CEDA_V7_SECTORS, fill_value=0)
 
     return E_usa
 
