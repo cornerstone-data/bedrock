@@ -438,16 +438,16 @@ source_names:
 
       petroleum_fuels_diesel:
         selection_fields:
-          PrimaryActivity:
+          PrimaryActivity: # lump all data together before allocating
             # These should be direct
-            Rail Distillate Fuel Oil: Rail
-            Recreational Boats Distillate Fuel Oil: Recreational Boats
-            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
+            Rail Distillate Fuel Oil: All Transport - Diesel
+            Recreational Boats Distillate Fuel Oil: All Transport - Diesel
+            Ships and Non-Recreational Boats Distillate Fuel Oil: All Transport - Diesel
             # These should be proportional
-            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-            Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
-            Passenger Cars Distillate Fuel Oil: Passenger Cars
-            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks - Households
+            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: All Transport - Diesel
+            Buses Distillate Fuel Oil: All Transport - Diesel
+            Passenger Cars Distillate Fuel Oil: All Transport - Diesel
+            Light-Duty Trucks Distillate Fuel Oil: All Transport - Diesel
         attribution_method: proportional
         attribution_source:
           BEA_CEDA_transport_allocation:
@@ -458,15 +458,15 @@ source_names:
 
       petroleum_fuels_gasoline:
         selection_fields:
-          PrimaryActivity:
+          PrimaryActivity: # lump all data together before allocating
             # These should be direct
-            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
-            Buses Gasoline: Buses
-            Motorcycles Gasoline: Motorcycles
-            Recreational Boats Gasoline: Recreational Boats
+            Medium- and Heavy-Duty Trucks Gasoline: All Transport - Gasoline
+            Buses Gasoline: All Transport - Gasoline
+            Motorcycles Gasoline: All Transport - Gasoline
+            Recreational Boats Gasoline: All Transport - Gasoline
             # These should be proportional
-            Passenger Cars Gasoline: Passenger Cars
-            Light-Duty Trucks Gasoline: Light-Duty Trucks
+            Passenger Cars Gasoline: All Transport - Gasoline
+            Light-Duty Trucks Gasoline: All Transport - Gasoline
         attribution_method: proportional
         attribution_source:
           BEA_CEDA_transport_allocation:
