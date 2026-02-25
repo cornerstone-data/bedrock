@@ -157,23 +157,14 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'325120': ''} # Industrial gases
 
-#     newly added code for ceda
-      fluorochemical:
+      # newly added code for ceda
+      direct_other_emissions:
         selection_fields:
           PrimaryActivity:
           - Fluorochemical Production  # other -  flowsa pulls from EPA_GHGI_T_4_63 and EPA_GHGI_T_4_64
-          FlowName:
-            HFCs: HFC-23  # ceda assigns HFC type in epa.py
-        attribution_method: direct
-
-      electronics_industry:
-        selection_fields:
-          PrimaryActivity:
           - Electronics Industry  # other -  flowsa pulls from EPA_GHGI_T_4_118
-          FlowName:
-            HFCs: HFC-23  # ceda assigns HFC type in epa.py
-            NF3: NF3
-            SF6: SF6
+#          FlowName: ["Other PFCs", "Other HFCs"] # terminology for EPA_GHGI_T_4_63, which is used in flowsa
+          FlowName: ['HFCs', 'NF3','SF6']  # todo: note that flurochemical and electronics have PFC data, but ceda does not load it?
         attribution_method: direct
 
       # newly added code for ceda, flowsa pulls magnesium from EPA_GHGI_T_4_106
@@ -181,9 +172,7 @@ source_names:
         selection_fields:
           PrimaryActivity:
           - Magnesium Production and Processing  # other (hfc 134a, sf6)  - different table than flowsa
-          FlowName:
-            SF6: SF6
-            HFCs: HFC-134a  # ceda assigns hfc type in epa.py
+          FlowName: ["SF6", "HFCs"]  # flowsa uses "Other PFCs", "Other HFCs" because pulls from diff table
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Make_AfterRedef:  # confirmed ceda uses BEA Make
