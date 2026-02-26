@@ -309,7 +309,9 @@ def return_emissions_source_table_numbers() -> pd.DataFrame:
             table_names = sorted(set(table_names))
             table_numbers = [
                 "EPA_GHGI_T_"
-                + EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023[name].replace("-", "_")
+                + EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023[
+                    ta.cast(EPA_TABLE_NAMES, name)
+                ].replace("-", "_")
                 for name in table_names
                 if name in EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023
             ]
