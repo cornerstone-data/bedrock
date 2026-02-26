@@ -101,6 +101,7 @@ def bea_pce_parse(*, df_list: list[pd.DataFrame], year: int, **_: Any) -> pd.Dat
     return df
 
 
+# TODO: integrate this function with bea_pce_parse above
 def bea_pce_ceda_parse(*, year: int, **_: Any) -> pd.DataFrame:
     """
     Latest BEA Personal Consumption Expenditure by Major Type of Product from
