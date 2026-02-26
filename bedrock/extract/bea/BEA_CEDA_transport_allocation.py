@@ -13,9 +13,7 @@ import pandas as pd
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def ceda_transport_allocation_parse(
-    *, df_list: Any, year: int | str, **_: Any
-) -> pd.DataFrame:
+def ceda_transport_allocation_parse(*, year: int | str, **_: Any) -> pd.DataFrame:
     """
     Build an FBA from derive_fuel_percent_breakout (sector × fuel_type shares).
     Used as proportional attribution source for 3_13 petroleum_fuels_gasoline
