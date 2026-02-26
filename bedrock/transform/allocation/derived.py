@@ -30,17 +30,14 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity imp
 logger = logging.getLogger(__name__)
 
 
-def get_E_usa() -> pd.DataFrame:
-    """Return E_usa (ghg × CEDA v7 sectors). Branches on config load_E_from_flowsa."""
+def derive_E_usa() -> pd.DataFrame:
     if get_usa_config().load_E_from_flowsa:
+        # Return E_usa (ghg × CEDA v7 sectors). Branches on config load_E_from_flowsa.
         # TODO: update future FBS calls with if else gating here
         return load_E_from_flowsa()
-    return derive_E_usa()
-
-
-def derive_E_usa() -> pd.DataFrame:
-    # aggregate E from 15 gases to 7 gases
-    return create_correspondence_matrix(GHG_MAPPING).T @ derive_E_usa_by_gas()
+    else:
+        # aggregate E from 15 gases to 7 gases
+        return create_correspondence_matrix(GHG_MAPPING).T @ derive_E_usa_by_gas()
 
 
 def derive_E_usa_by_gas() -> pd.DataFrame:
