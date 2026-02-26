@@ -75,6 +75,11 @@ BEA_CEDA_transport_allocation:
   class: Other
   activity_schema: None
   sector_hierarchy: "flat"
+BEA_CEDA_refrigeration_allocation:
+  data_format: FBA
+  class: Other
+  activity_schema: None
+  sector_hierarchy: "flat"
 Blackhurst_IO:
   data_format: FBA
   class:
