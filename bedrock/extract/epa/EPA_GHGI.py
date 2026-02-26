@@ -922,9 +922,8 @@ def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
 
 
 def clean_EPA_GHGI_T_4_124(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
-    """
-
-    """
+    """Subtract out refrigeration transport emissions from the
+    Refrigeration/Air Conditioning activity"""
 
     attributes_to_save = {
         attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
@@ -938,18 +937,22 @@ def clean_EPA_GHGI_T_4_124(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivit
     activities = [
         "Comfort Cooling for Trains and Buses",
         "Mobile AC",
-        "Refrigerated Transport"
+        "Refrigerated Transport",
     ]
 
     total = tbl.loc[tbl["ActivityProducedBy"].isin(activities), "FlowAmount"].sum()
 
-    fba.loc[fba["ActivityProducedBy"] == "Refrigeration/Air Conditioning", "FlowAmount"] -= total
+    fba.loc[
+        fba["ActivityProducedBy"] == "Refrigeration/Air Conditioning", "FlowAmount"
+    ] -= total
 
     for attr in attributes_to_save:
         setattr(fba, attr, attributes_to_save[attr])
 
     fba2 = split_HFCs_by_type(fba)
+
     return fba2
+
 
 if __name__ == '__main__':
 
