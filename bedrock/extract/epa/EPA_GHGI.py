@@ -921,6 +921,36 @@ def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     return new_fba
 
 
+def clean_EPA_GHGI_T_4_124(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """
+
+    """
+
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+
+    # load Table A-90 and aggregate emissions from transportation to subtract out from refrigeration
+    tbl = load_fba_w_standardized_units(
+        datasource="EPA_GHGI_T_A_90", year=fba['Year'][0], download_FBA_if_missing=True
+    )
+
+    activities = [
+        "Comfort Cooling for Trains and Buses",
+        "Mobile AC",
+        "Refrigerated Transport"
+    ]
+
+    total = tbl.loc[tbl["ActivityProducedBy"].isin(activities), "FlowAmount"].sum()
+
+    fba.loc[fba["ActivityProducedBy"] == "Refrigeration/Air Conditioning", "FlowAmount"] -= total
+
+    for attr in attributes_to_save:
+        setattr(fba, attr, attributes_to_save[attr])
+
+    fba2 = split_HFCs_by_type(fba)
+    return fba2
+
 if __name__ == '__main__':
 
     # fba = bedrock.return_FBA('EPA_GHGI_T_4_101', 2016)
