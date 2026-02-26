@@ -1,0 +1,14 @@
+# FBA built from hfc_foam_make_use_ratios for use as
+# an attribution source in EPA_GHGI_T_4_124 (foams).
+author: CEDA allocation
+source_name: Foam HFC make/use allocation (derived)
+source_url: ''
+source_publication_date: ''
+bib_id: ''
+api_name: None
+api_key_required: false
+format: csv
+url: None
+parse_response_fxn: !script_function:BEA_CEDA_foam_allocation foam_make_use_ratios
+years:
+  - 2023

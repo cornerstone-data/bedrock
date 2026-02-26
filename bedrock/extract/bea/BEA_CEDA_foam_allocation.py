@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 """
-Build an FBA from derive_make_use_ratios_for_hfcs_from_other_sources for use as
-the attribution source in EPA_GHGI_T_4_124 (refrigerants_AC). Follows the same
-pattern as BEA_CEDA_transport_allocation.py.
+Build an FBA from derive_make_use_ratios_for_hfcs_from_foams for use as
+the attribution source in EPA_GHGI_T_4_124 (foams). Follows the same
+pattern as BEA_CEDA_refrigeration_allocation.py.
 """
 
 from typing import Any, List
@@ -14,21 +14,21 @@ from bedrock.utils.mapping.location import US_FIPS
 
 
 
-def refrigeration_make_use_ratios(
+def foam_make_use_ratios(
     *, df_list: Any, year: int | str, **_: Any
 ) -> pd.DataFrame:
     """
-    Build an FBA from derive_make_use_ratios_for_hfcs_from_other_sources
+    Build an FBA from derive_make_use_ratios_for_hfcs_from_foams
     (allocation/other_gases/common_ratios). Used as proportional attribution
-    source for refrigerants_AC in GHG_national_CEDA_common.
+    source for foams in GHG_national_CEDA_common.
 
-    FlowAmount: fraction of refrigeration HFC allocated to that sector (0–1).
+    FlowAmount: fraction of foam HFC allocated to that sector (0–1).
     """
     from bedrock.transform.allocation.other_gases.common_ratios import (  # noqa: PLC0415
-        derive_make_use_ratios_for_hfcs_from_other_sources,
+        derive_make_use_ratios_for_hfcs_from_foams,
     )
 
-    weights = derive_make_use_ratios_for_hfcs_from_other_sources()
+    weights = derive_make_use_ratios_for_hfcs_from_foams()
     rows: List[dict[str, Any]] = []
     for sector, frac in weights.items():
         rows.append(

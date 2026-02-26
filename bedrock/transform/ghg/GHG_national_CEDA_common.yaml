@@ -922,8 +922,6 @@ source_names:
           BEA_CEDA_refrigeration_allocation:
             activity_to_sector_mapping: CEDA_2025
             year: 2023
-#            selection_fields:
-#              FlowName: Distillate Fuel Oil
 
       foams:
         selection_fields:
@@ -931,12 +929,9 @@ source_names:
             - Foams
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make table - flowsa uses SUT
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy:
-                '326140': '' # Polystyrene foam  - same as flowsa
-                '326150': '' # Urethane and other foam  - same as flowsa
+          BEA_CEDA_foam_allocation:
+            activity_to_sector_mapping: CEDA_2025
+            year: 2023
 
 
   EPA_GHGI_T_A_90: # HFCs from Transportation
