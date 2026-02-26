@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import functools
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -78,9 +79,7 @@ def _load_raw_weights(
     return df[["industry", "commodity", "weight", "Note"]]
 
 
-def _extract_sum_weights(
-    sum_df: pd.DataFrame, waste_set: set[str]
-) -> dict[str, float]:
+def _extract_sum_weights(sum_df: pd.DataFrame, waste_set: set[str]) -> dict[str, float]:
     """Extract waste sub-sector proportions from col_sum or row_sum data.
 
     Handles both CSV orientations:
@@ -90,7 +89,7 @@ def _extract_sum_weights(
     """
     weights: dict[str, float] = {}
     for idx, row in sum_df.iterrows():
-        a, b = tuple(idx)
+        a, b = cast(tuple[str, str], idx)
         w = float(row["weight"])
         if w <= 0:
             w = EQUAL_SPLIT_WEIGHT
@@ -179,9 +178,9 @@ def _build_weight_matrix(
     """
     rows = pd.Index(row_sectors)
     cols = pd.Index(col_sectors)
-    rows_set = set(rows)
-    cols_set = set(cols)
-    waste_set = set(WASTE_SUB_SECTORS)
+    rows_set: set[str] = set(rows)
+    cols_set: set[str] = set(cols)
+    waste_set: set[str] = set(WASTE_SUB_SECTORS)
     result = pd.DataFrame(0.0, index=rows, columns=cols)
 
     # Identity for non-waste sectors present on both axes
@@ -193,9 +192,7 @@ def _build_weight_matrix(
 
     # Filter by Note type
     def _filter(note: str) -> pd.DataFrame:
-        return weights_df[
-            weights_df["Note"].str.contains(note, case=False, na=False)
-        ]
+        return weights_df[weights_df["Note"].str.contains(note, case=False, na=False)]
 
     row_alloc_df = _filter(row_alloc_note)
     col_alloc_df = _filter(col_alloc_note)
@@ -204,30 +201,28 @@ def _build_weight_matrix(
     col_disagg_df = _filter(col_disagg_note)
 
     # Allocation proportions (orientation-agnostic extraction)
-    row_alloc = _normalize_alloc_weights(
-        _extract_sum_weights(row_alloc_df, waste_set)
-    )
-    col_alloc = _normalize_alloc_weights(
-        _extract_sum_weights(col_alloc_df, waste_set)
-    )
+    row_alloc = _normalize_alloc_weights(_extract_sum_weights(row_alloc_df, waste_set))
+    col_alloc = _normalize_alloc_weights(_extract_sum_weights(col_alloc_df, waste_set))
 
     # Track sectors with explicit disaggregation data
     row_disagg_cols: set[str] = set()
     col_disagg_rows: set[str] = set()
 
-    for ind, com in row_disagg_df.index:
+    for entry in row_disagg_df.index:
+        ind, com = cast(tuple[str, str], entry)
         r, c = _pos(ind, com)
         if r in waste_set and c not in waste_set and c in cols_set:
             row_disagg_cols.add(c)
 
-    for ind, com in col_disagg_df.index:
+    for entry in col_disagg_df.index:
+        ind, com = cast(tuple[str, str], entry)
         r, c = _pos(ind, com)
         if r not in waste_set and c in waste_set and r in rows_set:
             col_disagg_rows.add(r)
 
     # 7×7 intersection block
     for idx, row in intersection_df.iterrows():
-        ind, com = tuple(idx)
+        ind, com = cast(tuple[str, str], idx)
         if ind in waste_set and com in waste_set:
             r, c = _pos(ind, com)
             if r in rows_set and c in cols_set:
@@ -235,8 +230,8 @@ def _build_weight_matrix(
                 result.loc[r, c] = w if w > 0 else EQUAL_SPLIT_WEIGHT
 
     # Fallback zeros in 7×7
-    waste_in_rows = [s for s in WASTE_SUB_SECTORS if s in rows_set]
-    waste_in_cols = [s for s in WASTE_SUB_SECTORS if s in cols_set]
+    waste_in_rows: list[str] = [s for s in WASTE_SUB_SECTORS if s in rows_set]
+    waste_in_cols: list[str] = [s for s in WASTE_SUB_SECTORS if s in cols_set]
     for i in waste_in_rows:
         for j in waste_in_cols:
             if result.loc[i, j] == 0:
@@ -248,7 +243,7 @@ def _build_weight_matrix(
 
     # Explicit row disagg: waste_row × non-waste_col
     for idx, row in row_disagg_df.iterrows():
-        ind, com = tuple(idx)
+        ind, com = cast(tuple[str, str], idx)
         r, c = _pos(ind, com)
         if r in waste_set and c not in waste_set and r in rows_set and c in cols_set:
             w = float(row["weight"])
@@ -263,7 +258,7 @@ def _build_weight_matrix(
 
     # Explicit col disagg: non-waste_row × waste_col
     for idx, row in col_disagg_df.iterrows():
-        ind, com = tuple(idx)
+        ind, com = cast(tuple[str, str], idx)
         r, c = _pos(ind, com)
         if r not in waste_set and c in waste_set and r in rows_set and c in cols_set:
             w = float(row["weight"])
@@ -380,14 +375,14 @@ def build_U_weight_matrix_for_cornerstone() -> pd.DataFrame:
 
 
 @functools.cache
-def build_Y_weight_vector_for_cornerstone() -> pd.Series:
+def build_Y_weight_vector_for_cornerstone() -> pd.Series[float]:
     """Commodity-proportion vector for disaggregating Y vectors.
 
     Non-waste sectors get 1.0; waste sub-sectors get their commodity proportion
     from Use row_sum (how commodity 562000 splits across waste commodities).
     Suitable for structural_reflect_vector or direct proportion-based splitting.
     """
-    waste_set = set(WASTE_SUB_SECTORS)
+    waste_set: set[str] = set(WASTE_SUB_SECTORS)
     use_df = load_waste_use_weights()
     row_sum_df = use_df[
         use_df["Note"].str.contains("Use row sum", case=False, na=False)
