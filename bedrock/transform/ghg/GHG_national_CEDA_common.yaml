@@ -906,26 +906,24 @@ source_names:
 
   EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
     activity_to_sector_mapping: EPA_GHGI_CEDA
-    clean_fba_before_activity_sets: !script_function:EPA_GHGI split_HFCs_by_type
+    clean_fba_before_activity_sets: !script_function:EPA_GHGI clean_EPA_GHGI_T_4_124  # different than flowsa, because hard coded ceda subtraction for refrigeration data
     clean_parameter:
         # Proportions of specific HFCs are assigned based on national total
         flow_fba: EPA_GHGI_T_4_122
     # year: # override with ghgi_year
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-
-      # todo: need to subtract out "total" from table A-90
-      # todo: add activyt to mapping file
       refrigerants_AC:
         selection_fields:
           PrimaryActivity:
             - Refrigeration/Air Conditioning
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make, flowsa uses bea SUT
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+          BEA_CEDA_refrigeration_allocation:
+            activity_to_sector_mapping: CEDA_2025
+            year: 2023
+#            selection_fields:
+#              FlowName: Distillate Fuel Oil
 
       foams:
         selection_fields:
