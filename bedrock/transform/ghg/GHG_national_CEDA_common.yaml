@@ -919,11 +919,10 @@ source_names:
             - Refrigeration/Air Conditioning
         attribution_method: proportional
         attribution_source:
-          BEA_CEDA_refrigeration_allocation:
-            activity_to_sector_mapping: CEDA_2025
-            year: 2023
-#            selection_fields:
-#              FlowName: Distillate Fuel Oil
+          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses make, flowsa uses bea SUT
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
       foams:
         selection_fields:
