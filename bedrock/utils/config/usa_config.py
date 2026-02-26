@@ -42,7 +42,7 @@ class USAConfig(BaseModel):
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     # TODO: Add transform_a_matrix after we decide what to do
     ### GHG Methodology selection
-    load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa() instead of derive_E_usa()
+    load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal["national", "state"] = "national"
     update_transportation_ghg_method: bool = False  # DRI: catherine.birney
     attribute_electricity_ghg_to_221100: bool = False  # DRI: catherine.birney
