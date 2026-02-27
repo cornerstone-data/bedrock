@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """
 Build an FBA from derive_make_use_ratios_for_hfcs_from_other_sources for use as
 the attribution source in EPA_GHGI_T_4_124 (refrigerants_AC). Follows the same
 pattern as BEA_CEDA_transport_allocation.py.
 """
+
+from __future__ import annotations
 
 from typing import Any, List
 

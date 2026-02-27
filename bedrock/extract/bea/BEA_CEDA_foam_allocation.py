@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """
 Build an FBA from derive_make_use_ratios_for_hfcs_from_foams for use as
 the attribution source in EPA_GHGI_T_4_124 (foams). Follows the same
 pattern as BEA_CEDA_refrigeration_allocation.py.
 """
+
+from __future__ import annotations
 
 from typing import Any, List
 
