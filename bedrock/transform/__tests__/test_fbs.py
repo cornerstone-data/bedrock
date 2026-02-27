@@ -16,9 +16,7 @@ def test_generate_fbs() -> None:
 
 
 METHODS = [
-    pytest.param("GHG_national_2022_m1", id="m1"),
-    pytest.param("GHG_national_2022_m2", id="m2", marks=pytest.mark.xfail),
-    # m2 will fail due to minor updates in USDA data see #136
+    pytest.param("GHG_national_CEDA_2023", id="GHG_national_CEDA_2023"),
 ]
 
 
@@ -49,4 +47,4 @@ def test_generate_fbs_compare_to_remote(method: str) -> None:
 
 if __name__ == "__main__":
     # test_generate_fbs()
-    test_generate_fbs_compare_to_remote(method='GHG_national_2022_m1')
+    test_generate_fbs_compare_to_remote(method='GHG_national_CEDA_2023')
