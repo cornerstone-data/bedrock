@@ -155,3 +155,6 @@ def _fraction_coal_energy_to_allocate() -> float:
     # MECS covers fewer sectors. If this happens, cap the fraction at 1.0
     # to avoid allocating more emissions than is available.
     return fraction if fraction <= 1 else 1.0
+
+
+# pct = _fraction_coal_energy_to_allocate() # 1.0 (420 MMBTU / 380.9)

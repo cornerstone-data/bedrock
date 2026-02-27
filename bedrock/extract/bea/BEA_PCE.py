@@ -10,7 +10,9 @@ import numpy as np
 import pandas as pd
 from requests import Response
 
+from bedrock.extract.allocation.bea import GCS_BEA_PCE_DIR, IN_DIR
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.mapping.location import get_state_FIPS
 
 
@@ -97,6 +99,48 @@ def bea_pce_parse(*, df_list: list[pd.DataFrame], year: int, **_: Any) -> pd.Dat
     df['FlowType'] = "ELEMENTARY_FLOW"
 
     return df
+
+
+# TODO: integrate this function with bea_pce_parse above
+def bea_pce_ceda_parse(*, year: int, **_: Any) -> pd.DataFrame:
+    """
+    Latest BEA Personal Consumption Expenditure by Major Type of Product from
+    https://apps.bea.gov/iTable/?reqid=19&step=2&isuri=1&categories=survey&_gl=1*1mu0824*_ga*MTkyNDEyMDE5LjE3MTA0NjE1MjE.*_ga_J4698JNNFT*MTcxMDQ2MTUyMC4xLjEuMTcxMDQ2MjIyNS4xNC4wLjA.#eyJhcHBpZCI6MTksInN0ZXBzIjpbMSwyLDMsM10sImRhdGEiOltbImNhdGVnb3JpZXMiLCJTdXJ2ZXkiXSxbIk5JUEFfVGFibGVfTGlzdCIsIjY1Il0sWyJGaXJzdF9ZZWFyIiwiMjAxMiJdLFsiTGFzdF9ZZWFyIiwiMjAyMyJdLFsiU2NhbGUiLCItNiJdLFsiU2VyaWVzIiwiQSJdXX0=
+
+    modified version of load_bea_personal_consumption_expenditure()
+    """
+    tbl = load_from_gcs(
+        name="BEA Personal Consumption Expenditures by Major Type of Product_June27_2024.csv",
+        sub_bucket=GCS_BEA_PCE_DIR,
+        local_dir=IN_DIR,
+        loader=lambda pth: pd.read_csv(
+            pth,
+            skiprows=3,
+            index_col=1,
+        )
+        .dropna()
+        .drop(columns=["Line"]),
+    )
+    tbl.index = tbl.index.str.strip()
+
+    df = tbl[[year]]
+    df = df.rename(columns={'2023': 'Year'})
+    df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
+    df = (
+        df.assign(Location='00000')
+        .assign(FlowName='Personal consumption expenditures')
+        .assign(Unit='Dollars / p')
+    )
+
+    # add location system based on year of data
+    df = assign_fips_location_system(df, year)
+    # add hard code data
+    df['SourceName'] = 'BEA_PCE_CEDA'
+    df['Class'] = 'Money'
+    df['Compartment'] = None
+    df['FlowType'] = "ELEMENTARY_FLOW"
+
+    return tbl
 
 
 if __name__ == "__main__":

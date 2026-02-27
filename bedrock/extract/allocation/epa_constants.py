@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import ast
 import typing as ta
+from typing import Dict, List
+
+import pandas as pd
+
+from bedrock.utils.config.settings import extractpath, transformpath
 
 """
 NOTE: table numbers change year-over-year in the GHG inventory report.
@@ -145,3 +151,187 @@ EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023: ta.Dict[EPA_TABLE_NAMES, TBL_NUMBERS_20
     "fuel_consumption_by_vehicle_type": "A-69",
     "hfc_transportation_sources": "A-90",
 }
+
+
+# ---------------------------------------------------------
+# The following functions are used to run through all of the .py files within ceda allocation to
+# determine the EPA GHGI Table numbers that are used to attribute data to sectors. The output of this
+# information is used to compare the original CEDA method results to the CEDA method recreated within
+# FLOWSA methodology
+# ---------------------------------------------------------
+
+# parse and cache the EPA script that includes function definitions for where data is loaded
+
+with open(extractpath / "allocation/epa.py", "r") as f:
+    EPA_TREE = ast.parse(f.read(), filename=str(extractpath / "allocation/epa.py"))
+
+EPA_FUNCS = {
+    node.name: node for node in ast.walk(EPA_TREE) if isinstance(node, ast.FunctionDef)
+}
+
+_table_cache: Dict[str, List[str]] = {}
+
+
+# helper functions to run through related EPA functions to connect GHGI table numbers
+# to the gas/source combos
+
+
+def extract_table_names_from_loader(func_def: ast.FunctionDef) -> list[str]:
+
+    if func_def.name in _table_cache:
+        return _table_cache[func_def.name]
+
+    table_names = set()
+
+    for node in ast.walk(func_def):
+
+        # Pattern 1: map()["A-17"]
+        if isinstance(node, ast.Subscript):
+            if (
+                isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id == "_get_epa_table_name_to_table_number_map"
+            ):
+                if isinstance(node.slice, ast.Constant) and isinstance(
+                    node.slice.value, str
+                ):
+                    table_names.add(node.slice.value)
+
+        # Pattern 2: load_xxx("A-17")
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id.startswith("load_"):
+                for arg in node.args:
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                        table_names.add(arg.value)
+
+        # Pattern 3: TABLE = "A-17"
+        if isinstance(node, ast.Assign):
+            if isinstance(node.value, ast.Constant) and isinstance(
+                node.value.value, str
+            ):
+                table_names.add(node.value.value)
+
+    result = sorted(table_names)
+    _table_cache[func_def.name] = result
+    return result
+
+
+def build_alias_graph(tree: ast.AST) -> dict[str, str]:
+    alias_map = {}
+
+    for node in ast.walk(tree):
+
+        # import X as Y
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module == "bedrock.extract.allocation.epa"
+        ):
+            for alias in node.names:
+                local = alias.asname or alias.name
+                alias_map[local] = alias.name
+
+        # Y = X
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    alias_map[target.id] = node.value.id
+
+        # Y = wrapper(X)
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            if node.value.args:
+                arg = node.value.args[0]
+                if isinstance(arg, ast.Name):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            alias_map[target.id] = arg.id
+
+    # resolve chains
+    resolved = {}
+    for local in alias_map:
+        seen = set()
+        cur = local
+        while cur in alias_map and cur not in seen:
+            seen.add(cur)
+            cur = alias_map[cur]
+        resolved[local] = cur
+
+    return resolved
+
+
+def extract_loader_calls(tree: ast.AST) -> set[str]:
+    loaders = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+
+            if isinstance(func, ast.Name) and func.id.startswith("load_"):
+                loaders.add(func.id)
+
+            elif isinstance(func, ast.Attribute) and func.attr.startswith("load_"):
+                loaders.add(func.attr)
+
+    return loaders
+
+
+def return_emissions_source_table_numbers() -> pd.DataFrame:
+    rows = []
+
+    directories = [
+        transformpath / "allocation/co2",
+        transformpath / "allocation/ch4",
+        transformpath / "allocation/other_gases",
+    ]
+
+    for directory in directories:
+        for file in directory.glob("*.py"):
+            if file.name.startswith("_"):
+                continue
+
+            emission_source = file.stem
+
+            with open(file, "r") as f:
+                tree = ast.parse(f.read(), filename=str(file))
+
+            alias_graph = build_alias_graph(tree)
+            loader_calls = extract_loader_calls(tree)
+
+            # resolve aliases
+            resolved_loaders = {alias_graph.get(name, name) for name in loader_calls}
+
+            # extract table names
+            table_names = []
+            for loader in resolved_loaders:
+                if loader in EPA_FUNCS:
+                    table_names.extend(
+                        extract_table_names_from_loader(EPA_FUNCS[loader])
+                    )
+
+            table_names = sorted(set(table_names))
+            table_numbers = [
+                "EPA_GHGI_T_"
+                + EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023[
+                    ta.cast(EPA_TABLE_NAMES, name)
+                ].replace("-", "_")
+                for name in table_names
+                if name in EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023
+            ]
+
+            rows.append(
+                {
+                    "emissions_source": emission_source,
+                    "table_numbers": table_numbers,
+                }
+            )
+
+    df = pd.DataFrame(rows)
+
+    if df.empty:
+        return df
+
+    max_len = df["table_numbers"].apply(len).max()
+    for i in range(max_len):
+        df[f"table_number_{i+1}"] = df["table_numbers"].apply(
+            lambda lst, idx=i: lst[idx] if idx < len(lst) else None
+        )
+
+    return df.drop(columns=["table_numbers"])

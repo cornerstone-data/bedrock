@@ -806,7 +806,7 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
     # Load energy consumption data by fuel from GHGI
     ghgi = load_fba_w_standardized_units(
         datasource=cast(str, parameter_dict.get('ghg_fba')),
-        year=cast(int, mecs_year),
+        year=cast(int, parameter_dict.get('ghgi_year', mecs_year)),
         flowclass='Energy',
         download_FBA_if_missing=True,
     )
@@ -828,6 +828,13 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
         pct = np.minimum(mecs_energy / ghgi_energy, 1)
         pct_dict[label] = pct
 
+    # based on 2018 datasets
+    # {'Coal': np.float64(0.7599),
+    #  'Natural Gas': np.float64(0.6822)}
+
+    # based on 2018 MECS / 2023 GHGI
+    # {'Coal': np.float64(1.0),
+    #  'Natural Gas': np.float64(0.6540)}
     return pct_dict
 
 
@@ -914,7 +921,41 @@ def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     return new_fba
 
 
+def clean_EPA_GHGI_T_4_124(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """Subtract out refrigeration transport emissions from the
+    Refrigeration/Air Conditioning activity"""
+
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+
+    # load Table A-90 and aggregate emissions from transportation to subtract out from refrigeration
+    tbl = load_fba_w_standardized_units(
+        datasource="EPA_GHGI_T_A_90", year=fba['Year'][0], download_FBA_if_missing=True
+    )
+
+    activities = [
+        "Comfort Cooling for Trains and Buses",
+        "Mobile AC",
+        "Refrigerated Transport",
+    ]
+
+    total = tbl.loc[tbl["ActivityProducedBy"].isin(activities), "FlowAmount"].sum()
+
+    fba.loc[
+        fba["ActivityProducedBy"] == "Refrigeration/Air Conditioning", "FlowAmount"
+    ] -= total
+
+    for attr in attributes_to_save:
+        setattr(fba, attr, attributes_to_save[attr])
+
+    fba2 = split_HFCs_by_type(fba)
+
+    return fba2
+
+
 if __name__ == '__main__':
+
     # fba = bedrock.return_FBA('EPA_GHGI_T_4_101', 2016)
     # df = clean_HFC_fba(fba)
     tbl_list = [

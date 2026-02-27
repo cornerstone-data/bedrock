@@ -166,3 +166,6 @@ def _fraction_natural_gas_energy_to_allocate() -> float:
         * NAT_GAS_BCF_TO_TRILLION_BTU  # type: ignore
         / table_a17_tbtu.loc["Natural Gas", "Ind"]
     )
+
+
+# pct = _fraction_natural_gas_energy_to_allocate() # 0.648

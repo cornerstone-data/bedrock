@@ -1,0 +1,14 @@
+# This config is used to run the CEDA GHG model via flowsa.
+
+#####
+# Model base settings
+#####
+
+#####
+# Data selection
+#####
+
+#####
+# Methodology selection
+#####
+load_E_from_flowsa: true

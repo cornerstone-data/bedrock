@@ -42,6 +42,7 @@ class USAConfig(BaseModel):
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     # TODO: Add transform_a_matrix after we decide what to do
     ### GHG Methodology selection
+    load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal["national", "state"] = "national"
     update_transportation_ghg_method: bool = False  # DRI: ben.young
     update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: (
