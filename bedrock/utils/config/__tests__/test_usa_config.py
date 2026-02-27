@@ -7,10 +7,10 @@ from pydantic import ValidationError
 
 from bedrock.utils.config.usa_config import (
     EEIOWasteDisaggConfig,
+    _load_usa_config_from_file_name,
     get_usa_config,
     reset_usa_config,
     set_global_usa_config,
-    _load_usa_config_from_file_name,
 )
 
 
@@ -25,8 +25,14 @@ def test_eeio_waste_disagg_config_parsing_happy_path() -> None:
     assert config.eeio_waste_disaggregation is not None
     wd = config.eeio_waste_disaggregation
     assert isinstance(wd, EEIOWasteDisaggConfig)
-    assert wd.use_weights_file == "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
-    assert wd.make_weights_file == "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+    assert (
+        wd.use_weights_file
+        == "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
+    )
+    assert (
+        wd.make_weights_file
+        == "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+    )
     assert wd.year == 2017
     assert wd.source_name == "WasteDisaggregationDetail2017"
 
@@ -46,7 +52,9 @@ def test_get_usa_config_loads_waste_disagg() -> None:
     config = get_usa_config()
     assert config.implement_waste_disaggregation is True
     assert config.eeio_waste_disaggregation is not None
-    assert config.eeio_waste_disaggregation.source_name == "WasteDisaggregationDetail2017"
+    assert (
+        config.eeio_waste_disaggregation.source_name == "WasteDisaggregationDetail2017"
+    )
 
 
 def test_global_usa_config() -> None:

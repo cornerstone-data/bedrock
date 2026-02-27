@@ -66,14 +66,7 @@ class USAConfig(BaseModel):
 
     def to_dict(
         self,
-    ) -> dict[
-        str,
-        bool
-        | int
-        | str
-        | EEIOWasteDisaggConfig
-        | None,
-    ]:
+    ) -> dict[str, bool | int | str | EEIOWasteDisaggConfig | None]:
         return {
             field_name: getattr(self, field_name) for field_name in self.model_fields
         }
