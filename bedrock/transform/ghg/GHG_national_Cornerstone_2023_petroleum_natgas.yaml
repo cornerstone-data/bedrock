@@ -18,7 +18,8 @@
           - Transmission and Storage
       attribution_method: direct
     EPA_GHGI_T_3_66: *natgas_pn # CO2 from Natural Gas Systems mimics CH4
-    EPA_GHGI_T_3_68: *natgas_pn # N2O from Natural Gas Systems
+    EPA_GHGI_T_3_68: *natgas_pn # N2O from Natural Gas Systems mimics CH4
+
     EPA_GHGI_T_3_45: &petroleum_pn # CH4 from Petroleum Systems
       year: 2023  # same as *ghgi_year in base method
       activity_to_sector_mapping: EPA_GHGI_Cornerstone_petroleum_natgas
@@ -33,4 +34,4 @@
           - Crude Refining
       attribution_method: direct
     EPA_GHGI_T_3_47: *petroleum_pn # CO2 from Petroleum Systems mimics CH4
-    EPA_GHGI_T_3_49: *petroleum_pn # N2O from Petroleum Systems
+    EPA_GHGI_T_3_49: *petroleum_pn # N2O from Petroleum Systems mimics CH4
