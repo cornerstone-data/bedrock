@@ -9,6 +9,13 @@ CONFIG_DIR = os.path.join(os.path.dirname(__file__), "configs")
 USA_CONFIG_ENV_VAR = "USA_CONFIG_FILE"
 
 
+class EEIOWasteDisaggConfig(BaseModel):
+    use_weights_file: str
+    make_weights_file: str
+    year: int
+    source_name: str
+
+
 class USAConfig(BaseModel):
     #####
     # Model base settings
@@ -40,6 +47,7 @@ class USAConfig(BaseModel):
     ### IO Methodology selection
     transform_b_matrix_with_useeio_method: bool = False  # DRI: mo.li
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
+    eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_price_index: bool = False  # DRI: mo.li
@@ -56,7 +64,9 @@ class USAConfig(BaseModel):
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
         return 2017
 
-    def to_dict(self) -> dict[str, bool]:
+    def to_dict(
+        self,
+    ) -> dict[str, bool | int | str | EEIOWasteDisaggConfig | None]:
         return {
             field_name: getattr(self, field_name) for field_name in self.model_fields
         }
