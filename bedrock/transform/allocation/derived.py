@@ -124,8 +124,19 @@ def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_E_from_flowsa() -> pd.DataFrame:
-    """Load E_usa (GHG × CEDA v7 sectors) from the GHG_national_CEDA_2023 FBS."""
-    fbs = getFlowBySector(methodname='GHG_national_CEDA_2023')
+    """Load E_usa (GHG × CEDA v7 sectors) from the CEDA FBS.
+    Method is GHG_national_CEDA_2023_petroleum_natgas when
+    update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems is True,
+    otherwise GHG_national_CEDA_2023. Only used when load_E_from_flowsa is True in USA config.
+    """
+    usa = get_usa_config()
+    if (
+        usa.update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems
+    ):
+        methodname = 'GHG_national_CEDA_2023_petroleum_natgas'
+    else:
+        methodname = 'GHG_national_CEDA_2023'
+    fbs = getFlowBySector(methodname=methodname)
 
     fbs = map_to_CEDA(fbs)
 

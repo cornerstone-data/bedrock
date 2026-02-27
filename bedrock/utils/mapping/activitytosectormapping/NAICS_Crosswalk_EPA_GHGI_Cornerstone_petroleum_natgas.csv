@@ -1,0 +1,11 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes,Table
+EPA_GHGI_Cornerstone_petroleum_natgas,Exploration,NAICS_2017_Code,211120,,211000,"EPA_GHGI_T_3_38, EPA_GHGI_T_3_40, EPA_GHGI_T_3_42, EPA_GHGI_T_3_63, EPA_GHGI_T_3_65, EPA_GHGI_T_3_67"
+EPA_GHGI_Cornerstone_petroleum_natgas,Production,NAICS_2017_Code,211130,,211000,"EPA_GHGI_T_3_38, EPA_GHGI_T_3_40, EPA_GHGI_T_3_42, EPA_GHGI_T_3_63, EPA_GHGI_T_3_65, EPA_GHGI_T_3_67"
+EPA_GHGI_Cornerstone_petroleum_natgas,Crude Oil Transportation,NAICS_2017_Code,486110,,not mapped,"EPA_GHGI_T_3_38, EPA_GHGI_T_3_40, EPA_GHGI_T_3_42"
+EPA_GHGI_Cornerstone_petroleum_natgas,Transportation,NAICS_2017_Code,486110,,not mapped,"EPA_GHGI_T_3_38, EPA_GHGI_T_3_40, EPA_GHGI_T_3_42"
+EPA_GHGI_Cornerstone_petroleum_natgas,Refining,NAICS_2017_Code,324110,,324110,"EPA_GHGI_T_3_38, EPA_GHGI_T_3_40, EPA_GHGI_T_3_42"
+EPA_GHGI_Cornerstone_petroleum_natgas,Crude Refining,NAICS_2017_Code,324110,,324110,"EPA_GHGI_T_3_38, EPA_GHGI_T_3_40, EPA_GHGI_T_3_42"
+EPA_GHGI_Cornerstone_petroleum_natgas,Distribution,NAICS_2017_Code,221210,,221200,"EPA_GHGI_T_3_63, EPA_GHGI_T_3_65, EPA_GHGI_T_3_67"
+EPA_GHGI_Cornerstone_petroleum_natgas,Post-Meter,NAICS_2017_Code,221210,,,"EPA_GHGI_T_3_63, EPA_GHGI_T_3_65, EPA_GHGI_T_3_67"
+EPA_GHGI_Cornerstone_petroleum_natgas,Processing,NAICS_2017_Code,211130,,211000,"EPA_GHGI_T_3_63, EPA_GHGI_T_3_65, EPA_GHGI_T_3_67"
+EPA_GHGI_Cornerstone_petroleum_natgas,Transmission and Storage,NAICS_2017_Code,486210,,486000,"EPA_GHGI_T_3_63, EPA_GHGI_T_3_65, EPA_GHGI_T_3_67"

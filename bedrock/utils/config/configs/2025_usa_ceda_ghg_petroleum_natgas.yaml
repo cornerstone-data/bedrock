@@ -1,0 +1,8 @@
+# Use CEDA 2023 FBS with petroleum/natgas tables aligned to m1_common and T_3_49/T_3_68 included.
+# Requires both flags so the pipeline loads E from flowsa with the petroleum_natgas method.
+
+#####
+# Methodology selection
+#####
+update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: true
+load_E_from_flowsa: true

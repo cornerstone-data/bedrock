@@ -1,0 +1,36 @@
+# CEDA 2023 with fossil-fuel tables (T_3_64, T_3_66, T_3_45, T_3_47, T_3_68, T_3_49)
+# aligned to m1_common selection_fields and using EPA_GHGI_Cornerstone_petroleum_natgas mapping.
+# Base method unchanged; only these six source_names are overridden/added.
+
+!include:GHG_national_CEDA_2023.yaml:
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names:
+    EPA_GHGI_T_3_64: &natgas_pn # CH4 from Natural Gas Systems
+      year: 2023  # same as *ghgi_year in base method
+      activity_to_sector_mapping: EPA_GHGI_Cornerstone_petroleum_natgas
+      fedefl_mapping: GHGI_AR5_100
+      selection_fields:
+        PrimaryActivity:
+          - Distribution
+          - Post-Meter
+          - Exploration
+          - Processing
+          - Production
+          - Transmission and Storage
+      attribution_method: direct
+    EPA_GHGI_T_3_66: *natgas_pn # CO2 from Natural Gas Systems mimics CH4
+    EPA_GHGI_T_3_68: *natgas_pn # N2O from Natural Gas Systems
+    EPA_GHGI_T_3_45: &petroleum_pn # CH4 from Petroleum Systems
+      year: 2023  # same as *ghgi_year in base method
+      activity_to_sector_mapping: EPA_GHGI_Cornerstone_petroleum_natgas
+      fedefl_mapping: GHGI_AR5_100
+      selection_fields:
+        PrimaryActivity:
+          - Crude Oil Transportation
+          - Transportation
+          - Exploration
+          - Production
+          - Refining
+          - Crude Refining
+      attribution_method: direct
+    EPA_GHGI_T_3_47: *petroleum_pn # CO2 from Petroleum Systems mimics CH4
+    EPA_GHGI_T_3_49: *petroleum_pn # N2O from Petroleum Systems
