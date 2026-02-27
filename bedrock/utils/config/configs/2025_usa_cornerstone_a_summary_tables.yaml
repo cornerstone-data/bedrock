@@ -1,0 +1,4 @@
+# Tests summary-tables-only approach for deriving the A matrix (Issue #182).
+# A is scaled directly 2017 → target year using summary table ratios, no price inflation.
+use_cornerstone_2026_model_schema: True
+scale_a_matrix_with_summary_tables: True

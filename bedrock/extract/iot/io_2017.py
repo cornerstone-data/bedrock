@@ -7,7 +7,6 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
@@ -381,15 +380,19 @@ def _load_usa_summary_mut(
     Load USA Summary SUT matrix
     """
 
-    usa_summary_mut_mapping = (
-        USA_SUMMARY_MUT_MAPPING_1997_2022
-        if get_usa_config().usa_io_data_year == 2022
-        else USA_SUMMARY_MUT_MAPPING_1997_2023
+    # BEA revises historical data in each new release, so the 2022 values in the
+    # 1997-2023 file differ from those in the 1997-2022 file. We pin years ≤ 2022 to
+    # the 1997-2022 file for consistency with the rest of the pipeline (e.g.
+    # scale_cornerstone_B uses years 2017 and 2022), and only switch to the 1997-2023
+    # file when year 2023 data is explicitly needed.
+    mapping = (
+        USA_SUMMARY_MUT_MAPPING_1997_2023
+        if year > 2022
+        else USA_SUMMARY_MUT_MAPPING_1997_2022
     )
-
     df = (
         load_from_gcs(
-            name=usa_summary_mut_mapping[matrix_name],
+            name=mapping[matrix_name],
             sub_bucket=GCS_USA_DIR,
             local_dir=IN_DIR,
             loader=lambda pth: pd.read_excel(
