@@ -26,6 +26,7 @@ __pycache__/
 *.mat
 *.pkl
 *_metadata.json
+*_diffs.yaml
 !bedrock/utils/**/*.csv
 # asets stands for activity sets
 !bedrock/extract/**/*_asets.csv
