@@ -13,9 +13,7 @@ import pandas as pd
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def refrigeration_make_use_ratios(
-    *, df_list: Any, year: int | str, **_: Any
-) -> pd.DataFrame:
+def refrigeration_make_use_ratios(*, year: int | str, **_: Any) -> pd.DataFrame:
     """
     Build an FBA from derive_make_use_ratios_for_hfcs_from_other_sources
     (allocation/other_gases/common_ratios). Used as proportional attribution
@@ -42,5 +40,5 @@ def refrigeration_make_use_ratios(
                 "Class": "Other",
             }
         )
-    df = pd.DataFrame(rows)
-    return df
+
+    return pd.DataFrame(rows)
