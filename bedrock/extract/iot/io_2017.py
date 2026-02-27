@@ -386,7 +386,9 @@ def _load_usa_summary_mut(
     # scale_cornerstone_B uses years 2017 and 2022), and only switch to the 1997-2023
     # file when year 2023 data is explicitly needed.
     mapping = (
-        USA_SUMMARY_MUT_MAPPING_1997_2023 if year > 2022 else USA_SUMMARY_MUT_MAPPING_1997_2022
+        USA_SUMMARY_MUT_MAPPING_1997_2023
+        if year > 2022
+        else USA_SUMMARY_MUT_MAPPING_1997_2022
     )
     df = (
         load_from_gcs(
