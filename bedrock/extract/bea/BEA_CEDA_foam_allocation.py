@@ -13,10 +13,7 @@ import pandas as pd
 from bedrock.utils.mapping.location import US_FIPS
 
 
-
-def foam_make_use_ratios(
-    *, df_list: Any, year: int | str, **_: Any
-) -> pd.DataFrame:
+def foam_make_use_ratios(*, df_list: Any, year: int | str, **_: Any) -> pd.DataFrame:
     """
     Build an FBA from derive_make_use_ratios_for_hfcs_from_foams
     (allocation/other_gases/common_ratios). Used as proportional attribution

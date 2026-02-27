@@ -13,7 +13,6 @@ import pandas as pd
 from bedrock.utils.mapping.location import US_FIPS
 
 
-
 def refrigeration_make_use_ratios(
     *, df_list: Any, year: int | str, **_: Any
 ) -> pd.DataFrame:
