@@ -82,9 +82,11 @@ def _diff_resolved_configs_rec(
                     {
                         'path': sub_path,
                         'kind': 'added',
-                        'right': right[key]
-                        if not _is_callable_or_non_diffable(right[key])
-                        else None,
+                        'right': (
+                            right[key]
+                            if not _is_callable_or_non_diffable(right[key])
+                            else None
+                        ),
                     }
                 )
             elif key not in right:
@@ -92,9 +94,11 @@ def _diff_resolved_configs_rec(
                     {
                         'path': sub_path,
                         'kind': 'removed',
-                        'left': left[key]
-                        if not _is_callable_or_non_diffable(left[key])
-                        else None,
+                        'left': (
+                            left[key]
+                            if not _is_callable_or_non_diffable(left[key])
+                            else None
+                        ),
                     }
                 )
             else:
@@ -331,9 +335,7 @@ def _format_config_diff_entries(entries: list[ConfigDiffEntry]) -> str:
     return '\n'.join(lines) if lines else '  (no differences)'
 
 
-def _run_config_diff(
-    baseline_method: str, test_method: str
-) -> tuple[
+def _run_config_diff(baseline_method: str, test_method: str) -> tuple[
     int,
     list[ConfigDiffEntry],
     dict[str, object] | None,

@@ -238,9 +238,7 @@ def test_list_diff_summary_set_like_order_independent() -> None:
 
 
 def test_parse_output_path_with_path() -> None:
-    argv, path, requested = _parse_output_path(
-        ['base', 'test', '--output', 'out.yaml']
-    )
+    argv, path, requested = _parse_output_path(['base', 'test', '--output', 'out.yaml'])
     assert argv == ['base', 'test']
     assert path == 'out.yaml'
     assert requested is True
@@ -293,7 +291,7 @@ def test_yaml_output_list_summary_path() -> None:
             'right': ['common', 'only_test'],
         },
     ]
-    entry = dict(config_diff_for_yaml[0])
+    entry: dict[str, object] = dict(config_diff_for_yaml[0])
     left_val = entry.get('left')
     right_val = entry.get('right')
     assert isinstance(left_val, list) and isinstance(right_val, list)
@@ -308,9 +306,7 @@ def test_yaml_output_list_summary_path() -> None:
         'mapping_diff': [],
     }
     safe = _to_yaml_safe(data)
-    with tempfile.NamedTemporaryFile(
-        mode='w', suffix='.yaml', delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
         yaml.dump(
             safe,
             f,
@@ -326,7 +322,9 @@ def test_yaml_output_list_summary_path() -> None:
         assert loaded['test_method'] == 'Test'
         assert len(loaded['config_diff']) == 1
         diff_entry = loaded['config_diff'][0]
-        assert diff_entry['path'] == 'source_names.X.activity_sets.direct.PrimaryActivity'
+        assert (
+            diff_entry['path'] == 'source_names.X.activity_sets.direct.PrimaryActivity'
+        )
         assert diff_entry['kind'] == 'changed'
         assert 'list_summary' in diff_entry
         assert diff_entry['list_summary']['only_in_baseline'] == ['only_baseline']
