@@ -7,10 +7,10 @@ from pydantic import ValidationError
 
 from bedrock.utils.config.usa_config import (
     EEIOWasteDisaggConfig,
+    _load_usa_config_from_file_name,
     get_usa_config,
     reset_usa_config,
     set_global_usa_config,
-    _load_usa_config_from_file_name,
 )
 
 
@@ -21,32 +21,62 @@ def reset_global_usa_config_before_test() -> Generator[None, None, None]:
 
 
 def test_eeio_waste_disagg_config_parsing_happy_path() -> None:
+    """Test to ensure that the disaggregation config file is properly loaded"""
     config = _load_usa_config_from_file_name("test_usa_config_waste_disagg.yaml")
     assert config.eeio_waste_disaggregation is not None
     wd = config.eeio_waste_disaggregation
     assert isinstance(wd, EEIOWasteDisaggConfig)
-    assert wd.use_weights_file == "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
-    assert wd.make_weights_file == "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+    assert (
+        wd.use_weights_file
+        == "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
+    )
+    assert (
+        wd.make_weights_file
+        == "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+    )
+    assert wd.year == 2017
+    assert wd.source_name == "WasteDisaggregationDetail2017"
+
+    config = _load_usa_config_from_file_name("test_usa_config_waste_disagg.yaml")
+    assert config.eeio_waste_disaggregation is not None
+    wd = config.eeio_waste_disaggregation
+    assert isinstance(wd, EEIOWasteDisaggConfig)
+    assert (
+        wd.use_weights_file
+        == "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
+    )
+    assert (
+        wd.make_weights_file
+        == "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+    )
     assert wd.year == 2017
     assert wd.source_name == "WasteDisaggregationDetail2017"
 
 
 def test_eeio_waste_disagg_config_optional_missing() -> None:
+    """Test to ensure that the disaggregation config is not
+    true when not specified in the yaml file"""
     config = _load_usa_config_from_file_name("test_usa_config.yaml")
     assert config.eeio_waste_disaggregation is None
 
 
 def test_eeio_waste_disagg_config_invalid_fails() -> None:
+    """Test that yaml file with invalid configuration
+    is not loaded"""
     with pytest.raises(ValidationError):
         _load_usa_config_from_file_name("test_usa_config_waste_disagg_invalid.yaml")
 
 
 def test_get_usa_config_loads_waste_disagg() -> None:
+    """Test that the usa_config correctly loads the waste
+    disaggregation yaml file"""
     set_global_usa_config("test_usa_config_waste_disagg.yaml")
     config = get_usa_config()
     assert config.implement_waste_disaggregation is True
     assert config.eeio_waste_disaggregation is not None
-    assert config.eeio_waste_disaggregation.source_name == "WasteDisaggregationDetail2017"
+    assert (
+        config.eeio_waste_disaggregation.source_name == "WasteDisaggregationDetail2017"
+    )
 
 
 def test_global_usa_config() -> None:
