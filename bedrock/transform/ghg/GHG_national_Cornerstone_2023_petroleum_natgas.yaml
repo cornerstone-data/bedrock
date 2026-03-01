@@ -2,8 +2,8 @@
 # aligned to m1_common selection_fields and using EPA_GHGI_Cornerstone_petroleum_natgas mapping.
 # Base method unchanged; only these six source_names are overridden/added.
 
-!include:GHG_national_CEDA_2023.yaml:
-  source_names: !include:GHG_national_CEDA_2023.yaml:source_names:
+!include:GHG_national_CEDA_2023.yaml
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
     EPA_GHGI_T_3_64: &natgas_pn # CH4 from Natural Gas Systems
       year: 2023  # same as *ghgi_year in base method
       activity_to_sector_mapping: EPA_GHGI_Cornerstone_petroleum_natgas
