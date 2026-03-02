@@ -1,0 +1,9 @@
+# Use CEDA 2023 FBS with updates for mobile combustion (transport) tables 
+# reflects changes to Tables 3-13, 3-14, and 3-15
+# Requires both flags so the pipeline loads E from flowsa with the mobile_combustion method.
+
+#####
+# Methodology selection
+#####
+update_transportation_ghg_method: true
+load_E_from_flowsa: true
