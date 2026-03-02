@@ -1,8 +1,8 @@
 ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes,Table
-EPA_GHGI_Cornerstone_electricity,Coal Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone_electricity,Coal Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone_electricity,Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)",EPA_GHGI_T_2_1
 EPA_GHGI_Cornerstone_electricity,Electrical Equipment,NAICS_2017_Code,2211,,new activity,EPA_GHGI_T_2_1
 EPA_GHGI_Cornerstone_electricity,Electrical Transmission and Distribution,NAICS_2017_Code,2211,,221100,EPA_GHGI_T_2_1
-EPA_GHGI_Cornerstone_electricity,Fuel Oil Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone_electricity,Natural Gas Electric Power,NAICS_2017_Code,2211,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone_electricity,Wood Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone_electricity,Fuel Oil Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone_electricity,Natural Gas Electric Power,NAICS_2017_Code,221112,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone_electricity,Wood Electric Power,NAICS_2017_Code,221117,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
