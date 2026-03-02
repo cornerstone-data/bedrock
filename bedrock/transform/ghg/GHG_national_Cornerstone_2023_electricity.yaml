@@ -9,19 +9,10 @@
       activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
       fedefl_mapping: GHGI_AR5_100
       activity_sets:
-        electricity_transmission:
-          selection_fields:
-            PrimaryActivity:
-  #            - Electrical Transmission and Distribution #SF6 - does not exist in ceda, old name?
-              - Electrical Equipment #SF6 updated name for this activity in 2024 release - same as flowsa
-            FlowName: SF6
-          attribution_method: direct
-
-      # updated from flowsa version, which proportionally attributes using BEA Detail Supply, to additionally attribute to gov sectors
       electric_power:
         selection_fields:
           PrimaryActivity:
-            Electric Power Sector: Electric Power #CO2 - different attribution than flowsa
+            Electric Power Sector: Electric Power #CO2
         attribution_method: direct
 
   EPA_GHGI_T_3_8:  &stationary_combustion  # CH4 emissions from stationary combustion
@@ -29,17 +20,14 @@
     activity_to_sector_mapping: EPA_GHGI_CEDA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-     # note modified approach from flowsa - ceda directly attributes, while flowsa proportionally attributes using bea
       electric_power:
         selection_fields:
-          # note: for ceda calling on all activities, but this is the same approach as flowsa as the electricity by fuel type sum to all activities
           PrimaryActivity:
-#            Coal Electric Power: Coal Electric Power  # flowsa only
-#            Natural Gas Electric Power: Natural Gas Electric Power  # flowsa only
-#            Natural gas Electric Power: Natural Gas Electric Power # fix capitalization  # flowsa only
-#            Fuel Oil Electric Power: Fuel Oil Electric Power  # flowsa only
-#            Wood Electric Power: Wood Electric Power
-            - All activities Electric Power
+            Coal Electric Power: Coal Electric Power
+            Natural Gas Electric Power: Natural Gas Electric Power
+            Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
+            Fuel Oil Electric Power: Fuel Oil Electric Power
+            Wood Electric Power: Wood Electric Power
         attribution_method: direct
 
   EPA_GHGI_T_3_9: *stationary_combustion # N2O emissions from stationary combustion
