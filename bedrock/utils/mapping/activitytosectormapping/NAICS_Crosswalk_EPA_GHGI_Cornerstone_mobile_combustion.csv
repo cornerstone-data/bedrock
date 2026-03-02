@@ -1,0 +1,71 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes,Table
+EPA_GHGI_Cornerstone_mobile_combustion,Agricultural Equipment Non-Road,NAICS_2017_Code,111,,"111, 112, 113, 114","EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Agricultural Equipment Non-Road,NAICS_2017_Code,112,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Agricultural Equipment Non-Road,NAICS_2017_Code,113,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Agricultural Equipment Non-Road,NAICS_2017_Code,114,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Alternative Fuel On-Road,NAICS_2017_Code,485,,"485000, 486000, 48A000, 492000","EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Alternative Fuel On-Road,NAICS_2017_Code,487,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Alternative Fuel On-Road,NAICS_2017_Code,488,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Alternative Fuel On-Road,NAICS_2017_Code,492,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Construction/Mining Equipment Non-Road,NAICS_2017_Code,211,,"211000, 212100, 2122A0, 212230, 212310, 2123AO, 213111","EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Construction/Mining Equipment Non-Road,NAICS_2017_Code,212,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Construction/Mining Equipment Non-Road,NAICS_2017_Code,213111,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Construction/Mining Equipment Non-Road,NAICS_2017_Code,213112,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks and Buses,NAICS_2017_Code,484,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,485,,"485000, 48A000, 492000, 532100, 532400, 621900, 713900, 811100, 811300","EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,487,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,488,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,492,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,5321,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,5324,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,6219,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,7139,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,8111,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Other Non-Road,NAICS_2017_Code,8113,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Buses,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Buses - Distillate Fuel Oil,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Buses - Distillate Fuel Oil,NAICS_2017_Code,487,,48A000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Commercial Aircraft,NAICS_2017_Code,481,,481000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,General Aviation Aircraft,NAICS_2017_Code,481,,481000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Military Aircraft,NAICS_2017_Code,S00500,,S00500,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Light-Duty Trucks - Households,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
+EPA_GHGI_Cornerstone_mobile_combustion,Light-Duty Trucks,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Light-Duty Trucks,NAICS_2017_Code,492,,492000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks,NAICS_2017_Code,484,,484000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00102,,,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00203,,,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,482,,482000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,483,,483000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,487,,48A000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,S00102,,S00102,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Diesel,NAICS_2017_Code,S00203,,S00203,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Gasoline,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Gasoline,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Gasoline,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Gasoline,NAICS_2017_Code,492,,492000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Gasoline,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Gasoline,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,All Transport - Gasoline,NAICS_2017_Code,S00600,,S00600,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Motorcycles,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Passenger Cars - Households,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
+EPA_GHGI_Cornerstone_mobile_combustion,Passenger Cars,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Passenger Cars,NAICS_2017_Code,S00600,,"S00600, GSLGO","EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Passenger Cars,NAICS_2017_Code,GSLGO,,,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Passenger Cars,NAICS_2017_Code,491,,491000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone_mobile_combustion,Pipeline Natural Gas,NAICS_2017_Code,486,,,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Rail,NAICS_2017_Code,482,,482000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15, EPA_GHGI_T_A_97"
+EPA_GHGI_Cornerstone_mobile_combustion,Recreational Boats,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Ships and Boats,NAICS_2017_Code,483,,483000,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15, EPA_GHGI_T_A_97"
+EPA_GHGI_Cornerstone_mobile_combustion,Ships and Non-Recreational Boats,NAICS_2017_Code,483,,483000,EPA_GHGI_T_3_13
