@@ -1,0 +1,9 @@
+# Use CEDA 2023 FBS with fuel-specific electricity activities.
+# Maintains CEDA approach of attribution to single NAICS 2211.
+# Requires both flags so the pipeline loads E from flowsa with the electricity method.
+
+#####
+# Methodology selection
+#####
+update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: true
+load_E_from_flowsa: true
