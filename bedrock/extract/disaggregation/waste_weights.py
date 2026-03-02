@@ -11,6 +11,7 @@ else:
     WasteWeightSeries = pd.Series
 
 
+# Class to store the weights used for the waste disaggregation
 @dataclass
 class WasteDisaggWeights:
     use_intersection: WasteWeightSeries
