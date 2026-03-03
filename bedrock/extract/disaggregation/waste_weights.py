@@ -46,7 +46,7 @@ def _normalize_code(code: str) -> str:
     return code
 
 
-def _load_weights_csv(path: str, percent_column: str) -> pd.DataFrame:
+def load_weights_csv(path: str, percent_column: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(path, dtype=str)
     except FileNotFoundError as exc:
@@ -144,8 +144,8 @@ def load_waste_disagg_weights(
     waste_sectors: list[str],
     naics_to_cornerstone: dict[str, list[str]] | None = None,
 ) -> WasteDisaggWeights:
-    make_df = _load_weights_csv(cfg.make_weights_file, "PercentMake")
-    use_df = _load_weights_csv(cfg.use_weights_file, "PercentUsed")
+    make_df = load_weights_csv(cfg.make_weights_file, "PercentMake")
+    use_df = load_weights_csv(cfg.use_weights_file, "PercentUsed")
 
     original = disagg_original_code
     new_codes = set(disagg_new_codes)
