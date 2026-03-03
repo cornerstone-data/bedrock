@@ -1,0 +1,121 @@
+name: generate_snapshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      config_name:
+        description: "USA config name (without .yaml extension)"
+        required: true
+        type: string
+        default: "v8_ceda_2025_usa"
+      adhoc:
+        description: "Upload to adhoc directory"
+        required: false
+        type: boolean
+        default: false
+      snapshot_prefix_override:
+        description: "Override snapshot prefix (optional)"
+        required: false
+        type: string
+        default: ""
+
+env:
+  FORCE_COLOR: 2
+
+jobs:
+  snapshot:
+    # Consider runner requirements for matrix operations
+    # Start with ubuntu-latest, may need custom runner if OOM occurs
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Generate snapshots
+        id: generate
+        run: |
+          uv run python bedrock/publish/snapshots/generate_snapshots.py \
+            --config_name "${{ github.event.inputs.config_name }}" \
+            ${{ github.event.inputs.adhoc && '--adhoc' || '' }} \
+            ${{ github.event.inputs.snapshot_prefix_override && format('--snapshot_prefix_override "{0}"', github.event.inputs.snapshot_prefix_override) || '' }}
+
+  notify_slack_failure:
+    needs: snapshot
+    runs-on: ubuntu-latest
+    if: always() && needs.snapshot.result == 'failure'
+
+    steps:
+      - name: Notify on Slack - failure
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "Bedrock Snapshot Generation Failure",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":warning: *Bedrock Snapshot Generation Failure*\nSnapshot generation failed on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}"
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+
+  notify_slack_success:
+    needs: snapshot
+    runs-on: ubuntu-latest
+    if: always() && needs.snapshot.result == 'success'
+
+    steps:
+      - name: Notify on Slack - success
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "Bedrock Snapshot Generation Success",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":white_check_mark: *Bedrock Snapshot Generation Success*\nSnapshots generated on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}\n*GCS Location:* `gs://cornerstone-default/snapshots/${{ github.sha }}/`"
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
