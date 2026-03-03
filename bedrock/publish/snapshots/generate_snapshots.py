@@ -37,7 +37,9 @@ def snapshot_dir() -> str:
 def snapshot_prefix() -> str:
     """Return git hash for snapshot versioning."""
     if not GIT_HASH_LONG:
-        raise RuntimeError("GIT_HASH_LONG is not set - cannot determine snapshot prefix")
+        raise RuntimeError(
+            "GIT_HASH_LONG is not set - cannot determine snapshot prefix"
+        )
     return GIT_HASH_LONG
 
 
