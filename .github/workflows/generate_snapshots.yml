@@ -1,9 +1,6 @@
 name: generate_snapshots
 
 on:
-  push:
-    branches:
-      - mo__generate_snapshots  # TODO: remove before merging
   workflow_dispatch:
     inputs:
       config_name:
