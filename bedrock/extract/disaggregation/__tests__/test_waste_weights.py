@@ -2,12 +2,13 @@ import pathlib
 from typing import cast
 
 import pandas as pd
+import pytest
 
 from bedrock.extract.disaggregation.waste_weights import (
     WasteDisaggCorrespondenceError,
     WasteDisaggWeightError,
     WasteDisaggWeights,
-    WasteWeightSeries,
+    WasteWeightTable,
     _apply_correspondence_to_series,
     load_waste_disagg_weights,
 )
@@ -15,23 +16,26 @@ from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
 
-def _make_series(index: list[str], values: list[float]) -> WasteWeightSeries:
-    return pd.Series(values, index=index, dtype=float)
+def _make_table(
+    index: list[str], columns: list[str], values: list[list[float]]
+) -> WasteWeightTable:
+    return pd.DataFrame(values, index=index, columns=columns, dtype=float)
 
 
 def test_waste_disagg_weights_construction() -> None:
     idx = ["562111", "562212"]
-    s = _make_series(idx, [0.5, 0.5])
-    empty: dict[str, WasteWeightSeries] = {}
+    # 2x2 table (industry x commodity), e.g. intersection
+    tbl = _make_table(idx, idx, [[0.5, 0.0], [0.0, 0.5]])
+    empty: dict[str, WasteWeightTable] = {}
     w = WasteDisaggWeights(
-        use_intersection=s,
-        use_waste_industry_columns_all_rows=s,
-        use_waste_commodity_rows_all_columns=s,
+        use_intersection=tbl.copy(),
+        use_waste_industry_columns_all_rows=tbl.copy(),
+        use_waste_commodity_rows_all_columns=tbl.copy(),
         use_waste_rows_specific_columns=empty,
-        use_va_rows_for_waste_industry_columns=s,
+        use_va_rows_for_waste_industry_columns=tbl.copy(),
         use_fd_columns_for_waste_commodity_rows=empty,
-        make_intersection=s,
-        make_waste_commodity_columns_all_rows=s,
+        make_intersection=tbl.copy(),
+        make_waste_commodity_columns_all_rows=tbl.copy(),
         make_waste_commodity_columns_specific_rows=empty,
         make_waste_industry_rows_specific_columns=empty,
         year=2017,
@@ -40,23 +44,24 @@ def test_waste_disagg_weights_construction() -> None:
     assert w.year == 2017
     assert w.source_name == "Test"
     assert list(w.use_intersection.index) == idx
+    assert list(w.use_intersection.columns) == idx
     assert w.use_waste_rows_specific_columns == {}
     assert w.make_waste_industry_rows_specific_columns == {}
 
 
 def test_waste_disagg_weights_required_fields() -> None:
     idx = ["562111"]
-    s = _make_series(idx, [1.0])
-    empty: dict[str, WasteWeightSeries] = {}
+    tbl = _make_table(idx, idx, [[1.0]])
+    empty: dict[str, WasteWeightTable] = {}
     w = WasteDisaggWeights(
-        use_intersection=s,
-        use_waste_industry_columns_all_rows=s,
-        use_waste_commodity_rows_all_columns=s,
+        use_intersection=tbl.copy(),
+        use_waste_industry_columns_all_rows=tbl.copy(),
+        use_waste_commodity_rows_all_columns=tbl.copy(),
         use_waste_rows_specific_columns=empty,
-        use_va_rows_for_waste_industry_columns=s,
+        use_va_rows_for_waste_industry_columns=tbl.copy(),
         use_fd_columns_for_waste_commodity_rows=empty,
-        make_intersection=s,
-        make_waste_commodity_columns_all_rows=s,
+        make_intersection=tbl.copy(),
+        make_waste_commodity_columns_all_rows=tbl.copy(),
         make_waste_commodity_columns_specific_rows=empty,
         make_waste_industry_rows_specific_columns=empty,
         year=2017,
@@ -145,10 +150,12 @@ def test_load_waste_disagg_weights_normalizes_slices(tmp_path: pathlib.Path) -> 
         naics_to_cornerstone=None,
     )
 
-    assert pytest.approx(float(weights.use_intersection.sum()), rel=1e-6) == 1.0
-    assert pytest.approx(float(weights.make_intersection.sum()), rel=1e-6) == 1.0
+    assert pytest.approx(float(weights.use_intersection.values.sum()), rel=1e-6) == 1.0
+    assert pytest.approx(float(weights.make_intersection.values.sum()), rel=1e-6) == 1.0
     assert all(code in weights.use_intersection.index for code in waste_sectors)
+    assert all(code in weights.use_intersection.columns for code in waste_sectors)
     assert all(code in weights.make_intersection.index for code in waste_sectors)
+    assert all(code in weights.make_intersection.columns for code in waste_sectors)
 
 
 @pytest.mark.eeio_integration
@@ -194,8 +201,9 @@ def test_load_waste_disagg_weights_missing_sectors_get_zero_weight(
         naics_to_cornerstone=None,
     )
 
-    assert weights.use_intersection.loc["562212"] == pytest.approx(0.0)
-    assert pytest.approx(float(weights.use_intersection.sum()), rel=1e-6) == 1.0
+    assert weights.use_intersection.loc["562212", :].sum() == pytest.approx(0.0)
+    assert weights.use_intersection.loc[:, "562212"].sum() == pytest.approx(0.0)
+    assert pytest.approx(float(weights.use_intersection.values.sum()), rel=1e-6) == 1.0
 
 
 @pytest.mark.eeio_integration
@@ -371,8 +379,12 @@ def test_load_waste_disagg_weights_integration_with_2017_files() -> None:
 
     assert weights.year == 2017
     assert weights.source_name == "WasteDisaggregationDetail2017"
-    assert pytest.approx(float(weights.use_intersection.sum()), rel=1e-6) == 1.0
-    assert pytest.approx(float(weights.make_intersection.sum()), rel=1e-6) == 1.0
+    assert pytest.approx(float(weights.use_intersection.values.sum()), rel=1e-6) == 1.0
+    assert pytest.approx(float(weights.make_intersection.values.sum()), rel=1e-6) == 1.0
     assert all(code in weights.use_intersection.index for code in waste_codes)
+    assert all(code in weights.use_intersection.columns for code in waste_codes)
     assert all(code in weights.make_intersection.index for code in waste_codes)
-    assert weights.make_intersection.loc["562111"] == pytest.approx(4.23e-01, rel=1e-3)
+    assert all(code in weights.make_intersection.columns for code in waste_codes)
+    assert weights.make_intersection.loc["562111", "562111"] == pytest.approx(
+        4.23e-01, rel=1e-3
+    )
