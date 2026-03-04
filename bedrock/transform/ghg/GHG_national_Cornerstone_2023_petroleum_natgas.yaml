@@ -11,7 +11,7 @@
       selection_fields:
         PrimaryActivity:
           - Distribution
-          - Post-Meter
+          - Post-Meter  # TODO: Consider attributing this to all sectors based on consumption of natural gas
           - Exploration
           - Processing
           - Production
