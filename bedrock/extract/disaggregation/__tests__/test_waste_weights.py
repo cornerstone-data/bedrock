@@ -846,8 +846,21 @@ class TestUseFDColumnsForWasteCommodityRows:
     ) -> None:
         """BEA aggregate codes must not appear — only Cornerstone FD codes are kept."""
         tbl = weights_2017.use_fd_columns_for_waste_commodity_rows
-        bea_codes = ("S00101", "S00102", "S00500", "S00600", "S00201", "S00202",
-                     "S00203", "GSLGE", "GSLGH", "GSLGO", "813100", "813A00", "813B00")
+        bea_codes = (
+            "S00101",
+            "S00102",
+            "S00500",
+            "S00600",
+            "S00201",
+            "S00202",
+            "S00203",
+            "GSLGE",
+            "GSLGH",
+            "GSLGO",
+            "813100",
+            "813A00",
+            "813B00",
+        )
         for code in bea_codes:
             assert code not in tbl.index, f"BEA code {code} should not be in FD table"
 
