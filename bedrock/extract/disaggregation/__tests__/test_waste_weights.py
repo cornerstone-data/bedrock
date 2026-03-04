@@ -600,6 +600,7 @@ def weights_2017() -> WasteDisaggWeights:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 def _check_ratios(
     tbl: "WasteWeightTable",
     raw: dict[tuple[str, str], float],
@@ -629,6 +630,7 @@ def _check_ratios(
         ), f"{label}: ({row},{col}) expected {expected_scaled:.6e} got {got:.6e}"
 
 
+@pytest.mark.eeio_integration
 def _check_row_ratios(
     tbl: "WasteWeightTable",
     raw: dict[tuple[str, str], float],
@@ -663,6 +665,7 @@ def _check_row_ratios(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 class TestMakeIntersection:
     """make_intersection — diagonal entries from 'Make table intersection' rows."""
 
@@ -689,6 +692,7 @@ class TestMakeIntersection:
                     ), f"make_intersection off-diagonal ({r},{c}) should be 0"
 
 
+@pytest.mark.eeio_integration
 class TestMakeWasteCommodityColumnsAllRows:
     """make_waste_commodity_columns_all_rows = default (e.g. 562000); specific rows in make_waste_commodity_columns_specific_rows."""
 
@@ -718,6 +722,7 @@ class TestMakeWasteCommodityColumnsAllRows:
         )
 
 
+@pytest.mark.eeio_integration
 class TestMakeWasteIndustryRowsSpecificColumns:
     """make_waste_industry_rows_specific_columns — from 'industry disaggregation' rows in Make.
     Index = non-waste commodity codes; columns = waste industry subsectors.
@@ -741,6 +746,7 @@ class TestMakeWasteIndustryRowsSpecificColumns:
         )
 
 
+@pytest.mark.eeio_integration
 class TestUseIntersection:
     """use_intersection — from 'Use table intersection' rows."""
 
@@ -758,6 +764,7 @@ class TestUseIntersection:
         )
 
 
+@pytest.mark.eeio_integration
 class TestUseWasteIndustryColumnsAllRows:
     """use_waste_industry_columns_all_rows — from Use column-sum rows (IndustryCode=waste, CommodityCode=562000).
     Index = CommodityCode (562000); columns = waste industry subsectors; each row sums to 1.
@@ -781,6 +788,7 @@ class TestUseWasteIndustryColumnsAllRows:
         )
 
 
+@pytest.mark.eeio_integration
 class TestUseWasteCommodityRowsAllColumns:
     """use_waste_commodity_rows_all_columns — from Use row-sum rows (IndustryCode=562000, CommodityCode=waste).
     Index = IndustryCode (562000); columns = waste commodity subsectors; each row sums to 1.
@@ -803,6 +811,7 @@ class TestUseWasteCommodityRowsAllColumns:
         )
 
 
+@pytest.mark.eeio_integration
 class TestUseVARowsForWasteIndustryColumns:
     """use_va_rows_for_waste_industry_columns — from VA disaggregation rows in Use CSV.
     Index = VA row code (V00100 / V00200 / V00300); columns = waste industry subsectors.
@@ -841,6 +850,7 @@ class TestUseVARowsForWasteIndustryColumns:
             ), f"VA row {va_row} differs from V00100"
 
 
+@pytest.mark.eeio_integration
 class TestUseFDColumnsForWasteCommodityRows:
     """use_fd_columns_for_waste_commodity_rows — rows from Use CSV whose IndustryCode is a
     Cornerstone FD code (from final_demand.py).  BEA aggregate codes (S00101, S00201,
