@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
-from typing import IO, TYPE_CHECKING, cast
+from typing import IO, TYPE_CHECKING, Literal, cast
 
 import pandas as pd
 
@@ -12,6 +12,11 @@ try:
     from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 except ImportError:
     VALUE_ADDEDS = []
+
+try:
+    from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
+except ImportError:
+    FINAL_DEMANDS = []
 
 if TYPE_CHECKING:
     from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
@@ -154,7 +159,7 @@ def _pivot_and_align(
         return pd.DataFrame(0.0, index=index_codes, columns=column_codes, dtype=float)
     pivoted = df.pivot_table(
         index=index_col, columns=columns_col, values=value_col, aggfunc="sum"
-    )
+    ).fillna(0.0)
     return pivoted.reindex(
         index=index_codes, columns=column_codes, fill_value=0.0
     ).astype(float)
@@ -185,7 +190,7 @@ def _build_specific_rows_table(
     if not rows:
         return pd.DataFrame(columns=col_subsectors, dtype=float)
     out = pd.concat(rows, axis=0)
-    out.index = index_vals
+    out.index = pd.Index(index_vals)
     return out.astype(float)
 
 
@@ -196,7 +201,7 @@ def _normalize_table(
     slice_name: str,
     index_codes: list[str] | None = None,
     column_codes: list[str] | None = None,
-    axis: int | None = 1,
+    axis: Literal[0, 1] | None = 1,
 ) -> WasteWeightTable:
     """Normalize a weight table. axis=1: each row sums to 1; axis=None: whole table sums to 1.
     If index_codes/column_codes are given, reindex to those; otherwise keep existing index/columns.
@@ -217,20 +222,22 @@ def _normalize_table(
     out = out.astype(float)
 
     if axis is None:
-        total = float(out.sum().sum())
-        if total <= 0.0:
+        total_scalar = float(out.sum().sum())
+        if total_scalar <= 0.0:
             raise WasteDisaggWeightError(
                 f"All-zero weights for table={table}, slice={slice_name}"
             )
-        return (out / total).astype(float)
-    total = out.sum(axis=axis)
-    if (total <= 0).any():
+        return (out / total_scalar).astype(float)
+
+    # axis is 0 or 1 here, so sum returns a Series
+    total_series = out.sum(axis=axis)
+    if (total_series <= 0).any():
         raise WasteDisaggWeightError(
             f"All-zero weights for table={table}, slice={slice_name}"
         )
     if axis == 1:
-        return (out.div(total, axis=0)).astype(float)
-    return (out.div(total, axis=1)).astype(float)
+        return (out.div(total_series, axis=0)).astype(float)
+    return (out.div(total_series, axis=1)).astype(float)
 
 
 def load_waste_disagg_weights(
@@ -275,7 +282,13 @@ def load_waste_disagg_weights(
         & (~make_df["CommodityCode"].isin({original} | new_codes))
     ]
 
-    fd_cols: set[str] = set()
+    fd_cols: set[str] = set(
+        use_df.loc[
+            use_df["CommodityCode"].isin(new_codes)
+            & use_df["IndustryCode"].isin(set(FINAL_DEMANDS)),
+            "IndustryCode",
+        ].unique()
+    )
 
     use_intersection_df = use_df[
         use_df["IndustryCode"].isin(new_codes) & use_df["CommodityCode"].isin(new_codes)
@@ -463,14 +476,14 @@ def load_waste_disagg_weights(
             .to_frame()
             .T.reindex(columns=waste_sectors, fill_value=0.0)
         )
-        row.index = [fd_col]
+        row.index = pd.Index([fd_col])
         fd_rows.append(row)
         fd_index.append(fd_col)
     if fd_rows:
         use_fd_columns_for_waste_commodity_rows = pd.concat(fd_rows, axis=0).astype(
             float
         )
-        use_fd_columns_for_waste_commodity_rows.index = fd_index
+        use_fd_columns_for_waste_commodity_rows.index = pd.Index(fd_index)
     else:
         use_fd_columns_for_waste_commodity_rows = pd.DataFrame(
             columns=waste_sectors, dtype=float
@@ -606,69 +619,43 @@ def weights_to_csv(weights: WasteDisaggWeights, file: IO[str] | None = None) -> 
 
 # %%
 if __name__ == "__main__":
-    import pathlib
-    from dataclasses import dataclass
-    from typing import IO, TYPE_CHECKING, cast
-
-    import pandas as pd
-
-    from bedrock.extract.disaggregation.waste_weights import load_waste_disagg_weights
     from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
     from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
-    from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 
-try:
-    from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
-except ImportError:
-    VALUE_ADDEDS = []
-
-if TYPE_CHECKING:
-    from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
-
-    WasteWeightSeries = pd.Series[float]
-    WasteWeightTable = pd.DataFrame
-else:
-    WasteWeightSeries = pd.Series
-    WasteWeightTable = pd.DataFrame
-
-    data_dir = pathlib.Path(__file__).resolve().parent
-    use_path = data_dir / "WasteDisaggregationDetail2017_Use.csv"
-    make_path = data_dir / "WasteDisaggregationDetail2017_Make.csv"
-
-    cfg = EEIOWasteDisaggConfig(
-        use_weights_file=str(use_path),
-        make_weights_file=str(make_path),
+    _data_dir = pathlib.Path(__file__).resolve().parent
+    _cfg = EEIOWasteDisaggConfig(
+        use_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Use.csv"),
+        make_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Make.csv"),
         year=2017,
         source_name="WasteDisaggregationDetail2017",
     )
-    weights = load_waste_disagg_weights(
-        cfg,
+    _weights = load_waste_disagg_weights(
+        _cfg,
         disagg_original_code="562000",
         disagg_new_codes=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
         waste_sectors=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
         naics_to_cornerstone=None,
     )
-    # weights_to_csv(weights, 'weight.csv')
 
     print("use_intersection")
-    print(weights.use_intersection)
+    print(_weights.use_intersection)
     print("\nuse_waste_industry_columns_all_rows")
-    print(weights.use_waste_industry_columns_all_rows)
+    print(_weights.use_waste_industry_columns_all_rows)
     print("\nuse_waste_commodity_rows_all_columns")
-    print(weights.use_waste_commodity_rows_all_columns)
+    print(_weights.use_waste_commodity_rows_all_columns)
     print("\nuse_waste_rows_specific_columns")
-    print(weights.use_waste_rows_specific_columns)
+    print(_weights.use_waste_rows_specific_columns)
     print("\nuse_va_rows_for_waste_industry_columns")
-    print(weights.use_va_rows_for_waste_industry_columns)
+    print(_weights.use_va_rows_for_waste_industry_columns)
     print("\nuse_fd_columns_for_waste_commodity_rows")
-    print(weights.use_fd_columns_for_waste_commodity_rows)
+    print(_weights.use_fd_columns_for_waste_commodity_rows)
     print("\nmake_intersection")
-    print(weights.make_intersection)
+    print(_weights.make_intersection)
     print("\nmake_waste_commodity_columns_all_rows")
-    print(weights.make_waste_commodity_columns_all_rows)
+    print(_weights.make_waste_commodity_columns_all_rows)
     print("\nmake_waste_commodity_columns_specific_rows")
-    print(weights.make_waste_commodity_columns_specific_rows)
+    print(_weights.make_waste_commodity_columns_specific_rows)
     print("\nmake_waste_industry_rows_specific_columns")
-    print(weights.make_waste_industry_rows_specific_columns)
+    print(_weights.make_waste_industry_rows_specific_columns)
 
 # %%
