@@ -10,6 +10,7 @@ from bedrock.extract.disaggregation.waste_weights import (
     WasteDisaggWeights,
     WasteWeightTable,
     _apply_correspondence_to_series,
+    _empty_weight_table,
     load_waste_disagg_weights,
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
@@ -26,18 +27,18 @@ def test_waste_disagg_weights_construction() -> None:
     idx = ["562111", "562212"]
     # 2x2 table (industry x commodity), e.g. intersection
     tbl = _make_table(idx, idx, [[0.5, 0.0], [0.0, 0.5]])
-    empty: dict[str, WasteWeightTable] = {}
+    empty_tbl = _empty_weight_table()
     w = WasteDisaggWeights(
         use_intersection=tbl.copy(),
         use_waste_industry_columns_all_rows=tbl.copy(),
         use_waste_commodity_rows_all_columns=tbl.copy(),
-        use_waste_rows_specific_columns=empty,
+        use_waste_rows_specific_columns=empty_tbl,
         use_va_rows_for_waste_industry_columns=tbl.copy(),
-        use_fd_columns_for_waste_commodity_rows=empty,
+        use_fd_columns_for_waste_commodity_rows=empty_tbl,
         make_intersection=tbl.copy(),
         make_waste_commodity_columns_all_rows=tbl.copy(),
-        make_waste_commodity_columns_specific_rows=empty,
-        make_waste_industry_rows_specific_columns=empty,
+        make_waste_commodity_columns_specific_rows=empty_tbl,
+        make_waste_industry_rows_specific_columns=empty_tbl,
         year=2017,
         source_name="Test",
     )
@@ -45,25 +46,25 @@ def test_waste_disagg_weights_construction() -> None:
     assert w.source_name == "Test"
     assert list(w.use_intersection.index) == idx
     assert list(w.use_intersection.columns) == idx
-    assert w.use_waste_rows_specific_columns == {}
-    assert w.make_waste_industry_rows_specific_columns == {}
+    assert w.use_waste_rows_specific_columns.empty
+    assert w.make_waste_industry_rows_specific_columns.empty
 
 
 def test_waste_disagg_weights_required_fields() -> None:
     idx = ["562111"]
     tbl = _make_table(idx, idx, [[1.0]])
-    empty: dict[str, WasteWeightTable] = {}
+    empty_tbl = _empty_weight_table()
     w = WasteDisaggWeights(
         use_intersection=tbl.copy(),
         use_waste_industry_columns_all_rows=tbl.copy(),
         use_waste_commodity_rows_all_columns=tbl.copy(),
-        use_waste_rows_specific_columns=empty,
+        use_waste_rows_specific_columns=empty_tbl,
         use_va_rows_for_waste_industry_columns=tbl.copy(),
-        use_fd_columns_for_waste_commodity_rows=empty,
+        use_fd_columns_for_waste_commodity_rows=empty_tbl,
         make_intersection=tbl.copy(),
         make_waste_commodity_columns_all_rows=tbl.copy(),
-        make_waste_commodity_columns_specific_rows=empty,
-        make_waste_industry_rows_specific_columns=empty,
+        make_waste_commodity_columns_specific_rows=empty_tbl,
+        make_waste_industry_rows_specific_columns=empty_tbl,
         year=2017,
         source_name="WasteDisaggregationDetail2017",
     )
