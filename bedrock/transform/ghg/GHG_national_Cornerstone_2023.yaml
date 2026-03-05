@@ -221,48 +221,35 @@ source_names:
 ## Fossil Fuels
   EPA_GHGI_T_3_64: &natgas #CH4 from Natural Gas Systems
     year: *ghgi_year
-    activity_to_sector_mapping: EPA_GHGI_CEDA
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-        - Distribution  # same as flowsa
-#        - Post-Meter  # included in flowsa, not in ceda
-#        - Exploration  # included in flowsa, not in ceda
-        - Processing  # same as flowsa
-        - Production  # same as flowsa
-        - Transmission and Storage  # same as flowsa
+        - Distribution
+        - Post-Meter  # TODO: Consider attributing this to all sectors based on consumption of natural gas
+        - Exploration
+        - Processing
+        - Production
+        - Transmission and Storage
     attribution_method: direct
-  EPA_GHGI_T_3_66: *natgas #CO2 from Natural Gas Systems mimics CH4 - same as flowsa, with exception of diff activities as noted above
-#  EPA_GHGI_T_3_68: *natgas #N2O from Natural Gas Systems, not used in original method, mimics CH4 - included in flowsa, not in ceda
+  EPA_GHGI_T_3_66: *natgas # CO2 from Natural Gas Systems mimics CH4
+  EPA_GHGI_T_3_68: *natgas # N2O from Natural Gas Systems mimics CH4
 
-# CEDA assigns all emissions to oil extraction (aka production)
   EPA_GHGI_T_3_45: &petroleum #CH4 from Petroleum Systems
     year: *ghgi_year
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-        - Crude Oil Transportation: Production
-        - Transportation: Production
-        - Exploration: Production
+        - Crude Oil Transportation
+        - Transportation
+        - Exploration
         - Production
-        - Refining: Production
-        - Crude Refining: Production
+        - Refining
+        - Crude Refining
     attribution_method: direct
-#  EPA_GHGI_T_3_49: *petroleum #N2O from Petroleum Systems, not in CEDA
-
-  EPA_GHGI_T_3_47:  #CO2 from Petroleum Systems, does NOT mimic CH4 like in flowsa - same table as flowsa
-    year: *ghgi_year
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    fedefl_mapping: GHGI_AR5_100
-    selection_fields:
-      PrimaryActivity:
-#        - Crude Oil Transportation - only in flowsa
-#        - Transportation - only in flowsa
-        - Exploration # - same as flowsa
-        - Production # - same as flowsa
-#        - Refining - only in flowsa
-        - Crude Refining # - same as flowsa
-    attribution_method: direct
+  EPA_GHGI_T_3_47: *petroleum # CO2 from Petroleum Systems mimics CH4
+  EPA_GHGI_T_3_49: *petroleum # N2O from Petroleum Systems mimics CH4
 
 ## Agriculture
   # note - field burning is allocated differently in flowsa. ch4 emissions are pulled from 5_29 and directly attributed.
