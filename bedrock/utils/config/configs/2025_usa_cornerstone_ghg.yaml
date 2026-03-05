@@ -1,0 +1,8 @@
+# Use Cornerstone 2023 GHG FBS - updated CEDA 2023 GHG FBS method.
+# Pipeline loads E from flowsa.
+
+#####
+# Methodology selection
+#####
+load_E_from_flowsa: true
+new_ghg_method: true
