@@ -1,12 +1,26 @@
 # CEDA 2023 with updates to mobile combustion (T_3_13, T_3_14, T_3_15)
 #
-# Adds missing activity sets for CH4 and N2O
+# Adds missing activity sets for CH4 and N2O,
+# (CO2) Splits attribution between direct assignment and proportional using use table 
 # uses EPA_GHGI_Cornerstone_mobile_combustion mapping.
 # Base method unchanged; only these three source_names are overridden/added.
 
 !include:GHG_national_CEDA_2023.yaml
-  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
 
+_attribution_sources:
+  BEA: &bea # 2017 Make and Use tables
+    year: 2017
+    activity_to_sector_mapping: Cornerstone_2025
+    exclusion_fields:
+      # Drop irrelevant final demand and total sectors
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
+                           'T001', 'T004', 'T007', 'T019']
+      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                           'MCIF']
+    attribution_method: equal
+
+source_names: !include:GHG_national_CEDA_2023.yaml:source_names
 ### Mobile Sources
       EPA_GHGI_T_3_13: #CO2 from mobile combustion
         year: 2023  # same as *ghgi_year in base method
@@ -44,47 +58,51 @@
               PrimaryActivity:
                 Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks # Moved to new activity set
                 Buses Natural Gas: Buses # Split out to buses instead of pipelines
-                Pipeline Natural Gas
+                Pipeline Natural Gas: Pipeline Natural Gas
+            attribution_method: direct
+
+          direct_diesel:
+            selection_fields:
+              PrimaryActivity:
+                Rail Distillate Fuel Oil: Rail
+                Recreational Boats Distillate Fuel Oil: Recreational Boats
+                Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
+            attribution_method: direct
+
+          direct_gasoline:
+            selection_fields:
+              PrimaryActivity:
+                Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
+                Buses Gasoline: Buses
+                Motorcycles Gasoline: Motorcycles
+                Recreational Boats Gasoline: Recreational Boats
             attribution_method: direct
 
           petroleum_fuels_diesel:
             selection_fields:
-              PrimaryActivity: # lump all data together before allocating
-                # These should be direct
-                Rail Distillate Fuel Oil: All Transport - Diesel
-                Recreational Boats Distillate Fuel Oil: All Transport - Diesel
-                Ships and Non-Recreational Boats Distillate Fuel Oil: All Transport - Diesel
-                # These should be proportional
-                Medium- and Heavy-Duty Trucks Distillate Fuel Oil: All Transport - Diesel
-                Buses Distillate Fuel Oil: All Transport - Diesel
-                Passenger Cars Distillate Fuel Oil: All Transport - Diesel
-                Light-Duty Trucks Distillate Fuel Oil: All Transport - Diesel
+              PrimaryActivity:
+                Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+                Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
+                Passenger Cars Distillate Fuel Oil: Passenger Cars
+                Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks
             attribution_method: proportional
             attribution_source:
-              BEA_CEDA_transport_allocation:
-                activity_to_sector_mapping: CEDA_2025
-                year: 2023
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
                 selection_fields:
-                  FlowName: Distillate Fuel Oil
+                  ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
           petroleum_fuels_gasoline:
             selection_fields:
-              PrimaryActivity: # lump all data together before allocating
-                # These should be direct
-                Medium- and Heavy-Duty Trucks Gasoline: All Transport - Gasoline
-                Buses Gasoline: All Transport - Gasoline
-                Motorcycles Gasoline: All Transport - Gasoline
-                Recreational Boats Gasoline: All Transport - Gasoline
-                # These should be proportional
-                Passenger Cars Gasoline: All Transport - Gasoline
-                Light-Duty Trucks Gasoline: All Transport - Gasoline
+              PrimaryActivity:
+                Passenger Cars Gasoline: Passenger Cars
+                Light-Duty Trucks Gasoline: Light-Duty Trucks
             attribution_method: proportional
             attribution_source:
-              BEA_CEDA_transport_allocation:
-                activity_to_sector_mapping: CEDA_2025
-                year: 2023
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
                 selection_fields:
-                  FlowName: Motor Gasoline
+                  ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
       EPA_GHGI_T_3_14: &mobile #CH4 from mobile combustion
         year: 2023  # same as *ghgi_year in base method
@@ -177,4 +195,4 @@
                 selection_fields:
                   ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
-    EPA_GHGI_T_3_15: *mobile #N2O from mobile combustion duplicates method for CH4
+      EPA_GHGI_T_3_15: *mobile #N2O from mobile combustion duplicates method for CH4
