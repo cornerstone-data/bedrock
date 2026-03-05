@@ -1,0 +1,8 @@
+# Use Cornerstone 2023 FBS with new activities method.
+# Requires load_E_from_flowsa and add_new_ghg_activities so the pipeline loads E from flowsa with the new_activities method.
+
+#####
+# Methodology selection
+#####
+load_E_from_flowsa: true
+add_new_ghg_activities: true
