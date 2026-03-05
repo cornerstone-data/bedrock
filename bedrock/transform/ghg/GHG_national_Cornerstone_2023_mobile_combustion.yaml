@@ -13,17 +13,23 @@
         activity_to_sector_mapping: EPA_GHGI_Cornerstone_mobile_combustion
         fedefl_mapping: GHGI_AR5_100
         activity_sets:
-          direct_petroleum:
+          direct_residual_fuel_oil:
+            selection_fields:
+              PrimaryActivity:
+                Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
+            attribution_method: direct
+
+          # new activity set for more transparency
+          direct_lpg:
             selection_fields:
               PrimaryActivity:
                 Buses LPG: Buses
-                Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
                 Medium- and Heavy-Duty Trucks LPG: Medium- and Heavy-Duty Trucks
-                Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks
                 Light-Duty Trucks LPG: Light-Duty Trucks - Households
                 Passenger Cars LPG: Passenger Cars - Households
             attribution_method: direct
 
+          # No change for this activity set (this is a newly split out activity set)
           direct_jet:
             selection_fields:
               PrimaryActivity:
@@ -36,8 +42,9 @@
           direct_ng:
             selection_fields:
               PrimaryActivity:
-                Buses Natural Gas: Pipeline Natural Gas # all natural gas allocated to pipelines in CEDA
-                Pipeline Natural Gas: Pipeline Natural Gas
+                Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks # Moved to new activity set
+                Buses Natural Gas: Buses # Split out to buses instead of pipelines
+                Pipeline Natural Gas
             attribution_method: direct
 
           petroleum_fuels_diesel:
@@ -84,6 +91,7 @@
         activity_to_sector_mapping: EPA_GHGI_Cornerstone_mobile_combustion
         fedefl_mapping: GHGI_AR5_100
         activity_sets: 
+          # TODO: review these activity mappings align with CO2
           direct_gasoline: # empty in some years (<0.05 MMT CO2eq)
             selection_fields:
               PrimaryActivity:
@@ -91,6 +99,7 @@
                 Medium- and Heavy-Duty Trucks and Buses Gasoline On-Road: Medium- and Heavy-Duty Trucks and Buses
             attribution_method: direct
 
+          # No change to this activity set
           direct_non_road:
             selection_fields:
               PrimaryActivity:
@@ -100,6 +109,7 @@
             attribution_method: direct
 
           # New activity set (missing from CEDA for CH4)
+          # TODO: review these activity mappings align with CO2
           petroleum_fuels_diesel:
             selection_fields:
               PrimaryActivity:
@@ -109,6 +119,7 @@
                 Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
             attribution_method: direct
 
+          # TODO: review these activity mappings align with CO2
           petroleum_fuels_gasoline:
             selection_fields:
               PrimaryActivity:
@@ -121,32 +132,35 @@
             #     selection_fields:
             #       ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
+          # No change to this activity set
           construction_and_mining: #this set is allocated by purchases of construction equipment
             selection_fields:
               PrimaryActivity: Construction/Mining Equipment Non-Road
             attribution_method: proportional
             attribution_source:
-              BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+              BEA_Detail_Use_AfterRedef:
                 <<: *bea
                 selection_fields:
                   ActivityProducedBy: {'333120': ''} # purchases of construction/mining equipment
 
+          # No change to this activity set
           farm_non_road: #this set is allocated by purchases of farm machinery
             selection_fields:
               PrimaryActivity: Agricultural Equipment Non-Road
             attribution_method: proportional
             attribution_source:
-              BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+              BEA_Detail_Use_AfterRedef:
                 <<: *bea
                 selection_fields:
                   ActivityProducedBy: {'333111': ''} # purchases of farm machinery
 
+          # No change to this activity set
           other_non_road: #this set is allocated by purchases of petroleum refining
             selection_fields:
               PrimaryActivity: Other Non-Road
             attribution_method: proportional
             attribution_source:
-              BEA_Detail_Use_AfterRedef: # flowsa uses BEA_SUT
+              BEA_Detail_Use_AfterRedef:
                 <<: *bea
                 selection_fields:
                   ActivityProducedBy: {'324110': ''} # purchases of refinery products
@@ -158,7 +172,7 @@
                 All activities Alternative Fuel On-Road: Alternative Fuel On-Road
             attribution_method: proportional
             attribution_source:
-              BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+              BEA_Detail_Use_AfterRedef:
                 <<: *bea
                 selection_fields:
                   ActivityProducedBy: {'221200': ''} # purchases of natural gas
