@@ -191,10 +191,14 @@ def generate_snapshots(
     # Generate ytot_USA and exports_USA
     t0 = time.time()
     logger.info('Generating ytot_USA and exports_USA snapshots')
-    y_and_trade_set = derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection()
+    y_and_trade_set = (
+        derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection()
+    )
     write_snapshot(y_and_trade_set.ytot, 'ytot_USA')
     write_snapshot(y_and_trade_set.exports, 'exports_USA')
-    logger.info(f'[TIMING] ytot_USA and exports_USA completed in {time.time() - t0:.1f}s')
+    logger.info(
+        f'[TIMING] ytot_USA and exports_USA completed in {time.time() - t0:.1f}s'
+    )
 
     # Generate ydom_USA and yimp_USA
     t0 = time.time()
