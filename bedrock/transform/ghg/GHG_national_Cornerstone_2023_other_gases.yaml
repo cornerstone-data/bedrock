@@ -1,0 +1,4 @@
+# CEDA 2023 with updated method for calling on and attributing data associated with "other gases"
+
+!include:GHG_national_CEDA_2023.yaml
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
