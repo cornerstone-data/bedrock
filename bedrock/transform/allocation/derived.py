@@ -127,6 +127,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     """Load E_usa (GHG × CEDA v7 sectors) from the CEDA FBS.
 
     FBS method is chosen by USA config (first match wins):
+    - GHG_national_Cornerstone_2023_coa_allocation when update_ghg_coa_allocation is True
     - GHG_national_Cornerstone_2023_petroleum_natgas when
       update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems is True
     - GHG_national_Cornerstone_2023_hybrid_bea_naics_schema when
@@ -136,7 +137,9 @@ def load_E_from_flowsa() -> pd.DataFrame:
     Only used when load_E_from_flowsa is True in USA config.
     """
     usa = get_usa_config()
-    if (
+    if usa.update_ghg_coa_allocation:
+        methodname = 'GHG_national_Cornerstone_2023_coa_allocation'
+    elif (
         usa.update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems
     ):
         methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
