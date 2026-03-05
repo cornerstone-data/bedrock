@@ -1,0 +1,11 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes,Table
+EPA_GHGI_Cornerstone_petroleum_natgas,Exploration,NAICS_2017_Code,213112,,211000,"natural gas, petroleum"
+EPA_GHGI_Cornerstone_petroleum_natgas,Production,NAICS_2017_Code,211130,,211000,"natural gas, petroleum"
+EPA_GHGI_Cornerstone_petroleum_natgas,Crude Oil Transportation,NAICS_2017_Code,486110,,not mapped,petroleum
+EPA_GHGI_Cornerstone_petroleum_natgas,Transportation,NAICS_2017_Code,486110,,not mapped,petroleum
+EPA_GHGI_Cornerstone_petroleum_natgas,Refining,NAICS_2017_Code,324110,,324110,petroleum
+EPA_GHGI_Cornerstone_petroleum_natgas,Crude Refining,NAICS_2017_Code,324110,,324110,petroleum
+EPA_GHGI_Cornerstone_petroleum_natgas,Distribution,NAICS_2017_Code,221210,,221200,natural gas
+EPA_GHGI_Cornerstone_petroleum_natgas,Post-Meter,NAICS_2017_Code,221210,,,natural gas
+EPA_GHGI_Cornerstone_petroleum_natgas,Processing,NAICS_2017_Code,211130,,211000,natural gas
+EPA_GHGI_Cornerstone_petroleum_natgas,Transmission and Storage,NAICS_2017_Code,486210,,486000,natural gas
