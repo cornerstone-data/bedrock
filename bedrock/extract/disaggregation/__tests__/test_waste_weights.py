@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 from bedrock.extract.disaggregation.waste_weights import (
     WasteDisaggWeights,
@@ -7,12 +6,10 @@ from bedrock.extract.disaggregation.waste_weights import (
 )
 
 
-@pytest.mark.eeio_integration
 def _make_series(index: list[str], values: list[float]) -> WasteWeightSeries:
     return pd.Series(values, index=index, dtype=float)
 
 
-@pytest.mark.eeio_integration
 def test_waste_disagg_weights_construction() -> None:
     """Testing the construction of WasteDisaggWeights object that
     contains the weights used for the waste disaggregation
@@ -41,7 +38,6 @@ def test_waste_disagg_weights_construction() -> None:
     assert w.make_waste_industry_rows_specific_columns == {}
 
 
-@pytest.mark.eeio_integration
 def test_waste_disagg_weights_required_fields() -> None:
     """Testing that the WasteDisaggWeights objects have the
     required fields for use in the waste disaggregation process
