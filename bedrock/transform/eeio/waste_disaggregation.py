@@ -2,9 +2,37 @@ from __future__ import annotations
 
 from typing import cast
 
+import numpy as np
 import pandas as pd
 
 from bedrock.extract.disaggregation.waste_weights import WasteDisaggWeights
+
+
+def _assert_non_waste_unchanged(
+    input_df: pd.DataFrame,
+    result_df: pd.DataFrame,
+    waste_set: set[str],
+    original_code: str,
+) -> None:
+    """Assert that cells with row/col not in waste_set and not original_code are unchanged."""
+    waste_and_orig = waste_set | {original_code}
+    common_idx = [
+        i for i in result_df.index if i in input_df.index and i not in waste_and_orig
+    ]
+    common_cols = [
+        j
+        for j in result_df.columns
+        if j in input_df.columns and j not in waste_and_orig
+    ]
+    if not common_idx or not common_cols:
+        return
+    np.testing.assert_allclose(
+        result_df.loc[common_idx, common_cols].values,
+        input_df.loc[common_idx, common_cols].values,
+        rtol=1e-9,
+        atol=1e-12,
+        err_msg="Non-waste values changed",
+    )
 
 
 def _waste_codes(weights: WasteDisaggWeights) -> list[str]:
@@ -82,7 +110,10 @@ def apply_waste_disagg_to_V(
         if not waste_set.issubset(V.index) or not waste_set.issubset(V.columns):
             return V
         V_aggregated = _aggregate_waste_sector_in_V(V, waste_codes, original_code)
-        return apply_waste_disagg_to_V(V_aggregated, weights, original_code)
+        result = apply_waste_disagg_to_V(V_aggregated, weights, original_code)
+        out_reindexed = result.reindex(index=V.index, columns=V.columns, fill_value=0.0)
+        _assert_non_waste_unchanged(V, out_reindexed, waste_set, original_code)
+        return out_reindexed
 
     out = V.copy()
 
@@ -144,6 +175,7 @@ def apply_waste_disagg_to_V(
     # --- Remove the original aggregate row and column ---
     out = out.drop(index=original_code, columns=original_code)
 
+    _assert_non_waste_unchanged(V, out, waste_set, original_code)
     return out
 
 
@@ -269,14 +301,26 @@ def apply_waste_disagg_to_U(
 
     results: list[pd.DataFrame] = []
     for U in (Udom, Uimp):
+        U_orig = U
         if original_code not in U.index or original_code not in U.columns:
             if waste_set.issubset(U.index) and waste_set.issubset(U.columns):
                 U = _aggregate_waste_sector_in_U(U, waste_codes, original_code)
             else:
                 results.append(U)
                 continue
-        results.append(_apply_waste_disagg_to_U_single(U, weights, original_code))
+        result = _apply_waste_disagg_to_U_single(U, weights, original_code)
+        if original_code in U_orig.index:
+            desired_index = U_orig.index.drop(original_code)
+            desired_columns = U_orig.columns.drop(original_code)
+        else:
+            desired_index = U_orig.index
+            desired_columns = U_orig.columns
+        results.append(
+            result.reindex(index=desired_index, columns=desired_columns, fill_value=0.0)
+        )
 
+    _assert_non_waste_unchanged(Udom, results[0], waste_set, original_code)
+    _assert_non_waste_unchanged(Uimp, results[1], waste_set, original_code)
     return results[0], results[1]
 
 
@@ -312,6 +356,14 @@ def apply_waste_disagg_to_VA(
     """
     waste_codes = _waste_codes(weights)
     waste_set = set(waste_codes)
+    va_orig = va
+    desired_index = va.index
+    if original_code in va.columns:
+        desired_columns = [c for c in va.columns if c != original_code] + list(
+            waste_codes
+        )
+    else:
+        desired_columns = list(va.columns)
 
     if original_code not in va.columns:
         if waste_set.issubset(va.columns):
@@ -340,7 +392,11 @@ def apply_waste_disagg_to_VA(
             out.loc[va_row, ind] = orig_val * w
 
     out = out.drop(columns=original_code)
-    return out
+    out_reindexed = out.reindex(
+        index=desired_index, columns=desired_columns, fill_value=0.0
+    )
+    _assert_non_waste_unchanged(va_orig, out_reindexed, waste_set, original_code)
+    return out_reindexed
 
 
 def _aggregate_waste_sector_in_Ytot(
@@ -377,6 +433,14 @@ def apply_waste_disagg_to_Ytot(
     """
     waste_codes = _waste_codes(weights)
     waste_set = set(waste_codes)
+    Ytot_orig = Ytot
+    if original_code in Ytot.index:
+        desired_index = [i for i in Ytot.index if i != original_code] + list(
+            waste_codes
+        )
+    else:
+        desired_index = list(Ytot.index)
+    desired_columns = Ytot.columns
 
     if original_code not in Ytot.index:
         if waste_set.issubset(Ytot.index):
@@ -406,4 +470,8 @@ def apply_waste_disagg_to_Ytot(
             out.loc[com, fd_col] = orig_val * w
 
     out = out.drop(index=original_code)
-    return out
+    out_reindexed = out.reindex(
+        index=desired_index, columns=desired_columns, fill_value=0.0
+    )
+    _assert_non_waste_unchanged(Ytot_orig, out_reindexed, waste_set, original_code)
+    return out_reindexed
