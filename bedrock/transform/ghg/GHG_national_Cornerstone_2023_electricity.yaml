@@ -9,11 +9,11 @@
       activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
       fedefl_mapping: GHGI_AR5_100
       activity_sets:
-      electric_power:
-        selection_fields:
-          PrimaryActivity:
-            Electric Power Sector: Electric Power #CO2
-        attribution_method: direct
+        electric_power:
+          selection_fields:
+            PrimaryActivity:
+              Electric Power Sector: Electric Power #CO2
+          attribution_method: direct
 
     EPA_GHGI_T_3_8:  &stationary_combustion  # CH4 emissions from stationary combustion
       year: 2023
