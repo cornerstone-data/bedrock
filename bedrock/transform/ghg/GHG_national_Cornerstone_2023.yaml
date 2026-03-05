@@ -14,7 +14,7 @@ _attribution_sources:
 
   BEA: &bea # 2017 Make and Use tables
     year: 2017
-    activity_to_sector_mapping: CEDA_2025
+    activity_to_sector_mapping: Cornerstone_2025
     exclusion_fields:
       # Drop irrelevant final demand and total sectors
       ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
