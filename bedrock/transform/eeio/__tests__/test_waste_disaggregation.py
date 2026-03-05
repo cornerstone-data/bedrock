@@ -638,7 +638,9 @@ class TestIntegrationV:
     ) -> None:
         """In the 2017 Make data, intersection is diagonal-only when disaggregating from 562000."""
         if _ORIG not in real_V.index or _ORIG not in real_V.columns:
-            pytest.skip("Cornerstone V already disaggregated; diagonal check applies to disaggregation output")
+            pytest.skip(
+                "Cornerstone V already disaggregated; diagonal check applies to disaggregation output"
+            )
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         for i in _WASTE_CODES_2017:
             for j in _WASTE_CODES_2017:
