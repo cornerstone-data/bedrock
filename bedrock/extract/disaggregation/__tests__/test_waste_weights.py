@@ -690,18 +690,31 @@ class TestMakeIntersection:
 
 
 class TestMakeWasteCommodityColumnsAllRows:
-    """make_waste_commodity_columns_all_rows — from Make column-sum + commodity-disaggregation rows."""
+    """make_waste_commodity_columns_all_rows = default (e.g. 562000); specific rows in make_waste_commodity_columns_specific_rows."""
+
+    def _combined_make_commodity_columns(
+        self, weights_2017: WasteDisaggWeights
+    ) -> WasteWeightTable:
+        """Default row(s) + row-specific overrides = full logical table."""
+        return pd.concat(
+            [
+                weights_2017.make_waste_commodity_columns_all_rows,
+                weights_2017.make_waste_commodity_columns_specific_rows,
+            ],
+            axis=0,
+        )
 
     def test_all_pairs_present(self, weights_2017: WasteDisaggWeights) -> None:
-        tbl = weights_2017.make_waste_commodity_columns_all_rows
+        tbl = self._combined_make_commodity_columns(weights_2017)
         for r, c in _RAW_MAKE_COL_SUM:
+            assert r in tbl.index, f"row {r} missing"
             assert c in tbl.columns, f"col {c} missing"
 
     def test_row_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
         _check_row_ratios(
-            weights_2017.make_waste_commodity_columns_all_rows,
+            self._combined_make_commodity_columns(weights_2017),
             _RAW_MAKE_COL_SUM,
-            "make_waste_commodity_columns_all_rows",
+            "make_waste_commodity_columns (all_rows + specific_rows)",
         )
 
 
