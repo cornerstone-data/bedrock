@@ -149,7 +149,9 @@ def generate_snapshots(
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
+        derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection,
         derive_y_for_national_accounting_balance_usa,
+        derive_ydom_and_yimp_usa,
     )
 
     # Assert clean state
@@ -185,6 +187,22 @@ def generate_snapshots(
     logger.info('Generating y_nab_USA snapshot')
     write_snapshot(derive_y_for_national_accounting_balance_usa(), 'y_nab_USA')
     logger.info(f'[TIMING] y_nab_USA completed in {time.time() - t0:.1f}s')
+
+    # Generate ytot_USA and exports_USA
+    t0 = time.time()
+    logger.info('Generating ytot_USA and exports_USA snapshots')
+    y_and_trade_set = derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection()
+    write_snapshot(y_and_trade_set.ytot, 'ytot_USA')
+    write_snapshot(y_and_trade_set.exports, 'exports_USA')
+    logger.info(f'[TIMING] ytot_USA and exports_USA completed in {time.time() - t0:.1f}s')
+
+    # Generate ydom_USA and yimp_USA
+    t0 = time.time()
+    logger.info('Generating ydom_USA and yimp_USA snapshots')
+    y_vector_set = derive_ydom_and_yimp_usa()
+    write_snapshot(y_vector_set.ydom, 'ydom_USA')
+    write_snapshot(y_vector_set.yimp, 'yimp_USA')
+    logger.info(f'[TIMING] ydom_USA and yimp_USA completed in {time.time() - t0:.1f}s')
 
     # Upload to GCS
     if not skip_upload:
