@@ -4,22 +4,20 @@
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
-    EPA_GHGI_T_2_1: #U.S. GHG emissions
-      year: 2023  # same as *ghgi_year in base method
-      activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
-      fedefl_mapping: GHGI_AR5_100
+    EPA_GHGI_T_2_1: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1  # U.S. GHG emissions
       activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
         electric_power:
           selection_fields:
             PrimaryActivity:
               Electric Power Sector: Electric Power #CO2
           attribution_method: direct
 
-    EPA_GHGI_T_3_8:  &stationary_combustion  # CH4 emissions from stationary combustion
-      year: 2023
-      activity_to_sector_mapping: EPA_GHGI_CEDA
-      fedefl_mapping: GHGI_AR5_100
+    EPA_GHGI_T_3_8: &stationary_combustion
+      !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8
+      activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
       activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets
         electric_power:
           selection_fields:
             PrimaryActivity:
@@ -30,6 +28,6 @@
               Wood Electric Power: Wood Electric Power
           attribution_method: direct
 
-    EPA_GHGI_T_3_9: *stationary_combustion # N2O emissions from stationary combustion
+    EPA_GHGI_T_3_9: *stationary_combustion  # N2O emissions from stationary combustion
 
 
