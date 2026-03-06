@@ -1,9 +1,7 @@
-# CEDA 2023 with fossil-fuel tables (T_3_64, T_3_66, T_3_45, T_3_47, T_3_68, T_3_49)
-# aligned to m1_common selection_fields and using EPA_GHGI_Cornerstone_petroleum_natgas mapping.
-# Base method unchanged; only these six source_names are overridden/added.
+# CEDA 2023 with USDA CoA-based allocation for cropland and pasture activity sets.
+# Duplicates GHG_national_CEDA_2023; overrides only cropland/pasture attribution in T_5_18 and T_5_19.
 
 !include:GHG_national_CEDA_2023.yaml
-
   _attribution_sources:
     _cropland_allocation: &cropland_allocation
       USDA_CoA_Cropland:
@@ -31,16 +29,10 @@
           FlowName: FARM OPERATIONS
         estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
 
-
-
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
-
-    EPA_GHGI_T_5_18: #Direct N2O emissions from agricultural soils
-      year: 2023
-      activity_to_sector_mapping: EPA_GHGI_CEDA
-      fedefl_mapping: GHGI_AR5_100
+    EPA_GHGI_T_5_18: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_18
       activity_sets:
-
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_18:activity_sets
         cropland:
           selection_fields:
             PrimaryActivity:
@@ -49,20 +41,16 @@
           attribution_method: proportional
           attribution_source: *cropland_allocation
 
-        pasture: &pasture
+        pasture:
           selection_fields:
             PrimaryActivity:
               - All activities Grassland
           attribution_method: proportional
           attribution_source: *animal_land_allocation
 
-
-    EPA_GHGI_T_5_19: #Indirect N2O emissions from agricultural soils
-      year: 2023
-      activity_to_sector_mapping: EPA_GHGI_CEDA
-      fedefl_mapping: GHGI_AR5_100
+    EPA_GHGI_T_5_19: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_19
       activity_sets:
-
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_19:activity_sets
         pasture:
           selection_fields:
             PrimaryActivity:
