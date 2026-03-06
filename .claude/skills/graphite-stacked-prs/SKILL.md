@@ -21,7 +21,7 @@ Each PR entry is a single bullet with title, number, and Graphite link. Stack is
 
 **Single PR stack:**
 ```
-• 🔀 Fix snapshots generation #245 🟡 ➡ (View in Graphite)
+• ↕️ Fix snapshots generation #245 🟠 ➡️ (View in Graphite)
 
 ---
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
@@ -29,9 +29,9 @@ This stack of pull requests is managed by [Graphite](https://graphite.dev). Lear
 
 **3-PR stack (newest on top):**
 ```
-• 🔀 Add caching layer #247 🟡 ➡ (View in Graphite)
-• 🔀 Refactor data loader #246 🟡 ➡ (View in Graphite)
-• 🔀 Fix snapshots generation #245 🟡 ➡ (View in Graphite)
+• ↕️ Add caching layer #247 🟠 ➡️ (View in Graphite)
+• ↕️ Refactor data loader #246 🟠 ➡️ (View in Graphite)
+• ↕️ Fix snapshots generation #245 🟠 ➡️ (View in Graphite)
 
 ---
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
@@ -40,7 +40,7 @@ This stack of pull requests is managed by [Graphite](https://graphite.dev). Lear
 **Rules:**
 - Comment is **standalone** — posted as a PR comment, NOT in the PR description body.
 - Only include: PR title, #number, and Graphite view link. No branch names, no descriptions.
-- Use 🟡 for open/in-review PRs; swap to ✅ when merged.
+- Use 🟠 for open/in-review PRs; swap to ✅ when merged.
 - When a new PR is added on top, **edit this comment on ALL existing PRs** in the stack to prepend the new entry.
 
 ---
