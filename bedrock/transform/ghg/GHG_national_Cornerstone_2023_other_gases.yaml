@@ -1,4 +1,87 @@
 # CEDA 2023 with updated method for calling on and attributing data associated with "other gases"
+# Excludes from EPA_GHGI_T_2_1: magnesium, fluorochemical, Electronics Industry (direct), electronics_industry.
+# These emissions pulled from dedicated tables instead (flowsa approach).
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    EPA_GHGI_T_2_1: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
+        direct:
+          selection_fields:
+            PrimaryActivity:
+              - Abandoned Oil and Gas Wells #CH4
+              - Abandoned Underground Coal Mines #CH4
+              - Adipic Acid Production #N2O
+              - Aluminum Production #CO2
+              - Ammonia Production #CO2
+              - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O
+              - Carbide Production and Consumption #CO2 only, CH4 is not in ceda
+              - Cement Production #CO2
+              - Composting #CH4, N2O
+              - Ferroalloy Production #CO2, CH4
+              - Glass Production #CO2
+              - Landfills #CH4
+              - Incineration of Waste #N2O and CO2
+              - Lime Production #CO2
+              - Iron and Steel Production & Metallurgical Coke Production #CO2, CH4
+              - Nitric Acid Production #N2O
+              - Phosphoric Acid Production #CO2
+              - Rice Cultivation #CH4
+              - Soda Ash Production #CO2
+              - Titanium Dioxide Production #CO2
+              - Wastewater Treatment #CH4, N2O
+              - Zinc Production #CO2
+            FlowName: ["CO2", "CH4", "N2O"]
+          attribution_method: direct
+        fluorochemical:  # Excluded - flowsa pulls from EPA_GHGI_T_4_63 and EPA_GHGI_T_4_64
+          selection_fields:
+            PrimaryActivity: PASS  # todo: drop activity set from cornerstone FBS yaml
+          attribution_method: direct
+        electronics_industry:  # Excluded - flowsa pulls from EPA_GHGI_T_4_118
+          selection_fields:
+            PrimaryActivity: PASS  # todo: drop activity set from cornerstone FBS yaml
+          attribution_method: direct
+        magnesium:  # Excluded - flowsa pulls from EPA_GHGI_T_4_106
+          selection_fields:
+            PrimaryActivity: PASS  # todo: drop activity set from cornerstone FBS yaml
+          attribution_method: direct
+
+    EPA_GHGI_T_4_63: # Fluorochemical production (in CO2e)
+      year: 2023  # same as *ghgi_year in base method
+      activity_to_sector_mapping: EPA_GHGI_CEDA
+      fedefl_mapping: GHGI_AR5_100
+      selection_fields:
+        PrimaryActivity: Fluorochemical Production
+        FlowName: ["Other PFCs", "Other HFCs"]
+      attribution_method: direct
+
+    EPA_GHGI_T_4_64: # Fluorochemical production (in MT)
+      year: 2023  # same as *ghgi_year in base method
+      activity_to_sector_mapping: EPA_GHGI_CEDA
+      fedefl_mapping: GHGI_AR5_100
+      selection_fields:
+        PrimaryActivity: Fluorochemical Production
+      exclusion_fields:
+        FlowName: ["Other PFCs", "Other HFCs"]
+      attribution_method: direct
+
+    EPA_GHGI_T_4_106: # HFCs, SF6, CO2 from magnesium production
+      year: 2023  # same as *ghgi_year in base method
+      activity_to_sector_mapping: EPA_GHGI_CEDA
+      fedefl_mapping: GHGI_AR5_100
+      selection_fields:
+        PrimaryActivity: Magnesium Production and Processing
+      attribution_method: direct
+
+    EPA_GHGI_T_4_118: # HFCs and other emissions from electronics manufacture (incl. Electronics Industry from T_2_1)
+      year: 2023  # same as *ghgi_year in base method
+      activity_to_sector_mapping: EPA_GHGI_CEDA
+      fedefl_mapping: GHGI_AR5_100
+      selection_fields:
+        PrimaryActivity:
+          - Electronics Industry
+          - Semiconductors
+          - PV
+          - MEMS
+      attribution_method: direct
