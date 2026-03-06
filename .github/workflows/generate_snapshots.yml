@@ -8,11 +8,6 @@ on:
         required: true
         type: string
         default: "v8_ceda_2025_usa"
-      adhoc:
-        description: "Upload to adhoc directory"
-        required: false
-        type: boolean
-        default: false
       snapshot_prefix_override:
         description: "Override snapshot prefix (optional)"
         required: false
@@ -48,11 +43,9 @@ jobs:
         id: generate
         run: |
           CONFIG_NAME="${{ github.event.inputs.config_name || 'v8_ceda_2025_usa' }}"
-          ADHOC="${{ github.event.inputs.adhoc }}"
           PREFIX="${{ github.event.inputs.snapshot_prefix_override }}"
-          uv run python bedrock/publish/snapshots/generate_snapshots.py \
+          uv run python bedrock/utils/snapshots/generate_snapshots.py \
             --config_name "$CONFIG_NAME" \
-            ${ADHOC:+--adhoc} \
             ${PREFIX:+--snapshot_prefix_override "$PREFIX"}
 
   notify_slack_failure:
