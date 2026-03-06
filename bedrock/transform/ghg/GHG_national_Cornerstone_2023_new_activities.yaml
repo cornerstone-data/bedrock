@@ -1,12 +1,11 @@
-# Adds new activities that are included in the flowsa ghg method
+# CEDA 2023 with new activities from flowsa (Anaerobic Digestion, Ethylene Dichloride, EPA_GHGI_T_4_132).
+# Duplicates GHG_national_CEDA_2023; overrides only the identified activity sets and adds new sources.
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
-    EPA_GHGI_T_2_1: #U.S. GHG emissions
-      year: 2023
-      activity_to_sector_mapping: EPA_GHGI_CEDA
-      fedefl_mapping: GHGI_AR5_100
+    EPA_GHGI_T_2_1: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1
       activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
         direct:
           selection_fields:
             PrimaryActivity:
@@ -20,7 +19,7 @@
               - Carbide Production and Consumption #CO2
               - Cement Production #CO2
               - Composting #CH4, N2O
-              - Electronics Industry  # N2O
+              - Electronics Industry #N2O
               - Ferroalloy Production #CO2, CH4
               - Glass Production #CO2
               - Landfills #CH4
@@ -44,11 +43,8 @@
           attribution_method: direct
 
 
-  ## Other sources
-    EPA_GHGI_T_4_55: #CO2 for selected petrochemicals
-      year: 2023
-      activity_to_sector_mapping: EPA_GHGI_CEDA
-      fedefl_mapping: GHGI_AR5_100
+    ## Other sources
+    EPA_GHGI_T_4_55: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_4_55  #CO2 for selected petrochemicals
       selection_fields:
         PrimaryActivity:
           - Acrylonitrile
@@ -60,7 +56,7 @@
       attribution_method: direct
 
     EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
-       year: 2023
-       activity_to_sector_mapping: EPA_GHGI_CEDA
-       fedefl_mapping: GHGI_AR5_100
-       attribution_method: direct
+      year: 2023
+      activity_to_sector_mapping: EPA_GHGI_CEDA
+      fedefl_mapping: GHGI_AR5_100
+      attribution_method: direct
