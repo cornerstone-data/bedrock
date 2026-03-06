@@ -15,39 +15,35 @@ Claude acts autonomously: it **generates the commit message, branch name, and de
 
 Every PR **must** have a standalone comment (not in the PR body) listing the full stack. This comment is updated as new PRs are added.
 
-### Structure
+### Real Graphite Example (raw source)
 
-Each PR entry is a single bullet with the `#number` (GitHub auto-links it and renders the PR title). Stack is listed **top to bottom** (newest PR first). The bottom entry is always `• `main``. Followed by the standard footer.
+This is the exact format Graphite uses — replicate this precisely:
 
-**Markers:**
-- `👈` = points to the **current PR** in the stack (only one PR gets this).
-- `(View in Graphite)` = hyperlinked, only on the current PR, after `👈`.
-
-**Single PR stack (posted as comment on PR #245):**
 ```
-• #245 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/245)
-• `main`
+* **#9311** <a href="https://app.graphite.dev/github/pr/ORG/REPO/9311?utm_source=stack-comment-icon" target="_blank"><img src="https://static.graphite.dev/graphite-32x32-black.png" alt="Graphite" width="10px" height="10px"/></a> 👈 <a href="https://app.graphite.dev/github/pr/ORG/REPO/9311?utm_source=stack-comment-view-in-graphite" target="_blank">(View in Graphite)</a>
+* **#9310** <a href="https://app.graphite.dev/github/pr/ORG/REPO/9310?utm_source=stack-comment-icon" target="_blank"><img src="https://static.graphite.dev/graphite-32x32-black.png" alt="Graphite" width="10px" height="10px"/></a>
+* **#9309** <a href="https://app.graphite.dev/github/pr/ORG/REPO/9309?utm_source=stack-comment-icon" target="_blank"><img src="https://static.graphite.dev/graphite-32x32-black.png" alt="Graphite" width="10px" height="10px"/></a>
+* `main`
 
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
 ```
 
-**3-PR stack (posted as comment on PR #246):**
-```
-• #247
-• #246 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/246)
-• #245
-• `main`
+### How each part works
 
-This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
-```
+- **`**#NUMBER**`** — bold markdown renders as grey bold number on GitHub (the key trick)
+- **Graphite icon** — inline `<img>` tag pointing to `https://static.graphite.dev/graphite-32x32-black.png`, 10x10px
+- **`👈`** — marks the current PR only (the one this comment is posted on)
+- **`(View in Graphite)`** — HTML `<a>` link, only on the current PR, after `👈`
+- **`` `main` ``** — backtick-wrapped, always the last bullet
+- Non-current PRs get `**#NUMBER**` + icon only — no `👈`, no `(View in Graphite)`
 
-**Rules:**
+### Rules
+
 - Comment is **standalone** — posted as a PR comment, NOT in the PR description body.
-- Use `#number` only — GitHub auto-links it and renders the PR title.
-- Only the **current PR** (the one this comment is posted on) gets `👈 (View in Graphite)`.
-- The same stack comment is posted on ALL PRs in the stack, but with `👈` pointing to the respective current PR.
-- Always end with `• `main`` as the last bullet.
-- When a new PR is added on top, **edit this comment on ALL existing PRs** in the stack to add the new entry (keeping `👈` on the correct PR for each).
+- Replace `ORG` and `REPO` with the actual GitHub org and repo name from context.
+- The same structure is posted on ALL PRs in the stack, but `👈` points to the respective current PR on each.
+- Stack is listed **newest PR first** (top to bottom).
+- When a new PR is added on top, **edit this comment on ALL existing PRs** to prepend the new entry (keeping `👈` correct for each).
 
 ---
 
