@@ -18,12 +18,18 @@ Claude acts autonomously: it **generates the commit message, branch name, and de
 ## Claude's Autonomous Decisions
 
 ### Branch naming
-Use the format `mo__<short-description>` with kebab-case for the description:
+Use the format `<author>__<short-description>` with kebab-case for the description.
+
+**Detecting the author prefix:** Run `git config user.name` to get the current user, then run `gt log` or `git branch` and look at existing branch prefixes (the part before `__`) to find how that person's name maps to a prefix. For example, if `git config user.name` returns "Mo Li" and you see branches like `mo__fix-something`, the prefix is `mo`. If you see `btobin__add-feature` for "Brian Tobin", the prefix is `btobin`.
+
+Cache this value at the start of the workflow — never hardcode or guess a prefix format.
+
+**Examples** (assuming author is `mo`):
 - "fix the snapshot generation bug" → `mo__fix-snapshot-generation`
 - "add Redis caching to the data loader" → `mo__add-redis-caching`
 - "refactor auth middleware" → `mo__refactor-auth-middleware`
 
-Keep branch names short (3–5 words max after the `mo__` prefix).
+Keep branch names short (3–5 words max after the `<author>__` prefix).
 
 ### Commit messages
 Use [Conventional Commits](https://www.conventionalcommits.org/) format. Derive type and scope from context:
