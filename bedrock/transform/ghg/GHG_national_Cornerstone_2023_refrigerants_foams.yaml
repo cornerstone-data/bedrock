@@ -1,10 +1,8 @@
-# Modify the Cornerstone/CEDA ghg FBS to use the flowsa method of allocating T_4_124
-# refrigerant and foam data to sectors. This approach attributes more specific activities over the ceda approach
+# CEDA 2023 with flowsa method for allocating T_4_124 refrigerant and foam data.
+# Uses EPA_GHGI_Cornerstone_refrigerants_foams mapping and more specific activity attribution.
 
 !include:GHG_national_CEDA_2023.yaml
-
   _attribution_sources:
-
     BEA: &bea # 2017 Make and Use tables
       year: 2017
       activity_to_sector_mapping: CEDA_2025
@@ -18,14 +16,9 @@
       attribution_method: equal
 
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
-    EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
+    EPA_GHGI_T_4_124: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_4_124  # HFCs and PFCs from ODS Substitutes
       activity_to_sector_mapping: EPA_GHGI_Cornerstone_refrigerants_foams
       clean_fba_before_activity_sets: !script_function:EPA_GHGI split_HFCs_by_type
-      clean_parameter:
-          # Proportions of specific HFCs are assigned based on national total
-          flow_fba: EPA_GHGI_T_4_122
-      year: 2023
-      fedefl_mapping: GHGI_AR5_100
       activity_sets:
         households:
           selection_fields:
@@ -41,7 +34,7 @@
               - Industrial Process Refrigeration
           attribution_method: proportional
           attribution_source:
-            BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            BEA_Detail_Use_AfterRedef:
               <<: *bea
               selection_fields:
                 ActivityProducedBy: {'333415': ''} # Air conditioning equipment
@@ -52,7 +45,7 @@
               - Commercial Stationary Air Conditioning
           attribution_method: proportional
           attribution_source:
-            BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            BEA_Detail_Use_AfterRedef:
               <<: *bea
               selection_fields:
                 ActivityProducedBy: {'333415': ''} # Air conditioning equipment
@@ -63,7 +56,7 @@
               - Foams
           attribution_method: proportional
           attribution_source:
-            BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+            BEA_Detail_Use_AfterRedef:
               <<: *bea
               selection_fields:
                 ActivityProducedBy:
