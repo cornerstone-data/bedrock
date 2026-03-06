@@ -18,12 +18,12 @@ Claude acts autonomously: it **generates the commit message, branch name, and de
 ## Claude's Autonomous Decisions
 
 ### Branch naming
-Derive from the commit intent using kebab-case with a `feat/`, `fix/`, `refactor/`, etc. prefix:
-- "fix the snapshot generation bug" → `fix/snapshot-generation`
-- "add Redis caching to the data loader" → `feat/redis-caching`
-- "refactor auth middleware" → `refactor/auth-middleware`
+Use the format `mo__<short-description>` with kebab-case for the description:
+- "fix the snapshot generation bug" → `mo__fix-snapshot-generation`
+- "add Redis caching to the data loader" → `mo__add-redis-caching`
+- "refactor auth middleware" → `mo__refactor-auth-middleware`
 
-Keep branch names short (3–5 words max).
+Keep branch names short (3–5 words max after the `mo__` prefix).
 
 ### Commit messages
 Use [Conventional Commits](https://www.conventionalcommits.org/) format. Derive type and scope from context:
