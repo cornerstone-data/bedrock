@@ -9,6 +9,7 @@
       activity_to_sector_mapping: EPA_GHGI_CEDA
       fedefl_mapping: GHGI_AR5_100
       activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets
         electric_power:
           selection_fields:
             PrimaryActivity:
@@ -19,6 +20,6 @@
               Wood Electric Power: Wood Electric Power
           attribution_method: direct
 
-    EPA_GHGI_T_3_9: *stationary_combustion # N2O emissions from stationary combustion
+    EPA_GHGI_T_3_9: *stationary_combustion  # N2O emissions from stationary combustion
 
 
