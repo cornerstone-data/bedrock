@@ -1,49 +1,17 @@
 ---
 name: graphite-stacked-prs
-description: Use this skill whenever the user wants to commit code changes to GitHub using Graphite in stacked PR format, create a new branch in a stack, submit PRs via Graphite, or add/update the standardized stack comment on a PR. Trigger when the user mentions "Graphite", "stacked PR", "gt submit", "gt create", "stack this", "commit and push with Graphite", or asks to create a PR on top of an existing one. Also trigger when the user asks to update the stack comment on an open PR. Claude should autonomously generate commit messages, branch names, and determine stack position without asking the user.
+description: Use this skill whenever the user wants to commit code changes to GitHub using Graphite in stacked PR format, create a new branch in a stack, or submit PRs via Graphite. Trigger when the user mentions "Graphite", "stacked PR", "gt submit", "gt create", "stack this", "commit and push with Graphite", or asks to create a PR on top of an existing one. Claude should autonomously generate commit messages, branch names, and determine stack position without asking the user.
 ---
 
 # Graphite Stacked PRs Skill
 
-This skill governs how Claude helps commit code, create stacked PRs via Graphite CLI (`gt`), and maintain a standardized standalone stack comment on every PR.
+This skill governs how Claude helps commit code and create stacked PRs via Graphite CLI (`gt`).
 
 Claude acts autonomously: it **generates the commit message, branch name, and determines stack position** based on context — no need to prompt for these.
 
 ---
 
-## Stack Comment Format
-
-Every PR **must** have a standalone comment (not in the PR body) listing the full stack. This comment is updated as new PRs are added.
-
-### Real Graphite Example (raw source)
-
-This is the exact format Graphite uses — replicate this precisely:
-
-```
-* **#9311** <a href="https://app.graphite.dev/github/pr/ORG/REPO/9311?utm_source=stack-comment-icon" target="_blank"><img src="https://static.graphite.dev/graphite-32x32-black.png" alt="Graphite" width="10px" height="10px"/></a> 👈 <a href="https://app.graphite.dev/github/pr/ORG/REPO/9311?utm_source=stack-comment-view-in-graphite" target="_blank">(View in Graphite)</a>
-* **#9310** <a href="https://app.graphite.dev/github/pr/ORG/REPO/9310?utm_source=stack-comment-icon" target="_blank"><img src="https://static.graphite.dev/graphite-32x32-black.png" alt="Graphite" width="10px" height="10px"/></a>
-* **#9309** <a href="https://app.graphite.dev/github/pr/ORG/REPO/9309?utm_source=stack-comment-icon" target="_blank"><img src="https://static.graphite.dev/graphite-32x32-black.png" alt="Graphite" width="10px" height="10px"/></a>
-* `main`
-
-This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
-```
-
-### How each part works
-
-- **`**#NUMBER**`** — bold markdown renders as grey bold number on GitHub (the key trick)
-- **Graphite icon** — inline `<img>` tag pointing to `https://static.graphite.dev/graphite-32x32-black.png`, 10x10px
-- **`👈`** — marks the current PR only (the one this comment is posted on)
-- **`(View in Graphite)`** — HTML `<a>` link, only on the current PR, after `👈`
-- **`` `main` ``** — backtick-wrapped, always the last bullet
-- Non-current PRs get `**#NUMBER**` + icon only — no `👈`, no `(View in Graphite)`
-
-### Rules
-
-- Comment is **standalone** — posted as a PR comment, NOT in the PR description body.
-- Replace `ORG` and `REPO` with the actual GitHub org and repo name from context.
-- The same structure is posted on ALL PRs in the stack, but `👈` points to the respective current PR on each.
-- Stack is listed **newest PR first** (top to bottom).
-- When a new PR is added on top, **edit this comment on ALL existing PRs** to prepend the new entry (keeping `👈` correct for each).
+**Note:** Stack comments are managed automatically by Graphite — Claude must never post or edit stack comments.
 
 ---
 
@@ -128,25 +96,11 @@ gt submit --title "Fix snapshots generation"
 # Then paste the PR body Claude generated into the GitHub editor
 ```
 
-### After PR is created — two separate GitHub actions
-
-There are **two distinct outputs** that go in different places:
-
-**① PR body** — the description visible when you open the PR. Uses the `cc / Closes / What changed / Testing` template. Set via `gt submit` or edited directly in GitHub.
-
-**② Stack comment** — a separate standalone comment posted *after* the PR is open. Uses the bullet-list stack format. This is NOT part of the PR body.
+### After PR is created
 
 Steps after `gt submit`:
-1. Edit the PR body on GitHub to match the filled-in template Claude provides.
-2. Post the stack comment Claude generates as a **new comment** on the PR.
-3. On all **previous PRs** in the stack → **edit their existing stack comment** to prepend the new PR at the top.
-
-### Updating an existing stack comment
-
-When a new PR is added on top:
-1. Claude generates the updated full stack comment with the new PR prepended.
-2. Edit the stack comment on each existing PR in the stack.
-3. Post the same updated comment on the new PR.
+1. Edit the PR body on GitHub to match the filled-in template Claude provides (using the `cc / Closes / What changed / Testing` template).
+2. **Do NOT post a stack comment** — Graphite automatically posts and maintains stack comments on all PRs when you use `gt submit`.
 
 ---
 
@@ -173,5 +127,5 @@ For every stacked PR task, Claude must output all of the following as ready-to-c
 1. ✅ `gt create` command — with commit message and branch name filled in
 2. ✅ `gt submit` command — with PR title filled in
 3. ✅ **PR body** — filled-in `cc / Closes / What changed? Why? / Testing` template, to paste into the GitHub PR description
-4. ✅ **Stack comment** — bullet-list format, to post as a standalone GitHub comment (separate from the body)
-5. ✅ If stacking on top of existing PRs: the updated stack comment to edit onto all prior PRs in the stack
+
+**Note:** Do NOT post stack comments — Graphite manages these automatically.
