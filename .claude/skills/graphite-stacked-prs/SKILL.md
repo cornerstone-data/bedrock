@@ -17,31 +17,39 @@ Every PR **must** have a standalone comment (not in the PR body) listing the ful
 
 ### Structure
 
-Each PR entry is a single bullet with title, number, and Graphite link. Stack is listed **top to bottom** (newest PR first). Followed by the standard footer.
+Each PR entry is a single bullet. The **entire title including #number** is a single hyperlink to the PR on GitHub. Stack is listed **top to bottom** (newest PR first). The bottom entry is always `• main`. Followed by the standard footer.
 
-**Single PR stack:**
+**Emoji key:**
+- `↕️` = open PR (leading icon). Changes to the merged PR icon once merged.
+- `🟠` = appended after every PR entry.
+- `👈` = points to the **current PR** in the stack (only one PR gets this).
+- `(View in Graphite)` = hyperlinked, only on the current PR, after `👈`.
+
+**Single PR stack (posted as comment on PR #245):**
 ```
-• ↕️ Fix snapshots generation #245 🟠 ➡️ (View in Graphite)
+• ↕️ [Fix snapshots generation #245](https://github.com/cornerstone-data/bedrock/pull/245) 🟠 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/245)
+• main
 
----
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
 ```
 
-**3-PR stack (newest on top):**
+**3-PR stack (posted as comment on PR #246):**
 ```
-• ↕️ Add caching layer #247 🟠 ➡️ (View in Graphite)
-• ↕️ Refactor data loader #246 🟠 ➡️ (View in Graphite)
-• ↕️ Fix snapshots generation #245 🟠 ➡️ (View in Graphite)
+• ↕️ [Add caching layer #247](https://github.com/cornerstone-data/bedrock/pull/247) 🟠
+• ↕️ [Refactor data loader #246](https://github.com/cornerstone-data/bedrock/pull/246) 🟠 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/246)
+• ↕️ [Fix snapshots generation #245](https://github.com/cornerstone-data/bedrock/pull/245) 🟠
+• main
 
----
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
 ```
 
 **Rules:**
 - Comment is **standalone** — posted as a PR comment, NOT in the PR description body.
-- Only include: PR title, #number, and Graphite view link. No branch names, no descriptions.
-- Use 🟠 for open/in-review PRs; swap to ✅ when merged.
-- When a new PR is added on top, **edit this comment on ALL existing PRs** in the stack to prepend the new entry.
+- The entire PR title + #number is ONE hyperlink to the GitHub PR URL.
+- Only the **current PR** (the one this comment is posted on) gets `👈 (View in Graphite)`.
+- The same stack comment is posted on ALL PRs in the stack, but with `👈` pointing to the respective current PR.
+- Always end with `• main` as the last bullet.
+- When a new PR is added on top, **edit this comment on ALL existing PRs** in the stack to add the new entry (keeping `👈` on the correct PR for each).
 
 ---
 
