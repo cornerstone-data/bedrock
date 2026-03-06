@@ -17,7 +17,7 @@ Every PR **must** have a standalone comment (not in the PR body) listing the ful
 
 ### Structure
 
-Each PR entry is a single bullet. The **PR title** (without the #number) is hyperlinked to the PR on GitHub. The `#number` follows as plain text (GitHub auto-links it). Stack is listed **top to bottom** (newest PR first). The bottom entry is always `• main`. Followed by the standard footer.
+Each PR entry is a single bullet. The **PR title** (without the #number) is hyperlinked to the PR on GitHub. The `#number` follows as plain text (GitHub auto-links it). Stack is listed **top to bottom** (newest PR first). The bottom entry is always `• `main``. Followed by the standard footer.
 
 **Markers:**
 - `👈` = points to the **current PR** in the stack (only one PR gets this).
@@ -26,7 +26,7 @@ Each PR entry is a single bullet. The **PR title** (without the #number) is hype
 **Single PR stack (posted as comment on PR #245):**
 ```
 • [Fix snapshots generation](https://github.com/cornerstone-data/bedrock/pull/245) #245 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/245)
-• main
+• `main`
 
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
 ```
@@ -36,7 +36,7 @@ This stack of pull requests is managed by [Graphite](https://graphite.dev). Lear
 • [Add caching layer](https://github.com/cornerstone-data/bedrock/pull/247) #247
 • [Refactor data loader](https://github.com/cornerstone-data/bedrock/pull/246) #246 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/246)
 • [Fix snapshots generation](https://github.com/cornerstone-data/bedrock/pull/245) #245
-• main
+• `main`
 
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
 ```
@@ -46,7 +46,7 @@ This stack of pull requests is managed by [Graphite](https://graphite.dev). Lear
 - The PR title is hyperlinked to the GitHub PR URL. The `#number` follows as plain text.
 - Only the **current PR** (the one this comment is posted on) gets `👈 (View in Graphite)`.
 - The same stack comment is posted on ALL PRs in the stack, but with `👈` pointing to the respective current PR.
-- Always end with `• main` as the last bullet.
+- Always end with `• `main`` as the last bullet.
 - When a new PR is added on top, **edit this comment on ALL existing PRs** in the stack to add the new entry (keeping `👈` on the correct PR for each).
 
 ---
