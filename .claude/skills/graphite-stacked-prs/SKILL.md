@@ -17,17 +17,15 @@ Every PR **must** have a standalone comment (not in the PR body) listing the ful
 
 ### Structure
 
-Each PR entry is a single bullet. The **entire title including #number** is a single hyperlink to the PR on GitHub. Stack is listed **top to bottom** (newest PR first). The bottom entry is always `• main`. Followed by the standard footer.
+Each PR entry is a single bullet. The **PR title** (without the #number) is hyperlinked to the PR on GitHub. The `#number` follows as plain text (GitHub auto-links it). Stack is listed **top to bottom** (newest PR first). The bottom entry is always `• main`. Followed by the standard footer.
 
-**Emoji key:**
-- `↕️` = open PR (leading icon). Changes to the merged PR icon once merged.
-- `🟠` = appended after every PR entry.
+**Markers:**
 - `👈` = points to the **current PR** in the stack (only one PR gets this).
 - `(View in Graphite)` = hyperlinked, only on the current PR, after `👈`.
 
 **Single PR stack (posted as comment on PR #245):**
 ```
-• ↕️ [Fix snapshots generation #245](https://github.com/cornerstone-data/bedrock/pull/245) 🟠 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/245)
+• [Fix snapshots generation](https://github.com/cornerstone-data/bedrock/pull/245) #245 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/245)
 • main
 
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
@@ -35,9 +33,9 @@ This stack of pull requests is managed by [Graphite](https://graphite.dev). Lear
 
 **3-PR stack (posted as comment on PR #246):**
 ```
-• ↕️ [Add caching layer #247](https://github.com/cornerstone-data/bedrock/pull/247) 🟠
-• ↕️ [Refactor data loader #246](https://github.com/cornerstone-data/bedrock/pull/246) 🟠 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/246)
-• ↕️ [Fix snapshots generation #245](https://github.com/cornerstone-data/bedrock/pull/245) 🟠
+• [Add caching layer](https://github.com/cornerstone-data/bedrock/pull/247) #247
+• [Refactor data loader](https://github.com/cornerstone-data/bedrock/pull/246) #246 👈 [(View in Graphite)](https://app.graphite.dev/github/pr/cornerstone-data/bedrock/246)
+• [Fix snapshots generation](https://github.com/cornerstone-data/bedrock/pull/245) #245
 • main
 
 This stack of pull requests is managed by [Graphite](https://graphite.dev). Learn more about [stacking](https://graphite.dev/docs/stacking).
@@ -45,7 +43,7 @@ This stack of pull requests is managed by [Graphite](https://graphite.dev). Lear
 
 **Rules:**
 - Comment is **standalone** — posted as a PR comment, NOT in the PR description body.
-- The entire PR title + #number is ONE hyperlink to the GitHub PR URL.
+- The PR title is hyperlinked to the GitHub PR URL. The `#number` follows as plain text.
 - Only the **current PR** (the one this comment is posted on) gets `👈 (View in Graphite)`.
 - The same stack comment is posted on ALL PRs in the stack, but with `👈` pointing to the respective current PR.
 - Always end with `• main` as the last bullet.
