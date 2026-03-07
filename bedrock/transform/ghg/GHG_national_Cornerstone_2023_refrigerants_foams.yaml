@@ -1,0 +1,64 @@
+# CEDA 2023 with flowsa method for allocating T_4_124 refrigerant and foam data.
+# Uses EPA_GHGI_Cornerstone_refrigerants_foams mapping and more specific activity attribution.
+
+!include:GHG_national_CEDA_2023.yaml
+  _attribution_sources:
+    BEA: &bea # 2017 Make and Use tables
+      year: 2017
+      activity_to_sector_mapping: CEDA_2025
+      exclusion_fields:
+        # Drop irrelevant final demand and total sectors
+        ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                             'F06E00', 'F07E00', 'F10E00', 'F02R00',
+                             'T001', 'T004', 'T007', 'T019']
+        ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                             'MCIF']
+      attribution_method: equal
+
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    EPA_GHGI_T_4_124: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_4_124  # HFCs and PFCs from ODS Substitutes
+      activity_to_sector_mapping: EPA_GHGI_Cornerstone_refrigerants_foams
+      clean_fba_before_activity_sets: !script_function:EPA_GHGI split_HFCs_by_type
+      activity_sets:
+        households:
+          selection_fields:
+            PrimaryActivity:
+              - Domestic Refrigeration
+              - Residential Stationary Air Conditioning
+          attribution_method: direct
+
+        refrigerants:
+          selection_fields:
+            PrimaryActivity:
+              - Commercial Refrigeration
+              - Industrial Process Refrigeration
+          attribution_method: proportional
+          attribution_source:
+            BEA_Detail_Use_AfterRedef:
+              <<: *bea
+              selection_fields:
+                ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+
+        air_conditioning:
+          selection_fields:
+            PrimaryActivity:
+              - Commercial Stationary Air Conditioning
+          attribution_method: proportional
+          attribution_source:
+            BEA_Detail_Use_AfterRedef:
+              <<: *bea
+              selection_fields:
+                ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+
+        foams:
+          selection_fields:
+            PrimaryActivity:
+              - Foams
+          attribution_method: proportional
+          attribution_source:
+            BEA_Detail_Use_AfterRedef:
+              <<: *bea
+              selection_fields:
+                ActivityProducedBy:
+                  '326140': '' # Polystyrene foam
+                  '326150': '' # Urethane and other foam

@@ -146,6 +146,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
         methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
     elif usa.hybrid_bea_naics_schema_in_ghg_attribution:
         methodname = 'GHG_national_Cornerstone_2023_update_schema'
+    elif usa.update_refrigerant_method:
+        methodname = "GHG_national_Cornerstone_2023_refrigerants_foams"
     else:
         methodname = 'GHG_national_CEDA_2023'
     fbs = getFlowBySector(methodname=methodname)
