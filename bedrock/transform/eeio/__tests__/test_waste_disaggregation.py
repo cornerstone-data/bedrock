@@ -572,10 +572,13 @@ class TestIntegrationV:
     def test_intersection_mass_preserved(
         self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
     ) -> None:
-        if _ORIG not in real_V.index or _ORIG not in real_V.columns:
-            pytest.skip("Cornerstone V already has waste disaggregated (no 562000)")
-        orig_val = cast(float, real_V.loc[_ORIG, _ORIG])
         result = apply_waste_disagg_to_V(real_V, weights_2017)
+        if _ORIG in real_V.index and _ORIG in real_V.columns:
+            orig_val = cast(float, real_V.loc[_ORIG, _ORIG])
+        else:
+            orig_val = float(
+                real_V.loc[_WASTE_CODES_2017, _WASTE_CODES_2017].sum().sum()
+            )
         intersection_sum = sum(
             cast(float, result.loc[i, j])
             for i in _WASTE_CODES_2017
@@ -586,17 +589,22 @@ class TestIntegrationV:
     def test_column_mass_preserved_per_industry(
         self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
     ) -> None:
-        if _ORIG not in real_V.columns:
-            pytest.skip("Cornerstone V already has waste disaggregated (no 562000)")
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         waste_set = set(_WASTE_CODES_2017)
-        sample_industries = [
-            ind
-            for ind in real_V.index
-            if ind != _ORIG and ind not in waste_set and real_V.loc[ind, _ORIG] != 0
-        ][:6]
-        for ind in sample_industries:
-            orig_val = cast(float, real_V.loc[ind, _ORIG])
+        sample: list[tuple[str, float]] = []
+        for ind in real_V.index:
+            if ind == _ORIG or ind in waste_set:
+                continue
+            if _ORIG in real_V.columns:
+                orig_val = cast(float, real_V.loc[ind, _ORIG])
+            else:
+                orig_val = float(real_V.loc[ind, _WASTE_CODES_2017].sum())
+            if orig_val == 0.0:
+                continue
+            sample.append((ind, orig_val))
+            if len(sample) >= 6:
+                break
+        for ind, orig_val in sample:
             disagg_sum = sum(cast(float, result.loc[ind, c]) for c in _WASTE_CODES_2017)
             assert disagg_sum == pytest.approx(
                 orig_val, rel=1e-6
@@ -605,17 +613,22 @@ class TestIntegrationV:
     def test_row_mass_preserved_per_commodity(
         self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
     ) -> None:
-        if _ORIG not in real_V.index:
-            pytest.skip("Cornerstone V already has waste disaggregated (no 562000)")
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         waste_set = set(_WASTE_CODES_2017)
-        sample_commodities = [
-            com
-            for com in real_V.columns
-            if com != _ORIG and com not in waste_set and real_V.loc[_ORIG, com] != 0
-        ][:6]
-        for com in sample_commodities:
-            orig_val = cast(float, real_V.loc[_ORIG, com])
+        sample: list[tuple[str, float]] = []
+        for com in real_V.columns:
+            if com == _ORIG or com in waste_set:
+                continue
+            if _ORIG in real_V.index:
+                orig_val = cast(float, real_V.loc[_ORIG, com])
+            else:
+                orig_val = float(real_V.loc[_WASTE_CODES_2017, com].sum())
+            if orig_val == 0.0:
+                continue
+            sample.append((com, orig_val))
+            if len(sample) >= 6:
+                break
+        for com, orig_val in sample:
             disagg_sum = sum(cast(float, result.loc[i, com]) for i in _WASTE_CODES_2017)
             assert disagg_sum == pytest.approx(
                 orig_val, rel=1e-6
@@ -667,10 +680,13 @@ class TestIntegrationU:
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
-        if _ORIG not in Udom_src.index or _ORIG not in Udom_src.columns:
-            pytest.skip("Cornerstone U already has waste disaggregated (no 562000)")
-        orig_val = cast(float, Udom_src.loc[_ORIG, _ORIG])
         Udom, _ = apply_waste_disagg_to_U(Udom_src, Uimp_src, weights_2017)
+        if _ORIG in Udom_src.index and _ORIG in Udom_src.columns:
+            orig_val = cast(float, Udom_src.loc[_ORIG, _ORIG])
+        else:
+            orig_val = float(
+                Udom_src.loc[_WASTE_CODES_2017, _WASTE_CODES_2017].sum().sum()
+            )
         intersection_sum = sum(
             cast(float, Udom.loc[c, i])
             for c in _WASTE_CODES_2017
@@ -684,17 +700,22 @@ class TestIntegrationU:
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
-        if _ORIG not in Udom_src.columns:
-            pytest.skip("Cornerstone U already has waste disaggregated (no 562000)")
         Udom, _ = apply_waste_disagg_to_U(Udom_src, Uimp_src, weights_2017)
         waste_set = set(_WASTE_CODES_2017)
-        sample_commodities = [
-            com
-            for com in Udom_src.index
-            if com != _ORIG and com not in waste_set and Udom_src.loc[com, _ORIG] != 0
-        ][:6]
-        for com in sample_commodities:
-            orig_val = cast(float, Udom_src.loc[com, _ORIG])
+        sample: list[tuple[str, float]] = []
+        for com in Udom_src.index:
+            if com == _ORIG or com in waste_set:
+                continue
+            if _ORIG in Udom_src.columns:
+                orig_val = cast(float, Udom_src.loc[com, _ORIG])
+            else:
+                orig_val = float(Udom_src.loc[com, _WASTE_CODES_2017].sum())
+            if orig_val == 0.0:
+                continue
+            sample.append((com, orig_val))
+            if len(sample) >= 6:
+                break
+        for com, orig_val in sample:
             disagg_sum = sum(cast(float, Udom.loc[com, i]) for i in _WASTE_CODES_2017)
             assert disagg_sum == pytest.approx(
                 orig_val, rel=1e-6
@@ -706,17 +727,22 @@ class TestIntegrationU:
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
-        if _ORIG not in Udom_src.index:
-            pytest.skip("Cornerstone U already has waste disaggregated (no 562000)")
         Udom, _ = apply_waste_disagg_to_U(Udom_src, Uimp_src, weights_2017)
         waste_set = set(_WASTE_CODES_2017)
-        sample_industries = [
-            ind
-            for ind in Udom_src.columns
-            if ind != _ORIG and ind not in waste_set and Udom_src.loc[_ORIG, ind] != 0
-        ][:6]
-        for ind in sample_industries:
-            orig_val = cast(float, Udom_src.loc[_ORIG, ind])
+        sample: list[tuple[str, float]] = []
+        for ind in Udom_src.columns:
+            if ind == _ORIG or ind in waste_set:
+                continue
+            if _ORIG in Udom_src.index:
+                orig_val = cast(float, Udom_src.loc[_ORIG, ind])
+            else:
+                orig_val = float(Udom_src.loc[_WASTE_CODES_2017, ind].sum())
+            if orig_val == 0.0:
+                continue
+            sample.append((ind, orig_val))
+            if len(sample) >= 6:
+                break
+        for ind, orig_val in sample:
             disagg_sum = sum(cast(float, Udom.loc[c, ind]) for c in _WASTE_CODES_2017)
             assert disagg_sum == pytest.approx(
                 orig_val, rel=1e-6
@@ -759,8 +785,6 @@ class TestIntegrationVA:
     def test_va_mass_preserved_per_row(
         self, weights_2017: WasteDisaggWeights, real_va: pd.DataFrame
     ) -> None:
-        if _ORIG not in real_va.columns:
-            pytest.skip("Cornerstone VA already has waste disaggregated (no 562000)")
         va_rows = [r for r in _VA_ROWS if r in real_va.index]
         if not va_rows:
             pytest.skip("Cornerstone VA table has none of V00100/V00200/V00300")
@@ -768,7 +792,11 @@ class TestIntegrationVA:
 
         assert _ORIG not in result.columns
         for va_row in va_rows:
-            orig_val = cast(float, real_va.loc[va_row, _ORIG])
+            if _ORIG in real_va.columns:
+                orig_val = cast(float, real_va.loc[va_row, _ORIG])
+            else:
+                row_series = real_va.loc[va_row]
+                orig_val = float(row_series.loc[_WASTE_CODES_2017].sum())
             disagg_sum = sum(
                 cast(float, result.loc[va_row, ind]) for ind in _WASTE_CODES_2017
             )
@@ -779,8 +807,6 @@ class TestIntegrationVA:
     def test_va_non_waste_unchanged(
         self, weights_2017: WasteDisaggWeights, real_va: pd.DataFrame
     ) -> None:
-        if _ORIG not in real_va.columns:
-            pytest.skip("Cornerstone VA already has waste disaggregated (no 562000)")
         va_rows = [r for r in _VA_ROWS if r in real_va.index]
         if not va_rows:
             pytest.skip("Cornerstone VA table has none of V00100/V00200/V00300")
@@ -826,15 +852,22 @@ class TestIntegrationYtot:
     def test_fd_mass_preserved_per_column(
         self, weights_2017: WasteDisaggWeights, real_Ytot: pd.DataFrame
     ) -> None:
-        if _ORIG not in real_Ytot.index:
-            pytest.skip("BEA Ytot has no 562000 row")
         result = apply_waste_disagg_to_Ytot(real_Ytot, weights_2017)
         assert _ORIG not in result.index
         sample_fd_cols = [
-            fd for fd in real_Ytot.columns if cast(float, real_Ytot.loc[_ORIG, fd]) != 0
+            fd
+            for fd in real_Ytot.columns
+            if (_ORIG in real_Ytot.index and cast(float, real_Ytot.loc[_ORIG, fd]) != 0)
+            or (
+                _ORIG not in real_Ytot.index
+                and float(real_Ytot.loc[_WASTE_CODES_2017, fd].sum()) != 0.0
+            )
         ][:6]
         for fd_col in sample_fd_cols:
-            orig_val = cast(float, real_Ytot.loc[_ORIG, fd_col])
+            if _ORIG in real_Ytot.index:
+                orig_val = cast(float, real_Ytot.loc[_ORIG, fd_col])
+            else:
+                orig_val = float(real_Ytot.loc[_WASTE_CODES_2017, fd_col].sum())
             disagg_sum = sum(
                 cast(float, result.loc[c, fd_col]) for c in _WASTE_CODES_2017
             )
@@ -845,8 +878,6 @@ class TestIntegrationYtot:
     def test_fd_non_waste_rows_unchanged(
         self, weights_2017: WasteDisaggWeights, real_Ytot: pd.DataFrame
     ) -> None:
-        if _ORIG not in real_Ytot.index:
-            pytest.skip("Cornerstone Ytot already has waste disaggregated (no 562000)")
         waste_set = set(_WASTE_CODES_2017)
         other_com = [c for c in real_Ytot.index if c != _ORIG and c not in waste_set]
         if not other_com or not real_Ytot.columns.size:
@@ -865,13 +896,16 @@ class TestIntegrationYtot:
         fd_w = weights_2017.use_fd_columns_for_waste_commodity_rows
         if "F01000" not in fd_w.index:
             pytest.skip("F01000 not in waste FD weights")
-        if _ORIG not in real_Ytot.index or "F01000" not in real_Ytot.columns:
-            pytest.skip("Cornerstone Ytot has no 562000 row or F01000 column")
+        if "F01000" not in real_Ytot.columns:
+            pytest.skip("Cornerstone Ytot has no F01000 column")
         Ytot = real_Ytot[["F01000"]].copy()
-        if cast(float, Ytot.loc[_ORIG, "F01000"]) == 0:
-            pytest.skip("F01000 has zero for 562000 in real Ytot")
+        if _ORIG in Ytot.index:
+            orig_val = cast(float, Ytot.loc[_ORIG, "F01000"])
+        else:
+            orig_val = float(Ytot.loc[_WASTE_CODES_2017, "F01000"].sum())
+        if orig_val == 0.0:
+            pytest.skip("F01000 has zero mass for waste group in real Ytot")
         result = apply_waste_disagg_to_Ytot(Ytot, weights_2017)
-        orig_val = cast(float, Ytot.loc[_ORIG, "F01000"])
         for com in _WASTE_CODES_2017:
             expected = orig_val * cast(float, fd_w.loc["F01000", com])
             assert cast(float, result.loc[com, "F01000"]) == pytest.approx(
