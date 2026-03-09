@@ -404,7 +404,7 @@ class TestApplyWasteDisaggToYtot:
         result = apply_waste_disagg_to_Ytot(Ytot, simple_weights)
         assert result.loc["COM_X", "F01000"] == pytest.approx(20.0)
 
-    def test_fallback_to_intersection_for_unknown_fd_col(
+    def test_fallback_to_commodity_rows_all_columns_for_unknown_fd_col(
         self, simple_weights: WasteDisaggWeights
     ) -> None:
         Ytot = pd.DataFrame(

@@ -438,8 +438,9 @@ def apply_waste_disagg_to_Ytot(
     - Ytot is a DataFrame with index=commodity codes and columns=FD column codes.
     - For each FD column, Ytot[original_code, fd_col] is split across waste commodity
       subsector rows using use_fd_columns_for_waste_commodity_rows.
-    - If no FD-specific weight exists for a column, the Use intersection column-marginals
-      are used as fallback.
+    - If no FD-specific weight exists for a column, use_waste_commodity_rows_all_columns
+      is used as fallback (original_code row if present, else first row; matches useeior
+      getDefaultAllocationPercentages(UseFileDF, ..., 'Commodity')).
     """
     waste_codes = _waste_codes(weights)
     waste_set = set(waste_codes)
@@ -460,10 +461,24 @@ def apply_waste_disagg_to_Ytot(
 
     output = Ytot.copy()
     fd_w = weights.use_fd_columns_for_waste_commodity_rows
-    fallback_w = weights.use_intersection.sum(axis=0)
-    fallback_total = float(fallback_w.sum())
-    if fallback_total > 0:
-        fallback_w = fallback_w / fallback_total
+    default_table = weights.use_waste_commodity_rows_all_columns
+    if not default_table.empty and len(default_table.columns) > 0:
+        if original_code in default_table.index:
+            default_row = default_table.loc[original_code]
+        else:
+            default_row = default_table.iloc[0]
+        fallback_w = default_row.reindex(waste_codes, fill_value=0.0).astype(float)
+        fallback_total = float(fallback_w.sum())
+        if fallback_total > 0:
+            fallback_w = fallback_w / fallback_total
+        else:
+            fallback_w = pd.Series(
+                {c: 1.0 / len(waste_codes) for c in waste_codes}, dtype=float
+            )
+    else:
+        fallback_w = pd.Series(
+            {c: 1.0 / len(waste_codes) for c in waste_codes}, dtype=float
+        )
 
     for fd_col in output.columns:
         orig_val = cast(float, output.loc[original_code, fd_col])
