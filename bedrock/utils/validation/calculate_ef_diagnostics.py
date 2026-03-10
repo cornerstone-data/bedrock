@@ -154,19 +154,19 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
-    # Effective g decomposition (Cornerstone method only)
+    # Effective x decomposition (Cornerstone method only)
     if config.transform_b_matrix_with_useeio_method:
         from bedrock.utils.validation.diagnostics_helpers import (
-            compute_effective_g_comparison,
+            compute_effective_x_comparison,
         )
 
         t0 = time.time()
-        g_comparison = compute_effective_g_comparison()
+        x_comparison = compute_effective_x_comparison()
         update_sheet_tab(
-            sheet_id, 'g_decomposition', g_comparison.reset_index(), clean_nans=True
+            sheet_id, 'x_decomposition', x_comparison.reset_index(), clean_nans=True
         )
         logger.info(
-            f'[TIMING] Write g_decomposition to Google Sheets in {time.time() - t0:.1f}s'
+            f'[TIMING] Write x_decomposition to Google Sheets in {time.time() - t0:.1f}s'
         )
 
     # Compare D and N for significant sectors

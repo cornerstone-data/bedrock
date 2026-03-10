@@ -7,9 +7,9 @@ import pytest
 import bedrock.utils.math.formulas as formulas
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
-    derive_2017_g_usa,
     derive_2017_q_usa,
     derive_2017_U_with_negatives,
+    derive_2017_x_usa,
     derive_2017_Ytot_usa_matrix_set,
     derive_detail_y_imp_usa,
 )
@@ -327,8 +327,8 @@ def test_compare_output_and_L_y(
     if modelType == "Commodity":
         output = derive_2017_q_usa()
     else:
-        # TODO: For industry models need to add g = output via derive_2017_g_usa(). Using q = output for now.
-        output = derive_2017_g_usa()
+        # TODO: For industry models need to add x = output via derive_2017_x_usa(). Using q = output for now.
+        output = derive_2017_x_usa()
 
     # Compute appropriate L and y
     if use_domestic:
