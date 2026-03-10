@@ -45,3 +45,43 @@ def y_nab_usa_snapshot() -> pd.Series[float]:
         squeezed, pd.Series
     ), f"Expected Series after squeeze, got {type(squeezed)}"
     return squeezed
+
+
+@pytest.fixture(scope="session")
+def ytot_usa_snapshot() -> pd.Series[float]:
+    df = load_current_snapshot("ytot_USA")
+    squeezed = df.squeeze()
+    assert isinstance(
+        squeezed, pd.Series
+    ), f"Expected Series after squeeze, got {type(squeezed)}"
+    return squeezed
+
+
+@pytest.fixture(scope="session")
+def exports_usa_snapshot() -> pd.Series[float]:
+    df = load_current_snapshot("exports_USA")
+    squeezed = df.squeeze()
+    assert isinstance(
+        squeezed, pd.Series
+    ), f"Expected Series after squeeze, got {type(squeezed)}"
+    return squeezed
+
+
+@pytest.fixture(scope="session")
+def ydom_usa_snapshot() -> pd.Series[float]:
+    df = load_current_snapshot("ydom_USA")
+    squeezed = df.squeeze()
+    assert isinstance(
+        squeezed, pd.Series
+    ), f"Expected Series after squeeze, got {type(squeezed)}"
+    return squeezed
+
+
+@pytest.fixture(scope="session")
+def yimp_usa_snapshot() -> pd.Series[float]:
+    df = load_current_snapshot("yimp_USA")
+    squeezed = df.squeeze()
+    assert isinstance(
+        squeezed, pd.Series
+    ), f"Expected Series after squeeze, got {type(squeezed)}"
+    return squeezed

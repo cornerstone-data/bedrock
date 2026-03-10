@@ -52,6 +52,7 @@ class USAConfig(BaseModel):
         bool
     ) = False  # DRI: catherine.birney
     hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
+    new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
 
     @property
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
