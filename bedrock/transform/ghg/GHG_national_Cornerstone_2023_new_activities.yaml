@@ -45,6 +45,7 @@
 
     ## Other sources
     EPA_GHGI_T_4_55: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_4_55  #CO2 for selected petrochemicals
+      activity_to_sector_mapping: EPA_GHGI_CEDA_new_activities
       selection_fields:
         PrimaryActivity:
           - Acrylonitrile

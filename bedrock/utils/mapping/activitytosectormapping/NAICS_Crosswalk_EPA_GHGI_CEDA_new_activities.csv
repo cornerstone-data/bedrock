@@ -1,0 +1,7 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes,Table
+EPA_GHGI_CEDA_new_activities,Acrylonitrile,NAICS_2017_Code,325411,,325411,EPA_GHGI_T_4_55
+EPA_GHGI_CEDA_new_activities,Carbon Black,NAICS_2017_Code,325212,,3252A0,EPA_GHGI_T_4_55
+EPA_GHGI_CEDA_new_activities,Ethylene,NAICS_2017_Code,325110,,325110 Petrochemical Manufacturing,EPA_GHGI_T_4_55
+EPA_GHGI_CEDA_new_activities,Ethylene Dichloride,NAICS_2017_Code,325120,,not mapped,EPA_GHGI_T_4_55
+EPA_GHGI_CEDA_new_activities,Ethylene Oxide,NAICS_2017_Code,325411,,325411,EPA_GHGI_T_4_55
+EPA_GHGI_CEDA_new_activities,Methanol,NAICS_2017_Code,325411,,325411,EPA_GHGI_T_4_55
