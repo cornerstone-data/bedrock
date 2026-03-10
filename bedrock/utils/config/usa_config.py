@@ -53,6 +53,13 @@ class USAConfig(BaseModel):
     hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
 
+    #####
+    # Baseline snapshot
+    #####
+    snapshot_version_or_git_sha: ta.Literal[
+        "v0", "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
+    ] = "v0"
+
     @property
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
         return 2017

@@ -1,0 +1,14 @@
+#####
+# Model base settings
+#####
+model_base_year: 2023
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2023
+
+#####
+# Baseline snapshot
+#####
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
