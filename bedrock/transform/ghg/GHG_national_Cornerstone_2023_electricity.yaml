@@ -4,13 +4,14 @@
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
-    EPA_GHGI_T_3_8:  &stationary_combustion  # CH4 emissions from stationary combustion
-      year: 2023
-      activity_to_sector_mapping: EPA_GHGI_CEDA
-      fedefl_mapping: GHGI_AR5_100
+    EPA_GHGI_T_3_8: &stationary_combustion
+      !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8
+      # Inherited activity sets use EPA_GHGI_CEDA activity to sector mapping from base CEDA method
+      # only electric_power is overwritten
       activity_sets:
         !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets
         electric_power:
+          activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
           selection_fields:
             PrimaryActivity:
               Coal Electric Power: Coal Electric Power
