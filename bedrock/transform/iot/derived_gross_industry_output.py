@@ -166,7 +166,7 @@ def compute_coproduction_ratios(
 
     x = V_before_redef.sum(axis=1)
     source_x: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
-        g.reindex(coproduction['source_industry'].values).values, dtype=float
+        x.reindex(coproduction['source_industry'].values).values, dtype=float
     )
     coprod_values: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
         coproduction['value'].values, dtype=float
