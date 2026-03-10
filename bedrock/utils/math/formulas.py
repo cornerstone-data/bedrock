@@ -11,7 +11,7 @@ Matrices
   - V (i,c) : make matrix [USD]
   - U (c,i) : use matrix [USD]
   - q (c,)  : commodity output [USD]
-  - g (i,)  : industry output [USD]
+  - x (i,)  : industry output [USD]
   - A (c,c) : direct requirements [USD/USD]
   - L (c,c) : total requirements [USD/USD]
   - B (g,c) : direct emissions factor by GHG [kgco2e/USD]
@@ -55,7 +55,7 @@ def compute_Unorm_matrix(*, U: pd.DataFrame, x: pd.Series[float]) -> pd.DataFram
     U is the intermediate transaction part of comprehensive Use matrix (commodity x industry) representing "industries use commodities",
     i.e. the part of Final Demand consuming commodities are excluded.
 
-    g is the industry output vector (industry x 1).
+    x is the industry output vector (industry x 1).
 
     This function generates direct requirements matrix (commodity x industry) that shows
     how much of each commodity is required to produce one unit of output of each industry.

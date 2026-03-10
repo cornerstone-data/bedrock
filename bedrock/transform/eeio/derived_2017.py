@@ -54,7 +54,7 @@ from bedrock.utils.math.structural_reflection import (
 from bedrock.utils.schemas.single_region_schemas import (
     AMatrix,
     ExportsVectorSchema,
-    GVectorSchema,
+    XVectorSchema,
     ImportsVectorSchema,
     QVectorSchema,
     UMatrix,
@@ -152,7 +152,7 @@ def derive_2017_V_usa() -> pt.DataFrame[VMatrix]:
 
 
 @functools.cache
-@pa.check_output(GVectorSchema)
+@pa.check_output(XVectorSchema)
 def derive_2017_x_usa() -> pd.Series[float]:
     return compute_x(V=derive_2017_V_usa())
 

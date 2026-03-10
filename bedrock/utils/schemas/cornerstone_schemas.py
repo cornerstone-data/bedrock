@@ -202,7 +202,7 @@ class CornerstoneEMatrix(CornerstoneSingleRegionIndustryEmissionsBase):
 # Vector schemas
 # ---------------------------------------------------------------------------
 
-CornerstoneGVectorSchema = _get_industry_vector_schema(is_non_negative=False)
+CornerstoneXVectorSchema = _get_industry_vector_schema(is_non_negative=False)
 CornerstoneQVectorSchema = _get_commodity_vector_schema(is_non_negative=False)
 CornerstoneYVectorSchema = _get_commodity_vector_schema(is_non_negative=True)
 CornerstoneExportsVectorSchema = _get_commodity_vector_schema(is_non_negative=True)

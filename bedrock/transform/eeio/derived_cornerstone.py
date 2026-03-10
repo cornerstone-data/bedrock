@@ -83,7 +83,7 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     CornerstoneAMatrix,
     CornerstoneBMatrix,
     CornerstoneEMatrix,
-    CornerstoneGVectorSchema,
+    CornerstoneXVectorSchema,
     CornerstoneQVectorSchema,
     CornerstoneUMatrix,
     CornerstoneVMatrix,
@@ -123,7 +123,7 @@ def derive_cornerstone_V() -> pd.DataFrame:
 
 
 @functools.cache
-@pa.check_output(CornerstoneGVectorSchema)
+@pa.check_output(CornerstoneXVectorSchema)
 def derive_cornerstone_x() -> pd.Series[float]:
     return compute_x(V=derive_cornerstone_V())
 
