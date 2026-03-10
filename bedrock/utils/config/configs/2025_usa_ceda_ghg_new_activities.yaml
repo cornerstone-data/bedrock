@@ -6,3 +6,4 @@
 #####
 load_E_from_flowsa: true
 add_new_ghg_activities: true
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
