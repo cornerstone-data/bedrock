@@ -91,7 +91,7 @@ def bea_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series[float]]:
         V_norm=Vnorm,
     )
     Aimp = compute_A_matrix(
-        U_norm=compute_Unorm_matrix(U=Uimp_clean, x=g),
+        U_norm=compute_Unorm_matrix(U=Uimp_clean, x=x),
         V_norm=Vnorm,
     )
     return Adom, Aimp, bea_q()

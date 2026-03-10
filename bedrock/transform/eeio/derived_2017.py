@@ -95,7 +95,7 @@ def derive_2017_Aq_usa() -> SingleRegionAqMatrixSet:
     # domestic/import direct requirements (after redefinition)
     Uset = derive_2017_U_set_usa()
     Udom_norm = compute_Unorm_matrix(U=Uset.Udom, x=x)
-    Uimp_norm = compute_Unorm_matrix(U=Uset.Uimp, x=g)
+    Uimp_norm = compute_Unorm_matrix(U=Uset.Uimp, x=x)
 
     # domestic & import direct requirements (after redefinition) in industry technology
     Adom = compute_A_matrix(U_norm=Udom_norm, V_norm=Vnorm_scrap_corrected)
