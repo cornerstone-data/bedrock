@@ -164,7 +164,7 @@ def compute_coproduction_ratios(
         raise ValueError('NaN encountered in V_movement; check input table alignment.')
     coproduction = extract_coproduction_entries(V_movement)
 
-    g = V_before_redef.sum(axis=1)
+    x = V_before_redef.sum(axis=1)
     source_x: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
         g.reindex(coproduction['source_industry'].values).values, dtype=float
     )
