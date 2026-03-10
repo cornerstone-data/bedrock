@@ -22,12 +22,14 @@ def test_generate_diagnostics_writes_baseline_snapshot_key_to_config_summary() -
 
     with (
         patch(
-            "bedrock.utils.validation.calculate_ef_diagnostics.calculate_ef_diagnostics"
+            'bedrock.utils.validation.calculate_ef_diagnostics.calculate_ef_diagnostics'
         ),
         patch(
-            "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.calculate_national_accounting_balance_diagnostics"
+            'bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.calculate_national_accounting_balance_diagnostics'
         ),
-        patch("bedrock.utils.validation.generate_diagnostics.update_sheet_tab") as mock_update,
+        patch(
+            'bedrock.utils.validation.generate_diagnostics.update_sheet_tab'
+        ) as mock_update,
     ):
         result = runner.invoke(
             generate_diagnostics,
@@ -47,7 +49,7 @@ def test_generate_diagnostics_writes_baseline_snapshot_key_to_config_summary() -
     assert isinstance(written_df, pd.DataFrame)
 
     baseline_row = written_df.loc[
-        written_df["config_field"] == "baseline_snapshot_key_used", "value"
+        written_df['config_field'] == 'baseline_snapshot_key_used', 'value'
     ]
     assert len(baseline_row) == 1
-    assert baseline_row.iloc[0] == "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
+    assert baseline_row.iloc[0] == 'ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc'

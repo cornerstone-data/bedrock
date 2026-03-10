@@ -56,6 +56,8 @@ class USAConfig(BaseModel):
     #####
     # Baseline snapshot
     #####
+    # The git SHA below is the baseline snapshots generated on main with
+    # configuration: 2025_usa_cornerstone_fbs_schema.
     snapshot_version_or_git_sha: ta.Literal[
         "v0", "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
     ] = "v0"
