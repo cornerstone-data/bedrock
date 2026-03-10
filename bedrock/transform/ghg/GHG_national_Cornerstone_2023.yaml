@@ -654,17 +654,14 @@ source_names:
             - Wood Residential
         attribution_method: direct
 
-     # note modified approach from flowsa - ceda directly attributes, while flowsa proportionally attributes using bea
       electric_power:
         selection_fields:
-          # note: for ceda calling on all activities, but this is the same approach as flowsa as the electricity by fuel type sum to all activities
           PrimaryActivity:
-#            Coal Electric Power: Coal Electric Power  # flowsa only
-#            Natural Gas Electric Power: Natural Gas Electric Power  # flowsa only
-#            Natural gas Electric Power: Natural Gas Electric Power # fix capitalization  # flowsa only
-#            Fuel Oil Electric Power: Fuel Oil Electric Power  # flowsa only
-#            Wood Electric Power: Wood Electric Power
-            - All activities Electric Power
+            Coal Electric Power: Coal Electric Power
+            Natural Gas Electric Power: Natural Gas Electric Power
+            Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
+            Fuel Oil Electric Power: Fuel Oil Electric Power
+            Wood Electric Power: Wood Electric Power
         attribution_method: direct
 
       # updated from flowsa, only includes commercial
