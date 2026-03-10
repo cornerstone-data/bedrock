@@ -34,38 +34,33 @@ source_names:
       direct:
         selection_fields:
           PrimaryActivity:
-            - Abandoned Oil and Gas Wells #CH4 - same as flowsa
-            - Abandoned Underground Coal Mines #CH4 - same as flowsa
-            - Adipic Acid Production #N2O - same as flowsa
-            - Aluminum Production #CO2 - same as flowsa
-            - Ammonia Production #CO2 - same as flowsa
-            - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O - same as flowsa
-            - Carbide Production and Consumption #CO2 only, CH4 is not in ceda
-            - Cement Production #CO2 - same as flowsa
-            - Composting #CH4, N2O - same as flowsa
-            - Electronics Industry  # N2O - note different than flowsa, which uses T 4_118
-            - Ferroalloy Production #CO2, CH4 - note that ch4 in ceda has no emissions to allocate, true of flowsa as well?
-            - Glass Production #CO2 - same as flowsa
-            - Landfills #CH4 - same as flowsa
+            - Abandoned Oil and Gas Wells #CH4
+            - Abandoned Underground Coal Mines #CH4
+            - Adipic Acid Production #N2O
+            - Aluminum Production #CO2
+            - Ammonia Production #CO2
+            - Anaerobic Digestion at Biogas Facilities #CH4 new activity
+            - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O
+            - Carbide Production and Consumption #CO2
+            - Cement Production #CO2
+            - Coal Mining #CH4, CO2
+            - Composting #CH4, N2O
+            - Electronics Industry #N2O
+            - Ferroalloy Production #CO2, CH4
+            - Glass Production #CO2
+            - Landfills #CH4
             - Incineration of Waste #N2O and CO2
-            - Lime Production #CO2 - same as flowsa
-            - Iron and Steel Production & Metallurgical Coke Production #CO2, CH4 #TODO: find ch4 in ceda
-            - Nitric Acid Production #N2O - same as flowsa
-            - Phosphoric Acid Production #CO2 - same as flowsa
-            - Rice Cultivation #CH4 - same as flowsa
-            - Soda Ash Production #CO2 - ceda pulls this data from table 4-51, but same data
-            - Titanium Dioxide Production #CO2 - same as flowsa
-            - Wastewater Treatment #CH4, N2O - same as flowsa
-            - Zinc Production #CO2 - same as flowsa
+            - Lime Production #CO2
+            - Iron and Steel Production & Metallurgical Coke Production #CO2, CH4
+            - Nitric Acid Production #N2O
+            - Phosphoric Acid Production #CO2
+            - Rice Cultivation #CH4
+            - Soda Ash Production #CO2
+            - Titanium Dioxide Production #CO2
+            - Wastewater Treatment #CH4, N2O
+            - Zinc Production #CO2
           FlowName: ["CO2", "CH4", "N2O"] # HFCs and other flows are pulled elsewhere
         attribution_method: direct
-      direct3:
-        selection_fields:
-          PrimaryActivity:
-            - Coal Mining # CH4 only,  co2 coal mining not in ceda
-          FlowName: ["CH4"]
-        attribution_method: direct
-
       electricity_transmission:
         selection_fields:
           PrimaryActivity:
@@ -757,12 +752,12 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-        - Acrylonitrile  # same as flowsa
-        - Carbon Black  # same as flowsa
-        - Ethylene  # same as flowsa
-#        - Ethylene Dichloride  # only in flowsa
-        - Ethylene Oxide  # same as flowsa
-        - Methanol  # same as flowsa
+        - Acrylonitrile
+        - Carbon Black
+        - Ethylene
+        - Ethylene Dichloride
+        - Ethylene Oxide
+        - Methanol
     attribution_method: direct
 
   EPA_GHGI_T_3_25: # Fossil fuel for non-energy uses
@@ -863,11 +858,11 @@ source_names:
       FlowName: ["CF4", "C2F6", "C3F8"] # HFCs and other flows are pulled elsewhere
     attribution_method: direct
 
-  # EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
-  #   year: *ghgi_year
-  #   activity_to_sector_mapping: EPA_GHGI_CEDA
-  #   fedefl_mapping: GHGI_AR5_100
-  #   attribution_method: direct
+  EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
+    year: *ghgi_year
+    activity_to_sector_mapping: EPA_GHGI_CEDA
+    fedefl_mapping: GHGI_AR5_100
+    attribution_method: direct
 
   EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
     activity_to_sector_mapping: EPA_GHGI_CEDA
