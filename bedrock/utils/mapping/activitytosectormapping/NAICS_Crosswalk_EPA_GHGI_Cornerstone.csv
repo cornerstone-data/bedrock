@@ -95,7 +95,7 @@ EPA_GHGI_Cornerstone,Swine,NAICS_2017_Code,1122,,112A00,"EPA_GHGI_T_5_3, EPA_GHG
 EPA_GHGI_Cornerstone,Poultry,NAICS_2017_Code,1123,,112300,"EPA_GHGI_T_5_3, EPA_GHGI_T_5_7"
 EPA_GHGI_Cornerstone,Acrylonitrile,NAICS_2017_Code,325411,,325411 (incorrect in original?),EPA_GHGI_T_4_46
 EPA_GHGI_Cornerstone,Carbon Black,NAICS_2017_Code,325212,,3252A0 (incorrect in original?),EPA_GHGI_T_4_46
-EPA_GHGI_Cornerstone,Ethylene,NAICS_2017_Code,325110,,324110,EPA_GHGI_T_4_46
+EPA_GHGI_Cornerstone,Ethylene,NAICS_2017_Code,325110,,325110,EPA_GHGI_T_4_46
 EPA_GHGI_Cornerstone,Ethylene Dichloride,NAICS_2017_Code,325120,,not mapped,EPA_GHGI_T_4_46
 EPA_GHGI_Cornerstone,Ethylene Oxide,NAICS_2017_Code,325411,,325411 (incorrect in original?),EPA_GHGI_T_4_46
 EPA_GHGI_Cornerstone,Methanol,NAICS_2017_Code,325411,,325411 (incorrect in original?),EPA_GHGI_T_4_46
