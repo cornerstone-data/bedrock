@@ -11,10 +11,10 @@ import typing as ta
 import pytest
 
 from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_x_usa,
     derive_2017_q_usa,
     derive_2017_U_with_negatives,
     derive_2017_V_usa,
+    derive_2017_x_usa,
 )
 from bedrock.utils.validation.eeio_diagnostics import (
     commodity_industry_output_cpi_consistency,

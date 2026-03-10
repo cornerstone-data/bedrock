@@ -66,9 +66,9 @@ from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
-    compute_x,
     compute_q,
     compute_Vnorm_matrix,
+    compute_x,
     compute_y_for_national_accounting_balance,
     compute_y_imp,
 )
@@ -83,10 +83,10 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     CornerstoneAMatrix,
     CornerstoneBMatrix,
     CornerstoneEMatrix,
-    CornerstoneXVectorSchema,
     CornerstoneQVectorSchema,
     CornerstoneUMatrix,
     CornerstoneVMatrix,
+    CornerstoneXVectorSchema,
 )
 from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,

@@ -2,8 +2,8 @@ import pandas as pd
 
 from bedrock.transform.allocation.derived import derive_E_usa_emissions_sources
 from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_x_usa,
     derive_2017_Vnorm_scrap_corrected,
+    derive_2017_x_usa,
 )
 from bedrock.utils.math.formulas import compute_B_ind_matrix, compute_B_matrix
 

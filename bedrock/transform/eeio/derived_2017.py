@@ -37,10 +37,10 @@ from bedrock.transform.eeio.derived_2017_helpers import (
 from bedrock.utils.economic.inflate_to_target_year import inflate_usa_V_to_target_year
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
-    compute_x,
     compute_q,
     compute_Unorm_matrix,
     compute_Vnorm_matrix,
+    compute_x,
     compute_y_imp,
 )
 from bedrock.utils.math.handle_negatives import (
@@ -54,11 +54,11 @@ from bedrock.utils.math.structural_reflection import (
 from bedrock.utils.schemas.single_region_schemas import (
     AMatrix,
     ExportsVectorSchema,
-    XVectorSchema,
     ImportsVectorSchema,
     QVectorSchema,
     UMatrix,
     VMatrix,
+    XVectorSchema,
     YVectorSchema,
 )
 from bedrock.utils.schemas.single_region_types import (
