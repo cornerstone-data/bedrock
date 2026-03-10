@@ -10,6 +10,7 @@ import pandas as pd
 from bedrock.utils.config.settings import GIT_BRANCH, GIT_HASH_LONG, GIT_PR_URL
 from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
+from bedrock.utils.snapshots.loader import resolve_snapshot_key
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,10 @@ def generate_diagnostics(
                 'value': git_branch or GIT_BRANCH or 'unknown',
             },
             {'config_field': 'git_pr_url', 'value': pr_url or GIT_PR_URL or 'N/A'},
+            {
+                'config_field': 'baseline_snapshot_key_used',
+                'value': resolve_snapshot_key(),
+            },
         ]
     )
     config_df = pd.concat([git_metadata, config_df], ignore_index=True)

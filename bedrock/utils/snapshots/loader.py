@@ -3,6 +3,7 @@ import posixpath
 
 import pandas as pd
 
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.snapshots.names import SnapshotName
 
@@ -12,6 +13,14 @@ GCS_SNAPSHOT_DIR = "snapshots"
 
 def load_current_snapshot(name: SnapshotName) -> pd.DataFrame:
     return load_snapshot(name, key=current_snapshot_key())
+
+
+def resolve_snapshot_key() -> str:
+    return get_usa_config().snapshot_version_or_git_sha
+
+
+def load_configured_snapshot(name: SnapshotName) -> pd.DataFrame:
+    return load_snapshot(name, key=resolve_snapshot_key())
 
 
 def load_snapshot(name: SnapshotName, key: str) -> pd.DataFrame:

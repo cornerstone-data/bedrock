@@ -23,7 +23,7 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
-from bedrock.utils.snapshots.loader import load_current_snapshot
+from bedrock.utils.snapshots.loader import load_configured_snapshot
 from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 
@@ -510,11 +510,10 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     N_new = compute_n(M=M_new)
     logger.info(f'[TIMING] New L, M, D, N matrices computed in {time.time() - t0:.1f}s')
 
-    # Uses the snapshot version specified in bedrock/utils/snapshots/.SNAPSHOT_KEY
     t0 = time.time()
-    B_old = load_current_snapshot(B_snapshot_name)
-    Adom_old = load_current_snapshot(Adom_snapshot_name)
-    Aimp_old = load_current_snapshot(Aimp_snapshot_name)
+    B_old = load_configured_snapshot(B_snapshot_name)
+    Adom_old = load_configured_snapshot(Adom_snapshot_name)
+    Aimp_old = load_configured_snapshot(Aimp_snapshot_name)
     logger.info(f'[TIMING] Old snapshots loaded in {time.time() - t0:.1f}s')
 
     t0 = time.time()

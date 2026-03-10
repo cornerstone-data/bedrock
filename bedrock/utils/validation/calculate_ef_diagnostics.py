@@ -10,7 +10,7 @@ import pandas as pd
 
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
-from bedrock.utils.snapshots.loader import load_current_snapshot
+from bedrock.utils.snapshots.loader import load_configured_snapshot
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 from bedrock.utils.validation.diagnostics_helpers import (
     align_efs_across_schemas,
@@ -244,8 +244,8 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         L=L_new, D=ta.cast('pd.Series[float]', efs_raw.D_new.squeeze())
     )
 
-    Adom_old = load_current_snapshot('Adom_USA')
-    Aimp_old = load_current_snapshot('Aimp_USA')
+    Adom_old = load_configured_snapshot('Adom_USA')
+    Aimp_old = load_configured_snapshot('Aimp_USA')
     L_old = compute_L_matrix(A=Adom_old + Aimp_old)
 
     OC_old = compute_output_contribution(

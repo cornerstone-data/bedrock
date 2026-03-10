@@ -21,7 +21,7 @@ class TestCalculateEfDiagnostics:
     """Test the EF diagnostics orchestrator with mocked data sources.
 
     Only external dependencies (pull_efs_for_diagnostics, derive_Aq_usa,
-    load_current_snapshot, update_sheet_tab) are mocked. The actual math
+    load_configured_snapshot, update_sheet_tab) are mocked. The actual math
     (construct_ef_diff_dataframe, compute_L_matrix, compute_output_contribution,
     etc.) runs against synthetic data so we verify the real pipeline.
     """
@@ -78,7 +78,7 @@ class TestCalculateEfDiagnostics:
                 return_value=mock_Aq,
             ),
             patch(
-                "bedrock.utils.validation.calculate_ef_diagnostics.load_current_snapshot",
+                "bedrock.utils.validation.calculate_ef_diagnostics.load_configured_snapshot",
                 side_effect=mock_load,
             ),
             patch(

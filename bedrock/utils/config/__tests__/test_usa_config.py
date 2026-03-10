@@ -21,6 +21,16 @@ def test_global_usa_config() -> None:
     set_global_usa_config("test_usa_config.yaml")
     usa_config = get_usa_config()
     assert usa_config.usa_ghg_data_year == 2023
+    assert usa_config.snapshot_version_or_git_sha == "v0"
+
+
+def test_global_usa_config_with_snapshot_git_sha() -> None:
+    set_global_usa_config("test_usa_config_git_sha.yaml")
+    usa_config = get_usa_config()
+    assert (
+        usa_config.snapshot_version_or_git_sha
+        == "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
+    )
 
 
 def test_cannot_call_global_usa_config_twice() -> None:
