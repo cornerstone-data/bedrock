@@ -4,21 +4,14 @@
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
-    EPA_GHGI_T_2_1: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1  # U.S. GHG emissions
-      activity_sets:
-        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
-        electric_power:
-          selection_fields:
-            PrimaryActivity:
-              Electric Power Sector: Electric Power #CO2
-          attribution_method: direct
-
     EPA_GHGI_T_3_8: &stationary_combustion
       !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8
-      activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
+      # Inherited activity sets use EPA_GHGI_CEDA activity to sector mapping from base CEDA method
+      # only electric_power is overwritten
       activity_sets:
         !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets
         electric_power:
+          activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
           selection_fields:
             PrimaryActivity:
               Coal Electric Power: Coal Electric Power
