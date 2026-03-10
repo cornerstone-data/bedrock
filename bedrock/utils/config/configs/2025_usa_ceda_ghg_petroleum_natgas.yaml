@@ -6,3 +6,4 @@
 #####
 update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: true
 load_E_from_flowsa: true
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
