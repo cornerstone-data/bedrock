@@ -66,7 +66,7 @@ from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
-    compute_g,
+    compute_x,
     compute_q,
     compute_Vnorm_matrix,
     compute_y_for_national_accounting_balance,
@@ -124,8 +124,8 @@ def derive_cornerstone_V() -> pd.DataFrame:
 
 @functools.cache
 @pa.check_output(CornerstoneGVectorSchema)
-def derive_cornerstone_g() -> pd.Series[float]:
-    return compute_g(V=derive_cornerstone_V())
+def derive_cornerstone_x() -> pd.Series[float]:
+    return compute_x(V=derive_cornerstone_V())
 
 
 @functools.cache
@@ -154,13 +154,13 @@ def derive_cornerstone_Vnorm_scrap_corrected(
         )
 
     q = compute_q(V=V)
-    g = compute_g(V=V)
+    x = compute_x(V=V)
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
 
     scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
     scrap_fraction = industry_corresp() @ scrap_2017
 
-    V_scrap_corrected = Vnorm.divide((1.0 - (scrap_fraction / g).fillna(0.0)), axis=0)
+    V_scrap_corrected = Vnorm.divide((1.0 - (scrap_fraction / x).fillna(0.0)), axis=0)
     return V_scrap_corrected
 
 
