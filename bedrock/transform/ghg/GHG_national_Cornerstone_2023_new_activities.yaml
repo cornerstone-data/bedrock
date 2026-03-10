@@ -18,6 +18,7 @@
               - Caprolactam, Glyoxal, and Glyoxylic Acid Production #N2O
               - Carbide Production and Consumption #CO2
               - Cement Production #CO2
+              - Coal Mining #CH4, CO2
               - Composting #CH4, N2O
               - Electronics Industry #N2O
               - Ferroalloy Production #CO2, CH4
@@ -37,8 +38,7 @@
           attribution_method: direct
         direct3:
           selection_fields:
-            PrimaryActivity:
-              - Coal Mining  # TODO: once pulled into main, can move coal mining into "direct" activity set, consolidating
+            PrimaryActivity: PASS  # consolidated into direct
             FlowName: ["CH4", "CO2"]
           attribution_method: direct
 
