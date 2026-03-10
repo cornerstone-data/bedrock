@@ -263,7 +263,9 @@ def _apply_waste_disagg_to_U_single(
             output.loc[com, ind] = orig_row_val * w
 
     # --- Row disaggregation (commodity rows) ---
-    row_w = weights.use_waste_commodity_rows_all_columns
+    # Industry-specific allocations (useeior rowsPercentages) override default per column.
+    specific_row_w = weights.use_waste_rows_specific_columns
+    default_row_w = weights.use_waste_commodity_rows_all_columns
     fd_cols = set(weights.use_fd_columns_for_waste_commodity_rows.index)
     for ind in output.columns:
         if ind in waste_set or ind == original_code or ind in fd_cols:
@@ -273,13 +275,26 @@ def _apply_waste_disagg_to_U_single(
             for com in waste_codes:
                 output.loc[com, ind] = 0.0
             continue
-        if not row_w.empty and ind in row_w.index:
-            col_weights = row_w.loc[ind]
-        elif not row_w.empty and len(row_w) == 1:
-            col_weights = row_w.iloc[0]
+        if not specific_row_w.empty and ind in specific_row_w.index:
+            col_weights = (
+                specific_row_w.loc[ind]
+                .reindex(waste_codes, fill_value=0.0)
+                .astype(float)
+            )
+            total = float(col_weights.sum())
+            if total > 0:
+                col_weights = col_weights / total
+            else:
+                n = len(waste_codes)
+                col_weights = pd.Series(1.0 / n, index=waste_codes)
+        elif not default_row_w.empty and ind in default_row_w.index:
+            col_weights = default_row_w.loc[ind]
+        elif not default_row_w.empty and len(default_row_w) >= 1:
+            col_weights = default_row_w.iloc[0]
         else:
             n = len(waste_codes)
             col_weights = pd.Series(1.0 / n, index=waste_codes)
+        col_weights = col_weights.reindex(waste_codes, fill_value=0.0).astype(float)
         for com in waste_codes:
             w = float(col_weights[com]) if com in col_weights.index else 0.0
             output.loc[com, ind] = orig_col_val * w
@@ -302,7 +317,10 @@ def apply_waste_disagg_to_U(
     - Columns (industry disaggregation): for each non-waste, non-VA commodity row,
       U[commodity, original_code] is split across waste industry columns.
     - Rows (commodity disaggregation): for each non-waste, non-FD industry column,
-      U[original_code, industry] is split across waste commodity rows.
+      U[original_code, industry] is split across waste commodity rows. Uses
+      use_waste_rows_specific_columns when the industry has a row there (useeior
+      rowsPercentages); otherwise use_waste_commodity_rows_all_columns (original
+      or default row).
 
     VA and FD are handled by separate functions.
     """

@@ -118,6 +118,59 @@ def simple_weights() -> WasteDisaggWeights:
     )
 
 
+@pytest.fixture()
+def simple_weights_with_ind_x_row_specific() -> WasteDisaggWeights:
+    """Like simple_weights but use_waste_rows_specific_columns has IND_X with 0.6, 0.25, 0.15."""
+    make_intersection = _wt(
+        WASTE,
+        WASTE,
+        [
+            [0.6, 0.0, 0.0],
+            [0.0, 0.3, 0.0],
+            [0.0, 0.0, 0.1],
+        ],
+    )
+    make_col_all = _wt([ORIG], WASTE, [[0.5, 0.3, 0.2]])
+    make_col_specific = _empty_weight_table()
+    make_row_specific = _wt(["COM_A"], WASTE, [[0.4, 0.4, 0.2]])
+    use_intersection = _wt(
+        WASTE,
+        WASTE,
+        [
+            [0.5, 0.0, 0.0],
+            [0.0, 0.3, 0.0],
+            [0.0, 0.0, 0.2],
+        ],
+    )
+    use_col_all = _wt([ORIG], WASTE, [[0.4, 0.35, 0.25]])
+    use_row_all = _wt([ORIG], WASTE, [[0.5, 0.3, 0.2]])
+    use_rows_specific = _wt(["IND_X"], WASTE, [[0.6, 0.25, 0.15]])
+    use_va = _wt(
+        ["V00100", "V00200"],
+        WASTE,
+        [[0.5, 0.3, 0.2], [0.6, 0.2, 0.2]],
+    )
+    use_fd = _wt(
+        ["F01000", "F06C00"],
+        WASTE,
+        [[0.7, 0.2, 0.1], [0.3, 0.4, 0.3]],
+    )
+    return WasteDisaggWeights(
+        use_intersection=use_intersection,
+        use_waste_industry_columns_all_rows=use_col_all,
+        use_waste_commodity_rows_all_columns=use_row_all,
+        use_waste_rows_specific_columns=use_rows_specific,
+        use_va_rows_for_waste_industry_columns=use_va,
+        use_fd_columns_for_waste_commodity_rows=use_fd,
+        make_intersection=make_intersection,
+        make_waste_commodity_columns_all_rows=make_col_all,
+        make_waste_commodity_columns_specific_rows=make_col_specific,
+        make_waste_industry_rows_specific_columns=make_row_specific,
+        year=2017,
+        source_name="test",
+    )
+
+
 # ---------------------------------------------------------------------------
 # apply_waste_disagg_to_V
 # ---------------------------------------------------------------------------
@@ -263,6 +316,30 @@ class TestApplyWasteDisaggToU:
 
         row_sum = sum(cast(float, Udom.loc[c, "IND_X"]) for c in WASTE)
         assert row_sum == pytest.approx(60.0)
+
+    def test_row_disagg_uses_default_weights(
+        self, simple_weights: WasteDisaggWeights
+    ) -> None:
+        """With no industry-specific row weights, IND_X uses default row [0.5, 0.3, 0.2]."""
+        U = self._make_U()
+        Udom, _ = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
+        # U[ORIG, IND_X]=60 split by use_waste_commodity_rows_all_columns (ORIG row)
+        assert Udom.loc["562111", "IND_X"] == pytest.approx(30.0)
+        assert Udom.loc["562212", "IND_X"] == pytest.approx(18.0)
+        assert Udom.loc["562910", "IND_X"] == pytest.approx(12.0)
+
+    def test_row_disagg_uses_specific_weights_when_present(
+        self, simple_weights_with_ind_x_row_specific: WasteDisaggWeights
+    ) -> None:
+        """When use_waste_rows_specific_columns has a row for the industry, that row is used."""
+        U = self._make_U()
+        Udom, _ = apply_waste_disagg_to_U(
+            U, U.copy(), simple_weights_with_ind_x_row_specific
+        )
+        # U[ORIG, IND_X]=60 split by use_waste_rows_specific_columns IND_X row (0.6, 0.25, 0.15)
+        assert Udom.loc["562111", "IND_X"] == pytest.approx(36.0)
+        assert Udom.loc["562212", "IND_X"] == pytest.approx(15.0)
+        assert Udom.loc["562910", "IND_X"] == pytest.approx(9.0)
 
     def test_original_code_removed(self, simple_weights: WasteDisaggWeights) -> None:
         U = self._make_U()
