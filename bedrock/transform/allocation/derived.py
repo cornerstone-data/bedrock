@@ -131,8 +131,6 @@ def load_E_from_flowsa() -> pd.DataFrame:
       new_ghg_method is True
     - GHG_national_Cornerstone_2023_other_gases when
       update_other_gases_ghg_method is True
-    - GHG_national_Cornerstone_2023_petroleum_natgas when
-      update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems is True
     - GHG_national_Cornerstone_2023_hybrid_bea_naics_schema when
       hybrid_bea_naics_schema_in_ghg_attribution is True
     - GHG_national_CEDA_2023 otherwise
