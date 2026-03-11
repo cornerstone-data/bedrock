@@ -44,12 +44,15 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_price_index: bool = False  # DRI: mo.li
     ### GHG Methodology selection
-    hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
+    usa_ghg_methodology: ta.Literal["national", "state"] = "national"
+    update_transportation_ghg_method: bool = False  # DRI: ben.young
+    update_electricity_ghg_method: bool = False  # DRI: catherine.birney
+    update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
+        False  # DRI: catherine.birney
+    )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
-    update_transportation_ghg_method: bool = False  # DRI: ben.young
-    usa_ghg_methodology: ta.Literal["national", "state"] = "national"
 
     #####
     # Baseline snapshot
