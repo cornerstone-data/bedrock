@@ -1,6 +1,0 @@
-# CEDA 2023 with updated target schema based on Cornerstone.
-# NOTE: Need to also update the underlying method to use the Cornerstone_2025
-# mapping file in place of CEDA_2025. However at this point they are the same.
-
-!include:GHG_national_CEDA_2023.yaml
-industry_spec: !include:Cornerstone_2025_target.yaml:industry_spec
