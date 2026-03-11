@@ -51,7 +51,6 @@ class USAConfig(BaseModel):
     update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: (
         bool
     ) = False  # DRI: catherine.birney
-    hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
     update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
         False  # DRI: catherine.birney
     )
