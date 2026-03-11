@@ -72,7 +72,13 @@
       fedefl_mapping: GHGI_AR5_100
       selection_fields:
         PrimaryActivity: Magnesium Production and Processing
-      attribution_method: direct
+      attribution_method: proportional
+      attribution_source:
+        BEA_Detail_GrossOutput_IO:
+          year: 2023
+          geoscale: national
+          activity_to_sector_mapping: BEA_2017_Detail
+          attribution_method: equal
 
     EPA_GHGI_T_4_118: # HFCs and other emissions from electronics manufacture (incl. Electronics Industry from T_2_1)
       year: 2023  # same as *ghgi_year in base method
