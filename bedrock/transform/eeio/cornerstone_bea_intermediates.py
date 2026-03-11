@@ -23,10 +23,10 @@ from bedrock.transform.iot.derived_gross_industry_output import (
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
-    compute_g,
     compute_q,
     compute_Unorm_matrix,
     compute_Vnorm_matrix,
+    compute_x,
 )
 from bedrock.utils.math.handle_negatives import handle_negative_matrix_values
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
@@ -39,9 +39,9 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
 
 
 @functools.cache
-def bea_g() -> pd.Series[float]:
+def bea_x() -> pd.Series[float]:
     """Industry total output in BEA 2017 space."""
-    return compute_g(V=load_2017_V_usa())
+    return compute_x(V=load_2017_V_usa())
 
 
 @functools.cache
@@ -78,7 +78,7 @@ def bea_Vnorm_scrap_corrected() -> pd.DataFrame:
 @functools.cache
 def bea_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series[float]]:
     """(Adom, Aimp, q) in BEA 2017 space, with scrap correction."""
-    g = bea_g()
+    x = bea_x()
     Vnorm = bea_Vnorm_scrap_corrected()
 
     Utot = load_2017_Utot_usa()
@@ -87,11 +87,11 @@ def bea_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series[float]]:
     Uimp_clean = handle_negative_matrix_values(Uimp)
 
     Adom = compute_A_matrix(
-        U_norm=compute_Unorm_matrix(U=Udom, g=g),
+        U_norm=compute_Unorm_matrix(U=Udom, x=x),
         V_norm=Vnorm,
     )
     Aimp = compute_A_matrix(
-        U_norm=compute_Unorm_matrix(U=Uimp_clean, g=g),
+        U_norm=compute_Unorm_matrix(U=Uimp_clean, x=x),
         V_norm=Vnorm,
     )
     return Adom, Aimp, bea_q()
@@ -109,16 +109,16 @@ def _ceda_v7_industry_corresp() -> pd.DataFrame:
 
 
 @functools.cache
-def _g_weighted_ceda_industry_corresp() -> pd.DataFrame:
-    """CEDA v7 → BEA industry correspondence, row-normalized by industry output (g).
+def _x_weighted_ceda_industry_corresp() -> pd.DataFrame:
+    """CEDA v7 → BEA industry correspondence, row-normalized by industry output (x).
 
     Handles both disaggregation (one CEDA v7 → multiple BEA codes) and
-    government aggregation by weighting proportionally by g.
+    government aggregation by weighting proportionally by x.
     """
     corresp = _ceda_v7_industry_corresp()
-    g = bea_g()
-    g_aligned = g.reindex(corresp.columns, fill_value=0.0)
-    weighted = corresp.multiply(g_aligned, axis=1)
+    x = bea_x()
+    x_aligned = x.reindex(corresp.columns, fill_value=0.0)
+    weighted = corresp.multiply(x_aligned, axis=1)
     row_sums = weighted.sum(axis=1)
     return weighted.div(row_sums.replace(0, 1), axis=0)
 
@@ -126,19 +126,19 @@ def _g_weighted_ceda_industry_corresp() -> pd.DataFrame:
 @functools.cache
 def bea_E() -> pd.DataFrame:
     """E (ghg × BEA_industry) — CEDA v7 emissions mapped to BEA industry space."""
-    return derive_E_usa() @ _g_weighted_ceda_industry_corresp()
+    return derive_E_usa() @ _x_weighted_ceda_industry_corresp()
 
 
 @functools.cache
 def bea_B() -> pd.DataFrame:
-    """B (ghg × BEA_commodity).  B = (E / g) @ V_norm."""
+    """B (ghg × BEA_commodity).  B = (E / x) @ V_norm."""
     E = bea_E()
     if get_usa_config().transform_b_matrix_with_useeio_method:
-        g = derive_gross_output_after_redefinition(
+        x = derive_gross_output_after_redefinition(
             target_year=get_usa_config().usa_ghg_data_year
         )
     else:
-        g = bea_g()  # this is 2017 g
+        x = bea_x()  # this is 2017 x
     Vnorm = bea_Vnorm_scrap_corrected()
-    Bi = E.divide(g, axis=1).fillna(0.0)
+    Bi = E.divide(x, axis=1).fillna(0.0)
     return Bi @ Vnorm

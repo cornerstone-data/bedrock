@@ -38,4 +38,4 @@ __pycache__/
 # Ignore Cursor files
 .cursor/
 .cursorrules
-.claude/
+.claude/plans/

@@ -335,7 +335,7 @@ def compare_output_vs_leontief_x_demand(
     Parameters
     ----------
     output
-        Float series. If commodity model, output = q from ``derive_2017_q_usa``; if industry model, output = g  from ``derive_2017_g_usa``
+        Float series. If commodity model, output = q from ``derive_2017_q_usa``; if industry model, output = x  from ``derive_2017_x_usa``
     L
         Dataframe. Leontief inverse (total or domestic)
     y

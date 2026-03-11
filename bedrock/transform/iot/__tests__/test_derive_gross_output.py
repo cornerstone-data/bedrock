@@ -102,7 +102,7 @@ class TestAdjustGrossOutput:
 class TestConstrainedCoproductionRatios:
     def test_constrained_roundtrip_exact(self) -> None:
         """
-        Using constrained ratios with g_before reproduces g_after exactly
+        Using constrained ratios with x_before reproduces x_after exactly
         when column sums (commodity output) are preserved, as in BEA's
         redefinition.
 
@@ -125,15 +125,15 @@ class TestConstrainedCoproductionRatios:
             V_before_redef.sum(axis=0), V_after_redef.sum(axis=0), check_names=False
         )
 
-        g_before = V_before_redef.sum(axis=1)
-        g_after_expected = V_after_redef.sum(axis=1)
+        x_before = V_before_redef.sum(axis=1)
+        x_after_expected = V_after_redef.sum(axis=1)
 
         ratios = compute_coproduction_ratios(V_before_redef, V_after_redef)
-        g_after_computed = adjust_gross_output(g_before, ratios)
+        x_after_computed = adjust_gross_output(x_before, ratios)
 
         pd.testing.assert_series_equal(
-            g_after_computed,
-            g_after_expected.astype(float),
+            x_after_computed,
+            x_after_expected.astype(float),
             check_names=False,
             rtol=1e-12,
         )
@@ -148,14 +148,14 @@ class TestConstrainedCoproductionRatios:
 def test_2017_redefinition_roundtrip() -> None:
     """
     Applying **constrained** co-production ratios (using both V_before_redef
-    and V_after_redef) to g_before must reproduce g_after for the 2017
+    and V_after_redef) to x_before must reproduce x_after for the 2017
     benchmark year.
 
     Algebraically the per-industry gap between computed and expected equals
     the column-sum discrepancy (commodity output rounding in the BEA source
     data which is published in millions)::
 
-        gap[i] = g_computed[i] - g_expected[i] = q_before[i] - q_after[i]
+        gap[i] = x_computed[i] - x_expected[i] = q_before[i] - q_after[i]
 
     The test verifies this identity exactly (floating-point tolerance) and
     also checks that the absolute per-industry error is negligible.
@@ -164,23 +164,23 @@ def test_2017_redefinition_roundtrip() -> None:
         load_2017_V_before_redef_usa,
         load_2017_V_usa,
     )
-    from bedrock.utils.math.formulas import compute_g
+    from bedrock.utils.math.formulas import compute_x
 
     V_before_redef = load_2017_V_before_redef_usa()
     V_after_redef = load_2017_V_usa()
 
-    g_before = compute_g(V=V_before_redef)
-    g_after_expected = compute_g(V=V_after_redef)
+    x_before = compute_x(V=V_before_redef)
+    x_after_expected = compute_x(V=V_after_redef)
 
     ratios = compute_coproduction_ratios(V_before_redef, V_after_redef)
-    g_after_computed = adjust_gross_output(g_before, ratios)
+    x_after_computed = adjust_gross_output(x_before, ratios)
 
-    common = g_after_expected.index.intersection(g_after_computed.index)
+    common = x_after_expected.index.intersection(x_after_computed.index)
     assert len(common) > 0, 'No overlapping industry codes'
 
     # 1. Total output is preserved (zero-sum redistribution)
-    assert g_after_computed.loc[common].sum() == pytest.approx(
-        g_before.loc[common].sum()
+    assert x_after_computed.loc[common].sum() == pytest.approx(
+        x_before.loc[common].sum()
     )
 
     # 2. Per-industry gap equals column-sum rounding discrepancy — proves
@@ -189,7 +189,7 @@ def test_2017_redefinition_roundtrip() -> None:
     q_after = V_after_redef.sum(axis=0).reindex(common, fill_value=0.0)
     column_sum_gap = q_before - q_after
 
-    gap = g_after_computed.loc[common] - g_after_expected.loc[common]
+    gap = x_after_computed.loc[common] - x_after_expected.loc[common]
     pd.testing.assert_series_equal(gap, column_sum_gap, check_names=False, rtol=1e-10)
 
     # 3. Absolute per-industry error < $11M (≤ 10 in BEA's million-dollar units)

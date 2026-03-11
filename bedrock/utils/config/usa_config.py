@@ -47,11 +47,24 @@ class USAConfig(BaseModel):
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal["national", "state"] = "national"
     update_transportation_ghg_method: bool = False  # DRI: ben.young
+    update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
+        False  # DRI: catherine.birney
+    )
+    new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
     update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: (
         bool
     ) = False  # DRI: catherine.birney
     update_refrigerant_method: bool = False  # DRI: catherine.birney
     hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
+
+    #####
+    # Baseline snapshot
+    #####
+    # The git SHA below is the baseline snapshots generated on main with
+    # configuration: 2025_usa_cornerstone_fbs_schema.
+    snapshot_version_or_git_sha: ta.Literal[
+        "v0", "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
+    ] = "v0"
 
     @property
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:

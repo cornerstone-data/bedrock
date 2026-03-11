@@ -37,10 +37,10 @@ from bedrock.transform.eeio.derived_2017_helpers import (
 from bedrock.utils.economic.inflate_to_target_year import inflate_usa_V_to_target_year
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
-    compute_g,
     compute_q,
     compute_Unorm_matrix,
     compute_Vnorm_matrix,
+    compute_x,
     compute_y_imp,
 )
 from bedrock.utils.math.handle_negatives import (
@@ -54,11 +54,11 @@ from bedrock.utils.math.structural_reflection import (
 from bedrock.utils.schemas.single_region_schemas import (
     AMatrix,
     ExportsVectorSchema,
-    GVectorSchema,
     ImportsVectorSchema,
     QVectorSchema,
     UMatrix,
     VMatrix,
+    XVectorSchema,
     YVectorSchema,
 )
 from bedrock.utils.schemas.single_region_types import (
@@ -89,13 +89,13 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
 
 def derive_2017_Aq_usa() -> SingleRegionAqMatrixSet:
     Vnorm_scrap_corrected = derive_2017_Vnorm_scrap_corrected()
-    g = derive_2017_g_usa()
+    x = derive_2017_x_usa()
 
     # generate domestic and import portion of the standard Make and Use tables
     # domestic/import direct requirements (after redefinition)
     Uset = derive_2017_U_set_usa()
-    Udom_norm = compute_Unorm_matrix(U=Uset.Udom, g=g)
-    Uimp_norm = compute_Unorm_matrix(U=Uset.Uimp, g=g)
+    Udom_norm = compute_Unorm_matrix(U=Uset.Udom, x=x)
+    Uimp_norm = compute_Unorm_matrix(U=Uset.Uimp, x=x)
 
     # domestic & import direct requirements (after redefinition) in industry technology
     Adom = compute_A_matrix(U_norm=Udom_norm, V_norm=Vnorm_scrap_corrected)
@@ -152,9 +152,9 @@ def derive_2017_V_usa() -> pt.DataFrame[VMatrix]:
 
 
 @functools.cache
-@pa.check_output(GVectorSchema)
-def derive_2017_g_usa() -> pd.Series[float]:
-    return compute_g(V=derive_2017_V_usa())
+@pa.check_output(XVectorSchema)
+def derive_2017_x_usa() -> pd.Series[float]:
+    return compute_x(V=derive_2017_V_usa())
 
 
 @pa.check_output(QVectorSchema)
@@ -330,7 +330,7 @@ def derive_summary_Adom_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     Udom_norm = handle_negative_matrix_values(
         compute_Unorm_matrix(
             U=load_summary_Utot_usa(year) - load_summary_Uimp_usa(year),
-            g=_derive_summary_g_usa(year),
+            x=_derive_summary_x_usa(year),
         )
     )
     Vnorm = compute_Vnorm_matrix(
@@ -349,7 +349,7 @@ def derive_summary_Adom_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
 def derive_summary_Aimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     Uimp_norm = handle_negative_matrix_values(
         compute_Unorm_matrix(
-            U=load_summary_Uimp_usa(year), g=_derive_summary_g_usa(year)
+            U=load_summary_Uimp_usa(year), x=_derive_summary_x_usa(year)
         )
     )
     Vnorm = compute_Vnorm_matrix(
@@ -421,5 +421,5 @@ def derive_summary_Yimp_usa(
 
 
 @functools.cache
-def _derive_summary_g_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.Series[float]:
-    return compute_g(V=load_summary_V_usa(year))
+def _derive_summary_x_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.Series[float]:
+    return compute_x(V=load_summary_V_usa(year))
