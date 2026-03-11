@@ -4,6 +4,7 @@
 #####
 # Methodology selection
 #####
+use_cornerstone_2026_model_schema: True
 load_E_from_flowsa: true
 update_other_gases_ghg_method: true
 snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
