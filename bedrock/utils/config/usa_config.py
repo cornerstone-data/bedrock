@@ -53,9 +53,6 @@ class USAConfig(BaseModel):
     )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
     add_new_ghg_activities: bool = False  # DRI: catherine.birney
-    update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: (
-        bool
-    ) = False  # DRI: catherine.birney
     hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
 
     #####
