@@ -44,7 +44,7 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     cs_commodity_to_bea_map,
     cs_industry_to_bea_map,
-    expand_ghg_matrix,
+    expand_ghg_matrix_from_bea_to_cornerstone,
     expand_square_matrix,
     expand_vector,
     industry_corresp,
@@ -389,7 +389,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 @pa.check_output(CornerstoneEMatrix.to_schema())
 def derive_cornerstone_E() -> pd.DataFrame:
     """E (ghg × Cornerstone industry) — expanded from BEA space."""
-    return expand_ghg_matrix(bea_E(), CS_INDUSTRY_LIST, cs_industry_to_bea_map())
+    return expand_ghg_matrix_from_bea_to_cornerstone(bea_E(), CS_INDUSTRY_LIST, cs_industry_to_bea_map())
 
 
 @pa.check_output(CornerstoneBMatrix.to_schema())
@@ -400,7 +400,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     then expanded to 405 Cornerstone commodities.  This guarantees
     D[562111] == D_bea[562000] exactly.
     """
-    return expand_ghg_matrix(bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map())
+    return expand_ghg_matrix_from_bea_to_cornerstone(bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map())
 
 
 @functools.cache

@@ -1,8 +1,8 @@
-"""BEA ↔ Cornerstone taxonomy correspondence and matrix expansion utilities.
+"""BEA/CEDA ↔ Cornerstone taxonomy correspondence and matrix expansion utilities.
 
-Loads and caches binary correspondence matrices between BEA 2017 and
-Cornerstone 2026 taxonomies, and provides functions to *expand* BEA-space
-matrices/vectors to the 405-sector Cornerstone space.
+Loads and caches binary correspondence matrices between BEA 2017 (or CEDA v7)
+and Cornerstone 2026 taxonomies, and provides functions to *expand*
+BEA-space or CEDA-space matrices/vectors to the 405-sector Cornerstone space.
 
 Expansion strategy: rows/columns for disaggregated sectors (waste, aluminum)
 are **duplicated** from the BEA parent — this preserves per-unit intensities
@@ -21,6 +21,7 @@ from bedrock.utils.taxonomy.cornerstone.commodities import (
 )
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES as _CS_INDUSTRIES
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
+    load_ceda_v7_commodity__cornerstone_commodity_correspondence,
     load_usa_2017_commodity__cornerstone_commodity_correspondence,
     load_usa_2017_industry__cornerstone_industry_correspondence,
 )
@@ -95,6 +96,33 @@ def cs_commodity_to_bea_map() -> dict[str, str]:
 def cs_industry_to_bea_map() -> dict[str, str]:
     """Map each Cornerstone industry to its BEA 2017 parent industry code."""
     return _build_reverse_map(industry_corresp_raw())
+
+
+# ---------------------------------------------------------------------------
+# CEDA v7 → Cornerstone correspondence
+# ---------------------------------------------------------------------------
+
+
+@functools.cache
+def ceda_commodity_corresp_raw() -> pd.DataFrame:
+    """Raw binary (Cornerstone_commodity × CEDA_v7_commodity) correspondence."""
+    return load_ceda_v7_commodity__cornerstone_commodity_correspondence()
+
+
+@functools.cache
+def ceda_commodity_corresp() -> pd.DataFrame:
+    """Column-normalized CEDA v7 → Cornerstone commodity correspondence.
+
+    Ensures one-to-many CEDA→Cornerstone splits (e.g. waste 562000 → 7 subsectors)
+    distribute values proportionally rather than duplicating.
+    """
+    return _col_normalize(ceda_commodity_corresp_raw())
+
+
+@functools.cache
+def cs_commodity_to_ceda_map() -> dict[str, str]:
+    """Map each Cornerstone commodity to its CEDA v7 parent commodity code."""
+    return _build_reverse_map(ceda_commodity_corresp_raw())
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +214,7 @@ def expand_vector(
     return expanded.reindex(target_codes, fill_value=0.0)
 
 
-def expand_ghg_matrix(
+def expand_ghg_matrix_from_bea_to_cornerstone(
     M: pd.DataFrame,
     target_col_codes: list[str],
     col_map: dict[str, str],
@@ -196,6 +224,26 @@ def expand_ghg_matrix(
 
     expanded = M.loc[:, bea_valid].copy()
     expanded.columns = cs_valid
+    expanded = expanded.reindex(columns=target_col_codes, fill_value=0.0)
+    expanded.index.name = 'ghg'
+    expanded.columns.name = 'sector'
+    return expanded
+
+
+def expand_ghg_matrix_from_ceda_to_cornerstone(
+    M: pd.DataFrame,
+    target_col_codes: list[str],
+) -> pd.DataFrame:
+    """Expand a (ghg × CEDA_v7_sector) matrix to Cornerstone columns.
+
+    Uses matrix multiplication with the column-normalized CEDA→Cornerstone
+    correspondence.  Many-to-one cases (e.g. 4 appliance CEDA codes → 1
+    Cornerstone code) are summed; one-to-many cases (waste) are distributed
+    proportionally.
+    """
+    corresp = ceda_commodity_corresp()  # (Cornerstone × CEDA), col-normalized
+    # M is (ghg × CEDA), corresp.T is (CEDA × Cornerstone)
+    expanded = M.reindex(columns=corresp.columns, fill_value=0.0) @ corresp.T
     expanded = expanded.reindex(columns=target_col_codes, fill_value=0.0)
     expanded.index.name = 'ghg'
     expanded.columns.name = 'sector'
