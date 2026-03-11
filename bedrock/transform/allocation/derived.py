@@ -129,6 +129,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
     FBS method is chosen by USA config (first match wins):
     - GHG_national_Cornerstone_2023 when
       new_ghg_method is True
+    - GHG_national_Cornerstone_2023_electricity when
+      update_electricity_ghg_method is True
     - GHG_national_CEDA_2023_add_new_activities when
       update_add_new_activities_ghg_method is True
     - GHG_national_Cornerstone_2023_new_activities when
@@ -144,6 +146,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
     usa = get_usa_config()
     if usa.new_ghg_method:
         methodname = 'GHG_national_Cornerstone_2023'
+    elif usa.update_electricity_ghg_method:
+        methodname = 'GHG_national_Cornerstone_2023_electricity'
     elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
         methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
     elif usa.update_add_new_activities_ghg_method:
