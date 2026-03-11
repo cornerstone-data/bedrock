@@ -29,6 +29,9 @@ from bedrock.utils.taxonomy.mappings.bea_v2012_commodity__bea_v2017_commodity im
 from bedrock.utils.taxonomy.mappings.bea_v2012_industry__bea_v2017_industry import (
     load_bea_v2012_industry_to_bea_v2017_industry,
 )
+from bedrock.utils.taxonomy.mappings.bea_ceda_v7__cornerstone_commodity import (
+    load_ceda_v7_commodity_to_cornerstone_commodity,
+)
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_ceda_v7 import (
     load_bea_v2017_commodity_to_bea_ceda_v7,
 )
@@ -105,6 +108,18 @@ def load_usa_2017_industry__ceda_v7_correspondence() -> pd.DataFrame:
         ),  # type: ignore
         domain=USA_2017_INDUSTRY_CODES,
         range=CEDA_V7_SECTORS,
+        is_injective=False,
+        is_surjective=False,
+        is_complete=False,
+    ).astype(float)
+
+
+@functools.cache
+def load_ceda_v7_commodity__cornerstone_commodity_correspondence() -> pd.DataFrame:
+    return create_correspondence_matrix(
+        load_ceda_v7_commodity_to_cornerstone_commodity(),  # type: ignore
+        domain=CEDA_V7_SECTORS,
+        range=COMMODITIES,
         is_injective=False,
         is_surjective=False,
         is_complete=False,

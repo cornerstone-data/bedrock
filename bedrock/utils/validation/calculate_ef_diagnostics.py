@@ -10,7 +10,7 @@ import pandas as pd
 
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
-from bedrock.utils.snapshots.loader import load_current_snapshot
+from bedrock.utils.snapshots.loader import load_configured_snapshot
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 from bedrock.utils.validation.diagnostics_helpers import (
     align_efs_across_schemas,
@@ -154,19 +154,19 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
-    # Effective g decomposition (Cornerstone method only)
+    # Effective x decomposition (Cornerstone method only)
     if config.transform_b_matrix_with_useeio_method:
         from bedrock.utils.validation.diagnostics_helpers import (
-            compute_effective_g_comparison,
+            compute_effective_x_comparison,
         )
 
         t0 = time.time()
-        g_comparison = compute_effective_g_comparison()
+        x_comparison = compute_effective_x_comparison()
         update_sheet_tab(
-            sheet_id, 'g_decomposition', g_comparison.reset_index(), clean_nans=True
+            sheet_id, 'x_decomposition', x_comparison.reset_index(), clean_nans=True
         )
         logger.info(
-            f'[TIMING] Write g_decomposition to Google Sheets in {time.time() - t0:.1f}s'
+            f'[TIMING] Write x_decomposition to Google Sheets in {time.time() - t0:.1f}s'
         )
 
     # Compare D and N for significant sectors
@@ -244,8 +244,8 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         L=L_new, D=ta.cast('pd.Series[float]', efs_raw.D_new.squeeze())
     )
 
-    Adom_old = load_current_snapshot('Adom_USA')
-    Aimp_old = load_current_snapshot('Aimp_USA')
+    Adom_old = load_configured_snapshot('Adom_USA')
+    Aimp_old = load_configured_snapshot('Aimp_USA')
     L_old = compute_L_matrix(A=Adom_old + Aimp_old)
 
     OC_old = compute_output_contribution(

@@ -68,11 +68,11 @@ class BMatrix(CedaSingleRegionEmissionsMatrixBase):
     """
 
 
-"""Schema for the CEDA g vector (industry output vector).
+"""Schema for the CEDA x vector (industry output vector).
 
-The g vector represents the total industry output of each sector.
+The x vector represents the total industry output of each sector.
 """
-GVectorSchema = CedaSingleRegionEconomicVectorBaseSchema
+XVectorSchema = CedaSingleRegionEconomicVectorBaseSchema
 
 
 """Schema for the CEDA q vector (commodity output vector).

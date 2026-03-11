@@ -50,7 +50,7 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     cs_commodity_to_bea_map,
     cs_industry_to_bea_map,
-    expand_ghg_matrix,
+    expand_ghg_matrix_from_bea_to_cornerstone,
     expand_square_matrix,
     expand_vector,
     industry_corresp,
@@ -78,10 +78,10 @@ from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
-    compute_g,
     compute_q,
     compute_Unorm_matrix,
     compute_Vnorm_matrix,
+    compute_x,
     compute_y_for_national_accounting_balance,
     compute_y_imp,
 )
@@ -96,10 +96,10 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     CornerstoneAMatrix,
     CornerstoneBMatrix,
     CornerstoneEMatrix,
-    CornerstoneGVectorSchema,
     CornerstoneQVectorSchema,
     CornerstoneUMatrix,
     CornerstoneVMatrix,
+    CornerstoneXVectorSchema,
 )
 from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,
@@ -187,9 +187,9 @@ def derive_cornerstone_V() -> pd.DataFrame:
 
 
 @functools.cache
-@pa.check_output(CornerstoneGVectorSchema)
-def derive_cornerstone_g() -> pd.Series[float]:
-    return compute_g(V=derive_cornerstone_V())
+@pa.check_output(CornerstoneXVectorSchema)
+def derive_cornerstone_x() -> pd.Series[float]:
+    return compute_x(V=derive_cornerstone_V())
 
 
 @functools.cache
@@ -218,13 +218,13 @@ def derive_cornerstone_Vnorm_scrap_corrected(
         )
 
     q = compute_q(V=V)
-    g = compute_g(V=V)
+    x = compute_x(V=V)
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
 
     scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
     scrap_fraction = industry_corresp() @ scrap_2017
 
-    V_scrap_corrected = Vnorm.divide((1.0 - (scrap_fraction / g).fillna(0.0)), axis=0)
+    V_scrap_corrected = Vnorm.divide((1.0 - (scrap_fraction / x).fillna(0.0)), axis=0)
     return V_scrap_corrected
 
 
@@ -514,7 +514,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 @pa.check_output(CornerstoneEMatrix.to_schema())
 def derive_cornerstone_E() -> pd.DataFrame:
     """E (ghg × Cornerstone industry) — expanded from BEA space."""
-    return expand_ghg_matrix(bea_E(), CS_INDUSTRY_LIST, cs_industry_to_bea_map())
+    return expand_ghg_matrix_from_bea_to_cornerstone(bea_E(), CS_INDUSTRY_LIST, cs_industry_to_bea_map())
 
 
 def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
@@ -557,7 +557,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
         B.index.name = 'ghg'
         B.columns.name = 'sector'
         return B
-    return expand_ghg_matrix(bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map())
+    return expand_ghg_matrix_from_bea_to_cornerstone(bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map())
 
 
 @functools.cache

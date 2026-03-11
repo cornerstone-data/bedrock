@@ -52,7 +52,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
                 return_value=y,
             ),
             patch(
-                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.load_current_snapshot",
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.load_configured_snapshot",
                 return_value=E_orig,
             ),
             patch(

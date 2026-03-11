@@ -2,8 +2,8 @@ import pandas as pd
 
 from bedrock.transform.allocation.derived import derive_E_usa_emissions_sources
 from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_g_usa,
     derive_2017_Vnorm_scrap_corrected,
+    derive_2017_x_usa,
 )
 from bedrock.utils.math.formulas import compute_B_ind_matrix, compute_B_matrix
 
@@ -15,9 +15,9 @@ def derive_emissions_source_B() -> pd.DataFrame:
     """
     E_emissions_sources = derive_E_usa_emissions_sources()
 
-    g = derive_2017_g_usa()
+    x = derive_2017_x_usa()
     Vnorm = derive_2017_Vnorm_scrap_corrected()
-    Bi = compute_B_ind_matrix(E=E_emissions_sources, g=g)
+    Bi = compute_B_ind_matrix(E=E_emissions_sources, x=x)
     Bc = compute_B_matrix(B_ind=Bi, V_norm=Vnorm)
 
     Bc = compute_B_matrix(B_ind=Bi, V_norm=Vnorm)

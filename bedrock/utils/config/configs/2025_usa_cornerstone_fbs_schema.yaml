@@ -1,9 +1,9 @@
 # Builds the FBS using the Cornerstone hybrid BEA/NAICS schema.
-# Requires both flags so the pipeline loads E from flowsa with the petroleum_natgas method.
+# Requires both flags so the pipeline loads E from flowsa and includes the Cornerstone IO pipeline
+# GHG Model is GHG_national_CEDA_2023
 
 #####
 # Methodology selection
 #####
 use_cornerstone_2026_model_schema: True
-hybrid_bea_naics_schema_in_ghg_attribution: true
 load_E_from_flowsa: true

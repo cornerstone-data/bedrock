@@ -299,14 +299,17 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
             # Remove extension
             return ".".join(name_part.split('.')[:-1])
 
-    df['version'] = df['full_path'].apply(
+    df['filename'] = df['full_path'].apply(
+        lambda x: re.split(r"/", x)[-1] if isinstance(x, str) else None
+    )
+    df['version'] = df['filename'].apply(
         lambda x: (
             re.search(version_pattern, x).group(0)  # type: ignore
             if isinstance(x, str) and re.search(version_pattern, x)
             else None
         )
     )
-    df['hash'] = df['full_path'].apply(
+    df['hash'] = df['filename'].apply(
         lambda x: (
             re.search(hash_pattern, x).group(0)  # type: ignore
             if isinstance(x, str) and re.search(hash_pattern, x)
@@ -314,9 +317,6 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
         )
     )
     df['base_name'] = df['full_path'].apply(extract_base_name)
-    df['filename'] = df['full_path'].apply(
-        lambda x: re.split(r"/", x)[-1] if isinstance(x, str) else None
-    )
     # Extract year if base_name ends with 4 digits
     df['year'] = df['base_name'].apply(
         lambda x: (

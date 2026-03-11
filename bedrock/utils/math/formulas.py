@@ -11,7 +11,7 @@ Matrices
   - V (i,c) : make matrix [USD]
   - U (c,i) : use matrix [USD]
   - q (c,)  : commodity output [USD]
-  - g (i,)  : industry output [USD]
+  - x (i,)  : industry output [USD]
   - A (c,c) : direct requirements [USD/USD]
   - L (c,c) : total requirements [USD/USD]
   - B (g,c) : direct emissions factor by GHG [kgco2e/USD]
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------#
 
 
-def compute_g(*, V: pd.DataFrame) -> pd.Series[float]:
+def compute_x(*, V: pd.DataFrame) -> pd.Series[float]:
     """
     V is the Make matrix (industry x commodity), axis = 1 produces industry output
     """
@@ -50,17 +50,17 @@ def compute_q(*, V: pd.DataFrame) -> pd.Series[float]:
     return V.sum(axis=0)
 
 
-def compute_Unorm_matrix(*, U: pd.DataFrame, g: pd.Series[float]) -> pd.DataFrame:
+def compute_Unorm_matrix(*, U: pd.DataFrame, x: pd.Series[float]) -> pd.DataFrame:
     """
     U is the intermediate transaction part of comprehensive Use matrix (commodity x industry) representing "industries use commodities",
     i.e. the part of Final Demand consuming commodities are excluded.
 
-    g is the industry output vector (industry x 1).
+    x is the industry output vector (industry x 1).
 
     This function generates direct requirements matrix (commodity x industry) that shows
     how much of each commodity is required to produce one unit of output of each industry.
     """
-    return U.divide(g, axis=1).fillna(0)
+    return U.divide(x, axis=1).fillna(0)
 
 
 def compute_Vnorm_matrix(*, V: pd.DataFrame, q: pd.Series[float]) -> pd.DataFrame:
@@ -111,8 +111,8 @@ def compute_L_matrix(*, A: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def compute_B_ind_matrix(*, E: pd.DataFrame, g: pd.Series[float]) -> pd.DataFrame:
-    return E.divide(g, axis=1).fillna(0)
+def compute_B_ind_matrix(*, E: pd.DataFrame, x: pd.Series[float]) -> pd.DataFrame:
+    return E.divide(x, axis=1).fillna(0)
 
 
 def compute_B_matrix(*, B_ind: pd.DataFrame, V_norm: pd.DataFrame) -> pd.DataFrame:

@@ -127,7 +127,7 @@ def compute_coproduction_ratios(
     The ratio is constrained to the amount actually moved during BEA's
     redefinition process::
 
-        ratio(i, c) = (V_before_redef[i, c] - V_after_redef[i, c]) / g_before[i]
+        ratio(i, c) = (V_before_redef[i, c] - V_after_redef[i, c]) / x_before[i]
 
     This ensures an exact round-trip for the benchmark year and a more
     accurate adjustment for other years.
@@ -164,14 +164,14 @@ def compute_coproduction_ratios(
         raise ValueError('NaN encountered in V_movement; check input table alignment.')
     coproduction = extract_coproduction_entries(V_movement)
 
-    g = V_before_redef.sum(axis=1)
-    source_g: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
-        g.reindex(coproduction['source_industry'].values).values, dtype=float
+    x = V_before_redef.sum(axis=1)
+    source_x: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
+        x.reindex(coproduction['source_industry'].values).values, dtype=float
     )
     coprod_values: np.ndarray[tuple[int], np.dtype[np.floating]] = np.asarray(
         coproduction['value'].values, dtype=float
     )
-    ratio = np.where(source_g != 0, coprod_values / source_g, 0.0)
+    ratio = np.where(source_x != 0, coprod_values / source_x, 0.0)
 
     return pd.DataFrame(
         {
