@@ -514,7 +514,9 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 @pa.check_output(CornerstoneEMatrix.to_schema())
 def derive_cornerstone_E() -> pd.DataFrame:
     """E (ghg × Cornerstone industry) — expanded from BEA space."""
-    return expand_ghg_matrix_from_bea_to_cornerstone(bea_E(), CS_INDUSTRY_LIST, cs_industry_to_bea_map())
+    return expand_ghg_matrix_from_bea_to_cornerstone(
+        bea_E(), CS_INDUSTRY_LIST, cs_industry_to_bea_map()
+    )
 
 
 def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
@@ -557,7 +559,9 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
         B.index.name = 'ghg'
         B.columns.name = 'sector'
         return B
-    return expand_ghg_matrix_from_bea_to_cornerstone(bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map())
+    return expand_ghg_matrix_from_bea_to_cornerstone(
+        bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map()
+    )
 
 
 @functools.cache

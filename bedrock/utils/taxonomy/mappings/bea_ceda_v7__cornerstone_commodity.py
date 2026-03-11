@@ -30,10 +30,9 @@ def load_ceda_v7_commodity_to_cornerstone_commodity() -> (
         raise RuntimeError(f"Unexpected CEDA v7 sector code: {ceda}")
 
     mapping: ta.Dict[CEDA_V7_SECTOR, ta.List[COMMODITY]] = {
-        ceda: _map_ceda_v7_to_cornerstone(ceda)  # type: ignore[misc, arg-type]
-        for ceda in CEDA_V7_SECTORS
+        ceda: _map_ceda_v7_to_cornerstone(ceda) for ceda in CEDA_V7_SECTORS
     }
-    validate_mapping(  # type: ignore[misc]
+    validate_mapping(
         mapping,
         domain=set(CEDA_V7_SECTORS),
         codomain=set(COMMODITIES),
