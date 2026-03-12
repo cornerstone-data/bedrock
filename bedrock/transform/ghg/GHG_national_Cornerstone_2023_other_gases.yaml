@@ -77,7 +77,7 @@
         BEA_Detail_GrossOutput_IO:
           year: 2023
           geoscale: national
-          activity_to_sector_mapping: BEA_2017_Detail
+          activity_to_sector_mapping: Cornerstone_2025
           attribution_method: equal
 
     EPA_GHGI_T_4_118: # HFCs and other emissions from electronics manufacture (incl. Electronics Industry from T_2_1)

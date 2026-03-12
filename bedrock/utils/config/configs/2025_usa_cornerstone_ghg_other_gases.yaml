@@ -1,5 +1,6 @@
 # Use Cornerstone 2023 FBS with other_gases method.
 # Requires load_E_from_flowsa and update_other_gases_ghg_method so the pipeline loads E from flowsa with the other_gases method.
+# GHG Model is GHG_national_Cornerstone_2023_other_gases
 
 #####
 # Methodology selection
