@@ -420,6 +420,14 @@ source_names:
             Medium- and Heavy-Duty Trucks and Buses Gasoline On-Road: Medium- and Heavy-Duty Trucks and Buses
         attribution_method: direct
 
+      direct_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Diesel On-Road: Passenger Cars - Households
+            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households
+            Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Buses
+        attribution_method: direct
+
       direct_non_road:
         selection_fields:
           PrimaryActivity:
@@ -431,11 +439,13 @@ source_names:
       petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
-            Passenger Cars Diesel On-Road: Passenger Cars - Households
-            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households
-            Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Buses
             Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-        attribution_method: direct
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
       petroleum_fuels_gasoline:
         selection_fields:
