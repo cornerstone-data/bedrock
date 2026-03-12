@@ -101,7 +101,7 @@ def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
     fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
 
     if get_usa_config().use_cornerstone_2026_model_schema:
-        mapping = get_activitytosector_mapping('CORNERSTONE_2025').drop_duplicates(
+        mapping = get_activitytosector_mapping('Cornerstone_2025').drop_duplicates(
             subset='Sector', keep='first'
         )
     else:
