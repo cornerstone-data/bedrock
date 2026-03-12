@@ -1,5 +1,6 @@
 # Use Cornerstone 2023 FBS with new activities method.
 # Requires load_E_from_flowsa and add_new_ghg_activities so the pipeline loads E from flowsa with the new_activities method.
+# GHG Model is GHG_national_Cornerstone_2023_new_activities
 
 #####
 # Methodology selection
