@@ -63,8 +63,8 @@ source_names:
       electricity_transmission:
         selection_fields:
           PrimaryActivity:
-#            - Electrical Transmission and Distribution #SF6 - does not exist in ceda, old name?
-            - Electrical Equipment #SF6 updated name for this activity in 2024 release - same as flowsa
+            - Electrical Transmission and Distribution  # SF6
+            - Electrical Equipment  # SF6, updated name in 2024 EPA release
           FlowName: SF6
         attribution_method: direct
 
