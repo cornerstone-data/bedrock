@@ -153,9 +153,17 @@ def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfi
 def get_waste_disagg_weights() -> WasteDisaggWeights | None:
     """Return waste disaggregation weights if the feature is enabled, else None."""
     cfg = get_usa_config()
-    if not cfg.implement_waste_disaggregation or cfg.eeio_waste_disaggregation is None:
+    if not cfg.implement_waste_disaggregation:
         return None
-    resolved_cfg = _resolve_waste_cfg_paths(cfg.eeio_waste_disaggregation)
+    waste_cfg = cfg.eeio_waste_disaggregation
+    if waste_cfg is None:
+        waste_cfg = EEIOWasteDisaggConfig(
+            use_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Use.csv",
+            make_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Make.csv",
+            year=2017,
+            source_name="WasteDisaggregationDetail2017",
+        )
+    resolved_cfg = _resolve_waste_cfg_paths(waste_cfg)
     return load_waste_disagg_weights(
         resolved_cfg,
         disagg_original_code=_WASTE_ORIGINAL_CODE,
