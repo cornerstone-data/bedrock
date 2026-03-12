@@ -234,15 +234,15 @@ def load_E_from_flowsa() -> pd.DataFrame:
         mapping = load_bea_v2017_industry_to_cornerstone_industry()
         target_columns = INDUSTRIES
     else:
-        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
-        target_columns = CEDA_V7_SECTORS
+        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()  # type: ignore
+        target_columns = CEDA_V7_SECTORS  # type: ignore
 
     col_to_target = {k: v[0] for k, v in mapping.items()}
     # FBS can have sectors not in the mapping (e.g. cornerstone waste 562111, 562HAZ, ...);
     # map any column that is already in the target schema to itself so groupby does not drop it
     for c in E_usa.columns:
         if c not in col_to_target and c in target_columns:
-            col_to_target[c] = c
+            col_to_target[c] = c  # type: ignore
     dropped_by_groupby = sorted(set(E_usa.columns) - set(col_to_target.keys()))
     if dropped_by_groupby:
         logger.warning(
@@ -254,7 +254,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # Assess columns vs target before reindexing
     target_set = set(target_columns)
     extra = sorted(set(E_usa.columns) - target_set)
-    missing = sorted(target_set - set(E_usa.columns))
+    missing = sorted(target_set - set(E_usa.columns))  # type: ignore
     if extra:
         logger.warning(
             "E_usa columns not in target schema (will be dropped by reindex): %s",
