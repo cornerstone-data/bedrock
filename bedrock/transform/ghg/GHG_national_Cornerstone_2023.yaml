@@ -43,7 +43,6 @@ source_names:
             - Carbide Production and Consumption #CO2 only, CH4 is not in ceda
             - Cement Production #CO2 - same as flowsa
             - Composting #CH4, N2O - same as flowsa
-            - Electronics Industry  # N2O - note different than flowsa, which uses T 4_118
             - Ferroalloy Production #CO2, CH4 - note that ch4 in ceda has no emissions to allocate, true of flowsa as well?
             - Glass Production #CO2 - same as flowsa
             - Landfills #CH4 - same as flowsa
@@ -131,43 +130,6 @@ source_names:
             <<: *bea
             selection_fields:
               ActivityProducedBy: {'325120': ''} # Industrial gases
-
-#     newly added code for ceda
-      fluorochemical:
-        selection_fields:
-          PrimaryActivity:
-          - Fluorochemical Production  # other -  flowsa pulls from EPA_GHGI_T_4_63 and EPA_GHGI_T_4_64
-          FlowName:
-            HFCs: HFC-23  # ceda assigns HFC type in epa.py
-        attribution_method: direct
-
-      electronics_industry:
-        selection_fields:
-          PrimaryActivity:
-          - Electronics Industry  # other -  flowsa pulls from EPA_GHGI_T_4_118
-          FlowName:
-            HFCs: HFC-23  # ceda assigns HFC type in epa.py
-            NF3: NF3
-            SF6: SF6
-        attribution_method: direct
-
-      # newly added code for ceda, flowsa pulls magnesium from EPA_GHGI_T_4_106
-      magnesium:
-        selection_fields:
-          PrimaryActivity:
-          - Magnesium Production and Processing  # other (hfc 134a, sf6)  - different table than flowsa
-          FlowName:
-            SF6: SF6
-            HFCs: HFC-134a  # ceda assigns hfc type in epa.py
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Make_AfterRedef:  # confirmed ceda uses BEA Make
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy:
-                '331410': ''
-                '331490': ''
-                '331520': ''
 
       field_burning_n2O:
         selection_fields:
@@ -830,23 +792,36 @@ source_names:
       PrimaryActivity: HCFC-22 Production
     attribution_method: direct
 
-# note - below code is how flowsa handles fluorochemical production
-#  EPA_GHGI_T_4_63: # Fluorochemical production (in CO2e)
-#    year: *ghgi_year
-#    fedefl_mapping: GHGI_AR5_100
-#    selection_fields:
-#      PrimaryActivity: Fluorochemical Production
-#      FlowName: ["Other PFCs", "Other HFCs"]
-#    attribution_method: direct
-#
-#  EPA_GHGI_T_4_64: # Fluorochemical production (in MT)
-#    year: *ghgi_year
-#    fedefl_mapping: GHGI_AR5_100
-#    selection_fields:
-#      PrimaryActivity: Fluorochemical Production
-#    exclusion_fields:
-#      FlowName: ["Other PFCs", "Other HFCs"]
-#    attribution_method: direct
+  EPA_GHGI_T_4_63: # Fluorochemical production (in CO2e)
+    year: *ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity: Fluorochemical Production
+      FlowName: ["Other PFCs", "Other HFCs"]
+    attribution_method: direct
+
+  EPA_GHGI_T_4_64: # Fluorochemical production (in MT)
+    year: *ghgi_year
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity: Fluorochemical Production
+    exclusion_fields:
+      FlowName: ["Other PFCs", "Other HFCs"]
+    attribution_method: direct
+
+  EPA_GHGI_T_4_106: # HFCs, SF6, CO2 from magnesium production
+    year: *ghgi_year
+    activity_to_sector_mapping: EPA_GHGI_CEDA
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity: Magnesium Production and Processing
+    attribution_method: proportional
+     attribution_source:
+      BEA_Detail_GrossOutput_IO:
+        year: *ghgi_year
+        geoscale: national
+        activity_to_sector_mapping: BEA_2017_Detail
+        attribution_method: equal
 
   EPA_GHGI_T_4_118: # HFCs and other emissions from electronics manufacture
     year: *ghgi_year
@@ -854,10 +829,10 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
+        - Electronics Industry
         - Semiconductors  # pfcs - same as flowsa
         - PV
         - MEMS
-      FlowName: ["CF4", "C2F6", "C3F8"] # HFCs and other flows are pulled elsewhere
     attribution_method: direct
 
   # EPA_GHGI_T_4_132: # SF6 and PFCs from Other Product Use
@@ -927,10 +902,3 @@ source_names:
     attribution_method: direct
 
 
-# note - below code is flowsa, ceda proportionally attributes from T 2_1
-#  EPA_GHGI_T_4_106: # HFCs, SF6, CO2 from magnesium production
-#    year: *ghgi_year
-#    fedefl_mapping: GHGI_AR5_100
-#    selection_fields:
-#      PrimaryActivity: Magnesium Production and Processing
-#    attribution_method: direct
