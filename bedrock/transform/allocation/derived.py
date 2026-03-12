@@ -16,9 +16,13 @@ from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
     load_bea_v2017_industry_to_bea_v2017_commodity,
+)
+from bedrock.utils.taxonomy.mappings.bea_v2017_industry__cornerstone_industry import (
+    load_bea_v2017_industry_to_cornerstone_industry,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,13 +100,18 @@ def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
     )
     fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
 
-    mapping = (
-        get_activitytosector_mapping('CEDA_2025')
-        # we don't want to map back to the sectors that are aggregated so keep only first
-        # this assumes that the first listed mapping is the priority.
-        # TODO: update to rely on the reported CEDA schema.
-        .drop_duplicates(subset='Sector', keep='first')
-    )
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        mapping = get_activitytosector_mapping('CORNERSTONE_2025').drop_duplicates(
+            subset='Sector', keep='first'
+        )
+    else:
+        mapping = (
+            get_activitytosector_mapping('CEDA_2025')
+            # we don't want to map back to the sectors that are aggregated so keep only first
+            # this assumes that the first listed mapping is the priority.
+            # TODO: update to rely on the reported CEDA schema.
+            .drop_duplicates(subset='Sector', keep='first')
+        )
     fbs2 = (
         fbs2.merge(
             mapping[['Activity', 'Sector']],
@@ -221,9 +230,13 @@ def load_E_from_flowsa() -> pd.DataFrame:
     E_usa = E_usa.groupby(new_index).agg('sum')
 
     # Collapse across sectors
-    mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        mapping = load_bea_v2017_industry_to_cornerstone_industry()
+    else:
+        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
     E_usa = E_usa.groupby({k: v[0] for k, v in mapping.items()}, axis=1).sum()  # type: ignore
     # ^^ drops F01000
+    ## todo: the implmenetation of this mapping is not working just yet!
 
     # Target column set is CEDA_V7_SECTORS
     # set(E_usa.columns) - set(CEDA_V7_SECTORS)
@@ -232,13 +245,19 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # set(CEDA_V7_SECTORS) - set(E_usa.columns)
     # {'335221', '335222', '335224', '335228', '4200ID', '814000'}
 
-    E_usa = E_usa.reindex(columns=CEDA_V7_SECTORS, fill_value=0)
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        E_usa = E_usa.reindex(columns=INDUSTRIES, fill_value=0)
+    else:
+        E_usa = E_usa.reindex(columns=CEDA_V7_SECTORS, fill_value=0)
 
     return E_usa
 
 
 if __name__ == "__main__":
+    from bedrock.utils.config.usa_config import set_global_usa_config
+
+    set_global_usa_config("2025_usa_cornerstone_taxonomy_and_waste_disagg.yaml")
     df1 = load_E_from_flowsa()
-    df2 = derive_E_usa()
-    row_diff = df1.sum(axis=1) - df2.sum(axis=1)
-    row_rel_diff = df1.sum(axis=1) / df2.sum(axis=1)
+    # df2 = derive_E_usa()
+    # row_diff = df1.sum(axis=1) - df2.sum(axis=1)
+    # row_rel_diff = df1.sum(axis=1) / df2.sum(axis=1)
