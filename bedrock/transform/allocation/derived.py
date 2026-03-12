@@ -232,23 +232,41 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # Collapse across sectors
     if get_usa_config().use_cornerstone_2026_model_schema:
         mapping = load_bea_v2017_industry_to_cornerstone_industry()
+        target_columns = INDUSTRIES
     else:
         mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
-    E_usa = E_usa.groupby({k: v[0] for k, v in mapping.items()}, axis=1).sum()  # type: ignore
-    # ^^ drops F01000
-    ## todo: the implmenetation of this mapping is not working just yet!
+        target_columns = CEDA_V7_SECTORS
 
-    # Target column set is CEDA_V7_SECTORS
-    # set(E_usa.columns) - set(CEDA_V7_SECTORS)
-    # {'331314', '335220'}
+    col_to_target = {k: v[0] for k, v in mapping.items()}
+    # FBS can have sectors not in the mapping (e.g. cornerstone waste 562111, 562HAZ, ...);
+    # map any column that is already in the target schema to itself so groupby does not drop it
+    for c in E_usa.columns:
+        if c not in col_to_target and c in target_columns:
+            col_to_target[c] = c
+    dropped_by_groupby = sorted(set(E_usa.columns) - set(col_to_target.keys()))
+    if dropped_by_groupby:
+        logger.warning(
+            "E_usa columns with no mapping (dropped by groupby): %s",
+            dropped_by_groupby,
+        )
+    E_usa = E_usa.groupby(col_to_target, axis=1).sum()  # type: ignore
 
-    # set(CEDA_V7_SECTORS) - set(E_usa.columns)
-    # {'335221', '335222', '335224', '335228', '4200ID', '814000'}
+    # Assess columns vs target before reindexing
+    target_set = set(target_columns)
+    extra = sorted(set(E_usa.columns) - target_set)
+    missing = sorted(target_set - set(E_usa.columns))
+    if extra:
+        logger.warning(
+            "E_usa columns not in target schema (will be dropped by reindex): %s",
+            extra,
+        )
+    if missing:
+        logger.debug(
+            "Target schema columns missing from E_usa (will be filled with 0): %s",
+            missing,
+        )
 
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        E_usa = E_usa.reindex(columns=INDUSTRIES, fill_value=0)
-    else:
-        E_usa = E_usa.reindex(columns=CEDA_V7_SECTORS, fill_value=0)
+    E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
 
     return E_usa
 
