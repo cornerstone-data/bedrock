@@ -53,6 +53,7 @@ class USAConfig(BaseModel):
     )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
     add_new_ghg_activities: bool = False  # DRI: catherine.birney
+    update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
 
     #####
     # Baseline snapshot
