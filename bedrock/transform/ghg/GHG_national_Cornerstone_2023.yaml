@@ -152,28 +152,6 @@ source_names:
                 CH4: N2O # replacing flow name
             attribution_method: direct
 
-      manure_management_n2O:
-        selection_fields:
-          PrimaryActivity:
-            - Manure Management  # n2O  - different table than flowsa
-          FlowName: ["N2O"]  # flowsa pulls ch4 from diff table
-        attribution_method: proportional
-        attribution_source:
-          EPA_GHGI_T_5_7:
-            year: *ghgi_year
-            activity_to_sector_mapping: EPA_GHGI_CEDA
-            selection_fields:
-              PrimaryActivity:
-                - Beef Cattle  # same as flowsa - n2O, ch4  manure
-                - Dairy Cattle  # same as flowsa - n2O, ch4 manure
-                - Goats  # same as flowsa - n2O, ch4 manure
-                - Horses  # same as flowsa - n2O, ch4 manure
-                - Sheep  # same as flowsa - n2O, ch4 manure
-                - Swine  # same as flowsa - n2O, ch4 manure
-                - Poultry  # same as flowsa - n2O, ch4 manure (not in ceda enteric fermintation)
-              FlowName: ["N2O"]
-            attribution_method: direct
-
 
 ## Fossil Fuels
   EPA_GHGI_T_3_64: &natgas #CH4 from Natural Gas Systems
@@ -248,10 +226,8 @@ source_names:
         - Swine  # same as flowsa - n2O, ch4 manure
         - Poultry  # same as flowsa - n2O, ch4 manure (not in ceda enteric fermintation)
     attribution_method: direct
-  EPA_GHGI_T_5_7:  # note ceda pulls n2o data from t_2_1 and uses t_5_7 as attribution source, flowsa pulls all from 5_7
-    <<: *animals #CH4, mimics enteric fermentation
-    selection_fields:
-      FlowName: ["CH4"]  # n2o loaded from T 2_1
+  EPA_GHGI_T_5_7:  # CH4 and N2O from manure management, aligned with FLOWSA (pulls both directly from T_5_7)
+    <<: *animals #CH4 and N2O, mimics enteric fermentation
 
   EPA_GHGI_T_5_18: #Direct N2O emissions from agricultural soils
     year: *ghgi_year
