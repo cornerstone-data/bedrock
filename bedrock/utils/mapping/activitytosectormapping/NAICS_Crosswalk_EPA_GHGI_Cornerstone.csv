@@ -54,7 +54,7 @@ EPA_GHGI_Cornerstone,Construction/Mining Equipment Non-Road,NAICS_2017_Code,211,
 EPA_GHGI_Cornerstone,Construction/Mining Equipment Non-Road,NAICS_2017_Code,212,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Construction/Mining Equipment Non-Road,NAICS_2017_Code,213111,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Construction/Mining Equipment Non-Road,NAICS_2017_Code,213112,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
-EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks and Buses,NAICS_2017_Code,484,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Buses,NAICS_2017_Code,485,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Other Non-Road,NAICS_2017_Code,485,,"485000, 48A000, 492000, 532100, 532400, 621900, 713900, 811100, 811300","EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Other Non-Road,NAICS_2017_Code,487,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Other Non-Road,NAICS_2017_Code,488,,,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
@@ -574,25 +574,6 @@ EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2
 EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00102,,,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00203,,,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,482,,482000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,483,,483000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,487,,48A000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,S00102,,S00102,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Diesel,NAICS_2017_Code,S00203,,S00203,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Gasoline,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Gasoline,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Gasoline,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Gasoline,NAICS_2017_Code,492,,492000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Gasoline,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Gasoline,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,All Transport - Gasoline,NAICS_2017_Code,S00600,,S00600,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Motorcycles,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Passenger Cars - Households,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
 EPA_GHGI_Cornerstone,Passenger Cars,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
