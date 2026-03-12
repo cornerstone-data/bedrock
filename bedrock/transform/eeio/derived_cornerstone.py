@@ -592,9 +592,10 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
         Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
         Bi = E.divide(x, axis=1).fillna(0.0)
         return Bi @ Vnorm
-    return expand_ghg_matrix_from_bea_to_cornerstone(
-        bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map()
-    )
+    else:
+        return expand_ghg_matrix_from_bea_to_cornerstone(
+            bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map()
+        )
 
 
 @functools.cache
