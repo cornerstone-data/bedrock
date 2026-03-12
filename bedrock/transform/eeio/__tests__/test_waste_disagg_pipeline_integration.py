@@ -423,7 +423,7 @@ class TestPipelineB:
     def test_correct_dimensions(self, disagg_B: pd.DataFrame) -> None:
         assert disagg_B.shape[1] == 405
 
-    def test_differs_from_baseline(
+    def test_non_waste_matches_baseline(
         self,
         baseline_B: pd.DataFrame | None,
         disagg_B: pd.DataFrame,
@@ -432,11 +432,13 @@ class TestPipelineB:
             pytest.skip("Baseline B unavailable (GCP auth or data not configured)")
         waste_cols = [c for c in _WASTE_NEW_CODES if c in disagg_B.columns]
         assert len(waste_cols) > 0
-        assert not np.allclose(
-            baseline_B[waste_cols].values,
-            disagg_B[waste_cols].values,
+        non_waste_cols = [c for c in disagg_B.columns if c not in waste_cols]
+        assert len(non_waste_cols) > 0
+        assert np.allclose(
+            baseline_B[non_waste_cols].values,
+            disagg_B[non_waste_cols].values,
             atol=1e-6,
-        ), "B waste columns should differ after disaggregation"
+        ), "B non-waste columns should match between baseline and disaggregated configs"
 
 
 # ---------------------------------------------------------------------------

@@ -43,7 +43,12 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_Ytot_usa,
     load_summary_Uimp_usa,
 )
-from bedrock.transform.eeio.cornerstone_bea_intermediates import bea_Aq, bea_B, bea_E
+from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.eeio.cornerstone_bea_intermediates import (
+    bea_Aq,
+    bea_B,
+    bea_E,
+)
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
     CS_INDUSTRY_LIST,
@@ -69,6 +74,9 @@ from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_V,
     apply_waste_disagg_to_VA,
     apply_waste_disagg_to_Ytot,
+)
+from bedrock.transform.iot.derived_gross_industry_output import (
+    derive_gross_output_after_redefinition,
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
 from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
@@ -198,6 +206,24 @@ def derive_cornerstone_V() -> pd.DataFrame:
 @pa.check_output(CornerstoneXVectorSchema)
 def derive_cornerstone_x() -> pd.Series[float]:
     return compute_x(V=derive_cornerstone_V())
+
+
+@functools.cache
+@pa.check_output(CornerstoneXVectorSchema)
+def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
+    """Gross industry output in Cornerstone schema, after BEA redefinitions.
+
+    Uses BEA's after-redefinition gross-output time series for the configured
+    GHG data year, then expands it to Cornerstone industries via the
+    BEA→Cornerstone industry correspondence.
+    """
+    cfg = get_usa_config()
+    x_bea = derive_gross_output_after_redefinition(
+        target_year=cfg.usa_ghg_data_year,
+    )
+    x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
+    x_cs.index.name = "sector"
+    return x_cs
 
 
 @functools.cache
@@ -551,22 +577,21 @@ def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
 def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
-    When waste disaggregation is **off**: B is computed in BEA space and
+    When load_E_from_flowsa is **off**: B is computed in BEA space and
     expanded to 405 Cornerstone commodities.
 
-    When waste disaggregation is **on**: B is computed in Cornerstone space
-    as (E_norm / g) @ Vnorm, where E_norm distributes waste industry
-    emissions proportionally by industry output.
+    When load_E_from_flowsa is **on**: B is computed in Cornerstone space
+    via derive_E_usa and .
     """
-    if get_waste_disagg_weights() is not None:
-        V = derive_cornerstone_V()
-        E = _normalize_E_for_waste(derive_cornerstone_E(), V)
-        x = derive_cornerstone_x()
+    if get_usa_config().load_E_from_flowsa:
+        E = derive_E_usa()  # This should be in cornerstone space
+        if get_usa_config().transform_b_matrix_with_useeio_method:
+            x = derive_cornerstone_x_after_redefinition()
+        else:
+            x = derive_cornerstone_x()  # this is 2017 x
         Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
-        B = E.divide(x, axis=1).fillna(0.0) @ Vnorm
-        B.index.name = 'ghg'
-        B.columns.name = 'sector'
-        return B
+        Bi = E.divide(x, axis=1).fillna(0.0)
+        return Bi @ Vnorm
     return expand_ghg_matrix_from_bea_to_cornerstone(
         bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map()
     )
