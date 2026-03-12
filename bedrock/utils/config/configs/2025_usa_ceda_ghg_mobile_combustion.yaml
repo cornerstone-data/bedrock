@@ -5,5 +5,6 @@
 #####
 # Methodology selection
 #####
-update_transportation_ghg_method: true
+use_cornerstone_2026_model_schema: True
 load_E_from_flowsa: true
+update_transportation_ghg_method: true

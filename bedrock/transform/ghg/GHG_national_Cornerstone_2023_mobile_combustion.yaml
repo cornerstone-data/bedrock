@@ -3,6 +3,7 @@
 # Adds missing activity sets for CH4 and N2O,
 # (CO2) Splits attribution between direct assignment and proportional using use table 
 # uses EPA_GHGI_Cornerstone_mobile_combustion mapping.
+# This replaces the use of the CEDA transportation allocation source with direct use of the BEA tables.
 # Base method unchanged; only these three source_names are overridden/added.
 
 !include:GHG_national_CEDA_2023.yaml
@@ -133,7 +134,7 @@ source_names: !include:GHG_national_CEDA_2023.yaml:source_names
               PrimaryActivity:
                 Passenger Cars Diesel On-Road: Passenger Cars - Households # needs to be household only in CEDA
                 Light-Duty Trucks Diesel On-Road: Light-Duty Trucks - Households # needs to be household only in CEDA
-                Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Trucks and Buses # assigned to to 484 only in CEDA
+                Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Buses
                 Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
             attribution_method: direct
 
