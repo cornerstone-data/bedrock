@@ -392,11 +392,11 @@ def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
     Uimp: pd.DataFrame = uset.Uimp
 
     q = compute_q(V=V)
-    g = compute_g(V=V)
+    x = compute_x(V=V)
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
 
-    Adom = compute_Unorm_matrix(U=Udom, g=g) @ Vnorm
-    Aimp = compute_Unorm_matrix(U=Uimp, g=g) @ Vnorm
+    Adom = compute_Unorm_matrix(U=Udom, x=x) @ Vnorm
+    Aimp = compute_Unorm_matrix(U=Uimp, x=x) @ Vnorm
 
     Adom.index.name = 'sector'
     Adom.columns.name = 'sector'
@@ -553,9 +553,9 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     if get_waste_disagg_weights() is not None:
         V = derive_cornerstone_V()
         E = _normalize_E_for_waste(derive_cornerstone_E(), V)
-        g = derive_cornerstone_g()
+        x = derive_cornerstone_x()
         Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
-        B = E.divide(g, axis=1).fillna(0.0) @ Vnorm
+        B = E.divide(x, axis=1).fillna(0.0) @ Vnorm
         B.index.name = 'ghg'
         B.columns.name = 'sector'
         return B
