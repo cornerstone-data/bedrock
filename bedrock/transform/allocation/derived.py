@@ -232,10 +232,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # Collapse across sectors
     if get_usa_config().use_cornerstone_2026_model_schema:
         mapping = load_bea_v2017_industry_to_cornerstone_industry()
-        target_columns = INDUSTRIES
+        target_columns: list[str] = list(INDUSTRIES)
     else:
         mapping = load_bea_v2017_industry_to_bea_v2017_commodity()  # type: ignore
-        target_columns = CEDA_V7_SECTORS  # type: ignore
+        target_columns = list(CEDA_V7_SECTORS)
 
     col_to_target = {k: v[0] for k, v in mapping.items()}
     # FBS can have sectors not in the mapping (e.g. cornerstone waste 562111, 562HAZ, ...);
@@ -254,7 +254,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # Assess columns vs target before reindexing
     target_set = set(target_columns)
     extra = sorted(set(E_usa.columns) - target_set)
-    missing = sorted(target_set - set(E_usa.columns))  # type: ignore
+    missing = sorted(target_set - set(E_usa.columns))
     if extra:
         logger.warning(
             "E_usa columns not in target schema (will be dropped by reindex): %s",
