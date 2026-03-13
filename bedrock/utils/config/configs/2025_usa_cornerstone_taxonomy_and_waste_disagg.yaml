@@ -14,6 +14,11 @@
 use_cornerstone_2026_model_schema: True
 load_E_from_flowsa: True
 implement_waste_disaggregation: True
+eeio_waste_disaggregation:
+  use_weights_file: "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
+  make_weights_file: "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+  year: 2017
+  source_name: "WasteDisaggregationDetail2017"
 
 #####
 # Bugfix

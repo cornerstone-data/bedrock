@@ -142,6 +142,11 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_electricity_ghg_method is True
     - GHG_national_Cornerstone_2023_petroleum_natgas when
       update_ghg_attribution_method_for_ng_and_petrol_systems is True
+    - GHG_national_Cornerstone_2023_new_activities when
+      add_new_ghg_activities is True
+    - GHG_national_Cornerstone_2023_other_gases when
+      update_other_gases_ghg_method is True
+    - GHG_national_Cornerstone_2023_mobile_combustion when update_transportation_ghg_method is True
     - GHG_national_CEDA_2023 otherwise
 
     Only used when load_E_from_flowsa is True in USA config.
@@ -151,8 +156,14 @@ def load_E_from_flowsa() -> pd.DataFrame:
         methodname = 'GHG_national_Cornerstone_2023'
     elif usa.update_electricity_ghg_method:
         methodname = 'GHG_national_Cornerstone_2023_electricity'
+    elif usa.update_other_gases_ghg_method:
+        methodname = 'GHG_national_Cornerstone_2023_other_gases'
     elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
         methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
+    elif usa.update_transportation_ghg_method:
+        methodname = 'GHG_national_Cornerstone_2023_mobile_combustion'
+    elif usa.add_new_ghg_activities:
+        methodname = 'GHG_national_Cornerstone_2023_new_activities'
     else:
         methodname = 'GHG_national_CEDA_2023'
     fbs = getFlowBySector(methodname=methodname)
