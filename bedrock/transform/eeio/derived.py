@@ -17,9 +17,9 @@ from bedrock.extract.iot.io_2017 import load_summary_Uimp_usa
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
-    derive_2017_g_usa,
     derive_2017_U_set_usa,
     derive_2017_Vnorm_scrap_corrected,
+    derive_2017_x_usa,
     derive_2017_Ytot_usa_matrix_set,
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
@@ -337,10 +337,10 @@ def derive_Aq_usa() -> SingleRegionAqMatrixSet:
 
 
 def derive_B_usa_via_vnorm(*, E_usa: pd.DataFrame) -> pd.DataFrame:
-    g = derive_2017_g_usa()
+    x = derive_2017_x_usa()
     Vnorm = derive_2017_Vnorm_scrap_corrected()
 
-    Bi = compute_B_ind_matrix(E=E_usa, g=g)
+    Bi = compute_B_ind_matrix(E=E_usa, x=x)
     Bc = compute_B_matrix(B_ind=Bi, V_norm=Vnorm)
 
     Bc.columns.name = 'sector'

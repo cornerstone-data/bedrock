@@ -1,0 +1,25 @@
+# CEDA 2023 with modified electricity attribution
+# aligned to m1_common selection_fields and using EPA_GHGI_Cornerstone_electricity mapping.
+
+!include:GHG_national_CEDA_2023.yaml
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    EPA_GHGI_T_3_8: &stationary_combustion
+      !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8
+      # Inherited activity sets use EPA_GHGI_CEDA activity to sector mapping from base CEDA method
+      # only electric_power is overwritten
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets
+        electric_power:
+          activity_to_sector_mapping: EPA_GHGI_Cornerstone_electricity
+          selection_fields:
+            PrimaryActivity:
+              Coal Electric Power: Coal Electric Power
+              Natural Gas Electric Power: Natural Gas Electric Power
+              Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
+              Fuel Oil Electric Power: Fuel Oil Electric Power
+              Wood Electric Power: Wood Electric Power
+          attribution_method: direct
+
+    EPA_GHGI_T_3_9: *stationary_combustion  # N2O emissions from stationary combustion
+
+

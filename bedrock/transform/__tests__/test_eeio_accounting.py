@@ -11,10 +11,10 @@ import typing as ta
 import pytest
 
 from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_g_usa,
     derive_2017_q_usa,
     derive_2017_U_with_negatives,
     derive_2017_V_usa,
+    derive_2017_x_usa,
 )
 from bedrock.utils.validation.eeio_diagnostics import (
     commodity_industry_output_cpi_consistency,
@@ -36,7 +36,7 @@ def test_commodity_industry_output_cpi_consistency(
 
     V = derive_2017_V_usa()  # Make table
     q = derive_2017_q_usa()  # commodity output
-    x = derive_2017_g_usa()  # industry output
+    x = derive_2017_x_usa()  # industry output
 
     r_c_x_cpi_consistency = commodity_industry_output_cpi_consistency(
         V=V,

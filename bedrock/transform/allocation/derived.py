@@ -129,10 +129,15 @@ def load_E_from_flowsa() -> pd.DataFrame:
     FBS method is chosen by USA config (first match wins):
     - GHG_national_Cornerstone_2023 when
       new_ghg_method is True
+    - GHG_national_Cornerstone_2023_electricity when
+      update_electricity_ghg_method is True
     - GHG_national_Cornerstone_2023_petroleum_natgas when
-      update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems is True
-    - GHG_national_Cornerstone_2023_hybrid_bea_naics_schema when
-      hybrid_bea_naics_schema_in_ghg_attribution is True
+      update_ghg_attribution_method_for_ng_and_petrol_systems is True
+    - GHG_national_Cornerstone_2023_new_activities when
+      add_new_ghg_activities is True
+    - GHG_national_Cornerstone_2023_other_gases when
+      update_other_gases_ghg_method is True
+    - GHG_national_Cornerstone_2023_mobile_combustion when update_transportation_ghg_method is True
     - GHG_national_CEDA_2023 otherwise
 
     Only used when load_E_from_flowsa is True in USA config.
@@ -140,12 +145,16 @@ def load_E_from_flowsa() -> pd.DataFrame:
     usa = get_usa_config()
     if usa.new_ghg_method:
         methodname = 'GHG_national_Cornerstone_2023'
-    elif (
-        usa.update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems
-    ):
+    elif usa.update_electricity_ghg_method:
+        methodname = 'GHG_national_Cornerstone_2023_electricity'
+    elif usa.update_other_gases_ghg_method:
+        methodname = 'GHG_national_Cornerstone_2023_other_gases'
+    elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
         methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
-    elif usa.hybrid_bea_naics_schema_in_ghg_attribution:
-        methodname = 'GHG_national_Cornerstone_2023_update_schema'
+    elif usa.update_transportation_ghg_method:
+        methodname = 'GHG_national_Cornerstone_2023_mobile_combustion'
+    elif usa.add_new_ghg_activities:
+        methodname = 'GHG_national_Cornerstone_2023_new_activities'
     else:
         methodname = 'GHG_national_CEDA_2023'
     fbs = getFlowBySector(methodname=methodname)
