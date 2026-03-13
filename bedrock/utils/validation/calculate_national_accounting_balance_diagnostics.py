@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from bedrock.utils.io.gcp import update_sheet_tab
-from bedrock.utils.snapshots.loader import load_current_snapshot
+from bedrock.utils.snapshots.loader import load_configured_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def calculate_national_accounting_balance_diagnostics(
 
     # E_orig: original emissions from snapshot (gas x sector matrix)
     logger.info("2. Loading E_orig from snapshot...")
-    E_orig = load_current_snapshot("E_USA_ES")
+    E_orig = load_configured_snapshot("E_USA_ES")
     E_orig_by_sector = ta.cast("pd.Series[float]", E_orig.sum(axis=0))
 
     # National-level totals

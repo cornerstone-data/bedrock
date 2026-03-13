@@ -1,0 +1,11 @@
+# Use CEDA 2023 FBS with fuel-specific electricity activities.
+# Maintains CEDA approach of attribution to single NAICS 2211.
+# Requires load_E_from_flowsa and update_electricity_ghg_method so the pipeline loads E from flowsa with the electricity method.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+update_electricity_ghg_method: true
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"

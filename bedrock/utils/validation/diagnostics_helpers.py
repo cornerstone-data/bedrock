@@ -23,7 +23,7 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation import (
     obtain_inflation_factors_from_reference_data,
 )
-from bedrock.utils.snapshots.loader import load_current_snapshot
+from bedrock.utils.snapshots.loader import load_configured_snapshot
 from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 
@@ -510,11 +510,10 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     N_new = compute_n(M=M_new)
     logger.info(f'[TIMING] New L, M, D, N matrices computed in {time.time() - t0:.1f}s')
 
-    # Uses the snapshot version specified in bedrock/utils/snapshots/.SNAPSHOT_KEY
     t0 = time.time()
-    B_old = load_current_snapshot(B_snapshot_name)
-    Adom_old = load_current_snapshot(Adom_snapshot_name)
-    Aimp_old = load_current_snapshot(Aimp_snapshot_name)
+    B_old = load_configured_snapshot(B_snapshot_name)
+    Adom_old = load_configured_snapshot(Adom_snapshot_name)
+    Aimp_old = load_configured_snapshot(Aimp_snapshot_name)
     logger.info(f'[TIMING] Old snapshots loaded in {time.time() - t0:.1f}s')
 
     t0 = time.time()
@@ -551,18 +550,18 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     )
 
 
-def compute_effective_g_comparison() -> pd.DataFrame:
-    """Compare the B-matrix denominator (g) between the Cornerstone and legacy paths.
+def compute_effective_x_comparison() -> pd.DataFrame:
+    """Compare the B-matrix denominator (x) between the Cornerstone and legacy paths.
 
     The Cornerstone path uses detail-level observed gross output for the target year
-    (after co-production redefinition).  The legacy path uses 2017 benchmark g,
+    (after co-production redefinition).  The legacy path uses 2017 benchmark x,
     year-scaled at the ~70 summary level, then inflated.  This function
-    reconstructs the legacy effective g so the two can be compared side by side.
+    reconstructs the legacy effective x so the two can be compared side by side.
 
-    Returns a DataFrame indexed by BEA detail industry code, sorted by g_ratio.
+    Returns a DataFrame indexed by BEA detail industry code, sorted by x_ratio.
     """
     from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
-        bea_g,
+        bea_x,
     )
     from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
         derive_summary_q_usa,
@@ -579,9 +578,9 @@ def compute_effective_g_comparison() -> pd.DataFrame:
 
     cfg = get_usa_config()
 
-    g_new = derive_gross_output_after_redefinition(cfg.usa_ghg_data_year)
+    x_new = derive_gross_output_after_redefinition(cfg.usa_ghg_data_year)
 
-    g_2017 = bea_g()
+    x_2017 = bea_x()
 
     q_ratio_summary = (
         derive_summary_q_usa(cfg.usa_io_data_year)
@@ -595,22 +594,22 @@ def compute_effective_g_comparison() -> pd.DataFrame:
     q_scale = (
         detail_to_summary_series.map(q_ratio_summary)
         .fillna(1.0)
-        .reindex(g_2017.index, fill_value=1.0)
+        .reindex(x_2017.index, fill_value=1.0)
     )
 
     # PI_target / PI_original — inflation from IO data year to model base year
     pi_scale = get_cornerstone_price_ratio(
         cfg.usa_io_data_year, cfg.model_base_year
-    ).reindex(g_2017.index, fill_value=1.0)
+    ).reindex(x_2017.index, fill_value=1.0)
 
-    g_eff_old = g_2017 * q_scale * pi_scale
+    x_eff_old = x_2017 * q_scale * pi_scale
 
-    common = g_new.index.intersection(g_eff_old.index).sort_values()
+    common = x_new.index.intersection(x_eff_old.index).sort_values()
     comp = pd.DataFrame(
         {
-            f'g_{cfg.usa_ghg_data_year}_after_redef': g_new.reindex(common),
-            'g_eff_old_path': g_eff_old.reindex(common),
-            'g_2017_benchmark': g_2017.reindex(common),
+            f'x_{cfg.usa_ghg_data_year}_after_redef': x_new.reindex(common),
+            'x_eff_old_path': x_eff_old.reindex(common),
+            'x_2017_benchmark': x_2017.reindex(common),
             f'q_{cfg.usa_io_data_year}_over_q_{cfg.usa_detail_original_year}': q_scale.reindex(
                 common
             ),
@@ -619,8 +618,8 @@ def compute_effective_g_comparison() -> pd.DataFrame:
             ),
         }
     )
-    comp['g_new_over_g_old'] = (
-        comp[f'g_{cfg.usa_ghg_data_year}_after_redef'] / comp['g_eff_old_path']
+    comp['x_new_over_x_old'] = (
+        comp[f'x_{cfg.usa_ghg_data_year}_after_redef'] / comp['x_eff_old_path']
     )
 
     sector_desc = get_aligned_sector_desc()

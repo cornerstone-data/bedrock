@@ -5,8 +5,8 @@ import pandas as pd
 import yaml
 from pydantic import BaseModel
 
-CONFIG_DIR = os.path.join(os.path.dirname(__file__), "configs")
-USA_CONFIG_ENV_VAR = "USA_CONFIG_FILE"
+CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
+USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
 
 
 class EEIOWasteDisaggConfig(BaseModel):
@@ -21,10 +21,10 @@ class USAConfig(BaseModel):
     # Model base settings
     #####
     model_base_year: ta.Literal[2022, 2023, 2024] = 2023
-    bea_io_level: ta.Literal["detail", "summary"] = "detail"
+    bea_io_level: ta.Literal['detail', 'summary'] = 'detail'
     bea_io_scheme: ta.Literal[2017, 2022] = 2017  # documentation purposes
-    price_type: ta.Literal["producer", "purchaser"] = "producer"
-    iot_before_or_after_redefinition: ta.Literal["before", "after"] = "after"
+    price_type: ta.Literal['producer', 'purchaser'] = 'producer'
+    iot_before_or_after_redefinition: ta.Literal['before', 'after'] = 'after'
 
     #####
     # Data selection
@@ -37,7 +37,7 @@ class USAConfig(BaseModel):
     )
     usa_ghg_data_year: ta.Literal[2023, 2024] = 2023
 
-    ipcc_ar_version: ta.Literal["AR5", "AR6"] = "AR6"
+    ipcc_ar_version: ta.Literal['AR5', 'AR6'] = 'AR6'
 
     #####
     # Methodology selection
@@ -53,13 +53,24 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_price_index: bool = False  # DRI: mo.li
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
-    usa_ghg_methodology: ta.Literal["national", "state"] = "national"
+    usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
     update_transportation_ghg_method: bool = False  # DRI: ben.young
-    update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: (
-        bool
-    ) = False  # DRI: catherine.birney
-    hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
+    update_electricity_ghg_method: bool = False  # DRI: catherine.birney
+    update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
+        False  # DRI: catherine.birney
+    )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
+    add_new_ghg_activities: bool = False  # DRI: catherine.birney
+    update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
+
+    #####
+    # Baseline snapshot
+    #####
+    # The git SHA below is the baseline snapshots generated on main with
+    # configuration: 2025_usa_cornerstone_fbs_schema.
+    snapshot_version_or_git_sha: ta.Literal[
+        'v0', 'ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc'
+    ] = 'v0'
 
     @property
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
@@ -76,14 +87,14 @@ class USAConfig(BaseModel):
         config_dict = self.to_dict()
         config_dict_df = pd.DataFrame(
             [
-                {"config_field": key, "value": value}
+                {'config_field': key, 'value': value}
                 for key, value in config_dict.items()
             ]
         )
         summaries = pd.concat(
             [
                 pd.DataFrame(
-                    {"config_field": "config_name", "value": config_name}, index=[0]
+                    {'config_field': 'config_name', 'value': config_name}, index=[0]
                 ),
                 config_dict_df,
             ],
@@ -95,7 +106,7 @@ _usa_config: ta.Optional[USAConfig] = None
 
 
 def _load_usa_config_from_file_name(config_file_name: str) -> USAConfig:
-    assert config_file_name.endswith(".yaml"), "config file name must end with .yaml"
+    assert config_file_name.endswith('.yaml'), 'config file name must end with .yaml'
     with open(os.path.join(CONFIG_DIR, config_file_name)) as f:
         data = yaml.safe_load(f)
     config = USAConfig.model_validate(data, strict=True)
@@ -107,10 +118,10 @@ def set_global_usa_config(config_file: str) -> None:
     config_file_env = os.environ.get(USA_CONFIG_ENV_VAR)
 
     if (_usa_config is not None) or (config_file_env is not None):
-        raise ValueError("Global USA config already set")
+        raise ValueError('Global USA config already set')
 
-    if not config_file.endswith(".yaml"):
-        config_file += ".yaml"
+    if not config_file.endswith('.yaml'):
+        config_file += '.yaml'
 
     _usa_config = _load_usa_config_from_file_name(config_file)
     os.environ[USA_CONFIG_ENV_VAR] = config_file
@@ -123,7 +134,7 @@ def get_usa_config() -> USAConfig:
         if env_usa_config_file:
             _usa_config = _load_usa_config_from_file_name(env_usa_config_file)
         else:
-            set_global_usa_config("v8_ceda_2025_usa.yaml")
+            set_global_usa_config('v8_ceda_2025_usa.yaml')
     assert _usa_config is not None
     return _usa_config
 
