@@ -1,4 +1,5 @@
 # This config is used to run the CEDA GHG model via flowsa.
+# GHG Model is GHG_national_CEDA_2023
 
 #####
 # Model base settings
