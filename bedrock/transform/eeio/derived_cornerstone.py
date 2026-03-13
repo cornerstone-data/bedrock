@@ -24,20 +24,31 @@ Internal helpers live in sibling modules:
 from __future__ import annotations
 
 import functools
+import pathlib
 
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
+from bedrock.extract.disaggregation.waste_weights import (
+    WasteDisaggWeights,
+    load_waste_disagg_weights,
+)
 from bedrock.extract.iot.io_2017 import (
     load_2017_Uimp_usa,
     load_2017_Utot_usa,
     load_2017_V_usa,
+    load_2017_value_added_usa,
     load_2017_Ytot_usa,
     load_summary_Uimp_usa,
 )
-from bedrock.transform.eeio.cornerstone_bea_intermediates import bea_Aq, bea_B, bea_E
+from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.eeio.cornerstone_bea_intermediates import (
+    bea_Aq,
+    bea_B,
+    bea_E,
+)
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
     CS_INDUSTRY_LIST,
@@ -58,7 +69,16 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
 )
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.transform.eeio.waste_disaggregation import (
+    apply_waste_disagg_to_U,
+    apply_waste_disagg_to_V,
+    apply_waste_disagg_to_VA,
+    apply_waste_disagg_to_Ytot,
+)
+from bedrock.transform.iot.derived_gross_industry_output import (
+    derive_gross_output_after_redefinition,
+)
+from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
 from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
     inflate_cornerstone_A_matrix,
     inflate_cornerstone_B_matrix,
@@ -67,6 +87,7 @@ from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
     compute_q,
+    compute_Unorm_matrix,
     compute_Vnorm_matrix,
     compute_x,
     compute_y_for_national_accounting_balance,
@@ -105,6 +126,60 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
 )
+from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
+
+_BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+_WASTE_ORIGINAL_CODE = "562000"
+_WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[_WASTE_ORIGINAL_CODE])
+
+# ---------------------------------------------------------------------------
+# Waste disaggregation weight provider (4a)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfig:
+    """Return a copy of *cfg* with weight file paths resolved to absolute paths."""
+
+    def _resolve(p: str) -> str:
+        path = pathlib.Path(p)
+        if path.is_absolute():
+            return p
+        resolved = _BEDROCK_PKG_ROOT / path
+        return str(resolved)
+
+    return EEIOWasteDisaggConfig(
+        use_weights_file=_resolve(cfg.use_weights_file),
+        make_weights_file=_resolve(cfg.make_weights_file),
+        year=cfg.year,
+        source_name=cfg.source_name,
+    )
+
+
+@functools.cache
+def get_waste_disagg_weights() -> WasteDisaggWeights | None:
+    """Return waste disaggregation weights if the feature is enabled, else None."""
+    cfg = get_usa_config()
+    if not cfg.implement_waste_disaggregation:
+        return None
+    waste_cfg = cfg.eeio_waste_disaggregation
+    if waste_cfg is None:
+        waste_cfg = EEIOWasteDisaggConfig(
+            use_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Use.csv",
+            make_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Make.csv",
+            year=2017,
+            source_name="WasteDisaggregationDetail2017",
+        )
+    resolved_cfg = _resolve_waste_cfg_paths(waste_cfg)
+    return load_waste_disagg_weights(
+        resolved_cfg,
+        disagg_original_code=_WASTE_ORIGINAL_CODE,
+        disagg_new_codes=_WASTE_NEW_CODES,
+        waste_sectors=_WASTE_NEW_CODES,
+        va_row_codes=list(VALUE_ADDEDS),
+    )
+
 
 # ---------------------------------------------------------------------------
 # Base 2017 IO matrices — V, g, q
@@ -119,6 +194,11 @@ def derive_cornerstone_V() -> pd.DataFrame:
     V = industry_corresp() @ V_2017 @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        V = apply_waste_disagg_to_V(V, weights)
+        V.index.name = 'sector'
+        V.columns.name = 'sector'
     return V
 
 
@@ -126,6 +206,24 @@ def derive_cornerstone_V() -> pd.DataFrame:
 @pa.check_output(CornerstoneXVectorSchema)
 def derive_cornerstone_x() -> pd.Series[float]:
     return compute_x(V=derive_cornerstone_V())
+
+
+@functools.cache
+@pa.check_output(CornerstoneXVectorSchema)
+def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
+    """Gross industry output in Cornerstone schema, after BEA redefinitions.
+
+    Uses BEA's after-redefinition gross-output time series for the configured
+    GHG data year, then expands it to Cornerstone industries via the
+    BEA→Cornerstone industry correspondence.
+    """
+    cfg = get_usa_config()
+    x_bea = derive_gross_output_after_redefinition(
+        target_year=cfg.usa_ghg_data_year,
+    )
+    x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
+    x_cs.index.name = "sector"
+    return x_cs
 
 
 @functools.cache
@@ -185,6 +283,13 @@ def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
         df.index.name = 'sector'
         df.columns.name = 'sector'
 
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        Udom_cs, Uimp_cs = apply_waste_disagg_to_U(Udom_cs, Uimp_cs, weights)
+        for df in (Udom_cs, Uimp_cs):
+            df.index.name = 'sector'
+            df.columns.name = 'sector'
+
     return SingleRegionUMatrixSet(
         Udom=pt.DataFrame[CornerstoneUMatrix](Udom_cs),  # type: ignore[arg-type]
         Uimp=pt.DataFrame[CornerstoneUMatrix](Uimp_cs),  # type: ignore[arg-type]
@@ -214,6 +319,10 @@ def _derive_cornerstone_Ytot_with_trade() -> pd.DataFrame:
     Ytot_orig = load_2017_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
+        Ytot.index.name = 'sector'
     return Ytot
 
 
@@ -246,23 +355,47 @@ def derive_cornerstone_Y_personal_consumption_expenditure() -> pd.Series[float]:
 
 
 # ---------------------------------------------------------------------------
+# Base 2017 IO matrices — VA
+# ---------------------------------------------------------------------------
+
+
+@functools.cache
+def derive_cornerstone_VA() -> pd.DataFrame:
+    """Value Added (VA rows × 405 Cornerstone industries) via correspondence.
+
+    Callers needing Cornerstone-space VA should use this function rather than
+    assembling VA manually.
+    """
+    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA.columns.name = 'sector'
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        VA = apply_waste_disagg_to_VA(VA, weights)
+        VA.columns.name = 'sector'
+    return VA
+
+
+# ---------------------------------------------------------------------------
 # A matrices and q — expanded from BEA space
 # ---------------------------------------------------------------------------
 
 
 @functools.cache
 def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
-    """Base 2017 A matrices and q — computed in BEA space, then expanded.
+    """Base 2017 A matrices and q.
 
-    A is computed in BEA ~400-sector space (without structural reflection)
-    and expanded to 405 Cornerstone commodities by duplicating rows/columns
-    for disaggregated sectors (waste, aluminum).  Per-unit intensities are
-    preserved: A[562111, j] == A_bea[562000, j].
+    When waste disaggregation is **off**: A is computed in BEA ~400-sector
+    space and expanded to 405 Cornerstone commodities by duplicating
+    rows/columns. Intragroup treatment is applied to prevent Leontief-inverse
+    inflation.
 
-    Within-group cross-terms are **zeroed out** so that disaggregated
-    subsectors (e.g. the 7 waste codes) do not create artificial circular
-    supply chains that would inflate the Leontief inverse and N values.
+    When waste disaggregation is **on**: A and q are derived directly in
+    Cornerstone space from disaggregated V and U. No intragroup treatment
+    is applied — the waste block already reflects real CSV weights.
     """
+    if get_waste_disagg_weights() is not None:
+        return _derive_cornerstone_Aq_from_disaggregated()
+
     Adom_bea, Aimp_bea, q_bea = bea_Aq()
     com_map = cs_commodity_to_bea_map()
 
@@ -277,6 +410,32 @@ def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
     assert (Adom >= 0).all().all(), 'Adom has negative values.'
     assert (Aimp >= 0).all().all(), 'Aimp has negative values.'
     assert (q >= 0).all(), 'q has negative values.'
+
+    return SingleRegionAqMatrixSet(
+        Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
+        Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
+        scaled_q=q,
+    )
+
+
+def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
+    """A and q from disaggregated Cornerstone V and U (no intragroup treatment)."""
+    V = derive_cornerstone_V()
+    uset = derive_cornerstone_U_set()
+    Udom: pd.DataFrame = uset.Udom
+    Uimp: pd.DataFrame = uset.Uimp
+
+    q = compute_q(V=V)
+    x = compute_x(V=V)
+    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+
+    Adom = compute_Unorm_matrix(U=Udom, x=x) @ Vnorm
+    Aimp = compute_Unorm_matrix(U=Uimp, x=x) @ Vnorm
+
+    Adom.index.name = 'sector'
+    Adom.columns.name = 'sector'
+    Aimp.index.name = 'sector'
+    Aimp.columns.name = 'sector'
 
     return SingleRegionAqMatrixSet(
         Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
@@ -394,17 +553,49 @@ def derive_cornerstone_E() -> pd.DataFrame:
     )
 
 
+def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
+    """Distribute E's waste industry columns proportionally by industry output.
+
+    Instead of duplicating E_bea[:, 562000] to every waste subsector, each
+    waste industry i gets E_bea[:, 562000] * share_i, where share_i is i's
+    fraction of total waste industry output (Make table column sums).
+    """
+    waste_industries = [c for c in _WASTE_NEW_CODES if c in E.columns]
+    if not waste_industries:
+        return E
+    g_waste = V.sum(axis=0).loc[waste_industries]
+    total = float(g_waste.sum())
+    if total <= 0:
+        return E
+    shares = g_waste / total
+    E_norm = E.copy()
+    E_norm[waste_industries] = E_norm[waste_industries].multiply(shares, axis=1)
+    return E_norm
+
+
 @pa.check_output(CornerstoneBMatrix.to_schema())
 def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
-    """B (ghg × Cornerstone commodity) — computed in BEA space, then expanded.
+    """B (ghg × Cornerstone commodity).
 
-    B = (E / g) @ V_norm is computed entirely in BEA ~400-sector space,
-    then expanded to 405 Cornerstone commodities.  This guarantees
-    D[562111] == D_bea[562000] exactly.
+    When load_E_from_flowsa is **off**: B is computed in BEA space and
+    expanded to 405 Cornerstone commodities.
+
+    When load_E_from_flowsa is **on**: B is computed in Cornerstone space
+    via derive_E_usa and .
     """
-    return expand_ghg_matrix_from_bea_to_cornerstone(
-        bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map()
-    )
+    if get_usa_config().load_E_from_flowsa:
+        E = derive_E_usa()  # This should be in cornerstone space
+        if get_usa_config().transform_b_matrix_with_useeio_method:
+            x = derive_cornerstone_x_after_redefinition()
+        else:
+            x = derive_cornerstone_x()  # this is 2017 x
+        Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+        Bi = E.divide(x, axis=1).fillna(0.0)
+        return Bi @ Vnorm
+    else:
+        return expand_ghg_matrix_from_bea_to_cornerstone(
+            bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map()
+        )
 
 
 @functools.cache

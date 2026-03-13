@@ -124,6 +124,8 @@ Steps after `gt submit`:
 
 **Always use `gt` commands — never plain `git` when a `gt` equivalent exists.**
 
+**NEVER commit plan or scratch markdown files** (e.g., `*_plan.md`, `plan_*.md`, `*_plan_*.md`). These are local working documents and must not be pushed to the repository. When staging files, always review the list and exclude any plan/scratch docs. Prefer staging specific files by name over `git add -A` or `gt create -a`.
+
 ---
 
 ## Claude Output Checklist

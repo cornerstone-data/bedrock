@@ -1,0 +1,11 @@
+# Use CEDA 2023 FBS with FLOWSA-aligned enteric fermentation and manure management.
+# Pulls manure management N2O directly from T_5_7 instead of T_2_1 proportional attribution.
+# GHG Model is GHG_national_Cornerstone_2023_ag_livestock
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+update_enteric_fermentation_and_manure_management_ghg_method: true
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"

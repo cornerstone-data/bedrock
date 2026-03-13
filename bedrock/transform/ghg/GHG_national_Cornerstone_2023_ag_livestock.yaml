@@ -1,0 +1,32 @@
+# CEDA 2023 with FLOWSA-aligned enteric fermentation and manure management.
+#
+# Changes from CEDA baseline:
+# - EPA_GHGI_T_5_7: Removes FlowName: ["CH4"] filter, loads both CH4 and N2O
+#   with direct attribution (FLOWSA approach)
+# - EPA_GHGI_T_2_1: Disables manure_management_n2O activity set (N2O now comes
+#   from T_5_7 directly instead of T_2_1 proportional attribution)
+# - EPA_GHGI_T_5_3: No change (already aligned with FLOWSA animals)
+
+!include:GHG_national_CEDA_2023.yaml
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    EPA_GHGI_T_2_1: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
+        manure_management_n2O:
+          selection_fields:
+            PrimaryActivity: PASS  # N2O now loaded directly from T_5_7
+          attribution_method: direct
+
+    EPA_GHGI_T_5_7: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_7
+      selection_fields:  # removed FlowName: ["CH4"] filter to load both CH4 and N2O
+        PrimaryActivity:
+          - American Bison
+          - Beef Cattle
+          - Dairy Cattle
+          - Goats
+          - Horses
+          - Mules and Asses
+          - Sheep
+          - Swine
+          - Poultry
+      attribution_method: direct
