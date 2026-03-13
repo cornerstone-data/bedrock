@@ -61,6 +61,9 @@ class USAConfig(BaseModel):
     )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
     add_new_ghg_activities: bool = False  # DRI: catherine.birney
+    update_enteric_fermentation_and_manure_management_ghg_method: bool = (
+        False  # DRI: mo.li
+    )
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
 
     #####
