@@ -2,6 +2,8 @@
 #
 # Changes from CEDA baseline:
 # - EPA_GHGI_T_2_1 liming: direct → proportional via BEA 327400 (Lime and Gypsum Products)
+# - EPA_GHGI_T_2_1 field_burning: all crop types (Chickpeas, Cotton, Maize, Rice, Soybeans,
+#   Wheat, Lentils, Sugarcane) for N2O and CH4 — aligned with FLOWSA (PR #270); Drop 5_29
 # - EPA_GHGI_T_5_18 and T_5_19: No change (fertilizer_use already proportional via BEA 325310)
 
 !include:GHG_national_CEDA_2023.yaml
@@ -20,3 +22,52 @@
               activity_to_sector_mapping: CEDA_2025
               selection_fields:
                 ActivityProducedBy: {'327400': ''} # Lime and Gypsum Products
+        field_burning_n2O:
+          selection_fields:
+            PrimaryActivity:
+              - Field Burning of Agricultural Residues
+            FlowName: ["N2O"] # ch4 pulled from T_5_29
+          attribution_method: proportional
+          attribution_source:
+            EPA_GHGI_T_5_29: &field_burning
+              year: *ghgi_year
+              activity_to_sector_mapping: EPA_GHGI_Cornerstone
+              selection_fields:
+                PrimaryActivity:
+                  - Chickpeas
+                  - Cotton
+                  - Maize
+                  - Rice
+                  - Soybeans
+                  - Wheat
+                  - Lentils
+                  - Sugarcane
+                FlowName:
+                  CH4: N2O # replacing flow name
+              attribution_method: direct
+        field_burning_ch4:
+          selection_fields:
+            PrimaryActivity:
+              - Field Burning of Agricultural Residues
+            FlowName: ["CH4"]
+          attribution_method: proportional
+          attribution_source:
+            EPA_GHGI_T_5_29:
+              <<: *field_burning
+              selection_fields:
+                PrimaryActivity:
+                  - Chickpeas
+                  - Cotton
+                  - Maize
+                  - Rice
+                  - Soybeans
+                  - Wheat
+                  - Lentils
+                  - Sugarcane
+                FlowName: ["CH4"]
+
+    EPA_GHGI_T_5_29: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_29
+      activity_sets:
+        direct_ch4:  # ch4
+          selection_fields:
+            PrimaryActivity: PASS
