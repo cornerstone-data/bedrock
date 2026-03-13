@@ -33,7 +33,7 @@ from bedrock.utils.config.settings import (
     extractpath,
     return_folder_path,
 )
-from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
+from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
@@ -55,17 +55,6 @@ def parse_args() -> dict[str, Any]:
     )
     args = vars(ap.parse_args())
     return args
-
-
-def _download_fba_from_gcs(source: str, year: str | int | None) -> None:
-    """Download FBA from GCS when API key is missing (used by generate_diagnostics)."""
-    meta_name = f'{source}_{year}' if year is not None else source
-    name = f'{meta_name}.{WRITE_FORMAT}'
-    sub_bucket = posixpath.join(GCS_FLOWSA_DIR, 'FlowByActivity')
-    for n in get_most_recent_from_bucket(name, sub_bucket):
-        download_gcs_file(n, sub_bucket, os.path.join(str(FBA_DIR), n))
-        return
-    raise APIError(api_source=source)
 
 
 def set_fba_name(source: str, year: str | None) -> str:
@@ -323,8 +312,17 @@ def process_fba_config(
                 # replace parts of urls with specific instructions from source.py
                 urls = assemble_urls_for_query(source=source, year=year, config=config)
             except APIError:
+                # if API error, can download FBA instead of generating - used in diagnostics
                 if download_fba_on_api_error:
-                    _download_fba_from_gcs(source, year)
+                    try:
+                        load_from_gcs(
+                            f'{source}_{year}.{WRITE_FORMAT}',
+                            posixpath.join(GCS_FLOWSA_DIR, 'FlowByActivity'),
+                            str(FBA_DIR),
+                            pd.read_parquet
+                        )
+                    except FileNotFoundError:
+                        raise APIError(api_source=source)
                     continue
                 raise
             # create a list with data from all source urls
