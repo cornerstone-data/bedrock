@@ -778,7 +778,7 @@ source_names:
     selection_fields:
       PrimaryActivity: Magnesium Production and Processing
     attribution_method: proportional
-     attribution_source:
+    attribution_source:
       BEA_Detail_GrossOutput_IO:
         year: *ghgi_year
         geoscale: national
