@@ -849,15 +849,15 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-#        Mobile AC - Passenger Cars: Passenger Cars - Households  # only in flowsa, note in ceda to consider
-#        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households  # only in flowsa, note in ceda to consider
-        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles  # same as flowsa
-        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses  # same as flowsa
-        # Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses #excluded in flowsa too # only in flowsa
-#        Comfort Cooling for Trains and Buses - Rail: Rail  # only in flowsa
-        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks  # same as flowsa
-        Refrigerated Transport - Rail: Rail  # same as flowsa
-        Refrigerated Transport - Ships and Boats: Ships and Boats  # same as flowsa
+        Mobile AC - Passenger Cars: Passenger Cars - Households
+        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households
+        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles
+        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses
+        Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses
+        Comfort Cooling for Trains and Buses - Rail: Rail
+        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks
+        Refrigerated Transport - Rail: Rail
+        Refrigerated Transport - Ships and Boats: Ships and Boats
     attribution_method: direct
 
 
