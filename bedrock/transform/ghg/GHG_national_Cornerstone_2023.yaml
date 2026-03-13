@@ -374,11 +374,11 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
-  EPA_GHGI_T_3_14: #CH4 from mobile combustion
+  EPA_GHGI_T_3_14: &mobile #CH4 from mobile combustion
     year: *ghgi_year
     activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
-    activity_sets: &mobile
+    activity_sets:
       direct_gasoline: # empty in some years (<0.05 MMT CO2eq)
         selection_fields:
           PrimaryActivity:
