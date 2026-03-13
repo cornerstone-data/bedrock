@@ -1,0 +1,14 @@
+# Fully impelmented Cornerstone 2025 model
+# Use Cornerstone 2023 GHG FBS (GHG_national_Cornerstone_2023) via new_ghg_method
+# Pipeline loads E from flowsa.
+# Transform B matrix with USEEIO method
+# Implement waste disaggregation.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+new_ghg_method: true
+transform_b_matrix_with_useeio_method: True
+implement_waste_disaggregation: True
