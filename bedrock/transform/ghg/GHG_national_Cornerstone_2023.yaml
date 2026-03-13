@@ -75,10 +75,15 @@ source_names:
             Electric Power Sector: Electric Power #CO2 - different attribution than flowsa
         attribution_method: direct
 
-      liming: # liming of agricultural soils - note: flowsa uses proportional by BEA Detail Use SUT
+      liming: # liming of agricultural soils - aligned with flowsa proportional approach
         selection_fields:
-          PrimaryActivity: Liming #CO2 - different attribution than flowsa
-        attribution_method: direct
+          PrimaryActivity: Liming #CO2
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'327400': ''} # Lime and Gypsum Products
 
       urea:
         selection_fields:
@@ -133,24 +138,43 @@ source_names:
           FlowName: ["N2O"] # ch4 pulled from T_5_29
         attribution_method: proportional
         attribution_source:
-          # ceda uses CH4 data to allocate, not n20 data. The n20 data in 5-29 for specific crops is all 0
-          EPA_GHGI_T_5_29:
+          EPA_GHGI_T_5_29: &field_burning
             year: *ghgi_year
-            activity_to_sector_mapping: EPA_GHGI_CEDA
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
             selection_fields:
               PrimaryActivity:
-        #        - Chickpeas  # only in flowsa, not in ceda
-                - Cotton  # same as flowsa
-        #        - Maize  # only in flowsa, not in ceda - same as corn?
-                - Rice  # same as flowsa
-                - Soybeans  # same as flowsa
-                - Wheat  # same as flowsa
-                - Corn  # not included in flowsa, only in ceda - same as maize?
-                - Lentils  # not included in flowsa, only in ceda
-                - Sugarcane  # not included in flowsa, only in ceda
+                - Chickpeas
+                - Cotton
+                - Maize
+                - Rice
+                - Soybeans
+                - Wheat
+                - Lentils
+                - Sugarcane
               FlowName:
                 CH4: N2O # replacing flow name
             attribution_method: direct
+
+      field_burning_ch4:
+        selection_fields:
+          PrimaryActivity:
+            - Field Burning of Agricultural Residues
+          FlowName: ["CH4"]
+        attribution_method: proportional
+        attribution_source:
+          EPA_GHGI_T_5_29:
+            <<: *field_burning
+            selection_fields:
+              PrimaryActivity:
+                - Chickpeas
+                - Cotton
+                - Maize
+                - Rice
+                - Soybeans
+                - Wheat
+                - Lentils
+                - Sugarcane
+              FlowName: ["CH4"]
 
 
 ## Fossil Fuels
@@ -187,29 +211,6 @@ source_names:
   EPA_GHGI_T_3_49: *petroleum # N2O from Petroleum Systems mimics CH4
 
 ## Agriculture
-  # note - field burning is allocated differently in flowsa. ch4 emissions are pulled from 5_29 and directly attributed.
-  # However, n2O data totals are pulled table 2_1 and the T_5_29 data are used to proportionally attribute
-  # flowsa only directly attributes data from 5_29, does not use T 2_1 data
-  EPA_GHGI_T_5_29: #CH4, N2O, CO and NOx from field burning of residues
-    year: *ghgi_year
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    fedefl_mapping: GHGI_AR5_100
-    activity_sets:
-      direct_ch4:  # ch4
-        selection_fields:
-          PrimaryActivity:
-    #        - Chickpeas  # only in flowsa, not in ceda
-            - Cotton  # same as flowsa
-    #        - Maize  # only in flowsa, not in ceda - same as corn?
-            - Rice  # same as flowsa
-            - Soybeans  # same as flowsa
-            - Wheat  # same as flowsa
-            - Corn  # not included in flowsa, only in ceda -  same as maize?
-            - Lentils  # not included in flowsa, only in ceda
-            - Sugarcane  # not included in flowsa, only in ceda
-          FlowName: ["CH4"]
-        attribution_method: direct
-
   EPA_GHGI_T_5_3:  &animals #CH4 from Enteric Fermentation
     year: *ghgi_year
     activity_to_sector_mapping: EPA_GHGI_CEDA
@@ -237,10 +238,10 @@ source_names:
       fertilizer_use:
         selection_fields:
           PrimaryActivity:
-            - Organic Amendment Cropland  # same as flowsa
-            - Residue N Cropland  # same as flowsa
-            - Synthetic Fertilizer Cropland  # same as flowsa
-        attribution_method: proportional  # note - different than flowsa, which uses direct attribution
+            - Organic Amendment Cropland
+            - Residue N Cropland
+            - Synthetic Fertilizer Cropland
+        attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
             <<: *bea
@@ -279,9 +280,9 @@ source_names:
       fertilizer_use:
         selection_fields:
           PrimaryActivity:
-            - Volatilization & Atm. Deposition Cropland  # same as flowsa
-            - Surface Leaching & Run-Off Cropland  # same as flowsa
-        attribution_method: proportional  # note different than flowsa, which uses direct
+            - Volatilization & Atm. Deposition Cropland
+            - Surface Leaching & Run-Off Cropland
+        attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
             <<: *bea
