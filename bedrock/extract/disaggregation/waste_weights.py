@@ -88,8 +88,8 @@ class WasteDisaggWeights:
 
 def _normalize_code(code: str) -> str:
     code = code.strip()
-    if '/' in code:
-        code = code.split('/', maxsplit=1)[0]
+    if "/" in code:
+        code = code.split("/", maxsplit=1)[0]
     return code
 
 
@@ -97,23 +97,23 @@ def load_weights_csv(path: str, percent_column: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(path, dtype=str)
     except FileNotFoundError as exc:
-        raise WasteDisaggWeightError(f'Weight file not found: {path}') from exc
+        raise WasteDisaggWeightError(f"Weight file not found: {path}") from exc
 
-    required_columns = {'IndustryCode', 'CommodityCode', percent_column}
+    required_columns = {"IndustryCode", "CommodityCode", percent_column}
     missing_columns = required_columns.difference(df.columns)
     if missing_columns:
-        missing_display = ', '.join(sorted(missing_columns))
+        missing_display = ", ".join(sorted(missing_columns))
         raise WasteDisaggWeightError(
-            f'Missing required columns in {path}: {missing_display}'
+            f"Missing required columns in {path}: {missing_display}"
         )
 
-    df['IndustryCode'] = df['IndustryCode'].map(_normalize_code)
-    df['CommodityCode'] = df['CommodityCode'].map(_normalize_code)
+    df["IndustryCode"] = df["IndustryCode"].map(_normalize_code)
+    df["CommodityCode"] = df["CommodityCode"].map(_normalize_code)
 
-    df[percent_column] = pd.to_numeric(df[percent_column], errors='coerce')
+    df[percent_column] = pd.to_numeric(df[percent_column], errors="coerce")
     if df[percent_column].isna().any():
         raise WasteDisaggWeightError(
-            f'Non-numeric or NaN values in {percent_column} column for file {path}'
+            f"Non-numeric or NaN values in {percent_column} column for file {path}"
         )
 
     return df
@@ -138,7 +138,7 @@ def _apply_correspondence_to_series(
         )
     except AssertionError as exc:
         raise WasteDisaggCorrespondenceError(
-            'Incomplete or invalid correspondence for waste disaggregation weights'
+            "Incomplete or invalid correspondence for waste disaggregation weights"
         ) from exc
 
     aligned = series.reindex(correspondence.columns).fillna(0.0).astype(float)
@@ -158,7 +158,7 @@ def _pivot_and_align(
     if df.empty:
         return pd.DataFrame(0.0, index=index_codes, columns=column_codes, dtype=float)
     pivoted = df.pivot_table(
-        index=index_col, columns=columns_col, values=value_col, aggfunc='sum'
+        index=index_col, columns=columns_col, values=value_col, aggfunc="sum"
     ).fillna(0.0)
     return pivoted.reindex(
         index=index_codes, columns=column_codes, fill_value=0.0
@@ -211,11 +211,11 @@ def _normalize_table(
     If index_codes/column_codes are given, reindex to those; otherwise keep existing index/columns.
     """
     if not isinstance(df, pd.DataFrame):
-        raise WasteDisaggWeightError('weights must be a pandas DataFrame')
+        raise WasteDisaggWeightError("weights must be a pandas DataFrame")
 
     if (df < 0).any().any():
         raise WasteDisaggWeightError(
-            f'Negative weights encountered for table={table}, slice={slice_name}'
+            f"Negative weights encountered for table={table}, slice={slice_name}"
         )
 
     out = df.copy()
@@ -229,7 +229,7 @@ def _normalize_table(
         total_scalar = float(out.sum().sum())
         if total_scalar <= 0.0:
             raise WasteDisaggWeightError(
-                f'All-zero weights for table={table}, slice={slice_name}'
+                f"All-zero weights for table={table}, slice={slice_name}"
             )
         return (out / total_scalar).astype(float)
 
@@ -237,7 +237,7 @@ def _normalize_table(
     total_series = out.sum(axis=axis)
     if (total_series <= 0).any():
         raise WasteDisaggWeightError(
-            f'All-zero weights for table={table}, slice={slice_name}'
+            f"All-zero weights for table={table}, slice={slice_name}"
         )
     if axis == 1:
         return (out.div(total_series, axis=0)).astype(float)
@@ -256,8 +256,8 @@ def load_waste_disagg_weights(
 ) -> WasteDisaggWeights:
     # naics_to_cornerstone reserved for future index/column correspondence mapping
     _ = naics_to_cornerstone
-    make_df = load_weights_csv(cfg.make_weights_file, 'PercentMake')
-    use_df = load_weights_csv(cfg.use_weights_file, 'PercentUsed')
+    make_df = load_weights_csv(cfg.make_weights_file, "PercentMake")
+    use_df = load_weights_csv(cfg.use_weights_file, "PercentUsed")
 
     original = disagg_original_code
     new_codes = set(disagg_new_codes)
@@ -268,62 +268,62 @@ def load_waste_disagg_weights(
     )
 
     make_intersection_df = make_df[
-        make_df['IndustryCode'].isin(new_codes)
-        & make_df['CommodityCode'].isin(new_codes)
+        make_df["IndustryCode"].isin(new_codes)
+        & make_df["CommodityCode"].isin(new_codes)
     ]
     # Commodity disaggregation: industries (other or aggregated) × commodity subsectors
     # Include both: other industries with waste commodity columns, and original industry (562000) with new commodity codes (Make column sum)
     make_col_df = make_df[
-        make_df['CommodityCode'].isin(new_codes)
+        make_df["CommodityCode"].isin(new_codes)
         & (
-            (~make_df['IndustryCode'].isin({original} | new_codes))
-            | (make_df['IndustryCode'] == original)
+            (~make_df["IndustryCode"].isin({original} | new_codes))
+            | (make_df["IndustryCode"] == original)
         )
     ]
     # Industry disaggregation
     make_row_df = make_df[
-        make_df['IndustryCode'].isin(new_codes)
-        & (~make_df['CommodityCode'].isin({original} | new_codes))
+        make_df["IndustryCode"].isin(new_codes)
+        & (~make_df["CommodityCode"].isin({original} | new_codes))
     ]
 
     fd_cols: set[str] = set(
         use_df.loc[
-            use_df['CommodityCode'].isin(new_codes)
-            & use_df['IndustryCode'].isin(set(FINAL_DEMANDS)),
-            'IndustryCode',
+            use_df["CommodityCode"].isin(new_codes)
+            & use_df["IndustryCode"].isin(set(FINAL_DEMANDS)),
+            "IndustryCode",
         ].unique()
     )
 
     use_intersection_df = use_df[
-        use_df['IndustryCode'].isin(new_codes) & use_df['CommodityCode'].isin(new_codes)
+        use_df["IndustryCode"].isin(new_codes) & use_df["CommodityCode"].isin(new_codes)
     ]
     # Use industry columns: commodity rows (other or aggregated) × industry subsectors
     # Include both: non-waste commodity rows, and original commodity (562000) for column totals (Use column sum)
     use_col_df = use_df[
-        use_df['IndustryCode'].isin(new_codes)
+        use_df["IndustryCode"].isin(new_codes)
         & (
-            (~use_df['CommodityCode'].isin(new_codes | va_rows))
-            | (use_df['CommodityCode'] == original)
+            (~use_df["CommodityCode"].isin(new_codes | va_rows))
+            | (use_df["CommodityCode"] == original)
         )
     ]
     # Use commodity rows: industry columns (other or aggregated) × commodity subsectors
     # Include both: non-FD/non-waste industry columns, and original industry (562000) for row totals (Use row sum)
     use_row_df = use_df[
-        use_df['CommodityCode'].isin(new_codes)
+        use_df["CommodityCode"].isin(new_codes)
         & (
-            (~use_df['IndustryCode'].isin(fd_cols | new_codes))
-            | (use_df['IndustryCode'] == original)
+            (~use_df["IndustryCode"].isin(fd_cols | new_codes))
+            | (use_df["IndustryCode"] == original)
         )
     ]
-    fd_percentages_df = use_df[use_df['IndustryCode'].isin(fd_cols)]
-    va_percentages_df = use_df[use_df['CommodityCode'].isin(va_rows)]
+    fd_percentages_df = use_df[use_df["IndustryCode"].isin(fd_cols)]
+    va_percentages_df = use_df[use_df["CommodityCode"].isin(va_rows)]
 
     # --- Make intersection: (industry_subsectors x commodity_subsectors), table sum = 1
     make_intersection_piv = _pivot_and_align(
         make_intersection_df,
-        'PercentMake',
-        'IndustryCode',
-        'CommodityCode',
+        "PercentMake",
+        "IndustryCode",
+        "CommodityCode",
         waste_sectors,
         waste_sectors,
     )
@@ -336,8 +336,8 @@ def load_waste_disagg_weights(
         )
     make_intersection = _normalize_table(
         make_intersection_piv,
-        table='Make',
-        slice_name='intersection',
+        table="Make",
+        slice_name="intersection",
         index_codes=waste_sectors,
         column_codes=waste_sectors,
         axis=None,
@@ -345,64 +345,64 @@ def load_waste_disagg_weights(
 
     # --- Make commodity columns all rows: default allocation only (1 row: original or __default__)
     # Used when an industry has no row in make_waste_commodity_columns_specific_rows.
-    make_col_default_df = make_col_df[make_col_df['IndustryCode'] == original]
+    make_col_default_df = make_col_df[make_col_df["IndustryCode"] == original]
     if make_col_default_df.empty:
         default_row = make_intersection.sum(axis=0)
         make_waste_commodity_columns_all_rows = pd.DataFrame(
             [default_row.values],
-            index=['__default__'],
+            index=["__default__"],
             columns=waste_sectors,
             dtype=float,
         )
     else:
         make_waste_commodity_columns_all_rows = _build_specific_rows_table(
             make_col_default_df,
-            row_dim='IndustryCode',
-            col_dim='CommodityCode',
+            row_dim="IndustryCode",
+            col_dim="CommodityCode",
             col_subsectors=waste_sectors,
-            value_col='PercentMake',
+            value_col="PercentMake",
         )
-    make_waste_commodity_columns_all_rows.index.name = 'IndustryCode'
+    make_waste_commodity_columns_all_rows.index.name = "IndustryCode"
 
     # --- Make industry rows specific columns: index=commodity_col, columns=industry_subsectors
     make_waste_industry_rows_specific_columns = _build_specific_rows_table(
         make_row_df,
-        row_dim='CommodityCode',
-        col_dim='IndustryCode',
+        row_dim="CommodityCode",
+        col_dim="IndustryCode",
         col_subsectors=industry_sectors,
-        value_col='PercentMake',
+        value_col="PercentMake",
     )
 
     # --- Make commodity columns specific rows: row-specific overrides only (exclude original)
     # Industries with explicit allocations; lookup here first, else use make_waste_commodity_columns_all_rows.
     make_col_specific_df = make_col_df[
-        ~make_col_df['IndustryCode'].isin({original} | new_codes)
+        ~make_col_df["IndustryCode"].isin({original} | new_codes)
     ]
     make_waste_commodity_columns_specific_rows = _build_specific_rows_table(
         make_col_specific_df,
-        row_dim='IndustryCode',
-        col_dim='CommodityCode',
+        row_dim="IndustryCode",
+        col_dim="CommodityCode",
         col_subsectors=waste_sectors,
-        value_col='PercentMake',
+        value_col="PercentMake",
     )
 
     # --- Use intersection: (industry_subsectors x commodity_subsectors), table sum = 1
     use_intersection_piv = _pivot_and_align(
         use_intersection_df,
-        'PercentUsed',
-        'IndustryCode',
-        'CommodityCode',
+        "PercentUsed",
+        "IndustryCode",
+        "CommodityCode",
         waste_sectors,
         waste_sectors,
     )
     if use_intersection_piv.sum().sum() <= 0:
         raise WasteDisaggWeightError(
-            'All-zero weights for table=Use, slice=intersection'
+            "All-zero weights for table=Use, slice=intersection"
         )
     use_intersection = _normalize_table(
         use_intersection_piv,
-        table='Use',
-        slice_name='intersection',
+        table="Use",
+        slice_name="intersection",
         index_codes=waste_sectors,
         column_codes=waste_sectors,
         axis=None,
@@ -411,70 +411,70 @@ def load_waste_disagg_weights(
     # --- Use industry columns all rows: (commodity x industry_subsectors), each row sum = 1
     use_col_piv = _pivot_and_align(
         use_col_df,
-        'PercentUsed',
-        'CommodityCode',
-        'IndustryCode',
-        use_col_df['CommodityCode'].unique().tolist() if not use_col_df.empty else [],
+        "PercentUsed",
+        "CommodityCode",
+        "IndustryCode",
+        use_col_df["CommodityCode"].unique().tolist() if not use_col_df.empty else [],
         waste_sectors,
     )
     if use_col_piv.empty or use_col_piv.sum(axis=1).sum() <= 0:
         default_row = use_intersection.sum(axis=1)
         use_waste_industry_columns_all_rows = pd.DataFrame(
             [default_row.values] * 1,
-            index=['__default__'],
+            index=["__default__"],
             columns=waste_sectors,
             dtype=float,
         )
     else:
         use_waste_industry_columns_all_rows = _normalize_table(
             use_col_piv,
-            table='Use',
-            slice_name='waste_industry_columns_all_rows',
+            table="Use",
+            slice_name="waste_industry_columns_all_rows",
             column_codes=waste_sectors,
             axis=1,
         )
 
     # --- Use commodity rows all columns: default allocation only (1 row: original or __default__)
     # Used when an industry column has no row in use_waste_rows_specific_columns.
-    use_row_default_df = use_row_df[use_row_df['IndustryCode'] == original]
+    use_row_default_df = use_row_df[use_row_df["IndustryCode"] == original]
     if use_row_default_df.empty:
         default_row = use_intersection.sum(axis=0)
         use_waste_commodity_rows_all_columns = pd.DataFrame(
             [default_row.values],
-            index=['__default__'],
+            index=["__default__"],
             columns=waste_sectors,
             dtype=float,
         )
     else:
         use_waste_commodity_rows_all_columns = _build_specific_rows_table(
             use_row_default_df,
-            row_dim='IndustryCode',
-            col_dim='CommodityCode',
+            row_dim="IndustryCode",
+            col_dim="CommodityCode",
             col_subsectors=waste_sectors,
-            value_col='PercentUsed',
+            value_col="PercentUsed",
         )
-    use_waste_commodity_rows_all_columns.index.name = 'IndustryCode'
+    use_waste_commodity_rows_all_columns.index.name = "IndustryCode"
 
     # --- Use rows specific columns: industry columns with explicit allocations (exclude original)
     use_row_specific_df = use_row_df[
-        ~use_row_df['IndustryCode'].isin({original} | new_codes)
+        ~use_row_df["IndustryCode"].isin({original} | new_codes)
     ]
     use_waste_rows_specific_columns = _build_specific_rows_table(
         use_row_specific_df,
-        row_dim='IndustryCode',
-        col_dim='CommodityCode',
+        row_dim="IndustryCode",
+        col_dim="CommodityCode",
         col_subsectors=waste_sectors,
-        value_col='PercentUsed',
+        value_col="PercentUsed",
     )
 
     # --- FD columns: index=fd_col, columns=commodity_subsectors
     fd_rows: list[pd.DataFrame] = []
     fd_index: list[str] = []
     for fd_col in fd_cols:
-        fd_slice = fd_percentages_df[fd_percentages_df['IndustryCode'] == fd_col]
+        fd_slice = fd_percentages_df[fd_percentages_df["IndustryCode"] == fd_col]
         if fd_slice.empty:
             continue
-        ser = fd_slice.set_index('CommodityCode')['PercentUsed']
+        ser = fd_slice.set_index("CommodityCode")["PercentUsed"]
         ser = ser.reindex(waste_sectors, fill_value=0.0).astype(float)
         if ser.sum() <= 0:
             continue
@@ -500,23 +500,23 @@ def load_waste_disagg_weights(
     if not va_percentages_df.empty:
         va_piv = _pivot_and_align(
             va_percentages_df,
-            'PercentUsed',
-            'CommodityCode',
-            'IndustryCode',
-            va_percentages_df['CommodityCode'].unique().tolist(),
+            "PercentUsed",
+            "CommodityCode",
+            "IndustryCode",
+            va_percentages_df["CommodityCode"].unique().tolist(),
             waste_sectors,
         )
         use_va_rows_for_waste_industry_columns = _normalize_table(
             va_piv,
-            table='Use',
-            slice_name='va_rows_for_waste_industry_columns',
+            table="Use",
+            slice_name="va_rows_for_waste_industry_columns",
             column_codes=waste_sectors,
             axis=1,
         )
     else:
         use_va_rows_for_waste_industry_columns = pd.DataFrame(
             [[1.0 / len(waste_sectors)] * len(waste_sectors)] * 1,
-            index=['__default__'],
+            index=["__default__"],
             columns=waste_sectors,
             dtype=float,
         )
@@ -557,110 +557,110 @@ def weights_to_csv(weights: WasteDisaggWeights, file: IO[str] | None = None) -> 
                         industry_val, commodity_val = str(col), str(ind)
                     rows.append(
                         {
-                            'table': table,
-                            'slice': slice_name,
-                            'industry': industry_val,
-                            'commodity': commodity_val,
-                            'weight': float(val),
+                            "table": table,
+                            "slice": slice_name,
+                            "industry": industry_val,
+                            "commodity": commodity_val,
+                            "weight": float(val),
                         }
                     )
 
-    add_table(weights.use_intersection, 'Use', 'use_intersection')
+    add_table(weights.use_intersection, "Use", "use_intersection")
     add_table(
         weights.use_waste_industry_columns_all_rows,
-        'Use',
-        'use_waste_industry_columns_all_rows',
+        "Use",
+        "use_waste_industry_columns_all_rows",
         index_is_industry=False,  # slice: index=commodity, columns=industry_subsectors
     )
     add_table(
         weights.use_waste_commodity_rows_all_columns,
-        'Use',
-        'use_waste_commodity_rows_all_columns',
+        "Use",
+        "use_waste_commodity_rows_all_columns",
     )
     add_table(
         weights.use_waste_rows_specific_columns,
-        'Use',
-        'use_waste_rows_specific_columns',
+        "Use",
+        "use_waste_rows_specific_columns",
     )
     add_table(
         weights.use_va_rows_for_waste_industry_columns,
-        'Use',
-        'use_va_rows_for_waste_industry_columns',
+        "Use",
+        "use_va_rows_for_waste_industry_columns",
         index_is_industry=False,  # slice: index=va_row, columns=industry_subsectors
     )
     add_table(
         weights.use_fd_columns_for_waste_commodity_rows,
-        'Use',
-        'use_fd_columns_for_waste_commodity_rows',
+        "Use",
+        "use_fd_columns_for_waste_commodity_rows",
     )
 
-    add_table(weights.make_intersection, 'Make', 'make_intersection')
+    add_table(weights.make_intersection, "Make", "make_intersection")
     add_table(
         weights.make_waste_commodity_columns_all_rows,
-        'Make',
-        'make_waste_commodity_columns_all_rows',
+        "Make",
+        "make_waste_commodity_columns_all_rows",
     )
     add_table(
         weights.make_waste_commodity_columns_specific_rows,
-        'Make',
-        'make_waste_commodity_columns_specific_rows',
+        "Make",
+        "make_waste_commodity_columns_specific_rows",
     )
     add_table(
         weights.make_waste_industry_rows_specific_columns,
-        'Make',
-        'make_waste_industry_rows_specific_columns',
+        "Make",
+        "make_waste_industry_rows_specific_columns",
         index_is_industry=False,  # slice: index=commodity_col, columns=industry_subsectors
     )
 
     df = pd.DataFrame(
         rows,
-        columns=['table', 'slice', 'industry', 'commodity', 'weight'],
+        columns=["table", "slice", "industry", "commodity", "weight"],
     )
     if file is None:
         csv_str = df.to_csv(index=False)
-        print(csv_str, end='')
+        print(csv_str, end="")
     else:
         df.to_csv(file, index=False)
 
 
 # %%
-if __name__ == '__main__':
+if __name__ == "__main__":
     from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
     from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
     _data_dir = pathlib.Path(__file__).resolve().parent
     _cfg = EEIOWasteDisaggConfig(
-        use_weights_file=str(_data_dir / 'WasteDisaggregationDetail2017_Use.csv'),
-        make_weights_file=str(_data_dir / 'WasteDisaggregationDetail2017_Make.csv'),
+        use_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Use.csv"),
+        make_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Make.csv"),
         year=2017,
-        source_name='WasteDisaggregationDetail2017',
+        source_name="WasteDisaggregationDetail2017",
     )
     _weights = load_waste_disagg_weights(
         _cfg,
-        disagg_original_code='562000',
-        disagg_new_codes=cast(list[str], list(WASTE_DISAGG_COMMODITIES['562000'])),
-        waste_sectors=cast(list[str], list(WASTE_DISAGG_COMMODITIES['562000'])),
+        disagg_original_code="562000",
+        disagg_new_codes=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
+        waste_sectors=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
         naics_to_cornerstone=None,
     )
     # weights_to_csv(_weights, 'weights.csv')
 
-    print('use_intersection')
+    print("use_intersection")
     print(_weights.use_intersection)
-    print('\nuse_waste_industry_columns_all_rows')
+    print("\nuse_waste_industry_columns_all_rows")
     print(_weights.use_waste_industry_columns_all_rows)
-    print('\nuse_waste_commodity_rows_all_columns')
+    print("\nuse_waste_commodity_rows_all_columns")
     print(_weights.use_waste_commodity_rows_all_columns)
-    print('\nuse_waste_rows_specific_columns')
+    print("\nuse_waste_rows_specific_columns")
     print(_weights.use_waste_rows_specific_columns)
-    print('\nuse_va_rows_for_waste_industry_columns')
+    print("\nuse_va_rows_for_waste_industry_columns")
     print(_weights.use_va_rows_for_waste_industry_columns)
-    print('\nuse_fd_columns_for_waste_commodity_rows')
+    print("\nuse_fd_columns_for_waste_commodity_rows")
     print(_weights.use_fd_columns_for_waste_commodity_rows)
-    print('\nmake_intersection')
+    print("\nmake_intersection")
     print(_weights.make_intersection)
-    print('\nmake_waste_commodity_columns_all_rows')
+    print("\nmake_waste_commodity_columns_all_rows")
     print(_weights.make_waste_commodity_columns_all_rows)
-    print('\nmake_waste_commodity_columns_specific_rows')
+    print("\nmake_waste_commodity_columns_specific_rows")
     print(_weights.make_waste_commodity_columns_specific_rows)
-    print('\nmake_waste_industry_rows_specific_columns')
+    print("\nmake_waste_industry_rows_specific_columns")
     print(_weights.make_waste_industry_rows_specific_columns)
