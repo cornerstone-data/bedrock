@@ -356,7 +356,6 @@ EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00102,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00203,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00500,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00600,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,F01000,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Aerosols,,,,excluded,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Solvents,,,,excluded,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Fire Protection,,,,excluded,EPA_GHGI_T_4_124
