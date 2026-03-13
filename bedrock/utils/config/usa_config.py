@@ -16,13 +16,6 @@ class EEIOWasteDisaggConfig(BaseModel):
     source_name: str
 
 
-class EEIOWasteDisaggConfig(BaseModel):
-    use_weights_file: str
-    make_weights_file: str
-    year: int
-    source_name: str
-
-
 class USAConfig(BaseModel):
     #####
     # Model base settings
