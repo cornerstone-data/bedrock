@@ -4,7 +4,7 @@
 # - EPA_GHGI_T_2_1 liming: direct → proportional via BEA 327400 (Lime and Gypsum Products)
 # - EPA_GHGI_T_2_1 field_burning: all crop types (Chickpeas, Cotton, Maize, Rice, Soybeans,
 #   Wheat, Lentils, Sugarcane) for N2O and CH4 — aligned with FLOWSA (PR #270); Drop 5_29
-# - EPA_GHGI_T_5_18 and T_5_19: No change (fertilizer_use already proportional via BEA 325310)
+# - EPA_GHGI_T_5_18 and T_5_19: No change to fertilizer_use already proportional via BEA 325310)
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names

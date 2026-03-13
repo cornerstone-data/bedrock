@@ -238,10 +238,10 @@ source_names:
       fertilizer_use:
         selection_fields:
           PrimaryActivity:
-            - Organic Amendment Cropland  # same as flowsa
-            - Residue N Cropland  # same as flowsa
-            - Synthetic Fertilizer Cropland  # same as flowsa
-        attribution_method: proportional  # note - different than flowsa, which uses direct attribution
+            - Organic Amendment Cropland
+            - Residue N Cropland
+            - Synthetic Fertilizer Cropland
+        attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
             <<: *bea
@@ -280,9 +280,9 @@ source_names:
       fertilizer_use:
         selection_fields:
           PrimaryActivity:
-            - Volatilization & Atm. Deposition Cropland  # same as flowsa
-            - Surface Leaching & Run-Off Cropland  # same as flowsa
-        attribution_method: proportional  # note different than flowsa, which uses direct
+            - Volatilization & Atm. Deposition Cropland
+            - Surface Leaching & Run-Off Cropland
+        attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
             <<: *bea
