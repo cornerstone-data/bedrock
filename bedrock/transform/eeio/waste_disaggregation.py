@@ -73,16 +73,20 @@ def _aggregate_waste_sector_in_V(
     non_waste_cols = [j for j in V.columns if j not in waste_set]
     new_index = non_waste_idx + [original_code]
     new_columns = non_waste_cols + [original_code]
-    out = pd.DataFrame(0.0, index=new_index, columns=new_columns, dtype=float)
-    out.loc[non_waste_idx, non_waste_cols] = V.loc[non_waste_idx, non_waste_cols].values
-    out.loc[original_code, non_waste_cols] = (
+    output = pd.DataFrame(0.0, index=new_index, columns=new_columns, dtype=float)
+    output.loc[non_waste_idx, non_waste_cols] = V.loc[
+        non_waste_idx, non_waste_cols
+    ].values
+    output.loc[original_code, non_waste_cols] = (
         V.loc[waste_codes, non_waste_cols].sum(axis=0).values
     )
-    out.loc[non_waste_idx, original_code] = (
+    output.loc[non_waste_idx, original_code] = (
         V.loc[non_waste_idx, waste_codes].sum(axis=1).values
     )
-    out.loc[original_code, original_code] = V.loc[waste_codes, waste_codes].sum().sum()
-    return out
+    output.loc[original_code, original_code] = (
+        V.loc[waste_codes, waste_codes].sum().sum()
+    )
+    return output
 
 
 def apply_waste_disagg_to_V(
@@ -111,14 +115,16 @@ def apply_waste_disagg_to_V(
             return V
         V_aggregated = _aggregate_waste_sector_in_V(V, waste_codes, original_code)
         result = apply_waste_disagg_to_V(V_aggregated, weights, original_code)
-        out_reindexed = result.reindex(index=V.index, columns=V.columns, fill_value=0.0)
-        _assert_non_waste_unchanged(V, out_reindexed, waste_set, original_code)
-        return out_reindexed
+        output_reindexed = result.reindex(
+            index=V.index, columns=V.columns, fill_value=0.0
+        )
+        _assert_non_waste_unchanged(V, output_reindexed, waste_set, original_code)
+        return output_reindexed
 
-    out = V.copy()
+    output = V.copy()
 
     # --- Intersection block ---
-    orig_val = cast(float, out.loc[original_code, original_code])
+    orig_val = cast(float, output.loc[original_code, original_code])
     intersection_w = weights.make_intersection
     for ind in waste_codes:
         for com in waste_codes:
@@ -127,18 +133,18 @@ def apply_waste_disagg_to_V(
                 if (ind in intersection_w.index and com in intersection_w.columns)
                 else 0.0
             )
-            out.loc[ind, com] = orig_val * w
+            output.loc[ind, com] = orig_val * w
 
     # --- Column disaggregation (non-waste industry rows, waste commodity columns) ---
     col_w = weights.make_waste_commodity_columns_all_rows
     specific_col_w = weights.make_waste_commodity_columns_specific_rows
-    for ind in out.index:
+    for ind in output.index:
         if ind in waste_set or ind == original_code:
             continue
-        orig_row_val = cast(float, out.loc[ind, original_code])
+        orig_row_val = cast(float, output.loc[ind, original_code])
         if orig_row_val == 0.0:
             for com in waste_codes:
-                out.loc[ind, com] = 0.0
+                output.loc[ind, com] = 0.0
             continue
         if not specific_col_w.empty and ind in specific_col_w.index:
             row_weights = specific_col_w.loc[ind]
@@ -151,17 +157,17 @@ def apply_waste_disagg_to_V(
             row_weights = pd.Series(1.0 / n, index=waste_codes)
         for com in waste_codes:
             w = float(row_weights[com]) if com in row_weights.index else 0.0
-            out.loc[ind, com] = orig_row_val * w
+            output.loc[ind, com] = orig_row_val * w
 
     # --- Row disaggregation (waste industry rows, non-waste commodity columns) ---
     row_w = weights.make_waste_industry_rows_specific_columns
-    for com in out.columns:
+    for com in output.columns:
         if com in waste_set or com == original_code:
             continue
-        orig_col_val = cast(float, out.loc[original_code, com])
+        orig_col_val = cast(float, output.loc[original_code, com])
         if orig_col_val == 0.0:
             for ind in waste_codes:
-                out.loc[ind, com] = 0.0
+                output.loc[ind, com] = 0.0
             continue
         if not row_w.empty and com in row_w.index:
             col_weights = row_w.loc[com]
@@ -170,13 +176,13 @@ def apply_waste_disagg_to_V(
             col_weights = pd.Series(1.0 / n, index=waste_codes)
         for ind in waste_codes:
             w = float(col_weights[ind]) if ind in col_weights.index else 0.0
-            out.loc[ind, com] = orig_col_val * w
+            output.loc[ind, com] = orig_col_val * w
 
     # --- Remove the original aggregate row and column ---
-    out = out.drop(index=original_code, columns=original_code)
+    output = output.drop(index=original_code, columns=original_code)
 
-    _assert_non_waste_unchanged(V, out, waste_set, original_code)
-    return out
+    _assert_non_waste_unchanged(V, output, waste_set, original_code)
+    return output
 
 
 def _aggregate_waste_sector_in_U(
@@ -193,16 +199,20 @@ def _aggregate_waste_sector_in_U(
     non_waste_cols = [j for j in U.columns if j not in waste_set]
     new_index = non_waste_idx + [original_code]
     new_columns = non_waste_cols + [original_code]
-    out = pd.DataFrame(0.0, index=new_index, columns=new_columns, dtype=float)
-    out.loc[non_waste_idx, non_waste_cols] = U.loc[non_waste_idx, non_waste_cols].values
-    out.loc[original_code, non_waste_cols] = (
+    output = pd.DataFrame(0.0, index=new_index, columns=new_columns, dtype=float)
+    output.loc[non_waste_idx, non_waste_cols] = U.loc[
+        non_waste_idx, non_waste_cols
+    ].values
+    output.loc[original_code, non_waste_cols] = (
         U.loc[waste_codes, non_waste_cols].sum(axis=0).values
     )
-    out.loc[non_waste_idx, original_code] = (
+    output.loc[non_waste_idx, original_code] = (
         U.loc[non_waste_idx, waste_codes].sum(axis=1).values
     )
-    out.loc[original_code, original_code] = U.loc[waste_codes, waste_codes].sum().sum()
-    return out
+    output.loc[original_code, original_code] = (
+        U.loc[waste_codes, waste_codes].sum().sum()
+    )
+    return output
 
 
 def _apply_waste_disagg_to_U_single(
@@ -213,13 +223,13 @@ def _apply_waste_disagg_to_U_single(
     """Disaggregate waste sector in a single Use matrix (assumes original_code in U)."""
     waste_codes = _waste_codes(weights)
     waste_set = set(waste_codes)
-    out = U.copy()
+    output = U.copy()
 
     # In Use tables: index=commodities, columns=industries
     # use_intersection: index=industry_subsectors, columns=commodity_subsectors
 
     # --- Intersection block ---
-    orig_val = cast(float, out.loc[original_code, original_code])
+    orig_val = cast(float, output.loc[original_code, original_code])
     intersection_w = weights.use_intersection
     for com in waste_codes:
         for ind in waste_codes:
@@ -228,18 +238,18 @@ def _apply_waste_disagg_to_U_single(
                 if (ind in intersection_w.index and com in intersection_w.columns)
                 else 0.0
             )
-            out.loc[com, ind] = orig_val * w
+            output.loc[com, ind] = orig_val * w
 
     # --- Column disaggregation (industry columns) ---
     col_w = weights.use_waste_industry_columns_all_rows
     va_rows = set(weights.use_va_rows_for_waste_industry_columns.index)
-    for com in out.index:
+    for com in output.index:
         if com in waste_set or com == original_code or com in va_rows:
             continue
-        orig_row_val = cast(float, out.loc[com, original_code])
+        orig_row_val = cast(float, output.loc[com, original_code])
         if orig_row_val == 0.0:
             for ind in waste_codes:
-                out.loc[com, ind] = 0.0
+                output.loc[com, ind] = 0.0
             continue
         if not col_w.empty and com in col_w.index:
             row_weights = col_w.loc[com]
@@ -250,32 +260,47 @@ def _apply_waste_disagg_to_U_single(
             row_weights = pd.Series(1.0 / n, index=waste_codes)
         for ind in waste_codes:
             w = float(row_weights[ind]) if ind in row_weights.index else 0.0
-            out.loc[com, ind] = orig_row_val * w
+            output.loc[com, ind] = orig_row_val * w
 
     # --- Row disaggregation (commodity rows) ---
-    row_w = weights.use_waste_commodity_rows_all_columns
+    # Industry-specific allocations (useeior rowsPercentages) override default per column.
+    specific_row_w = weights.use_waste_rows_specific_columns
+    default_row_w = weights.use_waste_commodity_rows_all_columns
     fd_cols = set(weights.use_fd_columns_for_waste_commodity_rows.index)
-    for ind in out.columns:
+    for ind in output.columns:
         if ind in waste_set or ind == original_code or ind in fd_cols:
             continue
-        orig_col_val = cast(float, out.loc[original_code, ind])
+        orig_col_val = cast(float, output.loc[original_code, ind])
         if orig_col_val == 0.0:
             for com in waste_codes:
-                out.loc[com, ind] = 0.0
+                output.loc[com, ind] = 0.0
             continue
-        if not row_w.empty and ind in row_w.index:
-            col_weights = row_w.loc[ind]
-        elif not row_w.empty and len(row_w) == 1:
-            col_weights = row_w.iloc[0]
+        if not specific_row_w.empty and ind in specific_row_w.index:
+            col_weights = (
+                specific_row_w.loc[ind]
+                .reindex(waste_codes, fill_value=0.0)
+                .astype(float)
+            )
+            total = float(col_weights.sum())
+            if total > 0:
+                col_weights = col_weights / total
+            else:
+                n = len(waste_codes)
+                col_weights = pd.Series(1.0 / n, index=waste_codes)
+        elif not default_row_w.empty and ind in default_row_w.index:
+            col_weights = default_row_w.loc[ind]
+        elif not default_row_w.empty and len(default_row_w) >= 1:
+            col_weights = default_row_w.iloc[0]
         else:
             n = len(waste_codes)
             col_weights = pd.Series(1.0 / n, index=waste_codes)
+        col_weights = col_weights.reindex(waste_codes, fill_value=0.0).astype(float)
         for com in waste_codes:
             w = float(col_weights[com]) if com in col_weights.index else 0.0
-            out.loc[com, ind] = orig_col_val * w
+            output.loc[com, ind] = orig_col_val * w
 
-    out = out.drop(index=original_code, columns=original_code)
-    return out
+    output = output.drop(index=original_code, columns=original_code)
+    return output
 
 
 def apply_waste_disagg_to_U(
@@ -292,7 +317,10 @@ def apply_waste_disagg_to_U(
     - Columns (industry disaggregation): for each non-waste, non-VA commodity row,
       U[commodity, original_code] is split across waste industry columns.
     - Rows (commodity disaggregation): for each non-waste, non-FD industry column,
-      U[original_code, industry] is split across waste commodity rows.
+      U[original_code, industry] is split across waste commodity rows. Uses
+      use_waste_rows_specific_columns when the industry has a row there (useeior
+      rowsPercentages); otherwise use_waste_commodity_rows_all_columns (original
+      or default row).
 
     VA and FD are handled by separate functions.
     """
@@ -336,10 +364,10 @@ def _aggregate_waste_sector_in_VA(
     waste_set = set(waste_codes)
     non_waste_cols = [c for c in va.columns if c not in waste_set]
     new_columns = non_waste_cols + [original_code]
-    out = pd.DataFrame(0.0, index=va.index, columns=new_columns, dtype=float)
-    out.loc[:, non_waste_cols] = va.loc[:, non_waste_cols].values
-    out.loc[:, original_code] = va.loc[:, waste_codes].sum(axis=1).values
-    return out
+    output = pd.DataFrame(0.0, index=va.index, columns=new_columns, dtype=float)
+    output.loc[:, non_waste_cols] = va.loc[:, non_waste_cols].values
+    output.loc[:, original_code] = va.loc[:, waste_codes].sum(axis=1).values
+    return output
 
 
 def apply_waste_disagg_to_VA(
@@ -371,14 +399,14 @@ def apply_waste_disagg_to_VA(
         else:
             return va
 
-    out = va.copy()
+    output = va.copy()
     va_w = weights.use_va_rows_for_waste_industry_columns
 
-    for va_row in out.index:
-        orig_val = cast(float, out.loc[va_row, original_code])
+    for va_row in output.index:
+        orig_val = cast(float, output.loc[va_row, original_code])
         if orig_val == 0.0:
             for ind in waste_codes:
-                out.loc[va_row, ind] = 0.0
+                output.loc[va_row, ind] = 0.0
             continue
         if not va_w.empty and va_row in va_w.index:
             row_weights = va_w.loc[va_row]
@@ -389,14 +417,14 @@ def apply_waste_disagg_to_VA(
             row_weights = pd.Series(1.0 / n, index=waste_codes)
         for ind in waste_codes:
             w = float(row_weights[ind]) if ind in row_weights.index else 0.0
-            out.loc[va_row, ind] = orig_val * w
+            output.loc[va_row, ind] = orig_val * w
 
-    out = out.drop(columns=original_code)
-    out_reindexed = out.reindex(
+    output = output.drop(columns=original_code)
+    output_reindexed = output.reindex(
         index=desired_index, columns=desired_columns, fill_value=0.0
     )
-    _assert_non_waste_unchanged(va_orig, out_reindexed, waste_set, original_code)
-    return out_reindexed
+    _assert_non_waste_unchanged(va_orig, output_reindexed, waste_set, original_code)
+    return output_reindexed
 
 
 def _aggregate_waste_sector_in_Ytot(
@@ -411,10 +439,10 @@ def _aggregate_waste_sector_in_Ytot(
     waste_set = set(waste_codes)
     non_waste_idx = [i for i in Ytot.index if i not in waste_set]
     new_index = non_waste_idx + [original_code]
-    out = pd.DataFrame(0.0, index=new_index, columns=Ytot.columns, dtype=float)
-    out.loc[non_waste_idx, :] = Ytot.loc[non_waste_idx, :].values
-    out.loc[original_code, :] = Ytot.loc[waste_codes, :].sum(axis=0).values
-    return out
+    output = pd.DataFrame(0.0, index=new_index, columns=Ytot.columns, dtype=float)
+    output.loc[non_waste_idx, :] = Ytot.loc[non_waste_idx, :].values
+    output.loc[original_code, :] = Ytot.loc[waste_codes, :].sum(axis=0).values
+    return output
 
 
 def apply_waste_disagg_to_Ytot(
@@ -428,8 +456,9 @@ def apply_waste_disagg_to_Ytot(
     - Ytot is a DataFrame with index=commodity codes and columns=FD column codes.
     - For each FD column, Ytot[original_code, fd_col] is split across waste commodity
       subsector rows using use_fd_columns_for_waste_commodity_rows.
-    - If no FD-specific weight exists for a column, the Use intersection column-marginals
-      are used as fallback.
+    - If no FD-specific weight exists for a column, use_waste_commodity_rows_all_columns
+      is used as fallback (original_code row if present, else first row; matches useeior
+      getDefaultAllocationPercentages(UseFileDF, ..., 'Commodity')).
     """
     waste_codes = _waste_codes(weights)
     waste_set = set(waste_codes)
@@ -448,18 +477,32 @@ def apply_waste_disagg_to_Ytot(
         else:
             return Ytot
 
-    out = Ytot.copy()
+    output = Ytot.copy()
     fd_w = weights.use_fd_columns_for_waste_commodity_rows
-    fallback_w = weights.use_intersection.sum(axis=0)
-    fallback_total = float(fallback_w.sum())
-    if fallback_total > 0:
-        fallback_w = fallback_w / fallback_total
+    default_table = weights.use_waste_commodity_rows_all_columns
+    if not default_table.empty and len(default_table.columns) > 0:
+        if original_code in default_table.index:
+            default_row = default_table.loc[original_code]
+        else:
+            default_row = default_table.iloc[0]
+        fallback_w = default_row.reindex(waste_codes, fill_value=0.0).astype(float)
+        fallback_total = float(fallback_w.sum())
+        if fallback_total > 0:
+            fallback_w = fallback_w / fallback_total
+        else:
+            fallback_w = pd.Series(
+                {c: 1.0 / len(waste_codes) for c in waste_codes}, dtype=float
+            )
+    else:
+        fallback_w = pd.Series(
+            {c: 1.0 / len(waste_codes) for c in waste_codes}, dtype=float
+        )
 
-    for fd_col in out.columns:
-        orig_val = cast(float, out.loc[original_code, fd_col])
+    for fd_col in output.columns:
+        orig_val = cast(float, output.loc[original_code, fd_col])
         if orig_val == 0.0:
             for com in waste_codes:
-                out.loc[com, fd_col] = 0.0
+                output.loc[com, fd_col] = 0.0
             continue
         if not fd_w.empty and fd_col in fd_w.index:
             col_weights = fd_w.loc[fd_col]
@@ -467,11 +510,11 @@ def apply_waste_disagg_to_Ytot(
             col_weights = fallback_w
         for com in waste_codes:
             w = float(col_weights[com]) if com in col_weights.index else 0.0
-            out.loc[com, fd_col] = orig_val * w
+            output.loc[com, fd_col] = orig_val * w
 
-    out = out.drop(index=original_code)
-    out_reindexed = out.reindex(
+    output = output.drop(index=original_code)
+    output_reindexed = output.reindex(
         index=desired_index, columns=desired_columns, fill_value=0.0
     )
-    _assert_non_waste_unchanged(Ytot_orig, out_reindexed, waste_set, original_code)
-    return out_reindexed
+    _assert_non_waste_unchanged(Ytot_orig, output_reindexed, waste_set, original_code)
+    return output_reindexed
