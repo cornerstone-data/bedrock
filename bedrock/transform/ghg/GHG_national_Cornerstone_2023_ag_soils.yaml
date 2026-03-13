@@ -1,0 +1,21 @@
+# CEDA 2023 with FLOWSA-aligned liming allocation.
+#
+# Changes from CEDA baseline:
+# - EPA_GHGI_T_2_1 liming: direct → proportional via BEA 327400 (Lime and Gypsum Products)
+# - EPA_GHGI_T_5_18 and T_5_19: No change (fertilizer_use already proportional via BEA 325310)
+
+!include:GHG_national_CEDA_2023.yaml
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    EPA_GHGI_T_2_1: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
+        liming:
+          selection_fields:
+            PrimaryActivity: Liming  # CO2 - aligned with flowsa proportional approach
+          attribution_method: proportional
+          attribution_source:
+            BEA_Detail_Use_AfterRedef:
+              year: 2017
+              activity_to_sector_mapping: CEDA_2025
+              selection_fields:
+                ActivityProducedBy: {'327400': ''} # Lime and Gypsum Products
