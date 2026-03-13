@@ -1,8 +1,21 @@
 # CEDA 2023 with modified electricity attribution
 # aligned to m1_common selection_fields and using EPA_GHGI_Cornerstone_electricity mapping.
+# Also explicitly includes SF6 from electricity T&D (EPA_GHGI_T_2_1).
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    EPA_GHGI_T_2_1:
+      !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
+        electricity_transmission:
+          selection_fields:
+            PrimaryActivity:
+              - Electrical Transmission and Distribution  # SF6
+              - Electrical Equipment  # SF6, updated name in 2024 EPA release
+            FlowName: SF6
+          attribution_method: direct
+
     EPA_GHGI_T_3_8: &stationary_combustion
       !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8
       # Inherited activity sets use EPA_GHGI_CEDA activity to sector mapping from base CEDA method
