@@ -75,10 +75,15 @@ source_names:
             Electric Power Sector: Electric Power #CO2 - different attribution than flowsa
         attribution_method: direct
 
-      liming: # liming of agricultural soils - note: flowsa uses proportional by BEA Detail Use SUT
+      liming: # liming of agricultural soils - aligned with flowsa proportional approach
         selection_fields:
-          PrimaryActivity: Liming #CO2 - different attribution than flowsa
-        attribution_method: direct
+          PrimaryActivity: Liming #CO2
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'327400': ''} # Lime and Gypsum Products
 
       urea:
         selection_fields:
@@ -133,24 +138,43 @@ source_names:
           FlowName: ["N2O"] # ch4 pulled from T_5_29
         attribution_method: proportional
         attribution_source:
-          # ceda uses CH4 data to allocate, not n20 data. The n20 data in 5-29 for specific crops is all 0
-          EPA_GHGI_T_5_29:
+          EPA_GHGI_T_5_29: &field_burning
             year: *ghgi_year
-            activity_to_sector_mapping: EPA_GHGI_CEDA
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
             selection_fields:
               PrimaryActivity:
-        #        - Chickpeas  # only in flowsa, not in ceda
-                - Cotton  # same as flowsa
-        #        - Maize  # only in flowsa, not in ceda - same as corn?
-                - Rice  # same as flowsa
-                - Soybeans  # same as flowsa
-                - Wheat  # same as flowsa
-                - Corn  # not included in flowsa, only in ceda - same as maize?
-                - Lentils  # not included in flowsa, only in ceda
-                - Sugarcane  # not included in flowsa, only in ceda
+                - Chickpeas
+                - Cotton
+                - Maize
+                - Rice
+                - Soybeans
+                - Wheat
+                - Lentils
+                - Sugarcane
               FlowName:
                 CH4: N2O # replacing flow name
             attribution_method: direct
+
+      field_burning_ch4:
+        selection_fields:
+          PrimaryActivity:
+            - Field Burning of Agricultural Residues
+          FlowName: ["CH4"]
+        attribution_method: proportional
+        attribution_source:
+          EPA_GHGI_T_5_29:
+            <<: *field_burning
+            selection_fields:
+              PrimaryActivity:
+                - Chickpeas
+                - Cotton
+                - Maize
+                - Rice
+                - Soybeans
+                - Wheat
+                - Lentils
+                - Sugarcane
+              FlowName: ["CH4"]
 
 
 ## Fossil Fuels
@@ -187,29 +211,6 @@ source_names:
   EPA_GHGI_T_3_49: *petroleum # N2O from Petroleum Systems mimics CH4
 
 ## Agriculture
-  # note - field burning is allocated differently in flowsa. ch4 emissions are pulled from 5_29 and directly attributed.
-  # However, n2O data totals are pulled table 2_1 and the T_5_29 data are used to proportionally attribute
-  # flowsa only directly attributes data from 5_29, does not use T 2_1 data
-  EPA_GHGI_T_5_29: #CH4, N2O, CO and NOx from field burning of residues
-    year: *ghgi_year
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    fedefl_mapping: GHGI_AR5_100
-    activity_sets:
-      direct_ch4:  # ch4
-        selection_fields:
-          PrimaryActivity:
-    #        - Chickpeas  # only in flowsa, not in ceda
-            - Cotton  # same as flowsa
-    #        - Maize  # only in flowsa, not in ceda - same as corn?
-            - Rice  # same as flowsa
-            - Soybeans  # same as flowsa
-            - Wheat  # same as flowsa
-            - Corn  # not included in flowsa, only in ceda -  same as maize?
-            - Lentils  # not included in flowsa, only in ceda
-            - Sugarcane  # not included in flowsa, only in ceda
-          FlowName: ["CH4"]
-        attribution_method: direct
-
   EPA_GHGI_T_5_3:  &animals #CH4 from Enteric Fermentation
     year: *ghgi_year
     activity_to_sector_mapping: EPA_GHGI_CEDA
@@ -237,10 +238,10 @@ source_names:
       fertilizer_use:
         selection_fields:
           PrimaryActivity:
-            - Organic Amendment Cropland  # same as flowsa
-            - Residue N Cropland  # same as flowsa
-            - Synthetic Fertilizer Cropland  # same as flowsa
-        attribution_method: proportional  # note - different than flowsa, which uses direct attribution
+            - Organic Amendment Cropland
+            - Residue N Cropland
+            - Synthetic Fertilizer Cropland
+        attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
             <<: *bea
@@ -279,9 +280,9 @@ source_names:
       fertilizer_use:
         selection_fields:
           PrimaryActivity:
-            - Volatilization & Atm. Deposition Cropland  # same as flowsa
-            - Surface Leaching & Run-Off Cropland  # same as flowsa
-        attribution_method: proportional  # note different than flowsa, which uses direct
+            - Volatilization & Atm. Deposition Cropland
+            - Surface Leaching & Run-Off Cropland
+        attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
             <<: *bea
@@ -809,23 +810,42 @@ source_names:
     attribution_method: direct
 
   EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    clean_fba_before_activity_sets: !script_function:EPA_GHGI clean_EPA_GHGI_T_4_124  # different than flowsa, because hard coded ceda subtraction for refrigeration data
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
+    clean_fba_before_activity_sets: !script_function:EPA_GHGI split_HFCs_by_type
     clean_parameter:
-        # Proportions of specific HFCs are assigned based on national total
         flow_fba: EPA_GHGI_T_4_122
     year: *ghgi_year
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      refrigerants_AC:
+      households:
         selection_fields:
           PrimaryActivity:
-            - Refrigeration/Air Conditioning
+            - Domestic Refrigeration
+            - Residential Stationary Air Conditioning
+        attribution_method: direct
+
+      refrigerants:
+        selection_fields:
+          PrimaryActivity:
+            - Commercial Refrigeration
+            - Industrial Process Refrigeration
         attribution_method: proportional
         attribution_source:
-          BEA_CEDA_refrigeration_allocation:
-            activity_to_sector_mapping: CEDA_2025
-            year: 2023
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+
+      air_conditioning:
+        selection_fields:
+          PrimaryActivity:
+            - Commercial Stationary Air Conditioning
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
       foams:
         selection_fields:
@@ -833,9 +853,12 @@ source_names:
             - Foams
         attribution_method: proportional
         attribution_source:
-          BEA_CEDA_foam_allocation:
-            activity_to_sector_mapping: CEDA_2025
-            year: 2023
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy:
+                '326140': '' # Polystyrene foam
+                '326150': '' # Urethane and other foam
 
 
   EPA_GHGI_T_A_90: # HFCs from Transportation
@@ -848,15 +871,15 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-#        Mobile AC - Passenger Cars: Passenger Cars - Households  # only in flowsa, note in ceda to consider
-#        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households  # only in flowsa, note in ceda to consider
-        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles  # same as flowsa
-        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses  # same as flowsa
-        # Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses #excluded in flowsa too # only in flowsa
-#        Comfort Cooling for Trains and Buses - Rail: Rail  # only in flowsa
-        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks  # same as flowsa
-        Refrigerated Transport - Rail: Rail  # same as flowsa
-        Refrigerated Transport - Ships and Boats: Ships and Boats  # same as flowsa
+        Mobile AC - Passenger Cars: Passenger Cars - Households
+        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households
+        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles
+        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses
+        Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses
+        Comfort Cooling for Trains and Buses - Rail: Rail
+        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks
+        Refrigerated Transport - Rail: Rail
+        Refrigerated Transport - Ships and Boats: Ships and Boats
     attribution_method: direct
 
 

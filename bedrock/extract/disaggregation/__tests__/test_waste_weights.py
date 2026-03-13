@@ -75,7 +75,6 @@ def test_waste_disagg_weights_required_fields() -> None:
     assert hasattr(w, "source_name")
 
 
-@pytest.mark.eeio_integration
 def _write_csv(path: pathlib.Path, rows: list[dict[str, str]]) -> None:
     df = pd.DataFrame(rows)
     df.to_csv(path, index=False)
@@ -250,7 +249,6 @@ def test_load_waste_disagg_weights_all_zero_raises(tmp_path: pathlib.Path) -> No
         )
 
 
-@pytest.mark.eeio_integration
 def test_load_waste_disagg_weights_missing_required_column(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -293,7 +291,6 @@ def test_load_waste_disagg_weights_missing_required_column(
         )
 
 
-@pytest.mark.eeio_integration
 def test_load_waste_disagg_weights_nan_values_raise(tmp_path: pathlib.Path) -> None:
     use_path = tmp_path / "use_nan.csv"
     make_path = tmp_path / "make_nan.csv"
@@ -335,7 +332,6 @@ def test_load_waste_disagg_weights_nan_values_raise(tmp_path: pathlib.Path) -> N
         )
 
 
-@pytest.mark.eeio_integration
 def test_apply_correspondence_to_series_success() -> None:
     series = pd.Series([0.5, 0.5], index=["N1", "N2"], dtype=float)
     mapping = {"N1": ["C1"], "N2": ["C2"]}
@@ -347,7 +343,6 @@ def test_apply_correspondence_to_series_success() -> None:
     assert pytest.approx(float(result.sum()), rel=1e-6) == 1.0
 
 
-@pytest.mark.eeio_integration
 def test_apply_correspondence_to_series_incomplete_mapping_raises() -> None:
     series = pd.Series([1.0], index=["N1"], dtype=float)
     mapping = {"N1": ["C1"]}
@@ -600,7 +595,6 @@ def weights_2017() -> WasteDisaggWeights:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.eeio_integration
 def _check_ratios(
     tbl: "WasteWeightTable",
     raw: dict[tuple[str, str], float],
@@ -630,7 +624,6 @@ def _check_ratios(
         ), f"{label}: ({row},{col}) expected {expected_scaled:.6e} got {got:.6e}"
 
 
-@pytest.mark.eeio_integration
 def _check_row_ratios(
     tbl: "WasteWeightTable",
     raw: dict[tuple[str, str], float],
@@ -902,7 +895,7 @@ class TestUseFDColumnsForWasteCommodityRows:
 
 
 # ---------------------------------------------------------------------------
-# Pre-existing integration test (kept intact)
+# Integration test using 2017 disaggregation weights
 # ---------------------------------------------------------------------------
 
 

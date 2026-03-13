@@ -436,9 +436,14 @@ def load_waste_disagg_weights(
 
     # --- Use commodity rows all columns: default allocation only (1 row: original or __default__)
     # Used when an industry column has no row in use_waste_rows_specific_columns.
+    # Matches useeior: when no UseFileDF row with IndustryCode=OriginalSectorCode, use uniform.
     use_row_default_df = use_row_df[use_row_df["IndustryCode"] == original]
     if use_row_default_df.empty:
-        default_row = use_intersection.sum(axis=0)
+        uniform_share = 1.0 / len(waste_sectors)
+        default_row = pd.Series(
+            {s: uniform_share for s in waste_sectors},
+            dtype=float,
+        )
         use_waste_commodity_rows_all_columns = pd.DataFrame(
             [default_row.values],
             index=["__default__"],

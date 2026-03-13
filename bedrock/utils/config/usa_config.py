@@ -65,10 +65,12 @@ class USAConfig(BaseModel):
         False  # DRI: catherine.birney
     )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
+    update_flowsa_refrigerant_method: bool = False  # DRI: catherine.birney
     add_new_ghg_activities: bool = False  # DRI: catherine.birney
     update_enteric_fermentation_and_manure_management_ghg_method: bool = (
         False  # DRI: mo.li
     )
+    update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
 
     #####
@@ -84,12 +86,21 @@ class USAConfig(BaseModel):
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
         return 2017
 
-    def to_dict(
-        self,
-    ) -> dict[str, bool | int | str | EEIOWasteDisaggConfig | None]:
-        return {
-            field_name: getattr(self, field_name) for field_name in self.model_fields
-        }
+    def to_dict(self) -> dict[str, object]:
+        """Return a JSON-serializable dictionary representation of the config.
+
+        Nested BaseModel values (such as EEIOWasteDisaggConfig) are converted
+        to plain dictionaries via model_dump(), so callers can safely pass
+        this mapping to pandas or json libraries.
+        """
+        result: dict[str, object] = {}
+        for field_name in self.model_fields:
+            value = getattr(self, field_name)
+            if isinstance(value, BaseModel):
+                result[field_name] = value.model_dump()
+            else:
+                result[field_name] = value
+        return result
 
     def to_dataframe(self, config_name: str) -> pd.DataFrame:
         config_dict = self.to_dict()

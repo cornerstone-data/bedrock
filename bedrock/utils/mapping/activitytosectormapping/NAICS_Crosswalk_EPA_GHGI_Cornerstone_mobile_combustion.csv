@@ -50,3 +50,6 @@ EPA_GHGI_Cornerstone_mobile_combustion,Rail,NAICS_2017_Code,482,,482000,"EPA_GHG
 EPA_GHGI_Cornerstone_mobile_combustion,Recreational Boats,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone_mobile_combustion,Ships and Boats,NAICS_2017_Code,483,,483000,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15, EPA_GHGI_T_A_97"
 EPA_GHGI_Cornerstone_mobile_combustion,Ships and Non-Recreational Boats,NAICS_2017_Code,483,,483000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone_mobile_combustion,Heavy-Duty Vehicles,NAICS_2017_Code,484,,484000,EPA_GHGI_T_A_90
+EPA_GHGI_Cornerstone_mobile_combustion,School and Tour Buses,NAICS_2017_Code,485,,485000,EPA_GHGI_T_A_90
+EPA_GHGI_Cornerstone_mobile_combustion,Transit Buses,NAICS_2017_Code,485,,,EPA_GHGI_T_A_90

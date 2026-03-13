@@ -12,6 +12,7 @@
 # Methodology selection
 #####
 use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
 implement_waste_disaggregation: True
 eeio_waste_disaggregation:
   use_weights_file: "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
@@ -22,3 +23,8 @@ eeio_waste_disaggregation:
 #####
 # Bugfix
 #####
+
+#####
+# Baseline snapshot
+#####
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
