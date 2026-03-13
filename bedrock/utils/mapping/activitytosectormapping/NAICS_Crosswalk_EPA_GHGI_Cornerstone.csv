@@ -35,7 +35,7 @@ EPA_GHGI_Cornerstone,Electronics Industry,NAICS_2017_Code,334413,,"334413, name 
 EPA_GHGI_Cornerstone,Electrical Transmission and Distribution,NAICS_2017_Code,2211,,221100,EPA_GHGI_T_2_1
 EPA_GHGI_Cornerstone,Electrical Equipment,NAICS_2017_Code,2211,,new activity,EPA_GHGI_T_2_1
 EPA_GHGI_Cornerstone,Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)",EPA_GHGI_T_2_1
-EPA_GHGI_Cornerstone,Liming,NAICS_2017_Code,11111,,1111A0,EPA_GHGI_T_2_1
+EPA_GHGI_Cornerstone,Liming,NAICS_2017_Code,111,,all ag sectors - proportional via BEA 327400,EPA_GHGI_T_2_1
 EPA_GHGI_Cornerstone,Urea Fertilization,NAICS_2017_Code,111,,"111, 112",EPA_GHGI_T_2_1
 EPA_GHGI_Cornerstone,Urea Fertilization,NAICS_2017_Code,112,,,EPA_GHGI_T_2_1
 EPA_GHGI_Cornerstone,Manure Management,NAICS_2017_Code,112,,,EPA_GHGI_T_2_1

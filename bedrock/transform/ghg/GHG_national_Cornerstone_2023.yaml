@@ -76,6 +76,7 @@ source_names:
         attribution_method: direct
 
       liming: # liming of agricultural soils - aligned with flowsa proportional approach
+        activity_to_sector_mapping: EPA_GHGI_Cornerstone_ag_soils
         selection_fields:
           PrimaryActivity: Liming #CO2
         attribution_method: proportional

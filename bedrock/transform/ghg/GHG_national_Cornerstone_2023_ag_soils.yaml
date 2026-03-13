@@ -10,6 +10,7 @@
       activity_sets:
         !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
         liming:
+          activity_to_sector_mapping: EPA_GHGI_Cornerstone_ag_soils
           selection_fields:
             PrimaryActivity: Liming  # CO2 - aligned with flowsa proportional approach
           attribution_method: proportional
