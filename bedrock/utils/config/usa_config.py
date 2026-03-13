@@ -56,10 +56,6 @@ class USAConfig(BaseModel):
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
     update_transportation_ghg_method: bool = False  # DRI: ben.young
     update_ghg_coa_allocation: bool = False  # DRI: catherine.birney
-    update_ghg_attribution_method_for_electricity_soda_ash_and_ng_and_petrol_systems: (
-        bool
-    ) = False  # DRI: catherine.birney
-    hybrid_bea_naics_schema_in_ghg_attribution: bool = False  # DRI: ben.young
     update_electricity_ghg_method: bool = False  # DRI: catherine.birney
     update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
         False  # DRI: catherine.birney
