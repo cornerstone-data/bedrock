@@ -554,9 +554,9 @@ EPA_GHGI_Cornerstone,AWACs,NAICS_2017_Code,S00500,,,EPA_GHGI_T_4_132
 EPA_GHGI_Cornerstone,Other Military Applications,NAICS_2017_Code,S00500,,,EPA_GHGI_T_4_132
 EPA_GHGI_Cornerstone,Particle Accelerators,NAICS_2017_Code,54171,,,EPA_GHGI_T_4_132
 EPA_GHGI_Cornerstone,Other Scientific Applications,NAICS_2017_Code,54171,,,EPA_GHGI_T_4_132
-EPA_GHGI_Cornerstone,Heavy-Duty Vehicles,NAICS_2017_Code,484,,484000,EPA_GHGI_T_A_97
-EPA_GHGI_Cornerstone,School and Tour Buses,NAICS_2017_Code,485,,485000,EPA_GHGI_T_A_97
-EPA_GHGI_Cornerstone,Transit Buses,,,,excluded,EPA_GHGI_T_A_97
+EPA_GHGI_Cornerstone,Heavy-Duty Vehicles,NAICS_2017_Code,484,,484000,EPA_GHGI_T_A_90
+EPA_GHGI_Cornerstone,School and Tour Buses,NAICS_2017_Code,485,,485000,EPA_GHGI_T_A_90
+EPA_GHGI_Cornerstone,Transit Buses,NAICS_2017_Code,485,,,EPA_GHGI_T_A_90
 EPA_GHGI_Cornerstone,Buses,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Buses - Distillate Fuel Oil,NAICS_2017_Code,485,,485000,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Buses - Distillate Fuel Oil,NAICS_2017_Code,487,,48A000,EPA_GHGI_T_3_13

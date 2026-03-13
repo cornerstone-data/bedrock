@@ -207,3 +207,24 @@ source_names: !include:GHG_national_CEDA_2023.yaml:source_names
                   ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
       EPA_GHGI_T_3_15: *mobile #N2O from mobile combustion duplicates method for CH4
+
+      EPA_GHGI_T_A_90: # HFCs from Transportation
+        year: 2023  # same as *ghgi_year in base method
+        activity_to_sector_mapping: EPA_GHGI_Cornerstone
+        clean_fba_before_mapping: !script_function:EPA_GHGI split_HFCs_by_type
+        clean_parameter:
+            # Proportions of specific HFCs are assigned based on national total
+            flow_fba: EPA_GHGI_T_4_122
+        fedefl_mapping: GHGI_AR5_100
+        selection_fields:
+          PrimaryActivity:
+            Mobile AC - Passenger Cars: Passenger Cars - Households  # add back, not in ceda
+            Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households  # add back, not in ceda
+            Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles  # same as flowsa
+            Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses  # same as flowsa
+            Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses # add back, not in ceda
+            Comfort Cooling for Trains and Buses - Rail: Rail  # add back, not in ceda
+            Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks  # same as flowsa
+            Refrigerated Transport - Rail: Rail  # add back, not in ceda
+            Refrigerated Transport - Ships and Boats: Ships and Boats  # same as flowsa
+        attribution_method: direct
