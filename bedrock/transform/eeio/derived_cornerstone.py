@@ -585,7 +585,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """
     if get_usa_config().load_E_from_flowsa:
         E = derive_E_usa()  # This should be in cornerstone space
-        if get_usa_config().transform_b_matrix_with_useeio_method:
+        if get_usa_config().use_E_data_year_in_B:
             x = derive_cornerstone_x_after_redefinition()
         else:
             x = derive_cornerstone_x()  # this is 2017 x
@@ -603,7 +603,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
     cfg = get_usa_config()
-    if cfg.transform_b_matrix_with_useeio_method:
+    if cfg.use_E_data_year_in_B:
         return derive_cornerstone_B_via_vnorm()
     else:
         return inflate_cornerstone_B_matrix(
