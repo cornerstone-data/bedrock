@@ -1,0 +1,12 @@
+# Use CEDA 2023 FBS with updates for mobile combustion (transport) tables 
+# reflects changes to Tables 3-13, 3-14, and 3-15
+# Requires both flags so the pipeline loads E from flowsa with the mobile_combustion method.
+# GHG Model is GHG_national_Cornerstone_2023_mobile_combustion
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+update_transportation_ghg_method: true
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
