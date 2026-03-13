@@ -810,23 +810,42 @@ source_names:
     attribution_method: direct
 
   EPA_GHGI_T_4_124: # HFCs and PFCs from ODS Substitutes
-    activity_to_sector_mapping: EPA_GHGI_CEDA
-    clean_fba_before_activity_sets: !script_function:EPA_GHGI clean_EPA_GHGI_T_4_124  # different than flowsa, because hard coded ceda subtraction for refrigeration data
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
+    clean_fba_before_activity_sets: !script_function:EPA_GHGI split_HFCs_by_type
     clean_parameter:
-        # Proportions of specific HFCs are assigned based on national total
         flow_fba: EPA_GHGI_T_4_122
     year: *ghgi_year
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      refrigerants_AC:
+      households:
         selection_fields:
           PrimaryActivity:
-            - Refrigeration/Air Conditioning
+            - Domestic Refrigeration
+            - Residential Stationary Air Conditioning
+        attribution_method: direct
+
+      refrigerants:
+        selection_fields:
+          PrimaryActivity:
+            - Commercial Refrigeration
+            - Industrial Process Refrigeration
         attribution_method: proportional
         attribution_source:
-          BEA_CEDA_refrigeration_allocation:
-            activity_to_sector_mapping: CEDA_2025
-            year: 2023
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
+
+      air_conditioning:
+        selection_fields:
+          PrimaryActivity:
+            - Commercial Stationary Air Conditioning
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
       foams:
         selection_fields:
@@ -834,9 +853,12 @@ source_names:
             - Foams
         attribution_method: proportional
         attribution_source:
-          BEA_CEDA_foam_allocation:
-            activity_to_sector_mapping: CEDA_2025
-            year: 2023
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy:
+                '326140': '' # Polystyrene foam
+                '326150': '' # Urethane and other foam
 
 
   EPA_GHGI_T_A_90: # HFCs from Transportation

@@ -142,6 +142,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_electricity_ghg_method is True
     - GHG_national_Cornerstone_2023_petroleum_natgas when
       update_ghg_attribution_method_for_ng_and_petrol_systems is True
+    - GHG_national_Cornerstone_2023_refrigerants_foams when
+      update_flowsa_refrigerant_method is True
     - GHG_national_Cornerstone_2023_new_activities when
       add_new_ghg_activities is True
     - GHG_national_Cornerstone_2023_other_gases when
@@ -164,6 +166,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
         methodname = 'GHG_national_Cornerstone_2023_other_gases'
     elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
         methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
+    elif usa.update_flowsa_refrigerant_method:
+        methodname = "GHG_national_Cornerstone_2023_refrigerants_foams"
     elif usa.update_transportation_ghg_method:
         methodname = 'GHG_national_Cornerstone_2023_mobile_combustion'
     elif usa.add_new_ghg_activities:
