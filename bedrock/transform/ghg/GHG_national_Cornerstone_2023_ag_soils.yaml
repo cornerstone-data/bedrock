@@ -19,7 +19,7 @@
           attribution_source:
             BEA_Detail_Use_AfterRedef:
               year: 2017
-              activity_to_sector_mapping: CEDA_2025
+              activity_to_sector_mapping: Cornerstone_2025
               selection_fields:
                 ActivityProducedBy: {'327400': ''} # Lime and Gypsum Products
         field_burning_n2O:
@@ -30,7 +30,7 @@
           attribution_method: proportional
           attribution_source:
             EPA_GHGI_T_5_29: &field_burning
-              year: *ghgi_year
+              year: 2023
               activity_to_sector_mapping: EPA_GHGI_Cornerstone
               selection_fields:
                 PrimaryActivity:
