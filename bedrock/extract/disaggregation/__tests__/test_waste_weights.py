@@ -624,9 +624,9 @@ def _check_ratios(
             continue
         got = cast(float, tbl.loc[row, col])
         expected_scaled = expected_raw * scale
-        assert got == pytest.approx(expected_scaled, rel=1e-4, abs=1e-12), (
-            f'{label}: ({row},{col}) expected {expected_scaled:.6e} got {got:.6e}'
-        )
+        assert got == pytest.approx(
+            expected_scaled, rel=1e-4, abs=1e-12
+        ), f'{label}: ({row},{col}) expected {expected_scaled:.6e} got {got:.6e}'
 
 
 def _check_row_ratios(
@@ -653,9 +653,9 @@ def _check_row_ratios(
                 continue
             got = cast(float, tbl.loc[row, col])
             expected = raw_val * scale
-            assert got == pytest.approx(expected, rel=1e-4, abs=1e-12), (
-                f'{label} row={row} col={col}: expected {expected:.6e} got {got:.6e}'
-            )
+            assert got == pytest.approx(
+                expected, rel=1e-4, abs=1e-12
+            ), f'{label} row={row} col={col}: expected {expected:.6e} got {got:.6e}'
 
 
 # ---------------------------------------------------------------------------
@@ -684,9 +684,9 @@ class TestMakeIntersection:
         for r in tbl.index:
             for c in tbl.columns:
                 if r != c:
-                    assert float(tbl.loc[r, c]) == pytest.approx(0.0, abs=1e-12), (
-                        f'make_intersection off-diagonal ({r},{c}) should be 0'
-                    )
+                    assert float(tbl.loc[r, c]) == pytest.approx(
+                        0.0, abs=1e-12
+                    ), f'make_intersection off-diagonal ({r},{c}) should be 0'
 
 
 class TestMakeWasteCommodityColumnsAllRows:
@@ -836,9 +836,9 @@ class TestUseVARowsForWasteIndustryColumns:
         row_v1 = tbl.loc['V00100'].to_numpy()
         for va_row in ('V00200', 'V00300'):
             row_vn = tbl.loc[va_row].to_numpy()
-            assert row_vn == pytest.approx(row_v1, rel=1e-6), (
-                f'VA row {va_row} differs from V00100'
-            )
+            assert row_vn == pytest.approx(
+                row_v1, rel=1e-6
+            ), f'VA row {va_row} differs from V00100'
 
 
 class TestUseFDColumnsForWasteCommodityRows:
