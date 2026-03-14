@@ -9,6 +9,7 @@ EX: --year 2015 --source USGS_NWIS_WU
 """
 
 import argparse
+import os
 import posixpath
 import time
 from typing import Any, List, Optional, Union, cast
@@ -32,7 +33,7 @@ from bedrock.utils.config.settings import (
     extractpath,
     return_folder_path,
 )
-from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
 from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
@@ -64,6 +65,21 @@ def set_fba_name(source: str, year: str | None) -> str:
     :return: str, name of parquet
     """
     return source if year is None else f'{source}_{year}'
+
+
+def _download_fba_from_gcs(source: str, year: str) -> None:
+    """
+    Download FBA from GCS when API key is missing (used by generate_diagnostics).
+    Each file (parquet, metadata, log) is saved to its own path in FBA_DIR.
+    """
+    meta_name = f'{source}_{year}'
+    name = f'{meta_name}.{WRITE_FORMAT}'
+    sub_bucket = posixpath.join(GCS_FLOWSA_DIR, 'FlowByActivity')
+    files = get_most_recent_from_bucket(name, sub_bucket)
+    if not files:
+        raise APIError(api_source=source)
+    for n in files:
+        download_gcs_file(n, sub_bucket, os.path.join(str(FBA_DIR), n))
 
 
 def assemble_urls_for_query(
@@ -312,15 +328,7 @@ def process_fba_config(
             except APIError:
                 # if API error, can download FBA instead of generating - used in diagnostics
                 if download_fba_on_api_error:
-                    try:
-                        load_from_gcs(
-                            f'{source}_{year}.{WRITE_FORMAT}',
-                            posixpath.join(GCS_FLOWSA_DIR, 'FlowByActivity'),
-                            str(FBA_DIR),
-                            pd.read_parquet,
-                        )
-                    except FileNotFoundError:
-                        raise APIError(api_source=source)
+                    _download_fba_from_gcs(source, year)
                     continue
                 raise
             # create a list with data from all source urls
