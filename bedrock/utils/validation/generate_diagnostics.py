@@ -7,7 +7,12 @@ import time
 import click
 import pandas as pd
 
-from bedrock.utils.config.settings import GIT_BRANCH, GIT_HASH_LONG, GIT_PR_URL
+import bedrock.utils.config.common as common
+from bedrock.utils.config.settings import (
+    GIT_BRANCH,
+    GIT_HASH_LONG,
+    GIT_PR_URL,
+)
 from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.snapshots.loader import resolve_snapshot_key
@@ -35,6 +40,9 @@ def generate_diagnostics(
 ) -> None:
     total_start = time.time()
     set_global_usa_config(config_name)
+
+    # If an FBA requires an API key to generate, download the FBA during diagnostics
+    common.download_fba_on_api_error = True
 
     # Late-binding imports - depend on global config
     from bedrock.utils.validation.calculate_ef_diagnostics import (

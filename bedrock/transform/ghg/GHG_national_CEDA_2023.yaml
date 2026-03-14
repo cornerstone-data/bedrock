@@ -50,7 +50,7 @@ source_names:
             - Landfills #CH4 - same as flowsa
             - Incineration of Waste #N2O and CO2
             - Lime Production #CO2 - same as flowsa
-            - Iron and Steel Production & Metallurgical Coke Production #CO2, CH4 #TODO: find ch4 in ceda
+            - Iron and Steel Production & Metallurgical Coke Production #CO2, CH4
             - Nitric Acid Production #N2O - same as flowsa
             - Phosphoric Acid Production #CO2 - same as flowsa
             - Rice Cultivation #CH4 - same as flowsa
@@ -829,7 +829,7 @@ source_names:
 
       transportation_lubricants:
         selection_fields:
-          PrimaryActivity: Transportation Lubricants  # todo: determine if this is the same as ("Transportation", "TOTAL") in ceda
+          PrimaryActivity: Transportation Lubricants
         attribution_method: proportional
         attribution_source:
           EIA_MECS_Energy_Allocation_CEDA:

@@ -58,6 +58,9 @@ sector_level_key = {
 # because unable to run calculation functions with text string
 WITHDRAWN_KEYWORD = np.nan
 
+# When True (e.g. generate_diagnostics), download FBA from GCS if API key missing, default is false
+download_fba_on_api_error: bool = False
+
 
 def load_env_file_key(env_file: str, key: str) -> str:
     """

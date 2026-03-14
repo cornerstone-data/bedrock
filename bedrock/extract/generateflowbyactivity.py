@@ -9,6 +9,8 @@ EX: --year 2015 --source USGS_NWIS_WU
 """
 
 import argparse
+import os
+import posixpath
 import time
 from typing import Any, List, Optional, Union, cast
 from urllib import parse
@@ -18,16 +20,27 @@ from esupy.remote import make_url_request
 
 from bedrock.transform.dataclean import clean_df
 from bedrock.utils.config.common import (
+    download_fba_on_api_error,
     get_flowsa_base_name,
     load_env_file_key,
     load_yaml_dict,
 )
 from bedrock.utils.config.schema import flow_by_activity_fields
-from bedrock.utils.config.settings import FBA_DIR, extractpath, return_folder_path
+from bedrock.utils.config.settings import (
+    FBA_DIR,
+    GCS_FLOWSA_DIR,
+    WRITE_FORMAT,
+    extractpath,
+    return_folder_path,
+)
+from bedrock.utils.io.gcp import download_gcs_file, get_most_recent_from_bucket
 from bedrock.utils.io.write import write_fb_to_file
 from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
-from bedrock.utils.validation.exceptions import FBSMethodConstructionError
+from bedrock.utils.validation.exceptions import (
+    APIError,
+    FBSMethodConstructionError,
+)
 
 
 def parse_args() -> dict[str, Any]:
@@ -36,9 +49,9 @@ def parse_args() -> dict[str, Any]:
     :return: dictionary, 'year' and 'source'
     """
     ap = argparse.ArgumentParser()
-    ap.add_argument("-y", "--year", required=True, help="Year for data pull and save")
+    ap.add_argument('-y', '--year', required=True, help='Year for data pull and save')
     ap.add_argument(
-        "-s", "--source", required=True, help="Data source code to pull and save"
+        '-s', '--source', required=True, help='Data source code to pull and save'
     )
     args = vars(ap.parse_args())
     return args
@@ -52,6 +65,21 @@ def set_fba_name(source: str, year: str | None) -> str:
     :return: str, name of parquet
     """
     return source if year is None else f'{source}_{year}'
+
+
+def _download_fba_from_gcs(source: str, year: str) -> None:
+    """
+    Download FBA from GCS when API key is missing (used by generate_diagnostics).
+    Each file (parquet, metadata, log) is saved to its own path in FBA_DIR.
+    """
+    meta_name = f'{source}_{year}'
+    name = f'{meta_name}.{WRITE_FORMAT}'
+    sub_bucket = posixpath.join(GCS_FLOWSA_DIR, 'FlowByActivity')
+    files = get_most_recent_from_bucket(name, sub_bucket)
+    if not files:
+        raise APIError(api_source=source)
+    for n in files:
+        download_gcs_file(n, sub_bucket, os.path.join(str(FBA_DIR), n))
 
 
 def assemble_urls_for_query(
@@ -80,12 +108,12 @@ def assemble_urls_for_query(
         build_url = urlinfo['base_url']
 
     # substitute year from arguments and users api key into the url
-    build_url = build_url.replace("__year__", str(year))
-    if "__apiKey__" in build_url:
+    build_url = build_url.replace('__year__', str(year))
+    if '__apiKey__' in build_url:
         userAPIKey = load_env_file_key('API_Key', config['api_name'])
-        build_url = build_url.replace("__apiKey__", userAPIKey)
+        build_url = build_url.replace('__apiKey__', userAPIKey)
 
-    fxn = config.get("url_replace_fxn")
+    fxn = config.get('url_replace_fxn')
     if callable(fxn):
         urls = fxn(build_url=build_url, source=source, year=year, config=config)
         return urls
@@ -123,20 +151,20 @@ def call_urls(
     if url_list[0] is not None:
         for url in url_list:
             df = None
-            if (config.get("extract_data_from_raw_sources")) or (
-                "gcs_fxn" not in config  # for older FBAs
+            if (config.get('extract_data_from_raw_sources')) or (
+                'gcs_fxn' not in config  # for older FBAs
             ):
                 # The second half of this if statement will be deprecated once
                 # all FBAs have been shifted over to GCS, but is needed to be backwards
                 # compatible.
-                log.info("Calling %s", url)
+                log.info('Calling %s', url)
                 resp = make_url_request(
                     url,
                     set_cookies=set_cookies,
                     confirm_gdrive=confirm_gdrive,
                     verify=False,
                 )
-                fxn = config.get("call_response_fxn")
+                fxn = config.get('call_response_fxn')
                 if callable(fxn):
                     df = fxn(
                         resp=resp, source=source, year=year, config=config, url=url
@@ -145,7 +173,7 @@ def call_urls(
                     raise FBSMethodConstructionError(error_type='fxn_call')
 
             else:
-                fxn = config.get("gcs_fxn")
+                fxn = config.get('gcs_fxn')
                 if callable(fxn):
                     df = fxn(source=source, year=year, config=config, url=url)
                 elif fxn:
@@ -181,7 +209,7 @@ def parse_data(
     :return: df, single df formatted to FBA
     """
 
-    fxn = config.get("parse_response_fxn")
+    fxn = config.get('parse_response_fxn')
     if callable(fxn):
         df = fxn(df_list=df_list, source=source, year=year, config=config)
     elif fxn:
@@ -206,9 +234,9 @@ def process_data_frame(
     :return: df, FBA format, standardized
     """
     # log that data was retrieved
-    log.info("Retrieved data for %s %s", source, year)
+    log.info('Retrieved data for %s %s', source, year)
     # add any missing columns of data and cast to appropriate data type
-    log.info("Add any missing columns and check field datatypes")
+    log.info('Add any missing columns and check field datatypes')
     flow_df = clean_df(df, flow_by_activity_fields, drop_description=False)
     # sort df and reset index
     flow_df = flow_df.sort_values(
@@ -223,10 +251,10 @@ def process_data_frame(
     ).reset_index(drop=True)
     # save as parquet file
     name_data = set_fba_name(source, year)
-    meta = set_fb_meta(name_data, "FlowByActivity")
+    meta = set_fb_meta(name_data, 'FlowByActivity')
     write_fb_to_file(flow_df, meta, str(FBA_DIR))
     write_metadata(source, config, meta, str(FBA_DIR), year=year)
-    log.info("FBA generated and saved for %s", name_data)
+    log.info('FBA generated and saved for %s', name_data)
     # rename the log file saved to local directory
     reset_log_file(name_data, meta)
 
@@ -251,7 +279,7 @@ def load_fba_config(
     except FileNotFoundError:
         log.info(f'Could not find Flow-By-Activity config file for {source}')
         folder = return_folder_path(extractpath, source)
-        source = get_flowsa_base_name(folder, source, "yaml")
+        source = get_flowsa_base_name(folder, source, 'yaml')
         log.info(f'Generating FBA for {source}')
         config = load_yaml_dict(source, flowbytype='FBA')
 
@@ -266,7 +294,7 @@ def process_fba_config(
 ) -> None:
     """Process the FBA based on the config.
     Use call_only = True to only generate the raw data without processing into FBA"""
-    log.info("Creating dataframe list")
+    log.info('Creating dataframe list')
     # year input can either be sequential years (e.g. 2007-2009) or single year
     if '-' in str(year):
         years = str(year).split('-')
@@ -279,8 +307,7 @@ def process_fba_config(
     years_list = list(set(list(map(int, year_iter))).difference(config['years']))
     if len(years_list) != 0:
         log.warning(
-            f'Years not listed in FBA method yaml: {years_list}, '
-            f'data might not exist'
+            f'Years not listed in FBA method yaml: {years_list}, data might not exist'
         )
 
     if config.get('call_all_years'):
@@ -295,8 +322,15 @@ def process_fba_config(
     for p_year in year_iter:
         year = str(p_year)
         if not call_all_years:
-            # replace parts of urls with specific instructions from source.py
-            urls = assemble_urls_for_query(source=source, year=year, config=config)
+            try:
+                # replace parts of urls with specific instructions from source.py
+                urls = assemble_urls_for_query(source=source, year=year, config=config)
+            except APIError:
+                # if API error, can download FBA instead of generating - used in diagnostics
+                if download_fba_on_api_error:
+                    _download_fba_from_gcs(source, year)
+                    continue
+                raise
             # create a list with data from all source urls
             df_list = call_urls(url_list=urls, source=source, year=year, config=config)
             if call_only:
@@ -304,7 +338,7 @@ def process_fba_config(
                 continue
             # concat the dataframes and parse data with specific
             # instructions from source.py
-            log.info("Concat dataframe list and parse data")
+            log.info('Concat dataframe list and parse data')
             dfs = parse_data(df_list=df_list, source=source, year=year, config=config)
         if isinstance(dfs, list):
             for frame in dfs:

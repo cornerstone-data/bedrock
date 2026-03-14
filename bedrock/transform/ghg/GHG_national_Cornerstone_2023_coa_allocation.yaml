@@ -1,0 +1,59 @@
+# CEDA 2023 with USDA CoA-based allocation for cropland and pasture activity sets.
+# Duplicates GHG_national_CEDA_2023; overrides only cropland/pasture attribution in T_5_18 and T_5_19.
+
+!include:GHG_national_CEDA_2023.yaml
+  _attribution_sources:
+    _cropland_allocation: &cropland_allocation
+      USDA_CoA_Cropland:
+        year: 2017
+        selection_fields:
+          Class: Land
+          FlowName:
+            - AREA HARVESTED
+            - AREA BEARING & NON-BEARING # Orchards
+            - AREA GROWN # Berry totals
+        attribution_method: proportional
+        attribution_source:
+          USDA_CoA_Cropland_NAICS:
+            year: 2017
+            selection_fields:
+              Class: Land
+              FlowName: AG LAND, CROPLAND, HARVESTED
+            estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
+
+    _animal_land_allocation: &animal_land_allocation
+      USDA_CoA_Cropland_NAICS:
+        year: 2017
+        selection_fields:
+          Class: Land
+          FlowName: FARM OPERATIONS
+        estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
+
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    EPA_GHGI_T_5_18: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_18
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_18:activity_sets
+        cropland:
+          selection_fields:
+            PrimaryActivity:
+              - Mineralization and Asymbiotic Fixation Cropland
+              - Drained Organic Soils Cropland
+          attribution_method: proportional
+          attribution_source: *cropland_allocation
+
+        pasture:
+          selection_fields:
+            PrimaryActivity:
+              - All activities Grassland
+          attribution_method: proportional
+          attribution_source: *animal_land_allocation
+
+    EPA_GHGI_T_5_19: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_19
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_5_19:activity_sets
+        pasture:
+          selection_fields:
+            PrimaryActivity:
+              - All activities Grassland
+          attribution_method: proportional
+          attribution_source: *animal_land_allocation

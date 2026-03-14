@@ -24,6 +24,32 @@ _attribution_sources:
                            'MCIF']
     attribution_method: equal
 
+  _cropland_allocation: &cropland_allocation
+    USDA_CoA_Cropland:
+      year: 2017
+      selection_fields:
+        Class: Land
+        FlowName:
+          - AREA HARVESTED
+          - AREA BEARING & NON-BEARING # Orchards
+          - AREA GROWN # Berry totals
+      attribution_method: proportional
+      attribution_source:
+        USDA_CoA_Cropland_NAICS:
+          year: 2017
+          selection_fields:
+            Class: Land
+            FlowName: AG LAND, CROPLAND, HARVESTED
+          estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
+
+  _animal_land_allocation: &animal_land_allocation
+    USDA_CoA_Cropland_NAICS:
+      year: 2017
+      selection_fields:
+        Class: Land
+        FlowName: FARM OPERATIONS
+      estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
+
 
 source_names:
   EPA_GHGI_T_2_1: #U.S. GHG emissions
@@ -242,28 +268,20 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
-      # flowsa uses direct attribution, ceda proportionally attributes
       cropland:
         selection_fields:
           PrimaryActivity:
             - Mineralization and Asymbiotic Fixation Cropland
             - Drained Organic Soils Cropland
         attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Cropland_CEDA:
-            year: 2018
-            attribution_method: equal
+        attribution_source: *cropland_allocation
 
-      # note different than flowsa - flows directly attributes, while ceda uses hard coded 2018 coa data
-      pasture: &pasture
+      pasture:
         selection_fields:
           PrimaryActivity:
             - All activities Grassland
         attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Livestock_CEDA:
-            year: 2018
-            attribution_method: equal
+        attribution_source: *animal_land_allocation
 
 
   EPA_GHGI_T_5_19: #Indirect N2O emissions from agricultural soils
@@ -287,10 +305,7 @@ source_names:
           PrimaryActivity:
             - All activities Grassland
         attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Livestock_CEDA:
-            year: 2018
-            attribution_method: equal
+        attribution_source: *animal_land_allocation
 
 
 ### Mobile Sources

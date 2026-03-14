@@ -1,0 +1,10 @@
+# Use CEDA 2023 FBS with updated_coa method for branch testing.
+# Requires load_E_from_flowsa and update_ghg_coa_allocation so the pipeline loads E from flowsa with the updated_coa method.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+update_ghg_coa_allocation: true
+snapshot_version_or_git_sha: "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
