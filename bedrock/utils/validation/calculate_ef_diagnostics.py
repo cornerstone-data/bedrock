@@ -155,7 +155,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
 
     # Effective x decomposition (Cornerstone method only)
-    if config.transform_b_matrix_with_useeio_method:
+    if config.use_E_data_year_for_x_in_B:
         from bedrock.utils.validation.diagnostics_helpers import (
             compute_effective_x_comparison,
         )

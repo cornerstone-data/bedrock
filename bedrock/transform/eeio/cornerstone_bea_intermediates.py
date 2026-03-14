@@ -133,7 +133,7 @@ def bea_E() -> pd.DataFrame:
 def bea_B() -> pd.DataFrame:
     """B (ghg × BEA_commodity).  B = (E / x) @ V_norm."""
     E = bea_E()
-    if get_usa_config().transform_b_matrix_with_useeio_method:
+    if get_usa_config().use_E_data_year_for_x_in_B:
         x = derive_gross_output_after_redefinition(
             target_year=get_usa_config().usa_ghg_data_year
         )
