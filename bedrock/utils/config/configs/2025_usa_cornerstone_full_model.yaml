@@ -10,5 +10,5 @@
 use_cornerstone_2026_model_schema: True
 load_E_from_flowsa: true
 new_ghg_method: true
-use_E_data_year_in_B: True
+use_E_data_year_for_x_in_B: True
 implement_waste_disaggregation: True

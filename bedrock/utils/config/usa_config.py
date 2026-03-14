@@ -45,7 +45,7 @@ class USAConfig(BaseModel):
     ### Schema/Taxonomy selection
     use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
     ### IO Methodology selection
-    use_E_data_year_in_B: bool = False  # DRI: mo.li
+    use_E_data_year_for_x_in_B: bool = False  # DRI: mo.li
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
