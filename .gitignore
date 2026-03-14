@@ -39,3 +39,4 @@ __pycache__/
 .cursor/
 .cursorrules
 .claude/plans/
+scratch/
