@@ -12,15 +12,16 @@ from bedrock.extract.allocation.epa import (
     load_tbtu_across_fuel_types as _load_table_a17_tbtu,
 )
 from bedrock.extract.allocation.mecs import load_mecs_3_1 as _load_mecs_3_1
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING as CEDA_INDUSTRY_TO_MECS_NAICS_MAPPING,
+from bedrock.transform.allocation.mappings.cornerstone import (
+    CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+    CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
 )
 from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING as CEDA_INDUSTRY_TO_MECS_NAICS_SUBTRACTION_MAPPING,
-)
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
+    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
     NON_MECS_INDUSTRIES,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MEGATONNE_TO_KG, NAT_GAS_BCF_TO_TRILLION_BTU
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
@@ -42,10 +43,29 @@ def get_total_natural_gas_emissions_to_allocate() -> float:
 SPECIAL_EXCEPTION_CODE = "316000"
 
 
+def _get_mecs_3_1_naics_mappings() -> (
+    tuple[
+        dict[tuple[str, ...], tuple[str, ...]],
+        dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
+    ]
+):
+    """Return (mapping, subtraction_mapping) for MECS 3.1 NAICS; use CORNERSTONE when schema flag is on."""
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return (
+            CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+            CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
+        )
+    return (
+        CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+        CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
+    )
+
+
 def allocate_industrial_natural_gas() -> pd.Series[float]:
+    mapping, subtraction_mapping = _get_mecs_3_1_naics_mappings()
     all_mapped_industries = (
-        list(CEDA_INDUSTRY_TO_MECS_NAICS_MAPPING.keys())
-        + list(CEDA_INDUSTRY_TO_MECS_NAICS_SUBTRACTION_MAPPING.keys())
+        list(mapping.keys())
+        + list(subtraction_mapping.keys())
         + NON_MECS_INDUSTRIES
     )
     # Ensure no duplicates in the mapping because duplicates would be
@@ -65,6 +85,7 @@ def allocate_industrial_natural_gas() -> pd.Series[float]:
 
 
 def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[float]:
+    mapping, subtraction_mapping = _get_mecs_3_1_naics_mappings()
     fraction_to_allocate = _fraction_natural_gas_energy_to_allocate()
     mecs_3_1 = load_mecs_3_1()
     mecs_overall_nat_gas_usage: float = mecs_3_1.loc["Total", NAT_GAS_MECS_CODE]  # type: ignore
@@ -74,7 +95,7 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
     for (
         ceda_industries,
         mecs_mappings,
-    ) in CEDA_INDUSTRY_TO_MECS_NAICS_MAPPING.items():
+    ) in mapping.items():
         total_use: float = bea_use_table.loc[list(ceda_industries), NAT_GAS_CODE].sum()
         if total_use == 0 and SPECIAL_EXCEPTION_CODE not in ceda_industries:
             # If the total use is 0, we can't allocate anything
@@ -99,7 +120,7 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
     for ceda_industries, (
         mecs_mappings,
         subtract_mappings,
-    ) in CEDA_INDUSTRY_TO_MECS_NAICS_SUBTRACTION_MAPPING.items():
+    ) in subtraction_mapping.items():
         total_use: float = bea_use_table.loc[list(ceda_industries), NAT_GAS_CODE].sum()  # type: ignore
         if total_use == 0:
             # If the total use is 0, we can't allocate anything

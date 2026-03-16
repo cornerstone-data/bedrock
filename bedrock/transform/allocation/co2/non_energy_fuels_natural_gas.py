@@ -10,17 +10,41 @@ from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,
 )
 from bedrock.extract.allocation.mecs import load_mecs_2_1
+from bedrock.transform.allocation.mappings.cornerstone import (
+    CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
+    CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
+)
 from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 logger = logging.getLogger(__name__)
 
 
+def _get_mecs_2_1_naics_mappings() -> (
+    tuple[
+        dict[tuple[str, ...], tuple[str, ...]],
+        dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
+    ]
+):
+    """Return (mapping, subtraction_mapping) for MECS 2.1 NAICS; use CORNERSTONE when schema flag is on."""
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return (
+            CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
+            CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
+        )
+    return (
+        CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
+        CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
+    )
+
+
 def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
+    mapping, subtraction_mapping = _get_mecs_2_1_naics_mappings()
     emissions = (
         load_co2_emissions_from_fossil_fuels_for_non_energy_uses()
         .loc[("Industry", "Natural Gas to Chemical Plants")]  # type: ignore
@@ -40,7 +64,7 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
     for (
         ceda_industries,
         mecs_mappings,
-    ) in CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING.items():
+    ) in mapping.items():
         total_use: float = use.loc[list(ceda_industries)].sum()
         if total_use == 0:
             # If the total use is 0, we can't allocate anything
@@ -59,7 +83,7 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
     for ceda_industries, (
         mecs_mappings,
         subtract_mappings,
-    ) in CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING.items():
+    ) in subtraction_mapping.items():
         total_use: float = use.loc[list(ceda_industries)].sum()  # type: ignore
         if total_use == 0:
             # If the total use is 0, we can't allocate anything

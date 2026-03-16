@@ -642,7 +642,6 @@ CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING: dict[tuple[str, ...], tuple[str, ...]] 
     ): ("326",),
 }
 
-
 CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING: dict[
     tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]
 ] = {
