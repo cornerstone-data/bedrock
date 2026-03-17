@@ -159,7 +159,9 @@ def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfi
 
 @functools.cache
 def get_waste_disagg_weights() -> WasteDisaggWeights | None:
-    """Return waste disaggregation weights if the feature is enabled, else None."""
+    """Return waste disaggregation weights if the feature is enabled, else None.
+    The weights used here are derived using the BEA After Redefinitions IO tables adapted to the Cornerstone schema.
+    """
     cfg = get_usa_config()
     if not cfg.implement_waste_disaggregation:
         return None
