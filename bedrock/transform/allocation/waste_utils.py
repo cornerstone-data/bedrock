@@ -26,4 +26,3 @@ def waste_562000_allocation_series_ceda_allocator_to_cornerstone_schema(
         return pd.Series({code: per_industry for code in waste_inds}, dtype=float)
 
     return pd.Series({"562000": float(total_emission)})
-
