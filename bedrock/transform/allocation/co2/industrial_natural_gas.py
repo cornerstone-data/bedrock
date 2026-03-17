@@ -67,14 +67,19 @@ def allocate_industrial_natural_gas() -> pd.Series[float]:
     # Ensure no duplicates in the mapping because duplicates would be
     # an error as we'd have allocated to the same industry twice
     assert len(all_mapped_industries) == len(set(all_mapped_industries))
-    allocated = (
-        _allocate_industrial_nat_gas_to_industries_energy_allocation()
-        + _allocate_remaining_industrial_nat_gas_usage()
+
+    target_sectors = get_allocation_sectors()
+    part1 = _allocate_industrial_nat_gas_to_industries_energy_allocation()
+    part2 = _allocate_remaining_industrial_nat_gas_usage()
+    allocated = part1.reindex(target_sectors, fill_value=0.0) + part2.reindex(
+        target_sectors, fill_value=0.0
     )
 
+    total_allocated = allocated.sum()
+    if total_allocated == 0 or pd.isna(total_allocated):
+        return allocated * MEGATONNE_TO_KG
     return (
-        allocated
-        / allocated.sum()
+        (allocated / total_allocated)
         * get_total_natural_gas_emissions_to_allocate()
         * MEGATONNE_TO_KG
     )
