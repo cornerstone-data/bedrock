@@ -5,7 +5,10 @@ import logging
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.bea import (
+    load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
+)
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,
 )
@@ -92,7 +95,10 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
         mecs_2_1_other_sum - mecs_2_1_other[["324121", "324122"]].sum()
     )
 
-    use = load_bea_use_table()["324110"].astype(float)
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    use = use_table_series_ceda_allocator_to_cornerstone_schema(
+        load_bea_use_table(), get_allocation_sectors(), "324110"
+    )
     use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
     mapping, subtraction_mapping = _get_mecs_2_1_naics_mappings()
     for (

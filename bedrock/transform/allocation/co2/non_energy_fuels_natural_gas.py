@@ -5,7 +5,10 @@ import logging
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.bea import (
+    load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
+)
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,
 )
@@ -48,7 +51,10 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
         .loc[("Industry", "Natural Gas to Chemical Plants")]  # type: ignore
         .squeeze()
     )
-    use = load_bea_use_table().loc[:, "221200"].astype(float)
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    use = use_table_series_ceda_allocator_to_cornerstone_schema(
+        load_bea_use_table(), get_allocation_sectors(), "221200"
+    )
     allocated = pd.Series(0.0, index=get_allocation_sectors())
 
     # Because the emission-to-be-allocated is defined as "Natural Gas to Chemical Plants",
