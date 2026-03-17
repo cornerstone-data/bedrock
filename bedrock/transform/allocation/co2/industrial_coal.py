@@ -160,7 +160,9 @@ def _allocate_remaining_industrial_coal_usage() -> pd.Series[float]:
 
     bea_use_table = load_bea_use_table()
     use_series = bea_use_table.loc[:, COAL_CODE]
-    denominator: float = float(use_series.reindex(NON_MECS_INDUSTRIES, fill_value=0.0).sum())
+    denominator: float = float(
+        use_series.reindex(NON_MECS_INDUSTRIES, fill_value=0.0).sum()
+    )
     for industry in NON_MECS_INDUSTRIES:
         use = float(use_series.reindex([industry], fill_value=0.0).iloc[0])
         val = (
@@ -170,7 +172,9 @@ def _allocate_remaining_industrial_coal_usage() -> pd.Series[float]:
             / denominator
         )
         if industry in allocated_ser.index:
-            allocated_ser[industry] = 0.0 if (pd.isna(val) or denominator == 0) else float(val)
+            allocated_ser[industry] = (
+                0.0 if (pd.isna(val) or denominator == 0) else float(val)
+            )
     return allocated_ser * MEGATONNE_TO_KG
 
 

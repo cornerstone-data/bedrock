@@ -6,8 +6,8 @@ from bedrock.extract.allocation.epa import (
     load_direct_n2o_from_agricultural_soils,
 )
 from bedrock.extract.allocation.usda import load_crop_land_area_harvested
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 ACTIVITIES = [
     ("Cropland", "Mineralization and Asymbiotic Fixation"),
@@ -22,4 +22,6 @@ def allocate_mineralization() -> pd.Series[float]:
     harvested = load_crop_land_area_harvested()
     pct = harvested / harvested.sum()
 
-    return (pct * total).reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return (pct * total).reindex(
+        get_allocation_sectors(), fill_value=0.0
+    ) * MEGATONNE_TO_KG

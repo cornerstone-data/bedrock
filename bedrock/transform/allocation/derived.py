@@ -7,7 +7,6 @@ import pandas as pd
 
 from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
-from bedrock.transform.allocation.utils import reindex_allocated_to_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
@@ -61,8 +60,7 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
         allocated = allocator()
         if allocated.isna().any():
             raise ValueError(f"NaNs found in {es} allocator")
-        allocated = reindex_allocated_to_schema(allocated)
-        E_usa.loc[es.value, :] += allocated
+        E_usa.loc[es.value, :] += allocated.reindex(target_columns, fill_value=0.0)
 
     logger.info(
         f"[TIMING] All {len(ALLOCATED_EMISSIONS_REGISTRY)} allocations completed in {time.time() - total_start:.1f}s"

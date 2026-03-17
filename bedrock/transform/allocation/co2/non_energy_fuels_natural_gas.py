@@ -25,12 +25,10 @@ from bedrock.utils.economic.units import MEGATONNE_TO_KG
 logger = logging.getLogger(__name__)
 
 
-def _get_mecs_2_1_naics_mappings() -> (
-    tuple[
-        dict[tuple[str, ...], tuple[str, ...]],
-        dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
-    ]
-):
+def _get_mecs_2_1_naics_mappings() -> tuple[
+    dict[tuple[str, ...], tuple[str, ...]],
+    dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
+]:
     """Return (mapping, subtraction_mapping) for MECS 2.1 NAICS; use CORNERSTONE when schema flag is on."""
     if get_usa_config().use_cornerstone_2026_model_schema:
         return (

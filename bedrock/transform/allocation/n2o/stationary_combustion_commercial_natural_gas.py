@@ -9,8 +9,8 @@ from bedrock.extract.allocation.epa import (
 from bedrock.transform.allocation.constants import (
     COMMERCIAL_FUEL_OIL_AND_NATURAL_GAS_SECTORS,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_stationary_combustion_commercial_natural_gas() -> pd.Series[float]:
@@ -27,4 +27,7 @@ def allocate_stationary_combustion_commercial_natural_gas() -> pd.Series[float]:
     )
     allocated_vec = (nat_gas_use / nat_gas_use.sum()) * emissions
 
-    return allocated_vec.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return (
+        allocated_vec.reindex(get_allocation_sectors(), fill_value=0.0)
+        * MEGATONNE_TO_KG
+    )

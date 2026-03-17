@@ -9,8 +9,9 @@ from bedrock.extract.allocation.epa import (
     load_direct_n2o_from_agricultural_soils,
     load_indirect_n2o_from_agricultural_soils,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 FERTILIZER_SECTORS: ta.List[CEDA_V7_SECTOR] = [
     "1111A0",
@@ -47,4 +48,4 @@ def allocate_fertilizer() -> pd.Series[float]:
     )
 
     allocated = bea_fertilizer_use * total
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

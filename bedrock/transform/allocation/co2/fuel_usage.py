@@ -13,8 +13,8 @@ from bedrock.transform.allocation.transportation_fuel_use.constants import (
 from bedrock.transform.allocation.transportation_fuel_use.derived import (
     derive_fuel_percent_breakout as _derive_fuel_percent_breakout,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 derive_fuel_percent_breakout = functools.cache(_derive_fuel_percent_breakout)
 load_table_a17 = functools.cache(_load_table_a17)
@@ -26,7 +26,7 @@ def allocate_transportation_fuel_usage(
     total_fuel_for_transport = load_table_a17().loc[fuel.value, "Trans"]
     fuel_percent_breakout = derive_fuel_percent_breakout()
 
-    allocated_ser = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
     for sector, percent in fuel_percent_breakout.loc[fuel].items():  # type: ignore
         if sector not in allocated_ser.index:
             # This is the case for F01000, which we may want to bring back!

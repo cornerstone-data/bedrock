@@ -10,8 +10,8 @@ from bedrock.transform.allocation.transportation_fuel_use.derived import (
     get_personal_consumption_expenditure_petref_cons_purchased,
     get_res_pet_ref_cons_for_transport,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_non_energy_fuels_transport() -> pd.Series[float]:
@@ -47,4 +47,4 @@ def allocate_non_energy_fuels_transport() -> pd.Series[float]:
 
     assert isinstance(use, pd.Series), "use is not a series"
     allocated = emissions * (use / use.sum())
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

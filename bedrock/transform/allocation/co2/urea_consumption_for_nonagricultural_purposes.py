@@ -6,8 +6,8 @@ from bedrock.extract.allocation.bea import load_bea_use_table
 from bedrock.extract.allocation.epa import (
     load_recent_trends_in_ghg_emissions_and_sinks,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_urea_consumption_for_nonagricultural_purposes() -> pd.Series[float]:
@@ -254,4 +254,4 @@ def allocate_urea_consumption_for_nonagricultural_purposes() -> pd.Series[float]
         ("CO2", "Urea Consumption for Non-Agricultural Purposes")
     ]
     allocated = emissions * pct
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

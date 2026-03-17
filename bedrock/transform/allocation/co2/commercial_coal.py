@@ -4,8 +4,8 @@ import pandas as pd
 
 from bedrock.extract.allocation.bea import load_bea_use_table
 from bedrock.extract.allocation.epa import load_mmt_co2e_across_fuel_types
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 ALLOCATION_SECTORS = [
     "221300",
@@ -140,4 +140,4 @@ def allocate_commercial_coal() -> pd.Series[float]:
     pct = pct / pct.sum()
 
     allocated = emissions * pct
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

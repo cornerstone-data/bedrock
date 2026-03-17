@@ -6,8 +6,8 @@ from bedrock.extract.allocation.bea import load_bea_make_table
 from bedrock.extract.allocation.epa import (
     load_recent_trends_in_ghg_emissions_and_sinks,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 EPA_EMISSION_SOURCE_TO_BEA_INDUSTRY_MAPPING = {
     "331410": ["331313", "331410", "331490"],
@@ -36,4 +36,4 @@ def allocate_hfc_134a_magnesium_production() -> pd.Series[float]:
         * make_ratio
     )
 
-    return emissions.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return emissions.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

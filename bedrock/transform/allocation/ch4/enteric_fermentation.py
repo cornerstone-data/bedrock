@@ -7,8 +7,9 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_ch4_emissions_from_enteric_fermentation,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 EPA_LIVESTOCK_TO_BEA_INDUSTRY_MAPPING: ta.Dict[str, CEDA_V7_SECTOR] = {
     "Beef Cattle": "1121A0",
@@ -29,7 +30,7 @@ def allocate_enteric_fermentation() -> pd.Series[float]:
         [EPA_LIVESTOCK_TO_BEA_INDUSTRY_MAPPING[i] for i in emissions.index]
     )
 
-    allocated_vec = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    allocated_vec = pd.Series(0.0, index=get_allocation_sectors())
     allocated_industries = ["112120", "1121A0", "112A00"]
     allocated_vec[allocated_industries] = emissions.groupby(level=0).sum()
 

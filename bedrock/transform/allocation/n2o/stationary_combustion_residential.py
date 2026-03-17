@@ -5,8 +5,8 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_n2o_emissions_from_stationary_combustion,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_stationary_combustion_residential() -> pd.Series[float]:
@@ -15,5 +15,5 @@ def allocate_stationary_combustion_residential() -> pd.Series[float]:
     ]
 
     return (pd.Series({"F01000": total})).reindex(
-        CEDA_V7_SECTORS, fill_value=0.0
+        get_allocation_sectors(), fill_value=0.0
     ) * MEGATONNE_TO_KG

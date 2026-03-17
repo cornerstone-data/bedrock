@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 
 from bedrock.extract.allocation.epa import load_ch4_and_n2o_from_field_burning
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import KILOTONNE_TO_KG, MEGATONNE_TO_KG
 from bedrock.utils.emissions.gwp import GWP100_AR4
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 CH4_ALLOCATION = {
     ("CH4", "Soybeans"): "1111A0",
@@ -27,4 +27,4 @@ def allocate_field_burning_of_agricultural_residues() -> pd.Series[float]:
     else:
         ser = load_ch4_and_n2o_from_field_burning() * MEGATONNE_TO_KG
     allocated = ser.groupby(CH4_ALLOCATION).sum()  # type:ignore
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0)
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0)
