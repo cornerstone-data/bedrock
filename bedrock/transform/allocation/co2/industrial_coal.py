@@ -86,18 +86,13 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
     mecs_overall_coal_usage: float = mecs_3_1.loc["Total", COAL_MECS_CODE]
     bea_use_table = load_bea_use_table()
     use_series = bea_use_table.loc[:, COAL_CODE]
-    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
     allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
     for (
         ceda_industries,
         mecs_mappings,
     ) in mapping.items():
         inds = list(ceda_industries)
-        total_use_ser = (
-            use_series.reindex(inds, fill_value=1.0)
-            if use_cornerstone
-            else use_series.loc[inds]
-        )
+        total_use_ser = use_series.reindex(inds, fill_value=0.0)
         total_use: float = float(total_use_ser.sum())
         if total_use == 0:
             # If the total use is 0, we can't allocate anything
@@ -124,11 +119,7 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
         subtract_mappings,
     ) in subtraction_mapping.items():
         inds_sub = list(ceda_industries)
-        total_use_ser_sub = (
-            use_series.reindex(inds_sub, fill_value=1.0)
-            if use_cornerstone
-            else use_series.loc[inds_sub]
-        )
+        total_use_ser_sub = use_series.reindex(inds_sub, fill_value=0.0)
         total_use_sub: float = float(total_use_ser_sub.sum())
         if total_use_sub == 0:
             # If the total use is 0, we can't allocate anything

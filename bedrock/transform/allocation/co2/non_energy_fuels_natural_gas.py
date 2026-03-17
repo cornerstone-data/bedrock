@@ -51,7 +51,6 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
         .squeeze()
     )
     use = load_bea_use_table().loc[:, "221200"].astype(float)
-    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
     allocated = pd.Series(0.0, index=get_allocation_sectors())
 
     # Because the emission-to-be-allocated is defined as "Natural Gas to Chemical Plants",
@@ -66,9 +65,7 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
         mecs_mappings,
     ) in mapping.items():
         inds = list(ceda_industries)
-        total_use_ser = (
-            use.reindex(inds, fill_value=1.0) if use_cornerstone else use.loc[inds]
-        )
+        total_use_ser = use.reindex(inds, fill_value=0.0)
         total_use: float = float(total_use_ser.sum())
         if total_use == 0:
             # If the total use is 0, we can't allocate anything
@@ -89,11 +86,7 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
         subtract_mappings,
     ) in subtraction_mapping.items():
         inds_sub = list(ceda_industries)
-        total_use_ser_sub = (
-            use.reindex(inds_sub, fill_value=1.0)
-            if use_cornerstone
-            else use.loc[inds_sub]
-        )
+        total_use_ser_sub = use.reindex(inds_sub, fill_value=0.0)
         total_use_sub: float = float(total_use_ser_sub.sum())
         if total_use_sub == 0:
             # If the total use is 0, we can't allocate anything

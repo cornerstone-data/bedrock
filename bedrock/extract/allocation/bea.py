@@ -41,18 +41,30 @@ def load_bea_make_table() -> pd.DataFrame:
 
 
 @functools.cache
-def load_bea_use_table() -> pd.DataFrame:
-    """
-    This is a wrapper function that loads the latest BEA Use and Final Demand tables.
-    WARNING: this table is 2017 Use (including Personal Consumption Expenditure) and is transposed from the original form,
-    so the rows are the industries and the columns are the commodities
-    NOTE: this table does NOT need to be inflation-adjusted, because inflation is applied to commodities,
-    and we are only using the proportions of each industry's consumption of each commodity,
-    the effect of inflation will be cancelled out when we apply the proportions to the inflation-adjusted commodities.
-    """
+def _load_bea_use_table_cached(use_cornerstone: bool) -> pd.DataFrame:
+    """Inner loader keyed by schema so both CEDA and Cornerstone can be cached."""
+    if use_cornerstone:
+        from bedrock.transform.eeio import derived_cornerstone  # noqa: PLC0415
+
+        uset = derived_cornerstone.derive_cornerstone_U_set()
+        U_combined = (uset.Udom + uset.Uimp).T
+        Y_cs = derived_cornerstone.derive_cornerstone_Y_personal_consumption_expenditure().to_frame().T
+        return pd.concat([U_combined, Y_cs])
     U_set = derive_2017_U_set_usa()
     Y_usa = derive_2017_Y_personal_consumption_expenditure_usa().to_frame()
     return pd.concat([(U_set.Udom + U_set.Uimp).T, Y_usa.T])
+
+
+def load_bea_use_table() -> pd.DataFrame:
+    """
+    Load BEA Use and Final Demand tables aligned to the model schema.
+
+    When use_cornerstone_2026_model_schema is False, returns CEDA v7 industry rows.
+    When True, returns Cornerstone industry rows (from derive_cornerstone_U_set and Y).
+    Rows = industries + one PCE row; columns = commodities. Result is cached per schema.
+    """
+    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
+    return _load_bea_use_table_cached(use_cornerstone)
 
 
 @functools.cache

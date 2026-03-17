@@ -102,9 +102,7 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
         mecs_mappings,
     ) in mapping.items():
         inds = list(ceda_industries)
-        total_use_ser = (
-            use.reindex(inds, fill_value=1.0) if use_cornerstone else use.loc[inds]
-        )
+        total_use_ser = use.reindex(inds, fill_value=0.0)
         total_use: float = float(total_use_ser.sum())
         if total_use == 0:
             # If the total use is 0, we can't allocate anything
@@ -161,11 +159,7 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
         subtract_mappings,
     ) in subtraction_mapping.items():
         inds_sub = list(ceda_industries)
-        total_use_ser_sub = (
-            use.reindex(inds_sub, fill_value=1.0)
-            if use_cornerstone
-            else use.loc[inds_sub]
-        )
+        total_use_ser_sub = use.reindex(inds_sub, fill_value=0.0)
         total_use_sub: float = float(total_use_ser_sub.sum())
         if total_use_sub == 0:
             # If the total use is 0, we can't allocate anything
