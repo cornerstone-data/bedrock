@@ -107,20 +107,23 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
             # and we'll get a NaN so just leave as 0
             continue
         mecs_mappings = [m for m in mecs_mappings if m in mecs_3_1.index]  # type: ignore
-        mecs_total: float = mecs_3_1.loc[list(mecs_mappings), NAT_GAS_MECS_CODE].sum()
+        mecs_total: float = float(
+            mecs_3_1.loc[list(mecs_mappings), NAT_GAS_MECS_CODE].fillna(0).sum()
+        )
         for ceda_industry in ceda_industries:
             industry_use = float(total_use_ser[ceda_industry])
             if ceda_industry == SPECIAL_EXCEPTION_CODE:
                 total_use = 1
                 industry_use = 1.0
-            allocated_ser[ceda_industry] = (
-                # This is L3
+            # This is L3
+            val = (
                 get_total_natural_gas_emissions_to_allocate()  # type: ignore
                 * fraction_to_allocate  # SpecE7, EIAM86, EPAH6
                 * (mecs_total / mecs_overall_nat_gas_usage)  # EIA numerator / EIA total
                 * industry_use
                 / total_use
             )
+            allocated_ser[ceda_industry] = 0.0 if pd.isna(val) else float(val)
 
     for ceda_industries, (
         mecs_mappings,
@@ -138,21 +141,24 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
             # and we'll get a NaN so just leave as 0
             continue
         mecs_mappings_to_use = [m for m in mecs_mappings if m in mecs_3_1.index]
-        mecs_total: float = mecs_3_1.loc[mecs_mappings_to_use, NAT_GAS_MECS_CODE].sum()  # type: ignore
+        mecs_total: float = float(
+            mecs_3_1.loc[mecs_mappings_to_use, NAT_GAS_MECS_CODE].fillna(0).sum()
+        )
         subtract_mappings = [m for m in subtract_mappings if m in mecs_3_1.index]  # type: ignore
-        subtraction_total: float = mecs_3_1.loc[
-            list(subtract_mappings), NAT_GAS_MECS_CODE
-        ].sum()
+        subtraction_total: float = float(
+            mecs_3_1.loc[list(subtract_mappings), NAT_GAS_MECS_CODE].fillna(0).sum()
+        )
         allocated_total = mecs_total - subtraction_total
         for ceda_industry in ceda_industries:
             industry_use = float(total_use_ser_sub[ceda_industry])
-            allocated_ser[ceda_industry] = (
+            val = (
                 get_total_natural_gas_emissions_to_allocate()  # type: ignore
                 * (allocated_total / mecs_overall_nat_gas_usage)
                 * fraction_to_allocate
                 * industry_use
                 / total_use_sub
             )
+            allocated_ser[ceda_industry] = 0.0 if pd.isna(val) else float(val)
     return allocated_ser * MEGATONNE_TO_KG
 
 

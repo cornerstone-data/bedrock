@@ -101,17 +101,19 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
         # The original spreadsheet just 0's out if the index cannot be found
         # we replicate that logic here
         mecs_mappings_to_use = [m for m in mecs_mappings if m in mecs_3_1.index]
-        mecs_total: float = mecs_3_1.loc[mecs_mappings_to_use, COAL_MECS_CODE].sum()
+        mecs_total: float = float(
+            mecs_3_1.loc[mecs_mappings_to_use, COAL_MECS_CODE].fillna(0).sum()
+        )
         for ceda_industry in ceda_industries:
             industry_use = float(total_use_ser[ceda_industry])
-            allocated_ser[ceda_industry] = (
-                # This is L3
+            val = (
                 get_total_coal_emissions_to_allocate()
                 * fraction_to_allocate  # SpecE7, EIAM86, EPAH6
                 * (mecs_total / mecs_overall_coal_usage)  # EIA numerator / EIA total
                 * industry_use
                 / total_use
             )
+            allocated_ser[ceda_industry] = 0.0 if pd.isna(val) else float(val)
     for ceda_industries, (
         mecs_mappings,
         subtract_mappings,
@@ -128,21 +130,24 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
             # and we'll get a NaN so just leave as 0
             continue
         mecs_mappings_to_use = [m for m in mecs_mappings if m in mecs_3_1.index]
-        mecs_total = mecs_3_1.loc[mecs_mappings_to_use, COAL_MECS_CODE].sum()
+        mecs_total = float(
+            mecs_3_1.loc[mecs_mappings_to_use, COAL_MECS_CODE].fillna(0).sum()
+        )
         subtract_mappings = [m for m in subtract_mappings if m in mecs_3_1.index]
-        subtraction_total: float = mecs_3_1.loc[
-            list(subtract_mappings), COAL_MECS_CODE
-        ].sum()
+        subtraction_total: float = float(
+            mecs_3_1.loc[list(subtract_mappings), COAL_MECS_CODE].fillna(0).sum()
+        )
         allocated_total = mecs_total - subtraction_total
         for ceda_industry in ceda_industries:
             industry_use = float(total_use_ser_sub[ceda_industry])
-            allocated_ser[ceda_industry] = (
+            val = (
                 get_total_coal_emissions_to_allocate()
                 * (allocated_total / mecs_overall_coal_usage)
                 * fraction_to_allocate
                 * industry_use
                 / total_use_sub
             )
+            allocated_ser[ceda_industry] = 0.0 if pd.isna(val) else float(val)
     return allocated_ser * MEGATONNE_TO_KG
 
 
@@ -158,15 +163,18 @@ def _allocate_remaining_industrial_coal_usage() -> pd.Series[float]:
     allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
 
     bea_use_table = load_bea_use_table()
-    denominator: float = bea_use_table.loc[NON_MECS_INDUSTRIES, COAL_CODE].sum()
+    use_series = bea_use_table.loc[:, COAL_CODE]
+    denominator: float = float(use_series.reindex(NON_MECS_INDUSTRIES, fill_value=0.0).sum())
     for industry in NON_MECS_INDUSTRIES:
-        use = bea_use_table.loc[industry, COAL_CODE]
-        allocated_ser[industry] = (
+        use = float(use_series.reindex([industry], fill_value=0.0).iloc[0])
+        val = (
             get_total_coal_emissions_to_allocate()
             * remaining_energy_usage
             * use
             / denominator
         )
+        if industry in allocated_ser.index:
+            allocated_ser[industry] = 0.0 if (pd.isna(val) or denominator == 0) else float(val)
     return allocated_ser * MEGATONNE_TO_KG
 
 
