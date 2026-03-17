@@ -7,3 +7,4 @@
 use_cornerstone_2026_model_schema: True
 update_flowsa_refrigerant_method: true
 load_E_from_flowsa: true
+snapshot_version_or_git_sha: "a0e514e361bb0a87cd40b68b1eccc8bb911fa35c"
