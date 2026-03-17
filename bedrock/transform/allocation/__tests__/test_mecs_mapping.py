@@ -5,6 +5,10 @@ import logging
 import pytest
 
 from bedrock.extract.allocation.mecs import load_mecs_3_1
+from bedrock.transform.allocation.mappings.cornerstone.mecs import (
+    CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+    CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
+)
 from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
@@ -71,3 +75,20 @@ def test_all_naics_codes_in_mecs_covered_in_mapping() -> None:
     assert (
         NAICS_IN_OUR_MECS_3_1_MAPPING == naics_in_mecs
     ), f"{naics_in_mecs - NAICS_IN_OUR_MECS_3_1_MAPPING} are NAICS codes in MECS tables but not in CEDA <> MECS mapping; {NAICS_IN_OUR_MECS_3_1_MAPPING - naics_in_mecs} are NAICS codes in CEDA <> MECS mapping but not in MECS tables."
+
+
+@pytest.mark.eeio_integration
+def test_cornerstone_mecs_3_1_naics_in_mecs_table() -> None:
+    """All MECS NAICS codes referenced in Cornerstone 3.1 mapping values exist in the MECS 3.1 table."""
+    mecs_index = set(load_mecs_3_1().index.drop("Total"))
+    naics_in_cornerstone_3_1 = set(
+        flatten_items(CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.values())
+    ) | set(
+        flatten_items(
+            CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.values()
+        )
+    )
+    missing = naics_in_cornerstone_3_1 - mecs_index
+    assert (
+        not missing
+    ), f"MECS NAICS codes used in Cornerstone 3.1 mapping are not in MECS 3.1 table: {missing}"
