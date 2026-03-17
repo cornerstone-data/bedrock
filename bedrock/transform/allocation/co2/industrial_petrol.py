@@ -3,11 +3,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.bea import (
+    load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
+)
 from bedrock.extract.allocation.epa import load_mmt_co2e_across_fuel_types
 from bedrock.extract.allocation.mecs import load_mecs_2_1, load_mecs_3_1
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 ALLOCATION_SECTORS = [
     "1111A0",
@@ -366,8 +369,9 @@ def allocate_industrial_petrol() -> pd.Series[float]:
     )
 
     # find total expenditure on petrol for energy and non-energy use
-    use = (
-        load_bea_use_table().loc[pd.Index(ALLOCATION_SECTORS), "324110"].astype(float)
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    use = use_table_series_ceda_allocator_to_cornerstone_schema(
+        load_bea_use_table(), ALLOCATION_SECTORS, "324110"
     )  # Petroleum refineries
     expenditure_on_petrol = use.sum()
     expenditure_on_non_energy_petrol = use.mul(1 - fuel_ratios).sum()
@@ -379,4 +383,4 @@ def allocate_industrial_petrol() -> pd.Series[float]:
     fuel_ratios = fuel_ratios.reindex(pct.index, fill_value=1.0)
 
     allocated = emissions * pct * fuel_ratios
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

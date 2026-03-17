@@ -7,8 +7,9 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_petrochemical_production,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 PETROCHEMICALS_TO_BEA_INDUSTRY_MAPPING: ta.Dict[str, CEDA_V7_SECTOR] = {
     "Carbon Black": "3252A0",
@@ -24,6 +25,6 @@ def allocate_petrochemical_production() -> pd.Series[float]:
     allocated = (
         emissions.groupby(PETROCHEMICALS_TO_BEA_INDUSTRY_MAPPING)  # type: ignore
         .sum()
-        .reindex(CEDA_V7_SECTORS, fill_value=0)
+        .reindex(get_allocation_sectors(), fill_value=0)
     )
     return allocated * MEGATONNE_TO_KG

@@ -6,8 +6,8 @@ from bedrock.extract.allocation.bea import load_bea_use_table
 from bedrock.extract.allocation.epa import (
     load_n2o_emissions_from_mobile_combustion,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_mobile_combustion() -> pd.Series[float]:
@@ -101,4 +101,4 @@ def allocate_mobile_combustion() -> pd.Series[float]:
         (ag_alloc, mining_alloc, transport_alloc, other_alloc)
     ).astype(float)
 
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

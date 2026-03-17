@@ -9,8 +9,8 @@ from bedrock.extract.allocation.epa import (
 from bedrock.transform.allocation.other_gases.common_ratios import (
     derive_make_use_ratios_for_hfcs_from_foams,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_hfc_32_foams() -> pd.Series[float]:
@@ -23,4 +23,7 @@ def allocate_hfc_32_foams() -> pd.Series[float]:
 
     allocated_vec = total_emission * derive_make_use_ratios_for_hfcs_from_foams()
 
-    return allocated_vec.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return (
+        allocated_vec.reindex(get_allocation_sectors(), fill_value=0.0)
+        * MEGATONNE_TO_KG
+    )

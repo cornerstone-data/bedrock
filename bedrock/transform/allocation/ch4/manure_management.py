@@ -7,8 +7,9 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_ch4_and_n2o_emissions_from_manure_management,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 EPA_LIVESTOCK_TO_BEA_INDUSTRY_ALLOCATION: ta.Dict[
     ta.Tuple[str, str], CEDA_V7_SECTOR
@@ -32,7 +33,7 @@ def allocate_manure_management() -> pd.Series[float]:
     allocated_vec = (
         emissions.groupby(EPA_LIVESTOCK_TO_BEA_INDUSTRY_ALLOCATION)  # type: ignore
         .sum()
-        .reindex(CEDA_V7_SECTORS, fill_value=0)
+        .reindex(get_allocation_sectors(), fill_value=0)
     )
 
     return allocated_vec * MEGATONNE_TO_KG

@@ -54,7 +54,9 @@ def test_load_bea_use_table_cache_per_schema() -> None:
     _clear_use_table_cache()
     config_ceda = USAConfig(use_cornerstone_2026_model_schema=False)
     config_cs = USAConfig(use_cornerstone_2026_model_schema=True)
-    with patch("bedrock.extract.allocation.bea.get_usa_config", return_value=config_ceda):
+    with patch(
+        "bedrock.extract.allocation.bea.get_usa_config", return_value=config_ceda
+    ):
         table_ceda = load_bea_use_table()
     with patch("bedrock.extract.allocation.bea.get_usa_config", return_value=config_cs):
         table_cs = load_bea_use_table()

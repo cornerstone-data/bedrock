@@ -7,8 +7,8 @@ from bedrock.extract.allocation.epa import (
     load_indirect_n2o_from_agricultural_soils,
 )
 from bedrock.extract.allocation.usda import load_animal_operation_land
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_soil_management_grassland() -> pd.Series[float]:
@@ -21,4 +21,6 @@ def allocate_soil_management_grassland() -> pd.Series[float]:
     land = load_animal_operation_land()
     pct = land / land.sum()
 
-    return (pct * total).reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return (pct * total).reindex(
+        get_allocation_sectors(), fill_value=0.0
+    ) * MEGATONNE_TO_KG

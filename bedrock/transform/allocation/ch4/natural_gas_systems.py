@@ -7,8 +7,9 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_ch4_emissions_from_natural_gas_systems,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 EPA_NATURAL_GAS_SYSTEMS_TO_BEA_INDUSTRY_MAPPING: ta.Dict[str, CEDA_V7_SECTOR] = {
     "Production": "211000",  # previously Field Production
@@ -27,7 +28,7 @@ def allocate_natural_gas_systems() -> pd.Series[float]:
         [EPA_NATURAL_GAS_SYSTEMS_TO_BEA_INDUSTRY_MAPPING[i] for i in emissions.index]
     )
 
-    allocated_vec = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    allocated_vec = pd.Series(0.0, index=get_allocation_sectors())
     allocated_industries = ["211000", "221200", "486000"]
     allocated_vec[allocated_industries] = emissions.groupby(level=0).sum()
 
