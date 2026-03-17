@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import functools
 import os
 import posixpath
+from collections.abc import Sequence
 
 import pandas as pd
 

@@ -84,7 +84,9 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
     mapping, subtraction_mapping = _get_mecs_3_1_naics_mappings()
     fraction_to_allocate = _fraction_coal_energy_to_allocate()
     mecs_3_1 = load_mecs_3_1()
-    mecs_overall_coal_usage: float = float(ta.cast(ta.Any, mecs_3_1.loc["Total", COAL_MECS_CODE]))
+    mecs_overall_coal_usage: float = float(
+        ta.cast(ta.Any, mecs_3_1.loc["Total", COAL_MECS_CODE])
+    )
     bea_use_table = load_bea_use_table()
     use_series = bea_use_table.loc[:, COAL_CODE]
     allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
@@ -185,10 +187,10 @@ def _fraction_coal_energy_to_allocate() -> float:
     table_a17_tbtu = load_table_a17_tbtu()
 
     mecs_total_coal = float(ta.cast(ta.Any, mecs_3_1.loc["Total", COAL_MECS_CODE]))
-    epa_total_coal_tbtu = float(ta.cast(ta.Any, table_a17_tbtu.loc["Total Coal", "Ind"]))
-    fraction: float = (
-        mecs_total_coal * COAL_MMBTU_PER_SHORT_TONNE / epa_total_coal_tbtu
+    epa_total_coal_tbtu = float(
+        ta.cast(ta.Any, table_a17_tbtu.loc["Total Coal", "Ind"])
     )
+    fraction: float = mecs_total_coal * COAL_MMBTU_PER_SHORT_TONNE / epa_total_coal_tbtu
 
     # MECS and EPA data may be from different years, and older
     # MECS data may have more coal consumption than EPA, even though
