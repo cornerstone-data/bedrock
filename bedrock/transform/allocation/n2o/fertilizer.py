@@ -4,7 +4,10 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.bea import (
+    load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
+)
 from bedrock.extract.allocation.epa import (
     load_direct_n2o_from_agricultural_soils,
     load_indirect_n2o_from_agricultural_soils,
@@ -35,9 +38,10 @@ INDIRECT_ACTIVITIES = [
 
 
 def allocate_fertilizer() -> pd.Series[float]:
-    bea_fertilizer_use = load_bea_use_table().loc[
-        pd.Index(FERTILIZER_SECTORS), "325310"
-    ]
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    bea_fertilizer_use = use_table_series_ceda_allocator_to_cornerstone_schema(
+        load_bea_use_table(), FERTILIZER_SECTORS, "325310"
+    )
     bea_fertilizer_use = bea_fertilizer_use / bea_fertilizer_use.sum()
 
     total = (

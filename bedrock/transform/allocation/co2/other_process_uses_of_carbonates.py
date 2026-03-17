@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.bea import (
+    load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
+)
 from bedrock.extract.allocation.epa import (
     load_recent_trends_in_ghg_emissions_and_sinks,
 )
@@ -246,9 +249,10 @@ def allocate_other_process_uses_of_carbonates() -> pd.Series[float]:
         "326220",
         "326290",
     ]
-    pct = load_bea_use_table().loc[
-        pd.Index(allocation_sectors), "325180"
-    ]  # Other Basic Inorganic Chemical Manufacturing
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    pct = use_table_series_ceda_allocator_to_cornerstone_schema(
+        load_bea_use_table(), allocation_sectors, "325180"
+    )  # Other Basic Inorganic Chemical Manufacturing
     pct = pct / pct.sum()
 
     emissions = load_recent_trends_in_ghg_emissions_and_sinks().loc[
