@@ -18,9 +18,9 @@ from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,8 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
         .squeeze()
     )
     use = load_bea_use_table().loc[:, "221200"].astype(float)
-
-    allocated = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
+    allocated = pd.Series(0.0, index=get_allocation_sectors())
 
     # Because the emission-to-be-allocated is defined as "Natural Gas to Chemical Plants",
     # here we only allocate emissions from non-energy use of natural gas to chemical industries (325XXX)
@@ -65,7 +65,11 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
         ceda_industries,
         mecs_mappings,
     ) in mapping.items():
-        total_use: float = use.loc[list(ceda_industries)].sum()
+        inds = list(ceda_industries)
+        total_use_ser = (
+            use.reindex(inds, fill_value=1.0) if use_cornerstone else use.loc[inds]
+        )
+        total_use: float = float(total_use_ser.sum())
         if total_use == 0:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
@@ -77,15 +81,21 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
             allocated[ceda_industry] = (
                 emissions
                 * (mecs_chemicals_subtotal / mecs_2_1_chemicals_sum)
-                * use[ceda_industry]
+                * float(total_use_ser[ceda_industry])
                 / total_use
             )
     for ceda_industries, (
         mecs_mappings,
         subtract_mappings,
     ) in subtraction_mapping.items():
-        total_use: float = use.loc[list(ceda_industries)].sum()  # type: ignore
-        if total_use == 0:
+        inds_sub = list(ceda_industries)
+        total_use_ser_sub = (
+            use.reindex(inds_sub, fill_value=1.0)
+            if use_cornerstone
+            else use.loc[inds_sub]
+        )
+        total_use_sub: float = float(total_use_ser_sub.sum())
+        if total_use_sub == 0:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
             continue
@@ -98,12 +108,12 @@ def allocate_non_energy_fuels_natural_gas() -> pd.Series[float]:
         ].sum()
         allocated_total = mecs_total - subtraction_total
         for ceda_industry in ceda_industries:
-            industry_use = use.loc[ceda_industry]
+            industry_use = float(total_use_ser_sub[ceda_industry])
             allocated[ceda_industry] = (
                 emissions
                 * (allocated_total / mecs_2_1_chemicals_sum)
                 * industry_use
-                / total_use
+                / total_use_sub
             )
     # There might be small under/over allocation due to independent rounding in MECS 2.1 table
     # Force the sum to be equal to emissions if 5% difference, otherwise raise an error

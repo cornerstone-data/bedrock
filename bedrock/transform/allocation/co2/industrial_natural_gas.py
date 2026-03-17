@@ -21,9 +21,9 @@ from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
     NON_MECS_INDUSTRIES,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MEGATONNE_TO_KG, NAT_GAS_BCF_TO_TRILLION_BTU
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 load_table_a17_tbtu = functools.cache(_load_table_a17_tbtu)
 load_mecs_3_1 = functools.cache(_load_mecs_3_1)
@@ -43,12 +43,10 @@ def get_total_natural_gas_emissions_to_allocate() -> float:
 SPECIAL_EXCEPTION_CODE = "316000"
 
 
-def _get_mecs_3_1_naics_mappings() -> (
-    tuple[
-        dict[tuple[str, ...], tuple[str, ...]],
-        dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
-    ]
-):
+def _get_mecs_3_1_naics_mappings() -> tuple[
+    dict[tuple[str, ...], tuple[str, ...]],
+    dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
+]:
     """Return (mapping, subtraction_mapping) for MECS 3.1 NAICS; use CORNERSTONE when schema flag is on."""
     if get_usa_config().use_cornerstone_2026_model_schema:
         return (
@@ -64,9 +62,7 @@ def _get_mecs_3_1_naics_mappings() -> (
 def allocate_industrial_natural_gas() -> pd.Series[float]:
     mapping, subtraction_mapping = _get_mecs_3_1_naics_mappings()
     all_mapped_industries = (
-        list(mapping.keys())
-        + list(subtraction_mapping.keys())
-        + NON_MECS_INDUSTRIES
+        list(mapping.keys()) + list(subtraction_mapping.keys()) + NON_MECS_INDUSTRIES
     )
     # Ensure no duplicates in the mapping because duplicates would be
     # an error as we'd have allocated to the same industry twice
@@ -91,12 +87,21 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
     mecs_overall_nat_gas_usage: float = mecs_3_1.loc["Total", NAT_GAS_MECS_CODE]  # type: ignore
     bea_use_table = load_bea_use_table()
 
-    allocated_ser = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
+    use_series = bea_use_table.loc[:, NAT_GAS_CODE]
+    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
+
     for (
         ceda_industries,
         mecs_mappings,
     ) in mapping.items():
-        total_use: float = bea_use_table.loc[list(ceda_industries), NAT_GAS_CODE].sum()
+        inds = list(ceda_industries)
+        total_use_ser = (
+            use_series.reindex(inds, fill_value=1.0)
+            if use_cornerstone
+            else use_series.loc[inds]
+        )
+        total_use: float = float(total_use_ser.sum())
         if total_use == 0 and SPECIAL_EXCEPTION_CODE not in ceda_industries:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
@@ -104,10 +109,10 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
         mecs_mappings = [m for m in mecs_mappings if m in mecs_3_1.index]  # type: ignore
         mecs_total: float = mecs_3_1.loc[list(mecs_mappings), NAT_GAS_MECS_CODE].sum()
         for ceda_industry in ceda_industries:
-            industry_use = bea_use_table.loc[ceda_industry, NAT_GAS_CODE]
+            industry_use = float(total_use_ser[ceda_industry])
             if ceda_industry == SPECIAL_EXCEPTION_CODE:
                 total_use = 1
-                industry_use = 1
+                industry_use = 1.0
             allocated_ser[ceda_industry] = (
                 # This is L3
                 get_total_natural_gas_emissions_to_allocate()  # type: ignore
@@ -121,8 +126,14 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
         mecs_mappings,
         subtract_mappings,
     ) in subtraction_mapping.items():
-        total_use: float = bea_use_table.loc[list(ceda_industries), NAT_GAS_CODE].sum()  # type: ignore
-        if total_use == 0:
+        inds_sub = list(ceda_industries)
+        total_use_ser_sub = (
+            use_series.reindex(inds_sub, fill_value=1.0)
+            if use_cornerstone
+            else use_series.loc[inds_sub]
+        )
+        total_use_sub: float = float(total_use_ser_sub.sum())
+        if total_use_sub == 0:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
             continue
@@ -134,13 +145,13 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
         ].sum()
         allocated_total = mecs_total - subtraction_total
         for ceda_industry in ceda_industries:
-            industry_use = bea_use_table.loc[ceda_industry, NAT_GAS_CODE]
+            industry_use = float(total_use_ser_sub[ceda_industry])
             allocated_ser[ceda_industry] = (
                 get_total_natural_gas_emissions_to_allocate()  # type: ignore
                 * (allocated_total / mecs_overall_nat_gas_usage)
                 * fraction_to_allocate
                 * industry_use
-                / total_use
+                / total_use_sub
             )
     return allocated_ser * MEGATONNE_TO_KG
 
@@ -155,7 +166,7 @@ def _allocate_remaining_industrial_nat_gas_usage() -> pd.Series[float]:
 
     remaining_energy_usage: float = 1.0 - _fraction_natural_gas_energy_to_allocate()
 
-    allocated_ser = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
     if remaining_energy_usage < 0:
         return allocated_ser
 

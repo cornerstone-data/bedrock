@@ -21,9 +21,9 @@ from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
     NON_MECS_INDUSTRIES,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import COAL_MMBTU_PER_SHORT_TONNE, MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 load_table_a17_tbtu = functools.cache(_load_table_a17_tbtu)
 load_mecs_3_1 = functools.cache(_load_mecs_3_1)
@@ -33,12 +33,10 @@ COAL_CODE = "212100"
 COAL_MECS_CODE = "Coal"
 
 
-def _get_mecs_3_1_naics_mappings() -> (
-    tuple[
-        dict[tuple[str, ...], tuple[str, ...]],
-        dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
-    ]
-):
+def _get_mecs_3_1_naics_mappings() -> tuple[
+    dict[tuple[str, ...], tuple[str, ...]],
+    dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
+]:
     """Return (mapping, subtraction_mapping) for MECS 3.1 NAICS; use CORNERSTONE when schema flag is on."""
     if get_usa_config().use_cornerstone_2026_model_schema:
         return (
@@ -59,9 +57,7 @@ def get_total_coal_emissions_to_allocate() -> float:
 def allocate_industrial_coal() -> pd.Series[float]:
     mapping, subtraction_mapping = _get_mecs_3_1_naics_mappings()
     all_mapped_industries = (
-        list(mapping.keys())
-        + list(subtraction_mapping.keys())
-        + NON_MECS_INDUSTRIES
+        list(mapping.keys()) + list(subtraction_mapping.keys()) + NON_MECS_INDUSTRIES
     )
     # Ensure no duplicates in the mapping because duplicates would be
     # an error as we'd have allocated to the same industry twice
@@ -84,22 +80,30 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
     mecs_3_1 = load_mecs_3_1()
     mecs_overall_coal_usage: float = mecs_3_1.loc["Total", COAL_MECS_CODE]
     bea_use_table = load_bea_use_table()
-    allocated_ser = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    use_series = bea_use_table.loc[:, COAL_CODE]
+    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
+    allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
     for (
         ceda_industries,
         mecs_mappings,
     ) in mapping.items():
-        total_use: float = bea_use_table.loc[list(ceda_industries), COAL_CODE].sum()
+        inds = list(ceda_industries)
+        total_use_ser = (
+            use_series.reindex(inds, fill_value=1.0)
+            if use_cornerstone
+            else use_series.loc[inds]
+        )
+        total_use: float = float(total_use_ser.sum())
         if total_use == 0:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
             continue
-        # The original spreadsheet just 0's out if the index canot be found
+        # The original spreadsheet just 0's out if the index cannot be found
         # we replicate that logic here
         mecs_mappings_to_use = [m for m in mecs_mappings if m in mecs_3_1.index]
         mecs_total: float = mecs_3_1.loc[mecs_mappings_to_use, COAL_MECS_CODE].sum()
         for ceda_industry in ceda_industries:
-            industry_use = bea_use_table.loc[ceda_industry, COAL_CODE]
+            industry_use = float(total_use_ser[ceda_industry])
             allocated_ser[ceda_industry] = (
                 # This is L3
                 get_total_coal_emissions_to_allocate()
@@ -112,8 +116,14 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
         mecs_mappings,
         subtract_mappings,
     ) in subtraction_mapping.items():
-        total_use: float = bea_use_table.loc[list(ceda_industries), COAL_CODE].sum()
-        if total_use == 0:
+        inds_sub = list(ceda_industries)
+        total_use_ser_sub = (
+            use_series.reindex(inds_sub, fill_value=1.0)
+            if use_cornerstone
+            else use_series.loc[inds_sub]
+        )
+        total_use_sub: float = float(total_use_ser_sub.sum())
+        if total_use_sub == 0:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
             continue
@@ -125,13 +135,13 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
         ].sum()
         allocated_total = mecs_total - subtraction_total
         for ceda_industry in ceda_industries:
-            industry_use = bea_use_table.loc[ceda_industry, COAL_CODE]
+            industry_use = float(total_use_ser_sub[ceda_industry])
             allocated_ser[ceda_industry] = (
                 get_total_coal_emissions_to_allocate()
                 * (allocated_total / mecs_overall_coal_usage)
                 * fraction_to_allocate
                 * industry_use
-                / total_use
+                / total_use_sub
             )
     return allocated_ser * MEGATONNE_TO_KG
 
@@ -145,7 +155,7 @@ def _allocate_remaining_industrial_coal_usage() -> pd.Series[float]:
 
     remaining_energy_usage: float = 1.0 - _fraction_coal_energy_to_allocate()
 
-    allocated_ser = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
 
     bea_use_table = load_bea_use_table()
     denominator: float = bea_use_table.loc[NON_MECS_INDUSTRIES, COAL_CODE].sum()
