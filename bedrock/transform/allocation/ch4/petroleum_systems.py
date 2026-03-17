@@ -7,8 +7,9 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_ch4_emissions_from_petroleum_systems,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
 
 EPA_EMISSION_SOURCE_TO_BEA_INDUSTRY_MAPPING: ta.Dict[str, CEDA_V7_SECTOR] = {
     # NOTE: No "Production Voluntary Reductions" found in Table 3-36 or 3-37
@@ -24,6 +25,6 @@ def allocate_petroleum_systems() -> pd.Series[float]:
         [EPA_EMISSION_SOURCE_TO_BEA_INDUSTRY_MAPPING[i] for i in emissions.index]
     )
 
-    allocated_vec = emissions.reindex(CEDA_V7_SECTORS, fill_value=0.0)
+    allocated_vec = emissions.reindex(get_allocation_sectors(), fill_value=0.0)
 
     return allocated_vec * MEGATONNE_TO_KG

@@ -21,9 +21,6 @@ from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
     load_bea_v2017_industry_to_bea_v2017_commodity,
 )
-from bedrock.utils.taxonomy.mappings.bea_v2017_industry__cornerstone_industry import (
-    load_bea_v2017_industry_to_cornerstone_industry,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +44,14 @@ def derive_E_usa_by_gas() -> pd.DataFrame:
 
 
 def derive_E_usa_emissions_sources() -> pd.DataFrame:
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        target_columns: list[str] = [str(sector) for sector in INDUSTRIES]
+    else:
+        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
     E_usa = pd.DataFrame(
         0.0,
         index=[es.value for es in EmissionsSource],
-        # NOTE: CEDA_V7_SECTORS is used as industry index here, E_usa will be divided by `g` already having CEDA_V7_SECTORS
-        columns=CEDA_V7_SECTORS,
+        columns=target_columns,
     )
 
     total_start = time.time()
@@ -60,7 +60,7 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
         allocated = allocator()
         if allocated.isna().any():
             raise ValueError(f"NaNs found in {es} allocator")
-        E_usa.loc[es.value, :] += allocated
+        E_usa.loc[es.value, :] += allocated.reindex(target_columns, fill_value=0.0)
 
     logger.info(
         f"[TIMING] All {len(ALLOCATED_EMISSIONS_REGISTRY)} allocations completed in {time.time() - total_start:.1f}s"
@@ -255,44 +255,39 @@ def load_E_from_flowsa() -> pd.DataFrame:
     new_index = E_usa.index.map(lambda x: reverse.get(x, x))
     E_usa = E_usa.groupby(new_index).agg('sum')
 
-    # Collapse across sectors
+    # Collapse across sectors (when CEDA: group BEA→CEDA; when Cornerstone: already in schema)
     if get_usa_config().use_cornerstone_2026_model_schema:
-        mapping = load_bea_v2017_industry_to_cornerstone_industry()
-        target_columns: list[str] = list(INDUSTRIES)
+        target_columns = [str(sector) for sector in INDUSTRIES]
+        # E_usa already has Cornerstone columns from derive_E_usa_emissions_sources
+        E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
     else:
-        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()  # type: ignore
-        target_columns = list(CEDA_V7_SECTORS)
-
-    col_to_target = {k: v[0] for k, v in mapping.items()}
-    # FBS can have sectors not in the mapping (e.g. cornerstone waste 562111, 562HAZ, ...);
-    # map any column that is already in the target schema to itself so groupby does not drop it
-    for c in E_usa.columns:
-        if c not in col_to_target and c in target_columns:
-            col_to_target[c] = c  # type: ignore
-    dropped_by_groupby = sorted(set(E_usa.columns) - set(col_to_target.keys()))
-    if dropped_by_groupby:
-        logger.warning(
-            "E_usa columns with no mapping (dropped by groupby): %s",
-            dropped_by_groupby,
-        )
-    E_usa = E_usa.groupby(col_to_target, axis=1).sum()  # type: ignore
-
-    # Assess columns vs target before reindexing
-    target_set = set(target_columns)
-    extra = sorted(set(E_usa.columns) - target_set)
-    missing = sorted(target_set - set(E_usa.columns))
-    if extra:
-        logger.warning(
-            "E_usa columns not in target schema (will be dropped by reindex): %s",
-            extra,
-        )
-    if missing:
-        logger.debug(
-            "Target schema columns missing from E_usa (will be filled with 0): %s",
-            missing,
-        )
-
-    E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
+        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
+        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
+        col_to_target = {k: v[0] for k, v in mapping.items()}
+        for c in E_usa.columns:
+            if c not in col_to_target and c in target_columns:
+                col_to_target[c] = c  # type: ignore
+        dropped_by_groupby = sorted(set(E_usa.columns) - set(col_to_target.keys()))
+        if dropped_by_groupby:
+            logger.warning(
+                "E_usa columns with no mapping (dropped by groupby): %s",
+                dropped_by_groupby,
+            )
+        E_usa = E_usa.groupby(col_to_target, axis=1).sum()  # type: ignore
+        target_set = set(target_columns)
+        extra = sorted(set(E_usa.columns) - target_set)
+        missing = sorted(target_set - set(E_usa.columns))
+        if extra:
+            logger.warning(
+                "E_usa columns not in target schema (will be dropped by reindex): %s",
+                extra,
+            )
+        if missing:
+            logger.debug(
+                "Target schema columns missing from E_usa (will be filled with 0): %s",
+                missing,
+            )
+        E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
 
     return E_usa
 

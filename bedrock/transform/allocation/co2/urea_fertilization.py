@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.bea import (
+    load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
+)
 from bedrock.extract.allocation.epa import (
     load_recent_trends_in_ghg_emissions_and_sinks,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_urea_fertilization() -> pd.Series[float]:
@@ -20,12 +23,13 @@ def allocate_urea_fertilization() -> pd.Series[float]:
         "111900",
         "112120",
     ]
-    pct = load_bea_use_table().loc[
-        pd.Index(allocation_sectors), "325310"
-    ]  # fertilizer manufacturing
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    pct = use_table_series_ceda_allocator_to_cornerstone_schema(
+        load_bea_use_table(), allocation_sectors, "325310"
+    )  # fertilizer manufacturing
     pct = pct / pct.sum()
     emissions = load_recent_trends_in_ghg_emissions_and_sinks().loc[
         ("CO2", "Urea Fertilization")
     ]
     allocated = emissions * pct
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

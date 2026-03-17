@@ -5,19 +5,43 @@ import logging
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.allocation.bea import load_bea_use_table
+from bedrock.extract.allocation.bea import (
+    load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
+)
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,
 )
 from bedrock.extract.allocation.mecs import load_mecs_2_1
+from bedrock.transform.allocation.mappings.cornerstone import (
+    CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
+    CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
+)
 from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
     CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 logger = logging.getLogger(__name__)
+
+
+def _get_mecs_2_1_naics_mappings() -> tuple[
+    dict[tuple[str, ...], tuple[str, ...]],
+    dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
+]:
+    """Return (mapping, subtraction_mapping) for MECS 2.1 NAICS; use CORNERSTONE when schema flag is on."""
+    if get_usa_config().use_cornerstone_2026_model_schema:
+        return (
+            CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
+            CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
+        )
+    return (
+        CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
+        CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
+    )
 
 
 def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
@@ -35,7 +59,7 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
         "Waxes",
         "Miscellaneous Products",
     ]
-    allocated = pd.Series(0.0, index=CEDA_V7_SECTORS)
+    allocated = pd.Series(0.0, index=get_allocation_sectors())
 
     # Emissions fron non-energy use of petrol products are categorized to 3 major buckets:
     # 1. Asphalt & Road Oil
@@ -71,12 +95,19 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
         mecs_2_1_other_sum - mecs_2_1_other[["324121", "324122"]].sum()
     )
 
-    use = load_bea_use_table()["324110"].astype(float)
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    use = use_table_series_ceda_allocator_to_cornerstone_schema(
+        load_bea_use_table(), get_allocation_sectors(), "324110"
+    )
+    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
+    mapping, subtraction_mapping = _get_mecs_2_1_naics_mappings()
     for (
         ceda_industries,
         mecs_mappings,
-    ) in CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING.items():
-        total_use: float = use.loc[list(ceda_industries)].sum()
+    ) in mapping.items():
+        inds = list(ceda_industries)
+        total_use_ser = use.reindex(inds, fill_value=0.0)
+        total_use: float = float(total_use_ser.sum())
         if total_use == 0:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
@@ -89,14 +120,16 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
         ].sum()
 
         for ceda_industry in ceda_industries:
-            if len(ceda_industries) == 1:
-                assert (
-                    use[ceda_industry] == total_use
-                ), f"There is only one sector in ceda_industries {ceda_industries}, but use by the industry {use[ceda_industry]} != total_use ({total_use})"
-            else:
-                assert (
-                    use[ceda_industry] <= total_use
-                ), f"There are more than one sector in ceda_industries {ceda_industries}, but use by a child industry {ceda_industry} ({use[ceda_industry]}) > total_use ({total_use})"
+            industry_use = float(total_use_ser[ceda_industry])
+            if not use_cornerstone:
+                if len(ceda_industries) == 1:
+                    assert (
+                        industry_use == total_use
+                    ), f"There is only one sector in ceda_industries {ceda_industries}, but use by the industry {industry_use} != total_use ({total_use})"
+                else:
+                    assert (
+                        industry_use <= total_use
+                    ), f"There are more than one sector in ceda_industries {ceda_industries}, but use by a child industry {ceda_industry} ({industry_use}) > total_use ({total_use})"
             if ceda_industry in ("324121", "324122"):
                 # Allocate asphalt and HGL emissions to asphalt industries (324121 and 324122)
                 allocated[ceda_industry] = (
@@ -105,32 +138,34 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
                         mecs_2_1_other[ceda_industry]
                         / mecs_2_1_other[["324121", "324122"]].sum()
                     )
-                    * use[ceda_industry]
+                    * industry_use
                     / total_use
                 ) + (
                     emissions_hgl
                     * (mecs_2_1_hgl[ceda_industry] / mecs_2_1_hgl_sum)
-                    * use[ceda_industry]
+                    * industry_use
                     / total_use
                 )
             else:
                 allocated[ceda_industry] = (
                     emissions_remaining
                     * (mecs_other_subtotal / mecs_2_1_other_sum_wo_asphalt)
-                    * use[ceda_industry]
+                    * industry_use
                     / total_use
                 ) + (
                     emissions_hgl
                     * (mecs_hgl_subtotal / mecs_2_1_hgl_sum)
-                    * use[ceda_industry]
+                    * industry_use
                     / total_use
                 )
     for ceda_industries, (
         mecs_mappings,
         subtract_mappings,
-    ) in CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING.items():
-        total_use = use.loc[list(ceda_industries)].sum()
-        if total_use == 0:
+    ) in subtraction_mapping.items():
+        inds_sub = list(ceda_industries)
+        total_use_ser_sub = use.reindex(inds_sub, fill_value=0.0)
+        total_use_sub: float = float(total_use_ser_sub.sum())
+        if total_use_sub == 0:
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
             continue
@@ -154,17 +189,17 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
         mecs_hgl_allocated_total = mecs_hgl_total - mecs_hgl_subtraction_total
 
         for ceda_industry in ceda_industries:
-            industry_use = use.loc[ceda_industry]
+            industry_use = float(total_use_ser_sub[ceda_industry])
             allocated[ceda_industry] = (
                 emissions_remaining
                 * (mecs_other_allocated_total / mecs_2_1_other_sum)
                 * industry_use
-                / total_use
+                / total_use_sub
             ) + (
                 emissions_hgl
                 * (mecs_hgl_allocated_total / mecs_2_1_hgl_sum)
                 * industry_use
-                / total_use
+                / total_use_sub
             )
     # There might be small under/over allocation due to independent rounding in MECS 2.1 table
     # Force the sum to be equal to emissions if 5% difference, otherwise raise an error

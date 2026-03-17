@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import os
 import posixpath
+from collections.abc import Sequence
 
 import pandas as pd
 
@@ -15,6 +16,15 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+
+# Schema alignment: CEDA allocator sectors → Cornerstone use table.
+_WASTE_AGGREGATE = "562000"
+_WASTE_SUBS = list(WASTE_DISAGG_COMMODITIES[_WASTE_AGGREGATE])
+_APPLIANCE_AGGREGATE = "335220"
+_APPLIANCE_SUBS = ["335221", "335222", "335224", "335228"]
+# CEDA 331313 = primary + secondary aluminum; Cornerstone has 331313 + 33131B.
+_CEDA_331313_CORNERSTONE_PARTS = ("331313", "33131B")
 
 GCS_BEA_PCE_DIR = posixpath.join(
     GCS_CEDA_INPUT_DIR, "BEA_PersonalConsumptionExpenditure"
@@ -41,18 +51,95 @@ def load_bea_make_table() -> pd.DataFrame:
 
 
 @functools.cache
-def load_bea_use_table() -> pd.DataFrame:
-    """
-    This is a wrapper function that loads the latest BEA Use and Final Demand tables.
-    WARNING: this table is 2017 Use (including Personal Consumption Expenditure) and is transposed from the original form,
-    so the rows are the industries and the columns are the commodities
-    NOTE: this table does NOT need to be inflation-adjusted, because inflation is applied to commodities,
-    and we are only using the proportions of each industry's consumption of each commodity,
-    the effect of inflation will be cancelled out when we apply the proportions to the inflation-adjusted commodities.
-    """
+def _load_bea_use_table_cached(use_cornerstone: bool) -> pd.DataFrame:
+    """Inner loader keyed by schema so both CEDA and Cornerstone can be cached."""
+    if use_cornerstone:
+        from bedrock.transform.eeio import derived_cornerstone  # noqa: PLC0415
+
+        uset = derived_cornerstone.derive_cornerstone_U_set()
+        U_combined = (uset.Udom + uset.Uimp).T
+        Y_cs = (
+            derived_cornerstone.derive_cornerstone_Y_personal_consumption_expenditure()
+            .to_frame()
+            .T
+        )
+        return pd.concat([U_combined, Y_cs])
     U_set = derive_2017_U_set_usa()
     Y_usa = derive_2017_Y_personal_consumption_expenditure_usa().to_frame()
     return pd.concat([(U_set.Udom + U_set.Uimp).T, Y_usa.T])
+
+
+def load_bea_use_table() -> pd.DataFrame:
+    """
+    Load BEA Use and Final Demand tables aligned to the model schema.
+
+    When use_cornerstone_2026_model_schema is False, returns CEDA v7 industry rows.
+    When True, returns Cornerstone industry rows (from derive_cornerstone_U_set and Y).
+    Rows = industries + one PCE row; columns = commodities. Result is cached per schema.
+    """
+    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
+    return _load_bea_use_table_cached(use_cornerstone)
+
+
+def _use_table_value_ceda_sector_cornerstone_aligned(
+    col: pd.Series,
+    table_idx: pd.Index,
+    ceda_sector: str,
+) -> float:
+    """
+    Value for one CEDA allocator sector from a use table (CEDA or Cornerstone shaped).
+
+    When the table is CEDA-shaped (Cornerstone schema not active), the sector is
+    in the index and we return it directly; alignment rules are skipped. When the
+    table is Cornerstone-shaped, we apply alignment: 562* → 562000, 335220 ↔ 4
+    appliance sectors, 331313 → 331313+33131B.
+    """
+    if ceda_sector in table_idx:
+        return float(col.loc[ceda_sector])
+    # 562000: consolidate waste subsectors (table has 562111, 562HAZ, ...)
+    if ceda_sector == _WASTE_AGGREGATE:
+        present = table_idx.intersection(pd.Index(_WASTE_SUBS))
+        if len(present) > 0:
+            return float(col.loc[present].sum())
+        return 0.0
+    # 335220: consolidate appliance subsectors (table has 335221, 335222, ...)
+    if ceda_sector == _APPLIANCE_AGGREGATE:
+        present = table_idx.intersection(pd.Index(_APPLIANCE_SUBS))
+        if len(present) > 0:
+            return float(col.loc[present].sum())
+        return 0.0
+    # 335221/335222/335224/335228: split 335220 equally (table has aggregate only)
+    if ceda_sector in _APPLIANCE_SUBS and _APPLIANCE_AGGREGATE in table_idx:
+        return float(col.loc[_APPLIANCE_AGGREGATE]) / len(_APPLIANCE_SUBS)
+    # 331313 (CEDA aggregate): sum Cornerstone 331313 + 33131B when present
+    if ceda_sector == "331313":
+        parts = [p for p in _CEDA_331313_CORNERSTONE_PARTS if p in table_idx]
+        if parts:
+            return float(col.loc[parts].sum())
+        return 0.0
+    return 0.0
+
+
+def use_table_series_ceda_allocator_to_cornerstone_schema(
+    use_table: pd.DataFrame,
+    ceda_allocator_sectors: Sequence[str],
+    commodity: str,
+) -> pd.Series:
+    """
+    Use-table series for CEDA allocator sectors, aligned to Cornerstone schema.
+
+    When the use table is CEDA-shaped (Cornerstone schema not active), sectors
+    are looked up directly; alignment is skipped. When Cornerstone-shaped,
+    alignment applies: 562* → 562000, 335220 ↔ 4 appliance sectors, 331313 →
+    331313+33131B. Missing sectors get 0. Safe to normalize (e.g. pct = s / s.sum()).
+    """
+    table_idx = use_table.index
+    col = use_table[commodity].astype(float)
+    values = [
+        _use_table_value_ceda_sector_cornerstone_aligned(col, table_idx, s)
+        for s in ceda_allocator_sectors
+    ]
+    return pd.Series(values, index=pd.Index(ceda_allocator_sectors))
 
 
 @functools.cache

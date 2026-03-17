@@ -5,8 +5,8 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_co2_emissions_from_fossil_fuels_for_non_energy_uses,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_non_energy_fuels_coal_coke() -> pd.Series[float]:
@@ -23,4 +23,4 @@ def allocate_non_energy_fuels_coal_coke() -> pd.Series[float]:
     allocated = pd.Series(
         {"2122A0": emissions}
     )  # Iron, gold, silver, and other metal ore mining
-    return allocated.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return allocated.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

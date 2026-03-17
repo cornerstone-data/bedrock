@@ -131,12 +131,12 @@ from bedrock.transform.allocation.other_gases import (
     allocate_sf6_semiconductor_manufacture,
     # fmt: on
 )
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.transform.allocation.utils import get_allocation_sectors
 
 
 def zero_allocator() -> pd.Series[float]:
     # for cases where there are no emissions to allocate
-    return pd.Series(0.0, index=CEDA_V7_SECTORS)
+    return pd.Series(0.0, index=get_allocation_sectors())
 
 
 ALLOCATED_EMISSIONS_REGISTRY: ta.Dict[ES, ta.Callable[[], pd.Series[float]]] = {

@@ -1,33 +1,42 @@
 from __future__ import annotations
 
+import typing as ta
+
 import pandas as pd
 
 from bedrock.extract.allocation.bea import (
     load_bea_make_table,
     load_bea_use_table,
+    use_table_series_ceda_allocator_to_cornerstone_schema,
 )
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.transform.allocation.utils import get_allocation_sectors
 
 
 def derive_make_use_ratios_for_hfcs_from_other_sources() -> pd.Series[float]:
     industrial_refrigerator = "333415"
     bea_make = load_bea_make_table()
-    industrial_refrigerator_production = bea_make.loc[
-        industrial_refrigerator, industrial_refrigerator
-    ]
-    household_refrigerator_production = bea_make.loc["335222", "335222"]
-    production_ratio = industrial_refrigerator_production / (  # type: ignore
-        industrial_refrigerator_production + household_refrigerator_production  # type: ignore
+    industrial_refrigerator_production = float(
+        ta.cast(ta.Any, bea_make.at[industrial_refrigerator, industrial_refrigerator])
+    )
+    household_refrigerator_production = float(
+        ta.cast(ta.Any, bea_make.at["335222", "335222"])
+    )
+    production_ratio = industrial_refrigerator_production / (
+        industrial_refrigerator_production + household_refrigerator_production
     )
 
     bea_use = load_bea_use_table()
-    consumption_ratio = bea_use.loc[
-        pd.Index(CEDA_V7_SECTORS), industrial_refrigerator
-    ] / (
-        bea_use.loc[
-            pd.Index(CEDA_V7_SECTORS + ["F01000"]), industrial_refrigerator
-        ].sum()
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    consumption_numer = use_table_series_ceda_allocator_to_cornerstone_schema(
+        bea_use, get_allocation_sectors(), industrial_refrigerator
     )
+    consumption_denom_ceda = float(consumption_numer.sum())
+    f01000 = (
+        float(ta.cast(ta.Any, bea_use.at["F01000", industrial_refrigerator]))
+        if "F01000" in bea_use.index
+        else 0.0
+    )
+    consumption_ratio = consumption_numer / (consumption_denom_ceda + f01000)
 
     return production_ratio * consumption_ratio
 
@@ -45,12 +54,29 @@ def derive_make_use_ratios_for_hfcs_from_foams() -> pd.Series[float]:
     u_foam_production_ratio = u_foam_production / total_foam_production
 
     bea_use = load_bea_use_table()
-    p_foam_consumption_ratio = bea_use.loc[pd.Index(CEDA_V7_SECTORS), p_foam] / (
-        bea_use.loc[pd.Index(CEDA_V7_SECTORS + ["F01000"]), p_foam].sum()
+
+    # CEDA allocator sectors aligned to Cornerstone schema when use table is Cornerstone.
+    p_foam_numer = use_table_series_ceda_allocator_to_cornerstone_schema(
+        bea_use, get_allocation_sectors(), p_foam
     )
-    u_foam_consumption_ratio = bea_use.loc[pd.Index(CEDA_V7_SECTORS), u_foam] / (
-        bea_use.loc[pd.Index(CEDA_V7_SECTORS + ["F01000"]), u_foam].sum()
+    p_foam_denom_ceda = float(p_foam_numer.sum())
+    p_foam_f01000 = (
+        float(ta.cast(ta.Any, bea_use.at["F01000", p_foam]))
+        if "F01000" in bea_use.index
+        else 0.0
     )
+    p_foam_consumption_ratio = p_foam_numer / (p_foam_denom_ceda + p_foam_f01000)
+
+    u_foam_numer = use_table_series_ceda_allocator_to_cornerstone_schema(
+        bea_use, get_allocation_sectors(), u_foam
+    )
+    u_foam_denom_ceda = float(u_foam_numer.sum())
+    u_foam_f01000 = (
+        float(ta.cast(ta.Any, bea_use.at["F01000", u_foam]))
+        if "F01000" in bea_use.index
+        else 0.0
+    )
+    u_foam_consumption_ratio = u_foam_numer / (u_foam_denom_ceda + u_foam_f01000)
 
     return (
         p_foam_production_ratio * p_foam_consumption_ratio

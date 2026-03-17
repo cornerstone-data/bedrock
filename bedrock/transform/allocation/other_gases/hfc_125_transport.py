@@ -9,8 +9,8 @@ from bedrock.extract.allocation.epa import (
 from bedrock.transform.allocation.other_gases.constants import (
     TRANSPORTATION_SOURCE_TO_BEA_INDUSTRY_MAPPING,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_hfc_125_transport() -> pd.Series[float]:
@@ -27,4 +27,7 @@ def allocate_hfc_125_transport() -> pd.Series[float]:
         .sum()
     ) * hfc_125_ratio
 
-    return allocated_vec.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return (
+        allocated_vec.reindex(get_allocation_sectors(), fill_value=0.0)
+        * MEGATONNE_TO_KG
+    )

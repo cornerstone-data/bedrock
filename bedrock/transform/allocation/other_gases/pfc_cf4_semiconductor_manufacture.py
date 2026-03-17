@@ -5,8 +5,8 @@ import pandas as pd
 from bedrock.extract.allocation.epa import (
     load_pfc_hfc_sf6_nf3_n2o_emissions_from_semiconductor_manufacture,
 )
+from bedrock.transform.allocation.utils import get_allocation_sectors
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 
 
 def allocate_pfc_cf4_semiconductor_manufacture() -> pd.Series[float]:
@@ -14,4 +14,4 @@ def allocate_pfc_cf4_semiconductor_manufacture() -> pd.Series[float]:
     emissions = pd.Series({"334413": table_4_94.loc["CF4"]})
     # only allocating to 334413 - semiconductor manufacture
 
-    return emissions.reindex(CEDA_V7_SECTORS, fill_value=0.0) * MEGATONNE_TO_KG
+    return emissions.reindex(get_allocation_sectors(), fill_value=0.0) * MEGATONNE_TO_KG

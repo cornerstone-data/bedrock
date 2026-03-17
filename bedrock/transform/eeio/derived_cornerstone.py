@@ -46,7 +46,6 @@ from bedrock.extract.iot.io_2017 import (
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_bea_intermediates import (
     bea_Aq,
-    bea_B,
     bea_E,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
@@ -579,25 +578,17 @@ def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
 def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
-    When load_E_from_flowsa is **off**: B is computed in BEA space and
-    expanded to 405 Cornerstone commodities.
-
-    When load_E_from_flowsa is **on**: B is computed in Cornerstone space
-    via derive_E_usa and .
+    Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
+    No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
-    if get_usa_config().load_E_from_flowsa:
-        E = derive_E_usa()  # This should be in cornerstone space
-        if get_usa_config().use_E_data_year_for_x_in_B:
-            x = derive_cornerstone_x_after_redefinition()
-        else:
-            x = derive_cornerstone_x()  # this is 2017 x
-        Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
-        Bi = E.divide(x, axis=1).fillna(0.0)
-        return Bi @ Vnorm
+    E = derive_E_usa()
+    if get_usa_config().use_E_data_year_for_x_in_B:
+        x = derive_cornerstone_x_after_redefinition()
     else:
-        return expand_ghg_matrix_from_bea_to_cornerstone(
-            bea_B(), CS_COMMODITY_LIST, cs_commodity_to_bea_map()
-        )
+        x = derive_cornerstone_x()
+    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+    Bi = E.divide(x, axis=1).fillna(0.0)
+    return Bi @ Vnorm
 
 
 @functools.cache
