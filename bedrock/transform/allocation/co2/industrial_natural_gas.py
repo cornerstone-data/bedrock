@@ -106,9 +106,9 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
             # If the total use is 0, we can't allocate anything
             # and we'll get a NaN so just leave as 0
             continue
-        mecs_mappings = [m for m in mecs_mappings if m in mecs_3_1.index]
+        mecs_mappings_to_use = [m for m in mecs_mappings if m in mecs_3_1.index]
         mecs_total: float = float(
-            mecs_3_1.loc[list(mecs_mappings), NAT_GAS_MECS_CODE].fillna(0).sum()
+            mecs_3_1.loc[mecs_mappings_to_use, NAT_GAS_MECS_CODE].fillna(0).sum()
         )
         for ceda_industry in ceda_industries:
             industry_use = float(total_use_ser[ceda_industry])
@@ -140,9 +140,9 @@ def _allocate_industrial_nat_gas_to_industries_energy_allocation() -> pd.Series[
         mecs_total_sub: float = float(
             mecs_3_1.loc[mecs_mappings_to_use, NAT_GAS_MECS_CODE].fillna(0).sum()
         )
-        subtract_mappings = [m for m in subtract_mappings if m in mecs_3_1.index]
+        subtract_mappings_to_use = [m for m in subtract_mappings if m in mecs_3_1.index]
         subtraction_total: float = float(
-            mecs_3_1.loc[list(subtract_mappings), NAT_GAS_MECS_CODE].fillna(0).sum()
+            mecs_3_1.loc[subtract_mappings_to_use, NAT_GAS_MECS_CODE].fillna(0).sum()
         )
         allocated_total = mecs_total_sub - subtraction_total
         for ceda_industry in ceda_industries:

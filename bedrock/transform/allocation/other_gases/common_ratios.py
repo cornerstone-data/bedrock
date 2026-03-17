@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing as ta
+
 import pandas as pd
 
 from bedrock.extract.allocation.bea import (
@@ -13,12 +15,14 @@ from bedrock.transform.allocation.utils import get_allocation_sectors
 def derive_make_use_ratios_for_hfcs_from_other_sources() -> pd.Series[float]:
     industrial_refrigerator = "333415"
     bea_make = load_bea_make_table()
-    industrial_refrigerator_production = bea_make.loc[
-        industrial_refrigerator, industrial_refrigerator
-    ]
-    household_refrigerator_production = bea_make.loc["335222", "335222"]
-    production_ratio = industrial_refrigerator_production / (  # type: ignore
-        industrial_refrigerator_production + household_refrigerator_production  # type: ignore
+    industrial_refrigerator_production = float(
+        ta.cast(ta.Any, bea_make.at[industrial_refrigerator, industrial_refrigerator])
+    )
+    household_refrigerator_production = float(
+        ta.cast(ta.Any, bea_make.at["335222", "335222"])
+    )
+    production_ratio = industrial_refrigerator_production / (
+        industrial_refrigerator_production + household_refrigerator_production
     )
 
     bea_use = load_bea_use_table()
@@ -27,8 +31,8 @@ def derive_make_use_ratios_for_hfcs_from_other_sources() -> pd.Series[float]:
         bea_use, get_allocation_sectors(), industrial_refrigerator
     )
     consumption_denom_ceda = float(consumption_numer.sum())
-    f01000 = float(
-        bea_use.loc["F01000", industrial_refrigerator]  # type: ignore[index]
+    f01000 = (
+        float(ta.cast(ta.Any, bea_use.at["F01000", industrial_refrigerator]))
         if "F01000" in bea_use.index
         else 0.0
     )
@@ -56,8 +60,8 @@ def derive_make_use_ratios_for_hfcs_from_foams() -> pd.Series[float]:
         bea_use, get_allocation_sectors(), p_foam
     )
     p_foam_denom_ceda = float(p_foam_numer.sum())
-    p_foam_f01000 = float(
-        bea_use.loc["F01000", p_foam]  # type: ignore[index]
+    p_foam_f01000 = (
+        float(ta.cast(ta.Any, bea_use.at["F01000", p_foam]))
         if "F01000" in bea_use.index
         else 0.0
     )
@@ -67,8 +71,8 @@ def derive_make_use_ratios_for_hfcs_from_foams() -> pd.Series[float]:
         bea_use, get_allocation_sectors(), u_foam
     )
     u_foam_denom_ceda = float(u_foam_numer.sum())
-    u_foam_f01000 = float(
-        bea_use.loc["F01000", u_foam]  # type: ignore[index]
+    u_foam_f01000 = (
+        float(ta.cast(ta.Any, bea_use.at["F01000", u_foam]))
         if "F01000" in bea_use.index
         else 0.0
     )

@@ -45,9 +45,9 @@ def derive_E_usa_by_gas() -> pd.DataFrame:
 
 def derive_E_usa_emissions_sources() -> pd.DataFrame:
     if get_usa_config().use_cornerstone_2026_model_schema:
-        target_columns: list[str] = list(INDUSTRIES)
+        target_columns: list[str] = [str(sector) for sector in INDUSTRIES]
     else:
-        target_columns = list(CEDA_V7_SECTORS)
+        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
     E_usa = pd.DataFrame(
         0.0,
         index=[es.value for es in EmissionsSource],
@@ -257,12 +257,12 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     # Collapse across sectors (when CEDA: group BEA→CEDA; when Cornerstone: already in schema)
     if get_usa_config().use_cornerstone_2026_model_schema:
-        target_columns = list(INDUSTRIES)
+        target_columns = [str(sector) for sector in INDUSTRIES]
         # E_usa already has Cornerstone columns from derive_E_usa_emissions_sources
         E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
     else:
-        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()  # type: ignore
-        target_columns = list(CEDA_V7_SECTORS)
+        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
+        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
         col_to_target = {k: v[0] for k, v in mapping.items()}
         for c in E_usa.columns:
             if c not in col_to_target and c in target_columns:

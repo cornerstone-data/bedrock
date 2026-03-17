@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import functools
 import os
 import posixpath
@@ -121,7 +123,7 @@ def _use_table_value_ceda_sector_cornerstone_aligned(
 
 def use_table_series_ceda_allocator_to_cornerstone_schema(
     use_table: pd.DataFrame,
-    ceda_allocator_sectors: list[str],
+    ceda_allocator_sectors: Sequence[str],
     commodity: str,
 ) -> pd.Series:
     """

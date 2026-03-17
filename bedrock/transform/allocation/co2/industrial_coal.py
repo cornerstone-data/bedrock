@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import typing as ta
 
 import pandas as pd
 
@@ -83,7 +84,7 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
     mapping, subtraction_mapping = _get_mecs_3_1_naics_mappings()
     fraction_to_allocate = _fraction_coal_energy_to_allocate()
     mecs_3_1 = load_mecs_3_1()
-    mecs_overall_coal_usage: float = mecs_3_1.loc["Total", COAL_MECS_CODE]
+    mecs_overall_coal_usage: float = float(ta.cast(ta.Any, mecs_3_1.loc["Total", COAL_MECS_CODE]))
     bea_use_table = load_bea_use_table()
     use_series = bea_use_table.loc[:, COAL_CODE]
     allocated_ser = pd.Series(0.0, index=get_allocation_sectors())
@@ -129,9 +130,9 @@ def _allocate_industrial_coal_to_industries_energy_allocation() -> pd.Series[flo
         mecs_total = float(
             mecs_3_1.loc[mecs_mappings_to_use, COAL_MECS_CODE].fillna(0).sum()
         )
-        subtract_mappings = [m for m in subtract_mappings if m in mecs_3_1.index]
+        subtract_mappings_to_use = [m for m in subtract_mappings if m in mecs_3_1.index]
         subtraction_total: float = float(
-            mecs_3_1.loc[list(subtract_mappings), COAL_MECS_CODE].fillna(0).sum()
+            mecs_3_1.loc[subtract_mappings_to_use, COAL_MECS_CODE].fillna(0).sum()
         )
         allocated_total = mecs_total - subtraction_total
         for ceda_industry in ceda_industries:
@@ -183,10 +184,10 @@ def _fraction_coal_energy_to_allocate() -> float:
     mecs_3_1 = load_mecs_3_1()
     table_a17_tbtu = load_table_a17_tbtu()
 
+    mecs_total_coal = float(ta.cast(ta.Any, mecs_3_1.loc["Total", COAL_MECS_CODE]))
+    epa_total_coal_tbtu = float(ta.cast(ta.Any, table_a17_tbtu.loc["Total Coal", "Ind"]))
     fraction: float = (
-        mecs_3_1.loc["Total", COAL_MECS_CODE]
-        * COAL_MMBTU_PER_SHORT_TONNE
-        / table_a17_tbtu.loc["Total Coal", "Ind"]
+        mecs_total_coal * COAL_MMBTU_PER_SHORT_TONNE / epa_total_coal_tbtu
     )
 
     # MECS and EPA data may be from different years, and older
