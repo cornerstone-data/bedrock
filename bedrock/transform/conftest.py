@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+import bedrock.utils.config.common as common
 from bedrock.utils.snapshots.loader import load_current_snapshot
 
 
@@ -10,8 +11,6 @@ from bedrock.utils.snapshots.loader import load_current_snapshot
 def download_fba_on_api_error_for_eeio_tests(request: pytest.FixtureRequest) -> None:
     """When running eeio_integration tests, download FBA from GCS if API key is missing."""
     if request.node.get_closest_marker("eeio_integration"):
-        import bedrock.utils.config.common as common
-
         common.download_fba_on_api_error = True
 
 
