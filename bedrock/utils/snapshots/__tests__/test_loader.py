@@ -21,4 +21,4 @@ def test_resolve_snapshot_key_uses_v0_when_config_defaults() -> None:
 
 def test_resolve_snapshot_key_uses_configured_git_sha() -> None:
     set_global_usa_config("test_usa_config_git_sha.yaml")
-    assert resolve_snapshot_key() == "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
+    assert resolve_snapshot_key() == "a0e514e361bb0a87cd40b68b1eccc8bb911fa35c"

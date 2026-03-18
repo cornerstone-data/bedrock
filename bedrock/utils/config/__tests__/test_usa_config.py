@@ -68,7 +68,7 @@ def test_global_usa_config_with_snapshot_git_sha() -> None:
     usa_config = get_usa_config()
     assert (
         usa_config.snapshot_version_or_git_sha
-        == "ff3c5a0ea73b26cecd09fd0613b8b34e1f30bcdc"
+        == "a0e514e361bb0a87cd40b68b1eccc8bb911fa35c"
     )
 
 
