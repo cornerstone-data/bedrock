@@ -12,6 +12,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+import bedrock.utils.config.common as common
 from bedrock.utils.config.settings import GIT_HASH_LONG, PATHS
 from bedrock.utils.config.usa_config import set_global_usa_config
 from bedrock.utils.io.gcp import upload_file_to_gcs
@@ -143,6 +144,9 @@ def generate_snapshots(
     """Generate snapshots for all USA matrices and upload to GCS."""
     total_start = time.time()
     set_global_usa_config(config_name)
+
+    # If an FBA requires an API key to generate, download the FBA from GCS
+    common.download_fba_on_api_error = True
 
     # Late-binding imports after config is set
     from bedrock.transform.allocation.derived import derive_E_usa
