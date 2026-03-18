@@ -52,4 +52,4 @@ def test_generate_diagnostics_writes_baseline_snapshot_key_to_config_summary() -
         written_df['config_field'] == 'baseline_snapshot_key_used', 'value'
     ]
     assert len(baseline_row) == 1
-    assert baseline_row.iloc[0] == 'a0e514e361bb0a87cd40b68b1eccc8bb911fa35c'
+    assert baseline_row.iloc[0] == '1bda811e0169436ae90fd356fbef512ce7518ccb'
