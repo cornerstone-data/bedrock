@@ -38,7 +38,7 @@ from bedrock.transform.allocation.other_gases import (
     allocate_sf6_magnesium_production,
     allocate_sf6_semiconductor_manufacture,
 )
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.transform.allocation.utils import get_allocation_sectors
 
 
 if ta.TYPE_CHECKING:
@@ -90,7 +90,7 @@ def test_other_gases(
     es: ES, allocator: AllocatorType, E_usa_es_snapshot: pd.DataFrame
 ) -> None:
     allocated = allocator()
-    assert set(allocated.index) == set(CEDA_V7_SECTORS)
+    assert set(allocated.index) == set(get_allocation_sectors())
     assert not allocated.isna().any()
     # TODO bring back equality tests after we update snapshot
     expected = E_usa_es_snapshot.loc[es, :]

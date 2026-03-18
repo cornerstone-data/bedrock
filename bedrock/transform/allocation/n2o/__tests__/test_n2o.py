@@ -31,7 +31,7 @@ from bedrock.transform.allocation.n2o import (
     allocate_stationary_combustion_residential,
     allocate_wastewater_treatment,
 )
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.transform.allocation.utils import get_allocation_sectors
 
 if ta.TYPE_CHECKING:
     AllocatorType = ta.Callable[[], pd.Series[float]]
@@ -73,7 +73,7 @@ def test_n2o_allocators_present() -> None:
 @pytest.mark.parametrize("es,allocator", N20_ALLOCATION.items())
 def test_n2o(es: ES, allocator: AllocatorType, E_usa_es_snapshot: pd.DataFrame) -> None:
     allocated = allocator()
-    assert set(allocated.index) == set(CEDA_V7_SECTORS)
+    assert set(allocated.index) == set(get_allocation_sectors())
     assert not allocated.isna().any()
     # TODO bring back equality tests after we update snapshot
     expected = E_usa_es_snapshot.loc[es, :]
