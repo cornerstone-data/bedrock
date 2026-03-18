@@ -92,9 +92,3 @@ def test_other_gases(
     allocated = allocator()
     assert set(allocated.index) == set(get_allocation_sectors())
     assert not allocated.isna().any()
-    # TODO bring back equality tests after we update snapshot
-    expected = E_usa_es_snapshot.loc[es, :]
-
-    logger.info(
-        f"{es} {allocated.sum() / expected.sum():.2f} allocated {allocated.sum():.2f} vs expected {expected.sum():.2f}"
-    )
