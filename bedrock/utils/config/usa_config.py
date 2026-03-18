@@ -75,7 +75,9 @@ class USAConfig(BaseModel):
     # The git SHA below is the baseline snapshots generated on main with
     # configuration: 2025_usa_cornerstone_full_model.
     snapshot_version_or_git_sha: ta.Literal[
-        'v0', 'a0e514e361bb0a87cd40b68b1eccc8bb911fa35c', '1bda811e0169436ae90fd356fbef512ce7518ccb'
+        'v0',
+        'a0e514e361bb0a87cd40b68b1eccc8bb911fa35c',
+        '1bda811e0169436ae90fd356fbef512ce7518ccb',
     ] = 'v0'
 
     @property
