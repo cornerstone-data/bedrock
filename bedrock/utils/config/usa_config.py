@@ -40,34 +40,12 @@ class USAConfig(BaseModel):
     ipcc_ar_version: ta.Literal['AR5', 'AR6'] = 'AR6'
 
     #####
-    # Methodology selection
+    # IO methodology experiments (kept for future evaluation)
     #####
-    ### Schema/Taxonomy selection
-    use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
-    ### IO Methodology selection
-    use_E_data_year_for_x_in_B: bool = False  # DRI: mo.li
-    implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_price_index: bool = False  # DRI: mo.li
-    ### GHG Methodology selection
-    load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
-    usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
-    update_transportation_ghg_method: bool = False  # DRI: ben.young
-    update_ghg_coa_allocation: bool = False  # DRI: catherine.birney
-    update_electricity_ghg_method: bool = False  # DRI: catherine.birney
-    update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
-        False  # DRI: catherine.birney
-    )
-    new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
-    update_flowsa_refrigerant_method: bool = False  # DRI: catherine.birney
-    add_new_ghg_activities: bool = False  # DRI: catherine.birney
-    update_enteric_fermentation_and_manure_management_ghg_method: bool = (
-        False  # DRI: mo.li
-    )
-    update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
-    update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
 
     #####
     # Baseline snapshot
