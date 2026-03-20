@@ -1,72 +1,23 @@
 from __future__ import annotations
 
 import logging
-import time
 
 import pandas as pd
 
-from bedrock.transform.allocation.constants import EmissionsSource
-from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.config.common import load_crosswalk
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
-from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
-from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
-    load_bea_v2017_industry_to_bea_v2017_commodity,
-)
 
 logger = logging.getLogger(__name__)
 
 
 def derive_E_usa() -> pd.DataFrame:
-    if get_usa_config().load_E_from_flowsa:
-        # Return E_usa (ghg × CEDA v7 sectors). Branches on config load_E_from_flowsa.
-        # TODO: update future FBS calls with if else gating here
-        return load_E_from_flowsa()
-    else:
-        # aggregate E from 15 gases to 7 gases
-        return create_correspondence_matrix(GHG_MAPPING).T @ derive_E_usa_by_gas()
-
-
-def derive_E_usa_by_gas() -> pd.DataFrame:
-    return (
-        derive_E_usa_emissions_sources()
-        .groupby(lambda es: EmissionsSource(es).gas, axis=0)  # type: ignore
-        .sum()
-    )
-
-
-def derive_E_usa_emissions_sources() -> pd.DataFrame:
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        target_columns: list[str] = [str(sector) for sector in INDUSTRIES]
-    else:
-        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
-    E_usa = pd.DataFrame(
-        0.0,
-        index=[es.value for es in EmissionsSource],
-        columns=target_columns,
-    )
-
-    total_start = time.time()
-    for es, allocator in ALLOCATED_EMISSIONS_REGISTRY.items():
-        logger.info(f"Allocating {es}")
-        allocated = allocator()
-        if allocated.isna().any():
-            raise ValueError(f"NaNs found in {es} allocator")
-        E_usa.loc[es.value, :] += allocated.reindex(target_columns, fill_value=0.0)
-
-    logger.info(
-        f"[TIMING] All {len(ALLOCATED_EMISSIONS_REGISTRY)} allocations completed in {time.time() - total_start:.1f}s"
-    )
-
-    return E_usa
+    return load_E_from_flowsa()
 
 
 def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
@@ -100,18 +51,9 @@ def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
     )
     fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
 
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        mapping = get_activitytosector_mapping('Cornerstone_2025').drop_duplicates(
-            subset='Sector', keep='first'
-        )
-    else:
-        mapping = (
-            get_activitytosector_mapping('CEDA_2025')
-            # we don't want to map back to the sectors that are aggregated so keep only first
-            # this assumes that the first listed mapping is the priority.
-            # TODO: update to rely on the reported CEDA schema.
-            .drop_duplicates(subset='Sector', keep='first')
-        )
+    mapping = get_activitytosector_mapping('Cornerstone_2025').drop_duplicates(
+        subset='Sector', keep='first'
+    )
     fbs2 = (
         fbs2.merge(
             mapping[['Activity', 'Sector']],
@@ -133,55 +75,8 @@ def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_E_from_flowsa() -> pd.DataFrame:
-    """Load E_usa (GHG × CEDA v7 sectors) from the CEDA FBS.
-
-    FBS method is chosen by USA config (first match wins):
-    - GHG_national_Cornerstone_2023 when
-      new_ghg_method is True
-    - GHG_national_Cornerstone_2023_coa_allocation when update_ghg_coa_allocation is True
-    - GHG_national_Cornerstone_2023_electricity when
-      update_electricity_ghg_method is True
-    - GHG_national_Cornerstone_2023_petroleum_natgas when
-      update_ghg_attribution_method_for_ng_and_petrol_systems is True
-    - GHG_national_Cornerstone_2023_refrigerants_foams when
-      update_flowsa_refrigerant_method is True
-    - GHG_national_Cornerstone_2023_new_activities when
-      add_new_ghg_activities is True
-    - GHG_national_Cornerstone_2023_other_gases when
-      update_other_gases_ghg_method is True
-    - GHG_national_Cornerstone_2023_mobile_combustion when update_transportation_ghg_method is True
-    - GHG_national_Cornerstone_2023_ag_livestock when
-      update_enteric_fermentation_and_manure_management_ghg_method is True
-    - GHG_national_Cornerstone_2023_ag_soils when
-      update_liming_and_fertilizer_ghg_method is True
-    - GHG_national_CEDA_2023 otherwise
-
-    Only used when load_E_from_flowsa is True in USA config.
-    """
-    usa = get_usa_config()
-    if usa.new_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023'
-    elif usa.update_ghg_coa_allocation:
-        methodname = 'GHG_national_Cornerstone_2023_coa_allocation'
-    elif usa.update_electricity_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_electricity'
-    elif usa.update_other_gases_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_other_gases'
-    elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
-        methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
-    elif usa.update_flowsa_refrigerant_method:
-        methodname = "GHG_national_Cornerstone_2023_refrigerants_foams"
-    elif usa.update_transportation_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_mobile_combustion'
-    elif usa.add_new_ghg_activities:
-        methodname = 'GHG_national_Cornerstone_2023_new_activities'
-    elif usa.update_enteric_fermentation_and_manure_management_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_ag_livestock'
-    elif usa.update_liming_and_fertilizer_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_ag_soils'
-    else:
-        methodname = 'GHG_national_CEDA_2023'
-    fbs = getFlowBySector(methodname=methodname)
+    """Load E_usa (GHG × sectors) via the Cornerstone FlowBySector method."""
+    fbs = getFlowBySector(methodname='GHG_national_Cornerstone_2023')
 
     fbs = map_to_CEDA(fbs)
 
@@ -255,48 +150,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
     new_index = E_usa.index.map(lambda x: reverse.get(x, x))
     E_usa = E_usa.groupby(new_index).agg('sum')
 
-    # Collapse across sectors (when CEDA: group BEA→CEDA; when Cornerstone: already in schema)
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        target_columns = [str(sector) for sector in INDUSTRIES]
-        # E_usa already has Cornerstone columns from derive_E_usa_emissions_sources
-        E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
-    else:
-        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
-        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
-        col_to_target = {k: v[0] for k, v in mapping.items()}
-        for c in E_usa.columns:
-            if c not in col_to_target and c in target_columns:
-                col_to_target[c] = c  # type: ignore
-        dropped_by_groupby = sorted(set(E_usa.columns) - set(col_to_target.keys()))
-        if dropped_by_groupby:
-            logger.warning(
-                "E_usa columns with no mapping (dropped by groupby): %s",
-                dropped_by_groupby,
-            )
-        E_usa = E_usa.groupby(col_to_target, axis=1).sum()  # type: ignore
-        target_set = set(target_columns)
-        extra = sorted(set(E_usa.columns) - target_set)
-        missing = sorted(target_set - set(E_usa.columns))
-        if extra:
-            logger.warning(
-                "E_usa columns not in target schema (will be dropped by reindex): %s",
-                extra,
-            )
-        if missing:
-            logger.debug(
-                "Target schema columns missing from E_usa (will be filled with 0): %s",
-                missing,
-            )
-        E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
+    # Reindex to Cornerstone schema
+    target_columns = [str(sector) for sector in INDUSTRIES]
+    E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
 
     return E_usa
 
 
-if __name__ == "__main__":
-    from bedrock.utils.config.usa_config import set_global_usa_config
-
-    set_global_usa_config("2025_usa_cornerstone_taxonomy_and_waste_disagg.yaml")
-    df1 = load_E_from_flowsa()
-    # df2 = derive_E_usa()
-    # row_diff = df1.sum(axis=1) - df2.sum(axis=1)
-    # row_rel_diff = df1.sum(axis=1) / df2.sum(axis=1)
