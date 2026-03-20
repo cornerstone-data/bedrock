@@ -90,11 +90,6 @@ class TestWeightProvider:
     def teardown_method(self) -> None:
         _teardown()
 
-    def test_returns_none_when_disabled(self) -> None:
-        _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
-        result = get_waste_disagg_weights()
-        assert result is None
-
     def test_returns_weights_when_enabled(self) -> None:
         _setup_config("test_usa_config_waste_disagg")
         result = get_waste_disagg_weights()
@@ -102,14 +97,10 @@ class TestWeightProvider:
         assert isinstance(result, WasteDisaggWeights)
 
     def test_cache_clearing_reflects_new_config(self) -> None:
-        _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
-        result1 = get_waste_disagg_weights()
-        assert result1 is None
-
         _setup_config("test_usa_config_waste_disagg")
-        result2 = get_waste_disagg_weights()
-        assert result2 is not None
-        assert isinstance(result2, WasteDisaggWeights)
+        result = get_waste_disagg_weights()
+        assert result is not None
+        assert isinstance(result, WasteDisaggWeights)
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +110,7 @@ class TestWeightProvider:
 
 @pytest.fixture(scope="module")
 def baseline_V() -> pd.DataFrame:
-    _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
+    _setup_config("test_usa_config_waste_disagg")
     V = derive_cornerstone_V()
     _teardown()
     return V
@@ -127,7 +118,7 @@ def baseline_V() -> pd.DataFrame:
 
 @pytest.fixture(scope="module")
 def baseline_U() -> tuple[pd.DataFrame, pd.DataFrame]:
-    _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
+    _setup_config("test_usa_config_waste_disagg")
     uset = derive_cornerstone_U_with_negatives()
     result = (pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp))
     _teardown()
@@ -136,7 +127,7 @@ def baseline_U() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 @pytest.fixture(scope="module")
 def baseline_Ytot() -> pd.DataFrame:
-    _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
+    _setup_config("test_usa_config_waste_disagg")
     Ytot = _derive_cornerstone_Ytot_with_trade()
     _teardown()
     return Ytot
@@ -144,7 +135,7 @@ def baseline_Ytot() -> pd.DataFrame:
 
 @pytest.fixture(scope="module")
 def baseline_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
-    _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
+    _setup_config("test_usa_config_waste_disagg")
     aq = derive_cornerstone_Aq()
     result = (pd.DataFrame(aq.Adom), pd.DataFrame(aq.Aimp), aq.scaled_q.copy())
     _teardown()
@@ -153,7 +144,7 @@ def baseline_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
 
 @pytest.fixture(scope="module")
 def baseline_B() -> pd.DataFrame | None:
-    _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
+    _setup_config("test_usa_config_waste_disagg")
     try:
         B = derive_cornerstone_B_via_vnorm()
     except Exception:
@@ -444,35 +435,3 @@ class TestPipelineB:
         ), "B non-waste columns should match between baseline and disaggregated configs"
 
 
-# ---------------------------------------------------------------------------
-# Feature-off regression test (waste_disagg)
-# ---------------------------------------------------------------------------
-
-
-class TestFeatureOffRegression:
-
-    def test_feature_off_V_matches_baseline(self) -> None:
-        _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
-        assert get_waste_disagg_weights() is None
-        V = derive_cornerstone_V()
-        _teardown()
-
-        _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
-        V2 = derive_cornerstone_V()
-        _teardown()
-
-        np.testing.assert_array_equal(V.values, V2.values)
-
-    def test_feature_off_Aq_uses_expansion_path(self) -> None:
-        _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
-        assert get_waste_disagg_weights() is None
-        aq = derive_cornerstone_Aq()
-        Adom = pd.DataFrame(aq.Adom)
-        waste_in = [c for c in _WASTE_NEW_CODES if c in Adom.index]
-        waste_block = Adom.loc[waste_in, waste_in]
-        off_diag = waste_block.values.copy()
-        np.fill_diagonal(off_diag, 0.0)
-        assert np.allclose(
-            off_diag, 0.0
-        ), "With feature off, intragroup treatment should zero waste cross-terms"
-        _teardown()
