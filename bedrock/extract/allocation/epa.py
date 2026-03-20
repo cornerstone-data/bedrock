@@ -8,7 +8,6 @@ import typing as ta
 import pandas as pd
 
 from bedrock.extract.allocation.epa_constants import (
-    EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2022,
     EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023,
     EPA_TABLE_NAMES,
     TBL_NUMBERS,
@@ -25,7 +24,7 @@ IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 def _get_epa_data_year() -> int:
     """Get EPA main and annex table years from config"""
     year = get_usa_config().usa_ghg_data_year
-    if year not in [2022, 2023]:
+    if year not in [2023, 2024]:
         raise ValueError(f"Unsupported EPA GHG data year: {year}")
     return year
 
@@ -33,66 +32,33 @@ def _get_epa_data_year() -> int:
 def _get_epa_table_name_to_table_number_map() -> (
     ta.Mapping[EPA_TABLE_NAMES, TBL_NUMBERS]
 ):
-    year = _get_epa_data_year()
-    if year == 2022:
-        return EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2022
-    elif year == 2023:
-        return EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023
-    else:
-        raise ValueError(f"Unsupported EPA GHG data year: {year}")
+    return EPA_TABLE_NAME_TO_TABLE_NUMBER_MAP_2023
 
 
 def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
     """Get GCS EPA directories based on config year"""
-    year = _get_epa_data_year()
     section = tbl_name.split("-")[0]
 
-    main_or_annex_dir = (
-        {
-            "main": "EPA_GHGI_2022_Main_Tables",
-            "annex": "EPA_GHGI_2022_Annex_Tables",
-        }
-        if year == 2022
-        else {
-            "main": "EPA_GHGI_2023_Selected_Tables",
-            "annex": posixpath.join("EPA_GHGI_2023_Selected_Tables", "Annex"),
-        }
-    )
-    # # TODO: eventually go to the full set of csv tables for 2023
-    # # replacing the above if else chunk
-    # main_or_annex_dir = {
-    #     "main": f"EPA_GHGI_{year}_Main_Tables",
-    #     "annex": f"EPA_GHGI_{year}_Annex_Tables",
-    # }
+    main_or_annex_dir = {
+        "main": "EPA_GHGI_2023_Selected_Tables",
+        "annex": posixpath.join("EPA_GHGI_2023_Selected_Tables", "Annex"),
+    }
 
     if section == "A":
         return posixpath.join(
             GCS_CEDA_INPUT_DIR, main_or_annex_dir["annex"], f"Table {tbl_name}.csv"
         )
 
-    chapter_dir = (
-        {
-            1: "Introduction",
-            2: "Trends in Greenhouse Gas Emissions and Removals",
-            3: "Energy",
-            4: "Industrial Processes",
-            5: "Agriculture",
-            6: "LULUCF",  # Land Use, Land-Use Change, and Forestry
-            7: "Waste",
-            9: "Recalculations and Improvements",
-        }
-        if year == 2022
-        else {
-            1: "Chapter 1 - Introduction",
-            2: "Chapter 2 - Trends in Greenhouse Gas Emissions and Removals",
-            3: "Chapter 3 - Energy",
-            4: "Chapter 4 - Industrial Processes and Product Use",
-            5: "Chapter 5 - Agriculture",
-            6: "Chatper 6 - LULUCF",
-            7: "Chapter 7 - Waste",
-            9: "Chatper 9 - Recalculations and Improvements",
-        }
-    )
+    chapter_dir = {
+        1: "Chapter 1 - Introduction",
+        2: "Chapter 2 - Trends in Greenhouse Gas Emissions and Removals",
+        3: "Chapter 3 - Energy",
+        4: "Chapter 4 - Industrial Processes and Product Use",
+        5: "Chapter 5 - Agriculture",
+        6: "Chatper 6 - LULUCF",
+        7: "Chapter 7 - Waste",
+        9: "Chatper 9 - Recalculations and Improvements",
+    }
     return posixpath.join(
         GCS_CEDA_INPUT_DIR,
         main_or_annex_dir["main"],

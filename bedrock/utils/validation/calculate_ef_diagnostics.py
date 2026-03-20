@@ -8,7 +8,6 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.snapshots.loader import load_configured_snapshot
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
@@ -68,15 +67,13 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     - D_and_diffs: Direct EFs new vs old.
     - D_and_N_significant_sectors: Combined D and N comparisons for significant sectors.
     - N_and_D_summary_stats: Summary statistics of percent diffs.
+    - x_decomposition: Effective x comparison decomposition.
     - output_contrib_new_vs_old: Top N contributing sectors to each EF's change,
       derived from the output contribution matrix.
-    - sector_mapping_notes (cornerstone only): Documents mapped/excluded sectors.
+    - sector_mapping_notes: Documents mapped/excluded sectors.
 
-    Old EFs are inflation-adjusted to the current base year before comparison.
-
-    When ``use_cornerstone_2026_model_schema`` is active, old (CEDA v7) and new
-    (cornerstone) EF vectors are aligned before comparison so that sectors with
-    different granularity are still comparable.
+    Old (CEDA v7) and new (cornerstone) EF vectors are aligned before comparison
+    so that sectors with different granularity are still comparable.
 
     Args:
         sheet_id: Google Sheets spreadsheet ID to write results to.
@@ -89,24 +86,16 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
     from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
-    config = get_usa_config()
-    use_cornerstone = config.use_cornerstone_2026_model_schema
-
     t0 = time.time()
     efs_raw = pull_efs_for_diagnostics()
     logger.info(
         f'[TIMING] pull_efs_for_diagnostics completed in {time.time() - t0:.1f}s'
     )
 
-    # When the cornerstone schema is active, align old/new sector indices
-    active_mappings: ta.Dict[str, str] = {}
-    if use_cornerstone:
-        logger.info('Aligning EF vectors across CEDA v7 / cornerstone schemas')
-        efs, active_mappings = align_efs_across_schemas(efs_raw)
-        sector_desc: ta.Optional[ta.Dict[str, str]] = get_aligned_sector_desc()
-    else:
-        efs = efs_raw
-        sector_desc = None  # use default CEDA_V7_SECTOR_DESC
+    # Align old (CEDA v7) / new (cornerstone) sector indices
+    logger.info('Aligning EF vectors across CEDA v7 / cornerstone schemas')
+    efs, active_mappings = align_efs_across_schemas(efs_raw)
+    sector_desc: ta.Optional[ta.Dict[str, str]] = get_aligned_sector_desc()
 
     logger.info('------ Calculating EF Diagnostics ------')
 
@@ -117,9 +106,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         ef_old=efs.N_old,
         sector_desc=sector_desc,
     )
-
-    if use_cornerstone:
-        _add_comparison_type_column(N_comparison, active_mappings)
+    _add_comparison_type_column(N_comparison, active_mappings)
 
     t0 = time.time()
     update_sheet_tab(
@@ -139,9 +126,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         ef_old=efs.D_old,
         sector_desc=sector_desc,
     )
-
-    if use_cornerstone:
-        _add_comparison_type_column(D_comparison, active_mappings)
+    _add_comparison_type_column(D_comparison, active_mappings)
 
     t0 = time.time()
     update_sheet_tab(
@@ -154,29 +139,26 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
-    # Effective x decomposition (Cornerstone method only)
-    if config.use_E_data_year_for_x_in_B:
-        from bedrock.utils.validation.diagnostics_helpers import (
-            compute_effective_x_comparison,
-        )
+    # Effective x decomposition
+    from bedrock.utils.validation.diagnostics_helpers import (
+        compute_effective_x_comparison,
+    )
 
-        t0 = time.time()
-        x_comparison = compute_effective_x_comparison()
-        update_sheet_tab(
-            sheet_id, 'x_decomposition', x_comparison.reset_index(), clean_nans=True
-        )
-        logger.info(
-            f'[TIMING] Write x_decomposition to Google Sheets in {time.time() - t0:.1f}s'
-        )
+    t0 = time.time()
+    x_comparison = compute_effective_x_comparison()
+    update_sheet_tab(
+        sheet_id, 'x_decomposition', x_comparison.reset_index(), clean_nans=True
+    )
+    logger.info(
+        f'[TIMING] Write x_decomposition to Google Sheets in {time.time() - t0:.1f}s'
+    )
 
     # Compare D and N for significant sectors
     significant_sectors = [sector['sector'] for sector in SIGNIFICANT_SECTORS]
     # When aligned, some significant sectors may not be in the index (e.g. if
     # they were removed).  Filter to those present.
     available_significant = [s for s in significant_sectors if s in D_comparison.index]
-    drop_cols = ['sector_name']
-    if use_cornerstone:
-        drop_cols.append('comparison_type')
+    drop_cols = ['sector_name', 'comparison_type']
     significant_sectors_comparison = D_comparison.loc[available_significant].join(
         N_comparison.loc[available_significant].drop(columns=drop_cols)
     )
@@ -223,17 +205,16 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
     )
 
-    # Sector mapping notes (cornerstone only)
-    if use_cornerstone:
-        mapping_notes = _build_sector_mapping_notes(
-            active_mappings,
-            old_ef=efs_raw.D_old.raw,
-            new_ef=efs_raw.D_new,
-        )
-        update_sheet_tab(
-            sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
-        )
-        logger.info('Wrote sector_mapping_notes tab')
+    # Sector mapping notes
+    mapping_notes = _build_sector_mapping_notes(
+        active_mappings,
+        old_ef=efs_raw.D_old.raw,
+        new_ef=efs_raw.D_new,
+    )
+    update_sheet_tab(
+        sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
+    )
+    logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution
     t0 = time.time()
@@ -252,11 +233,10 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         L=L_old, D=ta.cast('pd.Series[float]', efs_raw.D_old.inflated.squeeze())
     )
 
-    if use_cornerstone:
-        full_idx = OC_new.index.union(OC_old.index).sort_values()
-        full_cols = OC_new.columns.union(OC_old.columns).sort_values()
-        OC_new = OC_new.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
-        OC_old = OC_old.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
+    full_idx = OC_new.index.union(OC_old.index).sort_values()
+    full_cols = OC_new.columns.union(OC_old.columns).sort_values()
+    OC_new = OC_new.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
+    OC_old = OC_old.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
 
     OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
         OC_old,

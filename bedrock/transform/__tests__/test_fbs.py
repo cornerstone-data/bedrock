@@ -16,7 +16,7 @@ def test_generate_fbs() -> None:
 
 
 METHODS = [
-    pytest.param('GHG_national_CEDA_2023', id='GHG_national_CEDA_2023'),
+    pytest.param('GHG_national_Cornerstone_2023', id='GHG_national_Cornerstone_2023'),
 ]
 
 
@@ -47,4 +47,4 @@ def test_generate_fbs_compare_to_remote(method: str) -> None:
 
 if __name__ == '__main__':
     # test_generate_fbs()
-    test_generate_fbs_compare_to_remote(method='GHG_national_CEDA_2023')
+    test_generate_fbs_compare_to_remote(method='GHG_national_Cornerstone_2023')
