@@ -17,13 +17,8 @@ from bedrock.transform.allocation.mappings.cornerstone import (
     CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
     CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
 )
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
-    NON_MECS_INDUSTRIES,
-)
+from bedrock.transform.allocation.mappings.v7.ceda_mecs import NON_MECS_INDUSTRIES
 from bedrock.transform.allocation.utils import get_allocation_sectors
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import COAL_MMBTU_PER_SHORT_TONNE, MEGATONNE_TO_KG
 
 load_table_a17_tbtu = functools.cache(_load_table_a17_tbtu)
@@ -38,15 +33,10 @@ def _get_mecs_3_1_naics_mappings() -> tuple[
     dict[tuple[str, ...], tuple[str, ...]],
     dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
 ]:
-    """Return (mapping, subtraction_mapping) for MECS 3.1 NAICS; use CORNERSTONE when schema flag is on."""
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        return (
-            CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
-            CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
-        )
+    """Return (mapping, subtraction_mapping) for MECS 3.1 NAICS."""
     return (
-        CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
-        CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
     )
 
 

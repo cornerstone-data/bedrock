@@ -17,12 +17,7 @@ from bedrock.transform.allocation.mappings.cornerstone import (
     CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
     CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
 )
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
-    CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
-)
 from bedrock.transform.allocation.utils import get_allocation_sectors
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MEGATONNE_TO_KG
 
 logger = logging.getLogger(__name__)
@@ -32,15 +27,10 @@ def _get_mecs_2_1_naics_mappings() -> tuple[
     dict[tuple[str, ...], tuple[str, ...]],
     dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
 ]:
-    """Return (mapping, subtraction_mapping) for MECS 2.1 NAICS; use CORNERSTONE when schema flag is on."""
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        return (
-            CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
-            CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
-        )
+    """Return (mapping, subtraction_mapping) for MECS 2.1 NAICS."""
     return (
-        CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
-        CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
+        CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
+        CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
     )
 
 
@@ -99,7 +89,6 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
     use = use_table_series_ceda_allocator_to_cornerstone_schema(
         load_bea_use_table(), get_allocation_sectors(), "324110"
     )
-    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
     mapping, subtraction_mapping = _get_mecs_2_1_naics_mappings()
     for (
         ceda_industries,
@@ -121,15 +110,6 @@ def allocate_non_energy_fuels_petrol() -> pd.Series[float]:
 
         for ceda_industry in ceda_industries:
             industry_use = float(total_use_ser[ceda_industry])
-            if not use_cornerstone:
-                if len(ceda_industries) == 1:
-                    assert (
-                        industry_use == total_use
-                    ), f"There is only one sector in ceda_industries {ceda_industries}, but use by the industry {industry_use} != total_use ({total_use})"
-                else:
-                    assert (
-                        industry_use <= total_use
-                    ), f"There are more than one sector in ceda_industries {ceda_industries}, but use by a child industry {ceda_industry} ({industry_use}) > total_use ({total_use})"
             if ceda_industry in ("324121", "324122"):
                 # Allocate asphalt and HGL emissions to asphalt industries (324121 and 324122)
                 allocated[ceda_industry] = (
