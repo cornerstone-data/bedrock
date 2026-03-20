@@ -7,11 +7,7 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_U_set_usa,
-    derive_2017_V_usa,
-    derive_2017_Y_personal_consumption_expenditure_usa,
-)
+from bedrock.transform.eeio.derived_2017 import derive_2017_V_usa
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
@@ -51,34 +47,21 @@ def load_bea_make_table() -> pd.DataFrame:
 
 
 @functools.cache
-def _load_bea_use_table_cached(use_cornerstone: bool) -> pd.DataFrame:
-    """Inner loader keyed by schema so both CEDA and Cornerstone can be cached."""
-    if use_cornerstone:
-        from bedrock.transform.eeio import derived_cornerstone  # noqa: PLC0415
-
-        uset = derived_cornerstone.derive_cornerstone_U_set()
-        U_combined = (uset.Udom + uset.Uimp).T
-        Y_cs = (
-            derived_cornerstone.derive_cornerstone_Y_personal_consumption_expenditure()
-            .to_frame()
-            .T
-        )
-        return pd.concat([U_combined, Y_cs])
-    U_set = derive_2017_U_set_usa()
-    Y_usa = derive_2017_Y_personal_consumption_expenditure_usa().to_frame()
-    return pd.concat([(U_set.Udom + U_set.Uimp).T, Y_usa.T])
-
-
 def load_bea_use_table() -> pd.DataFrame:
-    """
-    Load BEA Use and Final Demand tables aligned to the model schema.
+    """Load BEA Use and Final Demand tables in Cornerstone schema.
 
-    When use_cornerstone_2026_model_schema is False, returns CEDA v7 industry rows.
-    When True, returns Cornerstone industry rows (from derive_cornerstone_U_set and Y).
-    Rows = industries + one PCE row; columns = commodities. Result is cached per schema.
+    Rows = industries + one PCE row; columns = commodities. Result is cached.
     """
-    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
-    return _load_bea_use_table_cached(use_cornerstone)
+    from bedrock.transform.eeio import derived_cornerstone
+
+    uset = derived_cornerstone.derive_cornerstone_U_set()
+    U_combined = (uset.Udom + uset.Uimp).T
+    Y_cs = (
+        derived_cornerstone.derive_cornerstone_Y_personal_consumption_expenditure()
+        .to_frame()
+        .T
+    )
+    return pd.concat([U_combined, Y_cs])
 
 
 def _use_table_value_ceda_sector_cornerstone_aligned(
