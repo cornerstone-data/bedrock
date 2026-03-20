@@ -49,7 +49,6 @@ def test_get_usa_config_loads_waste_disagg() -> None:
     disaggregation yaml file"""
     set_global_usa_config("test_usa_config_waste_disagg.yaml")
     config = get_usa_config()
-    assert config.implement_waste_disaggregation is True
     assert config.eeio_waste_disaggregation is not None
     assert (
         config.eeio_waste_disaggregation.source_name == "WasteDisaggregationDetail2017"

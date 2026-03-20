@@ -7,13 +7,4 @@ model_base_year: 2023
 # Data selection
 #####
 usa_ghg_data_year: 2023
-
-#####
-# Methodology selection
-#####
 ipcc_ar_version: "AR6"
-
-
-#####
-# Bugfix
-#####
