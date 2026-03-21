@@ -772,6 +772,7 @@ source_names:
 
   EPA_GHGI_T_4_63: # Fluorochemical production (in CO2e)
     year: *ghgi_year
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity: Fluorochemical Production
@@ -780,6 +781,7 @@ source_names:
 
   EPA_GHGI_T_4_64: # Fluorochemical production (in MT)
     year: *ghgi_year
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity: Fluorochemical Production
