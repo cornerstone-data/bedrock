@@ -6,6 +6,7 @@ target_naics_year: 2017
 geoscale: national
 
 mecs_year: &mecs_year 2018
+coa_year: &coa_year 2022
 
 _attribution_sources:
   EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
@@ -26,7 +27,7 @@ _attribution_sources:
 
   _cropland_allocation: &cropland_allocation
     USDA_CoA_Cropland:
-      year: 2017
+      year: *coa_year
       selection_fields:
         Class: Land
         FlowName:
@@ -36,7 +37,7 @@ _attribution_sources:
       attribution_method: proportional
       attribution_source:
         USDA_CoA_Cropland_NAICS:
-          year: 2017
+          year: *coa_year
           selection_fields:
             Class: Land
             FlowName: AG LAND, CROPLAND, HARVESTED
@@ -44,7 +45,7 @@ _attribution_sources:
 
   _animal_land_allocation: &animal_land_allocation
     USDA_CoA_Cropland_NAICS:
-      year: 2017
+      year: *coa_year
       selection_fields:
         Class: Land
         FlowName: FARM OPERATIONS
@@ -771,6 +772,7 @@ source_names:
 
   EPA_GHGI_T_4_63: # Fluorochemical production (in CO2e)
     year: *ghgi_year
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity: Fluorochemical Production
@@ -779,6 +781,7 @@ source_names:
 
   EPA_GHGI_T_4_64: # Fluorochemical production (in MT)
     year: *ghgi_year
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity: Fluorochemical Production

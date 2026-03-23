@@ -5,7 +5,7 @@
   _attribution_sources:
     _cropland_allocation: &cropland_allocation
       USDA_CoA_Cropland:
-        year: 2017
+        year: 2022
         selection_fields:
           Class: Land
           FlowName:
@@ -15,7 +15,7 @@
         attribution_method: proportional
         attribution_source:
           USDA_CoA_Cropland_NAICS:
-            year: 2017
+            year: 2022
             selection_fields:
               Class: Land
               FlowName: AG LAND, CROPLAND, HARVESTED
@@ -23,7 +23,7 @@
 
     _animal_land_allocation: &animal_land_allocation
       USDA_CoA_Cropland_NAICS:
-        year: 2017
+        year: 2022
         selection_fields:
           Class: Land
           FlowName: FARM OPERATIONS

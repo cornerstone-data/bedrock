@@ -1,6 +1,7 @@
 # CEDA 2023 with updated method for calling on and attributing data associated with "other gases"
 # Excludes from EPA_GHGI_T_2_1: magnesium, fluorochemical, Electronics Industry (direct), electronics_industry.
-# These emissions pulled from dedicated tables instead (flowsa approach).
+# These emissions pulled from dedicated tables instead (flowsa approach) which provides improved
+# flow granularity.
 
 !include:GHG_national_CEDA_2023.yaml
   source_names: !include:GHG_national_CEDA_2023.yaml:source_names

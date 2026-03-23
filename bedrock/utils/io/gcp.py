@@ -41,10 +41,17 @@ def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> Non
     os.makedirs(os.path.dirname(pth), exist_ok=True)
     if os.path.exists(pth):
         return
-    [
+    candidates = get_most_recent_from_bucket(name, sub_bucket)
+    if not candidates:
+        logger.info(
+            "GCS artifact not found for %s in gs://cornerstone-default/%s (no matching version/hash); local dest: %s",
+            name,
+            sub_bucket,
+            pth,
+        )
+        return
+    for n in candidates:
         download_gcs_file(n, sub_bucket, pth)
-        for n in get_most_recent_from_bucket(name, sub_bucket)
-    ]
 
 
 def load_from_gcs(
@@ -280,7 +287,9 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
         else df
     )
 
-    version_pattern = r"v\d+\.\d+\.\d+"  # Matches v#.#.#
+    # Match package-style version suffixes used in artifact filenames.
+    # Some buckets use `v0.1` (two-part) while others use `v0.1.0` (three-part).
+    version_pattern = r"v\d+(?:\.\d+){1,2}"
     hash_pattern = r"([a-fA-F0-9]{7})"  # Matches 7-character alphanumeric hash
     year_pattern = r"(\d{4})$"  # Matches 4 digits at the end of base_name
 
@@ -367,6 +376,10 @@ def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     if len(df_ext) == 0:
         return []
     else:
+        # TODO: `version` sorting is currently lexicographic because it is kept
+        # as a string (e.g., "v0.10.0" may not sort after "v0.2.0").
+        # If multi-digit version components appear, parse `version` into ints
+        # and sort numerically.
         df_ext = df_ext.sort_values(
             by=["version", "created"], ascending=False
         ).reset_index(drop=True)
