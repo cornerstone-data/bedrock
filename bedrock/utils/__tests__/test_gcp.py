@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pandas as pd
@@ -50,8 +51,6 @@ def test_list_bucket_files_extracts_base_name_for_v0_1_versions() -> None:
     # Ensure artifact filenames like:
     #   GHG_national_Cornerstone_2023_v0.1_4a1e550.parquet
     # produce base_name == GHG_national_Cornerstone_2023 so downloads can match.
-    from datetime import datetime, timezone
-
     method = "GHG_national_Cornerstone_2023"
     parquet_name = f"flowsa/FlowBySector/{method}_v0.1_4a1e550.parquet"
     metadata_name = f"flowsa/FlowBySector/{method}_v0.1_4a1e550_metadata.json"
