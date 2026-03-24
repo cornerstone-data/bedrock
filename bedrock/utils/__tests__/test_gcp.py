@@ -26,7 +26,7 @@ def test_get_most_recent_from_bucket_ignores_snapshot_folder_sha() -> None:
     df = pd.DataFrame(
         [
             {
-                "full_path": "snapshots/5f32e53941e58023a331ef9f3df46e8834891aa2/B_USA_non_finetuned.parquet",
+                "full_path": "snapshots/2ebb51f7190c3a62b5d8b2420bff9b20f57282fc/B_USA_non_finetuned.parquet",
                 "created": pd.Timestamp("2026-03-10T13:19:19Z"),
                 "extension": ".parquet",
                 "version": None,
@@ -41,7 +41,7 @@ def test_get_most_recent_from_bucket_ignores_snapshot_folder_sha() -> None:
     with patch("bedrock.utils.io.gcp.list_bucket_files", return_value=df):
         result = get_most_recent_from_bucket(
             "B_USA_non_finetuned.parquet",
-            "snapshots/5f32e53941e58023a331ef9f3df46e8834891aa2",
+            "snapshots/2ebb51f7190c3a62b5d8b2420bff9b20f57282fc",
         )
 
     assert result == ["B_USA_non_finetuned.parquet"]
