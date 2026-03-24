@@ -73,9 +73,12 @@ class USAConfig(BaseModel):
     # Baseline snapshot
     #####
     # The git SHA below is the baseline snapshots generated on main with
-    # configuration: 2025_usa_cornerstone_fbs_schema.
+    # configuration: 2025_usa_cornerstone_full_model.
     snapshot_version_or_git_sha: ta.Literal[
-        'v0', 'a0e514e361bb0a87cd40b68b1eccc8bb911fa35c'
+        'v0',
+        'a0e514e361bb0a87cd40b68b1eccc8bb911fa35c',
+        '1bda811e0169436ae90fd356fbef512ce7518ccb',
+        '5f32e53941e58023a331ef9f3df46e8834891aa2',
     ] = 'v0'
 
     @property
@@ -149,7 +152,7 @@ def get_usa_config() -> USAConfig:
         if env_usa_config_file:
             _usa_config = _load_usa_config_from_file_name(env_usa_config_file)
         else:
-            set_global_usa_config('v8_ceda_2025_usa.yaml')
+            set_global_usa_config('2025_usa_cornerstone_full_model.yaml')
     assert _usa_config is not None
     return _usa_config
 
