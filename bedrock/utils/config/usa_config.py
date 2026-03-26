@@ -72,13 +72,13 @@ class USAConfig(BaseModel):
     #####
     # Baseline snapshot
     #####
-    # The git SHA below is the baseline snapshots generated on main with
-    # configuration: 2025_usa_cornerstone_full_model.
+    # The git SHA below is the baseline snapshots used for diagnostic comparison
+    # generated on main with configuration: 2025_usa_cornerstone_full_model.
     snapshot_version_or_git_sha: ta.Literal[
         'v0',
-        'a0e514e361bb0a87cd40b68b1eccc8bb911fa35c',
-        '1bda811e0169436ae90fd356fbef512ce7518ccb',
-        '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',
+        '1bda811e0169436ae90fd356fbef512ce7518ccb',  # v0.1
+        '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # v0.2
+        '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # v0.2 2025_usa_cornerstone_fbs_schema
     ] = 'v0'
 
     @property

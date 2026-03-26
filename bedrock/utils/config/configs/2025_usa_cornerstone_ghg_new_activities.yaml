@@ -8,4 +8,4 @@
 use_cornerstone_2026_model_schema: True
 load_E_from_flowsa: true
 add_new_ghg_activities: true
-snapshot_version_or_git_sha: "a0e514e361bb0a87cd40b68b1eccc8bb911fa35c"
+snapshot_version_or_git_sha: "9fe22d9afdfdb6806397b2356eb3cf4c4c346744"
