@@ -176,6 +176,40 @@ def __sheets_client() -> googleapiclient.discovery.Resource:
     return googleapiclient.discovery.build('sheets', 'v4', credentials=credentials)
 
 
+def list_sheet_tabs(sheet_id: str) -> list[str]:
+    """Return the names of all tabs in a Google Sheets document."""
+    client = __sheets_client()
+    metadata = client.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    return [
+        sheet["properties"]["title"]
+        for sheet in metadata.get("sheets", [])
+    ]
+
+
+def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:
+    """
+    Read a Google Sheets tab into a DataFrame.
+
+    The first row is treated as column headers. Returns an empty DataFrame
+    if the tab has no data or only a header row.
+    """
+    client = __sheets_client()
+    result = (
+        client.spreadsheets()
+        .values()
+        .get(spreadsheetId=sheet_id, range=f"'{tab}'")
+        .execute()
+    )
+    rows = result.get("values", [])
+    if len(rows) < 1:
+        return pd.DataFrame()
+    headers = rows[0]
+    data = rows[1:] if len(rows) > 1 else []
+    # Sheets API omits trailing empty cells; pad rows to header length.
+    padded = [row + [None] * (len(headers) - len(row)) for row in data]
+    return pd.DataFrame(padded, columns=headers)
+
+
 def update_sheet_tab(
     sheet_id: str,
     tab: str,

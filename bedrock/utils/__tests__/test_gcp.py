@@ -1,14 +1,19 @@
 import os
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 
 from bedrock.utils.io.gcp import (
     download_gcs_file,
     get_most_recent_from_bucket,
     list_bucket_files,
+    list_sheet_tabs,
+    read_sheet_tab,
 )
+
+import bedrock.utils.io.gcp as _gcp_module
 
 
 def test_download_gcs_file() -> None:
@@ -79,3 +84,65 @@ def test_list_bucket_files_extracts_base_name_for_v0_1_versions() -> None:
     assert row["base_name"] == method
     assert row["version"] == "v0.1"
     assert row["hash"] == "4a1e550"
+
+
+@pytest.fixture()
+def _clear_sheets_cache() -> None:
+    """Clear the cached __sheets_client so the mock takes effect."""
+    _gcp_module.__sheets_client.cache_clear()
+    yield  # type: ignore[func-returns-value]
+    _gcp_module.__sheets_client.cache_clear()
+
+
+def test_read_sheet_tab_returns_dataframe(_clear_sheets_cache: None) -> None:
+    client = MagicMock()
+    client.spreadsheets().values().get().execute.return_value = {
+        "values": [
+            ["sector", "sector_name", "D_new"],
+            ["111", "Crop production", "0.5"],
+            ["112", "Animal production", "0.3"],
+        ]
+    }
+    with patch.object(_gcp_module, "__sheets_client", return_value=client):
+        df = read_sheet_tab("fake_sheet_id", "D_and_diffs")
+    assert list(df.columns) == ["sector", "sector_name", "D_new"]
+    assert len(df) == 2
+    assert df.iloc[0]["sector"] == "111"
+    assert df.iloc[1]["D_new"] == "0.3"
+
+
+def test_read_sheet_tab_pads_short_rows(_clear_sheets_cache: None) -> None:
+    client = MagicMock()
+    client.spreadsheets().values().get().execute.return_value = {
+        "values": [
+            ["col_a", "col_b", "col_c"],
+            ["a1"],
+            ["b1", "b2"],
+        ]
+    }
+    with patch.object(_gcp_module, "__sheets_client", return_value=client):
+        df = read_sheet_tab("fake_sheet_id", "tab")
+    assert df.iloc[0]["col_c"] is None
+    assert df.iloc[1]["col_c"] is None
+
+
+def test_read_sheet_tab_empty_sheet(_clear_sheets_cache: None) -> None:
+    client = MagicMock()
+    client.spreadsheets().values().get().execute.return_value = {"values": []}
+    with patch.object(_gcp_module, "__sheets_client", return_value=client):
+        df = read_sheet_tab("fake_sheet_id", "empty_tab")
+    assert df.empty
+
+
+def test_list_sheet_tabs(_clear_sheets_cache: None) -> None:
+    client = MagicMock()
+    client.spreadsheets().get().execute.return_value = {
+        "sheets": [
+            {"properties": {"title": "Sheet1"}},
+            {"properties": {"title": "D_and_diffs"}},
+            {"properties": {"title": "config_summary"}},
+        ]
+    }
+    with patch.object(_gcp_module, "__sheets_client", return_value=client):
+        tabs = list_sheet_tabs("fake_sheet_id")
+    assert tabs == ["Sheet1", "D_and_diffs", "config_summary"]
