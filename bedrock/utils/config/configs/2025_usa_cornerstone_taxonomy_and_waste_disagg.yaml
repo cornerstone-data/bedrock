@@ -22,4 +22,4 @@ implement_waste_disaggregation: True
 #####
 # Baseline snapshot
 #####
-snapshot_version_or_git_sha: "a0e514e361bb0a87cd40b68b1eccc8bb911fa35c"
+snapshot_version_or_git_sha: "9fe22d9afdfdb6806397b2356eb3cf4c4c346744"
