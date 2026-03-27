@@ -82,7 +82,7 @@ TARGET_COLUMN_BY_CONFIG_NAME: dict[str, str] = {
     "v8_ceda_2025_usa": "v8_ceda_2025_usa",
     "2025_usa_ceda_ghg_from_flowsa": "v8_ceda_2025_usa",
     "2025_usa_cornerstone_taxonomy": "v8_ceda_2025_usa",
-    "2025_usa_cornerstone_fbs_schema": "2025_usa_cornerstone_taxonomy",
+    "2025_usa_cornerstone_fbs_schema": "v8_ceda_2025_usa",
     # GHG runs -> cornerstone_fbs_schema
     "2025_usa_cornerstone_ghg_refrigerants_foams": "2025_usa_cornerstone_fbs_schema",
     "2025_usa_cornerstone_ghg_petroleum_natgas": "2025_usa_cornerstone_fbs_schema",
@@ -94,9 +94,9 @@ TARGET_COLUMN_BY_CONFIG_NAME: dict[str, str] = {
     "2025_usa_cornerstone_ghg_updated_coa": "2025_usa_cornerstone_fbs_schema",
     "2025_usa_cornerstone_ghg": "2025_usa_cornerstone_fbs_schema",
     # Non-GHG configs (edit if your comparison target differs)
-    "2025_usa_cornerstone_taxonomy_and_B_transformation": "2025_usa_cornerstone_taxonomy",
     "2025_usa_cornerstone_taxonomy_and_waste_disagg": "2025_usa_cornerstone_fbs_schema",
-    "2025_usa_cornerstone_full_model": "2025_usa_cornerstone_taxonomy",
+    "2025_usa_cornerstone_taxonomy_and_B_transformation": "v8_ceda_2025_usa",
+    "2025_usa_cornerstone_full_model": "v8_ceda_2025_usa",
 }
 
 
