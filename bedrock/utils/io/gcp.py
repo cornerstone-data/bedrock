@@ -371,7 +371,7 @@ def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     sub_bucket : str
         Subdirectory within the GCS bucket.
     name : str
-        Target file name with extension (`methdodname`) or
+        Target file name with extension (`methodname`) or
         include version and git hash in file name
         (`methodname_v0.1_2ebb51f`), so specific file is downloaded
 
