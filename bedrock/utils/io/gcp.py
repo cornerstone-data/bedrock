@@ -67,7 +67,7 @@ def load_from_gcs(
     Parameters
     ----------
     name : str
-        Target file name with extension, but without version or hash
+        Target file name with extension, can optionally include version and hash
     sub_bucket : str
         Subdirectory within the GCS bucket.
     local_dir : str
