@@ -31,7 +31,7 @@ def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> Non
     Parameters
     ----------
     name : str
-        Target file name with extension, can include version and hash
+        Target file name with extension, can optionally include version and hash
     sub_bucket : str
         Subdirectory within the GCS bucket.
     pth : str
