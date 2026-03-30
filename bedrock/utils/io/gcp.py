@@ -31,7 +31,7 @@ def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> Non
     Parameters
     ----------
     name : str
-        Target file name with extension, but without version or hash
+        Target file name with extension, can optionally include version and hash
     sub_bucket : str
         Subdirectory within the GCS bucket.
     pth : str
@@ -67,7 +67,7 @@ def load_from_gcs(
     Parameters
     ----------
     name : str
-        Target file name with extension, but without version or hash
+        Target file name with extension, can optionally include version and hash
     sub_bucket : str
         Subdirectory within the GCS bucket.
     local_dir : str
@@ -337,6 +337,29 @@ def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
     return df
 
 
+def parse_methodname(
+    name: str,
+) -> tuple[str, str, str | None, str | None]:
+    """
+    Split a file name into GCS base stem, extension, and optional
+    package version + git hash
+
+    Returns
+    -------
+    base_stem, extension, tool_version or None, git_hash or None
+    """
+    stem, extension = os.path.splitext(name)
+    # Matches artifact stems like: MethodName_v0.1_2ebb51f
+    m = re.compile(
+        r'_(v\d+(?:\.\d+){1,2})_([a-fA-F0-9]{7})$',
+        re.IGNORECASE,
+    ).search(stem)
+    if m:
+        base_stem = stem[: m.start()]
+        return base_stem, extension, m.group(1), m.group(2).lower()
+    return stem, extension, None, None
+
+
 def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     """
     Sorts the bucket by most recent date for the required extension
@@ -348,7 +371,9 @@ def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     sub_bucket : str
         Subdirectory within the GCS bucket.
     name : str
-        Target file name with extension, but without version or hash
+        Target file name with extension (`methodname`) or
+        include version and git hash in file name
+        (`methodname_v0.1_2ebb51f`), so specific file is downloaded
 
     Returns
     ----------
@@ -364,7 +389,7 @@ def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     """
     # sub_bucket='flowsa/FlowByActivity'
     # name='BEA_Detail_GrossOutput_IO_2021.parquet'
-    n, extension = os.path.splitext(name)
+    n, extension, tool_version, git_hash = parse_methodname(name)
     df = list_bucket_files(sub_bucket)
     if df is None:
         return []
@@ -373,6 +398,14 @@ def get_most_recent_from_bucket(name: str, sub_bucket: str) -> list[str]:
     # includes a GitHub version and hash
     df = df[df['base_name'] == n]
     df_ext = df[df['extension'] == extension]
+    if len(df_ext) == 0:
+        return []
+
+    if tool_version is not None:
+        df_ext = df_ext[df_ext['version'] == tool_version]
+    if git_hash is not None:
+        df_ext = df_ext[df_ext['hash'].fillna('').astype(str).str.lower() == git_hash]
+
     if len(df_ext) == 0:
         return []
     else:
