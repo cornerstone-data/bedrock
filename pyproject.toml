@@ -87,8 +87,6 @@ known-first-party = ["bedrock"]
 "**/test_*.py" = ["ARG001", "ARG002"]
 # temporary turn off for legacy flowsa FBA files
 "bedrock/extract/blackhurst/*" = ["ALL"]
-"bedrock/extract/blm/*" = ["ALL"]
-"bedrock/extract/bls/*" = ["ALL"]
 "bedrock/extract/bts/*" = ["ALL"]
 "bedrock/extract/calrecycle/*" = ["ALL"]
 "bedrock/extract/census/*" = ["ALL"]
@@ -128,8 +126,6 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 exclude = [
     'bedrock/extract/blackhurst/',
-    'bedrock/extract/blm/',
-    'bedrock/extract/bls/',
     'bedrock/extract/bts/',
     'bedrock/extract/calrecycle/',
     'bedrock/extract/census/',
