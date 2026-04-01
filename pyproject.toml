@@ -29,6 +29,7 @@ dependencies = [
     "tenacity>=8.2.3,<9.0.0",
     "tqdm>=4.66.2,<5.0.0",
     "openpyxl>=3.1.2,<4.0.0",
+    "tabula-py==2.10.0",
     "pyarrow>=22.0.0",
     "pycountry>=24.6.1",
     "python-dotenv >= 1.1.0",
