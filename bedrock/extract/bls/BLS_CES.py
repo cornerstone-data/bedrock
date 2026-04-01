@@ -5,9 +5,12 @@
 Pulls Consumer Expenditure Survey data from Bureau of Labor Statistics.
 """
 
+from __future__ import annotations
+
 import itertools as it
 import json
 from collections import OrderedDict
+from typing import Any, cast
 
 import pandas as pd
 from esupy.remote import make_url_request
@@ -16,7 +19,7 @@ from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.config.settings import externaldatapath
 
 
-def read_ces_item_codes():
+def read_ces_item_codes() -> pd.DataFrame:
     # https://download.bls.gov/pub/time.series/cx/cx.item
     df = pd.read_csv(externaldatapath / 'ces_items.csv')
     df = df.query('selectable == "T"')
@@ -24,7 +27,7 @@ def read_ces_item_codes():
     return df
 
 
-def bls_ces_call(config, year):
+def bls_ces_call(config: dict[str, Any], year: str | int) -> list[pd.DataFrame]:
     """ """
     headers = {'Content-type': 'application/json'}
     api_key = load_env_file_key('API_Key', config['api_name'])
@@ -66,14 +69,23 @@ def bls_ces_call(config, year):
 
         json_data = json.loads(response.content)
         for series in json_data['Results']['series']:
-            data = series['data']
-            df = pd.DataFrame(data=data[0 : len(data)], columns=data[0])
+            series_data = series['data']
+            df = pd.DataFrame(
+                data=series_data[0 : len(series_data)],
+                columns=cast(Any, series_data[0]),
+            )
             df['series'] = series['seriesID']
             df_list.append(df)
     return df_list
 
 
-def bls_ces_parse(*, df_list, config, year, **_):
+def bls_ces_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    config: dict[str, Any],
+    year: str | int,
+    **_: Any,
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -99,7 +111,7 @@ def bls_ces_parse(*, df_list, config, year, **_):
     series_df.loc[series_df.subcategory_code == 'TITLEPD', 'Unit'] = "Percent"
     substrs = config['series']['demographics']
 
-    def extract_substring(s):
+    def extract_substring(s: str) -> str:
         start_index = 3  # Starting from the 4th letter (index 3)
         end_index = min(s.find(end) for end in substrs if end in s)
         # ^ Ending before demographics substring
@@ -144,7 +156,7 @@ def bls_ces_parse(*, df_list, config, year, **_):
 
 
 if __name__ == "__main__":
-    import bedrock
+    from bedrock.extract import flowbyactivity, generateflowbyactivity
 
-    bedrock.extract.generateflowbyactivity.main(source='BLS_CES', year='2017-2019')
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('BLS_CES', year=2017)
+    generateflowbyactivity.main(source='BLS_CES', year='2017-2019')
+    fba = flowbyactivity.getFlowByActivity('BLS_CES', year=2017)

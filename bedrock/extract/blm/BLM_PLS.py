@@ -7,8 +7,11 @@ Supporting functions for importing and transforming
 Bureau of Land Management Public Land Statistics data
 """
 
+from __future__ import annotations
+
 import io
 import re
+from typing import Any
 
 import pandas as pd
 from tabula.io import read_pdf
@@ -18,7 +21,12 @@ from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import get_all_state_FIPS_2
 
 
-def split(row, header, sub_header, next_line):
+def split(
+    row: pd.Series[Any],
+    header: str,
+    sub_header: str,
+    next_line: bool,
+) -> tuple[Any, str, Any]:
     """
     Helper function for parsing df
     :param row: df row
@@ -33,7 +41,7 @@ def split(row, header, sub_header, next_line):
     flow_amount = ""
     num_in_state = False
     split_str_one = row["one"].split(" ")
-    split_str_two = ""
+    split_str_two: Any = ""
     if len(row) >= 3:
         if isinstance(row["two"], float):
             split_str_two = row["two"]
@@ -210,7 +218,9 @@ def split(row, header, sub_header, next_line):
     return location_str, flow_name, flow_amount_no_comma
 
 
-def blm_pls_URL_helper(*, build_url, year, config, **_):
+def blm_pls_URL_helper(
+    *, build_url: str, year: str, config: dict[str, Any], **_: Any
+) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -238,7 +248,7 @@ def blm_pls_URL_helper(*, build_url, year, config, **_):
     return urls
 
 
-def blm_pls_call(*, resp, year, **_):
+def blm_pls_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing
     df into FBA format
@@ -656,7 +666,9 @@ def blm_pls_call(*, resp, year, **_):
     return df
 
 
-def blm_pls_parse(*, df_list, year, **_):
+def blm_pls_parse(
+    *, df_list: list[pd.DataFrame], year: str | int, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -698,7 +710,7 @@ def blm_pls_parse(*, df_list, year, **_):
     return df
 
 
-def standardize_blm_pls_activity_names(df):
+def standardize_blm_pls_activity_names(df: pd.DataFrame) -> pd.DataFrame:
     """
     Over the years, BLM PLS activities have minor syntax differences.
     Standardize the names over the years
@@ -715,7 +727,7 @@ def standardize_blm_pls_activity_names(df):
         lambda x: re.sub(' to ', ' To ', x)
     )
     df[standardize_column] = df[standardize_column].apply(
-        lambda x: re.sub('\bLease\b', 'Leases', x)
+        lambda x: re.sub(r'\bLease\b', 'Leases', x)
     )
     df[standardize_column] = df[standardize_column].apply(
         lambda x: re.sub(':  ', ': ', x)
