@@ -1,5 +1,5 @@
 # generateflowbyactivity.py (flowsa)
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 # coding=utf-8
 """
 Methods for pulling data from http sources
@@ -16,7 +16,7 @@ from typing import Any, List, Optional, Union, cast
 from urllib import parse
 
 import pandas as pd
-from bedrock.utils.io.url_request import make_url_request
+from esupy.remote import make_url_request
 
 from bedrock.transform.dataclean import clean_df
 from bedrock.utils.config.common import (

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 import re
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 from tabula.io import read_pdf
