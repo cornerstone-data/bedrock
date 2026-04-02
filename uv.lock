@@ -2221,7 +2221,6 @@ name = "tabula-py"
 version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "distro" },
     { name = "numpy" },
     { name = "pandas" },
 ]
