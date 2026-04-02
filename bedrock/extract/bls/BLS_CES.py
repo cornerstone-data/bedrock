@@ -27,7 +27,9 @@ def read_ces_item_codes() -> pd.DataFrame:
     return df
 
 
-def bls_ces_call(config: dict[str, Any], year: str | int) -> list[pd.DataFrame]:  # noqa: ARG001
+def bls_ces_call(
+    config: dict[str, Any], year: str | int
+) -> list[pd.DataFrame]:  # noqa: ARG001
     """ """
     headers = {'Content-type': 'application/json'}
     api_key = load_env_file_key('API_Key', config['api_name'])

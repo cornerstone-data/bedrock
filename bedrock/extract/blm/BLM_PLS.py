@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 import re
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from tabula.io import read_pdf
@@ -209,10 +209,13 @@ def split(
 
     if flow_amount == '':
         flow_amount_no_comma = flow_amount
-    elif pd.isna(flow_amount):
+    elif isinstance(flow_amount, (int, float)) and pd.isna(flow_amount):
         flow_amount_no_comma = ''
-    elif "," in flow_amount:
-        flow_amount_no_comma = ''.join(flow_amount.split(','))
+    elif isinstance(flow_amount, str):
+        if "," in flow_amount:
+            flow_amount_no_comma = ''.join(flow_amount.split(','))
+        else:
+            flow_amount_no_comma = float(flow_amount)
     else:
         flow_amount_no_comma = float(flow_amount)
     return location_str, flow_name, flow_amount_no_comma
@@ -573,12 +576,13 @@ def blm_pls_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
             for page_number in pg:
                 found_header = False
 
-                pdf_page = read_pdf(
+                pdf_tables = read_pdf(
                     io.BytesIO(resp.content),
                     pages=page_number,
                     stream=True,
                     guess=False,
-                )[0]
+                )
+                pdf_page = cast(Any, pdf_tables)[0]
                 # drop nan rows
                 pdf_page = pdf_page.dropna(axis=0, how='all').reset_index(drop=True)
 

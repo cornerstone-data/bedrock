@@ -11,7 +11,7 @@ Last updated: 2018-11-07
 
 import os
 import re
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from esupy.remote import headers
@@ -168,9 +168,12 @@ def call_generation_by_source(file_dict: dict[str, Any]) -> pd.DataFrame:
     """Extraction generation by source data from pdf"""
     pg = file_dict.get('pg')
     url = file_dict.get('url')
-    df = read_pdf(
+    if url is None:
+        raise ValueError("Missing url")
+    pdf_tables = read_pdf(
         url, pages=pg, stream=True, guess=True, user_agent=headers.get('User-Agent')
-    )[0]
+    )
+    df = cast(Any, pdf_tables)[0]
     # set headers
     df = df.rename(
         columns={

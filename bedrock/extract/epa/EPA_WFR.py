@@ -7,7 +7,7 @@ Scrapes data from 2018 Wasted Food Report.
 
 import io
 from string import ascii_uppercase
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from requests import Response
@@ -34,7 +34,8 @@ def epa_wfr_call(*, resp: Response, **_: Any) -> list[pd.DataFrame]:
     df = pd.DataFrame()
     pages = range(41, 43)
     for x in pages:
-        df_l = read_pdf(io.BytesIO(resp.content), pages=x, stream=True)
+        tables = read_pdf(io.BytesIO(resp.content), pages=x, stream=True)
+        df_l = cast(Any, tables)
         if len(df_l[0].columns) == 12:
             df = df_l[0].set_axis(
                 [
