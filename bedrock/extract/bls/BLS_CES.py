@@ -47,7 +47,7 @@ def bls_ces_call(config: dict[str, Any], year: str | int) -> list[pd.DataFrame]:
     )
 
     combinations = it.product(*(series_dict[Name] for Name in series_dict))
-    series_list = ["".join(x) for x in list(combinations)]
+    series_list = [''.join(x) for x in list(combinations)]
     df_list = []
     # Do this in chunks of 50 per API limits
     for i in range(0, len(series_list), 50):
@@ -56,10 +56,10 @@ def bls_ces_call(config: dict[str, Any], year: str | int) -> list[pd.DataFrame]:
 
         data = json.dumps(
             {
-                "seriesid": short_series,
-                "startyear": 2004,
-                "endyear": 2022,
-                "registrationkey": api_key,
+                'seriesid': short_series,
+                'startyear': 2004,
+                'endyear': 2022,
+                'registrationkey': api_key,
             }
         )
 
@@ -101,14 +101,14 @@ def bls_ces_parse(
     # assign units using subcategory_code
     series_df['Unit'] = 'USD'  # default value as USD
     series_df.loc[series_df.subcategory_code.isin(['CONSUNIT', 'TITLECU']), 'Unit'] = (
-        "Thousand p"
+        'Thousand p'
     )
     series_df.loc[
         (series_df.subcategory_code == 'TITLECU')
         & (series_df.item_code.isin(['INCBFTAX', 'INCAFTAX'])),
         'Unit',
-    ] = "Thousand USD"
-    series_df.loc[series_df.subcategory_code == 'TITLEPD', 'Unit'] = "Percent"
+    ] = 'Thousand USD'
+    series_df.loc[series_df.subcategory_code == 'TITLEPD', 'Unit'] = 'Percent'
     substrs = config['series']['demographics']
 
     def extract_substring(s: str) -> str:
@@ -144,7 +144,7 @@ def bls_ces_parse(
     df['LocationSystem'] = 'BLS Regions'
     df['FlowType'] = 'TECHNOSPHERE_FLOW'
     df['Class'] = 'Money'
-    df.loc[~df.Unit.str.contains('USD'), 'Class'] = "Other"
+    df.loc[~df.Unit.str.contains('USD'), 'Class'] = 'Other'
     df['ActivityConsumedBy'] = 'Households'
     df['SourceName'] = 'BLS_CES'
     # Add tmp DQ scores
@@ -155,8 +155,9 @@ def bls_ces_parse(
     return df
 
 
-if __name__ == "__main__":
-    from bedrock.extract import flowbyactivity, generateflowbyactivity
+if __name__ == '__main__':
+    from bedrock.extract import flowbyactivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    generateflowbyactivity.main(source='BLS_CES', year='2017-2019')
+    generateFlowByActivity(source='BLS_CES', year='2017-2019')
     fba = flowbyactivity.getFlowByActivity('BLS_CES', year=2017)

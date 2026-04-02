@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import io
 import zipfile
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -28,9 +28,7 @@ from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.mapping.naics import industry_spec_key, return_max_sector_level
 
 
-def BLS_QCEW_URL_helper(
-    *, build_url: str, year: str | int, **_: Any
-) -> list[str]:
+def BLS_QCEW_URL_helper(*, build_url: str, year: str | int, **_: Any) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -63,11 +61,11 @@ def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
     # initiate dataframes list
     df_list = []
     # unzip folder that contains bls data in ~4000 csv files
-    with zipfile.ZipFile(io.BytesIO(resp.content), "r") as f:
+    with zipfile.ZipFile(io.BytesIO(resp.content), 'r') as f:
         # read in file names
         for name in f.namelist():
             # Only want state info
-            if "singlefile" in name:
+            if 'singlefile' in name:
                 data = f.open(name)
                 df_state = pd.read_csv(data, header=0, dtype=str)
                 df_list.append(df_state)
@@ -87,7 +85,9 @@ def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
     return df
 
 
-def bls_qcew_parse(*, df_list: list[pd.DataFrame], year: str | int, **_: Any) -> pd.DataFrame:
+def bls_qcew_parse(
+    *, df_list: list[pd.DataFrame], year: str | int, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -136,12 +136,12 @@ def bls_qcew_parse(*, df_list: list[pd.DataFrame], year: str | int, **_: Any) ->
     df['Location'] = df['Location'].apply('{:0>5}'.format)
     # use "melt" fxn to convert colummns into rows
     df2 = df.melt(
-        id_vars=["Location", "ActivityProducedBy", "Year", 'own_code'],
-        var_name="FlowName",
-        value_name="FlowAmount",
+        id_vars=['Location', 'ActivityProducedBy', 'Year', 'own_code'],
+        var_name='FlowName',
+        value_name='FlowAmount',
     )
     # specify unit based on flowname
-    df2['Unit'] = np.where(df2["FlowName"] == 'Annual payroll', "USD", "p")
+    df2['Unit'] = np.where(df2['FlowName'] == 'Annual payroll', 'USD', 'p')
     # specify class
     df2.loc[df2['FlowName'] == 'Number of employees', 'Class'] = 'Employment'
     df2.loc[df2['FlowName'] == 'Number of establishments', 'Class'] = 'Other'
@@ -157,7 +157,7 @@ def bls_qcew_parse(*, df_list: list[pd.DataFrame], year: str | int, **_: Any) ->
     df2['DataReliability'] = 5
     df2['DataCollection'] = 5
     df2['Compartment'] = None
-    df2['FlowType'] = "ELEMENTARY_FLOW"
+    df2['FlowType'] = 'ELEMENTARY_FLOW'
 
     return df2
 
@@ -243,7 +243,7 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
     )
 
     for level in range(max_level - 1, 1, -1):
-        log.info(f"Identifying sector descendants for NAICS {level}")
+        log.info(f'Identifying sector descendants for NAICS {level}')
         descendants = pd.DataFrame(
             fba3.drop(columns='descendants')
             .query(f'ActivityProducedBy.str.len() > {level}')
@@ -325,9 +325,7 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
         )
     )
 
-    def fill_suppressed(
-        flows: pd.DataFrame, level: int, activity: str
-    ) -> pd.DataFrame:
+    def fill_suppressed(flows: pd.DataFrame, level: int, activity: str) -> pd.DataFrame:
         parent = flows[flows[activity].str.len() == level]
         children = flows[flows[activity].str.len() == level + 1]
         null_children = children[children['flow_suppressed']]
@@ -347,15 +345,15 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
 
             return flows
 
-    unsuppressed = indexed.copy()
+    unsuppressed: pd.DataFrame = cast(pd.DataFrame, indexed.copy())
     # replace 0 values with np.nan for suppressed data to be estimated
     unsuppressed['FlowAmount'] = unsuppressed['FlowAmount'].mask(
         unsuppressed['FlowAmount'] == 0
     )
     unsuppressed['flow_suppressed'] = unsuppressed['FlowAmount'].isna()
     for level in range(2, max_level, 1):
-        log.info(f"Estimating suppressed NAICS {level + 1}")
-        groupcols = ["{}{}".format("n", i) for i in range(2, level + 1)] + [
+        log.info(f'Estimating suppressed NAICS {level + 1}')
+        groupcols = ['{}{}'.format('n', i) for i in range(2, level + 1)] + [
             'location',
             'category',
         ]
@@ -363,8 +361,14 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
             fill_suppressed, level, 'ActivityProducedBy'
         )
 
+    # groupby().apply() may return a plain DataFrame; wrap so .aggregate_flowby() resolves
+    unsuppressed_fba = FlowByActivity(
+        cast(Any, unsuppressed),
+        config=fba.config,
+        full_name=fba.full_name,
+    )
     aggregated = (
-        unsuppressed.reset_index(drop=True)
+        unsuppressed_fba.reset_index(drop=True)
         .fillna({'FlowAmount': 0})
         .drop(columns=['Unattributed', 'Attributed', 'flow_suppressed'])
         .assign(FlowName='Number of employees')
@@ -375,8 +379,9 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
     return aggregated
 
 
-if __name__ == "__main__":
-    from bedrock.extract import flowbyactivity, generateflowbyactivity
+if __name__ == '__main__':
+    from bedrock.extract import flowbyactivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    generateflowbyactivity.main(source='BLS_QCEW', year=2022)
+    generateFlowByActivity(source='BLS_QCEW', year=2022)
     fba = flowbyactivity.getFlowByActivity('BLS_QCEW', year=2022)
