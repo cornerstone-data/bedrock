@@ -135,3 +135,33 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
             np.asarray(detail["(BLy - E_orig) / E_orig (%)"], dtype=np.float64),
             exp_pct,
         )
+
+    def test_sector_diff_treats_missing_side_as_zero(self) -> None:
+        """BLy/E_orig stay blank when missing; diff uses 0 for missing side."""
+        idx_bly = pd.Index(["1111A0", "1111B0"])
+        n = len(idx_bly)
+        B = pd.DataFrame(np.eye(n), index=idx_bly, columns=idx_bly)
+        Adom = pd.DataFrame(np.zeros((n, n)), index=idx_bly, columns=idx_bly)
+        y = pd.Series([1e9, 2e9], index=idx_bly)
+        E_cols = pd.Index(["1111B0", "221100"])
+        E_orig = pd.DataFrame([[2e9, 3e9]], index=["CO2"], columns=E_cols)
+
+        result = self._run_diagnostics_with_mocked_data(B, Adom, y, E_orig)
+
+        detail = result.iloc[2:]
+        assert list(detail["index"]) == ["1111A0", "1111B0", "221100"]
+
+        assert detail["BLy (MtCO2e)"].iloc[0] == pytest.approx(1.0)
+        assert pd.isna(detail["E_orig (MtCO2e)"].iloc[0])
+        assert detail["BLy - E_orig (MtCO2e)"].iloc[0] == pytest.approx(1.0)
+        assert pd.isna(detail["(BLy - E_orig) / E_orig (%)"].iloc[0])
+
+        assert detail["BLy (MtCO2e)"].iloc[1] == pytest.approx(2.0)
+        assert detail["E_orig (MtCO2e)"].iloc[1] == pytest.approx(2.0)
+        assert detail["BLy - E_orig (MtCO2e)"].iloc[1] == pytest.approx(0.0)
+        assert detail["(BLy - E_orig) / E_orig (%)"].iloc[1] == pytest.approx(0.0)
+
+        assert pd.isna(detail["BLy (MtCO2e)"].iloc[2])
+        assert detail["E_orig (MtCO2e)"].iloc[2] == pytest.approx(3.0)
+        assert detail["BLy - E_orig (MtCO2e)"].iloc[2] == pytest.approx(-3.0)
+        assert detail["(BLy - E_orig) / E_orig (%)"].iloc[2] == pytest.approx(-1.0)
