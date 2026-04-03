@@ -18,11 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 def _series_from_1d_frame_or_series(obj: pd.DataFrame | pd.Series) -> pd.Series[float]:
+    """Parquet ``y_nab_USA`` is a one-column frame or a Series; avoid ``squeeze()`` for mypy."""
     if isinstance(obj, pd.Series):
         return obj.astype(float)
     if obj.shape[1] == 1:
         return obj.iloc[:, 0].astype(float)
-    return obj.squeeze().astype(float)
+    raise ValueError(f"y_nab snapshot expected 1 column, got shape {obj.shape}")
 
 
 def _compute_bly_series(
@@ -35,14 +36,14 @@ def _compute_bly_series(
 
     L = compute_L_matrix(A=Adom)
     d = compute_d(B=B)
-    raw = (
-        pd.DataFrame(np.diag(d), index=L.index, columns=L.columns)
-        @ L
-        @ y
-    )
-    if isinstance(raw, pd.DataFrame):
-        raw = raw.iloc[:, 0] if raw.shape[1] == 1 else raw.squeeze()
-    return raw.astype(float)
+    raw = pd.DataFrame(np.diag(d), index=L.index, columns=L.columns) @ L @ y
+    if isinstance(raw, pd.Series):
+        return raw.astype(float)
+    if raw.shape[1] == 1:
+        return raw.iloc[:, 0].astype(float)
+    if raw.shape[0] == 1:
+        return raw.iloc[0, :].astype(float)
+    raise TypeError(f"unexpected BLy shape {raw.shape}")
 
 
 def _percent_diff_vs_denominator(
