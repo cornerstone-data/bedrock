@@ -66,7 +66,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         return written_df
 
     def test_output_structure_and_units(self) -> None:
-        """Output should be a single row in MtCO2e with correct columns and values."""
+        """USA summary unchanged; blank row; per-sector BLy_i and E_orig_i."""
         idx = pd.Index(SECTORS)
         n = len(SECTORS)
 
@@ -81,7 +81,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
 
         result = self._run_diagnostics_with_mocked_data(B, Adom, y, E_orig)
 
-        assert len(result) == 1
+        assert len(result) == 1 + 1 + n
         expected_cols = {
             "index",
             "BLy (MtCO2e)",
@@ -95,3 +95,35 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         assert result["E_orig (MtCO2e)"].iloc[0] == pytest.approx(9.0)
         assert result["BLy - E_orig (MtCO2e)"].iloc[0] == pytest.approx(-3.0)
         assert result["(BLy - E_orig) / E_orig (%)"].iloc[0] == pytest.approx(-1 / 3)
+
+        assert list(result.iloc[1]) == [""] * len(result.columns)
+
+        detail = result.iloc[2:]
+        sector_order = list(idx.sort_values())
+        assert list(detail["index"]) == sector_order
+        y_mt = y.reindex(sector_order) / 1e9
+        e_mt = E_orig.sum(axis=0).reindex(sector_order) / 1e9
+        pd.testing.assert_series_equal(
+            detail["BLy (MtCO2e)"].reset_index(drop=True),
+            y_mt.reset_index(drop=True),
+            check_names=False,
+        )
+        pd.testing.assert_series_equal(
+            detail["E_orig (MtCO2e)"].reset_index(drop=True),
+            e_mt.reset_index(drop=True),
+            check_names=False,
+        )
+        pd.testing.assert_series_equal(
+            detail["BLy - E_orig (MtCO2e)"].reset_index(drop=True),
+            (y_mt - e_mt).reset_index(drop=True),
+            check_names=False,
+        )
+        e_arr = e_mt.to_numpy(dtype=float)
+        d_arr = (y_mt - e_mt).to_numpy(dtype=float)
+        exp_pct = np.zeros(len(sector_order), dtype=float)
+        valid = np.isfinite(e_arr) & (e_arr != 0)
+        exp_pct[valid] = d_arr[valid] / e_arr[valid]
+        np.testing.assert_allclose(
+            detail["(BLy - E_orig) / E_orig (%)"].to_numpy(),
+            exp_pct,
+        )

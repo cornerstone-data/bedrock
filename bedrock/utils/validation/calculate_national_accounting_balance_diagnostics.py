@@ -29,6 +29,9 @@ def calculate_national_accounting_balance_diagnostics(
     - y_nab = final demand vector for national accounting balance
 
     If the model is balanced, sum(BLy) should equal sum(E_orig).
+
+    The ``BLy_and_E_orig_diffs`` sheet lists the USA total first, a blank row,
+    then per-sector BLy_i vs E_orig_i (same columns; sector-level % uses E_orig_i).
     """
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
@@ -76,9 +79,40 @@ def calculate_national_accounting_balance_diagnostics(
         },
         index=pd.Index(["USA"]),
     )
+    summary_out = comparison.reset_index()
+
+    _bly = BLy_new
+    if isinstance(_bly, pd.DataFrame):
+        _bly = _bly.iloc[:, 0] if _bly.shape[1] == 1 else _bly.squeeze()
+    bly_s = _bly.astype(float)
+
+    sector_index = bly_s.index.union(E_orig_by_sector.index).sort_values()
+    bly_by_sec = bly_s.reindex(sector_index)
+    e_by_sec = E_orig_by_sector.reindex(sector_index)
+    diff_by_sec = bly_by_sec - e_by_sec.astype(float)
+    e_arr = e_by_sec.to_numpy(dtype=float, copy=True)
+    d_arr = diff_by_sec.to_numpy(dtype=float, copy=True)
+    perc_arr = np.zeros(len(sector_index), dtype=float)
+    valid = np.isfinite(e_arr) & (e_arr != 0)
+    perc_arr[valid] = d_arr[valid] / e_arr[valid]
+
+    detail_out = pd.DataFrame(
+        {
+            "index": sector_index,
+            "BLy (MtCO2e)": bly_by_sec / 1e9,
+            "E_orig (MtCO2e)": e_by_sec / 1e9,
+            "BLy - E_orig (MtCO2e)": diff_by_sec / 1e9,
+            "(BLy - E_orig) / E_orig (%)": perc_arr,
+        }
+    )
+    separator = pd.DataFrame([{c: "" for c in summary_out.columns}])
+    combined = pd.concat(
+        [summary_out, separator, detail_out],
+        ignore_index=True,
+    )
 
     update_sheet_tab(
         sheet_id,
         "BLy_and_E_orig_diffs",
-        comparison.reset_index(),
+        combined,
     )
