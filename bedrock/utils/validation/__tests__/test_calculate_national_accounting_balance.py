@@ -96,7 +96,15 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         assert result["BLy - E_orig (MtCO2e)"].iloc[0] == pytest.approx(-3.0)
         assert result["(BLy - E_orig) / E_orig (%)"].iloc[0] == pytest.approx(-1 / 3)
 
-        assert list(result.iloc[1]) == [""] * len(result.columns)
+        sep = result.iloc[1]
+        assert sep["index"] == ""
+        for col in (
+            "BLy (MtCO2e)",
+            "E_orig (MtCO2e)",
+            "BLy - E_orig (MtCO2e)",
+            "(BLy - E_orig) / E_orig (%)",
+        ):
+            assert pd.isna(sep[col])
 
         detail = result.iloc[2:]
         sector_order = list(idx.sort_values())
@@ -124,6 +132,6 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         valid = np.isfinite(e_arr) & (e_arr != 0)
         exp_pct[valid] = d_arr[valid] / e_arr[valid]
         np.testing.assert_allclose(
-            detail["(BLy - E_orig) / E_orig (%)"].to_numpy(),
+            np.asarray(detail["(BLy - E_orig) / E_orig (%)"], dtype=np.float64),
             exp_pct,
         )

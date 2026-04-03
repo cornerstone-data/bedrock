@@ -105,7 +105,11 @@ def calculate_national_accounting_balance_diagnostics(
             "(BLy - E_orig) / E_orig (%)": perc_arr,
         }
     )
-    separator = pd.DataFrame([{c: "" for c in summary_out.columns}])
+    # NaN for numeric columns keeps float dtypes after concat; empty index cell only.
+    sep_row: dict[str, object] = {
+        c: ("" if c == "index" else np.nan) for c in summary_out.columns
+    }
+    separator = pd.DataFrame([sep_row])
     combined = pd.concat(
         [summary_out, separator, detail_out],
         ignore_index=True,
