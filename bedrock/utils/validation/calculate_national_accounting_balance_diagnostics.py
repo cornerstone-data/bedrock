@@ -115,8 +115,10 @@ def calculate_national_accounting_balance_diagnostics(
         ignore_index=True,
     )
 
+    # NaN in payload breaks the Sheets JSON API; map to null via clean_nans.
     update_sheet_tab(
         sheet_id,
         "BLy_and_E_orig_diffs",
         combined,
+        clean_nans=True,
     )
