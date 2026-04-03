@@ -8,9 +8,58 @@ import numpy as np
 import pandas as pd
 
 from bedrock.utils.io.gcp import update_sheet_tab
-from bedrock.utils.snapshots.loader import load_configured_snapshot
+from bedrock.utils.snapshots.loader import (
+    load_configured_snapshot,
+    load_snapshot,
+    resolve_snapshot_key,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _series_from_1d_frame_or_series(obj: pd.DataFrame | pd.Series) -> pd.Series[float]:
+    if isinstance(obj, pd.Series):
+        return obj.astype(float)
+    if obj.shape[1] == 1:
+        return obj.iloc[:, 0].astype(float)
+    return obj.squeeze().astype(float)
+
+
+def _compute_bly_series(
+    *,
+    B: pd.DataFrame,
+    Adom: pd.DataFrame,
+    y: pd.Series[float],
+) -> pd.Series[float]:
+    from bedrock.utils.math.formulas import compute_d, compute_L_matrix
+
+    L = compute_L_matrix(A=Adom)
+    d = compute_d(B=B)
+    raw = (
+        pd.DataFrame(np.diag(d), index=L.index, columns=L.columns)
+        @ L
+        @ y
+    )
+    if isinstance(raw, pd.DataFrame):
+        raw = raw.iloc[:, 0] if raw.shape[1] == 1 else raw.squeeze()
+    return raw.astype(float)
+
+
+def _percent_diff_vs_denominator(
+    diff_kg: np.ndarray,
+    denom_kg: np.ndarray,
+) -> np.ndarray:
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(
+            np.isfinite(denom_kg) & (denom_kg != 0),
+            diff_kg / denom_kg,
+            np.nan,
+        )
+    return np.where(
+        np.isfinite(ratio),
+        ratio,
+        np.where(np.isfinite(diff_kg) & (diff_kg == 0), 0.0, np.nan),
+    )
 
 
 def calculate_national_accounting_balance_diagnostics(
@@ -30,11 +79,12 @@ def calculate_national_accounting_balance_diagnostics(
 
     If the model is balanced, sum(BLy) should equal sum(E_orig).
 
-    The ``BLy_and_E_orig_diffs`` sheet lists the USA total first, a blank row,
-    then per-sector rows: BLy_i and E_orig_i stay blank where that side has no
-    sector, while ``BLy - E_orig`` uses 0 for missing sides. Sector-level % is
-    ``diff / E_orig_i`` only when ``E_orig_i`` is finite and non-zero; otherwise
-    blank.
+    Writes two tabs:
+    - ``BLy_and_E_orig_diffs``: USA totals only (live BLy vs snapshot E).
+    - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from baseline
+      parquet (``B_USA_non_finetuned``, ``Adom_USA``, ``y_nab_USA`` at the
+      configured snapshot key). Missing sides stay blank; diff uses 0 for missing;
+      % uses BLy_old as denominator when defined.
     """
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
@@ -42,37 +92,26 @@ def calculate_national_accounting_balance_diagnostics(
         derive_B_usa_non_finetuned,
         derive_y_for_national_accounting_balance_usa,
     )
-    from bedrock.utils.math.formulas import compute_d, compute_L_matrix
 
     logger.info("------ Calculating national accounting balance diagnostics ------")
 
-    # Derive B, L, y from current model
     B_new = derive_B_usa_non_finetuned()
     Aq_set = derive_Aq_usa()
-    L_new = compute_L_matrix(A=Aq_set.Adom)
     y_new = derive_y_for_national_accounting_balance_usa()
 
-    # BLy = diag(d) @ L @ y
-    logger.info("1. Calculating BLy...")
-    d_new = compute_d(B=B_new)
-    BLy_new = (
-        pd.DataFrame(np.diag(d_new), index=L_new.index, columns=L_new.columns)
-        @ L_new
-        @ y_new
-    )
+    logger.info("1. Calculating BLy (live)...")
+    BLy_new = _compute_bly_series(B=B_new, Adom=Aq_set.Adom, y=y_new)
 
-    # E_orig: original emissions from snapshot (gas x sector matrix)
     logger.info("2. Loading E_orig from snapshot...")
     E_orig = load_configured_snapshot("E_USA_ES")
     E_orig_by_sector = ta.cast("pd.Series[float]", E_orig.sum(axis=0))
 
-    # National-level totals
     BLy_total = float(BLy_new.sum())
     E_orig_total = float(E_orig_by_sector.sum())
     diff = BLy_total - E_orig_total
     perc_diff = diff / E_orig_total if E_orig_total != 0 else 0.0
 
-    logger.info("3. Building national accounting balance summary...")
+    logger.info("3. Writing BLy vs E (national totals)...")
     comparison = pd.DataFrame(
         {
             "BLy (MtCO2e)": [BLy_total / 1e9],
@@ -82,54 +121,41 @@ def calculate_national_accounting_balance_diagnostics(
         },
         index=pd.Index(["USA"]),
     )
-    summary_out = comparison.reset_index()
-
-    _bly = BLy_new
-    if isinstance(_bly, pd.DataFrame):
-        _bly = _bly.iloc[:, 0] if _bly.shape[1] == 1 else _bly.squeeze()
-    bly_s = _bly.astype(float)
-
-    sector_index = bly_s.index.union(E_orig_by_sector.index).sort_values()
-    bly_by_sec = bly_s.reindex(sector_index)
-    e_by_sec = E_orig_by_sector.reindex(sector_index)
-    diff_kg = bly_by_sec.fillna(0) - e_by_sec.fillna(0)
-    e_arr = e_by_sec.to_numpy(dtype=float, copy=True)
-    d_kg = diff_kg.to_numpy(dtype=float, copy=True)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        ratio = np.where(
-            np.isfinite(e_arr) & (e_arr != 0),
-            d_kg / e_arr,
-            np.nan,
-        )
-    perc_arr = np.where(
-        np.isfinite(ratio),
-        ratio,
-        np.where(np.isfinite(d_kg) & (d_kg == 0), 0.0, np.nan),
-    )
-
-    detail_out = pd.DataFrame(
-        {
-            "index": sector_index,
-            "BLy (MtCO2e)": bly_by_sec / 1e9,
-            "E_orig (MtCO2e)": e_by_sec / 1e9,
-            "BLy - E_orig (MtCO2e)": diff_kg / 1e9,
-            "(BLy - E_orig) / E_orig (%)": perc_arr,
-        }
-    )
-    # NaN for numeric columns keeps float dtypes after concat; empty index cell only.
-    sep_row: dict[str, object] = {
-        c: ("" if c == "index" else np.nan) for c in summary_out.columns
-    }
-    separator = pd.DataFrame([sep_row])
-    combined = pd.concat(
-        [summary_out, separator, detail_out],
-        ignore_index=True,
-    )
-
-    # NaN in payload breaks the Sheets JSON API; map to null via clean_nans.
     update_sheet_tab(
         sheet_id,
         "BLy_and_E_orig_diffs",
-        combined,
+        comparison.reset_index(),
+        clean_nans=True,
+    )
+
+    logger.info("4. Loading baseline B, Adom, y_nab; computing BLy_old...")
+    snap_key = resolve_snapshot_key()
+    B_old = load_snapshot("B_USA_non_finetuned", snap_key)
+    Adom_old = load_snapshot("Adom_USA", snap_key)
+    y_old = _series_from_1d_frame_or_series(load_snapshot("y_nab_USA", snap_key))
+    BLy_old = _compute_bly_series(B=B_old, Adom=Adom_old, y=y_old)
+
+    sector_index = BLy_new.index.union(BLy_old.index).sort_values()
+    bly_new_by_sec = BLy_new.reindex(sector_index)
+    bly_old_by_sec = BLy_old.reindex(sector_index)
+    diff_kg = bly_new_by_sec.fillna(0) - bly_old_by_sec.fillna(0)
+    old_arr = bly_old_by_sec.to_numpy(dtype=float, copy=True)
+    d_kg = diff_kg.to_numpy(dtype=float, copy=True)
+    perc_arr = _percent_diff_vs_denominator(d_kg, old_arr)
+
+    bly_diff_out = pd.DataFrame(
+        {
+            "index": sector_index,
+            "BLy_new (MtCO2e)": bly_new_by_sec / 1e9,
+            "BLy_old (MtCO2e)": bly_old_by_sec / 1e9,
+            "BLy_new - BLy_old (MtCO2e)": diff_kg / 1e9,
+            "(BLy_new - BLy_old) / BLy_old (%)": perc_arr,
+        }
+    )
+    logger.info("5. Writing BLy_new vs BLy_old (by sector)...")
+    update_sheet_tab(
+        sheet_id,
+        "BLy_new_vs_BLy_old",
+        bly_diff_out,
         clean_nans=True,
     )
