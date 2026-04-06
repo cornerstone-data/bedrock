@@ -740,7 +740,7 @@ def standardize_blm_pls_activity_names(df: pd.DataFrame) -> pd.DataFrame:
         lambda x: re.sub(' to ', ' To ', x)
     )
     df[standardize_column] = df[standardize_column].apply(
-        lambda x: re.sub(r'\bLease\b', 'Leases', x)
+        lambda x: re.sub('\bLease\b', 'Leases', x)
     )
     df[standardize_column] = df[standardize_column].apply(
         lambda x: re.sub(':  ', ': ', x)
