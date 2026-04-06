@@ -404,7 +404,7 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByAct
 
     Mining data is calculated using a separate source = BLM PLS.
     Want to extract rural residential land area from total value of
-    'Other Land'
+    'Miscellaneous other Land'
     :param df: df, USDA ERA MLU Land
     :param attr: dictionary, attribute data from method yaml for activity set
     :param fbs_list: list, FBS dfs for activities created prior to the activity
@@ -413,7 +413,7 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByAct
     """
 
     log.info(
-        'The only category for MLU other land use is rural land '
+        'The only category for MLU miscellaneous other land use is rural land '
         'occupation. All other land area in this category is '
         'unassigned to sectors, resulting in unaccounted land area.'
     )
