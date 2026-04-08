@@ -9,7 +9,9 @@ format: csv
 url:
   base_url: https://ers.usda.gov/sites/default/files/_laserfiche/DataFiles/52096/MajorLandUse.csv?v=98158
 call_response_fxn: !script_function:USDA_ERS_MLU mlu_call
+gcs_fxn: !script_function:USDA_ERS_MLU mlu_load_gcs
 parse_response_fxn: !script_function:USDA_ERS_MLU mlu_parse
+extract_data_from_raw_sources: False  # if True, downloads data from USDA url
 years:
   - 2007
   - 2012

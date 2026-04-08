@@ -9,7 +9,10 @@ Last updated: Thursday, April 16, 2020
 """
 
 import io
+import os
+import posixpath
 from typing import Any
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -17,6 +20,8 @@ from requests import Response
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.transform.literature_values import (
     get_area_of_rural_land_occupied_by_houses_2013,
     get_area_of_urban_land_occupied_by_houses_2013,
@@ -31,6 +36,8 @@ from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
 from bedrock.utils.mapping.naics import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
 
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
+
 
 def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
@@ -41,6 +48,18 @@ def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     with io.StringIO(resp.text) as fp:
         df = pd.read_csv(fp, encoding="ISO-8859-1")
+    return df
+
+
+def mlu_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    year = str(kwargs.get("year", ""))
+    url = str(kwargs.get("url", ""))
+    name = posixpath.basename(urlparse(url).path) or "MajorLandUse.csv"
+    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"USDA_MLU_{year}")
+    pth = os.path.join(IN_DIR, name)
+    download_gcs_file_if_not_exists(name=name, sub_bucket=GCS_DIR, pth=pth)
+    df = pd.read_csv(pth, encoding="ISO-8859-1")
     return df
 
 
