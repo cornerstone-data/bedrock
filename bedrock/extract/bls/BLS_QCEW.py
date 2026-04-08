@@ -15,6 +15,8 @@ This script is designed to run with a configuration parameter
 from __future__ import annotations
 
 import io
+import os
+import posixpath
 import zipfile
 from typing import Any, cast
 
@@ -26,6 +28,10 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.mapping.naics import industry_spec_key, return_max_sector_level
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
 def BLS_QCEW_URL_helper(*, build_url: str, year: str | int, **_: Any) -> list[str]:
@@ -51,7 +57,7 @@ def BLS_QCEW_URL_helper(*, build_url: str, year: str | int, **_: Any) -> list[st
     return urls
 
 
-def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
+def _bls_qcew_df_from_zip(content: bytes) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe,
     begin parsing df into FBA format
@@ -59,9 +65,9 @@ def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
     :return: pandas dataframe of original source data
     """
     # initiate dataframes list
-    df_list = []
+    df_list: list[pd.DataFrame] = []
     # unzip folder that contains bls data in ~4000 csv files
-    with zipfile.ZipFile(io.BytesIO(resp.content), 'r') as f:
+    with zipfile.ZipFile(io.BytesIO(content), 'r') as f:
         # read in file names
         for name in f.namelist():
             # Only want state info
@@ -83,6 +89,33 @@ def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
                     ]
                 ]
     return df
+
+
+def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
+    """
+    Convert response for calling url to pandas dataframe,
+    begin parsing df into FBA format
+    :param resp: df, response from url call
+    :return: pandas dataframe of original source data
+    """
+    return _bls_qcew_df_from_zip(resp.content)
+
+
+def bls_qcew_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    year = str(kwargs.get('year', ''))
+    url = kwargs.get('url', '')
+    name = os.path.basename(str(url))
+    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"BLS_QCEW_{year}")
+    pth = os.path.join(IN_DIR, name)
+    download_gcs_file_if_not_exists(
+        name=name,
+        sub_bucket=GCS_DIR,
+        pth=pth,
+    )
+    with open(pth, "rb") as f:
+        content = f.read()
+    return _bls_qcew_df_from_zip(content)
 
 
 def bls_qcew_parse(

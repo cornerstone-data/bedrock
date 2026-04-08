@@ -9,7 +9,9 @@ url:
   base_url: https://data.bls.gov/cew/data/files/__year__/csv/__year___annual_singlefile.zip
 url_replace_fxn: !script_function:BLS_QCEW BLS_QCEW_URL_helper
 call_response_fxn: !script_function:BLS_QCEW bls_qcew_call
+gcs_fxn: !script_function:BLS_QCEW bls_qcew_load_gcs
 parse_response_fxn: !script_function:BLS_QCEW bls_qcew_parse
+extract_data_from_raw_sources: False  # if True, downloads raw data from BLS url
 years:
   - 2000
   - 2001
