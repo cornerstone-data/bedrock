@@ -25,11 +25,11 @@ import pandas as pd
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.mapping.naics import industry_spec_key, return_max_sector_level
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
