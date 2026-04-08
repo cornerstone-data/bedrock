@@ -569,7 +569,9 @@ def blm_pls_pdf_to_df(pdf_bytes: bytes, year: str) -> pd.DataFrame:
         no_header_page_numbers = [134]
     else:
         # provide reasoning for failure of parsing data
-        log.error('Missing code specifying sub-headers, add code to blm_pls_pdf_to_df()')
+        log.error(
+            'Missing code specifying sub-headers, add code to blm_pls_pdf_to_df()'
+        )
 
     for header in sub_headers:
         for sub_header in sub_headers[header]:

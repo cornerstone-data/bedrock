@@ -90,9 +90,7 @@ def eia_mecs_land_call(
     return df
 
 
-def _eia_mecs_land_read_from_excel(
-    source: str | io.BytesIO, year: str
-) -> pd.DataFrame:
+def _eia_mecs_land_read_from_excel(source: str | io.BytesIO, year: str) -> pd.DataFrame:
     """Read Table 9.1 / RSE 9.1 from a local xlsx path or buffer (same as HTTP)."""
     if isinstance(source, io.BytesIO):
         source.seek(0)
@@ -286,7 +284,9 @@ def eia_mecs_land_parse(
 
 def eia_mecs_land_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_Land_{kwargs.get('year')}")
+    GCS_MECS_DIR = posixpath.join(
+        GCS_CEDA_INPUT_DIR, f"EIA_MECS_Land_{kwargs.get('year')}"
+    )
     url = kwargs.get('url', '')
     name = os.path.basename(str(url))
     download_gcs_file_if_not_exists(
