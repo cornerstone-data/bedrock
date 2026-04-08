@@ -20,8 +20,6 @@ from requests import Response
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.transform.literature_values import (
     get_area_of_rural_land_occupied_by_houses_2013,
     get_area_of_urban_land_occupied_by_houses_2013,
@@ -31,6 +29,8 @@ from bedrock.transform.literature_values import (
     get_urban_land_use_for_railroads,
 )
 from bedrock.utils.config.common import load_crosswalk
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
 from bedrock.utils.mapping.naics import industry_spec_key

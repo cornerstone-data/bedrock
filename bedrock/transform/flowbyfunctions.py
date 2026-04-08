@@ -1,11 +1,9 @@
 # flowbyfunctions.py (flowsa)
 # !/usr/bin/env python3
 # coding=utf-8
-from __future__ import annotations
+"""Helper functions for flowbyactivity and flowbysector data"""
 
-"""
-Helper functions for flowbyactivity and flowbysector data
-"""
+from __future__ import annotations
 
 from typing import Any
 
