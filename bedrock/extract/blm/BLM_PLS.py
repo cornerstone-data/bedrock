@@ -10,6 +10,8 @@ Bureau of Land Management Public Land Statistics data
 from __future__ import annotations
 
 import io
+import os
+import posixpath
 import re
 from typing import Any, cast
 
@@ -17,8 +19,12 @@ import pandas as pd
 from tabula.io import read_pdf
 
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import get_all_state_FIPS_2
+
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
 def split(
@@ -251,13 +257,9 @@ def blm_pls_URL_helper(
     return urls
 
 
-def blm_pls_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
+def blm_pls_pdf_to_df(pdf_bytes: bytes, year: str) -> pd.DataFrame:
     """
-    Convert response for calling url to pandas dataframe, begin parsing
-    df into FBA format
-    :param resp: Response, response from url call
-    :param year: year
-    :return: pandas dataframe of original source data
+    Parse BLM Public Land Statistics PDF into dataframe
     """
     df = pd.DataFrame()
     sub_headers = {}
@@ -567,7 +569,7 @@ def blm_pls_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
         no_header_page_numbers = [134]
     else:
         # provide reasoning for failure of parsing data
-        log.error('Missing code specifying sub-headers, add code to blm_pls_call()')
+        log.error('Missing code specifying sub-headers, add code to blm_pls_pdf_to_df()')
 
     for header in sub_headers:
         for sub_header in sub_headers[header]:
@@ -577,7 +579,7 @@ def blm_pls_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
                 found_header = False
 
                 pdf_tables = read_pdf(
-                    io.BytesIO(resp.content),
+                    io.BytesIO(pdf_bytes),
                     pages=page_number,
                     stream=True,
                     guess=False,
@@ -676,6 +678,33 @@ def blm_pls_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
     # drop where flowamount is null, at times due to duplicated info
     df = df.query("FlowAmount != ''").reset_index(drop=True)
 
+    return df
+
+
+def blm_pls_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
+    """
+    Convert response for calling url to pandas dataframe, begin parsing
+    df into FBA format
+    :param resp: Response, response from url call
+    :param year: year
+    :return: pandas dataframe of original source data
+    """
+    df = blm_pls_pdf_to_df(resp.content, year)
+    return df
+
+
+def blm_pls_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """File downloaded and stored locally from gcs"""
+
+    year = str(kwargs.get("year", ""))
+    config = kwargs.get("config") or {}
+    name = cast(dict[str, str], config["file_name"])[year]
+    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"BLM_PLS_{year}")
+    pth = os.path.join(IN_DIR, name)
+    download_gcs_file_if_not_exists(name=name, sub_bucket=GCS_DIR, pth=pth)
+    with open(pth, "rb") as f:
+        pdf_bytes = f.read()
+    df = blm_pls_pdf_to_df(pdf_bytes, year)
     return df
 
 
