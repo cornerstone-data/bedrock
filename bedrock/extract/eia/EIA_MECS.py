@@ -82,9 +82,24 @@ def eia_mecs_land_call(
         generateflowbyactivity.py ('year' and 'source')
     :return: pandas dataframe of original source data
     """
-    # Convert response to dataframe
-    df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name='Table 9.1')
-    df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name='RSE 9.1')
+    buf = io.BytesIO(resp.content)
+    df = _eia_mecs_land_read_from_excel(buf, year)
+    table = os.path.basename(str(resp.url))
+    with open(os.path.join(IN_DIR, table), "wb") as f:
+        f.write(resp.content)
+    return df
+
+
+def _eia_mecs_land_read_from_excel(
+    source: str | io.BytesIO, year: str
+) -> pd.DataFrame:
+    """Read Table 9.1 / RSE 9.1 from a local xlsx path or buffer (same as HTTP)."""
+    if isinstance(source, io.BytesIO):
+        source.seek(0)
+    df_raw_data = pd.read_excel(source, sheet_name='Table 9.1')
+    if isinstance(source, io.BytesIO):
+        source.seek(0)
+    df_raw_rse = pd.read_excel(source, sheet_name='RSE 9.1')
     if year == "2014":
         # skip rows and remove extra rows at end of dataframe
         df_rse = pd.DataFrame(df_raw_rse.loc[12:93]).reindex()
@@ -266,6 +281,22 @@ def eia_mecs_land_parse(
     # modify flowname
     df['FlowName'] = df['FlowName'].str.strip()
 
+    return df
+
+
+def eia_mecs_land_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_Land_{kwargs.get('year')}")
+    url = kwargs.get('url', '')
+    name = os.path.basename(str(url))
+    download_gcs_file_if_not_exists(
+        name=name,
+        sub_bucket=GCS_MECS_DIR,
+        pth=os.path.join(IN_DIR, name),
+    )
+    path = os.path.join(IN_DIR, name)
+
+    df = _eia_mecs_land_read_from_excel(path, str(kwargs['year']))
     return df
 
 
