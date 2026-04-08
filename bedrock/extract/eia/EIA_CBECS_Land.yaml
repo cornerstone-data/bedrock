@@ -11,7 +11,9 @@ url:
   api_path: ''
 url_replace_fxn: !script_function:EIA_CBECS_Land eia_cbecs_land_URL_helper
 call_response_fxn: !script_function:EIA_CBECS_Land eia_cbecs_land_call
+gcs_fxn: !script_function:EIA_CBECS_Land eia_cbecs_land_load_gcs
 parse_response_fxn: !script_function:EIA_CBECS_Land eia_cbecs_land_parse
+extract_data_from_raw_sources: False  # if True, downloads data from EIA url
 years:
 - 2012
 xlsx:
