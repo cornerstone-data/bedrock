@@ -1,7 +1,7 @@
 author: US Energy Information Administration
 source_name: Manufacturing Energy Consumption Survey
 source_url: https://www.eia.gov/consumption/manufacturing/
-source_publication_date: {'2010': '2013', '2014': '2017', '2018': '2021'}
+source_publication_date: {'2010': '2013', '2014': '2017', '2018': '2021', '2022': '2026'}
 bib_id: EIA_MECS
 api_name: EIA_MECS_Energy
 api_key_required: false
@@ -18,6 +18,7 @@ years:
 # - 2010
 # - 2014
 - 2018
+- 2022
 tables:
 # - table1_2
 # - table1_5
@@ -528,3 +529,72 @@ table_dict:
         regions: *regions_2018_72
         rse_regions: *rse_regions_2018_72
         data_type: 'money'
+
+    '2022':
+      Table 2.1:
+        col_names: &col_names_2022_21
+          - NAICS Code
+          - Subsector and Industry
+          - Total | trillion Btu
+          - Residual Fuel Oil | million bbl
+          - Distillate Fuel Oil | million bbl
+          - Natural Gas | billion cu ft
+          - Hydrocarbon Gas Liquids, excluding natural gasoline | million bbl
+          - Coal | million short tons
+          - Coke and Breeze | million short tons
+          - Hydrogen | trillion Btu
+          - Other | trillion Btu
+        regions: &regions_2022_21
+          Total United States : [15,97]
+          Northeast Region : [100,180]
+          Midwest Region : [183,263]
+          South Region : [266,346]
+          West Region : [349,429]
+        rse_regions: &rse_regions_2022_21
+          Total United States : [12,94]
+          Northeast Region : [97,177]
+          Midwest Region : [180,260]
+          South Region : [263,343]
+          West Region : [346,426]
+        data_type: 'nonfuel consumption'
+      Table 2.2:
+        col_names: *col_names_2022_21
+        regions:
+          *regions_2022_21
+        rse_regions:
+          *rse_regions_2022_21
+        data_type: 'nonfuel consumption'
+      Table 3.1:
+        col_names: &col_names_2022_31
+          - NAICS Code
+          - Subsector and Industry
+          - Total | trillion Btu
+          - Net Electricity | million kWh
+          - Residual Fuel Oil | million bbl
+          - Distillate Fuel Oil | million bbl
+          - Natural Gas | billion cu ft
+          - Hydrocarbon Gas Liquids, excluding natural gasoline | million bbl
+          - Coal | million short tons
+          - Coke and Breeze | million short tons
+          - Hydrogen | trillion Btu
+          - Other | trillion Btu
+        regions: &regions_2022_31
+          Total United States : [15,95]
+          Northeast Region : [98,178]
+          Midwest Region : [181,261]
+          South Region : [264,344]
+          West Region : [347,427]
+        rse_regions: &rse_regions_2022_31
+          Total United States : [12,92]
+          Northeast Region : [95,175]
+          Midwest Region : [178, 258]
+          South Region : [261,341]
+          West Region : [344,424]
+        data_type: 'fuel consumption'
+      Table 3.2:
+        col_names: *col_names_2022_31
+        regions:
+          *regions_2022_31
+        rse_regions:
+          *rse_regions_2022_31
+        data_type: 'fuel consumption'
