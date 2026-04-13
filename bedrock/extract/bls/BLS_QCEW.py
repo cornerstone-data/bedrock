@@ -12,20 +12,29 @@ This script is designed to run with a configuration parameter
 --year = 'year' e.g. 2015
 """
 
+from __future__ import annotations
+
 import io
+import os
+import posixpath
 import zipfile
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.mapping.naics import industry_spec_key, return_max_sector_level
 
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
-def BLS_QCEW_URL_helper(*, build_url, year, **_):
+
+def BLS_QCEW_URL_helper(*, build_url: str, year: str | int, **_: Any) -> list[str]:
     """
     This helper function uses the "build_url" input from generateflowbyactivity.py,
     which is a base url for data imports that requires parts of the url text
@@ -48,7 +57,7 @@ def BLS_QCEW_URL_helper(*, build_url, year, **_):
     return urls
 
 
-def bls_qcew_call(*, resp, **_):
+def _bls_qcew_df_from_zip(content: bytes) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe,
     begin parsing df into FBA format
@@ -56,13 +65,13 @@ def bls_qcew_call(*, resp, **_):
     :return: pandas dataframe of original source data
     """
     # initiate dataframes list
-    df_list = []
+    df_list: list[pd.DataFrame] = []
     # unzip folder that contains bls data in ~4000 csv files
-    with zipfile.ZipFile(io.BytesIO(resp.content), "r") as f:
+    with zipfile.ZipFile(io.BytesIO(content), 'r') as f:
         # read in file names
         for name in f.namelist():
             # Only want state info
-            if "singlefile" in name:
+            if 'singlefile' in name:
                 data = f.open(name)
                 df_state = pd.read_csv(data, header=0, dtype=str)
                 df_list.append(df_state)
@@ -79,10 +88,39 @@ def bls_qcew_call(*, resp, **_):
                         'total_annual_wages',
                     ]
                 ]
-        return df
+    return df
 
 
-def bls_qcew_parse(*, df_list, year, **_):
+def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
+    """
+    Convert response for calling url to pandas dataframe,
+    begin parsing df into FBA format
+    :param resp: df, response from url call
+    :return: pandas dataframe of original source data
+    """
+    return _bls_qcew_df_from_zip(resp.content)
+
+
+def bls_qcew_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    year = str(kwargs.get('year', ''))
+    url = kwargs.get('url', '')
+    name = os.path.basename(str(url))
+    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"BLS_QCEW_{year}")
+    pth = os.path.join(IN_DIR, name)
+    download_gcs_file_if_not_exists(
+        name=name,
+        sub_bucket=GCS_DIR,
+        pth=pth,
+    )
+    with open(pth, "rb") as f:
+        content = f.read()
+    return _bls_qcew_df_from_zip(content)
+
+
+def bls_qcew_parse(
+    *, df_list: list[pd.DataFrame], year: str | int, **_: Any
+) -> pd.DataFrame:
     """
     Combine, parse, and format the provided dataframes
     :param df_list: list of dataframes to concat and format
@@ -131,12 +169,12 @@ def bls_qcew_parse(*, df_list, year, **_):
     df['Location'] = df['Location'].apply('{:0>5}'.format)
     # use "melt" fxn to convert colummns into rows
     df2 = df.melt(
-        id_vars=["Location", "ActivityProducedBy", "Year", 'own_code'],
-        var_name="FlowName",
-        value_name="FlowAmount",
+        id_vars=['Location', 'ActivityProducedBy', 'Year', 'own_code'],
+        var_name='FlowName',
+        value_name='FlowAmount',
     )
     # specify unit based on flowname
-    df2['Unit'] = np.where(df2["FlowName"] == 'Annual payroll', "USD", "p")
+    df2['Unit'] = np.where(df2['FlowName'] == 'Annual payroll', 'USD', 'p')
     # specify class
     df2.loc[df2['FlowName'] == 'Number of employees', 'Class'] = 'Employment'
     df2.loc[df2['FlowName'] == 'Number of establishments', 'Class'] = 'Other'
@@ -152,12 +190,12 @@ def bls_qcew_parse(*, df_list, year, **_):
     df2['DataReliability'] = 5
     df2['DataCollection'] = 5
     df2['Compartment'] = None
-    df2['FlowType'] = "ELEMENTARY_FLOW"
+    df2['FlowType'] = 'ELEMENTARY_FLOW'
 
     return df2
 
 
-def clean_qcew(fba: FlowByActivity, **kwargs):
+def clean_qcew(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     # todo: check function method for state
     if fba.config.get('geoscale') == 'national':
         fba = fba.query('Location == "00000"')
@@ -201,7 +239,7 @@ def clean_qcew(fba: FlowByActivity, **kwargs):
     return filtered
 
 
-def clean_qcew_for_fbs(fba: FlowByActivity, **kwargs):
+def clean_qcew_for_fbs(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     """
     clean up bls df with sectors by estimating suppresed data
     :param df_w_sec: df, FBA format BLS QCEW data
@@ -238,7 +276,7 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
     )
 
     for level in range(max_level - 1, 1, -1):
-        log.info(f"Identifying sector descendants for NAICS {level}")
+        log.info(f'Identifying sector descendants for NAICS {level}')
         descendants = pd.DataFrame(
             fba3.drop(columns='descendants')
             .query(f'ActivityProducedBy.str.len() > {level}')
@@ -320,7 +358,7 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
         )
     )
 
-    def fill_suppressed(flows, level: int, activity):
+    def fill_suppressed(flows: pd.DataFrame, level: int, activity: str) -> pd.DataFrame:
         parent = flows[flows[activity].str.len() == level]
         children = flows[flows[activity].str.len() == level + 1]
         null_children = children[children['flow_suppressed']]
@@ -340,15 +378,15 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
 
             return flows
 
-    unsuppressed = indexed.copy()
+    unsuppressed: pd.DataFrame = cast(pd.DataFrame, indexed.copy())
     # replace 0 values with np.nan for suppressed data to be estimated
     unsuppressed['FlowAmount'] = unsuppressed['FlowAmount'].mask(
         unsuppressed['FlowAmount'] == 0
     )
     unsuppressed['flow_suppressed'] = unsuppressed['FlowAmount'].isna()
     for level in range(2, max_level, 1):
-        log.info(f"Estimating suppressed NAICS {level + 1}")
-        groupcols = ["{}{}".format("n", i) for i in range(2, level + 1)] + [
+        log.info(f'Estimating suppressed NAICS {level + 1}')
+        groupcols = ['{}{}'.format('n', i) for i in range(2, level + 1)] + [
             'location',
             'category',
         ]
@@ -356,8 +394,14 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
             fill_suppressed, level, 'ActivityProducedBy'
         )
 
+    # groupby().apply() may return a plain DataFrame; wrap so .aggregate_flowby() resolves
+    unsuppressed_fba = FlowByActivity(
+        cast(Any, unsuppressed),
+        config=fba.config,
+        full_name=fba.full_name,
+    )
     aggregated = (
-        unsuppressed.reset_index(drop=True)
+        unsuppressed_fba.reset_index(drop=True)
         .fillna({'FlowAmount': 0})
         .drop(columns=['Unattributed', 'Attributed', 'flow_suppressed'])
         .assign(FlowName='Number of employees')
@@ -368,8 +412,9 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
     return aggregated
 
 
-if __name__ == "__main__":
-    import bedrock
+if __name__ == '__main__':
+    from bedrock.extract import flowbyactivity
+    from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
-    bedrock.extract.generateflowbyactivity.main(source='BLS_QCEW', year=2022)
-    fba = bedrock.extract.flowbyactivity.getFlowByActivity('BLS_QCEW', year=2022)
+    generateFlowByActivity(source='BLS_QCEW', year=2022)
+    fba = flowbyactivity.getFlowByActivity('BLS_QCEW', year=2022)

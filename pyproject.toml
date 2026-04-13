@@ -29,6 +29,7 @@ dependencies = [
     "tenacity>=8.2.3,<9.0.0",
     "tqdm>=4.66.2,<5.0.0",
     "openpyxl>=3.1.2,<4.0.0",
+    "tabula-py==2.10.0",
     "pyarrow>=22.0.0",
     "pycountry>=24.6.1",
     "python-dotenv >= 1.1.0",
@@ -86,8 +87,6 @@ known-first-party = ["bedrock"]
 "**/test_*.py" = ["ARG001", "ARG002"]
 # temporary turn off for legacy flowsa FBA files
 "bedrock/extract/blackhurst/*" = ["ALL"]
-"bedrock/extract/blm/*" = ["ALL"]
-"bedrock/extract/bls/*" = ["ALL"]
 "bedrock/extract/bts/*" = ["ALL"]
 "bedrock/extract/calrecycle/*" = ["ALL"]
 "bedrock/extract/census/*" = ["ALL"]
@@ -127,8 +126,6 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 exclude = [
     'bedrock/extract/blackhurst/',
-    'bedrock/extract/blm/',
-    'bedrock/extract/bls/',
     'bedrock/extract/bts/',
     'bedrock/extract/calrecycle/',
     'bedrock/extract/census/',
