@@ -1,12 +1,14 @@
-# This is the 2023 method file for the Cornerstone GHG model (v2025)
+# This is the 2020 method file for the Cornerstone GHG model (v2025)
+# GHGI FBA table names match the 2024 GHGI Report (see GHG_national_2020_m2.yaml)
+# MECS year: 2018; CoA year: 2017
 
 !include:Cornerstone_2025_target.yaml
-year: &ghgi_year 2023
+year: &ghgi_year 2020
 target_naics_year: 2017
 geoscale: national
 
 mecs_year: &mecs_year 2018
-coa_year: &coa_year 2022
+coa_year: &coa_year 2017
 
 _attribution_sources:
   EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
@@ -480,7 +482,7 @@ source_names:
   EPA_GHGI_T_3_15:  *mobile #N2O from mobile combustion duplicates method for CH4
 
 ## Stationary Combustion
-  "EPA_GHGI_T_A_5": # CO2 emissions from stationary combustion
+  "EPA_GHGI_T_A_8": # CO2 emissions from stationary combustion
     activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     year: *ghgi_year
@@ -489,7 +491,7 @@ source_names:
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-        ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
+        ghg_fba: 'EPA_GHGI_T_A_8' # inventory-year stationary CO2 table (see GHG_national_2020_m2.yaml)
     activity_sets:
       direct_attribution: #direct allocation
         selection_fields:
@@ -581,7 +583,7 @@ source_names:
         energy_fba: 'EIA_MECS_Energy'  # todo: udpate for ceda to mecs table 3-1?
         year: *mecs_year
         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-        ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
+        ghg_fba: 'EPA_GHGI_T_A_8' # inventory-year stationary CO2 table (see GHG_national_2020_m2.yaml)
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
       residential:
@@ -701,7 +703,7 @@ source_names:
         - Methanol
     attribution_method: direct
 
-  EPA_GHGI_T_3_25: # Fossil fuel for non-energy uses
+  EPA_GHGI_T_3_25b: # Fossil fuel for non-energy uses (2024 GHGI report table id; see GHG_national_2020_m2.yaml)
     year: *ghgi_year
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
@@ -717,12 +719,12 @@ source_names:
           PrimaryActivity:
             'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy  # same as flowsa
             Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy  # same as flowsa
-#            Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
+            Industry LPG: Industry Petroleum Products Non-energy
             Industry Lubricants: Industry Petroleum Products Non-energy  # same as flowsa
             Industry Miscellaneous Products: Industry Petroleum Products Non-energy  # same as flowsa
             'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy  # same as flowsa
             'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy  # same as flowsa
-#            Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
+            Industry Pentanes Plus: Industry Petroleum Products Non-energy
             Industry Petroleum Coke: Industry Petroleum Products Non-energy  # same as flowsa
             Industry Special Naphtha: Industry Petroleum Products Non-energy  # same as flowsa
             Industry Still Gas: Industry Petroleum Products Non-energy  # same as flowsa
