@@ -1,0 +1,23 @@
+# This config is used to run the Cornerstone 2026 model schema on the 2025 USA data.
+# It enables comparisons of the B transformation while also using the waste disaggregation.
+
+#####
+# Model base settings
+#####
+
+#####
+# Data selection
+#####
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+use_E_data_year_for_x_in_B: True
+load_E_from_flowsa: True
+implement_waste_disaggregation: True
+
+
+#####
+# Bugfix
+#####
