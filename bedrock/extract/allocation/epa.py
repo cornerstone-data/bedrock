@@ -17,7 +17,7 @@ from bedrock.transform.allocation.utils import parse_index_with_aggregates
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.gwp import derive_ar5_to_ar6_multiplier
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
@@ -46,6 +46,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
     """Get GCS EPA directories based on config year"""
     year = _get_epa_data_year()
     section = tbl_name.split("-")[0]
+    base = gcs_extract_input_path("EPA_GHGI", year)
 
     main_or_annex_dir = (
         {
@@ -67,7 +68,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
 
     if section == "A":
         return posixpath.join(
-            GCS_CEDA_INPUT_DIR, main_or_annex_dir["annex"], f"Table {tbl_name}.csv"
+            base, main_or_annex_dir["annex"], f"Table {tbl_name}.csv"
         )
 
     chapter_dir = (
@@ -94,7 +95,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
         }
     )
     return posixpath.join(
-        GCS_CEDA_INPUT_DIR,
+        base,
         main_or_annex_dir["main"],
         chapter_dir[int(section)],
         f"Table {tbl_name}.csv",
