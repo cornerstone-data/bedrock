@@ -22,6 +22,44 @@ logger = logging.getLogger(__name__)
 GCS_CORNERSTONE = "gs://cornerstone-default"
 
 
+def download_extract_input_from_gcs_if_not_exists(
+    kwargs: ta.Mapping[str, ta.Any],
+    *,
+    local_dir: str,
+    object_name: str | None = None,
+    sub_bucket: str | None = None,
+) -> str:
+    """
+    Download one raw extract-input file from GCS under
+    ``gcs_extract_input_sub_bucket_from_kwargs`` unless ``sub_bucket`` is set
+    (``…/{source}/`` or ``…/{source}/{year}/`` when ``year`` is in kwargs).
+
+    Parameters
+    ----------
+    kwargs
+        Must include ``source`` and ``url`` (unless ``object_name`` is set).
+        ``year`` is passed through to the path prefix when present.
+    local_dir
+        Directory for the local copy (e.g. module ``IN_DIR``).
+    object_name
+        GCS object file name. Default: ``os.path.basename(url)``.
+    sub_bucket
+        Override path prefix; default is ``gcs_extract_input_sub_bucket_from_kwargs(kwargs)``.
+    """
+    from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
+
+    bucket = (
+        sub_bucket
+        if sub_bucket is not None
+        else gcs_extract_input_sub_bucket_from_kwargs(kwargs)
+    )
+    if object_name is None:
+        object_name = os.path.basename(str(kwargs.get("url", "")))
+    pth = os.path.join(local_dir, object_name)
+    download_gcs_file_if_not_exists(name=object_name, sub_bucket=bucket, pth=pth)
+    return pth
+
+
 def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> None:
     """
     Download a file from Google Cloud Storage (GCS) if it does not already exist
