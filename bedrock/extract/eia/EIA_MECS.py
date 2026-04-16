@@ -21,6 +21,7 @@ from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
+from bedrock.utils.io.extract_input_local import local_extract_input_dir
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import (
@@ -28,9 +29,6 @@ from bedrock.utils.mapping.location import (
     assign_census_regions,
     get_region_and_division_codes,
 )
-
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
-
 
 def eia_mecs_URL_helper(
     *, build_url: str, config: dict[str, Any], year: str, **_kwrags: dict[str, Any]
@@ -69,7 +67,7 @@ def eia_mecs_URL_helper(
 
 
 def eia_mecs_land_call(
-    *, resp: Response, year: str, **_: dict[str, Any]
+    *, resp: Response, source: str, year: str, **_: dict[str, Any]
 ) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing df
@@ -83,7 +81,7 @@ def eia_mecs_land_call(
     buf = io.BytesIO(resp.content)
     df = _eia_mecs_land_read_from_excel(buf, year)
     table = os.path.basename(str(resp.url))
-    with open(os.path.join(IN_DIR, table), "wb") as f:
+    with open(os.path.join(local_extract_input_dir(source, year), table), "wb") as f:
         f.write(resp.content)
     return df
 
@@ -282,13 +280,13 @@ def eia_mecs_land_parse(
 
 def eia_mecs_land_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    path = download_extract_input_from_gcs_if_not_exists(kwargs, local_dir=IN_DIR)
+    path = download_extract_input_from_gcs_if_not_exists(kwargs)
     return _eia_mecs_land_read_from_excel(path, str(kwargs["year"]))
 
 
 def eia_mecs_energy_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    path = download_extract_input_from_gcs_if_not_exists(kwargs, local_dir=IN_DIR)
+    path = download_extract_input_from_gcs_if_not_exists(kwargs)
     df_raw_data = pd.read_excel(path, sheet_name=0, header=None)
     df_raw_rse = pd.read_excel(path, sheet_name=1, header=None)
     return _eia_clean_mecs_energy(
@@ -299,6 +297,7 @@ def eia_mecs_energy_load_gcs(**kwargs: Any) -> pd.DataFrame:
 def eia_mecs_energy_call(
     *,
     resp: Response | None,
+    source: str,
     year: str,
     config: dict[str, Any],
     **_kwargs: dict[str, Any],
@@ -319,8 +318,7 @@ def eia_mecs_energy_call(
     df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
 
     table = os.path.basename(str(resp.url))
-    # write table to Excel
-    with open(f"{os.path.join(IN_DIR, table)}", "wb") as f:
+    with open(os.path.join(local_extract_input_dir(source, year), table), "wb") as f:
         f.write(resp.content)
 
     df = _eia_clean_mecs_energy(df_raw_data, df_raw_rse, year, config)

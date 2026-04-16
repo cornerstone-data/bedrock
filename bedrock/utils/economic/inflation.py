@@ -1,10 +1,10 @@
 import os
-import posixpath
 
 import pandas as pd
 
+from bedrock.utils.io.extract_input_local import local_extract_input_dir
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTORS
 from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
@@ -13,13 +13,13 @@ from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
 # Obtained from Watershed price index source (rds_2Au4cfUuGHgFFLG37rdR),
 # which is derived from BEA price index:
 # TODO: migrate to publicly available BEA price index
-INFLATION_FACTOR_DATA_GCS_PATH = posixpath.join(GCS_CEDA_INPUT_DIR, "BEA_PriceIndex")
+# BEA price index on GCS: ``extract/input-data/BEA-PriceIndex/`` (no year subfolder).
+INFLATION_FACTOR_DATA_GCS_PATH = gcs_extract_input_path("BEA_PriceIndex")
 
 
 def obtain_inflation_factors_from_reference_data() -> pd.DataFrame:
     local_inflation_factor_path = os.path.join(
-        os.path.dirname(__file__), "input_data/inflation_factors.parquet"
-    )
+        local_extract_input_dir("BEA_PriceIndex"), "inflation_factors.parquet")
     download_gcs_file_if_not_exists(
         "bea_price_index_2025_10_01.parquet",
         INFLATION_FACTOR_DATA_GCS_PATH,
