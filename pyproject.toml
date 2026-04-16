@@ -33,6 +33,7 @@ dependencies = [
     "pycountry>=24.6.1",
     "python-dotenv >= 1.1.0",
     "click>=8.1.7,<9.0.0",
+    "matplotlib>=3.10.6",
 ]
 
 [dependency-groups]
