@@ -180,10 +180,7 @@ def list_sheet_tabs(sheet_id: str) -> list[str]:
     """Return the names of all tabs in a Google Sheets document."""
     client = __sheets_client()
     metadata = client.spreadsheets().get(spreadsheetId=sheet_id).execute()
-    return [
-        sheet["properties"]["title"]
-        for sheet in metadata.get("sheets", [])
-    ]
+    return [sheet["properties"]["title"] for sheet in metadata.get("sheets", [])]
 
 
 def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:

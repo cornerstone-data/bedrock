@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+import bedrock.utils.io.gcp as _gcp_module
 from bedrock.utils.io.gcp import (
     download_gcs_file,
     get_most_recent_from_bucket,
@@ -12,8 +13,6 @@ from bedrock.utils.io.gcp import (
     list_sheet_tabs,
     read_sheet_tab,
 )
-
-import bedrock.utils.io.gcp as _gcp_module
 
 
 def test_download_gcs_file() -> None:
