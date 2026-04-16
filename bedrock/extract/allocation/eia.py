@@ -1,15 +1,11 @@
 import functools
-import os
-import posixpath
 
 import pandas as pd
 
 from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.io.extract_input_local import local_extract_input_dir
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
-
-GCS_EIA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_EnergyPrice")
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 
 
 @functools.cache
@@ -19,8 +15,8 @@ def load_propane_annual_avg_residential_price() -> float:
     """
     tbl = load_from_gcs(
         name="U.S._Propane_Residential_Price.csv",
-        sub_bucket=GCS_EIA_DIR,
-        local_dir=IN_DIR,
+        sub_bucket=gcs_extract_input_path("EIA_EnergyPrice"),
+        local_dir=local_extract_input_dir("EIA_EnergyPrice"),
         loader=lambda pth: pd.read_csv(
             pth,
             skiprows=4,
@@ -42,8 +38,8 @@ def load_heating_oil_annual_avg_residential_price() -> float:
     """
     tbl = load_from_gcs(
         name="U.S._No._2_Heating_Oil_Residential_Price.csv",
-        sub_bucket=GCS_EIA_DIR,
-        local_dir=IN_DIR,
+        sub_bucket=gcs_extract_input_path("EIA_EnergyPrice"),
+        local_dir=local_extract_input_dir("EIA_EnergyPrice"),
         loader=lambda pth: pd.read_csv(
             pth,
             skiprows=4,
