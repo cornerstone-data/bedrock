@@ -15,7 +15,6 @@ This script is designed to run with a configuration parameter
 from __future__ import annotations
 
 import io
-import os
 import zipfile
 from typing import Any, cast
 
@@ -28,9 +27,6 @@ from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.mapping.naics import industry_spec_key, return_max_sector_level
-
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
-
 
 def BLS_QCEW_URL_helper(*, build_url: str, year: str | int, **_: Any) -> list[str]:
     """
@@ -101,7 +97,7 @@ def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
 
 def bls_qcew_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    pth = download_extract_input_from_gcs_if_not_exists(kwargs, local_dir=IN_DIR)
+    pth = download_extract_input_from_gcs_if_not_exists(kwargs)
     with open(pth, "rb") as f:
         content = f.read()
     return _bls_qcew_df_from_zip(content)

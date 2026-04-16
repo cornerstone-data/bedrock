@@ -23,8 +23,6 @@ from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import get_all_state_FIPS_2
 
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
-
 
 def split(
     row: pd.Series[Any],
@@ -700,9 +698,7 @@ def blm_pls_load_gcs(**kwargs: Any) -> pd.DataFrame:
     year = str(kwargs.get("year", ""))
     config = kwargs.get("config") or {}
     name = cast(dict[str, str], config["file_name"])[year]
-    pth = download_extract_input_from_gcs_if_not_exists(
-        kwargs, local_dir=IN_DIR, object_name=name
-    )
+    pth = download_extract_input_from_gcs_if_not_exists(kwargs, object_name=name)
     with open(pth, "rb") as f:
         pdf_bytes = f.read()
     df = blm_pls_pdf_to_df(pdf_bytes, year)

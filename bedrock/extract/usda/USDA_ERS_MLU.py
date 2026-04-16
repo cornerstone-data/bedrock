@@ -35,9 +35,6 @@ from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
 from bedrock.utils.mapping.naics import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
 
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
-
-
 def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe,
@@ -54,9 +51,7 @@ def mlu_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
     url = str(kwargs.get("url", ""))
     name = posixpath.basename(urlparse(url).path) or "MajorLandUse.csv"
-    pth = download_extract_input_from_gcs_if_not_exists(
-        kwargs, local_dir=IN_DIR, object_name=name
-    )
+    pth = download_extract_input_from_gcs_if_not_exists(kwargs, object_name=name)
     return pd.read_csv(pth, encoding="ISO-8859-1")
 
 
