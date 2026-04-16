@@ -48,7 +48,7 @@ from bedrock.utils.io.gcp import update_sheet_tab
 # Default mode is Google Drive. Configure folder ID, then set stems.
 # If INPUT_FILE_STEMS is empty, all .xlsx files in the Drive folder are used
 # (sorted by filename). When stems are provided, order here controls merge order.
-READ_INPUTS_FROM_GOOGLE_DRIVE: bool = True
+READ_INPUTS_FROM_GOOGLE_DRIVE: bool = False
 GOOGLE_DRIVE_FOLDER_ID: str = "1eJ648O86tPqQnQwetYsXo7FtZLeHAsqG"  # v0.2
 
 INPUT_FILE_STEMS: list[str] = [
@@ -66,8 +66,9 @@ INPUT_FILE_STEMS: list[str] = [
     "[2026-03-26 row 13, CoA update compared to GHG baseline] EF diagnostics",
     "[2026-03-26 row 18, Waste disagg compared to GHG baseline] EF diagnostics",
     "[2026-03-26 row 20, full GHG model] EF diagnostics",
-    "[2026-03-26 row 14, B transformation] EF diagnostics",
-    "[2026-03-26 row 23, all changes] EF diagnostics",
+    "[2026-04-14 row 14, B transformation] EF diagnostics",
+    "[2026-04-15 row 21, B transformation AND waste] EF diagnostics",
+    "[2026-04-08 row 23, all changes] EF diagnostics",
 ]
 INPUT_FILE_EXTENSION: str = ".xlsx"
 
@@ -108,6 +109,7 @@ TARGET_COLUMN_BY_CONFIG_NAME: dict[str, str] = {
     # Non-GHG configs (edit if your comparison target differs)
     "2025_usa_cornerstone_taxonomy_and_waste_disagg": "2025_usa_cornerstone_fbs_schema",
     "2025_usa_cornerstone_taxonomy_and_B_transformation": "v8_ceda_2025_usa",
+    "2025_usa_cornerstone_B_transformation_and_waste_disaggregation": "2025_usa_cornerstone_taxonomy_and_waste_disagg",
     "2025_usa_cornerstone_full_model": "v8_ceda_2025_usa",
 }
 
