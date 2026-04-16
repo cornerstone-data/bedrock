@@ -22,8 +22,7 @@ from bedrock.transform.literature_values import (
     get_commercial_and_manufacturing_floorspace_to_land_area_ratio,
 )
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD, clean_str_and_capitalize
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import vlog
 from bedrock.utils.mapping.location import US_FIPS, get_region_and_division_codes
 from bedrock.utils.validation.validation import calculate_flowamount_diff_between_dfs
@@ -74,18 +73,9 @@ def eia_cbecs_land_call(*, resp: Response, url: str, **_: Any) -> pd.DataFrame:
 
 def eia_cbecs_land_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    year = str(kwargs.get('year', ''))
-    GCS_CBECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_CBECS_Land_{year}")
-    url = kwargs.get('url', '')
-    name = os.path.basename(str(url))
-    download_gcs_file_if_not_exists(
-        name=name,
-        sub_bucket=GCS_CBECS_DIR,
-        pth=os.path.join(IN_DIR, name),
-    )
-    path = os.path.join(IN_DIR, name)
-    df = _eia_cbecs_land_read_excel(path, str(url))
-    return df
+    path = download_extract_input_from_gcs_if_not_exists(kwargs, local_dir=IN_DIR)
+    url = str(kwargs.get("url", ""))
+    return _eia_cbecs_land_read_excel(path, url)
 
 
 def _eia_cbecs_land_read_excel(source: str | io.BytesIO, url: str) -> pd.DataFrame:

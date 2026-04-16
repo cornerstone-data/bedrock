@@ -9,7 +9,6 @@ Last updated: 8 Sept. 2020
 """
 import io
 import os
-import posixpath
 from typing import Any, List
 
 import numpy as np
@@ -22,8 +21,7 @@ from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import (
     US_FIPS,
@@ -284,42 +282,18 @@ def eia_mecs_land_parse(
 
 def eia_mecs_land_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    GCS_MECS_DIR = posixpath.join(
-        GCS_CEDA_INPUT_DIR, f"EIA_MECS_Land_{kwargs.get('year')}"
-    )
-    url = kwargs.get('url', '')
-    name = os.path.basename(str(url))
-    download_gcs_file_if_not_exists(
-        name=name,
-        sub_bucket=GCS_MECS_DIR,
-        pth=os.path.join(IN_DIR, name),
-    )
-    path = os.path.join(IN_DIR, name)
-
-    df = _eia_mecs_land_read_from_excel(path, str(kwargs['year']))
-    return df
+    path = download_extract_input_from_gcs_if_not_exists(kwargs, local_dir=IN_DIR)
+    return _eia_mecs_land_read_from_excel(path, str(kwargs["year"]))
 
 
 def eia_mecs_energy_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_{kwargs.get('year')}")
-    url = kwargs.get('url', '')
-    name = os.path.basename(str(url))
-    download_gcs_file_if_not_exists(
-        name=name,
-        sub_bucket=GCS_MECS_DIR,
-        pth=os.path.join(IN_DIR, name),
+    path = download_extract_input_from_gcs_if_not_exists(kwargs, local_dir=IN_DIR)
+    df_raw_data = pd.read_excel(path, sheet_name=0, header=None)
+    df_raw_rse = pd.read_excel(path, sheet_name=1, header=None)
+    return _eia_clean_mecs_energy(
+        df_raw_data, df_raw_rse, year=kwargs["year"], config=kwargs["config"]
     )
-
-    # read local data from gcs
-    name = os.path.basename(str(url))
-    df_raw_data = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=0, header=None)
-    df_raw_rse = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=1, header=None)
-
-    df = _eia_clean_mecs_energy(
-        df_raw_data, df_raw_rse, year=kwargs['year'], config=kwargs['config']
-    )
-    return df
 
 
 def eia_mecs_energy_call(

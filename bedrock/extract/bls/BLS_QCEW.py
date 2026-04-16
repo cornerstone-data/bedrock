@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import io
 import os
-import posixpath
 import zipfile
 from typing import Any, cast
 
@@ -25,8 +24,7 @@ import pandas as pd
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.mapping.naics import industry_spec_key, return_max_sector_level
@@ -103,16 +101,7 @@ def bls_qcew_call(*, resp: Any, **_: Any) -> pd.DataFrame:
 
 def bls_qcew_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    year = str(kwargs.get('year', ''))
-    url = kwargs.get('url', '')
-    name = os.path.basename(str(url))
-    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"BLS_QCEW_{year}")
-    pth = os.path.join(IN_DIR, name)
-    download_gcs_file_if_not_exists(
-        name=name,
-        sub_bucket=GCS_DIR,
-        pth=pth,
-    )
+    pth = download_extract_input_from_gcs_if_not_exists(kwargs, local_dir=IN_DIR)
     with open(pth, "rb") as f:
         content = f.read()
     return _bls_qcew_df_from_zip(content)

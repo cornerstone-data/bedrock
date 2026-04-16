@@ -21,7 +21,7 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.config.schema import flow_by_activity_fields
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
 from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state, to_ndigit_str
 
 IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
@@ -169,11 +169,10 @@ def _define_filename(url: str) -> str:
 
 def coa_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    GCS_COA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"USDA_{kwargs.get('year')}")
     filename = f"{kwargs['source']}_{kwargs['year']}_{_define_filename(kwargs['url'])}"
     return load_from_gcs(
         name=f"{filename}.csv",
-        sub_bucket=GCS_COA_DIR,
+        sub_bucket=gcs_extract_input_sub_bucket_from_kwargs(kwargs),
         local_dir=IN_DIR,
         loader=pd.read_csv,
     )

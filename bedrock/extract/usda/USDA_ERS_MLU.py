@@ -29,8 +29,7 @@ from bedrock.transform.literature_values import (
     get_urban_land_use_for_railroads,
 )
 from bedrock.utils.config.common import load_crosswalk
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
 from bedrock.utils.mapping.naics import industry_spec_key
@@ -53,14 +52,12 @@ def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
 
 def mlu_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    year = str(kwargs.get("year", ""))
     url = str(kwargs.get("url", ""))
     name = posixpath.basename(urlparse(url).path) or "MajorLandUse.csv"
-    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"USDA_MLU_{year}")
-    pth = os.path.join(IN_DIR, name)
-    download_gcs_file_if_not_exists(name=name, sub_bucket=GCS_DIR, pth=pth)
-    df = pd.read_csv(pth, encoding="ISO-8859-1")
-    return df
+    pth = download_extract_input_from_gcs_if_not_exists(
+        kwargs, local_dir=IN_DIR, object_name=name
+    )
+    return pd.read_csv(pth, encoding="ISO-8859-1")
 
 
 def mlu_parse(
