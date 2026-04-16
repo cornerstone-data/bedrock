@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import functools
-import os
-import posixpath
 from collections.abc import Sequence
 
 import pandas as pd
@@ -13,8 +11,9 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Y_personal_consumption_expenditure_usa,
 )
 from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.io.extract_input_local import local_extract_input_dir
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
@@ -25,12 +24,6 @@ _APPLIANCE_AGGREGATE = "335220"
 _APPLIANCE_SUBS = ["335221", "335222", "335224", "335228"]
 # CEDA 331313 = primary + secondary aluminum; Cornerstone has 331313 + 33131B.
 _CEDA_331313_CORNERSTONE_PARTS = ("331313", "33131B")
-
-GCS_BEA_PCE_DIR = posixpath.join(
-    GCS_CEDA_INPUT_DIR, "BEA_PersonalConsumptionExpenditure"
-)
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
-
 
 @functools.cache
 def load_bea_make_table() -> pd.DataFrame:
@@ -150,8 +143,8 @@ def load_bea_personal_consumption_expenditure() -> pd.Series[float]:
     """
     tbl = load_from_gcs(
         name="BEA Personal Consumption Expenditures by Major Type of Product_June27_2024.csv",
-        sub_bucket=GCS_BEA_PCE_DIR,
-        local_dir=IN_DIR,
+        sub_bucket=gcs_extract_input_path("BEA_PCE"),
+        local_dir=local_extract_input_dir("BEA_PCE"),
         loader=lambda pth: pd.read_csv(
             pth,
             skiprows=3,
