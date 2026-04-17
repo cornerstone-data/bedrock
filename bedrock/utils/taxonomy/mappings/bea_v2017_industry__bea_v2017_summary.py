@@ -3,7 +3,7 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.utils.io.extract_input_local import local_dir_for_gcs_sub_bucket
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_EXTRACT_TAXONOMY_DIR
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (

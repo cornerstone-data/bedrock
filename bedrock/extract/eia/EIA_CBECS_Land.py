@@ -22,7 +22,7 @@ from bedrock.transform.literature_values import (
     get_commercial_and_manufacturing_floorspace_to_land_area_ratio,
 )
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD, clean_str_and_capitalize
-from bedrock.utils.io.extract_input_local import local_extract_input_dir
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import vlog
 from bedrock.utils.mapping.location import US_FIPS, get_region_and_division_codes

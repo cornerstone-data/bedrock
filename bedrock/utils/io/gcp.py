@@ -48,7 +48,7 @@ def download_extract_input_from_gcs_if_not_exists(
     sub_bucket
         Override path prefix; default is ``gcs_extract_input_sub_bucket_from_kwargs(kwargs)``.
     """
-    from bedrock.utils.io.extract_input_local import load_local_extract_input_dir
+    from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
     from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
 
     bucket = (

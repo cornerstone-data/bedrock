@@ -6,7 +6,7 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.utils.io.extract_input_local import local_dir_for_gcs_sub_bucket
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.taxonomy.bea.matrix_mappings import (

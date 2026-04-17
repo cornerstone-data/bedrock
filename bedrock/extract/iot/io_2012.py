@@ -9,7 +9,7 @@ from typing_extensions import deprecated
 
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.emissions.ghg import GHG_DETAILED
-from bedrock.utils.io.extract_input_local import local_dir_for_gcs_sub_bucket
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_V5_INPUT_DIR
 from bedrock.utils.taxonomy.bea.v2012_commodity import (

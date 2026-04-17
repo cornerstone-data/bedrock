@@ -4,7 +4,7 @@ import posixpath
 import pandas as pd
 
 from bedrock.extract.iot.constants import GCS_GDP_DETAIL_TABLES
-from bedrock.utils.io.extract_input_local import local_dir_for_gcs_sub_bucket
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 

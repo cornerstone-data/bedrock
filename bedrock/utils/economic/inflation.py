@@ -2,7 +2,7 @@ import os
 
 import pandas as pd
 
-from bedrock.utils.io.extract_input_local import local_extract_input_dir
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTORS

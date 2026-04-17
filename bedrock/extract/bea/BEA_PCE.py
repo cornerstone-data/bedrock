@@ -11,7 +11,7 @@ import pandas as pd
 from requests import Response
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
-from bedrock.utils.io.extract_input_local import local_extract_input_dir
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.mapping.location import get_state_FIPS
