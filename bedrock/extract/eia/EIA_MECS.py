@@ -21,14 +21,15 @@ from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import (
     US_FIPS,
     assign_census_regions,
     get_region_and_division_codes,
 )
+
 
 def eia_mecs_URL_helper(
     *, build_url: str, config: dict[str, Any], year: str, **_kwrags: dict[str, Any]

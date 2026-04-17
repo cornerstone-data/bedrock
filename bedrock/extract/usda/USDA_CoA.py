@@ -19,10 +19,11 @@ from requests import Response
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.config.schema import flow_by_activity_fields
-from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
+from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state, to_ndigit_str
+
 
 def CoA_Cropland_URL_helper(
     *, build_url: str, config: dict[str, Any], **_kwargs: Any
@@ -149,7 +150,8 @@ def coa_call(*, resp: Response, **_kwargs: Any) -> pd.DataFrame:
     # During API call, save a copy to csv
     filename = f"{_kwargs['source']}_{_kwargs['year']}_{_define_filename(resp.url)}"
     df_cropland.to_csv(
-        posixpath.join(load_local_extract_input_dir(_kwargs), f"{filename}.csv"))
+        posixpath.join(load_local_extract_input_dir(_kwargs), f"{filename}.csv")
+    )
 
     return df_cropland
 

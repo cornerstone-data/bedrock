@@ -9,7 +9,6 @@ Last updated: Monday, August 17, 2020
 """
 import io
 import os
-import posixpath
 from typing import Any, List
 
 import numpy as np
@@ -22,11 +21,12 @@ from bedrock.transform.literature_values import (
     get_commercial_and_manufacturing_floorspace_to_land_area_ratio,
 )
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD, clean_str_and_capitalize
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.logging.flowsa_log import vlog
 from bedrock.utils.mapping.location import US_FIPS, get_region_and_division_codes
 from bedrock.utils.validation.validation import calculate_flowamount_diff_between_dfs
+
 
 def eia_cbecs_land_URL_helper(
     *, build_url: str, config: dict[str, Any], **_: Any
@@ -66,8 +66,7 @@ def eia_cbecs_land_call(
     buf = io.BytesIO(resp.content)
     df = _eia_cbecs_land_read_excel(buf, url)
     name = os.path.basename(str(url))
-    with open(os.path.join(local_extract_input_dir(source, year),
-                           name), "wb") as f:
+    with open(os.path.join(local_extract_input_dir(source, year), name), "wb") as f:
         f.write(resp.content)
     return df
 

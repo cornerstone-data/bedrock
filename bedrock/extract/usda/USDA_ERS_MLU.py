@@ -9,7 +9,6 @@ Last updated: Thursday, April 16, 2020
 """
 
 import io
-import os
 import posixpath
 from typing import Any
 from urllib.parse import urlparse
@@ -34,6 +33,7 @@ from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
 from bedrock.utils.mapping.naics import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
+
 
 def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """

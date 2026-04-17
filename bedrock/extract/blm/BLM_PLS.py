@@ -10,8 +10,6 @@ Bureau of Land Management Public Land Statistics data
 from __future__ import annotations
 
 import io
-import os
-import posixpath
 import re
 from typing import Any, cast
 

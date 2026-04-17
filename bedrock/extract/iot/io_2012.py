@@ -9,9 +9,9 @@ from typing_extensions import deprecated
 
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.emissions.ghg import GHG_DETAILED
-from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_V5_INPUT_DIR
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.taxonomy.bea.v2012_commodity import (
     USA_2012_COMMODITY_CODES,
 )
@@ -174,9 +174,7 @@ def _load_usa_xlsx(
     """
     fname = "CEDA6IO.xlsx"
     pth = os.path.join(LOCAL_CEDA6_IO_DIR, fname)
-    download_gcs_file_if_not_exists(
-        name=fname, sub_bucket=GCS_V5_INPUT_DIR, pth=pth
-    )
+    download_gcs_file_if_not_exists(name=fname, sub_bucket=GCS_V5_INPUT_DIR, pth=pth)
 
     df = pd.read_excel(
         pth,
