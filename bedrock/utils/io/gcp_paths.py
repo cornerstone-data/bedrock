@@ -28,9 +28,7 @@ def gcs_extract_input_path(
 
     If ``year`` is set, the path is ``extract/input-data/{source}/{year}/``.
     """
-    base = posixpath.join(
-        GCS_EXTRACT_INPUT_DIR, data_source_name.replace("_", "-")
-    )
+    base = posixpath.join(GCS_EXTRACT_INPUT_DIR, data_source_name.replace("_", "-"))
     if year is None:
         return base
     year_str = str(year).strip()
