@@ -3,8 +3,10 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.extract.iot.constants import GCS_GDP_DETAIL_TABLES, GCS_GDP_DIR
+from bedrock.extract.iot.constants import GCS_GDP_DETAIL_TABLES
+from bedrock.utils.io.extract_input_local import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 
 # NOTE: this is the data version used by the BEA Data Archive (https://apps.bea.gov/histdatacore/histChildLevels.html?HMI=8&oldDiv=Industry%20Accounts)
 # where "YEAR, Q2" is the major release every year that includes annual update of the Detail tables
@@ -15,8 +17,20 @@ SUMMARY_LINE_NUMBER_COL = "summary_line_no"
 SECTOR_SUMMARY_CODE_COL = "sector_summary_code"
 
 
-IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 OUT_DIR = os.path.join(os.path.dirname(__file__), "output_data")
+
+_LOCAL_GDP_SUMMARY_DIR = local_dir_for_gcs_sub_bucket(
+    posixpath.join(
+        gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
+        f"GdpByInd_{BEA_DATA_VERSION}",
+    )
+)
+_LOCAL_GDP_DETAIL_DIR = local_dir_for_gcs_sub_bucket(
+    posixpath.join(
+        gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
+        f"UGdpByInd_{BEA_DATA_VERSION}",
+    )
+)
 
 
 def load_pi_summary_annual() -> pd.DataFrame:
@@ -27,7 +41,9 @@ def load_pi_summary_annual() -> pd.DataFrame:
 
     _download_summary_table()
     df = _load_from_excel(
-        fname=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"),
+        fname=os.path.join(
+            _LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"
+        ),
         sheet_name="TGO104-A",
     )
 
@@ -44,7 +60,9 @@ def load_pi_summary_quarterly() -> pd.DataFrame:
     """
     _download_summary_table()
     df = _load_from_excel(
-        fname=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"),
+        fname=os.path.join(
+            _LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"
+        ),
         sheet_name="TGO104-Q",
     )
 
@@ -62,8 +80,11 @@ def _download_summary_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(GCS_GDP_DIR, f"GdpByInd_{BEA_DATA_VERSION}"),
-        pth=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
+        sub_bucket=posixpath.join(
+            gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
+            f"GdpByInd_{BEA_DATA_VERSION}",
+        ),
+        pth=os.path.join(_LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
     )
 
 
@@ -91,7 +112,9 @@ def _load_detail_table(sheet_name: GCS_GDP_DETAIL_TABLES) -> pd.DataFrame:
     """
     _download_detail_table()
     df = _load_from_excel(
-        fname=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_DetailGrossOutput.xlsx"),
+        fname=os.path.join(
+            _LOCAL_GDP_DETAIL_DIR, f"{BEA_DATA_VERSION}_DetailGrossOutput.xlsx"
+        ),
         sheet_name=sheet_name,
     )
 
@@ -107,8 +130,11 @@ def _download_detail_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(GCS_GDP_DIR, f"UGdpByInd_{BEA_DATA_VERSION}"),
-        pth=os.path.join(IN_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
+        sub_bucket=posixpath.join(
+            gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
+            f"UGdpByInd_{BEA_DATA_VERSION}",
+        ),
+        pth=os.path.join(_LOCAL_GDP_DETAIL_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
     )
 
 
