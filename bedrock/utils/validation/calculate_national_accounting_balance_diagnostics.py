@@ -81,7 +81,9 @@ def calculate_national_accounting_balance_diagnostics(
     If the model is balanced, sum(BLy) should equal sum(E_orig).
 
     Writes two tabs:
-    - ``BLy_and_E_orig_diffs``: USA totals only (live BLy vs snapshot E).
+    - ``BLy_and_E_orig_diffs``: per-sector live BLy vs snapshot E_orig
+      (sector totals from ``E_USA_ES`` summed over ghg flows).
+      % uses E_orig as denominator when defined.
     - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from baseline
       parquet (``B_USA_non_finetuned``, ``Adom_USA``, ``y_nab_USA`` at the
       configured snapshot key). Missing sides stay blank; diff uses 0 for missing;
@@ -107,25 +109,28 @@ def calculate_national_accounting_balance_diagnostics(
     E_orig = load_configured_snapshot("E_USA_ES")
     E_orig_by_sector = ta.cast("pd.Series[float]", E_orig.sum(axis=0))
 
-    BLy_total = float(BLy_new.sum())
-    E_orig_total = float(E_orig_by_sector.sum())
-    diff = BLy_total - E_orig_total
-    perc_diff = diff / E_orig_total if E_orig_total != 0 else 0.0
+    logger.info("3. Writing BLy vs E_orig (by sector)...")
+    sector_idx_e = BLy_new.index.union(E_orig_by_sector.index).sort_values()
+    bly_by_sec = BLy_new.reindex(sector_idx_e)
+    e_by_sec = E_orig_by_sector.reindex(sector_idx_e)
+    bly_e_diff_kg = bly_by_sec.fillna(0) - e_by_sec.fillna(0)
+    e_arr = e_by_sec.to_numpy(dtype=float, copy=True)
+    bly_e_d_kg = bly_e_diff_kg.to_numpy(dtype=float, copy=True)
+    bly_e_perc = _percent_diff_vs_denominator(bly_e_d_kg, e_arr)
 
-    logger.info("3. Writing BLy vs E (national totals)...")
-    comparison = pd.DataFrame(
+    bly_e_diff_out = pd.DataFrame(
         {
-            "BLy (MtCO2e)": [BLy_total / 1e9],
-            "E_orig (MtCO2e)": [E_orig_total / 1e9],
-            "BLy - E_orig (MtCO2e)": [diff / 1e9],
-            "(BLy - E_orig) / E_orig (%)": [perc_diff],
-        },
-        index=pd.Index(["USA"]),
+            "index": sector_idx_e,
+            "BLy_new (MtCO2e)": bly_by_sec / 1e9,
+            "E_orig (MtCO2e)": e_by_sec / 1e9,
+            "BLy_new - E_orig (MtCO2e)": bly_e_diff_kg / 1e9,
+            "(BLy_new - E_orig) / E_orig (%)": bly_e_perc,
+        }
     )
     update_sheet_tab(
         sheet_id,
         "BLy_and_E_orig_diffs",
-        comparison.reset_index(),
+        bly_e_diff_out,
         clean_nans=True,
     )
 

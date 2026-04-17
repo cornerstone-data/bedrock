@@ -91,8 +91,8 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         assert calls[1][0][1] == "BLy_new_vs_BLy_old"
         return calls[0][0][2], calls[1][0][2]
 
-    def test_bly_vs_e_national_only(self) -> None:
-        """BLy_and_E_orig_diffs is a single USA row."""
+    def test_bly_vs_e_by_sector(self) -> None:
+        """BLy_and_E_orig_diffs is per-sector: BLy_new vs E_orig per sector."""
         idx = pd.Index(SECTORS)
         n = len(SECTORS)
 
@@ -104,20 +104,37 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
 
         e_df, bly_diff_df = self._run_diagnostics_with_mocked_data(B, Adom, y, E_orig)
 
-        assert len(e_df) == 1
+        assert len(e_df) == n
         expected_cols = {
             "index",
-            "BLy (MtCO2e)",
+            "BLy_new (MtCO2e)",
             "E_orig (MtCO2e)",
-            "BLy - E_orig (MtCO2e)",
-            "(BLy - E_orig) / E_orig (%)",
+            "BLy_new - E_orig (MtCO2e)",
+            "(BLy_new - E_orig) / E_orig (%)",
         }
         assert set(e_df.columns) == expected_cols
 
-        assert e_df["BLy (MtCO2e)"].iloc[0] == pytest.approx(6.0)
-        assert e_df["E_orig (MtCO2e)"].iloc[0] == pytest.approx(9.0)
-        assert e_df["BLy - E_orig (MtCO2e)"].iloc[0] == pytest.approx(-3.0)
-        assert e_df["(BLy - E_orig) / E_orig (%)"].iloc[0] == pytest.approx(-1 / 3)
+        sector_order = list(idx.sort_values())
+        assert list(e_df["index"]) == sector_order
+
+        y_mt = y.reindex(sector_order) / 1e9
+        e_mt = pd.Series([3.0, 3.0, 3.0], index=sector_order)
+        np.testing.assert_allclose(
+            np.asarray(e_df["BLy_new (MtCO2e)"], dtype=np.float64),
+            y_mt.to_numpy(),
+        )
+        np.testing.assert_allclose(
+            np.asarray(e_df["E_orig (MtCO2e)"], dtype=np.float64),
+            e_mt.to_numpy(),
+        )
+        np.testing.assert_allclose(
+            np.asarray(e_df["BLy_new - E_orig (MtCO2e)"], dtype=np.float64),
+            (y_mt - e_mt).to_numpy(),
+        )
+        np.testing.assert_allclose(
+            np.asarray(e_df["(BLy_new - E_orig) / E_orig (%)"], dtype=np.float64),
+            ((y_mt - e_mt) / e_mt).to_numpy(),
+        )
 
         assert len(bly_diff_df) == n
         bly_cols = {
