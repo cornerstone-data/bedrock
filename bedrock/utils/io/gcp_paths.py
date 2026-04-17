@@ -5,12 +5,13 @@ from typing import Any
 # TODO: update/drop? after files moved on GCS
 GCS_CEDA_USA_DIR = "ceda-usa"
 GCS_CEDA_INPUT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "input")
-GCS_CEDA_V5_INPUT_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "v5")
+GCS_SNAPSHOT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "snapshots")
 
 GCS_EXTRACT_DIR = "extract"
 # GCS object prefix uses hyphens; local cache uses ``extract/input_data`` and underscores
 # (see ``extract_input_local``).
 GCS_EXTRACT_INPUT_DIR = posixpath.join(GCS_EXTRACT_DIR, "input-data")
+GCS_V5_INPUT_DIR = posixpath.join(GCS_EXTRACT_INPUT_DIR, "v5")
 
 
 def gcs_extract_input_path(
