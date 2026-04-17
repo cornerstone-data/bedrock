@@ -1,7 +1,7 @@
 import typing as ta
 
 USA_2017_SUMMARY_FINAL_DEMAND_DESC = {
-    # from GCS_CEDA_INPUT_DIR/USA_AllTablesSUP/Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx
+    # from GCS_EXTRACT_INPUT_DIR/USA-AllTablesSUP/Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx
     # order matters!
     "F010": "Personal consumption expenditures",
     "F02E": "Nonresidential private fixed investment in equipment",

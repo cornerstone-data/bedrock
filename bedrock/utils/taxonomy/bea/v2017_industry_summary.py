@@ -1,7 +1,7 @@
 import typing as ta
 
 USA_2017_SUMMARY_INDUSTRY_DESC = {
-    # from GCS_CEDA_INPUT_DIR/USA_AllTablesSUP/Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx
+    # from GCS_EXTRACT_INPUT_DIR/USA-AllTablesSUP/Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx
     # order matters!
     "111CA": "Farms",
     "113FF": "Forestry, fishing, and related activities",

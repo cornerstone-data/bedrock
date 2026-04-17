@@ -1,7 +1,7 @@
 import typing as ta
 
 USA_2017_VALUE_ADDED_DESC = {
-    # from GCS_CEDA_INPUT_DIR/USA_AllTablesSUP/Use_SUT_Framework_2017_DET.xlsx
+    # from GCS_EXTRACT_INPUT_DIR/USA-AllTablesSUP/Use_SUT_Framework_2017_DET.xlsx
     # order matters!
     "V00100": "Compensation of employees",
     "V00200": "Taxes on production and imports, less subsidies",

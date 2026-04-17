@@ -1,7 +1,7 @@
 import typing as ta
 
 USA_2017_INDUSTRY_DESC = {
-    # from GCS_CEDA_INPUT_DIR/USA_AllTablesSUP/Use_SUT_Framework_2017_DET.xlsx
+    # from GCS_EXTRACT_INPUT_DIR/USA-AllTablesSUP/Use_SUT_Framework_2017_DET.xlsx
     # order matters!
     "1111A0": "Oilseed farming",
     "1111B0": "Grain farming",

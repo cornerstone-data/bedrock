@@ -16,6 +16,7 @@ import bedrock.utils.config.common as common
 from bedrock.utils.config.settings import GIT_HASH_LONG, PATHS
 from bedrock.utils.config.usa_config import set_global_usa_config
 from bedrock.utils.io.gcp import upload_file_to_gcs
+from bedrock.utils.io.gcp_paths import GCS_SNAPSHOT_DIR
 from bedrock.utils.snapshots.names import SnapshotName
 
 if ta.TYPE_CHECKING:
@@ -24,7 +25,6 @@ if ta.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SNAPSHOT_BASE = os.path.dirname(__file__)
-GCS_SNAPSHOT_DIR = "snapshots"
 
 
 def snapshot_dir() -> str:

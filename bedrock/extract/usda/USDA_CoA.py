@@ -8,7 +8,6 @@ Livestock data, and Cropland data in NAICS format
 """
 
 import json
-import os
 import posixpath
 from typing import Any, Dict, List
 from urllib.parse import parse_qs, urlparse
@@ -21,10 +20,9 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
 from bedrock.utils.config.schema import flow_by_activity_fields
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
+from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS, abbrev_us_state, to_ndigit_str
-
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
 def CoA_Cropland_URL_helper(
@@ -151,7 +149,9 @@ def coa_call(*, resp: Response, **_kwargs: Any) -> pd.DataFrame:
 
     # During API call, save a copy to csv
     filename = f"{_kwargs['source']}_{_kwargs['year']}_{_define_filename(resp.url)}"
-    df_cropland.to_csv(posixpath.join(IN_DIR, f"{filename}.csv"))
+    df_cropland.to_csv(
+        posixpath.join(load_local_extract_input_dir(_kwargs), f"{filename}.csv")
+    )
 
     return df_cropland
 
@@ -169,12 +169,11 @@ def _define_filename(url: str) -> str:
 
 def coa_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    GCS_COA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"USDA_{kwargs.get('year')}")
     filename = f"{kwargs['source']}_{kwargs['year']}_{_define_filename(kwargs['url'])}"
     return load_from_gcs(
         name=f"{filename}.csv",
-        sub_bucket=GCS_COA_DIR,
-        local_dir=IN_DIR,
+        sub_bucket=gcs_extract_input_sub_bucket_from_kwargs(kwargs),
+        local_dir=load_local_extract_input_dir(kwargs),
         loader=pd.read_csv,
     )
 

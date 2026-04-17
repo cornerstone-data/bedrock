@@ -9,7 +9,6 @@ Last updated: 8 Sept. 2020
 """
 import io
 import os
-import posixpath
 from typing import Any, List
 
 import numpy as np
@@ -22,16 +21,14 @@ from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import (
     US_FIPS,
     assign_census_regions,
     get_region_and_division_codes,
 )
-
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
 def eia_mecs_URL_helper(
@@ -71,7 +68,7 @@ def eia_mecs_URL_helper(
 
 
 def eia_mecs_land_call(
-    *, resp: Response, year: str, **_: dict[str, Any]
+    *, resp: Response, source: str, year: str, **_: dict[str, Any]
 ) -> pd.DataFrame:
     """
     Convert response for calling url to pandas dataframe, begin parsing df
@@ -85,7 +82,7 @@ def eia_mecs_land_call(
     buf = io.BytesIO(resp.content)
     df = _eia_mecs_land_read_from_excel(buf, year)
     table = os.path.basename(str(resp.url))
-    with open(os.path.join(IN_DIR, table), "wb") as f:
+    with open(os.path.join(local_extract_input_dir(source, year), table), "wb") as f:
         f.write(resp.content)
     return df
 
@@ -284,47 +281,24 @@ def eia_mecs_land_parse(
 
 def eia_mecs_land_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    GCS_MECS_DIR = posixpath.join(
-        GCS_CEDA_INPUT_DIR, f"EIA_MECS_Land_{kwargs.get('year')}"
-    )
-    url = kwargs.get('url', '')
-    name = os.path.basename(str(url))
-    download_gcs_file_if_not_exists(
-        name=name,
-        sub_bucket=GCS_MECS_DIR,
-        pth=os.path.join(IN_DIR, name),
-    )
-    path = os.path.join(IN_DIR, name)
-
-    df = _eia_mecs_land_read_from_excel(path, str(kwargs['year']))
-    return df
+    path = download_extract_input_from_gcs_if_not_exists(kwargs)
+    return _eia_mecs_land_read_from_excel(path, str(kwargs["year"]))
 
 
 def eia_mecs_energy_load_gcs(**kwargs: Any) -> pd.DataFrame:
     """For each url the file gets download and stored locally from gcs"""
-    GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_MECS_{kwargs.get('year')}")
-    url = kwargs.get('url', '')
-    name = os.path.basename(str(url))
-    download_gcs_file_if_not_exists(
-        name=name,
-        sub_bucket=GCS_MECS_DIR,
-        pth=os.path.join(IN_DIR, name),
+    path = download_extract_input_from_gcs_if_not_exists(kwargs)
+    df_raw_data = pd.read_excel(path, sheet_name=0, header=None)
+    df_raw_rse = pd.read_excel(path, sheet_name=1, header=None)
+    return _eia_clean_mecs_energy(
+        df_raw_data, df_raw_rse, year=kwargs["year"], config=kwargs["config"]
     )
-
-    # read local data from gcs
-    name = os.path.basename(str(url))
-    df_raw_data = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=0, header=None)
-    df_raw_rse = pd.read_excel(os.path.join(IN_DIR, name), sheet_name=1, header=None)
-
-    df = _eia_clean_mecs_energy(
-        df_raw_data, df_raw_rse, year=kwargs['year'], config=kwargs['config']
-    )
-    return df
 
 
 def eia_mecs_energy_call(
     *,
     resp: Response | None,
+    source: str,
     year: str,
     config: dict[str, Any],
     **_kwargs: dict[str, Any],
@@ -345,8 +319,7 @@ def eia_mecs_energy_call(
     df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name=1, header=None)
 
     table = os.path.basename(str(resp.url))
-    # write table to Excel
-    with open(f"{os.path.join(IN_DIR, table)}", "wb") as f:
+    with open(os.path.join(local_extract_input_dir(source, year), table), "wb") as f:
         f.write(resp.content)
 
     df = _eia_clean_mecs_energy(df_raw_data, df_raw_rse, year, config)

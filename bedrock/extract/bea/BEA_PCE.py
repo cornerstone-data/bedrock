@@ -10,9 +10,10 @@ import numpy as np
 import pandas as pd
 from requests import Response
 
-from bedrock.extract.allocation.bea import GCS_BEA_PCE_DIR, IN_DIR
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.mapping.location import get_state_FIPS
 
 
@@ -111,8 +112,8 @@ def bea_pce_ceda_parse(*, year: int, **_: Any) -> pd.DataFrame:
     """
     tbl = load_from_gcs(
         name="BEA Personal Consumption Expenditures by Major Type of Product_June27_2024.csv",
-        sub_bucket=GCS_BEA_PCE_DIR,
-        local_dir=IN_DIR,
+        sub_bucket=gcs_extract_input_path("BEA_PCE"),
+        local_dir=local_extract_input_dir("BEA_PCE"),
         loader=lambda pth: pd.read_csv(
             pth,
             skiprows=3,

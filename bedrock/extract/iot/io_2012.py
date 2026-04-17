@@ -10,7 +10,8 @@ from typing_extensions import deprecated
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.emissions.ghg import GHG_DETAILED
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_V5_INPUT_DIR
+from bedrock.utils.io.gcp_paths import GCS_V5_INPUT_DIR
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.taxonomy.bea.v2012_commodity import (
     USA_2012_COMMODITY_CODES,
 )
@@ -38,7 +39,7 @@ USA_IO_MATRIX_NAMES = ta.Literal[
     "YR",
 ]
 
-IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
+LOCAL_CEDA6_IO_DIR = local_dir_for_gcs_sub_bucket(GCS_V5_INPUT_DIR)
 
 USA_INDUSTRY_INDEX = pd.Index(USA_2012_INDUSTRY_CODES, name="industry")
 USA_COMMODITY_INDEX = pd.Index(USA_2012_COMMODITY_CODES, name="commodity")
@@ -172,10 +173,8 @@ def _load_usa_xlsx(
     https://docs.google.com/spreadsheets/d/1PREVLdN9k1LnXuJSmq-zJ5rhlmwvJbTm/edit?usp=drive_link&ouid=108994017865296281234&rtpof=true&sd=true
     """
     fname = "CEDA6IO.xlsx"
-    pth = os.path.join(IN_DIR, fname)
-    download_gcs_file_if_not_exists(
-        name=fname, sub_bucket=GCS_CEDA_V5_INPUT_DIR, pth=pth
-    )
+    pth = os.path.join(LOCAL_CEDA6_IO_DIR, fname)
+    download_gcs_file_if_not_exists(name=fname, sub_bucket=GCS_V5_INPUT_DIR, pth=pth)
 
     df = pd.read_excel(
         pth,

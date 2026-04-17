@@ -1,14 +1,16 @@
 import functools
-import os
-import posixpath
 
 import pandas as pd
 
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 
-GCS_MECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "EIA_MECS_2018")
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
+# MECS allocation tables (see EIA_MECS_Energy.yaml); vintage must match xlsx layout below.
+_MECS_ALLOCATION_YEAR = 2018
+
+GCS_MECS_DIR = gcs_extract_input_path("EIA_MECS_Energy", _MECS_ALLOCATION_YEAR)
+_LOCAL_MECS_DIR = local_extract_input_dir("EIA_MECS_Energy", _MECS_ALLOCATION_YEAR)
 
 
 @functools.cache
@@ -20,7 +22,7 @@ def load_mecs_2_1() -> pd.DataFrame:
     tbl_2_1 = load_from_gcs(
         name="Table2_1.xlsx",
         sub_bucket=GCS_MECS_DIR,
-        local_dir=IN_DIR,
+        local_dir=_LOCAL_MECS_DIR,
         loader=lambda pth: pd.read_excel(
             pth,
             sheet_name="Table 2.1",
@@ -63,7 +65,7 @@ def load_mecs_3_1() -> pd.DataFrame:
     tbl_3_1 = load_from_gcs(
         name="Table3_1.xlsx",
         sub_bucket=GCS_MECS_DIR,
-        local_dir=IN_DIR,
+        local_dir=_LOCAL_MECS_DIR,
         loader=lambda pth: pd.read_excel(
             pth,
             sheet_name="Table 3.1",
