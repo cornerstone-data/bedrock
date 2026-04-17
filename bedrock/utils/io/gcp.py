@@ -17,6 +17,8 @@ import tenacity
 from google.cloud.storage.blob import Blob
 from googleapiclient.errors import HttpError
 
+from bedrock.utils.io.gcp_paths import GCS_EXTRACT_INPUT_DIR
+
 logger = logging.getLogger(__name__)
 
 GCS_CORNERSTONE = "gs://cornerstone-default"
@@ -48,8 +50,8 @@ def download_extract_input_from_gcs_if_not_exists(
     sub_bucket
         Override path prefix; default is ``gcs_extract_input_sub_bucket_from_kwargs(kwargs)``.
     """
-    from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
     from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
+    from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
 
     bucket = (
         sub_bucket
@@ -81,7 +83,35 @@ def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> Non
         Local file path where the file should be saved, including extension.
     """
 
-    os.makedirs(os.path.dirname(pth), exist_ok=True)
+    parent = os.path.dirname(pth)
+    os.makedirs(parent, exist_ok=True)
+    norm_bucket = sub_bucket.strip("/").replace("\\", "/")
+    extract_prefix = GCS_EXTRACT_INPUT_DIR.strip("/")
+    if norm_bucket == extract_prefix or norm_bucket.startswith(extract_prefix + "/"):
+        if not os.path.exists(pth):
+            try:
+                download_gcs_file(name, norm_bucket, pth)
+            except Exception:
+                pass
+        # Download metadata from this GCS prefix when they exist
+        prefix = norm_bucket + "/"
+        gcs_bucket = __storage_client().bucket("cornerstone-default")
+        for blob in gcs_bucket.list_blobs(prefix=prefix):
+            if not blob.name.startswith(prefix):
+                continue
+            rel = blob.name[len(prefix) :]
+            if not rel or rel.endswith("/") or "metadata" not in rel.lower():
+                continue
+            dest = os.path.join(parent, *rel.split("/"))
+            if os.path.exists(dest):
+                continue
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            try:
+                download_gcs_file(rel, norm_bucket, dest)
+            except Exception:
+                pass
+        return
+
     if os.path.exists(pth):
         return
     candidates = get_most_recent_from_bucket(name, sub_bucket)
