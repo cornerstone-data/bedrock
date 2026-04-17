@@ -4,7 +4,6 @@ from typing import Any
 
 # TODO: update/drop? after files moved on GCS
 GCS_CEDA_USA_DIR = "ceda-usa"
-GCS_CEDA_INPUT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "input")
 GCS_SNAPSHOT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "snapshots")
 
 GCS_EXTRACT_DIR = "extract"
