@@ -67,16 +67,23 @@ def local_dir_for_gcs_sub_bucket(gcs_sub_bucket: str) -> str:
     norm = gcs_sub_bucket.strip("/").replace("\\", "/")
     prefix = GCS_EXTRACT_INPUT_DIR.strip("/")
     if norm == prefix:
-        return EXTRACT_INPUT_DATA_ROOT
-    if norm.startswith(prefix + "/"):
+        pth = EXTRACT_INPUT_DATA_ROOT
+    elif norm.startswith(prefix + "/"):
         rel = norm[len(prefix) + 1 :]
         parts = [p for p in rel.split("/") if p]
         local_parts = [p.replace("-", "_") for p in parts]
-        return (
+        pth = (
             os.path.join(EXTRACT_INPUT_DATA_ROOT, *local_parts)
             if local_parts
             else EXTRACT_INPUT_DATA_ROOT
         )
-    rel = norm
-    parts = [p for p in rel.split("/") if p]
-    return os.path.join(EXTRACT_INPUT_DATA_ROOT, *parts) if parts else EXTRACT_INPUT_DATA_ROOT
+    else:
+        rel = norm
+        parts = [p for p in rel.split("/") if p]
+        pth = (
+            os.path.join(EXTRACT_INPUT_DATA_ROOT, *parts)
+            if parts
+            else EXTRACT_INPUT_DATA_ROOT
+        )
+    os.makedirs(pth, exist_ok=True)
+    return pth

@@ -10,6 +10,7 @@ GCS_EXTRACT_DIR = "extract"
 # GCS object prefix uses hyphens; local cache uses ``extract/input_data`` and underscores
 # (see ``extract_input_local``).
 GCS_EXTRACT_INPUT_DIR = posixpath.join(GCS_EXTRACT_DIR, "input-data")
+GCS_EXTRACT_TAXONOMY_DIR = posixpath.join(GCS_EXTRACT_INPUT_DIR, "taxonomy")
 GCS_V5_INPUT_DIR = posixpath.join(GCS_EXTRACT_INPUT_DIR, "v5")
 
 
