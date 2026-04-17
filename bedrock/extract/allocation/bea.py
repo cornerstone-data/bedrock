@@ -11,9 +11,9 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Y_personal_consumption_expenditure_usa,
 )
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
@@ -24,6 +24,7 @@ _APPLIANCE_AGGREGATE = "335220"
 _APPLIANCE_SUBS = ["335221", "335222", "335224", "335228"]
 # CEDA 331313 = primary + secondary aluminum; Cornerstone has 331313 + 33131B.
 _CEDA_331313_CORNERSTONE_PARTS = ("331313", "33131B")
+
 
 @functools.cache
 def load_bea_make_table() -> pd.DataFrame:

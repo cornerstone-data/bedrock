@@ -3,9 +3,9 @@ import functools
 import pandas as pd
 
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 
 
 @functools.cache

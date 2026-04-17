@@ -14,7 +14,9 @@ from typing import Any
 from bedrock.utils.io.gcp_paths import GCS_EXTRACT_INPUT_DIR
 
 # bedrock/utils/io/_file_-> bedrock package root
-_BEDROCK_PKG = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_BEDROCK_PKG = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 
 EXTRACT_INPUT_DATA_ROOT = os.path.join(_BEDROCK_PKG, "extract", "input_data")
 

@@ -16,9 +16,9 @@ from bedrock.extract.allocation.epa_constants import (
 from bedrock.transform.allocation.utils import parse_index_with_aggregates
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.gwp import derive_ar5_to_ar6_multiplier
-from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 
 
 def _get_epa_data_year() -> int:
@@ -66,9 +66,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
     # }
 
     if section == "A":
-        return posixpath.join(
-            base, main_or_annex_dir["annex"], f"Table {tbl_name}.csv"
-        )
+        return posixpath.join(base, main_or_annex_dir["annex"], f"Table {tbl_name}.csv")
 
     chapter_dir = (
         {

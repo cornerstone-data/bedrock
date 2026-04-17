@@ -17,7 +17,11 @@ import tenacity
 from google.cloud.storage.blob import Blob
 from googleapiclient.errors import HttpError
 
-from bedrock.utils.io.gcp_paths import GCS_EXTRACT_INPUT_DIR
+from bedrock.utils.io.gcp_paths import (
+    GCS_EXTRACT_INPUT_DIR,
+    gcs_extract_input_sub_bucket_from_kwargs,
+)
+from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +54,6 @@ def download_extract_input_from_gcs_if_not_exists(
     sub_bucket
         Override path prefix; default is ``gcs_extract_input_sub_bucket_from_kwargs(kwargs)``.
     """
-    from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
-    from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
-
     bucket = (
         sub_bucket
         if sub_bucket is not None

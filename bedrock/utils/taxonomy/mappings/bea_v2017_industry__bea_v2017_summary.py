@@ -3,9 +3,9 @@ import typing as ta
 
 import pandas as pd
 
-from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_EXTRACT_TAXONOMY_DIR
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     BEA_2017_COMMODITY_SUMMARY_CODE,
     BEA_2017_COMMODITY_SUMMARY_CODES,
@@ -16,6 +16,7 @@ from bedrock.utils.taxonomy.bea.v2017_industry import (
 )
 from bedrock.utils.taxonomy.utils import validate_mapping
 
+
 def load_bea_v2017_industry_to_bea_v2017_summary() -> (
     ta.Dict[BEA_2017_INDUSTRY_CODE, ta.List[BEA_2017_COMMODITY_SUMMARY_CODE]]
 ):
@@ -24,8 +25,7 @@ def load_bea_v2017_industry_to_bea_v2017_summary() -> (
     # Same content can be found in "NAICS Codes" tab in Use_SUT_Framework_2017_DET dataset downloadable
     # from https://www.bea.gov/industry/input-output-accounts-data
     fname = "BEA-Industry-and-Commodity-Codes-and-NAICS-Concordance.xlsx"
-    pth = os.path.join(
-        local_dir_for_gcs_sub_bucket(GCS_EXTRACT_TAXONOMY_DIR), fname)
+    pth = os.path.join(local_dir_for_gcs_sub_bucket(GCS_EXTRACT_TAXONOMY_DIR), fname)
     download_gcs_file_if_not_exists(fname, GCS_EXTRACT_TAXONOMY_DIR, pth)
     df = (
         pd.read_excel(pth, sheet_name="NAICS Codes", skiprows=6)

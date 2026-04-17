@@ -2,9 +2,9 @@ import os
 
 import pandas as pd
 
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTORS
 from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
     CEDA_V5_TO_CEDA_V7_CODES,
@@ -19,7 +19,8 @@ INFLATION_FACTOR_DATA_GCS_PATH = gcs_extract_input_path("BEA_PriceIndex")
 
 def obtain_inflation_factors_from_reference_data() -> pd.DataFrame:
     local_inflation_factor_path = os.path.join(
-        local_extract_input_dir("BEA_PriceIndex"), "inflation_factors.parquet")
+        local_extract_input_dir("BEA_PriceIndex"), "inflation_factors.parquet"
+    )
     download_gcs_file_if_not_exists(
         "bea_price_index_2025_10_01.parquet",
         INFLATION_FACTOR_DATA_GCS_PATH,

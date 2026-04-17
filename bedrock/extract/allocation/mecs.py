@@ -2,9 +2,9 @@ import functools
 
 import pandas as pd
 
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 
 # MECS allocation tables (see EIA_MECS_Energy.yaml); vintage must match xlsx layout below.
 _MECS_ALLOCATION_YEAR = 2018
