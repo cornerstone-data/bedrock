@@ -25,7 +25,7 @@ GCS_CORNERSTONE = "gs://cornerstone-default"
 def download_extract_input_from_gcs_if_not_exists(
     kwargs: ta.Mapping[str, ta.Any],
     *,
-    local_dir: str,
+    local_dir: str | None = None,
     object_name: str | None = None,
     sub_bucket: str | None = None,
 ) -> str:
@@ -40,12 +40,15 @@ def download_extract_input_from_gcs_if_not_exists(
         Must include ``source`` and ``url`` (unless ``object_name`` is set).
         ``year`` is passed through to the path prefix when present.
     local_dir
-        Directory for the local copy (e.g. module ``IN_DIR``).
+        Directory for the local copy. Default: ``bedrock/extract/input_data`` with
+        underscore source keys (GCS uses ``extract/input-data`` with hyphens;
+        see ``extract_input_local``).
     object_name
         GCS object file name. Default: ``os.path.basename(url)``.
     sub_bucket
         Override path prefix; default is ``gcs_extract_input_sub_bucket_from_kwargs(kwargs)``.
     """
+    from bedrock.utils.io.extract_input_local import load_local_extract_input_dir
     from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
 
     bucket = (
@@ -53,6 +56,8 @@ def download_extract_input_from_gcs_if_not_exists(
         if sub_bucket is not None
         else gcs_extract_input_sub_bucket_from_kwargs(kwargs)
     )
+    if local_dir is None:
+        local_dir = load_local_extract_input_dir(kwargs)
     if object_name is None:
         object_name = os.path.basename(str(kwargs.get("url", "")))
     pth = os.path.join(local_dir, object_name)
