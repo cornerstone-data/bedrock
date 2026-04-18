@@ -9,6 +9,7 @@ from bedrock.utils.snapshots.names import SnapshotName
 
 SNAPSHOT_BASE = os.path.dirname(__file__)
 GCS_SNAPSHOT_DIR = "snapshots"
+USEEIO_BASELINE_CACHE_SUBDIR = "useeio_baseline"
 
 
 def load_current_snapshot(name: SnapshotName) -> pd.DataFrame:
@@ -44,6 +45,13 @@ def snapshot_local_dir(key: str) -> str:
     snapshot_dir = os.path.join(SNAPSHOT_BASE, "data", key)
     os.makedirs(snapshot_dir, exist_ok=True)
     return snapshot_dir
+
+
+def useeio_baseline_local_dir() -> str:
+    """Local cache dir for USEEIO Excel baselines (under ``snapshots/data``, like parquet snapshots)."""
+    d = os.path.join(SNAPSHOT_BASE, "data", USEEIO_BASELINE_CACHE_SUBDIR)
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 def snapshot_gcs_dir(key: str) -> str:

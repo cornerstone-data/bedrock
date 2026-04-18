@@ -72,10 +72,55 @@ def test_global_usa_config_with_snapshot_git_sha() -> None:
     )
 
 
+def test_unknown_diagnostics_cli_override_key_raises() -> None:
+    with pytest.raises(ValueError, match='Unknown diagnostics_cli_overrides'):
+        set_global_usa_config(
+            'test_usa_config.yaml',
+            diagnostics_cli_overrides={'not_a_real_field': 'x'},
+        )
+
+
 def test_cannot_call_global_usa_config_twice() -> None:
     set_global_usa_config("test_usa_config.yaml")
     with pytest.raises(ValueError):
         set_global_usa_config("test_usa_config.yaml")
+
+
+def test_set_global_usa_config_diagnostics_cli_overrides() -> None:
+    set_global_usa_config(
+        'test_usa_config.yaml',
+        diagnostics_cli_overrides={
+            'diagnostics_baseline_source': 'gcs_useeio_xlsx',
+            'useeio_baseline_xlsx_gs_uri': (
+                'gs://cornerstone-default/snapshots/x/y.xlsx'
+            ),
+            'useeio_baseline_xlsx_sha256': 'a' * 64,
+            'useeio_model_version_label': 'test-label',
+        },
+    )
+    cfg = get_usa_config()
+    assert cfg.diagnostics_baseline_source == 'gcs_useeio_xlsx'
+    gs_uri = cfg.useeio_baseline_xlsx_gs_uri
+    assert gs_uri is not None
+    assert gs_uri.endswith('y.xlsx')
+    assert cfg.useeio_baseline_xlsx_sha256 == 'a' * 64
+    assert cfg.useeio_model_version_label == 'test-label'
+
+
+def test_useeio_baseline_requires_sha_in_github_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv('GITHUB_ACTIONS', 'true')
+    with pytest.raises(ValueError, match='sha256'):
+        set_global_usa_config(
+            'test_usa_config.yaml',
+            diagnostics_cli_overrides={
+                'diagnostics_baseline_source': 'gcs_useeio_xlsx',
+                'useeio_baseline_xlsx_gs_uri': (
+                    'gs://cornerstone-default/snapshots/x/y.xlsx'
+                ),
+            },
+        )
 
 
 def test_config_via_environment_variable() -> None:

@@ -1,12 +1,23 @@
+from __future__ import annotations
+
 import os
 import typing as ta
 
 import pandas as pd
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
+
+DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
+    {
+        'diagnostics_baseline_source',
+        'useeio_baseline_xlsx_gs_uri',
+        'useeio_baseline_xlsx_sha256',
+        'useeio_model_version_label',
+    }
+)
 
 
 class EEIOWasteDisaggConfig(BaseModel):
@@ -70,6 +81,53 @@ class USAConfig(BaseModel):
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
 
     #####
+    # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
+    #####
+    diagnostics_baseline_source: ta.Literal['gcs_snapshot', 'gcs_useeio_xlsx'] = (
+        'gcs_snapshot'
+    )
+    useeio_baseline_xlsx_gs_uri: ta.Optional[str] = Field(
+        default=None,
+        description=(
+            'gs://cornerstone-default/... URI for the USEEIO baseline workbook. '
+            'Typically supplied via useeio_baseline_pin.json with '
+            'generate_diagnostics --useeio_baseline_pin_json, or set in YAML.'
+        ),
+    )
+    useeio_baseline_xlsx_sha256: ta.Optional[str] = Field(
+        default=None,
+        description=(
+            'SHA-256 (64 hex chars) of the exact xlsx bytes at useeio_baseline_xlsx_gs_uri. '
+            'In CI, use bedrock/utils/snapshots/useeio_baseline_pin.json with '
+            'generate_diagnostics --useeio_baseline_pin_json. Required in GitHub Actions '
+            "when diagnostics_baseline_source is 'gcs_useeio_xlsx'."
+        ),
+    )
+    useeio_model_version_label: ta.Optional[str] = Field(
+        default=None,
+        description=(
+            'Short label for config_summary / auditing. Typically set in useeio_baseline_pin.json.'
+        ),
+    )
+
+    @model_validator(mode='after')
+    def _validate_diagnostics_baseline(self) -> USAConfig:
+        """USEEIO baseline needs a GCS URI; CI must pin the xlsx with SHA256."""
+        if self.diagnostics_baseline_source == 'gcs_useeio_xlsx':
+            if not self.useeio_baseline_xlsx_gs_uri:
+                raise ValueError(
+                    'useeio_baseline_xlsx_gs_uri is required when '
+                    "diagnostics_baseline_source is 'gcs_useeio_xlsx'"
+                )
+            if os.environ.get('GITHUB_ACTIONS') == 'true':
+                if not self.useeio_baseline_xlsx_sha256:
+                    raise ValueError(
+                        'useeio_baseline_xlsx_sha256 is required in GitHub Actions '
+                        "when diagnostics_baseline_source is 'gcs_useeio_xlsx'"
+                    )
+        return self
+
+    #####
     # Baseline snapshot
     #####
     # The git SHA below is the baseline snapshots used for diagnostic comparison
@@ -131,7 +189,22 @@ def _load_usa_config_from_file_name(config_file_name: str) -> USAConfig:
     return config
 
 
-def set_global_usa_config(config_file: str) -> None:
+def set_global_usa_config(
+    config_file: str,
+    *,
+    diagnostics_cli_overrides: dict[str, object] | None = None,
+) -> None:
+    """Set the process-wide USA config from YAML.
+
+    Args:
+        config_file: Config stem or filename under ``configs/`` (``.yaml`` is
+            appended if missing).
+        diagnostics_cli_overrides: If set, merged onto the YAML-loaded dict
+            before ``USAConfig`` validation. Keys must be a subset of
+            ``DIAGNOSTICS_CLI_OVERRIDE_KEYS`` (diagnostics baseline + USEEIO pin
+            fields). Used by ``generate_diagnostics`` so one run can change those
+            fields without a forked config file.
+    """
     global _usa_config
     config_file_env = os.environ.get(USA_CONFIG_ENV_VAR)
 
@@ -141,7 +214,23 @@ def set_global_usa_config(config_file: str) -> None:
     if not config_file.endswith('.yaml'):
         config_file += '.yaml'
 
-    _usa_config = _load_usa_config_from_file_name(config_file)
+    base = _load_usa_config_from_file_name(config_file)
+    if diagnostics_cli_overrides:
+        unknown = set(diagnostics_cli_overrides) - DIAGNOSTICS_CLI_OVERRIDE_KEYS
+        if unknown:
+            raise ValueError(
+                f'Unknown diagnostics_cli_overrides keys: {sorted(unknown)}'
+            )
+        filtered = {
+            k: v
+            for k, v in diagnostics_cli_overrides.items()
+            if k in DIAGNOSTICS_CLI_OVERRIDE_KEYS and v is not None
+        }
+        merged = base.model_dump(mode='python')
+        merged.update(filtered)
+        _usa_config = USAConfig.model_validate(merged, strict=True)
+    else:
+        _usa_config = base
     os.environ[USA_CONFIG_ENV_VAR] = config_file
 
 
