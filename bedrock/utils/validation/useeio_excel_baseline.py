@@ -1,4 +1,9 @@
-"""Load USEEIO baseline matrices from a pinned GCS-hosted Excel export."""
+"""Load USEEIO baseline matrices from a pinned GCS-hosted Excel export.
+
+The default pin (``bedrock/utils/snapshots/useeio_baseline_pin.json``) targets a
+frozen **USEEIOv2.6.0-phoebe-23** workbook. For citation and
+upstream model context, see ``useeio_baseline_pin.provenance.md``.
+"""
 
 from __future__ import annotations
 
