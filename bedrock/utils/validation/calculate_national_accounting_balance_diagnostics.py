@@ -89,7 +89,10 @@ def calculate_national_accounting_balance_diagnostics(
     - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from the
       baseline (parquet ``B_USA_non_finetuned`` / ``Adom_USA`` / ``y_nab_USA`` at
       the configured snapshot key, or USEEIO Excel synthetic ``B`` / ``A_d`` /
-      ``2017_US_Production_Complete`` when in Excel baseline mode).
+      ``2017_US_Production_Complete`` when in Excel baseline mode). For USEEIO,
+      ``y_nab_old`` is inflated from ``dollar_year`` to ``model_base_year`` via
+      ``inflate_cornerstone_q_or_y`` (same sector/price handling as the
+      cornerstone EEIO pipeline) so final demand matches the dollar year of ``y_new``.
     """
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
@@ -141,6 +144,9 @@ def calculate_national_accounting_balance_diagnostics(
 
     logger.info("4. Loading baseline B, Adom, y_nab; computing BLy_old...")
     if cfg.diagnostics_baseline_source == "gcs_useeio_xlsx":
+        from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
+            inflate_cornerstone_q_or_y,
+        )
         from bedrock.utils.validation.useeio_excel_baseline import (
             load_useeio_baseline_bundle,
         )
@@ -148,9 +154,16 @@ def calculate_national_accounting_balance_diagnostics(
         ub = load_useeio_baseline_bundle(cfg)
         B_old = ub.b_old_synthetic
         Adom_old = ub.adom_old
-        # TODO: USEEIO y is workbook dollar year (``ub.dollar_year``); live ``y_new`` is
-        # ``model_base_year``. Rebase ``y_old`` here for dollar-year parity before BLy_old if desired.
-        y_old = ub.y_nab_old
+        y_old = inflate_cornerstone_q_or_y(
+            ub.y_nab_old,
+            original_year=ub.dollar_year,
+            target_year=cfg.model_base_year,
+        )
+        logger.info(
+            "   USEEIO y_nab inflated %s → %s (model_base_year) for BLy_old vs y_new",
+            ub.dollar_year,
+            cfg.model_base_year,
+        )
     else:
         snap_key = resolve_snapshot_key()
         B_old = load_snapshot("B_USA_non_finetuned", snap_key)
