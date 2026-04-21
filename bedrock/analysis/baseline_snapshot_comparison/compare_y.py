@@ -164,28 +164,37 @@ fig.tight_layout()
 fig.savefig(os.path.join(OUT, 'y_pct_hist.png'))
 plt.close(fig)
 
+# Top 20 |% diff| among sectors with meaningful denominators. Emitted as a
+# text table rather than a bar chart: in practice every value lands at
+# ~1e-14 % (float noise), so any plot axis is either misleading or empty.
+# The table preserves the ranking and shows the actual magnitudes.
 q_med = df['y_old'].abs().quantile(0.5)
 meaningful: pd.DataFrame = df.loc[
     (df['y_old'].abs() > q_med) & df['pct'].notna()
 ].copy()
 meaningful['abs_pct_val'] = meaningful['pct'].astype(float).abs()
 top_pct = meaningful.nlargest(20, 'abs_pct_val')
-fig, ax = plt.subplots(figsize=(10, 7))
-y_pos = np.arange(len(top_pct))
-ax.barh(
-    y_pos,
-    top_pct['pct'] * 100,
-    color=['tab:red' if v < 0 else 'tab:green' for v in top_pct['pct']],
-)
-ax.set_yticks(y_pos)
-ax.set_yticklabels([str(s)[:50] for s in top_pct.index], fontsize=8)
-ax.invert_yaxis()
-ax.set_xlabel('% diff (restricted to y_old above median |y_old|)')
-ax.set_title('Top 20 sectors by |% diff| (meaningful denominators only)')
-ax.axvline(0, color='k', lw=0.5)
-ax.grid(True, axis='x', ls=':', alpha=0.3)
-fig.tight_layout()
-fig.savefig(os.path.join(OUT, 'y_top20_pct.png'))
-plt.close(fig)
+
+max_abs_pct = float(top_pct['abs_pct_val'].max()) if len(top_pct) else 0.0
+report_tbl = top_pct[['y_new', 'y_old', 'pct']].copy()
+report_tbl['pct'] = [f'{float(v) * 100:+.3e} %' for v in report_tbl['pct']]
+report_tbl['y_new'] = [f'{float(v):.6e}' for v in report_tbl['y_new']]
+report_tbl['y_old'] = [f'{float(v):.6e}' for v in report_tbl['y_old']]
+
+report_path = os.path.join(OUT, 'y_top20_pct.txt')
+with open(report_path, 'w') as fh:
+    fh.write('Top 20 sectors by |% diff| (y_old > median |y_old|)\n')
+    fh.write(f'max |% diff| in this top-20: {max_abs_pct * 100:.3e} %\n')
+    if max_abs_pct < 1e-6:
+        fh.write(
+            'All values are below 1e-4 % — i.e. float-precision noise. '
+            'For both-sided sectors above the denominator floor, y_new and '
+            'y_old match within machine precision.\n'
+        )
+    fh.write('\n')
+    fh.write(report_tbl.to_string())
+    fh.write('\n')
+
+log.info('wrote y_top20_pct.txt (max |%%diff| = %.3e %%)', max_abs_pct * 100)
 
 print(f'\nOutputs written to: {OUT}')
