@@ -6,11 +6,11 @@ Bedrock v0.2 is the first release in which **USEEIO and CEDA-US are merged** int
 
 v0.2 is a **waypoint**, not the end state. Cornerstone's global MRIO model, targeted for release in **October 2026**, will combine the best of USEEIO and CEDA. The U.S. module is the first country to go through that merge, and v0.2 captures the result of that integration work — a reproducible, fully-specified U.S. EEIO model whose every methodological decision is traceable to a named flag, a YAML file, and a snapshot test against the v0.1 baseline.
 
-v0.2 produces emission factors (EFs) in the unit of dollar of output in **USD 2023, producer prices** (set by `model_base_year: 2023` and `price_type: producer` in `USAConfig`). Downstream consumers should deflate/inflate or convert to purchaser prices outside bedrock if a different basis is needed.
+v0.2 produces emission factors (EFs) in the unit of dollar of output in **USD 2023, producer prices** (set by `model_base_year: 2023` and `price_type: producer` in `USAConfig`). Downstream consumers should deflate/inflate or convert to purchaser prices outside `bedrock` if a different basis is needed.
 
 v0.2 is stable for use now. The config-driven patterns it establishes — typed methodology flags, YAML-as-experiment, snapshot-validated output — carry forward into the MRIO release, so effort invested in v0.2 is not throwaway.
 
-> *Companion documents:* the **Cornerstone U.S. National Model: Methodology Overview** covers the *what* (equations, data sources, methodological choices adopted from USEEIO vs CEDA). The **Cornerstone Technical Architecture Vision** covers the *why* (an Extract-Transform-Load (ETL) monorepo architecture, global MRIO end state). This document — bedrock as the *how* — walks the v0.2 config surface (§1), release notes (§2), diagnostic shifts against v0.1 and USEEIO (§3), and the path toward the October 2026 MRIO release (§4–5).
+> *Companion documents:* the **Cornerstone U.S. National Model: Methodology Overview** covers the *what* (equations, data sources, methodological choices adopted from USEEIO vs CEDA). The **Cornerstone Technical Architecture Vision** covers the *why* (an Extract-Transform-Load (ETL) monorepo architecture, global MRIO end state). This document — `bedrock` as the *how* — walks the v0.2 config surface (§1), release notes (§2), diagnostic shifts against v0.1 and USEEIO (§3), and the path toward the October 2026 MRIO release (§4–5).
 
 ---
 
@@ -71,18 +71,10 @@ The internal-review draft of the methods paper corresponds to the v0.2 configura
   - (2a) EF size (x-axis) vs EF %-change (y-axis)
   - (2b) EF absolute change (x-axis) vs EF %-change (y-axis)
 
-(3) stacked-bar or waterfall chart showing where the differences are from.
+(3) stacked-bar chart showing where the differences are from.
 
 A compact table will show, per flag group, the direction and rough magnitude of effect on B-matrix entries (↑ / ↓ / ≈) with a one-line interpretation, and columns for both the v0.1 and USEEIO baselines. These numbers are internally consistent — generated against pinned snapshot baselines — and should be read as "how the method moved" rather than as a claim of improved accuracy; the latter requires external validation. Readers who want to reproduce an individual comparison can run the corresponding per-flag config YAML.
 
-## 4. How bedrock fits into Cornerstone
+## 4. How `bedrock` fits into Cornerstone
 
-Bedrock is the U.S. national implementation of the ETL pipeline pattern set out in the Architecture Vision — the concrete stand-up of the "transform" stage for one country. v0.2 is the first country module to complete the USEEIO/CEDA merge, and the same config-driven methodology pattern will extend to additional geographies as they are brought into the global MRIO framework. Downstream consumers receive versioned matrices accompanied by the resolved `USAConfig`, so every published dataset is traceable back to a specific methodological choice set.
-
-## 5. Future work and roadmap
-
-- **Integration into the Cornerstone MRIO framework (October 2026).** The v0.2 U.S. matrices are the first country module that will plug into the global MRIO. U.S. results will be used for both domestic consumption-based accounting and trade-embodied accounting in the MRIO context.
-- **Sector disaggregation beyond waste.** The waste 1→7 split established in v0.2 is a template. **Electricity disaggregation** is the next planned application — breaking the single electricity commodity into technology-specific subsectors such as coal, gas, nuclear, renewables, etc.
-- **Environmental extensions beyond GHG.** The B-matrix infrastructure is gas- and impact-agnostic; planned extensions include water, land use, and criteria air pollutants, following the same config-as-methodology pattern established in v0.2.
-- **Closing paper/code gaps.** The methods paper will be updated to cover the flags currently ahead of the draft.
-- **Inviting collaboration.** Bedrock is open-source; see `README.md` and `ATTRIBUTION.md` in the public repo. External contributions are welcome.
+`bedrock` is the U.S. national implementation of the ETL pipeline set out in the Architecture Vision. v0.2 is the module to complete the USEEIO and CEDA-US merge where the best methodologies from both models are adopted. The config-driven methodology pattern utilized in `bedrock` v0.2 will extend to additional geographies in the global MRIO framework to faciliate traceability of methodological choices at the global level.
