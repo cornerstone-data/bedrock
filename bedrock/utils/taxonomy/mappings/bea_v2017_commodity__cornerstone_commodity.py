@@ -1,14 +1,12 @@
 import typing as ta
+from typing import cast
 
 from bedrock.utils.taxonomy.bea.v2017_commodity import (
     BEA_2017_COMMODITY_CODE,
     BEA_2017_COMMODITY_CODES,
 )
-from bedrock.utils.taxonomy.cornerstone.commodities import (
-    COMMODITIES,
-    COMMODITY,
-    WASTE_DISAGG_COMMODITIES,
-)
+from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES, COMMODITY
+from bedrock.utils.taxonomy.cornerstone.disagg_sectors import DISAGG_SECTORS
 from bedrock.utils.taxonomy.utils import validate_mapping
 
 
@@ -18,8 +16,9 @@ def load_bea_v2017_commodity_to_cornerstone_commodity() -> (
     def _map_v2017_commodity_to_cornerstone_commodity(
         bea: BEA_2017_COMMODITY_CODE,
     ) -> ta.List[COMMODITY]:
-        if bea == '562000':  # Waste disaggregation
-            return WASTE_DISAGG_COMMODITIES['562000']
+        for sector in DISAGG_SECTORS.values():
+            if bea == sector.commodity_aggregate_code:
+                return cast(ta.List[COMMODITY], [*sector.commodity_new_codes])
         if bea in {  # Drop these commodities
             'S00401',  # Scrap
             'S00300',  # Noncomparable imports

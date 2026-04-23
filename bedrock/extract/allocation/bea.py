@@ -16,11 +16,13 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+from bedrock.utils.taxonomy.cornerstone.disagg_sectors import DISAGG_SECTORS
 
 # Schema alignment: CEDA allocator sectors → Cornerstone use table.
-_WASTE_AGGREGATE = "562000"
-_WASTE_SUBS = list(WASTE_DISAGG_COMMODITIES[_WASTE_AGGREGATE])
+# TODO: Generalize when a second sector is added to `DISAGG_SECTORS`.
+_waste_disagg = DISAGG_SECTORS["waste"]
+_WASTE_AGGREGATE = _waste_disagg.commodity_aggregate_code
+_WASTE_SUBS = list(_waste_disagg.commodity_new_codes)
 _APPLIANCE_AGGREGATE = "335220"
 _APPLIANCE_SUBS = ["335221", "335222", "335224", "335228"]
 # CEDA 331313 = primary + secondary aluminum; Cornerstone has 331313 + 33131B.

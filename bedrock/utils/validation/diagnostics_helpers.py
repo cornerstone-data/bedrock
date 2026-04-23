@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 # Sector alignment constants for CEDA v7 (old) ↔ cornerstone (new)
 #
 # Sources of truth:
-#   Waste:     taxonomy/cornerstone/commodities.py  → WASTE_DISAGG_COMMODITIES
+#   Sector disaggregation: taxonomy/cornerstone/disagg_sectors.py → DISAGG_SECTORS
+#     (e.g. waste aggregate 562000 → seven subsectors; see WASTE_DISAGG_COMMODITIES)
 #   Appliance: taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (335220 → 4 codes)
 #   Aluminum:  taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (33131B → 331313)
 # ---------------------------------------------------------------------------
@@ -81,14 +82,16 @@ class EfsForDiagnostics(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _waste_disagg() -> ta.Tuple[str, ta.List[str]]:
-    """Return (old_code, new_subsector_codes) from the cornerstone taxonomy."""
-    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
-        WASTE_DISAGG_COMMODITIES,
+def _disagg_sectors() -> ta.List[ta.Tuple[str, ta.List[str]]]:
+    """Return ``(aggregate_commodity_code, new_commodity_codes)`` per registered sector."""
+    from bedrock.utils.taxonomy.cornerstone.disagg_sectors import (  # noqa: PLC0415
+        DISAGG_SECTORS,
     )
 
-    ((old_code, new_codes),) = WASTE_DISAGG_COMMODITIES.items()
-    return old_code, list(new_codes)
+    return [
+        (s.commodity_aggregate_code, list(s.commodity_new_codes))
+        for s in DISAGG_SECTORS.values()
+    ]
 
 
 def get_aligned_sector_desc() -> ta.Dict[str, str]:
@@ -118,24 +121,23 @@ def compute_active_mapped_sectors(
     (both old-only and new-only codes) so that the ``comparison_type`` column
     in the output sheet clearly labels each row.
 
-    Mapping labels:
+    Mapping labels (waste is one example of a registered disaggregation):
       - ``old-only (waste aggregate)``  – old aggregate that was disaggregated
       - ``new-only (waste subsector)``   – new subsectors of the above
       - ``old-only (appliance detail)``  – old detail codes that were aggregated
       - ``new-only (appliance aggregate)`` – new aggregate of the above
       - ``old-only (aluminum)`` / ``new-only (aluminum)`` – aluminum split
     """
-    waste_old, waste_new = _waste_disagg()
     old_idx = set(old_ef.index)
     new_idx = set(new_ef.index)
     active: ta.Dict[str, str] = {}
 
-    # Waste: old has aggregate 562000, new has subsectors
-    if waste_old in old_idx and waste_old not in new_idx:
-        if all(c in new_idx for c in waste_new):
-            active[waste_old] = 'old-only (waste aggregate)'
-            for c in waste_new:
-                active[c] = 'new-only (waste subsector)'
+    for disagg_old, disagg_new in _disagg_sectors():
+        if disagg_old in old_idx and disagg_old not in new_idx:
+            if all(c in new_idx for c in disagg_new):
+                active[disagg_old] = 'old-only (waste aggregate)'
+                for c in disagg_new:
+                    active[c] = 'new-only (waste subsector)'
 
     # Appliances: old has 4 detail codes, new aggregates to 335220
     if _APPLIANCE_NEW_CODE in new_idx and _APPLIANCE_NEW_CODE not in old_idx:
@@ -172,23 +174,22 @@ def _build_fill_maps(
     to the source code(s) in the *same* EF vector whose value should be used.
 
     Old-side fills (codes missing from old EF):
-      - Waste subsectors (562111 …) ← old aggregate 562000
+      - Disaggregated subsectors (e.g. waste 562111 …) ← their old aggregate (e.g. 562000)
       - Appliance aggregate (335220) ← sum of old detail codes
       - Aluminum new code (33131B) ← old 331313
 
     New-side fills (codes missing from new EF):
-      - Waste aggregate (562000) ← sum of new subsectors
+      - Old aggregate codes (e.g. waste 562000) ← sum of their new subsectors
       - Appliance detail codes (335221 …) ← new aggregate 335220
     """
-    waste_old, waste_new = _waste_disagg()
     old_fill: FillMap = {}
     new_fill: FillMap = {}
 
-    # Waste: disaggregated in new schema
-    if waste_old in active_mappings:
-        for c in waste_new:
-            old_fill[c] = waste_old
-        new_fill[waste_old] = waste_new
+    for disagg_old, disagg_new in _disagg_sectors():
+        if disagg_old in active_mappings:
+            for c in disagg_new:
+                old_fill[c] = disagg_old
+            new_fill[disagg_old] = disagg_new
 
     # Appliances: aggregated in new schema
     if _APPLIANCE_NEW_CODE in active_mappings:

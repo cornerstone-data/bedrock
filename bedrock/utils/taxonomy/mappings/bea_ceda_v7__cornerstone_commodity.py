@@ -1,11 +1,9 @@
 import typing as ta
+from typing import cast
 
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
-from bedrock.utils.taxonomy.cornerstone.commodities import (
-    COMMODITIES,
-    COMMODITY,
-    WASTE_DISAGG_COMMODITIES,
-)
+from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES, COMMODITY
+from bedrock.utils.taxonomy.cornerstone.disagg_sectors import DISAGG_SECTORS
 from bedrock.utils.taxonomy.utils import validate_mapping
 
 
@@ -21,9 +19,9 @@ def load_ceda_v7_commodity_to_cornerstone_commodity() -> (
         # Appliances: CEDA v7 splits 335220 into 4; Cornerstone keeps 335220
         if ceda in {'335221', '335222', '335224', '335228'}:
             return ['335220']
-        # Waste: CEDA v7 keeps 562000; Cornerstone disaggregates into 7
-        if ceda == '562000':
-            return WASTE_DISAGG_COMMODITIES['562000']
+        for sector in DISAGG_SECTORS.values():
+            if ceda == sector.commodity_aggregate_code:
+                return cast(ta.List[COMMODITY], [*sector.commodity_new_codes])
         # 1:1 codes present in both taxonomies
         if ceda in COMMODITIES:
             return [ceda]  # type: ignore

@@ -56,7 +56,8 @@ def _col_normalize(df: pd.DataFrame) -> pd.DataFrame:
 def commodity_corresp() -> pd.DataFrame:
     """Column-normalized commodity correspondence.
 
-    Ensures one-to-many BEA→cornerstone splits (e.g. waste 562000 → 7 subsectors)
+    Ensures one-to-many BEA→cornerstone splits (e.g. registered disaggregations such as
+    waste 562000 → seven subsectors)
     distribute values proportionally rather than duplicating.
     """
     return _col_normalize(commodity_corresp_raw())
@@ -113,7 +114,8 @@ def ceda_commodity_corresp_raw() -> pd.DataFrame:
 def ceda_commodity_corresp() -> pd.DataFrame:
     """Column-normalized CEDA v7 → Cornerstone commodity correspondence.
 
-    Ensures one-to-many CEDA→Cornerstone splits (e.g. waste 562000 → 7 subsectors)
+    Ensures one-to-many CEDA→Cornerstone splits (e.g. registered disaggregations such as
+    waste 562000 → seven subsectors)
     distribute values proportionally rather than duplicating.
     """
     return _col_normalize(ceda_commodity_corresp_raw())
@@ -144,18 +146,19 @@ def _valid_pairs(
     return [c for c, _ in pairs], [b for _, b in pairs]
 
 
-def _apply_waste_intragroup_treatment(expanded: pd.DataFrame) -> None:
-    """Zero cross-terms and divide non-group entries for waste subsectors in-place.
+def _apply_disagg_intragroup_treatment(expanded: pd.DataFrame) -> None:
+    """Zero cross-terms and divide non-group entries for registered disagg subsectors in-place.
 
-    Only applies to waste — these have no real disaggregated data, so the BEA
-    parent value is duplicated.  Other disaggregations (e.g. aluminum) have
-    real correspondence-informed splits and are left as-is.
+    Applies to sectors in ``DISAGG_SECTORS`` whose children have no real
+    disaggregated data in the source matrix (the BEA parent value is duplicated).
+    Other correspondence splits (e.g. aluminum) have real weights and are left as-is.
     """
-    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
-        WASTE_DISAGG_COMMODITIES,
+    from bedrock.utils.taxonomy.cornerstone.disagg_sectors import (  # noqa: PLC0415
+        DISAGG_SECTORS,
     )
 
-    for _old_code, new_codes in WASTE_DISAGG_COMMODITIES.items():
+    for sector in DISAGG_SECTORS.values():
+        new_codes = [*sector.commodity_new_codes]
         siblings = [c for c in new_codes if c in expanded.index]
         n = len(siblings)
         if n <= 1:
@@ -171,6 +174,9 @@ def _apply_waste_intragroup_treatment(expanded: pd.DataFrame) -> None:
             expanded.loc[s, non_siblings] /= n  # type: ignore[index]
 
 
+_apply_waste_intragroup_treatment = _apply_disagg_intragroup_treatment
+
+
 def expand_square_matrix(
     M: pd.DataFrame,
     target_codes: list[str],
@@ -181,20 +187,21 @@ def expand_square_matrix(
     """Expand a BEA square matrix to Cornerstone space.
 
     Rows and columns for disaggregated sectors are **duplicated** (not split).
-    When *zero_intragroup_cross_terms* is True, waste subsector cross-terms
-    are zeroed and non-group entries divided by n to prevent L inflation.
+    When *zero_intragroup_cross_terms* is True, disaggregation subsector cross-terms
+    (see ``DISAGG_SECTORS``) are zeroed and non-group entries divided by *n* to
+    prevent Leontief-inverse inflation.
     """
     cs_valid, bea_valid = _valid_pairs(target_codes, code_map, M.index)
 
     expanded = M.loc[bea_valid, bea_valid].copy()
-    expanded.index = cs_valid
-    expanded.columns = cs_valid
+    expanded.index = pd.Index(cs_valid)
+    expanded.columns = pd.Index(cs_valid)
     expanded = expanded.reindex(
         index=target_codes, columns=target_codes, fill_value=0.0
     )
 
     if zero_intragroup_cross_terms:
-        _apply_waste_intragroup_treatment(expanded)
+        _apply_disagg_intragroup_treatment(expanded)
 
     expanded.index.name = 'sector'
     expanded.columns.name = 'sector'
@@ -210,7 +217,7 @@ def expand_vector(
     cs_valid, bea_valid = _valid_pairs(target_codes, code_map, v.index)
 
     expanded = v.loc[bea_valid].copy()
-    expanded.index = cs_valid
+    expanded.index = pd.Index(cs_valid)
     return expanded.reindex(target_codes, fill_value=0.0)
 
 
@@ -223,7 +230,7 @@ def expand_ghg_matrix_from_bea_to_cornerstone(
     cs_valid, bea_valid = _valid_pairs(target_col_codes, col_map, M.columns)
 
     expanded = M.loc[:, bea_valid].copy()
-    expanded.columns = cs_valid
+    expanded.columns = pd.Index(cs_valid)
     expanded = expanded.reindex(columns=target_col_codes, fill_value=0.0)
     expanded.index.name = 'ghg'
     expanded.columns.name = 'sector'

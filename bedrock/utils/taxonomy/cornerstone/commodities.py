@@ -1,4 +1,7 @@
 import typing as ta
+from typing import cast
+
+from bedrock.utils.taxonomy.cornerstone.disagg_sectors import DISAGG_SECTORS
 
 # 405 commodities.
 # COMMODITY is the Literal type (for static type checking); COMMODITIES is the runtime list.
@@ -822,13 +825,6 @@ COMMODITY_DESC: ta.Dict[COMMODITY, str] = {
 }
 
 WASTE_DISAGG_COMMODITIES: ta.Dict[str, ta.List[COMMODITY]] = {
-    '562000': [
-        '562111',
-        '562HAZ',
-        '562212',
-        '562213',
-        '562910',
-        '562920',
-        '562OTH',
-    ]
+    s.commodity_aggregate_code: cast(ta.List[COMMODITY], [*s.commodity_new_codes])
+    for s in DISAGG_SECTORS.values()
 }

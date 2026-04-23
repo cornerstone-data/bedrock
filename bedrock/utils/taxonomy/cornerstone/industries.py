@@ -1,4 +1,7 @@
 import typing as ta
+from typing import cast
+
+from bedrock.utils.taxonomy.cornerstone.disagg_sectors import DISAGG_SECTORS
 
 # 405 industries.
 # INDUSTRY is the Literal type (for static type checking); INDUSTRIES is the runtime list.
@@ -823,13 +826,6 @@ INDUSTRY_DESC: ta.Dict[INDUSTRY, str] = {
 }
 
 WASTE_DISAGG_INDUSTRIES: ta.Dict[str, ta.List[INDUSTRY]] = {
-    '562000': [
-        '562111',
-        '562HAZ',
-        '562212',
-        '562213',
-        '562910',
-        '562920',
-        '562OTH',
-    ]
+    s.industry_aggregate_code: cast(ta.List[INDUSTRY], [*s.industry_new_codes])
+    for s in DISAGG_SECTORS.values()
 }

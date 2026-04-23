@@ -125,13 +125,16 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
 )
-from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+from bedrock.utils.taxonomy.cornerstone.disagg_sectors import (
+    DISAGG_SECTORS,
+    DisaggSectorTaxonomy,
+)
 from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 
 _BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-_WASTE_ORIGINAL_CODE = "562000"
-_WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[_WASTE_ORIGINAL_CODE])
+_WASTE_ORIGINAL_CODE = DISAGG_SECTORS["waste"].commodity_aggregate_code
+_WASTE_NEW_CODES: list[str] = list(DISAGG_SECTORS["waste"].commodity_new_codes)
 
 # ---------------------------------------------------------------------------
 # Waste disaggregation weight provider (4a)
@@ -211,8 +214,10 @@ def derive_cornerstone_x() -> pd.Series[float]:
 
 def _distribute_waste_parent_x_using_v_row_shares(
     x_cs: pd.Series[float],
+    *,
+    taxonomy: DisaggSectorTaxonomy = DISAGG_SECTORS["waste"],
 ) -> pd.Series[float]:
-    """Split duplicated BEA parent gross output across waste children using ``V`` row-sum shares.
+    """Split duplicated BEA parent gross output across disagg children using ``V`` row-sum shares.
 
     After ``expand_vector``, one-to-many BEA→Cornerstone splits (e.g. 562000)
     assign the **full** parent total to **each** child. When waste
@@ -227,7 +232,7 @@ def _distribute_waste_parent_x_using_v_row_shares(
     x_v = derive_cornerstone_x()
     present = [
         c
-        for c in _WASTE_NEW_CODES
+        for c in taxonomy.commodity_new_codes
         if c in x.index and c in x_v.index and pd.notna(x_v.loc[c])
     ]
     if not present:
@@ -598,14 +603,19 @@ def derive_cornerstone_E() -> pd.DataFrame:
     )
 
 
-def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
-    """Distribute E's waste industry columns proportionally by industry output.
+def _normalize_E_for_waste(
+    E: pd.DataFrame,
+    V: pd.DataFrame,
+    *,
+    taxonomy: DisaggSectorTaxonomy = DISAGG_SECTORS["waste"],
+) -> pd.DataFrame:
+    """Distribute E's disaggregated industry columns proportionally by industry output.
 
-    Instead of duplicating E_bea[:, 562000] to every waste subsector, each
-    waste industry i gets E_bea[:, 562000] * share_i, where share_i is i's
-    fraction of total waste industry output (Make table column sums).
+    Instead of duplicating the aggregate column to every child industry, each
+    child *i* gets the aggregate column times *i*'s fraction of total child
+    industry output (Make table column sums).
     """
-    waste_industries = [c for c in _WASTE_NEW_CODES if c in E.columns]
+    waste_industries = [c for c in taxonomy.industry_new_codes if c in E.columns]
     if not waste_industries:
         return E
     g_waste = V.sum(axis=0).loc[waste_industries]

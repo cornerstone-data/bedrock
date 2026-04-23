@@ -1,14 +1,12 @@
 import typing as ta
+from typing import cast
 
 from bedrock.utils.taxonomy.bea.v2017_industry import (
     BEA_2017_INDUSTRY_CODE,
     BEA_2017_INDUSTRY_CODES,
 )
-from bedrock.utils.taxonomy.cornerstone.industries import (
-    INDUSTRIES,
-    INDUSTRY,
-    WASTE_DISAGG_INDUSTRIES,
-)
+from bedrock.utils.taxonomy.cornerstone.disagg_sectors import DISAGG_SECTORS
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES, INDUSTRY
 from bedrock.utils.taxonomy.utils import validate_mapping
 
 
@@ -22,8 +20,9 @@ def load_bea_v2017_industry_to_cornerstone_industry() -> (
             return ["221100"]
         if bea == "S00201":  # Aggregate passenger transportation
             return ["485000"]
-        if bea == '562000':  # Waste disaggregation
-            return WASTE_DISAGG_INDUSTRIES['562000']
+        for sector in DISAGG_SECTORS.values():
+            if bea == sector.industry_aggregate_code:
+                return cast(ta.List[INDUSTRY], [*sector.industry_new_codes])
         if bea in INDUSTRIES:
             return [bea]  # type: ignore
         raise RuntimeError(f"Unexpected BEA 2017 industry code: {bea}")
