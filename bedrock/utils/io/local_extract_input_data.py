@@ -1,7 +1,5 @@
 """
-Local cache under ``bedrock/extract/input_data`` with **underscore** ``source``
-stems (e.g. ``EIA_MECS_Energy``). GCS uses ``extract/input-data`` and hyphenated
-names; see ``local_dir_for_gcs_sub_bucket`` to map a GCS prefix to this layout.
+Local cache under ``bedrock/extract/input_data``
 """
 
 from __future__ import annotations
@@ -59,12 +57,6 @@ def local_dir_for_gcs_sub_bucket(gcs_sub_bucket: str) -> str:
     """
     Map a GCS object prefix to a path under ``EXTRACT_INPUT_DATA_ROOT``.
 
-    For prefixes under ``extract/input-data/``, path segments after that prefix
-    are converted for local use (hyphens in source keys → underscores). Year
-    segments are unchanged.
-
-    Other prefixes (e.g. ``ceda-usa/...``) are appended under
-    ``EXTRACT_INPUT_DATA_ROOT`` without segment rewriting.
     """
     norm = gcs_sub_bucket.strip("/").replace("\\", "/")
     prefix = GCS_EXTRACT_INPUT_DIR.strip("/")

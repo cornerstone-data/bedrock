@@ -13,7 +13,7 @@ from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
 # Obtained from Watershed price index source (rds_2Au4cfUuGHgFFLG37rdR),
 # which is derived from BEA price index:
 # TODO: migrate to publicly available BEA price index
-# BEA price index on GCS: ``extract/input-data/BEA-PriceIndex/`` (no year subfolder).
+# BEA price index on GCS: ``extract/input-data/BEA_PriceIndex/`` (no year subfolder).
 INFLATION_FACTOR_DATA_GCS_PATH = gcs_extract_input_path("BEA_PriceIndex")
 
 

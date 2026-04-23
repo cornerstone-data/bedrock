@@ -46,9 +46,8 @@ def download_extract_input_from_gcs_if_not_exists(
         Must include ``source`` and ``url`` (unless ``object_name`` is set).
         ``year`` is passed through to the path prefix when present.
     local_dir
-        Directory for the local copy. Default: ``bedrock/extract/input_data`` with
-        underscore source keys (GCS uses ``extract/input-data`` with hyphens;
-        see ``extract_input_local``).
+        Directory for the local copy. Default: ``bedrock/extract/input_data`` with the same
+        path under ``input-data/`` on GCS.
     object_name
         GCS object file name. Default: ``os.path.basename(url)``.
     sub_bucket

@@ -7,8 +7,6 @@ GCS_CEDA_USA_DIR = "ceda-usa"
 GCS_SNAPSHOT_DIR = posixpath.join(GCS_CEDA_USA_DIR, "snapshots")
 
 GCS_EXTRACT_DIR = "extract"
-# GCS object prefix uses hyphens; local cache uses ``extract/input_data`` and underscores
-# (see ``extract_input_local``).
 GCS_EXTRACT_INPUT_DIR = posixpath.join(GCS_EXTRACT_DIR, "input-data")
 GCS_EXTRACT_TAXONOMY_DIR = posixpath.join(GCS_EXTRACT_INPUT_DIR, "taxonomy")
 GCS_V5_INPUT_DIR = posixpath.join(GCS_EXTRACT_INPUT_DIR, "v5")
@@ -20,15 +18,14 @@ def gcs_extract_input_path(
 ) -> str:
     """
     Prefix for raw extract inputs on GCS under
-    ``extract/input-data/{source}/`` with ``source`` as hyphenated keys
-    (e.g. ``EIA_MECS_Energy`` → ``EIA-MECS-Energy``).
+    ``extract/input-data/{source}/`` (same ``source`` stem as local YAML, e.g. ``EIA_MECS_Energy``).
 
     If ``year`` is omitted, empty, or whitespace-only, there is no year subfolder
     (used e.g. for ``USA_AllTables_MakeUse``, ``USA_AllTablesSUP``, ``BEA_PriceIndex``).
 
     If ``year`` is set, the path is ``extract/input-data/{source}/{year}/``.
     """
-    base = posixpath.join(GCS_EXTRACT_INPUT_DIR, data_source_name.replace("_", "-"))
+    base = posixpath.join(GCS_EXTRACT_INPUT_DIR, data_source_name)
     if year is None:
         return base
     year_str = str(year).strip()
