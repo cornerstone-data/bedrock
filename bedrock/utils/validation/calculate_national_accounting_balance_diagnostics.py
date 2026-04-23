@@ -7,6 +7,7 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.snapshots.loader import (
     load_configured_snapshot,
@@ -15,6 +16,7 @@ from bedrock.utils.snapshots.loader import (
 )
 
 logger = logging.getLogger(__name__)
+_USEEIO_ONLY_NON_CORNERSTONE_SECTORS = frozenset({"S00300", "S00401", "S00900"})
 
 
 def _series_from_1d_frame_or_series(obj: pd.DataFrame | pd.Series) -> pd.Series[float]:
@@ -80,12 +82,18 @@ def calculate_national_accounting_balance_diagnostics(
 
     If the model is balanced, sum(BLy) should equal sum(E_orig).
 
-    Writes two tabs:
-    - ``BLy_and_E_orig_diffs``: USA totals only (live BLy vs snapshot E).
-    - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from baseline
-      parquet (``B_USA_non_finetuned``, ``Adom_USA``, ``y_nab_USA`` at the
-      configured snapshot key). Missing sides stay blank; diff uses 0 for missing;
-      % uses BLy_old as denominator when defined.
+    Writes:
+
+    - ``BLy_and_E_orig_diffs``: USA totals only (live BLy vs snapshot ``E``).
+      **Skipped** when ``diagnostics_baseline_source == 'gcs_useeio_xlsx'`` (no
+      ``E_old`` for the Excel baseline path).
+    - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from the
+      baseline (parquet ``B_USA_non_finetuned`` / ``Adom_USA`` / ``y_nab_USA`` at
+      the configured snapshot key, or USEEIO Excel synthetic ``B`` / ``A_d`` /
+      ``2017_US_Production_Complete`` when in Excel baseline mode). For USEEIO,
+      ``y_old`` is taken from Cornerstone ``derive_cornerstone_y_nab()`` and
+      reindexed to the USEEIO baseline sector axis. USEEIO-only sectors not in
+      Cornerstone (e.g., ``S00300``, ``S00401``, ``S00900``) are explicitly zeroed.
     """
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
@@ -103,37 +111,79 @@ def calculate_national_accounting_balance_diagnostics(
     logger.info("1. Calculating BLy (live)...")
     BLy_new = _compute_bly_series(B=B_new, Adom=Aq_set.Adom, y=y_new)
 
-    logger.info("2. Loading E_orig from snapshot...")
-    E_orig = load_configured_snapshot("E_USA_ES")
-    E_orig_by_sector = ta.cast("pd.Series[float]", E_orig.sum(axis=0))
+    cfg = get_usa_config()
+    if cfg.diagnostics_baseline_source != "gcs_useeio_xlsx":
+        logger.info("2. Loading E_orig from snapshot...")
+        E_orig = load_configured_snapshot("E_USA_ES")
+        E_orig_by_sector = ta.cast("pd.Series[float]", E_orig.sum(axis=0))
 
-    BLy_total = float(BLy_new.sum())
-    E_orig_total = float(E_orig_by_sector.sum())
-    diff = BLy_total - E_orig_total
-    perc_diff = diff / E_orig_total if E_orig_total != 0 else 0.0
+        BLy_total = float(BLy_new.sum())
+        E_orig_total = float(E_orig_by_sector.sum())
+        diff = BLy_total - E_orig_total
+        perc_diff = diff / E_orig_total if E_orig_total != 0 else 0.0
 
-    logger.info("3. Writing BLy vs E (national totals)...")
-    comparison = pd.DataFrame(
-        {
-            "BLy (MtCO2e)": [BLy_total / 1e9],
-            "E_orig (MtCO2e)": [E_orig_total / 1e9],
-            "BLy - E_orig (MtCO2e)": [diff / 1e9],
-            "(BLy - E_orig) / E_orig (%)": [perc_diff],
-        },
-        index=pd.Index(["USA"]),
-    )
-    update_sheet_tab(
-        sheet_id,
-        "BLy_and_E_orig_diffs",
-        comparison.reset_index(),
-        clean_nans=True,
-    )
+        logger.info("3. Writing BLy vs E (national totals)...")
+        comparison = pd.DataFrame(
+            {
+                "BLy (MtCO2e)": [BLy_total / 1e9],
+                "E_orig (MtCO2e)": [E_orig_total / 1e9],
+                "BLy - E_orig (MtCO2e)": [diff / 1e9],
+                "(BLy - E_orig) / E_orig (%)": [perc_diff],
+            },
+            index=pd.Index(["USA"]),
+        )
+        update_sheet_tab(
+            sheet_id,
+            "BLy_and_E_orig_diffs",
+            comparison.reset_index(),
+            clean_nans=True,
+        )
+    else:
+        logger.info(
+            "2–3. Skipping BLy_and_E_orig_diffs (USEEIO Excel baseline; no E_old)"
+        )
 
     logger.info("4. Loading baseline B, Adom, y_nab; computing BLy_old...")
-    snap_key = resolve_snapshot_key()
-    B_old = load_snapshot("B_USA_non_finetuned", snap_key)
-    Adom_old = load_snapshot("Adom_USA", snap_key)
-    y_old = _series_from_1d_frame_or_series(load_snapshot("y_nab_USA", snap_key))
+    if cfg.diagnostics_baseline_source == "gcs_useeio_xlsx":
+        from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_y_nab
+        from bedrock.utils.validation.useeio_excel_baseline import (
+            load_useeio_baseline_bundle,
+        )
+
+        ub = load_useeio_baseline_bundle(cfg)
+        B_old = ub.b_old_synthetic
+        Adom_old = ub.adom_old
+        y_cornerstone = derive_cornerstone_y_nab()
+        baseline_axis = Adom_old.index
+        missing_in_cornerstone = sorted(
+            set(baseline_axis.astype(str)) - set(y_cornerstone.index.astype(str))
+        )
+        y_old = y_cornerstone.reindex(baseline_axis, fill_value=0.0)
+        if missing_in_cornerstone:
+            logger.warning(
+                "USEEIO baseline sectors not in Cornerstone y_nab were zeroed: "
+                "count=%d sectors=%s",
+                len(missing_in_cornerstone),
+                missing_in_cornerstone,
+            )
+            unexpected = sorted(
+                set(missing_in_cornerstone) - _USEEIO_ONLY_NON_CORNERSTONE_SECTORS
+            )
+            if unexpected:
+                logger.warning(
+                    "Unexpected non-overlap beyond expected USEEIO-only sectors: %s",
+                    unexpected,
+                )
+        logger.info(
+            "   USEEIO BLy y_old uses Cornerstone y_nab reindexed to USEEIO axis "
+            "(Cornerstone year scaling/inflation already applied to %s)",
+            cfg.model_base_year,
+        )
+    else:
+        snap_key = resolve_snapshot_key()
+        B_old = load_snapshot("B_USA_non_finetuned", snap_key)
+        Adom_old = load_snapshot("Adom_USA", snap_key)
+        y_old = _series_from_1d_frame_or_series(load_snapshot("y_nab_USA", snap_key))
     BLy_old = _compute_bly_series(B=B_old, Adom=Adom_old, y=y_old)
 
     sector_index = BLy_new.index.union(BLy_old.index).sort_values()

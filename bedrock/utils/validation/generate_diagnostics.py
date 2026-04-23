@@ -32,14 +32,47 @@ logger = logging.getLogger(__name__)
 )
 @click.option('--git_branch', default=None, type=str, help='Override git branch name')
 @click.option('--pr_url', default=None, type=str, help='Override PR URL')
+@click.option(
+    '--diagnostics_baseline_source',
+    default=None,
+    type=click.Choice(['gcs_snapshot', 'gcs_useeio_xlsx']),
+    help='Override diagnostics baseline source (merged onto config YAML)',
+)
+@click.option(
+    '--useeio_baseline_pin_json',
+    default=None,
+    type=click.Path(exists=True, dir_okay=False, path_type=str),
+    help=(
+        'JSON with gs_uri, sha256, model_version_label (see '
+        'bedrock/utils/snapshots/useeio_baseline_pin.json). Selects '
+        "diagnostics_baseline_source='gcs_useeio_xlsx' unless overridden by "
+        '--diagnostics_baseline_source.'
+    ),
+)
 def generate_diagnostics(
     sheet_id: str,
     config_name: str,
     git_branch: str | None,
     pr_url: str | None,
+    diagnostics_baseline_source: str | None,
+    useeio_baseline_pin_json: str | None,
 ) -> None:
     total_start = time.time()
-    set_global_usa_config(config_name)
+    overrides: dict[str, object] = {}
+    if useeio_baseline_pin_json is not None:
+        from bedrock.utils.validation.useeio_excel_baseline import (
+            load_useeio_baseline_pin_overrides,
+        )
+
+        pin_fragment = load_useeio_baseline_pin_overrides(useeio_baseline_pin_json)
+        overrides.update(pin_fragment)
+        overrides['diagnostics_baseline_source'] = 'gcs_useeio_xlsx'
+    if diagnostics_baseline_source is not None:
+        overrides['diagnostics_baseline_source'] = diagnostics_baseline_source
+    set_global_usa_config(
+        config_name,
+        diagnostics_cli_overrides=overrides if overrides else None,
+    )
 
     # If an FBA requires an API key to generate, download the FBA during diagnostics
     common.download_fba_on_api_error = True
@@ -66,21 +99,25 @@ def generate_diagnostics(
 
     logger.info('----- Updating config summary -----')
     t0 = time.time()
-    config_df = get_usa_config().to_dataframe(config_name)
-    git_metadata = pd.DataFrame(
-        [
-            {'config_field': 'git_commit', 'value': GIT_HASH_LONG or 'unknown'},
-            {
-                'config_field': 'git_branch',
-                'value': git_branch or GIT_BRANCH or 'unknown',
-            },
-            {'config_field': 'git_pr_url', 'value': pr_url or GIT_PR_URL or 'N/A'},
-            {
-                'config_field': 'baseline_snapshot_key_used',
-                'value': resolve_snapshot_key(),
-            },
-        ]
+    cfg = get_usa_config()
+    config_df = cfg.to_dataframe(config_name)
+    baseline_snap = (
+        resolve_snapshot_key()
+        if cfg.diagnostics_baseline_source == 'gcs_snapshot'
+        else 'N/A (USEEIO Excel baseline)'
     )
+    # Run metadata only — diagnostics_baseline_source and useeio_* already appear
+    # once in config_df from USAConfig.to_dataframe().
+    git_rows: list[dict[str, str]] = [
+        {'config_field': 'git_commit', 'value': GIT_HASH_LONG or 'unknown'},
+        {
+            'config_field': 'git_branch',
+            'value': git_branch or GIT_BRANCH or 'unknown',
+        },
+        {'config_field': 'git_pr_url', 'value': pr_url or GIT_PR_URL or 'N/A'},
+        {'config_field': 'baseline_snapshot_key_used', 'value': baseline_snap},
+    ]
+    git_metadata = pd.DataFrame(git_rows)
     config_df = pd.concat([git_metadata, config_df], ignore_index=True)
     update_sheet_tab(
         sheet_id,

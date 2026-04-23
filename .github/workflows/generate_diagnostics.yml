@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: ""
+      use_useeio_baseline:
+        description: "Benchmark to USEEIO GCS Excel baseline (URI, SHA, label from useeio_baseline_pin.json)"
+        required: false
+        type: boolean
+        default: false
 
 env:
   FORCE_COLOR: 2
@@ -44,11 +49,20 @@ jobs:
       - name: Generate diagnostics
         id: generate
         run: |
-          uv run python bedrock/utils/validation/generate_diagnostics.py \
-            --sheet_id "${{ github.event.inputs.sheet_id }}" \
-            --config_name "${{ github.event.inputs.config_name }}" \
-            --git_branch "${{ github.ref_name }}" \
-            ${{ github.event.inputs.pr_url && format('--pr_url "{0}"', github.event.inputs.pr_url) || '' }}
+          if [ "${{ github.event.inputs.use_useeio_baseline }}" = "true" ]; then
+            uv run python bedrock/utils/validation/generate_diagnostics.py \
+              --sheet_id "${{ github.event.inputs.sheet_id }}" \
+              --config_name "${{ github.event.inputs.config_name }}" \
+              --git_branch "${{ github.ref_name }}" \
+              ${{ github.event.inputs.pr_url && format('--pr_url "{0}"', github.event.inputs.pr_url) || '' }} \
+              --useeio_baseline_pin_json bedrock/utils/snapshots/useeio_baseline_pin.json
+          else
+            uv run python bedrock/utils/validation/generate_diagnostics.py \
+              --sheet_id "${{ github.event.inputs.sheet_id }}" \
+              --config_name "${{ github.event.inputs.config_name }}" \
+              --git_branch "${{ github.ref_name }}" \
+              ${{ github.event.inputs.pr_url && format('--pr_url "{0}"', github.event.inputs.pr_url) || '' }}
+          fi
 
   notify_slack_failure:
     needs: diagnostics
@@ -70,7 +84,7 @@ jobs:
                   "type": "section",
                   "text": {
                       "type": "mrkdwn",
-                      "text": ":warning: *Bedrock Diagnostics Generation Failure*\nDiagnostics failed on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}\n*Target Google Sheets URL:* https://docs.google.com/spreadsheets/d/${{ github.event.inputs.sheet_id }}"
+                      "text": ":warning: *Bedrock Diagnostics Generation Failure*\nDiagnostics failed on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}\n*USEEIO baseline:* ${{ github.event.inputs.use_useeio_baseline }}\n*Target Google Sheets URL:* https://docs.google.com/spreadsheets/d/${{ github.event.inputs.sheet_id }}"
                   },
                   "accessory": {
                     "type": "button",
@@ -104,7 +118,7 @@ jobs:
                   "type": "section",
                   "text": {
                       "type": "mrkdwn",
-                      "text": ":white_check_mark: *Bedrock Diagnostics Generation Success*\nDiagnostics generated on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}\n*Google Sheets URL:* https://docs.google.com/spreadsheets/d/${{ github.event.inputs.sheet_id }}"
+                      "text": ":white_check_mark: *Bedrock Diagnostics Generation Success*\nDiagnostics generated on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Configuration:* ${{ github.event.inputs.config_name }}\n*USEEIO baseline:* ${{ github.event.inputs.use_useeio_baseline }}\n*Google Sheets URL:* https://docs.google.com/spreadsheets/d/${{ github.event.inputs.sheet_id }}"
                   },
                   "accessory": {
                     "type": "button",
