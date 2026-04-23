@@ -16,7 +16,7 @@ v0.2 is stable for use now. The config-driven patterns it establishes — typed 
 
 ## 1. Methodology as configuration
 
-The headline claim of v0.2 is that **every methodological decision involved in merging USEEIO and CEDA-US is a typed flag on `USAConfig`** (`bedrock/utils/config/usa_config.py`). The methods paper is the narrative; the config is the executable contract. Flipping a flag is a methodological change — tracked in git, testable via snapshots, and recorded as provenance metadata on every output artifact.
+The headline claim of v0.2 is that **every methodological decision involved in merging USEEIO and CEDA-US is validated using a configuration specifically `USAConfig`** (`bedrock/utils/config/usa_config.py`). Changes to the configuration adjusts the methodology so individual changes can be validated via snapshots.
 
 Flags group into five themes, each mapping to a section of the methods paper:
 
