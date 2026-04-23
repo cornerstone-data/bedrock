@@ -1,5 +1,8 @@
 # bedrock
 
+`bedrock` is a pipeline for building environmentally-extended input-output (EEIO) models and related data artifacts, like emission factors.
+It is the U.S. national implementation of the ETL pipeline set out in [Cornerstone's Architecture Vision](https://github.com/cornerstone-data/papers/blob/published/architecture_vision/Cornerstone_Architecture_Vision.md).
+
 ## License
 See the [LICENSE](/LICENSE) on appropriate use of bedrock and [ATTRIBUTION.md](/ATTRIBUTION.md) for the attribution requirement.
 
