@@ -296,3 +296,93 @@ def load_useeio_baseline_bundle(cfg: USAConfig | None = None) -> UseeioBaselineB
         source_gs_uri=gs_uri,
         file_sha256=file_sha,
     )
+
+
+def derive_useeio_excel_y_nab_scaled_to_model_base_year(
+    cfg: USAConfig,
+    ub: UseeioBaselineBundle,
+) -> pd.Series[float]:
+    """Scale USEEIO workbook ``y_nab`` like ``derive_cornerstone_y_nab``.
+
+    Builds summary national-accounting ``y_nab`` at ``cfg.usa_io_data_year`` (same
+    BEA inputs as the cornerstone path), disaggregates to detail using the
+    USEEIO workbook detail vector as weights (via
+    ``get_bea_v2017_summary_to_useeio_corresp_df``). Negative workbook weights are
+    clipped to zero before disaggregation so column normalization stays valid.
+    ``_disaggregate_and_inflate_vector`` inflates using ``usa_io_data_year`` →
+    ``model_base_year`` (not workbook ``dollar_year``).
+    """
+    from bedrock.extract.iot.io_2017 import load_summary_Uimp_usa  # noqa: PLC0415
+    from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
+        derive_summary_Ytot_usa_matrix_set,
+    )
+    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+        _disaggregate_and_inflate_vector,
+    )
+    from bedrock.utils.math.formulas import (  # noqa: PLC0415
+        compute_y_for_national_accounting_balance,
+        compute_y_imp,
+    )
+    from bedrock.utils.math.handle_negatives import (  # noqa: PLC0415
+        handle_negative_vector_values,
+    )
+    from bedrock.utils.taxonomy.bea.v2017_industry_summary import (  # noqa: PLC0415
+        USA_2017_SUMMARY_INDUSTRY_CODES,
+    )
+    from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (  # noqa: PLC0415
+        get_bea_v2017_summary_to_useeio_corresp_df,
+    )
+
+    corresp_df = get_bea_v2017_summary_to_useeio_corresp_df(ub.y_nab_old.index)
+    summary_Y = derive_summary_Ytot_usa_matrix_set(cfg.usa_io_data_year)
+    y_nab_summary = compute_y_for_national_accounting_balance(
+        y_tot=summary_Y.ytot,
+        y_imp=compute_y_imp(
+            imports=summary_Y.imports,
+            Uimp=load_summary_Uimp_usa(cfg.usa_io_data_year).loc[
+                USA_2017_SUMMARY_INDUSTRY_CODES,
+                USA_2017_SUMMARY_INDUSTRY_CODES,
+            ],
+        ),
+        exports=summary_Y.exports,
+    )
+    y_base = y_nab_summary.reindex(corresp_df.columns, fill_value=0.0)
+    # Summary columns with no 1 in any USEEIO row cannot receive mass in
+    # ``disaggregate_vector`` (normalized column weights would be all zero).
+    # Leaving y_nab there breaks conservation vs ``base_series.sum()``.
+    unmapped_summary = corresp_df.columns[corresp_df.sum(axis=0) == 0]
+    if len(unmapped_summary) > 0:
+        dropped_mass = float(y_base.reindex(unmapped_summary).fillna(0).sum())
+        y_base = y_base.copy()
+        y_base.loc[unmapped_summary] = 0.0
+        logger.warning(
+            'USEEIO y scaling: %d BEA summary columns have no USEEIO detail row; '
+            'zeroing y_nab there so disaggregation conserves (mass dropped ~%.6g). '
+            'Columns: %s',
+            len(unmapped_summary),
+            dropped_mass,
+            list(unmapped_summary),
+        )
+    weight = ub.y_nab_old.reindex(corresp_df.index, fill_value=0.0)
+    # Workbook ``y_nab`` can be negative on some detail codes; within one BEA
+    # summary column the weighted column sum can then be <= 0, which breaks
+    # ``disaggregate_vector`` normalization and yields negative shares that
+    # ``handle_negative_vector_values`` clears to zero (e.g. positive 115000
+    # with siblings summing negative in 113FF).
+    neg_mask = weight < 0
+    if neg_mask.any():
+        logger.warning(
+            'USEEIO y scaling: clipping %d negative workbook y_nab weights to 0 '
+            'for disaggregation (sum of clipped values ~%.6g)',
+            int(neg_mask.sum()),
+            float((-weight).where(neg_mask, 0.0).sum()),
+        )
+        weight = weight.clip(lower=0.0)
+    y_scaled = _disaggregate_and_inflate_vector(
+        base=y_base,
+        weight=weight,
+        corresp_df=corresp_df,
+        original_year=cfg.usa_io_data_year,
+        target_year=cfg.model_base_year,
+    )
+    return handle_negative_vector_values(y_scaled)

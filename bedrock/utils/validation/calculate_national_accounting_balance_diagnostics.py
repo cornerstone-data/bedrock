@@ -90,9 +90,10 @@ def calculate_national_accounting_balance_diagnostics(
       baseline (parquet ``B_USA_non_finetuned`` / ``Adom_USA`` / ``y_nab_USA`` at
       the configured snapshot key, or USEEIO Excel synthetic ``B`` / ``A_d`` /
       ``2017_US_Production_Complete`` when in Excel baseline mode). For USEEIO,
-      ``y_nab_old`` is inflated from ``dollar_year`` to ``model_base_year`` via
-      ``inflate_cornerstone_q_or_y`` (same sector/price handling as the
-      cornerstone EEIO pipeline) so final demand matches the dollar year of ``y_new``.
+      ``y_old`` is built like ``derive_cornerstone_y_nab``: summary ``y_nab`` at
+      ``usa_io_data_year``, disaggregated to detail using workbook ``y_nab_old``
+      as weights, then ``_disaggregate_and_inflate_vector`` to ``model_base_year``
+      (see ``derive_useeio_excel_y_nab_scaled_to_model_base_year``).
     """
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
@@ -144,24 +145,18 @@ def calculate_national_accounting_balance_diagnostics(
 
     logger.info("4. Loading baseline B, Adom, y_nab; computing BLy_old...")
     if cfg.diagnostics_baseline_source == "gcs_useeio_xlsx":
-        from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
-            inflate_cornerstone_q_or_y,
-        )
         from bedrock.utils.validation.useeio_excel_baseline import (
+            derive_useeio_excel_y_nab_scaled_to_model_base_year,
             load_useeio_baseline_bundle,
         )
 
         ub = load_useeio_baseline_bundle(cfg)
         B_old = ub.b_old_synthetic
         Adom_old = ub.adom_old
-        y_old = inflate_cornerstone_q_or_y(
-            ub.y_nab_old,
-            original_year=ub.dollar_year,
-            target_year=cfg.model_base_year,
-        )
+        y_old = derive_useeio_excel_y_nab_scaled_to_model_base_year(cfg, ub)
         logger.info(
-            "   USEEIO y_nab inflated %s → %s (model_base_year) for BLy_old vs y_new",
-            ub.dollar_year,
+            "   USEEIO y_nab: summary @ %s → disaggregate (workbook weights) → %s",
+            cfg.usa_io_data_year,
             cfg.model_base_year,
         )
     else:
