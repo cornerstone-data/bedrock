@@ -135,13 +135,13 @@ source_names:
         selection_fields:
          PrimaryActivity:
           - 'Cropland used for pasture'
-          - 'Forest-use land grazed'
+          - 'Grazed forest-use land grazed'
           - 'Grassland pasture and range'
         attribution_method: direct
       forest:
         selection_fields:
          PrimaryActivity:
-          - 'Forest-use land not grazed'
+          - 'Ungrazed forest-use land'
           - 'Land in defense and industrial areas'
           - 'Land in rural parks and wildlife areas'
         attribution_method: direct
@@ -165,7 +165,7 @@ source_names:
         attribution_method: direct
       other:
         selection_fields:
-         PrimaryActivity: 'Other land'
+         PrimaryActivity: 'Miscellaneous other land'
          Location: !include:Location_common.yaml:_state_location
         clean_fba_w_sec: !script_function:USDA_ERS_MLU allocate_usda_ers_mlu_other_land
         attribution_method: direct

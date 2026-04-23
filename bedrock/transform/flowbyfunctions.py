@@ -1,9 +1,9 @@
 # flowbyfunctions.py (flowsa)
 # !/usr/bin/env python3
 # coding=utf-8
-"""
-Helper functions for flowbyactivity and flowbysector data
-"""
+"""Helper functions for flowbyactivity and flowbysector data"""
+
+from __future__ import annotations
 
 from typing import Any
 
@@ -123,7 +123,7 @@ def aggregator(
 
     df_dfg = df.groupby(groupbycols, dropna=False).agg({flowcolname: ['sum']})
 
-    def is_identical(s: pd.Series[Any]) -> bool:
+    def is_identical(s: pd.Series) -> bool:
         a = s.to_numpy()
         return bool((a[0] == a).all())
 

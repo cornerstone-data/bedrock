@@ -8,6 +8,8 @@ https://www.eia.gov/consumption/commercial/reports/2012/energyusage/index.php
 Last updated: Monday, August 17, 2020
 """
 import io
+import os
+import posixpath
 from typing import Any, List
 
 import numpy as np
@@ -20,9 +22,13 @@ from bedrock.transform.literature_values import (
     get_commercial_and_manufacturing_floorspace_to_land_area_ratio,
 )
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD, clean_str_and_capitalize
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.logging.flowsa_log import vlog
 from bedrock.utils.mapping.location import US_FIPS, get_region_and_division_codes
 from bedrock.utils.validation.validation import calculate_flowamount_diff_between_dfs
+
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
 def eia_cbecs_land_URL_helper(
@@ -58,9 +64,37 @@ def eia_cbecs_land_call(*, resp: Response, url: str, **_: Any) -> pd.DataFrame:
     :param url: string, url
     :return: pandas dataframe of original source data
     """
-    # Convert response to dataframe
-    df_raw_data = pd.read_excel(io.BytesIO(resp.content), sheet_name='data')
-    df_raw_rse = pd.read_excel(io.BytesIO(resp.content), sheet_name='rse')
+    buf = io.BytesIO(resp.content)
+    df = _eia_cbecs_land_read_excel(buf, url)
+    name = os.path.basename(str(url))
+    with open(os.path.join(IN_DIR, name), "wb") as f:
+        f.write(resp.content)
+    return df
+
+
+def eia_cbecs_land_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    year = str(kwargs.get('year', ''))
+    GCS_CBECS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"EIA_CBECS_Land_{year}")
+    url = kwargs.get('url', '')
+    name = os.path.basename(str(url))
+    download_gcs_file_if_not_exists(
+        name=name,
+        sub_bucket=GCS_CBECS_DIR,
+        pth=os.path.join(IN_DIR, name),
+    )
+    path = os.path.join(IN_DIR, name)
+    df = _eia_cbecs_land_read_excel(path, str(url))
+    return df
+
+
+def _eia_cbecs_land_read_excel(source: str | io.BytesIO, url: str) -> pd.DataFrame:
+    if isinstance(source, io.BytesIO):
+        source.seek(0)
+    df_raw_data = pd.read_excel(source, sheet_name='data')
+    if isinstance(source, io.BytesIO):
+        source.seek(0)
+    df_raw_rse = pd.read_excel(source, sheet_name='rse')
 
     if "b5.xlsx" in url:
         # skip rows and remove extra rows at end of dataframe

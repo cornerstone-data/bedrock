@@ -9,7 +9,10 @@ Last updated: Thursday, April 16, 2020
 """
 
 import io
+import os
+import posixpath
 from typing import Any
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -26,10 +29,14 @@ from bedrock.transform.literature_values import (
     get_urban_land_use_for_railroads,
 )
 from bedrock.utils.config.common import load_crosswalk
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
 from bedrock.utils.mapping.naics import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
+
+IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
 def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
@@ -41,6 +48,18 @@ def mlu_call(*, resp: Response, **_: Any) -> pd.DataFrame:
     """
     with io.StringIO(resp.text) as fp:
         df = pd.read_csv(fp, encoding="ISO-8859-1")
+    return df
+
+
+def mlu_load_gcs(**kwargs: Any) -> pd.DataFrame:
+    """For each url the file gets download and stored locally from gcs"""
+    year = str(kwargs.get("year", ""))
+    url = str(kwargs.get("url", ""))
+    name = posixpath.basename(urlparse(url).path) or "MajorLandUse.csv"
+    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"USDA_MLU_{year}")
+    pth = os.path.join(IN_DIR, name)
+    download_gcs_file_if_not_exists(name=name, sub_bucket=GCS_DIR, pth=pth)
+    df = pd.read_csv(pth, encoding="ISO-8859-1")
     return df
 
 
@@ -404,7 +423,7 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByAct
 
     Mining data is calculated using a separate source = BLM PLS.
     Want to extract rural residential land area from total value of
-    'Other Land'
+    'Miscellaneous other Land'
     :param df: df, USDA ERA MLU Land
     :param attr: dictionary, attribute data from method yaml for activity set
     :param fbs_list: list, FBS dfs for activities created prior to the activity
@@ -413,7 +432,7 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByAct
     """
 
     log.info(
-        'The only category for MLU other land use is rural land '
+        'The only category for MLU miscellaneous other land use is rural land '
         'occupation. All other land area in this category is '
         'unassigned to sectors, resulting in unaccounted land area.'
     )

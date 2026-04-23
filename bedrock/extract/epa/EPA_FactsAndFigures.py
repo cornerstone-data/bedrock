@@ -7,7 +7,7 @@ supporting functions.
 """
 
 import io
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -28,18 +28,22 @@ def ff_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
     :return: pandas dataframe of original source data
     """
 
+    pages: list[int]
     if year == '2018':
         pages = [6, 8, 9]
+    else:
+        pages = []
     pdf_pages = []
     for page_number in pages:
-        pdf_page = read_pdf(
+        tables = read_pdf(
             io.BytesIO(resp.content), pages=page_number, stream=True, guess=True
-        )[0]
+        )
+        pdf_page = cast(Any, tables)[0]
         if page_number == 6:
             # skip the first few rows
             pg = pdf_page.loc[2:33].reset_index(drop=True)
             # assign column headers
-            pg.columns = pdf_page.loc[0,]
+            pg.columns = pdf_page.loc[0, :]
             pg.columns.values[0] = "FlowName"
             pg['FlowName'] = pg['FlowName'].str.replace("–", "-")
             # split column
@@ -77,7 +81,7 @@ def ff_call(*, resp: Any, year: str, **_: Any) -> pd.DataFrame:
             # skip the first few rows
             pg = pdf_page.loc[2:19].reset_index(drop=True)
             # assign column headers
-            pg.columns = pdf_page.loc[1,]
+            pg.columns = pdf_page.loc[1, :]
             pg.columns.values[0] = "FlowName"
             # split column
             pg[['2000', '2005', '2010']] = pg['2000 2005 2010'].str.split(

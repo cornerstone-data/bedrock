@@ -209,6 +209,40 @@ def derive_cornerstone_x() -> pd.Series[float]:
     return compute_x(V=derive_cornerstone_V())
 
 
+def _distribute_waste_parent_x_using_v_row_shares(
+    x_cs: pd.Series[float],
+) -> pd.Series[float]:
+    """Split duplicated BEA parent gross output across waste children using ``V`` row-sum shares.
+
+    After ``expand_vector``, one-to-many BEA→Cornerstone splits (e.g. 562000)
+    assign the **full** parent total to **each** child. When waste
+    disaggregation is enabled, replace those rows with
+    ``parent_go * (x_v[i] / sum_j x_v[j])`` where ``x_v`` is
+    ``derive_cornerstone_x()`` (2017-detail Make structure as mapped to
+    Cornerstone) and ``parent_go`` is the duplicated scalar (GHG-year \$ scale).
+    """
+    if get_waste_disagg_weights() is None:
+        return x_cs
+    x = x_cs.copy()
+    x_v = derive_cornerstone_x()
+    present = [
+        c
+        for c in _WASTE_NEW_CODES
+        if c in x.index and c in x_v.index and pd.notna(x_v.loc[c])
+    ]
+    if not present:
+        return x
+    xv_w = x_v.reindex(present).astype(float)
+    total_v = float(xv_w.sum())
+    if total_v <= 0:
+        return x
+    parent_go = float(x.loc[present[0]])
+    shares = xv_w / total_v
+    for code in present:
+        x.loc[code] = parent_go * float(shares.loc[code])
+    return x
+
+
 @functools.cache
 @pa.check_output(CornerstoneXVectorSchema)
 def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
@@ -217,6 +251,16 @@ def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
     Uses BEA's after-redefinition gross-output time series for the configured
     GHG data year, then expands it to Cornerstone industries via the
     BEA→Cornerstone industry correspondence.
+
+    For one-to-many splits (e.g. waste 562000), ``expand_vector`` first
+    duplicates the parent scalar to each child. When waste disaggregation is
+    on, those waste rows are then replaced so each child gets a share of the
+    parent total consistent with row sums of disaggregated ``V`` (same nominal
+    level as the GHG-year BEA gross output, split from 2017 Make structure).
+
+    This is the industry ``x`` in ``derive_cornerstone_B_via_vnorm`` when
+    ``use_E_data_year_for_x_in_B`` is True; otherwise that path uses
+    ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
     x_bea = derive_gross_output_after_redefinition(
@@ -224,7 +268,7 @@ def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
     )
     x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
     x_cs.index.name = "sector"
-    return x_cs
+    return _distribute_waste_parent_x_using_v_row_shares(x_cs)
 
 
 @functools.cache
@@ -579,13 +623,17 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
     Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
+    Industry ``x`` is ``derive_cornerstone_x_after_redefinition()`` when
+    ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
     E = derive_E_usa()
-    if get_usa_config().use_E_data_year_for_x_in_B:
-        x = derive_cornerstone_x_after_redefinition()
-    else:
-        x = derive_cornerstone_x()
+    cfg = get_usa_config()
+    x = (
+        derive_cornerstone_x_after_redefinition()
+        if cfg.use_E_data_year_for_x_in_B
+        else derive_cornerstone_x()
+    )
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
     Bi = E.divide(x, axis=1).fillna(0.0)
     return Bi @ Vnorm
