@@ -1,3 +1,6 @@
+import typing as ta
+from typing import cast
+
 import pandas as pd
 
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
@@ -102,9 +105,13 @@ def get_bea_v2017_summary_to_useeio_corresp_df(
     commodity->summary map reversed instead.
     """
     commodity_to_summary = load_bea_v2017_commodity_to_bea_v2017_summary()
+    summary_codomain = cast(
+        ta.AbstractSet[BEA_2017_COMMODITY_SUMMARY_CODE],
+        frozenset(BEA_2017_COMMODITY_SUMMARY_CODES),
+    )
     summary_to_commodities = reverse(
         commodity_to_summary,
-        new_domain=set(BEA_2017_COMMODITY_SUMMARY_CODES),
+        new_domain=summary_codomain,
     )
     corresp_full = create_correspondence_matrix(summary_to_commodities).reindex(
         columns=USA_2017_SUMMARY_INDUSTRY_CODES,
