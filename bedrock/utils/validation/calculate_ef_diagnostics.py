@@ -235,48 +235,53 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         )
         logger.info('Wrote sector_mapping_notes tab')
 
-    # Compare output contribution
-    t0 = time.time()
-    Aq_set = derive_Aq_usa()
-    L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
+    # Compare output contribution (parquet baseline only; omitted for gcs_useeio_xlsx)
+    if config.diagnostics_baseline_source != 'gcs_useeio_xlsx':
+        t0 = time.time()
+        Aq_set = derive_Aq_usa()
+        L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
 
-    OC_new = compute_output_contribution(
-        L=L_new, D=ta.cast('pd.Series[float]', efs_raw.D_new.squeeze())
-    )
+        OC_new = compute_output_contribution(
+            L=L_new, D=ta.cast('pd.Series[float]', efs_raw.D_new.squeeze())
+        )
 
-    Adom_old = load_configured_snapshot('Adom_USA')
-    Aimp_old = load_configured_snapshot('Aimp_USA')
-    L_old = compute_L_matrix(A=Adom_old + Aimp_old)
+        Adom_old = load_configured_snapshot('Adom_USA')
+        Aimp_old = load_configured_snapshot('Aimp_USA')
+        L_old = compute_L_matrix(A=Adom_old + Aimp_old)
 
-    OC_old = compute_output_contribution(
-        L=L_old, D=ta.cast('pd.Series[float]', efs_raw.D_old.inflated.squeeze())
-    )
+        OC_old = compute_output_contribution(
+            L=L_old, D=ta.cast('pd.Series[float]', efs_raw.D_old.inflated.squeeze())
+        )
 
-    if use_cornerstone:
-        full_idx = OC_new.index.union(OC_old.index).sort_values()
-        full_cols = OC_new.columns.union(OC_old.columns).sort_values()
-        OC_new = OC_new.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
-        OC_old = OC_old.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
+        if use_cornerstone:
+            full_idx = OC_new.index.union(OC_old.index).sort_values()
+            full_cols = OC_new.columns.union(OC_old.columns).sort_values()
+            OC_new = OC_new.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
+            OC_old = OC_old.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
 
-    OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
-        OC_old,
-        OC_new,
-        old_val_name='old',
-        new_val_name='new',
-        sector_desc=sector_desc,
-    )
-    logger.info(f'[TIMING] Output contribution computed in {time.time() - t0:.1f}s')
+        OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
+            OC_old,
+            OC_new,
+            old_val_name='old',
+            new_val_name='new',
+            sector_desc=sector_desc,
+        )
+        logger.info(f'[TIMING] Output contribution computed in {time.time() - t0:.1f}s')
 
-    t0 = time.time()
-    update_sheet_tab(
-        sheet_id,
-        'output_contrib_new_vs_old',
-        OC_comparison,
-        clean_nans=True,
-    )
-    logger.info(
-        f'[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s'
-    )
+        t0 = time.time()
+        update_sheet_tab(
+            sheet_id,
+            'output_contrib_new_vs_old',
+            OC_comparison,
+            clean_nans=True,
+        )
+        logger.info(
+            f'[TIMING] Write output_contrib to Google Sheets in {time.time() - t0:.1f}s'
+        )
+    else:
+        logger.info(
+            'Skipping output_contrib_new_vs_old (USEEIO Excel baseline; OC not defined)'
+        )
 
 
 def diff_and_perc_diff_two_output_contribution_matrices(

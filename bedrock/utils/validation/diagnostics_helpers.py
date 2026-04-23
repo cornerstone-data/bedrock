@@ -511,28 +511,45 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     logger.info(f'[TIMING] New L, M, D, N matrices computed in {time.time() - t0:.1f}s')
 
     t0 = time.time()
-    B_old = load_configured_snapshot(B_snapshot_name)
-    Adom_old = load_configured_snapshot(Adom_snapshot_name)
-    Aimp_old = load_configured_snapshot(Aimp_snapshot_name)
-    logger.info(f'[TIMING] Old snapshots loaded in {time.time() - t0:.1f}s')
+    if config.diagnostics_baseline_source == 'gcs_useeio_xlsx':
+        from bedrock.utils.validation.useeio_excel_baseline import (
+            load_useeio_baseline_bundle,
+        )
 
-    t0 = time.time()
-    L_old = compute_L_matrix(A=Adom_old + Aimp_old)
-    M_old = compute_M_matrix(B=B_old, L=L_old)
-    D_old_raw = compute_d(B=B_old)
-    N_old_raw = compute_n(M=M_old)
-    logger.info(f'[TIMING] Old L, M, D, N matrices computed in {time.time() - t0:.1f}s')
+        bundle = load_useeio_baseline_bundle(config)
+        old_base_year = bundle.dollar_year
+        D_old_raw = bundle.d_ghg_direct
+        N_old_raw = bundle.n_ghg_total
+        logger.info(
+            f'[TIMING] USEEIO Excel baseline loaded (dollar_year={old_base_year}) '
+            f'in {time.time() - t0:.1f}s'
+        )
+    else:
+        B_old = load_configured_snapshot(B_snapshot_name)
+        Adom_old = load_configured_snapshot(Adom_snapshot_name)
+        Aimp_old = load_configured_snapshot(Aimp_snapshot_name)
+        logger.info(f'[TIMING] Old snapshots loaded in {time.time() - t0:.1f}s')
+
+        t0 = time.time()
+        L_old = compute_L_matrix(A=Adom_old + Aimp_old)
+        M_old = compute_M_matrix(B=B_old, L=L_old)
+        D_old_raw = compute_d(B=B_old)
+        N_old_raw = compute_n(M=M_old)
+        logger.info(
+            f'[TIMING] Old L, M, D, N matrices computed in {time.time() - t0:.1f}s'
+        )
+        old_base_year = 2023
 
     t0 = time.time()
     D_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
         old_ef_vector=D_old_raw,
         new_base_year=new_base_year,
-        old_base_year=2023,
+        old_base_year=old_base_year,
     )
     N_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
         old_ef_vector=N_old_raw,
         new_base_year=new_base_year,
-        old_base_year=2023,
+        old_base_year=old_base_year,
     )
     logger.info(f'[TIMING] Inflation adjustment completed in {time.time() - t0:.1f}s')
 
