@@ -1,4 +1,4 @@
-# Bedrock v0.2: The Cornerstone U.S. EEIO Model
+# About Bedrock v0.2: The Cornerstone U.S. Model
 
 ## What v0.2 means
 
@@ -8,15 +8,15 @@ v0.2 is a **waypoint**, not the end state. Cornerstone's global MRIO model, targ
 
 The config-driven patterns v0.2 establishes, including typed methodology flags, YAML-as-experiment, and snapshot-validated output, will carry forward into the development of Cornerstone's 2026 MRIO release, so effort invested in v0.2 is long-term and reusable.
 
-> *Companion documents:* the **Cornerstone U.S. National Model: Methodology Overview** covers the *what* (equations, data sources, methodological choices adopted from USEEIO vs CEDA). The **Cornerstone Technical Architecture Vision** covers the *why* (an Extract-Transform-Load (ETL) monorepo architecture, global MRIO end state). This document — `bedrock` as the *how* — walks the v0.2 config surface (§1), release notes (§2), diagnostic shifts against v0.1 and USEEIO (§3), and the path toward the October 2026 MRIO release (§4–5).
+> *Companion documents:* the **[Methodology for Cornerstone U.S. Model](https://github.com/cornerstone-data/papers/blob/v0.2model/us-methods/us-methods.md)** covers the *what* (equations, data sources, methodological choices adopted from USEEIO vs CEDA). The **Cornerstone Technical Architecture Vision** covers the *why* (an Extract-Transform-Load (ETL) monorepo architecture, global MRIO end state). This document — `bedrock` as the *how* — walks the v0.2 config surface (§1), release notes (§2), and diagnostic shifts against v0.1 and USEEIO (§3).
 
 ---
 
-## 1. Methodology as configuration
+## 1. Methodology choices captured in configuration
 
 The headline claim of v0.2 is that **every methodological decision involved in merging USEEIO and CEDA-US is validated using a configuration specifically `USAConfig`** (`bedrock/utils/config/usa_config.py`). Changes to the configuration adjusts the methodology so individual changes can be validated via snapshots.
 
-Configurations are organized into five themes, each mapping to a section of the methods paper:
+Configurations are organized into five themes:
 
 | Group | Representative flags | Paper section |
 |---|---|---|
@@ -26,17 +26,14 @@ Configurations are organized into five themes, each mapping to a section of the 
 | GHG — gas coverage | `update_flowsa_refrigerant_method`, `update_other_gases_ghg_method`, `add_new_ghg_activities`, `new_ghg_method` | GHG inventory construction |
 | Data vintage | `model_base_year`, `usa_base_io_data_year`, `usa_ghg_data_year`, `ipcc_ar_version` (IPCC Assessment Report version, e.g. AR5 / AR6) | Data sources |
 
-### 1.1. Config-as-experiment
+### 1.1. Configuration files
 `bedrock/utils/config/configs/` ships two kinds of YAML:
 - A single **full-model** config (`2025_usa_cornerstone_full_model.yaml`) — the v0.2 recommended configuration, now the default in `get_usa_config()`. It turns on the full set of improvements that land with v0.2.
 - [pending codebase cleanup] **Per-flag ablation configs** (e.g. `..._ghg_electricity.yaml`, `..._a_price_index.yaml`, `..._taxonomy_and_B_transformation.yaml`) — each isolates a single change against the v0.1 baseline so the marginal impact of that methodological choice can be measured.
 
 A separate `snapshot_version_or_git_sha` field enumerates the v0.1 baseline (`1bda811…`) and the v0.2 SHAs (`2ebb51f…`, `9fe22d9…`), so diagnostic runs can compare current output against any released baseline.
 
-### 1.2. Paper vs. code coverage
-The internal-review draft of the methods paper covers the majority but not all v0.2 flags; a handful of GHG-method updates and A-matrix scaling alternatives are currently **ahead of the paper**. Each flag in this document is annotated `(in paper)` or `(ahead of paper; documentation in progress)` so readers can tell peer-reviewed material from code-only material.
-
-### 1.3. Validation and reproducibility
+### 1.2. Validation and reproducibility
 Pandera schemas guard DataFrames at module boundaries; snapshot tests under `bedrock/transform/__tests__/` (marker `eeio_integration`) cover every config in `configs/`, and continuous integration (CI) blocks accidental drift. A `uv` lockfile pins Python and dependencies, and Google Cloud Platform (GCP)-backed artifact storage carries the resolved `USAConfig.to_dict()` with every output — the matrices are self-describing with respect to the methodology that produced them.
 
 ## 2. Releases: v0 → v0.2
@@ -72,6 +69,3 @@ v0.2 is compared against two external benchmarks in parallel:
 2. **x–y plots** — (a) EF size vs EF %-change, (b) EF absolute change vs EF %-change.
 3. **Stacked-bar / waterfall chart** — attribution of the delta by flag group.
 
-## 4. How `bedrock` fits into Cornerstone
-
-`bedrock` is the U.S. national implementation of the ETL pipeline set out in the Architecture Vision. v0.2 is the module to complete the USEEIO and CEDA-US merge where the best methodologies from both models are adopted. The config-driven methodology pattern utilized in `bedrock` v0.2 will extend to additional geographies in the global MRIO framework to faciliate traceability of methodological choices at the global level.
