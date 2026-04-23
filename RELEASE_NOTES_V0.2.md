@@ -18,7 +18,7 @@ v0.2 is stable for use now. The config-driven patterns it establishes — typed 
 
 The headline claim of v0.2 is that **every methodological decision involved in merging USEEIO and CEDA-US is validated using a configuration specifically `USAConfig`** (`bedrock/utils/config/usa_config.py`). Changes to the configuration adjusts the methodology so individual changes can be validated via snapshots.
 
-Flags group into five themes, each mapping to a section of the methods paper:
+Configurations are organized into five themes, each mapping to a section of the methods paper:
 
 | Group | Representative flags | Paper section |
 |---|---|---|
