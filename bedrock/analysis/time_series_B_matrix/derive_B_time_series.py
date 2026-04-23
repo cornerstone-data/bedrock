@@ -613,7 +613,14 @@ def plot_aggregate_trends(agg: pd.DataFrame) -> None:
     # All-gas total line
     total = agg.sum(axis=0)
     total_pct_change = (float(total.iloc[-1]) / float(total.iloc[0]) - 1) * 100
-    ax.plot(YEARS, total.values, marker="s", color="black", linewidth=2.5, markersize=6)
+    ax.plot(
+        YEARS,
+        total.to_numpy(dtype=np.float64),
+        marker="s",
+        color="black",
+        linewidth=2.5,
+        markersize=6,
+    )
     ax.annotate(
         f"Total ({total_pct_change:+.0f}%)",
         xy=(YEARS[-1], float(total.iloc[-1])),
@@ -630,7 +637,12 @@ def plot_aggregate_trends(agg: pd.DataFrame) -> None:
         pct_change = (float(values.iloc[-1]) / float(values.iloc[0]) - 1) * 100
         color = colors.get(gas, "gray")
         ax.plot(
-            YEARS, values.values, marker="o", color=color, linewidth=2, markersize=5
+            YEARS,
+            values.to_numpy(dtype=np.float64),
+            marker="o",
+            color=color,
+            linewidth=2,
+            markersize=5,
         )
 
         # Annotate gas name + % change at the end of each line
