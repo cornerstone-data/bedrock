@@ -36,6 +36,7 @@ import tempfile
 import typing as ta
 
 import google.auth
+import numpy as np
 import pandas as pd
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -193,10 +194,10 @@ def _resolve_drive_inputs(
             elif filename_with_ext in by_name:
                 matched_name = filename_with_ext
 
-            file_id = by_name.get(matched_name) if matched_name is not None else None
-            if file_id is None:
+            if matched_name is None:
                 missing.append(stem)
                 continue
+            file_id = by_name[matched_name]
             out_path = os.path.join(download_dir, matched_name)
             _download_drive_file(file_id=file_id, destination_path=out_path)
             local_paths.append(out_path)
@@ -536,7 +537,9 @@ def merge_excels(
             suffixes=("", "__target"),
         )
         tgt_bly = pd.to_numeric(merged_tot[f"{bly_col}__target"], errors="coerce")
-        out[bly_col] = src_bly.values - tgt_bly.values
+        bly_src = np.array(src_bly, dtype=np.float64)
+        bly_tgt = np.array(tgt_bly, dtype=np.float64)
+        out[bly_col] = bly_src - bly_tgt
 
         totals_net_frames.append(out)
 
