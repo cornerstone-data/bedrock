@@ -16,6 +16,7 @@ from bedrock.utils.snapshots.loader import (
 )
 
 logger = logging.getLogger(__name__)
+_USEEIO_ONLY_NON_CORNERSTONE_SECTORS = frozenset({"S00300", "S00401", "S00900"})
 
 
 def _series_from_1d_frame_or_series(obj: pd.DataFrame | pd.Series) -> pd.Series[float]:
@@ -90,10 +91,9 @@ def calculate_national_accounting_balance_diagnostics(
       baseline (parquet ``B_USA_non_finetuned`` / ``Adom_USA`` / ``y_nab_USA`` at
       the configured snapshot key, or USEEIO Excel synthetic ``B`` / ``A_d`` /
       ``2017_US_Production_Complete`` when in Excel baseline mode). For USEEIO,
-      ``y_old`` is built like ``derive_cornerstone_y_nab``: summary ``y_nab`` at
-      ``usa_io_data_year``, disaggregated to detail using workbook ``y_nab_old``
-      as weights, then ``_disaggregate_and_inflate_vector`` to ``model_base_year``
-      (see ``derive_useeio_excel_y_nab_scaled_to_model_base_year``).
+      ``y_old`` is taken from Cornerstone ``derive_cornerstone_y_nab()`` and
+      reindexed to the USEEIO baseline sector axis. USEEIO-only sectors not in
+      Cornerstone (e.g., ``S00300``, ``S00401``, ``S00900``) are explicitly zeroed.
     """
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
@@ -145,18 +145,38 @@ def calculate_national_accounting_balance_diagnostics(
 
     logger.info("4. Loading baseline B, Adom, y_nab; computing BLy_old...")
     if cfg.diagnostics_baseline_source == "gcs_useeio_xlsx":
+        from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_y_nab
         from bedrock.utils.validation.useeio_excel_baseline import (
-            derive_useeio_excel_y_nab_scaled_to_model_base_year,
             load_useeio_baseline_bundle,
         )
 
         ub = load_useeio_baseline_bundle(cfg)
         B_old = ub.b_old_synthetic
         Adom_old = ub.adom_old
-        y_old = derive_useeio_excel_y_nab_scaled_to_model_base_year(cfg, ub)
+        y_cornerstone = derive_cornerstone_y_nab()
+        baseline_axis = Adom_old.index
+        missing_in_cornerstone = sorted(
+            set(baseline_axis.astype(str)) - set(y_cornerstone.index.astype(str))
+        )
+        y_old = y_cornerstone.reindex(baseline_axis, fill_value=0.0)
+        if missing_in_cornerstone:
+            logger.warning(
+                "USEEIO baseline sectors not in Cornerstone y_nab were zeroed: "
+                "count=%d sectors=%s",
+                len(missing_in_cornerstone),
+                missing_in_cornerstone,
+            )
+            unexpected = sorted(
+                set(missing_in_cornerstone) - _USEEIO_ONLY_NON_CORNERSTONE_SECTORS
+            )
+            if unexpected:
+                logger.warning(
+                    "Unexpected non-overlap beyond expected USEEIO-only sectors: %s",
+                    unexpected,
+                )
         logger.info(
-            "   USEEIO y_nab: summary @ %s → disaggregate (workbook weights) → %s",
-            cfg.usa_io_data_year,
+            "   USEEIO BLy y_old uses Cornerstone y_nab reindexed to USEEIO axis "
+            "(Cornerstone year scaling/inflation already applied to %s)",
             cfg.model_base_year,
         )
     else:

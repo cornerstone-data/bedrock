@@ -103,6 +103,11 @@ def get_bea_v2017_summary_to_useeio_corresp_df(
     indexes rows by cornerstone split targets instead, so reindexing that matrix
     onto ``useeio_detail_index`` zero-fills every USEEIO row — use the official
     commodity->summary map reversed instead.
+
+    Note:
+    This correspondence is retained for USEEIO diagnostics/support tooling and
+    auxiliary exports. Current USEEIO BLy ``y_old`` no longer uses this
+    disaggregation path; it uses Cornerstone ``y_nab`` reindexed to USEEIO axis.
     """
     commodity_to_summary = load_bea_v2017_commodity_to_bea_v2017_summary()
     summary_codomain = cast(
