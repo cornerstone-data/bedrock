@@ -4,7 +4,7 @@
 
 Bedrock v0.2 is the first release in which **USEEIO and CEDA-US are merged** into a single, configurable U.S. national EEIO (Environmentally-Extended Input-Output) model. USEEIO is a US specific legacy EEIO model originally developed by the US EPA. CEDA-US (Comprehensive Environmental Data Archive) is the US portion of Watershed's proprietary Multi-Regional EEIO (MRIO) model. v0.2 brings in methodological contributions and improvements from both which includes a reworked sector schema, an updated approach to reconcile data years between the E matrix (environmental extensions) and B matrix (per-dollar emissions intensities), and a merged attribution model for per-sector greenhouse-gas (GHG) emissions.
 
-v0.2 is a **waypoint**, not the end state. Cornerstone's global MRIO model, targeted for release in **October 2026**, will combine the best of USEEIO and CEDA. The U.S. module is the first country to go through that merge, and v0.2 captures the result of that integration work — a reproducible, fully-specified U.S. EEIO model whose every methodological decision is traceable to a named flag, a YAML file, and a snapshot test against the v0.1 baseline.
+v0.2 is a **waypoint**, not the end state. Cornerstone's global MRIO model, targeted for release in **October 2026**, will combine the best of USEEIO and CEDA.
 
 v0.2 produces emission factors (EFs) in the unit of dollar of output in **USD 2023, producer prices** (set by `model_base_year: 2023` and `price_type: producer` in `USAConfig`). Downstream consumers should deflate/inflate or convert to purchaser prices outside `bedrock` if a different basis is needed.
 
