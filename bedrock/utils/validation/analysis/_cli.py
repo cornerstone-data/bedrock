@@ -1,9 +1,11 @@
 """Shared CLI options + path helpers for analysis plot commands.
 
 Every script exposes the same flags (``--baseline``, ``--sheet-id``,
-``--refresh``, ``--tag``, ``--out-dir``) via ``common_options``. The
-sheet-id resolver picks from (in order): ``--sheet-id``, ``--baseline``
-lookup in ``baselines.BASELINES``, then ``$BEDROCK_DIAGNOSTICS_SHEET_ID``.
+``--refresh``, ``--tag``, ``--out-dir``) via ``common_options``. Plot-specific
+flags live alongside their plot module (e.g. ``bly_plots.bly_plot_options``) so
+``_cli`` stays generic. The sheet-id resolver picks from (in order):
+``--sheet-id``, ``--baseline`` lookup in ``baselines.BASELINES``, then
+``$BEDROCK_DIAGNOSTICS_SHEET_ID``.
 """
 
 from __future__ import annotations

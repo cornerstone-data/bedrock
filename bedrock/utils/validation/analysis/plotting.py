@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -19,6 +19,13 @@ import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+
+
+class _FigureCanvasWithRenderer(Protocol):
+    """Canvas backends implement ``get_renderer``; base-class stubs omit it."""
+
+    def get_renderer(self) -> Any: ...
+
 
 DEFAULT_XLIM: tuple[float, float] = (-115.0, 115.0)
 PERCENT_TICKS: tuple[float, ...] = (-100, -50, -20, 0, 20, 50, 100)
@@ -29,6 +36,19 @@ HIST_ALPHA = 0.6
 MEDIAN_COLOR = "red"
 ZERO_COLOR = "black"
 THRESHOLD_COLORS: tuple[str, str] = ("green", "purple")
+
+TITLE_FONTSIZE = 20
+AXIS_LABEL_FONTSIZE = 16
+TICK_FONTSIZE = 13
+TEXT_BOX_FONTSIZE = 11
+LEGEND_FONTSIZE = 13
+
+
+def apply_axis_fonts(ax: Axes) -> None:
+    """Apply the shared axis-label and tick font sizes."""
+    ax.xaxis.label.set_fontsize(AXIS_LABEL_FONTSIZE)
+    ax.yaxis.label.set_fontsize(AXIS_LABEL_FONTSIZE)
+    ax.tick_params(axis="both", labelsize=TICK_FONTSIZE)
 
 
 def setup_mpl(font_size: int = 17, agg: bool = True) -> None:
@@ -295,7 +315,7 @@ def dodge_annotations(
     ]
     base_dy = offset_px[1]
     fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
+    renderer = cast(_FigureCanvasWithRenderer, fig.canvas).get_renderer()
     axes_bbox = ax.get_window_extent(renderer=renderer)
     avoid_bboxes = (
         [a.get_window_extent(renderer=renderer) for a in avoid] if avoid else []
@@ -342,6 +362,148 @@ def dodge_annotations(
         dx, dy = t.xyann
         if (dx**2 + dy**2) ** 0.5 <= leader_threshold_px and t.arrow_patch is not None:
             t.arrow_patch.set_visible(False)
+
+
+def _order_stack_for_net_bar(df: pd.DataFrame, *, positive: bool) -> pd.DataFrame:
+    """Sort segments for stacked net bar: large magnitude near zero; Other at far end."""
+    ordered = df.copy()
+    sector_normalized = ordered["sector"].str.strip().str.lower()
+
+    if positive:
+        ordered["_is_other_end"] = sector_normalized.str.startswith("other increase")
+        ordered = ordered.sort_values(
+            by=["_is_other_end", "value"],
+            ascending=[True, False],
+        )
+    else:
+        ordered["_is_other_end"] = sector_normalized.str.startswith("other decrease")
+        ordered = ordered.sort_values(
+            by=["_is_other_end", "value"],
+            ascending=[True, True],
+        )
+
+    return ordered.drop(columns="_is_other_end")
+
+
+_STACKED_BAR_WIDTH = 0.8
+_STACKED_NET_MARKER_SIZE = 80
+_STACKED_CALLOUT_LINE_COLOR = "0.6"
+_STACKED_CALLOUT_LINE_WIDTH = 0.7
+_STACKED_CALLOUT_X_OFFSETS: tuple[float, ...] = (0.8, 1.0, 1.2)
+
+
+def plot_stacked_net_change(
+    ax: Axes,
+    df: pd.DataFrame,
+    *,
+    title: str,
+    ylabel: str,
+) -> None:
+    """Single stacked bar from zero: positives up, negatives down, net scatter + label.
+
+    ``df`` must have string ``sector`` and numeric ``value`` columns. Caller
+    owns the figure — matches the ``(ax, data, ...)`` signature of
+    ``percent_histogram`` and ``abs_change_histogram``.
+    """
+    pos = _order_stack_for_net_bar(df.loc[df["value"] > 0], positive=True)
+    neg = _order_stack_for_net_bar(df.loc[df["value"] < 0], positive=False)
+    label_side_index = 0
+
+    pos_bottom = 0.0
+    neg_bottom = 0.0
+    total_span = max(pos["value"].sum() - neg["value"].sum(), 1.0)
+    inside_label_threshold = total_span * 0.08
+    callout_arrow = {
+        "arrowstyle": "-",
+        "lw": _STACKED_CALLOUT_LINE_WIDTH,
+        "color": _STACKED_CALLOUT_LINE_COLOR,
+        "shrinkA": 0,
+        "shrinkB": 0,
+    }
+
+    def add_segment_label(*, sector: str, value: float, bottom: float) -> None:
+        nonlocal label_side_index
+        center_y = bottom + value / 2
+        sector_normalized = sector.strip().lower()
+
+        if sector_normalized.startswith(("other increase", "other decrease")):
+            va = "top" if value > 0 else "bottom"
+            y_text = (
+                bottom + value - 0.02 * total_span
+                if value > 0
+                else bottom + value + 0.02 * total_span
+            )
+            ax.text(0, y_text, sector, ha="center", va=va, fontsize=TEXT_BOX_FONTSIZE)
+            return
+
+        if abs(value) >= inside_label_threshold:
+            ax.text(
+                0,
+                center_y,
+                sector,
+                ha="center",
+                va="center",
+                fontsize=TEXT_BOX_FONTSIZE,
+            )
+            return
+
+        is_right_side = label_side_index % 2 == 0
+        x_offset = _STACKED_CALLOUT_X_OFFSETS[
+            (label_side_index // 2) % len(_STACKED_CALLOUT_X_OFFSETS)
+        ]
+        x_text = x_offset if is_right_side else -x_offset
+        ha = "left" if is_right_side else "right"
+        label_side_index += 1
+        ax.annotate(
+            sector,
+            xy=(0, center_y),
+            xytext=(x_text, center_y),
+            ha=ha,
+            va="center",
+            fontsize=TEXT_BOX_FONTSIZE,
+            arrowprops=callout_arrow,
+        )
+
+    for _, row in pos.iterrows():
+        value = float(row["value"])
+        sector = str(row["sector"])
+        ax.bar(0, value, bottom=pos_bottom, width=_STACKED_BAR_WIDTH)
+        add_segment_label(sector=sector, value=value, bottom=pos_bottom)
+        pos_bottom += value
+
+    for _, row in neg.iterrows():
+        value = float(row["value"])
+        sector = str(row["sector"])
+        ax.bar(0, value, bottom=neg_bottom, width=_STACKED_BAR_WIDTH)
+        add_segment_label(sector=sector, value=value, bottom=neg_bottom)
+        neg_bottom += value
+
+    net_total = float(df["value"].sum())
+    ax.scatter(0, net_total, s=_STACKED_NET_MARKER_SIZE, color="black", zorder=5)
+    ax.annotate(
+        "Net total",
+        xy=(0, net_total),
+        xycoords="data",
+        xytext=(0.98, 0.98),
+        textcoords="axes fraction",
+        ha="right",
+        va="top",
+        fontsize=TEXT_BOX_FONTSIZE,
+        fontweight="bold",
+        arrowprops=callout_arrow,
+    )
+
+    ax.axhline(0, color="black", linewidth=1)
+    ax.set_xticks([0])
+    ax.set_xticklabels([f"Net change = {net_total:,.0f} MMT CO2e"])
+    ax.set_ylabel(ylabel)
+    ax.set_title(title, fontsize=TITLE_FONTSIZE, pad=12)
+    y_formatter = mticker.ScalarFormatter(useOffset=False)
+    y_formatter.set_scientific(False)
+    ax.yaxis.set_major_formatter(y_formatter)
+    max_callout_x = max(_STACKED_CALLOUT_X_OFFSETS, default=1.2)
+    ax.set_xlim(-(max_callout_x + 0.4), max_callout_x + 0.4)
+    apply_axis_fonts(ax)
 
 
 def save_and_close(fig: Figure, out: Path) -> None:
