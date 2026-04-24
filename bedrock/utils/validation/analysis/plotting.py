@@ -344,6 +344,165 @@ def dodge_annotations(
             t.arrow_patch.set_visible(False)
 
 
+def _order_stack_for_net_bar(df: pd.DataFrame, *, positive: bool) -> pd.DataFrame:
+    """Sort segments for stacked net bar: large magnitude near zero; Other at far end."""
+    ordered = df.copy()
+    sector_normalized = ordered["sector"].str.strip().str.lower()
+
+    if positive:
+        ordered["_is_other_end"] = sector_normalized.eq("other increase")
+        ordered = ordered.sort_values(
+            by=["_is_other_end", "value"],
+            ascending=[True, False],
+        )
+    else:
+        ordered["_is_other_end"] = sector_normalized.eq("other decrease")
+        ordered = ordered.sort_values(
+            by=["_is_other_end", "value"],
+            ascending=[True, True],
+        )
+
+    return ordered.drop(columns="_is_other_end")
+
+
+def plot_stacked_net_change(
+    df: pd.DataFrame,
+    *,
+    title: str,
+    ylabel: str,
+    figsize: tuple[float, float] = (5.0, 7.0),
+    bar_width: float = 0.8,
+    label_font_size: int = 7,
+    net_marker_size: float = 80,
+    callout_line_color: str = "0.6",
+    callout_line_width: float = 0.7,
+    callout_x_offsets: tuple[float, ...] = (0.8, 1.0, 1.2),
+) -> Figure:
+    """Single stacked bar from zero: positives up, negatives down, net scatter + label.
+
+    ``df`` must have string ``sector`` and numeric ``value`` columns.
+    """
+    pos = _order_stack_for_net_bar(df[df["value"] > 0], positive=True)
+    neg = _order_stack_for_net_bar(df[df["value"] < 0], positive=False)
+    label_side_index = 0
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    pos_bottom = 0.0
+    neg_bottom = 0.0
+    total_span = max(pos["value"].sum() - neg["value"].sum(), 1.0)
+    inside_label_threshold = total_span * 0.08
+
+    def add_segment_label(*, sector: str, value: float, bottom: float) -> None:
+        nonlocal label_side_index
+        center_y = bottom + value / 2
+        label = sector
+        sector_normalized = sector.strip().lower()
+
+        if sector_normalized in {"other increase", "other decrease"}:
+            va = "top" if value > 0 else "bottom"
+            y_text = (
+                bottom + value - 0.02 * total_span
+                if value > 0
+                else bottom + value + 0.02 * total_span
+            )
+            ax.text(
+                0,
+                y_text,
+                label,
+                ha="center",
+                va=va,
+                fontsize=label_font_size,
+            )
+            return
+
+        if abs(value) >= inside_label_threshold:
+            ax.text(
+                0,
+                center_y,
+                label,
+                ha="center",
+                va="center",
+                fontsize=label_font_size,
+            )
+            return
+
+        is_right_side = label_side_index % 2 == 0
+        x_offset = callout_x_offsets[(label_side_index // 2) % len(callout_x_offsets)]
+        x_text = x_offset if is_right_side else -x_offset
+        ha = "left" if is_right_side else "right"
+        label_side_index += 1
+        ax.annotate(
+            label,
+            xy=(0, center_y),
+            xytext=(x_text, center_y),
+            ha=ha,
+            va="center",
+            fontsize=label_font_size,
+            arrowprops={
+                "arrowstyle": "-",
+                "lw": callout_line_width,
+                "color": callout_line_color,
+                "shrinkA": 0,
+                "shrinkB": 0,
+            },
+        )
+
+    for _, row in pos.iterrows():
+        ax.bar(
+            0,
+            row["value"],
+            bottom=pos_bottom,
+            width=bar_width,
+        )
+        add_segment_label(sector=row["sector"], value=row["value"], bottom=pos_bottom)
+        pos_bottom += row["value"]
+
+    for _, row in neg.iterrows():
+        ax.bar(
+            0,
+            row["value"],
+            bottom=neg_bottom,
+            width=bar_width,
+        )
+        add_segment_label(sector=row["sector"], value=row["value"], bottom=neg_bottom)
+        neg_bottom += row["value"]
+
+    net_total = df["value"].sum()
+    ax.scatter(
+        0,
+        net_total,
+        s=net_marker_size,
+        color="black",
+        zorder=5,
+    )
+    ax.annotate(
+        "Net total",
+        xy=(0, net_total),
+        xytext=(0.55, net_total),
+        ha="left",
+        va="center",
+        fontsize=label_font_size,
+        arrowprops={
+            "arrowstyle": "-",
+            "lw": callout_line_width,
+            "color": callout_line_color,
+            "shrinkA": 0,
+            "shrinkB": 0,
+        },
+    )
+
+    ax.axhline(0, color="black", linewidth=1)
+    ax.set_xticks([0])
+    ax.set_xticklabels([f"Net change = {net_total:.3g}"])
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    max_callout_x = max(callout_x_offsets, default=1.2)
+    ax.set_xlim(-(max_callout_x + 0.4), max_callout_x + 0.4)
+    fig.tight_layout()
+    return fig
+
+
 def save_and_close(fig: Figure, out: Path) -> None:
     """Write ``fig`` to ``out`` at dpi=150, close the figure, and log the path."""
     fig.savefig(out, dpi=150, bbox_inches="tight")

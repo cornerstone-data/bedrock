@@ -1,13 +1,16 @@
-"""EF analysis plots from diagnostics Google Sheets.
+"""EF and BLy analysis plots from diagnostics Google Sheets.
 
-Reads the ``N_and_diffs``, ``D_and_diffs``, and ``D_and_N_significant_sectors``
-tabs and renders:
+Reads the ``N_and_diffs``, ``D_and_diffs``, ``D_and_N_significant_sectors``,
+and (when present) ``BLy_new_vs_BLy_old`` tabs and renders:
 
 - ``ef_perc_diff_histogram.png``     — 2×2 N/D percent-diff distributions
                                        (all sectors + significant sectors)
+- ``ef_n_perc_diff_histogram.png``   — standalone N percent-diff distribution
 - ``ef_pct_change_vs_abs_change.png`` — |% change| vs |absolute change|
 - ``ef_pct_change_vs_ef_size.png``    — |% change| vs old EF size
 - ``ef_abs_change_histogram.png``     — distribution of absolute EF changes
+- ``bly_sector_stacked_net_change.png`` — stacked sector contributions to BLy net change
+  (only when the BLy tab exists; otherwise omitted, no error)
 
 Usage:
     uv run python -m bedrock.utils.validation.analysis.ef_plots \\
@@ -26,6 +29,11 @@ import pandas as pd
 from matplotlib.figure import Figure
 
 from ._cli import common_options, resolve_output_dir, resolve_sheet_id
+from .bly_plots import (
+    TAB_BLY,
+    build_sector_stack_frame,
+    plot_bly_sector_stacked_net_change,
+)
 from .fetch import load_tab, load_tabs_optional
 from .plotting import (
     DEFAULT_XLIM,
@@ -519,6 +527,13 @@ def plot(sheet_id: str, out_dir: Path, *, refresh: bool) -> None:
 
     fig_hist = plot_ef_abs_change_histogram(ef_comparison)
     save_and_close(fig_hist, out_dir / "ef_abs_change_histogram.png")
+
+    # Optional NAB tab: missing or unreadable tabs must not fail the suite.
+    bly_raw = load_tabs_optional(sheet_id, [TAB_BLY], refresh=refresh)[TAB_BLY]
+    if bly_raw is not None:
+        bly_frame = build_sector_stack_frame(bly_raw)
+        fig_bly = plot_bly_sector_stacked_net_change(bly_frame)
+        save_and_close(fig_bly, out_dir / "bly_sector_stacked_net_change.png")
 
 
 @click.command()

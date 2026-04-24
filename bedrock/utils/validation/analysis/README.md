@@ -16,7 +16,11 @@ back, caches them locally as parquet, and renders analysis figures.
   under `.cache/<sheet_id>/<tab>.parquet`.
 - `_cli.py` — shared click options (`--sheet-id`, `--refresh`, `--tag`,
   `--out-dir`) and output-dir resolution.
-- `ef_plots.py` — produces four PNGs in one run:
+- `bly_plots.py` — BLy sector stacked bar (data prep + wrapper around `plotting`).
+- `ef_plots.py` — produces five EF PNGs every run, and a sixth
+  (`bly_sector_stacked_net_change.png`) when `BLy_new_vs_BLy_old` is present. If
+  that tab is missing or cannot be read, the command still succeeds and only the
+  BLy figure is omitted (five PNGs total).
   - `ef_perc_diff_histogram.png` — 2×2 N/D percent-diff distributions
     (all sectors + significant sectors)
   - `ef_n_perc_diff_histogram.png` — standalone N percent-diff distribution
@@ -24,6 +28,7 @@ back, caches them locally as parquet, and renders analysis figures.
   - `ef_pct_change_vs_abs_change.png` — |% change| vs |absolute change|
   - `ef_pct_change_vs_ef_size.png` — |% change| vs old EF size
   - `ef_abs_change_histogram.png` — distribution of absolute EF changes
+  - `bly_sector_stacked_net_change.png` — per-sector BLy new vs old (stacked net change)
 
 ## Running
 
