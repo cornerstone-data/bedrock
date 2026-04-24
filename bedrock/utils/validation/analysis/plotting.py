@@ -37,6 +37,19 @@ MEDIAN_COLOR = "red"
 ZERO_COLOR = "black"
 THRESHOLD_COLORS: tuple[str, str] = ("green", "purple")
 
+TITLE_FONTSIZE = 20
+AXIS_LABEL_FONTSIZE = 16
+TICK_FONTSIZE = 13
+TEXT_BOX_FONTSIZE = 11
+LEGEND_FONTSIZE = 13
+
+
+def apply_axis_fonts(ax: Axes) -> None:
+    """Apply the shared axis-label and tick font sizes."""
+    ax.xaxis.label.set_fontsize(AXIS_LABEL_FONTSIZE)
+    ax.yaxis.label.set_fontsize(AXIS_LABEL_FONTSIZE)
+    ax.tick_params(axis="both", labelsize=TICK_FONTSIZE)
+
 
 def setup_mpl(font_size: int = 17, agg: bool = True) -> None:
     """Configure matplotlib for non-interactive PNG output."""
@@ -372,38 +385,45 @@ def _order_stack_for_net_bar(df: pd.DataFrame, *, positive: bool) -> pd.DataFram
     return ordered.drop(columns="_is_other_end")
 
 
+_STACKED_BAR_WIDTH = 0.8
+_STACKED_NET_MARKER_SIZE = 80
+_STACKED_CALLOUT_LINE_COLOR = "0.6"
+_STACKED_CALLOUT_LINE_WIDTH = 0.7
+_STACKED_CALLOUT_X_OFFSETS: tuple[float, ...] = (0.8, 1.0, 1.2)
+
+
 def plot_stacked_net_change(
+    ax: Axes,
     df: pd.DataFrame,
     *,
     title: str,
     ylabel: str,
-    figsize: tuple[float, float] = (5.0, 7.0),
-    bar_width: float = 0.8,
-    label_font_size: int = 7,
-    net_marker_size: float = 80,
-    callout_line_color: str = "0.6",
-    callout_line_width: float = 0.7,
-    callout_x_offsets: tuple[float, ...] = (0.8, 1.0, 1.2),
-) -> Figure:
+) -> None:
     """Single stacked bar from zero: positives up, negatives down, net scatter + label.
 
-    ``df`` must have string ``sector`` and numeric ``value`` columns.
+    ``df`` must have string ``sector`` and numeric ``value`` columns. Caller
+    owns the figure — matches the ``(ax, data, ...)`` signature of
+    ``percent_histogram`` and ``abs_change_histogram``.
     """
-    pos = _order_stack_for_net_bar(df[df["value"] > 0], positive=True)
-    neg = _order_stack_for_net_bar(df[df["value"] < 0], positive=False)
+    pos = _order_stack_for_net_bar(df.loc[df["value"] > 0], positive=True)
+    neg = _order_stack_for_net_bar(df.loc[df["value"] < 0], positive=False)
     label_side_index = 0
-
-    fig, ax = plt.subplots(figsize=figsize)
 
     pos_bottom = 0.0
     neg_bottom = 0.0
     total_span = max(pos["value"].sum() - neg["value"].sum(), 1.0)
     inside_label_threshold = total_span * 0.08
+    callout_arrow = {
+        "arrowstyle": "-",
+        "lw": _STACKED_CALLOUT_LINE_WIDTH,
+        "color": _STACKED_CALLOUT_LINE_COLOR,
+        "shrinkA": 0,
+        "shrinkB": 0,
+    }
 
     def add_segment_label(*, sector: str, value: float, bottom: float) -> None:
         nonlocal label_side_index
         center_y = bottom + value / 2
-        label = sector
         sector_normalized = sector.strip().lower()
 
         if sector_normalized in {"other increase", "other decrease"}:
@@ -413,101 +433,69 @@ def plot_stacked_net_change(
                 if value > 0
                 else bottom + value + 0.02 * total_span
             )
-            ax.text(
-                0,
-                y_text,
-                label,
-                ha="center",
-                va=va,
-                fontsize=label_font_size,
-            )
+            ax.text(0, y_text, sector, ha="center", va=va, fontsize=TEXT_BOX_FONTSIZE)
             return
 
         if abs(value) >= inside_label_threshold:
             ax.text(
-                0,
-                center_y,
-                label,
-                ha="center",
-                va="center",
-                fontsize=label_font_size,
+                0, center_y, sector, ha="center", va="center", fontsize=TEXT_BOX_FONTSIZE
             )
             return
 
         is_right_side = label_side_index % 2 == 0
-        x_offset = callout_x_offsets[(label_side_index // 2) % len(callout_x_offsets)]
+        x_offset = _STACKED_CALLOUT_X_OFFSETS[
+            (label_side_index // 2) % len(_STACKED_CALLOUT_X_OFFSETS)
+        ]
         x_text = x_offset if is_right_side else -x_offset
         ha = "left" if is_right_side else "right"
         label_side_index += 1
         ax.annotate(
-            label,
+            sector,
             xy=(0, center_y),
             xytext=(x_text, center_y),
             ha=ha,
             va="center",
-            fontsize=label_font_size,
-            arrowprops={
-                "arrowstyle": "-",
-                "lw": callout_line_width,
-                "color": callout_line_color,
-                "shrinkA": 0,
-                "shrinkB": 0,
-            },
+            fontsize=TEXT_BOX_FONTSIZE,
+            arrowprops=callout_arrow,
         )
 
     for _, row in pos.iterrows():
-        ax.bar(
-            0,
-            row["value"],
-            bottom=pos_bottom,
-            width=bar_width,
-        )
-        add_segment_label(sector=row["sector"], value=row["value"], bottom=pos_bottom)
-        pos_bottom += row["value"]
+        value = float(row["value"])
+        sector = str(row["sector"])
+        ax.bar(0, value, bottom=pos_bottom, width=_STACKED_BAR_WIDTH)
+        add_segment_label(sector=sector, value=value, bottom=pos_bottom)
+        pos_bottom += value
 
     for _, row in neg.iterrows():
-        ax.bar(
-            0,
-            row["value"],
-            bottom=neg_bottom,
-            width=bar_width,
-        )
-        add_segment_label(sector=row["sector"], value=row["value"], bottom=neg_bottom)
-        neg_bottom += row["value"]
+        value = float(row["value"])
+        sector = str(row["sector"])
+        ax.bar(0, value, bottom=neg_bottom, width=_STACKED_BAR_WIDTH)
+        add_segment_label(sector=sector, value=value, bottom=neg_bottom)
+        neg_bottom += value
 
-    net_total = df["value"].sum()
-    ax.scatter(
-        0,
-        net_total,
-        s=net_marker_size,
-        color="black",
-        zorder=5,
-    )
+    net_total = float(df["value"].sum())
+    ax.scatter(0, net_total, s=_STACKED_NET_MARKER_SIZE, color="black", zorder=5)
     ax.annotate(
         "Net total",
         xy=(0, net_total),
         xytext=(0.55, net_total),
         ha="left",
         va="center",
-        fontsize=label_font_size,
-        arrowprops={
-            "arrowstyle": "-",
-            "lw": callout_line_width,
-            "color": callout_line_color,
-            "shrinkA": 0,
-            "shrinkB": 0,
-        },
+        fontsize=TEXT_BOX_FONTSIZE,
+        arrowprops=callout_arrow,
     )
 
     ax.axhline(0, color="black", linewidth=1)
     ax.set_xticks([0])
-    ax.set_xticklabels([f"Net change = {net_total:.3g}"])
+    ax.set_xticklabels([f"Net change = {net_total:,.2f}"])
     ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    max_callout_x = max(callout_x_offsets, default=1.2)
+    ax.set_title(title, fontsize=TITLE_FONTSIZE, pad=12)
+    y_formatter = mticker.ScalarFormatter(useOffset=False)
+    y_formatter.set_scientific(False)
+    ax.yaxis.set_major_formatter(y_formatter)
+    max_callout_x = max(_STACKED_CALLOUT_X_OFFSETS, default=1.2)
     ax.set_xlim(-(max_callout_x + 0.4), max_callout_x + 0.4)
-    fig.tight_layout()
-    return fig
+    apply_axis_fonts(ax)
 
 
 def save_and_close(fig: Figure, out: Path) -> None:

@@ -1,25 +1,40 @@
-"""BLy sector stacked-bar plot from diagnostics ``BLy_new_vs_BLy_old``.
+"""BLy sector stacked-bar data prep + CLI options.
 
-Used by ``ef_plots`` as part of the diagnostics figure suite. Tab layout matches
-``calculate_national_accounting_balance_diagnostics`` output.
+Consumed by ``diagnostics_plots`` as part of the diagnostics figure suite. Tab
+layout matches ``calculate_national_accounting_balance_diagnostics`` output.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any, TypeVar
+
+import click
 import pandas as pd
-from matplotlib.figure import Figure
 
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
-from .plotting import plot_stacked_net_change
+F = TypeVar("F", bound=Callable[..., Any])
 
 TAB_BLY = "BLy_new_vs_BLy_old"
 SECTOR_COLUMN = "index"
 VALUE_COLUMN = "BLy_new - BLy_old (MtCO2e)"
 WASTE_AGGREGATE_SECTOR = "562000"
 DEFAULT_GROUP_SMALL_THRESHOLD = 3.0
-DEFAULT_TITLE = "Sector contributions to net change (BLy)"
-DEFAULT_YLABEL = "Gross change (MMT CO2e)"
+
+
+def bly_plot_options(func: F) -> F:
+    """BLy figure options (compose with ``common_options`` on the umbrella CLI)."""
+    return click.option(
+        "--bly-group-small-threshold",
+        type=float,
+        default=DEFAULT_GROUP_SMALL_THRESHOLD,
+        show_default=True,
+        help=(
+            "BLy stacked bar: roll sectors with |Δ Mt CO2e| below this into "
+            "Other Increase / Other Decrease. Use 0 to show every sector."
+        ),
+    )(func)
 
 
 def combine_waste_diffs(df: pd.DataFrame, *, aggregate_sector: str) -> pd.DataFrame:
@@ -88,14 +103,3 @@ def build_sector_stack_frame(
     df = combine_waste_diffs(df, aggregate_sector=WASTE_AGGREGATE_SECTOR)
     df = group_small_changes(df, threshold=group_small_threshold)
     return df
-
-
-def plot_bly_sector_stacked_net_change(
-    df: pd.DataFrame,
-    *,
-    title: str = DEFAULT_TITLE,
-    ylabel: str = DEFAULT_YLABEL,
-    figsize: tuple[float, float] = (5.0, 7.0),
-) -> Figure:
-    """Single stacked bar: positive segments up, negative down, net marker."""
-    return plot_stacked_net_change(df, title=title, ylabel=ylabel, figsize=figsize)

@@ -13,7 +13,7 @@ and (when present) ``BLy_new_vs_BLy_old`` tabs and renders:
   (only when the BLy tab exists; otherwise omitted, no error)
 
 Usage:
-    uv run python -m bedrock.utils.validation.analysis.ef_plots \\
+    uv run python -m bedrock.utils.validation.analysis.diagnostics_plots \\
         --sheet-id <google_sheet_id> [--refresh] [--tag <label>] [--out-dir <path>] \\
         [--bly-group-small-threshold <Mt CO2e>]
 """
@@ -29,19 +29,19 @@ import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
 
-from ._cli import bly_plot_options, common_options, resolve_output_dir, resolve_sheet_id
-from .bly_plots import (
-    DEFAULT_GROUP_SMALL_THRESHOLD,
-    TAB_BLY,
-    build_sector_stack_frame,
-    plot_bly_sector_stacked_net_change,
-)
+from ._cli import common_options, resolve_output_dir, resolve_sheet_id
+from .bly_plots import TAB_BLY, bly_plot_options, build_sector_stack_frame
 from .fetch import load_tab, load_tabs_optional
 from .plotting import (
     DEFAULT_XLIM,
+    LEGEND_FONTSIZE,
+    TEXT_BOX_FONTSIZE,
+    TITLE_FONTSIZE,
     abs_change_histogram,
+    apply_axis_fonts,
     dodge_annotations,
     percent_histogram,
+    plot_stacked_net_change,
     save_and_close,
     setup_mpl,
 )
@@ -52,19 +52,8 @@ TAB_SIG = "D_and_N_significant_sectors"
 
 OUTLIER_COLOR = "#d32f2f"
 POINT_COLOR = "#546e7a"
-TITLE_FONTSIZE = 20
-AXIS_LABEL_FONTSIZE = 16
-TICK_FONTSIZE = 13
-TEXT_BOX_FONTSIZE = 11
-LEGEND_FONTSIZE = 13
 SINGLE_PANEL_FIGSIZE = (14, 10)
-
-
-def _apply_axis_fonts(ax: Any) -> None:
-    """Apply the shared axis-label and tick font sizes."""
-    ax.xaxis.label.set_fontsize(AXIS_LABEL_FONTSIZE)
-    ax.yaxis.label.set_fontsize(AXIS_LABEL_FONTSIZE)
-    ax.tick_params(axis="both", labelsize=TICK_FONTSIZE)
+BLY_FIGSIZE = (5.0, 7.0)
 
 
 def _add_outlier_box(ax: Any, text: str) -> Any:
@@ -227,7 +216,7 @@ def plot_ef_perc_diff_histogram(
             legend_fontsize=LEGEND_FONTSIZE,
         )
         axes[r, c].title.set_fontsize(TITLE_FONTSIZE)
-        _apply_axis_fonts(axes[r, c])
+        apply_axis_fonts(axes[r, c])
     ylim_max = max(axes[r, c].get_ylim()[1] for r in range(n_rows) for c in range(2))
     for r in range(n_rows):
         for c in range(2):
@@ -255,7 +244,7 @@ def plot_n_perc_diff_histogram(df_n: pd.DataFrame) -> Figure:
         legend_fontsize=13,
     )
     ax.title.set_fontsize(TITLE_FONTSIZE)
-    _apply_axis_fonts(ax)
+    apply_axis_fonts(ax)
     fig.tight_layout()
     return fig
 
@@ -361,7 +350,7 @@ def plot_ef_pct_change_vs_abs_change(
     ax.set_xlabel("|EF Absolute Change| (kgCO2e/$)")
     ax.set_ylabel("|EF % Change|")
     ax.set_title("EF % Change vs EF Absolute Change", fontsize=TITLE_FONTSIZE, pad=12)
-    _apply_axis_fonts(ax)
+    apply_axis_fonts(ax)
     ax.grid(alpha=0.2)
     fig.tight_layout()
     dodge_annotations(
@@ -461,7 +450,7 @@ def plot_ef_pct_change_vs_ef_size(
     ax.set_xlabel("EF Size (old EF, kgCO2e/$)")
     ax.set_ylabel("|EF % Change|")
     ax.set_title("EF % Change vs EF Size", fontsize=TITLE_FONTSIZE, pad=12)
-    _apply_axis_fonts(ax)
+    apply_axis_fonts(ax)
     ax.grid(alpha=0.2)
     fig.tight_layout()
     dodge_annotations(
@@ -499,7 +488,7 @@ def plot_ef_abs_change_histogram(
         outlier_fontsize=TEXT_BOX_FONTSIZE,
     )
     ax.set_title("Distribution of Absolute EF Changes", fontsize=TITLE_FONTSIZE)
-    _apply_axis_fonts(ax)
+    apply_axis_fonts(ax)
     fig.tight_layout()
     return fig
 
@@ -512,7 +501,7 @@ def plot(
     out_dir: Path,
     *,
     refresh: bool,
-    bly_group_small_threshold: float = DEFAULT_GROUP_SMALL_THRESHOLD,
+    bly_group_small_threshold: float,
 ) -> None:
     df_n = _drop_old_only(_normalize_schema(load_tab(sheet_id, TAB_N, refresh=refresh)))
     df_d = _drop_old_only(_normalize_schema(load_tab(sheet_id, TAB_D, refresh=refresh)))
@@ -543,7 +532,14 @@ def plot(
             bly_raw,
             group_small_threshold=bly_group_small_threshold,
         )
-        fig_bly = plot_bly_sector_stacked_net_change(bly_frame)
+        fig_bly, ax_bly = plt.subplots(figsize=BLY_FIGSIZE)
+        plot_stacked_net_change(
+            ax_bly,
+            bly_frame,
+            title="Sector contributions to net change (BLy)",
+            ylabel="Gross change (MMT CO2e)",
+        )
+        fig_bly.tight_layout()
         save_and_close(fig_bly, out_dir / "bly_sector_stacked_net_change.png")
 
 

@@ -15,12 +15,12 @@ back, caches them locally as parquet, and renders analysis figures.
   `bedrock.utils.io.gcp.read_sheet_tab`, coerce numerics, and cache as parquet
   under `.cache/<sheet_id>/<tab>.parquet`.
 - `_cli.py` — `common_options` (sheet id, refresh, tag, out dir) and
-  `bly_plot_options` (BLy stacked-bar tuning); output-dir resolution helpers.
-- `bly_plots.py` — BLy sector stacked bar (data prep + wrapper around `plotting`).
-- `ef_plots.py` — produces five EF PNGs every run, and a sixth
-  (`bly_sector_stacked_net_change.png`) when `BLy_new_vs_BLy_old` is present. If
-  that tab is missing or cannot be read, the command still succeeds and only the
-  BLy figure is omitted (five PNGs total).
+  output-dir resolution helpers.
+- `bly_plots.py` — BLy sector stacked-bar data prep + `bly_plot_options` CLI decorator.
+- `diagnostics_plots.py` — umbrella entry point. Produces five EF PNGs every run,
+  and a sixth (`bly_sector_stacked_net_change.png`) when `BLy_new_vs_BLy_old` is
+  present. If that tab is missing or cannot be read, the command still succeeds
+  and only the BLy figure is omitted (five PNGs total).
   - `ef_perc_diff_histogram.png` — 2×2 N/D percent-diff distributions
     (all sectors + significant sectors)
   - `ef_n_perc_diff_histogram.png` — standalone N percent-diff distribution
@@ -33,7 +33,7 @@ back, caches them locally as parquet, and renders analysis figures.
 ## Running
 
 ```bash
-uv run python -m bedrock.utils.validation.analysis.ef_plots \
+uv run python -m bedrock.utils.validation.analysis.diagnostics_plots \
     --sheet-id <google_sheet_id> [--refresh] [--tag <label>] [--out-dir <path>] \
     [--bly-group-small-threshold <Mt CO2e>]
 ```
@@ -45,7 +45,7 @@ variable, so you can set it once and omit the flag on subsequent runs:
 
 ```bash
 export BEDROCK_DIAGNOSTICS_SHEET_ID=1Qa...
-uv run python -m bedrock.utils.validation.analysis.ef_plots --tag my-run
+uv run python -m bedrock.utils.validation.analysis.diagnostics_plots --tag my-run
 ```
 
 Outputs default to `analysis/output/<tag>/`; the parquet cache lives at

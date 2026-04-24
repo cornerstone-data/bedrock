@@ -1,11 +1,10 @@
 """Shared CLI options + path helpers for analysis plot commands.
 
 Every script exposes the same flags (``--baseline``, ``--sheet-id``,
-``--refresh``, ``--tag``, ``--out-dir``) via ``common_options``. BLy-only
-flags used by ``ef_plots`` live in ``bly_plot_options`` so they stay out of
-``common_options`` (for any future script that shares the common five but not
-BLy). The sheet-id resolver picks from (in order): ``--sheet-id``,
-``--baseline`` lookup in ``baselines.BASELINES``, then
+``--refresh``, ``--tag``, ``--out-dir``) via ``common_options``. Plot-specific
+flags live alongside their plot module (e.g. ``bly_plots.bly_plot_options``) so
+``_cli`` stays generic. The sheet-id resolver picks from (in order):
+``--sheet-id``, ``--baseline`` lookup in ``baselines.BASELINES``, then
 ``$BEDROCK_DIAGNOSTICS_SHEET_ID``.
 """
 
@@ -19,7 +18,6 @@ from typing import Any, TypeVar
 import click
 
 from .baselines import BASELINES
-from .bly_plots import DEFAULT_GROUP_SMALL_THRESHOLD
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -72,20 +70,6 @@ def common_options(func: F) -> F:
         ),
     )(func)
     return func
-
-
-def bly_plot_options(func: F) -> F:
-    """BLy figure options (compose with ``common_options`` on ``ef_plots``)."""
-    return click.option(
-        "--bly-group-small-threshold",
-        type=float,
-        default=DEFAULT_GROUP_SMALL_THRESHOLD,
-        show_default=True,
-        help=(
-            "BLy stacked bar: roll sectors with |Δ Mt CO2e| below this into "
-            "Other Increase / Other Decrease. Use 0 to show every sector."
-        ),
-    )(func)
 
 
 def resolve_sheet_id(sheet_id: str | None, baseline: str | None) -> str:
