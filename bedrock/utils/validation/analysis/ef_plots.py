@@ -14,7 +14,8 @@ and (when present) ``BLy_new_vs_BLy_old`` tabs and renders:
 
 Usage:
     uv run python -m bedrock.utils.validation.analysis.ef_plots \\
-        --sheet-id <google_sheet_id> [--refresh] [--tag <label>] [--out-dir <path>]
+        --sheet-id <google_sheet_id> [--refresh] [--tag <label>] [--out-dir <path>] \\
+        [--bly-group-small-threshold <Mt CO2e>]
 """
 
 from __future__ import annotations
@@ -28,8 +29,9 @@ import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
 
-from ._cli import common_options, resolve_output_dir, resolve_sheet_id
+from ._cli import bly_plot_options, common_options, resolve_output_dir, resolve_sheet_id
 from .bly_plots import (
+    DEFAULT_GROUP_SMALL_THRESHOLD,
     TAB_BLY,
     build_sector_stack_frame,
     plot_bly_sector_stacked_net_change,
@@ -505,7 +507,13 @@ def plot_ef_abs_change_histogram(
 # ---------- entry point ----------
 
 
-def plot(sheet_id: str, out_dir: Path, *, refresh: bool) -> None:
+def plot(
+    sheet_id: str,
+    out_dir: Path,
+    *,
+    refresh: bool,
+    bly_group_small_threshold: float = DEFAULT_GROUP_SMALL_THRESHOLD,
+) -> None:
     df_n = _drop_old_only(_normalize_schema(load_tab(sheet_id, TAB_N, refresh=refresh)))
     df_d = _drop_old_only(_normalize_schema(load_tab(sheet_id, TAB_D, refresh=refresh)))
     sig_raw = load_tabs_optional(sheet_id, [TAB_SIG], refresh=refresh)[TAB_SIG]
@@ -531,24 +539,34 @@ def plot(sheet_id: str, out_dir: Path, *, refresh: bool) -> None:
     # Optional NAB tab: missing or unreadable tabs must not fail the suite.
     bly_raw = load_tabs_optional(sheet_id, [TAB_BLY], refresh=refresh)[TAB_BLY]
     if bly_raw is not None:
-        bly_frame = build_sector_stack_frame(bly_raw)
+        bly_frame = build_sector_stack_frame(
+            bly_raw,
+            group_small_threshold=bly_group_small_threshold,
+        )
         fig_bly = plot_bly_sector_stacked_net_change(bly_frame)
         save_and_close(fig_bly, out_dir / "bly_sector_stacked_net_change.png")
 
 
 @click.command()
 @common_options
+@bly_plot_options
 def main(
     baseline: str | None,
     sheet_id: str | None,
     refresh: bool,
     tag: str | None,
     out_dir: Path | None,
+    bly_group_small_threshold: float,
 ) -> None:
     resolved_sheet_id = resolve_sheet_id(sheet_id, baseline)
     setup_mpl(font_size=14)
     _, out = resolve_output_dir(resolved_sheet_id, tag, out_dir, baseline=baseline)
-    plot(resolved_sheet_id, out, refresh=refresh)
+    plot(
+        resolved_sheet_id,
+        out,
+        refresh=refresh,
+        bly_group_small_threshold=bly_group_small_threshold,
+    )
 
 
 if __name__ == "__main__":

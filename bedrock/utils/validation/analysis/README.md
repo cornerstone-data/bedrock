@@ -14,8 +14,8 @@ back, caches them locally as parquet, and renders analysis figures.
 - `fetch.py` — `load_tab` / `load_tabs` read Sheet tabs via
   `bedrock.utils.io.gcp.read_sheet_tab`, coerce numerics, and cache as parquet
   under `.cache/<sheet_id>/<tab>.parquet`.
-- `_cli.py` — shared click options (`--sheet-id`, `--refresh`, `--tag`,
-  `--out-dir`) and output-dir resolution.
+- `_cli.py` — `common_options` (sheet id, refresh, tag, out dir) and
+  `bly_plot_options` (BLy stacked-bar tuning); output-dir resolution helpers.
 - `bly_plots.py` — BLy sector stacked bar (data prep + wrapper around `plotting`).
 - `ef_plots.py` — produces five EF PNGs every run, and a sixth
   (`bly_sector_stacked_net_change.png`) when `BLy_new_vs_BLy_old` is present. If
@@ -34,8 +34,11 @@ back, caches them locally as parquet, and renders analysis figures.
 
 ```bash
 uv run python -m bedrock.utils.validation.analysis.ef_plots \
-    --sheet-id <google_sheet_id> [--refresh] [--tag <label>] [--out-dir <path>]
+    --sheet-id <google_sheet_id> [--refresh] [--tag <label>] [--out-dir <path>] \
+    [--bly-group-small-threshold <Mt CO2e>]
 ```
+
+`--bly-group-small-threshold` defaults to `3.0` (see `bly_plots.DEFAULT_GROUP_SMALL_THRESHOLD`). Pass `0` to disable grouping small sectors into “Other”.
 
 `--sheet-id` falls back to the `BEDROCK_DIAGNOSTICS_SHEET_ID` environment
 variable, so you can set it once and omit the flag on subsequent runs:
