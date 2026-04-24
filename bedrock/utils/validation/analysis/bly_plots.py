@@ -70,11 +70,16 @@ def group_small_changes(df: pd.DataFrame, *, threshold: float) -> pd.DataFrame:
     other_increase = small_df.loc[small_df["value"] > 0, "value"].sum()
     other_decrease = small_df.loc[small_df["value"] < 0, "value"].sum()
 
+    suffix = f" (|Δ| < {threshold:g} MMT)"
     grouped_rows: list[dict[str, str | float]] = []
     if other_increase != 0:
-        grouped_rows.append({"sector": "Other Increase", "value": other_increase})
+        grouped_rows.append(
+            {"sector": f"Other Increase{suffix}", "value": other_increase}
+        )
     if other_decrease != 0:
-        grouped_rows.append({"sector": "Other Decrease", "value": other_decrease})
+        grouped_rows.append(
+            {"sector": f"Other Decrease{suffix}", "value": other_decrease}
+        )
 
     if not grouped_rows:
         return large_df

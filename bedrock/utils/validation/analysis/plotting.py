@@ -370,13 +370,13 @@ def _order_stack_for_net_bar(df: pd.DataFrame, *, positive: bool) -> pd.DataFram
     sector_normalized = ordered["sector"].str.strip().str.lower()
 
     if positive:
-        ordered["_is_other_end"] = sector_normalized.eq("other increase")
+        ordered["_is_other_end"] = sector_normalized.str.startswith("other increase")
         ordered = ordered.sort_values(
             by=["_is_other_end", "value"],
             ascending=[True, False],
         )
     else:
-        ordered["_is_other_end"] = sector_normalized.eq("other decrease")
+        ordered["_is_other_end"] = sector_normalized.str.startswith("other decrease")
         ordered = ordered.sort_values(
             by=["_is_other_end", "value"],
             ascending=[True, True],
@@ -426,7 +426,7 @@ def plot_stacked_net_change(
         center_y = bottom + value / 2
         sector_normalized = sector.strip().lower()
 
-        if sector_normalized in {"other increase", "other decrease"}:
+        if sector_normalized.startswith(("other increase", "other decrease")):
             va = "top" if value > 0 else "bottom"
             y_text = (
                 bottom + value - 0.02 * total_span
@@ -438,7 +438,12 @@ def plot_stacked_net_change(
 
         if abs(value) >= inside_label_threshold:
             ax.text(
-                0, center_y, sector, ha="center", va="center", fontsize=TEXT_BOX_FONTSIZE
+                0,
+                center_y,
+                sector,
+                ha="center",
+                va="center",
+                fontsize=TEXT_BOX_FONTSIZE,
             )
             return
 
@@ -487,7 +492,7 @@ def plot_stacked_net_change(
 
     ax.axhline(0, color="black", linewidth=1)
     ax.set_xticks([0])
-    ax.set_xticklabels([f"Net change = {net_total:,.2f}"])
+    ax.set_xticklabels([f"Net change = {net_total:,.2f} MMT CO2e"])
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=TITLE_FONTSIZE, pad=12)
     y_formatter = mticker.ScalarFormatter(useOffset=False)
