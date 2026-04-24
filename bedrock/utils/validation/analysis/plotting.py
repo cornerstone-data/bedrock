@@ -12,13 +12,6 @@ from collections.abc import Callable, Hashable, Sequence
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-
-class _FigureCanvasWithRenderer(Protocol):
-    """Canvas backends implement ``get_renderer``; base-class stubs omit it."""
-
-    def get_renderer(self) -> Any:
-        ...
-
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -26,6 +19,13 @@ import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+
+
+class _FigureCanvasWithRenderer(Protocol):
+    """Canvas backends implement ``get_renderer``; base-class stubs omit it."""
+
+    def get_renderer(self) -> Any: ...
+
 
 DEFAULT_XLIM: tuple[float, float] = (-115.0, 115.0)
 PERCENT_TICKS: tuple[float, ...] = (-100, -50, -20, 0, 20, 50, 100)
