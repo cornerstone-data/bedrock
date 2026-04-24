@@ -10,7 +10,14 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
+
+
+class _FigureCanvasWithRenderer(Protocol):
+    """Canvas backends implement ``get_renderer``; base-class stubs omit it."""
+
+    def get_renderer(self) -> Any:
+        ...
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -295,7 +302,7 @@ def dodge_annotations(
     ]
     base_dy = offset_px[1]
     fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
+    renderer = cast(_FigureCanvasWithRenderer, fig.canvas).get_renderer()
     axes_bbox = ax.get_window_extent(renderer=renderer)
     avoid_bboxes = (
         [a.get_window_extent(renderer=renderer) for a in avoid] if avoid else []
