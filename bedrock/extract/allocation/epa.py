@@ -47,23 +47,10 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
     section = tbl_name.split("-")[0]
     base = gcs_extract_input_path("EPA_GHGI", year)
 
-    main_or_annex_dir = (
-        {
-            "main": "EPA_GHGI_2022_Main_Tables",
-            "annex": "EPA_GHGI_2022_Annex_Tables",
-        }
-        if year == 2022
-        else {
-            "main": "EPA_GHGI_2023_Selected_Tables",
-            "annex": posixpath.join("EPA_GHGI_2023_Selected_Tables", "Annex"),
-        }
-    )
-    # # TODO: eventually go to the full set of csv tables for 2023
-    # # replacing the above if else chunk
-    # main_or_annex_dir = {
-    #     "main": f"EPA_GHGI_{year}_Main_Tables",
-    #     "annex": f"EPA_GHGI_{year}_Annex_Tables",
-    # }
+    main_or_annex_dir = {
+        "main": f"EPA_GHGI_{year}_Main_Tables",
+        "annex": f"EPA_GHGI_{year}_Annex_Tables",
+    }
 
     if section == "A":
         return posixpath.join(base, main_or_annex_dir["annex"], f"Table {tbl_name}.csv")
