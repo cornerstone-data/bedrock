@@ -249,6 +249,33 @@ def __sheets_client() -> googleapiclient.discovery.Resource:
     return googleapiclient.discovery.build('sheets', 'v4', credentials=credentials)
 
 
+def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:
+    """
+    Read a Google Sheets tab into a DataFrame.
+
+    The first row is used as column headers. All cells come back as strings —
+    callers that need numeric types should coerce column-wise.
+
+    Args:
+        sheet_id: The Google Sheets document ID
+        tab: The name of the tab to read
+    """
+    client = __sheets_client()
+    result = (
+        client.spreadsheets()
+        .values()
+        .get(spreadsheetId=sheet_id, range=f"'{tab}'")
+        .execute()
+    )
+    values = result.get("values", [])
+    if not values:
+        return pd.DataFrame()
+    header, *rows = values
+    width = len(header)
+    normalized = [row + [""] * (width - len(row)) for row in rows]
+    return pd.DataFrame(normalized, columns=header)
+
+
 def update_sheet_tab(
     sheet_id: str,
     tab: str,
