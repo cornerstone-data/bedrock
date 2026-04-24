@@ -53,7 +53,23 @@ TAB_SIG = "D_and_N_significant_sectors"
 OUTLIER_COLOR = "#d32f2f"
 POINT_COLOR = "#546e7a"
 SINGLE_PANEL_FIGSIZE = (14, 10)
-BLY_FIGSIZE = (5.0, 7.0)
+BLY_FIGSIZE_WIDTH = 5.0
+BLY_FIGSIZE_MIN_HEIGHT = 7.0
+BLY_FIGSIZE_PER_ROW_HEIGHT = 0.3
+
+
+def bly_figsize(max_sectors: int) -> tuple[float, float]:
+    """Scale BLy figure height from the ``max_sectors`` ceiling (+ 2 Other rows).
+
+    Using the ceiling — not the realized row count — makes the figure size
+    deterministic from the CLI flag, so any two baselines rendered with the
+    same ``--bly-max-sectors`` share dimensions.
+    """
+    ceiling_rows = max_sectors + 2 if max_sectors > 0 else 20
+    height = max(
+        BLY_FIGSIZE_MIN_HEIGHT, 4.0 + BLY_FIGSIZE_PER_ROW_HEIGHT * ceiling_rows
+    )
+    return (BLY_FIGSIZE_WIDTH, height)
 
 
 def _add_outlier_box(ax: Any, text: str) -> Any:
@@ -502,6 +518,7 @@ def plot(
     *,
     refresh: bool,
     bly_group_small_threshold: float,
+    bly_max_sectors: int,
 ) -> None:
     df_n = _drop_old_only(_normalize_schema(load_tab(sheet_id, TAB_N, refresh=refresh)))
     df_d = _drop_old_only(_normalize_schema(load_tab(sheet_id, TAB_D, refresh=refresh)))
@@ -531,8 +548,9 @@ def plot(
         bly_frame = build_sector_stack_frame(
             bly_raw,
             group_small_threshold=bly_group_small_threshold,
+            max_sectors=bly_max_sectors,
         )
-        fig_bly, ax_bly = plt.subplots(figsize=BLY_FIGSIZE)
+        fig_bly, ax_bly = plt.subplots(figsize=bly_figsize(bly_max_sectors))
         plot_stacked_net_change(
             ax_bly,
             bly_frame,
@@ -553,6 +571,7 @@ def main(
     tag: str | None,
     out_dir: Path | None,
     bly_group_small_threshold: float,
+    bly_max_sectors: int,
 ) -> None:
     resolved_sheet_id = resolve_sheet_id(sheet_id, baseline)
     setup_mpl(font_size=14)
@@ -562,6 +581,7 @@ def main(
         out,
         refresh=refresh,
         bly_group_small_threshold=bly_group_small_threshold,
+        bly_max_sectors=bly_max_sectors,
     )
 
 

@@ -483,16 +483,19 @@ def plot_stacked_net_change(
     ax.annotate(
         "Net total",
         xy=(0, net_total),
-        xytext=(0.55, net_total),
-        ha="left",
-        va="center",
+        xycoords="data",
+        xytext=(0.98, 0.98),
+        textcoords="axes fraction",
+        ha="right",
+        va="top",
         fontsize=TEXT_BOX_FONTSIZE,
+        fontweight="bold",
         arrowprops=callout_arrow,
     )
 
     ax.axhline(0, color="black", linewidth=1)
     ax.set_xticks([0])
-    ax.set_xticklabels([f"Net change = {net_total:,.2f} MMT CO2e"])
+    ax.set_xticklabels([f"Net change = {net_total:,.0f} MMT CO2e"])
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=TITLE_FONTSIZE, pad=12)
     y_formatter = mticker.ScalarFormatter(useOffset=False)

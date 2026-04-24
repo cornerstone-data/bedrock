@@ -21,11 +21,22 @@ SECTOR_COLUMN = "index"
 VALUE_COLUMN = "BLy_new - BLy_old (MtCO2e)"
 WASTE_AGGREGATE_SECTOR = "562000"
 DEFAULT_GROUP_SMALL_THRESHOLD = 3.0
+DEFAULT_MAX_SECTORS = 0
 
 
 def bly_plot_options(func: F) -> F:
     """BLy figure options (compose with ``common_options`` on the umbrella CLI)."""
-    return click.option(
+    func = click.option(
+        "--bly-max-sectors",
+        type=int,
+        default=DEFAULT_MAX_SECTORS,
+        show_default=True,
+        help=(
+            "BLy stacked bar: keep at most this many named sectors (top-|Δ|); "
+            "roll the rest into Other Increase / Other Decrease. Use 0 for no cap."
+        ),
+    )(func)
+    func = click.option(
         "--bly-group-small-threshold",
         type=float,
         default=DEFAULT_GROUP_SMALL_THRESHOLD,
@@ -35,6 +46,7 @@ def bly_plot_options(func: F) -> F:
             "Other Increase / Other Decrease. Use 0 to show every sector."
         ),
     )(func)
+    return func
 
 
 def combine_waste_diffs(df: pd.DataFrame, *, aggregate_sector: str) -> pd.DataFrame:
@@ -55,37 +67,60 @@ def combine_waste_diffs(df: pd.DataFrame, *, aggregate_sector: str) -> pd.DataFr
     return pd.concat([non_waste_df, combined_df], ignore_index=True)
 
 
-def group_small_changes(df: pd.DataFrame, *, threshold: float) -> pd.DataFrame:
-    if threshold <= 0:
-        return df
+def bucket_small_and_overflow(
+    df: pd.DataFrame,
+    *,
+    threshold: float,
+    max_sectors: int,
+) -> pd.DataFrame:
+    """Roll sectors with |Δ| < threshold AND any overflow past top-N into Other buckets.
 
+    Named sectors kept are the top ``max_sectors`` by |value| among those with
+    |value| ≥ threshold. Everything else (sub-threshold or rank > max_sectors)
+    is summed into ``Other Increase`` / ``Other Decrease`` rows, with a label
+    suffix describing the combined rule.
+    """
     df = df.copy()
-    small = df["value"].abs() < threshold
-    if not small.any():
-        return df
+    abs_val = df["value"].abs()
 
-    large_df = df.loc[~small].copy()
-    small_df = df.loc[small].copy()
-
-    other_increase = small_df.loc[small_df["value"] > 0, "value"].sum()
-    other_decrease = small_df.loc[small_df["value"] < 0, "value"].sum()
-
-    suffix = f" (|Δ| < {threshold:g} MMT)"
-    grouped_rows: list[dict[str, str | float]] = []
-    if other_increase != 0:
-        grouped_rows.append(
-            {"sector": f"Other Increase{suffix}", "value": other_increase}
+    below_threshold = (
+        abs_val < threshold if threshold > 0 else pd.Series(False, index=df.index)
+    )
+    eligible = df.loc[~below_threshold].copy()
+    if max_sectors > 0 and len(eligible) > max_sectors:
+        eligible_ranked = eligible.reindex(
+            eligible["value"].abs().sort_values(ascending=False).index
         )
-    if other_decrease != 0:
-        grouped_rows.append(
-            {"sector": f"Other Decrease{suffix}", "value": other_decrease}
+        kept = eligible_ranked.head(max_sectors)
+        overflow = eligible_ranked.tail(len(eligible_ranked) - max_sectors)
+    else:
+        kept = eligible
+        overflow = df.iloc[0:0]
+
+    rolled = pd.concat([df.loc[below_threshold], overflow], ignore_index=True)
+    if rolled.empty:
+        return kept.reset_index(drop=True)
+
+    pos = rolled.loc[rolled["value"] > 0, "value"]
+    neg = rolled.loc[rolled["value"] < 0, "value"]
+
+    suffix = f"\n(|Δ| < {threshold:g} MMT)" if below_threshold.any() else ""
+
+    rolled_rows: list[dict[str, str | float]] = []
+    if len(pos) > 0 and pos.sum() != 0:
+        rolled_rows.append(
+            {"sector": f"Other Increase{suffix}", "value": float(pos.sum())}
+        )
+    if len(neg) > 0 and neg.sum() != 0:
+        rolled_rows.append(
+            {"sector": f"Other Decrease{suffix}", "value": float(neg.sum())}
         )
 
-    if not grouped_rows:
-        return large_df
+    if not rolled_rows:
+        return kept.reset_index(drop=True)
 
-    grouped_df = pd.DataFrame(grouped_rows)
-    return pd.concat([large_df, grouped_df], ignore_index=True)
+    grouped_df = pd.DataFrame(rolled_rows)
+    return pd.concat([kept, grouped_df], ignore_index=True)
 
 
 def build_sector_stack_frame(
@@ -94,6 +129,7 @@ def build_sector_stack_frame(
     sector_column: str = SECTOR_COLUMN,
     value_column: str = VALUE_COLUMN,
     group_small_threshold: float = DEFAULT_GROUP_SMALL_THRESHOLD,
+    max_sectors: int = DEFAULT_MAX_SECTORS,
 ) -> pd.DataFrame:
     """Normalize a ``BLy_new_vs_BLy_old`` tab to ``sector`` / ``value`` for plotting."""
     missing = [c for c in (sector_column, value_column) if c not in tab.columns]
@@ -106,5 +142,7 @@ def build_sector_stack_frame(
     df["sector"] = df["sector"].astype(str)
     df["value"] = pd.to_numeric(df["value"], errors="raise")
     df = combine_waste_diffs(df, aggregate_sector=WASTE_AGGREGATE_SECTOR)
-    df = group_small_changes(df, threshold=group_small_threshold)
+    df = bucket_small_and_overflow(
+        df, threshold=group_small_threshold, max_sectors=max_sectors
+    )
     return df
