@@ -65,10 +65,9 @@ def local_dir_for_gcs_sub_bucket(gcs_sub_bucket: str) -> str:
     elif norm.startswith(prefix + "/"):
         rel = norm[len(prefix) + 1 :]
         parts = [p for p in rel.split("/") if p]
-        local_parts = [p.replace("-", "_") for p in parts]
         pth = (
-            os.path.join(EXTRACT_INPUT_DATA_ROOT, *local_parts)
-            if local_parts
+            os.path.join(EXTRACT_INPUT_DATA_ROOT, *parts)
+            if parts
             else EXTRACT_INPUT_DATA_ROOT
         )
     else:
