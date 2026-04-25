@@ -20,7 +20,7 @@ The config-driven system v0.2 establishes (typed methodology flags, YAML-as-conf
 - **[Methodology for Cornerstone U.S. Model](https://github.com/cornerstone-data/papers/blob/v0.2model/us-methods/us-methods.md)** covers the equations, data sources, and methodology choices adopted from USEEIO vs CEDA.
 - **[Cornerstone Technical Architecture Vision](https://github.com/cornerstone-data/papers/blob/published/architecture_vision/Cornerstone_Architecture_Vision.md)** describes the Extract-Transform-Load (ETL) monorepo architecture adopted in `bedrock`.
 
-## Methodology choices captured in configuration
+### Methodology choices captured in configuration
 
 Every methodological decision involved in merging USEEIO and CEDA-US is governed by the configuration system defined in [`USAConfig`](bedrock/utils/config/usa_config.py).
 Each flag in the configuration represents a discrete methodology choice, and changes from the baseline can be validated in isolation.
@@ -37,7 +37,7 @@ These flags are grouped into themes:
 
 See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
 
-### Configuration files
+#### Configuration files
 
 All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
 - A single *full-model* config represents a full set of methodology choices made for a release. For example, `2025_usa_cornerstone_full_model.yaml` is the config for the `bedrock` v0.2 release, now the default in `get_usa_config()`.
@@ -45,7 +45,7 @@ All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/c
 
 A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.
 
-### Validation and reproducibility
+#### Validation and reproducibility
 
 Snapshot tests in [`bedrock/transform/__tests__/test_usa.py`](bedrock/transform/__tests__/test_usa.py) validate the pipeline's main outputs: `B`, `Adom`, `Aimp`, `ytot`, `ydom`, `yimp`, `y_nab`, `scaled_q`, `exports`.
 Each test re-derives one output from scratch and compares it to a reference parquet file in [Google Cloud Storage](https://console.cloud.google.com/storage/browser/cornerstone-default/snapshots?pageState=(%22StorageObjectListTable%22:(%22f%22:%22%255B%255D%22))) (GCS), ensuring 100% numerical reproducibility.
@@ -57,7 +57,7 @@ Old snapshots are retained, so every prior release remains independently reprodu
 
 `uv.lock` pins Python and all dependencies, so the exact environment for any snapshot or historical result can be reconstructed.
 
-## Diagnostics of model results: v0.2 vs USEEIO and CEDA-US baselines
+### Diagnostics of model results: v0.2 vs USEEIO and CEDA-US baselines
 
 Diagnostics comparing v0.2 outputs against USEEIO and CEDA-US baselines will be published in [Cornerstone's papers repository](https://github.com/cornerstone-data/papers).
 
