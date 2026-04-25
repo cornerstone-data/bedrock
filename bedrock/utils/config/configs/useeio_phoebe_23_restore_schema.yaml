@@ -1,0 +1,18 @@
+# Sensitivity from useeio_phoebe_23: restore row 1 to Anchor A.
+
+model_base_year: 2017
+iot_before_or_after_redefinition: before
+
+usa_io_data_year: 2017
+usa_ghg_data_year: 2023
+
+use_cornerstone_2026_model_schema: true
+load_E_from_flowsa: true
+use_E_data_year_for_x_in_B: false
+implement_waste_disaggregation: true
+
+use_useeio_schema: false
+use_useeio_B: true
+use_ghg_national_2023_m2: true
+skip_scrap_adjustment_in_vnorm: true
+new_ghg_method: false

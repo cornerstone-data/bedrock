@@ -6,6 +6,7 @@ import pytest
 
 from bedrock.utils.config.usa_config import (
     EEIOWasteDisaggConfig,
+    USAConfig,
     _load_usa_config_from_file_name,
     get_usa_config,
     reset_usa_config,
@@ -138,3 +139,42 @@ def test_config_via_environment_variable() -> None:
     reset_usa_config(should_reset_env_var=False)
     usa_config = get_usa_config()
     assert usa_config.usa_ghg_data_year == 2023
+
+
+def test_phoebe_year_vector_accepts_2017_io_fields() -> None:
+    cfg = USAConfig.model_validate(
+        {'model_base_year': 2017, 'usa_io_data_year': 2017},
+        strict=True,
+    )
+    assert cfg.model_base_year == 2017
+    assert cfg.usa_io_data_year == 2017
+
+
+def test_disallow_new_ghg_method_with_m2_flag() -> None:
+    with pytest.raises(
+        ValueError,
+        match='new_ghg_method and use_ghg_national_2023_m2 cannot both be true',
+    ):
+        USAConfig.model_validate(
+            {'new_ghg_method': True, 'use_ghg_national_2023_m2': True},
+            strict=True,
+        )
+
+
+def test_allow_m2_flag_when_new_ghg_method_is_false() -> None:
+    cfg = USAConfig.model_validate(
+        {'new_ghg_method': False, 'use_ghg_national_2023_m2': True},
+        strict=True,
+    )
+    assert cfg.use_ghg_national_2023_m2 is True
+
+
+def test_disallow_useeio_b_with_e_data_year_x_flag() -> None:
+    with pytest.raises(
+        ValueError,
+        match='use_useeio_B and use_E_data_year_for_x_in_B cannot both be true',
+    ):
+        USAConfig.model_validate(
+            {'use_useeio_B': True, 'use_E_data_year_for_x_in_B': True},
+            strict=True,
+        )
