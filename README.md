@@ -3,6 +3,65 @@
 `bedrock` is a pipeline for building environmentally-extended input-output (EEIO) models and related data artifacts, like emission factors.
 It is the U.S. national implementation of the ETL pipeline set out in [Cornerstone's Architecture Vision](https://github.com/cornerstone-data/papers/blob/published/architecture_vision/Cornerstone_Architecture_Vision.md).
 
+## About bedrock v0.2
+
+v0.2 builds the Cornerstone U.S. model, a waypoint toward the Cornerstone global Multi-Regional EEIO (MRIO) model.
+
+It merges USEEIO and CEDA-US, and serves as the foundation for the Cornerstone MRIO model targeted for release in October 2026.
+The config-driven system v0.2 establishes (typed methodology flags, YAML-as-configuration, and snapshot-validated output) carries forward to the development of the Cornerstone global Multi-Regional EEIO model outside of `bedrock`.
+
+**What v0.2 contains:**
+- Cornerstone 2026 sector schema (405 sectors; USEEIO has 411, CEDA-US has 400) on by default.
+- Waste-sector 1→7 disaggregation.
+- A new methodology reconciling data years between the E (total emissions by industry) and B (per-dollar emissions intensities) matrices.
+- Overhauled GHG attribution methods for transportation, electricity, agricultural soils, petroleum & natural-gas systems, refrigerants, and other gases — each individually gated and snapshot-tested.
+
+**Companion documents:**
+- **[Methodology for Cornerstone U.S. Model](https://github.com/cornerstone-data/papers/blob/v0.2model/us-methods/us-methods.md)** covers the equations, data sources, and methodology choices adopted from USEEIO vs CEDA.
+- **[Cornerstone Technical Architecture Vision](https://github.com/cornerstone-data/papers/blob/published/architecture_vision/Cornerstone_Architecture_Vision.md)** describes the Extract-Transform-Load (ETL) monorepo architecture adopted in `bedrock`.
+
+## Methodology choices captured in configuration
+
+Every methodological decision involved in merging USEEIO and CEDA-US is governed by the configuration system defined in [`USAConfig`](bedrock/utils/config/usa_config.py).
+Each flag in the configuration represents a discrete methodology choice, and changes from the baseline can be validated in isolation.
+
+These flags are grouped into themes:
+
+| Theme | Example flags |
+|---|---|
+| Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation` |
+| Economic IOT (input-output tables) | `use_E_data_year_for_x_in_B`, `iot_before_or_after_redefinition` |
+| GHG attribution — sector methods | `update_transportation_ghg_method`, `update_electricity_ghg_method` |
+| GHG attribution — gas coverage | `update_flowsa_refrigerant_method`, `add_new_ghg_activities` |
+| Data vintage | `model_base_year`, `usa_base_io_data_year`, `ipcc_ar_version` |
+
+See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
+
+### Configuration files
+
+All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
+- A single *full-model* config represents a full set of methodology choices made for a release. For example, `2025_usa_cornerstone_full_model.yaml` is the config for the `bedrock` v0.2 release, now the default in `get_usa_config()`.
+- Several *per-flag ablation* configs each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, `2025_usa_cornerstone_taxonomy.yaml` is the config for a specific choice to use Cornerstone taxonomy.
+
+A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.
+
+### Validation and reproducibility
+
+Snapshot tests in [`bedrock/transform/__tests__/test_usa.py`](bedrock/transform/__tests__/test_usa.py) validate the pipeline's main outputs: `B`, `Adom`, `Aimp`, `ytot`, `ydom`, `yimp`, `y_nab`, `scaled_q`, `exports`.
+Each test re-derives one output from scratch and compares it to a reference parquet file in [Google Cloud Storage](https://console.cloud.google.com/storage/browser/cornerstone-default/snapshots?pageState=(%22StorageObjectListTable%22:(%22f%22:%22%255B%255D%22))) (GCS), ensuring 100% numerical reproducibility.
+The tests run twice every weekday on `main` and alert the Cornerstone team on any failure or snapshot diff, guarding against refactors or upstream data updates that silently change output values in ways no unit test would catch.
+
+Snapshots are stored in GCS, one folder per git SHA, and `bedrock/utils/snapshots/.SNAPSHOT_KEY` pins the SHA currently under test.
+When methodology changes, snapshots are regenerated and uploaded under the new SHA, and the pin is bumped.
+Old snapshots are retained, so every prior release remains independently reproducible.
+
+`uv.lock` pins Python and all dependencies, so the exact environment for any snapshot or historical result can be reconstructed.
+
+## Diagnostics of model results: v0.2 vs USEEIO and CEDA-US baselines
+
+Diagnostics comparing v0.2 outputs against USEEIO and CEDA-US baselines will be published in [Cornerstone's papers repository](https://github.com/cornerstone-data/papers).
+
+
 ## License
 See the [LICENSE](/LICENSE) on appropriate use of bedrock and [ATTRIBUTION.md](/ATTRIBUTION.md) for the attribution requirement.
 
@@ -44,3 +103,5 @@ uv run pytest bedrock/transform/__tests__/test_usa.py -m eeio_integration
 ## Outputs
 
 EEIO matrices for each `bedrock` release will be uploaded at a future date for sharing.
+
+v0.2 produces emission factors in **USD 2023, producer prices** (set by `model_base_year: 2023` and `price_type: producer` in `USAConfig`). Users should deflate/inflate or convert to purchaser prices outside `bedrock` if a different basis is needed.
