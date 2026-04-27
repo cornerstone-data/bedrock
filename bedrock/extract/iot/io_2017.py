@@ -5,7 +5,11 @@ import functools
 import pandas as pd
 from typing_extensions import deprecated
 
-from bedrock.extract.iot.constants import GCS_USA_MAKE_USE_DIR, GCS_USA_SUP_DIR
+from bedrock.extract.iot.constants import (
+    GCS_USA_MAKE_USE_DIR,
+    GCS_USA_SUP_DIR,
+)
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -186,8 +190,8 @@ def load_2017_Utot_before_redef_usa() -> pd.DataFrame:
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
                 "Use_detail_before_redef"
             ],
-            sub_bucket=GCS_USA_DIR,
-            local_dir=IN_DIR,
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
                 pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
@@ -246,8 +250,8 @@ def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
                 "Import_detail_before_redef"
             ],
-            sub_bucket=GCS_USA_DIR,
-            local_dir=IN_DIR,
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
                 pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
