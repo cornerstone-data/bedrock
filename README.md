@@ -31,7 +31,7 @@ See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
 ### Configuration files
 
 All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
-- A single *full-model* config represents a full set of methodology choices made for a release. For example, `2025_usa_cornerstone_full_model.yaml` is the config for the `bedrock` v0.2 release, now the default in `get_usa_config()`.
+- A single *full-model* config represents a full set of methodology choices made for a release. For example, `2025_usa_cornerstone_full_model.yaml` is now the default config in `get_usa_config()`.
 - Several *per-flag ablation* configs each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, `2025_usa_cornerstone_taxonomy.yaml` is the config for a specific choice to use Cornerstone taxonomy.
 
 A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.
@@ -94,5 +94,3 @@ uv run pytest bedrock/transform/__tests__/test_usa.py -m eeio_integration
 ## Outputs
 
 EEIO matrices for each `bedrock` release will be uploaded at a future date for sharing.
-
-v0.2 produces emission factors in **USD 2023, producer prices** (set by `model_base_year: 2023` and `price_type: producer` in `USAConfig`). Users should deflate/inflate or convert to purchaser prices outside `bedrock` if a different basis is needed.
