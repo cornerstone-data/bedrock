@@ -9,7 +9,7 @@ CEDA-US is the US portion of the [CEDA Multi-Regional EEIO model](https://opence
 
 **Companion documents:**
 - **[Methodology for Cornerstone U.S. Model](https://github.com/cornerstone-data/papers/blob/v0.2model/us-methods/us-methods.md)** covers the equations, data sources, and methodology choices adopted from USEEIO vs CEDA.
-- **[Cornerstone Technical Architecture Vision](https://github.com/cornerstone-data/papers/blob/published/architecture_vision/Cornerstone_Architecture_Vision.md)** describes the Extract-Transform-Load (ETL) monorepo architecture adopted in `bedrock`.
+- **[Cornerstone Technical Architecture Vision](https://github.com/cornerstone-data/papers/blob/published/architecture_vision/Cornerstone_Architecture_Vision.md)** describes the monorepo architecture adopted in `bedrock`.
 
 ## Methodology choices captured in configuration
 
