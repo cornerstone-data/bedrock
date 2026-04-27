@@ -36,13 +36,13 @@ def derive_gross_output_after_redefinition(
     """
     from bedrock.extract.iot.gdp import load_go_detail
     from bedrock.extract.iot.io_2017 import (
+        load_2017_V_after_redef_usa,
         load_2017_V_before_redef_usa,
-        load_2017_V_usa,
     )
     from bedrock.transform.iot.helpers import map_detail_table
 
     V_before_redef = load_2017_V_before_redef_usa()
-    V_after_redef = load_2017_V_usa()
+    V_after_redef = load_2017_V_after_redef_usa()
     ratios = compute_coproduction_ratios(V_before_redef, V_after_redef)
 
     go_detail = map_detail_table(load_go_detail())
