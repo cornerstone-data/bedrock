@@ -39,7 +39,7 @@ A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so di
 ### Validation and reproducibility
 
 Snapshot tests in [`bedrock/transform/__tests__/test_usa.py`](bedrock/transform/__tests__/test_usa.py) validate the pipeline's main outputs: `B`, `Adom`, `Aimp`, `ytot`, `ydom`, `yimp`, `y_nab`, `scaled_q`, `exports`.
-Each test re-derives one output from scratch and compares it to a reference parquet file in [Google Cloud Storage](https://console.cloud.google.com/storage/browser/cornerstone-default/snapshots?pageState=(%22StorageObjectListTable%22:(%22f%22:%22%255B%255D%22))) (GCS), ensuring 100% numerical reproducibility.
+Each test re-derives one output from scratch and compares it to a reference parquet file in [Google Cloud Storage](https://console.cloud.google.com/storage/browser/cornerstone-default/snapshots?pageState=(%22StorageObjectListTable%22:(%22f%22:%22%255B%255D%22))), ensuring 100% numerical reproducibility.
 The tests run twice every weekday on `main` and alert the Cornerstone team on any failure or snapshot diff, guarding against refactors or upstream data updates that silently change output values in ways no unit test would catch.
 
 Snapshots are stored in GCS, one folder per git SHA, and `bedrock/utils/snapshots/.SNAPSHOT_KEY` pins the SHA currently under test.
