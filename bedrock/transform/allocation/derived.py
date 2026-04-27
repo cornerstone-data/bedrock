@@ -74,6 +74,12 @@ def _build_mapping_with_allocations(
             .assign(Allocation=1.0)
             .reset_index(drop=True)
         )
+    # TODO:
+    # m2 NAICS→BEA weights use derive_gross_output_after_redefinition (after-redef-adjusted
+    # BEA detail GO). USEEIO Phoebe sets BasewithRedefinitions: FALSE so getNAICStoBEAAllocation
+    # uses MultiYearIndustryOutput tied to before-redef benchmark IO. Evaluate whether to
+    # branch weight source on model config (e.g. iot_before_or_after_redefinition or a
+    # dedicated flag) for parity vs documenting an intentional difference.
 
     go = derive_gross_output_after_redefinition(
         target_year=get_usa_config().usa_ghg_data_year
