@@ -2,7 +2,7 @@
 
 `bedrock` is a pipeline for building environmentally-extended input-output (EEIO) models and related data artifacts, like emission factors.
 
-`bedrock` merges USEEIO and CEDA-US to build the Cornerstone U.S. model, a waypoint toward the Cornerstone global Multi-Regional EEIO (MRIO) model targeted for release in October 2026.
+`bedrock` merges USEEIO and CEDA-US to build the Cornerstone U.S. model, a waypoint toward the Cornerstone global Multi-Regional EEIO model targeted for release in October 2026.
 USEEIO is [a US specific legacy EEIO model](https://github.com/USEPA/USEEIO) originally developed by the US EPA.
 CEDA-US (Comprehensive Environmental Data Archive) is the US portion of the [CEDA Multi-Regional EEIO (MRIO) model](https://openceda.org/solutions/ceda), developed by Watershed.
 `bedrock` brings in methodological contributions and improvements from both models and establishes a config-driven system that will be carried forward to the development of Cornerstone's global MRIO model outside of `bedrock`.
