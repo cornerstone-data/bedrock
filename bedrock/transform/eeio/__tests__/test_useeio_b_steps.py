@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pandas as pd
 import pytest
@@ -11,7 +12,19 @@ from bedrock.transform.eeio import derived_cornerstone as dc
 def test_useeio_b_adjust_divide_transform_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    e = pd.DataFrame([[10.0, 20.0]], index=["CO2"], columns=["I1", "I2"])
+    e = pd.DataFrame(
+        [
+            [10.0, 20.0],  # CO2
+            [0.0, 0.0],  # CH4
+            [0.0, 0.0],  # N2O
+            [0.0, 0.0],  # HFCs
+            [0.0, 0.0],  # PFCs
+            [0.0, 0.0],  # SF6
+            [0.0, 0.0],  # NF3
+        ],
+        index=["CO2", "CH4", "N2O", "HFCs", "PFCs", "SF6", "NF3"],
+        columns=["I1", "I2"],
+    )
     x_nominal = pd.Series([100.0, 200.0], index=["I1", "I2"])
     # Convert target-year nominal output to 2017 USD.
     ratio = pd.Series([0.5, 0.5], index=["I1", "I2"])
@@ -41,10 +54,22 @@ def test_useeio_b_adjust_divide_transform_steps(
     )
     monkeypatch.setattr(dc, "derive_cornerstone_Vnorm_scrap_corrected", lambda: vnorm)
 
-    out = dc.derive_cornerstone_B_via_vnorm()
+    out = cast(Any, dc.derive_cornerstone_B_via_vnorm).__wrapped__()
 
     # Step 1: adjusted x = [50, 100]
     # Step 2: Bi = E / adjusted x = [0.2, 0.2]
     # Step 3: B = Bi @ I = Bi
-    expected = pd.DataFrame([[0.2, 0.2]], index=["CO2"], columns=["I1", "I2"])
+    expected = pd.DataFrame(
+        [
+            [0.2, 0.2],  # CO2
+            [0.0, 0.0],  # CH4
+            [0.0, 0.0],  # N2O
+            [0.0, 0.0],  # HFCs
+            [0.0, 0.0],  # PFCs
+            [0.0, 0.0],  # SF6
+            [0.0, 0.0],  # NF3
+        ],
+        index=["CO2", "CH4", "N2O", "HFCs", "PFCs", "SF6", "NF3"],
+        columns=["I1", "I2"],
+    )
     pd.testing.assert_frame_equal(out, expected)
