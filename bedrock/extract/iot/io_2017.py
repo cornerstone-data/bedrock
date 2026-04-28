@@ -5,6 +5,7 @@ import functools
 import pandas as pd
 from typing_extensions import deprecated
 
+from bedrock.extract.iot.constants import GCS_USA_MAKE_USE_DIR, GCS_USA_SUP_DIR
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
@@ -53,8 +54,6 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_VALUE_ADDED_INDEX,
 )
 
-GCS_USA_MAKE_USE_DIR = gcs_extract_input_path("USA_AllTables_MakeUse")
-GCS_USA_SUP_DIR = gcs_extract_input_path("USA_AllTablesSUP")
 LOCAL_USA_MAKE_USE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_MAKE_USE_DIR)
 LOCAL_USA_SUP_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_SUP_DIR)
 

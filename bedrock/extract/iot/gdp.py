@@ -3,7 +3,7 @@ import posixpath
 
 import pandas as pd
 
-from bedrock.extract.iot.constants import GCS_GDP_DETAIL_TABLES
+from bedrock.extract.iot.constants import GCS_GDP_DETAIL_TABLES, GCS_GDP_DIR
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -80,8 +80,7 @@ def _download_summary_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(
-            gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
+        sub_bucket=posixpath.join(GCS_GDP_DIR,
             f"GdpByInd_{BEA_DATA_VERSION}",
         ),
         pth=os.path.join(_LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
@@ -130,8 +129,7 @@ def _download_detail_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(
-            gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
+        sub_bucket=posixpath.join(GCS_GDP_DIR,
             f"UGdpByInd_{BEA_DATA_VERSION}",
         ),
         pth=os.path.join(_LOCAL_GDP_DETAIL_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
