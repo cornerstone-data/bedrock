@@ -3,17 +3,22 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 from bedrock.transform.eeio import derived_cornerstone as dc
 
 
-def test_useeio_b_adjust_divide_transform_steps(monkeypatch) -> None:
+def test_useeio_b_adjust_divide_transform_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     e = pd.DataFrame([[10.0, 20.0]], index=["CO2"], columns=["I1", "I2"])
     x_nominal = pd.Series([100.0, 200.0], index=["I1", "I2"])
     # Convert target-year nominal output to 2017 USD.
     ratio = pd.Series([0.5, 0.5], index=["I1", "I2"])
     # Identity market-share transform for easy expected value check.
-    vnorm = pd.DataFrame([[1.0, 0.0], [0.0, 1.0]], index=["I1", "I2"], columns=["I1", "I2"])
+    vnorm = pd.DataFrame(
+        [[1.0, 0.0], [0.0, 1.0]], index=["I1", "I2"], columns=["I1", "I2"]
+    )
 
     monkeypatch.setattr(
         dc,
@@ -26,7 +31,9 @@ def test_useeio_b_adjust_divide_transform_steps(monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(dc, "derive_E_usa", lambda: e)
-    monkeypatch.setattr(dc, "derive_cornerstone_x_after_redefinition", lambda: x_nominal)
+    monkeypatch.setattr(
+        dc, "derive_cornerstone_x_after_redefinition", lambda: x_nominal
+    )
     monkeypatch.setattr(
         dc,
         "get_cornerstone_industry_price_ratio",
@@ -34,7 +41,7 @@ def test_useeio_b_adjust_divide_transform_steps(monkeypatch) -> None:
     )
     monkeypatch.setattr(dc, "derive_cornerstone_Vnorm_scrap_corrected", lambda: vnorm)
 
-    out = dc.derive_cornerstone_B_via_vnorm.__wrapped__()
+    out = dc.derive_cornerstone_B_via_vnorm()
 
     # Step 1: adjusted x = [50, 100]
     # Step 2: Bi = E / adjusted x = [0.2, 0.2]
