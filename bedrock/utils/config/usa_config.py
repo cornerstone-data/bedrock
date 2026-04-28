@@ -61,7 +61,7 @@ class USAConfig(BaseModel):
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
-    scale_a_matrix_with_price_index: bool = False  # DRI: mo.li
+    scale_a_matrix_with_industry_price_index: bool = False  # DRI: mo.li
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
