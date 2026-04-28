@@ -48,7 +48,7 @@ Old snapshots are retained, so every prior release remains independently reprodu
 
 ### Diagnostics of model results compared to USEEIO and CEDA-US baselines
 
-A work-in-progress diagnostics report comparing `bedrock` outputs against USEEIO and CEDA-US can be found in [here](https://github.com/cornerstone-data/papers/blob/diagnostics-report-v0-2/diagnostics_report/bedrock_v0_2_to_v0_diagnostics.md) in Cornerstone's papers repository.
+A work-in-progress diagnostics report comparing `bedrock` outputs against USEEIO and CEDA-US can be found in [here](https://github.com/cornerstone-data/papers/blob/internal-review-diagnostics-report/diagnostics_report/bedrock_diagnostics.md) in Cornerstone's papers repository.
 
 
 ## License
