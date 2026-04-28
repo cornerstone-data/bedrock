@@ -80,7 +80,8 @@ def _download_summary_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(GCS_GDP_DIR,
+        sub_bucket=posixpath.join(
+            GCS_GDP_DIR,
             f"GdpByInd_{BEA_DATA_VERSION}",
         ),
         pth=os.path.join(_LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
@@ -129,7 +130,8 @@ def _download_detail_table() -> None:
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
-        sub_bucket=posixpath.join(GCS_GDP_DIR,
+        sub_bucket=posixpath.join(
+            GCS_GDP_DIR,
             f"UGdpByInd_{BEA_DATA_VERSION}",
         ),
         pth=os.path.join(_LOCAL_GDP_DETAIL_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
