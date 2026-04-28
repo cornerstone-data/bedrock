@@ -19,7 +19,10 @@ from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
+from bedrock.utils.taxonomy.cornerstone.industries import (
+    INDUSTRIES,
+    WASTE_DISAGG_INDUSTRIES,
+)
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
     load_bea_v2017_industry_to_bea_v2017_commodity,
@@ -102,8 +105,30 @@ def _should_use_output_weighted_mapping() -> bool:
     return bool(get_usa_config().use_ghg_national_2023_m2)
 
 
+def _apply_cornerstone_waste_overrides(mapping: pd.DataFrame) -> pd.DataFrame:
+    """Override waste NAICS mappings with Cornerstone waste-disaggregated targets."""
+    waste_targets = set(WASTE_DISAGG_INDUSTRIES['562000'])
+    cs_mapping = _build_mapping_with_allocations(
+        get_activitytosector_mapping('Cornerstone_2025'),
+        use_output_weights=False,
+    )[['Sector', 'Activity']].dropna()
+    waste_override = cs_mapping[
+        cs_mapping['Sector'].str.startswith('562')
+        & cs_mapping['Activity'].isin(waste_targets)
+    ].drop_duplicates()
+    waste_naics = set(waste_override['Sector'])
+    return pd.concat(
+        [mapping[~mapping['Sector'].isin(waste_naics)], waste_override],
+        ignore_index=True,
+    ).drop_duplicates()
+
+
 def _build_naics_to_bea_weighted_mapping() -> pd.DataFrame:
-    """Build NAICS->BEA mapping weighted by gross output for GHG year."""
+    """Build NAICS->BEA mapping weighted by gross output for GHG year.
+
+    When waste disaggregation is enabled, start from the NAICS->BEA crosswalk and
+    override waste NAICS rows with the Cornerstone waste disaggregation.
+    """
     cw = load_crosswalk('NAICS_to_BEA_Crosswalk_2017')
     mapping = cw.rename(
         columns={
@@ -112,6 +137,8 @@ def _build_naics_to_bea_weighted_mapping() -> pd.DataFrame:
         }
     )[['Sector', 'Activity']]
     mapping = mapping.dropna().drop_duplicates().astype('string')
+    if get_usa_config().implement_waste_disaggregation:
+        mapping = _apply_cornerstone_waste_overrides(mapping)
 
     go = derive_gross_output_after_redefinition(
         target_year=get_usa_config().usa_ghg_data_year
