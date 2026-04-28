@@ -80,8 +80,10 @@ from bedrock.transform.iot.derived_gross_industry_output import (
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
 from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
     inflate_cornerstone_A_matrix,
+    inflate_cornerstone_A_matrix_with_commodity_pi,
     inflate_cornerstone_B_matrix,
     inflate_cornerstone_q_or_y,
+    inflate_cornerstone_q_or_y_with_commodity_pi,
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
@@ -541,6 +543,25 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             base.Aimp, original_year=detail_year, target_year=model_year
         )
         q = inflate_cornerstone_q_or_y(
+            base.scaled_q, original_year=detail_year, target_year=model_year
+        )
+        return SingleRegionAqMatrixSet(
+            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
+            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
+            scaled_q=q,
+        )
+
+    # Commodity price index (V-norm-derived): like the industry-price branch,
+    # but uses V_norm to weight industry price ratios into commodity space
+    # before applying diag(p) @ A @ diag(1/p).
+    if cfg.scale_a_matrix_with_commodity_price_index:
+        Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
+            base.Adom, original_year=detail_year, target_year=model_year
+        )
+        Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
+            base.Aimp, original_year=detail_year, target_year=model_year
+        )
+        q = inflate_cornerstone_q_or_y_with_commodity_pi(
             base.scaled_q, original_year=detail_year, target_year=model_year
         )
         return SingleRegionAqMatrixSet(

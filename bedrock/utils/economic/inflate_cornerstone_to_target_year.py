@@ -86,6 +86,78 @@ def inflate_cornerstone_A_matrix(
     )
 
 
+@functools.cache
+def get_vnorm_adjusted_commodity_price_ratio(
+    original_year: int, target_year: int
+) -> pd.Series[float]:
+    """V-norm-weighted commodity price ratio.
+
+    The CEDA price index is industry-level. ``get_cornerstone_price_ratio``
+    reindexes those industry ratios onto cornerstone commodity codes 1:1,
+    treating each industry as its own primary commodity. This helper instead
+    produces a commodity ratio that reflects the actual mix of industries
+    supplying each commodity, weighted by V_norm:
+
+        r_com[j] = sum_i V_norm[i, j] * r_ind[i]
+
+    i.e. a column-weighted average of industry price ratios across the
+    industries that supply commodity j. This is a ratio-of-ratios
+    approximation of the (theoretically purer) ratio of V-norm-aggregated
+    price levels; the two coincide when industry prices are uniform within
+    a commodity's supplying mix.
+    """
+    # local import to avoid a circular dependency on transform.eeio
+    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+        derive_cornerstone_Vnorm_scrap_corrected,
+    )
+
+    industry_ratio = get_cornerstone_price_ratio(original_year, target_year)
+    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+    aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
+
+    # Normalize V_norm columns to sum to 1 so the dot-product is a true weighted
+    # *average*, not a weighted *sum*. Scrap correction in
+    # `derive_cornerstone_Vnorm_scrap_corrected` is a row-axis scaling that
+    # leaves column sums slightly > 1 — using the un-renormalized form would
+    # produce a non-1 ratio at year=year (off by the column-sum drift, ~5–7%).
+    # Done locally here rather than upstream because A/B matrix consumers want
+    # the un-renormalized scrap-corrected V_norm.
+    column_sums = Vnorm.sum(axis=0)
+    weights = Vnorm.divide(column_sums.where(column_sums > 1e-9, 1.0), axis=1)
+    commodity_ratio = weights.T @ aligned
+
+    # Commodities with no industry coverage (V_norm column ≈ 0, e.g. S00402
+    # used goods) yield a 0 weighted-average, which would inject zeros into
+    # diag(p) @ A @ diag(1/p). Fall back to the industry ratio, mirroring the
+    # neutral 1.0 default in get_cornerstone_price_ratio.
+    no_coverage = column_sums < 1e-9
+    fallback = industry_ratio.reindex(commodity_ratio.index, fill_value=1.0)
+    commodity_ratio = commodity_ratio.where(~no_coverage, fallback)
+
+    return commodity_ratio.reindex(CORNERSTONE_COMMODITIES, fill_value=1.0)
+
+
+def inflate_cornerstone_A_matrix_with_commodity_pi(
+    A: pd.DataFrame, original_year: int, target_year: int
+) -> pd.DataFrame:
+    """Same `diag(p) @ A @ diag(1/p)` form as ``inflate_cornerstone_A_matrix``,
+    but with the V-norm-derived commodity price ratio.
+    """
+    price_ratio = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    return pd.DataFrame(
+        (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
+        index=A.index,
+        columns=A.columns,
+    )
+
+
+def inflate_cornerstone_q_or_y_with_commodity_pi(
+    q_or_y: pd.Series[float], original_year: int, target_year: int
+) -> pd.Series[float]:
+    price_ratio = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
+
+
 def inflate_cornerstone_B_matrix(
     B: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:

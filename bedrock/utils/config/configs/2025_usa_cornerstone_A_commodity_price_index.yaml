@@ -1,0 +1,5 @@
+# Tests V-norm-derived commodity-price-index approach for deriving the A matrix.
+# A is inflated 2017 -> target year using a V_norm-weighted commodity price ratio
+# (industry ratios aggregated into commodity space). Step 0 of epic #337.
+use_cornerstone_2026_model_schema: True
+scale_a_matrix_with_commodity_price_index: True
