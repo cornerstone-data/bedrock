@@ -17,9 +17,8 @@ from bedrock.transform.allocation.utils import parse_index_with_aggregates
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.gwp import derive_ar5_to_ar6_multiplier
 from bedrock.utils.io.gcp import load_from_gcs
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
-
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 
 
 def _get_epa_data_year() -> int:
@@ -46,6 +45,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
     """Get GCS EPA directories based on config year"""
     year = _get_epa_data_year()
     section = tbl_name.split("-")[0]
+    base = gcs_extract_input_path("EPA_GHGI", year)
 
     main_or_annex_dir = (
         {
@@ -66,9 +66,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
     # }
 
     if section == "A":
-        return posixpath.join(
-            GCS_CEDA_INPUT_DIR, main_or_annex_dir["annex"], f"Table {tbl_name}.csv"
-        )
+        return posixpath.join(base, main_or_annex_dir["annex"], f"Table {tbl_name}.csv")
 
     chapter_dir = (
         {
@@ -94,7 +92,7 @@ def _get_gcs_epa_dir_for_table(tbl_name: TBL_NUMBERS) -> str:
         }
     )
     return posixpath.join(
-        GCS_CEDA_INPUT_DIR,
+        base,
         main_or_annex_dir["main"],
         chapter_dir[int(section)],
         f"Table {tbl_name}.csv",
@@ -113,10 +111,11 @@ def _load_epa_tbl_from_gcs(
     tbl_name: TBL_NUMBERS, loader: ta.Optional[ta.Callable[[str], pd.DataFrame]] = None
 ) -> pd.DataFrame:
     table_dir = _get_gcs_epa_dir_for_table(tbl_name)
+    gcs_sub_bucket = os.path.split(table_dir)[0]
     return load_from_gcs(
         name=os.path.split(table_dir)[-1],
-        sub_bucket=os.path.split(table_dir)[0],
-        local_dir=IN_DIR,
+        sub_bucket=gcs_sub_bucket,
+        local_dir=local_dir_for_gcs_sub_bucket(gcs_sub_bucket),
         loader=loader or pd.read_csv,
     )
 
