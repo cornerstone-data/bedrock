@@ -78,6 +78,7 @@ from bedrock.transform.iot.derived_gross_industry_output import (
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_cornerstone_industry_price_ratio,
     inflate_cornerstone_A_matrix_with_commodity_pi,
     inflate_cornerstone_A_matrix_with_industry_pi,
     inflate_cornerstone_B_matrix_with_industry_pi,
@@ -293,9 +294,6 @@ def derive_cornerstone_Vnorm_scrap_corrected(
                 f"target_year must be a positive year when apply_inflation=True, "
                 f"got {target_year}"
             )
-        from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
-            get_cornerstone_industry_price_ratio,
-        )
 
         # Adjust V by applying industry price ratio
         price_ratio = get_cornerstone_industry_price_ratio(
@@ -654,17 +652,32 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
     Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
-    Industry ``x`` is ``derive_cornerstone_x_after_redefinition()`` when
-    ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
+    Industry ``x`` is:
+    - USEEIO B method (`use_useeio_B=True`): target-year gross output adjusted
+      to original-year USD using industry chained-price index ratio.
+    - otherwise: ``derive_cornerstone_x_after_redefinition()`` when
+      ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
     E = derive_E_usa()
     cfg = get_usa_config()
-    x = (
-        derive_cornerstone_x_after_redefinition()
-        if cfg.use_E_data_year_for_x_in_B
-        else derive_cornerstone_x()
-    )
+    if cfg.use_useeio_B:
+        # USEEIO B method:
+        #   1) adjust target-year industry output into original-year USD
+        #   2) divide E by adjusted industry output
+        #   3) transform to commodity space using market shares (Vnorm)
+        x_nominal = derive_cornerstone_x_after_redefinition()
+        ratio = get_cornerstone_industry_price_ratio(
+            original_year=cfg.usa_detail_original_year,
+            target_year=cfg.usa_ghg_data_year,
+        )
+        x = x_nominal.multiply(ratio.reindex(x_nominal.index, fill_value=1.0))
+    else:
+        x = (
+            derive_cornerstone_x_after_redefinition()
+            if cfg.use_E_data_year_for_x_in_B
+            else derive_cornerstone_x()
+        )
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
     Bi = E.divide(x, axis=1).fillna(0.0)
     return Bi @ Vnorm
@@ -675,6 +688,11 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
     cfg = get_usa_config()
+    # USEEIO B method keeps B on the base derivation path (no summary scaling /
+    # price inflation of B). use_E_data_year_for_x_in_B remains an independent
+    # x-sourcing switch inside derive_cornerstone_B_via_vnorm().
+    if cfg.use_useeio_B:
+        return derive_cornerstone_B_via_vnorm()
     if cfg.use_E_data_year_for_x_in_B:
         return derive_cornerstone_B_via_vnorm()
     else:
