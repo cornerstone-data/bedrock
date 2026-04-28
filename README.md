@@ -8,8 +8,8 @@ CEDA-US is the US portion of the [CEDA Multi-Regional EEIO model](https://opence
 `bedrock` brings in methodological contributions and improvements from both models and establishes a config-driven system that will be carried forward to the development of Cornerstone's global MRIO model outside of `bedrock`.
 
 **Companion documents:**
-- **[Methodology for Cornerstone U.S. Model](https://github.com/cornerstone-data/papers/blob/v0.2model/us-methods/us-methods.md)** covers the equations, data sources, and methodology choices adopted from USEEIO vs CEDA.
-- **[Cornerstone Technical Architecture Vision](https://github.com/cornerstone-data/papers/blob/published/architecture_vision/Cornerstone_Architecture_Vision.md)** describes the monorepo architecture adopted in `bedrock`.
+- **[Methodology for Cornerstone U.S. Model](https://github.com/cornerstone-data/papers/blob/f2372a0d72def7a9961279ab22982adac07e5f67/us-methods/us-methods.md)** covers the equations, data sources, and methodology choices adopted from USEEIO vs CEDA.
+- **[Cornerstone Technical Architecture Vision](https://github.com/cornerstone-data/papers/blob/449b7981b537be419dc861b49fac559547b09bae/architecture_vision/Cornerstone_Architecture_Vision.md)** describes the monorepo architecture adopted in `bedrock`.
 
 ## Methodology choices captured in configuration
 
@@ -31,8 +31,8 @@ See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
 ### Configuration files
 
 All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
-- A single *full-model* config represents a full set of methodology choices made for a release. For example, `2025_usa_cornerstone_full_model.yaml` is now the default config in `get_usa_config()`.
-- Several *per-flag ablation* configs each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, `2025_usa_cornerstone_taxonomy.yaml` is the config for a specific choice to use Cornerstone taxonomy.
+- A single *full-model* config represents a full set of methodology choices made for a data release. For example, [`2025_usa_cornerstone_full_model.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_full_model.yaml) is now the default config in `get_usa_config()`.
+- Several *per-flag ablation* configs each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, [`2025_usa_cornerstone_taxonomy.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_taxonomy.yaml) is the config for a specific choice to use Cornerstone taxonomy.
 
 A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.
 
@@ -42,15 +42,13 @@ Snapshot tests in [`bedrock/transform/__tests__/test_usa.py`](bedrock/transform/
 Each test re-derives one output from scratch and compares it to a reference parquet file in [Google Cloud Storage](https://console.cloud.google.com/storage/browser/cornerstone-default/snapshots?pageState=(%22StorageObjectListTable%22:(%22f%22:%22%255B%255D%22))), ensuring 100% numerical reproducibility.
 The tests run twice every weekday on `main` and alert the Cornerstone team on any failure or snapshot diff, guarding against refactors or upstream data updates that silently change output values in ways no unit test would catch.
 
-Snapshots are stored in GCS, one folder per git SHA, and `bedrock/utils/snapshots/.SNAPSHOT_KEY` pins the SHA currently under test.
+Snapshots are stored in GCS, one folder per git SHA, and [`bedrock/utils/snapshots/.SNAPSHOT_KEY`](bedrock/utils/snapshots/.SNAPSHOT_KEY) pins the SHA currently under test.
 When methodology changes, snapshots are regenerated and uploaded under the new SHA, and the pin is bumped.
 Old snapshots are retained, so every prior release remains independently reproducible.
 
-`uv.lock` pins Python and all dependencies, so the exact environment for any snapshot or historical result can be reconstructed.
-
 ### Diagnostics of model results compared to USEEIO and CEDA-US baselines
 
-A work-in-progress diagnostics report comparing `bedrock` outputs against USEEIO and CEDA-US can be found in [Cornerstone's papers repository](https://github.com/cornerstone-data/papers/pull/12).
+A work-in-progress diagnostics report comparing `bedrock` outputs against USEEIO and CEDA-US can be found in [here](https://github.com/cornerstone-data/papers/blob/diagnostics-report-v0-2/diagnostics_report/bedrock_v0_2_to_v0_diagnostics.md) in Cornerstone's papers repository.
 
 
 ## License
