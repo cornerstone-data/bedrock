@@ -26,6 +26,13 @@ and produces:
   widespread is the divergence and how does it spread?" — complements the
   scatter (which shows magnitude at a single year).
 
+- ``baseline_reference_{dom,imp}.png`` — 1×2 reference plot comparing the
+  two baselines directly: USEEIO-vs-CEDA scatter at the latest common year
+  plus share-of-cells over thresholds across years. Provides a "reference
+  floor" for interpreting alternative-vs-baseline divergence — readers can
+  read the alternative-vs-USEEIO and alternative-vs-CEDA panels against
+  the gap between the baselines themselves.
+
 - ``divergence_vs_useeio`` and ``divergence_vs_ceda`` tabs appended to the
   run-report Sheet. Each row is per (approach, year, dom_or_imp), with
   ``max``, ``p99``, ``p95``, ``p75``, ``p50``, ``mean``, and
@@ -454,6 +461,157 @@ def _publish_divergence_tabs(
     logger.info("Updated tabs on sheet %s", sheet_id)
 
 
+def plot_baseline_reference(long: pd.DataFrame, kind: str, path: Path) -> None:
+    """1×2 reference figure comparing the two baselines (USEEIO vs CEDA-US).
+
+    Left: scatter of A_useeio (x) vs A_ceda_default (y) at the latest year
+    both baselines have data, square aspect, shared limits, with summary
+    stats (n, mean / p95 / max ``|Δ|``, R²).
+
+    Right: share of cells with ``|A_useeio − A_ceda_default|`` above each
+    threshold in ``DIVERGENCE_THRESHOLDS``, plotted over years.
+
+    Provides a "reference floor": divergence between alternative approaches
+    and a baseline can be read against the baseline-vs-baseline divergence
+    from the same data.
+    """
+    sub = long[long["dom_or_imp"] == kind]
+    target_year = _latest_common_year(sub, ["useeio", "ceda_default"])
+    if target_year is None:
+        logger.warning(
+            "No common year for useeio + ceda_default, kind=%s; skipping baseline ref.",
+            kind,
+        )
+        return
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5), squeeze=False)
+    fig.suptitle(f"Baseline reference: USEEIO vs CEDA-US — {kind}", fontsize=12)
+
+    # --- Left: scatter at latest year --------------------------------------
+    ax_scatter = axes[0][0]
+    year_pivot = sub[sub["year"] == target_year].pivot_table(
+        index=["row_sector", "col_sector"],
+        columns="approach",
+        values="A_value",
+    )
+    if "useeio" in year_pivot.columns and "ceda_default" in year_pivot.columns:
+        x = year_pivot["useeio"].to_numpy()
+        y = year_pivot["ceda_default"].to_numpy()
+        mask = ~(np.isnan(x) | np.isnan(y))
+        x_f = np.asarray(x[mask], dtype=float)
+        y_f = np.asarray(y[mask], dtype=float)
+        ax_scatter.scatter(
+            x_f, y_f, s=8, alpha=0.35, color="darkorange", edgecolor="none"
+        )
+        lo = float(min(x_f.min(), y_f.min()))
+        hi = float(max(x_f.max(), y_f.max()))
+        ax_scatter.plot([lo, hi], [lo, hi], "r--", lw=0.6, alpha=0.7, label="y=x")
+        ax_scatter.set_xlim(lo, hi)
+        ax_scatter.set_ylim(lo, hi)
+        ax_scatter.set_aspect("equal", adjustable="box")
+        abs_delta = np.abs(y_f - x_f)
+        r2 = (
+            float(np.corrcoef(x_f, y_f)[0, 1] ** 2)
+            if x_f.std() > 0 and y_f.std() > 0
+            else float("nan")
+        )
+        stats_text = (
+            f"n = {x_f.size:,}\n"
+            f"mean |Δ| = {abs_delta.mean():.4f}\n"
+            f"p95 |Δ|  = {np.quantile(abs_delta, 0.95):.4f}\n"
+            f"max |Δ|  = {abs_delta.max():.4f}\n"
+            f"R²       = {r2:.4f}"
+        )
+        ax_scatter.text(
+            0.02,
+            0.98,
+            stats_text,
+            transform=ax_scatter.transAxes,
+            va="top",
+            ha="left",
+            fontsize=11,
+            family="monospace",
+            bbox={
+                "boxstyle": "round,pad=0.3",
+                "facecolor": "white",
+                "alpha": 0.85,
+                "edgecolor": "gray",
+            },
+        )
+    ax_scatter.set_xlabel("USEEIO A_value")
+    ax_scatter.set_ylabel("CEDA-US A_value")
+    ax_scatter.set_title(f"USEEIO vs CEDA-US ({target_year})", fontsize=10)
+    ax_scatter.grid(True, alpha=0.3)
+
+    # --- Right: share over thresholds, by year ----------------------------
+    ax_share = axes[0][1]
+    pivot_baseline = sub.pivot_table(
+        index=["row_sector", "col_sector"],
+        columns=["approach", "year"],
+        values="A_value",
+    )
+    if "useeio" not in pivot_baseline.columns.get_level_values(
+        0
+    ) or "ceda_default" not in pivot_baseline.columns.get_level_values(0):
+        ax_share.text(
+            0.5,
+            0.5,
+            "no baseline data",
+            transform=ax_share.transAxes,
+            ha="center",
+            va="center",
+        )
+    else:
+        useeio_wide = pivot_baseline["useeio"]
+        ceda_wide = pivot_baseline["ceda_default"]
+        common_years = sorted(set(useeio_wide.columns) & set(ceda_wide.columns))
+        if not common_years:
+            ax_share.text(
+                0.5,
+                0.5,
+                "no common years",
+                transform=ax_share.transAxes,
+                ha="center",
+                va="center",
+            )
+        else:
+            useeio_arr = useeio_wide[common_years].to_numpy()
+            ceda_arr = ceda_wide[common_years].to_numpy()
+            abs_delta_arr = np.abs(useeio_arr - ceda_arr)
+            keep = ~np.isnan(abs_delta_arr).any(axis=1)
+            kept = abs_delta_arr[keep]
+            years_arr = np.array(common_years, dtype=float)
+            cmap = plt.get_cmap("viridis")
+            colors = [
+                cmap(i / max(len(DIVERGENCE_THRESHOLDS) - 1, 1))
+                for i in range(len(DIVERGENCE_THRESHOLDS))
+            ]
+            panel_max = 0.0
+            for thr, color in zip(DIVERGENCE_THRESHOLDS, colors, strict=True):
+                share = (kept > thr).mean(axis=0)
+                panel_max = max(panel_max, float(share.max()))
+                ax_share.plot(
+                    years_arr,
+                    share,
+                    color=color,
+                    lw=1.8,
+                    marker="o",
+                    markersize=3,
+                    label=f"|Δ| > {thr:g}",
+                )
+            ax_share.set_xlim(years_arr.min(), years_arr.max())
+            ax_share.set_ylim(0, max(panel_max * 1.1, 0.01))
+            ax_share.legend(loc="upper left", fontsize=8, framealpha=0.85)
+    ax_share.set_xlabel("year")
+    ax_share.set_ylabel("share of cells")
+    ax_share.set_title("Share with |USEEIO − CEDA-US| above threshold", fontsize=10)
+    ax_share.grid(True, alpha=0.3)
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -473,6 +631,9 @@ def main() -> None:
             long, kind, PLOTS_DIR / f"scatter_vs_baselines_{kind}.png"
         )
         plot_divergence_share(long, kind, PLOTS_DIR / f"divergence_share_{kind}.png")
+        plot_baseline_reference(
+            long, kind, PLOTS_DIR / f"baseline_reference_{kind}.png"
+        )
 
     _publish_divergence_tabs(div_useeio_df, div_ceda_df)
     logger.info("Step 2 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
