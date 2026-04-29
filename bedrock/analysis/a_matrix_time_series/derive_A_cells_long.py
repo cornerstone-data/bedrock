@@ -5,18 +5,33 @@ and produces:
 
 - ``A_cells_long.parquet`` — long-format
   ``(row_sector, col_sector, year, approach, dom_or_imp, A_value,
-    delta_from_2017, delta_yoy)``. ~11M rows.
-- ``step2_heatmap_{dom,imp}.png`` — per-year heatmap of ``log10|A_y − A_2017|``
-  cell counts, faceted by approach. Surfaces where in cell-magnitude space the
-  cumulative drift lives over time.
-- ``step2_ridgeline_{dom,imp}.png`` — overlaid per-year step histogram of
-  ``log10|A_y − A_2017|``, faceted by approach. Same data as the heatmap, more
-  direct year-curve comparison.
-- ``step2_yoy_norms_{dom,imp}.png`` — time series of column-L1 and column-L2
-  YoY norms, one line per approach.
-- ``step2_magnitude_quantiles`` and ``step2_yoy_norms`` tabs appended to the
-  run-report Sheet (sheet ID read from ``last_run_sheet_id.txt`` written by
-  Step 1; if missing, Sheet publish is skipped with a warning).
+    delta_from_2017, delta_yoy, delta_vs_useeio, delta_vs_ceda)``. ~12.8M rows.
+  Two baseline-divergence columns honor the **two-baseline convention** from
+  the analysis plan: every comparison is reported against both USEEIO (the
+  unchanged BEA-2017 base) and CEDA-US (the production-default approach at
+  the same year).
+
+- ``scatter_vs_baselines_{dom,imp}.png`` — 3×2 grid (alternative approach ×
+  baseline) of element-wise scatter plots. Per-row target year is the latest
+  year where the approach and both baselines all have data:
+  ``commodity_price_index`` and ``industry_price_index`` rows resolve to 2024;
+  ``summary_tables`` falls back to 2023 (BEA Excel hasn't published 2024 yet).
+  All 6 panels share the same ``xlim``/``ylim`` so the ``y=x`` line is a true
+  45° reference. Each panel has a top-left summary box with ``n``, mean / p95
+  / max ``|Δ|``, and ``R²``.
+
+- ``divergence_share_{dom,imp}.png`` — 3×2 grid (alternative × baseline) of
+  the share of cells whose ``|A_approach − A_baseline|`` exceeds each
+  threshold (1e-4, 1e-3, 1e-2, 1e-1) plotted over years. Answers "how
+  widespread is the divergence and how does it spread?" — complements the
+  scatter (which shows magnitude at a single year).
+
+- ``divergence_vs_useeio`` and ``divergence_vs_ceda`` tabs appended to the
+  run-report Sheet. Each row is per (approach, year, dom_or_imp), with
+  ``max``, ``p99``, ``p95``, ``p75``, ``p50``, ``mean``, and
+  ``n_above_1pct`` of ``|delta_vs_<baseline>|``. Sheet ID is read from
+  ``last_run_sheet_id.txt`` (written by Step 1); if missing, Sheet publish
+  is skipped with a warning.
 
 Usage:
     python -m bedrock.analysis.a_matrix_time_series.derive_A_cells_long
@@ -26,6 +41,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,9 +57,8 @@ PLOTS_DIR = OUTPUT_DIR / "plots"
 LAST_RUN_SHEET_ID_PATH = RESULTS_DIR / "last_run_sheet_id.txt"
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-# Magnitude bins on log10 |A| scale. Cells with A == 0 are dropped from the
-# magnitude analysis; their count is reported separately.
-_LOG10_BIN_EDGES = np.arange(-12.0, 1.5, 0.5)
+SCATTER_APPROACHES = ("commodity_price_index", "industry_price_index", "summary_tables")
+SCATTER_BASELINES = (("useeio", "USEEIO"), ("ceda_default", "CEDA-US"))
 
 
 def _list_pairs() -> list[tuple[str, int]]:
@@ -95,8 +110,10 @@ def _melt(df: pd.DataFrame, approach: str, year: int, kind: str) -> pd.DataFrame
 
 
 def build_a_cells_long() -> pd.DataFrame:
-    """Concat all (approach, year, dom_or_imp) cells, attach ``delta_from_2017``
-    and ``delta_yoy`` per (approach, dom_or_imp, row_sector, col_sector)."""
+    """Concat all cells; attach intra-approach drift (``delta_from_2017``,
+    ``delta_yoy``) and dual-baseline divergence (``delta_vs_useeio``,
+    ``delta_vs_ceda``) per (approach, dom_or_imp, row_sector, col_sector,
+    year)."""
     chunks: list[pd.DataFrame] = []
     for approach, year in _list_pairs():
         matrices = _load_pair(approach, year)
@@ -108,6 +125,8 @@ def build_a_cells_long() -> pd.DataFrame:
     cell_keys = ["approach", "dom_or_imp", "row_sector", "col_sector"]
     long = long.sort_values(cell_keys + ["year"]).reset_index(drop=True)
 
+    # Intra-approach drift: this approach's value at year y, minus this
+    # approach's value at 2017.
     base_2017 = (
         long[long["year"] == 2017]
         .set_index(cell_keys)["A_value"]
@@ -119,6 +138,21 @@ def build_a_cells_long() -> pd.DataFrame:
 
     long["delta_yoy"] = long.groupby(cell_keys)["A_value"].diff()
 
+    # Cross-approach divergence vs each baseline at the same year.
+    same_year_keys = ["year", "dom_or_imp", "row_sector", "col_sector"]
+    for baseline_approach, col_name in (
+        ("useeio", "delta_vs_useeio"),
+        ("ceda_default", "delta_vs_ceda"),
+    ):
+        baseline = (
+            long[long["approach"] == baseline_approach]
+            .set_index(same_year_keys)["A_value"]
+            .rename(f"A_value_{baseline_approach}")
+        )
+        long = long.join(baseline, on=same_year_keys)
+        long[col_name] = long["A_value"] - long[f"A_value_{baseline_approach}"]
+        long.drop(columns=f"A_value_{baseline_approach}", inplace=True)
+
     return long[
         [
             "approach",
@@ -129,205 +163,276 @@ def build_a_cells_long() -> pd.DataFrame:
             "A_value",
             "delta_from_2017",
             "delta_yoy",
+            "delta_vs_useeio",
+            "delta_vs_ceda",
         ]
     ]
 
 
-def compute_magnitude_quantiles(long: pd.DataFrame) -> pd.DataFrame:
-    """Per (approach, year, dom_or_imp): nonzero-cell magnitude quantiles."""
+def compute_divergence_quantiles(long: pd.DataFrame, baseline: str) -> pd.DataFrame:
+    """Per (approach, year, dom_or_imp): quantile stats of ``|delta_vs_<baseline>|``.
+
+    ``baseline`` is the suffix on the column, i.e. ``"useeio"`` or ``"ceda"``.
+    """
+    col = f"delta_vs_{baseline}"
     rows: list[dict[str, object]] = []
     for (approach, year, kind), group in long.groupby(
         ["approach", "year", "dom_or_imp"]
     ):
-        nonzero = group["A_value"].abs()
-        nonzero = nonzero[nonzero > 0]
-        if nonzero.empty:
+        abs_delta = group[col].dropna().abs()
+        if abs_delta.empty:
             continue
         rows.append(
             {
                 "approach": approach,
                 "year": int(year),
                 "dom_or_imp": kind,
-                "n_nonzero": int(nonzero.size),
-                "p05": float(nonzero.quantile(0.05)),
-                "p25": float(nonzero.quantile(0.25)),
-                "p50": float(nonzero.quantile(0.50)),
-                "p75": float(nonzero.quantile(0.75)),
-                "p95": float(nonzero.quantile(0.95)),
-                "max": float(nonzero.max()),
+                "n_cells": int(abs_delta.size),
+                "max": float(abs_delta.max()),
+                "p99": float(abs_delta.quantile(0.99)),
+                "p95": float(abs_delta.quantile(0.95)),
+                "p75": float(abs_delta.quantile(0.75)),
+                "p50": float(abs_delta.quantile(0.50)),
+                "mean": float(abs_delta.mean()),
+                "n_above_1pct": int((abs_delta > 0.01).sum()),
             }
         )
     return pd.DataFrame(rows)
 
 
-def compute_yoy_norms(long: pd.DataFrame) -> pd.DataFrame:
-    """Per (approach, year, dom_or_imp): summary of column-wise L1 & L2 norms
-    of the YoY delta. Year-2017 rows have no YoY (returns NaN)."""
-    rows: list[dict[str, object]] = []
-    for (approach, year, kind), group in long.groupby(
-        ["approach", "year", "dom_or_imp"]
-    ):
-        delta = group["delta_yoy"].dropna()
-        if delta.empty:
+def _latest_common_year(long: pd.DataFrame, approaches: list[str]) -> int | None:
+    """Latest year for which every approach in ``approaches`` has data."""
+    years_per_approach = [
+        set(long.loc[long["approach"] == a, "year"].unique()) for a in approaches
+    ]
+    if not years_per_approach:
+        return None
+    common = set.intersection(*years_per_approach)
+    return max(common) if common else None
+
+
+def plot_scatter_vs_baselines(long: pd.DataFrame, kind: str, path: Path) -> None:
+    """3×2 grid of element-wise scatters; rows = alternative approach,
+    cols = baseline (USEEIO | CEDA-US).
+
+    Per-row target year: the latest year where the approach AND both
+    baselines all have data. ``commodity_price_index`` /
+    ``industry_price_index`` rows resolve to 2024; ``summary_tables`` falls
+    back to 2023 (BEA Excel hasn't published 2024). The actual year used
+    appears in each panel title.
+
+    All 6 panels share the same ``xlim``/``ylim`` (global min/max across
+    every panel's data) so the ``y=x`` line is a true 45° reference and the
+    panels are visually comparable. Each panel has a top-left summary box
+    with ``n``, mean / p95 / max ``|Δ|`` and ``R²``.
+    """
+    sub = long[long["dom_or_imp"] == kind]
+
+    panel_data: list[
+        tuple[int, int, str, str, int, "np.ndarray[Any, Any]", "np.ndarray[Any, Any]"]
+    ] = []
+    global_min = np.inf
+    global_max = -np.inf
+
+    for i, approach in enumerate(SCATTER_APPROACHES):
+        target_year = _latest_common_year(
+            sub, [approach, *(b[0] for b in SCATTER_BASELINES)]
+        )
+        if target_year is None:
+            logger.warning(
+                "No common year between %s and baselines for kind=%s; " "skipping row.",
+                approach,
+                kind,
+            )
             continue
-        delta_by_col = group.dropna(subset=["delta_yoy"]).groupby("col_sector")[
-            "delta_yoy"
-        ]
-        col_l1 = delta_by_col.apply(lambda s: float(s.abs().sum()))
-        col_l2 = delta_by_col.apply(lambda s: float(np.sqrt((s**2).sum())))
-        rows.append(
-            {
-                "approach": approach,
-                "year": int(year),
-                "dom_or_imp": kind,
-                "max_col_L1": float(col_l1.max()),
-                "mean_col_L1": float(col_l1.mean()),
-                "max_col_L2": float(col_l2.max()),
-                "mean_col_L2": float(col_l2.mean()),
-                "total_L1": float(delta.abs().sum()),
-            }
+
+        year_pivot = sub[sub["year"] == target_year].pivot_table(
+            index=["row_sector", "col_sector"],
+            columns="approach",
+            values="A_value",
         )
-    return pd.DataFrame(rows)
+        for j, (baseline_col, baseline_label) in enumerate(SCATTER_BASELINES):
+            if (
+                approach not in year_pivot.columns
+                or baseline_col not in year_pivot.columns
+            ):
+                continue
+            x = year_pivot[baseline_col].to_numpy()
+            y = year_pivot[approach].to_numpy()
+            mask = ~(np.isnan(x) | np.isnan(y))
+            x = x[mask]
+            y = y[mask]
+            if x.size == 0:
+                continue
+            global_min = min(global_min, float(x.min()), float(y.min()))
+            global_max = max(global_max, float(x.max()), float(y.max()))
+            panel_data.append((i, j, approach, baseline_label, target_year, x, y))
+
+    if not panel_data:
+        logger.warning("No scatter panels could be drawn for kind=%s.", kind)
+        return
+
+    n_rows = len(SCATTER_APPROACHES)
+    n_cols = len(SCATTER_BASELINES)
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows), squeeze=False
+    )
+    fig.suptitle(f"A_approach vs A_baseline — {kind}", fontsize=12)
+
+    for ax_row in axes:
+        for ax in ax_row:
+            ax.axis("off")
+
+    for i, j, approach, baseline_label, target_year, x, y in panel_data:
+        ax = axes[i][j]
+        ax.axis("on")
+        ax.scatter(x, y, s=8, alpha=0.35, color="steelblue", edgecolor="none")
+        ax.plot(
+            [global_min, global_max],
+            [global_min, global_max],
+            "r--",
+            lw=0.6,
+            alpha=0.7,
+            label="y=x",
+        )
+        ax.set_xlim(global_min, global_max)
+        ax.set_ylim(global_min, global_max)
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel(f"{baseline_label} A_value")
+        ax.set_ylabel(f"{approach} A_value")
+        ax.set_title(f"{approach} vs {baseline_label} ({target_year})", fontsize=9)
+        ax.grid(True, alpha=0.3)
+
+        x_f = np.asarray(x, dtype=float)
+        y_f = np.asarray(y, dtype=float)
+        abs_delta = np.abs(y_f - x_f)
+        r2 = (
+            float(np.corrcoef(x_f, y_f)[0, 1] ** 2)
+            if x_f.std() > 0 and y_f.std() > 0
+            else float("nan")
+        )
+        stats_text = (
+            f"n = {x.size:,}\n"
+            f"mean |Δ| = {abs_delta.mean():.4f}\n"
+            f"p95 |Δ|  = {np.quantile(abs_delta, 0.95):.4f}\n"
+            f"max |Δ|  = {abs_delta.max():.4f}\n"
+            f"R²       = {r2:.4f}"
+        )
+        ax.text(
+            0.02,
+            0.98,
+            stats_text,
+            transform=ax.transAxes,
+            va="top",
+            ha="left",
+            fontsize=11,
+            family="monospace",
+            bbox={
+                "boxstyle": "round,pad=0.3",
+                "facecolor": "white",
+                "alpha": 0.85,
+                "edgecolor": "gray",
+            },
+        )
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
 
 
-def _approach_axes(
-    fig: plt.Figure, approaches: list[str], rows: int = 1
-) -> dict[str, plt.Axes]:
-    """Build a dict of approach-keyed axes laid out in `rows` rows."""
-    n = len(approaches)
-    cols = (n + rows - 1) // rows
-    axes = fig.subplots(rows, cols, squeeze=False)
-    flat = [axes[r][c] for r in range(rows) for c in range(cols)]
-    for j in range(n, rows * cols):
-        flat[j].axis("off")
-    return dict(zip(approaches, flat[:n]))
+DIVERGENCE_THRESHOLDS: tuple[float, ...] = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
 
 
-def plot_delta_from_2017_heatmap(long: pd.DataFrame, kind: str, path: Path) -> None:
-    """Per-approach heatmap of cumulative drift from 2017.
+def plot_divergence_share(long: pd.DataFrame, kind: str, path: Path) -> None:
+    """3×2 grid: share of cells whose ``|delta_vs_baseline|`` exceeds each
+    threshold, plotted over years.
 
-    Plots ``log10|A_y - A_2017|`` per year. Year 2017 itself is excluded
-    (zero by definition). Cells with no drift (``delta_from_2017 == 0``) are
-    excluded from the magnitude binning. Approaches with no drift in any year
-    (e.g. ``useeio``) appear as empty subplots — that is the correct signal.
+    Rows are the three alternative approaches; columns are baselines
+    (USEEIO | CEDA-US). Each panel has one line per threshold in
+    ``DIVERGENCE_THRESHOLDS`` (1e-4, 1e-3, 1e-2, 1e-1); y-axis is the
+    fraction of cells whose absolute deviation from the baseline at that
+    year exceeds the threshold. Answers "how widespread is the divergence,
+    and how does it spread over time?" — a complement to
+    ``scatter_vs_baselines`` (which shows magnitude at one snapshot).
     """
-    sub = long[
-        (long["dom_or_imp"] == kind)
-        & (long["year"] > 2017)
-        & (long["delta_from_2017"].abs() > 0)
+    sub = long[long["dom_or_imp"] == kind]
+    n_rows = len(SCATTER_APPROACHES)
+    n_cols = len(SCATTER_BASELINES)
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows), squeeze=False
+    )
+    fig.suptitle(
+        f"Share of cells with |A_approach − A_baseline| above threshold — {kind}",
+        fontsize=12,
+    )
+
+    cmap = plt.get_cmap("viridis")
+    threshold_colors = [
+        cmap(i / max(len(DIVERGENCE_THRESHOLDS) - 1, 1))
+        for i in range(len(DIVERGENCE_THRESHOLDS))
     ]
-    approaches = sorted(long.loc[long["dom_or_imp"] == kind, "approach"].unique())
-    fig = plt.figure(figsize=(4 * len(approaches), 4))
-    fig.suptitle(f"|A_y − A_2017| distribution per year — {kind}")
-    axes = _approach_axes(fig, approaches, rows=1)
-    for approach in approaches:
-        ax = axes[approach]
-        approach_sub = sub[sub["approach"] == approach]
-        years = sorted(approach_sub["year"].unique())
-        H = np.zeros((len(years), len(_LOG10_BIN_EDGES) - 1))
-        for i, year in enumerate(years):
-            vals = approach_sub.loc[
-                approach_sub["year"] == year, "delta_from_2017"
-            ].abs()
-            counts, _ = np.histogram(np.log10(vals), bins=_LOG10_BIN_EDGES)
-            H[i] = counts
-        ax.imshow(H, aspect="auto", cmap="viridis", origin="lower")
-        ax.set_yticks(range(len(years)))
-        ax.set_yticklabels(years)
-        ax.set_xticks(range(0, len(_LOG10_BIN_EDGES) - 1, 4))
-        ax.set_xticklabels(
-            [
-                f"{_LOG10_BIN_EDGES[k]:.0f}"
-                for k in range(0, len(_LOG10_BIN_EDGES) - 1, 4)
-            ]
-        )
-        ax.set_xlabel("log10 |A_y − A_2017|")
-        ax.set_title(approach, fontsize=10)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
 
-
-def plot_delta_from_2017_ridgeline(long: pd.DataFrame, kind: str, path: Path) -> None:
-    """Per-approach ridgeline of cumulative drift from 2017.
-
-    Same data as :func:`plot_delta_from_2017_heatmap` but as overlaid per-year
-    step histograms; easier to compare year-curve shape directly.
-    """
-    sub = long[
-        (long["dom_or_imp"] == kind)
-        & (long["year"] > 2017)
-        & (long["delta_from_2017"].abs() > 0)
-    ]
-    approaches = sorted(long.loc[long["dom_or_imp"] == kind, "approach"].unique())
-    fig = plt.figure(figsize=(4 * len(approaches), 4))
-    fig.suptitle(f"|A_y − A_2017| distribution by year — {kind}")
-    axes = _approach_axes(fig, approaches, rows=1)
-    for approach in approaches:
-        ax = axes[approach]
-        approach_sub = sub[sub["approach"] == approach]
-        years = sorted(approach_sub["year"].unique())
-        cmap = plt.get_cmap("viridis", max(len(years), 2))
-        for i, year in enumerate(years):
-            vals = np.log10(
-                approach_sub.loc[approach_sub["year"] == year, "delta_from_2017"].abs()
+    for i, approach in enumerate(SCATTER_APPROACHES):
+        for j, (baseline_col, baseline_label) in enumerate(SCATTER_BASELINES):
+            ax = axes[i][j]
+            delta_col = (
+                "delta_vs_useeio" if baseline_col == "useeio" else "delta_vs_ceda"
             )
-            ax.hist(
-                vals,
-                bins=list(_LOG10_BIN_EDGES),
-                histtype="step",
-                color=cmap(i),
-                label=str(year),
-                alpha=0.8,
+            approach_sub = sub[sub["approach"] == approach]
+            pivot = approach_sub.pivot_table(
+                index=["row_sector", "col_sector"],
+                columns="year",
+                values=delta_col,
+            ).abs()
+            years_arr = np.array(sorted(pivot.columns), dtype=float)
+            values_arr = pivot.to_numpy()
+            keep = ~np.isnan(values_arr).any(axis=1)
+            kept_values = values_arr[keep]
+            if kept_values.size == 0:
+                ax.text(
+                    0.5,
+                    0.5,
+                    "no data",
+                    transform=ax.transAxes,
+                    ha="center",
+                    va="center",
+                )
+                continue
+
+            panel_max_share = 0.0
+            for thr, color in zip(DIVERGENCE_THRESHOLDS, threshold_colors, strict=True):
+                share = (kept_values > thr).mean(axis=0)
+                panel_max_share = max(panel_max_share, float(share.max()))
+                ax.plot(
+                    years_arr,
+                    share,
+                    color=color,
+                    lw=1.8,
+                    marker="o",
+                    markersize=3,
+                    label=f"|Δ| > {thr:g}",
+                )
+
+            ax.set_xlim(years_arr.min(), years_arr.max())
+            ax.set_ylim(0, max(panel_max_share * 1.1, 0.01))
+            ax.set_xlabel("year")
+            ax.set_ylabel("share of cells")
+            ax.set_title(
+                f"{approach} vs {baseline_label} (n={int(keep.sum())} cells)",
+                fontsize=10,
             )
-        ax.set_xlabel("log10 |A_y − A_2017|")
-        ax.set_ylabel("cell count")
-        ax.set_title(approach, fontsize=10)
-        if years:
-            ax.legend(fontsize=7, loc="upper left")
+            ax.grid(True, alpha=0.3)
+            ax.legend(loc="upper left", fontsize=8, framealpha=0.85)
+
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
 
 
-def plot_yoy_norms(yoy_df: pd.DataFrame, kind: str, path: Path) -> None:
-    """Two-panel: max_col_L1 and max_col_L2 over time, line per approach."""
-    sub = yoy_df[yoy_df["dom_or_imp"] == kind].copy()
-    approaches = sorted(sub["approach"].unique())
-    fig, (ax_l1, ax_l2) = plt.subplots(1, 2, figsize=(10, 4))
-    fig.suptitle(f"YoY column-norms over time — {kind}")
-    cmap = plt.get_cmap("tab10", max(len(approaches), 3))
-    for i, approach in enumerate(approaches):
-        approach_sub = sub[sub["approach"] == approach].sort_values("year")
-        ax_l1.plot(
-            approach_sub["year"],
-            approach_sub["max_col_L1"],
-            marker="o",
-            color=cmap(i),
-            label=approach,
-        )
-        ax_l2.plot(
-            approach_sub["year"],
-            approach_sub["max_col_L2"],
-            marker="o",
-            color=cmap(i),
-            label=approach,
-        )
-    ax_l1.set_xlabel("year")
-    ax_l1.set_ylabel("max column L1(YoY)")
-    ax_l1.legend(fontsize=8)
-    ax_l1.grid(True, alpha=0.3)
-    ax_l2.set_xlabel("year")
-    ax_l2.set_ylabel("max column L2(YoY)")
-    ax_l2.legend(fontsize=8)
-    ax_l2.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
-
-
-def _publish_step2_tabs(magnitude_df: pd.DataFrame, yoy_df: pd.DataFrame) -> None:
-    """Append step2 summary tabs to the run-report Sheet, if available."""
+def _publish_divergence_tabs(
+    div_useeio_df: pd.DataFrame, div_ceda_df: pd.DataFrame
+) -> None:
+    """Append divergence summary tabs to the run-report Sheet, if available."""
     if not LAST_RUN_SHEET_ID_PATH.exists():
         logger.warning(
             "No %s found — skipping Sheet publish. Run derive_A_time_series "
@@ -337,8 +442,8 @@ def _publish_step2_tabs(magnitude_df: pd.DataFrame, yoy_df: pd.DataFrame) -> Non
         return
     sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
     try:
-        update_sheet_tab(sheet_id, "step2_magnitude_quantiles", magnitude_df)
-        update_sheet_tab(sheet_id, "step2_yoy_norms", yoy_df)
+        update_sheet_tab(sheet_id, "divergence_vs_useeio", div_useeio_df)
+        update_sheet_tab(sheet_id, "divergence_vs_ceda", div_ceda_df)
     except Exception as e:  # noqa: BLE001
         logger.warning(
             "Sheet publish skipped (%s: %s). Local artifacts still complete.",
@@ -358,21 +463,18 @@ def main() -> None:
     long.to_parquet(A_CELLS_LONG_PATH)
     logger.info("Wrote %s (rows=%d)", A_CELLS_LONG_PATH, len(long))
 
-    magnitude_df = compute_magnitude_quantiles(long)
-    yoy_df = compute_yoy_norms(long)
-    magnitude_df.to_csv(RESULTS_DIR / "step2_magnitude_quantiles.csv", index=False)
-    yoy_df.to_csv(RESULTS_DIR / "step2_yoy_norms.csv", index=False)
+    div_useeio_df = compute_divergence_quantiles(long, "useeio")
+    div_ceda_df = compute_divergence_quantiles(long, "ceda")
+    div_useeio_df.to_csv(RESULTS_DIR / "divergence_vs_useeio.csv", index=False)
+    div_ceda_df.to_csv(RESULTS_DIR / "divergence_vs_ceda.csv", index=False)
 
     for kind in ("dom", "imp"):
-        plot_delta_from_2017_heatmap(
-            long, kind, PLOTS_DIR / f"step2_heatmap_{kind}.png"
+        plot_scatter_vs_baselines(
+            long, kind, PLOTS_DIR / f"scatter_vs_baselines_{kind}.png"
         )
-        plot_delta_from_2017_ridgeline(
-            long, kind, PLOTS_DIR / f"step2_ridgeline_{kind}.png"
-        )
-        plot_yoy_norms(yoy_df, kind, PLOTS_DIR / f"step2_yoy_norms_{kind}.png")
+        plot_divergence_share(long, kind, PLOTS_DIR / f"divergence_share_{kind}.png")
 
-    _publish_step2_tabs(magnitude_df, yoy_df)
+    _publish_divergence_tabs(div_useeio_df, div_ceda_df)
     logger.info("Step 2 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 
