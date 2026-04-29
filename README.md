@@ -52,7 +52,7 @@ A work-in-progress diagnostics report comparing `bedrock` outputs against USEEIO
 
 
 ## License
-See the [LICENSE](/LICENSE) on appropriate use of bedrock and [ATTRIBUTION.md](/ATTRIBUTION.md) for the attribution requirement.
+See the [LICENSE](/LICENSE.txt) on appropriate use of bedrock and [ATTRIBUTION.md](/ATTRIBUTION.md) for the attribution requirement.
 
 ## Setup
 After cloning the repository, in the root directory:

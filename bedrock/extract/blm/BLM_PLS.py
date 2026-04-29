@@ -10,8 +10,6 @@ Bureau of Land Management Public Land Statistics data
 from __future__ import annotations
 
 import io
-import os
-import posixpath
 import re
 from typing import Any, cast
 
@@ -19,12 +17,9 @@ import pandas as pd
 from tabula.io import read_pdf
 
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD
-from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import get_all_state_FIPS_2
-
-IN_DIR = os.path.join(os.path.dirname(__file__), "..", "input_data")
 
 
 def split(
@@ -701,9 +696,7 @@ def blm_pls_load_gcs(**kwargs: Any) -> pd.DataFrame:
     year = str(kwargs.get("year", ""))
     config = kwargs.get("config") or {}
     name = cast(dict[str, str], config["file_name"])[year]
-    GCS_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, f"BLM_PLS_{year}")
-    pth = os.path.join(IN_DIR, name)
-    download_gcs_file_if_not_exists(name=name, sub_bucket=GCS_DIR, pth=pth)
+    pth = download_extract_input_from_gcs_if_not_exists(kwargs, object_name=name)
     with open(pth, "rb") as f:
         pdf_bytes = f.read()
     df = blm_pls_pdf_to_df(pdf_bytes, year)
