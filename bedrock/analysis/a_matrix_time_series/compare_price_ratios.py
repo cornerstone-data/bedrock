@@ -40,21 +40,24 @@ TARGET_YEARS: list[int] = [2018, 2019, 2020, 2021, 2022, 2023, 2024]
 OUTPUT_DIR = Path(__file__).parent / "output"
 RESULTS_DIR = OUTPUT_DIR / "results"
 PLOTS_DIR = OUTPUT_DIR / "plots"
+INFLATE_V = False  # inflates V to prepare Vnorm for use in commodity ratios
 
 
 def build_comparison_long(
     target_years: list[int], original_year: int = ORIGINAL_YEAR
 ) -> pd.DataFrame:
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
-    vnorm_col_sum = Vnorm.sum(axis=0).rename("vnorm_col_sum")
 
     rows: list[pd.DataFrame] = []
     for year in target_years:
+        Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
+            apply_inflation=INFLATE_V, target_year=year
+        )
+        vnorm_col_sum = Vnorm.sum(axis=0).rename("vnorm_col_sum")
         industry = get_cornerstone_price_ratio(original_year, year).rename(
             "industry_ratio"
         )
         commodity = get_vnorm_adjusted_commodity_price_ratio(
-            original_year, year
+            original_year, year, inflate_V=INFLATE_V
         ).rename("commodity_ratio")
         df = pd.concat([industry, commodity, vnorm_col_sum], axis=1).reset_index(
             names="code"
@@ -127,13 +130,17 @@ def plot_scatter(long: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> None:
+
+    addon = ""
+    if INFLATE_V:
+        addon = "_V_inflated"
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
     long = build_comparison_long(TARGET_YEARS)
-    long.to_csv(RESULTS_DIR / "ratio_per_code.csv", index=False)
+    long.to_csv(RESULTS_DIR / ("ratio_per_code" + addon + ".csv"), index=False)
     summary = summarize(long)
-    summary.to_csv(RESULTS_DIR / "ratio_summary.csv", index=False)
-    plot_scatter(long, PLOTS_DIR / "ratio_scatter.png")
+    summary.to_csv(RESULTS_DIR / ("ratio_summary" + addon + ".csv"), index=False)
+    plot_scatter(long, PLOTS_DIR / ("ratio_scatter" + addon + ".png"))
     logger.info("Wrote outputs to %s and %s", RESULTS_DIR, PLOTS_DIR)
     print(summary.to_string(index=False))
 

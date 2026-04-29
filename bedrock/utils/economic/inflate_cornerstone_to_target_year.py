@@ -88,7 +88,7 @@ def inflate_cornerstone_A_matrix(
 
 @functools.cache
 def get_vnorm_adjusted_commodity_price_ratio(
-    original_year: int, target_year: int
+    original_year: int, target_year: int, inflate_V: bool = False
 ) -> pd.Series[float]:
     """V-norm-weighted commodity price ratio.
 
@@ -112,7 +112,9 @@ def get_vnorm_adjusted_commodity_price_ratio(
     )
 
     industry_ratio = get_cornerstone_price_ratio(original_year, target_year)
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+    Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
+        apply_inflation=inflate_V, target_year=target_year
+    )
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
     # Normalize V_norm columns to sum to 1 so the dot-product is a true weighted
