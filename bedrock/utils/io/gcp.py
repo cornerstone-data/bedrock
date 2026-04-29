@@ -238,6 +238,7 @@ def __credentials() -> ta.Tuple[google.auth.credentials.Credentials, ta.Any]:
         scopes=[
             "https://www.googleapis.com/auth/cloud-platform",
             "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
         ]
     )
     return credentials, project_id
@@ -247,6 +248,46 @@ def __credentials() -> ta.Tuple[google.auth.credentials.Credentials, ta.Any]:
 def __sheets_client() -> googleapiclient.discovery.Resource:
     credentials, _ = __credentials()
     return googleapiclient.discovery.build('sheets', 'v4', credentials=credentials)
+
+
+@functools.cache
+def __drive_client() -> googleapiclient.discovery.Resource:
+    credentials, _ = __credentials()
+    return googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
+
+
+def create_spreadsheet_in_folder(title: str, folder_id: str) -> str:
+    """Create a new Google Sheets spreadsheet in the given Drive folder.
+
+    Uses the Drive API's `files.create` with the Sheets MIME type and the
+    folder as a parent. Requires the `drive` scope (already in
+    `__credentials`) — the narrower `drive.file` scope only sees files the
+    app itself created and cannot access pre-existing folders the caller
+    owns, which surfaces as a 404 on `files.create`.
+
+    Args:
+        title: Title for the new spreadsheet.
+        folder_id: Drive folder ID to place the spreadsheet under.
+
+    Returns:
+        The new spreadsheet's ID, suitable for passing to `update_sheet_tab`.
+    """
+    logger.info('creating spreadsheet "%s" in folder %s', title, folder_id)
+    file = (
+        __drive_client()
+        .files()
+        .create(
+            body={
+                'name': title,
+                'mimeType': 'application/vnd.google-apps.spreadsheet',
+                'parents': [folder_id],
+            },
+            fields='id',
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
+    return ta.cast(str, file['id'])
 
 
 def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:
