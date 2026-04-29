@@ -533,7 +533,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 
     # Price index only: inflate 2017 → model_year directly using price index,
     # skipping the summary table scaling step entirely.
-    if cfg.scale_a_matrix_with_price_index:
+    if cfg.scale_a_matrix_with_industry_price_index:
         Adom = inflate_cornerstone_A_matrix(
             base.Adom, original_year=detail_year, target_year=model_year
         )
