@@ -1,12 +1,11 @@
-import posixpath
 import typing as ta
 
-from bedrock.utils.io.gcp_paths import GCS_CEDA_INPUT_DIR
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 
-GCS_USA_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTables_MakeUse")
-GCS_USA_SUP_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "USA_AllTablesSUP")
+GCS_USA_MAKE_USE_DIR = gcs_extract_input_path("USA_AllTables_MakeUse")
+GCS_USA_SUP_DIR = gcs_extract_input_path("USA_AllTablesSUP")
 
-GCS_GDP_DIR = posixpath.join(GCS_CEDA_INPUT_DIR, "BEA_PriceIndex")
+GCS_GDP_DIR = gcs_extract_input_path("BEA_PriceIndex")
 GCS_GDP_DETAIL_TABLES = ta.Literal["UGO304-A", "UGO305-A"]
 
 PRICE_INDEX_DETAIL_NAME_TO_BEA_2017_INDUSTRY_MAPPING: ta.Dict[str, ta.List[str]] = {
