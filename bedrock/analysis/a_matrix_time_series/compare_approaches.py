@@ -3,7 +3,7 @@
 Reads the parquet caches produced by ``derive_A_time_series.py`` (Step 1) and
 produces:
 
-- ``step3_pairwise_hexbins_{dom,imp}.png`` — 1×3 grid of log-log hexbin
+- ``pairwise_hexbins_{dom,imp}.png`` — 1×3 grid of log-log hexbin
   density plots between the three alternative approaches at 2024
   (``summary_tables`` vs ``industry_price_index``,
   ``summary_tables`` vs ``commodity_price_index``,
@@ -14,14 +14,14 @@ produces:
   this figure adds the alternative-vs-alternative angle that Step 2 can't
   show, on log-log axes that resolve the dense low-magnitude region.
 
-- ``step3_column_cap_audit.csv`` — every (year, dom_or_imp, col_sector)
+- ``column_cap_audit.csv`` — every (year, dom_or_imp, col_sector)
   where the 0.98 column-cap inside ``scale_cornerstone_A`` fired on the
   ``summary_tables`` approach. Cap-fired detection: column sum within
   ``CAP_TOL`` of 0.98 after scaling. Columns just below 0.98 (sum > 0.97
   but cap not reached) are also written so reviewers can see how close
   the cap was to firing.
 
-- Sheet tab ``step3_column_cap_audit`` appended to the run-report Sheet
+- Sheet tab ``column_cap_audit`` appended to the run-report Sheet
   (sheet ID read from ``last_run_sheet_id.txt``).
 
 Usage:
@@ -235,8 +235,8 @@ def column_cap_audit(years: list[int]) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def _publish_step3_tabs(cap_audit_df: pd.DataFrame) -> None:
-    """Append Step 3 summary tab to the run-report Sheet, if available."""
+def _publish_cap_audit_tab(cap_audit_df: pd.DataFrame) -> None:
+    """Append the column-cap audit tab to the run-report Sheet, if available."""
     if not LAST_RUN_SHEET_ID_PATH.exists():
         logger.warning(
             "No %s found — skipping Sheet publish. Run derive_A_time_series "
@@ -246,7 +246,7 @@ def _publish_step3_tabs(cap_audit_df: pd.DataFrame) -> None:
         return
     sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
     try:
-        update_sheet_tab(sheet_id, "step3_column_cap_audit", cap_audit_df)
+        update_sheet_tab(sheet_id, "column_cap_audit", cap_audit_df)
     except Exception as e:  # noqa: BLE001
         logger.warning(
             "Sheet publish skipped (%s: %s). Local artifacts still complete.",
@@ -254,7 +254,7 @@ def _publish_step3_tabs(cap_audit_df: pd.DataFrame) -> None:
             e,
         )
         return
-    logger.info("Updated Step 3 tab on sheet %s", sheet_id)
+    logger.info("Updated column_cap_audit tab on sheet %s", sheet_id)
 
 
 def main() -> None:
@@ -266,7 +266,7 @@ def main() -> None:
 
     for kind in KINDS:
         plot_pairwise_hexbins(
-            matrices, kind, PLOTS_DIR / f"step3_pairwise_hexbins_{kind}.png"
+            matrices, kind, PLOTS_DIR / f"pairwise_hexbins_{kind}.png"
         )
 
     # Cap audit spans all available summary_tables years to give a full picture
@@ -276,9 +276,9 @@ def main() -> None:
         for p in RESULTS_DIR.glob("A_summary_tables_*.parquet")
     )
     cap_audit_df = column_cap_audit(audit_years)
-    cap_audit_df.to_csv(RESULTS_DIR / "step3_column_cap_audit.csv", index=False)
+    cap_audit_df.to_csv(RESULTS_DIR / "column_cap_audit.csv", index=False)
 
-    _publish_step3_tabs(cap_audit_df)
+    _publish_cap_audit_tab(cap_audit_df)
     logger.info("Step 3 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 
