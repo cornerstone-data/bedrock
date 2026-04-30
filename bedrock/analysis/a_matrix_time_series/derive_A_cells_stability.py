@@ -280,8 +280,13 @@ def _draw_jaccard_panel(
                 continue
             color = "white" if val < (HEATMAP_VMIN + HEATMAP_VMAX) / 2 else "black"
             ax.text(
-                bi, ai, f"{val:.2f}",
-                ha="center", va="center", fontsize=7, color=color,
+                bi,
+                ai,
+                f"{val:.2f}",
+                ha="center",
+                va="center",
+                fontsize=7,
+                color=color,
             )
 
     off_diag_mask = ~np.eye(n, dtype=bool)
@@ -347,9 +352,7 @@ def _draw_baseline_grouped_persistence(
             (panel_sub["approach"] == approach)
             & (panel_sub["baseline"] == baseline_col)
         ]
-        n_ever_per_bar.append(
-            int(row["n_ever_above"].iloc[0]) if len(row) > 0 else 0
-        )
+        n_ever_per_bar.append(int(row["n_ever_above"].iloc[0]) if len(row) > 0 else 0)
 
     # Min segment height (as fraction of full bar) to qualify for an in-bar
     # n_cells label. Below this, a label would visually collide with neighbors.
@@ -389,15 +392,20 @@ def _draw_baseline_grouped_persistence(
         r, g, b = seg_color[0], seg_color[1], seg_color[2]
         luminance = 0.299 * r + 0.587 * g + 0.114 * b
         text_color = "white" if luminance < 0.55 else "black"
-        for ti, (h, n_cells) in enumerate(zip(heights_arr, n_cells_per_bar, strict=True)):
+        for ti, (h, n_cells) in enumerate(
+            zip(heights_arr, n_cells_per_bar, strict=True)
+        ):
             if h < min_label_height or n_cells == 0:
                 continue
             center_y = bottom[ti] + h / 2.0
             ax.text(
-                x_positions[ti], center_y,
+                x_positions[ti],
+                center_y,
                 f"{n_cells}",
-                ha="center", va="center",
-                fontsize=8, color=text_color,
+                ha="center",
+                va="center",
+                fontsize=8,
+                color=text_color,
             )
         bottom = bottom + heights_arr
 
@@ -417,9 +425,13 @@ def _draw_baseline_grouped_persistence(
     # because few cells disagree at all" vs "many cells, none consistent".
     for ti, n_ever in enumerate(n_ever_per_bar):
         ax.text(
-            x_positions[ti], 1.02,
+            x_positions[ti],
+            1.02,
             f"n={n_ever}",
-            ha="center", va="bottom", fontsize=11, color="dimgray",
+            ha="center",
+            va="bottom",
+            fontsize=11,
+            color="dimgray",
             transform=ax.get_xaxis_transform(),
         )
 
@@ -430,7 +442,8 @@ def _draw_baseline_grouped_persistence(
     labels = labels[::-1]
     if show_legend:
         ax.legend(
-            handles, labels,
+            handles,
+            labels,
             title="years above threshold",
             loc="center left",
             bbox_to_anchor=(1.02, 0.5),
@@ -449,8 +462,7 @@ def plot_set_stability_heatmap(
 ) -> None:
     """3×2 grid of improved year×year Jaccard heatmaps (approach × baseline)."""
     sub: pd.DataFrame = stability_df.loc[
-        (stability_df["dom_or_imp"] == kind)
-        & (stability_df["threshold"] == threshold)
+        (stability_df["dom_or_imp"] == kind) & (stability_df["threshold"] == threshold)
     ]
     n_rows = len(APPROACHES_FOR_STABILITY)
     n_cols = len(BASELINES)
@@ -492,7 +504,8 @@ def plot_persistence_by_threshold(
     n_cols = 2
     n_rows = (n_thr + 1 + n_cols - 1) // n_cols  # +1 reserves a slot for the legend
     fig, axes = plt.subplots(
-        n_rows, n_cols,
+        n_rows,
+        n_cols,
         figsize=(8.5 * n_cols, 5.5 * n_rows),
         squeeze=False,
     )
@@ -513,7 +526,10 @@ def plot_persistence_by_threshold(
             & (persistence_df["n_years_above"] > 0)
         ]
         handles, labels = _draw_baseline_grouped_persistence(
-            panel, ax, threshold=threshold, show_legend=False,
+            panel,
+            ax,
+            threshold=threshold,
+            show_legend=False,
         )
         if handles and not legend_handles:
             legend_handles, legend_labels = handles, labels
@@ -526,9 +542,11 @@ def plot_persistence_by_threshold(
         ax.axis("off")
         if not legend_placed and legend_handles:
             ax.legend(
-                legend_handles, legend_labels,
+                legend_handles,
+                legend_labels,
                 title="years above threshold",
-                loc="center", fontsize=11,
+                loc="center",
+                fontsize=11,
             )
             legend_placed = True
 
@@ -560,7 +578,8 @@ def _publish_stability_tabs(
     except Exception as e:  # noqa: BLE001
         logger.warning(
             "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__, e,
+            type(e).__name__,
+            e,
         )
         return
     logger.info("Updated stability tabs on sheet %s", sheet_id)
@@ -590,20 +609,18 @@ def main() -> None:
                     stab,
                     kind,
                     threshold,
-                    PLOTS_DIR
-                    / f"set_stability_jaccard_thr{threshold:g}_{kind}.png",
+                    PLOTS_DIR / f"set_stability_jaccard_thr{threshold:g}_{kind}.png",
                 )
 
     stability_df = pd.concat(stability_chunks, ignore_index=True)
     persistence_df = pd.concat(persistence_chunks, ignore_index=True)
     stability_df.to_csv(RESULTS_DIR / "set_stability_jaccard.csv", index=False)
-    persistence_df.to_csv(
-        RESULTS_DIR / "persistence_categories.csv", index=False
-    )
+    persistence_df.to_csv(RESULTS_DIR / "persistence_categories.csv", index=False)
 
     for kind in ("dom", "imp"):
         plot_persistence_by_threshold(
-            persistence_df, kind,
+            persistence_df,
+            kind,
             PLOTS_DIR / f"persistence_by_threshold_{kind}.png",
         )
 
