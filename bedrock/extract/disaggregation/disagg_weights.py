@@ -81,7 +81,9 @@ def load_weights_csv(path: str, percent_column: str) -> pd.DataFrame:
     missing_columns = required_columns.difference(df.columns)
     if missing_columns:
         missing_display = ", ".join(sorted(missing_columns))
-        raise DisaggWeightError(f"Missing required columns in {path}: {missing_display}")
+        raise DisaggWeightError(
+            f"Missing required columns in {path}: {missing_display}"
+        )
 
     df["IndustryCode"] = df["IndustryCode"].map(_normalize_code)
     df["CommodityCode"] = df["CommodityCode"].map(_normalize_code)
@@ -199,12 +201,16 @@ def _normalize_table(
     if axis is None:
         total_scalar = float(out.sum().sum())
         if total_scalar <= 0.0:
-            raise DisaggWeightError(f"All-zero weights for table={table}, slice={slice_name}")
+            raise DisaggWeightError(
+                f"All-zero weights for table={table}, slice={slice_name}"
+            )
         return (out / total_scalar).astype(float)
 
     total_series = out.sum(axis=axis)
     if (total_series <= 0).any():
-        raise DisaggWeightError(f"All-zero weights for table={table}, slice={slice_name}")
+        raise DisaggWeightError(
+            f"All-zero weights for table={table}, slice={slice_name}"
+        )
     if axis == 1:
         return (out.div(total_series, axis=0)).astype(float)
     return (out.div(total_series, axis=1)).astype(float)
@@ -433,7 +439,9 @@ def load_disagg_weights(
         fd_rows.append(row)
         fd_index.append(fd_col)
     if fd_rows:
-        use_fd_columns_for_disagg_commodity_rows = pd.concat(fd_rows, axis=0).astype(float)
+        use_fd_columns_for_disagg_commodity_rows = pd.concat(fd_rows, axis=0).astype(
+            float
+        )
         use_fd_columns_for_disagg_commodity_rows.index = pd.Index(fd_index)
     else:
         use_fd_columns_for_disagg_commodity_rows = pd.DataFrame(

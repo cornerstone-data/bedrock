@@ -1,4 +1,5 @@
 """Backward-compatibility shim. Prefer disagg_weights.py for new code."""
+
 from __future__ import annotations
 
 import pathlib
@@ -7,20 +8,48 @@ from typing import TYPE_CHECKING, cast
 
 from bedrock.extract.disaggregation.disagg_weights import (
     DisaggCorrespondenceError as WasteDisaggCorrespondenceError,
+)
+from bedrock.extract.disaggregation.disagg_weights import (
     DisaggWeightError as WasteDisaggWeightError,
+)
+from bedrock.extract.disaggregation.disagg_weights import (
     DisaggWeights,
-    DisaggWeightSeries as WasteWeightSeries,
-    DisaggWeightTable as WasteWeightTable,
     _apply_correspondence_to_series,
+    _build_specific_rows_table,
     _empty_weight_table,
     _normalize_code,
-    _pivot_and_align,
-    _build_specific_rows_table,
     _normalize_table,
+    _pivot_and_align,
     load_disagg_weights,
     load_weights_csv,
+)
+from bedrock.extract.disaggregation.disagg_weights import (
+    DisaggWeightSeries as WasteWeightSeries,
+)
+from bedrock.extract.disaggregation.disagg_weights import (
+    DisaggWeightTable as WasteWeightTable,
+)
+from bedrock.extract.disaggregation.disagg_weights import (
     weights_to_csv as _weights_to_csv,
 )
+
+__all__ = [
+    "WasteDisaggWeights",
+    "WasteDisaggCorrespondenceError",
+    "WasteDisaggWeightError",
+    "WasteWeightSeries",
+    "WasteWeightTable",
+    "_apply_correspondence_to_series",
+    "_build_specific_rows_table",
+    "_empty_weight_table",
+    "_normalize_code",
+    "_normalize_table",
+    "_pivot_and_align",
+    "load_disagg_weights",
+    "load_weights_csv",
+    "load_waste_disagg_weights",
+    "weights_to_csv",
+]
 
 if TYPE_CHECKING:
     from typing import IO
