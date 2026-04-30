@@ -266,7 +266,11 @@ def plot_scatter_vs_baselines(long: pd.DataFrame, kind: str, path: Path) -> None
                 continue
             x = year_pivot[baseline_col].to_numpy()
             y = year_pivot[approach].to_numpy()
-            mask = ~(np.isnan(x) | np.isnan(y))
+            # Filter NaN, then drop (0, 0) pairs: A is sparse, ~50% of cells
+            # are jointly zero and trivially correlate, inflating R² and pulling
+            # mean |Δ| toward 0. Stats reported here are over cells where at
+            # least one of (baseline, approach) is non-zero.
+            mask = ~(np.isnan(x) | np.isnan(y)) & ~((x == 0) & (y == 0))
             x = x[mask]
             y = y[mask]
             if x.size == 0:
@@ -497,7 +501,9 @@ def plot_baseline_reference(long: pd.DataFrame, kind: str, path: Path) -> None:
     if "useeio" in year_pivot.columns and "ceda_default" in year_pivot.columns:
         x = year_pivot["useeio"].to_numpy()
         y = year_pivot["ceda_default"].to_numpy()
-        mask = ~(np.isnan(x) | np.isnan(y))
+        # Drop jointly-zero (sparse-A) cells so R² and mean |Δ| reflect the
+        # active matrix (matches the filter in plot_scatter_vs_baselines).
+        mask = ~(np.isnan(x) | np.isnan(y)) & ~((x == 0) & (y == 0))
         x_f = np.asarray(x[mask], dtype=float)
         y_f = np.asarray(y[mask], dtype=float)
         ax_scatter.scatter(
