@@ -5,7 +5,7 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.disaggregation.waste_weights import WasteDisaggWeights
+from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 
 
 def _assert_non_waste_unchanged(
@@ -35,23 +35,23 @@ def _assert_non_waste_unchanged(
     )
 
 
-def _waste_codes(weights: WasteDisaggWeights) -> list[str]:
+def _waste_codes(weights: DisaggWeights) -> list[str]:
     """Return the list of waste subsector codes from the intersection table columns."""
     return list(weights.make_intersection.columns)
 
 
-def _original_code(weights: WasteDisaggWeights) -> str | None:
+def _original_code(weights: DisaggWeights) -> str | None:
     """Infer the original aggregate code (e.g. '562000') from the weight tables.
 
-    The original code appears as a row index in make_waste_commodity_columns_all_rows
+    The original code appears as a row index in make_disagg_commodity_columns_all_rows
     but is NOT one of the waste subsector codes.
     """
     waste = set(_waste_codes(weights))
-    tbl = weights.make_waste_commodity_columns_all_rows
+    tbl = weights.make_disagg_commodity_columns_all_rows
     for code in tbl.index:
         if code not in waste:
             return str(code)
-    tbl2 = weights.use_waste_industry_columns_all_rows
+    tbl2 = weights.use_disagg_industry_columns_all_rows
     for code in tbl2.index:
         if code not in waste:
             return str(code)
@@ -91,7 +91,7 @@ def _aggregate_waste_sector_in_V(
 
 def apply_waste_disagg_to_V(
     V: pd.DataFrame,
-    weights: WasteDisaggWeights,
+    weights: DisaggWeights,
     original_code: str = "562000",
 ) -> pd.DataFrame:
     """Disaggregate the 562 waste sector in Make matrix V.
@@ -100,10 +100,10 @@ def apply_waste_disagg_to_V(
     - Intersection: the (original_code, original_code) cell is split into
       a (waste_industry x waste_commodity) block using make_intersection weights.
     - Columns: for each non-waste industry row i, V[i, original_code] is split
-      across waste commodity columns using make_waste_commodity_columns_all_rows
-      (or make_waste_commodity_columns_specific_rows if a row-specific weight exists).
+      across waste commodity columns using make_disagg_commodity_columns_all_rows
+      (or make_disagg_commodity_columns_specific_rows if a row-specific weight exists).
     - Rows: for each non-waste commodity column j, V[original_code, j] is split
-      across waste industry rows using make_waste_industry_rows_specific_columns
+      across waste industry rows using make_disagg_industry_rows_specific_columns
       (or uniform if no specific weight exists).
     """
     waste_codes = _waste_codes(weights)
@@ -136,8 +136,8 @@ def apply_waste_disagg_to_V(
             output.loc[ind, com] = orig_val * w
 
     # --- Column disaggregation (non-waste industry rows, waste commodity columns) ---
-    col_w = weights.make_waste_commodity_columns_all_rows
-    specific_col_w = weights.make_waste_commodity_columns_specific_rows
+    col_w = weights.make_disagg_commodity_columns_all_rows
+    specific_col_w = weights.make_disagg_commodity_columns_specific_rows
     for ind in output.index:
         if ind in waste_set or ind == original_code:
             continue
@@ -160,7 +160,7 @@ def apply_waste_disagg_to_V(
             output.loc[ind, com] = orig_row_val * w
 
     # --- Row disaggregation (waste industry rows, non-waste commodity columns) ---
-    row_w = weights.make_waste_industry_rows_specific_columns
+    row_w = weights.make_disagg_industry_rows_specific_columns
     for com in output.columns:
         if com in waste_set or com == original_code:
             continue
@@ -217,7 +217,7 @@ def _aggregate_waste_sector_in_U(
 
 def _apply_waste_disagg_to_U_single(
     U: pd.DataFrame,
-    weights: WasteDisaggWeights,
+    weights: DisaggWeights,
     original_code: str,
 ) -> pd.DataFrame:
     """Disaggregate waste sector in a single Use matrix (assumes original_code in U)."""
@@ -241,8 +241,8 @@ def _apply_waste_disagg_to_U_single(
             output.loc[com, ind] = orig_val * w
 
     # --- Column disaggregation (industry columns) ---
-    col_w = weights.use_waste_industry_columns_all_rows
-    va_rows = set(weights.use_va_rows_for_waste_industry_columns.index)
+    col_w = weights.use_disagg_industry_columns_all_rows
+    va_rows = set(weights.use_va_rows_for_disagg_industry_columns.index)
     for com in output.index:
         if com in waste_set or com == original_code or com in va_rows:
             continue
@@ -264,9 +264,9 @@ def _apply_waste_disagg_to_U_single(
 
     # --- Row disaggregation (commodity rows) ---
     # Industry-specific allocations (useeior rowsPercentages) override default per column.
-    specific_row_w = weights.use_waste_rows_specific_columns
-    default_row_w = weights.use_waste_commodity_rows_all_columns
-    fd_cols = set(weights.use_fd_columns_for_waste_commodity_rows.index)
+    specific_row_w = weights.use_disagg_rows_specific_columns
+    default_row_w = weights.use_disagg_commodity_rows_all_columns
+    fd_cols = set(weights.use_fd_columns_for_disagg_commodity_rows.index)
     for ind in output.columns:
         if ind in waste_set or ind == original_code or ind in fd_cols:
             continue
@@ -306,7 +306,7 @@ def _apply_waste_disagg_to_U_single(
 def apply_waste_disagg_to_U(
     Udom: pd.DataFrame,
     Uimp: pd.DataFrame,
-    weights: WasteDisaggWeights,
+    weights: DisaggWeights,
     original_code: str = "562000",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Disaggregate the 562 waste sector in Use matrices Udom and Uimp.
@@ -318,8 +318,8 @@ def apply_waste_disagg_to_U(
       U[commodity, original_code] is split across waste industry columns.
     - Rows (commodity disaggregation): for each non-waste, non-FD industry column,
       U[original_code, industry] is split across waste commodity rows. Uses
-      use_waste_rows_specific_columns when the industry has a row there (useeior
-      rowsPercentages); otherwise use_waste_commodity_rows_all_columns (original
+      use_disagg_rows_specific_columns when the industry has a row there (useeior
+      rowsPercentages); otherwise use_disagg_commodity_rows_all_columns (original
       or default row).
 
     VA and FD are handled by separate functions.
@@ -372,7 +372,7 @@ def _aggregate_waste_sector_in_VA(
 
 def apply_waste_disagg_to_VA(
     va: pd.DataFrame,
-    weights: WasteDisaggWeights,
+    weights: DisaggWeights,
     original_code: str = "562000",
 ) -> pd.DataFrame:
     """Disaggregate the 562 waste sector in Value Added.
@@ -380,7 +380,7 @@ def apply_waste_disagg_to_VA(
     Mirrors useeior's disaggregateVA():
     - va is a DataFrame with index=VA row codes and columns=industry codes.
     - For each VA row, va[va_row, original_code] is split across waste industry
-      subsector columns using use_va_rows_for_waste_industry_columns.
+      subsector columns using use_va_rows_for_disagg_industry_columns.
     """
     waste_codes = _waste_codes(weights)
     waste_set = set(waste_codes)
@@ -400,7 +400,7 @@ def apply_waste_disagg_to_VA(
             return va
 
     output = va.copy()
-    va_w = weights.use_va_rows_for_waste_industry_columns
+    va_w = weights.use_va_rows_for_disagg_industry_columns
 
     for va_row in output.index:
         orig_val = cast(float, output.loc[va_row, original_code])
@@ -447,7 +447,7 @@ def _aggregate_waste_sector_in_Ytot(
 
 def apply_waste_disagg_to_Ytot(
     Ytot: pd.DataFrame,
-    weights: WasteDisaggWeights,
+    weights: DisaggWeights,
     original_code: str = "562000",
 ) -> pd.DataFrame:
     """Disaggregate the 562 waste sector in Final Demand matrix Y.
@@ -455,8 +455,8 @@ def apply_waste_disagg_to_Ytot(
     Mirrors useeior's disaggregateFinalDemand():
     - Ytot is a DataFrame with index=commodity codes and columns=FD column codes.
     - For each FD column, Ytot[original_code, fd_col] is split across waste commodity
-      subsector rows using use_fd_columns_for_waste_commodity_rows.
-    - If no FD-specific weight exists for a column, use_waste_commodity_rows_all_columns
+      subsector rows using use_fd_columns_for_disagg_commodity_rows.
+    - If no FD-specific weight exists for a column, use_disagg_commodity_rows_all_columns
       is used as fallback (original_code row if present, else first row; matches useeior
       getDefaultAllocationPercentages(UseFileDF, ..., 'Commodity')).
     """
@@ -478,8 +478,8 @@ def apply_waste_disagg_to_Ytot(
             return Ytot
 
     output = Ytot.copy()
-    fd_w = weights.use_fd_columns_for_waste_commodity_rows
-    default_table = weights.use_waste_commodity_rows_all_columns
+    fd_w = weights.use_fd_columns_for_disagg_commodity_rows
+    default_table = weights.use_disagg_commodity_rows_all_columns
     if not default_table.empty and len(default_table.columns) > 0:
         if original_code in default_table.index:
             default_row = default_table.loc[original_code]

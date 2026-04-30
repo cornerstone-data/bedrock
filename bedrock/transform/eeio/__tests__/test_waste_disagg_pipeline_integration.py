@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.extract.disaggregation.waste_weights import WasteDisaggWeights
+from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio import (
     cornerstone_bea_intermediates,
@@ -102,7 +102,7 @@ class TestWeightProvider:
         _setup_config("test_usa_config_waste_disagg")
         result = get_waste_disagg_weights()
         assert result is not None
-        assert isinstance(result, WasteDisaggWeights)
+        assert isinstance(result, DisaggWeights)
 
     def test_cache_clearing_reflects_new_config(self) -> None:
         _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
@@ -112,7 +112,7 @@ class TestWeightProvider:
         _setup_config("test_usa_config_waste_disagg")
         result2 = get_waste_disagg_weights()
         assert result2 is not None
-        assert isinstance(result2, WasteDisaggWeights)
+        assert isinstance(result2, DisaggWeights)
 
 
 # ---------------------------------------------------------------------------

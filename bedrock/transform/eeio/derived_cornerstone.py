@@ -32,9 +32,9 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.extract.disaggregation.waste_weights import (
-    WasteDisaggWeights,
-    load_waste_disagg_weights,
+from bedrock.extract.disaggregation.disagg_weights import (
+    DisaggWeights,
+    load_disagg_weights,
 )
 from bedrock.extract.iot.io_2017 import (
     load_2017_Uimp_usa,
@@ -158,7 +158,7 @@ def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfi
 
 
 @functools.cache
-def get_waste_disagg_weights() -> WasteDisaggWeights | None:
+def get_waste_disagg_weights() -> DisaggWeights | None:
     """Return waste disaggregation weights if the feature is enabled, else None.
     The weights used here are derived using the BEA After Redefinitions IO tables adapted to the Cornerstone schema.
     """
@@ -174,11 +174,11 @@ def get_waste_disagg_weights() -> WasteDisaggWeights | None:
             source_name="WasteDisaggregationDetail2017",
         )
     resolved_cfg = _resolve_waste_cfg_paths(waste_cfg)
-    return load_waste_disagg_weights(
+    return load_disagg_weights(
         resolved_cfg,
-        disagg_original_code=_WASTE_ORIGINAL_CODE,
-        disagg_new_codes=_WASTE_NEW_CODES,
-        waste_sectors=_WASTE_NEW_CODES,
+        original_code=_WASTE_ORIGINAL_CODE,
+        new_codes=_WASTE_NEW_CODES,
+        disagg_sectors=_WASTE_NEW_CODES,
         va_row_codes=list(VALUE_ADDEDS),
     )
 

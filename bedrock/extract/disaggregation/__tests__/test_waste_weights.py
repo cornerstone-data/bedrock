@@ -5,14 +5,14 @@ from typing import cast
 import pandas as pd
 import pytest
 
-from bedrock.extract.disaggregation.waste_weights import (
-    WasteDisaggCorrespondenceError,
-    WasteDisaggWeightError,
-    WasteDisaggWeights,
-    WasteWeightTable,
+from bedrock.extract.disaggregation.disagg_weights import (
+    DisaggCorrespondenceError,
+    DisaggWeightError,
+    DisaggWeights,
+    DisaggWeightTable,
     _apply_correspondence_to_series,
     _empty_weight_table,
-    load_waste_disagg_weights,
+    load_disagg_weights,
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
@@ -20,7 +20,7 @@ from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODIT
 
 def _make_table(
     index: list[str], columns: list[str], values: list[list[float]]
-) -> WasteWeightTable:
+) -> DisaggWeightTable:
     return pd.DataFrame(values, index=index, columns=columns, dtype=float)
 
 
@@ -29,17 +29,17 @@ def test_waste_disagg_weights_construction() -> None:
     # 2x2 table (industry x commodity), e.g. intersection
     tbl = _make_table(idx, idx, [[0.5, 0.0], [0.0, 0.5]])
     empty_tbl = _empty_weight_table()
-    w = WasteDisaggWeights(
+    w = DisaggWeights(
         use_intersection=tbl.copy(),
-        use_waste_industry_columns_all_rows=tbl.copy(),
-        use_waste_commodity_rows_all_columns=tbl.copy(),
-        use_waste_rows_specific_columns=empty_tbl,
-        use_va_rows_for_waste_industry_columns=tbl.copy(),
-        use_fd_columns_for_waste_commodity_rows=empty_tbl,
+        use_disagg_industry_columns_all_rows=tbl.copy(),
+        use_disagg_commodity_rows_all_columns=tbl.copy(),
+        use_disagg_rows_specific_columns=empty_tbl,
+        use_va_rows_for_disagg_industry_columns=tbl.copy(),
+        use_fd_columns_for_disagg_commodity_rows=empty_tbl,
         make_intersection=tbl.copy(),
-        make_waste_commodity_columns_all_rows=tbl.copy(),
-        make_waste_commodity_columns_specific_rows=empty_tbl,
-        make_waste_industry_rows_specific_columns=empty_tbl,
+        make_disagg_commodity_columns_all_rows=tbl.copy(),
+        make_disagg_commodity_columns_specific_rows=empty_tbl,
+        make_disagg_industry_rows_specific_columns=empty_tbl,
         year=2017,
         source_name="Test",
     )
@@ -47,25 +47,25 @@ def test_waste_disagg_weights_construction() -> None:
     assert w.source_name == "Test"
     assert list(w.use_intersection.index) == idx
     assert list(w.use_intersection.columns) == idx
-    assert w.use_waste_rows_specific_columns.empty
-    assert w.make_waste_industry_rows_specific_columns.empty
+    assert w.use_disagg_rows_specific_columns.empty
+    assert w.make_disagg_industry_rows_specific_columns.empty
 
 
 def test_waste_disagg_weights_required_fields() -> None:
     idx = ["562111"]
     tbl = _make_table(idx, idx, [[1.0]])
     empty_tbl = _empty_weight_table()
-    w = WasteDisaggWeights(
+    w = DisaggWeights(
         use_intersection=tbl.copy(),
-        use_waste_industry_columns_all_rows=tbl.copy(),
-        use_waste_commodity_rows_all_columns=tbl.copy(),
-        use_waste_rows_specific_columns=empty_tbl,
-        use_va_rows_for_waste_industry_columns=tbl.copy(),
-        use_fd_columns_for_waste_commodity_rows=empty_tbl,
+        use_disagg_industry_columns_all_rows=tbl.copy(),
+        use_disagg_commodity_rows_all_columns=tbl.copy(),
+        use_disagg_rows_specific_columns=empty_tbl,
+        use_va_rows_for_disagg_industry_columns=tbl.copy(),
+        use_fd_columns_for_disagg_commodity_rows=empty_tbl,
         make_intersection=tbl.copy(),
-        make_waste_commodity_columns_all_rows=tbl.copy(),
-        make_waste_commodity_columns_specific_rows=empty_tbl,
-        make_waste_industry_rows_specific_columns=empty_tbl,
+        make_disagg_commodity_columns_all_rows=tbl.copy(),
+        make_disagg_commodity_columns_specific_rows=empty_tbl,
+        make_disagg_industry_rows_specific_columns=empty_tbl,
         year=2017,
         source_name="WasteDisaggregationDetail2017",
     )
@@ -81,7 +81,7 @@ def _write_csv(path: pathlib.Path, rows: list[dict[str, str]]) -> None:
 
 
 @pytest.mark.eeio_integration
-def test_load_waste_disagg_weights_normalizes_slices(tmp_path: pathlib.Path) -> None:
+def test_load_disagg_weights_normalizes_slices(tmp_path: pathlib.Path) -> None:
     use_path = tmp_path / "use.csv"
     make_path = tmp_path / "make.csv"
     _write_csv(
@@ -143,11 +143,11 @@ def test_load_waste_disagg_weights_normalizes_slices(tmp_path: pathlib.Path) -> 
     )
     waste_sectors = ["562111", "562212"]
 
-    weights = load_waste_disagg_weights(
+    weights = load_disagg_weights(
         cfg,
-        disagg_original_code="562000",
-        disagg_new_codes=waste_sectors,
-        waste_sectors=waste_sectors,
+        original_code="562000",
+        new_codes=waste_sectors,
+        disagg_sectors=waste_sectors,
     )
 
     assert pytest.approx(float(weights.use_intersection.values.sum()), rel=1e-6) == 1.0
@@ -159,7 +159,7 @@ def test_load_waste_disagg_weights_normalizes_slices(tmp_path: pathlib.Path) -> 
 
 
 @pytest.mark.eeio_integration
-def test_load_waste_disagg_weights_missing_sectors_get_zero_weight(
+def test_load_disagg_weights_missing_sectors_get_zero_weight(
     tmp_path: pathlib.Path,
 ) -> None:
     use_path = tmp_path / "use_missing.csv"
@@ -193,11 +193,11 @@ def test_load_waste_disagg_weights_missing_sectors_get_zero_weight(
     )
     waste_sectors = ["562111", "562212"]
 
-    weights = load_waste_disagg_weights(
+    weights = load_disagg_weights(
         cfg,
-        disagg_original_code="562000",
-        disagg_new_codes=waste_sectors,
-        waste_sectors=waste_sectors,
+        original_code="562000",
+        new_codes=waste_sectors,
+        disagg_sectors=waste_sectors,
     )
 
     assert weights.use_intersection.loc["562212", :].sum() == pytest.approx(0.0)
@@ -206,7 +206,7 @@ def test_load_waste_disagg_weights_missing_sectors_get_zero_weight(
 
 
 @pytest.mark.eeio_integration
-def test_load_waste_disagg_weights_all_zero_raises(tmp_path: pathlib.Path) -> None:
+def test_load_disagg_weights_all_zero_raises(tmp_path: pathlib.Path) -> None:
     use_path = tmp_path / "use_zero.csv"
     make_path = tmp_path / "make_zero.csv"
     _write_csv(
@@ -237,16 +237,16 @@ def test_load_waste_disagg_weights_all_zero_raises(tmp_path: pathlib.Path) -> No
         source_name="test",
     )
 
-    with pytest.raises(WasteDisaggWeightError):
-        load_waste_disagg_weights(
+    with pytest.raises(DisaggWeightError):
+        load_disagg_weights(
             cfg,
-            disagg_original_code="562000",
-            disagg_new_codes=["562111"],
-            waste_sectors=["562111"],
+            original_code="562000",
+            new_codes=["562111"],
+            disagg_sectors=["562111"],
         )
 
 
-def test_load_waste_disagg_weights_missing_required_column(
+def test_load_disagg_weights_missing_required_column(
     tmp_path: pathlib.Path,
 ) -> None:
     use_path = tmp_path / "use_missing_column.csv"
@@ -278,16 +278,16 @@ def test_load_waste_disagg_weights_missing_required_column(
         source_name="test",
     )
 
-    with pytest.raises(WasteDisaggWeightError):
-        load_waste_disagg_weights(
+    with pytest.raises(DisaggWeightError):
+        load_disagg_weights(
             cfg,
-            disagg_original_code="562000",
-            disagg_new_codes=["562111"],
-            waste_sectors=["562111"],
+            original_code="562000",
+            new_codes=["562111"],
+            disagg_sectors=["562111"],
         )
 
 
-def test_load_waste_disagg_weights_nan_values_raise(tmp_path: pathlib.Path) -> None:
+def test_load_disagg_weights_nan_values_raise(tmp_path: pathlib.Path) -> None:
     use_path = tmp_path / "use_nan.csv"
     make_path = tmp_path / "make_nan.csv"
     _write_csv(
@@ -318,12 +318,12 @@ def test_load_waste_disagg_weights_nan_values_raise(tmp_path: pathlib.Path) -> N
         source_name="test",
     )
 
-    with pytest.raises(WasteDisaggWeightError):
-        load_waste_disagg_weights(
+    with pytest.raises(DisaggWeightError):
+        load_disagg_weights(
             cfg,
-            disagg_original_code="562000",
-            disagg_new_codes=["562111"],
-            waste_sectors=["562111"],
+            original_code="562000",
+            new_codes=["562111"],
+            disagg_sectors=["562111"],
         )
 
 
@@ -343,7 +343,7 @@ def test_apply_correspondence_to_series_incomplete_mapping_raises() -> None:
     mapping = {"N1": ["C1"]}
     target_codes = ["C1", "C2"]
 
-    with pytest.raises(WasteDisaggCorrespondenceError):
+    with pytest.raises(DisaggCorrespondenceError):
         _apply_correspondence_to_series(series, mapping, target_codes)
 
 
@@ -513,18 +513,18 @@ _RAW_USE_FD_DISAGG: dict[str, dict[str, float]] = {
 
 
 @pytest.fixture(scope="module")
-def weights_2017() -> WasteDisaggWeights:
+def weights_2017() -> DisaggWeights:
     cfg = EEIOWasteDisaggConfig(
         use_weights_file=str(USE_PATH),
         make_weights_file=str(MAKE_PATH),
         year=2017,
         source_name="WasteDisaggregationDetail2017",
     )
-    return load_waste_disagg_weights(
+    return load_disagg_weights(
         cfg,
-        disagg_original_code="562000",
-        disagg_new_codes=WASTE_CODES,
-        waste_sectors=WASTE_CODES,
+        original_code="562000",
+        new_codes=WASTE_CODES,
+        disagg_sectors=WASTE_CODES,
         va_row_codes=VA_ROWS,
     )
 
@@ -535,7 +535,7 @@ def weights_2017() -> WasteDisaggWeights:
 
 
 def _check_ratios(
-    tbl: "WasteWeightTable",
+    tbl: "DisaggWeightTable",
     raw: dict[tuple[str, str], float],
     label: str,
 ) -> None:
@@ -564,7 +564,7 @@ def _check_ratios(
 
 
 def _check_row_ratios(
-    tbl: "WasteWeightTable",
+    tbl: "DisaggWeightTable",
     raw: dict[tuple[str, str], float],
     label: str,
 ) -> None:
@@ -593,7 +593,7 @@ def _check_row_ratios(
 
 
 # ---------------------------------------------------------------------------
-# Value-verification tests (one per WasteDisaggWeights field)
+# Value-verification tests (one per DisaggWeights field)
 # ---------------------------------------------------------------------------
 
 
@@ -601,20 +601,20 @@ def _check_row_ratios(
 class TestMakeIntersection:
     """make_intersection — diagonal entries from 'Make table intersection' rows."""
 
-    def test_all_diagonal_pairs_present(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_all_diagonal_pairs_present(self, weights_2017: DisaggWeights) -> None:
         tbl = weights_2017.make_intersection
         for r, c in _RAW_MAKE_INTERSECTION:
             assert r in tbl.index, f"row {r} missing"
             assert c in tbl.columns, f"col {c} missing"
 
-    def test_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         _check_ratios(
             weights_2017.make_intersection,
             _RAW_MAKE_INTERSECTION,
             "make_intersection",
         )
 
-    def test_off_diagonal_are_zero(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_off_diagonal_are_zero(self, weights_2017: DisaggWeights) -> None:
         tbl = weights_2017.make_intersection
         for r in tbl.index:
             for c in tbl.columns:
@@ -626,55 +626,55 @@ class TestMakeIntersection:
 
 @pytest.mark.eeio_integration
 class TestMakeWasteCommodityColumnsAllRows:
-    """make_waste_commodity_columns_all_rows = default (e.g. 562000); specific rows in make_waste_commodity_columns_specific_rows."""
+    """make_disagg_commodity_columns_all_rows = default (e.g. 562000); specific rows in make_disagg_commodity_columns_specific_rows."""
 
     def _combined_make_commodity_columns(
-        self, weights_2017: WasteDisaggWeights
-    ) -> WasteWeightTable:
+        self, weights_2017: DisaggWeights
+    ) -> DisaggWeightTable:
         """Default row(s) + row-specific overrides = full logical table."""
         return pd.concat(
             [
-                weights_2017.make_waste_commodity_columns_all_rows,
-                weights_2017.make_waste_commodity_columns_specific_rows,
+                weights_2017.make_disagg_commodity_columns_all_rows,
+                weights_2017.make_disagg_commodity_columns_specific_rows,
             ],
             axis=0,
         )
 
-    def test_all_pairs_present(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_all_pairs_present(self, weights_2017: DisaggWeights) -> None:
         tbl = self._combined_make_commodity_columns(weights_2017)
         for r, c in _RAW_MAKE_COL_SUM:
             assert r in tbl.index, f"row {r} missing"
             assert c in tbl.columns, f"col {c} missing"
 
-    def test_row_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_row_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         _check_row_ratios(
             self._combined_make_commodity_columns(weights_2017),
             _RAW_MAKE_COL_SUM,
-            "make_waste_commodity_columns (all_rows + specific_rows)",
+            "make_disagg_commodity_columns (all_rows + specific_rows)",
         )
 
 
 @pytest.mark.eeio_integration
 class TestMakeWasteIndustryRowsSpecificColumns:
-    """make_waste_industry_rows_specific_columns — from 'industry disaggregation' rows in Make.
+    """make_disagg_industry_rows_specific_columns — from 'industry disaggregation' rows in Make.
     Index = non-waste commodity codes; columns = waste industry subsectors.
     Each row sums to 1.
     """
 
-    def test_commodity_contexts_present(self, weights_2017: WasteDisaggWeights) -> None:
-        tbl = weights_2017.make_waste_industry_rows_specific_columns
+    def test_commodity_contexts_present(self, weights_2017: DisaggWeights) -> None:
+        tbl = weights_2017.make_disagg_industry_rows_specific_columns
         expected_contexts = {c for (_, c) in _RAW_MAKE_INDUSTRY_ROWS}
         for ctx in expected_contexts:
             assert ctx in tbl.index, f"context row {ctx} missing"
 
-    def test_row_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_row_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         # raw is (industry, commodity) but the table is (commodity → industry);
         # transpose raw to (commodity, industry)
         raw_transposed = {(c, r): v for (r, c), v in _RAW_MAKE_INDUSTRY_ROWS.items()}
         _check_row_ratios(
-            weights_2017.make_waste_industry_rows_specific_columns,
+            weights_2017.make_disagg_industry_rows_specific_columns,
             raw_transposed,
-            "make_waste_industry_rows_specific_columns",
+            "make_disagg_industry_rows_specific_columns",
         )
 
 
@@ -682,13 +682,13 @@ class TestMakeWasteIndustryRowsSpecificColumns:
 class TestUseIntersection:
     """use_intersection — from 'Use table intersection' rows."""
 
-    def test_all_pairs_present(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_all_pairs_present(self, weights_2017: DisaggWeights) -> None:
         tbl = weights_2017.use_intersection
         for r, c in _RAW_USE_INTERSECTION:
             assert r in tbl.index, f"row {r} missing"
             assert c in tbl.columns, f"col {c} missing"
 
-    def test_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         _check_ratios(
             weights_2017.use_intersection,
             _RAW_USE_INTERSECTION,
@@ -698,82 +698,78 @@ class TestUseIntersection:
 
 @pytest.mark.eeio_integration
 class TestUseWasteIndustryColumnsAllRows:
-    """use_waste_industry_columns_all_rows — from Use column-sum rows (IndustryCode=waste, CommodityCode=562000).
+    """use_disagg_industry_columns_all_rows — from Use column-sum rows (IndustryCode=waste, CommodityCode=562000).
     Index = CommodityCode (562000); columns = waste industry subsectors; each row sums to 1.
     """
 
-    def test_waste_industry_columns_present(
-        self, weights_2017: WasteDisaggWeights
-    ) -> None:
-        tbl = weights_2017.use_waste_industry_columns_all_rows
+    def test_waste_industry_columns_present(self, weights_2017: DisaggWeights) -> None:
+        tbl = weights_2017.use_disagg_industry_columns_all_rows
         for ind in {r for (r, _) in _RAW_USE_COL_SUM}:
             assert ind in tbl.columns, f"industry col {ind} missing"
 
-    def test_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         # raw has (industry, commodity) — column sum slice: commodity=562000, industry=subsector
         # the table has index=commodity (562000), columns=industry subsectors
         raw_as_row = {("562000", ind): v for (ind, _), v in _RAW_USE_COL_SUM.items()}
         _check_row_ratios(
-            weights_2017.use_waste_industry_columns_all_rows,
+            weights_2017.use_disagg_industry_columns_all_rows,
             raw_as_row,
-            "use_waste_industry_columns_all_rows",
+            "use_disagg_industry_columns_all_rows",
         )
 
 
 @pytest.mark.eeio_integration
 class TestUseWasteCommodityRowsAllColumns:
-    """use_waste_commodity_rows_all_columns — from Use row-sum rows (IndustryCode=562000, CommodityCode=waste).
+    """use_disagg_commodity_rows_all_columns — from Use row-sum rows (IndustryCode=562000, CommodityCode=waste).
     Index = IndustryCode (562000); columns = waste commodity subsectors; each row sums to 1.
     """
 
-    def test_waste_commodity_columns_present(
-        self, weights_2017: WasteDisaggWeights
-    ) -> None:
-        tbl = weights_2017.use_waste_commodity_rows_all_columns
+    def test_waste_commodity_columns_present(self, weights_2017: DisaggWeights) -> None:
+        tbl = weights_2017.use_disagg_commodity_rows_all_columns
         for com in {c for (_, c) in _RAW_USE_ROW_SUM}:
             assert com in tbl.columns, f"commodity col {com} missing"
 
-    def test_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         # raw has (IndustryCode=562000, CommodityCode=waste)
         raw_as_row = {("562000", com): v for (_, com), v in _RAW_USE_ROW_SUM.items()}
         _check_row_ratios(
-            weights_2017.use_waste_commodity_rows_all_columns,
+            weights_2017.use_disagg_commodity_rows_all_columns,
             raw_as_row,
-            "use_waste_commodity_rows_all_columns",
+            "use_disagg_commodity_rows_all_columns",
         )
 
 
 @pytest.mark.eeio_integration
 class TestUseVARowsForWasteIndustryColumns:
-    """use_va_rows_for_waste_industry_columns — from VA disaggregation rows in Use CSV.
+    """use_va_rows_for_disagg_industry_columns — from VA disaggregation rows in Use CSV.
     Index = VA row code (V00100 / V00200 / V00300); columns = waste industry subsectors.
     Each row sums to 1.
     """
 
-    def test_va_rows_present(self, weights_2017: WasteDisaggWeights) -> None:
-        tbl = weights_2017.use_va_rows_for_waste_industry_columns
+    def test_va_rows_present(self, weights_2017: DisaggWeights) -> None:
+        tbl = weights_2017.use_va_rows_for_disagg_industry_columns
         for va_row in VA_ROWS:
             assert va_row in tbl.index, f"VA row {va_row} missing"
 
-    def test_industry_columns_present(self, weights_2017: WasteDisaggWeights) -> None:
-        tbl = weights_2017.use_va_rows_for_waste_industry_columns
+    def test_industry_columns_present(self, weights_2017: DisaggWeights) -> None:
+        tbl = weights_2017.use_va_rows_for_disagg_industry_columns
         for ind in {r for (r, _) in _RAW_USE_VA}:
             assert ind in tbl.columns, f"industry col {ind} missing"
 
-    def test_row_ratios_preserved(self, weights_2017: WasteDisaggWeights) -> None:
+    def test_row_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         # raw has (industry, VA_row); table has index=VA_row, columns=industry
         raw_transposed = {(va, ind): v for (ind, va), v in _RAW_USE_VA.items()}
         _check_row_ratios(
-            weights_2017.use_va_rows_for_waste_industry_columns,
+            weights_2017.use_va_rows_for_disagg_industry_columns,
             raw_transposed,
-            "use_va_rows_for_waste_industry_columns",
+            "use_va_rows_for_disagg_industry_columns",
         )
 
     def test_all_three_va_rows_have_identical_ratios(
-        self, weights_2017: WasteDisaggWeights
+        self, weights_2017: DisaggWeights
     ) -> None:
         """V00100, V00200, V00300 have identical raw values so their output rows must match."""
-        tbl = weights_2017.use_va_rows_for_waste_industry_columns
+        tbl = weights_2017.use_va_rows_for_disagg_industry_columns
         row_v1 = tbl.loc["V00100"].to_numpy()
         for va_row in ("V00200", "V00300"):
             row_vn = tbl.loc[va_row].to_numpy()
@@ -784,23 +780,23 @@ class TestUseVARowsForWasteIndustryColumns:
 
 @pytest.mark.eeio_integration
 class TestUseFDColumnsForWasteCommodityRows:
-    """use_fd_columns_for_waste_commodity_rows — rows from Use CSV whose IndustryCode is a
+    """use_fd_columns_for_disagg_commodity_rows — rows from Use CSV whose IndustryCode is a
     Cornerstone FD code (from final_demand.py).  BEA aggregate codes (S00101, S00201,
     GSLGE, 813100, etc.) are intentionally excluded.
     Index = Cornerstone FD codes; columns = waste commodity subsectors.
     Each row sums to 1.
     """
 
-    def test_fd_context_rows_present(self, weights_2017: WasteDisaggWeights) -> None:
-        tbl = weights_2017.use_fd_columns_for_waste_commodity_rows
+    def test_fd_context_rows_present(self, weights_2017: DisaggWeights) -> None:
+        tbl = weights_2017.use_fd_columns_for_disagg_commodity_rows
         for fd_col in _RAW_USE_FD_DISAGG:
             assert fd_col in tbl.index, f"FD row {fd_col} missing"
 
     def test_non_cornerstone_fd_codes_excluded(
-        self, weights_2017: WasteDisaggWeights
+        self, weights_2017: DisaggWeights
     ) -> None:
         """BEA aggregate codes must not appear — only Cornerstone FD codes are kept."""
-        tbl = weights_2017.use_fd_columns_for_waste_commodity_rows
+        tbl = weights_2017.use_fd_columns_for_disagg_commodity_rows
         bea_codes = (
             "S00101",
             "S00102",
@@ -819,15 +815,15 @@ class TestUseFDColumnsForWasteCommodityRows:
         for code in bea_codes:
             assert code not in tbl.index, f"BEA code {code} should not be in FD table"
 
-    def test_commodity_columns_present(self, weights_2017: WasteDisaggWeights) -> None:
-        tbl = weights_2017.use_fd_columns_for_waste_commodity_rows
+    def test_commodity_columns_present(self, weights_2017: DisaggWeights) -> None:
+        tbl = weights_2017.use_fd_columns_for_disagg_commodity_rows
         for col in WASTE_CODES:
             assert col in tbl.columns, f"commodity col {col} missing"
 
     def test_row_ratios_preserved_for_each_fd_context(
-        self, weights_2017: WasteDisaggWeights
+        self, weights_2017: DisaggWeights
     ) -> None:
-        tbl = weights_2017.use_fd_columns_for_waste_commodity_rows
+        tbl = weights_2017.use_fd_columns_for_disagg_commodity_rows
         for fd_col, raw_row in _RAW_USE_FD_DISAGG.items():
             raw_as_row = {(fd_col, com): v for com, v in raw_row.items()}
             _check_row_ratios(tbl, raw_as_row, f"use_fd_columns[{fd_col}]")
@@ -839,7 +835,7 @@ class TestUseFDColumnsForWasteCommodityRows:
 
 
 @pytest.mark.eeio_integration
-def test_load_waste_disagg_weights_integration_with_2017_files() -> None:
+def test_load_disagg_weights_integration_with_2017_files() -> None:
     data_dir = pathlib.Path(__file__).resolve().parents[1]
     use_path = data_dir / "WasteDisaggregationDetail2017_Use.csv"
     make_path = data_dir / "WasteDisaggregationDetail2017_Make.csv"
@@ -852,11 +848,11 @@ def test_load_waste_disagg_weights_integration_with_2017_files() -> None:
     )
     waste_codes = cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"]))
 
-    weights = load_waste_disagg_weights(
+    weights = load_disagg_weights(
         cfg,
-        disagg_original_code="562000",
-        disagg_new_codes=waste_codes,
-        waste_sectors=waste_codes,
+        original_code="562000",
+        new_codes=waste_codes,
+        disagg_sectors=waste_codes,
     )
 
     assert weights.year == 2017
