@@ -1,0 +1,135 @@
+name: a_matrix_analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_url:
+        description: "Optional PR URL to associate with this run"
+        required: false
+        type: string
+        default: ""
+
+env:
+  FORCE_COLOR: 2
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      sheet_id: ${{ steps.capture_sheet.outputs.sheet_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Step 1 — derive A matrix time series
+        run: uv run python -m bedrock.analysis.a_matrix_time_series.derive_A_time_series
+
+      - name: Step 2 — cell-by-cell diagnostics + plots
+        run: uv run python -m bedrock.analysis.a_matrix_time_series.derive_A_cells_long
+
+      - name: Capture run-report Sheet ID
+        id: capture_sheet
+        run: |
+          SHEET_ID_PATH="bedrock/analysis/a_matrix_time_series/output/results/last_run_sheet_id.txt"
+          if [ -f "$SHEET_ID_PATH" ]; then
+            echo "sheet_id=$(cat $SHEET_ID_PATH)" >> "$GITHUB_OUTPUT"
+          else
+            echo "sheet_id=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload plots
+        uses: actions/upload-artifact@v4
+        with:
+          name: a_matrix_analysis_plots_${{ github.sha }}
+          path: bedrock/analysis/a_matrix_time_series/output/plots/
+          if-no-files-found: warn
+
+      - name: Upload results CSVs
+        uses: actions/upload-artifact@v4
+        with:
+          name: a_matrix_analysis_results_${{ github.sha }}
+          path: |
+            bedrock/analysis/a_matrix_time_series/output/results/*.csv
+            bedrock/analysis/a_matrix_time_series/output/results/last_run_sheet_id.txt
+          if-no-files-found: warn
+
+  notify_slack_failure:
+    needs: analysis
+    runs-on: ubuntu-latest
+    if: always() && needs.analysis.result == 'failure'
+
+    steps:
+      - name: Notify on Slack - failure
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "Bedrock A-matrix Analysis Failure",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":warning: *Bedrock A-matrix Analysis Failure*\nFailed on `${{ github.ref_name }}` `${{ github.sha }}`"
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+
+  notify_slack_success:
+    needs: analysis
+    runs-on: ubuntu-latest
+    if: always() && needs.analysis.result == 'success'
+
+    steps:
+      - name: Notify on Slack - success
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        with:
+          channel-id: C09S03U9CH4 # #alerts-bedrock
+          payload: |
+            {
+              "text": "Bedrock A-matrix Analysis Success",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": ":white_check_mark: *Bedrock A-matrix Analysis Success*\nCompleted on `${{ github.ref_name }}` `${{ github.sha }}`\n\n*Run-report Sheet:* https://docs.google.com/spreadsheets/d/${{ needs.analysis.outputs.sheet_id }}\n*Plots:* download via the run's Artifacts tab"
+                  },
+                  "accessory": {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View logs"
+                    },
+                    "url": "${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
