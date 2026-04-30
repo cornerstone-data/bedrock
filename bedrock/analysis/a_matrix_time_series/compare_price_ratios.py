@@ -130,7 +130,6 @@ def plot_scatter(long: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> None:
-
     addon = ""
     if INFLATE_V:
         addon = "_V_inflated"

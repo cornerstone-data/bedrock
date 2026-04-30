@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import functools
-import os
 
 import pandas as pd
 from typing_extensions import deprecated
 
-from bedrock.extract.iot.constants import GCS_USA_DIR, GCS_USA_SUP_DIR
+from bedrock.extract.iot.constants import GCS_USA_MAKE_USE_DIR, GCS_USA_SUP_DIR
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_MATRIX_MAPPING,
@@ -17,6 +17,7 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
     USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
+    USA_SUMMARY_MUT_MAPPING_1997_2024,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
     USA_SUMMARY_SUT_MAPPING_2017_2022,
@@ -53,7 +54,9 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_VALUE_ADDED_INDEX,
 )
 
-IN_DIR = os.path.join(os.path.dirname(__file__), "input_data")
+LOCAL_USA_MAKE_USE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_MAKE_USE_DIR)
+LOCAL_USA_SUP_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_SUP_DIR)
+
 
 # ----- Documentation ----- #
 # MUTs (Detail and Summary, After Redefinitions) are downloaded from:
@@ -100,8 +103,8 @@ def load_2017_V_before_redef_usa() -> pd.DataFrame:
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
                 "Make_detail_before_redef"
             ],
-            sub_bucket=GCS_USA_DIR,
-            local_dir=IN_DIR,
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
                 pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
@@ -218,8 +221,8 @@ def _load_2017_detail_make_use_usa(
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name],
-            sub_bucket=GCS_USA_DIR,
-            local_dir=IN_DIR,
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
                 pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
@@ -247,7 +250,7 @@ def _load_2017_detail_supply_use_usa(
         load_from_gcs(
             name=USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING[matrix_name],
             sub_bucket=GCS_USA_SUP_DIR,
-            local_dir=IN_DIR,
+            local_dir=LOCAL_USA_SUP_DIR,
             loader=lambda pth: pd.read_excel(
                 pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
@@ -380,21 +383,21 @@ def _load_usa_summary_mut(
     Load USA Summary SUT matrix
     """
 
-    # BEA revises historical data in each new release, so the 2022 values in the
-    # 1997-2023 file differ from those in the 1997-2022 file. We pin years ≤ 2022 to
-    # the 1997-2022 file for consistency with the rest of the pipeline (e.g.
-    # scale_cornerstone_B uses years 2017 and 2022), and only switch to the 1997-2023
-    # file when year 2023 data is explicitly needed.
-    mapping = (
-        USA_SUMMARY_MUT_MAPPING_1997_2023
-        if year > 2022
-        else USA_SUMMARY_MUT_MAPPING_1997_2022
-    )
+    # BEA revises historical data in each new release. We pin older years to the
+    # oldest file containing them so values stay stable across releases (e.g.
+    # scale_cornerstone_B uses years 2017 and 2022, which must not change as new
+    # vintages add years on the right).
+    if year > 2023:
+        mapping = USA_SUMMARY_MUT_MAPPING_1997_2024
+    elif year > 2022:
+        mapping = USA_SUMMARY_MUT_MAPPING_1997_2023
+    else:
+        mapping = USA_SUMMARY_MUT_MAPPING_1997_2022
     df = (
         load_from_gcs(
             name=mapping[matrix_name],
-            sub_bucket=GCS_USA_DIR,
-            local_dir=IN_DIR,
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
                 pth,
                 sheet_name=str(year),
@@ -426,7 +429,7 @@ def _load_usa_summary_sut(
         load_from_gcs(
             name=USA_SUMMARY_SUT_MAPPING_2017_2022[matrix_name],
             sub_bucket=GCS_USA_SUP_DIR,
-            local_dir=IN_DIR,
+            local_dir=LOCAL_USA_SUP_DIR,
             loader=lambda pth: pd.read_excel(
                 pth,
                 sheet_name=str(year),
@@ -476,8 +479,8 @@ def _load_2017_detail_sut_usa(
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_MATRIX_MAPPING[matrix_name],
-            sub_bucket=GCS_USA_DIR,
-            local_dir=IN_DIR,
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
                 pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),

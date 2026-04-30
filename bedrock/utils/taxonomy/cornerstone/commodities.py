@@ -59,7 +59,7 @@ COMMODITY = ta.Literal[
     '331110',  # Primary iron, steel, and ferroalloy products
     '331200',  # Secondary steel products
     '331313',  # Primary aluminum
-    '33131B',  # Secondary aluminum
+    '33131B',  # Processed aluminum products
     '331410',  # Copper, gold and silver concentrates
     '331420',  # Secondary copper products
     '331490',  # Other secondary nonferrous metal products
@@ -469,7 +469,7 @@ COMMODITY_DESC: ta.Dict[COMMODITY, str] = {
     '331110': 'Primary iron, steel, and ferroalloy products',
     '331200': 'Secondary steel products',
     '331313': 'Primary aluminum',
-    '33131B': 'Secondary aluminum',
+    '33131B': 'Processed aluminum products',
     '331410': 'Copper, gold and silver concentrates',
     '331420': 'Secondary copper products',
     '331490': 'Other secondary nonferrous metal products',
