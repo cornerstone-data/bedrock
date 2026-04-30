@@ -67,6 +67,9 @@ Closes:
 - `cc:` — leave blank unless user specifies someone to notify.
 - `Closes:` — fill in related issue number if known (e.g., `Closes: #123`), otherwise leave blank.
 - **What changed? Why?** — factual, specific, technical. Mention file paths, parameter names, flags changed. No fluff.
+  - **Cap at ~3 sentences for typical PRs.** Bullet lists only when enumerating multiple distinct artifacts/files (one short line each), never to elaborate prose. The reviewer reads the diff for detail; the body explains *why* and points to the moving parts, not what every line does.
+  - **Do not pre-state findings, analysis, or interpretation** that belong in a README, the code itself, or a follow-up discussion. If a finding is important enough to document, document it where it'll be discoverable later — not in PR body prose that will scroll out of view after merge.
+  - **Cut redundancy ruthlessly:** if the commit message says it, don't repeat it; if a bullet says it, don't restate it in surrounding prose; if the title says "step 3 of epic #337", the body shouldn't open with "this implements step 3 of epic #337".
 - **Testing** — a one-liner is fine (e.g., "will run snapshots generation"). Don't invent tests not described.
 - Use inline backticks for code identifiers, file paths, and CLI flags.
 
@@ -77,7 +80,7 @@ Closes:
 
 ## What changed? Why?
 
-Removed the `adhoc` input parameter from the GitHub workflow for generating snapshots and updated the script path from `bedrock/publish/snapshots/generate_snapshots.py` to `bedrock/utils/snapshots/generate_snapshots.py`. The `--adhoc` flag is no longer passed to the script execution.
+Drop the `adhoc` input from the snapshot-generation workflow and move the script from `bedrock/publish/snapshots/` to `bedrock/utils/snapshots/`. The `--adhoc` flag is no longer passed.
 
 ## Testing
 
