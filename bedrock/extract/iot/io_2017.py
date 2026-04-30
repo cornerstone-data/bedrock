@@ -17,6 +17,7 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
     USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
+    USA_SUMMARY_MUT_MAPPING_1997_2024,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
     USA_SUMMARY_SUT_MAPPING_2017_2022,
@@ -382,16 +383,16 @@ def _load_usa_summary_mut(
     Load USA Summary SUT matrix
     """
 
-    # BEA revises historical data in each new release, so the 2022 values in the
-    # 1997-2023 file differ from those in the 1997-2022 file. We pin years ≤ 2022 to
-    # the 1997-2022 file for consistency with the rest of the pipeline (e.g.
-    # scale_cornerstone_B uses years 2017 and 2022), and only switch to the 1997-2023
-    # file when year 2023 data is explicitly needed.
-    mapping = (
-        USA_SUMMARY_MUT_MAPPING_1997_2023
-        if year > 2022
-        else USA_SUMMARY_MUT_MAPPING_1997_2022
-    )
+    # BEA revises historical data in each new release. We pin older years to the
+    # oldest file containing them so values stay stable across releases (e.g.
+    # scale_cornerstone_B uses years 2017 and 2022, which must not change as new
+    # vintages add years on the right).
+    if year > 2023:
+        mapping = USA_SUMMARY_MUT_MAPPING_1997_2024
+    elif year > 2022:
+        mapping = USA_SUMMARY_MUT_MAPPING_1997_2023
+    else:
+        mapping = USA_SUMMARY_MUT_MAPPING_1997_2022
     df = (
         load_from_gcs(
             name=mapping[matrix_name],
