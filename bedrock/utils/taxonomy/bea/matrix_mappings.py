@@ -40,6 +40,11 @@ USA_SUMMARY_MUT_MAPPING_1997_2023 = {
     "Use_summary": "IOUse_After_Redefinitions_PRO_1997-2023_Summary.xlsx",
     "Import_summary": "IOImportMatrices_After_Redefinitions_SUM_1997-2023.xlsx",
 }
+USA_SUMMARY_MUT_MAPPING_1997_2024 = {
+    "Make_summary": "IOMake_After_Redefinitions_PRO_1997-2024_Summary.xlsx",
+    "Use_summary": "IOUse_After_Redefinitions_PRO_1997-2024_Summary.xlsx",
+    "Import_summary": "IOImportMatrices_After_Redefinitions_SUM_1997-2024.xlsx",
+}
 
 USA_SUMMARY_SUT_NAMES = ta.Literal[
     "Supply_summary",
