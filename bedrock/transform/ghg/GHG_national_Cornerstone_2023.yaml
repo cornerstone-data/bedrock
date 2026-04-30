@@ -499,11 +499,11 @@ source_names:
       non_manufacturing_coal:
         selection_fields:
           PrimaryActivity:
-            Commercial Coal Commercial: Coal Commercial  # same as flowsa
+            Commercial Coal Commercial: Coal Commercial
             Industrial Other Coal Industrial: Coal Industrial  # todo: re examine
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+          BEA_Detail_Use_AfterRedef:
             <<: *bea
             selection_fields:
               ActivityProducedBy: {'212100': ''} # purchases of coal
@@ -511,11 +511,11 @@ source_names:
       non_manufacturing_natural_gas: # Applies to non-manufacturing sectors like ag and mining
         selection_fields:
           PrimaryActivity:
-            - Natural Gas Commercial # same as flowsa
+            - Natural Gas Commercial
             - Natural Gas Industrial  # todo: re examine
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+          BEA_Detail_Use_AfterRedef:
             <<: *bea
             selection_fields:
               ActivityProducedBy: {'221200': ''} # purchases of natural gas
@@ -561,10 +561,10 @@ source_names:
       petroleum_commercial: # Petroleum
         selection_fields:
           PrimaryActivity:
-            - Total Petroleum Commercial  # same as flowsa
+            - Total Petroleum Commercial
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+          BEA_Detail_Use_AfterRedef:
             <<: *bea
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
@@ -607,11 +607,10 @@ source_names:
       fuel_oil_commercial:
         selection_fields:
           PrimaryActivity:
-            - Fuel Oil Commercial  # same as flowsa
-#            - Fuel Oil Industrial  # only in flowsa, industrial moved to new code below
+            - Fuel Oil Commercial
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+          BEA_Detail_Use_AfterRedef:
             <<: *bea
             selection_fields:
               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
@@ -632,13 +631,13 @@ source_names:
       natural_gas_nonmanufacturing:  # Commercial Natural gas
         selection_fields:
           PrimaryActivity:
-            Natural gas Commercial: Natural Gas Commercial # fix capitalization - same as flowsa
+            Natural gas Commercial: Natural Gas Commercial # fix capitalization
             Natural gas Industrial: Natural Gas Industrial # fix capitalization
             Natural Gas Commercial: Natural Gas Commercial
             Natural Gas Industrial: Natural Gas Industrial
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+          BEA_Detail_Use_AfterRedef:
             <<: *bea
             selection_fields:
               ActivityProducedBy: {'221200': ''}  # purchases of natural gas
@@ -649,7 +648,7 @@ source_names:
           PrimaryActivity: Coal Industrial
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:  # flowsa uses BEA_SUT
+          BEA_Detail_Use_AfterRedef:
             <<: *bea
             selection_fields:
               ActivityProducedBy: {'212100': ''}  # purchases of coal
@@ -708,27 +707,27 @@ source_names:
       coal:
         selection_fields:
           PrimaryActivity:
-            - Industry Industrial Coking Coal  # same as flowsa
-            - Industry Industrial Other Coal  # same as flowsa
+            - Industry Industrial Coking Coal
+            - Industry Industrial Other Coal
         attribution_method: direct
 
       petroleum_neu: # consumed petroleum products
         selection_fields:
           PrimaryActivity:
-            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy  # same as flowsa
-            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy  # same as flowsa
-#            Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Lubricants: Industry Petroleum Products Non-energy  # same as flowsa
-            Industry Miscellaneous Products: Industry Petroleum Products Non-energy  # same as flowsa
-            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy  # same as flowsa
-            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy  # same as flowsa
-#            Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Petroleum Coke: Industry Petroleum Products Non-energy  # same as flowsa
-            Industry Special Naphtha: Industry Petroleum Products Non-energy  # same as flowsa
-            Industry Still Gas: Industry Petroleum Products Non-energy  # same as flowsa
-            Industry Waxes: Industry Petroleum Products Non-energy  # same as flowsa
-            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants  # same as flowsa
-            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants  # same as flowsa
+            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
+            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
+            # Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
+            Industry Lubricants: Industry Petroleum Products Non-energy
+            Industry Miscellaneous Products: Industry Petroleum Products Non-energy
+            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
+            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
+            # Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
+            Industry Petroleum Coke: Industry Petroleum Products Non-energy
+            Industry Special Naphtha: Industry Petroleum Products Non-energy
+            Industry Still Gas: Industry Petroleum Products Non-energy
+            Industry Waxes: Industry Petroleum Products Non-energy
+            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
+            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
         attribution_method: proportional
         attribution_source:
           EIA_MECS_Energy_Allocation_CEDA:
