@@ -1,4 +1,4 @@
-name: a_matrix_analysis
+name: run_a_matrix_analysis
 
 on:
   workflow_dispatch:
@@ -40,6 +40,9 @@ jobs:
       - name: Step 2 — cell-by-cell diagnostics + plots
         run: uv run python -m bedrock.analysis.a_matrix_time_series.derive_A_cells_long
 
+      - name: Step 2.5 — cell-level stability + persistence
+        run: uv run python -m bedrock.analysis.a_matrix_time_series.derive_A_cells_stability
+
       - name: Capture run-report Sheet ID
         id: capture_sheet
         run: |
@@ -53,14 +56,14 @@ jobs:
       - name: Upload plots
         uses: actions/upload-artifact@v4
         with:
-          name: a_matrix_analysis_plots_${{ github.sha }}
+          name: run_a_matrix_analysis_plots_${{ github.sha }}
           path: bedrock/analysis/a_matrix_time_series/output/plots/
           if-no-files-found: warn
 
       - name: Upload results CSVs
         uses: actions/upload-artifact@v4
         with:
-          name: a_matrix_analysis_results_${{ github.sha }}
+          name: run_a_matrix_analysis_results_${{ github.sha }}
           path: |
             bedrock/analysis/a_matrix_time_series/output/results/*.csv
             bedrock/analysis/a_matrix_time_series/output/results/last_run_sheet_id.txt
