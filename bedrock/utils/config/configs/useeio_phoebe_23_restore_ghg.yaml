@@ -1,5 +1,5 @@
-# Sensitivity from useeio_phoebe_23: restore row 3 to Anchor A.
-# This flips back to new_ghg_method and disables the m2 flag.
+# Sensitivity from useeio_phoebe_23.
+# This flips back to new_ghg_method (GHG_Cornerstone_2023) and disables the m2 flag.
 
 model_base_year: 2017
 iot_before_or_after_redefinition: before
@@ -14,6 +14,6 @@ implement_waste_disaggregation: true
 
 use_useeio_schema: true
 use_useeio_B: true
-use_ghg_national_2023_m2: false
+use_ghg_national_2023_m2: false # False means use GHG_Cornerstone_2023
 skip_scrap_adjustment_in_vnorm: true
-new_ghg_method: true
+new_ghg_method: true # True means use GHG_Cornerstone_2023

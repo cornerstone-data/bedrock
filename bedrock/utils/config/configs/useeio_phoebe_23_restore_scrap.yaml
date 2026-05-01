@@ -1,5 +1,6 @@
-# Sensitivity from useeio_phoebe_23: restore row 5 to Anchor A.
+# Sensitivity from useeio_phoebe_23.
 # Performs scrap adjustment
+
 model_base_year: 2017
 iot_before_or_after_redefinition: before
 
@@ -14,5 +15,5 @@ implement_waste_disaggregation: true
 use_useeio_schema: true
 use_useeio_B: true
 use_ghg_national_2023_m2: true
-skip_scrap_adjustment_in_vnorm: false
+skip_scrap_adjustment_in_vnorm: false # False means perform scrap adjustment
 new_ghg_method: false

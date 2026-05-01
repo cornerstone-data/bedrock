@@ -1,7 +1,10 @@
-# Sensitivity from useeio_phoebe_23: restore row 4 to Anchor A.
+# Sensitivity from useeio_phoebe_23.
+# Restores After Redefintion tables in economic data
+# Note the use of After Redefinition tables in the GHG model as attribution source
+# is done in useeio_phoebe_23_restore_ghg.yaml
 
 model_base_year: 2017
-iot_before_or_after_redefinition: after
+iot_before_or_after_redefinition: after # After Redefinition tables in economic data
 
 usa_io_data_year: 2017
 usa_ghg_data_year: 2023
