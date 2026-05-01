@@ -1,13 +1,14 @@
 """Cornerstone IO data processing pipeline.
 
-Derives 2017 detail IO matrices (V, U, Y, A, B, E, g, q) using the
+Derives 2017 detail IO matrices (V, U, Y, A, B, g, q) using the
 Cornerstone 2026 taxonomy (405 sectors).
 
-**Core approach** — A and B are computed in the original BEA 2017 ~400-sector
+**Core approach** — A is computed in the original BEA 2017 ~400-sector
 space and then *expanded* to 405 Cornerstone sectors by duplicating
-rows/columns for disaggregated codes.  V, U, and Y are mapped via
-correspondence-matrix multiplication.  Waste subsectors receive special
-intragroup treatment to prevent Leontief-inverse inflation.
+rows/columns for disaggregated codes. V, U, and Y are mapped via
+correspondence-matrix multiplication. B is computed directly in
+Cornerstone space from runtime `derive_E_usa()`. Waste subsectors receive
+special intragroup treatment to prevent Leontief-inverse inflation.
 
 Year-scaling logic (summary → detail disaggregation) uses the cornerstone
 summary correspondence instead of the CEDA v7 version.
@@ -46,7 +47,6 @@ from bedrock.extract.iot.io_2017 import (
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_bea_intermediates import (
     bea_Aq,
-    bea_E,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
@@ -54,7 +54,6 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     cs_commodity_to_bea_map,
     cs_industry_to_bea_map,
-    expand_ghg_matrix_from_bea_to_cornerstone,
     expand_square_matrix,
     expand_vector,
     industry_corresp,
@@ -104,7 +103,6 @@ from bedrock.utils.math.split_using_aggregated_weights import (
 from bedrock.utils.schemas.cornerstone_schemas import (
     CornerstoneAMatrix,
     CornerstoneBMatrix,
-    CornerstoneEMatrix,
     CornerstoneQVectorSchema,
     CornerstoneUMatrix,
     CornerstoneVMatrix,
@@ -615,17 +613,8 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 
 
 # ---------------------------------------------------------------------------
-# E and B — expanded from BEA space
+# B matrix (runtime E path)
 # ---------------------------------------------------------------------------
-
-
-@functools.cache
-@pa.check_output(CornerstoneEMatrix.to_schema())
-def derive_cornerstone_E() -> pd.DataFrame:
-    """E (ghg × Cornerstone industry) — expanded from BEA space."""
-    return expand_ghg_matrix_from_bea_to_cornerstone(
-        bea_E(), CS_INDUSTRY_LIST, cs_industry_to_bea_map()
-    )
 
 
 def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
