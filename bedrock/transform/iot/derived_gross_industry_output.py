@@ -13,37 +13,12 @@ SECTOR_CODE_COL = 'sector_code'
 logger = logging.getLogger(__name__)
 
 
-def derive_gross_output_after_redefinition(
+def _load_mapped_gross_output_before_redefinition(
     target_year: USA_GROSS_INDUSTRY_OUTPUT_YEARS,
 ) -> pd.Series:
-    """
-    Derive after-redefinition gross industry output for a target year.
-
-    Loads the 2017 benchmark Make table (before redefinitions), computes
-    co-production ratios, then applies them to the BEA gross-output time
-    series for the requested *target_year*.
-
-    Parameters
-    ----------
-    target_year : int
-        Calendar year (e.g. 2023) for which to derive the adjusted gross
-        output.  Must be present in the BEA detail gross-output workbook.
-
-    Returns
-    -------
-    pd.Series
-        After-redefinition gross output indexed by BEA detail industry code.
-    """
+    """Load mapped BEA detail gross output (before redefinition) for one year."""
     from bedrock.extract.iot.gdp import load_go_detail
-    from bedrock.extract.iot.io_2017 import (
-        load_2017_V_after_redef_usa,
-        load_2017_V_before_redef_usa,
-    )
     from bedrock.transform.iot.helpers import map_detail_table
-
-    V_before_redef = load_2017_V_before_redef_usa()
-    V_after_redef = load_2017_V_after_redef_usa()
-    ratios = compute_coproduction_ratios(V_before_redef, V_after_redef)
 
     go_detail = map_detail_table(load_go_detail())
     unmapped = go_detail[go_detail[SECTOR_CODE_COL].isna()]
@@ -77,10 +52,52 @@ def derive_gross_output_after_redefinition(
 
     go_before = go_detail.set_index(SECTOR_CODE_COL)[year_col]
     assert isinstance(go_before, pd.Series)
-
     if not go_before.index.is_unique:
         logger.warning('Duplicate sector codes in gross output; aggregating by sum.')
         go_before = go_before.groupby(level=0).sum()
+    return go_before
+
+
+def derive_gross_output_before_redefinition(
+    target_year: USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+) -> pd.Series:
+    """Return BEA detail gross output before redefinition for a target year."""
+    return (
+        _load_mapped_gross_output_before_redefinition(target_year)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+
+
+def derive_gross_output_after_redefinition(
+    target_year: USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+) -> pd.Series:
+    """
+    Derive after-redefinition gross industry output for a target year.
+
+    Loads the 2017 benchmark Make table (before redefinitions), computes
+    co-production ratios, then applies them to the BEA gross-output time
+    series for the requested *target_year*.
+
+    Parameters
+    ----------
+    target_year : int
+        Calendar year (e.g. 2023) for which to derive the adjusted gross
+        output.  Must be present in the BEA detail gross-output workbook.
+
+    Returns
+    -------
+    pd.Series
+        After-redefinition gross output indexed by BEA detail industry code.
+    """
+    from bedrock.extract.iot.io_2017 import (
+        load_2017_V_after_redef_usa,
+        load_2017_V_before_redef_usa,
+    )
+
+    go_before = _load_mapped_gross_output_before_redefinition(target_year)
+    V_before_redef = load_2017_V_before_redef_usa()
+    V_after_redef = load_2017_V_after_redef_usa()
+    ratios = compute_coproduction_ratios(V_before_redef, V_after_redef)
 
     return adjust_gross_output(go_before, ratios) * MILLION_CURRENCY_TO_CURRENCY
 

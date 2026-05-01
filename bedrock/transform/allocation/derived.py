@@ -10,6 +10,7 @@ from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output_after_redefinition,
+    derive_gross_output_before_redefinition,
 )
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
@@ -29,6 +30,16 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity imp
 )
 
 logger = logging.getLogger(__name__)
+
+
+def derive_gross_output() -> pd.Series[float]:
+    """Derive gross output series based on configured redefinition mode."""
+    cfg = get_usa_config()
+    if cfg.iot_before_or_after_redefinition == 'before':
+        return derive_gross_output_before_redefinition(
+            target_year=cfg.usa_ghg_data_year
+        )
+    return derive_gross_output_after_redefinition(target_year=cfg.usa_ghg_data_year)
 
 
 def _select_flowsa_ghg_method() -> str:
@@ -74,16 +85,7 @@ def _build_mapping_with_allocations(
             .assign(Allocation=1.0)
             .reset_index(drop=True)
         )
-    # TODO:
-    # m2 NAICS→BEA weights use derive_gross_output_after_redefinition (after-redef-adjusted
-    # BEA detail GO). USEEIO Phoebe sets BasewithRedefinitions: FALSE so getNAICStoBEAAllocation
-    # uses MultiYearIndustryOutput tied to before-redef benchmark IO. Evaluate whether to
-    # branch weight source on model config (e.g. iot_before_or_after_redefinition or a
-    # dedicated flag) for parity vs documenting an intentional difference.
-
-    go = derive_gross_output_after_redefinition(
-        target_year=get_usa_config().usa_ghg_data_year
-    )
+    go = derive_gross_output()
     mapping2['Output'] = mapping2['Activity'].map(go)
     mapping2['Output'] = mapping2['Output'].fillna(0.0)
 
@@ -146,9 +148,7 @@ def _build_naics_to_bea_weighted_mapping() -> pd.DataFrame:
     if get_usa_config().implement_waste_disaggregation:
         mapping = _apply_cornerstone_waste_overrides(mapping)
 
-    go = derive_gross_output_after_redefinition(
-        target_year=get_usa_config().usa_ghg_data_year
-    )
+    go = derive_gross_output()
     mapping['Output'] = mapping['Activity'].map(go).fillna(0.0)
 
     group_sum = mapping.groupby('Sector')['Output'].transform('sum')
