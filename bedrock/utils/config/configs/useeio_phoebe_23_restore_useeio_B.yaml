@@ -1,5 +1,5 @@
 # Sensitivity from useeio_phoebe_23: restore row 2 to Anchor A.
-
+# Does not use USEEIO B approach
 model_base_year: 2017
 iot_before_or_after_redefinition: before
 
