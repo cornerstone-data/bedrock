@@ -446,6 +446,7 @@ class TestPipelineB:
             atol=1e-6,
         ), "B non-waste columns should match between baseline and disaggregated configs"
 
+    @pytest.mark.eeio_integration
     def test_runtime_B_path_does_not_use_bea_expansion_helpers(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -470,6 +471,7 @@ class TestPipelineB:
 
         assert B.shape[1] == 405
 
+    @pytest.mark.eeio_integration
     def test_runtime_B_formula_matches_implementation(self) -> None:
         _setup_config("2025_usa_cornerstone_full_model.yaml")
         try:
