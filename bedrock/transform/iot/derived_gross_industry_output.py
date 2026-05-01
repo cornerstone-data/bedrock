@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import typing as ta
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,18 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT
 SECTOR_CODE_COL = 'sector_code'
 
 logger = logging.getLogger(__name__)
+
+RedefinitionMode = ta.Literal['before', 'after']
+
+
+def derive_gross_output(
+    target_year: USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+    iot_before_or_after_redefinition: RedefinitionMode,
+) -> pd.Series:
+    """Return gross output for the selected redefinition mode and target year."""
+    if iot_before_or_after_redefinition == 'before':
+        return derive_gross_output_before_redefinition(target_year=target_year)
+    return derive_gross_output_after_redefinition(target_year=target_year)
 
 
 def _load_mapped_gross_output_before_redefinition(
