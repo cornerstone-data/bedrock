@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -156,9 +157,18 @@ def _cornerstone_to_summary() -> dict[str, str]:
     }
 
 
+# Widen the upstream Literal-keyed dicts to plain str → str so descriptive
+# lookups work on arbitrary cell codes coming out of the parquet without
+# tripping mypy's call-overload check on the Literal `.get()` signature.
+_SUMMARY_DESC: dict[str, str] = {
+    str(k): str(v) for k, v in USA_2017_SUMMARY_COMMODITY_DESC.items()
+}
+_COMMODITY_DESC: dict[str, str] = {str(k): str(v) for k, v in COMMODITY_DESC.items()}
+
+
 def _summary_desc(code: str, max_len: int = 32) -> str:
     """Short BEA summary code description, truncated to ``max_len``."""
-    desc = USA_2017_SUMMARY_COMMODITY_DESC.get(code, "")  # type: ignore[arg-type]
+    desc = _SUMMARY_DESC.get(code, "")
     if not desc:
         return ""
     return desc if len(desc) <= max_len else desc[: max_len - 1] + "…"
@@ -166,7 +176,7 @@ def _summary_desc(code: str, max_len: int = 32) -> str:
 
 def _commodity_desc(code: str, max_len: int = 28) -> str:
     """Short cornerstone commodity description, truncated to ``max_len``."""
-    desc = COMMODITY_DESC.get(code, "")  # type: ignore[arg-type]
+    desc = _COMMODITY_DESC.get(code, "")
     if not desc:
         return ""
     return desc if len(desc) <= max_len else desc[: max_len - 1] + "…"
@@ -384,7 +394,7 @@ def plot_top_cells_grid(
         fontsize=12,
     )
 
-    legend_handles: list = []
+    legend_handles: list[Any] = []
     legend_labels: list[str] = []
 
     for k, (_, row) in enumerate(top_cells.iterrows()):
