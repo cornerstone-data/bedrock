@@ -43,7 +43,9 @@ def test_v_inflation_uses_industry_row_axis() -> None:
       ratio reduces to a row-wise scrap-correction factor — *constant* across
       commodity columns within each row → row std = 0.
     """
-    Vnorm_True = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=True)
+    Vnorm_True = derive_cornerstone_Vnorm_scrap_corrected(
+        apply_inflation=True, target_year=2024
+    )
     Vnorm_False = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=False)
 
     both_nonzero = (Vnorm_True.abs() > 1e-12) & (Vnorm_False.abs() > 1e-12)
