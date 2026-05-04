@@ -5,13 +5,10 @@ import os
 
 import numpy as np
 import pandas as pd
-import pandera.pandas as pa
-import pandera.typing as pt
 
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
-from bedrock.utils.schemas.single_region_schemas import VMatrix
 from bedrock.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTORS
 from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import CEDA_V5_TO_CEDA_V7_CODES
 
@@ -55,41 +52,6 @@ def obtain_inflation_factors_from_reference_data() -> pd.DataFrame:
 get_price_index = functools.cache(
     lambda: obtain_inflation_factors_from_reference_data()
 )
-
-
-def inflate_usa_U_to_target_year(
-    U: pd.DataFrame,
-    original_year: int,
-    target_year: int,
-) -> pd.DataFrame:
-    assert U.shape == (400, 400)
-    if "33391A" in U.index:
-        U = U.rename(index=CEDA_V5_TO_CEDA_V7_CODES, columns=CEDA_V5_TO_CEDA_V7_CODES)
-
-    price_index = get_price_index()
-    price_ratio_base_to_target = price_index[target_year] / price_index[original_year]
-
-    return U.multiply(price_ratio_base_to_target, axis=0)
-
-
-@pa.check_output(VMatrix.to_schema())
-def inflate_usa_V_to_target_year(
-    V: pt.DataFrame[VMatrix],
-    original_year: int,
-    target_year: int,
-) -> pt.DataFrame[VMatrix]:
-    assert V.shape == (400, 400)
-
-    price_index = get_price_index()
-    price_ratio_base_to_target = price_index[target_year] / price_index[original_year]
-
-    # TODO: Must confirm this.
-    # V is industry x commodity. Should we inflate how much of
-    # each commodity the industry makes? Or inflate the relative
-    # value of the industry?
-    # My initial guess was opposite of U since the dimension
-    # is opposite..
-    return pt.DataFrame[VMatrix](V.multiply(price_ratio_base_to_target, axis=1))
 
 
 def inflate_A_matrix(
