@@ -115,7 +115,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
     )
 
     industry_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation)
+    Vnorm = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation, target_year)
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
     # Normalize V_norm columns to sum to 1 so the dot-product is a true weighted

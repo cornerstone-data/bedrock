@@ -289,6 +289,11 @@ def derive_cornerstone_Vnorm_scrap_corrected(
     V = derive_cornerstone_V()
 
     if apply_inflation:
+        if target_year <= 0:
+            raise ValueError(
+                f"target_year must be a positive year when apply_inflation=True, "
+                f"got {target_year}"
+            )
         from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
             get_cornerstone_industry_price_ratio,
         )
