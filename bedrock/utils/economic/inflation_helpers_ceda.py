@@ -99,7 +99,7 @@ def inflate_A_matrix(
 
     price_ratio = price_index[target_year] / price_index[original_year]
     return pd.DataFrame(
-        (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,  # type: ignore[union-attr]
+        (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
         index=A.index,
         columns=A.columns,
     )

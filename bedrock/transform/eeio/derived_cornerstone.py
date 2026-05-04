@@ -79,11 +79,11 @@ from bedrock.transform.iot.derived_gross_industry_output import (
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    inflate_cornerstone_A_matrix_with_industry_pi,
     inflate_cornerstone_A_matrix_with_commodity_pi,
+    inflate_cornerstone_A_matrix_with_industry_pi,
     inflate_cornerstone_B_matrix_with_industry_pi,
-    inflate_cornerstone_q_or_y_with_industry_pi,
     inflate_cornerstone_q_or_y_with_commodity_pi,
+    inflate_cornerstone_q_or_y_with_industry_pi,
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (

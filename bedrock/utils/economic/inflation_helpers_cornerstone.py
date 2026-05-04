@@ -16,8 +16,8 @@ import numpy as np
 import pandas as pd
 
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
-from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__cornerstone_commodity import (
     load_bea_v2017_commodity_to_cornerstone_commodity,
 )
