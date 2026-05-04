@@ -53,9 +53,6 @@ DISAGGREGATED_CODES = [
     "562920",  # Material separation/recovery facilities
     "562OTH",  # Other waste collection and treatment services
 ]
-INFLATION_SECTORS = [
-    c for c in BEA_2017_INDUSTRY_CODES + DISAGGREGATED_CODES + ["333914", "335220"]
-]
 
 
 def derive_industry_price_index() -> pd.DataFrame:
