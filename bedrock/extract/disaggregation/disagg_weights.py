@@ -5,17 +5,9 @@ from typing import IO, TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
 import pandas as pd
 
+from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
+from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
-
-try:
-    from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
-except ImportError:
-    VALUE_ADDEDS = []
-
-try:
-    from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
-except ImportError:
-    FINAL_DEMANDS = []
 
 if TYPE_CHECKING:
     DisaggWeightSeries = pd.Series[float]
@@ -222,11 +214,9 @@ def load_disagg_weights(
     original_code: str,
     new_codes: list[str],
     disagg_sectors: list[str],
-    naics_to_cornerstone: dict[str, list[str]] | None = None,
     va_row_codes: list[str] | None = None,
     industry_subsectors: list[str] | None = None,
 ) -> DisaggWeights:
-    _ = naics_to_cornerstone
     make_df = load_weights_csv(cfg.make_weights_file, "PercentMake")
     use_df = load_weights_csv(cfg.use_weights_file, "PercentUsed")
 
@@ -254,7 +244,7 @@ def load_disagg_weights(
         & (~make_df["CommodityCode"].isin({original} | new_codes_set))
     ]
 
-    fd_cols: set[str] = set(
+    fd_cols: list[str] = sorted(
         use_df.loc[
             use_df["CommodityCode"].isin(new_codes_set)
             & use_df["IndustryCode"].isin(set(FINAL_DEMANDS)),
@@ -276,7 +266,7 @@ def load_disagg_weights(
     use_row_df = use_df[
         use_df["CommodityCode"].isin(new_codes_set)
         & (
-            (~use_df["IndustryCode"].isin(fd_cols | new_codes_set))
+            (~use_df["IndustryCode"].isin(set(fd_cols) | new_codes_set))
             | (use_df["IndustryCode"] == original)
         )
     ]

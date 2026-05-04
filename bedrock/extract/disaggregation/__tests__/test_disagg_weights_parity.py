@@ -46,7 +46,6 @@ def old_weights() -> WasteDisaggWeights:
         disagg_new_codes=_WASTE_CODES,
         waste_sectors=_WASTE_CODES,
         va_row_codes=_VA_ROWS,
-        naics_to_cornerstone=None,
     )
 
 
@@ -58,7 +57,6 @@ def new_weights() -> DisaggWeights:
         new_codes=_WASTE_CODES,
         disagg_sectors=_WASTE_CODES,
         va_row_codes=_VA_ROWS,
-        naics_to_cornerstone=None,
     )
 
 
@@ -182,7 +180,6 @@ def _build_weights_via_direct_api() -> WasteDisaggWeights:
         new_codes=list(dc._WASTE_NEW_CODES),
         disagg_sectors=list(dc._WASTE_NEW_CODES),
         va_row_codes=list(dc.VALUE_ADDEDS),
-        naics_to_cornerstone=None,
     )
     return WasteDisaggWeights.from_disagg_weights(dw)
 

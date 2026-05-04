@@ -112,7 +112,6 @@ def load_waste_disagg_weights(
     disagg_original_code: str,
     disagg_new_codes: list[str],
     waste_sectors: list[str],
-    naics_to_cornerstone: dict[str, list[str]] | None = None,
     va_row_codes: list[str] | None = None,
     waste_industry_sectors: list[str] | None = None,
 ) -> WasteDisaggWeights:
@@ -121,7 +120,6 @@ def load_waste_disagg_weights(
         original_code=disagg_original_code,
         new_codes=disagg_new_codes,
         disagg_sectors=waste_sectors,
-        naics_to_cornerstone=naics_to_cornerstone,
         va_row_codes=va_row_codes,
         industry_subsectors=waste_industry_sectors,
     )
@@ -148,7 +146,6 @@ if __name__ == "__main__":
         disagg_original_code="562000",
         disagg_new_codes=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
         waste_sectors=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
-        naics_to_cornerstone=None,
     )
     # weights_to_csv(_weights, 'weights.csv')
 

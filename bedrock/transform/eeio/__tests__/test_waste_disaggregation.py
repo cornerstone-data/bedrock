@@ -541,7 +541,6 @@ def weights_2017() -> WasteDisaggWeights:
         disagg_new_codes=_WASTE_CODES_2017,
         waste_sectors=_WASTE_CODES_2017,
         va_row_codes=_VA_ROWS,
-        naics_to_cornerstone=None,
     )
 
 
