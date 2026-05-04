@@ -28,7 +28,7 @@ caches from Step 1 and the BEA summary A from
 
 - ``summary_a_errors.csv`` — one row per (approach, year, dom_or_imp) with
   ``rmse_vs_bea_summary_a`` (Z-magnitude weighted), ``mean_abs_diff``,
-  ``top_5_worst_cells`` (semicolon-joined ``ROW→COL:diff`` pairs).
+  ``top_5_worst_cells`` (semicolon-joined ``ROW->COL:diff`` pairs).
 
 - ``summary_a_rmse_ranking.png`` — grouped bar chart, x = year, five bars
   per group (one per approach), y = weighted RMSE for the combined
@@ -234,7 +234,7 @@ def compute_errors_table() -> pd.DataFrame:
                         a_summary_pred.shape[0] * a_summary_pred.shape[1]
                     ),
                     "top_5_worst_cells": "; ".join(
-                        f"{r}→{c}:{d:+.3f}" for r, c, d in worst_cells
+                        f"{r}->{c}:{d:+.3f}" for r, c, d in worst_cells
                     ),
                 }
             )
