@@ -3,3 +3,4 @@
 # (industry ratios aggregated into commodity space). Step 0 of epic #337.
 use_cornerstone_2026_model_schema: True
 scale_a_matrix_with_commodity_price_index: True
+apply_inflation_to_V: True
