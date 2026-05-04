@@ -280,13 +280,18 @@ def derive_cornerstone_q() -> pd.Series[float]:
 @functools.cache
 @pa.check_output(CornerstoneVMatrix.to_schema())
 def derive_cornerstone_Vnorm_scrap_corrected(
-    apply_inflation: bool = False,
+    apply_inflation: bool = False, target_year: int = 0
 ) -> pd.DataFrame:
     cfg = get_usa_config()
 
     V = derive_cornerstone_V()
 
     if apply_inflation:
+        if target_year <= 0:
+            raise ValueError(
+                f"target_year must be a positive year when apply_inflation=True, "
+                f"got {target_year}"
+            )
         from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
             get_cornerstone_industry_price_ratio,
         )
@@ -294,7 +299,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
         # Adjust V by applying industry price ratio
         price_ratio = get_cornerstone_industry_price_ratio(
             cfg.usa_base_io_data_year,  # 2017 by default
-            cfg.model_base_year,
+            target_year,
         )
         V = pd.DataFrame(
             V.multiply(
