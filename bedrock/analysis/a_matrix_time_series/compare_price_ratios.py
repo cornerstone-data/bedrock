@@ -28,8 +28,8 @@ import pandas as pd
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
 )
-from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
-    get_cornerstone_price_ratio,
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_cornerstone_industry_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
 
@@ -53,7 +53,7 @@ def build_comparison_long(
             apply_inflation=INFLATE_V, target_year=year
         )
         vnorm_col_sum = Vnorm.sum(axis=0).rename("vnorm_col_sum")
-        industry = get_cornerstone_price_ratio(original_year, year).rename(
+        industry = get_cornerstone_industry_price_ratio(original_year, year).rename(
             "industry_ratio"
         )
         commodity = get_vnorm_adjusted_commodity_price_ratio(

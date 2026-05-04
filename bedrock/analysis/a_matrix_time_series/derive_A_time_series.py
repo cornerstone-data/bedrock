@@ -60,7 +60,7 @@ LAST_RUN_SHEET_ID_PATH = RESULTS_DIR / "last_run_sheet_id.txt"
 _CACHE_BEARING_MODULE_PATHS = (
     "bedrock.transform.eeio.derived_cornerstone",
     "bedrock.transform.eeio.cornerstone_bea_intermediates",
-    "bedrock.utils.economic.inflate_cornerstone_to_target_year",
+    "bedrock.utils.economic.inflation_helpers_cornerstone",
 )
 
 
