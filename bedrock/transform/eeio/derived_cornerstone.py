@@ -282,7 +282,7 @@ def derive_cornerstone_q() -> pd.Series[float]:
 @functools.cache
 @pa.check_output(CornerstoneVMatrix.to_schema())
 def derive_cornerstone_Vnorm_scrap_corrected(
-    apply_inflation: bool = False,
+    apply_inflation: bool = False, target_year: int = 0
 ) -> pd.DataFrame:
     cfg = get_usa_config()
 
@@ -296,7 +296,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
         # Adjust V by applying industry price ratio
         price_ratio = get_cornerstone_industry_price_ratio(
             cfg.usa_base_io_data_year,  # 2017 by default
-            cfg.model_base_year,
+            target_year,
         )
         V = pd.DataFrame(
             V.multiply(
