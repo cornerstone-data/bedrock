@@ -127,7 +127,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
     # the un-renormalized scrap-corrected V_norm.
     column_sums = Vnorm.sum(axis=0)
     weights = Vnorm.divide(column_sums.where(column_sums > 1e-9, 1.0), axis=1)
-    commodity_ratio = weights.T @ aligned
+    commodity_ratio = aligned @ weights
 
     # Commodities with no industry coverage (V_norm column ≈ 0, e.g. S00402
     # used goods) yield a 0 weighted-average, which would inject zeros into
