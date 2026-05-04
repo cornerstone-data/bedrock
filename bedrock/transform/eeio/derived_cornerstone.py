@@ -78,11 +78,11 @@ from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output_after_redefinition,
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
-from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
-    inflate_cornerstone_A_matrix,
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    inflate_cornerstone_A_matrix_with_industry_pi,
     inflate_cornerstone_A_matrix_with_commodity_pi,
-    inflate_cornerstone_B_matrix,
-    inflate_cornerstone_q_or_y,
+    inflate_cornerstone_B_matrix_with_industry_pi,
+    inflate_cornerstone_q_or_y_with_industry_pi,
     inflate_cornerstone_q_or_y_with_commodity_pi,
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
@@ -287,11 +287,11 @@ def derive_cornerstone_Vnorm_scrap_corrected(
     V = derive_cornerstone_V()
 
     if apply_inflation:
-        from bedrock.utils.economic.inflate_cornerstone_to_target_year import (  # noqa: PLC0415
-            get_cornerstone_price_ratio,
+        from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+            get_cornerstone_industry_price_ratio,
         )
 
-        price_ratio = get_cornerstone_price_ratio(2017, target_year)
+        price_ratio = get_cornerstone_industry_price_ratio(2017, target_year)
         V = pd.DataFrame(
             V.multiply(price_ratio, axis=1).values,
             index=V.index,
@@ -533,16 +533,16 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             scaled_q=q,
         )
 
-    # Price index only: inflate 2017 → model_year directly using price index,
-    # skipping the summary table scaling step entirely.
+    # Price index only: inflate 2017 → model_year directly using industry price index,
+    # as if it is commodity price index.
     if cfg.scale_a_matrix_with_industry_price_index:
-        Adom = inflate_cornerstone_A_matrix(
+        Adom = inflate_cornerstone_A_matrix_with_industry_pi(
             base.Adom, original_year=detail_year, target_year=model_year
         )
-        Aimp = inflate_cornerstone_A_matrix(
+        Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
             base.Aimp, original_year=detail_year, target_year=model_year
         )
-        q = inflate_cornerstone_q_or_y(
+        q = inflate_cornerstone_q_or_y_with_industry_pi(
             base.scaled_q, original_year=detail_year, target_year=model_year
         )
         return SingleRegionAqMatrixSet(
@@ -570,7 +570,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             scaled_q=q,
         )
 
-    Adom = inflate_cornerstone_A_matrix(
+    Adom = inflate_cornerstone_A_matrix_with_industry_pi(
         scale_cornerstone_A(
             base.Adom,
             target_year=io_year,
@@ -580,7 +580,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         original_year=io_year,
         target_year=model_year,
     )
-    Aimp = inflate_cornerstone_A_matrix(
+    Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
         scale_cornerstone_A(
             base.Aimp,
             target_year=io_year,
@@ -590,7 +590,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         original_year=io_year,
         target_year=model_year,
     )
-    q = inflate_cornerstone_q_or_y(
+    q = inflate_cornerstone_q_or_y_with_industry_pi(
         scale_cornerstone_q(
             base.scaled_q, target_year=io_year, original_year=detail_year
         ),
@@ -668,7 +668,7 @@ def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     if cfg.use_E_data_year_for_x_in_B:
         return derive_cornerstone_B_via_vnorm()
     else:
-        return inflate_cornerstone_B_matrix(
+        return inflate_cornerstone_B_matrix_with_industry_pi(
             scale_cornerstone_B(
                 B=derive_cornerstone_B_via_vnorm(),
                 original_year=cfg.usa_detail_original_year,
@@ -701,7 +701,7 @@ def _disaggregate_and_inflate_vector(
     )
     if clip_negatives:
         v = handle_negative_vector_values(v)
-    return inflate_cornerstone_q_or_y(
+    return inflate_cornerstone_q_or_y_with_industry_pi(
         v,
         original_year=original_year,
         target_year=target_year,

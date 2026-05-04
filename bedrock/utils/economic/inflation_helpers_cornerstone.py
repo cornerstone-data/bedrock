@@ -15,19 +15,15 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.economic.inflation import (
-    obtain_inflation_factors_from_reference_data,
-)
+from bedrock.transform.iot.derived_price_index import derive_industry_price_index
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__cornerstone_commodity import (
     load_bea_v2017_commodity_to_cornerstone_commodity,
 )
 
+CORNERSTONE_INDUSTRIES: list[str] = list(INDUSTRIES)
 CORNERSTONE_COMMODITIES: list[str] = list(COMMODITIES)
-
-get_price_index = functools.cache(
-    lambda: obtain_inflation_factors_from_reference_data()
-)
 
 
 @functools.cache
@@ -49,41 +45,48 @@ def _cornerstone_to_ceda_v7_parent() -> dict[str, str]:
 
 
 @functools.cache
-def get_cornerstone_price_ratio(
+def get_cornerstone_industry_price_ratio(
     original_year: int, target_year: int
 ) -> pd.Series[float]:
-    """Price ratio reindexed to cornerstone commodity codes.
+    """Price ratio reindexed to cornerstone industry codes.
 
     Cornerstone-only child codes (e.g. waste subsectors) inherit their CEDA v7
     parent's price ratio so that inflation is applied consistently.
     """
-    price_index = get_price_index()
-    ceda_ratio: pd.Series[float] = price_index[target_year] / price_index[original_year]
+    price_index = derive_industry_price_index()
+    pi_ratio: pd.Series[float] = price_index[target_year] / price_index[original_year]
 
     # Start with direct reindex (codes shared with CEDA v7 get their own ratio)
-    ratio = ceda_ratio.reindex(CORNERSTONE_COMMODITIES, fill_value=np.nan)
+    ratio = pi_ratio.reindex(CORNERSTONE_INDUSTRIES, fill_value=np.nan)
 
     # Fill cornerstone-only children with their CEDA v7 parent's ratio
     parent_map = _cornerstone_to_ceda_v7_parent()
     for child, parent_code in parent_map.items():
         if child in ratio.index and pd.isna(ratio[child]):
-            if parent_code in ceda_ratio.index:
-                ratio[child] = ceda_ratio[parent_code]
+            if parent_code in pi_ratio.index:
+                ratio[child] = pi_ratio[parent_code]
 
     # Anything still NaN (truly no parent, e.g. S00402) gets neutral 1.0
     ratio = ratio.fillna(1.0)
     return ratio
 
 
-def inflate_cornerstone_A_matrix(
+def inflate_cornerstone_A_matrix_with_industry_pi(
     A: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
-    price_ratio = get_cornerstone_price_ratio(original_year, target_year)
+    price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
     return pd.DataFrame(
         (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
         index=A.index,
         columns=A.columns,
     )
+
+
+def inflate_cornerstone_q_or_y_with_industry_pi(
+    q_or_y: pd.Series[float], original_year: int, target_year: int
+) -> pd.Series[float]:
+    price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
+    return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
 
 
 @functools.cache
@@ -92,7 +95,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
 ) -> pd.Series[float]:
     """V-norm-weighted commodity price ratio.
 
-    The CEDA price index is industry-level. ``get_cornerstone_price_ratio``
+    The CEDA price index is industry-level. ``get_cornerstone_industry_price_ratio``
     reindexes those industry ratios onto cornerstone commodity codes 1:1,
     treating each industry as its own primary commodity. This helper instead
     produces a commodity ratio that reflects the actual mix of industries
@@ -111,7 +114,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
         derive_cornerstone_Vnorm_scrap_corrected,
     )
 
-    industry_ratio = get_cornerstone_price_ratio(original_year, target_year)
+    industry_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
@@ -133,7 +136,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
     # Commodities with no industry coverage (V_norm column ≈ 0, e.g. S00402
     # used goods) yield a 0 weighted-average, which would inject zeros into
     # diag(p) @ A @ diag(1/p). Fall back to the industry ratio, mirroring the
-    # neutral 1.0 default in get_cornerstone_price_ratio.
+    # neutral 1.0 default in get_cornerstone_industry_price_ratio.
     no_coverage = column_sums < 1e-9
     fallback = industry_ratio.reindex(commodity_ratio.index, fill_value=1.0)
     commodity_ratio = commodity_ratio.where(~no_coverage, fallback)
@@ -162,27 +165,8 @@ def inflate_cornerstone_q_or_y_with_commodity_pi(
     return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
 
 
-def inflate_cornerstone_B_matrix(
+def inflate_cornerstone_B_matrix_with_industry_pi(
     B: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
-    price_ratio = get_cornerstone_price_ratio(target_year, original_year)
+    price_ratio = get_cornerstone_industry_price_ratio(target_year, original_year)
     return B * price_ratio.reindex(B.columns, fill_value=1.0).values
-
-
-def inflate_cornerstone_q_or_y(
-    q_or_y: pd.Series[float], original_year: int, target_year: int
-) -> pd.Series[float]:
-    price_ratio = get_cornerstone_price_ratio(original_year, target_year)
-    return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
-
-
-def inflate_cornerstone_V_to_target_year(
-    V: pd.DataFrame, original_year: int, target_year: int
-) -> pd.DataFrame:
-    """Inflate V (industry × commodity) along commodity axis."""
-    price_ratio = get_cornerstone_price_ratio(original_year, target_year)
-    return pd.DataFrame(
-        V.multiply(price_ratio, axis=1).values,
-        index=V.index,
-        columns=V.columns,
-    )

@@ -1,4 +1,4 @@
-from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_vnorm_adjusted_commodity_price_ratio,
 )
 

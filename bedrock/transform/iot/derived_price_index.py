@@ -58,9 +58,14 @@ INFLATION_SECTORS = [
 ]
 
 
-def prepare_formatted_bea_price_index() -> pd.DataFrame:
-    """Return the BEA detail price index table formatted for all configured years."""
-    return _combine_pi_detail_summary(END_YEAR).loc[:, [str(year) for year in YEARS]]
+def derive_industry_price_index() -> pd.DataFrame:
+    """Return the BEA detail industry price index table formatted for all configured years."""
+    pi_industry = _combine_pi_detail_summary(END_YEAR).loc[
+        :, [str(year) for year in YEARS]
+    ]
+    pi_industry.columns = pi_industry.columns.astype(int)
+
+    return pi_industry
 
 
 def _combine_pi_detail_summary(end_year: int) -> pd.DataFrame:

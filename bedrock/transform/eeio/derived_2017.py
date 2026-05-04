@@ -34,7 +34,7 @@ from bedrock.transform.eeio.derived_2017_helpers import (
     derive_2017_V_weight,
     derive_2017_Y_weight,
 )
-from bedrock.utils.economic.inflate_to_target_year import inflate_usa_V_to_target_year
+from bedrock.utils.economic.inflation_helpers_ceda import inflate_usa_V_to_target_year
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
     compute_q,
