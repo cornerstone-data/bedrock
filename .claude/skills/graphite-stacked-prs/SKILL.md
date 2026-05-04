@@ -67,13 +67,17 @@ Closes:
 - `cc:` — leave blank unless user specifies someone to notify.
 - `Closes:` — fill in related issue number if known (e.g., `Closes: #123`), otherwise leave blank.
 - **What changed? Why?** — factual, specific, technical. Mention file paths, parameter names, flags changed. No fluff.
-  - **Cap at ~3 sentences for typical PRs.** Bullet lists only when enumerating multiple distinct artifacts/files (one short line each), never to elaborate prose. The reviewer reads the diff for detail; the body explains *why* and points to the moving parts, not what every line does.
+  - **Structure for scanability, not density.** Break the body into short paragraphs where each paragraph covers one logical change — e.g. primary refactor, secondary rename, downstream consequence each get their own paragraph. Topic shift = paragraph break. **Never** stuff multiple distinct changes into one paragraph separated by em dashes or semicolons; that produces walls of text reviewers skip.
+  - **Use bullets whenever you have 2+ enumerable artifacts** — file mappings, renames, deletions, parallel changes. One item per line. Even a 2-item list belongs in bullets if the items are file mappings or transformations; cramming `X → Y; A → B` into prose is the anti-pattern.
+  - **Keep each paragraph tight (1–3 sentences).** The body explains *why* and points to the moving parts; the reviewer reads the diff for detail.
   - **Do not pre-state findings, analysis, or interpretation** that belong in a README, the code itself, or a follow-up discussion. If a finding is important enough to document, document it where it'll be discoverable later — not in PR body prose that will scroll out of view after merge.
   - **Cut redundancy ruthlessly:** if the commit message says it, don't repeat it; if a bullet says it, don't restate it in surrounding prose; if the title says "step 3 of epic #337", the body shouldn't open with "this implements step 3 of epic #337".
 - **Testing** — a one-liner is fine (e.g., "will run snapshots generation"). Don't invent tests not described.
 - Use inline backticks for code identifiers, file paths, and CLI flags.
 
-**Example:**
+**Examples:**
+
+Simple PR (one focused change — prose only):
 ```
 cc:
 Closes:
@@ -86,6 +90,37 @@ Drop the `adhoc` input from the snapshot-generation workflow and move the script
 
 will run snapshots generation
 ```
+
+Complex PR (multiple artifacts + downstream consequence — paragraphs + bullets):
+```
+cc:
+Closes: #366
+
+## What changed? Why?
+
+Collapse three inflation/price-index modules into two domain-scoped helpers:
+
+- `inflation.py` + `inflate_to_target_year.py` → `inflation_helpers_ceda.py`
+- `inflate_cornerstone_to_target_year.py` → `inflation_helpers_cornerstone.py`
+
+Also renames `prepare_formatted_bea_price_index` → `derive_industry_price_index` (single consumer).
+
+The cornerstone path now sources its industry price index from `derive_industry_price_index` (409 BEA detail sectors) instead of CEDA's `obtain_inflation_factors_from_reference_data` (which filtered to `CEDA_V5_SECTORS` and dropped industries like `331314`). Fixes #366 for the cornerstone pipeline.
+
+## Testing
+
+Existing tests pass; 8 import sites verified.
+```
+
+Notice in the complex example:
+- File mappings get bullets (2+ enumerable items, never em-dashed prose).
+- Each topic shift (primary refactor → secondary rename → downstream consequence) gets its own paragraph.
+- No paragraph runs on past 3 sentences.
+
+**Anti-pattern (do not produce this — it's what the complex example fixes):**
+> Collapse three inflation/price-index modules into two domain-scoped helpers — `inflation.py` + `inflate_to_target_year.py` → `inflation_helpers_ceda.py`; `inflate_cornerstone_to_target_year.py` → `inflation_helpers_cornerstone.py`. Also renames `prepare_formatted_bea_price_index` → `derive_industry_price_index` (single consumer). The cornerstone path now sources its industry price index from `derive_industry_price_index` (409 BEA detail sectors) instead of CEDA's `obtain_inflation_factors_from_reference_data` (which filtered to `CEDA_V5_SECTORS` and dropped industries like `331314`); fixes #366 for the cornerstone pipeline.
+
+That single dense paragraph mashes 3 distinct topics together with em dashes and semicolons. Readers can't scan it.
 
 ---
 
