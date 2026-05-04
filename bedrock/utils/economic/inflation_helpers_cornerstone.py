@@ -95,7 +95,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
 ) -> pd.Series[float]:
     """V-norm-weighted commodity price ratio.
 
-    The CEDA price index is industry-level. ``get_cornerstone_industry_price_ratio``
+    The price index is industry-level. ``get_cornerstone_industry_price_ratio``
     reindexes those industry ratios onto cornerstone commodity codes 1:1,
     treating each industry as its own primary commodity. This helper instead
     produces a commodity ratio that reflects the actual mix of industries
