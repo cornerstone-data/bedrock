@@ -40,11 +40,11 @@ TARGET_YEARS: list[int] = [2018, 2019, 2020, 2021, 2022, 2023, 2024]
 OUTPUT_DIR = Path(__file__).parent / "output"
 RESULTS_DIR = OUTPUT_DIR / "results"
 PLOTS_DIR = OUTPUT_DIR / "plots"
-INFLATE_V = False  # inflates V to prepare Vnorm for use in commodity ratios
+INFLATE_V = True  # inflates V to prepare Vnorm for use in commodity ratios
 
 
 def build_comparison_long(
-    target_years: list[int], original_year: int = ORIGINAL_YEAR
+    target_years: list[int] = TARGET_YEARS, original_year: int = ORIGINAL_YEAR
 ) -> pd.DataFrame:
 
     rows: list[pd.DataFrame] = []
@@ -53,11 +53,11 @@ def build_comparison_long(
             apply_inflation=INFLATE_V, target_year=year
         )
         vnorm_col_sum = Vnorm.sum(axis=0).rename("vnorm_col_sum")
-        industry = get_cornerstone_industry_price_ratio(original_year, year).rename(
-            "industry_ratio"
-        )
+        industry = get_cornerstone_industry_price_ratio(
+            original_year, target_year=year
+        ).rename("industry_ratio")
         commodity = get_vnorm_adjusted_commodity_price_ratio(
-            original_year, year, inflate_V=INFLATE_V
+            original_year, year, apply_inflation=INFLATE_V
         ).rename("commodity_ratio")
         df = pd.concat([industry, commodity, vnorm_col_sum], axis=1).reset_index(
             names="code"
