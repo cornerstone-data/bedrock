@@ -9,12 +9,11 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
-
-INFLATE_V = True
 
 original_year = ORIGINAL_YEAR
 target_year = LATEST_TARGET_YEAR
@@ -22,7 +21,8 @@ target_year = LATEST_TARGET_YEAR
 
 def main() -> None:
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
-        apply_inflation=INFLATE_V, target_year=target_year
+        apply_inflation=get_usa_config().apply_inflation_to_V,
+        target_year=target_year,
     )
     industry = get_cornerstone_industry_price_ratio(original_year, target_year).rename(
         "industry_ratio"
