@@ -156,6 +156,14 @@ def main() -> None:
     if missing:
         raise ValueError(f"{EF_RUN_INDEX_PATH} missing columns: {sorted(missing)}")
 
+    # `scenario` and `year` are optional. Step 6 runs lack them; Step 7
+    # time-series dispatch populates both. Default to empty so the same
+    # script handles both schemas.
+    if "scenario" not in index_df.columns:
+        index_df["scenario"] = ""
+    if "year" not in index_df.columns:
+        index_df["year"] = ""
+
     summaries_by_baseline: dict[str, list[pd.Series]] = {}
     scatter_chunks: list[pd.DataFrame] = []
     per_pair_tables: dict[str, pd.DataFrame] = {}
@@ -164,19 +172,41 @@ def main() -> None:
         approach = str(row["approach"])
         baseline = str(row["baseline"])
         sheet_id = str(row["sheet_id"])
-        logger.info("Pulling tabs for approach=%s baseline=%s", approach, baseline)
+        scenario = str(row["scenario"]) if pd.notna(row["scenario"]) else ""
+        year = str(row["year"]) if pd.notna(row["year"]) else ""
+        cell_label = ", ".join(
+            f"{k}={v}"
+            for k, v in (
+                ("scenario", scenario),
+                ("approach", approach),
+                ("year", year),
+                ("baseline", baseline),
+            )
+            if v
+        )
+        logger.info("Pulling tabs for %s", cell_label)
         joined = _read_pair(sheet_id)
         if joined.empty:
-            logger.warning(
-                "approach=%s baseline=%s returned empty data; skipping",
-                approach,
-                baseline,
-            )
+            logger.warning("%s returned empty data; skipping", cell_label)
             continue
-        per_pair_tables[f"{approach}__vs_{baseline}"] = joined.reset_index()
-        summaries_by_baseline.setdefault(baseline, []).append(
-            _summarize(joined, approach)
+        # Build a deterministic 31-char-bounded tab name including any
+        # populated scenario/year prefix.
+        prefix = "_".join(p for p in (scenario, year) if p)
+        pair_key = (
+            f"{prefix}_{approach}__vs_{baseline}"
+            if prefix
+            else f"{approach}__vs_{baseline}"
         )
+        per_pair_tables[pair_key[:31]] = joined.reset_index()
+
+        summary_row = _summarize(joined, approach)
+        # Stamp the optional dimensions onto the row so the summary tab is
+        # navigable in time-series mode.
+        if scenario:
+            summary_row["scenario"] = scenario
+        if year:
+            summary_row["year"] = year
+        summaries_by_baseline.setdefault(baseline, []).append(summary_row)
         scatter_chunks.append(_scatter_coords(joined, approach, baseline))
 
     summaries: dict[str, pd.DataFrame] = {
