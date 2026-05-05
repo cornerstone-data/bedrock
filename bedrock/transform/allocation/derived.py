@@ -32,10 +32,35 @@ logger = logging.getLogger(__name__)
 
 
 def _select_flowsa_ghg_method() -> str:
-    """Select FBS methodname from USA config (first match wins)."""
+    """Select FBS methodname from USA config (first match wins).
+
+    The base `new_ghg_method` and CEDA fallback methods are parameterized on
+    `usa_ghg_data_year`. The variant FBSes (`*_coa_allocation`, `*_electricity`,
+    etc.) are 2023-only; if any of those flags is set with a non-2023 year we
+    raise here rather than failing later with an opaque "FBS not found".
+    """
     usa = get_usa_config()
+    year = usa.usa_ghg_data_year
+    needs_2023 = (
+        usa.update_ghg_coa_allocation
+        or usa.update_electricity_ghg_method
+        or usa.update_other_gases_ghg_method
+        or usa.update_ghg_attribution_method_for_ng_and_petrol_systems
+        or usa.update_flowsa_refrigerant_method
+        or usa.update_transportation_ghg_method
+        or usa.add_new_ghg_activities
+        or usa.update_enteric_fermentation_and_manure_management_ghg_method
+        or usa.update_liming_and_fertilizer_ghg_method
+    )
+    if needs_2023 and year != 2023:
+        raise ValueError(
+            f'usa_ghg_data_year={year} is incompatible with the active '
+            'update_*_ghg_method flag — variant FBS methods only exist '
+            'for 2023. Either set usa_ghg_data_year=2023 or disable the '
+            'update_*_ghg_method flag.'
+        )
     if usa.new_ghg_method:
-        return 'GHG_national_Cornerstone_2023'
+        return f'GHG_national_Cornerstone_{year}'
     if usa.use_ghg_national_2023_m2:
         return 'GHG_national_2023_m2'
     if usa.update_ghg_coa_allocation:
@@ -56,7 +81,7 @@ def _select_flowsa_ghg_method() -> str:
         return 'GHG_national_Cornerstone_2023_ag_livestock'
     if usa.update_liming_and_fertilizer_ghg_method:
         return 'GHG_national_Cornerstone_2023_ag_soils'
-    return 'GHG_national_CEDA_2023'
+    return f'GHG_national_CEDA_{year}'
 
 
 def _build_mapping_with_allocations(

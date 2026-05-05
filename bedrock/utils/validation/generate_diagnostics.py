@@ -58,6 +58,16 @@ logger = logging.getLogger(__name__)
         'dispatch to vary the year without forking config YAMLs.'
     ),
 )
+@click.option(
+    '--usa_ghg_data_year',
+    default=None,
+    type=int,
+    help=(
+        'Override config usa_ghg_data_year — used by time-series '
+        'dispatch to vary the GHG inventory year alongside '
+        'model_base_year.'
+    ),
+)
 def generate_diagnostics(
     sheet_id: str,
     config_name: str,
@@ -66,6 +76,7 @@ def generate_diagnostics(
     diagnostics_baseline_source: str | None,
     useeio_baseline_pin_json: str | None,
     model_base_year: int | None,
+    usa_ghg_data_year: int | None,
 ) -> None:
     total_start = time.time()
     overrides: dict[str, object] = {}
@@ -81,6 +92,8 @@ def generate_diagnostics(
         overrides['diagnostics_baseline_source'] = diagnostics_baseline_source
     if model_base_year is not None:
         overrides['model_base_year'] = model_base_year
+    if usa_ghg_data_year is not None:
+        overrides['usa_ghg_data_year'] = usa_ghg_data_year
     set_global_usa_config(
         config_name,
         diagnostics_cli_overrides=overrides if overrides else None,
