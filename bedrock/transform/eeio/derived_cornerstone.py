@@ -671,7 +671,9 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
             original_year=cfg.usa_detail_original_year,
             target_year=cfg.usa_ghg_data_year,
         )
-        x = x_nominal * ratio.reindex(x_nominal.index).fillna(1.0)
+        # ratio is PI_target / PI_original; divide nominal target-year dollars
+        # to convert x into original-year dollars for USEEIO-style B.
+        x = x_nominal.divide(ratio.reindex(x_nominal.index, fill_value=1.0))
     else:
         x = (
             derive_cornerstone_x_after_redefinition()
