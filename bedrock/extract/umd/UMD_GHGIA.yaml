@@ -1,0 +1,58 @@
+# University of Maryland CGS GHGIA Chapter 3 Energy (combined FBA). Staged CSVs live under
+# .../UMD_GHGIA/2024/ on GCS (hardcoded); columns carry inventory years (cf. EPA GHGI).
+# https://ghgi.cgs.umd.edu/data.html
+author: 'University of Maryland'
+source_name: 'Greenhouse Gas Inventory and Analysis'
+source_url: https://ghgi.cgs.umd.edu/data.html
+bib_id: UMD_GHGIA
+format: csv
+url:
+  base_url: https://ghgi.cgs.umd.edu/Web%20Content/Data%20folder/Chapter%203%20-%20Energy.zip  # note: only chapter 3 for now
+
+parse_response_fxn: !script_function:UMD_GHGIA umd_ghgia_parse
+gcs_fxn: !script_function:UMD_GHGIA umd_ghgia_load
+extract_data_from_raw_sources: False # If True, downloads from UMD site
+years:
+  - 2019
+  - 2020
+  - 2021
+  - 2022
+  - 2023
+  - 2024
+
+# Special table lists
+# Flows as group headers
+#multi_chem_names: ["2-1", "3-102", "4-55", "5-7", "5-29"]
+#source_No_activity: ["3-25", "3-25b"]
+## Handle tables with 1 parent level category
+#source_activity_1: ["3-7", "3-8", "3-9", "5-18", "5-19"]
+#source_activity_1_fuel: ["3-13", "3-14", "3-15"]
+## Tables with sub categories
+#source_activity_2: ["3-45", "3-64", "A-90"]
+#rows_as_flows: ["4-63", "4-64", "4-100", "4-106", "4-122"]
+
+# specify table layouts
+fuel_sector: ["3-4"]  # fuel listed first, sector nested. Append fuel after sector
+fuel_vehicle: ["3-8", "3-9", "3-10"]  # fuel listed first, vehicle nested. Append vehicle after fuel.
+#ghg_sections: ["3-11"]
+ghg_fuel: ["3-11", "3-12"]  # ghg listed first, fuel nested. Activity name comes from cell A1
+no_nesting: ["3-25", "3-26", "3-27", "3-28", "3-29", "3-30"] # no nesting, cell A2 is blank
+
+# Optional table overrides
+Tables:
+  "Chapter 3 - Energy":
+    "3-4":
+      nested_fuel_sector: true
+      flow: CO2
+      desc: "Table 3-4: CO2 emissions from stationary fossil fuel combustion by sector (UMD GHGIA)"
+      data_reliability: 4
+    "3-11":
+      unit: MMT CO2e
+      desc: "Table 3-11: GHG emissions from fossil fuel combustion in the industrial sector (UMD GHGIA)"
+      data_reliability: 4
+    "3-25":
+      activity: "__year__ Adjusted Non-Energy Use Fossil Fuel - __type__"
+      unit: Other
+      flow: CO2
+      desc: "Table 3-25: Adjusted non-energy use fossil fuel consumption, storage, and emissions (UMD GHGIA)"
+      data_reliability: 4
