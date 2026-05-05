@@ -48,14 +48,15 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
+from bedrock.analysis.a_matrix_time_series.constants import (
+    LAST_RUN_SHEET_ID_PATH,
+    PLOTS_DIR,
+    RESULTS_DIR,
+)
 from bedrock.utils.io.gcp import update_sheet_tab
 
 logger = logging.getLogger(__name__)
 
-OUTPUT_DIR = Path(__file__).parent / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
-PLOTS_DIR = OUTPUT_DIR / "plots"
-LAST_RUN_SHEET_ID_PATH = RESULTS_DIR / "last_run_sheet_id.txt"
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
 # Approaches we plot (rows). Excludes baselines (useeio, ceda_default) which
