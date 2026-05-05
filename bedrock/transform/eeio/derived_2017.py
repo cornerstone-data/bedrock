@@ -34,7 +34,6 @@ from bedrock.transform.eeio.derived_2017_helpers import (
     derive_2017_V_weight,
     derive_2017_Y_weight,
 )
-from bedrock.utils.economic.inflate_to_target_year import inflate_usa_V_to_target_year
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
     compute_q,
@@ -178,16 +177,8 @@ def derive_q_from_U_usa_and_Ytot_usa() -> pd.Series[float]:
 
 @functools.cache
 @pa.check_output(VMatrix.to_schema())
-def derive_2017_Vnorm_scrap_corrected(
-    apply_inflation: bool = False, target_year: int = 0
-) -> pt.DataFrame[VMatrix]:
+def derive_2017_Vnorm_scrap_corrected() -> pt.DataFrame[VMatrix]:
     V_usa = derive_2017_V_usa()
-
-    if apply_inflation:
-        V_usa = inflate_usa_V_to_target_year(
-            V=V_usa, original_year=2017, target_year=target_year
-        )
-
     q = compute_q(V=V_usa)
     Vnorm = compute_Vnorm_matrix(V=V_usa, q=q)
 

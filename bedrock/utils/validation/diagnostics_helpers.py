@@ -20,7 +20,7 @@ import pandas as pd
 from pydantic import BaseModel
 
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.economic.inflation import (
+from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
 from bedrock.utils.snapshots.loader import load_configured_snapshot
@@ -586,8 +586,8 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415
         derive_gross_output_after_redefinition,
     )
-    from bedrock.utils.economic.inflate_cornerstone_to_target_year import (  # noqa: PLC0415
-        get_cornerstone_price_ratio,
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+        get_cornerstone_industry_price_ratio,
     )
     from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
         load_bea_v2017_commodity_to_bea_v2017_summary,
@@ -615,7 +615,7 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     )
 
     # PI_target / PI_original — inflation from IO data year to model base year
-    pi_scale = get_cornerstone_price_ratio(
+    pi_scale = get_cornerstone_industry_price_ratio(
         cfg.usa_io_data_year, cfg.model_base_year
     ).reindex(x_2017.index, fill_value=1.0)
 

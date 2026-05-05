@@ -38,7 +38,7 @@ from bedrock.transform.eeio.scale_abq_via_summary import (
     scale_detail_q_based_on_summary_q,
 )
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.economic.inflate_to_target_year import (
+from bedrock.utils.economic.inflation_helpers_ceda import (
     inflate_A_matrix,
     inflate_B_matrix,
     inflate_q_or_y,
