@@ -301,6 +301,12 @@ def derive_cornerstone_Vnorm_scrap_corrected(
             cfg.usa_base_io_data_year,  # 2017 by default
             target_year,
         )
+        # Under `update_inflation_factors=False` the helper returns
+        # commodity-indexed values; aligning by name with V.index (industries)
+        # would otherwise produce a 406-row union and fail the (industries,
+        # commodities) shape below. Industries not in commodities (e.g.
+        # `331314`) fall back to a neutral 1.0 ratio.
+        price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
         V = pd.DataFrame(
             V.multiply(
                 price_ratio,

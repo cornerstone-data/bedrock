@@ -60,7 +60,7 @@ def build_comparison_long(
             original_year, target_year=year
         ).rename("industry_ratio")
         commodity = get_vnorm_adjusted_commodity_price_ratio(
-            original_year, target_year=year, apply_inflation=INFLATE_V
+            original_year, target_year=year
         ).rename("commodity_ratio")
         df = pd.concat([industry, commodity, vnorm_col_sum], axis=1).reset_index(
             names="code"

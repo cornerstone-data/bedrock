@@ -105,7 +105,7 @@ def inflate_cornerstone_q_or_y_with_industry_pi(
 
 @functools.cache
 def get_vnorm_adjusted_commodity_price_ratio(
-    original_year: int, target_year: int, apply_inflation: bool = False
+    original_year: int, target_year: int
 ) -> pd.Series[float]:
     """V-norm-weighted commodity price ratio.
 
@@ -122,14 +122,22 @@ def get_vnorm_adjusted_commodity_price_ratio(
     approximation of the (theoretically purer) ratio of V-norm-aggregated
     price levels; the two coincide when industry prices are uniform within
     a commodity's supplying mix.
+
+    V is inflated to ``cfg.model_base_year`` when ``cfg.apply_inflation_to_V``
+    is set; the V-norm weights then reflect supplier mix at the model year
+    rather than at ``cfg.usa_base_io_data_year``.
     """
     # local import to avoid a circular dependency on transform.eeio
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_Vnorm_scrap_corrected,
     )
 
+    cfg = get_usa_config()
     industry_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation, target_year)
+    Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
+        apply_inflation=cfg.apply_inflation_to_V,
+        target_year=cfg.model_base_year,
+    )
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
     # Normalize V_norm columns to sum to 1 so the dot-product is a true weighted
