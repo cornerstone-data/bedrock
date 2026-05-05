@@ -49,6 +49,15 @@ logger = logging.getLogger(__name__)
         '--diagnostics_baseline_source.'
     ),
 )
+@click.option(
+    '--model_base_year',
+    default=None,
+    type=int,
+    help=(
+        'Override config model_base_year — used by time-series '
+        'dispatch to vary the year without forking config YAMLs.'
+    ),
+)
 def generate_diagnostics(
     sheet_id: str,
     config_name: str,
@@ -56,6 +65,7 @@ def generate_diagnostics(
     pr_url: str | None,
     diagnostics_baseline_source: str | None,
     useeio_baseline_pin_json: str | None,
+    model_base_year: int | None,
 ) -> None:
     total_start = time.time()
     overrides: dict[str, object] = {}
@@ -69,6 +79,8 @@ def generate_diagnostics(
         overrides['diagnostics_baseline_source'] = 'gcs_useeio_xlsx'
     if diagnostics_baseline_source is not None:
         overrides['diagnostics_baseline_source'] = diagnostics_baseline_source
+    if model_base_year is not None:
+        overrides['model_base_year'] = model_base_year
     set_global_usa_config(
         config_name,
         diagnostics_cli_overrides=overrides if overrides else None,
