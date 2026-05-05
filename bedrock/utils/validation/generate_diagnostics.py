@@ -14,7 +14,7 @@ from bedrock.utils.config.settings import (
     GIT_PR_URL,
 )
 from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
-from bedrock.utils.io.gcp import update_sheet_tab
+from bedrock.utils.io.gcp import delete_default_sheet1, update_sheet_tab
 from bedrock.utils.snapshots.loader import resolve_snapshot_key
 
 logger = logging.getLogger(__name__)
@@ -150,6 +150,14 @@ def generate_diagnostics(
         config_df,
     )
     logger.info(f'[TIMING] Config summary update completed in {time.time() - t0:.1f}s')
+
+    # Drop the placeholder Sheet1 that Google creates by default on every
+    # new spreadsheet — diagnostics runs leave it behind otherwise.
+    try:
+        delete_default_sheet1(sheet_id)
+    except Exception as e:  # noqa: BLE001
+        logger.warning('Sheet1 cleanup skipped (%s: %s)', type(e).__name__, e)
+
     logger.info(
         f'[TIMING] Total diagnostics completed in {time.time() - total_start:.1f}s'
     )

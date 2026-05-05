@@ -372,6 +372,34 @@ def update_sheet_tab(
     ).execute()
 
 
+def delete_default_sheet1(sheet_id: str) -> None:
+    """Delete the default ``Sheet1`` tab if other tabs exist.
+
+    Newly-created spreadsheets always have a ``Sheet1`` placeholder.
+    Diagnostics runs leave it behind; this helper removes it. No-op if
+    ``Sheet1`` doesn't exist or it's the only tab (Google Sheets requires
+    at least one tab per spreadsheet).
+    """
+    client = __sheets_client()
+    metadata = client.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    sheets = metadata.get("sheets", [])
+    sheet1 = next(
+        (s for s in sheets if s["properties"]["title"] == "Sheet1"),
+        None,
+    )
+    if sheet1 is None:
+        return
+    if len(sheets) <= 1:
+        logger.info("Skipping Sheet1 deletion on %s: it's the only tab.", sheet_id)
+        return
+    sheet1_id = sheet1["properties"]["sheetId"]
+    client.spreadsheets().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={"requests": [{"deleteSheet": {"sheetId": sheet1_id}}]},
+    ).execute()
+    logger.info('deleted default Sheet1 from "%s"', sheet_id)
+
+
 def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:
     """
     List all files in the GCS bucket and return a DataFrame
