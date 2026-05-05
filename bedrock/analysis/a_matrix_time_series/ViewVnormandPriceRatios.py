@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
-
+from bedrock.analysis.a_matrix_time_series.constants import (
+    LATEST_TARGET_YEAR,
+    ORIGINAL_YEAR,
+    RESULTS_DIR,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -12,11 +15,9 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 )
 
 INFLATE_V = True
-OUTPUT_DIR = Path(__file__).parent / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
 
-original_year = 2017
-target_year = 2023
+original_year = ORIGINAL_YEAR
+target_year = LATEST_TARGET_YEAR
 
 
 def main() -> None:
@@ -44,13 +45,16 @@ def main() -> None:
         original_year, target_year
     ).rename("commodity_ratio")
 
-    Vnorm.to_csv(RESULTS_DIR / "Vnorm2023.csv")
-    industry.to_csv(RESULTS_DIR / "industry_price_ratio_2023.csv")
-    commodity.to_csv(RESULTS_DIR / "commodity_price_ratio_2023.csv")
+    vnorm_path = RESULTS_DIR / f"Vnorm{target_year}.csv"
+    industry_path = RESULTS_DIR / f"industry_price_ratio_{target_year}.csv"
+    commodity_path = RESULTS_DIR / f"commodity_price_ratio_{target_year}.csv"
+    Vnorm.to_csv(vnorm_path)
+    industry.to_csv(industry_path)
+    commodity.to_csv(commodity_path)
     print(
-        "Vnorm written to VNorm2023.csv."
-        "Industry ratios written to industry_price_ratio_2023.csv"
-        "Commodity ratios written to commodity_price_ratio_2023.csv "
+        f"Vnorm written to {vnorm_path.name}. "
+        f"Industry ratios written to {industry_path.name}. "
+        f"Commodity ratios written to {commodity_path.name}."
     )
     return None
 

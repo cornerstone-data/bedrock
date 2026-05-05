@@ -57,6 +57,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series.constants import (
+    LAST_RUN_SHEET_ID_PATH,
+    LATEST_TARGET_YEAR,
+    PLOTS_DIR,
+    RESULTS_DIR,
+)
 from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     USA_2017_SUMMARY_COMMODITY_DESC,
@@ -68,13 +74,9 @@ from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 
 logger = logging.getLogger(__name__)
 
-OUTPUT_DIR = Path(__file__).parent / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
-PLOTS_DIR = OUTPUT_DIR / "plots"
-LAST_RUN_SHEET_ID_PATH = RESULTS_DIR / "last_run_sheet_id.txt"
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-RANK_TARGET_YEAR = 2024
+RANK_TARGET_YEAR = LATEST_TARGET_YEAR
 ALTERNATIVE_APPROACHES: tuple[str, ...] = (
     "summary_tables",
     "industry_price_index",

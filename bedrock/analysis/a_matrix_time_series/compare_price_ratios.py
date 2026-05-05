@@ -25,6 +25,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series.constants import (
+    LATEST_TARGET_YEAR,
+    ORIGINAL_YEAR,
+    PLOTS_DIR,
+    RESULTS_DIR,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
 )
@@ -35,11 +41,8 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 
 logger = logging.getLogger(__name__)
 
-ORIGINAL_YEAR = 2017
-TARGET_YEARS: list[int] = [2018, 2019, 2020, 2021, 2022, 2023, 2024]
-OUTPUT_DIR = Path(__file__).parent / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
-PLOTS_DIR = OUTPUT_DIR / "plots"
+# Skip ORIGINAL_YEAR (year-to-self ratio is trivially 1.0).
+TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR + 1, LATEST_TARGET_YEAR + 1))
 INFLATE_V = True  # inflates V to prepare Vnorm for use in commodity ratios
 
 
