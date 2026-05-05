@@ -81,6 +81,8 @@ class USAConfig(BaseModel):
     )
     update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
+    ### Inflation factors
+    update_inflation_factors: bool = False  # mo.li
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)

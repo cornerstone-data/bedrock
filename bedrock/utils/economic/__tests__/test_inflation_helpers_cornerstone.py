@@ -1,6 +1,9 @@
+import pytest
+
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_vnorm_adjusted_commodity_price_ratio,
 )
@@ -23,7 +26,9 @@ def test_vnorm_commodity_price_ratio_is_identity_at_year_to_self() -> None:
     ), f"Expected ratio == 1.0 at year=year, got max abs deviation {max_abs_dev:.2e}"
 
 
-def test_v_inflation_uses_industry_row_axis() -> None:
+def test_v_inflation_uses_industry_row_axis(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Regression guard: V inflation in
     ``derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=True)`` must
     scale industry rows of V by their own price ratio (axis=0), not commodity
@@ -43,6 +48,12 @@ def test_v_inflation_uses_industry_row_axis() -> None:
       ratio reduces to a row-wise scrap-correction factor — *constant* across
       commodity columns within each row → row std = 0.
     """
+    # apply_inflation=True is the new BEA-derived industry-PI path; pin the
+    # flag so the price ratio is industry-indexed (matching V's industry
+    # rows). Under update_inflation_factors=False the helper returns
+    # commodity-indexed values for the legacy A-matrix flow.
+    monkeypatch.setattr(get_usa_config(), 'update_inflation_factors', True)
+
     Vnorm_True = derive_cornerstone_Vnorm_scrap_corrected(
         apply_inflation=True, target_year=2024
     )
