@@ -26,8 +26,10 @@ def test_useeio_b_adjust_divide_transform_steps(
         columns=["I1", "I2"],
     )
     x_nominal = pd.Series([100.0, 200.0], index=["I1", "I2"])
-    # Convert target-year nominal output to 2017 USD.
-    ratio = pd.Series([0.5, 0.5], index=["I1", "I2"])
+    # Price ratio orientation is PI_target / PI_original.
+    # Here: I1=0.8 (deflationary), I2=1.25 (inflationary), so adjusted x is
+    # x_nominal / ratio = [125, 160].
+    ratio = pd.Series([0.8, 1.25], index=["I1", "I2"])
     # Identity market-share transform for easy expected value check.
     vnorm = pd.DataFrame(
         [[1.0, 0.0], [0.0, 1.0]], index=["I1", "I2"], columns=["I1", "I2"]
@@ -56,12 +58,12 @@ def test_useeio_b_adjust_divide_transform_steps(
 
     out = cast(Any, dc.derive_cornerstone_B_via_vnorm).__wrapped__()
 
-    # Step 1: adjusted x = [50, 100]
-    # Step 2: Bi = E / adjusted x = [0.2, 0.2]
+    # Step 1: adjusted x = x_nominal / ratio = [125, 160]
+    # Step 2: Bi = E / adjusted x = [0.08, 0.125]
     # Step 3: B = Bi @ I = Bi
     expected = pd.DataFrame(
         [
-            [0.2, 0.2],  # CO2
+            [0.08, 0.125],  # CO2
             [0.0, 0.0],  # CH4
             [0.0, 0.0],  # N2O
             [0.0, 0.0],  # HFCs
