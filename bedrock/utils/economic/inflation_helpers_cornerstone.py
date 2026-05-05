@@ -16,6 +16,10 @@ import numpy as np
 import pandas as pd
 
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.economic.inflation_helpers_ceda import (
+    obtain_inflation_factors_from_reference_data,
+)
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__cornerstone_commodity import (
@@ -53,11 +57,21 @@ def get_cornerstone_industry_price_ratio(
     Cornerstone-only child codes (e.g. waste subsectors) inherit their CEDA v7
     parent's price ratio so that inflation is applied consistently.
     """
-    price_index = derive_industry_price_index()
+    cfg = get_usa_config()
+    if cfg.update_inflation_factors:
+        price_index = derive_industry_price_index()
+        target_codes = CORNERSTONE_INDUSTRIES
+    else:
+        # Reindex to commodities so downstream `diag(p) @ A @ diag(1/p)`
+        # aligns positionally against a commodity-indexed A. INDUSTRIES and
+        # COMMODITIES order diverges at 351/405 positions, so the target
+        # list is load-bearing despite the function's name.
+        price_index = obtain_inflation_factors_from_reference_data()
+        target_codes = CORNERSTONE_COMMODITIES
     pi_ratio: pd.Series[float] = price_index[target_year] / price_index[original_year]
 
     # Start with direct reindex (codes shared with CEDA v7 get their own ratio)
-    ratio = pi_ratio.reindex(CORNERSTONE_INDUSTRIES, fill_value=np.nan)
+    ratio = pi_ratio.reindex(target_codes, fill_value=np.nan)
 
     # Fill cornerstone-only children with their CEDA v7 parent's ratio
     parent_map = _cornerstone_to_ceda_v7_parent()
