@@ -17,6 +17,7 @@ DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
         'useeio_baseline_xlsx_sha256',
         'useeio_model_version_label',
         'model_base_year',
+        'usa_ghg_data_year',
     }
 )
 
@@ -47,7 +48,7 @@ class USAConfig(BaseModel):
     usa_io_data_year: ta.Literal[2022, 2023, 2024] = (
         2022  # CEDA's legacy USA IO data year
     )
-    usa_ghg_data_year: ta.Literal[2023, 2024] = 2023
+    usa_ghg_data_year: ta.Literal[2019, 2020, 2021, 2022, 2023, 2024] = 2023
 
     ipcc_ar_version: ta.Literal['AR5', 'AR6'] = 'AR6'
 

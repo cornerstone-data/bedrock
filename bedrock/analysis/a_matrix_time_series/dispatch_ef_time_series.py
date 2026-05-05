@@ -34,8 +34,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import logging
 import subprocess
+import time
 
 import pandas as pd
 
@@ -59,14 +61,13 @@ ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
     "commodity_price_index": "2025_usa_cornerstone_A_commodity_price_index",
 }
 
-# `bundle_v0_2`: v0.2 full-model candidates that bundle A-matrix selection
-# with every other v0.2 change (GHG methodology, schema, etc.). Populate
-# when those YAMLs exist; until then, dispatching `bundle_v0_2` raises.
+# `bundle_v0_2`: full v0.2 release-candidate config. Single YAML —
+# `2025_usa_cornerstone_full_model` carries all v0.2 flags (cornerstone
+# 2026 schema, cornerstone GHG FBS, USEEIO B method, waste disagg). The
+# `model_base_year` and `usa_ghg_data_year` overrides drive the time
+# series; the YAML itself is year-agnostic.
 BUNDLE_V0_2_YAMLS: dict[str, str] = {
-    # "useeio":                "<v0.2 full-model useeio yaml stem>",
-    # "summary_tables":        "<v0.2 full-model summary_tables yaml stem>",
-    # "industry_price_index":  "<v0.2 full-model industry_pi yaml stem>",
-    # "commodity_price_index": "<v0.2 full-model commodity_pi yaml stem>",
+    "full_model": "2025_usa_cornerstone_full_model",
 }
 
 SCENARIO_YAMLS: dict[str, dict[str, str]] = {
@@ -83,6 +84,7 @@ APPROACH_LABELS: dict[str, str] = {
     "summary_tables": "A matrix with summary tables",
     "industry_price_index": "A matrix with industry price index",
     "commodity_price_index": "A matrix with commodity price index",
+    "full_model": "full v0.2 model",
 }
 BASELINE_LABELS: dict[str, str] = {
     "ceda": "CEDA based",
@@ -132,6 +134,7 @@ def _trigger_workflow(
     sheet_id: str,
     model_base_year: int,
     use_useeio_baseline: bool,
+    usa_ghg_data_year: int | None = None,
 ) -> None:
     cmd = [
         "gh",
@@ -149,7 +152,82 @@ def _trigger_workflow(
         "-f",
         f"use_useeio_baseline={'true' if use_useeio_baseline else 'false'}",
     ]
+    if usa_ghg_data_year is not None:
+        cmd += ["-f", f"usa_ghg_data_year={usa_ghg_data_year}"]
     subprocess.run(cmd, check=True)
+
+
+def _busy_count(workflow: str = "generate_diagnostics") -> int:
+    """Number of `queued` + `in_progress` runs of the named workflow."""
+    count = 0
+    for status in ("queued", "in_progress"):
+        result = subprocess.run(
+            [
+                "gh",
+                "run",
+                "list",
+                "--workflow",
+                f"{workflow}.yml",
+                "--status",
+                status,
+                "--limit",
+                "20",
+                "--json",
+                "databaseId",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        count += len(json.loads(result.stdout))
+    return count
+
+
+def _wait_for_capacity(
+    *,
+    poll_interval: int = 15,
+    timeout: int = 1800,
+    workflow: str = "generate_diagnostics",
+) -> None:
+    """Block until no `generate_diagnostics` run is queued or in progress.
+
+    Combined with the workflow's `concurrency:` directive, this is the
+    primary serialization mechanism — guarantees we don't dispatch a new
+    run while one is still in flight (which would either get cancelled by
+    the directive or stack up against the Sheets API write quota).
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        n = _busy_count(workflow)
+        if n == 0:
+            return
+        logger.info("Waiting for %d in-flight %s run(s) to clear...", n, workflow)
+        time.sleep(poll_interval)
+    raise TimeoutError(
+        f"{workflow} runs still busy after {timeout}s; aborting dispatch"
+    )
+
+
+def _throttle(mode: str) -> None:
+    """Apply the configured throttle between successive dispatches.
+
+    Modes:
+      - ``poll``: block until the workflow has no queued or in-progress runs.
+      - ``sleep:N``: sleep N seconds (e.g. ``sleep:120``).
+      - ``none``: no throttle; useful only with a bumped Sheets API quota.
+    """
+    if mode == "poll":
+        _wait_for_capacity()
+    elif mode.startswith("sleep:"):
+        seconds = int(mode.split(":", 1)[1])
+        logger.info("Sleeping %ds before next dispatch...", seconds)
+        time.sleep(seconds)
+    elif mode == "none":
+        return
+    else:
+        raise ValueError(
+            f"Unknown throttle {mode!r}. Valid: 'poll', 'sleep:N', 'none'."
+        )
 
 
 def _load_index() -> pd.DataFrame:
@@ -193,10 +271,11 @@ def _already_recorded(
 def dispatch(
     *,
     git_ref: str,
-    scenarios: tuple[str, ...] = ("isolate_a_matrix",),
+    scenarios: tuple[str, ...] = ("bundle_v0_2",),
     years: tuple[int, ...] = DEFAULT_YEARS,
     use_useeio_baseline: bool = False,
     dry_run: bool = False,
+    throttle: str = "poll",
 ) -> None:
     baseline_label = "useeio" if use_useeio_baseline else "ceda"
     today = dt.datetime.utcnow().strftime("%Y-%m-%d")
@@ -251,6 +330,9 @@ def dispatch(
                     n_dispatched += 1
                     continue
 
+                if n_dispatched > 0:
+                    _throttle(throttle)
+
                 sheet_id = _create_sheet(EF_TIME_SERIES_DRIVE_FOLDER_ID, title)
                 logger.info(
                     "Created sheet %s for (%s, %s, %d, %s)",
@@ -266,6 +348,7 @@ def dispatch(
                     sheet_id=sheet_id,
                     model_base_year=year,
                     use_useeio_baseline=use_useeio_baseline,
+                    usa_ghg_data_year=year,
                 )
                 _append_index_row(
                     {
@@ -291,6 +374,73 @@ def dispatch(
     )
 
 
+def re_dispatch_from_csv(
+    *,
+    git_ref: str,
+    scenarios: tuple[str, ...] | None = None,
+    throttle: str = "poll",
+    dry_run: bool = False,
+) -> None:
+    """Re-trigger workflow runs for cells already recorded in
+    ``ef_run_index.csv``. Used to recover from rate-limit batch failures —
+    re-uses the existing Sheets (no new ones created), so the audit trail
+    keeps the same `sheet_id`s.
+
+    Successful runs that get re-triggered will overwrite their own data
+    with deterministic identical content; harmless but wastes a few
+    minutes of runner time. Filter with ``scenarios`` to scope down.
+    """
+    df = _load_index()
+    if df.empty:
+        logger.info("No rows in %s; nothing to re-dispatch", EF_RUN_INDEX_PATH)
+        return
+
+    # Re-dispatch only Step 7 rows (have non-empty scenario + year).
+    has_step7 = (df["scenario"].astype(str).str.strip() != "") & (
+        df["year"].astype(str).str.strip() != ""
+    )
+    df = df[has_step7].copy()
+    if scenarios:
+        df = df[df["scenario"].isin(scenarios)]
+    if df.empty:
+        logger.info("No matching rows to re-dispatch")
+        return
+
+    logger.info("Re-dispatching %d cells from %s", len(df), EF_RUN_INDEX_PATH)
+    n_dispatched = 0
+    for _, row in df.iterrows():
+        if dry_run:
+            logger.info(
+                "DRY-RUN would re-dispatch sheet=%s config=%s year=%s",
+                row["sheet_id"],
+                row["config_name"],
+                row["year"],
+            )
+            n_dispatched += 1
+            continue
+
+        if n_dispatched > 0:
+            _throttle(throttle)
+
+        _trigger_workflow(
+            git_ref=git_ref,
+            config_name=str(row["config_name"]),
+            sheet_id=str(row["sheet_id"]),
+            model_base_year=int(float(row["year"])),
+            use_useeio_baseline=str(row["useeio_box_ticked"]).strip().lower() == "true",
+            usa_ghg_data_year=int(float(row["year"])),
+        )
+        logger.info(
+            "Re-dispatched sheet %s (%s × %s)",
+            row["sheet_id"],
+            row["approach"],
+            row["year"],
+        )
+        n_dispatched += 1
+
+    logger.info("Done. re-dispatched=%d", n_dispatched)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -300,7 +450,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--scenarios",
-        default="isolate_a_matrix",
+        default="bundle_v0_2",
         help=(
             "Comma-separated scenarios to dispatch. Valid values: "
             "'isolate_a_matrix', 'bundle_v0_2'."
@@ -321,19 +471,46 @@ def main() -> None:
         action="store_true",
         help="Print the plan without creating Sheets or triggering workflows.",
     )
+    parser.add_argument(
+        "--throttle",
+        default="poll",
+        help=(
+            "How to space successive workflow triggers. 'poll' (default) "
+            "blocks until prior runs clear; 'sleep:N' sleeps N seconds; "
+            "'none' fires immediately (only safe with bumped Sheets API quota)."
+        ),
+    )
+    parser.add_argument(
+        "--re-dispatch-from-csv",
+        action="store_true",
+        help=(
+            "Re-trigger workflows for cells already in ef_run_index.csv. "
+            "Used to recover from rate-limit batch failures — re-uses "
+            "existing Sheets, no new ones created."
+        ),
+    )
     args = parser.parse_args()
 
     scenarios = tuple(s.strip() for s in args.scenarios.split(",") if s.strip())
     years = tuple(int(y) for y in args.years.split(",") if y.strip())
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    dispatch(
-        git_ref=args.git_ref,
-        scenarios=scenarios,
-        years=years,
-        use_useeio_baseline=args.use_useeio_baseline,
-        dry_run=args.dry_run,
-    )
+    if args.re_dispatch_from_csv:
+        re_dispatch_from_csv(
+            git_ref=args.git_ref,
+            scenarios=scenarios,
+            throttle=args.throttle,
+            dry_run=args.dry_run,
+        )
+    else:
+        dispatch(
+            git_ref=args.git_ref,
+            scenarios=scenarios,
+            years=years,
+            use_useeio_baseline=args.use_useeio_baseline,
+            dry_run=args.dry_run,
+            throttle=args.throttle,
+        )
 
 
 if __name__ == "__main__":

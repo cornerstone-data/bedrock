@@ -27,9 +27,24 @@ on:
         required: false
         type: string
         default: ""
+      usa_ghg_data_year:
+        description: "Override usa_ghg_data_year (e.g. 2019..2024). Leave empty to use the YAML's value."
+        required: false
+        type: string
+        default: ""
 
 env:
   FORCE_COLOR: 2
+
+# Belt-and-suspenders against the Sheets-API write quota. The dispatcher
+# in `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py`
+# polls for capacity client-side; this directive is the safety net
+# preventing accidental parallel runs (e.g. UI-triggered ones) from
+# overlapping. With `cancel-in-progress: false`, any third concurrent
+# dispatch is dropped — the dispatcher's polling avoids that case.
+concurrency:
+  group: generate_diagnostics
+  cancel-in-progress: false
 
 jobs:
   diagnostics:
@@ -61,6 +76,7 @@ jobs:
               --git_branch "${{ github.ref_name }}" \
               ${{ github.event.inputs.pr_url && format('--pr_url "{0}"', github.event.inputs.pr_url) || '' }} \
               ${{ github.event.inputs.model_base_year && format('--model_base_year {0}', github.event.inputs.model_base_year) || '' }} \
+              ${{ github.event.inputs.usa_ghg_data_year && format('--usa_ghg_data_year {0}', github.event.inputs.usa_ghg_data_year) || '' }} \
               --useeio_baseline_pin_json bedrock/utils/snapshots/useeio_baseline_pin.json
           else
             uv run python bedrock/utils/validation/generate_diagnostics.py \
@@ -68,7 +84,8 @@ jobs:
               --config_name "${{ github.event.inputs.config_name }}" \
               --git_branch "${{ github.ref_name }}" \
               ${{ github.event.inputs.pr_url && format('--pr_url "{0}"', github.event.inputs.pr_url) || '' }} \
-              ${{ github.event.inputs.model_base_year && format('--model_base_year {0}', github.event.inputs.model_base_year) || '' }}
+              ${{ github.event.inputs.model_base_year && format('--model_base_year {0}', github.event.inputs.model_base_year) || '' }} \
+              ${{ github.event.inputs.usa_ghg_data_year && format('--usa_ghg_data_year {0}', github.event.inputs.usa_ghg_data_year) || '' }}
           fi
 
   notify_slack_failure:

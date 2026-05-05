@@ -159,8 +159,31 @@ def load_E_from_flowsa() -> pd.DataFrame:
     Only used when load_E_from_flowsa is True in USA config.
     """
     usa = get_usa_config()
+    year = usa.usa_ghg_data_year
+    # Only the base `new_ghg_method` and CEDA fallback FBS methods exist
+    # for years other than 2023. The variant FBSes (`*_coa_allocation`,
+    # `*_electricity`, etc.) are 2023-only; raise here rather than failing
+    # with an opaque "FBS not found" later.
+    needs_2023 = (
+        usa.update_ghg_coa_allocation
+        or usa.update_electricity_ghg_method
+        or usa.update_other_gases_ghg_method
+        or usa.update_ghg_attribution_method_for_ng_and_petrol_systems
+        or usa.update_flowsa_refrigerant_method
+        or usa.update_transportation_ghg_method
+        or usa.add_new_ghg_activities
+        or usa.update_enteric_fermentation_and_manure_management_ghg_method
+        or usa.update_liming_and_fertilizer_ghg_method
+    )
+    if needs_2023 and year != 2023:
+        raise ValueError(
+            f'usa_ghg_data_year={year} is incompatible with the active '
+            'update_*_ghg_method flag — variant FBS methods only exist '
+            'for 2023. Either set usa_ghg_data_year=2023 or disable the '
+            'update_*_ghg_method flag.'
+        )
     if usa.new_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023'
+        methodname = f'GHG_national_Cornerstone_{year}'
     elif usa.update_ghg_coa_allocation:
         methodname = 'GHG_national_Cornerstone_2023_coa_allocation'
     elif usa.update_electricity_ghg_method:
@@ -180,7 +203,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     elif usa.update_liming_and_fertilizer_ghg_method:
         methodname = 'GHG_national_Cornerstone_2023_ag_soils'
     else:
-        methodname = 'GHG_national_CEDA_2023'
+        methodname = f'GHG_national_CEDA_{year}'
     fbs = getFlowBySector(methodname=methodname)
 
     fbs = map_to_CEDA(fbs)
