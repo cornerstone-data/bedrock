@@ -34,6 +34,7 @@ from bedrock.analysis.a_matrix_time_series.constants import (
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
@@ -43,17 +44,17 @@ logger = logging.getLogger(__name__)
 
 # Skip ORIGINAL_YEAR (year-to-self ratio is trivially 1.0).
 TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR + 1, LATEST_TARGET_YEAR + 1))
-INFLATE_V = True  # inflates V to prepare Vnorm for use in commodity ratios
 
 
 def build_comparison_long(
     target_years: list[int] = TARGET_YEARS, original_year: int = ORIGINAL_YEAR
 ) -> pd.DataFrame:
 
+    apply_inflation_to_V = get_usa_config().apply_inflation_to_V
     rows: list[pd.DataFrame] = []
     for year in target_years:
         Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
-            apply_inflation=INFLATE_V, target_year=year
+            apply_inflation=apply_inflation_to_V, target_year=year
         )
         vnorm_col_sum = Vnorm.sum(axis=0).rename("vnorm_col_sum")
         industry = get_cornerstone_industry_price_ratio(
@@ -133,9 +134,7 @@ def plot_scatter(long: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> None:
-    addon = ""
-    if INFLATE_V:
-        addon = "_V_inflated"
+    addon = "_V_inflated" if get_usa_config().apply_inflation_to_V else ""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
     long = build_comparison_long(TARGET_YEARS)
