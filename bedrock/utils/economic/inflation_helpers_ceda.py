@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import functools
+import os
+
+import numpy as np
+import pandas as pd
+
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
+from bedrock.utils.taxonomy.bea.ceda_v5 import CEDA_V5_SECTORS
+from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import CEDA_V5_TO_CEDA_V7_CODES
+
+# Obtained from Watershed price index source (rds_2Au4cfUuGHgFFLG37rdR),
+# which is derived from BEA price index:
+# TODO: migrate to publicly available BEA price index
+# BEA price index on GCS: ``extract/input-data/BEA_PriceIndex/`` (no year subfolder).
+INFLATION_FACTOR_DATA_GCS_PATH = gcs_extract_input_path("BEA_PriceIndex")
+
+
+def obtain_inflation_factors_from_reference_data() -> pd.DataFrame:
+    local_inflation_factor_path = os.path.join(
+        local_extract_input_dir("BEA_PriceIndex"), "inflation_factors.parquet"
+    )
+    download_gcs_file_if_not_exists(
+        "bea_price_index_2025_10_01.parquet",
+        INFLATION_FACTOR_DATA_GCS_PATH,
+        local_inflation_factor_path,
+    )
+
+    price_index = (
+        pd.read_parquet(local_inflation_factor_path)[
+            ["year", "sector_code", "price_index"]
+        ]
+        .assign(
+            sector_code=lambda df: df["sector_code"]
+            .str.replace("naics_", "", regex=True)
+            .str.upper()
+        )
+        .set_index(["sector_code", "year"])
+        .unstack()
+        .loc[CEDA_V5_SECTORS]
+        .rename(index=CEDA_V5_TO_CEDA_V7_CODES)
+    )
+    price_index.columns = price_index.columns.droplevel()
+    assert isinstance(price_index, pd.DataFrame), "price_index must be a DataFrame"
+
+    return price_index
+
+
+get_price_index = functools.cache(
+    lambda: obtain_inflation_factors_from_reference_data()
+)
+
+
+def inflate_A_matrix(
+    A: pd.DataFrame, original_year: int, target_year: int
+) -> pd.DataFrame:
+    price_index = get_price_index()
+
+    price_ratio = price_index[target_year] / price_index[original_year]
+    return pd.DataFrame(
+        (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
+        index=A.index,
+        columns=A.columns,
+    )
+
+
+def inflate_B_matrix(
+    B: pd.DataFrame, original_year: int, target_year: int
+) -> pd.DataFrame:
+    price_index = get_price_index()
+
+    price_ratio = price_index[original_year] / price_index[target_year]
+    return B * price_ratio.loc[B.columns].values
+
+
+def inflate_q_or_y(
+    q_or_y: pd.Series[float], original_year: int, target_year: int
+) -> pd.Series[float]:
+    price_index = get_price_index()
+
+    price_ratio = price_index[target_year] / price_index[original_year]
+    return q_or_y * price_ratio.loc[q_or_y.index]

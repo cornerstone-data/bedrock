@@ -18,7 +18,7 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Ytot_usa_matrix_set,
     derive_detail_VA_usa,
 )
-from bedrock.utils.economic.inflation import (
+from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
 from bedrock.utils.math.formulas import (
