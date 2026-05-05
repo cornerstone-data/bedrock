@@ -315,7 +315,11 @@ def load_E_from_flowsa() -> pd.DataFrame:
     Only used when load_E_from_flowsa is True in USA config.
     """
     methodname = _select_flowsa_ghg_method()
-    fbs = getFlowBySector(methodname=methodname)
+    if methodname == 'GHG_national_2023_m2':
+        # For m2, explicitly attempt remote FBS download before generation.
+        fbs = getFlowBySector(methodname=methodname, download_FBS_if_missing=True)
+    else:
+        fbs = getFlowBySector(methodname=methodname)
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
 
