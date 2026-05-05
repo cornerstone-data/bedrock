@@ -188,6 +188,7 @@ def _wait_for_capacity(
     poll_interval: int = 15,
     timeout: int = 1800,
     workflow: str = "generate_diagnostics",
+    initial_delay: int = 15,
 ) -> None:
     """Block until no `generate_diagnostics` run is queued or in progress.
 
@@ -195,7 +196,16 @@ def _wait_for_capacity(
     primary serialization mechanism — guarantees we don't dispatch a new
     run while one is still in flight (which would either get cancelled by
     the directive or stack up against the Sheets API write quota).
+
+    ``initial_delay`` blocks before the first poll so a just-triggered
+    workflow has time to register as ``queued``. Without it, the post-
+    dispatch visibility lag (~10–20s) lets ``_busy_count`` see 0 and we
+    fire the next dispatch immediately, which the workflow's
+    ``cancel-in-progress: false`` then resolves by killing the older
+    pending run.
     """
+    if initial_delay:
+        time.sleep(initial_delay)
     deadline = time.time() + timeout
     while time.time() < deadline:
         n = _busy_count(workflow)

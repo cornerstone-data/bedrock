@@ -132,6 +132,45 @@ def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
     return fbs3
 
 
+def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
+    """Download a year-specific Cornerstone GHG FBS parquet from GCS.
+
+    Bypasses ``getFlowBySector`` for the time-series case. The flowsa
+    regen path goes through `EPA_GHGI` loaders that are hard-capped at
+    `{2022, 2023}` (`bedrock/extract/allocation/epa.py:_get_epa_data_year`),
+    so years like 2019–2021 fail there. The pre-built FBS parquets in
+    ``gs://cornerstone-default/transform/output_data/`` cover 2019–2023
+    already, so we load them directly.
+
+    Picks the most-recently-uploaded parquet whose ``base_name`` matches
+    ``GHG_national_Cornerstone_<year>`` so we follow the FBS regeneration
+    cadence without pinning the version/hash here.
+    """
+    from bedrock.utils.io.gcp import (  # noqa: PLC0415
+        download_gcs_file_if_not_exists,
+        list_bucket_files,
+    )
+
+    sub_bucket = "transform/output_data"
+    base_name = f"GHG_national_Cornerstone_{year}"
+    bucket_df = list_bucket_files(sub_bucket)
+    matches = bucket_df[
+        (bucket_df["base_name"] == base_name) & (bucket_df["extension"] == ".parquet")
+    ].sort_values("created", ascending=False)
+    if matches.empty:
+        raise FileNotFoundError(
+            f"No FBS parquet found at gs://cornerstone-default/{sub_bucket}/ "
+            f"matching base_name={base_name!r}"
+        )
+    filename = matches.iloc[0]["full_path"].rsplit("/", 1)[-1]
+    from bedrock.utils.config.settings import FBS_DIR  # noqa: PLC0415
+
+    local_path = str(FBS_DIR / filename)
+    download_gcs_file_if_not_exists(filename, sub_bucket, local_path)
+    logger.info("Loaded cached FBS for %d from %s", year, filename)
+    return pd.read_parquet(local_path)
+
+
 def load_E_from_flowsa() -> pd.DataFrame:
     """Load E_usa (GHG × CEDA v7 sectors) from the CEDA FBS.
 
@@ -183,28 +222,34 @@ def load_E_from_flowsa() -> pd.DataFrame:
             'update_*_ghg_method flag.'
         )
     if usa.new_ghg_method:
-        methodname = f'GHG_national_Cornerstone_{year}'
-    elif usa.update_ghg_coa_allocation:
-        methodname = 'GHG_national_Cornerstone_2023_coa_allocation'
-    elif usa.update_electricity_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_electricity'
-    elif usa.update_other_gases_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_other_gases'
-    elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
-        methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
-    elif usa.update_flowsa_refrigerant_method:
-        methodname = "GHG_national_Cornerstone_2023_refrigerants_foams"
-    elif usa.update_transportation_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_mobile_combustion'
-    elif usa.add_new_ghg_activities:
-        methodname = 'GHG_national_Cornerstone_2023_new_activities'
-    elif usa.update_enteric_fermentation_and_manure_management_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_ag_livestock'
-    elif usa.update_liming_and_fertilizer_ghg_method:
-        methodname = 'GHG_national_Cornerstone_2023_ag_soils'
+        # Bypass flowsa regen for non-2023 years: the EPA loader behind
+        # `getFlowBySector` is hard-capped at {2022, 2023}, but the
+        # already-built FBS parquets exist on GCS at
+        # `transform/output_data/` for 2019–2023. Load the cached parquet
+        # directly so the year-Y diagnostics get year-Y GHG data.
+        fbs = _load_cornerstone_ghg_fbs_from_gcs(year)
     else:
-        methodname = f'GHG_national_CEDA_{year}'
-    fbs = getFlowBySector(methodname=methodname)
+        if usa.update_ghg_coa_allocation:
+            methodname = 'GHG_national_Cornerstone_2023_coa_allocation'
+        elif usa.update_electricity_ghg_method:
+            methodname = 'GHG_national_Cornerstone_2023_electricity'
+        elif usa.update_other_gases_ghg_method:
+            methodname = 'GHG_national_Cornerstone_2023_other_gases'
+        elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
+            methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
+        elif usa.update_flowsa_refrigerant_method:
+            methodname = "GHG_national_Cornerstone_2023_refrigerants_foams"
+        elif usa.update_transportation_ghg_method:
+            methodname = 'GHG_national_Cornerstone_2023_mobile_combustion'
+        elif usa.add_new_ghg_activities:
+            methodname = 'GHG_national_Cornerstone_2023_new_activities'
+        elif usa.update_enteric_fermentation_and_manure_management_ghg_method:
+            methodname = 'GHG_national_Cornerstone_2023_ag_livestock'
+        elif usa.update_liming_and_fertilizer_ghg_method:
+            methodname = 'GHG_national_Cornerstone_2023_ag_soils'
+        else:
+            methodname = f'GHG_national_CEDA_{year}'
+        fbs = getFlowBySector(methodname=methodname)
 
     fbs = map_to_CEDA(fbs)
 
