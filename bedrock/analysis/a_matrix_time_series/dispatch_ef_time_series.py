@@ -161,28 +161,48 @@ def _trigger_workflow(
 
 
 def _busy_count(workflow: str = "generate_diagnostics") -> int:
-    """Number of `queued` + `in_progress` runs of the named workflow."""
+    """Number of `queued` + `in_progress` runs of the named workflow.
+
+    Retries each ``gh run list`` call on transient subprocess failures
+    (e.g. GitHub API hiccups). After exhausted retries, returns ``1`` to
+    signal "still busy" so the caller keeps polling rather than dispatching
+    blindly into an unknown queue state.
+    """
     count = 0
     for status in ("queued", "in_progress"):
-        result = subprocess.run(
-            [
-                "gh",
-                "run",
-                "list",
-                "--workflow",
-                f"{workflow}.yml",
-                "--status",
-                status,
-                "--limit",
-                "20",
-                "--json",
-                "databaseId",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        count += len(json.loads(result.stdout))
+        for attempt in range(3):
+            try:
+                result = subprocess.run(
+                    [
+                        "gh",
+                        "run",
+                        "list",
+                        "--workflow",
+                        f"{workflow}.yml",
+                        "--status",
+                        status,
+                        "--limit",
+                        "20",
+                        "--json",
+                        "databaseId",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                count += len(json.loads(result.stdout))
+                break
+            except subprocess.CalledProcessError as e:
+                stderr = (e.stderr or "").strip()
+                if attempt == 2:
+                    logger.warning(
+                        "gh run list failed for status=%s after 3 attempts: %s; "
+                        "treating as busy and continuing poll loop",
+                        status,
+                        stderr or "(no stderr)",
+                    )
+                    return 1
+                time.sleep(5)
     return count
 
 
