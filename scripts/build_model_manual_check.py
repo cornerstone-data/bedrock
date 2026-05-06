@@ -4,10 +4,6 @@ One config files names is uncommented to check model build
 for that model.
 """
 
-from bedrock.transform.eeio.derived import (
-    derive_Aq_usa,
-    derive_B_usa_non_finetuned,
-)
 from bedrock.utils.config.usa_config import set_global_usa_config
 
 # config = "useeio_phoebe_23"
@@ -29,6 +25,10 @@ config = "useeio_phoebe_23_restore_scrap"
 
 def main() -> None:
     set_global_usa_config(config)
+    from bedrock.transform.eeio.derived import (
+        derive_Aq_usa,
+        derive_B_usa_non_finetuned,
+    )
     derive_Aq_usa()
     derive_B_usa_non_finetuned()
     print("Generated Aq set and B for config: ", config)
