@@ -115,6 +115,62 @@ class TestWeightProvider:
         assert result2 is not None
         assert isinstance(result2, DisaggWeights)
 
+    def test_before_config_uses_useeior_url_weights(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured: dict[str, object] = {}
+
+        def _fake_download(url: str) -> str:
+            return f"C:/tmp/{url.rsplit('/', maxsplit=1)[-1]}"
+
+        def _fake_loader(*args: object, **kwargs: object) -> object:
+            captured["cfg"] = args[0]
+            captured["kwargs"] = kwargs
+            return object()
+
+        monkeypatch.setattr(dc, "_download_waste_weights_to_cache", _fake_download)
+        monkeypatch.setattr(dc, "load_waste_disagg_weights", _fake_loader)
+
+        _setup_config("useeio_phoebe_23")
+        result = get_waste_disagg_weights()
+        assert result is not None
+
+        cfg = captured["cfg"]
+        assert hasattr(cfg, "source_name")
+        assert (
+            getattr(cfg, "source_name")
+            == "useeior_v1.8.0_WasteDisaggregationDetail2017"
+        )
+        assert str(getattr(cfg, "use_weights_file")).endswith(
+            "WasteDisaggregationDetail2017_Use.csv"
+        )
+        assert str(getattr(cfg, "make_weights_file")).endswith(
+            "WasteDisaggregationDetail2017_Make.csv"
+        )
+
+    def test_after_config_does_not_use_useeior_url_weights(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured: dict[str, object] = {}
+
+        def _fail_download(_url: str) -> str:
+            raise AssertionError("URL download must not run when config is 'after'")
+
+        def _fake_loader(*args: object, **kwargs: object) -> object:
+            captured["cfg"] = args[0]
+            captured["kwargs"] = kwargs
+            return object()
+
+        monkeypatch.setattr(dc, "_download_waste_weights_to_cache", _fail_download)
+        monkeypatch.setattr(dc, "load_waste_disagg_weights", _fake_loader)
+
+        _setup_config("useeio_phoebe_23_restore_iot_redefinition")
+        result = get_waste_disagg_weights()
+        assert result is not None
+        cfg = captured["cfg"]
+        assert hasattr(cfg, "source_name")
+        assert getattr(cfg, "source_name") == "WasteDisaggregationDetail2017"
+
 
 # ---------------------------------------------------------------------------
 # Module-scoped fixtures for heavy pipeline results

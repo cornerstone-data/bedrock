@@ -25,7 +25,10 @@ Internal helpers live in sibling modules:
 from __future__ import annotations
 
 import functools
+import hashlib
 import pathlib
+import tempfile
+import urllib.request
 
 import numpy as np
 import pandas as pd
@@ -133,6 +136,9 @@ _BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 _WASTE_ORIGINAL_CODE = "562000"
 _WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[_WASTE_ORIGINAL_CODE])
+_USEEIOR_WASTE_USE_URL = "https://raw.githubusercontent.com/cornerstone-data/useeior/v1.8.0/inst/extdata/disaggspecs/WasteDisaggregationDetail2017_Use.csv"
+_USEEIOR_WASTE_MAKE_URL = "https://raw.githubusercontent.com/cornerstone-data/useeior/v1.8.0/inst/extdata/disaggspecs/WasteDisaggregationDetail2017_Make.csv"
+_USEEIOR_WASTE_SOURCE_NAME = "useeior_v1.8.0_WasteDisaggregationDetail2017"
 
 # ---------------------------------------------------------------------------
 # Waste disaggregation weight provider (4a)
@@ -158,6 +164,26 @@ def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfi
 
 
 @functools.cache
+def _download_waste_weights_to_cache(url: str) -> str:
+    """Download waste weights CSV to a deterministic temp path and return it."""
+    cache_dir = pathlib.Path(tempfile.gettempdir()) / "bedrock_waste_disagg_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    suffix = pathlib.Path(url).name or "waste_weights.csv"
+    digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:12]
+    local_path = cache_dir / f"{digest}_{suffix}"
+    if local_path.exists():
+        return str(local_path)
+    try:
+        urllib.request.urlretrieve(url, str(local_path))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed downloading waste disaggregation file from {url}. "
+            "Check network access or use local eeio_waste_disaggregation files."
+        ) from exc
+    return str(local_path)
+
+
+@functools.cache
 def get_waste_disagg_weights() -> DisaggWeights | None:
     """Return waste disaggregation weights if the feature is enabled, else None.
     The weights used here are derived using the BEA After Redefinitions IO tables adapted to the Cornerstone schema.
@@ -165,14 +191,26 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
     cfg = get_usa_config()
     if not cfg.implement_waste_disaggregation:
         return None
-    waste_cfg = cfg.eeio_waste_disaggregation
-    if waste_cfg is None:
+    waste_cfg: EEIOWasteDisaggConfig
+    if cfg.iot_before_or_after_redefinition == "before":
+        # For "before redefinition" runs, force USEEIOR v1.8 waste files.
         waste_cfg = EEIOWasteDisaggConfig(
-            use_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Use.csv",
-            make_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Make.csv",
+            use_weights_file=_download_waste_weights_to_cache(_USEEIOR_WASTE_USE_URL),
+            make_weights_file=_download_waste_weights_to_cache(_USEEIOR_WASTE_MAKE_URL),
             year=2017,
-            source_name="WasteDisaggregationDetail2017",
+            source_name=_USEEIOR_WASTE_SOURCE_NAME,
         )
+    else:
+        configured_waste_cfg = cfg.eeio_waste_disaggregation
+        if configured_waste_cfg is None:
+            waste_cfg = EEIOWasteDisaggConfig(
+                use_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Use.csv",
+                make_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Make.csv",
+                year=2017,
+                source_name="WasteDisaggregationDetail2017",
+            )
+        else:
+            waste_cfg = configured_waste_cfg
     resolved_cfg = _resolve_waste_cfg_paths(waste_cfg)
     return load_disagg_weights(
         resolved_cfg,
