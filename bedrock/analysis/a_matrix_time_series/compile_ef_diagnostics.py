@@ -30,6 +30,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import typing as ta
 
 import pandas as pd
 
@@ -39,6 +40,9 @@ from bedrock.analysis.a_matrix_time_series.constants import (
     RESULTS_DIR,
 )
 from bedrock.utils.io.gcp import read_sheet_tab, update_sheet_tab
+from bedrock.utils.validation.diagnostics_helpers import (
+    inflation_adjust_ef_denom_to_new_base_year,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +52,11 @@ EF_SCATTER_COORDS_PATH = RESULTS_DIR / "ef_scatter_coords.parquet"
 
 # A row counts as "significantly different" when |perc_diff| exceeds this.
 SIGNIFICANT_PCT_THRESHOLD = 0.10
+
+# Time-series cells differ in `model_base_year`, so each cell's `D_new` /
+# `N_new` lives in its own dollar year. Deflate them to this common reference
+# so values are commensurable across years.
+REFERENCE_DOLLAR_YEAR = 2023
 
 # Tab names produced by `calculate_ef_diagnostics.py` per run. Both
 # baseline modes (CEDA-only and USEEIO-checked) emit identical column
@@ -74,7 +83,9 @@ def _coerce_numeric(df: pd.DataFrame, cols: tuple[str, ...]) -> pd.DataFrame:
         s = df[col].astype(str).str.strip()
         is_pct = s.str.endswith("%")
         cleaned = s.str.rstrip("%").str.replace(",", "", regex=False)
-        numeric = pd.to_numeric(cleaned, errors="coerce")
+        numeric = ta.cast(
+            "pd.Series", pd.to_numeric(cleaned, errors="coerce")
+        )
         df[col] = numeric.mask(is_pct, numeric / 100)
     return df
 
@@ -91,6 +102,34 @@ def _read_pair(sheet_id: str) -> pd.DataFrame:
     # them from N only.
     drop_from_d = [c for c in ("sector_name", "comparison_type") if c in d.columns]
     return n.join(d.drop(columns=drop_from_d), how="outer")
+
+
+def _deflate_new_to_ref(
+    joined: pd.DataFrame, source_year: int, ref_year: int
+) -> pd.DataFrame:
+    """Add ``D_new_ref`` / ``N_new_ref`` columns deflated to ``ref_year`` dollars.
+
+    Each diagnostics cell is run with ``model_base_year=source_year``, so
+    ``D_new`` / ``N_new`` are denominated in ``source_year`` dollars. Time-series
+    plots over years require a common dollar reference; this multiplies by the
+    same per-sector price ratio used for baseline alignment.
+    """
+    if source_year == ref_year:
+        if "D_new" in joined.columns:
+            joined["D_new_ref"] = joined["D_new"]
+        if "N_new" in joined.columns:
+            joined["N_new_ref"] = joined["N_new"]
+        return joined
+    for new_col, ref_col in (("D_new", "D_new_ref"), ("N_new", "N_new_ref")):
+        if new_col not in joined.columns:
+            continue
+        col_series = ta.cast("pd.Series", joined[new_col]).astype(float)
+        joined[ref_col] = inflation_adjust_ef_denom_to_new_base_year(
+            old_ef_vector=col_series,
+            new_base_year=ref_year,
+            old_base_year=source_year,
+        )
+    return joined
 
 
 def _summarize(joined: pd.DataFrame, approach: str) -> pd.Series:
@@ -130,8 +169,10 @@ def _scatter_coords(joined: pd.DataFrame, approach: str, baseline: str) -> pd.Da
         rows.append(chunk)
     if not rows:
         return pd.DataFrame()
-    return pd.concat(rows, ignore_index=True)[
-        ["approach", "baseline", "ef_kind", "sector", "x_baseline", "y_approach"]
+    combined = ta.cast("pd.DataFrame", pd.concat(rows, ignore_index=True))
+    return combined.loc[
+        :,
+        ["approach", "baseline", "ef_kind", "sector", "x_baseline", "y_approach"],
     ]
 
 
@@ -172,8 +213,14 @@ def main() -> None:
         approach = str(row["approach"])
         baseline = str(row["baseline"])
         sheet_id = str(row["sheet_id"])
-        scenario = str(row["scenario"]) if pd.notna(row["scenario"]) else ""
-        year = str(row["year"]) if pd.notna(row["year"]) else ""
+        scenario = (
+            str(row["scenario"])
+            if ta.cast(bool, pd.notna(row["scenario"]))
+            else ""
+        )
+        year = (
+            str(row["year"]) if ta.cast(bool, pd.notna(row["year"])) else ""
+        )
         cell_label = ", ".join(
             f"{k}={v}"
             for k, v in (
@@ -189,6 +236,10 @@ def main() -> None:
         if joined.empty:
             logger.warning("%s returned empty data; skipping", cell_label)
             continue
+        if year:
+            joined = _deflate_new_to_ref(
+                joined, source_year=int(year), ref_year=REFERENCE_DOLLAR_YEAR
+            )
         # Build a deterministic 31-char-bounded tab name including any
         # populated scenario/year prefix.
         prefix = "_".join(p for p in (scenario, year) if p)
