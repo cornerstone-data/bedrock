@@ -148,7 +148,6 @@ def test_load_waste_disagg_weights_normalizes_slices(tmp_path: pathlib.Path) -> 
         disagg_original_code="562000",
         disagg_new_codes=waste_sectors,
         waste_sectors=waste_sectors,
-        naics_to_cornerstone=None,
     )
 
     assert pytest.approx(float(weights.use_intersection.values.sum()), rel=1e-6) == 1.0
@@ -199,7 +198,6 @@ def test_load_waste_disagg_weights_missing_sectors_get_zero_weight(
         disagg_original_code="562000",
         disagg_new_codes=waste_sectors,
         waste_sectors=waste_sectors,
-        naics_to_cornerstone=None,
     )
 
     assert weights.use_intersection.loc["562212", :].sum() == pytest.approx(0.0)
@@ -245,7 +243,6 @@ def test_load_waste_disagg_weights_all_zero_raises(tmp_path: pathlib.Path) -> No
             disagg_original_code="562000",
             disagg_new_codes=["562111"],
             waste_sectors=["562111"],
-            naics_to_cornerstone=None,
         )
 
 
@@ -287,7 +284,6 @@ def test_load_waste_disagg_weights_missing_required_column(
             disagg_original_code="562000",
             disagg_new_codes=["562111"],
             waste_sectors=["562111"],
-            naics_to_cornerstone=None,
         )
 
 
@@ -328,7 +324,6 @@ def test_load_waste_disagg_weights_nan_values_raise(tmp_path: pathlib.Path) -> N
             disagg_original_code="562000",
             disagg_new_codes=["562111"],
             waste_sectors=["562111"],
-            naics_to_cornerstone=None,
         )
 
 
@@ -531,7 +526,6 @@ def weights_2017() -> WasteDisaggWeights:
         disagg_new_codes=WASTE_CODES,
         waste_sectors=WASTE_CODES,
         va_row_codes=VA_ROWS,
-        naics_to_cornerstone=None,
     )
 
 
@@ -863,7 +857,6 @@ def test_load_waste_disagg_weights_integration_with_2017_files() -> None:
         disagg_original_code="562000",
         disagg_new_codes=waste_codes,
         waste_sectors=waste_codes,
-        naics_to_cornerstone=None,
     )
 
     assert weights.year == 2017
