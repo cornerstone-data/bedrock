@@ -74,7 +74,7 @@ from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_Ytot,
 )
 from bedrock.transform.iot.derived_gross_industry_output import (
-    derive_gross_output_after_redefinition,
+    derive_gross_output,
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
@@ -248,9 +248,9 @@ def _distribute_waste_parent_x_using_v_row_shares(
 def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
     """Gross industry output in Cornerstone schema, after BEA redefinitions.
 
-    Uses BEA's after-redefinition gross-output time series for the configured
-    GHG data year, then expands it to Cornerstone industries via the
-    BEA→Cornerstone industry correspondence.
+    Uses gross-output time series for the configured GHG data year, selecting
+    before/after-redefinition source from config, then expands it to
+    Cornerstone industries via the BEA→Cornerstone industry correspondence.
 
     For one-to-many splits (e.g. waste 562000), ``expand_vector`` first
     duplicates the parent scalar to each child. When waste disaggregation is
@@ -263,8 +263,9 @@ def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
     ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
-    x_bea = derive_gross_output_after_redefinition(
+    x_bea = derive_gross_output(
         target_year=cfg.usa_ghg_data_year,
+        iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
     )
     x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
     x_cs.index.name = "sector"

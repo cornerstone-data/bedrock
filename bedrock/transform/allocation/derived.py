@@ -9,7 +9,7 @@ from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.transform.iot.derived_gross_industry_output import (
-    derive_gross_output_after_redefinition,
+    derive_gross_output,
 )
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
@@ -74,9 +74,10 @@ def _build_mapping_with_allocations(
             .assign(Allocation=1.0)
             .reset_index(drop=True)
         )
-
-    go = derive_gross_output_after_redefinition(
-        target_year=get_usa_config().usa_ghg_data_year
+    cfg = get_usa_config()
+    go = derive_gross_output(
+        target_year=cfg.usa_ghg_data_year,
+        iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
     )
     mapping2['Output'] = mapping2['Activity'].map(go)
     mapping2['Output'] = mapping2['Output'].fillna(0.0)
@@ -140,8 +141,10 @@ def _build_naics_to_bea_weighted_mapping() -> pd.DataFrame:
     if get_usa_config().implement_waste_disaggregation:
         mapping = _apply_cornerstone_waste_overrides(mapping)
 
-    go = derive_gross_output_after_redefinition(
-        target_year=get_usa_config().usa_ghg_data_year
+    cfg = get_usa_config()
+    go = derive_gross_output(
+        target_year=cfg.usa_ghg_data_year,
+        iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
     )
     mapping['Output'] = mapping['Activity'].map(go).fillna(0.0)
 
