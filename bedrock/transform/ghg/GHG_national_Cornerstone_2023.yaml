@@ -9,9 +9,25 @@ mecs_year: &mecs_year 2022
 coa_year: &coa_year 2022
 
 _attribution_sources:
-  EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
-    activity_to_sector_mapping: CEDA_2025
+  EIA_MECS_Energy: &mecs_energy
     year: *mecs_year
+    selection_fields: &mecs_energy_default_selection
+      Class: Energy # or Other (for non-energy use)
+      Unit: Trillion Btu
+      # FlowName: XXXXX # override this
+      Location: '00000'
+      Description:
+        - Table 2.2 # applies to Class Other
+        - Table 3.2 # applies to Class Energy
+    exclusion_fields:
+      ActivityConsumedBy: '31-33'
+    estimate_suppressed: !script_function:EIA_MECS estimate_suppressed_mecs_energy
+    attribution_method: proportional
+    # attribution_source:  # Include in main method
+    #   BEA_Detail_Use_AfterRedef:
+    #     selection_fields:
+    #       SectorProducedBy:  {'XXXXX': ''}
+
 
   BEA: &bea # 2017 Make and Use tables
     year: 2017
@@ -489,7 +505,7 @@ source_names:
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-        ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
+        ghg_fba: 'EPA_GHGI_T_A_6'  # aligns with 2022 MECS
     activity_sets:
       direct_attribution: #direct allocation
         selection_fields:
@@ -527,12 +543,18 @@ source_names:
             Industrial Other Coal Industrial - Manufacturing: Coal Industrial - Manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          EIA_MECS_Energy:
+            <<: *mecs_energy
             selection_fields:
-              FlowName: Coal
-              Description: 'energy'
-
+              <<: *mecs_energy_default_selection
+              FlowName:
+                - Coal
+                - Coke and Breeze
+            attribution_source:
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
+                selection_fields:
+                  ActivityProducedBy: {'212100': ''} # purchases of coal
 
       natural_gas_manufacturing: # Industrial Natural Gas for manufacturing
         selection_fields:
@@ -540,11 +562,16 @@ source_names:
             - Natural Gas Industrial - Manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          EIA_MECS_Energy:
+            <<: *mecs_energy
             selection_fields:
+              <<: *mecs_energy_default_selection
               FlowName: Natural Gas
-              Description: 'energy'
+            attribution_source:
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
+                selection_fields:
+                  ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
       petroleum_industrial: # Petroleum
         selection_fields:
@@ -552,11 +579,10 @@ source_names:
             - Total Petroleum Industrial
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
             selection_fields:
-              FlowName: Petroleum
-              Description: 'energy'
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
       petroleum_commercial: # Petroleum
         selection_fields:
@@ -581,7 +607,7 @@ source_names:
         energy_fba: 'EIA_MECS_Energy'  # todo: udpate for ceda to mecs table 3-1?
         year: *mecs_year
         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-        ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
+        ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
       residential:
@@ -622,11 +648,10 @@ source_names:
             - Fuel Oil Industrial
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
             selection_fields:
-              FlowName: Petroleum
-              Description: 'energy'
+              ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
       natural_gas_nonmanufacturing:  # Commercial Natural gas
         selection_fields:
@@ -659,11 +684,16 @@ source_names:
           PrimaryActivity: Coal Industrial - Manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          EIA_MECS_Energy:
+            <<: *mecs_energy
             selection_fields:
+              <<: *mecs_energy_default_selection
               FlowName: Coal
-              Description: 'energy'
+            attribution_source:
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
+                selection_fields:
+                  ActivityProducedBy: {'212100': ''} # purchases of coal
 
       # ceda accomplishes similar through
       # _allocate_industrial_nat_gas_to_industries_energy_allocation() + _allocate_remaining_industrial_nat_gas_usage()
@@ -674,11 +704,16 @@ source_names:
             - Natural Gas Industrial - Manufacturing  # only in flowsa, CEDA does not call on manufacturing
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          EIA_MECS_Energy:
+            <<: *mecs_energy
             selection_fields:
+              <<: *mecs_energy_default_selection
               FlowName: Natural Gas
-              Description: "energy"
+            attribution_source:
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
+                selection_fields:
+                  ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
     #Intentionally left out 'Wood Commercial' and 'Wood Industrial'  # flowsa note, but ceda also does not include
 
@@ -730,34 +765,47 @@ source_names:
             Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          EIA_MECS_Energy:
+            <<: *mecs_energy
             selection_fields:
-              FlowName: Petroleum
-              Description: "non energy"
+              Class: Other
+              Unit: Trillion Btu
+              FlowName:
+                - Residual Fuel Oil
+                - Distillate Fuel Oil
+                - Hydrocarbon Gas Liquids, excluding natural gasoline
+            attribution_source:
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
+                selection_fields:
+                  ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
-      # todo: update to proportionally attribute using mecs 2-1 and bea - although is allocating by bea necessary for fbs?
       natural_gas_neu: # consumed nat gas to chemical plants
         selection_fields:
           PrimaryActivity: Industry Natural Gas to Chemical Plants
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          EIA_MECS_Energy:
+            <<: *mecs_energy
             selection_fields:
+              Class: Other
               FlowName: Natural Gas
-              Description: "non energy"
+              Unit: Trillion Btu
+            attribution_source:
+              BEA_Detail_Use_AfterRedef:
+                <<: *bea
+                selection_fields:
+                  ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
       transportation_lubricants:
         selection_fields:
           PrimaryActivity: Transportation Lubricants
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
             selection_fields:
-              FlowName: Transport
-              Description: "non energy"
+              ActivityProducedBy: {'324110': ''} # use of petroleum products
 
 ## Other Emissions
   EPA_GHGI_T_4_59: # HFCs from HCFC-22 production
