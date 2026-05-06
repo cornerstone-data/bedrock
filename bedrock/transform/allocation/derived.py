@@ -213,49 +213,59 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
 
 
 def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
-    """Map FBS sectors from NAICS into the active model schema."""
-    # Because the schema for the FBS is mixed digit, first need to expand the schema all the way
-    # to 6 digits prior to mapping back to the CEDA schema. In doing this mapping we only need
-    # to assign a 1:1 mapping (hence drop duplicates, keep = first). When the mapping is reversed
-    # back to CEDA we don't want to expand the FBS.
+    """Map FBS NAICS sectors into the active model schema.
 
-    # Prepare NAICS:BEA mapping file
-    cw = load_crosswalk('NAICS_2017_Crosswalk')
-    cols_to_stack = ["NAICS_3", "NAICS_4", "NAICS_5"]
-    cw_stack = (
-        cw.astype({c: "string" for c in cols_to_stack + ["NAICS_6"]})
-        .melt(
-            id_vars="NAICS_6",
-            value_vars=cols_to_stack,
-            var_name="level",
-            value_name="NAICS",
-        )
-        .dropna(subset=["NAICS_6", "NAICS"])[["NAICS", "NAICS_6"]]
-        .drop_duplicates(subset='NAICS', keep='first')
-        .reset_index(drop=True)
-    )
-    fbs2 = fbs.merge(
-        cw_stack,
-        how='left',
-        left_on='SectorProducedBy',
-        right_on='NAICS',
-        validate="m:1",
-    )
-    fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
+    Behavior differs by path:
+    - Weighted path (`use_ghg_national_2023_m2`): preserve original NAICS code
+      levels (e.g., `53`, `531`, `531110`) and apply weighted NAICS->BEA mapping.
+      This avoids pre-collapsing aggregates to a single NAICS_6 code.
+    - Non-weighted paths: expand mixed-digit NAICS to NAICS_6 with a 1:1
+      first-match helper mapping, then map into Cornerstone/CEDA activities.
+    """
 
     use_output_weights = _should_use_output_weighted_mapping()
+    # For weighted NAICS->BEA mapping (m2 path), preserve the original NAICS
+    # code level (e.g., 531) so allocation uses all matching crosswalk rows.
+    # Pre-collapsing to one NAICS_6 (keep='first') can bias allocations.
     if use_output_weights:
+        fbs2 = fbs.copy()
+        fbs2['NAICS_6'] = fbs2['SectorProducedBy']
         mapping = _build_naics_to_bea_weighted_mapping()
-    elif get_usa_config().use_cornerstone_2026_model_schema:
-        mapping = _build_mapping_with_allocations(
-            get_activitytosector_mapping('Cornerstone_2025'),
-            use_output_weights=False,
-        )
     else:
-        mapping = _build_mapping_with_allocations(
-            get_activitytosector_mapping('CEDA_2025'),
-            use_output_weights=False,
+        # Prepare NAICS:NAICS_6 expansion used for non-weighted mapping flows.
+        cw = load_crosswalk('NAICS_2017_Crosswalk')
+        cols_to_stack = ["NAICS_3", "NAICS_4", "NAICS_5"]
+        cw_stack = (
+            cw.astype({c: "string" for c in cols_to_stack + ["NAICS_6"]})
+            .melt(
+                id_vars="NAICS_6",
+                value_vars=cols_to_stack,
+                var_name="level",
+                value_name="NAICS",
+            )
+            .dropna(subset=["NAICS_6", "NAICS"])[["NAICS", "NAICS_6"]]
+            .drop_duplicates(subset='NAICS', keep='first')
+            .reset_index(drop=True)
         )
+        fbs2 = fbs.merge(
+            cw_stack,
+            how='left',
+            left_on='SectorProducedBy',
+            right_on='NAICS',
+            validate="m:1",
+        )
+        fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
+
+        if get_usa_config().use_cornerstone_2026_model_schema:
+            mapping = _build_mapping_with_allocations(
+                get_activitytosector_mapping('Cornerstone_2025'),
+                use_output_weights=False,
+            )
+        else:
+            mapping = _build_mapping_with_allocations(
+                get_activitytosector_mapping('CEDA_2025'),
+                use_output_weights=False,
+            )
 
     pre_total = float(fbs2['FlowAmount'].sum())
     fbs2 = (
@@ -269,10 +279,13 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
         .assign(Allocation=lambda x: x['Allocation'].fillna(1.0))
         .assign(FlowAmount=lambda x: x['FlowAmount'] * x['Allocation'])
         .assign(SectorProducedBy=lambda x: x['Activity'].fillna(x['NAICS_6']))
-        .drop(columns=['Activity', 'NAICS', 'NAICS_6', 'Sector', 'Allocation'])
+        .drop(
+            columns=['Activity', 'NAICS', 'NAICS_6', 'Sector', 'Allocation'],
+            errors='ignore',
+        )
     )
 
-    ## re assign SPB and aggregate using exisiting functions
+    # Re-assign SectorProducedBy and aggregate using existing functions.
     fbs3 = pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
 
     if use_output_weights:
@@ -315,7 +328,11 @@ def load_E_from_flowsa() -> pd.DataFrame:
     Only used when load_E_from_flowsa is True in USA config.
     """
     methodname = _select_flowsa_ghg_method()
-    fbs = getFlowBySector(methodname=methodname)
+    if methodname == 'GHG_national_2023_m2':
+        # For m2, explicitly attempt remote FBS download before generation.
+        fbs = getFlowBySector(methodname=methodname, download_FBS_if_missing=True)
+    else:
+        fbs = getFlowBySector(methodname=methodname)
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
 
