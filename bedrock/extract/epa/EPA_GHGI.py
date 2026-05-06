@@ -803,10 +803,10 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
         & (mecs['Unit'] == 'MJ')
     ].reset_index(drop=True)
 
-    # Load energy consumption data by fuel from GHGI
+    # Load energy consumption data by fuel from GHGI - table year aligns with MECS
     ghgi = load_fba_w_standardized_units(
         datasource=cast(str, parameter_dict.get('ghg_fba')),
-        year=cast(int, parameter_dict.get(mecs_year, mecs_year)),
+        year=cast(int, mecs_year),
         flowclass='Energy',
         download_FBA_if_missing=True,
     )
