@@ -92,9 +92,13 @@ def _set_config(approach: str, year: int) -> None:
     with open(yaml_path) as f:
         data = yaml.safe_load(f) or {}
     data["model_base_year"] = year
-    # The package `__init__.py` flips this on the initial config; replacing
-    # `_usa_config` here would otherwise drop it back to the field default.
+    # The package `__init__.py` flips these on the initial config; replacing
+    # `_usa_config` here would otherwise drop them back to field defaults.
     data["update_inflation_factors"] = True
+    # `commodity_price_index.yaml` already sets this; setting it for every
+    # approach is harmless (only `commodity_price_index` reads it via
+    # `get_vnorm_adjusted_commodity_price_ratio`).
+    data["apply_inflation_to_V"] = True
 
     cfg_module._usa_config = USAConfig.model_construct(**data)
     os.environ[cfg_module.USA_CONFIG_ENV_VAR] = APPROACH_YAMLS[approach]
