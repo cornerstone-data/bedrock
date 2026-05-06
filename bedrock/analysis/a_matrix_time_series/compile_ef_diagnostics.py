@@ -30,7 +30,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import typing as ta
 
 import pandas as pd
 
@@ -83,9 +82,7 @@ def _coerce_numeric(df: pd.DataFrame, cols: tuple[str, ...]) -> pd.DataFrame:
         s = df[col].astype(str).str.strip()
         is_pct = s.str.endswith("%")
         cleaned = s.str.rstrip("%").str.replace(",", "", regex=False)
-        numeric = ta.cast(
-            "pd.Series", pd.to_numeric(cleaned, errors="coerce")
-        )
+        numeric = pd.to_numeric(cleaned, errors="coerce")
         df[col] = numeric.mask(is_pct, numeric / 100)
     return df
 
@@ -123,9 +120,8 @@ def _deflate_new_to_ref(
     for new_col, ref_col in (("D_new", "D_new_ref"), ("N_new", "N_new_ref")):
         if new_col not in joined.columns:
             continue
-        col_series = ta.cast("pd.Series", joined[new_col]).astype(float)
         joined[ref_col] = inflation_adjust_ef_denom_to_new_base_year(
-            old_ef_vector=col_series,
+            old_ef_vector=joined[new_col].astype(float),
             new_base_year=ref_year,
             old_base_year=source_year,
         )
@@ -169,7 +165,7 @@ def _scatter_coords(joined: pd.DataFrame, approach: str, baseline: str) -> pd.Da
         rows.append(chunk)
     if not rows:
         return pd.DataFrame()
-    combined = ta.cast("pd.DataFrame", pd.concat(rows, ignore_index=True))
+    combined = pd.concat(rows, ignore_index=True)
     return combined.loc[
         :,
         ["approach", "baseline", "ef_kind", "sector", "x_baseline", "y_approach"],
@@ -213,14 +209,8 @@ def main() -> None:
         approach = str(row["approach"])
         baseline = str(row["baseline"])
         sheet_id = str(row["sheet_id"])
-        scenario = (
-            str(row["scenario"])
-            if ta.cast(bool, pd.notna(row["scenario"]))
-            else ""
-        )
-        year = (
-            str(row["year"]) if ta.cast(bool, pd.notna(row["year"])) else ""
-        )
+        scenario = str(row["scenario"]) if pd.notna(row["scenario"]) else ""
+        year = str(row["year"]) if pd.notna(row["year"]) else ""
         cell_label = ", ".join(
             f"{k}={v}"
             for k, v in (
