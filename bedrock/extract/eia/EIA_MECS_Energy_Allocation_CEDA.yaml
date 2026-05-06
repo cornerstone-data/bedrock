@@ -1,0 +1,15 @@
+# FBA method that simulates EIA_MECS energy data for CEDA by building an FBA
+# from allocation outputs: _allocate_industrial_coal_to_industries_energy_allocation,
+# allocate_industrial_petrol, and _allocate_industrial_nat_gas_to_industries_energy_allocation.
+author: US Energy Information Administration
+source_name: Manufacturing Energy Consumption Survey (allocation-derived)
+source_url: https://www.eia.gov/consumption/manufacturing/
+source_publication_date: ''
+bib_id: EIA_MECS
+api_name: None
+api_key_required: false
+format: csv
+url: None
+parse_response_fxn: !script_function:EIA_MECS eia_mecs_energy_ceda_parse
+years:
+  - 2018
