@@ -11,7 +11,7 @@ from bedrock.utils.config.usa_config import set_global_usa_config
 # config = "useeio_phoebe_23_restore_useeio_B"
 # config = "useeio_phoebe_23_restore_iot_redefinition"
 # config = "useeio_phoebe_23_restore_ghg"
-config = "useeio_phoebe_23_restore_scrap"
+config = 'useeio_phoebe_23_restore_scrap'
 # config = "2025_usa_cornerstone_full_model"
 # config = "2025_usa_cornerstone_taxonomy"
 # config = "2025_usa_cornerstone_taxonomy_and_waste_disagg"
@@ -29,9 +29,10 @@ def main() -> None:
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
     )
+
     derive_Aq_usa()
     derive_B_usa_non_finetuned()
-    print("Generated Aq set and B for config: ", config)
+    print('Generated Aq set and B for config: ', config)
 
 
 if __name__ == '__main__':
