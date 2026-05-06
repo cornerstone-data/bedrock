@@ -61,13 +61,16 @@ ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
     "commodity_price_index": "2025_usa_cornerstone_A_commodity_price_index",
 }
 
-# `bundle_v0_2`: full v0.2 release-candidate config. Single YAML —
-# `2025_usa_cornerstone_full_model` carries all v0.2 flags (cornerstone
-# 2026 schema, cornerstone GHG FBS, USEEIO B method, waste disagg). The
-# `model_base_year` and `usa_ghg_data_year` overrides drive the time
-# series; the YAML itself is year-agnostic.
+# `bundle_v0_2`: full v0.2 release-candidate ensembles. Each YAML carries
+# the full v0.2 flag stack (cornerstone 2026 schema, cornerstone GHG FBS,
+# USEEIO B method, waste disagg) PLUS one A-matrix scaling alternative.
+# The `model_base_year` and `usa_ghg_data_year` overrides drive the time
+# series; the YAMLs themselves are year-agnostic.
 BUNDLE_V0_2_YAMLS: dict[str, str] = {
-    "full_model": "2025_usa_cornerstone_full_model",
+    "useeio": "2025_usa_cornerstone_full_model_A_useeio",
+    "summary_tables": "2025_usa_cornerstone_full_model_A_summary_tables",
+    "industry_price_index": "2025_usa_cornerstone_full_model_A_industry_price_index",
+    "commodity_price_index": "2025_usa_cornerstone_full_model_A_commodity_price_index",
 }
 
 SCENARIO_YAMLS: dict[str, dict[str, str]] = {
