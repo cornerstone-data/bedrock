@@ -1,4 +1,5 @@
-# Sensitivity from useeio_phoebe_23: restore USEEIO-style A scaling flag to Anchor A.
+# Sensitivity from useeio_phoebe_23: restore USEEIO-style A scaling flag
+# Turns off USEEIO-style A scaling and restores Cornerstone default approach
 
 model_base_year: 2017
 iot_before_or_after_redefinition: before
