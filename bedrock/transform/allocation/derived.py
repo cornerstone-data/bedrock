@@ -339,8 +339,11 @@ def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
     ``GHG_national_Cornerstone_<year>`` so we follow the FBS regeneration
     cadence without pinning the version/hash here.
     """
+    import os  # noqa: PLC0415
+
+    from bedrock.utils.config.settings import FBS_DIR  # noqa: PLC0415
     from bedrock.utils.io.gcp import (  # noqa: PLC0415
-        download_gcs_file_if_not_exists,
+        download_gcs_file,
         list_bucket_files,
     )
 
@@ -356,10 +359,12 @@ def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
             f"matching base_name={base_name!r}"
         )
     filename = matches.iloc[0]["full_path"].rsplit("/", 1)[-1]
-    from bedrock.utils.config.settings import FBS_DIR  # noqa: PLC0415
-
     local_path = str(FBS_DIR / filename)
-    download_gcs_file_if_not_exists(filename, sub_bucket, local_path)
+    # Use `download_gcs_file` rather than `_if_not_exists`: the latter
+    # downloads ALL files matching the parsed (base, version, hash) into
+    # the same `pth`, so the metadata JSON overwrites the parquet.
+    if not os.path.exists(local_path):
+        download_gcs_file(filename, sub_bucket, local_path)
     logger.info("Loaded cached FBS for %d from %s", year, filename)
     return pd.read_parquet(local_path)
 
