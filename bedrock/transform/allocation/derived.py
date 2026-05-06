@@ -30,6 +30,9 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity imp
 
 logger = logging.getLogger(__name__)
 
+# USEEIO does not distinguish fossil from non-fossil CH4
+_USEEIO_WORKBOOK_CH4_GWP = 27.9
+
 
 def _select_flowsa_ghg_method() -> str:
     """Select FBS methodname from USA config (first match wins).
@@ -482,6 +485,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
+    if methodname == 'GHG_national_2023_m2':
+        # Keep m2 diagnostics aligned with USEEIO workbook characterization.
+        ghg_mapping['CH4_fossil'] = _USEEIO_WORKBOOK_CH4_GWP
+        ghg_mapping['CH4_non_fossil'] = _USEEIO_WORKBOOK_CH4_GWP
     ghg_mapping['HFCs'] = 1  # should already be in CO2e
     ghg_mapping['PFCs'] = 1  # should already be in CO2e
     fbs['CO2e'] = fbs['FlowAmount'] * fbs['Flowable'].map(ghg_mapping)
