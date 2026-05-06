@@ -163,10 +163,25 @@ def test_disallow_new_ghg_method_with_m2_flag() -> None:
 
 def test_allow_m2_flag_when_new_ghg_method_is_false() -> None:
     cfg = USAConfig.model_validate(
-        {'new_ghg_method': False, 'use_ghg_national_2023_m2': True},
+        {
+            'new_ghg_method': False,
+            'use_ghg_national_2023_m2': True,
+            'use_useeio_schema': True,
+        },
         strict=True,
     )
     assert cfg.use_ghg_national_2023_m2 is True
+
+
+def test_disallow_m2_without_useeio_schema() -> None:
+    with pytest.raises(
+        ValueError,
+        match='use_ghg_national_2023_m2 requires use_useeio_schema to be true',
+    ):
+        USAConfig.model_validate(
+            {'use_ghg_national_2023_m2': True, 'use_useeio_schema': False},
+            strict=True,
+        )
 
 
 def test_disallow_useeio_b_with_e_data_year_x_flag() -> None:

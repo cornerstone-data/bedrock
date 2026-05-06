@@ -245,7 +245,8 @@ def _map_fbs_to_cornerstone(fbs: pd.DataFrame) -> pd.DataFrame:
     regardless of the global usa_config flag, ensuring the canonical
     schema is always Cornerstone (405 sectors).
 
-    Logic mirrors ``map_to_CEDA()`` in transform/allocation/derived.py
+    Logic mirrors ``map_fbs_sectors_to_model_schema()`` in
+    transform/allocation/derived.py
     but hardcodes the Cornerstone mapping.
     """
     from bedrock.transform.flowbysector import FlowBySector  # noqa: PLC0415

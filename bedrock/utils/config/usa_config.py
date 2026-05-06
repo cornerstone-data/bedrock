@@ -141,6 +141,10 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'new_ghg_method and use_ghg_national_2023_m2 cannot both be true'
             )
+        if self.use_ghg_national_2023_m2 and not self.use_useeio_schema:
+            raise ValueError(
+                'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
+            )
         if self.use_useeio_B and self.use_E_data_year_for_x_in_B:
             raise ValueError(
                 'use_useeio_B and use_E_data_year_for_x_in_B cannot both be true'

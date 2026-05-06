@@ -1,5 +1,6 @@
 # Sensitivity from useeio_phoebe_23.
 # Turns off using USEEIO schema
+# Since m2 requires useeio schema, this config also restores GHG to Cornerstone.
 
 model_base_year: 2017
 iot_before_or_after_redefinition: before
@@ -14,6 +15,6 @@ implement_waste_disaggregation: true
 
 use_useeio_schema: false # False means use Cornerstone schema
 use_useeio_B: true
-use_ghg_national_2023_m2: true
+use_ghg_national_2023_m2: false # Restore Cornerstone GHG method
 skip_scrap_adjustment_in_vnorm: true
-new_ghg_method: false
+new_ghg_method: true
