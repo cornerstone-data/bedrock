@@ -806,7 +806,7 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
     # Load energy consumption data by fuel from GHGI
     ghgi = load_fba_w_standardized_units(
         datasource=cast(str, parameter_dict.get('ghg_fba')),
-        year=cast(int, parameter_dict.get('ghgi_year', mecs_year)),
+        year=cast(int, parameter_dict.get(mecs_year, mecs_year)),
         flowclass='Energy',
         download_FBA_if_missing=True,
     )
