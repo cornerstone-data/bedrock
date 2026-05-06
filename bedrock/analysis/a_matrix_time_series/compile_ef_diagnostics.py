@@ -141,9 +141,14 @@ def main() -> None:
 
     if not EF_RUN_INDEX_PATH.exists():
         raise FileNotFoundError(
-            f"{EF_RUN_INDEX_PATH} not found — populate it by hand from the "
-            "Phase 1 diagnostics runs (one row per (approach, baseline) "
-            "Sheet)."
+            f"{EF_RUN_INDEX_PATH} not found.\n"
+            "Two ways to populate it:\n"
+            "  (a) Auto-rebuild from existing Sheets in the diagnostics "
+            "Drive folder:\n"
+            "      python -m bedrock.analysis.a_matrix_time_series."
+            "rebuild_run_index_from_drive --folder-id <DRIVE_FOLDER_ID>\n"
+            "  (b) Hand-write a CSV with at least 3 columns "
+            "(approach, baseline, sheet_id), one row per Sheet."
         )
     index_df = pd.read_csv(EF_RUN_INDEX_PATH)
     required = {"approach", "baseline", "sheet_id"}
