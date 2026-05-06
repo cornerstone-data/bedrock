@@ -228,7 +228,9 @@ def main() -> None:
             continue
         if year:
             joined = _deflate_new_to_ref(
-                joined, source_year=int(year), ref_year=REFERENCE_DOLLAR_YEAR
+                joined,
+                source_year=int(float(year)),
+                ref_year=REFERENCE_DOLLAR_YEAR,
             )
         # Build a deterministic 31-char-bounded tab name including any
         # populated scenario/year prefix.
