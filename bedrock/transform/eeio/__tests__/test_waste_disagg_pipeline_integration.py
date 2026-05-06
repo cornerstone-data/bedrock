@@ -1,6 +1,7 @@
-"""Waste disaggregation pipeline integration tests.
+"""Waste-specific disaggregation pipeline integration tests - NOT sector agnostic.
 
-Tests that get_waste_disagg_weights() is config-gated and cached, that V/U/Ytot
+Tests that get_waste_disagg_weights() returns waste-specific values,
+that it is config-gated and cached, that V/U/Ytot
 entry points apply disaggregation inside @functools.cache, that A/q and B use
 the Cornerstone-space path when enabled, and that feature-off is a no-op.
 """

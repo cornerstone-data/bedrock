@@ -1,3 +1,5 @@
+"""Waste-specific disaggregation tests (i.e., 562111, 562212, etc). NOT sector agnostic."""
+
 from __future__ import annotations
 
 import pathlib

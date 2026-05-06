@@ -1,3 +1,6 @@
+"""This file contains test specifically for the waste weights;
+it is NOT a test file for the disagg_weights class."""
+
 import pathlib
 from collections import defaultdict
 from typing import cast
