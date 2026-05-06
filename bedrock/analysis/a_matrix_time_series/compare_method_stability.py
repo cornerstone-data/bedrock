@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import logging
 import re
-import typing as ta
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -56,9 +55,7 @@ YOY_DISTRIBUTION_PLOT_PATH = PLOTS_DIR / "n_yoy_distribution.png"
 
 # `compile_ef_diagnostics.py` keys per-pair tabs as
 # `{scenario}_{year}.0_{approach}__vs_{baseline}` truncated to 31 chars.
-TAB_RE = re.compile(
-    r"^(?P<scenario>[a-z0-9_]+?)_(?P<year>\d{4})(?:\.0)?_(?P<rest>.+)$"
-)
+TAB_RE = re.compile(r"^(?P<scenario>[a-z0-9_]+?)_(?P<year>\d{4})(?:\.0)?_(?P<rest>.+)$")
 APPROACH_PREFIXES: tuple[tuple[str, str], ...] = (
     ("commodity_pr", "commodity_price_index"),
     ("industry_pri", "industry_price_index"),
@@ -109,18 +106,19 @@ def _read_panel(xlsx_path: Path) -> pd.DataFrame:
     xls = pd.ExcelFile(xlsx_path)
     rows: list[pd.DataFrame] = []
     for tab in xls.sheet_names:
-        parsed = _parse_tab(tab)
+        tab_str = str(tab)
+        parsed = _parse_tab(tab_str)
         if parsed is None:
             continue
         scenario, year, approach = parsed
         if approach in EXCLUDED_APPROACHES:
             continue
-        df = pd.read_excel(xls, sheet_name=tab)
+        df = pd.read_excel(xls, sheet_name=tab_str)
         if "N_new_ref" not in df.columns:
             logger.warning(
                 "Tab %r missing N_new_ref — re-run compile after the deflation "
                 "step was added.",
-                tab,
+                tab_str,
             )
             continue
         sector_col = df.columns[0]
@@ -153,7 +151,7 @@ def _yoy_per_sector(panel: pd.DataFrame) -> pd.DataFrame:
     for y in YEARS:
         if y not in wide.columns:
             wide[y] = np.nan
-    wide = ta.cast("pd.DataFrame", wide[list(YEARS)])
+    wide = wide[list(YEARS)]
     wide.columns = pd.Index([f"N_{y}" for y in YEARS])
     wide = wide.reset_index()
 
@@ -169,9 +167,9 @@ def _yoy_per_sector(panel: pd.DataFrame) -> pd.DataFrame:
     abs_yoy = wide[yoy_cols].abs()
     wide["mean_abs_yoy_pct"] = abs_yoy.mean(axis=1)
     wide["max_abs_yoy_pct"] = abs_yoy.max(axis=1)
-    wide["total_drift_pct"] = (
-        wide[f"N_{YEARS[-1]}"] - wide[f"N_{YEARS[0]}"]
-    ) / wide[f"N_{YEARS[0]}"].abs()
+    wide["total_drift_pct"] = (wide[f"N_{YEARS[-1]}"] - wide[f"N_{YEARS[0]}"]) / wide[
+        f"N_{YEARS[0]}"
+    ].abs()
     wide["abs_total_drift_pct"] = wide["total_drift_pct"].abs()
     wide["mean_N"] = wide[[f"N_{y}" for y in YEARS]].mean(axis=1)
     return wide
@@ -182,11 +180,9 @@ def _aggregate(per_sector: pd.DataFrame) -> pd.DataFrame:
     metrics = ("mean_abs_yoy_pct", "max_abs_yoy_pct", "abs_total_drift_pct")
     rows: list[dict[str, object]] = []
     for approach in sorted(per_sector["approach"].unique()):
-        grp = ta.cast(
-            "pd.DataFrame", per_sector[per_sector["approach"] == approach]
-        )
+        grp = per_sector[per_sector["approach"] == approach]
         cutoff = grp["mean_N"].abs().quantile(MIN_MEAN_PERCENTILE / 100)
-        big = ta.cast("pd.DataFrame", grp[grp["mean_N"].abs() >= cutoff])
+        big = grp[grp["mean_N"].abs() >= cutoff]
         weights = big["mean_N"].abs()
         row: dict[str, object] = {
             "approach": approach,
@@ -259,17 +255,11 @@ def _indexed_lines_plot(
     if n == 1:
         axes = np.array([axes])
     for ax, approach in zip(axes, approaches):
-        sub = ta.cast(
-            "pd.DataFrame",
-            panel[
-                (panel["approach"] == approach)
-                & panel["sector"].isin(head_sectors)
-            ],
-        )
+        sub = panel[
+            (panel["approach"] == approach) & panel["sector"].isin(head_sectors)
+        ]
         for sector in head_sectors:
-            sg = ta.cast(
-                "pd.DataFrame", sub[sub["sector"] == sector]
-            ).sort_values("year")
+            sg = sub[sub["sector"] == sector].sort_values("year")
             if sg.empty or sg["year"].min() != YEARS[0]:
                 continue
             base = sg.loc[sg["year"] == YEARS[0], "N_new_ref"].iloc[0]
@@ -310,20 +300,18 @@ def _indexed_lines_plot(
     plt.close(fig)
 
 
-def _yoy_distribution_plot(
-    per_sector: pd.DataFrame, out_path: Path
-) -> None:
+def _yoy_distribution_plot(per_sector: pd.DataFrame, out_path: Path) -> None:
     """Boxplot of per-sector |YoY %| distributions, one box per (method, transition)."""
     approaches = sorted(per_sector["approach"].unique())
     cutoff = per_sector["mean_N"].abs().quantile(MIN_MEAN_PERCENTILE / 100)
-    big = ta.cast(
-        "pd.DataFrame", per_sector[per_sector["mean_N"].abs() >= cutoff]
-    )
+    big = per_sector[per_sector["mean_N"].abs() >= cutoff]
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
     # Left: boxplot of mean_abs_yoy_pct per method.
     ax = axes[0]
-    data = [big.loc[big["approach"] == a, "mean_abs_yoy_pct"].dropna() for a in approaches]
+    data = [
+        big.loc[big["approach"] == a, "mean_abs_yoy_pct"].dropna() for a in approaches
+    ]
     ax.boxplot(data, tick_labels=approaches, showfliers=False)
     ax.set_title("Per-sector mean |YoY %|", fontsize=13)
     ax.set_ylabel("|YoY %| (lower = more stable)")
@@ -339,7 +327,9 @@ def _yoy_distribution_plot(
         per_transition = [
             sub[f"yoy_{y0}_{y1}"].abs().dropna() for y0, y1 in YOY_TRANSITIONS
         ]
-        positions = [j + (i - (n_methods - 1) / 2) * width for j in range(len(YOY_TRANSITIONS))]
+        positions = [
+            j + (i - (n_methods - 1) / 2) * width for j in range(len(YOY_TRANSITIONS))
+        ]
         bp = ax.boxplot(
             per_transition,
             positions=positions,
@@ -359,9 +349,7 @@ def _yoy_distribution_plot(
     ax.legend(loc="upper right", fontsize=9)
     ax.grid(axis="y", alpha=0.3)
 
-    fig.suptitle(
-        "Year-over-year fluctuation in N across A-matrix methods", fontsize=15
-    )
+    fig.suptitle("Year-over-year fluctuation in N across A-matrix methods", fontsize=15)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=120, bbox_inches="tight")
@@ -381,14 +369,18 @@ def _print_summary(ranking: pd.DataFrame, per_sector: pd.DataFrame) -> None:
 
     print("\n=== Top-5 most-fluctuating big-N sectors per method ===")
     cutoff = per_sector["mean_N"].abs().quantile(MIN_MEAN_PERCENTILE / 100)
-    big = ta.cast(
-        "pd.DataFrame", per_sector[per_sector["mean_N"].abs() >= cutoff]
-    )
+    big = per_sector[per_sector["mean_N"].abs() >= cutoff]
     for approach in sorted(big["approach"].unique()):
-        grp = ta.cast("pd.DataFrame", big[big["approach"] == approach])
-        worst = ta.cast(
-            "pd.DataFrame", grp.nlargest(n=5, columns="mean_abs_yoy_pct")
-        )[["sector", "mean_N", "mean_abs_yoy_pct", "max_abs_yoy_pct", "total_drift_pct"]]
+        grp = big[big["approach"] == approach]
+        worst = grp.nlargest(n=5, columns="mean_abs_yoy_pct")[
+            [
+                "sector",
+                "mean_N",
+                "mean_abs_yoy_pct",
+                "max_abs_yoy_pct",
+                "total_drift_pct",
+            ]
+        ]
         print(f"\n[{approach}]")
         print(worst.round(4).to_string(index=False))
 
