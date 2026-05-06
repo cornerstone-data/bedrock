@@ -562,3 +562,47 @@ def weights_to_csv(weights: DisaggWeights, file: IO[str] | None = None) -> None:
         print(csv_str, end="")
     else:
         df.to_csv(file, index=False)
+
+
+if __name__ == "__main__":
+    import pathlib
+    from typing import cast
+
+    from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
+    from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+
+    _data_dir = pathlib.Path(__file__).resolve().parent
+    _cfg = EEIOWasteDisaggConfig(
+        use_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Use.csv"),
+        make_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Make.csv"),
+        year=2017,
+        source_name="WasteDisaggregationDetail2017",
+    )
+    _weights = load_disagg_weights(
+        _cfg,
+        original_code="562000",
+        new_codes=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
+        disagg_sectors=cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"])),
+    )
+    # weights_to_csv(_weights, open("weights.csv", "w"))
+
+    print("use_intersection")
+    print(_weights.use_intersection)
+    print("\nuse_disagg_industry_columns_all_rows")
+    print(_weights.use_disagg_industry_columns_all_rows)
+    print("\nuse_disagg_commodity_rows_all_columns")
+    print(_weights.use_disagg_commodity_rows_all_columns)
+    print("\nuse_disagg_rows_specific_columns")
+    print(_weights.use_disagg_rows_specific_columns)
+    print("\nuse_va_rows_for_disagg_industry_columns")
+    print(_weights.use_va_rows_for_disagg_industry_columns)
+    print("\nuse_fd_columns_for_disagg_commodity_rows")
+    print(_weights.use_fd_columns_for_disagg_commodity_rows)
+    print("\nmake_intersection")
+    print(_weights.make_intersection)
+    print("\nmake_disagg_commodity_columns_all_rows")
+    print(_weights.make_disagg_commodity_columns_all_rows)
+    print("\nmake_disagg_commodity_columns_specific_rows")
+    print(_weights.make_disagg_commodity_columns_specific_rows)
+    print("\nmake_disagg_industry_rows_specific_columns")
+    print(_weights.make_disagg_industry_rows_specific_columns)

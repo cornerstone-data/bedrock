@@ -1,3 +1,5 @@
+"""Waste-specific disaggregation tests (i.e., 562111, 562212, etc). NOT sector agnostic."""
+
 from __future__ import annotations
 
 import pathlib
@@ -7,10 +9,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.extract.disaggregation.waste_weights import (
-    WasteDisaggWeights,
+from bedrock.extract.disaggregation.disagg_weights import (
+    DisaggWeights,
     _empty_weight_table,
-    load_waste_disagg_weights,
+    load_disagg_weights,
 )
 from bedrock.extract.iot.io_2017 import load_2017_value_added_usa
 from bedrock.transform.eeio.cornerstone_expansion import industry_corresp
@@ -42,7 +44,7 @@ def _uniform_row(columns: list[str]) -> list[float]:
 
 
 @pytest.fixture()
-def simple_weights() -> WasteDisaggWeights:
+def simple_weights() -> DisaggWeights:
     """Weights fixture with 3 waste subsectors and simple known distributions."""
     make_intersection = _wt(
         WASTE,
@@ -102,25 +104,25 @@ def simple_weights() -> WasteDisaggWeights:
         ],
     )
 
-    return WasteDisaggWeights(
+    return DisaggWeights(
         use_intersection=use_intersection,
-        use_waste_industry_columns_all_rows=use_col_all,
-        use_waste_commodity_rows_all_columns=use_row_all,
-        use_waste_rows_specific_columns=use_rows_specific,
-        use_va_rows_for_waste_industry_columns=use_va,
-        use_fd_columns_for_waste_commodity_rows=use_fd,
+        use_disagg_industry_columns_all_rows=use_col_all,
+        use_disagg_commodity_rows_all_columns=use_row_all,
+        use_disagg_rows_specific_columns=use_rows_specific,
+        use_va_rows_for_disagg_industry_columns=use_va,
+        use_fd_columns_for_disagg_commodity_rows=use_fd,
         make_intersection=make_intersection,
-        make_waste_commodity_columns_all_rows=make_col_all,
-        make_waste_commodity_columns_specific_rows=make_col_specific,
-        make_waste_industry_rows_specific_columns=make_row_specific,
+        make_disagg_commodity_columns_all_rows=make_col_all,
+        make_disagg_commodity_columns_specific_rows=make_col_specific,
+        make_disagg_industry_rows_specific_columns=make_row_specific,
         year=2017,
         source_name="test",
     )
 
 
 @pytest.fixture()
-def simple_weights_with_ind_x_row_specific() -> WasteDisaggWeights:
-    """Like simple_weights but use_waste_rows_specific_columns has IND_X with 0.6, 0.25, 0.15."""
+def simple_weights_with_ind_x_row_specific() -> DisaggWeights:
+    """Like simple_weights but use_disagg_rows_specific_columns has IND_X with 0.6, 0.25, 0.15."""
     make_intersection = _wt(
         WASTE,
         WASTE,
@@ -155,17 +157,17 @@ def simple_weights_with_ind_x_row_specific() -> WasteDisaggWeights:
         WASTE,
         [[0.7, 0.2, 0.1], [0.3, 0.4, 0.3]],
     )
-    return WasteDisaggWeights(
+    return DisaggWeights(
         use_intersection=use_intersection,
-        use_waste_industry_columns_all_rows=use_col_all,
-        use_waste_commodity_rows_all_columns=use_row_all,
-        use_waste_rows_specific_columns=use_rows_specific,
-        use_va_rows_for_waste_industry_columns=use_va,
-        use_fd_columns_for_waste_commodity_rows=use_fd,
+        use_disagg_industry_columns_all_rows=use_col_all,
+        use_disagg_commodity_rows_all_columns=use_row_all,
+        use_disagg_rows_specific_columns=use_rows_specific,
+        use_va_rows_for_disagg_industry_columns=use_va,
+        use_fd_columns_for_disagg_commodity_rows=use_fd,
         make_intersection=make_intersection,
-        make_waste_commodity_columns_all_rows=make_col_all,
-        make_waste_commodity_columns_specific_rows=make_col_specific,
-        make_waste_industry_rows_specific_columns=make_row_specific,
+        make_disagg_commodity_columns_all_rows=make_col_all,
+        make_disagg_commodity_columns_specific_rows=make_col_specific,
+        make_disagg_industry_rows_specific_columns=make_row_specific,
         year=2017,
         source_name="test",
     )
@@ -178,7 +180,7 @@ def simple_weights_with_ind_x_row_specific() -> WasteDisaggWeights:
 
 class TestApplyWasteDisaggToV:
     def test_intersection_block_matches_weights(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         industries = WASTE + ["IND_A", ORIG]
         commodities = WASTE + ["COM_A", ORIG]
@@ -198,9 +200,7 @@ class TestApplyWasteDisaggToV:
         assert result.loc["562910", "562910"] == pytest.approx(10.0)
         assert result.loc["562111", "562212"] == pytest.approx(0.0, abs=1e-12)
 
-    def test_intersection_total_preserved(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_intersection_total_preserved(self, simple_weights: DisaggWeights) -> None:
         industries = WASTE + ["IND_A", ORIG]
         commodities = WASTE + ["COM_A", ORIG]
         V = pd.DataFrame(0.0, index=industries, columns=commodities)
@@ -215,7 +215,7 @@ class TestApplyWasteDisaggToV:
         )
         assert intersection_sum == pytest.approx(100.0)
 
-    def test_column_disaggregation(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_column_disaggregation(self, simple_weights: DisaggWeights) -> None:
         industries = WASTE + ["IND_A", ORIG]
         commodities = WASTE + ["COM_A", ORIG]
         V = pd.DataFrame(0.0, index=industries, columns=commodities)
@@ -229,9 +229,7 @@ class TestApplyWasteDisaggToV:
         col_sum = sum(cast(float, result.loc["IND_A", c]) for c in WASTE)
         assert col_sum == pytest.approx(50.0)
 
-    def test_row_disaggregation_specific(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_row_disaggregation_specific(self, simple_weights: DisaggWeights) -> None:
         industries = WASTE + ["IND_A", ORIG]
         commodities = WASTE + ["COM_A", ORIG]
         V = pd.DataFrame(0.0, index=industries, columns=commodities)
@@ -245,9 +243,7 @@ class TestApplyWasteDisaggToV:
         row_sum = sum(cast(float, result.loc[r, "COM_A"]) for r in WASTE)
         assert row_sum == pytest.approx(30.0)
 
-    def test_non_waste_cells_unchanged(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_non_waste_cells_unchanged(self, simple_weights: DisaggWeights) -> None:
         industries = WASTE + ["IND_A", ORIG]
         commodities = WASTE + ["COM_A", ORIG]
         V = pd.DataFrame(0.0, index=industries, columns=commodities)
@@ -259,7 +255,7 @@ class TestApplyWasteDisaggToV:
         assert result.loc["IND_A", "COM_A"] == pytest.approx(10.0)
 
     def test_no_original_code_returns_unchanged(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         V = pd.DataFrame({"A": [1.0, 2.0], "B": [3.0, 4.0]}, index=["X", "Y"])
         result = apply_waste_disagg_to_V(V, simple_weights)
@@ -282,7 +278,7 @@ class TestApplyWasteDisaggToU:
         U.loc["COM_X", "IND_X"] = 15.0
         return U
 
-    def test_intersection_preserved(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_intersection_preserved(self, simple_weights: DisaggWeights) -> None:
         U = self._make_U()
         Udom, _ = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
 
@@ -291,7 +287,7 @@ class TestApplyWasteDisaggToU:
         )
         assert intersection_sum == pytest.approx(200.0)
 
-    def test_intersection_values(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_intersection_values(self, simple_weights: DisaggWeights) -> None:
         U = self._make_U()
         Udom, _ = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
 
@@ -299,18 +295,14 @@ class TestApplyWasteDisaggToU:
         assert Udom.loc["562212", "562212"] == pytest.approx(60.0)
         assert Udom.loc["562910", "562910"] == pytest.approx(40.0)
 
-    def test_column_disagg_total_preserved(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_column_disagg_total_preserved(self, simple_weights: DisaggWeights) -> None:
         U = self._make_U()
         Udom, _ = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
 
         col_sum = sum(cast(float, Udom.loc["COM_X", i]) for i in WASTE)
         assert col_sum == pytest.approx(80.0)
 
-    def test_row_disagg_total_preserved(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_row_disagg_total_preserved(self, simple_weights: DisaggWeights) -> None:
         U = self._make_U()
         Udom, _ = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
 
@@ -318,30 +310,30 @@ class TestApplyWasteDisaggToU:
         assert row_sum == pytest.approx(60.0)
 
     def test_row_disagg_uses_default_weights(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         """With no industry-specific row weights, IND_X uses default row [0.5, 0.3, 0.2]."""
         U = self._make_U()
         Udom, _ = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
-        # U[ORIG, IND_X]=60 split by use_waste_commodity_rows_all_columns (ORIG row)
+        # U[ORIG, IND_X]=60 split by use_disagg_commodity_rows_all_columns (ORIG row)
         assert Udom.loc["562111", "IND_X"] == pytest.approx(30.0)
         assert Udom.loc["562212", "IND_X"] == pytest.approx(18.0)
         assert Udom.loc["562910", "IND_X"] == pytest.approx(12.0)
 
     def test_row_disagg_uses_specific_weights_when_present(
-        self, simple_weights_with_ind_x_row_specific: WasteDisaggWeights
+        self, simple_weights_with_ind_x_row_specific: DisaggWeights
     ) -> None:
-        """When use_waste_rows_specific_columns has a row for the industry, that row is used."""
+        """When use_disagg_rows_specific_columns has a row for the industry, that row is used."""
         U = self._make_U()
         Udom, _ = apply_waste_disagg_to_U(
             U, U.copy(), simple_weights_with_ind_x_row_specific
         )
-        # U[ORIG, IND_X]=60 split by use_waste_rows_specific_columns IND_X row (0.6, 0.25, 0.15)
+        # U[ORIG, IND_X]=60 split by use_disagg_rows_specific_columns IND_X row (0.6, 0.25, 0.15)
         assert Udom.loc["562111", "IND_X"] == pytest.approx(36.0)
         assert Udom.loc["562212", "IND_X"] == pytest.approx(15.0)
         assert Udom.loc["562910", "IND_X"] == pytest.approx(9.0)
 
-    def test_original_code_removed(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_original_code_removed(self, simple_weights: DisaggWeights) -> None:
         U = self._make_U()
         Udom, Uimp = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
 
@@ -350,13 +342,13 @@ class TestApplyWasteDisaggToU:
         assert ORIG not in Uimp.index
         assert ORIG not in Uimp.columns
 
-    def test_non_waste_unchanged(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_non_waste_unchanged(self, simple_weights: DisaggWeights) -> None:
         U = self._make_U()
         Udom, _ = apply_waste_disagg_to_U(U, U.copy(), simple_weights)
 
         assert Udom.loc["COM_X", "IND_X"] == pytest.approx(15.0)
 
-    def test_both_matrices_processed(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_both_matrices_processed(self, simple_weights: DisaggWeights) -> None:
         U1 = self._make_U()
         U2 = self._make_U()
         U2.loc[ORIG, ORIG] = 300.0
@@ -374,7 +366,7 @@ class TestApplyWasteDisaggToU:
 
 
 class TestApplyWasteDisaggToVA:
-    def test_va_total_preserved(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_va_total_preserved(self, simple_weights: DisaggWeights) -> None:
         va = pd.DataFrame(
             {ORIG: [100.0, 200.0], "IND_A": [50.0, 60.0]},
             index=["V00100", "V00200"],
@@ -389,7 +381,7 @@ class TestApplyWasteDisaggToVA:
             ), f"VA total not preserved for {va_row}"
 
     def test_va_distribution_matches_weights(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         va = pd.DataFrame(
             {ORIG: [100.0], "IND_A": [50.0]},
@@ -401,9 +393,7 @@ class TestApplyWasteDisaggToVA:
         assert result.loc["V00100", "562212"] == pytest.approx(30.0)
         assert result.loc["V00100", "562910"] == pytest.approx(20.0)
 
-    def test_non_waste_columns_unchanged(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_non_waste_columns_unchanged(self, simple_weights: DisaggWeights) -> None:
         va = pd.DataFrame(
             {ORIG: [100.0], "IND_A": [50.0]},
             index=["V00100"],
@@ -412,7 +402,7 @@ class TestApplyWasteDisaggToVA:
         assert result.loc["V00100", "IND_A"] == pytest.approx(50.0)
 
     def test_different_va_rows_use_different_weights(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         va = pd.DataFrame(
             {ORIG: [100.0, 100.0], "IND_A": [50.0, 60.0]},
@@ -424,7 +414,7 @@ class TestApplyWasteDisaggToVA:
         assert result.loc["V00200", "562111"] == pytest.approx(60.0)
 
     def test_no_original_code_returns_unchanged(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         va = pd.DataFrame(
             {"IND_A": [50.0]},
@@ -440,9 +430,7 @@ class TestApplyWasteDisaggToVA:
 
 
 class TestApplyWasteDisaggToYtot:
-    def test_fd_total_preserved_per_column(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_fd_total_preserved_per_column(self, simple_weights: DisaggWeights) -> None:
         Ytot = pd.DataFrame(
             {"F01000": [100.0, 20.0], "F06C00": [80.0, 10.0]},
             index=[ORIG, "COM_X"],
@@ -457,7 +445,7 @@ class TestApplyWasteDisaggToYtot:
             ), f"FD total not preserved for {fd_col}"
 
     def test_fd_distribution_matches_weights(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         Ytot = pd.DataFrame(
             {"F01000": [100.0], "F06C00": [80.0]},
@@ -473,7 +461,7 @@ class TestApplyWasteDisaggToYtot:
         assert result.loc["562212", "F06C00"] == pytest.approx(32.0)
         assert result.loc["562910", "F06C00"] == pytest.approx(24.0)
 
-    def test_non_waste_rows_unchanged(self, simple_weights: WasteDisaggWeights) -> None:
+    def test_non_waste_rows_unchanged(self, simple_weights: DisaggWeights) -> None:
         Ytot = pd.DataFrame(
             {"F01000": [100.0, 20.0]},
             index=[ORIG, "COM_X"],
@@ -482,7 +470,7 @@ class TestApplyWasteDisaggToYtot:
         assert result.loc["COM_X", "F01000"] == pytest.approx(20.0)
 
     def test_fallback_to_commodity_rows_all_columns_for_unknown_fd_col(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         Ytot = pd.DataFrame(
             {"F99999": [100.0]},
@@ -497,15 +485,13 @@ class TestApplyWasteDisaggToYtot:
         assert result.loc["562910", "F99999"] == pytest.approx(20.0)
 
     def test_no_original_code_returns_unchanged(
-        self, simple_weights: WasteDisaggWeights
+        self, simple_weights: DisaggWeights
     ) -> None:
         Ytot = pd.DataFrame({"F01000": [1.0, 2.0]}, index=["A", "B"])
         result = apply_waste_disagg_to_Ytot(Ytot, simple_weights)
         pd.testing.assert_frame_equal(result, Ytot)
 
-    def test_zero_value_produces_zero_rows(
-        self, simple_weights: WasteDisaggWeights
-    ) -> None:
+    def test_zero_value_produces_zero_rows(self, simple_weights: DisaggWeights) -> None:
         Ytot = pd.DataFrame(
             {"F01000": [0.0]},
             index=[ORIG],
@@ -528,18 +514,18 @@ _ORIG = "562000"
 
 
 @pytest.fixture(scope="module")
-def weights_2017() -> WasteDisaggWeights:
+def weights_2017() -> DisaggWeights:
     cfg = EEIOWasteDisaggConfig(
         use_weights_file=str(_USE_PATH),
         make_weights_file=str(_MAKE_PATH),
         year=2017,
         source_name="WasteDisaggregationDetail2017",
     )
-    return load_waste_disagg_weights(
+    return load_disagg_weights(
         cfg,
-        disagg_original_code=_ORIG,
-        disagg_new_codes=_WASTE_CODES_2017,
-        waste_sectors=_WASTE_CODES_2017,
+        original_code=_ORIG,
+        new_codes=_WASTE_CODES_2017,
+        disagg_sectors=_WASTE_CODES_2017,
         va_row_codes=_VA_ROWS,
     )
 
@@ -631,14 +617,14 @@ def _build_U(waste_codes: list[str]) -> pd.DataFrame:
 @pytest.mark.eeio_integration
 class TestIntegrationV:
     def test_original_code_removed(
-        self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_V: pd.DataFrame
     ) -> None:
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         assert _ORIG not in result.index
         assert _ORIG not in result.columns
 
     def test_waste_subsectors_present(
-        self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_V: pd.DataFrame
     ) -> None:
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         for code in _WASTE_CODES_2017:
@@ -646,7 +632,7 @@ class TestIntegrationV:
             assert code in result.columns, f"{code} missing from columns"
 
     def test_intersection_mass_preserved(
-        self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_V: pd.DataFrame
     ) -> None:
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         if _ORIG in real_V.index and _ORIG in real_V.columns:
@@ -663,7 +649,7 @@ class TestIntegrationV:
         assert intersection_sum == pytest.approx(orig_val, rel=1e-6)
 
     def test_column_mass_preserved_per_industry(
-        self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_V: pd.DataFrame
     ) -> None:
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         waste_set = set(_WASTE_CODES_2017)
@@ -687,7 +673,7 @@ class TestIntegrationV:
             ), f"Column mass not preserved for industry {ind}"
 
     def test_row_mass_preserved_per_commodity(
-        self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_V: pd.DataFrame
     ) -> None:
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         waste_set = set(_WASTE_CODES_2017)
@@ -711,7 +697,7 @@ class TestIntegrationV:
             ), f"Row mass not preserved for commodity {com}"
 
     def test_non_waste_cells_unchanged(
-        self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_V: pd.DataFrame
     ) -> None:
         result = apply_waste_disagg_to_V(real_V, weights_2017)
         waste_set = set(_WASTE_CODES_2017)
@@ -723,7 +709,7 @@ class TestIntegrationV:
             )
 
     def test_make_intersection_diagonal_dominant(
-        self, weights_2017: WasteDisaggWeights, real_V: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_V: pd.DataFrame
     ) -> None:
         """In the 2017 Make data, intersection is diagonal-only when disaggregating from 562000."""
         if _ORIG not in real_V.index or _ORIG not in real_V.columns:
@@ -742,7 +728,7 @@ class TestIntegrationV:
 class TestIntegrationU:
     def test_original_code_removed(
         self,
-        weights_2017: WasteDisaggWeights,
+        weights_2017: DisaggWeights,
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
@@ -752,7 +738,7 @@ class TestIntegrationU:
 
     def test_intersection_mass_preserved(
         self,
-        weights_2017: WasteDisaggWeights,
+        weights_2017: DisaggWeights,
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
@@ -772,7 +758,7 @@ class TestIntegrationU:
 
     def test_column_mass_preserved(
         self,
-        weights_2017: WasteDisaggWeights,
+        weights_2017: DisaggWeights,
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
@@ -799,7 +785,7 @@ class TestIntegrationU:
 
     def test_row_mass_preserved(
         self,
-        weights_2017: WasteDisaggWeights,
+        weights_2017: DisaggWeights,
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
@@ -826,7 +812,7 @@ class TestIntegrationU:
 
     def test_non_waste_unchanged(
         self,
-        weights_2017: WasteDisaggWeights,
+        weights_2017: DisaggWeights,
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         Udom_src, Uimp_src = real_U
@@ -842,7 +828,7 @@ class TestIntegrationU:
 
     def test_va_rows_not_disaggregated_by_U_helper(
         self,
-        weights_2017: WasteDisaggWeights,
+        weights_2017: DisaggWeights,
         real_U: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
         """VA rows are excluded from Use column disaggregation (handled by VA helper)."""
@@ -859,7 +845,7 @@ class TestIntegrationU:
 
 class TestIntegrationVA:
     def test_va_mass_preserved_per_row(
-        self, weights_2017: WasteDisaggWeights, real_va: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_va: pd.DataFrame
     ) -> None:
         va_rows = [r for r in _VA_ROWS if r in real_va.index]
         if not va_rows:
@@ -881,7 +867,7 @@ class TestIntegrationVA:
             ), f"VA mass not preserved for {va_row}"
 
     def test_va_non_waste_unchanged(
-        self, weights_2017: WasteDisaggWeights, real_va: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_va: pd.DataFrame
     ) -> None:
         va_rows = [r for r in _VA_ROWS if r in real_va.index]
         if not va_rows:
@@ -899,7 +885,7 @@ class TestIntegrationVA:
                     )
 
     def test_va_all_three_rows_get_same_proportions(
-        self, weights_2017: WasteDisaggWeights
+        self, weights_2017: DisaggWeights
     ) -> None:
         """V00100/V00200/V00300 have identical raw VA weights, so all three rows
         should get the same proportions (though different absolute values)."""
@@ -926,7 +912,7 @@ class TestIntegrationVA:
 
 class TestIntegrationYtot:
     def test_fd_mass_preserved_per_column(
-        self, weights_2017: WasteDisaggWeights, real_Ytot: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_Ytot: pd.DataFrame
     ) -> None:
         result = apply_waste_disagg_to_Ytot(real_Ytot, weights_2017)
         assert _ORIG not in result.index
@@ -952,7 +938,7 @@ class TestIntegrationYtot:
             ), f"FD mass not preserved for {fd_col}"
 
     def test_fd_non_waste_rows_unchanged(
-        self, weights_2017: WasteDisaggWeights, real_Ytot: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_Ytot: pd.DataFrame
     ) -> None:
         waste_set = set(_WASTE_CODES_2017)
         other_com = [c for c in real_Ytot.index if c != _ORIG and c not in waste_set]
@@ -966,10 +952,10 @@ class TestIntegrationYtot:
         )
 
     def test_known_fd_col_uses_specific_weights(
-        self, weights_2017: WasteDisaggWeights, real_Ytot: pd.DataFrame
+        self, weights_2017: DisaggWeights, real_Ytot: pd.DataFrame
     ) -> None:
         """F01000 has specific weights in the Use CSV; verify they are applied."""
-        fd_w = weights_2017.use_fd_columns_for_waste_commodity_rows
+        fd_w = weights_2017.use_fd_columns_for_disagg_commodity_rows
         if "F01000" not in fd_w.index:
             pytest.skip("F01000 not in waste FD weights")
         if "F01000" not in real_Ytot.columns:
@@ -988,9 +974,7 @@ class TestIntegrationYtot:
                 expected, rel=1e-6
             ), f"F01000 weight mismatch for {com}"
 
-    def test_unknown_fd_col_uses_fallback(
-        self, weights_2017: WasteDisaggWeights
-    ) -> None:
+    def test_unknown_fd_col_uses_fallback(self, weights_2017: DisaggWeights) -> None:
         """FD columns not in the weights CSV should fall back to intersection marginals."""
         Ytot = pd.DataFrame({"F99999": [1000.0]}, index=[_ORIG])
         result = apply_waste_disagg_to_Ytot(Ytot, weights_2017)
