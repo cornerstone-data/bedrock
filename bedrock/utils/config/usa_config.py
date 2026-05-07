@@ -31,7 +31,7 @@ class USAConfig(BaseModel):
     #####
     # Model base settings
     #####
-    model_base_year: ta.Literal[2022, 2023, 2024] = 2023
+    model_base_year: ta.Literal[2017, 2022, 2023, 2024] = 2023
     bea_io_level: ta.Literal['detail', 'summary'] = 'detail'
     bea_io_scheme: ta.Literal[2017, 2022] = 2017  # documentation purposes
     price_type: ta.Literal['producer', 'purchaser'] = 'producer'
@@ -43,7 +43,7 @@ class USAConfig(BaseModel):
     usa_base_io_data_year: ta.Literal[2012, 2017] = (
         2017  # BEA's benchmark year for Detail Input-Output data
     )
-    usa_io_data_year: ta.Literal[2022, 2023, 2024] = (
+    usa_io_data_year: ta.Literal[2017, 2022, 2023, 2024] = (
         2022  # CEDA's legacy USA IO data year
     )
     usa_ghg_data_year: ta.Literal[2023, 2024] = 2023
@@ -55,14 +55,17 @@ class USAConfig(BaseModel):
     #####
     ### Schema/Taxonomy selection
     use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
+    use_useeio_schema: bool = False
     ### IO Methodology selection
     use_E_data_year_for_x_in_B: bool = False  # DRI: mo.li
+    use_useeio_B: bool = False
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_industry_price_index: bool = False  # DRI: mo.li
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
+    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
@@ -80,6 +83,10 @@ class USAConfig(BaseModel):
     )
     update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
+    use_ghg_national_2023_m2: bool = False
+    skip_scrap_adjustment_in_vnorm: bool = False
+    ### Inflation factors
+    update_inflation_factors: bool = False  # mo.li
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -126,6 +133,22 @@ class USAConfig(BaseModel):
                         'useeio_baseline_xlsx_sha256 is required in GitHub Actions '
                         "when diagnostics_baseline_source is 'gcs_useeio_xlsx'"
                     )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_ghg_flag_compatibility(self) -> USAConfig:
+        if self.new_ghg_method and self.use_ghg_national_2023_m2:
+            raise ValueError(
+                'new_ghg_method and use_ghg_national_2023_m2 cannot both be true'
+            )
+        if self.use_ghg_national_2023_m2 and not self.use_useeio_schema:
+            raise ValueError(
+                'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
+            )
+        if self.use_useeio_B and self.use_E_data_year_for_x_in_B:
+            raise ValueError(
+                'use_useeio_B and use_E_data_year_for_x_in_B cannot both be true'
+            )
         return self
 
     #####

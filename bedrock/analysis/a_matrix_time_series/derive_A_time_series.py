@@ -33,12 +33,18 @@ import pandas as pd
 import yaml
 
 import bedrock.utils.config.usa_config as cfg_module
+from bedrock.analysis.a_matrix_time_series.constants import (
+    ANALYSIS_DRIVE_FOLDER_ID,
+    LAST_RUN_SHEET_ID_PATH,
+    LATEST_TARGET_YEAR,
+    ORIGINAL_YEAR,
+    PLOTS_DIR,
+    RESULTS_DIR,
+)
 from bedrock.utils.config.usa_config import USAConfig
 from bedrock.utils.io.gcp import create_spreadsheet_in_folder, update_sheet_tab
 
 logger = logging.getLogger(__name__)
-
-ANALYSIS_DRIVE_FOLDER_ID = "1UcPmwLnL6MwTq9pMYJw5d43FJQOFQVO_"
 
 APPROACH_YAMLS: dict[str, str] = {
     "useeio": "2025_usa_cornerstone_A_useeio.yaml",
@@ -48,19 +54,16 @@ APPROACH_YAMLS: dict[str, str] = {
     "ceda_default": "2025_usa_cornerstone_taxonomy.yaml",  # CEDA baseline with Cornerstone schema
 }
 APPROACHES: list[str] = list(APPROACH_YAMLS.keys())
-TARGET_YEARS: list[int] = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
-
-OUTPUT_DIR = Path(__file__).parent / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
-PLOTS_DIR = OUTPUT_DIR / "plots"
-LAST_RUN_SHEET_ID_PATH = RESULTS_DIR / "last_run_sheet_id.txt"
+# Includes ORIGINAL_YEAR (the BEA detail base year) for the 2017-identity
+# sanity check tab.
+TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR, LATEST_TARGET_YEAR + 1))
 
 # Modules whose @functools.cache outputs are config-dependent and must be
 # invalidated between (approach, year) iterations.
 _CACHE_BEARING_MODULE_PATHS = (
     "bedrock.transform.eeio.derived_cornerstone",
     "bedrock.transform.eeio.cornerstone_bea_intermediates",
-    "bedrock.utils.economic.inflate_cornerstone_to_target_year",
+    "bedrock.utils.economic.inflation_helpers_cornerstone",
 )
 
 
@@ -89,6 +92,13 @@ def _set_config(approach: str, year: int) -> None:
     with open(yaml_path) as f:
         data = yaml.safe_load(f) or {}
     data["model_base_year"] = year
+    # The package `__init__.py` flips these on the initial config; replacing
+    # `_usa_config` here would otherwise drop them back to field defaults.
+    data["update_inflation_factors"] = True
+    # `commodity_price_index.yaml` already sets this; setting it for every
+    # approach is harmless (only `commodity_price_index` reads it via
+    # `get_vnorm_adjusted_commodity_price_ratio`).
+    data["apply_inflation_to_V"] = True
 
     cfg_module._usa_config = USAConfig.model_construct(**data)
     os.environ[cfg_module.USA_CONFIG_ENV_VAR] = APPROACH_YAMLS[approach]

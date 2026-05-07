@@ -166,8 +166,8 @@ def derive_x_time_series() -> dict[int, pd.Series]:
     from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415
         derive_gross_output_after_redefinition,
     )
-    from bedrock.utils.economic.inflate_cornerstone_to_target_year import (  # noqa: PLC0415
-        get_cornerstone_price_ratio,
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+        get_cornerstone_industry_price_ratio,
     )
 
     base_year = YEARS[0]
@@ -184,7 +184,7 @@ def derive_x_time_series() -> dict[int, pd.Series]:
         # Deflate to constant base-year dollars
         if year != base_year:
             # price_ratio = price(year) / price(base_year); divide to get real dollars
-            price_ratio = get_cornerstone_price_ratio(base_year, year)
+            price_ratio = get_cornerstone_industry_price_ratio(base_year, year)
             x_cs = x_cs / price_ratio.reindex(x_cs.index, fill_value=1.0)
 
         x_by_year[year] = x_cs
@@ -245,7 +245,8 @@ def _map_fbs_to_cornerstone(fbs: pd.DataFrame) -> pd.DataFrame:
     regardless of the global usa_config flag, ensuring the canonical
     schema is always Cornerstone (405 sectors).
 
-    Logic mirrors ``map_to_CEDA()`` in transform/allocation/derived.py
+    Logic mirrors ``map_fbs_sectors_to_model_schema()`` in
+    transform/allocation/derived.py
     but hardcodes the Cornerstone mapping.
     """
     from bedrock.transform.flowbysector import FlowBySector  # noqa: PLC0415

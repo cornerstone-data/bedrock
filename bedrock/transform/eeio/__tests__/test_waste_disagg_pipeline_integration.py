@@ -1,6 +1,7 @@
-"""Waste disaggregation pipeline integration tests.
+"""Waste-specific disaggregation pipeline integration tests - NOT sector agnostic.
 
-Tests that get_waste_disagg_weights() is config-gated and cached, that V/U/Ytot
+Tests that get_waste_disagg_weights() returns waste-specific values,
+that it is config-gated and cached, that V/U/Ytot
 entry points apply disaggregation inside @functools.cache, that A/q and B use
 the Cornerstone-space path when enabled, and that feature-off is a no-op.
 """
@@ -13,8 +14,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.extract.disaggregation.waste_weights import WasteDisaggWeights
-from bedrock.transform.eeio.cornerstone_bea_intermediates import bea_E
+from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
+from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.eeio import (
+    cornerstone_bea_intermediates,
+    cornerstone_expansion,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     _WASTE_NEW_CODES,
     _derive_cornerstone_Ytot_with_trade,
@@ -22,7 +27,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_B_via_vnorm,
-    derive_cornerstone_E,
     derive_cornerstone_q,
     derive_cornerstone_U_set,
     derive_cornerstone_U_with_negatives,
@@ -30,11 +34,13 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_VA,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_y_nab,
     derive_cornerstone_Ytot_matrix_set,
     get_waste_disagg_weights,
 )
 from bedrock.utils.config.usa_config import (
+    get_usa_config,
     reset_usa_config,
     set_global_usa_config,
 )
@@ -56,9 +62,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_E,
     derive_cornerstone_y_nab,
-    bea_E,  # E is derived from allocators; clear so B uses emissions for current config
 ]
 
 
@@ -99,7 +103,7 @@ class TestWeightProvider:
         _setup_config("test_usa_config_waste_disagg")
         result = get_waste_disagg_weights()
         assert result is not None
-        assert isinstance(result, WasteDisaggWeights)
+        assert isinstance(result, DisaggWeights)
 
     def test_cache_clearing_reflects_new_config(self) -> None:
         _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
@@ -109,7 +113,7 @@ class TestWeightProvider:
         _setup_config("test_usa_config_waste_disagg")
         result2 = get_waste_disagg_weights()
         assert result2 is not None
-        assert isinstance(result2, WasteDisaggWeights)
+        assert isinstance(result2, DisaggWeights)
 
 
 # ---------------------------------------------------------------------------
@@ -442,6 +446,59 @@ class TestPipelineB:
             disagg_B[non_waste_cols].values,
             atol=1e-6,
         ), "B non-waste columns should match between baseline and disaggregated configs"
+
+    @pytest.mark.eeio_integration
+    def test_runtime_B_path_does_not_use_bea_expansion_helpers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _setup_config("2025_usa_cornerstone_full_model.yaml")
+
+        def _raise_if_called(*args: object, **kwargs: object) -> None:
+            raise AssertionError(
+                "B runtime path should not call BEA-expansion E helpers"
+            )
+
+        monkeypatch.setattr(cornerstone_bea_intermediates, "bea_E", _raise_if_called)
+        monkeypatch.setattr(
+            cornerstone_expansion,
+            "expand_ghg_matrix_from_bea_to_cornerstone",
+            _raise_if_called,
+        )
+
+        try:
+            B = derive_cornerstone_B_via_vnorm()
+        finally:
+            _teardown()
+
+        assert B.shape[1] == 405
+
+    @pytest.mark.eeio_integration
+    def test_runtime_B_formula_matches_implementation(self) -> None:
+        _setup_config("2025_usa_cornerstone_full_model.yaml")
+        try:
+            cfg = get_usa_config()
+            actual = derive_cornerstone_B_via_vnorm()
+
+            x = (
+                derive_cornerstone_x_after_redefinition()
+                if cfg.use_E_data_year_for_x_in_B
+                else derive_cornerstone_x()
+            )
+            expected = (
+                derive_E_usa().divide(x, axis=1).fillna(0.0)
+                @ derive_cornerstone_Vnorm_scrap_corrected()
+            )
+        finally:
+            _teardown()
+
+        assert list(actual.index) == list(expected.index)
+        assert list(actual.columns) == list(expected.columns)
+        np.testing.assert_allclose(
+            actual.values,
+            expected.values,
+            rtol=1e-9,
+            atol=1e-12,
+        )
 
 
 # ---------------------------------------------------------------------------

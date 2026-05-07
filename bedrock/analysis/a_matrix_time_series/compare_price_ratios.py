@@ -25,36 +25,43 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series.constants import (
+    LATEST_TARGET_YEAR,
+    ORIGINAL_YEAR,
+    PLOTS_DIR,
+    RESULTS_DIR,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
 )
-from bedrock.utils.economic.inflate_cornerstone_to_target_year import (
-    get_cornerstone_price_ratio,
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_cornerstone_industry_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
 
 logger = logging.getLogger(__name__)
 
-ORIGINAL_YEAR = 2017
-TARGET_YEARS: list[int] = [2018, 2019, 2020, 2021, 2022, 2023, 2024]
-OUTPUT_DIR = Path(__file__).parent / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
-PLOTS_DIR = OUTPUT_DIR / "plots"
+# Skip ORIGINAL_YEAR (year-to-self ratio is trivially 1.0).
+TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR + 1, LATEST_TARGET_YEAR + 1))
 
 
 def build_comparison_long(
-    target_years: list[int], original_year: int = ORIGINAL_YEAR
+    target_years: list[int] = TARGET_YEARS, original_year: int = ORIGINAL_YEAR
 ) -> pd.DataFrame:
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
-    vnorm_col_sum = Vnorm.sum(axis=0).rename("vnorm_col_sum")
 
+    apply_inflation_to_V = get_usa_config().apply_inflation_to_V
     rows: list[pd.DataFrame] = []
     for year in target_years:
-        industry = get_cornerstone_price_ratio(original_year, year).rename(
-            "industry_ratio"
+        Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
+            apply_inflation=apply_inflation_to_V, target_year=year
         )
+        vnorm_col_sum = Vnorm.sum(axis=0).rename("vnorm_col_sum")
+        industry = get_cornerstone_industry_price_ratio(
+            original_year, target_year=year
+        ).rename("industry_ratio")
         commodity = get_vnorm_adjusted_commodity_price_ratio(
-            original_year, year
+            original_year, target_year=year
         ).rename("commodity_ratio")
         df = pd.concat([industry, commodity, vnorm_col_sum], axis=1).reset_index(
             names="code"
@@ -127,13 +134,14 @@ def plot_scatter(long: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> None:
+    addon = "_V_inflated" if get_usa_config().apply_inflation_to_V else ""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
     long = build_comparison_long(TARGET_YEARS)
-    long.to_csv(RESULTS_DIR / "ratio_per_code.csv", index=False)
+    long.to_csv(RESULTS_DIR / ("ratio_per_code" + addon + ".csv"), index=False)
     summary = summarize(long)
-    summary.to_csv(RESULTS_DIR / "ratio_summary.csv", index=False)
-    plot_scatter(long, PLOTS_DIR / "ratio_scatter.png")
+    summary.to_csv(RESULTS_DIR / ("ratio_summary" + addon + ".csv"), index=False)
+    plot_scatter(long, PLOTS_DIR / ("ratio_scatter" + addon + ".png"))
     logger.info("Wrote outputs to %s and %s", RESULTS_DIR, PLOTS_DIR)
     print(summary.to_string(index=False))
 

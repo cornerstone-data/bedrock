@@ -161,13 +161,13 @@ def test_2017_redefinition_roundtrip() -> None:
     also checks that the absolute per-industry error is negligible.
     """
     from bedrock.extract.iot.io_2017 import (
+        load_2017_V_after_redef_usa,
         load_2017_V_before_redef_usa,
-        load_2017_V_usa,
     )
     from bedrock.utils.math.formulas import compute_x
 
     V_before_redef = load_2017_V_before_redef_usa()
-    V_after_redef = load_2017_V_usa()
+    V_after_redef = load_2017_V_after_redef_usa()
 
     x_before = compute_x(V=V_before_redef)
     x_after_expected = compute_x(V=V_after_redef)
