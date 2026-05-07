@@ -489,7 +489,7 @@ source_names:
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-        ghg_fba: 'EPA_GHGI_T_A_5' # aligns with 2018 MECS
+        ghg_fba: 'EPA_GHGI_T_A_10' # aligns with 2018 MECS
     activity_sets:
       direct_attribution: #direct allocation
         selection_fields:
@@ -581,7 +581,7 @@ source_names:
         energy_fba: 'EIA_MECS_Energy'  # todo: udpate for ceda to mecs table 3-1?
         year: *mecs_year
         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-        ghg_fba: 'EPA_GHGI_T_A_5' # aligns with 2018 MECS
+        ghg_fba: 'EPA_GHGI_T_A_10' # aligns with 2018 MECS
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
       residential:
