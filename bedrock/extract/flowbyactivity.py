@@ -177,7 +177,9 @@ class FlowByActivity(_FlowBy):
         mapping_load: pd.DataFrame | None = None
         if mapping_subset is not None:
             if isinstance(mapping_subset, str):
-                local_csv = settings.mappingpath / 'flowmapping' / f'{mapping_subset}.csv'
+                local_csv = (
+                    settings.mappingpath / 'flowmapping' / f'{mapping_subset}.csv'
+                )
                 if local_csv.is_file():
                     log.info('Loading flow mapping from %s', local_csv)
                     mapping_load = pd.read_csv(local_csv)
