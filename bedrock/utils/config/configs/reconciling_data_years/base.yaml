@@ -1,0 +1,9 @@
+
+
+usa_io_data_year: 2017
+iot_before_or_after_redefinition: after  #Must use after for use with cornerstone schema?
+use_cornerstone_2026_model_schema: true #if not it will default to CEDAv7 schema which could cause issues with ghg_method?
+implement_waste_disaggregation: false
+ipcc_ar_version: "AR6"
+skip_scrap_adjustment_in_vnorm: true
+

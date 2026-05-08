@@ -1,0 +1,5 @@
+## Config for model 1 in Reconciling Data Years study
+## inherits from base.yaml
+
+
+usa_ghg_data_year: 2023
