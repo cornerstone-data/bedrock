@@ -30,3 +30,10 @@ LATEST_TARGET_YEAR: int = 2024
 sectors = [sector['sector'] for sector in SIGNIFICANT_SECTORS]
 sectors.remove('562000')
 sector_names = {sector: COMMODITY_DESC[sector] for sector in sectors}
+
+MODEL_YAMLS: dict[str, str] = {
+    "model1": "reconciling_data_years/model1.yaml",
+    "model2": "reconciling_data_years/model2.yaml",
+    "model3": "reconciling_data_years/model3.yaml",
+}
+MODELS: list[str] = list(MODEL_YAMLS.keys())
