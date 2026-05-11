@@ -29,14 +29,19 @@ back, caches them locally as parquet, and renders analysis figures.
   - `ef_pct_change_vs_ef_size.png` — |% change| vs old EF size
   - `ef_abs_change_histogram.png` — distribution of absolute EF changes
   - `bly_sector_stacked_net_change.png` — per-sector BLy new vs old (stacked net change)
-- `combine_ef_diagnostics.py` — standalone aggregator over multiple diagnostics
-  runs. Reads a set of per-run EF diagnostics Excel workbooks (locally or from a
-  Google Drive folder) and merges them into one comparison workbook plus tabs on
-  an output Google Sheet: `D_and_diffs_merged`, `N_and_diffs_merged`,
-  `D_net_diff` / `N_net_diff` (vs a configurable target column per run),
-  `totals`, `totals_net_diff`, and `config_summary_merged`. Inputs, target
-  columns, and the output sheet id are configured via module-level constants at
-  the top of the file.
+- `combine_ef_diagnostics.py` — aggregator over multiple diagnostics runs.
+  Reads diagnostics Sheets directly from a Drive folder (via
+  `bedrock.utils.io.gcp.list_drive_folder` + `fetch.load_tab`), merges them
+  into the local workbook `analysis/output/<combo>/ef_diagnostics_merged.xlsx`
+  (always written) plus an output Google Sheet (optional). Output tabs:
+  `D_and_diffs_merged`, `N_and_diffs_merged`, `D_net_diff` / `N_net_diff`
+  (vs a configurable target column per run), `totals`, `totals_net_diff`,
+  and `config_summary_merged`.
+- `combinations.py` — registered diagnostics combinations (one `ComboSpec`
+  per named multi-run comparison). Holds the Drive folder ID, ordered input
+  Sheet titles, and per-`config_name` target mapping. The destination Sheet
+  for merged output is always passed on the command line via
+  `--output-sheet-id`.
 
 ## Running
 
@@ -58,3 +63,30 @@ uv run python -m bedrock.utils.validation.analysis.diagnostics_plots --tag my-ru
 
 Outputs default to `analysis/output/<tag>/`; the parquet cache lives at
 `analysis/.cache/<sheet_id>/`. Pass `--refresh` to bypass the cache.
+
+### combine_ef_diagnostics
+
+Merge a registered combination's diagnostics Sheets into one workbook:
+
+```bash
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
+    --combo v0.2 [--refresh] [--output-xlsx PATH] [--output-sheet-id ID]
+```
+
+`--combo` picks a `ComboSpec` from `combinations.COMBINATIONS`. The local
+workbook is always written, defaulting to
+`analysis/output/<combo>/ef_diagnostics_merged.xlsx`; pass `--output-xlsx
+<path>` to override or `--output-xlsx ""` to skip. The Google Sheets push
+only happens when `--output-sheet-id <id>` is supplied — without it, the
+command writes the local xlsx and nothing else. Tab fetches share the
+parquet cache in `analysis/.cache/<sheet_id>/`, so re-runs are fast —
+pass `--refresh` to bypass it.
+
+Example reproducing the v0.2 run (writes the same destination Sheet as
+the original script):
+
+```bash
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
+    --combo v0.2 \
+    --output-sheet-id 1TOLpjg80GBeb3C8sVKGvYRL9U5HfUgKSz_IHoWHainY
+```
