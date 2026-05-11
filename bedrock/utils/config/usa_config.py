@@ -84,12 +84,12 @@ class USAConfig(BaseModel):
     update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
     use_ghg_national_2023_m2: bool = False
-    ghg_2017: bool = False # if True, calls on GHG_national_Cornerstone_2017
-    ghg_2018: bool = False # if True, calls on GHG_national_Cornerstone_2018
-    ghg_2019: bool = False # if True, calls on GHG_national_Cornerstone_2019
-    ghg_2020: bool = False # if True, calls on GHG_national_Cornerstone_2020
-    ghg_2021: bool = False # if True, calls on GHG_national_Cornerstone_2021
-    ghg_2022: bool = False # if True, calls on GHG_national_Cornerstone_2022
+    ghg_2017: bool = False  # if True, calls on GHG_national_Cornerstone_2017
+    ghg_2018: bool = False  # if True, calls on GHG_national_Cornerstone_2018
+    ghg_2019: bool = False  # if True, calls on GHG_national_Cornerstone_2019
+    ghg_2020: bool = False  # if True, calls on GHG_national_Cornerstone_2020
+    ghg_2021: bool = False  # if True, calls on GHG_national_Cornerstone_2021
+    ghg_2022: bool = False  # if True, calls on GHG_national_Cornerstone_2022
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
     update_inflation_factors: bool = False  # mo.li
