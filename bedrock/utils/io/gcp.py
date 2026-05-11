@@ -93,23 +93,23 @@ def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> Non
                 download_gcs_file(name, norm_bucket, pth)
             except Exception:
                 pass
-        # Download metadata from this GCS prefix when they exist
-        prefix = norm_bucket + "/"
-        gcs_bucket = __storage_client().bucket("cornerstone-default")
-        for blob in gcs_bucket.list_blobs(prefix=prefix):
-            if not blob.name.startswith(prefix):
-                continue
-            rel = blob.name[len(prefix) :]
-            if not rel or rel.endswith("/") or "metadata" not in rel.lower():
-                continue
-            dest = os.path.join(parent, *rel.split("/"))
-            if os.path.exists(dest):
-                continue
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            try:
-                download_gcs_file(rel, norm_bucket, dest)
-            except Exception:
-                pass
+            # Download metadata from this GCS prefix when they exist
+            prefix = norm_bucket + "/"
+            gcs_bucket = __storage_client().bucket("cornerstone-default")
+            for blob in gcs_bucket.list_blobs(prefix=prefix):
+                if not blob.name.startswith(prefix):
+                    continue
+                rel = blob.name[len(prefix) :]
+                if not rel or rel.endswith("/") or "metadata" not in rel.lower():
+                    continue
+                dest = os.path.join(parent, *rel.split("/"))
+                if os.path.exists(dest):
+                    continue
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                try:
+                    download_gcs_file(rel, norm_bucket, dest)
+                except Exception:
+                    pass
         return
 
     if os.path.exists(pth):
