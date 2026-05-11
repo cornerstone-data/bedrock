@@ -193,3 +193,17 @@ def test_disallow_useeio_b_with_e_data_year_x_flag() -> None:
             {'use_useeio_B': True, 'use_E_data_year_for_x_in_B': True},
             strict=True,
         )
+
+
+def test_disallow_not_implement_waste_disagg_when_cs_model_schema_flag() -> None:
+    with pytest.raises(
+        ValueError,
+        match='If use_cornerstone_2026_model_schema then implement_waste_disaggregation must be true',
+    ):
+        USAConfig.model_validate(
+            {
+                'use_cornerstone_2026_model_schema': True,
+                'implement_waste_disaggregation': False,
+            },
+            strict=True,
+        )

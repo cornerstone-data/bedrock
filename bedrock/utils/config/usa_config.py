@@ -149,6 +149,10 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'use_useeio_B and use_E_data_year_for_x_in_B cannot both be true'
             )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_model_flags(self) -> USAConfig:
         if (
             self.use_cornerstone_2026_model_schema
             and not self.implement_waste_disaggregation
