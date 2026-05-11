@@ -1,5 +1,6 @@
-# Sensitivity from useeio_phoebe_23.
-# Turns off USEEIO B approach
+# Sensitivity from useeio_phoebe_23: restore Cornerstone B approach.
+# Sets use_useeio_B to false so B-matrix construction returns to the
+# Cornerstone default (the rest of the rebuild stays as in useeio_phoebe_23).
 
 model_base_year: 2017
 iot_before_or_after_redefinition: before
