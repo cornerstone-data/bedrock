@@ -28,11 +28,11 @@ def test_eeio_waste_disagg_config_parsing_happy_path() -> None:
     assert isinstance(wd, EEIOWasteDisaggConfig)
     assert (
         wd.use_weights_file
-        == "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
+        == "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Use.csv"
     )
     assert (
         wd.make_weights_file
-        == "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+        == "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Make.csv"
     )
     assert wd.year == 2017
     assert wd.source_name == "WasteDisaggregationDetail2017"

@@ -168,8 +168,14 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
     waste_cfg = cfg.eeio_waste_disaggregation
     if waste_cfg is None:
         waste_cfg = EEIOWasteDisaggConfig(
-            use_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Use.csv",
-            make_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Make.csv",
+            use_weights_file=(
+                "extract/disaggregation/waste_disagg_inputs/"
+                "WasteDisaggregationDetail2017_Use.csv"
+            ),
+            make_weights_file=(
+                "extract/disaggregation/waste_disagg_inputs/"
+                "WasteDisaggregationDetail2017_Make.csv"
+            ),
             year=2017,
             source_name="WasteDisaggregationDetail2017",
         )
@@ -388,6 +394,16 @@ def _derive_cornerstone_Ytot_with_trade() -> pd.DataFrame:
         Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
         Ytot.index.name = 'sector'
     return Ytot
+
+
+def derive_cornerstone_Ytot_full_cs_matrix() -> pd.DataFrame:
+    """Full commodity-by-final-demand ``Y`` in Cornerstone space (incl. trade FD columns).
+
+    Same frame as the cached waste-aware pipeline used for ``derive_cornerstone_Ytot_matrix_set``
+    before export/import columns are collapsed. Returns a **copy** so callers cannot mutate
+    the cached matrix.
+    """
+    return _derive_cornerstone_Ytot_with_trade().copy()
 
 
 @functools.cache
