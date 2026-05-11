@@ -163,7 +163,6 @@ class FlowByActivity(_FlowBy):
         )
 
         # Check for use of multiple mapping files
-        # TODO this was handled in esupy originally - can we go back to that fxn?
         if isinstance(mapping_subset, list):
             fba_merge_keys.append('SourceName')
             mapping_merge_keys.append('SourceListName')
@@ -173,9 +172,24 @@ class FlowByActivity(_FlowBy):
             Context=self.Compartment,
         ).drop(columns=['FlowName', 'Compartment'])
 
-        mapping = fedelemflowlist.get_flowmapping(mapping_subset)[
-            mapping_fields
-        ].assign(ConversionFactor=lambda x: x.ConversionFactor.fillna(1))
+        # first check for a flow mapping file stored locally. If it does not exist, then use the fedelemflowlist
+        # mapping file
+        mapping_load: pd.DataFrame | None = None
+        if mapping_subset is not None:
+            if isinstance(mapping_subset, str):
+                local_csv = (
+                    settings.mappingpath / 'flowmapping' / f'{mapping_subset}.csv'
+                )
+                if local_csv.is_file():
+                    log.info('Loading flow mapping from %s', local_csv)
+                    mapping_load = pd.read_csv(local_csv)
+
+        if mapping_load is None:
+            mapping_load = fedelemflowlist.get_flowmapping(mapping_subset)
+
+        mapping = mapping_load[mapping_fields].assign(
+            ConversionFactor=lambda x: x.ConversionFactor.fillna(1)
+        )
         if mapping.empty:
             log.error(
                 f'Elementary flow list entries for {mapping_subset} not ' f'found'
