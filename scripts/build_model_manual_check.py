@@ -6,12 +6,12 @@ for that model.
 
 from bedrock.utils.config.usa_config import set_global_usa_config
 
-# config = "useeio_phoebe_23"
+config = "useeio_phoebe_23"
 # config = "useeio_phoebe_23_restore_schema_and_ghg"
-# config = "useeio_phoebe_23_restore_useeio_B"
+# config = "useeio_phoebe_23_restore_cornerstone_B"
 # config = "useeio_phoebe_23_restore_iot_redefinition"
 # config = "useeio_phoebe_23_restore_ghg"
-config = 'useeio_phoebe_23_restore_scrap'
+# config = 'useeio_phoebe_23_restore_scrap'
 # config = "2025_usa_cornerstone_full_model"
 # config = "2025_usa_cornerstone_taxonomy"
 # config = "2025_usa_cornerstone_taxonomy_and_waste_disagg"
