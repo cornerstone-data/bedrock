@@ -56,6 +56,18 @@ def _select_flowsa_ghg_method() -> str:
         return 'GHG_national_Cornerstone_2023_ag_livestock'
     if usa.update_liming_and_fertilizer_ghg_method:
         return 'GHG_national_Cornerstone_2023_ag_soils'
+    if usa.ghg_2017:
+        return 'GHG_national_Cornerstone_2017'
+    if usa.ghg_2018:
+        return 'GHG_national_Cornerstone_2018'
+    if usa.ghg_2019:
+        return 'GHG_national_Cornerstone_2019'
+    if usa.ghg_2020:
+        return 'GHG_national_Cornerstone_2020'
+    if usa.ghg_2021:
+        return 'GHG_national_Cornerstone_2021'
+    if usa.ghg_2022:
+        return 'GHG_national_Cornerstone_2022'
     return 'GHG_national_CEDA_2023'
 
 
@@ -323,6 +335,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_enteric_fermentation_and_manure_management_ghg_method is True
     - GHG_national_Cornerstone_2023_ag_soils when
       update_liming_and_fertilizer_ghg_method is True
+    - GHG_national_Cornerstone_YEAR when
+      ghg_YEAR is True
     - GHG_national_CEDA_2023 otherwise
 
     Only used when load_E_from_flowsa is True in USA config.
@@ -446,8 +460,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
 if __name__ == "__main__":
     from bedrock.utils.config.usa_config import set_global_usa_config
 
-    set_global_usa_config("2025_usa_cornerstone_taxonomy_and_waste_disagg.yaml")
+    set_global_usa_config("2025_usa_cornerstone_ghg_2017.yaml")
     df1 = load_E_from_flowsa()
-    # df2 = derive_E_usa()
-    # row_diff = df1.sum(axis=1) - df2.sum(axis=1)
+    df2 = derive_E_usa()
+    row_diff = df1.sum(axis=1) - df2.sum(axis=1)
     # row_rel_diff = df1.sum(axis=1) / df2.sum(axis=1)

@@ -1,0 +1,9 @@
+# Use Cornerstone 2019 GHG FBS (GHG_national_Cornerstone_2019)
+# Pipeline loads E from flowsa.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+ghg_2019: true
