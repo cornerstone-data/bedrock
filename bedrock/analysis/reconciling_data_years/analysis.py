@@ -7,7 +7,11 @@ Avoid generating model diagnostics instead compute components right here in this
 The script inherits the cache management of the model config from the A matrix time series
 analysis script to handle multiple years of multiple models
 
-The script uses sectors from SIGNIFICANT_SECTORS modified in constants to display results
+The script uses sectors from SIGNIFICANT_SECTORS modified in constants.
+The script identifies those among this list with the max range of efs over those years
+to display in the plots
+
+For d and n there are plots for each model with lines for each sectors over the time period.
 
 Resulting efs are put in a common dollar year of LATEST_TARGET_YEAR
 
@@ -71,11 +75,16 @@ def _set_config(model: str, year: int) -> None:
     with open(yaml_path) as f:
         data = yaml.safe_load(f) or {}
     data["model_base_year"] = year
+    data["usa_io_data_year"] = 2017
+    data["use_cornerstone_2026_model_schema"] = (
+        True  # if not it will default to CEDAv7 schema which could cause issues with ghg_method?
+    )
+    data["implement_waste_disaggregation"] = True
+    data["apply_inflation_to_V"] = True
     if model != "model1":
         data["usa_ghg_data_year"] = year
     # The package `__init__.py` flips these on the initial config; replacing
     # `_usa_config` here would otherwise drop them back to field defaults.
-
     usa_config._usa_config = USAConfig.model_construct(**data)
     os.environ[usa_config.USA_CONFIG_ENV_VAR] = MODEL_YAMLS[model]
 
@@ -91,10 +100,32 @@ def deflate_ef(
     return ef * rho
 
 
+def _top_fluctuating_sectors(
+    all_results: dict[str, dict[int, dict[str, pd.Series]]],
+    top_n: int = 5,
+) -> list[str]:
+    """Rank sectors by their maximum value range across all models and ef keys."""
+    scores: dict[str, float] = {}
+    for sector in sectors:
+        max_range = 0.0
+        for year_results in all_results.values():
+            for ef_key in ("d", "n"):
+                vals = [year_results[yr][ef_key][sector] for yr in sorted(year_results)]
+                max_range = max(max_range, max(vals) - min(vals))
+        scores[sector] = max_range
+
+    top = sorted(scores, key=lambda s: scores[s], reverse=True)[:top_n]
+    logger.info("Top %d fluctuating sectors:", top_n)
+    for s in top:
+        logger.info("  %s  %s  range=%.4f", s, sector_names.get(s, s), scores[s])
+    return top
+
+
 def _plot_ef_trends(
     ef_key: str,
     label: str,
     all_results: dict[str, dict[int, dict[str, pd.Series]]],
+    plot_sectors: list[str],
 ) -> None:
     models = list(all_results)
     fig, axes = plt.subplots(1, len(models), figsize=(7 * len(models), 6), sharey=True)
@@ -105,11 +136,15 @@ def _plot_ef_trends(
     for ax, model in zip(axes, models):
         year_results = all_results[model]
         years = sorted(year_results)
-        for sector in sectors:
+        for sector in plot_sectors:
             vals = [year_results[yr][ef_key][sector] for yr in years]
-            ax.plot(years, vals, marker="o", label=sector_names.get(sector, sector))
+            indexed = [v / vals[0] * 100 for v in vals]
+            name = sector_names.get(sector, sector)[:15]
+            ax.plot(years, indexed, marker="o", label=name)
+        ax.axhline(100, color="black", linewidth=0.7, linestyle="--")
         ax.set_title(model)
         ax.set_xlabel("Year")
+        ax.set_ylabel("Index (first year = 100)")
         if ax is axes[0]:
             ax.legend(fontsize=7, loc="best")
 
@@ -147,7 +182,7 @@ def main() -> None:
                 Aqset = derive_cornerstone_Aq()
                 A = Aqset.Adom + Aqset.Aimp
                 L = compute_L_matrix(A=A)
-                n = compute_n(compute_M_matrix(B=B, L=L))
+                n = compute_n(M=compute_M_matrix(B=B, L=L))
                 # Put efs in common dollar year
                 d = deflate_ef(d, original_year=year, target_year=LATEST_TARGET_YEAR)
                 n = deflate_ef(n, original_year=year, target_year=LATEST_TARGET_YEAR)
@@ -161,8 +196,9 @@ def main() -> None:
             all_results[model] = year_results
 
     if all_results:
-        _plot_ef_trends("d", "d (direct intensity)", all_results)
-        _plot_ef_trends("n", "n (total intensity)", all_results)
+        top = _top_fluctuating_sectors(all_results)
+        _plot_ef_trends("d", "d (direct intensity)", all_results, top)
+        _plot_ef_trends("n", "n (total intensity)", all_results, top)
 
     print("Done.")
 
