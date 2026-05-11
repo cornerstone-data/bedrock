@@ -7,14 +7,22 @@ Avoid generating model diagnostics instead compute components right here in this
 The script inherits the cache management of the model config from the A matrix time series
 analysis script to handle multiple years of multiple models
 
+The script uses sectors from SIGNIFICANT_SECTORS modified in constants to display results
+
+Resulting efs are put in a common dollar year of LATEST_TARGET_YEAR
+
 Model1 is only one model then the final d and n get adjusted to the time series years
 
 """
+
+from __future__ import annotations
 
 import logging
 import os
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import pandas as pd
 import yaml
 
 import bedrock.utils.config.usa_config as usa_config
@@ -27,8 +35,11 @@ from bedrock.analysis.reconciling_data_years.constants import (
     MODEL_YAMLS,
     MODELS,
     ORIGINAL_YEAR,
+    OUTPUT_DIR,
     PLOTS_DIR,
     RESULTS_DIR,
+    sector_names,
+    sectors,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq,
@@ -69,11 +80,55 @@ def _set_config(model: str, year: int) -> None:
     os.environ[usa_config.USA_CONFIG_ENV_VAR] = MODEL_YAMLS[model]
 
 
+def deflate_ef(
+    ef: pd.Series[float], original_year: int, target_year: int
+) -> pd.Series[float]:
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+        get_vnorm_adjusted_commodity_price_ratio,
+    )
+
+    rho = 1 / get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    return ef * rho
+
+
+def _plot_ef_trends(
+    ef_key: str,
+    label: str,
+    all_results: dict[str, dict[int, dict[str, pd.Series]]],
+) -> None:
+    models = list(all_results)
+    fig, axes = plt.subplots(1, len(models), figsize=(7 * len(models), 6), sharey=True)
+    if len(models) == 1:
+        axes = [axes]
+    fig.suptitle(f"{label} — emission intensity trends")
+
+    for ax, model in zip(axes, models):
+        year_results = all_results[model]
+        years = sorted(year_results)
+        for sector in sectors:
+            vals = [year_results[yr][ef_key][sector] for yr in years]
+            ax.plot(years, vals, marker="o", label=sector_names.get(sector, sector))
+        ax.set_title(model)
+        ax.set_xlabel("Year")
+        if ax is axes[0]:
+            ax.legend(fontsize=7, loc="best")
+
+    fig.tight_layout()
+    plot_path = PLOTS_DIR / f"trends_{ef_key}.png"
+    fig.savefig(plot_path, dpi=150)
+    plt.close(fig)
+    logger.info("Saved plot: %s", plot_path)
+
+
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    all_results: dict[str, dict[int, dict[str, pd.Series]]] = {}
+
     for model in MODELS:
+        year_results: dict[int, dict[str, pd.Series]] = {}
         for year in TARGET_YEARS:
             logger.info("Building matrices: model=%s year=%d", model, year)
             try:
@@ -83,17 +138,31 @@ def main() -> None:
                 _set_config(model, year)
                 # Get model config vars to understand settings
                 config_vars = usa_config._usa_config.model_dump()
-                logger.info(config_vars)
+                config_file = OUTPUT_DIR / f"config_vars_{model}_{year}.yaml"
+                with open(config_file, "w") as f:
+                    yaml.dump(config_vars, f, default_flow_style=False)
+
                 B = derive_cornerstone_B_via_vnorm()
                 d = compute_d(B=B)
                 Aqset = derive_cornerstone_Aq()
                 A = Aqset.Adom + Aqset.Aimp
                 L = compute_L_matrix(A=A)
-                n = compute_n(compute_M_matrix(B=B, L=L))  # noqa: F841
+                n = compute_n(compute_M_matrix(B=B, L=L))
+                # Put efs in common dollar year
+                d = deflate_ef(d, original_year=year, target_year=LATEST_TARGET_YEAR)
+                n = deflate_ef(n, original_year=year, target_year=LATEST_TARGET_YEAR)
+                year_results[year] = {"d": d, "n": n}
 
             except Exception as e:
                 logger.warning("Model,year (%s, %d) failed: %s", model, year, e)
                 continue
+
+        if year_results:
+            all_results[model] = year_results
+
+    if all_results:
+        _plot_ef_trends("d", "d (direct intensity)", all_results)
+        _plot_ef_trends("n", "n (total intensity)", all_results)
 
     print("Done.")
 
