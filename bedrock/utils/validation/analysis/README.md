@@ -29,6 +29,14 @@ back, caches them locally as parquet, and renders analysis figures.
   - `ef_pct_change_vs_ef_size.png` — |% change| vs old EF size
   - `ef_abs_change_histogram.png` — distribution of absolute EF changes
   - `bly_sector_stacked_net_change.png` — per-sector BLy new vs old (stacked net change)
+- `combine_ef_diagnostics.py` — standalone aggregator over multiple diagnostics
+  runs. Reads a set of per-run EF diagnostics Excel workbooks (locally or from a
+  Google Drive folder) and merges them into one comparison workbook plus tabs on
+  an output Google Sheet: `D_and_diffs_merged`, `N_and_diffs_merged`,
+  `D_net_diff` / `N_net_diff` (vs a configurable target column per run),
+  `totals`, `totals_net_diff`, and `config_summary_merged`. Inputs, target
+  columns, and the output sheet id are configured via module-level constants at
+  the top of the file.
 
 ## Running
 
