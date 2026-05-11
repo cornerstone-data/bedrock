@@ -85,13 +85,10 @@ def main() -> None:
                 config_vars = usa_config._usa_config.model_dump()
                 logger.info(config_vars)
                 B = derive_cornerstone_B_via_vnorm()
-                d = compute_d(B)
-
+                d = compute_d(B=B)
                 Aqset = derive_cornerstone_Aq()
                 A = Aqset.Adom + Aqset.Aimp
-
                 L = compute_L_matrix(A=A)
-
                 n = compute_n(compute_M_matrix(B=B, L=L))  # noqa: F841
 
             except Exception as e:

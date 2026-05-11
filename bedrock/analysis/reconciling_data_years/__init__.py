@@ -12,6 +12,6 @@ _cfg.iot_before_or_after_redefinition = (
     "after"  # Must use after for use with cornerstone schema?
 )
 _cfg.use_cornerstone_2026_model_schema = True  # if not it will default to CEDAv7 schema which could cause issues with ghg_method?
-_cfg.implement_waste_disaggregation = False
+_cfg.implement_waste_disaggregation = True
 _cfg.ipcc_ar_version = "AR6"
-_cfg.skip_scrap_adjustment_in_vnorm = True
+_cfg.skip_scrap_adjustment_in_vnorm = False
