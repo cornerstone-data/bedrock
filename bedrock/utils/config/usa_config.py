@@ -149,6 +149,13 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'use_useeio_B and use_E_data_year_for_x_in_B cannot both be true'
             )
+        if (
+            self.use_cornerstone_2026_model_schema
+            and not self.implement_waste_disaggregation
+        ):
+            raise ValueError(
+                'If use_cornerstone_2026_model_schema is True then implement_waste_disaggregation must be true.'
+            )
         return self
 
     #####
