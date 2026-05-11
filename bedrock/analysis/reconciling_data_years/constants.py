@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 from bedrock.utils.validation.significant_sectors import SIGNIFICANT_SECTORS
 
@@ -19,7 +18,8 @@ PLOTS_DIR = OUTPUT_DIR / "plots"
 ## Years for analysis
 
 # BEA detail IO base year — the inflation `original_year` for every script.
-ORIGINAL_YEAR: int = get_usa_config().usa_base_io_data_year
+ORIGINAL_YEAR: int = 2019  # get_usa_config().usa_base_io_data_year
+# we don't have the GHG data for before 2019 at this time
 
 # Latest year
 LATEST_TARGET_YEAR: int = 2024
