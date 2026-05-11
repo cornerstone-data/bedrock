@@ -47,6 +47,34 @@ class ComboSpec:
 # Historical destination Sheets (pass via --output-sheet-id when reproducing):
 #   v0.2 -> 1TOLpjg80GBeb3C8sVKGvYRL9U5HfUgKSz_IHoWHainY  ('v0.2 Diagnostics')
 COMBINATIONS: dict[str, ComboSpec] = {
+    "v0.3_useeio_phoebe": ComboSpec(
+        drive_folder_id="1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s",
+        names_in_order=[
+            "[05-06-2026] USEEIO Baseline build",
+            "[05-06-2026] USEEIO - restore GHG only",
+            "[05-06-2026] USEEIO - restore GHG model and schema",
+            "[05-06-2026] USEEIO - restore Cornerstone B approach",
+            "[05-06-2026] USEEIO - restore Cornerstone A approach",
+            "[05-06-2026] USEEIO - restore after redefinitions",
+            "[05-06-2026] USEEIO - compare to full Cornerstone",
+        ],
+        target_mapping={
+            # ``useeio_phoebe_23`` is the Bedrock attempt to rebuild the pinned
+            # USEEIO model and is itself imperfect, so its net-diff column
+            # subtracts the synthetic ``pinned_useeio_baseline`` (sourced from
+            # this Sheet's ``D_old_inflated`` / ``N_old_inflated``, i.e. the
+            # pinned USEEIO Excel baseline). Every restoration step then
+            # compares against the rebuild so the chain of divergence reads
+            # naturally.
+            "useeio_phoebe_23": "pinned_useeio_baseline",
+            "useeio_phoebe_23_restore_ghg": "useeio_phoebe_23",
+            "useeio_phoebe_23_restore_schema_and_ghg": "useeio_phoebe_23",
+            "useeio_phoebe_23_restore_useeio_B": "useeio_phoebe_23",
+            "useeio_phoebe_23_restore_useeio_A": "useeio_phoebe_23",
+            "useeio_phoebe_23_restore_iot_redefinition": "useeio_phoebe_23",
+            "2025_usa_cornerstone_full_model": "useeio_phoebe_23",
+        },
+    ),
     "v0.2": ComboSpec(
         drive_folder_id="1eJ648O86tPqQnQwetYsXo7FtZLeHAsqG",
         names_in_order=[

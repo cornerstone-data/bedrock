@@ -36,7 +36,34 @@ back, caches them locally as parquet, and renders analysis figures.
   (always written) plus an output Google Sheet (optional). Output tabs:
   `D_and_diffs_merged`, `N_and_diffs_merged`, `D_net_diff` / `N_net_diff`
   (vs a configurable target column per run), `totals`, `totals_net_diff`,
-  and `config_summary_merged`.
+  and `config_summary_merged`. Two pieces of behavior follow the
+  diagnostics _mode_ recorded in each run's `config_summary`
+  (`diagnostics_baseline_source`):
+  - **Release-vs-snapshot runs** (`diagnostics_baseline_source ==
+    'gcs_snapshot'`) carry a `BLy_and_E_orig_diffs` tab, so the merger
+    produces `totals` / `totals_net_diff` with columns `BLy`, `E_orig`,
+    `BLy - E_orig`, `(BLy - E_orig) / E_orig (%)` — unchanged from the
+    legacy xlsx flow. Their `useeio_baseline_pin_*` fields are empty.
+  - **USEEIO Excel-baseline comparisons** (`diagnostics_baseline_source ==
+    'gcs_useeio_xlsx'`) omit `BLy_and_E_orig_diffs` by design (no
+    `E_old` for the Excel baseline path) but always carry
+    `BLy_new_vs_BLy_old` (per-sector). The merger sums that tab across
+    sectors to produce the same one-row-per-config `totals` schema, with
+    columns `BLy_new`, `BLy_old`, `BLy_new - BLy_old`,
+    `(BLy_new - BLy_old) / BLy_old (%)`. These runs DO carry
+    `useeio_baseline_pin_*` fields naming the pinned Excel artifact,
+    which is what makes the synthetic `pinned_useeio_baseline` column
+    below meaningful.
+  When a combo's `target_mapping` references the special target
+  `pinned_useeio_baseline`, the merger injects a synthetic
+  `pinned_useeio_baseline` column into `D_and_diffs_merged` /
+  `N_and_diffs_merged` /
+  `config_summary_merged`, sourced from the first input run's
+  `D_old_inflated` / `N_old_inflated` and pin metadata. This lets a
+  USEEIO-rebuild combo's net-diff show `run.D_new − pinned_baseline`
+  instead of the default self vs self. Combos that don't opt in (e.g.
+  the v0.2 release-vs-release setup) keep their original output schema
+  unchanged.
 - `combinations.py` — registered diagnostics combinations (one `ComboSpec`
   per named multi-run comparison). Holds the Drive folder ID, ordered input
   Sheet titles, and per-`config_name` target mapping. The destination Sheet
