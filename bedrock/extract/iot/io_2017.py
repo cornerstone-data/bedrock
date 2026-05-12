@@ -5,7 +5,11 @@ import functools
 import pandas as pd
 from typing_extensions import deprecated
 
-from bedrock.extract.iot.constants import GCS_USA_MAKE_USE_DIR, GCS_USA_SUP_DIR
+from bedrock.extract.iot.constants import (
+    GCS_USA_MAKE_USE_DIR,
+    GCS_USA_SUP_DIR,
+)
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -69,13 +73,18 @@ LOCAL_USA_SUP_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_SUP_DIR)
 #     > Requirements Tables
 #       > After Redefinitions
 #         > Import Matrices/After Redefinitions
+#
+# ``load_2017_V_usa``, ``load_2017_Utot_usa``, and ``load_2017_Uimp_usa`` branch on
+# ``USAConfig.iot_before_or_after_redefinition`` and are not cached. Pipelines that
+# must always use after-redefinition BEA detail tables (e.g. CEDA mapping) should
+# call ``load_*_after_redef_usa`` explicitly.
 
 
 @functools.cache
-def load_2017_V_usa() -> pd.DataFrame:
+def load_2017_V_after_redef_usa() -> pd.DataFrame:
     """
-    Make table, industry x commodity, after redefintion, in producer price
-    unit is USD, original unit is million USD
+    Make table, industry x commodity, after redefinition, in producer price.
+    unit is USD, original unit is million USD.
     """
     df = (
         _load_2017_detail_make_use_usa("Make_detail")
@@ -86,6 +95,18 @@ def load_2017_V_usa() -> pd.DataFrame:
     df.index = USA_2017_INDUSTRY_INDEX
     df.columns = USA_2017_COMMODITY_INDEX
     return df
+
+
+def load_2017_V_usa() -> pd.DataFrame:
+    """2017 USA Make (V); before vs after BEA redefinitions from ``USAConfig``."""
+    stage = get_usa_config().iot_before_or_after_redefinition
+    if stage == "before":
+        return load_2017_V_before_redef_usa()
+    if stage == "after":
+        return load_2017_V_after_redef_usa()
+    raise ValueError(
+        "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
+    )
 
 
 @functools.cache
@@ -129,10 +150,10 @@ def load_2017_V_before_redef_usa() -> pd.DataFrame:
 
 
 @functools.cache
-def load_2017_Utot_usa() -> pd.DataFrame:
+def load_2017_Utot_after_redef_usa() -> pd.DataFrame:
     """
-    Use table, commodity x industry, after redefintion, in producer price
-    unit is USD, original unit is million USD
+    Use table, commodity x industry, after redefinition, in producer price.
+    unit is USD, original unit is million USD.
     """
     df = (
         _load_2017_detail_make_use_usa("Use_detail")
@@ -146,11 +167,53 @@ def load_2017_Utot_usa() -> pd.DataFrame:
     return df
 
 
+def load_2017_Utot_usa() -> pd.DataFrame:
+    """2017 USA total Use (Utot); before vs after BEA redefinitions from ``USAConfig``."""
+    stage = get_usa_config().iot_before_or_after_redefinition
+    if stage == "before":
+        return load_2017_Utot_before_redef_usa()
+    if stage == "after":
+        return load_2017_Utot_after_redef_usa()
+    raise ValueError(
+        "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
+    )
+
+
 @functools.cache
-def load_2017_Uimp_usa() -> pd.DataFrame:
+def load_2017_Utot_before_redef_usa() -> pd.DataFrame:
     """
-    Import table, commodity x industry, after redefintion, in producer price
-    unit is USD, original unit is million USD
+    Use table, commodity x industry, before redefinition, in producer price.
+    unit is USD, original unit is million USD.
+    """
+    df = (
+        load_from_gcs(
+            name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
+                "Use_detail_before_redef"
+            ],
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
+            loader=lambda pth: pd.read_excel(
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+            ),
+        )
+        .set_index("Code")
+        .fillna(0)
+    )
+    df.columns = df.columns.astype(str)
+    df = (
+        df.loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_COMMODITY_INDEX
+    df.columns = USA_2017_INDUSTRY_INDEX
+    return df
+
+
+@functools.cache
+def load_2017_Uimp_after_redef_usa() -> pd.DataFrame:
+    """
+    Import table, commodity x industry, after redefinition, in producer price.
+    unit is USD, original unit is million USD.
     """
     df = (
         _load_2017_detail_make_use_usa("Import_detail")
@@ -161,6 +224,48 @@ def load_2017_Uimp_usa() -> pd.DataFrame:
     df.index = USA_2017_COMMODITY_INDEX
     df.columns = USA_2017_INDUSTRY_INDEX
 
+    return df
+
+
+def load_2017_Uimp_usa() -> pd.DataFrame:
+    """2017 USA import Use (Uimp); before vs after BEA redefinitions from ``USAConfig``."""
+    stage = get_usa_config().iot_before_or_after_redefinition
+    if stage == "before":
+        return load_2017_Uimp_before_redef_usa()
+    if stage == "after":
+        return load_2017_Uimp_after_redef_usa()
+    raise ValueError(
+        "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
+    )
+
+
+@functools.cache
+def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
+    """
+    Import table, commodity x industry, before redefinition, in producer price.
+    unit is USD, original unit is million USD.
+    """
+    df = (
+        load_from_gcs(
+            name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
+                "Import_detail_before_redef"
+            ],
+            sub_bucket=GCS_USA_MAKE_USE_DIR,
+            local_dir=LOCAL_USA_MAKE_USE_DIR,
+            loader=lambda pth: pd.read_excel(
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+            ),
+        )
+        .set_index("Code")
+        .fillna(0)
+    )
+    df.columns = df.columns.astype(str)
+    df = (
+        df.loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_COMMODITY_INDEX
+    df.columns = USA_2017_INDUSTRY_INDEX
     return df
 
 
