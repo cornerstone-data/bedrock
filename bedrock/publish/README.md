@@ -6,21 +6,25 @@ shareable file formats, mirroring the shape of `useeior`'s
 
 ## Status
 
-- **XLSX**: implemented for `B`, `C` (trivial row-summer; see divergence
-  note below), `D` (`= C @ B`), `q`, plus metadata sheets
-  (`commodities_meta`, `industries_meta`, `final_demand_meta`,
-  `value_added_meta`, `config_summary`, `model_info`).
+- **XLSX**: implemented for
+  - Matrices: `V`, `U`, `U_d`, `A`, `A_d`, `B`, `C` (trivial row-summer;
+    see divergence note below), `D` (`= C @ B`), `L`, `L_d`, `M`, `M_d`,
+    `N`, `N_d`, and the output vectors `q`, `x`.
+  - Metadata: `flows`, `indicators`, `commodities_meta`,
+    `industries_meta`, `final_demand_meta`, `value_added_meta`,
+    `config_summary`, `model_info`.
 - **Supply-chain factors**: not implemented. Upstream R
   counterpart:
   [cornerstone-data/supply-chain-factors](https://github.com/cornerstone-data/supply-chain-factors).
-- **Additional matrices** (`V`, `U`, `U_d`, `A`, `A_d`, `L`, `L_d`,
-  `M`, `M_d`, `N`, `N_d`, `Rho`, `Phi`, `Tau`, `x`): registered as
-  placeholders in `excel/writer.py` (`getter = lambda: None`), so their
-  sheets are simply omitted. Each entry carries an inline `TODO`
-  pointing at the missing derivation.
 - **Import-emissions matrices** (`A_m`, `M_m`, `N_m`): require real
   import emission factors (`B_imp`), which bedrock does not yet
-  produce. Blocked on `B_imp`.
+  produce. Registered in `excel/writer.py` as `lambda: None`
+  placeholders; sheets are omitted via the "skip if NULL" rule until
+  `B_imp` lands.
+- **Useeior-only valuation matrices** (`Rho`, `Phi`, `Tau`) and
+  long-form metadata (`demands`, `SectorCrosswalk`): registered as
+  placeholders. Each carries an inline `TODO` pointing at the design
+  call or missing derivation.
 
 ## Known divergence from useeior (B units)
 
@@ -35,14 +39,16 @@ groups (`CO2`, `CH4`, `N2O`, `HFCs`, `PFCs`, `SF6`, `NF3`).
 
 Consequences for the published workbook:
 
-1. **`B` sheets are not numerically comparable** between bedrock and
-   useeior. Row dimensions differ (7 vs ~2000), and bedrock values are
-   per-row GWP-weighted CO2e while useeior values are physical mass.
-2. **The bedrock `C` and `D` sheets are emitted for useeior-shape
-   parity only.** `C` is a trivial `(1, 7)` row-summer (single
-   `Greenhouse Gases` indicator, all ones); `D = C @ B` reduces to
-   `B.sum(axis=0)`. They do *not* carry GWP characterization
-   information.
+1. **`B`, `M`, and `M_d` are not numerically comparable** between
+   bedrock and useeior. `B` carries kgCO2e/USD, and since `M = B @ L`
+   and `M_d = B @ L_d`, those matrices inherit the same kgCO2e/USD
+   units. Useeior's `B/M/M_d` are physical mass per dollar.
+2. **The bedrock `C`, `D`, `N`, `N_d` sheets are emitted for
+   useeior-shape parity only.** `C` is a trivial `(1, 7)` row-summer
+   (single `Greenhouse Gases` indicator, all ones), so `D = C @ B`,
+   `N = C @ M`, and `N_d = C @ M_d` reduce to per-sector sums of `B`,
+   `M`, and `M_d` respectively. They do *not* carry GWP
+   characterization information.
 3. The `model_info` sheet documents this with `b_units`,
    `b_characterized`, `gwp_set`, `c_kind`, and
    `divergence_from_useeior` fields so downstream consumers cannot

@@ -17,10 +17,14 @@ Practical consequences:
   * The bedrock `B` sheet is NOT numerically comparable to the useeior
     `B` sheet -- they have different row dimensions AND different
     per-row units.
-  * The bedrock `C` and `D` sheets are emitted for sheet-name parity
-    only. `C` is a trivial row-summer (single "Greenhouse Gases"
-    indicator over the 7 GHGs, all values = 1.0) and `D = C @ B`
-    reduces to `B.sum(axis=0)`. See
+  * `M` and `M_d` are `B @ L` / `B @ L_d`, so they inherit B's
+    `kgCO2e / USD` units. They are NOT numerically comparable to
+    useeior's physical-mass `M` / `M_d` either.
+  * The bedrock `C`, `D`, `N`, `N_d` sheets are emitted for sheet-name
+    parity only. `C` is a trivial row-summer (single "Greenhouse Gases"
+    indicator over the 7 GHGs, all values = 1.0), so `D = C @ B`
+    reduces to `B.sum(axis=0)`, `N = C @ M` to `M.sum(axis=0)`, and
+    `N_d = C @ M_d` to `M_d.sum(axis=0)`. See
     `bedrock/utils/emissions/characterization.py` for resolution paths.
 
 The `model_info` sheet carries `b_units`, `b_characterized`, `gwp_set`,
@@ -40,6 +44,7 @@ to integers (and so the codes are unambiguous in MRIO settings).
 from __future__ import annotations
 
 import datetime
+import functools
 import logging
 import os
 from collections.abc import Callable, Iterable
@@ -49,6 +54,7 @@ import pandas as pd
 
 from bedrock.utils.config.settings import GIT_HASH_LONG
 from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.math.formulas import compute_L_matrix, compute_M_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -121,8 +127,13 @@ def _build_model_info_df(config_name: str) -> pd.DataFrame:
             'field': 'divergence_from_useeior',
             'value': (
                 'B is in CO2e (pre-characterized); useeior B is in physical '
-                'kg of gas. Resolve before treating bedrock XLSX as a useeior '
-                'drop-in. See bedrock/utils/emissions/characterization.py.'
+                'kg of gas. M and M_d inherit those kgCO2e/USD units '
+                '(M = B @ L). C is a trivial row-summer so D, N, N_d collapse '
+                'to a single "Greenhouse Gases" indicator equal to '
+                'B.sum(axis=0) / M.sum(axis=0) / M_d.sum(axis=0) '
+                'respectively. Resolve before treating bedrock XLSX as a '
+                'useeior drop-in. See '
+                'bedrock/utils/emissions/characterization.py.'
             ),
         },
     ]
@@ -189,6 +200,50 @@ def _build_value_added_meta_df() -> pd.DataFrame:
     )
 
 
+def _build_flows_df() -> pd.DataFrame:
+    """useeior-style `flows` table -- bedrock-aggregated GHGs (7 rows).
+
+    Useeior emits ~2000 rows of elementary flows. Bedrock B is already
+    aggregated to the 7 IPCC AR6 GHGs upstream, so this sheet lists those
+    7 (NOT directly comparable to a useeior flows sheet). See the
+    workbook docstring on `bedrock.publish.excel.writer` for the units
+    divergence.
+    """
+    from bedrock.utils.emissions.ghg import GHG
+
+    return pd.DataFrame(
+        [
+            {
+                'Flowable': name,
+                'Context': 'emission/air',
+                'Unit': 'kg CO2e',
+            }
+            for name in GHG
+        ]
+    )
+
+
+def _build_indicators_df() -> pd.DataFrame:
+    """useeior-style `indicators` table -- one row for `Greenhouse Gases`.
+
+    Mirrors the single-indicator C matrix returned by `derive_C_usa()`.
+    """
+    from bedrock.utils.emissions.characterization import GREENHOUSE_GASES_INDICATOR
+
+    return pd.DataFrame(
+        [
+            {
+                'Name': GREENHOUSE_GASES_INDICATOR,
+                'Code': 'GHG',
+                'Group': 'Impact Potential',
+                'Unit': 'kg CO2e',
+                'SimpleName': GREENHOUSE_GASES_INDICATOR,
+                'SimpleUnit': 'kg CO2e',
+            }
+        ]
+    )
+
+
 # ---------------------------------------------------------------------------
 # Matrix registry
 # ---------------------------------------------------------------------------
@@ -208,81 +263,222 @@ def _build_value_added_meta_df() -> pd.DataFrame:
 # on `CommodityorIndustryType`. Bedrock has both taxonomies and writes
 # both. config_summary and model_info are bedrock-only.
 #
-# Real getters: B, C, D, q, and metadata sheets noted below. Other
-# entries are `lambda: None` placeholders; their sheets are omitted from
-# the workbook ("skip if NULL", matching useeior `WriteModel.R`).
-# Resolving each placeholder requires either a config-aware
-# `derive_*_usa()` wrapper or, for the `*_m` family, a real `B_imp`
-# (import emission factors) which bedrock does not yet produce.
-# Concrete TODOs are inlined next to each placeholder.
+# The getters below are consumed only by the registry. If a second
+# non-publish caller appears, promote to a config-aware `derive_*_usa()`
+# in `bedrock/transform/eeio/derived.py`.
+#
+# Math for derived matrices (Leontief inverse, B @ L, etc.) is sourced
+# from `bedrock.utils.math.formulas` -- don't inline `np.linalg.inv` or
+# similar here.
+#
+# Lazy imports of `bedrock.transform.eeio.derived(_cornerstone)` inside
+# each getter keep `import bedrock.publish.excel.writer` cheap;
+# `formulas` is imported at module top because it's just math primitives.
+#
+# `@functools.cache` on each getter lets `clear_publish_caches()` reset
+# all of them in one call between integration-test configs.
 
 
-def _get_B() -> pd.DataFrame | None:
+def _require_cornerstone() -> None:
+    if not get_usa_config().use_cornerstone_2026_model_schema:
+        raise NotImplementedError(
+            'bedrock.publish.excel only supports cornerstone-schema configs '
+            '(use_cornerstone_2026_model_schema=True). Wiring legacy paths '
+            'into the publish pipeline is a separate task.'
+        )
+
+
+@functools.cache
+def _get_V() -> pd.DataFrame:
+    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_V
+
+    return derive_cornerstone_V()
+
+
+@functools.cache
+def _get_U() -> pd.DataFrame:
+    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_U_set
+
+    uset = derive_cornerstone_U_set()
+    U = uset.Udom + uset.Uimp
+    U.index.name = 'sector'
+    U.columns.name = 'sector'
+    return U
+
+
+@functools.cache
+def _get_Udom() -> pd.DataFrame:
+    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_U_set
+
+    return derive_cornerstone_U_set().Udom
+
+
+@functools.cache
+def _get_x() -> pd.Series:
+    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_x
+
+    return pd.Series(derive_cornerstone_x(), name='x')
+
+
+@functools.cache
+def _get_A() -> pd.DataFrame:
+    from bedrock.transform.eeio.derived import derive_Aq_usa
+
+    aq = derive_Aq_usa()
+    A = aq.Adom + aq.Aimp
+    A.index.name = 'sector'
+    A.columns.name = 'sector'
+    return A
+
+
+@functools.cache
+def _get_Adom() -> pd.DataFrame:
+    from bedrock.transform.eeio.derived import derive_Aq_usa
+
+    return derive_Aq_usa().Adom
+
+
+@functools.cache
+def _get_L() -> pd.DataFrame:
+    return compute_L_matrix(A=_get_A())
+
+
+@functools.cache
+def _get_Ldom() -> pd.DataFrame:
+    return compute_L_matrix(A=_get_Adom())
+
+
+@functools.cache
+def _get_B() -> pd.DataFrame:
     from bedrock.transform.eeio.derived import derive_B_usa_non_finetuned
 
     return derive_B_usa_non_finetuned()
 
 
-def _get_C() -> pd.DataFrame | None:
+@functools.cache
+def _get_C() -> pd.DataFrame:
     from bedrock.transform.eeio.derived import derive_C_usa
 
     return derive_C_usa()
 
 
-def _get_D() -> pd.DataFrame | None:
+@functools.cache
+def _get_D() -> pd.DataFrame:
     from bedrock.transform.eeio.derived import derive_D_usa
 
     return derive_D_usa()
 
 
-def _get_q() -> pd.Series | None:
+# Emission multipliers M = B @ L, M_d = B @ L_d. Both inherit B's
+# kgCO2e/USD units -- see the module docstring's divergence-from-useeior
+# callout.
+@functools.cache
+def _get_M() -> pd.DataFrame:
+    M = compute_M_matrix(B=_get_B(), L=_get_L())
+    M.columns.name = 'sector'
+    return M
+
+
+@functools.cache
+def _get_Mdom() -> pd.DataFrame:
+    M_d = compute_M_matrix(B=_get_B(), L=_get_Ldom())
+    M_d.columns.name = 'sector'
+    return M_d
+
+
+# Impact multipliers N = C @ M, N_d = C @ M_d. In bedrock semantics
+# these collapse to per-sector sums of M/M_d because C is the trivial
+# row-summer (see `bedrock.utils.emissions.characterization`).
+@functools.cache
+def _get_N() -> pd.DataFrame:
+    N = _get_C() @ _get_M()
+    N.columns.name = 'sector'
+    return N
+
+
+@functools.cache
+def _get_Ndom() -> pd.DataFrame:
+    N_d = _get_C() @ _get_Mdom()
+    N_d.columns.name = 'sector'
+    return N_d
+
+
+@functools.cache
+def _get_q() -> pd.Series:
     from bedrock.transform.eeio.derived import derive_Aq_usa
 
-    q = derive_Aq_usa().scaled_q
-    return pd.Series(q, name='q')
+    return pd.Series(derive_Aq_usa().scaled_q, name='q')
+
+
+_CACHED_GETTERS: tuple[Callable[[], pd.DataFrame | pd.Series], ...] = (
+    _get_V,
+    _get_U,
+    _get_Udom,
+    _get_x,
+    _get_A,
+    _get_Adom,
+    _get_L,
+    _get_Ldom,
+    _get_B,
+    _get_C,
+    _get_D,
+    _get_M,
+    _get_Mdom,
+    _get_N,
+    _get_Ndom,
+    _get_q,
+)
+
+
+def clear_publish_caches() -> None:
+    """Clear all `@functools.cache`-d getters in this module.
+
+    Upstream `derive_*` caches in `bedrock.transform.eeio.derived(_cornerstone)`
+    must also be cleared between configs -- see
+    `bedrock/publish/__tests__/_helpers.py`.
+    """
+    for fn in _CACHED_GETTERS:
+        fn.cache_clear()  # type: ignore[attr-defined]
 
 
 def _build_matrix_registry(config_name: str) -> list[SheetSpec]:
     return [
         # --- useeior matrices (order matches `matrices` in WriteModel.R) ---
-        # TODO: derive_V_usa() wrapping derive_cornerstone_V().
-        SheetSpec('V', lambda: None),
-        # TODO: derive_U_usa() wrapping derive_cornerstone_U_set().Udom + Uimp.
-        SheetSpec('U', lambda: None),
-        SheetSpec('U_d', lambda: None),
-        # TODO: derive_A_usa() wrapping derive_Aq_usa().Adom + Aimp.
-        SheetSpec('A', lambda: None),
-        SheetSpec('A_d', lambda: None),
+        SheetSpec('V', _get_V),
+        SheetSpec('U', _get_U),
+        SheetSpec('U_d', _get_Udom),
+        SheetSpec('A', _get_A),
+        SheetSpec('A_d', _get_Adom),
         # A_m requires real import emission factors (B_imp); not yet in bedrock.
         SheetSpec('A_m', lambda: None),
         SheetSpec('B', _get_B),
         SheetSpec('C', _get_C),
         SheetSpec('D', _get_D),
-        # TODO: derive_L_usa() = (I - A)^-1; cheap once derive_A_usa() exists.
-        SheetSpec('L', lambda: None),
-        SheetSpec('L_d', lambda: None),
-        # TODO: derive_M_usa() = B @ L; cheap once L exists.
-        SheetSpec('M', lambda: None),
-        SheetSpec('M_d', lambda: None),
+        SheetSpec('L', _get_L),
+        SheetSpec('L_d', _get_Ldom),
+        SheetSpec('M', _get_M),
+        SheetSpec('M_d', _get_Mdom),
         SheetSpec('M_m', lambda: None),  # requires B_imp
-        # TODO: derive_N_usa() = C @ M = M.sum(axis=0) given bedrock semantics.
-        SheetSpec('N', lambda: None),
-        SheetSpec('N_d', lambda: None),
+        SheetSpec('N', _get_N),
+        SheetSpec('N_d', _get_Ndom),
         SheetSpec('N_m', lambda: None),  # requires B_imp
+        # Rho, Phi, Tau are useeior valuation-adjustment matrices with no
+        # direct bedrock analogue. Leave as TODO until a design call is made.
         SheetSpec('Rho', lambda: None),
         SheetSpec('Phi', lambda: None),
         SheetSpec('Tau', lambda: None),
         # --- outputs (useeior writes these after the matrices block) ---
         SheetSpec('q', _get_q),
-        SheetSpec('x', lambda: None),  # TODO: derive_x_usa()
+        SheetSpec('x', _get_x),
         # --- metadata block (useeior order: demands, flows, indicators,
         #     <sectors>_meta, final_demand_meta, value_added_meta,
         #     SectorCrosswalk) ---
-        # TODO: demands, flows, indicators, SectorCrosswalk getters once
-        # we have config-aware accessors for those tables.
+        # TODO: `demands` -- needs a design call about which named demand
+        # vectors to emit (y_nab? y_dom? y_imp?) and how to encode the long
+        # form expected by useeior.
         SheetSpec('demands', lambda: None),
-        SheetSpec('flows', lambda: None),
-        SheetSpec('indicators', lambda: None),
+        SheetSpec('flows', lambda: _build_flows_df()),
+        SheetSpec('indicators', lambda: _build_indicators_df()),
         SheetSpec('commodities_meta', lambda: _build_commodities_meta_df()),
         SheetSpec('industries_meta', lambda: _build_industries_meta_df()),
         SheetSpec(
@@ -293,6 +489,8 @@ def _build_matrix_registry(config_name: str) -> list[SheetSpec]:
             'value_added_meta',
             lambda: _build_value_added_meta_df(),
         ),
+        # TODO: SectorCrosswalk getter once we settle on which crosswalk
+        # to expose (BEA summary <-> CEDA <-> NAICS?).
         SheetSpec('SectorCrosswalk', lambda: None),
         # --- bedrock-only extensions ---
         SheetSpec(
@@ -373,7 +571,11 @@ def write_model_to_xlsx(out_path: str, *, config_name: str) -> None:
     workbook (useeior-style "skip if NULL"). If zero data sheets
     materialize, raises `RuntimeError` -- a metadata-only workbook is
     treated as a silent failure, not a valid state.
+
+    Raises `NotImplementedError` on legacy (non-cornerstone) configs --
+    publish is wired only for cornerstone-schema configs today.
     """
+    _require_cornerstone()
     registry = _build_matrix_registry(config_name)
     materialized = _materialize(registry)
     data_count = sum(1 for name, _ in materialized if name in _DATA_SHEETS)

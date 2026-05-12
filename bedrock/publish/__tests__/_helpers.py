@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Callable
 
 import bedrock.utils.config.common as common
+from bedrock.publish.excel.writer import clear_publish_caches
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
     derive_B_usa_non_finetuned,
@@ -42,6 +43,9 @@ from bedrock.utils.config.usa_config import (
     set_global_usa_config,
 )
 
+# Upstream derive_* caches that the writer's getters compose. The writer's
+# own publish-side getter caches are cleared via `clear_publish_caches()`
+# below.
 CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_B_usa_non_finetuned,
     derive_C_usa,
@@ -67,6 +71,7 @@ def clear_all_caches() -> None:
     for fn in CACHED_FUNCTIONS:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
+    clear_publish_caches()
 
 
 def setup_config(config_name: str) -> None:
