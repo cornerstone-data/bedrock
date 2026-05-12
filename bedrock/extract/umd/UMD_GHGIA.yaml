@@ -13,6 +13,8 @@ parse_response_fxn: !script_function:UMD_GHGIA umd_ghgia_parse
 gcs_fxn: !script_function:UMD_GHGIA umd_ghgia_load
 extract_data_from_raw_sources: False # Not available
 years:
+  - 2017
+  - 2018
   - 2019
   - 2020
   - 2021
