@@ -54,7 +54,7 @@ from bedrock.analysis.time_series_B_matrix.derive_B_time_series import (
     derive_E_time_series,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
+    derive_cornerstone_Aq_scaled,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x_after_redefinition,
 )
@@ -88,15 +88,14 @@ def _set_config(model: str, year: int) -> None:
     yaml_path = Path(usa_config.CONFIG_DIR) / MODEL_YAMLS[model]
     with open(yaml_path) as f:
         data = yaml.safe_load(f) or {}
-    data["model_base_year"] = year
-    data["usa_io_data_year"] = 2017
     data["use_cornerstone_2026_model_schema"] = (
         True  # if not it will default to CEDAv7 schema which could cause issues with ghg_method?
     )
     data["implement_waste_disaggregation"] = True
-    data["apply_inflation_to_V"] = True
+    # For model 1 the values should not change year to year
     if model != "model1":
         data["usa_ghg_data_year"] = year
+        data["model_base_year"] = year
     # The package `__init__.py` flips these on the initial config; replacing
     # `_usa_config` here would otherwise drop them back to field defaults.
     usa_config._usa_config = USAConfig.model_construct(**data)
@@ -194,6 +193,71 @@ def _plot_ef_trends(
     logger.info("Saved plot: %s", plot_path)
 
 
+def _top_dn_divergent_sectors(
+    all_results: dict[str, dict[int, dict[str, pd.Series]]],
+    top_n: int = 5,
+) -> list[str]:
+    """Rank sectors by mean abs(n - d) across all models and years."""
+    scores: dict[str, float] = {}
+    for sector in sectors:
+        total, count = 0.0, 0
+        for year_results in all_results.values():
+            for ef_dict in year_results.values():
+                total += abs(ef_dict["n"][sector] - ef_dict["d"][sector])
+                count += 1
+        scores[sector] = total / count if count else 0.0
+
+    top = sorted(scores, key=lambda s: scores[s], reverse=True)[:top_n]
+    logger.info("Top %d sectors by mean |n - d|:", top_n)
+    for s in top:
+        logger.info("  %s  %s  mean_diff=%.4f", s, sector_names.get(s, s), scores[s])
+    return top
+
+
+def _plot_dn_comparison(
+    all_results: dict[str, dict[int, dict[str, pd.Series]]],
+    plot_sectors: list[str],
+) -> None:
+    """For each model, plot d (solid) and n (dashed) for the given sectors."""
+    models = list(all_results)
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    fig, axes = plt.subplots(1, len(models), figsize=(7 * len(models), 6), sharey=True)
+    if len(models) == 1:
+        axes = [axes]
+    fig.suptitle("d vs n — sectors with largest d/n divergence")
+
+    for ax, model in zip(axes, models):
+        year_results = all_results[model]
+        years = sorted(year_results)
+        for i, sector in enumerate(plot_sectors):
+            color = colors[i % len(colors)]
+            name = sector_names.get(sector, sector)[:15]
+            d_vals = [year_results[yr]["d"][sector] for yr in years]
+            n_vals = [year_results[yr]["n"][sector] for yr in years]
+            ax.plot(
+                years, d_vals, marker="o", color=color, linestyle="-", label=f"{name} d"
+            )
+            ax.plot(
+                years,
+                n_vals,
+                marker="s",
+                color=color,
+                linestyle="--",
+                label=f"{name} n",
+            )
+        ax.set_title(model)
+        ax.set_xlabel("Year")
+        ax.set_ylabel(f"EF (kg CO₂e / $ {LATEST_TARGET_YEAR})")
+        if ax is axes[0]:
+            ax.legend(fontsize=7, loc="best")
+
+    fig.tight_layout()
+    plot_path = PLOTS_DIR / "trends_dn_comparison.png"
+    fig.savefig(plot_path, dpi=150)
+    plt.close(fig)
+    logger.info("Saved plot: %s", plot_path)
+
+
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -223,29 +287,38 @@ def main() -> None:
                 ## Mimick derive_cornerstone_B_via_vnorm
                 if cfg.use_useeio_B:
                     ratio = get_cornerstone_industry_price_ratio(
-                        original_year=cfg.usa_detail_original_year,
-                        target_year=cfg.usa_ghg_data_year,
+                        original_year=cfg.usa_ghg_data_year,
+                        target_year=cfg.usa_detail_original_year,
                     )
                     # ratio is PI_target / PI_original; divide nominal target-year dollars
                     # to convert x into original-year dollars for USEEIO-style B.
                     ratio_aligned = ratio.reindex(x.index)
                     ratio_aligned = ratio_aligned.where(ratio_aligned.notna(), 1.0)
-                    x = x / ratio_aligned
+                    x = x * ratio_aligned
                 Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
                     apply_inflation=cfg.apply_inflation_to_V,
-                    target_year=year,
+                    target_year=cfg.model_base_year,
                 )
-                B_ind = compute_B_ind_matrix(E=E_by_year[year], x=x)
+                B_ind = compute_B_ind_matrix(E=E_by_year[cfg.usa_ghg_data_year], x=x)
                 B = compute_B_matrix(B_ind=B_ind, V_norm=Vnorm)
-                d = compute_d(B=B)
-                Aqset = derive_cornerstone_Aq()
+                d_current_USD = compute_d(B=B)
+                Aqset = derive_cornerstone_Aq_scaled()
                 A = Aqset.Adom + Aqset.Aimp
                 L = compute_L_matrix(A=A)
-                n = compute_n(M=compute_M_matrix(B=B, L=L))
-                # Put efs in common dollar year
-                d = deflate_ef(d, original_year=year, target_year=LATEST_TARGET_YEAR)
-                n = deflate_ef(n, original_year=year, target_year=LATEST_TARGET_YEAR)
-                year_results[year] = {"d": d, "n": n}
+                n_current_USD = compute_n(M=compute_M_matrix(B=B, L=L))
+                # Put efs in constant dollar year using most recent dollar year
+                d = deflate_ef(
+                    d_current_USD, original_year=year, target_year=LATEST_TARGET_YEAR
+                )
+                n = deflate_ef(
+                    n_current_USD, original_year=year, target_year=LATEST_TARGET_YEAR
+                )
+                year_results[year] = {
+                    "d": d,
+                    "n": n,
+                    "d_current_USD": d_current_USD,
+                    "n_current_USD": n_current_USD,
+                }
 
             except Exception as e:
                 logger.warning("Model,year (%s, %d) failed: %s", model, year, e)
@@ -258,6 +331,31 @@ def main() -> None:
         top = _top_fluctuating_sectors(all_results)
         _plot_ef_trends("d", "d (direct intensity)", all_results, top)
         _plot_ef_trends("n", "n (total intensity)", all_results, top)
+
+        dn_divergent = _top_dn_divergent_sectors(all_results)
+        _plot_dn_comparison(all_results, dn_divergent)
+
+        records = []
+        for model, year_results in all_results.items():
+            for year, ef_dict in year_results.items():
+                for variable, series in ef_dict.items():
+                    for sector in sectors:
+                        if sector in series.index:
+                            records.append(
+                                {
+                                    "year": year,
+                                    "model": model,
+                                    "sector": sector,
+                                    "variable": variable,
+                                    "ef": series[sector],
+                                }
+                            )
+        results_df = pd.DataFrame(
+            records, columns=["year", "model", "sector", "variable", "ef"]
+        )
+        csv_path = RESULTS_DIR / "efs.csv"
+        results_df.to_csv(csv_path, index=False)
+        logger.info("Saved results to %s", csv_path)
 
     print("Done.")
 
