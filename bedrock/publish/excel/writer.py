@@ -37,7 +37,25 @@ Following useeior's convention, BEA-style numeric codes (e.g. `211000`)
 are emitted with a `/US` location suffix so Excel does not coerce them
 to integers (and so the codes are unambiguous in MRIO settings).
 `_with_loc_suffix` is applied automatically to any axis whose
-`Index.name == 'sector'`.
+`Index.name == 'sector'`. The extended-U axes carry mixed
+sector/VA/final-demand codes; we tag them as `'sector'` anyway so the
+suffix applies uniformly (matches useeior's effective behavior).
+
+Extended U / U_d block layout
+-----------------------------
+`U` mirrors useeior's extended use matrix -- value-added rows
+(`V00100..V00300`) below the commodity-by-industry intermediate block,
+and final-demand columns (`F01000..F10S00`) to the right of it. The
+VA x FD corner is zero (structural padding). The VA block is identical
+between U and U_d since value added is intrinsically domestic.
+
+`U_d`'s FD block is currently truncated: bedrock has no `Ydom` matrix
+at FD-category resolution (only the `ydom` vector via
+`derive_cornerstone_ydom_and_yimp`), so we emit `U_d` as
+`(commodity + VA) x industry` only -- VA rows but no FD columns. The
+`model_info` sheet carries a `u_d_extended` field so consumers see
+this. Future work: add a `derive_cornerstone_Ydom_matrix()` and
+re-extend `U_d` to match `U`'s shape.
 """
 
 # ruff: noqa: PLC0415
@@ -134,6 +152,24 @@ def _build_model_info_df(config_name: str) -> pd.DataFrame:
                 'respectively. Resolve before treating bedrock XLSX as a '
                 'useeior drop-in. See '
                 'bedrock/utils/emissions/characterization.py.'
+            ),
+        },
+        {
+            'field': 'u_extended',
+            'value': (
+                'full: VA rows (V001/V002/V003) and FD cols (F01000..F10S00) '
+                'attached to commodity-by-industry intermediate. VA x FD '
+                'corner is zero (structural padding). Matches useeior `U`.'
+            ),
+        },
+        {
+            'field': 'u_d_extended',
+            'value': (
+                'partial: VA rows included, FD cols truncated. Bedrock has '
+                'no Ydom matrix at FD-category resolution today (only the '
+                'ydom vector via derive_cornerstone_ydom_and_yimp). U_d '
+                'shape diverges from useeior U_d until a derive_cornerstone'
+                '_Ydom_matrix exists. See writer module docstring.'
             ),
         },
     ]
@@ -288,6 +324,56 @@ def _require_cornerstone() -> None:
         )
 
 
+def _assemble_extended_U(
+    intermediate: pd.DataFrame,
+    fd: pd.DataFrame | None,
+    va: pd.DataFrame,
+) -> pd.DataFrame:
+    """Stack intermediate / FD / VA blocks into a useeior-style extended U.
+
+    Layout when `fd` is provided:
+
+        +-----------------+-----------+
+        |  intermediate   |    fd     |
+        +-----------------+-----------+
+        |       va        |  zeros    |
+        +-----------------+-----------+
+
+    With `fd=None`, the right-hand column block (FD + VA x FD zeros) is
+    omitted -- used for `U_d` until a domestic Y matrix at FD-category
+    granularity exists in bedrock (see
+    `derive_cornerstone_ydom_and_yimp`).
+
+    Both axes of the returned frame are tagged `Index.name = 'sector'`
+    so `_apply_loc_suffix` adds `/US` to every label.
+
+    Inputs must be aligned: `intermediate.columns == va.columns` and
+    (when present) `intermediate.index == fd.index`.
+    """
+    if not intermediate.columns.equals(va.columns):
+        raise ValueError(
+            '_assemble_extended_U: intermediate.columns and va.columns must match '
+            f'(got {len(intermediate.columns)} vs {len(va.columns)} labels)'
+        )
+    if fd is not None and not intermediate.index.equals(fd.index):
+        raise ValueError(
+            '_assemble_extended_U: intermediate.index and fd.index must match '
+            f'(got {len(intermediate.index)} vs {len(fd.index)} labels)'
+        )
+
+    if fd is None:
+        out = pd.concat([intermediate, va], axis=0)
+    else:
+        top = pd.concat([intermediate, fd], axis=1)
+        va_zeros = pd.DataFrame(0.0, index=va.index, columns=fd.columns)
+        bottom = pd.concat([va, va_zeros], axis=1)
+        out = pd.concat([top, bottom], axis=0)
+
+    out.index.name = 'sector'
+    out.columns.name = 'sector'
+    return out
+
+
 @functools.cache
 def _get_V() -> pd.DataFrame:
     from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_V
@@ -297,20 +383,43 @@ def _get_V() -> pd.DataFrame:
 
 @functools.cache
 def _get_U() -> pd.DataFrame:
-    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_U_set
+    # TODO: `_derive_cornerstone_Ytot_with_trade` is single-underscore private.
+    # Promote to a public `derive_cornerstone_Y_matrix()` once another
+    # non-publish caller appears -- see option A in the writer module
+    # docstring discussion.
+    from bedrock.transform.eeio.derived_cornerstone import (
+        _derive_cornerstone_Ytot_with_trade,
+        derive_cornerstone_U_set,
+        derive_cornerstone_VA,
+    )
+    from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
     uset = derive_cornerstone_U_set()
-    U = uset.Udom + uset.Uimp
-    U.index.name = 'sector'
-    U.columns.name = 'sector'
-    return U
+    intermediate = uset.Udom + uset.Uimp
+    # Reindex by canonical FINAL_DEMANDS order so column layout matches
+    # useeior's `U` regardless of source column ordering.
+    fd_block = _derive_cornerstone_Ytot_with_trade()[list(FINAL_DEMANDS)]
+    return _assemble_extended_U(
+        intermediate=intermediate,
+        fd=fd_block,
+        va=derive_cornerstone_VA(),
+    )
 
 
 @functools.cache
 def _get_Udom() -> pd.DataFrame:
-    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_U_set
+    # FD block intentionally truncated; bedrock has no Ydom matrix at
+    # FD-category resolution today. See writer module docstring.
+    from bedrock.transform.eeio.derived_cornerstone import (
+        derive_cornerstone_U_set,
+        derive_cornerstone_VA,
+    )
 
-    return derive_cornerstone_U_set().Udom
+    return _assemble_extended_U(
+        intermediate=derive_cornerstone_U_set().Udom,
+        fd=None,
+        va=derive_cornerstone_VA(),
+    )
 
 
 @functools.cache

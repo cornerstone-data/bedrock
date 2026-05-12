@@ -7,9 +7,11 @@ shareable file formats, mirroring the shape of `useeior`'s
 ## Status
 
 - **XLSX**: implemented for
-  - Matrices: `V`, `U`, `U_d`, `A`, `A_d`, `B`, `C` (trivial row-summer;
-    see divergence note below), `D` (`= C @ B`), `L`, `L_d`, `M`, `M_d`,
-    `N`, `N_d`, and the output vectors `q`, `x`.
+  - Matrices: `V`, `U` (extended with VA rows + FD cols), `U_d`
+    (extended with VA rows; FD cols truncated -- see divergence note),
+    `A`, `A_d`, `B`, `C` (trivial row-summer; see divergence note
+    below), `D` (`= C @ B`), `L`, `L_d`, `M`, `M_d`, `N`, `N_d`, and the
+    output vectors `q`, `x`.
   - Metadata: `flows`, `indicators`, `commodities_meta`,
     `industries_meta`, `final_demand_meta`, `value_added_meta`,
     `config_summary`, `model_info`.
@@ -63,6 +65,21 @@ Resolution paths (TODO):
 
 Until one of those lands, `useeior_D[Greenhouse Gases]` is the
 like-for-like comparable quantity for `bedrock_B.sum(axis=0)`.
+
+## Known divergence from useeior (U_d FD truncation)
+
+Useeior's `U` and `U_d` are the same shape `(n_commod + n_VA) x
+(n_ind + n_FD)`. Bedrock matches this for `U` but **truncates `U_d`**
+to `(n_commod + n_VA) x n_ind` -- no FD columns. Reason: bedrock has
+no `Ydom` matrix at FD-category resolution today, only the `ydom`
+vector via
+[`derive_cornerstone_ydom_and_yimp`](../transform/eeio/derived_cornerstone.py).
+The `model_info` sheet's `u_d_extended` field records this.
+
+Resolution path (TODO): add a `derive_cornerstone_Ydom_matrix()` that
+disaggregates the summary-year `Yimp_matrix` to cornerstone schema and
+computes `Ydom_matrix = Ytot_matrix - Yimp_matrix`. Then re-extend
+`U_d` to match `U`'s shape.
 
 ## Recommended publish workflow
 
