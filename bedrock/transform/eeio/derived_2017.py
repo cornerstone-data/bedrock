@@ -16,9 +16,9 @@ from bedrock.extract.iot.io_2012 import (
     load_2012_YR_usa,
 )
 from bedrock.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
+    load_2017_Uimp_after_redef_usa,
+    load_2017_Utot_after_redef_usa,
+    load_2017_V_after_redef_usa,
     load_2017_value_added_usa,
     load_2017_Ytot_usa,
     load_summary_Uimp_usa,
@@ -136,7 +136,7 @@ def derive_2017_U_set_usa() -> SingleRegionUMatrixSet:
 @functools.cache
 @pa.check_output(VMatrix.to_schema())
 def derive_2017_V_usa() -> pt.DataFrame[VMatrix]:
-    V_2017 = load_2017_V_usa()
+    V_2017 = load_2017_V_after_redef_usa()
     V_2017_structural_reflected = structural_reflect_matrix(
         row_corresp_df=load_usa_2017_industry__ceda_v7_correspondence(),
         col_corresp_df=load_usa_2017_commodity__ceda_v7_correspondence(),
@@ -182,7 +182,7 @@ def derive_2017_Vnorm_scrap_corrected() -> pt.DataFrame[VMatrix]:
     q = compute_q(V=V_usa)
     Vnorm = compute_Vnorm_matrix(V=V_usa, q=q)
 
-    scrap_2017 = load_2017_V_usa().loc[:, "S00401"]
+    scrap_2017 = load_2017_V_after_redef_usa().loc[:, "S00401"]
     scrap_faction = structural_reflect_vector(
         corresp_df=load_usa_2017_industry__ceda_v7_correspondence(),
         ser_base=scrap_2017,
@@ -198,8 +198,8 @@ def derive_2017_Vnorm_scrap_corrected() -> pt.DataFrame[VMatrix]:
 
 @functools.cache
 def derive_2017_U_with_negatives() -> SingleRegionUMatrixSet:
-    Utot_usa = load_2017_Utot_usa()
-    Uimp_usa = load_2017_Uimp_usa()
+    Utot_usa = load_2017_Utot_after_redef_usa()
+    Uimp_usa = load_2017_Uimp_after_redef_usa()
     Udom_usa = Utot_usa - Uimp_usa
 
     corresp_industry_ceda = load_usa_2017_industry__ceda_v7_correspondence()

@@ -8,6 +8,9 @@ import pandas as pd
 from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.iot.derived_gross_industry_output import (
+    derive_gross_output,
+)
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.ghg import GHG_MAPPING
@@ -16,13 +19,178 @@ from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
+from bedrock.utils.taxonomy.cornerstone.industries import (
+    INDUSTRIES,
+    WASTE_DISAGG_INDUSTRIES,
+)
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
     load_bea_v2017_industry_to_bea_v2017_commodity,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _select_flowsa_ghg_method() -> str:
+    """Select FBS methodname from USA config (first match wins).
+
+    The base `new_ghg_method` and CEDA fallback methods are parameterized on
+    `usa_ghg_data_year`. The variant FBSes (`*_coa_allocation`, `*_electricity`,
+    etc.) are 2023-only; if any of those flags is set with a non-2023 year we
+    raise here rather than failing later with an opaque "FBS not found".
+    """
+    usa = get_usa_config()
+    year = usa.usa_ghg_data_year
+    needs_2023 = (
+        usa.update_ghg_coa_allocation
+        or usa.update_electricity_ghg_method
+        or usa.update_other_gases_ghg_method
+        or usa.update_ghg_attribution_method_for_ng_and_petrol_systems
+        or usa.update_flowsa_refrigerant_method
+        or usa.update_transportation_ghg_method
+        or usa.add_new_ghg_activities
+        or usa.update_enteric_fermentation_and_manure_management_ghg_method
+        or usa.update_liming_and_fertilizer_ghg_method
+    )
+    if needs_2023 and year != 2023:
+        raise ValueError(
+            f'usa_ghg_data_year={year} is incompatible with the active '
+            'update_*_ghg_method flag — variant FBS methods only exist '
+            'for 2023. Either set usa_ghg_data_year=2023 or disable the '
+            'update_*_ghg_method flag.'
+        )
+    if usa.new_ghg_method:
+        return f'GHG_national_Cornerstone_{year}'
+    if usa.use_ghg_national_2023_m2:
+        return 'GHG_national_2023_m2'
+    if usa.update_ghg_coa_allocation:
+        return 'GHG_national_Cornerstone_2023_coa_allocation'
+    if usa.update_electricity_ghg_method:
+        return 'GHG_national_Cornerstone_2023_electricity'
+    if usa.update_other_gases_ghg_method:
+        return 'GHG_national_Cornerstone_2023_other_gases'
+    if usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
+        return 'GHG_national_Cornerstone_2023_petroleum_natgas'
+    if usa.update_flowsa_refrigerant_method:
+        return "GHG_national_Cornerstone_2023_refrigerants_foams"
+    if usa.update_transportation_ghg_method:
+        return 'GHG_national_Cornerstone_2023_mobile_combustion'
+    if usa.add_new_ghg_activities:
+        return 'GHG_national_Cornerstone_2023_new_activities'
+    if usa.update_enteric_fermentation_and_manure_management_ghg_method:
+        return 'GHG_national_Cornerstone_2023_ag_livestock'
+    if usa.update_liming_and_fertilizer_ghg_method:
+        return 'GHG_national_Cornerstone_2023_ag_soils'
+    return f'GHG_national_CEDA_{year}'
+
+
+def _build_mapping_with_allocations(
+    mapping: pd.DataFrame, *, use_output_weights: bool
+) -> pd.DataFrame:
+    """Return Sector->Activity mapping with an Allocation column.
+
+    When ``use_output_weights`` is True, one-to-many Sector mappings are split
+    using gross industry output shares for ``usa_ghg_data_year``.
+    """
+    mapping2 = mapping[['Activity', 'Sector']].dropna().copy()
+    if not use_output_weights:
+        return (
+            mapping2.drop_duplicates(subset='Sector', keep='first')
+            .assign(Allocation=1.0)
+            .reset_index(drop=True)
+        )
+    cfg = get_usa_config()
+    go = derive_gross_output(
+        target_year=cfg.usa_ghg_data_year,
+        iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
+    )
+    mapping2['Output'] = mapping2['Activity'].map(go)
+    mapping2['Output'] = mapping2['Output'].fillna(0.0)
+
+    group_sum = mapping2.groupby('Sector')['Output'].transform('sum')
+    group_size = mapping2.groupby('Sector')['Sector'].transform('size')
+    bad_one_to_many = (group_size > 1) & (group_sum <= 0)
+    if bad_one_to_many.any():
+        bad_sectors = sorted(mapping2.loc[bad_one_to_many, 'Sector'].dropna().unique())
+        raise ValueError(
+            'Missing/zero gross output for one-to-many weighted mapping sectors: '
+            f'{bad_sectors[:20]}'
+        )
+
+    mapping2['Allocation'] = 0.0
+    valid_weight = group_sum > 0
+    mapping2.loc[valid_weight, 'Allocation'] = (
+        mapping2.loc[valid_weight, 'Output'] / group_sum.loc[valid_weight]
+    )
+    mapping2.loc[~valid_weight, 'Allocation'] = 1.0 / group_size.loc[~valid_weight]
+
+    return mapping2[['Activity', 'Sector', 'Allocation']].reset_index(drop=True)
+
+
+def _should_use_output_weighted_mapping() -> bool:
+    return bool(get_usa_config().use_ghg_national_2023_m2)
+
+
+def _apply_cornerstone_waste_overrides(mapping: pd.DataFrame) -> pd.DataFrame:
+    """Override waste NAICS mappings with Cornerstone waste-disaggregated targets."""
+    waste_targets = set(WASTE_DISAGG_INDUSTRIES['562000'])
+    cs_mapping = _build_mapping_with_allocations(
+        get_activitytosector_mapping('Cornerstone_2025'),
+        use_output_weights=False,
+    )[['Sector', 'Activity']].dropna()
+    waste_override = cs_mapping[
+        cs_mapping['Sector'].str.startswith('562')
+        & cs_mapping['Activity'].isin(waste_targets)
+    ].drop_duplicates()
+    waste_naics = set(waste_override['Sector'])
+    return pd.concat(
+        [mapping[~mapping['Sector'].isin(waste_naics)], waste_override],
+        ignore_index=True,
+    ).drop_duplicates()
+
+
+def _build_naics_to_bea_weighted_mapping() -> pd.DataFrame:
+    """Build NAICS->BEA mapping weighted by gross output for GHG year.
+
+    When waste disaggregation is enabled, start from the NAICS->BEA crosswalk and
+    override waste NAICS rows with the Cornerstone waste disaggregation.
+    """
+    cw = load_crosswalk('NAICS_to_BEA_Crosswalk_2017')
+    mapping = cw.rename(
+        columns={
+            'NAICS_2017_Code': 'Sector',
+            'BEA_2017_Detail_Code': 'Activity',
+        }
+    )[['Sector', 'Activity']]
+    mapping = mapping.dropna().drop_duplicates().astype('string')
+    if get_usa_config().implement_waste_disaggregation:
+        mapping = _apply_cornerstone_waste_overrides(mapping)
+
+    cfg = get_usa_config()
+    go = derive_gross_output(
+        target_year=cfg.usa_ghg_data_year,
+        iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
+    )
+    mapping['Output'] = mapping['Activity'].map(go).fillna(0.0)
+
+    group_sum = mapping.groupby('Sector')['Output'].transform('sum')
+    group_size = mapping.groupby('Sector')['Sector'].transform('size')
+    bad_one_to_many = (group_size > 1) & (group_sum <= 0)
+    if bad_one_to_many.any():
+        bad_sectors = sorted(mapping.loc[bad_one_to_many, 'Sector'].dropna().unique())
+        raise ValueError(
+            'Missing/zero gross output for one-to-many weighted NAICS->BEA sectors: '
+            f'{bad_sectors[:20]}'
+        )
+
+    mapping['Allocation'] = 0.0
+    valid_weight = group_sum > 0
+    mapping.loc[valid_weight, 'Allocation'] = (
+        mapping.loc[valid_weight, 'Output'] / group_sum.loc[valid_weight]
+    )
+    mapping.loc[~valid_weight, 'Allocation'] = 1.0 / group_size.loc[~valid_weight]
+
+    return mapping[['Sector', 'Activity', 'Allocation']].reset_index(drop=True)
 
 
 def derive_E_usa() -> pd.DataFrame:
@@ -69,65 +237,90 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
     return E_usa
 
 
-def map_to_CEDA(fbs: pd.DataFrame) -> pd.DataFrame:
-    """Map FBS sectors from NAICS to CEDA v7 sectors."""
-    # Because the schema for the FBS is mixed digit, first need to expand the schema all the way
-    # to 6 digits prior to mapping back to the CEDA schema. In doing this mapping we only need
-    # to assign a 1:1 mapping (hence drop duplicates, keep = first). When the mapping is reversed
-    # back to CEDA we don't want to expand the FBS.
+def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
+    """Map FBS NAICS sectors into the active model schema.
 
-    # Prepare NAICS:BEA mapping file
-    cw = load_crosswalk('NAICS_2017_Crosswalk')
-    cols_to_stack = ["NAICS_3", "NAICS_4", "NAICS_5"]
-    cw_stack = (
-        cw.astype({c: "string" for c in cols_to_stack + ["NAICS_6"]})
-        .melt(
-            id_vars="NAICS_6",
-            value_vars=cols_to_stack,
-            var_name="level",
-            value_name="NAICS",
-        )
-        .dropna(subset=["NAICS_6", "NAICS"])[["NAICS", "NAICS_6"]]
-        .drop_duplicates(subset='NAICS', keep='first')
-        .reset_index(drop=True)
-    )
-    fbs2 = fbs.merge(
-        cw_stack,
-        how='left',
-        left_on='SectorProducedBy',
-        right_on='NAICS',
-        validate="m:1",
-    )
-    fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
+    Behavior differs by path:
+    - Weighted path (`use_ghg_national_2023_m2`): preserve original NAICS code
+      levels (e.g., `53`, `531`, `531110`) and apply weighted NAICS->BEA mapping.
+      This avoids pre-collapsing aggregates to a single NAICS_6 code.
+    - Non-weighted paths: expand mixed-digit NAICS to NAICS_6 with a 1:1
+      first-match helper mapping, then map into Cornerstone/CEDA activities.
+    """
 
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        mapping = get_activitytosector_mapping('Cornerstone_2025').drop_duplicates(
-            subset='Sector', keep='first'
-        )
+    use_output_weights = _should_use_output_weighted_mapping()
+    # For weighted NAICS->BEA mapping (m2 path), preserve the original NAICS
+    # code level (e.g., 531) so allocation uses all matching crosswalk rows.
+    # Pre-collapsing to one NAICS_6 (keep='first') can bias allocations.
+    if use_output_weights:
+        fbs2 = fbs.copy()
+        fbs2['NAICS_6'] = fbs2['SectorProducedBy']
+        mapping = _build_naics_to_bea_weighted_mapping()
     else:
-        mapping = (
-            get_activitytosector_mapping('CEDA_2025')
-            # we don't want to map back to the sectors that are aggregated so keep only first
-            # this assumes that the first listed mapping is the priority.
-            # TODO: update to rely on the reported CEDA schema.
-            .drop_duplicates(subset='Sector', keep='first')
+        # Prepare NAICS:NAICS_6 expansion used for non-weighted mapping flows.
+        cw = load_crosswalk('NAICS_2017_Crosswalk')
+        cols_to_stack = ["NAICS_3", "NAICS_4", "NAICS_5"]
+        cw_stack = (
+            cw.astype({c: "string" for c in cols_to_stack + ["NAICS_6"]})
+            .melt(
+                id_vars="NAICS_6",
+                value_vars=cols_to_stack,
+                var_name="level",
+                value_name="NAICS",
+            )
+            .dropna(subset=["NAICS_6", "NAICS"])[["NAICS", "NAICS_6"]]
+            .drop_duplicates(subset='NAICS', keep='first')
+            .reset_index(drop=True)
         )
+        fbs2 = fbs.merge(
+            cw_stack,
+            how='left',
+            left_on='SectorProducedBy',
+            right_on='NAICS',
+            validate="m:1",
+        )
+        fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
+
+        if get_usa_config().use_cornerstone_2026_model_schema:
+            mapping = _build_mapping_with_allocations(
+                get_activitytosector_mapping('Cornerstone_2025'),
+                use_output_weights=False,
+            )
+        else:
+            mapping = _build_mapping_with_allocations(
+                get_activitytosector_mapping('CEDA_2025'),
+                use_output_weights=False,
+            )
+
+    pre_total = float(fbs2['FlowAmount'].sum())
     fbs2 = (
         fbs2.merge(
-            mapping[['Activity', 'Sector']],
+            mapping[['Activity', 'Sector', 'Allocation']],
             how='left',
             left_on='NAICS_6',
             right_on=['Sector'],
-            validate="m:1",
+            validate="m:m",
         )
+        .assign(Allocation=lambda x: x['Allocation'].fillna(1.0))
+        .assign(FlowAmount=lambda x: x['FlowAmount'] * x['Allocation'])
         .assign(SectorProducedBy=lambda x: x['Activity'].fillna(x['NAICS_6']))
-        .drop(columns=['Activity', 'NAICS', 'NAICS_6', 'Sector'])
+        .drop(
+            columns=['Activity', 'NAICS', 'NAICS_6', 'Sector', 'Allocation'],
+            errors='ignore',
+        )
     )
 
-    ## re assign SPB and aggregate using exisiting functions
+    # Re-assign SectorProducedBy and aggregate using existing functions.
     fbs3 = pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
 
-    # TODO: add test to confirm no data loss
+    if use_output_weights:
+        post_total = float(fbs3['FlowAmount'].sum())
+        rel_diff = abs(post_total - pre_total) / abs(pre_total) if pre_total else 0.0
+        if rel_diff > 0.005:
+            raise ValueError(
+                'FlowAmount conservation failed in weighted NAICS->BEA mapping '
+                f'(pre={pre_total}, post={post_total}, rel_diff={rel_diff:.6f})'
+            )
 
     return fbs3
 
@@ -182,6 +375,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     FBS method is chosen by USA config (first match wins):
     - GHG_national_Cornerstone_2023 when
       new_ghg_method is True
+    - GHG_national_2023_m2 when use_ghg_national_2023_m2 is True
     - GHG_national_Cornerstone_2023_coa_allocation when update_ghg_coa_allocation is True
     - GHG_national_Cornerstone_2023_electricity when
       update_electricity_ghg_method is True
@@ -232,31 +426,16 @@ def load_E_from_flowsa() -> pd.DataFrame:
         # already-built FBS parquets exist on GCS at
         # `transform/output_data/` for 2019–2023. Load the cached parquet
         # directly so the year-Y diagnostics get year-Y GHG data.
-        fbs = _load_cornerstone_ghg_fbs_from_gcs(year)
+        fbs = _load_cornerstone_ghg_fbs_from_gcs(usa.usa_ghg_data_year)
     else:
-        if usa.update_ghg_coa_allocation:
-            methodname = 'GHG_national_Cornerstone_2023_coa_allocation'
-        elif usa.update_electricity_ghg_method:
-            methodname = 'GHG_national_Cornerstone_2023_electricity'
-        elif usa.update_other_gases_ghg_method:
-            methodname = 'GHG_national_Cornerstone_2023_other_gases'
-        elif usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
-            methodname = 'GHG_national_Cornerstone_2023_petroleum_natgas'
-        elif usa.update_flowsa_refrigerant_method:
-            methodname = "GHG_national_Cornerstone_2023_refrigerants_foams"
-        elif usa.update_transportation_ghg_method:
-            methodname = 'GHG_national_Cornerstone_2023_mobile_combustion'
-        elif usa.add_new_ghg_activities:
-            methodname = 'GHG_national_Cornerstone_2023_new_activities'
-        elif usa.update_enteric_fermentation_and_manure_management_ghg_method:
-            methodname = 'GHG_national_Cornerstone_2023_ag_livestock'
-        elif usa.update_liming_and_fertilizer_ghg_method:
-            methodname = 'GHG_national_Cornerstone_2023_ag_soils'
+        methodname = _select_flowsa_ghg_method()
+        if methodname == 'GHG_national_2023_m2':
+            # For m2, explicitly attempt remote FBS download before generation.
+            fbs = getFlowBySector(methodname=methodname, download_FBS_if_missing=True)
         else:
-            methodname = f'GHG_national_CEDA_{year}'
-        fbs = getFlowBySector(methodname=methodname)
+            fbs = getFlowBySector(methodname=methodname)
 
-    fbs = map_to_CEDA(fbs)
+    fbs = map_fbs_sectors_to_model_schema(fbs)
 
     # Align flow names with temporary mapping
     gas_map = {
