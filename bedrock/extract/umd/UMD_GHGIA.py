@@ -1,1108 +1,999 @@
-# UMD_GHGIA.py (flowsa)
-# University of Maryland GHG Inventory and Analysis — https://ghgi.cgs.umd.edu/
-#
-# Structure mirrors ``EPA_GHGI.py``: ``umd_ghgia_load`` returns one dataframe per table with
-# ``SourceName`` = ``UMD_GHGIA_T_<chapter>_<table>``; ``umd_ghgia_parse`` returns a list of parsed
-# tables so ``generateFlowByActivity`` writes one parquet per ``SourceName``.
-#
-# Raw CSVs live under extract/input-data/UMD_GHGIA/<UMD_GHGIA_INPUT_RELEASE_DIR_YEAR>/.
-# Discovery prefers local ``bedrock/extract/input_data``; GCS listing fills gaps.
-# Each file is opened via ``load_from_gcs`` (download only if missing locally).
-
-from __future__ import annotations
+# UMD_GHGIA.py — University of Maryland GHG Inventory and Analysis
+# !/usr/bin/env python3
+# coding=utf-8
+"""
+Greenhouse Gas Inventory and Analysis (GHGIA) for the U.S.
+https://ghgi.cgs.umd.edu/data.html
+"""
 
 import os
+import posixpath
 import re
-from typing import Any, List, Optional, cast
+from typing import Any, List, cast
 
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.epa.EPA_GHGI import (
-    DROP_COLS,
-    YEARS,
-    series_separate_name_and_units,
-    strip_char,
+from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.transform.flowbyfunctions import (
+    assign_fips_location_system,
+    load_fba_w_standardized_units,
 )
-from bedrock.transform.flowbyfunctions import assign_fips_location_system
-from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.config.schema import flow_by_activity_fields
+from bedrock.utils.config.settings import externaldatapath
+from bedrock.utils.io.gcp import download_gcs_file
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
 from bedrock.utils.logging.flowsa_log import log
 
 UMD_SOURCE_PREFIX = 'UMD_GHGIA_T_'
 
-
-def umd_source_name(table_id: str) -> str:
-    """FBA / parquet stem suffix for one GHGIA table file (cf. ``EPA_GHGI_T_*``)."""
-
-    return f'{UMD_SOURCE_PREFIX}{table_id.replace("-", "_")}'
-
-
-def _table_id_from_source_name(source_name: str) -> str:
-    if not str(source_name).startswith(UMD_SOURCE_PREFIX):
-        raise ValueError(
-            f'Expected SourceName to start with {UMD_SOURCE_PREFIX!r}, got {source_name!r}'
-        )
-    return str(source_name)[len(UMD_SOURCE_PREFIX) :].replace('_', '-')
-
-
-# Folder under extract/input-data/UMD_GHGIA/... on GCS and under extract/input_data (inventory years are columns).
-UMD_GHGIA_INPUT_RELEASE_DIR_YEAR = '2024'
-
-TABLE_ID_RE = re.compile(r'Table\s+([345]-\d+[a-z]?)\.csv$', re.IGNORECASE)
-
-
-def _skip_auxiliary_umd_csv_basename(basename: str) -> bool:
-    """Skip figure exports and boxed sidebar CSVs (not inventory tables)."""
-
-    b = basename.lower()
-    return 'figure' in b or 'box' in b
-
-
-def _drop_trailing_unnamed_cols(df: pd.DataFrame) -> pd.DataFrame:
-    """Drop columns whose names contain ``Unnamed``, except column 0 (row labels / activity).
-
-    ``DROP_COLS`` removes ``Unnamed: 0`` at load time; remaining headers may still be
-    ``Unnamed: 1``, etc. EPA-style ``_get_unnamed_cols`` would drop those too and erase the
-    activity column UMD spreadsheets use as the first column.
-    """
-    if df.shape[1] == 0:
-        return df
-    first = df.columns[0]
-    to_drop = [c for c in df.columns if 'Unnamed' in str(c) and not c == first]
-    return df.drop(columns=to_drop, errors='ignore')
-
-
-def _strip_leading_utf8_bom_mojibake(s: str) -> str:
-    """Remove UTF-8 BOM whether decoded correctly (\\ufeff) or as latin-1 (ï»¿)."""
-
-    # utf-8-sig decoding already drops U+FEFF; keep for callers on legacy strings / mixed paths.
-    stripped = s.lstrip('\ufeff')
-    while stripped.startswith('ï»¿'):
-        stripped = stripped.removeprefix('ï»¿').lstrip()
-    return stripped
-
-
-def _peek_csv_head_lines(path: str, n: int = 5) -> str:
-    """First lines of CSV for title inference. Use utf-8-sig so BOM is not mangled."""
-    buf: list[str] = []
-    try:
-        with open(path, encoding='utf-8-sig', errors='replace') as f:
-            for _ in range(n):
-                buf.append(f.readline())
-    except OSError:
-        return ''
-    return _strip_leading_utf8_bom_mojibake(''.join(buf))
-
-
-def _chapter_tables(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Flatten nested ``Tables`` (by chapter); legacy ``Chapter3Tables`` merges on top."""
-
-    out: dict[str, dict[str, Any]] = {}
-    tables = config.get('Tables')
-    if isinstance(tables, dict):
-        for chapter_tables in tables.values():
-            if not isinstance(chapter_tables, dict):
-                continue
-            for tid, meta in chapter_tables.items():
-                tid_s = str(tid)
-                out[tid_s] = dict(meta) if isinstance(meta, dict) else {}
-    legacy = config.get('Chapter3Tables')
-    if isinstance(legacy, dict):
-        for tid, meta in legacy.items():
-            tid_s = str(tid)
-            base = out.get(tid_s, {})
-            if isinstance(meta, dict):
-                merged = dict(base)
-                merged.update(dict(meta))
-                out[tid_s] = merged
-            elif tid_s not in out:
-                out[tid_s] = {}
-    return out
-
-
-def _layout_hint_from_yaml_lists(
-    table_id: str, config: dict[str, Any]
-) -> Optional[str]:
-    """Map ``fuel_sector`` / ``fuel_vehicle`` / ``ghg_fuel`` / ``no_nesting`` lists → layout name."""
-
-    tid = str(table_id)
-    fs = {str(x) for x in (config.get('fuel_sector') or [])}
-    fv = {str(x) for x in (config.get('fuel_vehicle') or [])}
-    gf = {str(x) for x in (config.get('ghg_fuel') or [])}
-    nn = {str(x) for x in (config.get('no_nesting') or [])}
-    if tid in fs:
-        return 'fuel_sector'
-    if tid in fv:
-        return 'fuel_vehicle'
-    if tid in gf:
-        return 'ghg_sections'
-    if tid in nn:
-        return 'standard_wide'
-    return None
-
-
-def _local_umd_csv_pairs(local_root: str) -> list[tuple[str, str]]:
-    """Relative paths (under local_root) and table ids for Table [345]-*.csv (exclude figure/box)."""
-    out: list[tuple[str, str]] = []
-    if not os.path.isdir(local_root):
-        return out
-    for root, _, files in os.walk(local_root):
-        for fname in files:
-            if not fname.endswith('.csv') or _skip_auxiliary_umd_csv_basename(fname):
-                continue
-            m = TABLE_ID_RE.match(fname)
-            if not m:
-                continue
-            full = os.path.join(root, fname)
-            rel = os.path.relpath(full, local_root).replace('\\', '/')
-            out.append((rel, m.group(1)))
-    out.sort(key=lambda x: x[0])
-    return out
-
-
-def _iter_umd_csv_paths(source: str) -> list[tuple[str, str]]:
-    """Discover Chapter 3–5 CSVs: prefer local extract/input_data mirror; else list GCS.
-
-    Matches EPA GHGI behavior: ``local_dir_for_gcs_sub_bucket`` + ``load_from_gcs``
-    (download only when the path does not exist locally).
-    """
-    sub_bucket = (
-        gcs_extract_input_path(source, UMD_GHGIA_INPUT_RELEASE_DIR_YEAR)
-        .strip('/')
-        .replace('\\', '/')
-    )
-    local_root = local_dir_for_gcs_sub_bucket(sub_bucket)
-
-    pairs = _local_umd_csv_pairs(local_root)
-    if pairs:
-        log.info(
-            'UMD GHGIA: discovered %s Table [345]-*.csv files under local cache %s',
-            len(pairs),
-            local_root,
-        )
-        return pairs
-
-    log.info(
-        'UMD GHGIA: no local Chapter 3–5 CSVs under %s — listing GCS gs://cornerstone-default/%s/',
-        local_root,
-        sub_bucket,
-    )
-    out: list[tuple[str, str]] = []
-    try:
-        from google.cloud import storage
-
-        client = storage.Client()
-        bucket = client.bucket('cornerstone-default')
-        prefix = sub_bucket + '/'
-        for blob in bucket.list_blobs(prefix=prefix):
-            if not blob.name.endswith('.csv'):
-                continue
-            base = os.path.basename(blob.name)
-            if _skip_auxiliary_umd_csv_basename(base):
-                continue
-            m = TABLE_ID_RE.match(base)
-            if not m:
-                continue
-            rel = blob.name[len(prefix) :].replace('\\', '/')
-            out.append((rel, m.group(1)))
-    except Exception as exc:
-        log.warning('UMD GHGIA: GCS listing failed (%s)', exc)
-
-    out.sort(key=lambda x: x[0])
-    return out
-
-
-def _primary_flow_from_title(title: str) -> Optional[str]:
-    u = title.upper()
-    if re.search(r'\bN2O\b', u):
-        return 'N2O'
-    if re.search(r'\bCH4\b', u):
-        return 'CH4'
-    if re.search(r'\bCO2\b', u):
-        return 'CO2'
-    return None
-
-
-def _infer_unit_from_title(title: str) -> str:
-    u = title.upper()
-    if 'METRIC TONS' in u and 'MMT' not in u:
-        return 'MT CO2e'
-    return 'MMT CO2e'
-
-
-def _infer_layout(
-    table_id: str,
-    df: pd.DataFrame,
-    title: str,
-    chapter_tables: dict[str, dict[str, Any]],
-    config: dict[str, Any],
-) -> str:
-    overrides = chapter_tables
-    if table_id in overrides and overrides[table_id].get('layout'):
-        return cast(str, overrides[table_id]['layout'])
-
-    listed = _layout_hint_from_yaml_lists(table_id, config)
-    if listed:
-        return listed
-
-    title_u = title.upper()
-    col0 = df.iloc[:, 0].dropna().astype(str).map(lambda x: strip_char(str(x)))
-    up = col0.str.upper().str.strip()
-    if up.isin({'CO2', 'CH4', 'N2O', 'N20'}).any():
-        return 'ghg_sections'
-
-    if 'PETROLEUM SYSTEMS' in title_u:
-        return 'systems_segments'
-    if 'NATURAL GAS SYSTEMS' in title_u:
-        return 'systems_segments'
-    if 'INTERNATIONAL BUNKER' in title_u or table_id == '3-102':
-        return 'multi_chem'
-
-    if (
-        'MOBILE COMBUSTION' in title_u
-        or 'TRANSPORTATION END-USE' in title_u
-        or table_id in {'3-8', '3-9', '3-10'}
-    ):
-        return 'fuel_vehicle'
-
-    if table_id.startswith(('4-', '5-')):
-        return 'standard_wide'
-
-    return 'fuel_sector'
-
-
-def _table_meta(
-    table_id: str,
-    title: str,
-    layout: str,
-    chapter_tables: dict[str, dict[str, Any]],
-) -> dict[str, Any]:
-    overrides_all = chapter_tables
-    ov = dict(overrides_all.get(table_id, {}))
-    flow = ov.get('flow') or _primary_flow_from_title(title)
-    unit = ov.get('unit') or _infer_unit_from_title(title)
-    desc = ov.get('desc') or _compact_desc(title, table_id)
-    meta = {
-        'class': ov.get('class', 'Chemicals'),
-        'compartment': ov.get('compartment', 'air'),
-        'unit': unit,
-        'flow': flow,
-        'desc': desc,
-        'data_reliability': ov.get('data_reliability', 5),
-        'activity': ov.get('activity'),
-        'melt_var': ov.get('melt_var', 'FlowName'),
-        'nested_fuel_sector': ov.get('nested_fuel_sector'),
-        'layout': layout,
-    }
-    if layout in ('systems_segments', 'multi_chem', 'ghg_sections'):
-        meta['flow'] = flow  # may be None for multi_chem / ghg_sections
-    return meta
-
-
-def _apply_inventory_year_templates(meta: dict[str, Any], inventory_year: str) -> None:
-    """Expand __year__ in YAML-driven strings (e.g. NEU activity templates on table 3-14)."""
-    for key in ('activity', 'desc'):
-        val = meta.get(key)
-        if isinstance(val, str) and '__year__' in val:
-            meta[key] = val.replace('__year__', inventory_year)
-
-
-def _compact_desc(title: str, table_id: str) -> str:
-    for line in title.splitlines():
-        s = _strip_leading_utf8_bom_mojibake(line.strip())
-        if s and 'Table' in s:
-            return s[:500]
-    return f'Table {table_id} (UMD GHGIA)'
-
-
-def _flatten_3_25_columns(df: pd.DataFrame) -> pd.DataFrame:
-    new_headers: list[str] = []
-    for col in df.columns:
-        new_header = 'Unnamed: 0'
-        if 'Unnamed' not in col[0]:
-            if 'Unnamed' not in col[1]:
-                new_header = f'{col[0]} {col[1]}'
-            else:
-                new_header = col[0]
-        else:
-            new_header = col[1]
-        new_headers.append(new_header)
-    df.columns = pd.Index(new_headers)
-    return df
-
-
-def _load_one_dataframe(
-    rel: str,
-    table_id: str,
-    sub_bucket: str,
-    local_base: str,
-    year: str,
-    chapter_tables: dict[str, dict[str, Any]],
-) -> pd.DataFrame:
-    """Load Chapter 3 CSVs: same pipeline as EPA GHGI — cache under extract/input_data, then ``load_from_gcs``."""
-    ov_sk = chapter_tables.get(table_id, {}).get('skiprows')
-
-    def loader(pth: str) -> pd.DataFrame:
-        head = _peek_csv_head_lines(pth)
-        if chapter_tables.get(table_id, {}).get('two_row_header'):
-            raw = pd.read_csv(
-                pth,
-                skiprows=int(ov_sk) if ov_sk is not None else 1,
-                header=[0, 1],
-                encoding='utf-8-sig',
-                thousands=',',
-            )
-            raw = _flatten_3_25_columns(raw)
-        else:
-            skip = int(ov_sk) if ov_sk is not None else 1
-            raw = pd.read_csv(
-                pth,
-                skiprows=skip,
-                encoding='utf-8-sig',
-                thousands=',',
-                header=0,
-            )
-        if table_id == '3-8':
-            cols = [c[:4] for c in list(raw.columns[1:])]
-            raw = raw.rename(columns=dict(zip(raw.columns[1:], cols)))
-        raw.attrs['umd_title'] = head
-        return raw
-
-    df = load_from_gcs(
-        name=rel.replace('\\', '/'),
-        sub_bucket=sub_bucket,
-        local_dir=local_base,
-        loader=loader,
-    )
-    years_to_drop = YEARS.copy()
-    if year in years_to_drop:
-        years_to_drop.remove(year)
-    df = df.drop(columns=(DROP_COLS + years_to_drop), errors='ignore')
-    df['SourceName'] = umd_source_name(table_id)
-    return df
-
-
-def umd_ghgia_load(**kwargs: Any) -> List[pd.DataFrame]:
-    """Load each ``Table *.csv`` into its own dataframe with ``SourceName`` set (cf. ``ghg_load_gcs``).
-
-    Wired like ``EPA_GHGI``: ``extract_data_from_raw_sources: False`` + ``gcs_fxn`` so HTTP is not used;
-    paths mirror ``extract/input-data/`` on GCS under ``bedrock/extract/input_data``. Listing prefers an
-    existing local tree; ``load_from_gcs`` downloads only when a file path is missing locally.
-    """
-    inventory_year = str(kwargs['year'])
-    source = str(kwargs['source'])
-    config = kwargs['config']
-    chapter_tables = _chapter_tables(config)
-
-    sub_bucket = (
-        gcs_extract_input_path(source, UMD_GHGIA_INPUT_RELEASE_DIR_YEAR)
-        .strip('/')
-        .replace('\\', '/')
-    )
-    local_base = local_dir_for_gcs_sub_bucket(sub_bucket)
-
-    pairs = _iter_umd_csv_paths(source)
-    if not pairs:
-        log.warning(
-            'UMD GHGIA: no Table [345]-*.csv files found under prefix %s', sub_bucket
-        )
-        return []
-
-    log.info(
-        'UMD GHGIA: staging prefix extract/input-data/%s/%s/ — inventory year %s '
-        '(local cache %s)',
-        source,
-        UMD_GHGIA_INPUT_RELEASE_DIR_YEAR,
-        inventory_year,
-        local_base,
-    )
-
-    dfs: list[pd.DataFrame] = []
-    for rel, tid in pairs:
-        if inventory_year in ('2023', '2024') and tid == '3-25b':
-            continue
-        try:
-            df = _load_one_dataframe(
-                rel, tid, sub_bucket, local_base, inventory_year, chapter_tables
-            )
-            if df is not None and len(df.columns) > 1:
-                dfs.append(df)
-        except Exception as exc:
-            log.error('UMD GHGIA: failed to load %s (%s): %s', rel, tid, exc)
-
-    if not dfs:
-        log.error(
-            'UMD GHGIA: no tables loaded for inventory %s %s — check gcloud auth and '
-            'that CSV files exist under gs://cornerstone-default/%s/',
-            source,
-            inventory_year,
-            sub_bucket,
-        )
-
-    return dfs
-
-
-def _apply_flow_amount_cleanup(df: pd.DataFrame) -> pd.DataFrame:
-    try:
-        flow_stripped = df['FlowAmount'].astype(str).str.strip()
-        df['Suppressed'] = flow_stripped.where(flow_stripped == '+', np.nan)
-        df['FlowAmount'] = (
-            df['FlowAmount'].astype(str).str.replace(',', '').infer_objects(copy=False)
-        )
-        df['FlowAmount'] = df['FlowAmount'].replace('+', '0').infer_objects(copy=False)
-        df['FlowAmount'] = pd.to_numeric(df['FlowAmount'], errors='coerce')
-        df = df.dropna(subset='FlowAmount')
-    except (AttributeError, KeyError):
-        df = df.dropna(subset='FlowAmount')
-    return df
-
-
-def _title_case_fuel_activity(label: str) -> str:
-    s = strip_char(label)
-    parts = re.split(r'(\s+|-)', s)
-    out: list[str] = []
-    for p in parts:
-        if p.isspace() or p == '-' or not p:
-            out.append(p)
-            continue
-        if p.upper() in ('LPG', 'CO2', 'CH4', 'N2O'):
-            out.append(p.upper())
-            continue
-        out.append(p[:1].upper() + p[1:] if len(p) > 1 else p.upper())
-    return ''.join(out)
-
-
-# Sector rows nested under a fuel-type parent (Table 3-4 ``Fuel Type/Sector`` column).
-FUEL_TYPE_SECTOR_CHILD_LABELS: tuple[str, ...] = (
-    'Electric Power',
-    'Industrial',
-    'Commercial',
-    'Residential',
-    'U.S. Territories',
-    'Transportation',
-    'Exploration',
-    'Production (Total)',
-    'Refining',
-    'Crude Oil Transportation',
-    'Cropland',
-    'Grassland',
-)
-
-UMD_NESTED_PARENT_FUEL_ALIASES: dict[str, str] = {
-    'GEOTHERMALA': 'Geothermal',
-    'GEOTHERMAL A': 'Geothermal',
+# Inventory-year columns share the same staged CSVs; GCS and local cache use this folder
+# (``extract/input-data/UMD_GHGIA/{year}/`` on ``cornerstone-default``).
+UMD_GHGIA_INPUT_LAYOUT_YEAR = '2024'
+
+
+SECTOR_DICT = {
+    'Res.': 'Residential',
+    'Comm.': 'Commercial',
+    'Ind.': 'Industrial',
+    'Trans.': 'Transportation',
+    'Elec.': 'Electricity Power',
+    'Terr.': 'U.S. Territory',
 }
 
+ANNEX_HEADERS = {
+    'Total Consumption (TBtu) a': 'Total Consumption (TBtu)',
+    'Total Consumption (TBtu)a': 'Total Consumption (TBtu)',
+    'Adjustments (TBtu) b': 'Adjustments (TBtu)',
+    'Adjusted Consumption (TBtu) a': 'Adjusted Consumption (TBtu)',
+    'Adjusted Consumption (TBtu)a': 'Adjusted Consumption (TBtu)',
+    'Emissions b (MMT CO2 Eq.) from Energy Use': 'Emissions (MMT CO2 Eq.) from Energy Use',
+    'Emissionsb (MMT CO2 Eq.) from Energy Use': 'Emissions (MMT CO2 Eq.) from Energy Use',
+}
 
-def _header_indicates_nested_fuel_sector(header: str) -> bool:
-    """True when column A documents combined fuel-type + sector nesting (e.g. Table 3-4)."""
-    h = str(header).strip().lower().replace('\\', '/')
-    if 'unnamed' in h:
-        return False
-    return 'fuel' in h and 'sector' in h
+# Tables for annual CO2 emissions from fossil fuel combustion
+ANNEX_ENERGY_TABLES = ['A-' + str(x) for x in list(range(4, 16))]
+
+# UMD tables that use a two-row CSV header (Annex A-style + NEU / petroleum tables per UMD_GHGIA.yaml).
+# TODO: verify staged CSV layout for UMD 3-25 (petroleum CH4) vs 3-14/3-15 (NEU); adjust if headers differ.
+UMD_TWO_ROW_HEADER_TABLES = frozenset([*ANNEX_ENERGY_TABLES, '3-14', '3-15', '3-25'])
+
+DROP_COLS = ['Unnamed: 0'] + list(
+    pd.date_range(start='1990', end='2010', freq='YE').year.astype(str)
+)
+
+YEARS = list(pd.date_range(start='2010', end='2024', freq='YE').year.astype(str))
 
 
-def _normalize_nested_parent_fuel_label(label: str) -> str:
-    """Strip footnotes and known UMD suffix markers from fuel-type header rows."""
-    s = strip_char(label).strip()
-    ul = ' '.join(s.split()).upper()
-    return UMD_NESTED_PARENT_FUEL_ALIASES.get(ul, s)
+def _cell_get_name(value: str, default_flow_name: str) -> str:
+    """
+    Given a single string value (cell), separate the name and units.
+    :param value: str
+    :param default_flow_name: indicate return flow name string subset
+    :return: flow name for row
+    """
+    if '(' not in value:
+        return default_flow_name.replace('__type__', value.strip())
+
+    spl = value.split(' ')
+    name = ''
+    found_units = False
+    for sub in spl:
+        if '(' not in sub and not found_units:
+            name = f'{name.strip()} {sub}'
+        else:
+            found_units = True
+    return name.strip()
 
 
-def _apply_nested_fuel_sector_labels(df: pd.DataFrame) -> pd.DataFrame:
-    """Expand hierarchical ``Fuel Type/Sector`` rows into ``Coal Residential``-style activities."""
-    sector_by_upper = {
-        ' '.join(s.split()).upper(): s for s in FUEL_TYPE_SECTOR_CHILD_LABELS
-    }
+def _cell_get_units(value: str, default_units: str) -> str:
+    """
+    Given a single string value (cell), separate the name and units.
+    :param value: str
+    :param default_units: indicate return units string subset
+    :return: unit for row
+    """
+    if '(' not in value:
+        return default_units
 
-    drop_idx: list[Any] = []
-    current_fuel_display = ''
+    spl = value.split(' ')
+    name = ''
+    found_units = False
+    for sub in spl:
+        if ')' in sub:
+            found_units = False
+        if '(' in sub or found_units:
+            name = f'{name} {sub.replace("(", "").replace(")", "")} '
+            found_units = True
+    return name.strip()
 
-    for idx in df.index:
-        raw = df.at[idx, 'ActivityProducedBy']
-        if pd.isna(raw):
-            drop_idx.append(idx)
+
+def series_separate_name_and_units(
+    series: pd.Series, default_flow_name: str, default_units: str
+) -> dict[str, pd.Series]:
+    """
+    Given a series (such as a df column), split the contents' strings into a name and units.
+    An example might be converting "Carbon Stored (MMT C)" into ["Carbon Stored", "MMT C"].
+
+    :param series: df column
+    :param default_flow_name: df column for flow name to be modified
+    :param default_units: df column for units to be modified
+    :return: str, flowname and units for each row in df
+    """
+    names = series.apply(lambda x: _cell_get_name(x, default_flow_name))
+    units = series.apply(lambda x: _cell_get_units(x, default_units))
+    return {'names': names, 'units': units}
+
+
+def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
+    """Special handling of ANNEX Energy Tables"""
+    if table == 'A-4':
+        # Table "Energy Consumption Data by Fuel Type (TBtu) and Adjusted
+        # Energy Consumption Data"
+        # Extra row to drop in this table
+        df = df.drop([0])
+    header_name = ''
+    newcols = []  # empty list to have new column names
+    dropcols = []
+    for i in range(len(df.columns)):
+        fuel_type = str(df.iloc[0, i])
+        for abbrev, full_name in SECTOR_DICT.items():
+            fuel_type = fuel_type.replace(abbrev, full_name)
+        fuel_type = fuel_type.strip()
+
+        col_name = df.columns[i][1]
+        if df.iloc[:, i].isnull().all():
+            # skip over mis aligned columns
+            dropcols.append(i)
             continue
-        label = strip_char(str(raw)).strip()
-        ul = ' '.join(label.split()).upper()
+        if 'Unnamed' in col_name:
+            column_name = header_name
+        elif col_name in ANNEX_HEADERS.keys():
+            column_name = ANNEX_HEADERS[col_name]
+            header_name = ANNEX_HEADERS[col_name]
+        else:
+            # Fallback assignment if col_name is not in ANNEX_HEADERS
+            column_name = col_name.strip()
+            header_name = column_name  # update the header_name for potential Unnamed columns later
 
-        if not ul:
-            drop_idx.append(idx)
-            continue
-        if ul.startswith('TOTAL'):
-            drop_idx.append(idx)
-            continue
-        if ul.startswith(('NO ', 'NO(')):
-            drop_idx.append(idx)
-            continue
-        if ul.startswith('NOTE:'):
-            drop_idx.append(idx)
-            continue
-        if re.match(r'^[a-z]\s+Although\b', label):
-            drop_idx.append(idx)
-            continue
+        newcols.append(f'{column_name} - {fuel_type}')
+        if 'Unnamed' not in col_name and col_name not in ANNEX_HEADERS:
+            log.warning(f'Unknown column header encountered: {col_name}')
 
-        sector_hit = sector_by_upper.get(ul)
-        if sector_hit:
-            if not current_fuel_display:
-                drop_idx.append(idx)
-                continue
-            df.at[idx, 'ActivityProducedBy'] = f'{current_fuel_display} {sector_hit}'
-            continue
-
-        current_fuel_display = _title_case_fuel_activity(
-            _normalize_nested_parent_fuel_label(label)
-        )
-        drop_idx.append(idx)
-
-    return df.drop(index=drop_idx, errors='ignore')
-
-
-def _drop_parse_helpers_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Remove staging columns before layout parsing (keep ``SourceName``)."""
-
-    if '_TableId' in df.columns:
-        return df.drop(columns=['_TableId'])
+    df = df.drop(columns=df.columns[dropcols])
+    df.columns = newcols  # assign column names
+    df = df.iloc[1:, :]  # exclude first row
+    df.dropna(how='all', inplace=True)
+    df = df.reset_index(drop=True)
     return df
 
 
-def _parse_fuel_sector_like(
-    df: pd.DataFrame,
-    meta: dict[str, Any],
-    *,
-    mode: str,
-    source_name: str,
-) -> pd.DataFrame:
-    """mode: 'sector' (3-7-like) or 'vehicle' (3-13-like)."""
-    df = _drop_trailing_unnamed_cols(df)
-    header0 = str(df.columns[0])
-    df = df.rename(columns={df.columns[0]: 'ActivityProducedBy'})
-    nested_fuel_sector = False
-    if mode == 'sector':
-        nf_cfg = meta.get('nested_fuel_sector')
-        if nf_cfg is True:
-            nested_fuel_sector = True
-        elif nf_cfg is False:
-            nested_fuel_sector = False
-        else:
-            nested_fuel_sector = _header_indicates_nested_fuel_sector(header0)
+def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
+    """Load UMD GHGIA tables from GCS under extract/input-data/UMD_GHGIA/2024/; assign UMD_GHGIA_T_* SourceNames."""
+    df_list = []
+    table_dict = kwargs['config']['Tables'] | kwargs['config'].get('Annex', {})
+    year = str(kwargs['year'])
+    for chapter, tables in table_dict.items():
+        for table, data in tables.items():
+            if data.get('year') not in (None, year):
+                # Skip tables when the year does not align with target year
+                continue
+            # TODO: confirm whether UMD extract uses 3-25b (EPA-only alternate layout).
+            if year in ('2023', '2024') and table == '3-25b':
+                continue
+            df = _load_umd_ghgia_table(table)
+            if df is not None and len(df.columns) > 1:
+                years = YEARS.copy()
+                years.remove(year)
+                df = df.drop(columns=(DROP_COLS + years), errors='ignore')
+                df['SourceName'] = f'{UMD_SOURCE_PREFIX}{table.replace("-", "_")}'
+                df_list.append(df)
 
-    if nested_fuel_sector:
-        df = _apply_nested_fuel_sector_labels(df)
+    return df_list
 
-    df['ActivityConsumedBy'] = 'None'
-    df['FlowType'] = 'ELEMENTARY_FLOW'
-    df['Location'] = '00000'
-    df['SourceName'] = source_name
 
-    id_vars = [
-        'SourceName',
-        'ActivityConsumedBy',
-        'ActivityProducedBy',
-        'FlowType',
-        'Location',
-    ]
-    df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
-    df = _apply_flow_amount_cleanup(df)
+def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
+    """Load one UMD GHGIA CSV from GCS and apply table-specific reshape."""
+    if table == '3-25b':
+        return pd.read_csv(
+            externaldatapath / f'GHGI_Table_{table}.csv',
+            skiprows=2,
+            encoding='ISO-8859-1',
+            thousands=',',
+        )
 
-    df['Unit'] = meta.get('unit')
-    df['FlowName'] = meta.get('flow')
-    df['Class'] = meta.get('class')
-    df['Description'] = meta.get('desc')
-    df['Compartment'] = meta.get('compartment')
-    df['Year'] = df['Year'].astype(str)
-    df = df[df['Year'].isin([meta.get('_filter_year')])]
+    chapter_dir = {
+        '1': 'Chapter 1 - Introduction',
+        '2': 'Chapter 2 - Trends',
+        '3': 'Chapter 3 - Energy',
+        '4': 'Chapter 4 - IPPU',
+        '5': 'Chapter 5 - Agriculture',
+        '6': 'Chapter 6 - Land Use, Land Use-Change, and Forestry',
+        '7': 'Chapter 7 - Waste',
+        '9': 'Chapter 9 - Recalculations',
+    }
+    section = table.split('-')[0]
+    if section == 'A':
+        rel = posixpath.join('Annex', f'Table {table}.csv')
+    else:
+        rel = posixpath.join(chapter_dir[section], f'Table {table}.csv')
+    full = posixpath.join(
+        gcs_extract_input_path('UMD_GHGIA', UMD_GHGIA_INPUT_LAYOUT_YEAR),
+        rel,
+    )
+    gcs_sub_bucket, blob_name = posixpath.split(full)
+    local_dir = local_dir_for_gcs_sub_bucket(gcs_sub_bucket)
+    pth = os.path.join(local_dir, blob_name)
+    if not os.path.isfile(pth):
+        download_gcs_file(blob_name, gcs_sub_bucket, pth)
 
-    if nested_fuel_sector:
+    use_two_row = table in UMD_TWO_ROW_HEADER_TABLES
+    df = pd.read_csv(
+        pth,
+        skiprows=2 if table == '4-57' else 1,
+        encoding='ISO-8859-1',
+        thousands=',',
+        header=[0, 1] if use_two_row else 0,
+    )
+    if table in ANNEX_ENERGY_TABLES:
+        return _read_yearly_annex_tables(df, table)
+    elif table == '3-8':
+        # remove notes from column headers in some years (GHGI Table 3-13 analogue)
+        cols = [c[:4] for c in list(df.columns[1:])]
+        return df.rename(columns=dict(zip(df.columns[1:], cols)))
+    elif table in ('3-14', '3-15', '3-25'):
+        # Row 0 is header, row 1 is unit (GHGI Table 3-25 / UMD NEU & petroleum layouts).
+        new_headers = []
+        for col in df.columns:
+            new_header = 'Unnamed: 0'
+            if 'Unnamed' not in col[0]:
+                if 'Unnamed' not in col[1]:
+                    new_header = f'{col[0]} {col[1]}'
+                else:
+                    new_header = col[0]
+            else:
+                new_header = col[1]
+            new_headers.append(new_header)
+        df.columns = new_headers
+        return df
+    else:
         return df
 
-    activity_subtotal_sector = list(FUEL_TYPE_SECTOR_CHILD_LABELS)
-    activity_subtotal_fuel = [
-        'Gasoline',
-        'Distillate Fuel Oil',
-        'Jet Fuel',
-        'Aviation Gasoline',
-        'Residual Fuel Oil',
-        'Natural Gas',
-        'LPG',
-        'Electricity',
-        'Fuel Type/Vehicle Type',
-        'Diesel On-Road',
-        'Alternative Fuel On-Road',
-        'Non-Road',
-        'Gasoline On-Road',
-    ]
-    activity_subtotal = (
-        activity_subtotal_sector if mode == 'sector' else activity_subtotal_fuel
-    )
 
-    apbe_value = ''
-    after_total = False
-    for row_idx, row in df.iterrows():
-        apb_value = strip_char(cast(str, row['ActivityProducedBy']))
-        if apb_value in activity_subtotal or after_total:
-            apbe_value = apb_value
-            df.loc[row_idx, 'ActivityProducedBy'] = f'All activities {apbe_value}'
-        else:
-            apb_txt = apb_value
-            df.loc[row_idx, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'
-        if apb_value.startswith('Total'):
-            df = df.drop(row_idx)
-            after_total = True
-
-    return df
+def _get_unnamed_cols(df: pd.DataFrame) -> List[str]:
+    """
+    Get a list of all unnamed columns, used to drop them.
+    :param df: df being formatted
+    :return: list, unnamed columns
+    """
+    return [col for col in df.columns if 'Unnamed' in col]
 
 
-def _parse_systems_segments(
-    df: pd.DataFrame, meta: dict[str, Any], *, source_name: str
-) -> pd.DataFrame:
-    df = _drop_trailing_unnamed_cols(df)
-    df = df.rename(columns={df.columns[0]: 'ActivityProducedBy'})
-    df['ActivityConsumedBy'] = 'None'
-    df['FlowType'] = 'ELEMENTARY_FLOW'
-    df['Location'] = '00000'
-    df['SourceName'] = source_name
-
-    id_vars = [
-        'SourceName',
-        'ActivityConsumedBy',
-        'ActivityProducedBy',
-        'FlowType',
-        'Location',
-    ]
-    df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
-    df = _apply_flow_amount_cleanup(df)
-
-    df['Unit'] = meta.get('unit')
-    df['FlowName'] = meta.get('flow')
-    df['Class'] = meta.get('class')
-    df['Description'] = meta.get('desc')
-    df['Compartment'] = meta.get('compartment')
-    fy = meta.get('_filter_year')
-    df['Year'] = df['Year'].astype(str)
-    df = df[df['Year'].isin([fy])]
-
-    bool_apb = False
-    apbe_value = ''
-    flow_name_list = [
-        'Explorationb',
-        'Production',
-        'Processing',
-        'Transmission and Storage',
-        'Distribution',
-        'Post-Meter',
-        'Crude Oil Transportation',
-        'Refining',
-        'Exploration',
-        'Mobile AC',
-        'Refrigerated Transport',
-        'Comfort Cooling for Trains and Buses',
-    ]
-    start_activity = cast(str, meta.get('flow'))
-    for row_idx, row in df.iterrows():
-        apb_value = cast(str, row['ActivityProducedBy'])
-        if apb_value.strip() in flow_name_list:
-            apbe_value = apb_value
-            if apbe_value == 'Explorationb':
-                apbe_value = 'Exploration'
-            df.loc[row_idx, 'FlowName'] = start_activity
-            df.loc[row_idx, 'ActivityProducedBy'] = apbe_value
-            bool_apb = True
-        else:
-            if bool_apb:
-                df.loc[row_idx, 'FlowName'] = start_activity
-                apb_txt = strip_char(cast(str, df.loc[row_idx, 'ActivityProducedBy']))
-                if apb_txt == 'Gathering and Boostingc':
-                    apb_txt = 'Gathering and Boosting'
-                df.loc[row_idx, 'ActivityProducedBy'] = f'{apbe_value} - {apb_txt}'
-            else:
-                apb_txt = strip_char(cast(str, df.loc[row_idx, 'ActivityProducedBy']))
-                df.loc[row_idx, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'
-        if apb_value.strip() == 'Total' or apb_value.strip().startswith('Total'):
-            df = df.drop(row_idx)
-
-    return df
-
-
-def _parse_multi_chem(
-    df: pd.DataFrame, meta: dict[str, Any], *, source_name: str
-) -> pd.DataFrame:
-    df = _drop_trailing_unnamed_cols(df)
-    df = df.rename(columns={df.columns[0]: 'ActivityProducedBy'})
-    df['ActivityConsumedBy'] = 'None'
-    df['FlowType'] = 'ELEMENTARY_FLOW'
-    df['Location'] = '00000'
-    df['SourceName'] = source_name
-
-    id_vars = [
-        'SourceName',
-        'ActivityConsumedBy',
-        'ActivityProducedBy',
-        'FlowType',
-        'Location',
-    ]
-    df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
-    df = _apply_flow_amount_cleanup(df)
-
-    df['Unit'] = meta.get('unit')
-    df['Class'] = meta.get('class')
-    df['Description'] = meta.get('desc')
-    df['Compartment'] = meta.get('compartment')
-    fy = meta.get('_filter_year')
-    df['Year'] = df['Year'].astype(str)
-    df = df[df['Year'].isin([fy])]
-
-    bool_apb = False
-    bool_lulucf = False
-    apbe_value = ''
-    flow_name_list = [
-        'CO2',
-        'CH4',
-        'N2O',
-        'NF3',
-        'HFCs',
-        'PFCs',
-        'SF6',
-        'CH4 a',
-        'N2O b',
-        'CO',
-        'NOx',
-    ]
-    for row_idx, row in df.iterrows():
-        apb_value = strip_char(cast(str, row['ActivityProducedBy']))
-        if 'CH4' in apb_value:
-            apb_value = 'CH4'
-        elif 'N2O' in apb_value and apb_value != 'N2O from Product Uses':
-            apb_value = 'N2O'
-        elif 'CO2' in apb_value:
-            apb_value = 'CO2'
-
-        if apb_value in flow_name_list:
-            if bool_lulucf:
-                df = df.drop(row_idx)
-            else:
-                apbe_value = apb_value
-                df.loc[row_idx, 'FlowName'] = apbe_value
-                df.loc[row_idx, 'ActivityProducedBy'] = 'All activities'
-                bool_apb = True
-        elif apb_value.startswith('LULUCF'):
-            df.loc[row_idx, 'FlowName'] = 'CO2e'
-            df.loc[row_idx, 'ActivityProducedBy'] = strip_char(apb_value)
-            bool_lulucf = True
-        elif apb_value.startswith(('Total', 'Net')):
-            df = df.drop(row_idx)
-        else:
-            apb_txt = strip_char(cast(str, df.loc[row_idx, 'ActivityProducedBy']))
-            df.loc[row_idx, 'ActivityProducedBy'] = apb_txt
-            if bool_apb:
-                df.loc[row_idx, 'FlowName'] = apbe_value
-
-    return df
-
-
-def _parse_non_energy_rows(
-    df: pd.DataFrame, meta: dict[str, Any], *, source_name: str
-) -> pd.DataFrame:
-    df = _drop_trailing_unnamed_cols(df)
-    df = df.rename(columns={df.columns[0]: 'ActivityProducedBy'})
-    df['ActivityConsumedBy'] = 'None'
-    df['FlowType'] = 'ELEMENTARY_FLOW'
-    df['Location'] = '00000'
-    df['SourceName'] = source_name
-
-    id_vars = [
-        'SourceName',
-        'ActivityConsumedBy',
-        'ActivityProducedBy',
-        'FlowType',
-        'Location',
-    ]
-    df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
-    df = _apply_flow_amount_cleanup(df)
-
-    df['Unit'] = meta.get('unit')
-    df['FlowName'] = meta.get('flow')
-    df['Class'] = meta.get('class')
-    df['Description'] = meta.get('desc')
-    df['Compartment'] = meta.get('compartment')
-    fy = meta.get('_filter_year')
-    df['Year'] = df['Year'].astype(str)
-    df = df[df['Year'].isin([fy])]
-
-    apbe_value = ''
-    flow_name_list = ['Industry', 'Transportation', 'U.S. Territories']
-    for row_idx, row in df.iterrows():
-        unit = cast(str, row['Unit'])
-        if unit.strip() == 'MMT  CO2':
-            df.loc[row_idx, 'Unit'] = 'MMT CO2e'
-        if cast(str, df.loc[row_idx, 'Unit']).strip() != 'MMT CO2e':
-            df = df.drop(row_idx)
-            continue
-        df.loc[row_idx, 'FlowName'] = meta.get('flow')
-        apb_value = ' '.join(cast(str, row['ActivityProducedBy']).split())
-        apb_value = apb_value.replace('°', '')
-        if apb_value in flow_name_list:
-            apbe_value = apb_value
-            df.loc[row_idx, 'ActivityProducedBy'] = f'{apbe_value} All activities'
-        else:
-            apb_txt = strip_char(apb_value)
-            df.loc[row_idx, 'ActivityProducedBy'] = f'{apbe_value} {apb_txt}'
-        if apb_value == 'Total' or apb_value == 'Total ':
-            df = df.drop(row_idx)
-
-    return df
-
-
-def _parse_non_energy_melt(
-    df: pd.DataFrame, meta: dict[str, Any], *, source_name: str
-) -> pd.DataFrame:
-    """Wide NEU-style table (two-row CSV header): melt flow/type columns (EPA GHGI ``ghg_parse`` 3-25 pattern)."""
-    df = _drop_trailing_unnamed_cols(df)
-    df = df.rename(columns={df.columns[0]: 'ActivityProducedBy'})
-    df['ActivityConsumedBy'] = 'None'
-    df['FlowType'] = 'ELEMENTARY_FLOW'
-    df['Location'] = '00000'
-    df['SourceName'] = source_name
-
-    id_vars = [
-        'SourceName',
-        'ActivityConsumedBy',
-        'ActivityProducedBy',
-        'FlowType',
-        'Location',
-    ]
-    # EPA uses var_name FlowName then overwrites contents; never drop that column. Use a temp
-    # name so ``drop`` cannot remove FlowName after ``series_separate_name_and_units``.
-    _melt_label_col = '__umd_non_energy_melt_col__'
-    df = df.melt(id_vars=id_vars, var_name=_melt_label_col, value_name='FlowAmount')
-    df = _apply_flow_amount_cleanup(df)
-
-    act_tpl = meta.get('activity') or 'Adjusted Non-Energy Use Fossil Fuel - __type__'
-    flow_raw = df[_melt_label_col]
-    name_unit = series_separate_name_and_units(
-        flow_raw, str(act_tpl), str(meta.get('unit'))
-    )
-    df['FlowName'] = name_unit['names']
-    df['Unit'] = name_unit['units']
-    df.drop(columns=[_melt_label_col], inplace=True)
-    df['Year'] = meta.get('_filter_year')
-
-    df['Class'] = meta.get('class')
-    df['Description'] = meta.get('desc')
-    df['Compartment'] = meta.get('compartment')
-    return df
-
-
-def _parse_ghg_sections(
-    df: pd.DataFrame, meta: dict[str, Any], *, source_name: str
-) -> pd.DataFrame:
-    df = _drop_trailing_unnamed_cols(df)
-    label_col = df.columns[0]
-    year_cols = [c for c in df.columns[1:] if str(c).strip() in YEARS]
-    if not year_cols:
-        year_cols = [
-            c
-            for c in df.columns[1:]
-            if re.fullmatch(r'(19|20)\d{2}', str(c).strip() or '')
-        ]
-
-    fy = str(meta.get('_filter_year'))
-    records: list[dict[str, Any]] = []
-    current_flow: Optional[str] = None
-
-    for _, row in df.iterrows():
-        raw_label = row[label_col]
-        if pd.isna(raw_label):
-            continue
-        label = strip_char(str(raw_label))
-        ul = label.upper().strip()
-        if ul in {'CO2', 'CH4', 'N2O', 'N20'}:
-            current_flow = 'N2O' if ul == 'N20' else ul
-            continue
-        if current_flow is None:
-            continue
-        if ul.startswith('TOTAL') or label.startswith('Total'):
-            continue
-
-        activity = _title_case_fuel_activity(label)
-        for yc in year_cols:
-            if str(yc).strip() != fy:
-                continue
-            amt = row[yc]
-            records.append(
-                {
-                    'ActivityProducedBy': activity,
-                    'ActivityConsumedBy': 'None',
-                    'FlowName': current_flow,
-                    'Year': fy,
-                    'FlowAmount': amt,
-                    'FlowType': 'ELEMENTARY_FLOW',
-                    'Location': '00000',
-                    'SourceName': source_name,
-                    'Unit': meta.get('unit'),
-                    'Class': meta.get('class'),
-                    'Description': meta.get('desc'),
-                    'Compartment': meta.get('compartment'),
-                }
-            )
-
-    out = pd.DataFrame.from_records(records)
-    if len(out):
-        out = _apply_flow_amount_cleanup(out)
-    return out
-
-
-def _standard_wide_year_melt(
-    df: pd.DataFrame, meta: dict[str, Any], *, source_name: str
-) -> pd.DataFrame:
-    """Activity column + year columns only (no sector / multi-chem reshaping)."""
-    df = _drop_trailing_unnamed_cols(df)
-    df = df.rename(columns={df.columns[0]: 'ActivityProducedBy'})
-    df['ActivityConsumedBy'] = 'None'
-    df['FlowType'] = 'ELEMENTARY_FLOW'
-    df['Location'] = '00000'
-    df['SourceName'] = source_name
-
-    id_vars = [
-        'SourceName',
-        'ActivityConsumedBy',
-        'ActivityProducedBy',
-        'FlowType',
-        'Location',
-    ]
-    df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
-    df = _apply_flow_amount_cleanup(df)
-
-    df['Unit'] = meta.get('unit')
-    df['FlowName'] = meta.get('flow')
-    df['Class'] = meta.get('class')
-    df['Description'] = meta.get('desc')
-    df['Compartment'] = meta.get('compartment')
-    fy = str(meta.get('_filter_year'))
-    df['Year'] = df['Year'].astype(str)
-    df = df[df['Year'].isin([fy])]
-    for row_idx, row in df.iterrows():
-        df.loc[row_idx, 'ActivityProducedBy'] = strip_char(
-            cast(str, row['ActivityProducedBy'])
-        )
-    return df
-
-
-def _finalize_common(df: pd.DataFrame, meta: dict[str, Any]) -> pd.DataFrame:
-    df['DataReliability'] = meta.get('data_reliability', 5)
-    df['DataCollection'] = 1
-    df['MeasureofSpread'] = 'None'
-    df['DistributionType'] = 'None'
-    df['LocationSystem'] = 'None'
-    fy = str(meta.get('_filter_year'))
-    df = assign_fips_location_system(df, fy)
-
-    df['ActivityProducedBy'] = df['ActivityProducedBy'].astype(str).str.strip()
-    df['ActivityConsumedBy'] = df['ActivityConsumedBy'].astype(str).str.strip()
-    df['FlowName'] = df['FlowName'].astype(str).str.strip()
-
-    df.loc[
-        df['ActivityProducedBy'].str.contains('U.S. Territor')
-        | df['ActivityConsumedBy'].str.contains('U.S. Territor'),
-        'Location',
-    ] = '99000'
-
-    df.drop(df.loc[df['ActivityProducedBy'] == 'Total'].index, inplace=True)
-    df.drop(df.loc[df['FlowName'] == 'Total'].index, inplace=True)
-    df = df.loc[:, ~df.columns.duplicated()]
-    df['FlowAmount'] = df['FlowAmount'].replace(',', '', regex=True)
-    return df
-
-
-def _parse_single_table_chunk(
-    df: pd.DataFrame, year: str, config: dict[str, Any]
-) -> pd.DataFrame:
-    """Parse one loaded table into FBA layout (cf. a single iteration of ``EPA_GHGI.ghg_parse``)."""
-
-    if 'SourceName' not in df.columns:
-        log.warning('UMD GHGIA: skipping table without SourceName column')
-        return pd.DataFrame()
-
-    source_name = str(df['SourceName'].iloc[0])
-    table_id = _table_id_from_source_name(source_name)
-    dfp = _drop_parse_helpers_columns(df)
-
-    title = str(dfp.attrs.get('umd_title', ''))
-    chapter_tables = _chapter_tables(config)
-    layout_eff = _infer_layout(table_id, dfp, title, chapter_tables, config)
-
-    meta = _table_meta(table_id, title, layout_eff, chapter_tables)
-    _apply_inventory_year_templates(meta, year)
-    meta['_filter_year'] = year
-
-    if layout_eff == 'ghg_sections':
-        parsed = _parse_ghg_sections(dfp, meta, source_name=source_name)
-    elif layout_eff == 'fuel_vehicle':
-        parsed = _parse_fuel_sector_like(
-            dfp, meta, mode='vehicle', source_name=source_name
-        )
-    elif layout_eff == 'fuel_sector':
-        parsed = _parse_fuel_sector_like(
-            dfp, meta, mode='sector', source_name=source_name
-        )
-    elif layout_eff == 'systems_segments':
-        parsed = _parse_systems_segments(dfp, meta, source_name=source_name)
-    elif layout_eff == 'multi_chem':
-        parsed = _parse_multi_chem(dfp, meta, source_name=source_name)
-    elif layout_eff == 'non_energy_rows':
-        parsed = _parse_non_energy_rows(dfp, meta, source_name=source_name)
-    elif layout_eff == 'non_energy_melt':
-        parsed = _parse_non_energy_melt(dfp, meta, source_name=source_name)
-    elif layout_eff == 'standard_wide':
-        parsed = _standard_wide_year_melt(dfp, meta, source_name=source_name)
+def get_table_meta(source_name: str, config: dict[str, Any]) -> dict[str, Any]:
+    """Find and return table meta from source_name."""
+    td = config.get('Annex', {}) if '_A_' in source_name else config['Tables']
+    for chapter in td.keys():
+        for k, v in td[chapter].items():
+            if source_name.endswith(k.replace('-', '_')):
+                return v
     else:
-        if not meta.get('flow'):
-            log.warning(
-                'UMD GHGIA: cannot parse table %s (layout=%s, no flow in title/metadata)',
-                table_id,
-                layout_eff,
-            )
-            return pd.DataFrame()
-        log.info(
-            'UMD GHGIA: table %s using standard wide-year melt (layout=%s)',
-            table_id,
-            layout_eff,
-        )
-        parsed = _standard_wide_year_melt(dfp, meta, source_name=source_name)
+        raise KeyError(f'Table meta not found for {source_name}')
 
-    if parsed is None or len(parsed.index) == 0:
-        log.warning('UMD GHGIA: no rows after parsing table %s', table_id)
-        return pd.DataFrame()
 
-    parsed = _finalize_common(parsed, meta)
-    return parsed
+def _is_consumption(source_name: str, config: dict[str, Any]) -> bool:
+    """
+    Determine whether the given source contains consumption or production data.
+    :param source_name: df
+    :return: True or False
+    """
+    if (
+        'consum' in get_table_meta(source_name, config)['desc'].lower()
+        and get_table_meta(source_name, config)['class'] != 'Chemicals'
+    ):
+        return True
+    return False
+
+
+def strip_char(text: str) -> str:
+    """
+    Removes the footnote chars from the text
+    """
+    text = text + ' '
+    notes = [
+        'f, g',
+        ' a ',
+        ' b ',
+        ' c ',
+        ' d ',
+        ' e ',
+        ' f ',
+        ' g ',
+        ' h ',
+        ' i ',
+        ' j ',
+        ' k ',
+        ' l ',
+        ' b,c ',
+        ' h,i ',
+        ' f,g ',
+        ')a',
+        ')b',
+        ')f',
+        ')k',
+        'b,c',
+        'h,i',
+    ]
+    for i in notes:
+        if i in text:
+            text_split = text.split(i)
+            text = text_split[0]
+
+    footnotes = {
+        'Gasolineb': 'Gasoline',
+        'Trucksc': 'Trucks',
+        'Boatsd': 'Boats',
+        'Boatse': 'Boats',
+        'Fuelsb': 'Fuels',
+        'Fuelsf': 'Fuels',
+        'Consumptiona': 'Consumption',
+        'Aircraftg': 'Aircraft',
+        'Pipelineh': 'Pipeline',
+        'Electricityh': 'Electricity',
+        'Electricityl': 'Electricity',
+        'Ethanoli': 'Ethanol',
+        'Biodieseli': 'Biodiesel',
+        'Changee': 'Change',
+        'Emissionsc': 'Emissions',
+        'Equipmentd': 'Equipment',
+        'Equipmente': 'Equipment',
+        'Totalf': 'Total',
+        'Roadg': 'Road',
+        'Otherf': 'Other',
+        'Railc': 'Rail',
+        'Usesb': 'Uses',
+        'Substancesd': 'Substances',
+        'Territoriesa': 'Territories',
+        'Roadb': 'Road',
+        'Raile': 'Rail',
+        'LPGf': 'LPG',
+        'Gasf': 'Gas',
+        'Gasolinec': 'Gasoline',
+        'Gasolinef': 'Gasoline',
+        'Fuelf': 'Fuel',
+        'Amendmenta': 'Amendment',
+        'Residue Nb': 'Residue N',
+        'Residue Nd': 'Residue N',
+        'Landa': 'Land',
+        'Landb': 'Land',
+        'landb': 'land',
+        'landc': 'land',
+        'landd': 'land',
+        'Settlementsc': 'Settlements',
+        'Wetlandse': 'Wetlands',
+        'Settlementsf': 'Settlements',
+        'Totali': 'Total',
+        'Othersa': 'Others',
+        'N?O': 'N2O',
+        'Distillate Fuel Oil (Diesel)': 'Distillate Fuel Oil',
+        'Distillate Fuel Oil (Diesel': 'Distillate Fuel Oil',
+        'Natural gas': 'Natural Gas',  # Fix capitalization inconsistency
+        'HGLb': 'HGL',
+        'Biofuels-Biodieselh': 'Biofuels-Biodiesel',
+        'Biofuels-Ethanolh': 'Biofuels-Ethanol',
+        'Commercial Aircraftf': 'Commercial Aircraft',
+        'Electricityk': 'Electricity',
+        'Gasolinea': 'Gasoline',
+        'International Bunker Fuelse': 'International Bunker Fuel',
+        'Medium- and Heavy-Duty Trucksb': 'Medium- and Heavy-Duty Trucks',
+        'Pipelineg': 'Pipeline',
+        'Recreational Boatsc': 'Recreational Boats',
+        'Construction/Mining Equipmentf': 'Construction/Mining Equipment',
+        'Non-Roadc': 'Non-Road',
+        'HFCsa': 'HFCs',
+        'HFOsb': 'HFOs',
+        'CO_{2}': 'CO2',
+        'CH?^{c}': 'CH4',
+        'N_{2} O^{c}': 'N2O',
+        'N_{2} O': 'N2O',
+        'SF?': 'SF6',
+        'NF?': 'NF3',
+        'CH_{4}': 'CH4',
+        'Total e,j': 'Total',
+        'Naphtha (<401Â° F)': 'Naphtha (<401° F)',
+        'Other Oil (>401Â° F)': 'Other Oil (>401° F)',
+    }
+    text = re.sub(r'\^\{[a-zA-Z]\}', '', text)
+
+    for key in footnotes:
+        text = text.replace(key, footnotes[key])
+
+    return ' '.join(text.split())  # remove extra spaces between words
 
 
 def umd_ghgia_parse(
-    *,
-    df_list: List[pd.DataFrame],
-    year: str,
-    config: dict[str, Any],
-    **_kwargs: Any,
+    *, df_list: List[pd.DataFrame], year: str, config: dict[str, Any], **_kwargs: Any
 ) -> List[pd.DataFrame]:
-    """Parse and format each UMD GHGIA table (mirrors ``EPA_GHGI.ghg_parse`` — returns a list per table)."""
-
-    cleaned_list: list[pd.DataFrame] = []
+    """
+    Combine, parse, and format the provided dataframes
+    :param df_list: list of dataframes to concat and format
+    :param year: year
+    :param config: dictionary, items in FBA method yaml
+    :return: df, parsed and partially formatted to flowbyactivity
+        specifications
+    """
+    cleaned_list = []
     for df in df_list:
-        if 'SourceName' not in df.columns:
-            log.warning('UMD GHGIA: skipping dataframe without SourceName')
-            continue
-        source_name = str(df['SourceName'].iloc[0])
-        log.info('Processing %s', source_name)
-        chunk = _parse_single_table_chunk(df, str(year), config)
-        if len(chunk.index):
-            cleaned_list.append(chunk)
+        source_name = df['SourceName'][0]
+        table_name = source_name.removeprefix(UMD_SOURCE_PREFIX).replace('_', '-')
+        log.info(f'Processing {source_name}')
+
+        # Specify to ignore errors in case one of the drop_cols is missing.
+        df = df.drop(columns=_get_unnamed_cols(df), errors='ignore')
+
+        # Rename to "ActivityProducedBy" or "ActivityConsumedBy":
+        if _is_consumption(source_name, config):
+            df = df.rename(columns={df.columns[0]: 'ActivityConsumedBy'})
+            df['ActivityProducedBy'] = 'None'
         else:
-            log.warning('UMD GHGIA: empty result for %s', source_name)
+            df = df.rename(columns={df.columns[0]: 'ActivityProducedBy'})
+            df['ActivityConsumedBy'] = 'None'
+
+        df['FlowType'] = 'ELEMENTARY_FLOW'
+        df['Location'] = '00000'
+
+        id_vars = [
+            'SourceName',
+            'ActivityConsumedBy',
+            'ActivityProducedBy',
+            'FlowType',
+            'Location',
+        ]
+
+        df.set_index(id_vars)
+
+        meta = get_table_meta(source_name, config)
+
+        if table_name in ['3-14']:
+            df = df.melt(
+                id_vars=id_vars, var_name=meta.get('melt_var'), value_name='FlowAmount'
+            )
+            act_template = meta['activity']
+            if isinstance(act_template, str):
+                act_template = act_template.replace('__year__', year)
+            name_unit = series_separate_name_and_units(
+                df['FlowName'], act_template, meta['unit']
+            )
+            df['FlowName'] = name_unit['names']
+            df['Unit'] = name_unit['units']
+            df['Year'] = year
+
+        elif table_name in ANNEX_ENERGY_TABLES:
+            df = df.melt(id_vars=id_vars, var_name='FlowName', value_name='FlowAmount')
+            df['Year'] = year
+            for index, row in df.iterrows():
+                col_name = row['FlowName']
+                acb = row['ActivityConsumedBy'].strip()
+                name_split = col_name.split(' (')
+                source = name_split[1].split('- ')[1]
+                # Append column name after dash to activity
+                activity = f'{acb.strip()} {name_split[1].split("- ")[1]}'
+
+                df.at[index, 'Description'] = meta['desc']  # type: ignore[index]
+                if name_split[0] == 'Emissions':
+                    df.at[index, 'FlowName'] = meta['emission']  # type: ignore[index]
+                    df.at[index, 'Unit'] = meta['emission_unit']  # type: ignore[index]
+                    df.at[index, 'Class'] = meta['emission_class']  # type: ignore[index]
+                    df.at[index, 'Compartment'] = meta['emission_compartment']  # type: ignore[index]
+                    df.at[index, 'ActivityProducedBy'] = activity  # type: ignore[index]
+                    df.at[index, 'ActivityConsumedBy'] = 'None'  # type: ignore[index]
+                else:  # "Consumption"
+                    df.at[index, 'FlowName'] = acb  # type: ignore[index]
+                    df.at[index, 'FlowType'] = 'TECHNOSPHERE_FLOW'  # type: ignore[index]
+                    df.at[index, 'Unit'] = meta['unit']  # type: ignore[index]
+                    df.at[index, 'Class'] = meta['class']  # type: ignore[index]
+                    df.at[index, 'ActivityProducedBy'] = 'None'  # type: ignore[index]
+                    df.at[index, 'ActivityConsumedBy'] = source  # type: ignore[index]
+
+        else:
+            # Standard years (one or more) as column headers
+            df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
+
+        # set suppressed values to 0 but mark as suppressed
+        # otherwise set non-numeric to nan
+        try:
+            flow_stripped = df['FlowAmount'].astype(str).str.strip()
+            # mark '+' as suppressed, everything else NaN
+            df['Suppressed'] = flow_stripped.where(flow_stripped == '+', np.nan)
+            df['FlowAmount'] = (
+                df['FlowAmount']
+                .astype(str)
+                .str.replace(',', '')
+                .infer_objects(copy=False)
+            )
+            df['FlowAmount'] = (
+                df['FlowAmount'].replace('+', '0').infer_objects(copy=False)
+            )
+            df['FlowAmount'] = pd.to_numeric(df['FlowAmount'], errors='coerce')
+            df = df.dropna(subset='FlowAmount')
+        except AttributeError:
+            # if no string in FlowAmount, then proceed
+            df = df.dropna(subset='FlowAmount')
+
+        if table_name not in ANNEX_ENERGY_TABLES:
+            if 'Unit' not in df:
+                df['Unit'] = meta.get('unit')
+            if 'FlowName' not in df:
+                df['FlowName'] = meta.get('flow')
+
+            df['Class'] = meta.get('class')
+            df['Description'] = meta.get('desc')
+            df['Compartment'] = meta.get('compartment')
+
+        if 'Year' not in df.columns:
+            df['Year'] = year
+        else:
+            df = df[df['Year'].astype(str).isin([year])]
+
+        # Add DQ scores
+        df['DataReliability'] = meta.get('data_reliability', 5)
+        df['DataCollection'] = 1
+        # Fill in the rest of the Flow by fields so they show "None" instead of nan
+        df['MeasureofSpread'] = 'None'
+        df['DistributionType'] = 'None'
+        df['LocationSystem'] = 'None'
+        df = assign_fips_location_system(df, str(year))
+
+        # Define special table lists from config
+        multi_chem_names: list[str] = config.get('multi_chem_names') or []
+        source_No_activity: list[str] = config.get('source_No_activity') or []
+        source_activity_1: list[str] = config.get('source_activity_1') or []
+        source_activity_1_fuel: list[str] = config.get('source_activity_1_fuel') or []
+        source_activity_2: list[str] = config.get('source_activity_2') or []
+        rows_as_flows: list[str] = config.get('rows_as_flows') or []
+        # TODO: UMD 3-11/3-12 (`ghg_fuel` in yaml) replace GHGI 3-8/3-9 with a different layout; validate parser vs staged CSV.
+
+        if table_name in multi_chem_names:
+            bool_apb = False
+            bool_LULUCF = False
+            apbe_value = ''
+            flow_name_list = [
+                'CO2',
+                'CH4',
+                'N2O',
+                'NF3',
+                'HFCs',
+                'PFCs',
+                'SF6',
+                'NF3',
+                'CH4 a',
+                'N2O b',
+                'CO',
+                'NOx',
+            ]
+            for index, row in df.iterrows():
+                apb_value = strip_char(row['ActivityProducedBy'])
+                if 'CH4' in apb_value:
+                    apb_value = 'CH4'
+                elif 'N2O' in apb_value and apb_value != 'N2O from Product Uses':
+                    apb_value = 'N2O'
+                elif 'CO2' in apb_value:
+                    apb_value = 'CO2'
+
+                if apb_value in flow_name_list:
+                    if bool_LULUCF:
+                        df = df.drop(index)
+                    else:
+                        apbe_value = apb_value
+                        df.loc[index, 'FlowName'] = apbe_value  # type: ignore[index]
+                        df.loc[index, 'ActivityProducedBy'] = 'All activities'  # type: ignore[index]
+                        bool_apb = True
+                elif apb_value.startswith('LULUCF'):
+                    df.loc[index, 'FlowName'] = 'CO2e'  # type: ignore[index]
+                    df.loc[index, 'ActivityProducedBy'] = strip_char(apb_value)  # type: ignore[index]
+                    bool_LULUCF = True
+                elif apb_value.startswith(('Total', 'Net')):
+                    df = df.drop(index)
+                else:
+                    apb_txt = cast(str, df.loc[index, 'ActivityProducedBy'])  # type: ignore[index]
+                    apb_txt = strip_char(apb_txt)
+                    df.loc[index, 'ActivityProducedBy'] = apb_txt  # type: ignore[index]
+                    if bool_apb:
+                        df.loc[index, 'FlowName'] = apbe_value  # type: ignore[index]
+
+        elif table_name in source_No_activity:
+            apbe_value = ''
+            flow_name_list = ['Industry', 'Transportation', 'U.S. Territories']
+            for index, row in df.iterrows():
+                unit = row['Unit']
+                if unit.strip() == 'MMT  CO2':
+                    df.loc[index, 'Unit'] = 'MMT CO2e'  # type: ignore[index]
+                if df.loc[index, 'Unit'] != 'MMT CO2e':  # type: ignore[index]
+                    df = df.drop(index)
+                else:
+                    df.loc[index, 'FlowName'] = meta.get('flow')  # type: ignore[index]
+                    # use .join and split to remove interior spaces
+                    apb_value = ' '.join(row['ActivityProducedBy'].split())
+                    apb_value = apb_value.replace('°', '')
+                    if apb_value in flow_name_list:
+                        # set header
+                        apbe_value = apb_value
+                        df.loc[index, 'ActivityProducedBy'] = (  # type: ignore[index]
+                            f'{apbe_value} All activities'
+                        )
+                    else:
+                        # apply header
+                        apb_txt = strip_char(apb_value)
+                        df.loc[index, 'ActivityProducedBy'] = f'{apbe_value} {apb_txt}'  # type: ignore[index]
+                    if 'Total' == apb_value or 'Total ' == apb_value:
+                        df = df.drop(index)
+
+        elif table_name in (source_activity_1 + source_activity_1_fuel):
+            apbe_value = ''
+            activity_subtotal_sector = [
+                'Electric Power',
+                'Industrial',
+                'Commercial',
+                'Residential',
+                'U.S. Territories',
+                'Transportation',
+                'Exploration',
+                'Production (Total)',
+                'Refining',
+                'Crude Oil Transportation',
+                'Cropland',
+                'Grassland',
+            ]
+            activity_subtotal_fuel = [
+                'Gasoline',
+                'Distillate Fuel Oil',
+                'Jet Fuel',
+                'Aviation Gasoline',
+                'Residual Fuel Oil',
+                'Natural Gas',
+                'LPG',
+                'Electricity',
+                'Fuel Type/Vehicle Type',
+                'Diesel On-Road',
+                'Alternative Fuel On-Road',
+                'Non-Road',
+                'Gasoline On-Road',
+                'Distillate Fuel Oil',
+            ]
+            if table_name in source_activity_1:
+                activity_subtotal = activity_subtotal_sector
+            else:
+                activity_subtotal = activity_subtotal_fuel
+            after_Total = False
+            for index, row in df.iterrows():
+                apb_value = strip_char(row['ActivityProducedBy'])
+                if apb_value in activity_subtotal or after_Total:
+                    # set the header
+                    apbe_value = apb_value
+                    df.loc[index, 'ActivityProducedBy'] = f'All activities {apbe_value}'  # type: ignore[index]
+                else:
+                    # apply the header
+                    apb_txt = apb_value
+                    if table_name == '3-10':
+                        # Separate Flows and activities for this table
+                        df.loc[index, 'ActivityProducedBy'] = apbe_value  # type: ignore[index]
+                        df.loc[index, 'FlowName'] = apb_txt  # type: ignore[index]
+                    else:
+                        df.loc[index, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'  # type: ignore[index]
+                if apb_value.startswith('Total'):
+                    df = df.drop(index)
+                    after_Total = True
+
+        elif table_name in source_activity_2:
+            bool_apb = False
+            apbe_value = ''
+            flow_name_list = [
+                'Explorationb',
+                'Production',
+                'Processing',
+                'Transmission and Storage',
+                'Distribution',
+                'Post-Meter',
+                'Crude Oil Transportation',
+                'Refining',
+                'Exploration',
+                'Mobile AC',
+                'Refrigerated Transport',
+                'Comfort Cooling for Trains and Buses',
+            ]
+            for index, row in df.iterrows():
+                apb_value = row['ActivityProducedBy']
+                start_activity = row['FlowName']
+                if apb_value.strip() in flow_name_list:
+                    apbe_value = apb_value
+                    if apbe_value == 'Explorationb':
+                        apbe_value = 'Exploration'
+                    df.loc[index, 'FlowName'] = start_activity  # type: ignore[index]
+                    df.loc[index, 'ActivityProducedBy'] = apbe_value  # type: ignore[index]
+                    bool_apb = True
+                else:
+                    if bool_apb:
+                        df.loc[index, 'FlowName'] = start_activity  # type: ignore[index]
+                        apb_txt = cast(str, df.loc[index, 'ActivityProducedBy'])  # type: ignore[index]
+                        apb_txt = strip_char(apb_txt)
+                        if apb_txt == 'Gathering and Boostingc':
+                            apb_txt = 'Gathering and Boosting'
+                        df.loc[index, 'ActivityProducedBy'] = (  # type: ignore[index]
+                            f'{apbe_value} - {apb_txt}'
+                        )
+                    else:
+                        apb_txt = cast(str, df.loc[index, 'ActivityProducedBy'])  # type: ignore[index]
+                        apb_txt = strip_char(apb_txt)
+                        df.loc[index, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'  # type: ignore[index]
+                if 'Total' == apb_value or 'Total ' == apb_value:
+                    df = df.drop(index)
+
+        elif table_name == 'A-69':
+            fuel_name = ''
+            A_79_unit_dict = {
+                'Natural Gas': 'trillion cubic feet',
+                'Electricity': 'million kilowatt-hours',
+            }
+            df.loc[:, 'FlowType'] = 'TECHNOSPHERE_FLOW'
+            for index, row in df.iterrows():
+                if row['ActivityConsumedBy'].startswith(' '):
+                    # indicates subcategory
+                    df.loc[index, 'ActivityConsumedBy'] = strip_char(  # type: ignore[index]
+                        cast(str, df.loc[index, 'ActivityConsumedBy'])  # type: ignore[index]
+                    )
+                    df.loc[index, 'FlowName'] = fuel_name  # type: ignore[index]
+                else:
+                    # fuel header
+                    fuel_name = cast(str, df.loc[index, 'ActivityConsumedBy'])  # type: ignore[index]
+                    fuel_name = strip_char(fuel_name.split('(')[0])
+                    df.loc[index, 'ActivityConsumedBy'] = 'All activities'  # type: ignore[index]
+                    df.loc[index, 'FlowName'] = fuel_name  # type: ignore[index]
+                if fuel_name in A_79_unit_dict.keys():
+                    df.loc[index, 'Unit'] = A_79_unit_dict[fuel_name]  # type: ignore[index]
+
+        else:
+            if table_name in ['4-31']:
+                # Assign activity as flow for technosphere flows (GHGI Table 4-55 → UMD 4-31).
+                df.loc[:, 'FlowType'] = 'TECHNOSPHERE_FLOW'
+                df.loc[:, 'FlowName'] = df.loc[:, 'ActivityProducedBy']
+
+            elif table_name in ['4-57', '4-62']:
+                df = df.iloc[::-1]  # reverse the order for assigning APB
+                for index, row in df.iterrows():
+                    apb_value = strip_char(row['ActivityProducedBy'])
+                    if apb_value.startswith('Total'):
+                        # set the header
+                        apbe_value = apb_value.replace('Total ', '')
+                        df = df.drop(index)
+                    else:
+                        if apbe_value == 'N2O':
+                            match = re.findall(r'\(.*?\)', apb_value)[0][1:-1]
+                            df.loc[index, 'ActivityProducedBy'] = match  # type: ignore[index]
+                            df.loc[index, 'FlowName'] = 'N2O'  # type: ignore[index]
+                        else:
+                            df.loc[index, 'ActivityProducedBy'] = apbe_value  # type: ignore[index]
+                            df.loc[index, 'FlowName'] = apb_value  # type: ignore[index]
+                df = df.iloc[::-1]  # revert the order
+
+            elif table_name in rows_as_flows:
+                # Table with flow names as Rows
+                df.loc[:, 'FlowName'] = df.loc[:, 'ActivityProducedBy'].apply(
+                    lambda x: strip_char(x)
+                )
+                df = df[~df['FlowName'].str.contains('Total')]
+                df.loc[:, 'ActivityProducedBy'] = meta.get('activity')
+
+            elif table_name in ['4-16', '4-60']:
+                # TODO: 4-16 not in UMD_GHGIA.yaml; confirm drop or map if this branch runs.
+                # Remove notes from activity names (GHGI 4-124 → UMD 4-60).
+                for index, row in df.iterrows():
+                    apb_value = strip_char(row['ActivityProducedBy'].split('(')[0])
+                    df.loc[index, 'ActivityProducedBy'] = apb_value  # type: ignore[index]
+
+        df['ActivityProducedBy'] = df['ActivityProducedBy'].str.strip()
+        df['ActivityConsumedBy'] = df['ActivityConsumedBy'].str.strip()
+        df['FlowName'] = df['FlowName'].str.strip()
+
+        # Update location for terriory-based activities
+        df.loc[
+            (df['ActivityProducedBy'].str.contains('U.S. Territor'))
+            | (df['ActivityConsumedBy'].str.contains('U.S. Territor')),
+            'Location',
+        ] = '99000'
+
+        df.drop(df.loc[df['ActivityProducedBy'] == 'Total'].index, inplace=True)
+        df.drop(df.loc[df['FlowName'] == 'Total'].index, inplace=True)
+
+        df = df.loc[:, ~df.columns.duplicated()]
+        # Remove commas from numbers again in case any were missed:
+        df['FlowAmount'] = df['FlowAmount'].replace(',', '', regex=True)
+        if len(df) == 0:
+            log.warning(f'Error processing {table_name}')
+        else:
+            cleaned_list.append(df)
 
     return cleaned_list
 
 
-__all__ = ['UMD_SOURCE_PREFIX', 'umd_source_name', 'umd_ghgia_load', 'umd_ghgia_parse']
+def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str, float]:
+    """Calculate energy ratio by fuel between GHGI and EIA MECS."""
+    # flow correspondence between GHGI and MECS
+    flow_corr = {
+        'Industrial Other Coal': 'Coal',
+        'Natural Gas': 'Natural Gas',
+        # 'Total Petroleum': (
+        #     'Petroleum', ['Residual Fuel Oil',
+        #                   'Distillate Fuel Oil',
+        #                   'Hydrocarbon Gas Liquids, excluding natural gasoline',
+        #                   ])
+    }
+    mecs_year = parameter_dict.get('year')
+
+    # Filter MECS for total national energy consumption for manufacturing sectors
+    mecs = load_fba_w_standardized_units(
+        datasource=cast(str, parameter_dict.get('energy_fba')),
+        year=cast(int, mecs_year),
+        flowclass='Energy',
+        download_FBA_if_missing=True,
+    )
+    mecs = mecs.loc[
+        (mecs['ActivityConsumedBy'] == '31-33')
+        & (mecs['Location'] == '00000')
+        & (mecs['Description'].isin(['Table 3.2', 'Table 2.2']))
+        & (mecs['Unit'] == 'MJ')
+    ].reset_index(drop=True)
+
+    # Load energy consumption data by fuel from GHGI
+    ghgi = load_fba_w_standardized_units(
+        datasource=cast(str, parameter_dict.get('ghg_fba')),
+        year=cast(int, parameter_dict.get('ghgi_year', mecs_year)),
+        flowclass='Energy',
+        download_FBA_if_missing=True,
+    )
+    ghgi = ghgi[ghgi['ActivityConsumedBy'] == 'Industrial'].reset_index(drop=True)
+
+    pct_dict = {}
+    for ghgi_flow, v in flow_corr.items():
+        if type(v) is tuple:
+            label = v[0]
+            mecs_flows = v[1]
+        else:
+            label = v
+            mecs_flows = [v]
+        # Calculate percent energy contribution from MECS based on v
+        mecs_energy = sum(
+            mecs.loc[mecs['FlowName'].isin(mecs_flows), 'FlowAmount'].values
+        )
+        ghgi_energy = ghgi.loc[ghgi['FlowName'] == ghgi_flow, 'FlowAmount'].values[0]
+        pct = np.minimum(mecs_energy / ghgi_energy, 1)
+        pct_dict[label] = pct
+
+    # based on 2018 datasets
+    # {'Coal': np.float64(0.7599),
+    #  'Natural Gas': np.float64(0.6822)}
+
+    # based on 2018 MECS / 2023 GHGI
+    # {'Coal': np.float64(1.0),
+    #  'Natural Gas': np.float64(0.6540)}
+    return pct_dict
+
+
+def allocate_industrial_combustion(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
+    """
+    Split industrial combustion emissions into two buckets to be further allocated.
+
+    clean_fba_before_activity_sets. Calculate the percentage of fuel consumption captured in
+    EIA MECS relative to GHGI/UMD GHGIA. Create new activities to distinguish those
+    which use EIA MECS as allocation source and those that use alternate source.
+    """
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None:
+        raise ValueError('clean_parameter is required in config')
+    pct_dict = get_manufacturing_energy_ratios(clean_parameter)
+
+    # TODO: stationary CH4/N2O in UMD come from 3-11/3-12 (GHGI 3-8/3-9 analogues); industrial split
+    # still keys off Annex A-14-style consumption where available (UMD partial: 3-4 per GHGI A-5 mapping).
+    # activities reflect flows in A_14 and UMD 3-11 / 3-12
+    activities_to_split = {
+        'Industrial Other Coal Industrial': 'Coal',
+        'Natural Gas Industrial': 'Natural Gas',
+        'Coal Industrial': 'Coal',
+        # 'Total Petroleum Industrial': 'Petroleum',
+        # 'Fuel Oil Industrial': 'Petroleum',
+    }
+
+    for activity, fuel in activities_to_split.items():
+        df_subset = fba.loc[fba['ActivityProducedBy'] == activity].reset_index(
+            drop=True
+        )
+        if len(df_subset) == 0:
+            continue
+        df_subset['FlowAmount'] = df_subset['FlowAmount'] * pct_dict[fuel]
+        df_subset['ActivityProducedBy'] = f'{activity} - Manufacturing'
+        fba.loc[fba['ActivityProducedBy'] == activity, 'FlowAmount'] = fba[
+            'FlowAmount'
+        ] * (1 - pct_dict[fuel])
+        fba = FlowByActivity(pd.concat([fba, df_subset], ignore_index=True))
+
+    return fba
+
+
+def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """Speciates HFCs and PFCs using shares from ODS substitute table (GHGI 4-122 → UMD `UMD_GHGIA_T_4_59`).
+
+    `clean_parameter['flow_fba']` should name that speciation FBA (not GHGI Table 4-125).
+    clean_fba_before_mapping_df_fxn
+    """
+
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+    original_sum = fba.FlowAmount.sum()
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None:
+        raise ValueError('clean_parameter is required in config')
+    tbl = clean_parameter['flow_fba']  # e.g. UMD_GHGIA_T_4_59
+    splits = load_fba_w_standardized_units(
+        datasource=tbl, year=fba['Year'][0], download_FBA_if_missing=True
+    )
+    splits['pct'] = splits['FlowAmount'] / splits['FlowAmount'].sum()
+    splits = splits[['FlowName', 'pct']]
+
+    speciated_df = fba.apply(
+        lambda x: [p * x['FlowAmount'] for p in splits['pct']],
+        axis=1,
+        result_type='expand',
+    )
+    speciated_df.columns = splits['FlowName']
+    combined_df = pd.concat([fba, speciated_df], axis=1)
+    melted_df = (
+        combined_df.melt(
+            id_vars=[c for c in flow_by_activity_fields.keys() if c in combined_df],
+            var_name='Flow',
+        )
+        .drop(columns=['FlowName', 'FlowAmount'])
+        .rename(columns={'Flow': 'FlowName', 'value': 'FlowAmount'})
+    )
+    new_sum = melted_df.FlowAmount.sum()
+    if round(new_sum, 6) != round(original_sum, 6):
+        log.warning('Error: totals do not match when splitting HFCs')
+    new_fba = FlowByActivity(melted_df)
+    for attr in attributes_to_save:
+        setattr(new_fba, attr, attributes_to_save[attr])
+
+    return new_fba
+
+
+def clean_UMD_GHGIA_T_4_60(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """Subtract out refrigeration transport emissions from the
+    Refrigeration/Air Conditioning activity (GHGI 4-124 → UMD 4-60)."""
+
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+
+    # TODO: GHGI Table A-90 has no UMD equivalent—verify subtraction (EPA FBA, derived values, or omit).
+    tbl = load_fba_w_standardized_units(
+        datasource='EPA_GHGI_T_A_90', year=fba['Year'][0], download_FBA_if_missing=True
+    )
+
+    activities = [
+        "Comfort Cooling for Trains and Buses",
+        "Mobile AC",
+        "Refrigerated Transport",
+    ]
+
+    total = tbl.loc[tbl["ActivityProducedBy"].isin(activities), "FlowAmount"].sum()
+
+    fba.loc[
+        fba["ActivityProducedBy"] == "Refrigeration/Air Conditioning", "FlowAmount"
+    ] -= total
+
+    for attr in attributes_to_save:
+        setattr(fba, attr, attributes_to_save[attr])
+
+    fba2 = split_HFCs_by_type(fba)
+
+    return fba2
