@@ -18,8 +18,7 @@ PLOTS_DIR = OUTPUT_DIR / "plots"
 ## Years for analysis
 
 # BEA detail IO base year — the inflation `original_year` for every script.
-ORIGINAL_YEAR: int = 2019  # get_usa_config().usa_base_io_data_year
-# we don't have the GHG data for before 2019 at this time
+ORIGINAL_YEAR: int = 2017  # get_usa_config().usa_base_io_data_year
 
 # Latest year
 LATEST_TARGET_YEAR: int = 2024
@@ -35,5 +34,6 @@ MODEL_YAMLS: dict[str, str] = {
     "model1": "reconciling_data_years/model1.yaml",
     "model2": "reconciling_data_years/model2.yaml",
     "model3": "reconciling_data_years/model3.yaml",
+    "model4": "reconciling_data_years/model4.yaml",
 }
 MODELS: list[str] = list(MODEL_YAMLS.keys())
