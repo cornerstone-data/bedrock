@@ -67,9 +67,9 @@ def test_raises_when_no_data_sheets(
     monkeypatch.setattr(writer_module, '_build_matrix_registry', _empty_registry)
     with pytest.raises(RuntimeError, match='no data sheets'):
         writer_module.write_model_to_xlsx(out, config_name='dummy')
-    assert not os.path.exists(
-        out
-    ), 'workbook should not be written when no data sheets materialize'
+    assert not os.path.exists(out), (
+        'workbook should not be written when no data sheets materialize'
+    )
 
 
 def test_writes_only_materialized_sheets(
@@ -180,7 +180,9 @@ def test_assemble_extended_U_block_placement() -> None:
         extended.loc[va_codes, industries], va, check_names=False
     )
     va_fd_corner = extended.loc[va_codes, fd_codes]
-    assert (va_fd_corner == 0).all().all(), f'VA x FD corner must be zero; got {va_fd_corner.values.tolist()}'
+    assert (va_fd_corner == 0).all().all(), (
+        f'VA x FD corner must be zero; got {va_fd_corner.values.tolist()}'
+    )
 
     truncated = writer_module._assemble_extended_U(
         intermediate=intermediate, fd=None, va=va
