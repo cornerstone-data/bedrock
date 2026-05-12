@@ -193,71 +193,6 @@ def _plot_ef_trends(
     logger.info("Saved plot: %s", plot_path)
 
 
-def _top_dn_divergent_sectors(
-    all_results: dict[str, dict[int, dict[str, pd.Series]]],
-    top_n: int = 5,
-) -> list[str]:
-    """Rank sectors by mean abs(n - d) across all models and years."""
-    scores: dict[str, float] = {}
-    for sector in sectors:
-        total, count = 0.0, 0
-        for year_results in all_results.values():
-            for ef_dict in year_results.values():
-                total += abs(ef_dict["n"][sector] - ef_dict["d"][sector])
-                count += 1
-        scores[sector] = total / count if count else 0.0
-
-    top = sorted(scores, key=lambda s: scores[s], reverse=True)[:top_n]
-    logger.info("Top %d sectors by mean |n - d|:", top_n)
-    for s in top:
-        logger.info("  %s  %s  mean_diff=%.4f", s, sector_names.get(s, s), scores[s])
-    return top
-
-
-def _plot_dn_comparison(
-    all_results: dict[str, dict[int, dict[str, pd.Series]]],
-    plot_sectors: list[str],
-) -> None:
-    """For each model, plot d (solid) and n (dashed) for the given sectors."""
-    models = list(all_results)
-    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-    fig, axes = plt.subplots(1, len(models), figsize=(7 * len(models), 6), sharey=True)
-    if len(models) == 1:
-        axes = [axes]
-    fig.suptitle("d vs n — sectors with largest d/n divergence")
-
-    for ax, model in zip(axes, models):
-        year_results = all_results[model]
-        years = sorted(year_results)
-        for i, sector in enumerate(plot_sectors):
-            color = colors[i % len(colors)]
-            name = sector_names.get(sector, sector)[:15]
-            d_vals = [year_results[yr]["d"][sector] for yr in years]
-            n_vals = [year_results[yr]["n"][sector] for yr in years]
-            ax.plot(
-                years, d_vals, marker="o", color=color, linestyle="-", label=f"{name} d"
-            )
-            ax.plot(
-                years,
-                n_vals,
-                marker="s",
-                color=color,
-                linestyle="--",
-                label=f"{name} n",
-            )
-        ax.set_title(model)
-        ax.set_xlabel("Year")
-        ax.set_ylabel(f"EF (kg CO₂e / $ {LATEST_TARGET_YEAR})")
-        if ax is axes[0]:
-            ax.legend(fontsize=7, loc="best")
-
-    fig.tight_layout()
-    plot_path = PLOTS_DIR / "trends_dn_comparison.png"
-    fig.savefig(plot_path, dpi=150)
-    plt.close(fig)
-    logger.info("Saved plot: %s", plot_path)
-
-
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -331,9 +266,6 @@ def main() -> None:
         top = _top_fluctuating_sectors(all_results)
         _plot_ef_trends("d", "d (direct intensity)", all_results, top)
         _plot_ef_trends("n", "n (total intensity)", all_results, top)
-
-        dn_divergent = _top_dn_divergent_sectors(all_results)
-        _plot_dn_comparison(all_results, dn_divergent)
 
         records = []
         for model, year_results in all_results.items():
