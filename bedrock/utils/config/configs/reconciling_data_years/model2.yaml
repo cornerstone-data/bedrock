@@ -1,3 +1,4 @@
 ## Config for model 2 in Reconciling Data Years study
 
-use_E_data_year_for_x_in_B: true
+apply_inflation_to_V: false
+

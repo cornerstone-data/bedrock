@@ -1,3 +1,4 @@
 ## Config for model 1 in Reconciling Data Years study
 
-usa_ghg_data_year: 2023
+usa_ghg_data_year: 2017
+apply_inflation_to_V: false

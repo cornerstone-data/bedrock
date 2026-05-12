@@ -1,0 +1,4 @@
+## Config for model 4 in Reconciling Data Years study
+
+apply_inflation_to_V: true
+scale_a_matrix_with_commodity_price_index: true
