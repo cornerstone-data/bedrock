@@ -1,6 +1,5 @@
-# University of Maryland CGS GHGIA (one FBA parquet per table). Raw CSVs stored on GCS at
-# ``gs://cornerstone-default/extract/input-data/UMD_GHGIA/2024/`` and locally under
-# ``bedrock/extract/input_data/UMD_GHGIA/2024/``
+# University of Maryland CGS GHGIA (one FBA parquet per table). Raw CSVs on GCS at
+# ``gs://cornerstone-default/extract/input-data/UMD_GHGIA/2024/…``
 author: 'University of Maryland'
 source_name: 'Greenhouse Gas Inventory and Analysis'
 source_url: https://ghgi.cgs.umd.edu/data.html
@@ -102,13 +101,13 @@ Tables:
       melt_var: FlowName
       layout: non_energy_melt
       two_row_header: true
-    "3-26":
-      class: Chemicals
-      unit: MMT CO2e
-      compartment: air
-      flow: CO2
-      desc: "Table 3-26: CO2 Emissions from Petroleum Systems (MMT)"
-      data_reliability: 2
+#    "3-26":  # TODO: not loading correctly
+#      class: Chemicals
+#      unit: MMT CO2e
+#      compartment: air
+#      flow: CO2
+#      desc: "Table 3-26: CO2 Emissions from Petroleum Systems (MMT)"
+#      data_reliability: 2
     "3-27":
       class: Chemicals
       unit: MMT CO2e
@@ -116,27 +115,27 @@ Tables:
       flow: N2O
       desc: "Table 3-27: N2O Emissions from Petroleum Systems (MMT CO2 Eq.)"
       data_reliability: 4
-    "3-28":
-      class: Chemicals
-      unit: MMT CO2e
-      compartment: air
-      flow: CH4
-      desc: "Table 3-28: CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"
-      data_reliability: 4
-    "3-29":
-      class: Chemicals
-      unit: MMT CO2e
-      compartment: air
-      flow: CO2
-      desc: "Table 3-29: CO2 Emissions from Natural Gas Systems (MMT)"
-      data_reliability: 4
-    "3-30":
-      class: Chemicals
-      unit: MMT CO2e
-      compartment: air
-      flow: N2O
-      desc: "Table 3-30: N2O Emissions from Natural Gas Systems (MMT CO2 Eq.)"
-      data_reliability: 4
+#    "3-28":  # TODO: not loading correctly
+#      class: Chemicals
+#      unit: MMT CO2e
+#      compartment: air
+#      flow: CH4
+#      desc: "Table 3-28: CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"
+#      data_reliability: 4
+#    "3-29":
+#      class: Chemicals
+#      unit: MMT CO2e
+#      compartment: air
+#      flow: CO2
+#      desc: "Table 3-29: CO2 Emissions from Natural Gas Systems (MMT)"
+#      data_reliability: 4
+#    "3-30":
+#      class: Chemicals
+#      unit: MMT CO2e
+#      compartment: air
+#      flow: N2O
+#      desc: "Table 3-30: N2O Emissions from Natural Gas Systems (MMT CO2 Eq.)"
+#      data_reliability: 4
 
   "Chapter 4 - IPPU":
     "4-31":
