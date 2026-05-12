@@ -46,6 +46,7 @@ def _table_id_from_source_name(source_name: str) -> str:
         )
     return str(source_name)[len(UMD_SOURCE_PREFIX) :].replace('_', '-')
 
+
 # Folder under extract/input-data/UMD_GHGIA/... on GCS and under extract/input_data (inventory years are columns).
 UMD_GHGIA_INPUT_RELEASE_DIR_YEAR = '2024'
 
@@ -69,9 +70,7 @@ def _drop_trailing_unnamed_cols(df: pd.DataFrame) -> pd.DataFrame:
     if df.shape[1] == 0:
         return df
     first = df.columns[0]
-    to_drop = [
-        c for c in df.columns if 'Unnamed' in str(c) and not c == first
-    ]
+    to_drop = [c for c in df.columns if 'Unnamed' in str(c) and not c == first]
     return df.drop(columns=to_drop, errors='ignore')
 
 
@@ -123,7 +122,9 @@ def _chapter_tables(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return out
 
 
-def _layout_hint_from_yaml_lists(table_id: str, config: dict[str, Any]) -> Optional[str]:
+def _layout_hint_from_yaml_lists(
+    table_id: str, config: dict[str, Any]
+) -> Optional[str]:
     """Map ``fuel_sector`` / ``fuel_vehicle`` / ``ghg_fuel`` / ``no_nesting`` lists → layout name."""
 
     tid = str(table_id)
@@ -167,9 +168,11 @@ def _iter_umd_csv_paths(source: str) -> list[tuple[str, str]]:
     Matches EPA GHGI behavior: ``local_dir_for_gcs_sub_bucket`` + ``load_from_gcs``
     (download only when the path does not exist locally).
     """
-    sub_bucket = gcs_extract_input_path(
-        source, UMD_GHGIA_INPUT_RELEASE_DIR_YEAR
-    ).strip('/').replace('\\', '/')
+    sub_bucket = (
+        gcs_extract_input_path(source, UMD_GHGIA_INPUT_RELEASE_DIR_YEAR)
+        .strip('/')
+        .replace('\\', '/')
+    )
     local_root = local_dir_for_gcs_sub_bucket(sub_bucket)
 
     pairs = _local_umd_csv_pairs(local_root)
@@ -393,9 +396,11 @@ def umd_ghgia_load(**kwargs: Any) -> List[pd.DataFrame]:
     config = kwargs['config']
     chapter_tables = _chapter_tables(config)
 
-    sub_bucket = gcs_extract_input_path(
-        source, UMD_GHGIA_INPUT_RELEASE_DIR_YEAR
-    ).strip('/').replace('\\', '/')
+    sub_bucket = (
+        gcs_extract_input_path(source, UMD_GHGIA_INPUT_RELEASE_DIR_YEAR)
+        .strip('/')
+        .replace('\\', '/')
+    )
     local_base = local_dir_for_gcs_sub_bucket(sub_bucket)
 
     pairs = _iter_umd_csv_paths(source)
@@ -508,7 +513,9 @@ def _normalize_nested_parent_fuel_label(label: str) -> str:
 
 def _apply_nested_fuel_sector_labels(df: pd.DataFrame) -> pd.DataFrame:
     """Expand hierarchical ``Fuel Type/Sector`` rows into ``Coal Residential``-style activities."""
-    sector_by_upper = {' '.join(s.split()).upper(): s for s in FUEL_TYPE_SECTOR_CHILD_LABELS}
+    sector_by_upper = {
+        ' '.join(s.split()).upper(): s for s in FUEL_TYPE_SECTOR_CHILD_LABELS
+    }
 
     drop_idx: list[Any] = []
     current_fuel_display = ''
@@ -542,9 +549,7 @@ def _apply_nested_fuel_sector_labels(df: pd.DataFrame) -> pd.DataFrame:
             if not current_fuel_display:
                 drop_idx.append(idx)
                 continue
-            df.at[idx, 'ActivityProducedBy'] = (
-                f'{current_fuel_display} {sector_hit}'
-            )
+            df.at[idx, 'ActivityProducedBy'] = f'{current_fuel_display} {sector_hit}'
             continue
 
         current_fuel_display = _title_case_fuel_activity(
@@ -629,7 +634,9 @@ def _parse_fuel_sector_like(
         'Non-Road',
         'Gasoline On-Road',
     ]
-    activity_subtotal = activity_subtotal_sector if mode == 'sector' else activity_subtotal_fuel
+    activity_subtotal = (
+        activity_subtotal_sector if mode == 'sector' else activity_subtotal_fuel
+    )
 
     apbe_value = ''
     after_total = False
