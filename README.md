@@ -46,6 +46,8 @@ Snapshots are stored in GCS, one folder per git SHA, and [`bedrock/utils/snapsho
 When methodology changes, snapshots are regenerated and uploaded under the new SHA, and the pin is bumped.
 Old snapshots are retained, so every prior release remains independently reproducible.
 
+See [`bedrock/utils/snapshots/README.md`](bedrock/utils/snapshots/README.md) for the team-wide workflow for cutting a new snapshot, bumping the pin, and tagging a release (`v0.X.Y`).
+
 ### Diagnostics of model results compared to USEEIO and CEDA-US baselines
 
 A work-in-progress diagnostics report comparing `bedrock` outputs against USEEIO and CEDA-US can be found in [here](https://github.com/cornerstone-data/papers/blob/internal-review-diagnostics-report/diagnostics_report/bedrock_diagnostics.md) in Cornerstone's papers repository.
