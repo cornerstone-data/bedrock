@@ -1,6 +1,6 @@
-# University of Maryland CGS GHGIA Chapter 3 Energy (combined FBA). Staged CSVs live under
-# .../UMD_GHGIA/2024/ on GCS (hardcoded); columns carry inventory years (cf. EPA GHGI).
-# https://ghgi.cgs.umd.edu/data.html
+# University of Maryland GHGIA (generates one FBA per source table).
+# Data only available through Cornerstone's GCS
+# .../UMD_GHGIA/2024/
 author: 'University of Maryland'
 source_name: 'Greenhouse Gas Inventory and Analysis'
 source_url: https://ghgi.cgs.umd.edu/data.html
