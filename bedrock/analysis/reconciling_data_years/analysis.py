@@ -5,11 +5,16 @@ Build d, L and n components of model1, model2 and model3
 Avoid generating model diagnostics instead compute components right here in this script
 
 The script inherits the cache management of the model config from the A matrix time series
-analysis script to handle multiple years of multiple models
+analysis script to handle multiple years of multiple models.
+And it uses the E time series generation and storage from the B time series analysis
+so a single set of E's is used for the models. Not this means
+derive_cornerstone_B_via_vnorm is not used to get B because we want to be able to
+derive it with our own E
 
 The script uses sectors from SIGNIFICANT_SECTORS modified in constants.
 The script identifies those among this list with the max range of efs over those years
 to display in the plots
+
 
 For d and n there are plots for each model with lines for each sectors over the time period.
 
@@ -45,12 +50,21 @@ from bedrock.analysis.reconciling_data_years.constants import (
     sector_names,
     sectors,
 )
+from bedrock.analysis.time_series_B_matrix.derive_B_time_series import (
+    derive_E_time_series,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq,
-    derive_cornerstone_B_via_vnorm,
+    derive_cornerstone_Vnorm_scrap_corrected,
+    derive_cornerstone_x_after_redefinition,
 )
 from bedrock.utils.config.usa_config import USAConfig
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_cornerstone_industry_price_ratio,
+)
 from bedrock.utils.math.formulas import (
+    compute_B_ind_matrix,
+    compute_B_matrix,
     compute_d,
     compute_L_matrix,
     compute_M_matrix,
@@ -87,6 +101,31 @@ def _set_config(model: str, year: int) -> None:
     # `_usa_config` here would otherwise drop them back to field defaults.
     usa_config._usa_config = USAConfig.model_construct(**data)
     os.environ[usa_config.USA_CONFIG_ENV_VAR] = MODEL_YAMLS[model]
+
+
+def store_E_matrices() -> dict[int, pd.DataFrame]:
+    """Load FBS parquets from fbs_cache, derive E matrices, save to e_cache."""
+    fbs_cache = OUTPUT_DIR / "fbs_cache"
+    e_cache = OUTPUT_DIR / "e_cache"
+    e_cache.mkdir(parents=True, exist_ok=True)
+
+    fbs_by_year: dict[int, pd.DataFrame] = {}
+    for year in TARGET_YEARS:
+        matches = list(fbs_cache.glob(f"GHG_national_Cornerstone_{year}_*.parquet"))
+        if not matches:
+            logger.warning("No FBS parquet found for %d in %s", year, fbs_cache)
+            continue
+        logger.info("Loading FBS for %d: %s", year, matches[0].name)
+        fbs_by_year[year] = pd.read_parquet(matches[0])
+
+    E_by_year = derive_E_time_series(fbs_by_year)
+
+    for year, E in E_by_year.items():
+        out_path = e_cache / f"E_{year}.parquet"
+        E.to_parquet(out_path)
+        logger.info("Saved E matrix for %d to %s", year, out_path)
+
+    return E_by_year
 
 
 def deflate_ef(
@@ -160,6 +199,7 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    E_by_year = store_E_matrices()
     all_results: dict[str, dict[int, dict[str, pd.Series]]] = {}
 
     for model in MODELS:
@@ -171,13 +211,32 @@ def main() -> None:
                 _reset_config()
                 _clear_config_dependent_caches()
                 _set_config(model, year)
+
                 # Get model config vars to understand settings
-                config_vars = usa_config._usa_config.model_dump()
+                cfg = usa_config._usa_config
+                config_vars = cfg.model_dump()
                 config_file = OUTPUT_DIR / f"config_vars_{model}_{year}.yaml"
                 with open(config_file, "w") as f:
                     yaml.dump(config_vars, f, default_flow_style=False)
 
-                B = derive_cornerstone_B_via_vnorm()
+                x = derive_cornerstone_x_after_redefinition()
+                ## Mimick derive_cornerstone_B_via_vnorm
+                if cfg.use_useeio_B:
+                    ratio = get_cornerstone_industry_price_ratio(
+                        original_year=cfg.usa_detail_original_year,
+                        target_year=cfg.usa_ghg_data_year,
+                    )
+                    # ratio is PI_target / PI_original; divide nominal target-year dollars
+                    # to convert x into original-year dollars for USEEIO-style B.
+                    ratio_aligned = ratio.reindex(x.index)
+                    ratio_aligned = ratio_aligned.where(ratio_aligned.notna(), 1.0)
+                    x = x / ratio_aligned
+                Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
+                    apply_inflation=cfg.apply_inflation_to_V,
+                    target_year=year,
+                )
+                B_ind = compute_B_ind_matrix(E=E_by_year[year], x=x)
+                B = compute_B_matrix(B_ind=B_ind, V_norm=Vnorm)
                 d = compute_d(B=B)
                 Aqset = derive_cornerstone_Aq()
                 A = Aqset.Adom + Aqset.Aimp
