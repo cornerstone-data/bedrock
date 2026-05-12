@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
     '--config_name',
     required=True,
     type=str,
-    default='v8_ceda_2025_usa',
+    default='2025_usa_cornerstone_full_model',
 )
 @click.option('--git_branch', default=None, type=str, help='Override git branch name')
 @click.option('--pr_url', default=None, type=str, help='Override PR URL')
