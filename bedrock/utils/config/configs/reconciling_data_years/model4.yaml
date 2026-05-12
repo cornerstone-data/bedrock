@@ -1,4 +1,5 @@
 ## Config for model 4 in Reconciling Data Years study
+# For each year, deflate the A matrix to current year dollars and use annual GHG data with annual output to create the B matrix in current year dollars.
 
 apply_inflation_to_V: true
 scale_a_matrix_with_commodity_price_index: true
