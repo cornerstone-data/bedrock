@@ -33,7 +33,7 @@ class USAConfig(BaseModel):
     #####
     # Model base settings
     #####
-    model_base_year: ta.Literal[2017, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
+    model_base_year: ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
     bea_io_level: ta.Literal['detail', 'summary'] = 'detail'
     bea_io_scheme: ta.Literal[2017, 2022] = 2017  # documentation purposes
     price_type: ta.Literal['producer', 'purchaser'] = 'producer'
