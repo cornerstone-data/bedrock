@@ -98,7 +98,13 @@ def _set_config(model: str, year: int) -> None:
     # For model 1 the values should not change year to year
     if model != "model1":
         data["usa_ghg_data_year"] = year
+
+    # Model base year for models 4 should change but not for 1, 2 or 3
+    if model == "model4":
         data["model_base_year"] = year
+    else:
+        data["model_base_year"] = 2017
+
     # The package `__init__.py` flips these on the initial config; replacing
     # `_usa_config` here would otherwise drop them back to field defaults.
     usa_config._usa_config = USAConfig.model_construct(**data)
@@ -343,14 +349,20 @@ def main() -> None:
                 n_current_USD = compute_n(M=compute_M_matrix(B=B, L=L))
                 # Put efs in constant dollar year using most recent dollar year
                 d = deflate_ef(
-                    d_current_USD, original_year=year, target_year=LATEST_TARGET_YEAR
+                    d_current_USD,
+                    original_year=cfg.model_base_year,
+                    target_year=LATEST_TARGET_YEAR,
                 )
                 n = deflate_ef(
-                    n_current_USD, original_year=year, target_year=LATEST_TARGET_YEAR
+                    n_current_USD,
+                    original_year=cfg.model_base_year,
+                    target_year=LATEST_TARGET_YEAR,
                 )
                 # Deflate q as well for presentation
                 q = inflate_cornerstone_q_or_y_with_commodity_pi(
-                    q_current_USD, original_year=year, target_year=LATEST_TARGET_YEAR
+                    q_current_USD,
+                    original_year=cfg.model_base_year,
+                    target_year=LATEST_TARGET_YEAR,
                 )
                 year_results[year] = {
                     "d": d,
