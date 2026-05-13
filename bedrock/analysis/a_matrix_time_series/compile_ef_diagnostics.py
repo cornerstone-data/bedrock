@@ -39,6 +39,9 @@ from bedrock.analysis.a_matrix_time_series.constants import (
     RESULTS_DIR,
 )
 from bedrock.utils.io.gcp import read_sheet_tab, update_sheet_tab
+from bedrock.utils.validation.diagnostics_helpers import (
+    inflation_adjust_ef_denom_to_new_base_year,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +51,11 @@ EF_SCATTER_COORDS_PATH = RESULTS_DIR / "ef_scatter_coords.parquet"
 
 # A row counts as "significantly different" when |perc_diff| exceeds this.
 SIGNIFICANT_PCT_THRESHOLD = 0.10
+
+# Time-series cells differ in `model_base_year`, so each cell's `D_new` /
+# `N_new` lives in its own dollar year. Deflate them to this common reference
+# so values are commensurable across years.
+REFERENCE_DOLLAR_YEAR = 2023
 
 # Tab names produced by `calculate_ef_diagnostics.py` per run. Both
 # baseline modes (CEDA-only and USEEIO-checked) emit identical column
@@ -93,6 +101,33 @@ def _read_pair(sheet_id: str) -> pd.DataFrame:
     return n.join(d.drop(columns=drop_from_d), how="outer")
 
 
+def _deflate_new_to_ref(
+    joined: pd.DataFrame, source_year: int, ref_year: int
+) -> pd.DataFrame:
+    """Add ``D_new_ref`` / ``N_new_ref`` columns deflated to ``ref_year`` dollars.
+
+    Each diagnostics cell is run with ``model_base_year=source_year``, so
+    ``D_new`` / ``N_new`` are denominated in ``source_year`` dollars. Time-series
+    plots over years require a common dollar reference; this multiplies by the
+    same per-sector price ratio used for baseline alignment.
+    """
+    if source_year == ref_year:
+        if "D_new" in joined.columns:
+            joined["D_new_ref"] = joined["D_new"]
+        if "N_new" in joined.columns:
+            joined["N_new_ref"] = joined["N_new"]
+        return joined
+    for new_col, ref_col in (("D_new", "D_new_ref"), ("N_new", "N_new_ref")):
+        if new_col not in joined.columns:
+            continue
+        joined[ref_col] = inflation_adjust_ef_denom_to_new_base_year(
+            old_ef_vector=joined[new_col].astype(float),
+            new_base_year=ref_year,
+            old_base_year=source_year,
+        )
+    return joined
+
+
 def _summarize(joined: pd.DataFrame, approach: str) -> pd.Series:
     n_perc = joined["N_perc_diff"].abs()
     d_perc = joined["D_perc_diff"].abs()
@@ -130,8 +165,10 @@ def _scatter_coords(joined: pd.DataFrame, approach: str, baseline: str) -> pd.Da
         rows.append(chunk)
     if not rows:
         return pd.DataFrame()
-    return pd.concat(rows, ignore_index=True)[
-        ["approach", "baseline", "ef_kind", "sector", "x_baseline", "y_approach"]
+    combined = pd.concat(rows, ignore_index=True)
+    return combined.loc[
+        :,
+        ["approach", "baseline", "ef_kind", "sector", "x_baseline", "y_approach"],
     ]
 
 
@@ -156,6 +193,14 @@ def main() -> None:
     if missing:
         raise ValueError(f"{EF_RUN_INDEX_PATH} missing columns: {sorted(missing)}")
 
+    # `scenario` and `year` are optional. Step 6 runs lack them; Step 7
+    # time-series dispatch populates both. Default to empty so the same
+    # script handles both schemas.
+    if "scenario" not in index_df.columns:
+        index_df["scenario"] = ""
+    if "year" not in index_df.columns:
+        index_df["year"] = ""
+
     summaries_by_baseline: dict[str, list[pd.Series]] = {}
     scatter_chunks: list[pd.DataFrame] = []
     per_pair_tables: dict[str, pd.DataFrame] = {}
@@ -164,19 +209,45 @@ def main() -> None:
         approach = str(row["approach"])
         baseline = str(row["baseline"])
         sheet_id = str(row["sheet_id"])
-        logger.info("Pulling tabs for approach=%s baseline=%s", approach, baseline)
+        scenario = str(row["scenario"]) if pd.notna(row["scenario"]) else ""
+        year = str(row["year"]) if pd.notna(row["year"]) else ""
+        cell_label = ", ".join(
+            f"{k}={v}"
+            for k, v in (
+                ("scenario", scenario),
+                ("approach", approach),
+                ("year", year),
+                ("baseline", baseline),
+            )
+            if v
+        )
+        logger.info("Pulling tabs for %s", cell_label)
         joined = _read_pair(sheet_id)
         if joined.empty:
-            logger.warning(
-                "approach=%s baseline=%s returned empty data; skipping",
-                approach,
-                baseline,
-            )
+            logger.warning("%s returned empty data; skipping", cell_label)
             continue
-        per_pair_tables[f"{approach}__vs_{baseline}"] = joined.reset_index()
-        summaries_by_baseline.setdefault(baseline, []).append(
-            _summarize(joined, approach)
+        if year:
+            joined = _deflate_new_to_ref(
+                joined, source_year=int(float(year)), ref_year=REFERENCE_DOLLAR_YEAR
+            )
+        # Build a deterministic 31-char-bounded tab name including any
+        # populated scenario/year prefix.
+        prefix = "_".join(p for p in (scenario, year) if p)
+        pair_key = (
+            f"{prefix}_{approach}__vs_{baseline}"
+            if prefix
+            else f"{approach}__vs_{baseline}"
         )
+        per_pair_tables[pair_key[:31]] = joined.reset_index()
+
+        summary_row = _summarize(joined, approach)
+        # Stamp the optional dimensions onto the row so the summary tab is
+        # navigable in time-series mode.
+        if scenario:
+            summary_row["scenario"] = scenario
+        if year:
+            summary_row["year"] = year
+        summaries_by_baseline.setdefault(baseline, []).append(summary_row)
         scatter_chunks.append(_scatter_coords(joined, approach, baseline))
 
     summaries: dict[str, pd.DataFrame] = {

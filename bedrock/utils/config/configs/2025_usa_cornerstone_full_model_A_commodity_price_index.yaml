@@ -1,0 +1,11 @@
+# Full v0.2 model bundled with V-norm-derived commodity-price-index
+# A-matrix scaling. A is inflated 2017 → target year using a V-norm-
+# weighted commodity price ratio; V is itself inflated to model_base_year
+# via apply_inflation_to_V.
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+new_ghg_method: True
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+scale_a_matrix_with_commodity_price_index: True
+apply_inflation_to_V: True
