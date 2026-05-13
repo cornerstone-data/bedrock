@@ -32,10 +32,35 @@ logger = logging.getLogger(__name__)
 
 
 def _select_flowsa_ghg_method() -> str:
-    """Select FBS methodname from USA config (first match wins)."""
+    """Select FBS methodname from USA config (first match wins).
+
+    The base `new_ghg_method` and CEDA fallback methods are parameterized on
+    `usa_ghg_data_year`. The variant FBSes (`*_coa_allocation`, `*_electricity`,
+    etc.) are 2023-only; if any of those flags is set with a non-2023 year we
+    raise here rather than failing later with an opaque "FBS not found".
+    """
     usa = get_usa_config()
+    year = usa.usa_ghg_data_year
+    needs_2023 = (
+        usa.update_ghg_coa_allocation
+        or usa.update_electricity_ghg_method
+        or usa.update_other_gases_ghg_method
+        or usa.update_ghg_attribution_method_for_ng_and_petrol_systems
+        or usa.update_flowsa_refrigerant_method
+        or usa.update_transportation_ghg_method
+        or usa.add_new_ghg_activities
+        or usa.update_enteric_fermentation_and_manure_management_ghg_method
+        or usa.update_liming_and_fertilizer_ghg_method
+    )
+    if needs_2023 and year != 2023:
+        raise ValueError(
+            f'usa_ghg_data_year={year} is incompatible with the active '
+            'update_*_ghg_method flag — variant FBS methods only exist '
+            'for 2023. Either set usa_ghg_data_year=2023 or disable the '
+            'update_*_ghg_method flag.'
+        )
     if usa.new_ghg_method:
-        return 'GHG_national_Cornerstone_2023'
+        return f'GHG_national_Cornerstone_{year}'
     if usa.use_ghg_national_2023_m2:
         return 'GHG_national_2023_m2'
     if usa.update_ghg_coa_allocation:
@@ -56,7 +81,7 @@ def _select_flowsa_ghg_method() -> str:
         return 'GHG_national_Cornerstone_2023_ag_livestock'
     if usa.update_liming_and_fertilizer_ghg_method:
         return 'GHG_national_Cornerstone_2023_ag_soils'
-    return 'GHG_national_CEDA_2023'
+    return f'GHG_national_CEDA_{year}'
 
 
 def _build_mapping_with_allocations(
@@ -300,6 +325,50 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return fbs3
 
 
+def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
+    """Download a year-specific Cornerstone GHG FBS parquet from GCS.
+
+    Bypasses ``getFlowBySector`` for the time-series case. The flowsa
+    regen path goes through `EPA_GHGI` loaders that are hard-capped at
+    `{2022, 2023}` (`bedrock/extract/allocation/epa.py:_get_epa_data_year`),
+    so years like 2019–2021 fail there. The pre-built FBS parquets in
+    ``gs://cornerstone-default/transform/output_data/`` cover 2019–2023
+    already, so we load them directly.
+
+    Picks the most-recently-uploaded parquet whose ``base_name`` matches
+    ``GHG_national_Cornerstone_<year>`` so we follow the FBS regeneration
+    cadence without pinning the version/hash here.
+    """
+    import os  # noqa: PLC0415
+
+    from bedrock.utils.config.settings import FBS_DIR  # noqa: PLC0415
+    from bedrock.utils.io.gcp import (  # noqa: PLC0415
+        download_gcs_file,
+        list_bucket_files,
+    )
+
+    sub_bucket = "transform/output_data"
+    base_name = f"GHG_national_Cornerstone_{year}"
+    bucket_df = list_bucket_files(sub_bucket)
+    matches = bucket_df[
+        (bucket_df["base_name"] == base_name) & (bucket_df["extension"] == ".parquet")
+    ].sort_values("created", ascending=False)
+    if matches.empty:
+        raise FileNotFoundError(
+            f"No FBS parquet found at gs://cornerstone-default/{sub_bucket}/ "
+            f"matching base_name={base_name!r}"
+        )
+    filename = matches.iloc[0]["full_path"].rsplit("/", 1)[-1]
+    local_path = str(FBS_DIR / filename)
+    # Use `download_gcs_file` rather than `_if_not_exists`: the latter
+    # downloads ALL files matching the parsed (base, version, hash) into
+    # the same `pth`, so the metadata JSON overwrites the parquet.
+    if not os.path.exists(local_path):
+        download_gcs_file(filename, sub_bucket, local_path)
+    logger.info("Loaded cached FBS for %d from %s", year, filename)
+    return pd.read_parquet(local_path)
+
+
 def load_E_from_flowsa() -> pd.DataFrame:
     """Load E_usa (GHG × CEDA v7 sectors) from the CEDA FBS.
 
@@ -327,12 +396,44 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     Only used when load_E_from_flowsa is True in USA config.
     """
-    methodname = _select_flowsa_ghg_method()
-    if methodname == 'GHG_national_2023_m2':
-        # For m2, explicitly attempt remote FBS download before generation.
-        fbs = getFlowBySector(methodname=methodname, download_FBS_if_missing=True)
+    usa = get_usa_config()
+    year = usa.usa_ghg_data_year
+    # Only the base `new_ghg_method` and CEDA fallback FBS methods exist
+    # for years other than 2023. The variant FBSes (`*_coa_allocation`,
+    # `*_electricity`, etc.) are 2023-only; raise here rather than failing
+    # with an opaque "FBS not found" later.
+    needs_2023 = (
+        usa.update_ghg_coa_allocation
+        or usa.update_electricity_ghg_method
+        or usa.update_other_gases_ghg_method
+        or usa.update_ghg_attribution_method_for_ng_and_petrol_systems
+        or usa.update_flowsa_refrigerant_method
+        or usa.update_transportation_ghg_method
+        or usa.add_new_ghg_activities
+        or usa.update_enteric_fermentation_and_manure_management_ghg_method
+        or usa.update_liming_and_fertilizer_ghg_method
+    )
+    if needs_2023 and year != 2023:
+        raise ValueError(
+            f'usa_ghg_data_year={year} is incompatible with the active '
+            'update_*_ghg_method flag — variant FBS methods only exist '
+            'for 2023. Either set usa_ghg_data_year=2023 or disable the '
+            'update_*_ghg_method flag.'
+        )
+    if usa.new_ghg_method:
+        # Bypass flowsa regen for non-2023 years: the EPA loader behind
+        # `getFlowBySector` is hard-capped at {2022, 2023}, but the
+        # already-built FBS parquets exist on GCS at
+        # `transform/output_data/` for 2019–2023. Load the cached parquet
+        # directly so the year-Y diagnostics get year-Y GHG data.
+        fbs = _load_cornerstone_ghg_fbs_from_gcs(usa.usa_ghg_data_year)
     else:
-        fbs = getFlowBySector(methodname=methodname)
+        methodname = _select_flowsa_ghg_method()
+        if methodname == 'GHG_national_2023_m2':
+            # For m2, explicitly attempt remote FBS download before generation.
+            fbs = getFlowBySector(methodname=methodname, download_FBS_if_missing=True)
+        else:
+            fbs = getFlowBySector(methodname=methodname)
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
 

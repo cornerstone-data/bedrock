@@ -1,0 +1,8 @@
+# Full v0.2 model bundled with summary-tables A-matrix scaling:
+# A is scaled 2017 → target year via BEA summary-table ratios.
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+new_ghg_method: True
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+scale_a_matrix_with_summary_tables: True

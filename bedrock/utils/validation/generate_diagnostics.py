@@ -14,7 +14,7 @@ from bedrock.utils.config.settings import (
     GIT_PR_URL,
 )
 from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
-from bedrock.utils.io.gcp import update_sheet_tab
+from bedrock.utils.io.gcp import delete_default_sheet1, update_sheet_tab
 from bedrock.utils.snapshots.loader import resolve_snapshot_key
 
 logger = logging.getLogger(__name__)
@@ -49,6 +49,25 @@ logger = logging.getLogger(__name__)
         '--diagnostics_baseline_source.'
     ),
 )
+@click.option(
+    '--model_base_year',
+    default=None,
+    type=int,
+    help=(
+        'Override config model_base_year — used by time-series '
+        'dispatch to vary the year without forking config YAMLs.'
+    ),
+)
+@click.option(
+    '--usa_ghg_data_year',
+    default=None,
+    type=int,
+    help=(
+        'Override config usa_ghg_data_year — used by time-series '
+        'dispatch to vary the GHG inventory year alongside '
+        'model_base_year.'
+    ),
+)
 def generate_diagnostics(
     sheet_id: str,
     config_name: str,
@@ -56,6 +75,8 @@ def generate_diagnostics(
     pr_url: str | None,
     diagnostics_baseline_source: str | None,
     useeio_baseline_pin_json: str | None,
+    model_base_year: int | None,
+    usa_ghg_data_year: int | None,
 ) -> None:
     total_start = time.time()
     overrides: dict[str, object] = {}
@@ -69,6 +90,10 @@ def generate_diagnostics(
         overrides['diagnostics_baseline_source'] = 'gcs_useeio_xlsx'
     if diagnostics_baseline_source is not None:
         overrides['diagnostics_baseline_source'] = diagnostics_baseline_source
+    if model_base_year is not None:
+        overrides['model_base_year'] = model_base_year
+    if usa_ghg_data_year is not None:
+        overrides['usa_ghg_data_year'] = usa_ghg_data_year
     set_global_usa_config(
         config_name,
         diagnostics_cli_overrides=overrides if overrides else None,
@@ -125,6 +150,14 @@ def generate_diagnostics(
         config_df,
     )
     logger.info(f'[TIMING] Config summary update completed in {time.time() - t0:.1f}s')
+
+    # Drop the placeholder Sheet1 that Google creates by default on every
+    # new spreadsheet — diagnostics runs leave it behind otherwise.
+    try:
+        delete_default_sheet1(sheet_id)
+    except Exception as e:  # noqa: BLE001
+        logger.warning('Sheet1 cleanup skipped (%s: %s)', type(e).__name__, e)
+
     logger.info(
         f'[TIMING] Total diagnostics completed in {time.time() - total_start:.1f}s'
     )
