@@ -1,5 +1,6 @@
-# Sensitivity from useeio_phoebe_23: restore USEEIO-style A scaling flag
-# Turns off USEEIO-style A scaling and restores Cornerstone default approach
+# Sensitivity from useeio_phoebe_23: restore Cornerstone A approach.
+# Turns off USEEIO-style A scaling so A-matrix construction returns to the
+# Cornerstone default (the rest of the rebuild stays as in useeio_phoebe_23).
 
 model_base_year: 2017
 iot_before_or_after_redefinition: before
