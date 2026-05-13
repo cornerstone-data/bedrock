@@ -61,14 +61,17 @@ from bedrock.transform.eeio.derived_cornerstone import (
 from bedrock.utils.config.usa_config import USAConfig
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
+    inflate_cornerstone_q_or_y_with_commodity_pi,
 )
 from bedrock.utils.math.formulas import (
+    backcompute_E_matrix_via_commodity_shortcut,
     compute_B_ind_matrix,
     compute_B_matrix,
     compute_d,
     compute_L_matrix,
     compute_M_matrix,
     compute_n,
+    derive_q_from_x_and_Vnorm,
 )
 
 TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR, LATEST_TARGET_YEAR))
@@ -166,12 +169,11 @@ def _plot_ef_trends(
     plot_sectors: list[str],
 ) -> None:
     models = list(all_results)
-    fig, axes = plt.subplots(1, len(models), figsize=(7 * len(models), 6), sharey=True)
-    if len(models) == 1:
-        axes = [axes]
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharey=True)
+    axes_flat = axes.flatten()
     fig.suptitle(f"{label} — emission intensity trends")
 
-    for ax, model in zip(axes, models):
+    for ax, model in zip(axes_flat, models):
         year_results = all_results[model]
         years = sorted(year_results)
         for sector in plot_sectors:
@@ -183,11 +185,105 @@ def _plot_ef_trends(
         ax.set_title(model)
         ax.set_xlabel("Year")
         ax.set_ylabel("Index (first year = 100)")
-        if ax is axes[0]:
+        if ax is axes_flat[0]:
             ax.legend(fontsize=7, loc="best")
+
+    for ax in axes_flat[len(models) :]:
+        ax.set_visible(False)
 
     fig.tight_layout()
     plot_path = PLOTS_DIR / f"trends_{ef_key}.png"
+    fig.savefig(plot_path, dpi=150)
+    plt.close(fig)
+    logger.info("Saved plot: %s", plot_path)
+
+
+def _plot_d_with_q_ec(
+    all_results: dict[str, dict[int, dict]],
+    plot_sectors: list[str],
+) -> None:
+    models = list(all_results)
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharey=True)
+    axes_flat = axes.flatten()
+    fig.suptitle("d, q, and e_c — indexed to first year = 100")
+
+    var_styles = {
+        "d": {"linestyle": "-", "linewidth": 1.5},
+        "q": {"linestyle": "--", "linewidth": 1.2},
+        "e_c": {"linestyle": ":", "linewidth": 1.2},
+    }
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
+    for ax, model in zip(axes_flat, models):
+        year_results = all_results[model]
+        years = sorted(year_results)
+        for i, sector in enumerate(plot_sectors):
+            color = colors[i % len(colors)]
+            name = sector_names.get(sector, sector)[:15]
+            for key, style in var_styles.items():
+                vals = []
+                for yr in years:
+                    item = year_results[yr][key]
+                    # e_c is a DataFrame (stressors × sectors); sum across stressors
+                    if isinstance(item, pd.DataFrame):
+                        val = (
+                            float(item[sector].sum())
+                            if sector in item.columns
+                            else float("nan")
+                        )
+                    else:
+                        val = (
+                            float(item[sector])
+                            if sector in item.index
+                            else float("nan")
+                        )
+                    vals.append(val)
+                base = vals[0] if vals[0] else float("nan")
+                indexed = [v / base * 100 for v in vals]
+                ax.plot(
+                    years,
+                    indexed,
+                    color=color,
+                    marker="o",
+                    markersize=4,
+                    label=f"{name} ({key})",
+                    **style,
+                )
+        ax.axhline(100, color="black", linewidth=0.7, linestyle="--")
+        ax.set_title(model)
+        ax.set_xlabel("Year")
+        ax.set_ylabel("Index (first year = 100)")
+
+    for ax in axes_flat[len(models) :]:
+        ax.set_visible(False)
+
+    # Two-part legend: sector colors + variable line styles
+    from matplotlib.lines import Line2D  # noqa: PLC0415
+
+    sector_handles = [
+        Line2D(
+            [0],
+            [0],
+            color=colors[i % len(colors)],
+            linewidth=2,
+            label=sector_names.get(s, s)[:15],
+        )
+        for i, s in enumerate(plot_sectors)
+    ]
+    var_handles = [
+        Line2D([0], [0], color="black", label=key, **style)
+        for key, style in var_styles.items()
+    ]
+    axes_flat[0].legend(
+        handles=sector_handles + var_handles,
+        fontsize=7,
+        loc="best",
+        title="sector / variable",
+        title_fontsize=7,
+    )
+
+    fig.tight_layout()
+    plot_path = PLOTS_DIR / "trends_d_q_ec.png"
     fig.savefig(plot_path, dpi=150)
     plt.close(fig)
     logger.info("Saved plot: %s", plot_path)
@@ -235,10 +331,14 @@ def main() -> None:
                     target_year=cfg.model_base_year,
                 )
                 B_ind = compute_B_ind_matrix(E=E_by_year[cfg.usa_ghg_data_year], x=x)
+
                 B = compute_B_matrix(B_ind=B_ind, V_norm=Vnorm)
                 d_current_USD = compute_d(B=B)
                 Aqset = derive_cornerstone_Aq_scaled()
                 A = Aqset.Adom + Aqset.Aimp
+
+                q_current_USD = derive_q_from_x_and_Vnorm(x=x, Vnorm=Vnorm)
+                e_c = backcompute_E_matrix_via_commodity_shortcut(B=B, q=q_current_USD)
                 L = compute_L_matrix(A=A)
                 n_current_USD = compute_n(M=compute_M_matrix(B=B, L=L))
                 # Put efs in constant dollar year using most recent dollar year
@@ -248,11 +348,17 @@ def main() -> None:
                 n = deflate_ef(
                     n_current_USD, original_year=year, target_year=LATEST_TARGET_YEAR
                 )
+                # Deflate q as well for presentation
+                q = inflate_cornerstone_q_or_y_with_commodity_pi(
+                    q_current_USD, original_year=year, target_year=LATEST_TARGET_YEAR
+                )
                 year_results[year] = {
                     "d": d,
                     "n": n,
                     "d_current_USD": d_current_USD,
                     "n_current_USD": n_current_USD,
+                    "q": q,
+                    "e_c": e_c,
                 }
 
             except Exception as e:
@@ -264,7 +370,7 @@ def main() -> None:
 
     if all_results:
         top = _top_fluctuating_sectors(all_results)
-        _plot_ef_trends("d", "d (direct intensity)", all_results, top)
+        _plot_d_with_q_ec(all_results, top)
         _plot_ef_trends("n", "n (total intensity)", all_results, top)
 
         records = []
