@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
 
+import bedrock.analysis.a_matrix_time_series.compare_method_stability as cms
 import bedrock.utils.config.usa_config as usa_config
 from bedrock.analysis.a_matrix_time_series.derive_A_time_series import (
     _clear_config_dependent_caches,
@@ -295,6 +296,44 @@ def _plot_d_with_q_ec(
     logger.info("Saved plot: %s", plot_path)
 
 
+def _build_n_yoy_per_sector(
+    all_results: dict[str, dict[int, dict[str, pd.Series]]],
+) -> pd.DataFrame:
+    """Build a per_sector DataFrame compatible with _yoy_distribution_plot.
+
+    Columns: approach, sector, mean_N, mean_abs_yoy_pct, yoy_{y0}_{y1} per transition.
+    """
+    transitions = [
+        (TARGET_YEARS[i], TARGET_YEARS[i + 1]) for i in range(len(TARGET_YEARS) - 1)
+    ]
+    rows = []
+    for model, year_results in all_results.items():
+        for sector in sectors:
+            n_by_year = {
+                yr: float(year_results[yr]["n"].get(sector, float("nan")))
+                for yr in TARGET_YEARS
+                if yr in year_results
+            }
+            row: dict = {"approach": model, "sector": sector}
+            row["mean_N"] = pd.Series(list(n_by_year.values())).mean()
+            yoy_abs: list[float] = []
+            for y0, y1 in transitions:
+                v0 = n_by_year.get(y0, float("nan"))
+                v1 = n_by_year.get(y1, float("nan"))
+                if v0 and v0 != 0:
+                    pct = (v1 - v0) / abs(v0)
+                else:
+                    pct = float("nan")
+                row[f"yoy_{y0}_{y1}"] = pct
+                if not pd.isna(pct):
+                    yoy_abs.append(abs(pct))
+            row["mean_abs_yoy_pct"] = (
+                pd.Series(yoy_abs).mean() if yoy_abs else float("nan")
+            )
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -384,6 +423,12 @@ def main() -> None:
         top = _top_fluctuating_sectors(all_results)
         _plot_d_with_q_ec(all_results, top)
         _plot_ef_trends("n", "n (total intensity)", all_results, top)
+
+        cms.YOY_TRANSITIONS = tuple(
+            (TARGET_YEARS[i], TARGET_YEARS[i + 1]) for i in range(len(TARGET_YEARS) - 1)
+        )
+        per_sector = _build_n_yoy_per_sector(all_results)
+        cms._yoy_distribution_plot(per_sector, PLOTS_DIR / "n_yoy_distribution.png")
 
         records = []
         for model, year_results in all_results.items():
