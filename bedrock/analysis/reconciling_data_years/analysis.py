@@ -170,67 +170,37 @@ def _top_fluctuating_sectors(
 
 
 def _plot_ef_trends(
-    ef_key: str,
-    label: str,
-    all_results: dict[str, dict[int, dict[str, pd.Series]]],
-    plot_sectors: list[str],
-) -> None:
-    models = list(all_results)
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharey=True)
-    axes_flat = axes.flatten()
-    fig.suptitle(f"{label} — emission intensity trends")
-
-    for ax, model in zip(axes_flat, models):
-        year_results = all_results[model]
-        years = sorted(year_results)
-        for sector in plot_sectors:
-            vals = [year_results[yr][ef_key][sector] for yr in years]
-            indexed = [v / vals[0] * 100 for v in vals]
-            name = sector_names.get(sector, sector)[:15]
-            ax.plot(years, indexed, marker="o", label=name)
-        ax.axhline(100, color="black", linewidth=0.7, linestyle="--")
-        ax.set_title(model)
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Index (first year = 100)")
-        if ax is axes_flat[0]:
-            ax.legend(fontsize=7, loc="best")
-
-    for ax in axes_flat[len(models) :]:
-        ax.set_visible(False)
-
-    fig.tight_layout()
-    plot_path = PLOTS_DIR / f"trends_{ef_key}.png"
-    fig.savefig(plot_path, dpi=150)
-    plt.close(fig)
-    logger.info("Saved plot: %s", plot_path)
-
-
-def _plot_d_with_q_ec(
     all_results: dict[str, dict[int, dict]],
     plot_sectors: list[str],
 ) -> None:
-    models = list(all_results)
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharey=True)
-    axes_flat = axes.flatten()
-    fig.suptitle("d, q, and e_c — indexed to first year = 100")
+    from matplotlib.lines import Line2D  # noqa: PLC0415
 
-    var_styles = {
-        "d": {"linestyle": "-", "linewidth": 1.5},
-        "q": {"linestyle": "--", "linewidth": 1.2},
-        "e_c": {"linestyle": ":", "linewidth": 1.2},
+    row_models = [m for m in all_results if m != "model1"]
+    col_vars = ["e_c", "q", "d", "n"]
+    col_titles = {
+        "e_c": "e_c (emissions)",
+        "q": "q (output)",
+        "d": "d (intensity)",
+        "n": "n (total intensity)",
     }
-    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-    for ax, model in zip(axes_flat, models):
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    fig, axes = plt.subplots(
+        len(row_models), 4, figsize=(20, 4 * len(row_models)), sharey="row"
+    )
+    fig.suptitle("e_c, q, d, and n — indexed to first year = 100", fontsize=12)
+
+    for row_idx, model in enumerate(row_models):
         year_results = all_results[model]
         years = sorted(year_results)
-        for i, sector in enumerate(plot_sectors):
-            color = colors[i % len(colors)]
-            name = sector_names.get(sector, sector)[:15]
-            for key, style in var_styles.items():
+
+        for col_idx, var_key in enumerate(col_vars):
+            ax = axes[row_idx, col_idx]
+            for i, sector in enumerate(plot_sectors):
+                color = colors[i % len(colors)]
                 vals = []
                 for yr in years:
-                    item = year_results[yr][key]
+                    item = year_results[yr][var_key]
                     # e_c is a DataFrame (stressors × sectors); sum across stressors
                     if isinstance(item, pd.DataFrame):
                         val = (
@@ -248,24 +218,15 @@ def _plot_d_with_q_ec(
                 base = vals[0] if vals[0] else float("nan")
                 indexed = [v / base * 100 for v in vals]
                 ax.plot(
-                    years,
-                    indexed,
-                    color=color,
-                    marker="o",
-                    markersize=4,
-                    label=f"{name} ({key})",
-                    **style,
+                    years, indexed, color=color, marker="o", markersize=3, linewidth=1.2
                 )
-        ax.axhline(100, color="black", linewidth=0.7, linestyle="--")
-        ax.set_title(model)
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Index (first year = 100)")
 
-    for ax in axes_flat[len(models) :]:
-        ax.set_visible(False)
-
-    # Two-part legend: sector colors + variable line styles
-    from matplotlib.lines import Line2D  # noqa: PLC0415
+            ax.axhline(100, color="black", linewidth=0.7, linestyle="--")
+            ax.set_xlabel("Year")
+            if col_idx == 0:
+                ax.set_ylabel(f"{model}\nIndex (first year = 100)", fontsize=8)
+            if row_idx == 0:
+                ax.set_title(col_titles[var_key])
 
     sector_handles = [
         Line2D(
@@ -277,19 +238,17 @@ def _plot_d_with_q_ec(
         )
         for i, s in enumerate(plot_sectors)
     ]
-    var_handles = [
-        Line2D([0], [0], color="black", label=key, **style)
-        for key, style in var_styles.items()
-    ]
-    axes_flat[0].legend(
-        handles=sector_handles + var_handles,
+    fig.legend(
+        handles=sector_handles,
         fontsize=7,
-        loc="best",
-        title="sector / variable",
+        loc="lower center",
+        ncol=len(plot_sectors),
+        title="sector",
         title_fontsize=7,
+        bbox_to_anchor=(0.5, 0),
     )
 
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0.05, 1, 1])
     plot_path = PLOTS_DIR / "trends_d_q_ec.png"
     fig.savefig(plot_path, dpi=150)
     plt.close(fig)
@@ -421,8 +380,7 @@ def main() -> None:
 
     if all_results:
         top = _top_fluctuating_sectors(all_results)
-        _plot_d_with_q_ec(all_results, top)
-        _plot_ef_trends("n", "n (total intensity)", all_results, top)
+        _plot_ef_trends(all_results, top)
 
         cms.YOY_TRANSITIONS = tuple(
             (TARGET_YEARS[i], TARGET_YEARS[i + 1]) for i in range(len(TARGET_YEARS) - 1)
