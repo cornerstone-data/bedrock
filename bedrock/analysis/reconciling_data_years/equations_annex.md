@@ -4,7 +4,7 @@
 ## Solution 3 - USEEIO like adjustment
 
 
-$$ x = x_{2023} \frac{\Pi_{$2017}}{\Pi_{$2023} $$
+$$ x = x_{2023} \frac{\Pi_{$2017}}{\Pi_{$2023}} $$
 
 $$ B_i = E \hat{x}^{-1} $$ 
 
