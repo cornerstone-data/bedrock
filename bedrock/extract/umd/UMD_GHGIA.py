@@ -530,11 +530,14 @@ def umd_ghgia_parse(
             df['FlowAmount'] = (
                 df['FlowAmount']
                 .astype(str)
-                .str.replace(',', '')
+                .str.strip()
+                .str.replace(',', '', regex=False)
                 .infer_objects(copy=False)
             )
             df['FlowAmount'] = (
-                df['FlowAmount'].replace('+', '0').infer_objects(copy=False)
+                df['FlowAmount']
+                .replace('+', '0', regex=False)
+                .infer_objects(copy=False)
             )
             df['FlowAmount'] = pd.to_numeric(df['FlowAmount'], errors='coerce')
             df = df.dropna(subset='FlowAmount')
