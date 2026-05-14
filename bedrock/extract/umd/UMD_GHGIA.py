@@ -343,13 +343,16 @@ def strip_char(text: str) -> str:
 
     footnotes = {
         'Gasolineb': 'Gasoline',
+        'Trucksa': 'Trucks',  # UMD 3-8
         'Trucksc': 'Trucks',
         'Boatsd': 'Boats',
         'Boatse': 'Boats',
         'Fuelsb': 'Fuels',
         'Fuelsf': 'Fuels',
         'Consumptiona': 'Consumption',
+        'Aircraftb': 'Aircraft',  # UMD 3-8
         'Aircraftg': 'Aircraft',
+        'Pipelinec': 'Pipeline',  # UMD 3-8
         'Pipelineh': 'Pipeline',
         'Electricityh': 'Electricity',
         'Electricityl': 'Electricity',
@@ -393,12 +396,15 @@ def strip_char(text: str) -> str:
         'HGLb': 'HGL',
         'Biofuels-Biodieselh': 'Biofuels-Biodiesel',
         'Biofuels-Ethanolh': 'Biofuels-Ethanol',
+        'Commercial Aircraftb': 'Commercial Aircraft',  # new with UMD 3-8
         'Commercial Aircraftf': 'Commercial Aircraft',
         'Electricityk': 'Electricity',
         'Gasolinea': 'Gasoline',
         'International Bunker Fuelse': 'International Bunker Fuel',
+        'Medium- and Heavy-Duty Trucksa': 'Medium- and Heavy-Duty Trucks',  # new with UMD 3-8
         'Medium- and Heavy-Duty Trucksb': 'Medium- and Heavy-Duty Trucks',
         'Pipelineg': 'Pipeline',
+        'Pipelinec': 'Pipeline', # UMD 3-8
         'Recreational Boatsc': 'Recreational Boats',
         'Construction/Mining Equipmentf': 'Construction/Mining Equipment',
         'Non-Roadc': 'Non-Road',
@@ -657,9 +663,10 @@ def umd_ghgia_parse(
                 'Grassland',
             ]
             activity_subtotal_fuel = [
-                'Gasoline',
+                'Gasoline',  # in UMD (3-8)
                 'Distillate Fuel Oil',
-                'Jet Fuel',
+                'Diesel Fuel',  # new for UMD (3-8)
+                'Jet Fuel',  # in UMD (3-8)
                 'Aviation Gasoline',
                 'Residual Fuel Oil',
                 'Natural Gas',
