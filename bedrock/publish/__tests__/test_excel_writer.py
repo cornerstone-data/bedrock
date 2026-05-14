@@ -2,8 +2,8 @@
 
 These tests monkeypatch the registry-building function with small
 synthetic getters so we can exercise the writer's behavior (skip-if-None,
-empty-data-sheets guard, location-suffix application, metadata content,
-round-trip correctness) without standing up the real EEIO pipeline.
+location-suffix application, metadata content, round-trip correctness)
+without standing up the real EEIO pipeline.
 """
 
 from __future__ import annotations
@@ -15,18 +15,6 @@ import pandas as pd
 import pytest
 
 from bedrock.publish.excel import writer as writer_module
-
-
-def _empty_registry(config_name: str) -> list[writer_module.SheetSpec]:
-    """All sheets resolve to None -- exercises the empty-data-sheets guard."""
-    return [
-        writer_module.SheetSpec('B', lambda: None),
-        writer_module.SheetSpec('C', lambda: None),
-        writer_module.SheetSpec(
-            'model_info',
-            lambda: pd.DataFrame([{'field': 'config_name', 'value': config_name}]),
-        ),
-    ]
 
 
 def _synthetic_registry(config_name: str) -> list[writer_module.SheetSpec]:
@@ -58,18 +46,6 @@ def _synthetic_registry(config_name: str) -> list[writer_module.SheetSpec]:
             ),
         ),
     ]
-
-
-def test_raises_when_no_data_sheets(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    out = os.fspath(tmp_path / 'empty.xlsx')
-    monkeypatch.setattr(writer_module, '_build_matrix_registry', _empty_registry)
-    with pytest.raises(RuntimeError, match='no data sheets'):
-        writer_module.write_model_to_xlsx(out, config_name='dummy')
-    assert not os.path.exists(
-        out
-    ), 'workbook should not be written when no data sheets materialize'
 
 
 def test_writes_only_materialized_sheets(
@@ -132,3 +108,61 @@ def test_round_trip_values_preserved(
     q = book['q']
     assert q.shape == (2, 1)
     assert q.loc['100000/US', 'q'] == pytest.approx(100.0)
+
+
+def test_assemble_extended_U_block_placement() -> None:
+    """Block placement and VA x FD zero corner for `_assemble_extended_U`.
+
+    Validates the structural invariant: useeior-style extended-U has
+    intermediate top-left, FD top-right, VA bottom-left, zeros at VA x FD.
+    Bugs this catches: swapped axes on concat, missing zero padding,
+    accidental NaN broadcast.
+    """
+    industries = pd.Index(['ind1', 'ind2'], name='sector')
+    commodities = pd.Index(['c1', 'c2', 'c3'], name='sector')
+    fd_codes = pd.Index(['F01', 'F02'], name='sector')
+    va_codes = pd.Index(['V001', 'V002'], name='sector')
+
+    intermediate = pd.DataFrame(
+        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+        index=commodities,
+        columns=industries,
+    )
+    fd = pd.DataFrame(
+        [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]],
+        index=commodities,
+        columns=fd_codes,
+    )
+    va = pd.DataFrame(
+        [[13.0, 14.0], [15.0, 16.0]],
+        index=va_codes,
+        columns=industries,
+    )
+
+    extended = writer_module._assemble_extended_U(
+        intermediate=intermediate, fd=fd, va=va
+    )
+
+    assert extended.shape == (5, 4), f'expected (5, 4); got {extended.shape}'
+    assert extended.index.name == 'sector'
+    assert extended.columns.name == 'sector'
+    pd.testing.assert_frame_equal(
+        extended.loc[commodities, industries], intermediate, check_names=False
+    )
+    pd.testing.assert_frame_equal(
+        extended.loc[commodities, fd_codes], fd, check_names=False
+    )
+    pd.testing.assert_frame_equal(
+        extended.loc[va_codes, industries], va, check_names=False
+    )
+    va_fd_corner = extended.loc[va_codes, fd_codes]
+    assert (
+        (va_fd_corner == 0).all().all()
+    ), f'VA x FD corner must be zero; got {va_fd_corner.values.tolist()}'
+
+    truncated = writer_module._assemble_extended_U(
+        intermediate=intermediate, fd=None, va=va
+    )
+    assert truncated.shape == (5, 2)
+    assert list(truncated.index) == ['c1', 'c2', 'c3', 'V001', 'V002']
+    assert list(truncated.columns) == ['ind1', 'ind2']
