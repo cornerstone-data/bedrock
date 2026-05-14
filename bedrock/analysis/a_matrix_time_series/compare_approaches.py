@@ -37,23 +37,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series._loaders import load_a_pair
+from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    LAST_RUN_SHEET_ID_PATH,
+    ALTERNATIVE_APPROACHES,
     LATEST_TARGET_YEAR,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.io.gcp import update_sheet_tab
 
 logger = logging.getLogger(__name__)
 
 TARGET_YEAR = LATEST_TARGET_YEAR
 
-ALTERNATIVE_APPROACHES: tuple[str, ...] = (
-    "summary_tables",
-    "industry_price_index",
-    "commodity_price_index",
-)
 BASELINE_APPROACHES: tuple[str, ...] = ("useeio", "ceda_default")
 PAIRS: tuple[tuple[str, str], ...] = (
     ("summary_tables", "industry_price_index"),
@@ -69,15 +65,6 @@ CAP_TOL = 1e-9
 NEAR_CAP_THRESHOLD = 0.97  # report borderline columns too
 
 
-def _load_pair(approach: str, year: int) -> dict[str, pd.DataFrame]:
-    """Load the (Adom, Aimp) parquet for one (approach, year) into a dict."""
-    combined = pd.read_parquet(RESULTS_DIR / f"A_{approach}_{year}.parquet")
-    return {
-        "dom": pd.DataFrame(combined.loc["dom"]),
-        "imp": pd.DataFrame(combined.loc["imp"]),
-    }
-
-
 def _load_all_at_year(year: int) -> dict[str, dict[str, pd.DataFrame]]:
     """Returns ``{kind: {approach: A_matrix}}`` at ``year``.
 
@@ -86,7 +73,7 @@ def _load_all_at_year(year: int) -> dict[str, dict[str, pd.DataFrame]]:
     """
     out: dict[str, dict[str, pd.DataFrame]] = {kind: {} for kind in KINDS}
     for approach in ALTERNATIVE_APPROACHES:
-        pair = _load_pair(approach, year)
+        pair = load_a_pair(approach, year)
         for kind in KINDS:
             out[kind][approach] = pair[kind]
     return out
@@ -207,7 +194,7 @@ def column_cap_audit(years: list[int]) -> pd.DataFrame:
     """
     rows: list[dict[str, object]] = []
     for year in years:
-        pair = _load_pair("summary_tables", year)
+        pair = load_a_pair("summary_tables", year)
         for kind in KINDS:
             col_sum = pair[kind].sum(axis=0)
             for col, val in col_sum.items():
@@ -236,28 +223,6 @@ def column_cap_audit(years: list[int]) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def _publish_cap_audit_tab(cap_audit_df: pd.DataFrame) -> None:
-    """Append the column-cap audit tab to the run-report Sheet, if available."""
-    if not LAST_RUN_SHEET_ID_PATH.exists():
-        logger.warning(
-            "No %s found — skipping Sheet publish. Run derive_A_time_series "
-            "first (with valid Drive auth) to create the run report.",
-            LAST_RUN_SHEET_ID_PATH,
-        )
-        return
-    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
-    try:
-        update_sheet_tab(sheet_id, "column_cap_audit", cap_audit_df)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__,
-            e,
-        )
-        return
-    logger.info("Updated column_cap_audit tab on sheet %s", sheet_id)
-
-
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -279,7 +244,7 @@ def main() -> None:
     cap_audit_df = column_cap_audit(audit_years)
     cap_audit_df.to_csv(RESULTS_DIR / "column_cap_audit.csv", index=False)
 
-    _publish_cap_audit_tab(cap_audit_df)
+    publish_tabs({"column_cap_audit": cap_audit_df})
     logger.info("Step 3 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 

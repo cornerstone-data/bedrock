@@ -57,13 +57,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    LAST_RUN_SHEET_ID_PATH,
+    ALTERNATIVE_APPROACHES,
+    APPROACH_COLORS,
+    BASELINES,
     LATEST_TARGET_YEAR,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.io.gcp import update_sheet_tab
+from bedrock.analysis.a_matrix_time_series.constants import (
+    APPROACH_ORDER as ALL_APPROACHES_PLOT_ORDER,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     USA_2017_SUMMARY_COMMODITY_DESC,
 )
@@ -77,29 +82,6 @@ logger = logging.getLogger(__name__)
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
 RANK_TARGET_YEAR = LATEST_TARGET_YEAR
-ALTERNATIVE_APPROACHES: tuple[str, ...] = (
-    "summary_tables",
-    "industry_price_index",
-    "commodity_price_index",
-)
-BASELINES: tuple[tuple[str, str], ...] = (
-    ("useeio", "USEEIO"),
-    ("ceda_default", "CEDA-US"),
-)
-ALL_APPROACHES_PLOT_ORDER: tuple[str, ...] = (
-    "useeio",
-    "ceda_default",
-    "summary_tables",
-    "industry_price_index",
-    "commodity_price_index",
-)
-APPROACH_COLORS: dict[str, str] = {
-    "useeio": "#7f7f7f",
-    "ceda_default": "#bcbd22",
-    "summary_tables": "#1f77b4",
-    "industry_price_index": "#ff7f0e",
-    "commodity_price_index": "#2ca02c",
-}
 
 HEATMAP_TOP_GROUPS = 15
 DRILL_IN_TOP_N = 12
@@ -499,30 +481,6 @@ def build_curated_shortlist_df() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _publish_keysector_tabs(
-    top_cells_df: pd.DataFrame, curated_df: pd.DataFrame
-) -> None:
-    if not LAST_RUN_SHEET_ID_PATH.exists():
-        logger.warning(
-            "No %s found — skipping Sheet publish. Run derive_A_time_series "
-            "first (with valid Drive auth) to create the run report.",
-            LAST_RUN_SHEET_ID_PATH,
-        )
-        return
-    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
-    try:
-        update_sheet_tab(sheet_id, "keysector_top_cells_ranked", top_cells_df)
-        update_sheet_tab(sheet_id, "keysector_curated_shortlist", curated_df)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__,
-            e,
-        )
-        return
-    logger.info("Updated key-sector tabs on sheet %s", sheet_id)
-
-
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -550,7 +508,12 @@ def main() -> None:
         PLOTS_DIR / "keysector_top_cells_grid.png",
     )
 
-    _publish_keysector_tabs(top_cells_df, curated_df)
+    publish_tabs(
+        {
+            "keysector_top_cells_ranked": top_cells_df,
+            "keysector_curated_shortlist": curated_df,
+        }
+    )
     logger.info("Step 4 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 
