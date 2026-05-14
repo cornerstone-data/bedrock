@@ -360,12 +360,15 @@ def strip_char(text: str) -> str:
         'Biodieseli': 'Biodiesel',
         'Changee': 'Change',
         'Emissionsc': 'Emissions',
+        'Equipmentc': 'Equipment',
         'Equipmentd': 'Equipment',
         'Equipmente': 'Equipment',
         'Totalf': 'Total',
         'Roadg': 'Road',
         'Otherf': 'Other',
+        'Othere': 'Other',  # UMD 3-9
         'Railc': 'Rail',
+        'Railb': 'Rail',  # UMD 3-9
         'Usesb': 'Uses',
         'Substancesd': 'Substances',
         'Territoriesa': 'Territories',
@@ -408,6 +411,7 @@ def strip_char(text: str) -> str:
         'Recreational Boatsc': 'Recreational Boats',
         'Construction/Mining Equipmentf': 'Construction/Mining Equipment',
         'Non-Roadc': 'Non-Road',
+        'Non-Roada': 'Non-Road',  #UMD 3-9
         'HFCsa': 'HFCs',
         'HFOsb': 'HFOs',
         'CO_{2}': 'CO2',
@@ -673,10 +677,10 @@ def umd_ghgia_parse(
                 'LPG',
                 'Electricity',
                 'Fuel Type/Vehicle Type',
-                'Diesel On-Road',
+                'Diesel On-Road',  # UMD 3-9
                 'Alternative Fuel On-Road',
                 'Non-Road',
-                'Gasoline On-Road',
+                'Gasoline On-Road',  # UMD 3-9
                 'Distillate Fuel Oil',
             ]
             if table_name in source_activity_1:
