@@ -2,8 +2,8 @@
 
 These tests monkeypatch the registry-building function with small
 synthetic getters so we can exercise the writer's behavior (skip-if-None,
-empty-data-sheets guard, location-suffix application, metadata content,
-round-trip correctness) without standing up the real EEIO pipeline.
+location-suffix application, metadata content, round-trip correctness)
+without standing up the real EEIO pipeline.
 """
 
 from __future__ import annotations
@@ -15,18 +15,6 @@ import pandas as pd
 import pytest
 
 from bedrock.publish.excel import writer as writer_module
-
-
-def _empty_registry(config_name: str) -> list[writer_module.SheetSpec]:
-    """All sheets resolve to None -- exercises the empty-data-sheets guard."""
-    return [
-        writer_module.SheetSpec('B', lambda: None),
-        writer_module.SheetSpec('C', lambda: None),
-        writer_module.SheetSpec(
-            'model_info',
-            lambda: pd.DataFrame([{'field': 'config_name', 'value': config_name}]),
-        ),
-    ]
 
 
 def _synthetic_registry(config_name: str) -> list[writer_module.SheetSpec]:
@@ -58,18 +46,6 @@ def _synthetic_registry(config_name: str) -> list[writer_module.SheetSpec]:
             ),
         ),
     ]
-
-
-def test_raises_when_no_data_sheets(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    out = os.fspath(tmp_path / 'empty.xlsx')
-    monkeypatch.setattr(writer_module, '_build_matrix_registry', _empty_registry)
-    with pytest.raises(RuntimeError, match='no data sheets'):
-        writer_module.write_model_to_xlsx(out, config_name='dummy')
-    assert not os.path.exists(
-        out
-    ), 'workbook should not be written when no data sheets materialize'
 
 
 def test_writes_only_materialized_sheets(

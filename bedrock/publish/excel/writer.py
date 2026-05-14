@@ -613,37 +613,6 @@ def _build_matrix_registry(config_name: str) -> list[SheetSpec]:
     ]
 
 
-# Sheet names treated as model "data" (matrices/vectors). At least one of
-# these must be non-None or `write_model_to_xlsx` raises -- otherwise we'd
-# silently publish a metadata-only workbook.
-_DATA_SHEETS: frozenset[str] = frozenset(
-    {
-        'V',
-        'U',
-        'U_d',
-        'A',
-        'A_d',
-        'A_m',
-        'B',
-        'C',
-        'D',
-        'L',
-        'L_d',
-        'M',
-        'M_d',
-        'M_m',
-        'N',
-        'N_d',
-        'N_m',
-        'Rho',
-        'Phi',
-        'Tau',
-        'q',
-        'x',
-    }
-)
-
-
 def _materialize(
     registry: Iterable[SheetSpec],
 ) -> list[tuple[str, pd.DataFrame | pd.Series]]:
@@ -677,9 +646,7 @@ def write_model_to_xlsx(out_path: str, *, config_name: str) -> None:
 
     Sheets are produced from `_build_matrix_registry(config_name)`. Any
     registry entry whose getter returns `None` is omitted from the
-    workbook (useeior-style "skip if NULL"). If zero data sheets
-    materialize, raises `RuntimeError` -- a metadata-only workbook is
-    treated as a silent failure, not a valid state.
+    workbook (useeior-style "skip if NULL").
 
     Raises `NotImplementedError` on legacy (non-cornerstone) configs --
     publish is wired only for cornerstone-schema configs today.
@@ -687,20 +654,10 @@ def write_model_to_xlsx(out_path: str, *, config_name: str) -> None:
     _require_cornerstone()
     registry = _build_matrix_registry(config_name)
     materialized = _materialize(registry)
-    data_count = sum(1 for name, _ in materialized if name in _DATA_SHEETS)
-    if data_count == 0:
-        raise RuntimeError(
-            'publish: no data sheets materialized; refusing to write a '
-            'metadata-only workbook. Check that derive_* getters in '
-            'MATRIX_REGISTRY are wired and that the requested config '
-            'supports them.'
-        )
     os.makedirs(os.path.dirname(out_path) or '.', exist_ok=True)
     logger.info(
-        'publish: writing %d sheets (%d data, %d metadata) to %s',
+        'publish: writing %d sheets to %s',
         len(materialized),
-        data_count,
-        len(materialized) - data_count,
         out_path,
     )
     with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
