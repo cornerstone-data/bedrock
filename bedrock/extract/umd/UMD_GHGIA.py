@@ -28,6 +28,11 @@ from bedrock.utils.logging.flowsa_log import log
 
 UMD_SOURCE_PREFIX = 'UMD_GHGIA_T_'
 
+# Applied when a table omits these keys in UMD_GHGIA.yaml; explicit yaml entries override.
+DEFAULT_UMD_TABLE_CLASS = 'Chemicals'
+DEFAULT_UMD_TABLE_UNIT = 'MMT CO2e'
+DEFAULT_UMD_TABLE_COMPARTMENT = 'air'
+
 # Inventory-year columns share the same staged CSVs; GCS and local cache use this folder
 # (``extract/input-data/UMD_GHGIA/{year}/`` on ``cornerstone-default``).
 UMD_GHGIA_INPUT_LAYOUT_YEAR = '2024'
@@ -276,7 +281,14 @@ def get_table_meta(source_name: str, config: dict[str, Any]) -> dict[str, Any]:
     for chapter in td.keys():
         for k, v in td[chapter].items():
             if source_name.endswith(k.replace('-', '_')):
-                return v
+                meta = dict(v)
+                if 'class' not in meta:
+                    meta['class'] = DEFAULT_UMD_TABLE_CLASS
+                if 'unit' not in meta:
+                    meta['unit'] = DEFAULT_UMD_TABLE_UNIT
+                if 'compartment' not in meta:
+                    meta['compartment'] = DEFAULT_UMD_TABLE_COMPARTMENT
+                return meta
     else:
         raise KeyError(f'Table meta not found for {source_name}')
 
