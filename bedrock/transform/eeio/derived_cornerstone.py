@@ -190,7 +190,9 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
 
 @functools.cache
 @pa.check_output(CornerstoneVMatrix.to_schema())
-def derive_cornerstone_V() -> pd.DataFrame:
+def derive_cornerstone_V(
+    apply_inflation: bool = False, target_year: int = 0
+) -> pd.DataFrame:
     """V matrix (industry × commodity) via correspondence multiplication."""
     V_2017 = load_2017_V_usa()
     V = industry_corresp() @ V_2017 @ commodity_corresp().T
@@ -201,6 +203,29 @@ def derive_cornerstone_V() -> pd.DataFrame:
         V = apply_waste_disagg_to_V(V, weights)
         V.index.name = 'sector'
         V.columns.name = 'sector'
+    if apply_inflation:
+        if target_year <= 0:
+            raise ValueError(
+                f"target_year must be a positive year when apply_inflation=True, "
+                f"got {target_year}"
+            )
+
+        # Adjust V by applying industry price ratio
+        cfg = get_usa_config()
+        price_ratio = get_cornerstone_industry_price_ratio(
+            cfg.usa_base_io_data_year,  # 2017 by default
+            target_year,
+        )
+
+        price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
+        V = pd.DataFrame(
+            V.multiply(
+                price_ratio,
+                axis=0,  # axis=0 means aligning on rows (i.e. industries)
+            ).values,
+            index=V.index,
+            columns=V.columns,
+        )
     return V
 
 
@@ -276,7 +301,12 @@ def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
 @functools.cache
 @pa.check_output(CornerstoneQVectorSchema)
 def derive_cornerstone_q() -> pd.Series[float]:
-    return compute_q(V=derive_cornerstone_V())
+    cfg = get_usa_config()
+    return compute_q(
+        V=derive_cornerstone_V(
+            apply_inflation=cfg.apply_inflation_to_V, target_year=cfg.model_base_year
+        )
+    )
 
 
 @functools.cache
@@ -286,34 +316,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 ) -> pd.DataFrame:
     cfg = get_usa_config()
 
-    V = derive_cornerstone_V()
-
-    if apply_inflation:
-        if target_year <= 0:
-            raise ValueError(
-                f"target_year must be a positive year when apply_inflation=True, "
-                f"got {target_year}"
-            )
-
-        # Adjust V by applying industry price ratio
-        price_ratio = get_cornerstone_industry_price_ratio(
-            cfg.usa_base_io_data_year,  # 2017 by default
-            target_year,
-        )
-        # Under `update_inflation_factors=False` the helper returns
-        # commodity-indexed values; aligning by name with V.index (industries)
-        # would otherwise produce a 406-row union and fail the (industries,
-        # commodities) shape below. Industries not in commodities (e.g.
-        # `331314`) fall back to a neutral 1.0 ratio.
-        price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
-        V = pd.DataFrame(
-            V.multiply(
-                price_ratio,
-                axis=0,  # axis=0 means aligning on rows (i.e. industries)
-            ).values,
-            index=V.index,
-            columns=V.columns,
-        )
+    V = derive_cornerstone_V(cfg.apply_inflation_to_V, target_year)
 
     q = compute_q(V=V)
     x = compute_x(V=V)
