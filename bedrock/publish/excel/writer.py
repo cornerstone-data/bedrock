@@ -376,9 +376,11 @@ def _assemble_extended_U(
 
 @functools.cache
 def _get_V() -> pd.DataFrame:
-    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_V
+    from bedrock.extract.disaggregation.electricity_disagg_cornerstone_materializer import (
+        materialize_electricity_disagg_cornerstone_frames,
+    )
 
-    return derive_cornerstone_V()
+    return materialize_electricity_disagg_cornerstone_frames()['V']
 
 
 @functools.cache
@@ -387,15 +389,16 @@ def _get_U() -> pd.DataFrame:
     # Promote to a public `derive_cornerstone_Y_matrix()` once another
     # non-publish caller appears -- see option A in the writer module
     # docstring discussion.
+    from bedrock.extract.disaggregation.electricity_disagg_cornerstone_materializer import (
+        intermediate_use_totals,
+    )
     from bedrock.transform.eeio.derived_cornerstone import (
         _derive_cornerstone_Ytot_with_trade,
-        derive_cornerstone_U_set,
         derive_cornerstone_VA,
     )
     from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
-    uset = derive_cornerstone_U_set()
-    intermediate = uset.Udom + uset.Uimp
+    intermediate = intermediate_use_totals()
     # Reindex by canonical FINAL_DEMANDS order so column layout matches
     # useeior's `U` regardless of source column ordering.
     fd_block = _derive_cornerstone_Ytot_with_trade()[list(FINAL_DEMANDS)]
@@ -410,13 +413,13 @@ def _get_U() -> pd.DataFrame:
 def _get_Udom() -> pd.DataFrame:
     # FD block intentionally truncated; bedrock has no Ydom matrix at
     # FD-category resolution today. See writer module docstring.
-    from bedrock.transform.eeio.derived_cornerstone import (
-        derive_cornerstone_U_set,
-        derive_cornerstone_VA,
+    from bedrock.extract.disaggregation.electricity_disagg_cornerstone_materializer import (
+        materialize_electricity_disagg_cornerstone_frames,
     )
+    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_VA
 
     return _assemble_extended_U(
-        intermediate=derive_cornerstone_U_set().Udom,
+        intermediate=materialize_electricity_disagg_cornerstone_frames()['Udom'],
         fd=None,
         va=derive_cornerstone_VA(),
     )

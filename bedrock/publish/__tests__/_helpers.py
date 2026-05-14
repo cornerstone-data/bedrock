@@ -17,6 +17,7 @@ from typing import Callable
 
 import bedrock.utils.config.common as common
 from bedrock.publish.excel.writer import clear_publish_caches
+from bedrock.transform.eeio import derived_cornerstone as derived_cornerstone_module
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
     derive_B_usa_non_finetuned,
@@ -58,6 +59,7 @@ CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_U_set,
+    derived_cornerstone_module._derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Ytot_matrix_set,
     derive_cornerstone_VA,
     derive_cornerstone_Aq,
