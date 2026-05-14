@@ -681,7 +681,7 @@ def umd_ghgia_parse(
                 'Electricity',
                 'Fuel Type/Vehicle Type',
                 'Diesel On-Road',  # UMD 3-9
-                'Alternative Fuel On-Road',
+                'Alternative Fuel On-Road', # UMD 3-10
                 'Non-Road',
                 'Gasoline On-Road',  # UMD 3-9
                 'Distillate Fuel Oil',
@@ -700,7 +700,7 @@ def umd_ghgia_parse(
                 else:
                     # apply the header
                     apb_txt = apb_value
-                    if table_name == '3-10':
+                    if table_name == 'X-X':  # was EPA  3-10
                         # Separate Flows and activities for this table
                         df.loc[index, 'ActivityProducedBy'] = apbe_value  # type: ignore[index]
                         df.loc[index, 'FlowName'] = apb_txt  # type: ignore[index]
