@@ -30,6 +30,12 @@ caches from Step 1 and the BEA summary A from
   ``rmse_vs_bea_summary_a`` (Z-magnitude weighted), ``mean_abs_diff``,
   ``top_5_worst_cells`` (semicolon-joined ``ROW->COL:diff`` pairs).
 
+- ``q_deviation_summary_tables_vs_cpi.csv`` — one row per year with three
+  deviation statistics of ``q_summary_tables`` relative to
+  ``q_commodity_price_index`` across all Cornerstone commodities:
+  ``q_weighted_rmse`` (q_cpi-magnitude-weighted), ``mean_abs_pct_err``, and
+  ``median_abs_pct_err`` (percentage units).
+
 - ``summary_a_rmse_ranking.png`` — grouped bar chart, x = year, five bars
   per group (one per approach), y = weighted RMSE for the combined
   (dom + imp) A matrix.
@@ -250,6 +256,59 @@ def compute_errors_table() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def compute_q_deviation_table() -> pd.DataFrame:
+    """Per-year deviation of q_summary_tables from q_commodity_price_index.
+
+    Three statistics per year, all over the full set of CORNERSTONE_COMMODITIES
+    present in both parquets:
+
+    - ``q_weighted_rmse`` — q_cpi-magnitude-weighted RMSE, analogous to the
+      Z-weighted RMSE used for A-matrix errors.  Large-q commodities dominate.
+    - ``mean_abs_pct_err`` — mean |q_st − q_cpi| / q_cpi × 100 (uniform weight,
+      percentage units).
+    - ``median_abs_pct_err`` — median of the same per-commodity ratio × 100.
+      More robust to a handful of extreme deviants.
+    - ``n_commodities`` — number of commodities included (positive in both series).
+    """
+    rows: list[dict[str, object]] = []
+    for year in YEARS:
+        cpi_path = RESULTS_DIR / f"q_commodity_price_index_{year}.parquet"
+        st_path = RESULTS_DIR / f"q_summary_tables_{year}.parquet"
+        if not (cpi_path.exists() and st_path.exists()):
+            logger.warning("Missing q parquet for year=%d — skipping q deviation", year)
+            continue
+
+        q_cpi = _load_q_detail("commodity_price_index", year)
+        q_st = _load_q_detail("summary_tables", year)
+
+        common = (
+            pd.Index(CORNERSTONE_COMMODITIES)
+            .intersection(q_cpi.index)
+            .intersection(q_st.index)
+        )
+        cpi_vals = q_cpi.reindex(common).to_numpy(dtype=float)
+        st_vals = q_st.reindex(common).to_numpy(dtype=float)
+
+        mask = (cpi_vals > 0) & (st_vals > 0)
+        cpi_vals = cpi_vals[mask]
+        st_vals = st_vals[mask]
+
+        diff = st_vals - cpi_vals
+        weights = cpi_vals / cpi_vals.sum()
+        q_weighted_rmse = float(np.sqrt(np.sum(weights * diff**2)))
+        abs_pct = np.abs(diff / cpi_vals) * 100.0
+        rows.append(
+            {
+                "year": year,
+                "q_weighted_rmse": q_weighted_rmse,
+                "mean_abs_pct_err": float(abs_pct.mean()),
+                "median_abs_pct_err": float(np.median(abs_pct)),
+                "n_commodities": int(mask.sum()),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def plot_rmse_ranking(errors_df: pd.DataFrame, path: Path) -> None:
     """Grouped bar chart: x = year, 5 bars per group (one per approach).
 
@@ -314,6 +373,22 @@ def _publish_summary_a_errors_tab(errors_df: pd.DataFrame) -> None:
         )
         return
     logger.info("Updated summary_a_errors tab on sheet %s", sheet_id)
+
+
+def _publish_q_deviation_tab(q_dev_df: pd.DataFrame) -> None:
+    if not LAST_RUN_SHEET_ID_PATH.exists():
+        return
+    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
+    try:
+        update_sheet_tab(sheet_id, "q_deviation_st_vs_cpi", q_dev_df)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "Sheet publish skipped (%s: %s). Local CSV still complete.",
+            type(e).__name__,
+            e,
+        )
+        return
+    logger.info("Updated q_deviation_st_vs_cpi tab on sheet %s", sheet_id)
 
 
 def plot_q_commodity_pi_vs_summary_tables(
@@ -388,12 +463,17 @@ def main() -> None:
     errors_df = compute_errors_table()
     errors_df.to_csv(RESULTS_DIR / "summary_a_errors.csv", index=False)
 
+    logger.info("Computing q deviation: summary_tables vs commodity_price_index")
+    q_dev_df = compute_q_deviation_table()
+    q_dev_df.to_csv(RESULTS_DIR / "q_deviation_summary_tables_vs_cpi.csv", index=False)
+
     plot_rmse_ranking(errors_df, PLOTS_DIR / "summary_a_rmse_ranking.png")
     plot_q_commodity_pi_vs_summary_tables(
         YEARS, PLOTS_DIR / "q_commodity_pi_vs_summary_tables.png"
     )
 
     _publish_summary_a_errors_tab(errors_df)
+    _publish_q_deviation_tab(q_dev_df)
     logger.info("Step 5 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 
