@@ -153,7 +153,10 @@ class USAConfig(BaseModel):
 
     @model_validator(mode='after')
     def _validate_deflate_x_requires_use_e_for_x_in_b(self) -> USAConfig:
-        if self.deflate_x_to_detail_io_year_for_B and not self.use_E_data_year_for_x_in_B:
+        if (
+            self.deflate_x_to_detail_io_year_for_B
+            and not self.use_E_data_year_for_x_in_B
+        ):
             raise ValueError(
                 'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
                 'to be true'
