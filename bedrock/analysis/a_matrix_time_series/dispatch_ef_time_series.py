@@ -59,6 +59,7 @@ ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
     "summary_tables": "2025_usa_cornerstone_A_summary_tables",
     "industry_price_index": "2025_usa_cornerstone_A_industry_price_index",
     "commodity_price_index": "2025_usa_cornerstone_A_commodity_price_index",
+    "useeio_nowcast": "2025_usa_cornerstone_A_useeio_nowcast",
 }
 
 # `bundle_v0_2`: full v0.2 release-candidate ensembles. Each YAML carries
@@ -71,6 +72,7 @@ BUNDLE_V0_2_YAMLS: dict[str, str] = {
     "summary_tables": "2025_usa_cornerstone_full_model_A_summary_tables",
     "industry_price_index": "2025_usa_cornerstone_full_model_A_industry_price_index",
     "commodity_price_index": "2025_usa_cornerstone_full_model_A_commodity_price_index",
+    "useeio_nowcast": "2025_usa_cornerstone_full_model_A_useeio_nowcast",
 }
 
 SCENARIO_YAMLS: dict[str, dict[str, str]] = {
@@ -87,6 +89,7 @@ APPROACH_LABELS: dict[str, str] = {
     "summary_tables": "A matrix with summary tables",
     "industry_price_index": "A matrix with industry price index",
     "commodity_price_index": "A matrix with commodity price index",
+    "useeio_nowcast": "A matrix from USEEIO nowcast",
     "full_model": "full v0.2 model",
 }
 BASELINE_LABELS: dict[str, str] = {
@@ -306,6 +309,7 @@ def dispatch(
     git_ref: str,
     scenarios: tuple[str, ...] = ("bundle_v0_2",),
     years: tuple[int, ...] = DEFAULT_YEARS,
+    approaches: tuple[str, ...] | None = None,
     use_useeio_baseline: bool = False,
     dry_run: bool = False,
     throttle: str = "poll",
@@ -329,6 +333,8 @@ def dispatch(
                 f"the corresponding mapping in this script before dispatching."
             )
         for approach, config_name in yamls.items():
+            if approaches is not None and approach not in approaches:
+                continue
             for year in years:
                 n_planned += 1
                 index_df = _load_index()
@@ -495,6 +501,14 @@ def main() -> None:
         help=f"Comma-separated years (default: {','.join(str(y) for y in DEFAULT_YEARS)}).",
     )
     parser.add_argument(
+        "--approaches",
+        default="",
+        help=(
+            "Optional comma-separated approach filter (e.g. 'useeio_nowcast'). "
+            "Default empty = all approaches in the chosen scenarios."
+        ),
+    )
+    parser.add_argument(
         "--use-useeio-baseline",
         action="store_true",
         help="Tick the USEEIO baseline box. Default is CEDA-only baseline.",
@@ -526,6 +540,8 @@ def main() -> None:
 
     scenarios = tuple(s.strip() for s in args.scenarios.split(",") if s.strip())
     years = tuple(int(y) for y in args.years.split(",") if y.strip())
+    approaches_arg = tuple(a.strip() for a in args.approaches.split(",") if a.strip())
+    approaches = approaches_arg if approaches_arg else None
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.re_dispatch_from_csv:
@@ -540,6 +556,7 @@ def main() -> None:
             git_ref=args.git_ref,
             scenarios=scenarios,
             years=years,
+            approaches=approaches,
             use_useeio_baseline=args.use_useeio_baseline,
             dry_run=args.dry_run,
             throttle=args.throttle,

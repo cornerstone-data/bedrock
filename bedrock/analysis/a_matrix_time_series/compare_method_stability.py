@@ -21,13 +21,14 @@ and emissions-weighted (by ``mean_N``, the metric to optimize).
 Outputs:
 - ``output/results/n_yoy_ranking.csv``
 - ``output/results/n_yoy_per_sector.csv``
-- ``output/plots/n_indexed_lines.png``      — top-K sectors, N indexed to
-                                                year-2019 = 100, faceted by method
-- ``output/plots/n_yoy_distribution.png``   — boxplot of |YoY %|
-                                                distributions per method
-- ``output/plots/n_yoy_signed_violin.png``  — violin plot of signed YoY %
-                                                distributions per method, showing
-                                                tail asymmetry (over- vs under-shoots)
+- ``output/plots/n_indexed_lines.png``                  — top-K sectors, N
+                                                          indexed to year-2019 = 100,
+                                                          faceted by method
+- ``output/plots/n_yoy_signed_violin_no_industry_pi.png`` — violin plot of signed
+                                                          YoY % per method (drops
+                                                          industry_price_index for
+                                                          readability; useeio is
+                                                          excluded as benchmark)
 
 Usage:
     python -m bedrock.analysis.a_matrix_time_series.compare_method_stability
@@ -56,8 +57,6 @@ EF_COMPARISON_XLSX_PATH = RESULTS_DIR / "ef_comparison.xlsx"
 YOY_RANKING_PATH = RESULTS_DIR / "n_yoy_ranking.csv"
 YOY_PER_SECTOR_PATH = RESULTS_DIR / "n_yoy_per_sector.csv"
 INDEXED_LINES_PLOT_PATH = PLOTS_DIR / "n_indexed_lines.png"
-YOY_DISTRIBUTION_PLOT_PATH = PLOTS_DIR / "n_yoy_distribution.png"
-YOY_SIGNED_VIOLIN_PLOT_PATH = PLOTS_DIR / "n_yoy_signed_violin.png"
 YOY_SIGNED_VIOLIN_NO_IPI_PLOT_PATH = (
     PLOTS_DIR / "n_yoy_signed_violin_no_industry_pi.png"
 )
@@ -69,14 +68,18 @@ APPROACH_PREFIXES: tuple[tuple[str, str], ...] = (
     ("commodity_pr", "commodity_price_index"),
     ("industry_pri", "industry_price_index"),
     ("summary_tabl", "summary_tables"),
+    # useeio_nowcast must come BEFORE useeio — "useeio" is a prefix of
+    # "useeio_nowca" (the 31-char-truncated tab form), so the longer match
+    # has to be tested first.
+    ("useeio_nowca", "useeio_nowcast"),
     ("useeio", "useeio"),
 )
 
 EXCLUDED_APPROACHES: frozenset[str] = frozenset({"useeio"})
 
-YEARS: tuple[int, ...] = (2019, 2020, 2021, 2022, 2023)
+YOY_YEARS: tuple[int, ...] = (2019, 2020, 2021, 2022, 2023)
 YOY_TRANSITIONS: tuple[tuple[int, int], ...] = tuple(
-    (YEARS[i], YEARS[i + 1]) for i in range(len(YEARS) - 1)
+    (YOY_YEARS[i], YOY_YEARS[i + 1]) for i in range(len(YOY_YEARS) - 1)
 )
 
 # Drop sectors with mean N below this percentile from non-weighted metrics
@@ -157,11 +160,11 @@ def _yoy_per_sector(panel: pd.DataFrame) -> pd.DataFrame:
         aggfunc="first",
     )
     # Make sure every year-column we expect exists (NaN if a cell missing).
-    for y in YEARS:
+    for y in YOY_YEARS:
         if y not in wide.columns:
             wide[y] = np.nan
-    wide = wide[list(YEARS)]
-    wide.columns = pd.Index([f"N_{y}" for y in YEARS])
+    wide = wide[list(YOY_YEARS)]
+    wide.columns = pd.Index([f"N_{y}" for y in YOY_YEARS])
     wide = wide.reset_index()
 
     # YoY % change for each transition.
@@ -176,15 +179,15 @@ def _yoy_per_sector(panel: pd.DataFrame) -> pd.DataFrame:
     abs_yoy = wide[yoy_cols].abs()
     wide["mean_abs_yoy_pct"] = abs_yoy.mean(axis=1)
     wide["max_abs_yoy_pct"] = abs_yoy.max(axis=1)
-    wide["total_drift_pct"] = (wide[f"N_{YEARS[-1]}"] - wide[f"N_{YEARS[0]}"]) / wide[
-        f"N_{YEARS[0]}"
-    ].abs()
+    wide["total_drift_pct"] = (
+        wide[f"N_{YOY_YEARS[-1]}"] - wide[f"N_{YOY_YEARS[0]}"]
+    ) / wide[f"N_{YOY_YEARS[0]}"].abs()
     wide["abs_total_drift_pct"] = wide["total_drift_pct"].abs()
-    wide["mean_N"] = wide[[f"N_{y}" for y in YEARS]].mean(axis=1)
+    wide["mean_N"] = wide[[f"N_{y}" for y in YOY_YEARS]].mean(axis=1)
     return wide
 
 
-def _aggregate(per_sector: pd.DataFrame) -> pd.DataFrame:
+def _aggregate_yoy_per_method(per_sector: pd.DataFrame) -> pd.DataFrame:
     """Per approach: median / p95 / emissions-weighted of each YoY metric."""
     metrics = ("mean_abs_yoy_pct", "max_abs_yoy_pct", "abs_total_drift_pct")
     rows: list[dict[str, object]] = []
@@ -269,9 +272,9 @@ def _indexed_lines_plot(
         ]
         for sector in head_sectors:
             sg = sub[sub["sector"] == sector].sort_values("year")
-            if sg.empty or sg["year"].min() != YEARS[0]:
+            if sg.empty or sg["year"].min() != YOY_YEARS[0]:
                 continue
-            base = sg.loc[sg["year"] == YEARS[0], "N_new_ref"].iloc[0]
+            base = sg.loc[sg["year"] == YOY_YEARS[0], "N_new_ref"].iloc[0]
             if base == 0 or pd.isna(base):
                 continue
             indexed = sg["N_new_ref"] / base * 100
@@ -285,8 +288,8 @@ def _indexed_lines_plot(
         ax.axhline(100, color="black", linestyle=":", linewidth=1, alpha=0.6)
         ax.set_title(approach, fontsize=14)
         ax.set_xlabel("Year")
-        ax.set_xticks(list(YEARS))
-        ax.set_xticklabels([str(y) for y in YEARS])
+        ax.set_xticks(list(YOY_YEARS))
+        ax.set_xticklabels([str(y) for y in YOY_YEARS])
         ax.grid(alpha=0.3)
     axes[0].set_ylabel("N indexed (2019 = 100)")
     handles, labels = axes[0].get_legend_handles_labels()
@@ -309,156 +312,10 @@ def _indexed_lines_plot(
     plt.close(fig)
 
 
-def _pooled_yoy(big: pd.DataFrame, approach: str) -> pd.Series:
-    """All sector×transition |YoY|s for ``approach``, no per-sector averaging."""
-    sub = big[big["approach"] == approach]
-    return pd.concat(
-        [sub[f"yoy_{y0}_{y1}"].abs() for y0, y1 in YOY_TRANSITIONS]
-    ).dropna()
-
-
 def _pooled_signed_yoy(big: pd.DataFrame, approach: str) -> pd.Series:
     """All sector×transition signed YoYs for ``approach``, no per-sector averaging."""
     sub = big[big["approach"] == approach]
     return pd.concat([sub[f"yoy_{y0}_{y1}"] for y0, y1 in YOY_TRANSITIONS]).dropna()
-
-
-def _yoy_distribution_plot(per_sector: pd.DataFrame, out_path: Path) -> None:
-    """3-panel summary of per-sector |YoY| across methods.
-
-    Left:   pooled distribution per method (all sector×transition |YoY|s).
-    Middle: |YoY| per transition, grouped by method.
-    Right:  ECDF of pooled |YoY| per method (threshold-reading view).
-    """
-    approaches = sorted(per_sector["approach"].unique())
-    cutoff = per_sector["mean_N"].abs().quantile(MIN_MEAN_PERCENTILE / 100)
-    big = per_sector[per_sector["mean_N"].abs() >= cutoff]
-    cmap = plt.get_cmap("tab10")
-    colors = {a: cmap(i) for i, a in enumerate(approaches)}
-
-    # Plot in percent units (|YoY| × 100) so axes read 0–30 = 0–30 %.
-    pooled_by_approach = {a: _pooled_yoy(big, a) * 100 for a in approaches}
-
-    # Shared ylim across boxplot panels, with a small negative buffer so the
-    # lower whiskers sit off the axis instead of being pinned to it.
-    box_ylim = (-2.0, 30.0)
-    # ECDF y-range goes higher than the boxplots so the summary_tables tail
-    # is visible — boxplots hide outliers (showfliers=False), so the ECDF is
-    # the panel that should show the full distribution.
-    ecdf_ylim = (0.0, 50.0)
-    percent_ticks = list(range(0, 31, 5))
-    percent_tick_labels = [f"{t}%" for t in percent_ticks]
-    ecdf_y_ticks = list(range(0, 51, 5))
-    ecdf_y_tick_labels = [f"{t}%" for t in ecdf_y_ticks]
-
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
-
-    # Left: pooled |YoY| per method (one box per method, all sector-years pooled).
-    ax = axes[0]
-    bp = ax.boxplot(
-        [pooled_by_approach[a] for a in approaches],
-        tick_labels=approaches,
-        showfliers=False,
-        patch_artist=True,
-    )
-    for i, patch in enumerate(bp["boxes"]):
-        patch.set_facecolor(colors[approaches[i]])
-        patch.set_alpha(0.6)
-    ax.axhline(0, color="black", linewidth=0.8, alpha=0.5)
-    ax.set_title("Pooled |YoY| (all sector-years)", fontsize=13)
-    ax.set_ylabel("|YoY| (lower = more stable)")
-    ax.set_ylim(*box_ylim)
-    ax.set_yticks(percent_ticks)
-    ax.set_yticklabels(percent_tick_labels)
-    legend_handles = [
-        Patch(facecolor=colors[a], alpha=0.6, label=a) for a in approaches
-    ] + [
-        Line2D([], [], color="tab:orange", linewidth=2.25, label="median"),
-        Patch(
-            facecolor="white",
-            edgecolor="black",
-            linewidth=1.5,
-            label="box (Q1–Q3 / IQR)",
-        ),
-        Line2D(
-            [],
-            [],
-            color="black",
-            linewidth=1.5,
-            marker="_",
-            markersize=13,
-            markeredgewidth=1.8,
-            label="whisker (non-outlier range)",
-        ),
-    ]
-    ax.legend(handles=legend_handles, loc="upper left", fontsize=12, framealpha=0.9)
-    ax.grid(axis="y", alpha=0.3)
-
-    # Middle: per-transition |YoY|, grouped boxes per method.
-    ax = axes[1]
-    transition_labels = [f"{y0}→{y1}" for y0, y1 in YOY_TRANSITIONS]
-    n_methods = len(approaches)
-    width = 0.8 / n_methods
-    for i, approach in enumerate(approaches):
-        sub = big[big["approach"] == approach]
-        per_transition = [
-            sub[f"yoy_{y0}_{y1}"].abs().dropna() * 100 for y0, y1 in YOY_TRANSITIONS
-        ]
-        positions = [
-            j + (i - (n_methods - 1) / 2) * width for j in range(len(YOY_TRANSITIONS))
-        ]
-        bp = ax.boxplot(
-            per_transition,
-            positions=positions,
-            widths=width * 0.9,
-            patch_artist=True,
-            showfliers=False,
-        )
-        for patch in bp["boxes"]:
-            patch.set_facecolor(colors[approach])
-            patch.set_alpha(0.6)
-    ax.axhline(0, color="black", linewidth=0.8, alpha=0.5)
-    ax.set_xticks(range(len(YOY_TRANSITIONS)))
-    ax.set_xticklabels(transition_labels)
-    ax.set_title("|YoY| per transition, by method", fontsize=13)
-    ax.set_ylabel("|YoY|")
-    ax.set_ylim(*box_ylim)
-    ax.set_yticks(percent_ticks)
-    ax.set_yticklabels(percent_tick_labels)
-    ax.grid(axis="y", alpha=0.3)
-
-    # Right: ECDF of pooled |YoY| per method, rotated so |YoY| stays on the
-    # y-axis (matching the boxplot panels). Read: "fraction of sector-years
-    # with |YoY| ≤ y" — pick a y (e.g. 5%), trace to the curve, read x.
-    ax = axes[2]
-    for approach in approaches:
-        vals = np.sort(pooled_by_approach[approach].to_numpy())
-        if len(vals) == 0:
-            continue
-        cdf = np.arange(1, len(vals) + 1) / len(vals)
-        ax.plot(cdf, vals, color=colors[approach], label=approach, linewidth=2)
-    for thr in (5, 10):
-        ax.axhline(thr, color="black", linestyle=":", linewidth=1, alpha=0.5)
-    for x_ref in (0.9, 0.95):
-        ax.axvline(x_ref, color="grey", linestyle="--", linewidth=1, alpha=0.7)
-    ax.set_xlim(0, 1)
-    ax.set_ylim(*ecdf_ylim)
-    ax.set_title("Empirical cumulative distribution of pooled |YoY|", fontsize=13)
-    ax.set_xlabel("% of sector-years with |YoY| ≤ y-axis value")
-    ax.set_ylabel("|YoY|")
-    x_ticks = [i / 10 for i in range(0, 11)]
-    ax.set_xticks(x_ticks)
-    ax.set_xticklabels([f"{int(t * 100)}%" for t in x_ticks])
-    ax.set_yticks(ecdf_y_ticks)
-    ax.set_yticklabels(ecdf_y_tick_labels)
-    ax.legend(loc="upper left", fontsize=12, framealpha=0.9)
-    ax.grid(alpha=0.3)
-
-    fig.suptitle("Year-over-year fluctuation in N across A-matrix methods", fontsize=15)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=120, bbox_inches="tight")
-    plt.close(fig)
 
 
 def _clip_to_percentile(values: np.ndarray, lo: float, hi: float) -> np.ndarray:
@@ -481,20 +338,18 @@ def _yoy_signed_violin_plot(
     exclude_approaches: frozenset[str] = frozenset(),
     violin_ylim: tuple[float, float] = (-30.0, 30.0),
 ) -> None:
-    """3-panel summary of per-sector signed YoY across methods (violin form).
+    """2-panel summary of per-sector signed YoY across methods (violin form).
 
-    Mirrors ``_yoy_distribution_plot`` but keeps the sign of YoY (no abs) so
-    over- vs under-shoots are distinguishable and uses violins to show the
-    full shape of the distribution.
+    Keeps the sign of YoY (no abs) so over- vs under-shoots are
+    distinguishable; uses violins to show the full shape of the distribution.
 
     Left:   pooled signed YoY per method (all sector×transition values).
-    Middle: signed YoY per transition, grouped violins per method.
-    Right:  ECDF of pooled signed YoY per method (full signed distribution).
+    Right:  signed YoY per transition, grouped violins per method.
 
-    ``exclude_approaches`` drops those approach names from the violin and
-    ECDF panels (e.g. to zoom on the spread between the remaining methods).
-    Colors are assigned from the full sorted approach list before exclusion
-    so each method keeps its identity across variants of this plot.
+    ``exclude_approaches`` drops those approach names from the panels (e.g.
+    to zoom on the spread between the remaining methods). Colors are assigned
+    from the full sorted approach list before exclusion so each method keeps
+    its identity across variants of this plot.
     """
     # Compute colors against the full universe so dropping an approach
     # doesn't reshuffle the palette for the survivors.
@@ -509,18 +364,14 @@ def _yoy_signed_violin_plot(
     # Plot in percent units (YoY × 100) so axes read 0–30 = 0–30 %.
     pooled_by_approach = {a: _pooled_signed_yoy(big, a) * 100 for a in approaches}
 
-    # Symmetric tick grid matching the requested ``violin_ylim``. ECDF spans
-    # wider than the violin panels to capture both signed tails.
+    # Symmetric tick grid matching the requested ``violin_ylim``.
     lo, hi = violin_ylim
     span = int(max(abs(lo), abs(hi)))
     step = 10
     percent_ticks = list(range(-span, span + 1, step))
     percent_tick_labels = [f"{t}%" for t in percent_ticks]
-    ecdf_ylim = (-50.0, 50.0)
-    ecdf_y_ticks = list(range(-50, 51, 10))
-    ecdf_y_tick_labels = [f"{t}%" for t in ecdf_y_ticks]
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
 
     # Left: pooled signed YoY per method (one violin per method).
     ax = axes[0]
@@ -569,10 +420,11 @@ def _yoy_signed_violin_plot(
             label="min / max (clipped to 1–99 pct)",
         ),
     ]
-    ax.legend(handles=legend_handles, loc="upper left", fontsize=11, framealpha=0.9)
+    # Semi-transparent so the violin tails behind the legend remain visible.
+    ax.legend(handles=legend_handles, loc="upper left", fontsize=11, framealpha=0.4)
     ax.grid(axis="y", alpha=0.3)
 
-    # Middle: per-transition signed YoY, grouped violins per method.
+    # Right: per-transition signed YoY, grouped violins per method.
     ax = axes[1]
     transition_labels = [f"{y0}→{y1}" for y0, y1 in YOY_TRANSITIONS]
     n_methods = len(approaches)
@@ -619,34 +471,6 @@ def _yoy_signed_violin_plot(
     ax.set_yticklabels(percent_tick_labels)
     ax.grid(axis="y", alpha=0.3)
 
-    # Right: ECDF of pooled signed YoY per method. Computed on the unclipped
-    # data so both signed tails are visible. Read: "fraction of sector-years
-    # with YoY ≤ y" — pick a y, trace to the curve, read x.
-    ax = axes[2]
-    for approach in approaches:
-        vals = np.sort(pooled_by_approach[approach].to_numpy())
-        if len(vals) == 0:
-            continue
-        cdf = np.arange(1, len(vals) + 1) / len(vals)
-        ax.plot(cdf, vals, color=colors[approach], label=approach, linewidth=2)
-    ax.axhline(0, color="black", linewidth=0.8, alpha=0.5)
-    for thr in (-10, -5, 5, 10):
-        ax.axhline(thr, color="black", linestyle=":", linewidth=1, alpha=0.4)
-    for x_ref in (0.5, 0.9, 0.95):
-        ax.axvline(x_ref, color="grey", linestyle="--", linewidth=1, alpha=0.7)
-    ax.set_xlim(0, 1)
-    ax.set_ylim(*ecdf_ylim)
-    ax.set_title("Empirical cumulative distribution of pooled YoY", fontsize=13)
-    ax.set_xlabel("% of sector-years with YoY ≤ y-axis value")
-    ax.set_ylabel("YoY (signed)")
-    x_ticks = [i / 10 for i in range(0, 11)]
-    ax.set_xticks(x_ticks)
-    ax.set_xticklabels([f"{int(t * 100)}%" for t in x_ticks])
-    ax.set_yticks(ecdf_y_ticks)
-    ax.set_yticklabels(ecdf_y_tick_labels)
-    ax.legend(loc="upper left", fontsize=11, framealpha=0.9)
-    ax.grid(alpha=0.3)
-
     fig.suptitle(
         "Signed year-over-year change in N across A-matrix methods", fontsize=15
     )
@@ -688,7 +512,7 @@ def _print_summary(ranking: pd.DataFrame, per_sector: pd.DataFrame) -> None:
 def main() -> None:
     panel = _read_panel(EF_COMPARISON_XLSX_PATH)
     per_sector = _yoy_per_sector(panel)
-    ranking = _aggregate(per_sector)
+    ranking = _aggregate_yoy_per_method(per_sector)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -696,10 +520,10 @@ def main() -> None:
     ranking.to_csv(YOY_RANKING_PATH, index=False)
     per_sector.to_csv(YOY_PER_SECTOR_PATH, index=False)
     _indexed_lines_plot(panel, per_sector, INDEXED_LINES_PLOT_PATH)
-    _yoy_distribution_plot(per_sector, YOY_DISTRIBUTION_PLOT_PATH)
-    _yoy_signed_violin_plot(per_sector, YOY_SIGNED_VIOLIN_PLOT_PATH)
-    # Variant: drop industry_price_index (nearly co-linear with commodity_pi)
-    # and zoom violin ylim to ±40% so the summary_tables shape is legible.
+    # Signed violin, dropping industry_price_index (nearly co-linear with
+    # commodity_pi) and zooming ylim to ±40% so the summary_tables shape is
+    # legible. The all-method variants (n_yoy_distribution / n_yoy_signed_violin)
+    # were removed — they made the figure crowded without adding signal.
     _yoy_signed_violin_plot(
         per_sector,
         YOY_SIGNED_VIOLIN_NO_IPI_PLOT_PATH,
@@ -711,8 +535,6 @@ def main() -> None:
     print(f"\nWrote: {YOY_RANKING_PATH}")
     print(f"Wrote: {YOY_PER_SECTOR_PATH}")
     print(f"Wrote: {INDEXED_LINES_PLOT_PATH}")
-    print(f"Wrote: {YOY_DISTRIBUTION_PLOT_PATH}")
-    print(f"Wrote: {YOY_SIGNED_VIOLIN_PLOT_PATH}")
     print(f"Wrote: {YOY_SIGNED_VIOLIN_NO_IPI_PLOT_PATH}")
 
 

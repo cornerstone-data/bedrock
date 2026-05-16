@@ -59,6 +59,7 @@ from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
     APPROACH_COLORS,
     APPROACH_ORDER,
+    APPROACH_YEAR_COVERAGE,
     PLOTS_DIR,
     RESULTS_DIR,
 )
@@ -72,9 +73,18 @@ from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
 
 logger = logging.getLogger(__name__)
 
-YEARS: tuple[int, ...] = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
+SUMMARY_A_ERROR_YEARS: tuple[int, ...] = (
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+)
 
-TOP_K_WORST = 5
+TOP_K_WORST_CELLS_REPORTED = 5
 
 
 def _cornerstone_to_summary() -> dict[str, str]:
@@ -88,7 +98,7 @@ def _cornerstone_to_summary() -> dict[str, str]:
     }
 
 
-def _load_a_total(approach: str, year: int) -> pd.DataFrame:
+def _load_a_total_dom_plus_imp(approach: str, year: int) -> pd.DataFrame:
     """A_total = A_dom + A_imp, str-typed indices."""
     combined = pd.read_parquet(RESULTS_DIR / f"A_{approach}_{year}.parquet")
     adom = pd.DataFrame(combined.loc["dom"])
@@ -176,7 +186,7 @@ def _cell_errors_one_pair(
 
     flat = diff.flatten()
     flat_abs = np.abs(flat)
-    worst = np.argsort(flat_abs)[::-1][:TOP_K_WORST]
+    worst = np.argsort(flat_abs)[::-1][:TOP_K_WORST_CELLS_REPORTED]
     rows_arr = np.asarray(common_rows)
     cols_arr = np.asarray(common_cols)
     n_cols = len(common_cols)
@@ -191,19 +201,24 @@ def compute_errors_table() -> pd.DataFrame:
     """Per (approach, year) cell-level errors at summary aggregation."""
     cs_to_summary = _cornerstone_to_summary()
     rows: list[dict[str, object]] = []
-    for year in YEARS:
+    for year in SUMMARY_A_ERROR_YEARS:
         try:
             a_summary_obs = _bea_observed_summary_a(year)
         except Exception as e:  # noqa: BLE001
             logger.warning("BEA summary A unavailable for year=%d (%s)", year, e)
             continue
         for approach in APPROACH_ORDER:
+            # Skip year/approach combos the approach doesn't cover. Avoids
+            # log noise for known gaps (e.g. useeio_nowcast has no 2024).
+            coverage = APPROACH_YEAR_COVERAGE.get(approach)
+            if coverage is not None and year not in coverage:
+                continue
             a_path = RESULTS_DIR / f"A_{approach}_{year}.parquet"
             q_path = RESULTS_DIR / f"q_{approach}_{year}.parquet"
             if not (a_path.exists() and q_path.exists()):
                 logger.warning("Missing %s or %s — skipping", a_path, q_path)
                 continue
-            a_detail = _load_a_total(approach, year)
+            a_detail = _load_a_total_dom_plus_imp(approach, year)
             q_detail = _load_q_detail(approach, year)
             a_summary_pred = aggregate_detail_a_to_summary(
                 a_detail, q_detail, cs_to_summary

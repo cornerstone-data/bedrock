@@ -40,7 +40,7 @@ Reads ``A_cells_long.parquet`` (Step 2 output). Produces:
 - Sheet tabs ``keysector_top_cells_ranked``, ``keysector_curated_shortlist``
   appended to the run-report Sheet.
 
-Tunable constants: ``RANK_TARGET_YEAR``, ``ALTERNATIVE_APPROACHES``,
+Tunable constants: ``RANK_TARGET_YEAR``, ``FOCUS_APPROACHES``,
 ``BASELINES``, ``HEATMAP_TOP_GROUPS``, ``DRILL_IN_TOP_N``, ``CSV_TOP_N``.
 
 Usage:
@@ -59,10 +59,9 @@ import pandas as pd
 
 from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    ALTERNATIVE_APPROACHES,
     APPROACH_COLORS,
     BASELINES,
-    LATEST_TARGET_YEAR,
+    FOCUS_APPROACHES,
     PLOTS_DIR,
     RESULTS_DIR,
 )
@@ -81,7 +80,8 @@ logger = logging.getLogger(__name__)
 
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-RANK_TARGET_YEAR = LATEST_TARGET_YEAR
+# 2023, not 2024 — useeio_nowcast has no 2024 upstream data.
+RANK_TARGET_YEAR = 2023
 
 HEATMAP_TOP_GROUPS = 15
 DRILL_IN_TOP_N = 12
@@ -180,7 +180,7 @@ def compute_impact_table(long: pd.DataFrame) -> pd.DataFrame:
     - ``impact_vs_ceda   = max_alt |A_alt − A_ceda|   × |A_ceda|``
     - per-approach values at ``RANK_TARGET_YEAR``
 
-    Where ``alt`` ranges over ``ALTERNATIVE_APPROACHES`` only — the two
+    Where ``alt`` ranges over ``FOCUS_APPROACHES`` only — the two
     baselines are anchors, not candidates being evaluated.
     """
     snap = long.loc[(long["dom_or_imp"] == "dom") & (long["year"] == RANK_TARGET_YEAR)]
@@ -191,7 +191,7 @@ def compute_impact_table(long: pd.DataFrame) -> pd.DataFrame:
     ).fillna(0.0)
 
     # Compute max-over-alternatives |A_alt − A_baseline| per cell.
-    alt_cols = [c for c in ALTERNATIVE_APPROACHES if c in pivot.columns]
+    alt_cols = [c for c in FOCUS_APPROACHES if c in pivot.columns]
     out = pivot.reset_index()
 
     for baseline_col, _ in BASELINES:
@@ -245,7 +245,7 @@ def aggregate_impact_by_group(
     for baseline_col, _ in BASELINES:
         if baseline_col not in pivot.columns:
             continue
-        for alt in ALTERNATIVE_APPROACHES:
+        for alt in FOCUS_APPROACHES:
             if alt not in pivot.columns:
                 continue
             cell_impact = np.abs(
@@ -284,7 +284,7 @@ def aggregate_impact_by_group(
     )
 
     # Make column order stable.
-    cols_order = [c for c in ALTERNATIVE_APPROACHES if c in df_u.columns]
+    cols_order = [c for c in FOCUS_APPROACHES if c in df_u.columns]
     df_u = df_u.reindex(columns=cols_order, fill_value=0.0)
     df_c = df_c.reindex(columns=cols_order, fill_value=0.0)
 

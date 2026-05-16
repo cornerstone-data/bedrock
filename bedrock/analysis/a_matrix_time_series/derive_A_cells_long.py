@@ -57,8 +57,8 @@ import pandas as pd
 from bedrock.analysis.a_matrix_time_series._loaders import load_a_pair
 from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    ALTERNATIVE_APPROACHES,
     BASELINES,
+    FOCUS_APPROACHES,
     PLOTS_DIR,
     RESULTS_DIR,
 )
@@ -67,9 +67,11 @@ logger = logging.getLogger(__name__)
 
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-# Reversed order: scatter rows are stacked top-down with `commodity` at
-# top, so this differs intentionally from shared ALTERNATIVE_APPROACHES.
-SCATTER_APPROACHES: tuple[str, ...] = tuple(reversed(ALTERNATIVE_APPROACHES))
+# v0.2 focus: scatter rows are the 3 focus approaches (summary_tables,
+# commodity_price_index, useeio_nowcast). Reversed so the matrix shows
+# useeio_nowcast on top, commodity_price_index middle, summary_tables bottom —
+# matches "external reference at top, candidates below" reading order.
+SCATTER_APPROACHES: tuple[str, ...] = tuple(reversed(FOCUS_APPROACHES))
 
 
 def _list_pairs() -> list[tuple[str, int]]:
@@ -78,6 +80,8 @@ def _list_pairs() -> list[tuple[str, int]]:
     Skips files that don't match ``A_{approach}_{4-digit-year}.parquet`` so
     other artifacts in the same dir (e.g. ``A_cells_long.parquet``) are
     ignored.
+
+    Consumed by: ``build_a_cells_long``.
     """
     pairs: list[tuple[str, int]] = []
     for path in sorted(RESULTS_DIR.glob("A_*.parquet")):
@@ -96,6 +100,8 @@ def _melt(df: pd.DataFrame, approach: str, year: int, kind: str) -> pd.DataFrame
     Direct numpy-based melt: faster than ``df.stack().reset_index(...)`` and
     avoids the duplicate-column collision when both axes share the source
     parquet's ``sector`` name.
+
+    Consumed by: ``build_a_cells_long``.
     """
     rows = df.index.to_numpy()
     cols = df.columns.to_numpy()
@@ -203,7 +209,10 @@ def compute_divergence_quantiles(long: pd.DataFrame, baseline: str) -> pd.DataFr
 
 
 def _latest_common_year(long: pd.DataFrame, approaches: list[str]) -> int | None:
-    """Latest year for which every approach in ``approaches`` has data."""
+    """Latest year for which every approach in ``approaches`` has data.
+
+    Consumed by: ``plot_scatter_vs_baselines``, ``plot_baseline_reference``.
+    """
     years_per_approach = [
         set(long.loc[long["approach"] == a, "year"].unique()) for a in approaches
     ]

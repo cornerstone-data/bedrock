@@ -59,13 +59,16 @@ logger = logging.getLogger(__name__)
 # (histograms).
 PanelFn = ta.Callable[[Axes, pd.DataFrame, str, float], None]
 
-# EF panels show the three alternatives + useeio comparator; ceda_default
-# is the baseline (x-axis), not a panel.
+# EF panels show only the v0.2 focus approaches — summary_tables and
+# commodity_price_index are the two top internal candidates, useeio_nowcast
+# is the external reference. industry_price_index is dropped (superseded by
+# commodity_price_index) and useeio (BEA-2017 do-nothing) is omitted because
+# it doesn't vary across years and confuses the time-series story.
+# ceda_default is the baseline on the x-axis, not a panel.
 APPROACH_ORDER: tuple[str, ...] = (
-    "useeio",
     "summary_tables",
-    "industry_price_index",
     "commodity_price_index",
+    "useeio_nowcast",
 )
 BASELINE_LABEL: dict[str, str] = {"ceda": "CEDA-US (v0)", "useeio": "USEEIO"}
 EF_KIND_LABEL: dict[str, str] = {"N": "total EF (N)", "D": "direct EF (D)"}
@@ -234,16 +237,30 @@ def _grid_2x2(
         return None
     # When a scenario carries multiple years, pool would mix dollar-years
     # and inflate `n` per panel — restrict to the latest year so each
-    # panel is a single-year snapshot.
+    # panel is a single-year snapshot. Legacy single-year runs predate the
+    # `year` column and store it as empty string; treat those as
+    # participating in the latest year (otherwise approaches without a
+    # tagged year would render "no data" while sibling approaches' year-
+    # tagged rows take over the panel).
     latest_year = _latest_year_in(sub)
     if latest_year:
-        sub = sub[sub["year"].astype(str) == latest_year]
+        year_str = sub["year"].fillna("").astype(str)
+        sub = sub[(year_str == latest_year) | (year_str == "")]
         suptitle = f"{suptitle} — year {int(float(latest_year))}"
 
-    # Scale canvas with text so a 2× font request gives a 2× figure.
-    base_w, base_h = 11.0, 10.5
+    # Layout: 1×N for N ≤ 3 (typical focus comparison), else 2×ceil(N/2)
+    # so the canvas stays roughly square as more approaches are added.
+    n = len(approaches)
+    if n <= 3:
+        nrows, ncols = 1, n
+        base_w, base_h = 5.5 * ncols, 6.0
+    else:
+        nrows = 2
+        ncols = (n + 1) // 2
+        base_w, base_h = 5.5 * ncols, 5.5 * nrows
+
     fig, axes_grid = plt.subplots(
-        2, 2, figsize=(base_w * font_scale, base_h * font_scale)
+        nrows, ncols, figsize=(base_w * font_scale, base_h * font_scale), squeeze=False
     )
     flat_axes = list(axes_grid.flat)
     for ax, approach in zip(flat_axes, approaches):
