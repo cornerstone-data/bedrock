@@ -57,9 +57,7 @@ def assert_cornerstone_matrix_export_preconditions() -> None:
     for key, expected_value in expected.items():
         actual_value = getattr(cfg, key, None)
         if actual_value != expected_value:
-            mismatches.append(
-                f"{key}={actual_value!r} (expected {expected_value!r})"
-            )
+            mismatches.append(f"{key}={actual_value!r} (expected {expected_value!r})")
     if mismatches:
         raise RuntimeError(
             "Cornerstone matrix export requires USAConfig to match "
