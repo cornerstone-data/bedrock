@@ -1,13 +1,19 @@
 """Export waste-disaggregated Cornerstone matrices for offline electricity disaggregation.
 
-Requires active :class:`~bedrock.utils.config.usa_config.USAConfig` to match the methodology
-flags in ``2025_usa_cornerstone_full_model.yaml`` and loadable waste disaggregation weights.
+Requires active :class:`~bedrock.utils.config.usa_config.USAConfig` to match every key
+pinned in ``2025_usa_cornerstone_full_model.yaml`` and loadable waste disaggregation
+weights. The canonical YAML itself (not a duplicated flag list) is the source of truth
+for the precondition.
 """
 
 from __future__ import annotations
 
+import os
 import pathlib
 
+import yaml
+
+from bedrock.publish.excel.writer import clear_publish_caches
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_U_set,
@@ -16,33 +22,51 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Ytot_full_cs_matrix,
     get_waste_disagg_weights,
 )
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.config.usa_config import CONFIG_DIR, get_usa_config
 
-_DISAGG_ROOT = pathlib.Path(__file__).resolve().parent
+_DISAGG_ROOT: pathlib.Path = pathlib.Path(__file__).resolve().parent
 
-_FULL_MODEL_MATRIX_EXPORT_FLAGS: dict[str, bool] = {
-    "use_cornerstone_2026_model_schema": True,
-    "load_E_from_flowsa": True,
-    "new_ghg_method": True,
-    "use_E_data_year_for_x_in_B": True,
-    "implement_waste_disaggregation": True,
-}
+_REQUIRED_CONFIG_FILE: str = "2025_usa_cornerstone_full_model.yaml"
+
+
+def _load_required_yaml_pins() -> dict[str, object]:
+    """Return the raw pinned keys from the canonical full-model YAML.
+
+    Only keys explicitly set in ``2025_usa_cornerstone_full_model.yaml`` are
+    returned; defaulted USAConfig fields are excluded so future YAML edits
+    flow through without code drift.
+    """
+    yaml_path = os.path.join(CONFIG_DIR, _REQUIRED_CONFIG_FILE)
+    with open(yaml_path) as f:
+        loaded = yaml.safe_load(f) or {}
+    if not isinstance(loaded, dict):
+        raise RuntimeError(
+            f"{_REQUIRED_CONFIG_FILE} did not parse to a mapping; got "
+            f"{type(loaded).__name__}"
+        )
+    return loaded
 
 
 def assert_cornerstone_matrix_export_preconditions() -> None:
-    """Raise ``RuntimeError`` if the current config cannot dump cornerstone matrix CSVs."""
+    """Raise ``RuntimeError`` if the active USAConfig deviates from the
+    canonical full-model YAML or if waste disaggregation weights are missing.
+    """
+    expected = _load_required_yaml_pins()
     cfg = get_usa_config()
     mismatches: list[str] = []
-    for key, expected in _FULL_MODEL_MATRIX_EXPORT_FLAGS.items():
-        actual = getattr(cfg, key)
-        if actual is not expected:
-            mismatches.append(f"{key}={actual!r} (expected {expected!r})")
+    for key, expected_value in expected.items():
+        actual_value = getattr(cfg, key, None)
+        if actual_value != expected_value:
+            mismatches.append(
+                f"{key}={actual_value!r} (expected {expected_value!r})"
+            )
     if mismatches:
         raise RuntimeError(
-            "Cornerstone matrix export requires USAConfig methodology flags matching "
-            "`2025_usa_cornerstone_full_model.yaml`: "
+            "Cornerstone matrix export requires USAConfig to match "
+            f"`{_REQUIRED_CONFIG_FILE}`: "
             + "; ".join(mismatches)
-            + ". Load that YAML via set_global_usa_config(...) before exporting."
+            + f". Load that YAML via set_global_usa_config(\"{_REQUIRED_CONFIG_FILE}\") "
+            "before exporting."
         )
     if get_waste_disagg_weights() is None:
         raise RuntimeError(
@@ -54,11 +78,14 @@ def assert_cornerstone_matrix_export_preconditions() -> None:
 def export_cornerstone_matrices_to_csv(
     output_dir: pathlib.Path | None = None,
 ) -> pathlib.Path:
-    """Write Make, Use, VA, full Y, and E to CSV under *output_dir* (default: electricity_disagg_inputs).
+    """Write V, Udom, Uimp, VA, full Y, and E to CSV under *output_dir*.
 
+    Default *output_dir* is ``bedrock/extract/disaggregation/electricity_disagg_inputs/``.
     Returns the directory written.
     """
     assert_cornerstone_matrix_export_preconditions()
+    clear_publish_caches()
+
     out = (
         _DISAGG_ROOT / "electricity_disagg_inputs"
         if output_dir is None
@@ -83,8 +110,12 @@ def export_cornerstone_matrices_to_csv(
 
 if __name__ == "__main__":
     # Offline use: set USA_CONFIG_FILE or call set_global_usa_config first.
-    from bedrock.utils.config.usa_config import set_global_usa_config
+    from bedrock.utils.config.usa_config import (
+        USA_CONFIG_ENV_VAR,
+        set_global_usa_config,
+    )
 
-    set_global_usa_config("2025_usa_cornerstone_full_model.yaml")
+    if not os.environ.get(USA_CONFIG_ENV_VAR):
+        set_global_usa_config(_REQUIRED_CONFIG_FILE)
     dest = export_cornerstone_matrices_to_csv()
     print(f"Wrote cornerstone matrix CSVs to {dest.resolve()}")
