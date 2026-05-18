@@ -491,8 +491,7 @@ source_names:
     clean_parameter: # Override each year for use in allocate_industrial_combustion
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
-        ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-        ghg_fba: 'UMD_GHGIA_T_3_4' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
+        ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
     activity_sets:
       direct_attribution: #direct allocation
         selection_fields:
@@ -583,8 +582,7 @@ source_names:
 #     clean_parameter: # Override each year for use in allocate_industrial_combustion
 #         energy_fba: 'EIA_MECS_Energy'
 #         year: *mecs_year
-#         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
-#         ghg_fba: 'UMD_GHGIA_T_3_4' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table
+#          ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
 #     fedefl_mapping: GHGI_AR5_100
 #     activity_sets:
 #       residential:
