@@ -93,23 +93,23 @@ def download_gcs_file_if_not_exists(name: str, sub_bucket: str, pth: str) -> Non
                 download_gcs_file(name, norm_bucket, pth)
             except Exception:
                 pass
-        # Download metadata from this GCS prefix when they exist
-        prefix = norm_bucket + "/"
-        gcs_bucket = __storage_client().bucket("cornerstone-default")
-        for blob in gcs_bucket.list_blobs(prefix=prefix):
-            if not blob.name.startswith(prefix):
-                continue
-            rel = blob.name[len(prefix) :]
-            if not rel or rel.endswith("/") or "metadata" not in rel.lower():
-                continue
-            dest = os.path.join(parent, *rel.split("/"))
-            if os.path.exists(dest):
-                continue
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            try:
-                download_gcs_file(rel, norm_bucket, dest)
-            except Exception:
-                pass
+            # Download metadata from this GCS prefix when they exist
+            prefix = norm_bucket + "/"
+            gcs_bucket = __storage_client().bucket("cornerstone-default")
+            for blob in gcs_bucket.list_blobs(prefix=prefix):
+                if not blob.name.startswith(prefix):
+                    continue
+                rel = blob.name[len(prefix) :]
+                if not rel or rel.endswith("/") or "metadata" not in rel.lower():
+                    continue
+                dest = os.path.join(parent, *rel.split("/"))
+                if os.path.exists(dest):
+                    continue
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                try:
+                    download_gcs_file(rel, norm_bucket, dest)
+                except Exception:
+                    pass
         return
 
     if os.path.exists(pth):
@@ -256,6 +256,61 @@ def __drive_client() -> googleapiclient.discovery.Resource:
     return googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
 
 
+DRIVE_MIME_SPREADSHEET = 'application/vnd.google-apps.spreadsheet'
+DRIVE_MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+
+def list_drive_folder(
+    folder_id: str,
+    *,
+    mime_type: str | None = None,
+) -> list[dict[str, str]]:
+    """List non-trashed files in a Drive folder, optionally filtered by MIME type.
+
+    Returns one dict per file with keys ``id``, ``name``, and ``mimeType``.
+    Pages through results so folders with >1000 entries are fully covered.
+    Uses ``supportsAllDrives`` so shared-drive folders work the same way as
+    folders in My Drive.
+
+    Args:
+        folder_id: Drive folder ID to enumerate.
+        mime_type: Optional Drive MIME filter (e.g. ``DRIVE_MIME_SPREADSHEET``
+            for native Google Sheets, ``DRIVE_MIME_XLSX`` for ``.xlsx`` exports).
+            When omitted, returns every non-trashed file in the folder.
+
+    Returns:
+        List of ``{"id": ..., "name": ..., "mimeType": ...}`` dicts.
+    """
+    if not folder_id:
+        raise ValueError('folder_id is required for list_drive_folder.')
+    client = __drive_client()
+    query_parts = [f"'{folder_id}' in parents", 'trashed=false']
+    if mime_type is not None:
+        query_parts.append(f"mimeType='{mime_type}'")
+    query = ' and '.join(query_parts)
+
+    rows: list[dict[str, str]] = []
+    page_token: str | None = None
+    while True:
+        resp = (
+            client.files()
+            .list(
+                q=query,
+                fields='nextPageToken, files(id,name,mimeType)',
+                pageSize=1000,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                pageToken=page_token,
+            )
+            .execute()
+        )
+        rows.extend(ta.cast(list[dict[str, str]], resp.get('files', [])))
+        page_token = resp.get('nextPageToken')
+        if not page_token:
+            break
+    return rows
+
+
 def create_spreadsheet_in_folder(title: str, folder_id: str) -> str:
     """Create a new Google Sheets spreadsheet in the given Drive folder.
 
@@ -370,6 +425,34 @@ def update_sheet_tab(
         valueInputOption="RAW",
         body={"values": [data.columns.tolist()] + values},
     ).execute()
+
+
+def delete_default_sheet1(sheet_id: str) -> None:
+    """Delete the default ``Sheet1`` tab if other tabs exist.
+
+    Newly-created spreadsheets always have a ``Sheet1`` placeholder.
+    Diagnostics runs leave it behind; this helper removes it. No-op if
+    ``Sheet1`` doesn't exist or it's the only tab (Google Sheets requires
+    at least one tab per spreadsheet).
+    """
+    client = __sheets_client()
+    metadata = client.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    sheets = metadata.get("sheets", [])
+    sheet1 = next(
+        (s for s in sheets if s["properties"]["title"] == "Sheet1"),
+        None,
+    )
+    if sheet1 is None:
+        return
+    if len(sheets) <= 1:
+        logger.info("Skipping Sheet1 deletion on %s: it's the only tab.", sheet_id)
+        return
+    sheet1_id = sheet1["properties"]["sheetId"]
+    client.spreadsheets().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={"requests": [{"deleteSheet": {"sheetId": sheet1_id}}]},
+    ).execute()
+    logger.info('deleted default Sheet1 from "%s"', sheet_id)
 
 
 def list_bucket_files(sub_bucket: str = "") -> pd.DataFrame:

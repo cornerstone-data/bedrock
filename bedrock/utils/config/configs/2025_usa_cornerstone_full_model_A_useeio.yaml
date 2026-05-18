@@ -1,0 +1,8 @@
+# Full v0.2 model bundled with USEEIO A-matrix method:
+# A is the BEA 2017 detail benchmark with no temporal scaling.
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+new_ghg_method: True
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+scale_a_matrix_with_useeio_method: True

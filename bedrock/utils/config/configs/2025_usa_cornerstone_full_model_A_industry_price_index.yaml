@@ -1,0 +1,8 @@
+# Full v0.2 model bundled with industry-price-index A-matrix scaling:
+# A is inflated 2017 → target year via BEA industry price index.
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+new_ghg_method: True
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+scale_a_matrix_with_industry_price_index: True

@@ -192,7 +192,7 @@ Some functions allow for extra named parameters.
   mapping file, if not provided will use the source name
 - _apply_urban_rural_: (bool) Assign flow quantities as urban or rural based on
   population density by FIPS.
-- _fedefl_mapping_: name of mapping file to use in FEDEFL.
+- _fedefl_mapping_: name of flow mapping file - first looks for local file, otherwise loads from FEDEFL.
 - _mfl_mapping_: name of mapping file for Material Flow List. Should not be
   used if fedefl_mapping is used
 - _keep_unmapped_rows_: (bool) default is False, if True will maintain any
