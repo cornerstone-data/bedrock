@@ -43,6 +43,8 @@ from bedrock.utils.economic.inflation_helpers_ceda import (
     inflate_B_matrix,
     inflate_q_or_y,
 )
+from bedrock.utils.emissions.characterization import build_ghg_characterization_matrix
+from bedrock.utils.emissions.ghg import GHG
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
     compute_B_ind_matrix,
@@ -334,6 +336,30 @@ def derive_Aq_usa() -> SingleRegionAqMatrixSet:
             Aimp=pt.DataFrame[AMatrix](Aimp),
             scaled_q=QVectorSchema.validate(q),
         )
+
+
+@functools.cache
+def derive_C_usa() -> pd.DataFrame:
+    """Trivial `(1, |GHG|)` row-summer for cornerstone B (already in CO2e).
+
+    KNOWN DIVERGENCE FROM USEEIOR: bedrock B is in `kgCO2e/USD` while
+    useeior B is in physical `kg gas/USD`. See
+    `bedrock.utils.emissions.characterization` for the resolution path.
+    """
+    return build_ghg_characterization_matrix(list(GHG))
+
+
+@functools.cache
+def derive_D_usa() -> pd.DataFrame:
+    """Direct impact per commodity = `C @ B` -- here equivalent to `B.sum(axis=0)`.
+
+    KNOWN DIVERGENCE FROM USEEIOR: bedrock's D is structurally a single
+    `Greenhouse Gases` indicator over commodities because bedrock's B is
+    already CO2e. See `bedrock.utils.emissions.characterization`.
+    """
+    D = derive_C_usa() @ derive_B_usa_non_finetuned()
+    D.columns.name = 'sector'
+    return D
 
 
 def derive_B_usa_via_vnorm(*, E_usa: pd.DataFrame) -> pd.DataFrame:
