@@ -20,7 +20,6 @@ from bedrock.transform.flowbyfunctions import (
     load_fba_w_standardized_units,
 )
 from bedrock.utils.config.schema import flow_by_activity_fields
-from bedrock.utils.config.settings import externaldatapath
 from bedrock.utils.io.gcp import download_gcs_file
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -62,7 +61,9 @@ ANNEX_ENERGY_TABLES = ['A-' + str(x) for x in list(range(4, 16))]
 
 # UMD tables that use a two-row CSV header (Annex A-style + NEU / petroleum tables per UMD_GHGIA.yaml).
 # TODO: verify staged CSV layout for 3-14/3-15 (NEU)
-UMD_TWO_ROW_HEADER_TABLES = frozenset([*ANNEX_ENERGY_TABLES]) #frozenset([*ANNEX_ENERGY_TABLES, '3-14', '3-15'])
+UMD_TWO_ROW_HEADER_TABLES = frozenset(
+    [*ANNEX_ENERGY_TABLES]
+)  # frozenset([*ANNEX_ENERGY_TABLES, '3-14', '3-15'])
 
 DROP_COLS = ['Unnamed: 0'] + list(
     pd.date_range(start='1990', end='2010', freq='YE').year.astype(str)
@@ -415,11 +416,11 @@ def strip_char(text: str) -> str:
         'Medium- and Heavy-Duty Trucksa': 'Medium- and Heavy-Duty Trucks',  # new with UMD 3-8
         'Medium- and Heavy-Duty Trucksb': 'Medium- and Heavy-Duty Trucks',
         'Pipelineg': 'Pipeline',
-        'Pipelinec': 'Pipeline', # UMD 3-8
+        'Pipelinec': 'Pipeline',  # UMD 3-8
         'Recreational Boatsc': 'Recreational Boats',
         'Construction/Mining Equipmentf': 'Construction/Mining Equipment',
         'Non-Roadc': 'Non-Road',
-        'Non-Roada': 'Non-Road',  #UMD 3-9
+        'Non-Roada': 'Non-Road',  # UMD 3-9
         'HFCsa': 'HFCs',
         'HFOsb': 'HFOs',
         'CO_{2}': 'CO2',
@@ -688,7 +689,7 @@ def umd_ghgia_parse(
                 'Electricity',
                 'Fuel Type/Vehicle Type',
                 'Diesel On-Road',  # UMD 3-9
-                'Alternative Fuel On-Road', # UMD 3-10
+                'Alternative Fuel On-Road',  # UMD 3-10
                 'Non-Road',
                 'Gasoline On-Road',  # UMD 3-9
                 'Distillate Fuel Oil',
@@ -787,12 +788,12 @@ def umd_ghgia_parse(
                     df.loc[index, 'Unit'] = A_79_unit_dict[fuel_name]  # type: ignore[index]
 
         else:
-            if table_name in ['4-31']:   # TODO: EPA code, update for umd?
+            if table_name in ['4-31']:  # TODO: EPA code, update for umd?
                 # Assign activity as flow for technosphere flows (GHGI Table 4-55 → UMD 4-31).
                 df.loc[:, 'FlowType'] = 'TECHNOSPHERE_FLOW'
                 df.loc[:, 'FlowName'] = df.loc[:, 'ActivityProducedBy']
 
-            elif table_name in ['4-57', '4-62']:   # TODO: EPA code, update for umd?
+            elif table_name in ['4-57', '4-62']:  # TODO: EPA code, update for umd?
                 df = df.iloc[::-1]  # reverse the order for assigning APB
                 for index, row in df.iterrows():
                     apb_value = strip_char(row['ActivityProducedBy'])
@@ -818,7 +819,7 @@ def umd_ghgia_parse(
                 df = df[~df['FlowName'].str.contains('Total')]
                 df.loc[:, 'ActivityProducedBy'] = meta.get('activity')
 
-            elif table_name in ['4-16', '4-60']:   # TODO: EPA code, update for umd?
+            elif table_name in ['4-16', '4-60']:  # TODO: EPA code, update for umd?
                 # TODO: 4-16 not in UMD_GHGIA.yaml; confirm drop or map if this branch runs.
                 # Remove notes from activity names (GHGI 4-124 → UMD 4-60).
                 for index, row in df.iterrows():
