@@ -31,6 +31,8 @@ __pycache__/
 # asets stands for activity sets
 !bedrock/extract/**/*_asets.csv
 !bedrock/extract/external_data/*.csv
+# Waste disaggregation weight fixtures (small; required for CI tests)
+!bedrock/extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_*.csv
 
 # Ignore JetBrains IDE project files
 .idea/
