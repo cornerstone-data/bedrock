@@ -61,8 +61,8 @@ ANNEX_HEADERS = {
 ANNEX_ENERGY_TABLES = ['A-' + str(x) for x in list(range(4, 16))]
 
 # UMD tables that use a two-row CSV header (Annex A-style + NEU / petroleum tables per UMD_GHGIA.yaml).
-# TODO: verify staged CSV layout for UMD 3-25 (petroleum CH4) vs 3-14/3-15 (NEU); adjust if headers differ.
-UMD_TWO_ROW_HEADER_TABLES = frozenset([*ANNEX_ENERGY_TABLES, '3-14', '3-15', '3-25'])
+# TODO: verify staged CSV layout for 3-14/3-15 (NEU)
+UMD_TWO_ROW_HEADER_TABLES = frozenset([*ANNEX_ENERGY_TABLES]) #frozenset([*ANNEX_ENERGY_TABLES, '3-14', '3-15'])
 
 DROP_COLS = ['Unnamed: 0'] + list(
     pd.date_range(start='1990', end='2010', freq='YE').year.astype(str)
@@ -185,9 +185,17 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
                 # Skip tables when the year does not align with target year
                 continue
             # TODO: confirm whether UMD extract uses 3-25b (EPA-only alternate layout).
-            if year in ('2023', '2024') and table == '3-25b':
-                continue
+            # if year in ('2023', '2024') and table == '3-25b':
+            #     continue
             df = _load_umd_ghgia_table(table)
+            # for some of the imported tables, cell A2 is blank, where in the EPA GHGI tables, the column is labeled
+            # "Activity". We want to retain the activities, so give the column a header to prevent being dropped
+            if (
+                df is not None
+                and table in kwargs['config'].get('source_activity_2', [])
+                and 'Unnamed' in str(df.columns[0])
+            ):
+                df = df.rename(columns={df.columns[0]: 'Activity'})
             if df is not None and len(df.columns) > 1:
                 years = YEARS.copy()
                 years.remove(year)
@@ -200,13 +208,13 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
 
 def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
     """Load one UMD GHGIA CSV from GCS and apply table-specific reshape."""
-    if table == '3-25b':
-        return pd.read_csv(
-            externaldatapath / f'GHGI_Table_{table}.csv',
-            skiprows=2,
-            encoding='ISO-8859-1',
-            thousands=',',
-        )
+    # if table == '3-25b':
+    #     return pd.read_csv(
+    #         externaldatapath / f'GHGI_Table_{table}.csv',
+    #         skiprows=2,
+    #         encoding='ISO-8859-1',
+    #         thousands=',',
+    #     )
 
     chapter_dir = {
         '1': 'Chapter 1 - Introduction',
@@ -236,18 +244,18 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
     use_two_row = table in UMD_TWO_ROW_HEADER_TABLES
     df = pd.read_csv(
         pth,
-        skiprows=2 if table == '4-57' else 1,
+        skiprows=2 if table == '4-57' else 1,  # todo: chck on umd table number here
         encoding='ISO-8859-1',
         thousands=',',
         header=[0, 1] if use_two_row else 0,
     )
     if table in ANNEX_ENERGY_TABLES:
         return _read_yearly_annex_tables(df, table)
-    elif table == '3-8':
+    elif table == '3-8':  # todo - check if necessary
         # remove notes from column headers in some years (GHGI Table 3-13 analogue)
         cols = [c[:4] for c in list(df.columns[1:])]
         return df.rename(columns=dict(zip(df.columns[1:], cols)))
-    elif table in ('3-14', '3-15', '3-25'):
+    elif table in ('3-14', '3-15'):
         # Row 0 is header, row 1 is unit (GHGI Table 3-25 / UMD NEU & petroleum layouts).
         new_headers = []
         for col in df.columns:
