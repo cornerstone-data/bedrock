@@ -58,7 +58,7 @@ def get_cornerstone_industry_price_ratio(
     parent's price ratio so that inflation is applied consistently.
     """
     cfg = get_usa_config()
-    if cfg.apply_inflation_to_V:
+    if cfg.update_inflation_factors:
         price_index = derive_industry_price_index()
         target_codes = CORNERSTONE_INDUSTRIES
     else:

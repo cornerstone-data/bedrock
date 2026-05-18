@@ -89,6 +89,7 @@ class USAConfig(BaseModel):
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
     apply_inflation_to_V: bool = False  # DRI: WesIngwersen
+    update_inflation_factors: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
