@@ -363,6 +363,7 @@ def strip_char(text: str) -> str:
         'Aircraftg': 'Aircraft',
         'Pipelinec': 'Pipeline',  # UMD 3-8
         'Pipelineh': 'Pipeline',
+        'Pipelineg': 'Pipeline',
         'Electricityh': 'Electricity',
         'Electricityl': 'Electricity',
         'Ethanoli': 'Ethanol',
@@ -415,8 +416,6 @@ def strip_char(text: str) -> str:
         'International Bunker Fuelse': 'International Bunker Fuel',
         'Medium- and Heavy-Duty Trucksa': 'Medium- and Heavy-Duty Trucks',  # new with UMD 3-8
         'Medium- and Heavy-Duty Trucksb': 'Medium- and Heavy-Duty Trucks',
-        'Pipelineg': 'Pipeline',
-        'Pipelinec': 'Pipeline',  # UMD 3-8
         'Recreational Boatsc': 'Recreational Boats',
         'Construction/Mining Equipmentf': 'Construction/Mining Equipment',
         'Non-Roadc': 'Non-Road',
