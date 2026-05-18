@@ -576,7 +576,6 @@ def umd_ghgia_parse(
         source_activity_1_fuel: list[str] = config.get('source_activity_1_fuel') or []
         source_activity_2: list[str] = config.get('source_activity_2') or []
         rows_as_flows: list[str] = config.get('rows_as_flows') or []
-        # TODO: UMD 3-11/3-12 (`ghg_fuel` in yaml) replace GHGI 3-8/3-9 with a different layout; validate parser vs staged CSV.
 
         if table_name in multi_chem_names:
             bool_apb = False
@@ -715,14 +714,16 @@ def umd_ghgia_parse(
             apbe_value = ''
             flow_name_list = [
                 'Explorationb',
-                'Production',
+                'Production',  # UMD 3-25
                 'Processing',
                 'Transmission and Storage',
+                'Transportation',  # New: UMD 3-25
                 'Distribution',
                 'Post-Meter',
                 'Crude Oil Transportation',
                 'Refining',
-                'Exploration',
+                'Refineries',  # New: UMD 3-25
+                'Exploration',  # UMD 3-25
                 'Mobile AC',
                 'Refrigerated Transport',
                 'Comfort Cooling for Trains and Buses',
@@ -754,7 +755,7 @@ def umd_ghgia_parse(
                 if 'Total' == apb_value or 'Total ' == apb_value:
                     df = df.drop(index)
 
-        elif table_name == 'A-69':
+        elif table_name == 'A-69':  # TODO: EPA table, update for umd
             fuel_name = ''
             A_79_unit_dict = {
                 'Natural Gas': 'trillion cubic feet',
@@ -778,12 +779,12 @@ def umd_ghgia_parse(
                     df.loc[index, 'Unit'] = A_79_unit_dict[fuel_name]  # type: ignore[index]
 
         else:
-            if table_name in ['4-31']:
+            if table_name in ['4-31']:   # TODO: EPA code, update for umd?
                 # Assign activity as flow for technosphere flows (GHGI Table 4-55 → UMD 4-31).
                 df.loc[:, 'FlowType'] = 'TECHNOSPHERE_FLOW'
                 df.loc[:, 'FlowName'] = df.loc[:, 'ActivityProducedBy']
 
-            elif table_name in ['4-57', '4-62']:
+            elif table_name in ['4-57', '4-62']:   # TODO: EPA code, update for umd?
                 df = df.iloc[::-1]  # reverse the order for assigning APB
                 for index, row in df.iterrows():
                     apb_value = strip_char(row['ActivityProducedBy'])
@@ -809,7 +810,7 @@ def umd_ghgia_parse(
                 df = df[~df['FlowName'].str.contains('Total')]
                 df.loc[:, 'ActivityProducedBy'] = meta.get('activity')
 
-            elif table_name in ['4-16', '4-60']:
+            elif table_name in ['4-16', '4-60']:   # TODO: EPA code, update for umd?
                 # TODO: 4-16 not in UMD_GHGIA.yaml; confirm drop or map if this branch runs.
                 # Remove notes from activity names (GHGI 4-124 → UMD 4-60).
                 for index, row in df.iterrows():

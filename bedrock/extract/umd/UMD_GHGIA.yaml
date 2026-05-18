@@ -23,12 +23,11 @@ years:
 
 # Special table lists — based on EPA_GHGI.yaml parameter names
 # Flows as group headers
-multi_chem_names: ["4-31", "5-6", "5-15"]
+multi_chem_names: ["3-11", "3-12", "4-31", "5-6", "5-15"]
 source_No_activity: ["3-14", "3-15"]
 # Handle tables with 1 parent level category
 source_activity_1: ["3-4", "5-10"]  # fuel listed first, sector nested. Append fuel after sector
 source_activity_1_fuel: ["3-8", "3-9", "3-10"]  # fuel listed first, vehicle nested. Append vehicle after fuel.
-ghg_fuel: ["3-11", "3-12"]  # ghg listed first, fuel nested. Activity name comes from cell A1
 # Tables with sub categories
 source_activity_2: ["3-25", "3-26", "3-27", "3-28", "3-29", "3-30"]  # no nesting, cell A2 is blank
 rows_as_flows: ["4-35", "4-50", "4-52", "4-59"]
@@ -53,20 +52,14 @@ Tables:
 #      flow: N2O
 #      desc: "Table 3-10: N2O Emissions from Mobile Combustion (MMT CO2 Eq.)"
 #      data_reliability: 4
-    "3-11":
-      desc: "Table 3-11: GHG Emissions from Fossil Fuel Combustion in the Industrial Sector (MMT CO2 Eq.)"
-      data_reliability: 4
+#    "3-11":
+#      desc: "Table 3-11: GHG Emissions from Fossil Fuel Combustion in the Industrial Sector (MMT CO2 Eq.)"
+#      data_reliability: 4
 #    "3-12":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
-#      flow: CO2e
 #      desc: "Table 3-12: GHG Emissions from Fossil Fuel Combustion in the Residential and Commercial Sectors (MMT CO2 Eq.)"
 #      data_reliability: 4
-#    "3-14":
-#      class: Chemicals
+#    "3-14":  #TODO: determine if used in ghg method - if so, update source_no_activity fxn
 #      unit: Other
-#      compartment: air
 #      flow: CO2
 #      activity: "__year__ Adjusted Non-Energy Use Fossil Fuel - __type__"
 #      desc: "Table 3-14: CO2 Emissions from NEU Fossil Fuel Consumption (MMT CO2 Eq. and Percent Carbon)"
@@ -74,23 +67,14 @@ Tables:
 #      layout: non_energy_melt
 #      two_row_header: true
 #      data_reliability: 4
-#    "3-15":
-#      class: Chemicals
+#    "3-15":  #TODO: determine if used in ghg method - if so, update source_no_activity fxn
 #      unit: TBtu
-#      compartment: air
 #      desc: "Table 3-15: Adjusted Consumption of Fossil Fuels for NEUs (TBtu)"
 #      data_reliability: 4
-#    "3-25":
-#      activity: "__year__ Adjusted Non-Energy Use Fossil Fuel - __type__"
-#      unit: Other
-#      flow: CO2
-#      desc: "Table 3-25: CH4 Emissions from Petroleum Systems (MMT CO2 Eq.)"
-#      data_reliability: 4
-#      class: Chemicals
-#      compartment: air
-#      melt_var: FlowName
-#      layout: non_energy_melt
-#      two_row_header: true
+    "3-25":
+      "flow": "CH4"
+      "desc": "Table 3-25: CH4 Emissions from Petroleum Systems (MMT CO2 Eq.)"
+      "data_reliability": 4
 ##    "3-26":  # TODO: not loading correctly
 ##      class: Chemicals
 ##      unit: MMT CO2e
