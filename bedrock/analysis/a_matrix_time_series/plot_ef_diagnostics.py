@@ -176,7 +176,7 @@ def _hist_panel(
     finite = pct[np.isfinite(pct)]
     clipped = np.clip(finite, -HIST_PCT_CLIP, HIST_PCT_CLIP)
     ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
-    ax.axvline(0, color="k", lw=0.5)
+    ax.axvline(0, color="k", lw=1.0)
     ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
     ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax.grid(True, ls=":", alpha=0.3)
