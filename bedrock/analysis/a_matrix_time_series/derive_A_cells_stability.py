@@ -450,6 +450,7 @@ def _draw_baseline_grouped_persistence(
             loc="center left",
             bbox_to_anchor=(1.02, 0.5),
             fontsize=8,
+            framealpha=0.4,
         )
     return handles, labels
 
@@ -549,6 +550,7 @@ def plot_persistence_by_threshold(
                 title="years above threshold",
                 loc="center",
                 fontsize=11,
+                framealpha=0.4,
             )
             legend_placed = True
 

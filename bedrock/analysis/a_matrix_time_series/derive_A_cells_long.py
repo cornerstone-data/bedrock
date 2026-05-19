@@ -435,7 +435,7 @@ def plot_divergence_share(long: pd.DataFrame, kind: str, path: Path) -> None:
                 fontsize=10,
             )
             ax.grid(True, alpha=0.3)
-            ax.legend(loc="upper left", fontsize=8, framealpha=0.85)
+            ax.legend(loc="upper left", fontsize=8, framealpha=0.4)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -584,7 +584,7 @@ def plot_baseline_reference(long: pd.DataFrame, kind: str, path: Path) -> None:
                 )
             ax_share.set_xlim(years_arr.min(), years_arr.max())
             ax_share.set_ylim(0, max(panel_max * 1.1, 0.01))
-            ax_share.legend(loc="upper left", fontsize=8, framealpha=0.85)
+            ax_share.legend(loc="upper left", fontsize=8, framealpha=0.4)
     ax_share.set_xlabel("year")
     ax_share.set_ylabel("share of cells")
     ax_share.set_title("Share with |USEEIO − CEDA-US| above threshold", fontsize=10)

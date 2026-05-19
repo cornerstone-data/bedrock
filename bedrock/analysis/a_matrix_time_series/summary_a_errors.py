@@ -285,7 +285,7 @@ def plot_rmse_ranking(errors_df: pd.DataFrame, path: Path) -> None:
     ax.set_xlabel("year")
     ax.set_ylabel("Z-weighted RMSE")
     ax.grid(True, axis="y", alpha=0.3)
-    ax.legend(loc="upper left", fontsize=9, frameon=False)
+    ax.legend(loc="upper left", fontsize=9, framealpha=0.4)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")

@@ -47,6 +47,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from bedrock.analysis.a_matrix_time_series.constants import (
+    APPROACH_COLORS,
     PLOTS_DIR,
     RESULTS_DIR,
 )
@@ -300,6 +301,7 @@ def _indexed_lines_plot(
         fontsize=8,
         bbox_to_anchor=(1.05, 0.5),
         title="sector",
+        framealpha=0.4,
     )
     fig.suptitle(
         f"Head sectors covering {head_share:.0%} of |mean_N| "
@@ -351,11 +353,10 @@ def _yoy_signed_violin_plot(
     from the full sorted approach list before exclusion so each method keeps
     its identity across variants of this plot.
     """
-    # Compute colors against the full universe so dropping an approach
-    # doesn't reshuffle the palette for the survivors.
+    # Use the shared per-approach palette so colors stay consistent with the
+    # histogram / line plots elsewhere in this package.
     all_approaches = sorted(per_sector["approach"].unique())
-    cmap = plt.get_cmap("tab10")
-    colors = {a: cmap(i) for i, a in enumerate(all_approaches)}
+    colors = {a: APPROACH_COLORS.get(a, "#7f7f7f") for a in all_approaches}
     approaches = [a for a in all_approaches if a not in exclude_approaches]
 
     cutoff = per_sector["mean_N"].abs().quantile(MIN_MEAN_PERCENTILE / 100)

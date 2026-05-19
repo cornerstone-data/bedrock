@@ -58,8 +58,8 @@ EXTERNAL_REFERENCES: tuple[str, ...] = ("useeio_nowcast",)
 # ``commodity_price_index`` in the recommendation. Use this in plot scripts
 # when ``ALTERNATIVE_APPROACHES`` (all 3 internal alts) is too broad.
 FOCUS_APPROACHES: tuple[str, ...] = (
-    "summary_tables",
     "commodity_price_index",
+    "summary_tables",
     "useeio_nowcast",
 )
 

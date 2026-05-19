@@ -182,7 +182,7 @@ def _render(
         va="top",
         ha="left",
         bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="0.7"
+            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
         ),
     )
     ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")

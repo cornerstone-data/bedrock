@@ -152,11 +152,11 @@ def _scatter_panel(
         va="top",
         ha="left",
         bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="0.7"
+            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
         ),
     )
     ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
-    ax.legend(loc="lower right", fontsize=LEGEND_FONTSIZE * font_scale, frameon=False)
+    ax.legend(loc="lower right", fontsize=LEGEND_FONTSIZE * font_scale, framealpha=0.4)
 
 
 def _hist_panel(
@@ -189,7 +189,7 @@ def _hist_panel(
         va="top",
         ha="left",
         bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="0.7"
+            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
         ),
     )
     ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")

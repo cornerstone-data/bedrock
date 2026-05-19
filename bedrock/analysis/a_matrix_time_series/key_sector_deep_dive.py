@@ -460,7 +460,7 @@ def plot_top_cells_grid(
             ncol=len(legend_labels),
             bbox_to_anchor=(0.5, -0.01),
             fontsize=9,
-            frameon=False,
+            framealpha=0.4,
         )
     fig.tight_layout(rect=(0, 0.02, 1, 1))
     fig.savefig(path, dpi=150, bbox_inches="tight")
