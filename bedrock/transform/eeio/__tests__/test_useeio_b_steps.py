@@ -39,8 +39,8 @@ def test_useeio_b_adjust_divide_transform_steps(
         dc,
         "get_usa_config",
         lambda: SimpleNamespace(
-            use_useeio_B=True,
-            use_E_data_year_for_x_in_B=False,
+            deflate_x_to_detail_io_year_for_B=True,
+            use_E_data_year_for_x_in_B=True,
             usa_ghg_data_year=2023,
             usa_detail_original_year=2017,
         ),
