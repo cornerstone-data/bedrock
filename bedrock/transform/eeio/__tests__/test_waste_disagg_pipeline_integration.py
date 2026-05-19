@@ -15,15 +15,19 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
-from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio import cornerstone_expansion
+from bedrock.transform.eeio import (
+    cornerstone_expansion,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     _WASTE_NEW_CODES,
+    _derive_cornerstone_io_after_electricity_reallocation,
     _derive_cornerstone_Ytot_with_trade,
+    _electricity_completed_transfers,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_B_via_vnorm,
+    derive_cornerstone_E_reallocated,
     derive_cornerstone_q,
     derive_cornerstone_U_set,
     derive_cornerstone_U_with_negatives,
@@ -34,6 +38,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x_after_redefinition,
     derive_cornerstone_y_nab,
     derive_cornerstone_Ytot_matrix_set,
+    electricity_disaggregation_enabled,
     get_waste_disagg_weights,
 )
 from bedrock.utils.config.usa_config import (
@@ -47,8 +52,13 @@ _WASTE_SET = set(_WASTE_NEW_CODES)
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
+    electricity_disaggregation_enabled,
+    _derive_cornerstone_io_after_electricity_reallocation,
+    _electricity_completed_transfers,
+    derive_cornerstone_E_reallocated,
     derive_cornerstone_V,
     derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_q,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
@@ -481,7 +491,7 @@ class TestPipelineB:
                 else derive_cornerstone_x()
             )
             expected = (
-                derive_E_usa().divide(x, axis=1).fillna(0.0)
+                derive_cornerstone_E_reallocated().divide(x, axis=1).fillna(0.0)
                 @ derive_cornerstone_Vnorm_scrap_corrected()
             )
         finally:

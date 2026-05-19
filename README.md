@@ -20,7 +20,7 @@ These flags are grouped into themes:
 
 | Theme | Example flags |
 |---|---|
-| Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation` |
+| Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation`, `implement_electricity_disaggregation` |
 | Economic IOT (input-output tables) | `use_E_data_year_for_x_in_B`, `iot_before_or_after_redefinition` |
 | GHG attribution — sector methods | `update_transportation_ghg_method`, `update_electricity_ghg_method` |
 | GHG attribution — gas coverage | `update_flowsa_refrigerant_method`, `add_new_ghg_activities` |

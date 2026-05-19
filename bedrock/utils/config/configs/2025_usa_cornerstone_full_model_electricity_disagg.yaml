@@ -1,0 +1,7 @@
+# Fully implemented Cornerstone 2025 model + waste disagg + electricity co-production reallocation.
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+new_ghg_method: true
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+implement_electricity_disaggregation: True

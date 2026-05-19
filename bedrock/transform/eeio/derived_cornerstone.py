@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import functools
 import pathlib
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -66,6 +67,11 @@ from bedrock.transform.eeio.cornerstone_year_scaling import (
 from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
+)
+from bedrock.transform.eeio.electricity_disaggregation import (
+    CoprodTransfer,
+    apply_electricity_transfers_to_E,
+    reallocate_electricity_coproduction,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
@@ -189,15 +195,25 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Base 2017 IO matrices — V, g, q
-# ---------------------------------------------------------------------------
-
-
 @functools.cache
-@pa.check_output(CornerstoneVMatrix.to_schema())
-def derive_cornerstone_V() -> pd.DataFrame:
-    """V matrix (industry × commodity) via correspondence multiplication."""
+def electricity_disaggregation_enabled() -> bool:
+    cfg = get_usa_config()
+    return (
+        cfg.implement_electricity_disaggregation
+        and get_waste_disagg_weights() is not None
+    )
+
+
+@dataclass
+class _CornerstoneIOBundle:
+    V: pd.DataFrame
+    Udom: pd.DataFrame
+    Uimp: pd.DataFrame
+    VA: pd.DataFrame
+    completed_transfers: list[CoprodTransfer]
+
+
+def _derive_cornerstone_V_after_waste() -> pd.DataFrame:
     V_2017 = load_2017_V_usa()
     V = industry_corresp() @ V_2017 @ commodity_corresp().T
     V.index.name = 'sector'
@@ -208,6 +224,82 @@ def derive_cornerstone_V() -> pd.DataFrame:
         V.index.name = 'sector'
         V.columns.name = 'sector'
     return V
+
+
+def _derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
+    Utot = load_2017_Utot_usa()
+    Uimp = load_2017_Uimp_usa()
+    Udom = Utot - Uimp
+
+    com_c = commodity_corresp()
+    ind_c = industry_corresp()
+
+    Udom_cs = com_c @ Udom @ ind_c.T
+    Uimp_cs = com_c @ Uimp @ ind_c.T
+
+    for df in (Udom_cs, Uimp_cs):
+        df.index.name = 'sector'
+        df.columns.name = 'sector'
+
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        Udom_cs, Uimp_cs = apply_waste_disagg_to_U(Udom_cs, Uimp_cs, weights)
+        for df in (Udom_cs, Uimp_cs):
+            df.index.name = 'sector'
+            df.columns.name = 'sector'
+
+    return Udom_cs, Uimp_cs
+
+
+def _derive_cornerstone_VA_after_waste() -> pd.DataFrame:
+    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA.columns.name = 'sector'
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        VA = apply_waste_disagg_to_VA(VA, weights)
+        VA.columns.name = 'sector'
+    return VA
+
+
+@functools.cache
+def _derive_cornerstone_io_after_electricity_reallocation() -> _CornerstoneIOBundle:
+    V = _derive_cornerstone_V_after_waste()
+    Udom, Uimp = _derive_cornerstone_U_after_waste()
+    VA = _derive_cornerstone_VA_after_waste()
+    y_commodity = derive_cornerstone_Ytot_matrix_set().ytot
+    V, Udom, Uimp, VA, completed = reallocate_electricity_coproduction(
+        V, Udom, Uimp, VA, y_commodity
+    )
+    return _CornerstoneIOBundle(
+        V=V, Udom=Udom, Uimp=Uimp, VA=VA, completed_transfers=completed
+    )
+
+
+@functools.cache
+def _electricity_completed_transfers() -> list[CoprodTransfer]:
+    return _derive_cornerstone_io_after_electricity_reallocation().completed_transfers
+
+
+@functools.cache
+def derive_cornerstone_E_reallocated() -> pd.DataFrame:
+    E = derive_E_usa()
+    if not electricity_disaggregation_enabled():
+        return E
+    return apply_electricity_transfers_to_E(E, _electricity_completed_transfers())
+
+
+# ---------------------------------------------------------------------------
+# Base 2017 IO matrices — V, g, q
+# ---------------------------------------------------------------------------
+
+
+@functools.cache
+@pa.check_output(CornerstoneVMatrix.to_schema())
+def derive_cornerstone_V() -> pd.DataFrame:
+    """V matrix (industry × commodity) via correspondence multiplication."""
+    if electricity_disaggregation_enabled():
+        return _derive_cornerstone_io_after_electricity_reallocation().V.copy()
+    return _derive_cornerstone_V_after_waste()
 
 
 @functools.cache
@@ -339,27 +431,13 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
 @functools.cache
 def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
-    Udom = Utot - Uimp
-
-    com_c = commodity_corresp()
-    ind_c = industry_corresp()
-
-    Udom_cs = com_c @ Udom @ ind_c.T
-    Uimp_cs = com_c @ Uimp @ ind_c.T
-
-    for df in (Udom_cs, Uimp_cs):
-        df.index.name = 'sector'
-        df.columns.name = 'sector'
-
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        Udom_cs, Uimp_cs = apply_waste_disagg_to_U(Udom_cs, Uimp_cs, weights)
-        for df in (Udom_cs, Uimp_cs):
-            df.index.name = 'sector'
-            df.columns.name = 'sector'
-
+    if electricity_disaggregation_enabled():
+        b = _derive_cornerstone_io_after_electricity_reallocation()
+        return SingleRegionUMatrixSet(
+            Udom=pt.DataFrame[CornerstoneUMatrix](b.Udom.copy()),  # type: ignore[arg-type]
+            Uimp=pt.DataFrame[CornerstoneUMatrix](b.Uimp.copy()),  # type: ignore[arg-type]
+        )
+    Udom_cs, Uimp_cs = _derive_cornerstone_U_after_waste()
     return SingleRegionUMatrixSet(
         Udom=pt.DataFrame[CornerstoneUMatrix](Udom_cs),  # type: ignore[arg-type]
         Uimp=pt.DataFrame[CornerstoneUMatrix](Uimp_cs),  # type: ignore[arg-type]
@@ -446,13 +524,9 @@ def derive_cornerstone_VA() -> pd.DataFrame:
     Callers needing Cornerstone-space VA should use this function rather than
     assembling VA manually.
     """
-    VA = load_2017_value_added_usa() @ industry_corresp().T
-    VA.columns.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        VA = apply_waste_disagg_to_VA(VA, weights)
-        VA.columns.name = 'sector'
-    return VA
+    if electricity_disaggregation_enabled():
+        return _derive_cornerstone_io_after_electricity_reallocation().VA.copy()
+    return _derive_cornerstone_VA_after_waste()
 
 
 # ---------------------------------------------------------------------------
@@ -716,7 +790,7 @@ def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
 def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
-    Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
+    Always computed in Cornerstone space: E = derive_cornerstone_E_reallocated(), then B = (E / x) @ Vnorm.
     Industry ``x`` is:
     - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
       gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
@@ -730,7 +804,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
       ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
-    E = derive_E_usa()
+    E = derive_cornerstone_E_reallocated()
     cfg = get_usa_config()
     if cfg.deflate_x_to_detail_io_year_for_B:
         # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:

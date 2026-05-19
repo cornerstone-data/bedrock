@@ -7,6 +7,10 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.eeio import derived_cornerstone as dc
+from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_E_reallocated,
+    electricity_disaggregation_enabled,
+)
 
 
 def test_useeio_b_adjust_divide_transform_steps(
@@ -43,9 +47,10 @@ def test_useeio_b_adjust_divide_transform_steps(
             use_E_data_year_for_x_in_B=True,
             usa_ghg_data_year=2023,
             usa_detail_original_year=2017,
+            implement_electricity_disaggregation=False,
         ),
     )
-    monkeypatch.setattr(dc, "derive_E_usa", lambda: e)
+    monkeypatch.setattr(dc, "derive_cornerstone_E_reallocated", lambda: e)
     monkeypatch.setattr(
         dc, "derive_cornerstone_x_after_redefinition", lambda: x_nominal
     )
@@ -56,7 +61,11 @@ def test_useeio_b_adjust_divide_transform_steps(
     )
     monkeypatch.setattr(dc, "derive_cornerstone_Vnorm_scrap_corrected", lambda: vnorm)
 
-    out = cast(Any, dc.derive_cornerstone_B_via_vnorm).__wrapped__()
+    try:
+        out = cast(Any, dc.derive_cornerstone_B_via_vnorm).__wrapped__()
+    finally:
+        derive_cornerstone_E_reallocated.cache_clear()
+        electricity_disaggregation_enabled.cache_clear()
 
     # Step 1: adjusted x = x_nominal / ratio = [125, 160]
     # Step 2: Bi = E / adjusted x = [0.08, 0.125]
