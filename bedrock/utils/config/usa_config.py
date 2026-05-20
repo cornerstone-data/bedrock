@@ -159,8 +159,9 @@ class USAConfig(BaseModel):
     snapshot_version_or_git_sha: ta.Literal[
         'v0',
         '1bda811e0169436ae90fd356fbef512ce7518ccb',  # v0.1
-        '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # v0.2
-        '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # v0.2 2025_usa_cornerstone_fbs_schema
+        '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # test
+        '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # test: snapshot from 2025_usa_cornerstone_fbs_schema
+        '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property

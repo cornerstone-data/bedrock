@@ -25,9 +25,21 @@ These are **independent** concepts and frequently point at different commits:
 | Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The 10 parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
 | Snapshot key | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The single SHA that integration tests load via `load_current_snapshot(...)`. Bumping this is what "uses the new snapshot" means. |
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
-| Named release | [`releases.py`](releases.py) | Python constants (e.g. `v0_2 = "<sha>"`) for use in code and diagnostics scripts. |
+| Named release | [`releases.py`](releases.py) | Reference-only map of release labels → snapshot SHAs. Not imported by runtime code; update in Phase A alongside `.SNAPSHOT_KEY`. |
 | Diagnostic baseline pin | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs that any config may point at as its diagnostic baseline. Every released snapshot SHA must be added here. |
-| Canonical config | [`2025_usa_cornerstone_full_model.yaml`](../config/configs/2025_usa_cornerstone_full_model.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Ablation/per-flag configs are not snapshotted here; see "Adhoc snapshots" below. |
+| Canonical config | [`2025_usa_cornerstone_full_model.yaml`](../config/configs/2025_usa_cornerstone_full_model.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
+
+### Where snapshot SHAs live
+
+| Store | Releases (`v0`, `v0.1`, `v0.2`) | Test-only SHAs |
+|---|---|---|
+| [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | `7372464249...` (v0.2) | — |
+| [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2` | `TEST_*` (intermediate bumps, not release labels) |
+| `USAConfig.snapshot_version_or_git_sha` | `'v0'`, `1bda811e...` `# v0.1`, `7372464249...` `# v0.2` | `2ebb51f7...`, `9fe22d9a...` `# test` |
+
+**Atomic config** — a YAML config that changes a single methodology flag relative to the baseline, used to measure that change in isolation.
+
+`v0.2` is the current integration baseline. `v0` and `v0.1` are earlier release snapshots. The two `TEST_*` SHAs are intermediate bumps kept in the Literal so atomic configs and test fixtures can pin them for comparison.
 
 ## Versioning
 
@@ -109,8 +121,8 @@ Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs
 On a new branch, make exactly these changes (and nothing else — keep the bump PR mechanical and reviewable in under a minute):
 
 - [ ] [`bedrock/utils/snapshots/.SNAPSHOT_KEY`](.SNAPSHOT_KEY) — replace the file's only line with the new SHA.
-- [ ] [`bedrock/utils/snapshots/releases.py`](releases.py) — add `vX_Y_Z = "<sha>"` underneath the previous entry. Use underscores in the Python identifier (e.g. `v0_3_0`); the git tag uses dots.
-- [ ] [`bedrock/utils/config/usa_config.py`](../config/usa_config.py) — extend the `snapshot_version_or_git_sha: Literal[...]` to include the new SHA, with a trailing comment noting the anticipated tag and config (e.g. `# v0.3.0 2025_usa_cornerstone_full_model`). Do **not** remove old SHAs — diagnostics may still reference them.
+- [ ] [`bedrock/utils/snapshots/releases.py`](releases.py) — add the new release constant (e.g. `v0_3_0 = "<sha>"`) with a trailing `# config: <stem>` comment (the `generate_snapshots --config_name` value). Leave prior release entries in place. Use underscores in the Python identifier; the git tag uses dots. Do **not** add entries for patch-only releases.
+- [ ] [`bedrock/utils/config/usa_config.py`](../config/usa_config.py) — extend the `snapshot_version_or_git_sha: Literal[...]` to include the new SHA, with a trailing comment noting the release label (e.g. `# v0.3.0`). Do **not** remove old SHAs — atomic configs and test fixtures may still reference them.
 - [ ] Title: `release: snapshot bump (anticipated v0.X.Y)`
 - [ ] Description: short summary of the output delta vs. the previous snapshot, plus the GCS URL `gs://cornerstone-default/snapshots/<new_sha>/`.
 
@@ -195,19 +207,18 @@ A clean bump PR diff looks roughly like this (anticipating release `v0.3.0`):
 
 --- a/bedrock/utils/snapshots/releases.py
 +++ b/bedrock/utils/snapshots/releases.py
- v0 = "v0_sha_1234567890"
- v0_1 = "1bda811e0169436ae90fd356fbef512ce7518ccb"
- v0_2 = "2ebb51f7190c3a62b5d8b2420bff9b20f57282fc"
-+v0_3_0 = "<new_sha>"
+ v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_full_model
++v0_3_0 = "<new_sha>"  # config: 2025_usa_cornerstone_full_model
 
 --- a/bedrock/utils/config/usa_config.py
 +++ b/bedrock/utils/config/usa_config.py
      snapshot_version_or_git_sha: ta.Literal[
          'v0',
          '1bda811e0169436ae90fd356fbef512ce7518ccb',  # v0.1
-         '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # v0.2
-         '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # v0.2 2025_usa_cornerstone_fbs_schema
-+        '<new_sha>',                                  # v0.3.0 2025_usa_cornerstone_full_model
+         '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # test
+         '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # test: snapshot from 2025_usa_cornerstone_fbs_schema
+         '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2 (current .SNAPSHOT_KEY)
++        '<new_sha>',                                  # v0.3.0
      ] = 'v0'
 ```
 
@@ -227,7 +238,7 @@ If a bad snapshot accidentally got uploaded under a SHA you want to keep, you ca
 
 The `generate_snapshots.py` script supports `--adhoc`, which uploads to `gs://cornerstone-default/snapshots/<sha>/adhoc/` instead of the top-level SHA folder. Use this for:
 
-- Snapshotting an ablation/per-flag config (anything other than `2025_usa_cornerstone_full_model`)
+- Snapshotting an atomic config (anything other than `2025_usa_cornerstone_full_model`)
 - Local experimentation where you don't want to pollute the canonical snapshot prefix
 
 Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exist for ad-hoc diagnostic comparisons only.
@@ -240,7 +251,7 @@ Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exis
 | [`generate_snapshots.py`](generate_snapshots.py) | CLI that builds the 10 parquet snapshots and uploads to GCS |
 | [`loader.py`](loader.py) | `load_current_snapshot`, `load_configured_snapshot`, GCS download helpers |
 | [`names.py`](names.py) | `SnapshotName` literal type and `SNAPSHOT_NAMES` list |
-| [`releases.py`](releases.py) | Named constants for released snapshot SHAs |
+| [`releases.py`](releases.py) | Reference-only release label → snapshot SHA map (not imported by code) |
 | [`../config/usa_config.py`](../config/usa_config.py) | `USAConfig.snapshot_version_or_git_sha` `Literal` of allowed baseline SHAs |
 | [`../../../.github/workflows/generate_snapshots.yml`](../../../.github/workflows/generate_snapshots.yml) | `workflow_dispatch` CI that runs `generate_snapshots.py` |
 | [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Scheduled CI that diffs current pipeline output against `.SNAPSHOT_KEY` |
