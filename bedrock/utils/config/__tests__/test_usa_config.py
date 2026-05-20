@@ -28,11 +28,11 @@ def test_eeio_waste_disagg_config_parsing_happy_path() -> None:
     assert isinstance(wd, EEIOWasteDisaggConfig)
     assert (
         wd.use_weights_file
-        == "extract/disaggregation/WasteDisaggregationDetail2017_Use.csv"
+        == "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Use.csv"
     )
     assert (
         wd.make_weights_file
-        == "extract/disaggregation/WasteDisaggregationDetail2017_Make.csv"
+        == "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Make.csv"
     )
     assert wd.year == 2017
     assert wd.source_name == "WasteDisaggregationDetail2017"
@@ -184,12 +184,15 @@ def test_disallow_m2_without_useeio_schema() -> None:
         )
 
 
-def test_disallow_useeio_b_with_e_data_year_x_flag() -> None:
+def test_disallow_deflate_x_without_use_e_for_x_in_b() -> None:
     with pytest.raises(
         ValueError,
-        match='use_useeio_B and use_E_data_year_for_x_in_B cannot both be true',
+        match='deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B',
     ):
         USAConfig.model_validate(
-            {'use_useeio_B': True, 'use_E_data_year_for_x_in_B': True},
+            {
+                'deflate_x_to_detail_io_year_for_B': True,
+                'use_E_data_year_for_x_in_B': False,
+            },
             strict=True,
         )

@@ -100,7 +100,9 @@ uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
     --combo v0.2 [--refresh] [--output-xlsx PATH] [--output-sheet-id ID]
 ```
 
-`--combo` picks a `ComboSpec` from `combinations.COMBINATIONS`. The local
+`--combo` picks a `ComboSpec` from `combinations.COMBINATIONS`. Merged
+`D_and_diffs` / `N_and_diffs` tabs use each run's `D_new_inflated` /
+`N_new_inflated` column when present, otherwise `D_new` / `N_new`. The local
 workbook is always written, defaulting to
 `analysis/output/<combo>/ef_diagnostics_merged.xlsx`; pass `--output-xlsx
 <path>` to override or `--output-xlsx ""` to skip. The Google Sheets push

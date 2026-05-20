@@ -126,7 +126,9 @@ def upload_snapshots(
 
 
 @click.command(help='Generate snapshots for bedrock EEIO model')
-@click.option('--config_name', required=True, type=str, default='v8_ceda_2025_usa')
+@click.option(
+    '--config_name', required=True, type=str, default='2025_usa_cornerstone_full_model'
+)
 @click.option('--adhoc', is_flag=True, help='Upload to adhoc directory')
 @click.option(
     '--snapshot_prefix_override',
