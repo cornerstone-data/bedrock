@@ -30,11 +30,11 @@ source_activity_1: ["3-4", "5-10"]  # fuel listed first, sector nested. Append f
 source_activity_1_fuel: ["3-8", "3-9", "3-10"]  # fuel listed first, vehicle nested. Append vehicle after fuel.
 # Tables with sub categories
 source_activity_2: ["3-25", "3-26", "3-27", "3-28", "3-29", "3-30"]  # no nesting, cell A2 is blank, different from epa ghgi
-rows_as_flows: ["4-35", "4-50", "4-52", "4-59"]
+rows_as_flows: ["4-33", "4-35", "4-50", "4-52", "4-59"]
 
 # Optional table overrides
 Tables:
-  "Chapter 3 - Energy":
+#  "Chapter 3 - Energy":
 #    "3-4":  # TODO: determine if needed after full data release - contains only partial data
 #      unit: MMT CO2e
 #      flow: CO2
@@ -83,112 +83,73 @@ Tables:
 #      flow: N2O
 #      desc: "Table 3-27: N2O Emissions from Petroleum Systems (MMT CO2 Eq.)"
 #      data_reliability: 4
-    "3-28":
-      flow: CH4
-      desc: "Table 3-28: CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"
-      data_reliability: 4
-    "3-29":
-      flow: CO2
-      desc: "Table 3-29: CO2 Emissions from Natural Gas Systems (MMT)"
-      data_reliability: 4
-    "3-30":
-      flow: N2O
-      desc: "Table 3-30: N2O Emissions from Natural Gas Systems (MMT CO2 Eq.)"
-      data_reliability: 4
+#    "3-28":
+#      flow: CH4
+#      desc: "Table 3-28: CH4 Emissions from Natural Gas Systems (MMT CO2 Eq.)"
+#      data_reliability: 4
+#    "3-29":
+#      flow: CO2
+#      desc: "Table 3-29: CO2 Emissions from Natural Gas Systems (MMT)"
+#      data_reliability: 4
+#    "3-30":
+#      flow: N2O
+#      desc: "Table 3-30: N2O Emissions from Natural Gas Systems (MMT CO2 Eq.)"
+#      data_reliability: 4
 #
 #  "Chapter 4 - IPPU":
 #    "4-31":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      flow: CO2e
 #      desc: "Table 4-31: Emissions from Petrochemical Production (MMT CO2 Eq.)"
 #      data_reliability: 4
 #    "4-33":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      flow: HFC-23
 #      activity: HCFC-22 Production
 #      desc: "Table 4-33: Emissions from HCFC-22 Production (MMT CO2 Eq.)"
 #      data_reliability: 4
 #    "4-35":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      activity: Fluorochemical Production
 #      desc: "Table 4-35: Emissions of HFCs, PFCs, SF6, and NF3 from Production of Fluorochemicals Other Than HCFC-22 (MMT CO2 Eq.)"
 #      data_reliability: 4
 #    "4-50":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      activity: Aluminum Production
 #      desc: "Table 4-50: Emissions from Aluminum Production (MMT CO2 Eq.)"
 #      data_reliability: 4
 #    "4-52":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      flow: CO2e
-#      activity: Magnesium Production and Processing
+#      activity: Magnesium Production # TODO: update activity to sector mapping, dropped "and processing"
 #      desc: "Table 4-52: Emissions from Magnesium Production (MMT CO2 Eq.)"
 #      data_reliability: 4
 #    "4-57":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      flow: CO2e
 #      desc: "Table 4-57: Emissions from Electronics Industry (MMT CO2 Eq.)"
 #      data_reliability: 4
-#    "4-59":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
+#    "4-59":  # TODO: NOTE error in original csv - last column is missing the "2024" label
 #      flow: CO2e
 #      activity: ODS Substitute
 #      desc: "Table 4-59: Emissions of HFCs, PFCs, and CO2 from ODS Substitutes (MMT CO2 Eq.)"
 #      data_reliability: 4
 #    "4-60":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      flow: HFCs and PFCs
 #      desc: "Table 4-60: Emissions from ODS Substitutes by Sector (MMT CO2 Eq.)"
 #      data_reliability: 4
 #    "4-62":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
 #      desc: "Table 4-62: Emissions from Other Product Use (MMT CO2 Eq.)"
 #      data_reliability: 4
 #
-#  "Chapter 5 - Agriculture":
-#    "5-3":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
-#      flow: CH4
-#      desc: "Table 5-3: CH4 Emissions from Enteric Fermentation (MMT CO2 Eq.)"
-#      data_reliability: 4
-#    "5-6":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
-#      flow: CO2e
-#      desc: "Table 5-6: CH4 and N2O Emissions from Manure Management (MMT CO2 Eq.)"
-#      data_reliability: 4
-#    "5-10":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
-#      flow: N2O
-#      desc: "Table 5-10: N2O Emissions from Agricultural Soil Management (MMT CO2 Eq.)"
-#      data_reliability: 4
-#    "5-15":
-#      class: Chemicals
-#      unit: MMT CO2e
-#      compartment: air
-#      flow: CO2e
-#      desc: "Table 5-15: CH4 and N2O Emissions from Field Burning of Agricultural Residues (MMT CO2 Eq.)"
-#      data_reliability: 4
+  "Chapter 5 - Agriculture":
+    "5-3": # TODO: note error in original csv, missing '2024' column header, need to address
+      flow: CH4
+      desc: "Table 5-3: CH4 Emissions from Enteric Fermentation (MMT CO2 Eq.)"
+      data_reliability: 4
+    "5-6":
+      flow: CO2e
+      desc: "Table 5-6: CH4 and N2O Emissions from Manure Management (MMT CO2 Eq.)"
+      data_reliability: 4
+    "5-10":
+      flow: N2O
+      desc: "Table 5-10: N2O Emissions from Agricultural Soil Management (MMT CO2 Eq.)"
+      data_reliability: 4
+    "5-15":  # TODO: note missing the 2024 column header, need to address
+      flow: CO2e
+      desc: "Table 5-15: CH4 and N2O Emissions from Field Burning of Agricultural Residues (MMT CO2 Eq.)"
+      data_reliability: 4

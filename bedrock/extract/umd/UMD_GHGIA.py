@@ -245,7 +245,7 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
     use_two_row = table in UMD_TWO_ROW_HEADER_TABLES
     df = pd.read_csv(
         pth,
-        skiprows=2 if table == '4-57' else 1,  # todo: chck on umd table number here
+        skiprows=1,
         encoding='ISO-8859-1',
         thousands=',',
         header=[0, 1] if use_two_row else 0,
@@ -256,7 +256,7 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
         # remove notes from column headers in some years (GHGI Table 3-13 analogue)
         cols = [c[:4] for c in list(df.columns[1:])]
         return df.rename(columns=dict(zip(df.columns[1:], cols)))
-    elif table in ('3-14', '3-15'):
+    elif table in ('3-14', '3-15'):  # todo - check if necessary
         # Row 0 is header, row 1 is unit (GHGI Table 3-25 / UMD NEU & petroleum layouts).
         new_headers = []
         for col in df.columns:
@@ -344,6 +344,7 @@ def strip_char(text: str) -> str:
         ')k',
         'b,c',
         'h,i',
+        'a,b'
     ]
     for i in notes:
         if i in text:
@@ -484,7 +485,7 @@ def umd_ghgia_parse(
 
         meta = get_table_meta(source_name, config)
 
-        if table_name in ['3-14']:
+        if table_name in ['3-14']:  # todo - check if necessary
             df = df.melt(
                 id_vars=id_vars, var_name=meta.get('melt_var'), value_name='FlowAmount'
             )
@@ -792,7 +793,7 @@ def umd_ghgia_parse(
                 df.loc[:, 'FlowType'] = 'TECHNOSPHERE_FLOW'
                 df.loc[:, 'FlowName'] = df.loc[:, 'ActivityProducedBy']
 
-            elif table_name in ['4-57', '4-62']:  # TODO: EPA code, update for umd?
+            elif table_name in ['4-57', '4-62']:
                 df = df.iloc[::-1]  # reverse the order for assigning APB
                 for index, row in df.iterrows():
                     apb_value = strip_char(row['ActivityProducedBy'])
@@ -818,7 +819,7 @@ def umd_ghgia_parse(
                 df = df[~df['FlowName'].str.contains('Total')]
                 df.loc[:, 'ActivityProducedBy'] = meta.get('activity')
 
-            elif table_name in ['4-16', '4-60']:  # TODO: EPA code, update for umd?
+            elif table_name in ['4-16']:  # TODO: EPA code, update for umd?
                 # TODO: 4-16 not in UMD_GHGIA.yaml; confirm drop or map if this branch runs.
                 # Remove notes from activity names (GHGI 4-124 → UMD 4-60).
                 for index, row in df.iterrows():
