@@ -8,8 +8,11 @@ These functions are called if referenced in flowbysectormethods as
 data_format FBS_outside_flowsa with the function specified in FBS_datapull_fxn
 """
 
-import os
+from __future__ import annotations
+
 import sys
+from pathlib import Path
+from typing import Any
 
 import facilitymatcher
 import numpy as np
@@ -24,13 +27,18 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.settings import process_adjustmentpath
 from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping import naics as naics_mapping
 from bedrock.utils.mapping.location import apply_county_FIPS, update_geoscale
-from bedrock.utils.mapping.naics import convert_naics_year
+
+InventoryDict = dict[str, str]
 
 
 def stewicombo_to_sector(
-    config, full_name, external_config_path: str = None, **_
-) -> 'FlowBySector':
+    config: dict[str, Any],
+    full_name: str,
+    external_config_path: str | None = None,
+    **_kwargs: Any,
+) -> FlowBySector:
     """
     Returns emissions from stewicombo in fbs format, requires stewi >= 0.9.5
     :param config: which may contain the following elements:
@@ -51,7 +59,7 @@ def stewicombo_to_sector(
     inventory_name = config.get('local_inventory_name')
     config['full_name'] = full_name
 
-    df = None
+    df: pd.DataFrame | None = None
     if inventory_name is not None:
         df = stewicombo.getInventory(inventory_name, download_if_missing=True)
     if df is None:
@@ -66,7 +74,7 @@ def stewicombo_to_sector(
 
     if df is None:
         # Inventories not found for stewicombo, return empty FBS
-        return
+        return FlowBySector(pd.DataFrame(), convert_df_to_flowby=True)
 
     facility_mapping = extract_facility_data(config['inventory_dict'])
 
@@ -91,14 +99,15 @@ def stewicombo_to_sector(
             external_config_path,
         )
 
-    fbs = prepare_stewi_fbs(df, config)
-
-    return fbs
+    return prepare_stewi_fbs(df, config)
 
 
 def stewi_to_sector(
-    config, full_name, external_config_path: str = None, **_
-) -> 'FlowBySector':
+    config: dict[str, Any],
+    full_name: str,
+    external_config_path: str | None = None,
+    **_kwargs: Any,
+) -> FlowBySector:
     """
     Returns emissions from stewi in fbs format, requires stewi >= 0.9.5
     :param config: which may contain the following elements:
@@ -109,8 +118,9 @@ def stewi_to_sector(
         functions: list of functions (str) to call for additional processing
     :return: FlowBySector object
     """
+    _ = (external_config_path, _kwargs)
     # determine if fxns specified in FBS method yaml
-    functions = config.get('functions', [])
+    functions: list[str] = config.get('functions', [])
     config['full_name'] = full_name
 
     # run stewi to generate inventory and filter for LCI
@@ -127,13 +137,10 @@ def stewi_to_sector(
             .assign(Source=database)
         )
         df = pd.concat([df, inv], ignore_index=True)
-    if config.get('compartments'):
+    compartments = config.get('compartments')
+    if compartments:
         # Subset based on primary compartment
-        df = df[
-            df['Compartment']
-            .str.split('/', expand=True)[0]
-            .isin(config.get('compartments'))
-        ]
+        df = df[df['Compartment'].str.split('/', expand=True)[0].isin(compartments)]
     facility_mapping = extract_facility_data(config['inventory_dict'])
     # Convert NAICS to string (first to int to avoid decimals)
     facility_mapping['NAICS'] = facility_mapping['NAICS'].astype(int).astype(str)
@@ -148,7 +155,12 @@ def stewi_to_sector(
     return fbs
 
 
-def reassign_process_to_sectors(df, year, file_list, external_config_path):
+def reassign_process_to_sectors(
+    df: pd.DataFrame,
+    year: str,
+    file_list: list[str],
+    external_config_path: str | None = None,
+) -> pd.DataFrame:
     """
     Reassigns emissions from a specific process or SCC and NAICS combination
     to a new NAICS.
@@ -163,12 +175,14 @@ def reassign_process_to_sectors(df, year, file_list, external_config_path):
     """
     df_adj = pd.DataFrame()
     for file in file_list:
-        fpath = process_adjustmentpath / f"{file}.csv"
+        fpath: Path = process_adjustmentpath / f'{file}.csv'
         if external_config_path:
-            f_out_path = f"{external_config_path}process_adjustments/{file}.csv"
-            if os.path.isfile(f_out_path):
+            f_out_path = (
+                Path(external_config_path) / 'process_adjustments' / f'{file}.csv'
+            )
+            if f_out_path.is_file():
                 fpath = f_out_path
-        log.debug(f"modifying processes from {fpath}")
+        log.debug(f'modifying processes from {fpath}')
         df_adj0 = pd.read_csv(fpath, dtype='str')
         df_adj = pd.concat([df_adj, df_adj0], ignore_index=True)
 
@@ -182,7 +196,7 @@ def reassign_process_to_sectors(df, year, file_list, external_config_path):
         df_adj = df_adj.drop_duplicates(subset=['source_naics', 'source_process'])
 
     # obtain and prepare SCC dataset
-    keep_sec_cntx = True if any('/' in s for s in df.Compartment.unique()) else False
+    keep_sec_cntx = bool(any('/' in s for s in df.Compartment.unique()))
     df_fbp = stewi.getInventory(
         'NEI',
         year,
@@ -240,11 +254,10 @@ def reassign_process_to_sectors(df, year, file_list, external_config_path):
             'SRS_ID',
         ]
     ).rename(columns={'target_naics': 'NAICS'})
-    df = pd.concat([df, df_fbp], ignore_index=True)
-    return df
+    return pd.concat([df, df_fbp], ignore_index=True)
 
 
-def extract_facility_data(inventory_dict):
+def extract_facility_data(inventory_dict: InventoryDict) -> pd.DataFrame:
     """
     Returns df of facilities from each inventory in inventory_dict,
     including FIPS code
@@ -252,7 +265,7 @@ def extract_facility_data(inventory_dict):
                 {'NEI':'2017', 'TRI':'2017'})
     :return: df
     """
-    facilities_list = []
+    facilities_list: list[pd.DataFrame] = []
     # load facility data from stewi output directory, keeping only the
     # facility IDs, and geographic information
     for database, year in inventory_dict.items():
@@ -262,7 +275,7 @@ def extract_facility_data(inventory_dict):
         facilities = facilities[['FacilityID', 'State', 'County', 'NAICS']]
         if len(facilities[facilities.duplicated(subset='FacilityID', keep=False)]) > 0:
             log.debug(
-                f'Duplicate facilities in {database}_{year} - ' 'keeping first listed'
+                f'Duplicate facilities in {database}_{year} - keeping first listed'
             )
             facilities = facilities.drop_duplicates(subset='FacilityID', keep='first')
         facilities_list.append(facilities)
@@ -271,7 +284,7 @@ def extract_facility_data(inventory_dict):
     return facility_mapping.pipe(apply_county_FIPS)
 
 
-def obtain_NAICS_from_facility_matcher(inventory_list):
+def obtain_NAICS_from_facility_matcher(inventory_list: list[str]) -> pd.DataFrame:
     """
     Returns dataframe of all facilities with included in inventory_list with
     their first or primary NAICS.
@@ -284,13 +297,16 @@ def obtain_NAICS_from_facility_matcher(inventory_list):
         inventories_of_interest_list=inventory_list,
         download_if_missing=True,
     )
-    all_NAICS = all_NAICS.query('PRIMARY_INDICATOR == "PRIMARY"').drop(
+    return all_NAICS.query('PRIMARY_INDICATOR == "PRIMARY"').drop(
         columns=['PRIMARY_INDICATOR']
     )
-    return all_NAICS
 
 
-def assign_naics_to_stewicombo(df, all_NAICS, facility_mapping):
+def assign_naics_to_stewicombo(
+    df: pd.DataFrame,
+    all_NAICS: pd.DataFrame,
+    facility_mapping: pd.DataFrame,
+) -> pd.DataFrame:
     """
     Apply naics to combined inventory preferentially using FRS_ID.
     When FRS_ID does not provide unique NAICS, then use NAICS assigned by
@@ -307,21 +323,20 @@ def assign_naics_to_stewicombo(df, all_NAICS, facility_mapping):
     )
 
     # next use NAICS from inventory sources
-    df = (
+    return (
         df.merge(
             facility_mapping[['FacilityID', 'NAICS']],
             how='left',
             on='FacilityID',
-            suffixes=(None, "_y"),
+            suffixes=(None, '_y'),
         )
         .assign(NAICS=lambda x: x['NAICS'].fillna(x['NAICS_y']))
         .drop(columns=['NAICS_y'])
         .query('NAICS != "None"')
     )
-    return df
 
 
-def prepare_stewi_fbs(df_load, config) -> 'FlowBySector':
+def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySector:
     """
     Function to prepare an emissions df from stewi or stewicombo for use as FBS
     :param df_load: a dataframe of emissions and mapped faciliites from stewi
@@ -329,31 +344,29 @@ def prepare_stewi_fbs(df_load, config) -> 'FlowBySector':
     :param config: dictionary, FBS method data source configuration
     :return: FlowBySector
     """
-    config['fedefl_mapping'] = [
-        x for x in config.get('inventory_dict').keys() if x != 'RCRAInfo'
-    ]
+    inventory_dict = config['inventory_dict']
+    config['fedefl_mapping'] = [x for x in inventory_dict if x != 'RCRAInfo']
     config['drop_unmapped_rows'] = True
     if 'year' not in config:
         config['year'] = df_load['Year'][0]
 
-    # find activity schema
-    activity_schema = (
-        config['activity_schema']
-        if isinstance(config['activity_schema'], str)
-        else config.get('activity_schema', {}).get(config['year'])
-    )
+    activity_schema_raw = config['activity_schema']
+    if isinstance(activity_schema_raw, str):
+        activity_schema: str = activity_schema_raw
+    else:
+        activity_schema = config.get('activity_schema', {}).get(config['year'])
 
     fbs = FlowByActivity(
         df_load.pipe(update_geoscale, config['geoscale'])
         # ^^ update location to appropriate geoscale prior to aggregating
-        .rename(columns={"NAICS": "ActivityProducedBy", 'Source': 'SourceName'})
+        .rename(columns={'NAICS': 'ActivityProducedBy', 'Source': 'SourceName'})
         .assign(Class='Chemicals')
         .assign(ActivityConsumedBy=np.nan)
         .pipe(
-            convert_naics_year,
+            naics_mapping.convert_naics_year,
             f"NAICS_{config['target_naics_year']}_Code",
             activity_schema,
-            config.get('full_name'),
+            config['full_name'],
         )
         .assign(
             FlowType=lambda x: np.where(
@@ -375,7 +388,7 @@ def prepare_stewi_fbs(df_load, config) -> 'FlowBySector':
     return fbs
 
 
-def add_stewi_metadata(inventory_dict):
+def add_stewi_metadata(inventory_dict: InventoryDict) -> dict[str, Any]:
     """
     Access stewi metadata for generating FBS metdata file
     :param inventory_dict: a dictionary of inventory types and years (e.g.,
@@ -385,14 +398,14 @@ def add_stewi_metadata(inventory_dict):
     return compile_metadata(inventory_dict)
 
 
-def add_stewicombo_metadata(inventory_name):
+def add_stewicombo_metadata(inventory_name: str) -> dict[str, Any]:
     """Access locally stored stewicombo metadata by filename"""
     return read_source_metadata(
         stewicombo.globals.paths, set_stewicombo_meta(inventory_name)
     )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import bedrock
 
     fbs = bedrock.transform.flowbysector.FlowBySector.generateFlowBySector(

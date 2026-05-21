@@ -99,7 +99,6 @@ known-first-party = ["bedrock"]
 "bedrock/extract/statcan/*" = ["ALL"]
 "bedrock/extract/stateghgi/*" = ["ALL"]
 "bedrock/extract/stateio/*" = ["ALL"]
-"bedrock/extract/stewifbs/*" = ["ALL"]
 "bedrock/extract/unep/*" = ["ALL"]
 "bedrock/extract/usgs/*" = ["ALL"]
 
@@ -139,7 +138,6 @@ exclude = [
     'bedrock/extract/statcan/',
     'bedrock/extract/stateghgi/',
     'bedrock/extract/stateio/',
-    'bedrock/extract/stewifbs/',
     'bedrock/extract/unep/',
     'bedrock/extract/usgs/',
     'scripts/*.py',
