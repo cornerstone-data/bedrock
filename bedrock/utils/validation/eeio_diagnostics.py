@@ -21,13 +21,20 @@ from bedrock.transform.eeio.derived_2017 import (
 from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_cornerstone_industry_price_ratio,
+    get_vnorm_adjusted_commodity_price_ratio,
+)
 from bedrock.utils.math.formulas import (
     backcompute_q_from_L_and_y,
     compute_commodity_mix_matrix,
     compute_Vnorm_matrix,
 )
+from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVectorSet
 
 logger = logging.getLogger(__name__)
+
+CpiSource = ta.Literal['ceda', 'cornerstone']
 
 
 @dc.dataclass
@@ -112,6 +119,86 @@ def format_diagnostic_result(result: DiagnosticResult) -> str:
         lines.append("Failing sectors: None")
 
     return "\n".join(lines)
+
+
+def _sector_rel_diff_pairs(result: DiagnosticResult) -> list[tuple[str, float]]:
+    """Extract (sector, |rel_diff|) pairs from a diagnostic result."""
+    if result.details is not None:
+        fail_sectors = result.details.get('failing sectors')
+        fail_values = result.details.get('failing values')
+        if fail_sectors is not None and fail_values is not None:
+            pairs: list[tuple[str, float]] = []
+            for sector, rel_diff in zip(fail_sectors, fail_values, strict=False):
+                if pd.isna(sector):
+                    continue
+                if pd.isna(rel_diff):
+                    pairs.append((str(sector), float('inf')))
+                else:
+                    pairs.append((str(sector), float(rel_diff)))
+            if pairs:
+                return pairs
+    return [(sector, float('nan')) for sector in result.failing_sectors]
+
+
+def _rel_diff_sort_key(rel_diff: float) -> float:
+    if np.isinf(rel_diff):
+        return float('inf')
+    if np.isnan(rel_diff):
+        return float('-inf')
+    return rel_diff
+
+
+def print_diagnostic_failure_summary(
+    result: DiagnosticResult,
+    *,
+    max_sectors: int = 10,
+) -> None:
+    """Print failure count and the largest N failing sectors by relative difference."""
+    if result.passed and result.max_rel_diff != float('inf'):
+        return
+
+    n_fail = len(result.failing_sectors)
+    print(
+        f"\n{result.name}: {n_fail} sector(s) failed "
+        f"(tolerance={result.tolerance:.4f}, max_rel_diff={result.max_rel_diff:.4f})"
+    )
+
+    if n_fail == 0:
+        print('  (no failing sector list; possible index alignment issue)')
+        return
+
+    pairs = _sector_rel_diff_pairs(result)
+    pairs.sort(key=lambda pair: _rel_diff_sort_key(pair[1]), reverse=True)
+    n_show = min(max_sectors, len(pairs))
+    print(f'Largest failing sectors (showing {n_show} of {n_fail}):')
+    for sector, rel_diff in pairs[:max_sectors]:
+        if np.isinf(rel_diff) or np.isnan(rel_diff):
+            print(f'  {sector}: rel_diff={rel_diff}')
+        else:
+            print(f'  {sector}: rel_diff={rel_diff:.6f}')
+
+    if n_fail > max_sectors:
+        print(f'  ... and {n_fail - max_sectors} more')
+
+
+def assert_diagnostic_passed(
+    result: DiagnosticResult,
+    *,
+    max_sectors: int = 10,
+) -> None:
+    """Assert a diagnostic passed; print a failure summary to stdout if not."""
+    if (
+        result.passed
+        and result.max_rel_diff != float('inf')
+        and len(result.failing_sectors) == 0
+    ):
+        return
+    print_diagnostic_failure_summary(result, max_sectors=max_sectors)
+    assert result.max_rel_diff != float('inf'), (
+        f'{result.name}: index alignment or divide-by-zero issue'
+    )
+    assert result.passed, f'{result.name}: tolerance check failed'
+    assert len(result.failing_sectors) == 0
 
 
 DiagnosticCallable = ta.Callable[[], DiagnosticResult]
@@ -384,6 +471,8 @@ def commodity_industry_output_cpi_consistency(
     target_year: int,
     tolerance: float,
     include_details: bool = False,
+    *,
+    cpi_source: CpiSource = 'ceda',
 ) -> DiagnosticResult:
     """Test that commodity output adjusted by CPI equals market share matrix times CPI-adjusted industry output."""
 
@@ -391,23 +480,33 @@ def commodity_industry_output_cpi_consistency(
     # This is equivalent to generateCommodityMixMatrix in useeior which also uses t(V) and x
     C_m = compute_commodity_mix_matrix(V=V, x=x)
 
-    # Market share matrix M_s (industry x commodity)
-    # This is equivalent to generateMarketSharesfromMake in useeior which also uses V and q
-    M_s = compute_Vnorm_matrix(V=V, q=q)
+    if cpi_source == 'cornerstone':
+        industry_CPI_ratio = get_cornerstone_industry_price_ratio(
+            base_year, target_year
+        ).reindex(x.index, fill_value=1.0)
+        commodity_CPI_ratio = get_vnorm_adjusted_commodity_price_ratio(
+            base_year, target_year
+        ).reindex(q.index, fill_value=1.0)
+    elif cpi_source == 'ceda':
+        # Market share matrix M_s (industry x commodity)
+        # This is equivalent to generateMarketSharesfromMake in useeior which also uses V and q
+        M_s = compute_Vnorm_matrix(V=V, q=q)
 
-    # CPI vectors from bedrock's inflation utilities
-    # This is equivalent to Detail_CPI_IO_17sch.rda which in turn is the same as model$MultiYearIndustryCPI
-    industry_CPI = obtain_inflation_factors_from_reference_data()
+        # CPI vectors from bedrock's inflation utilities
+        # This is equivalent to Detail_CPI_IO_17sch.rda which in turn is the same as model$MultiYearIndustryCPI
+        industry_CPI = obtain_inflation_factors_from_reference_data()
 
-    # Create commodity CPI by multiplying an I x 1 matrix @ a I x C matrix which yields a C x 1 matrix
-    # for each column of industry_CPI, which are the various years
-    commodity_CPI = pd.DataFrame().reindex_like(industry_CPI)
-    for i in range(len(industry_CPI.columns)):
-        commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ M_s
+        # Create commodity CPI by multiplying an I x 1 matrix @ a I x C matrix which yields a C x 1 matrix
+        # for each column of industry_CPI, which are the various years
+        commodity_CPI = pd.DataFrame().reindex_like(industry_CPI)
+        for i in range(len(industry_CPI.columns)):
+            commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ M_s
 
-    # Calculate CPI ratios
-    industry_CPI_ratio = industry_CPI[target_year] / industry_CPI[base_year]
-    commodity_CPI_ratio = commodity_CPI[target_year] / commodity_CPI[base_year]
+        # Calculate CPI ratios
+        industry_CPI_ratio = industry_CPI[target_year] / industry_CPI[base_year]
+        commodity_CPI_ratio = commodity_CPI[target_year] / commodity_CPI[base_year]
+    else:
+        raise ValueError(f'invalid cpi_source: {cpi_source!r}')
 
     # Calculate q_check and x_check
     q_check = q * commodity_CPI_ratio
@@ -428,22 +527,25 @@ def compare_output_from_make_and_use(
     U: pd.DataFrame,
     tolerance: float,
     include_details: bool = False,
+    *,
+    va: pd.DataFrame | None = None,
+    y_set: SingleRegionYtotAndTradeVectorSet | None = None,
 ) -> DiagnosticResult:
     """Check that industry output from Use and Make tables are the same"""
 
     if output == "Industry":
-        VA = derive_detail_VA_usa()
+        va_table = va if va is not None else derive_detail_VA_usa()
         x_make = V.sum(axis=1)
-        x_use = U.sum(axis=0) + VA.sum(axis=0)
+        x_use = U.sum(axis=0) + va_table.sum(axis=0)
 
         name = "compare_industry_output_from_make_and_use"
         d_result = validate_result(
             name, x_make, x_use, tolerance=tolerance, include_details=include_details
         )
     elif output == "Commodity":
-        y_set = derive_2017_Ytot_usa_matrix_set()
+        y_trade = y_set if y_set is not None else derive_2017_Ytot_usa_matrix_set()
         q_make = V.sum(axis=0)
-        q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
+        q_use = U.sum(axis=1) + (y_trade.ytot + y_trade.exports - y_trade.imports)
 
         name = "compare_commodity_output_from_make_and_use"
         d_result = validate_result(
