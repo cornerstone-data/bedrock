@@ -12,22 +12,13 @@ from stewi.egrid import OUTPUT_PATH, _config, download_eGRID, extract_eGRID_exce
 from stewi.globals import MWh_MJ
 from stewi.globals import config as stewi_config
 
-EGRID_INVENTORY = "eGRID"
-NET_GENERATION_FLOW = "Electricity"
-GGL_SHEET_PREFIX = "GGL"
-
 DEFAULT_YEAR_START = 2016
 DEFAULT_YEAR_END = 2024
-
-_COL_YEAR = "Data Year"
-_COL_REGION_SUBSTR = "interconnect power grids"
-_COL_EST_LOSS_SUBSTR = "Estimated losses (MWh)"
-_COL_GRID_GROSS_LOSS_SUBSTR = "Grid gross loss"
 
 
 def egrid_inventory_years(year_start: int, year_end: int) -> list[int]:
     """Calendar years with stewi eGRID source config in [year_start, year_end]."""
-    keys = stewi_config()["databases"][EGRID_INVENTORY]
+    keys = stewi_config()["databases"]["eGRID"]
     configured = sorted(int(k) for k in keys if str(k).isdigit())
     return [y for y in configured if year_start <= y <= year_end]
 
@@ -36,7 +27,7 @@ def _require_egrid_year(year: int) -> str:
     year_str = str(year)
     if year_str not in _config:
         raise stewi.exceptions.InventoryNotAvailableError(
-            inv=EGRID_INVENTORY,
+            inv="eGRID",
             year=year_str,
         )
     return year_str
@@ -74,15 +65,15 @@ def load_egrid_ggl(
     year_str = _require_egrid_year(year)
     if download_if_missing:
         ensure_egrid_workbook(year, download_if_missing=True)
-    raw = extract_eGRID_excel(year_str, GGL_SHEET_PREFIX, index="field")
+    raw = extract_eGRID_excel(year_str, "GGL", index="field")
     return _normalize_ggl(raw)
 
 
 def _normalize_ggl(raw: pd.DataFrame) -> pd.DataFrame:
-    region_col = _find_column(raw, _COL_REGION_SUBSTR)
-    est_col = _find_column(raw, _COL_EST_LOSS_SUBSTR)
-    loss_col = _find_column(raw, _COL_GRID_GROSS_LOSS_SUBSTR)
-    year_col = _COL_YEAR if _COL_YEAR in raw.columns else _find_column(raw, "Year")
+    region_col = _find_column(raw, "interconnect power grids")
+    est_col = _find_column(raw, "Estimated losses (MWh)")
+    loss_col = _find_column(raw, "Grid gross loss")
+    year_col = "Data Year" if "Data Year" in raw.columns else _find_column(raw, "Year")
 
     out = pd.DataFrame(
         {
@@ -124,7 +115,7 @@ def load_egrid_flowbyfacility(
 ) -> pd.DataFrame:
     """Return stewi eGRID flow-by-facility inventory for *year*."""
     return stewi.getInventory(
-        EGRID_INVENTORY,
+        "eGRID",
         year,
         stewiformat="flowbyfacility",
         download_if_missing=download_if_missing,
@@ -133,20 +124,18 @@ def load_egrid_flowbyfacility(
 
 def _net_generation_mj(flowbyfacility: pd.DataFrame) -> float:
     """Sum Electricity (net generation) across a stewi eGRID flowbyfacility table, in MJ."""
-    gen = flowbyfacility.loc[
-        flowbyfacility["FlowName"] == NET_GENERATION_FLOW, "FlowAmount"
-    ]
+    gen = flowbyfacility.loc[flowbyfacility["FlowName"] == "Electricity", "FlowAmount"]
     if gen.empty:
         msg = (
-            f"eGRID flow-by-facility has no {NET_GENERATION_FLOW!r} rows "
+            "eGRID flow-by-facility has no 'Electricity' rows "
             "(plant annual net generation)"
         )
         raise ValueError(msg)
     units = flowbyfacility.loc[
-        flowbyfacility["FlowName"] == NET_GENERATION_FLOW, "Unit"
+        flowbyfacility["FlowName"] == "Electricity", "Unit"
     ].unique()
     if len(units) != 1 or units[0] != "MJ":
-        msg = f"unexpected units for {NET_GENERATION_FLOW!r}: {units.tolist()}"
+        msg = f"unexpected units for 'Electricity': {units.tolist()}"
         raise ValueError(msg)
     return float(gen.sum())
 
