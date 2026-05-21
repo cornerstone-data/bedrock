@@ -10,6 +10,7 @@ import pytest
 
 import bedrock.transform.eeio.derived_cornerstone as derived_cornerstone
 from bedrock.extract.disaggregation.egrid_generation import (
+    load_egrid_ggl,
     us_total_net_generation_mwh,
 )
 
@@ -42,3 +43,11 @@ def test_us_total_net_generation_mwh_2022_matches_stewi_egrid() -> None:
         rel_tol=0,
         abs_tol=1.0,
     )
+
+
+@pytest.mark.eeio_integration
+def test_load_egrid_ggl_2018_us_grid_gross_loss() -> None:
+    """GGL sheet via stewi extract_eGRID_excel; U.S. grid gross loss for 2018."""
+    ggl = load_egrid_ggl(2018, download_if_missing=True)
+    us_row = ggl.loc[ggl["region"] == "U.S.", "grid_gross_loss"].iloc[0]
+    assert math.isclose(us_row, 0.048681, rel_tol=0, abs_tol=1e-6)
