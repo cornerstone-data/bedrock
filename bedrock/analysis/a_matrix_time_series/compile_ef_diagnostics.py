@@ -207,7 +207,7 @@ def main() -> None:
             "  (a) Auto-rebuild from existing Sheets in the diagnostics "
             "Drive folder:\n"
             "      python -m bedrock.analysis.a_matrix_time_series."
-            "rebuild_run_index_from_drive --folder-id <DRIVE_FOLDER_ID>\n"
+            "recover_ef_run_index --folder-id <DRIVE_FOLDER_ID>\n"
             "  (b) Hand-write a CSV with at least 3 columns "
             "(approach, baseline, sheet_id), one row per Sheet."
         )

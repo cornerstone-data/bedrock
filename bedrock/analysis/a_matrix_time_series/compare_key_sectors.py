@@ -44,7 +44,7 @@ Tunable constants: ``RANK_TARGET_YEAR``, ``FOCUS_APPROACHES``,
 ``BASELINES``, ``HEATMAP_TOP_GROUPS``, ``DRILL_IN_TOP_N``, ``CSV_TOP_N``.
 
 Usage:
-    python -m bedrock.analysis.a_matrix_time_series.key_sector_deep_dive
+    python -m bedrock.analysis.a_matrix_time_series.compare_key_sectors
 """
 
 from __future__ import annotations

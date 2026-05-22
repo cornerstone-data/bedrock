@@ -12,7 +12,7 @@ Sheet title formats supported:
   ``[YYYY-MM-DD, YYYY, BASELINE based, A matrix with APPROACH, SCENARIO] EFs diagnostics``
 
 Usage:
-    python -m bedrock.analysis.a_matrix_time_series.rebuild_run_index_from_drive \\
+    python -m bedrock.analysis.a_matrix_time_series.recover_ef_run_index \\
         --folder-id <DRIVE_FOLDER_ID>
 """
 

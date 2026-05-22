@@ -1,6 +1,6 @@
 # USEEIO Nowcast — EF Diagnostics Runbook
 
-Step N4 of [`implement_useeio_nowcast_plan.md`](implement_useeio_nowcast_plan.md). Steps N1–N3 are code changes that landed in this branch; this step is operator-triggered.
+Step N4 of [`docs/implement_useeio_nowcast_plan.md`](docs/implement_useeio_nowcast_plan.md). Steps N1–N3 are code changes that landed in this branch; this step is operator-triggered.
 
 ## Pre-flight checklist
 
