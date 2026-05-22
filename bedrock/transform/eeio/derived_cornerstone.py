@@ -542,23 +542,52 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # Summary tables only: scale 2017 → model_year directly using summary A ratios,
-    # skipping the intermediate io_year step and price inflation.
+    # USEEIO nowcast: load externally-balanced detail SUTs from GCS and
+    # derive Cornerstone A directly. Bypasses all internal scaling/inflation;
+    # treats the upstream USEEIO team's GRAS-balanced 2018–2023 SUTs as the
+    # source of structural change. Loaders: bedrock.extract.iot.useeio_nowcast;
+    # derivation: bedrock.transform.eeio.derived_useeio_nowcast.
+    if cfg.load_useeio_nowcast_A_matrix:
+        from bedrock.transform.eeio.derived_useeio_nowcast import (  # noqa: PLC0415
+            derive_useeio_nowcast_Aq_cornerstone,
+        )
+
+        return derive_useeio_nowcast_Aq_cornerstone(year=model_year)
+
+    # Summary tables: scale 2017 → model_year using summary A ratios computed
+    # entirely in 2017 USD (`scale_cornerstone_A` rebases the target-year
+    # summary A to 2017 USD before the ratio is taken), then inflate the
+    # resulting detail A from 2017 → model_year. See
+    # `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
     if cfg.scale_a_matrix_with_summary_tables:
-        Adom = scale_cornerstone_A(
-            base.Adom,
-            target_year=model_year,
+        Adom = inflate_cornerstone_A_matrix_with_industry_pi(
+            scale_cornerstone_A(
+                base.Adom,
+                target_year=model_year,
+                original_year=detail_year,
+                dom_or_imp_or_total='dom',
+            ),
             original_year=detail_year,
-            dom_or_imp_or_total='dom',
-        )
-        Aimp = scale_cornerstone_A(
-            base.Aimp,
             target_year=model_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='imp',
         )
-        q = scale_cornerstone_q(
-            base.scaled_q, target_year=model_year, original_year=detail_year
+        Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
+            scale_cornerstone_A(
+                base.Aimp,
+                target_year=model_year,
+                original_year=detail_year,
+                dom_or_imp_or_total='imp',
+            ),
+            original_year=detail_year,
+            target_year=model_year,
+        )
+        q = inflate_cornerstone_q_or_y_with_industry_pi(
+            scale_cornerstone_q(
+                base.scaled_q,
+                target_year=model_year,
+                original_year=detail_year,
+            ),
+            original_year=detail_year,
+            target_year=model_year,
         )
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]

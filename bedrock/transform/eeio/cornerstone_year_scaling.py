@@ -17,6 +17,10 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Aimp_usa,
     derive_summary_q_usa,
 )
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    adjust_summary_A_dollar_year,
+    adjust_summary_q_dollar_year,
+)
 from bedrock.utils.math.formulas import compute_total_industry_inputs
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_MUT_YEARS
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
@@ -71,9 +75,19 @@ def scale_cornerstone_A(
     original_year: USA_SUMMARY_MUT_YEARS,
     dom_or_imp_or_total: ta.Literal['dom', 'imp', 'total'],
 ) -> pd.DataFrame:
-    """Scale detail A element-wise using summary A ratios."""
+    """Scale detail A element-wise using summary A ratios.
+
+    The target-year summary A is rebased into ``original_year`` USD via the
+    ITA-based summary commodity price ratio before the ratio is taken, so
+    the structural cross-year ratio is formed in a consistent dollar year.
+    See plan `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
+    """
     A_summary_base = _get_summary_A(original_year, dom_or_imp_or_total)
-    A_summary_target = _get_summary_A(target_year, dom_or_imp_or_total)
+    A_summary_target = adjust_summary_A_dollar_year(
+        A_summary=_get_summary_A(target_year, dom_or_imp_or_total),
+        from_year=target_year,
+        to_year=original_year,
+    )
 
     summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
     detail_sectors = list(A.index)
@@ -123,9 +137,18 @@ def scale_cornerstone_q(
     target_year: USA_SUMMARY_MUT_YEARS,
     original_year: USA_SUMMARY_MUT_YEARS,
 ) -> pd.Series[float]:
-    ratio = (
-        derive_summary_q_usa(target_year) / derive_summary_q_usa(original_year)
-    ).fillna(1.0)
+    """Scale detail q element-wise using summary q ratios.
+
+    The target-year summary q is rebased into ``original_year`` USD via the
+    ITA-based summary commodity price ratio before forming the cross-year
+    ratio.
+    """
+    q_summary_target = adjust_summary_q_dollar_year(
+        q_summary=derive_summary_q_usa(target_year),
+        from_year=target_year,
+        to_year=original_year,
+    )
+    ratio = (q_summary_target / derive_summary_q_usa(original_year)).fillna(1.0)
     return ta.cast(
         pd.Series,
         _apply_summary_ratio_to_sectors(ratio, q, axis='rows'),
