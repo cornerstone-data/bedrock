@@ -18,7 +18,7 @@ each Sheet, and produces:
   candidate's base year) and ``y_approach`` is ``*_new``. ``scenario``
   distinguishes runs where only the A-matrix derivation differs
   (``isolate_a_matrix``) from runs that bundle the A-matrix change with
-  the full v0.2 stack (``bundle_v0_2``).
+  the full v0.3 stack (``bundle_v0_3``).
 - ``ef_summary_vs_useeio`` and ``ef_summary_vs_ceda`` tabs appended to the
   run-report Sheet (sheet ID from ``last_run_sheet_id.txt``, written by
   Step 1). Skipped with a warning if that file is missing.

@@ -52,7 +52,7 @@ HEXBIN_TARGET_YEAR = 2023
 
 BASELINE_APPROACHES: tuple[str, ...] = ("useeio", "ceda_default")
 
-# v0.2 focus pairs at HEXBIN_TARGET_YEAR:
+# v0.3 focus pairs at HEXBIN_TARGET_YEAR:
 #   - The two top internal candidates vs each other.
 #   - Each candidate vs the external reference (useeio_nowcast).
 #   - The external reference vs each baseline.

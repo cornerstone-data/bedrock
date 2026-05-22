@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-# v0.2 focus: scatter rows are the 3 focus approaches (summary_tables,
+# v0.3 focus: scatter rows are the 3 focus approaches (summary_tables,
 # commodity_price_index, useeio_nowcast). Reversed so the matrix shows
 # useeio_nowcast on top, commodity_price_index middle, summary_tables bottom —
 # matches "external reference at top, candidates below" reading order.

@@ -51,7 +51,7 @@ ALTERNATIVE_APPROACHES: tuple[str, ...] = (
 # for candidates.
 EXTERNAL_REFERENCES: tuple[str, ...] = ("useeio_nowcast",)
 
-# The 3 approaches the v0.2 Cornerstone recommendation focuses on for the
+# The 3 approaches the v0.3 Cornerstone recommendation focuses on for the
 # multi-path comparison plots. ``summary_tables`` and ``commodity_price_index``
 # are the two top internal candidates; ``useeio_nowcast`` is the external
 # reference. ``industry_price_index`` is excluded — superseded by

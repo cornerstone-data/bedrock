@@ -1,6 +1,6 @@
 # `a_matrix_time_series` — A-matrix methodology comparison
 
-This module compares **six ways of deriving the Cornerstone A matrix** for years 2017–2024 and feeds the cell-level + EF-level diagnostics that back the v0.2 recommendation for which method ships in the 2026 model. Plain-English glossary of the six approaches lives in [`docs/analysis_plan.md`](docs/analysis_plan.md); the canonical list (with stable string keys used everywhere in this folder) is in [`constants.py`](constants.py).
+This module compares **six ways of deriving the Cornerstone A matrix** for years 2017–2024 and feeds the cell-level + EF-level diagnostics that back the v0.3 recommendation for which method ships in the 2026 model. Plain-English glossary of the six approaches lives in [`docs/analysis_plan.md`](docs/analysis_plan.md); the canonical list (with stable string keys used everywhere in this folder) is in [`constants.py`](constants.py).
 
 | Category | Approach key | Role |
 |---|---|---|
@@ -11,7 +11,7 @@ This module compares **six ways of deriving the Cornerstone A matrix** for years
 | Internal alternative | `commodity_price_index` | V-norm-derived commodity PI applied to 2017 A |
 | External reference | `useeio_nowcast` | EPA USEEIO team's GRAS-balanced detail SUTs (2017–2023) |
 
-`FOCUS_APPROACHES` in [`constants.py`](constants.py) is the 3-approach subset the v0.2 plots zoom in on: `commodity_price_index`, `summary_tables`, `useeio_nowcast`. `industry_price_index` is kept in the data layer but omitted from the focus plots (superseded by `commodity_price_index`).
+`FOCUS_APPROACHES` in [`constants.py`](constants.py) is the 3-approach subset the v0.3 plots zoom in on: `commodity_price_index`, `summary_tables`, `useeio_nowcast`. `industry_price_index` is kept in the data layer but omitted from the focus plots (superseded by `commodity_price_index`).
 
 ---
 
@@ -44,7 +44,7 @@ a_matrix_time_series/
 ├── dispatch_ef_time_series.py        # Step 7a: trigger generate_diagnostics workflow runs
 ├── compile_ef_diagnostics.py         # Step 7b: aggregate per-run Sheets → workbook + parquet
 ├── plot_ef_diagnostics.py            # Step 7c: EF scatter + histogram from compiled parquet
-├── plot_v0_2_n_pct_hist.py           # Ad-hoc: single-sheet N/D histogram
+├── plot_v0_3_n_pct_hist.py           # Ad-hoc: single-sheet N/D histogram
 │
 ├── recover_ef_run_index.py           # Utility: reconstruct ef_run_index.csv from Drive
 ├── view_vnorm_and_price_ratios.py    # Utility: print V-norm + industry-vs-commodity PI summaries
@@ -147,7 +147,7 @@ This phase fans out to the `generate_diagnostics` GitHub Actions workflow; one S
 # 5a. Dispatch — idempotent, skips cells already in ef_run_index.csv.
 python -m bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series \
     --git-ref main \
-    --scenarios isolate_a_matrix,bundle_v0_2 \
+    --scenarios isolate_a_matrix,bundle_v0_3 \
     --years 2019,2020,2021,2022,2023
 
 # 5b. Wait for GH Actions to finish — runs land in the v0.3 Diagnostics Drive folder
@@ -170,7 +170,7 @@ python -m bedrock.analysis.a_matrix_time_series.recover_ef_run_index
 
 ### Ad-hoc
 
-`plot_v0_2_n_pct_hist.py` renders a single-sheet N/D histogram for any diagnostics Sheet ID — useful when staring at one approach's results without running the full compile pipeline.
+`plot_v0_3_n_pct_hist.py` renders a single-sheet N/D histogram for any diagnostics Sheet ID — useful when staring at one approach's results without running the full compile pipeline.
 
 ---
 

@@ -12,7 +12,7 @@ Step N4 of [`docs/implement_useeio_nowcast_plan.md`](docs/implement_useeio_nowca
 
 - [ ] Both YAMLs exist:
   - `bedrock/utils/config/configs/2025_usa_cornerstone_A_useeio_nowcast.yaml` — minimal config for the A-matrix-only analysis (Steps N1–N3).
-  - `bedrock/utils/config/configs/2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` — **full v0.2 model** (`load_E_from_flowsa`, `new_ghg_method`, `use_E_data_year_for_x_in_B`, `implement_waste_disaggregation`, `load_useeio_nowcast_A_matrix`) — required for EF diagnostics so apples-to-apples vs the other 4 `full_model_A_*` YAMLs.
+  - `bedrock/utils/config/configs/2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` — **full v0.3 model** (`load_E_from_flowsa`, `new_ghg_method`, `use_E_data_year_for_x_in_B`, `implement_waste_disaggregation`, `load_useeio_nowcast_A_matrix`) — required for EF diagnostics so apples-to-apples vs the other 4 `full_model_A_*` YAMLs.
 
 - [ ] The new flag is wired: `load_useeio_nowcast_A_matrix` in `bedrock/utils/config/usa_config.py`.
 
@@ -37,7 +37,7 @@ For each `model_base_year ∈ {2018, 2019, 2020, 2021, 2022, 2023}`:
    | **Benchmark to USEEIO GCS Excel baseline** | ☑ **tick this** (gives the USEEIO-do-nothing comparison automatically) |
 3. Click **Run workflow**.
 4. The workflow:
-   - Loads `2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` → sets `load_useeio_nowcast_A_matrix=True` (plus all v0.2 full-model flags).
+   - Loads `2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` → sets `load_useeio_nowcast_A_matrix=True` (plus all v0.3 full-model flags).
    - Calls `derive_cornerstone_Aq_scaled()` → short-circuits to our new branch → calls `derive_useeio_nowcast_Aq_cornerstone(year=2023)`.
    - That function loads V/U/U_imports from `gs://cornerstone-default/extract/input-data/USEEIO_nowcasted_MUTs/`, derives Cornerstone A, applies 0.98 cap, returns `SingleRegionAqMatrixSet`.
    - Workflow runs full model end-to-end and writes EFs + sector outputs to the Sheet.
