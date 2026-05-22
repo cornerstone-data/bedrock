@@ -46,9 +46,7 @@
       inventory_dict:
         eGRID: 2023
       year: 2023
-      selection_fields:
-        Compartment: air
-        FlowName:
-          - Carbon dioxide
-          - Methane
-          - Nitrous oxide
+      include_flow_names:
+        - Carbon dioxide
+        - Methane
+        - Nitrous oxide

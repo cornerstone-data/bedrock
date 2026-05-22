@@ -269,6 +269,24 @@ def assign_naics_from_egrid_fuel(
     )
 
 
+def _subset_stewi_include_flow_names(
+    df: pd.DataFrame, flow_names: list[str] | tuple[str, ...]
+) -> pd.DataFrame:
+    """Keep stewi rows whose ``FlowName`` is in ``include_flow_names`` (method yaml)."""
+    if 'FlowName' not in df.columns:
+        raise KeyError(
+            'Stewi dataframe must include FlowName before include_flow_names filter'
+        )
+    allowed = frozenset(flow_names)
+    out = df.loc[df['FlowName'].isin(allowed)]
+    if out.empty:
+        log.warning(
+            'No stewi rows after include_flow_names filter: %s',
+            sorted(allowed),
+        )
+    return out
+
+
 def egrid_to_sector(
     config: dict[str, Any],
     full_name: str,
@@ -486,12 +504,20 @@ def assign_naics_to_stewicombo(
 
 def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySector:
     """
-    Function to prepare an emissions df from stewi or stewicombo for use as FBS
-    :param df_load: a dataframe of emissions and mapped faciliites from stewi
-                    or stewicombo
-    :param config: dictionary, FBS method data source configuration
-    :return: FlowBySector
+    Prepare stewi or stewicombo emissions as FBS.
+
+    Optional method keys (same pattern as ``compartments`` for compartment filter):
+
+    - ``include_flow_names``: list of stewi ``FlowName`` values to keep; omitted
+      means all flows. Popped before ``prepare_fbs`` so it is not reapplied on
+      FBS-shaped data. Prefer this over ``selection_fields`` on stewi sources.
     """
+    include_flow_names = config.pop('include_flow_names', None)
+    config.pop('selection_fields', None)
+
+    if include_flow_names is not None:
+        df_load = _subset_stewi_include_flow_names(df_load, include_flow_names)
+
     inventory_dict = config['inventory_dict']
     config['fedefl_mapping'] = [x for x in inventory_dict if x != 'RCRAInfo']
     config['drop_unmapped_rows'] = True

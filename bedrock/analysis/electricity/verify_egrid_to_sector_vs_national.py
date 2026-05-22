@@ -45,10 +45,7 @@ _EGRID_TO_SECTOR_CONFIG: dict = {
             '221122',
         ],
     },
-    'selection_fields': {
-        'Compartment': 'air',
-        'FlowName': list(_GHG),
-    },
+    'include_flow_names': list(_GHG),
 }
 
 
