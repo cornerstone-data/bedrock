@@ -549,7 +549,17 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
         )
         .pipe(assign_fips_location_system, config['year'])
         # ^^ Consider upating this old function
-        .drop(columns=['FacilityID', 'FRS_ID', 'State', 'County'], errors='ignore')
+        .drop(
+            columns=[
+                'FacilityID',
+                'FRS_ID',
+                'State',
+                'County',
+                'Plant primary fuel',
+                'PrimaryFuelCategory',
+            ],
+            errors='ignore',
+        )
         .dropna(subset=['Location'])
         .reset_index(drop=True),
         full_name=config.get('full_name'),
