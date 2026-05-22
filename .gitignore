@@ -25,6 +25,7 @@ __pycache__/
 *.png
 *.mat
 *.pkl
+*.zip
 *_metadata.json
 *_diffs.yaml
 !bedrock/utils/**/*.csv
