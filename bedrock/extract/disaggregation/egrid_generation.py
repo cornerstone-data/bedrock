@@ -6,10 +6,10 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import pandas as pd
-import stewi
 import stewi.exceptions
 from stewi.egrid import OUTPUT_PATH, _config, download_eGRID, extract_eGRID_excel
-from stewi.globals import MWh_MJ
+from stewi.formats import StewiFormat
+from stewi.globals import MWh_MJ, read_inventory
 from stewi.globals import config as stewi_config
 
 DEFAULT_YEAR_START = 2016
@@ -73,7 +73,13 @@ def _normalize_ggl(raw: pd.DataFrame) -> pd.DataFrame:
     region_col = _find_column(raw, "interconnect power grids")
     est_col = _find_column(raw, "Estimated losses (MWh)")
     loss_col = _find_column(raw, "Grid gross loss")
-    year_col = "Data Year" if "Data Year" in raw.columns else _find_column(raw, "Year")
+    year_col = next(
+        (c for c in ("Data Year", "Data year") if c in raw.columns),
+        None,
+    )
+    if year_col is None:
+        msg = f"GGL sheet missing Data Year column; got {list(raw.columns)}"
+        raise ValueError(msg)
 
     out = pd.DataFrame(
         {
@@ -113,13 +119,23 @@ def load_egrid_flowbyfacility(
     *,
     download_if_missing: bool = True,
 ) -> pd.DataFrame:
-    """Return stewi eGRID flow-by-facility inventory for *year*."""
-    return stewi.getInventory(
+    """Return stewi eGRID flow-by-facility parquet for *year* without getInventory filters.
+
+    Uses ``read_inventory`` so plant net generation matches the stored inventory
+    (sum of PLNT / US ``USNGENAN``). ``getInventory`` re-aggregates on read and drops
+    non-positive ``FlowAmount`` rows, which raises the US electricity total.
+    """
+    _require_egrid_year(year)
+    inv = read_inventory(
         "eGRID",
         year,
-        stewiformat="flowbyfacility",
+        StewiFormat.FLOWBYFACILITY,
         download_if_missing=download_if_missing,
     )
+    if inv is None:
+        msg = f"eGRID flow-by-facility inventory not available for {year}"
+        raise FileNotFoundError(msg)
+    return inv
 
 
 def _net_generation_mj(flowbyfacility: pd.DataFrame) -> float:
@@ -145,7 +161,7 @@ def us_total_net_generation_mwh(
     *,
     download_if_missing: bool = True,
 ) -> float:
-    """Sum US plant annual net generation (MWh) from stewi eGRID for *year*."""
+    """Sum US plant annual net generation (MWh); matches PLNT / US workbook totals."""
     inv = load_egrid_flowbyfacility(year, download_if_missing=download_if_missing)
     return _net_generation_mj(inv) / MWh_MJ
 

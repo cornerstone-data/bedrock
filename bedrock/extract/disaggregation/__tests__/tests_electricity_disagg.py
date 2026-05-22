@@ -14,8 +14,8 @@ from bedrock.extract.disaggregation.egrid_generation import (
     us_total_net_generation_mwh,
 )
 
-# stewi eGRID_2022_v1.2.0_7562dc3 flowbyfacility, US plant net generation sum
-_EGRID_2022_NET_GENERATION_MWH = 4_247_477_433
+# eGRID 2022 workbook, US sheet: USNGENAN ("U.S. annual net generation (MWh)")
+_EGRID_2022_NET_GENERATION_MWH = 4_240_140_533
 
 
 def test_derive_cornerstone_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
@@ -35,7 +35,7 @@ def test_derive_cornerstone_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
 
 @pytest.mark.eeio_integration
 def test_us_total_net_generation_mwh_2022_matches_stewi_egrid() -> None:
-    """Load stewi eGRID 2022 and confirm US net generation matches published inventory."""
+    """US net generation matches eGRID 2022 Excel US tab USNGENAN."""
     actual = us_total_net_generation_mwh(2022, download_if_missing=True)
     assert math.isclose(
         actual,
