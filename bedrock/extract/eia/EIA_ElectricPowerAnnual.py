@@ -38,10 +38,9 @@ _CENSUS_DIVISIONS = frozenset(
 
 
 def electric_power_annual_url_helper(
-    *, build_url: str, year: str | None, config: dict[str, Any], **_: Any
+    *, build_url: str, config: dict[str, Any], **_: Any
 ) -> list[str]:
     """Resolve download URL from ``edition_year`` (publication ZIP), not data ``years``."""
-    _ = year
     return [build_url.replace('__edition_year__', str(config['edition_year']))]
 
 
@@ -76,7 +75,7 @@ def _edition_local_zip_path(*, source: str, config: dict[str, Any]) -> str:
 
 
 def electric_power_annual_call(
-    *, resp: Any, source: str, year: str | None, config: dict[str, Any], **_: Any
+    *, resp: Any, source: str, config: dict[str, Any], **_: Any
 ) -> list[pd.DataFrame]:
     """Download edition ZIP, cache under extract-input, and read table workbooks."""
     local_path = _edition_local_zip_path(source=source, config=config)
