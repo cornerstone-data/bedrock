@@ -1,0 +1,54 @@
+# Cornerstone 2023 national GHG FBS inheriting GHG_national_Cornerstone_2023.
+# electric_power emissions come from stewi eGRID (plant-level) instead of
+# EPA_GHGI_T_2_1 / EPA_GHGI_T_3_8 / EPA_GHGI_T_3_9 electric_power activity sets.
+
+!include:GHG_national_Cornerstone_2023.yaml
+  industry_spec:
+    !include:Cornerstone_2025_target.yaml:industry_spec
+      NAICS_6:
+        !include:Cornerstone_2025_target.yaml:industry_spec:NAICS_6
+        - '221111'
+        - '221112'
+        - '221113'
+        - '221114'
+        - '221115'
+        - '221116'
+        - '221117'
+        - '221118'
+        - '221121'
+        - '221122'
+  source_names: !include:GHG_national_Cornerstone_2023.yaml:source_names
+    EPA_GHGI_T_2_1:
+      !include:GHG_national_Cornerstone_2023.yaml:source_names:EPA_GHGI_T_2_1
+      activity_sets:
+        !include:GHG_national_Cornerstone_2023.yaml:source_names:EPA_GHGI_T_2_1:activity_sets
+        electric_power:
+          selection_fields:
+            PrimaryActivity: __handled_by_EPA_eGRID__
+          attribution_method: direct
+
+    EPA_GHGI_T_3_8: &stationary_combustion
+      !include:GHG_national_Cornerstone_2023.yaml:source_names:EPA_GHGI_T_3_8
+      activity_sets:
+        !include:GHG_national_Cornerstone_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets
+        electric_power:
+          selection_fields:
+            PrimaryActivity: __handled_by_EPA_eGRID__
+          attribution_method: direct
+
+    EPA_GHGI_T_3_9: *stationary_combustion
+
+    EPA_eGRID_electric:
+      data_format: FBS_outside_flowsa
+      activity_schema: NAICS_2017_Code
+      activity_to_sector_mapping: EPA_eGRID
+      FBS_datapull_fxn: !script_function:stewiFBS egrid_to_sector
+      inventory_dict:
+        eGRID: 2023
+      year: 2023
+      selection_fields:
+        Compartment: air
+        FlowName:
+          - Carbon dioxide
+          - Methane
+          - Nitrous oxide

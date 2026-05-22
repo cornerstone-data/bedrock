@@ -29,6 +29,7 @@ from bedrock.utils.config.settings import process_adjustmentpath
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import naics as naics_mapping
 from bedrock.utils.mapping.location import apply_county_FIPS, update_geoscale
+from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 
 InventoryDict = dict[str, str]
 
@@ -153,6 +154,153 @@ def stewi_to_sector(
         fbs = getattr(sys.modules[__name__], function)(fbs)
 
     return fbs
+
+
+# Stewi facility ``Plant primary fuel`` uses eGRID PLPRMFL codes; map to PLFUELCT
+# categories before NAICS crosswalk (EPA eGRID code lookup, plant primary fuel table).
+_EGRID_PLPRMFL_TO_PLFUELCT: dict[str, str] = {
+    'AB': 'BIOMASS',
+    'BFG': 'OFSL',
+    'BIT': 'COAL',
+    'BLQ': 'BIOMASS',
+    'COG': 'COAL',
+    'DFO': 'OIL',
+    'GEO': 'GEOTHERMAL',
+    'JF': 'OIL',
+    'KER': 'OIL',
+    'LFG': 'BIOMASS',
+    'LIG': 'COAL',
+    'MSW': 'BIOMASS',
+    'MWH': 'OTHF',
+    'NG': 'GAS',
+    'NUC': 'NUCLEAR',
+    'OBG': 'BIOMASS',
+    'OBL': 'BIOMASS',
+    'OBS': 'BIOMASS',
+    'OG': 'OFSL',
+    'OTH': 'OTHF',
+    'PC': 'OIL',
+    'PRG': 'OTHF',
+    'PUR': 'OTHF',
+    'RC': 'COAL',
+    'RFO': 'OIL',
+    'SGC': 'COAL',
+    'SUB': 'COAL',
+    'SUN': 'SOLAR',
+    'TDF': 'OFSL',
+    'WAT': 'HYDRO',
+    'WC': 'COAL',
+    'WDL': 'BIOMASS',
+    'WDS': 'BIOMASS',
+    'WH': 'OTHF',
+    'WND': 'WIND',
+    'WO': 'OIL',
+}
+
+
+def _egrid_plprmfl_to_plfuelct(fuel: str) -> str | None:
+    key = str(fuel).strip().upper()
+    if key in _EGRID_PLPRMFL_TO_PLFUELCT:
+        return _EGRID_PLPRMFL_TO_PLFUELCT[key]
+    if key in _EGRID_PLPRMFL_TO_PLFUELCT.values():
+        return key
+    return None
+
+
+def load_egrid_emissions_via_stewi(year: str | int) -> pd.DataFrame:
+    """Load stewi eGRID flow-by-facility emissions with facility location and fuel."""
+    year_str = str(year)
+    df = stewi.getInventory('eGRID', year_str, download_if_missing=True)
+    facilities = stewi.getInventoryFacilities(
+        'eGRID', year_str, download_if_missing=True
+    )
+    facilities = (
+        facilities[['FacilityID', 'State', 'County', 'Plant primary fuel']]
+        .drop_duplicates(subset='FacilityID', keep='first')
+        .pipe(lambda d: apply_county_FIPS(d, unmatched='national'))
+    )
+    return df.merge(facilities, how='left', on='FacilityID')
+
+
+def assign_naics_from_egrid_fuel(
+    df: pd.DataFrame,
+    mapping_name: str,
+    *,
+    external_config_path: str | None = None,
+) -> pd.DataFrame:
+    """Map eGRID primary fuel (PLPRMFL or PLFUELCT) to target NAICS (2017) codes."""
+    if 'PrimaryFuelCategory' not in df.columns:
+        if 'Plant primary fuel' not in df.columns:
+            raise KeyError(
+                'eGRID dataframe must include Plant primary fuel from stewi facilities'
+            )
+        df = df.assign(
+            PrimaryFuelCategory=df['Plant primary fuel'].map(_egrid_plprmfl_to_plfuelct)
+        )
+    else:
+        df = df.assign(
+            PrimaryFuelCategory=df['PrimaryFuelCategory'].map(
+                _egrid_plprmfl_to_plfuelct
+            )
+        )
+    crosswalk = get_activitytosector_mapping(mapping_name, external_config_path)[
+        ['Activity', 'Sector']
+    ].drop_duplicates(subset=['Activity'])
+    merged = df.merge(
+        crosswalk,
+        left_on='PrimaryFuelCategory',
+        right_on='Activity',
+        how='left',
+    )
+    unmapped_mask = merged['Sector'].isna() & merged['PrimaryFuelCategory'].notna()
+    if unmapped_mask.any():
+        unmapped_fuels = sorted(
+            merged.loc[unmapped_mask, 'PrimaryFuelCategory'].unique()
+        )
+        log.warning(
+            'eGRID primary fuel categories without NAICS mapping in %s: %s',
+            mapping_name,
+            unmapped_fuels,
+        )
+    return (
+        merged.assign(NAICS=merged['Sector'])
+        .drop(columns=['Activity', 'Sector'], errors='ignore')
+        .dropna(subset=['NAICS'])
+    )
+
+
+def egrid_to_sector(
+    config: dict[str, Any],
+    full_name: str,
+    external_config_path: str | None = None,
+    **_kwargs: Any,
+) -> FlowBySector:
+    """
+    Build a national FBS from stewi eGRID plant-level air emissions.
+
+    Loads ``eGRID`` via stewi, then assigns NAICS from primary fuel category.
+    """
+    _ = _kwargs
+    config['full_name'] = full_name
+    mapping_name = config.get('activity_to_sector_mapping', 'EPA_eGRID')
+    inventory_dict: InventoryDict = config['inventory_dict']
+    if len(inventory_dict) != 1 or 'eGRID' not in inventory_dict:
+        raise ValueError(
+            "egrid_to_sector expects inventory_dict with a single 'eGRID' year entry"
+        )
+    egrid_year = inventory_dict['eGRID']
+
+    df = load_egrid_emissions_via_stewi(egrid_year)
+
+    df = assign_naics_from_egrid_fuel(
+        df, mapping_name, external_config_path=external_config_path
+    )
+    df = df.assign(
+        Year=int(config.get('year', egrid_year)),
+        Source='eGRID',
+        Class='Chemicals',
+    )
+    return prepare_stewi_fbs(df, config)
 
 
 def reassign_process_to_sectors(
@@ -384,7 +532,6 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
     ).prepare_fbs()
 
     fbs.config.update({'data_format': 'FBS'})
-
     return fbs
 
 
