@@ -248,9 +248,10 @@ def return_fbs_method_data(
 
     def process_primary_source(k: str, v: dict[str, Any], meta: dict[str, Any]) -> bool:
         if k == 'stewiFBS':
-            if v.get('local_inventory_name'):
+            local_inventory_name = v.get('local_inventory_name')
+            if isinstance(local_inventory_name, str):
                 meta['primary_source_meta'][k] = add_stewicombo_metadata(
-                    v.get('local_inventory_name')
+                    local_inventory_name
                 )
             else:
                 meta['primary_source_meta'][k] = add_stewi_metadata(v['inventory_dict'])

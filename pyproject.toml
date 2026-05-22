@@ -141,7 +141,6 @@ exclude = [
     'bedrock/extract/unep/',
     'bedrock/extract/usgs/',
     'scripts/*.py',
-    'bedrock/analysis/electricity/',
 ]
 
 [[tool.mypy.overrides]]
