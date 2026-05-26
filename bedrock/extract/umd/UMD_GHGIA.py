@@ -202,9 +202,9 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
             # If the table includes sequential year columns, rename final column to the next year.
             if df is not None:
                 cols = list(df.columns)
-                years = [int(c) for c in cols if str(c).isdigit()]
-                if years and 'Unnamed' in str(cols[-1]):
-                    df = df.rename(columns={cols[-1]: str(years[-1] + 1)})
+                year_cols = [int(c) for c in cols if str(c).isdigit()]
+                if year_cols and 'Unnamed' in str(cols[-1]):
+                    df = df.rename(columns={cols[-1]: str(year_cols[-1] + 1)})
             if df is not None and len(df.columns) > 1:
                 years = YEARS.copy()
                 years.remove(year)
