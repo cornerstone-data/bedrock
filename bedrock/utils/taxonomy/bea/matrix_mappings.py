@@ -4,6 +4,7 @@ USA_2017_DETAIL_IO_MATRIX_NAMES = ta.Literal[
     "Make_detail",
     "Use_detail",
     "Import_detail",
+    "Margins",
 ]
 USA_2017_DETAIL_IO_MATRIX_MAPPING = {
     "Make_detail": "IOMake After Redefinitions 2017 Detail.xlsx",
