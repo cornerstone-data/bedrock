@@ -121,14 +121,14 @@ Tables:
       data_reliability: 4
     "4-52":
       flow: CO2e
-      activity: Magnesium Production # TODO: update activity to sector mapping, dropped "and processing"
+      activity: Magnesium Production
       desc: "Table 4-52: Emissions from Magnesium Production (MMT CO2 Eq.)"
       data_reliability: 4
     "4-57":
       flow: CO2e
       desc: "Table 4-57: Emissions from Electronics Industry (MMT CO2 Eq.)"
       data_reliability: 4
-    "4-59":  # TODO: NOTE error in original csv - last column is missing the "2024" label
+    "4-59":
       flow: CO2e
       activity: ODS Substitute
       desc: "Table 4-59: Emissions of HFCs, PFCs, and CO2 from ODS Substitutes (MMT CO2 Eq.)"
@@ -142,7 +142,7 @@ Tables:
       data_reliability: 4
 
   "Chapter 5 - Agriculture":
-    "5-3": # TODO: note error in original csv, missing '2024' column header, need to address
+    "5-3":
       flow: CH4
       desc: "Table 5-3: CH4 Emissions from Enteric Fermentation (MMT CO2 Eq.)"
       data_reliability: 4
@@ -154,7 +154,7 @@ Tables:
       flow: N2O
       desc: "Table 5-10: N2O Emissions from Agricultural Soil Management (MMT CO2 Eq.)"
       data_reliability: 4
-    "5-15":  # TODO: note missing the 2024 column header, need to address, and look at activity names, some of them are X/X/Chickpeas - write code to drop the leading X/X/
+    "5-15":
       flow: CO2e
       desc: "Table 5-15: CH4 and N2O Emissions from Field Burning of Agricultural Residues (MMT CO2 Eq.)"
       data_reliability: 4
