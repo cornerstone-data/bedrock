@@ -69,7 +69,7 @@ DROP_COLS = ['Unnamed: 0'] + list(
     pd.date_range(start='1990', end='2010', freq='YE').year.astype(str)
 )
 
-YEARS = list(pd.date_range(start='2010', end='2024', freq='YE').year.astype(str))
+YEARS = list(pd.date_range(start='2010', end='2025', freq='YE').year.astype(str))
 
 
 def _cell_get_name(value: str, default_flow_name: str) -> str:
@@ -197,6 +197,14 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
                 and 'Unnamed' in str(df.columns[0])
             ):
                 df = df.rename(columns={df.columns[0]: 'Activity'})
+
+            # Some tables have an empty column header, missing the final year label.
+            # If the table includes sequential year columns, rename final column to the next year.
+            if df is not None:
+                cols = list(df.columns)
+                years = [int(c) for c in cols if str(c).isdigit()]
+                if years and 'Unnamed' in str(cols[-1]):
+                    df = df.rename(columns={cols[-1]: str(years[-1] + 1)})
             if df is not None and len(df.columns) > 1:
                 years = YEARS.copy()
                 years.remove(year)
@@ -250,10 +258,6 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
         thousands=',',
         header=[0, 1] if use_two_row else 0,
     )
-    cols = list(df.columns)
-    years = [int(c) for c in cols if str(c).isdigit()]
-    if years and 'Unnamed' in str(cols[-1]):
-        df = df.rename(columns={cols[-1]: str(years[-1] + 1)})
     if table in ANNEX_ENERGY_TABLES:
         return _read_yearly_annex_tables(df, table)
     elif table == '3-8':  # todo - check if necessary
