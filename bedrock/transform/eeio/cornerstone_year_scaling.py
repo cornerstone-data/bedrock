@@ -17,6 +17,7 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Aimp_usa,
     derive_summary_q_usa,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     adjust_summary_A_dollar_year,
     adjust_summary_q_dollar_year,
@@ -77,17 +78,21 @@ def scale_cornerstone_A(
 ) -> pd.DataFrame:
     """Scale detail A element-wise using summary A ratios.
 
-    The target-year summary A is rebased into ``original_year`` USD via the
-    ITA-based summary commodity price ratio before the ratio is taken, so
-    the structural cross-year ratio is formed in a consistent dollar year.
-    See plan `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
+    When ``cfg.adjust_summary_A_and_q_dollar_year`` is set, the target-year summary A
+    is rebased into ``original_year`` USD via the ITA-based summary commodity
+    price ratio before the ratio is taken, so the structural cross-year ratio
+    is formed in a consistent dollar year. Otherwise the ratio is taken on the
+    raw target-year summary A (pre-realignment behavior). See plan
+    `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
     """
     A_summary_base = _get_summary_A(original_year, dom_or_imp_or_total)
-    A_summary_target = adjust_summary_A_dollar_year(
-        A_summary=_get_summary_A(target_year, dom_or_imp_or_total),
-        from_year=target_year,
-        to_year=original_year,
-    )
+    A_summary_target = _get_summary_A(target_year, dom_or_imp_or_total)
+    if get_usa_config().adjust_summary_A_and_q_dollar_year:
+        A_summary_target = adjust_summary_A_dollar_year(
+            A_summary=A_summary_target,
+            from_year=target_year,
+            to_year=original_year,
+        )
 
     summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
     detail_sectors = list(A.index)
@@ -139,15 +144,18 @@ def scale_cornerstone_q(
 ) -> pd.Series[float]:
     """Scale detail q element-wise using summary q ratios.
 
-    The target-year summary q is rebased into ``original_year`` USD via the
-    ITA-based summary commodity price ratio before forming the cross-year
-    ratio.
+    When ``cfg.adjust_summary_A_and_q_dollar_year`` is set, the target-year summary q
+    is rebased into ``original_year`` USD via the ITA-based summary commodity
+    price ratio before forming the cross-year ratio. Otherwise the ratio is
+    taken on the raw target-year summary q (pre-realignment behavior).
     """
-    q_summary_target = adjust_summary_q_dollar_year(
-        q_summary=derive_summary_q_usa(target_year),
-        from_year=target_year,
-        to_year=original_year,
-    )
+    q_summary_target = derive_summary_q_usa(target_year)
+    if get_usa_config().adjust_summary_A_and_q_dollar_year:
+        q_summary_target = adjust_summary_q_dollar_year(
+            q_summary=q_summary_target,
+            from_year=target_year,
+            to_year=original_year,
+        )
     ratio = (q_summary_target / derive_summary_q_usa(original_year)).fillna(1.0)
     return ta.cast(
         pd.Series,
