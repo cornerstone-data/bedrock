@@ -275,6 +275,10 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
             new_headers.append(new_header)
         df.columns = new_headers
         return df
+    elif table == '5-15':
+        # only keep string after last slash, so update activities like Cereals/Wheat and Pulses/Other/Soybeans
+        col = df.columns[0]
+        df[col] = df[col].str.split('/').str[-1].str.strip()
     else:
         return df
 
