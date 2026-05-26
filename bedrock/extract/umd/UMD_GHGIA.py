@@ -250,6 +250,10 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
         thousands=',',
         header=[0, 1] if use_two_row else 0,
     )
+    cols = list(df.columns)
+    years = [int(c) for c in cols if str(c).isdigit()]
+    if years and 'Unnamed' in str(cols[-1]):
+        df = df.rename(columns={cols[-1]: str(years[-1] + 1)})
     if table in ANNEX_ENERGY_TABLES:
         return _read_yearly_annex_tables(df, table)
     elif table == '3-8':  # todo - check if necessary
