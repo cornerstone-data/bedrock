@@ -15,10 +15,6 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_Ytot_usa_matrix_set,
-    derive_detail_VA_usa,
-)
 from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
@@ -27,6 +23,7 @@ from bedrock.utils.math.formulas import (
     compute_commodity_mix_matrix,
     compute_Vnorm_matrix,
 )
+from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVectorSet
 
 logger = logging.getLogger(__name__)
 
@@ -442,78 +439,39 @@ def compare_output_from_make_and_use(
     output: ta.Literal['Industry', 'Commodity'],
     V: pd.DataFrame,
     U: pd.DataFrame,
+    VA: pd.DataFrame,
+    y_set: SingleRegionYtotAndTradeVectorSet,
     tolerance: float,
     include_details: bool = False,
-    pipeline: str = "ceda",
 ) -> DiagnosticResult:
     """Check that industry output from Use and Make tables are the same"""
 
-    if pipeline != "cornerstone":
-        if output == "Industry":
-            VA = derive_detail_VA_usa()
-            x_make = V.sum(axis=1)
-            x_use = U.sum(axis=0) + VA.sum(axis=0)
+    if output == "Industry":
+        x_make = V.sum(axis=1)
+        x_use = U.sum(axis=0) + VA.sum(axis=0)
 
-            name = "compare_industry_output_from_make_and_use"
-            d_result = validate_result(
-                name,
-                x_make,
-                x_use,
-                tolerance=tolerance,
-                include_details=include_details,
-            )
-        elif output == "Commodity":
-            y_set = derive_2017_Ytot_usa_matrix_set()
-            q_make = V.sum(axis=0)
-            q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
-
-            name = "compare_commodity_output_from_make_and_use"
-            d_result = validate_result(
-                name,
-                q_make,
-                q_use,
-                tolerance=tolerance,
-                include_details=include_details,
-            )
-        else:
-            raise ValueError(
-                'invalid output parameter requested for comparison between make and use, select commodity or industry'
-            )
-    else:
-        from bedrock.transform.eeio.derived_cornerstone import (
-            derive_cornerstone_VA,
-            derive_cornerstone_Ytot_matrix_set,
+        name = "compare_industry_output_from_make_and_use"
+        d_result = validate_result(
+            name,
+            x_make,
+            x_use,
+            tolerance=tolerance,
+            include_details=include_details,
         )
+    elif output == "Commodity":
+        q_make = V.sum(axis=0)
+        q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
 
-        if output == "Industry":
-            VA = derive_cornerstone_VA()
-            x_make = V.sum(axis=1)
-            x_use = U.sum(axis=0) + VA.sum(axis=0)
-
-            name = "compare_industry_output_from_make_and_use"
-            d_result = validate_result(
-                name,
-                x_make,
-                x_use,
-                tolerance=tolerance,
-                include_details=include_details,
-            )
-        elif output == "Commodity":
-            y_set = derive_cornerstone_Ytot_matrix_set()
-            q_make = V.sum(axis=0)
-            q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
-
-            name = "compare_commodity_output_from_make_and_use"
-            d_result = validate_result(
-                name,
-                q_make,
-                q_use,
-                tolerance=tolerance,
-                include_details=include_details,
-            )
-        else:
-            raise ValueError(
-                'invalid output parameter requested for comparison between make and use, select commodity or industry'
-            )
-
+        name = "compare_commodity_output_from_make_and_use"
+        d_result = validate_result(
+            name,
+            q_make,
+            q_use,
+            tolerance=tolerance,
+            include_details=include_details,
+        )
+    else:
+        raise ValueError(
+            'invalid output parameter requested for comparison between make and use, select commodity or industry'
+        )
     return d_result
