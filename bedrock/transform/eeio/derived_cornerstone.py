@@ -542,18 +542,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # USEEIO nowcast: load externally-balanced detail SUTs from GCS and
-    # derive Cornerstone A directly. Bypasses all internal scaling/inflation;
-    # treats the upstream USEEIO team's GRAS-balanced 2018–2023 SUTs as the
-    # source of structural change. Loaders: bedrock.extract.iot.useeio_nowcast;
-    # derivation: bedrock.transform.eeio.derived_useeio_nowcast.
-    if cfg.load_useeio_nowcast_A_matrix:
-        from bedrock.transform.eeio.derived_useeio_nowcast import (  # noqa: PLC0415
-            derive_useeio_nowcast_Aq_cornerstone,
-        )
-
-        return derive_useeio_nowcast_Aq_cornerstone(year=model_year)
-
     # Summary tables: scale 2017 → model_year using summary A ratios computed
     # entirely in 2017 USD (`scale_cornerstone_A` rebases the target-year
     # summary A to 2017 USD before the ratio is taken), then inflate the
