@@ -850,7 +850,7 @@ source_names:
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
-      PrimaryActivity: Magnesium Production and Processing
+      PrimaryActivity: Magnesium Production
     attribution_method: proportional
     attribution_source:
       BEA_Detail_GrossOutput_IO:
