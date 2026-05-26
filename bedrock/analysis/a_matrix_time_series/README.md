@@ -141,31 +141,37 @@ These three are independent (all read `output/results/*.parquet`); run in any or
 
 ### 5. EF diagnostics — Step 6 / 7 (async via GH Actions)
 
-This phase fans out to the `generate_diagnostics` GitHub Actions workflow; one Sheet per `(scenario, approach, year)` cell. See [`useeio_nowcast_ef_runbook.md`](useeio_nowcast_ef_runbook.md) for the operator checklist; the general flow is:
+This phase fans out to the `generate_diagnostics` GitHub Actions workflow; one Sheet per `(scenario, approach, year)` cell. The runs for the v0.3 evaluation have already been dispatched and live in Drive folder [`1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s`](https://drive.google.com/drive/folders/1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s). See [`useeio_nowcast_ef_runbook.md`](useeio_nowcast_ef_runbook.md) for the operator checklist.
+
+**Reviewer path — skip dispatch, use the existing runs:**
 
 ```bash
-# 5a. Dispatch — idempotent, skips cells already in ef_run_index.csv.
+# 5a-review. Pull the run index from Drive — required if you don't already
+#            have output/results/ef_run_index.csv locally. Needs Google
+#            application-default-credentials.
+python -m bedrock.analysis.a_matrix_time_series.recover_ef_run_index \
+    --folder-id 1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s
+
+# 5b-review. Compile — reads ef_run_index.csv, pulls each Sheet's EF diff
+#            tab, writes ef_scatter_coords.parquet.
+python -m bedrock.analysis.a_matrix_time_series.compile_ef_diagnostics
+
+# 5c-review. Plot.
+python -m bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics
+python -m bedrock.analysis.a_matrix_time_series.compare_method_stability
+```
+
+**Engineer path — triggering new runs** (requires GitHub Actions `workflow:write` and the `gh` CLI authenticated):
+
+```bash
+# Dispatch is idempotent — skips cells already in ef_run_index.csv.
 python -m bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series \
     --git-ref main \
     --scenarios isolate_a_matrix,bundle_v0_3 \
     --years 2019,2020,2021,2022,2023
 
-# 5b. Wait for GH Actions to finish — runs land in the v0.3 Diagnostics Drive folder
-#     (1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s).
-
-# 5c. Compile — reads ef_run_index.csv, pulls each Sheet's EF diff tab,
-#     writes ef_scatter_coords.parquet.
-python -m bedrock.analysis.a_matrix_time_series.compile_ef_diagnostics
-
-# 5d. Plot.
-python -m bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics
-python -m bedrock.analysis.a_matrix_time_series.compare_method_stability
-```
-
-If `ef_run_index.csv` ever desyncs from what's actually in Drive (e.g. dispatches triggered manually), reconstruct it:
-
-```bash
-python -m bedrock.analysis.a_matrix_time_series.recover_ef_run_index
+# Then wait for GH Actions to finish (each run takes ~30–60 min), then
+# proceed to compile + plot as in the reviewer path above.
 ```
 
 ### Ad-hoc
