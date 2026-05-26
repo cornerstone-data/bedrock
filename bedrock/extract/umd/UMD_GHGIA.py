@@ -404,6 +404,7 @@ def strip_char(text: str) -> str:
         'Totali': 'Total',
         'Othersa': 'Others',
         'N?O': 'N2O',
+        'N2Oc': 'N2O',
         'Distillate Fuel Oil (Diesel)': 'Distillate Fuel Oil',
         'Distillate Fuel Oil (Diesel': 'Distillate Fuel Oil',
         'Natural gas': 'Natural Gas',  # Fix capitalization inconsistency
@@ -425,6 +426,7 @@ def strip_char(text: str) -> str:
         'HFOsb': 'HFOs',
         'CO_{2}': 'CO2',
         'CH?^{c}': 'CH4',
+        'CH4c': 'CH4', # UMD 2-1
         'N_{2} O^{c}': 'N2O',
         'N_{2} O': 'N2O',
         'SF?': 'SF6',
