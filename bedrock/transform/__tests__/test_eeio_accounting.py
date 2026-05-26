@@ -27,6 +27,14 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x,
     derive_cornerstone_Ytot_matrix_set,
 )
+from bedrock.utils.economic.inflation_helpers_ceda import (
+    obtain_inflation_factors_from_reference_data,
+)
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_cornerstone_industry_price_ratio,
+    get_vnorm_adjusted_commodity_price_ratio,
+)
+from bedrock.utils.math.formulas import compute_Vnorm_matrix
 from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVectorSet
 from bedrock.utils.validation.eeio_diagnostics import (
     commodity_industry_output_cpi_consistency,
@@ -51,28 +59,41 @@ def test_commodity_industry_output_cpi_consistency(
     V: pd.DataFrame
     q: pd.Series[float]
     x: pd.Series[float]
+    industry_CPI_ratio: pd.Series[float]
+    commodity_CPI_ratio: pd.Series[float]
     if pipeline != "cornerstone":
-        # 2017 BEA detail Make/Use vectors; CPI path builds commodity inflation from
-        # CEDA reference tables and market shares M_s(V, q) inside the compare fn.
+        # 2017 BEA detail Make/Use vectors; CPI ratios from CEDA inflation tables
+        # and market shares M_s(V, q).
         V = derive_2017_V_usa()  # Make table
         q = derive_2017_q_usa()  # commodity output
         x = derive_2017_x_usa()  # industry output
+        market_shares = compute_Vnorm_matrix(V=V, q=q)
+        industry_CPI = obtain_inflation_factors_from_reference_data()
+        commodity_CPI = pd.DataFrame().reindex_like(industry_CPI)
+        for i in range(len(industry_CPI.columns)):
+            commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ market_shares
+        industry_CPI_ratio = industry_CPI[target_year] / industry_CPI[base_year]
+        commodity_CPI_ratio = commodity_CPI[target_year] / commodity_CPI[base_year]
     else:
-        # Cornerstone-mapped V/q/x (BEA→CS correspondence, optional waste disagg);
-        # CPI path uses cornerstone industry/commodity price-ratio helpers instead.
+        # Cornerstone-mapped V/q/x; CPI ratios from cornerstone price-index helpers.
         V = derive_cornerstone_V()
         q = derive_cornerstone_q()
         x = derive_cornerstone_x()
+        industry_CPI_ratio = get_cornerstone_industry_price_ratio(
+            base_year, target_year
+        ).reindex(x.index, fill_value=1.0)
+        commodity_CPI_ratio = get_vnorm_adjusted_commodity_price_ratio(
+            base_year, target_year
+        ).reindex(q.index, fill_value=1.0)
 
     r_c_x_cpi_consistency = commodity_industry_output_cpi_consistency(
         V=V,
         q=q,
         x=x,
-        base_year=base_year,
-        target_year=target_year,
+        industry_CPI_ratio=industry_CPI_ratio,
+        commodity_CPI_ratio=commodity_CPI_ratio,
         tolerance=tolerance,
         include_details=True,
-        cpi_source=pipeline,  # selects CEDA vs cornerstone inflation inside compare fn
     )
 
     assert len(r_c_x_cpi_consistency.failing_sectors) == 0
