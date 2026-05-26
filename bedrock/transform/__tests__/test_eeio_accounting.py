@@ -157,7 +157,7 @@ _MAKE_USE_CASES = [
     "pipeline, output, tolerance, include_details",
     _MAKE_USE_CASES,
 )
-def test_compare_industry_output_in_make_and_use(
+def test_compare_output_from_make_and_use(
     pipeline: str,
     output: ta.Literal['Industry', 'Commodity'],
     tolerance: float,
