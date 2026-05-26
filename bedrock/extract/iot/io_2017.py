@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import warnings
 
 import pandas as pd
 from typing_extensions import deprecated
@@ -266,6 +267,69 @@ def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
     )
     df.index = USA_2017_COMMODITY_INDEX
     df.columns = USA_2017_INDUSTRY_INDEX
+    return df
+
+
+_MARGINS_COLUMNS = [
+    "Industry Code",
+    "Industry Description",
+    "Commodity Code",
+    "Commodity Description",
+    "Producers' Value",
+    "Transportation Costs",
+    "Wholesale",
+    "Retail",
+    "Purchasers' Value",
+]
+_MARGINS_VALUE_COLUMNS = [
+    "Producers' Value",
+    "Transportation Costs",
+    "Wholesale",
+    "Retail",
+    "Purchasers' Value",
+]
+
+
+def _load_margins_excel(pth: str) -> pd.DataFrame:
+    """Read the Margins Excel file, suppressing the openpyxl header/footer warning."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Cannot parse header or footer so it will be ignored",
+            category=UserWarning,
+        )
+        return pd.read_excel(
+            pth,
+            sheet_name="2017",
+            skiprows=5,
+            header=None,
+            names=_MARGINS_COLUMNS,
+            dtype={"Industry Code": str, "Commodity Code": str},
+        )
+
+
+@functools.cache
+def load_2017_margins_after_redef_usa() -> pd.DataFrame:
+    """
+    Margins table, (industry, commodity) x margin type, after redefinition, in producer price.
+    Columns: Producers' Value, Transportation Costs, Wholesale, Retail, Purchasers' Value.
+    unit is USD, original unit is million USD.
+    """
+    df = load_from_gcs(
+        name=USA_2017_DETAIL_IO_MATRIX_MAPPING["Margins"],
+        sub_bucket=GCS_USA_MAKE_USE_DIR,
+        local_dir=LOCAL_USA_MAKE_USE_DIR,
+        loader=_load_margins_excel,
+    ).set_index(["Industry Code", "Commodity Code"])
+    valid_industry = set(USA_2017_INDUSTRY_CODES) | set(USA_2017_FINAL_DEMAND_CODES)
+    valid_commodity = set(USA_2017_COMMODITY_CODES) | set(USA_2017_VALUE_ADDED_CODES)
+    mask = df.index.get_level_values("Industry Code").isin(
+        valid_industry
+    ) & df.index.get_level_values("Commodity Code").isin(valid_commodity)
+    df = (
+        df.loc[mask, _MARGINS_VALUE_COLUMNS].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
     return df
 
 
