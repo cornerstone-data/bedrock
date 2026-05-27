@@ -76,14 +76,12 @@ APPROACH_ORDER: tuple[str, ...] = (
     "useeio",
     "ceda_default",
     "summary_tables",
-    "industry_price_index",
     "commodity_price_index",
 )
 APPROACH_COLORS: dict[str, str] = {
     "useeio": "#7f7f7f",
     "ceda_default": "#bcbd22",
     "summary_tables": "#1f77b4",
-    "industry_price_index": "#ff7f0e",
     "commodity_price_index": "#2ca02c",
 }
 

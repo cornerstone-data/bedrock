@@ -584,24 +584,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             scaled_q=q,
         )
 
-    # Price index only: inflate 2017 → model_year directly using industry price index,
-    # as if it is commodity price index.
-    if cfg.scale_a_matrix_with_industry_price_index:
-        Adom = inflate_cornerstone_A_matrix_with_industry_pi(
-            base.Adom, original_year=detail_year, target_year=model_year
-        )
-        Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
-            base.Aimp, original_year=detail_year, target_year=model_year
-        )
-        q = inflate_cornerstone_q_or_y_with_industry_pi(
-            base.scaled_q, original_year=detail_year, target_year=model_year
-        )
-        return SingleRegionAqMatrixSet(
-            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-            scaled_q=q,
-        )
-
     # Commodity price index (V-norm-derived): like the industry-price branch,
     # but uses V_norm to weight industry price ratios into commodity space
     # before applying diag(p) @ A @ diag(1/p).

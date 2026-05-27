@@ -80,7 +80,6 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
-    scale_a_matrix_with_industry_price_index: bool = False  # DRI: mo.li
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     apply_inflation_to_V: bool = False  # DRI: WesIngwersen

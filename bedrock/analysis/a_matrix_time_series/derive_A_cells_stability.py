@@ -63,7 +63,6 @@ A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 # trivially have zero divergence against themselves.
 APPROACHES_FOR_STABILITY: tuple[str, ...] = (
     "commodity_price_index",
-    "industry_price_index",
     "summary_tables",
 )
 # (approach_name_in_long, display_label, delta_column_in_long)

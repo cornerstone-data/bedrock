@@ -60,7 +60,6 @@ YOY_DISTRIBUTION_PLOT_PATH = PLOTS_DIR / "n_yoy_distribution.png"
 TAB_RE = re.compile(r"^(?P<scenario>[a-z0-9_]+?)_(?P<year>\d{4})(?:\.0)?_(?P<rest>.+)$")
 APPROACH_PREFIXES: tuple[tuple[str, str], ...] = (
     ("commodity_pr", "commodity_price_index"),
-    ("industry_pri", "industry_price_index"),
     ("summary_tabl", "summary_tables"),
     ("useeio", "useeio"),
 )

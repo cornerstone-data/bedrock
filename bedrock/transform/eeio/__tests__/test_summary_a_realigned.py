@@ -26,7 +26,6 @@ def _set_summary_tables(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cfg, 'scale_a_matrix_with_summary_tables', True)
     monkeypatch.setattr(cfg, 'adjust_summary_A_and_q_dollar_year', True)
     monkeypatch.setattr(cfg, 'scale_a_matrix_with_useeio_method', False)
-    monkeypatch.setattr(cfg, 'scale_a_matrix_with_industry_price_index', False)
     monkeypatch.setattr(cfg, 'scale_a_matrix_with_commodity_price_index', False)
     derive_cornerstone_Aq_scaled.cache_clear()
 
