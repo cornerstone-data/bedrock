@@ -69,8 +69,6 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Ytot_usa_matrix_set,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
-    CoprodTransfer,
-    apply_electricity_transfers_to_E,
     reallocate_electricity_coproduction,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
@@ -210,7 +208,6 @@ class _CornerstoneIOBundle:
     Udom: pd.DataFrame
     Uimp: pd.DataFrame
     VA: pd.DataFrame
-    completed_transfers: list[CoprodTransfer]
 
 
 def _derive_cornerstone_V_after_waste() -> pd.DataFrame:
@@ -267,25 +264,10 @@ def _derive_cornerstone_io_after_electricity_reallocation() -> _CornerstoneIOBun
     Udom, Uimp = _derive_cornerstone_U_after_waste()
     VA = _derive_cornerstone_VA_after_waste()
     y_commodity = derive_cornerstone_Ytot_matrix_set().ytot
-    V, Udom, Uimp, VA, completed = reallocate_electricity_coproduction(
+    V, Udom, Uimp, VA = reallocate_electricity_coproduction(
         V, Udom, Uimp, VA, y_commodity
     )
-    return _CornerstoneIOBundle(
-        V=V, Udom=Udom, Uimp=Uimp, VA=VA, completed_transfers=completed
-    )
-
-
-@functools.cache
-def _electricity_completed_transfers() -> list[CoprodTransfer]:
-    return _derive_cornerstone_io_after_electricity_reallocation().completed_transfers
-
-
-@functools.cache
-def derive_cornerstone_E_reallocated() -> pd.DataFrame:
-    E = derive_E_usa()
-    if not electricity_disaggregation_enabled():
-        return E
-    return apply_electricity_transfers_to_E(E, _electricity_completed_transfers())
+    return _CornerstoneIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
 
 
 # ---------------------------------------------------------------------------
@@ -790,7 +772,8 @@ def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
 def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
-    Always computed in Cornerstone space: E = derive_cornerstone_E_reallocated(), then B = (E / x) @ Vnorm.
+    Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
+    E is not column-shifted by electricity reallocation (PR2); Vnorm and x use reallocated V.
     Industry ``x`` is:
     - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
       gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
@@ -804,7 +787,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
       ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
-    E = derive_cornerstone_E_reallocated()
+    E = derive_E_usa()
     cfg = get_usa_config()
     if cfg.deflate_x_to_detail_io_year_for_B:
         # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
@@ -27,7 +27,6 @@ class CoprodTransfer:
     source: str
     target: str
     amount: float
-    ratio: float = 0.0
 
 
 def build_coproduction_transfer_schedule(V: pd.DataFrame) -> list[CoprodTransfer]:
@@ -85,7 +84,7 @@ def apply_single_coproduction_transfer(
     VA: pd.DataFrame,
     transfer: CoprodTransfer,
     _y_commodity: pd.Series[float],
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, CoprodTransfer]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Apply one co-production transfer and run post-transfer assertions."""
     s, d = transfer.source, transfer.target
     T = transfer.amount
@@ -120,7 +119,7 @@ def apply_single_coproduction_transfer(
     if (V < -1e-6).any().any():
         raise AssertionError("Make has negative values after transfer")
 
-    return V, Udom, Uimp, VA, replace(transfer, ratio=R)
+    return V, Udom, Uimp, VA
 
 
 def reallocate_electricity_coproduction(
@@ -129,43 +128,21 @@ def reallocate_electricity_coproduction(
     Uimp: pd.DataFrame,
     VA: pd.DataFrame,
     y_commodity: pd.Series[float],
-) -> tuple[
-    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, list[CoprodTransfer]
-]:
-    """Run the full 221100 co-production reallocation schedule."""
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Run the full 221100 co-production reallocation schedule on Make/Use/VA."""
     V = V.copy()
     Udom = Udom.copy()
     Uimp = Uimp.copy()
     VA = VA.copy()
 
     schedule = build_coproduction_transfer_schedule(V)
-    completed: list[CoprodTransfer] = []
     for transfer in schedule:
-        V, Udom, Uimp, VA, done = apply_single_coproduction_transfer(
+        V, Udom, Uimp, VA = apply_single_coproduction_transfer(
             V, Udom, Uimp, VA, transfer, y_commodity
         )
-        completed.append(done)
 
     assert_221100_make_sparsity(V)
-    return V, Udom, Uimp, VA, completed
-
-
-def apply_electricity_transfers_to_E(
-    E: pd.DataFrame,
-    completed_transfers: list[CoprodTransfer],
-) -> pd.DataFrame:
-    """Replay column shifts on E using stored transfer ratios, in schedule order."""
-    E = E.copy()
-    for transfer in completed_transfers:
-        s, d = transfer.source, transfer.target
-        R = transfer.ratio
-        if s not in E.columns or d not in E.columns:
-            continue
-        for r in E.index:
-            shift = R * _frame_cell_float(E, str(r), s)
-            E.loc[r, s] -= shift
-            E.loc[r, d] += shift
-    return E
+    return V, Udom, Uimp, VA
 
 
 def assert_221100_make_sparsity(V: pd.DataFrame, *, atol: float = 1.0) -> None:

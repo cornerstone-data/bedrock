@@ -13,11 +13,9 @@ from bedrock.transform.eeio.derived_cornerstone import (
     _derive_cornerstone_io_after_electricity_reallocation,
     _derive_cornerstone_V_after_waste,
     _derive_cornerstone_Ytot_with_trade,
-    _electricity_completed_transfers,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_E_reallocated,
     derive_cornerstone_U_set,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_V,
@@ -48,8 +46,6 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     electricity_disaggregation_enabled,
     _derive_cornerstone_io_after_electricity_reallocation,
-    _electricity_completed_transfers,
-    derive_cornerstone_E_reallocated,
     derive_cornerstone_V,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_U_set,
@@ -149,7 +145,7 @@ class TestTransferSchedule:
         y = pd.Series(rng.random(3), index=codes)
         transfer = CoprodTransfer(source="s", target="d", amount=5.0)
         rows_before = pd.concat([Udom, Uimp, VA]).sum(axis=1)
-        _, Udom2, Uimp2, VA2, _ = apply_single_coproduction_transfer(
+        _, Udom2, Uimp2, VA2 = apply_single_coproduction_transfer(
             V, Udom, Uimp, VA, transfer, y
         )
         rows_after = pd.concat([Udom2, Uimp2, VA2]).sum(axis=1)
@@ -253,30 +249,13 @@ class TestElectricityReallocationIntegration:
             atol=1e-6,
         )
 
-    def test_e_reallocated_column_shifts(self) -> None:
+    def test_e_unchanged_with_electricity_reallocation(self) -> None:
+        _setup_config("test_usa_config_waste_disagg.yaml")
+        E_waste = derive_E_usa()
+
         _setup_config("test_usa_config_waste_disagg_electricity.yaml")
-        E_base = derive_E_usa()
-        E_realloc = derive_cornerstone_E_reallocated()
-        transfers = _electricity_completed_transfers()
-        assert transfers, "expected non-empty transfer schedule"
-        np.testing.assert_allclose(
-            _float_ndarray(E_realloc.sum(axis=1).to_numpy()),
-            _float_ndarray(E_base.sum(axis=1).to_numpy()),
-            rtol=1e-9,
-            atol=1.0,
-        )
-        touched = {t.source for t in transfers} | {t.target for t in transfers}
-        cols_differ = [
-            c
-            for c in touched
-            if c in E_base.columns
-            and not np.allclose(
-                _float_ndarray(E_base[c].to_numpy()),
-                _float_ndarray(E_realloc[c].to_numpy()),
-                atol=1e-6,
-            )
-        ]
-        assert cols_differ, "expected column shifts on touched industries"
+        E_elec = derive_E_usa()
+        pd.testing.assert_frame_equal(E_waste, E_elec)
 
     def test_pipeline_aq_dimensions(self) -> None:
         _setup_config("test_usa_config_waste_disagg_electricity.yaml")
@@ -307,7 +286,7 @@ class TestElectricityReallocationIntegration:
     def test_pipeline_b_dimensions(self) -> None:
         _setup_config("2025_usa_cornerstone_full_model_electricity_disagg.yaml")
         B = derive_cornerstone_B_non_finetuned()
-        E = derive_cornerstone_E_reallocated()
+        E = derive_E_usa()
         assert B.shape[0] == E.shape[0]
         assert B.shape[1] == 405
 

@@ -8,7 +8,6 @@ import pytest
 
 from bedrock.transform.eeio import derived_cornerstone as dc
 from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_E_reallocated,
     electricity_disaggregation_enabled,
 )
 
@@ -50,7 +49,7 @@ def test_useeio_b_adjust_divide_transform_steps(
             implement_electricity_disaggregation=False,
         ),
     )
-    monkeypatch.setattr(dc, "derive_cornerstone_E_reallocated", lambda: e)
+    monkeypatch.setattr(dc, "derive_E_usa", lambda: e)
     monkeypatch.setattr(
         dc, "derive_cornerstone_x_after_redefinition", lambda: x_nominal
     )
@@ -64,7 +63,6 @@ def test_useeio_b_adjust_divide_transform_steps(
     try:
         out = cast(Any, dc.derive_cornerstone_B_via_vnorm).__wrapped__()
     finally:
-        derive_cornerstone_E_reallocated.cache_clear()
         electricity_disaggregation_enabled.cache_clear()
 
     # Step 1: adjusted x = x_nominal / ratio = [125, 160]
