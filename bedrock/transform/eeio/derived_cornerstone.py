@@ -573,7 +573,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
                 Adom, original_year=detail_year, target_year=model_year
             )
-            Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
+            Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
                 Aimp, original_year=detail_year, target_year=model_year
             )
             q = inflate_cornerstone_q_or_y_with_industry_pi(
