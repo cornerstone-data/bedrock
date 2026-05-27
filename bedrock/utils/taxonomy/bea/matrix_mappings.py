@@ -17,6 +17,7 @@ USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING = {
     "Make_detail_before_redef": "IOMake_Before_Redefinitions_2017_Detail.xlsx",
     "Use_detail_before_redef": "IOUse_Before_Redefinitions_PRO_2017_Detail.xlsx",
     "Import_detail_before_redef": "ImportMatrices_Before_Redefinitions_DET_2017.xlsx",
+    "Margins": "Margins_Before_Redefinitions_2017_DET.xlsx",
 }
 
 USA_2017_DETAIL_IO_SUT_MATRIX_NAMES = ta.Literal[
