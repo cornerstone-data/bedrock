@@ -16,7 +16,7 @@ dependencies = [
     # EPA dependencies
     "fedelemflowlist @ git+https://github.com/FLCAC-admin/fedelemflowlist.git#egg=fedelemflowlist",
     "esupy @ git+https://github.com/USEPA/esupy.git#egg=esupy",
-    "StEWI @ git+https://github.com/USEPA/standardizedinventories.git#egg=StEWI",
+    "StEWI @ git+https://github.com/cornerstone-data/standardizedinventories.git#egg=StEWI",
     # Configuration and validation
     "pydantic>=2.7.1,<3.0.0",
     "pyyaml>=6.0,<7.0.0",
