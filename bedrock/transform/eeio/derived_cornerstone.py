@@ -549,8 +549,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     # so the structural cross-year ratio is formed entirely in 2017 USD; the
     # scaled detail A is then inflated 2017 → model_year. When the flag is off,
     # the ratio carries the raw target-year-vs-2017 price drift and no final
-    # inflation is applied (pre-realignment behavior). See
-    # `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
+    # inflation is applied (pre-realignment behavior).
     if cfg.scale_a_matrix_with_summary_tables:
         Adom = scale_cornerstone_A(
             base.Adom,
@@ -616,6 +615,55 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             base.scaled_q, original_year=detail_year, target_year=model_year
         )
+        return SingleRegionAqMatrixSet(
+            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
+            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
+            scaled_q=q,
+        )
+
+    # CEDA method: our fallback option as of CY26Q2.
+    # Scale to 2022 (io_year), then inflate to model_base_year.
+    # However, we are applying some subtle changes to this method:
+    # 1. scale detail A and q with dollar year adjusted summary numbers
+    # 2. inflate with commodity pi instead of industry pi
+    #
+    # Codepath of this approach is very similar to the scale_a_matrix_with_summary_tables approach,
+    # the only difference is which year to scale to.
+    #
+    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
+    # rebases the target-year summary A into 2017 USD before the ratio is taken,
+    # so the structural cross-year ratio is formed entirely in 2017 USD; the
+    # scaled detail A is then inflated 2017 → io_year. When the flag is off,
+    # the ratio carries the raw target-year-vs-2017 price drift and no final
+    # inflation is applied (pre-realignment behavior).
+    if cfg.scale_a_matrix_with_ceda_method_as_fallback:
+        Adom = scale_cornerstone_A(
+            base.Adom,
+            target_year=io_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='dom',
+        )
+        Aimp = scale_cornerstone_A(
+            base.Aimp,
+            target_year=io_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='imp',
+        )
+        q = scale_cornerstone_q(
+            base.scaled_q,
+            target_year=io_year,
+            original_year=detail_year,
+        )
+        if cfg.adjust_summary_A_and_q_dollar_year:
+            Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Adom, original_year=detail_year, target_year=model_year
+            )
+            Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Aimp, original_year=detail_year, target_year=model_year
+            )
+            q = inflate_cornerstone_q_or_y_with_commodity_pi(
+                q, original_year=detail_year, target_year=model_year
+            )
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
             Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
