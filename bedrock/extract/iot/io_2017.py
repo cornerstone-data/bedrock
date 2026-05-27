@@ -290,6 +290,18 @@ _MARGINS_VALUE_COLUMNS = [
 ]
 
 
+def load_2017_margins_usa() -> pd.DataFrame:
+    """2017 Margins before vs after BEA redefinitions from ``USAConfig``."""
+    stage = get_usa_config().iot_before_or_after_redefinition
+    if stage == "before":
+        return load_2017_margins_before_redef_usa()
+    if stage == "after":
+        return load_2017_margins_after_redef_usa()
+    raise ValueError(
+        "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
+    )
+
+
 def _load_margins_excel(pth: str) -> pd.DataFrame:
     """Read the Margins Excel file, suppressing the openpyxl header/footer warning."""
     with warnings.catch_warnings():
@@ -308,15 +320,10 @@ def _load_margins_excel(pth: str) -> pd.DataFrame:
         )
 
 
-@functools.cache
-def load_2017_margins_after_redef_usa() -> pd.DataFrame:
-    """
-    Margins table, (industry, commodity) x margin type, after redefinition, in producer price.
-    Columns: Producers' Value, Transportation Costs, Wholesale, Retail, Purchasers' Value.
-    unit is USD, original unit is million USD.
-    """
+def _load_2017_margins_from_file(filename: str) -> pd.DataFrame:
+    """Shared loader for margins tables; applies index filtering and unit scaling."""
     df = load_from_gcs(
-        name=USA_2017_DETAIL_IO_MATRIX_MAPPING["Margins"],
+        name=filename,
         sub_bucket=GCS_USA_MAKE_USE_DIR,
         local_dir=LOCAL_USA_MAKE_USE_DIR,
         loader=_load_margins_excel,
@@ -326,11 +333,32 @@ def load_2017_margins_after_redef_usa() -> pd.DataFrame:
     mask = df.index.get_level_values("Industry Code").isin(
         valid_industry
     ) & df.index.get_level_values("Commodity Code").isin(valid_commodity)
-    df = (
+    return (
         df.loc[mask, _MARGINS_VALUE_COLUMNS].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
-    return df
+
+
+@functools.cache
+def load_2017_margins_after_redef_usa() -> pd.DataFrame:
+    """
+    Margins table, (industry, commodity) x margin type, after redefinition, in producer price.
+    Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
+    unit is USD, original unit is million USD.
+    """
+    return _load_2017_margins_from_file(USA_2017_DETAIL_IO_MATRIX_MAPPING["Margins"])
+
+
+@functools.cache
+def load_2017_margins_before_redef_usa() -> pd.DataFrame:
+    """
+    Margins table, (industry, commodity) x margin type, before redefinition, in producer price.
+    Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
+    unit is USD, original unit is million USD.
+    """
+    return _load_2017_margins_from_file(
+        USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING["Margins"]
+    )
 
 
 def load_2017_Ytot_usa() -> pd.DataFrame:
