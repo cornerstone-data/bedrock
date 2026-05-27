@@ -9,11 +9,11 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.taxonomy.bea.v2017_final_demand import USA_2017_FINAL_DEMAND_CODES
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_sector_commodity_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
+from bedrock.utils.taxonomy.bea.v2017_final_demand import USA_2017_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     load_usa_2017_commodity__ceda_v7_correspondence,
@@ -130,7 +130,11 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
     corresp = load_usa_2017_commodity__ceda_v7_correspondence()
     corresp.columns.names = ["commodity"]
 
-    filters = _ceda_margins_filters if get_usa_config().apply_ceda_margins_filters else MarginsFilters()
+    filters = (
+        _ceda_margins_filters
+        if get_usa_config().apply_ceda_margins_filters
+        else MarginsFilters()
+    )
     margin = corresp @ _margins_by_commodity(filters)
     # assume expanded_sectors will receive equal portion of value from aggregated sector
     margin.loc[EXPANDED_SECTORS_2012_TO_2017, :] *= 1 / len(
@@ -156,7 +160,8 @@ def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
     corresp = load_usa_2017_commodity__cornerstone_commodity_correspondence()
     return corresp @ _margins_by_commodity(
         _get_active_margins_filters(),
-        abs_negative_producers_value=cfg.use_useeio_schema and cfg.apply_useeio_margins_filters,
+        abs_negative_producers_value=cfg.use_useeio_schema
+        and cfg.apply_useeio_margins_filters,
     )
 
 
