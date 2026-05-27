@@ -276,14 +276,14 @@ _MARGINS_COLUMNS = [
     "Commodity Code",
     "Commodity Description",
     "Producers' Value",
-    "Transportation Costs",
+    "Transportation",
     "Wholesale",
     "Retail",
     "Purchasers' Value",
 ]
 _MARGINS_VALUE_COLUMNS = [
     "Producers' Value",
-    "Transportation Costs",
+    "Transportation",
     "Wholesale",
     "Retail",
     "Purchasers' Value",
