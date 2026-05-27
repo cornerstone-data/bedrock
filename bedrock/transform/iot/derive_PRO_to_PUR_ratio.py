@@ -7,6 +7,9 @@ import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_vnorm_adjusted_commodity_price_ratio,
+)
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     load_usa_2017_commodity__ceda_v7_correspondence,
@@ -14,7 +17,7 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
 )
 
 
-def derive_2017_producer_to_purchaser_price_ratio_usa() -> pd.Series[float]:
+def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]:
     """
     Derive the ratio to convert EF from producer to purchaser price for each CEDA v7 sector.
     Formula: purchaser price = producer price + margin
@@ -62,6 +65,38 @@ def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
     )
 
     return corresp @ margins_by_commodity
+
+
+@functools.cache
+def derive_2017_margins_cornerstone_inflated_usa(
+    original_year: int, target_year: int
+) -> pd.DataFrame:
+    """
+    Margins aggregated to Cornerstone commodity taxonomy, inflated from
+    ``original_year`` to ``target_year``.
+
+    ``Producers' Value`` is inflated using the V-norm-weighted commodity price
+    index (same basis as ``inflate_cornerstone_q_or_y_with_commodity_pi``).
+
+    ``Transportation``, ``Wholesale``, and ``Retail`` are inflated using a
+    weighted average of industry price ratios for the relevant trade/transport
+    sectors — **TODO: implement once weighting spec is confirmed**.
+
+    ``Purchasers' Value`` is recomputed as the sum of the four inflated
+    components to preserve internal consistency.
+    """
+    df = derive_2017_margins_cornerstone_usa().copy()
+
+    commodity_pi = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    df["Producers' Value"] *= commodity_pi.reindex(df.index, fill_value=1.0)
+
+    # TODO: inflate Transportation, Wholesale, Retail with weighted-average
+    # industry price ratios for the relevant trade/transport sectors.
+
+    df["Purchasers' Value"] = (
+        df["Producers' Value"] + df["Transportation"] + df["Wholesale"] + df["Retail"]
+    )
+    return df
 
 
 @functools.cache
