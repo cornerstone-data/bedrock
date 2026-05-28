@@ -5,8 +5,6 @@
      against the 2017 summary A (so the ratio is in matched dollar years),
   2. applies the structural ratio to the 2017 detail A,
   3. inflates the result 2017 → model_year.
-
-See `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
 """
 
 from __future__ import annotations
