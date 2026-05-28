@@ -1,9 +1,9 @@
 import typing as ta
 
-# Industry and special-product sectors only. Final-demand and value-added
+# Industry and special-product commodities only. Final-demand and value-added
 # sector codes (F010, F020, …, V003) live in v2017_final_demand and
 # v2017_value_added at detail granularity (F01000, V00100, …).
-BEA_2017_SECTOR_CODE = ta.Literal[
+BEA_2017_SECTOR_COMMODITY_CODE = ta.Literal[
     "11",  # Agriculture, forestry, fishing, and hunting
     "21",  # Mining
     "22",  # Utilities
@@ -23,11 +23,11 @@ BEA_2017_SECTOR_CODE = ta.Literal[
     "Other",  # Noncomparable imports and rest-of-the-world adjustment
 ]
 
-BEA_2017_SECTOR_CODES: ta.List[BEA_2017_SECTOR_CODE] = list(
-    ta.get_args(BEA_2017_SECTOR_CODE)
+BEA_2017_SECTOR_COMMODITY_CODES: ta.List[BEA_2017_SECTOR_COMMODITY_CODE] = list(
+    ta.get_args(BEA_2017_SECTOR_COMMODITY_CODE)
 )
 
-BEA_2017_SECTOR_CODE_DESC: ta.Dict[BEA_2017_SECTOR_CODE, str] = {
+BEA_2017_SECTOR_COMMODITY_CODE_DESC: ta.Dict[BEA_2017_SECTOR_COMMODITY_CODE, str] = {
     "11": "Agriculture, forestry, fishing, and hunting",
     "21": "Mining",
     "22": "Utilities",

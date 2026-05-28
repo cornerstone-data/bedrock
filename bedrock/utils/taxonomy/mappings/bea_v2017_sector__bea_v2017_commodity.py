@@ -8,9 +8,9 @@ from bedrock.utils.taxonomy.bea.v2017_commodity import (
     BEA_2017_COMMODITY_CODE,
     BEA_2017_COMMODITY_CODES,
 )
-from bedrock.utils.taxonomy.bea.v2017_sector import (
-    BEA_2017_SECTOR_CODE,
-    BEA_2017_SECTOR_CODES,
+from bedrock.utils.taxonomy.bea.v2017_commodity_sector import (
+    BEA_2017_SECTOR_COMMODITY_CODE,
+    BEA_2017_SECTOR_COMMODITY_CODES,
 )
 from bedrock.utils.taxonomy.utils import validate_mapping
 
@@ -29,18 +29,20 @@ def _sector_to_detail_from_crosswalk() -> dict[str, list[str]]:
     return grouped
 
 
-def load_bea_v2017_sector_to_bea_v2017_commodity() -> (
-    ta.Dict[BEA_2017_SECTOR_CODE, ta.List[BEA_2017_COMMODITY_CODE]]
+def load_bea_v2017_sector_commodity_to_bea_v2017_commodity() -> (
+    ta.Dict[BEA_2017_SECTOR_COMMODITY_CODE, ta.List[BEA_2017_COMMODITY_CODE]]
 ):
     grouped = _sector_to_detail_from_crosswalk()
-    mapping: ta.Dict[BEA_2017_SECTOR_CODE, ta.List[BEA_2017_COMMODITY_CODE]] = {
+    mapping: ta.Dict[
+        BEA_2017_SECTOR_COMMODITY_CODE, ta.List[BEA_2017_COMMODITY_CODE]
+    ] = {
         sector: grouped[sector]  # type: ignore[misc]
-        for sector in BEA_2017_SECTOR_CODES
+        for sector in BEA_2017_SECTOR_COMMODITY_CODES
     }
     validate_mapping(  # type: ignore[misc]
         mapping,
-        domain=set(BEA_2017_SECTOR_CODES),
+        domain=set(BEA_2017_SECTOR_COMMODITY_CODES),
         codomain=set(BEA_2017_COMMODITY_CODES),
-        dangerously_skip_empty_mapping_check=True,
+        dangerously_skip_empty_mapping_check=False,
     )
     return mapping
