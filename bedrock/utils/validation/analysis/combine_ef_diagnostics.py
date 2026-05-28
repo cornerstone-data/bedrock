@@ -18,14 +18,15 @@ runs skip the network.
 
 Output tabs (identical schema to the legacy xlsx flow):
   1) ``D_and_diffs_merged`` -- ``sector``, ``sector_name``, one column per
-     ``config_name`` containing ``D_new``. When the combo's
+     ``config_name`` containing ``D_new_inflated`` when that column exists on
+     the run's tab, otherwise ``D_new``. When the combo's
      ``target_mapping`` references ``pinned_useeio_baseline`` (only
      meaningful when the first run is a USEEIO Excel-baseline comparison),
      an extra ``pinned_useeio_baseline`` column sourced from that run's
      ``D_old_inflated`` is inserted before the per-config columns.
   2) ``N_and_diffs_merged`` -- ``sector``, ``sector_name``, one column per
-     ``config_name`` containing ``N_new``. Mirrors (1) for
-     ``pinned_useeio_baseline``.
+     ``config_name`` containing ``N_new_inflated`` when present, otherwise
+     ``N_new``. Mirrors (1) for ``pinned_useeio_baseline``.
   3) ``D_net_diff`` / ``N_net_diff`` -- per-config net differences computed
      as ``config - target_config`` using the combo's target mapping.
   4) ``totals`` -- one USA-level row per ``config_name``. Source depends
@@ -229,12 +230,41 @@ def _extract_config_name(config_summary_map: dict[str, object], label: str) -> s
     return str(config_summary_map['config_name'])
 
 
+def _resolve_metric_column(
+    df: pd.DataFrame,
+    *,
+    tab: str,
+    label: str,
+    sheet_id: str,
+    preferred_col: str,
+    fallback_col: str,
+) -> str:
+    """Return ``preferred_col`` when present on the tab, else ``fallback_col``."""
+    if preferred_col in df.columns:
+        return preferred_col
+    if fallback_col in df.columns:
+        logger.info(
+            "Tab '%s' in Sheet '%s' (%s): no `%s`; using `%s`.",
+            tab,
+            label,
+            sheet_id,
+            preferred_col,
+            fallback_col,
+        )
+        return fallback_col
+    raise ValueError(
+        f"Tab '{tab}' in Sheet '{label}' ({sheet_id}) must have `{preferred_col}` "
+        f'or `{fallback_col}`. Found: {list(df.columns)}'
+    )
+
+
 def _read_sector_and_values(
     sheet_id: str,
     label: str,
     tab: str,
-    metric_col: str,
     *,
+    preferred_metric_col: str,
+    fallback_metric_col: str | None = None,
     refresh: bool = False,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Read one ``D_and_diffs`` / ``N_and_diffs`` tab and return ``(sector_meta, values)``."""
@@ -244,10 +274,21 @@ def _read_sector_and_values(
             f"Tab '{tab}' in Sheet '{label}' ({sheet_id}) must have a `sector_name` "
             f'column. Found: {list(df.columns)}'
         )
-    if metric_col not in df.columns:
-        raise ValueError(
-            f"Tab '{tab}' in Sheet '{label}' ({sheet_id}) must have a `{metric_col}` "
-            f'column. Found: {list(df.columns)}'
+    if fallback_metric_col is None:
+        if preferred_metric_col not in df.columns:
+            raise ValueError(
+                f"Tab '{tab}' in Sheet '{label}' ({sheet_id}) must have a "
+                f'`{preferred_metric_col}` column. Found: {list(df.columns)}'
+            )
+        metric_col = preferred_metric_col
+    else:
+        metric_col = _resolve_metric_column(
+            df,
+            tab=tab,
+            label=label,
+            sheet_id=sheet_id,
+            preferred_col=preferred_metric_col,
+            fallback_col=fallback_metric_col,
         )
 
     sector_code_col = _find_sector_code_column(df, tab=tab)
@@ -465,14 +506,14 @@ def merge_sheets(
             sheet_id=first_sheet_id,
             label=first_label,
             tab='D_and_diffs',
-            metric_col='D_old_inflated',
+            preferred_metric_col='D_old_inflated',
             refresh=refresh,
         )
         _, pinned_baseline_n = _read_sector_and_values(
             sheet_id=first_sheet_id,
             label=first_label,
             tab='N_and_diffs',
-            metric_col='N_old_inflated',
+            preferred_metric_col='N_old_inflated',
             refresh=refresh,
         )
 
@@ -481,14 +522,16 @@ def merge_sheets(
             sheet_id=sheet_id,
             label=label,
             tab='D_and_diffs',
-            metric_col='D_new',
+            preferred_metric_col='D_new_inflated',
+            fallback_metric_col='D_new',
             refresh=refresh,
         )
         _, n_new = _read_sector_and_values(
             sheet_id=sheet_id,
             label=label,
             tab='N_and_diffs',
-            metric_col='N_new',
+            preferred_metric_col='N_new_inflated',
+            fallback_metric_col='N_new',
             refresh=refresh,
         )
 

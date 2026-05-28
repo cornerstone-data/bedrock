@@ -68,7 +68,16 @@ class TestCalculateEfDiagnostics:
             {"sector": "1111B0"},
         ]
 
+        mock_config = MagicMock()
+        mock_config.use_cornerstone_2026_model_schema = False
+        mock_config.use_E_data_year_for_x_in_B = False
+        mock_config.diagnostics_baseline_source = "gcs_snapshot"
+
         with (
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.get_usa_config",
+                return_value=mock_config,
+            ),
             patch(
                 "bedrock.utils.validation.diagnostics_helpers.pull_efs_for_diagnostics",
                 return_value=efs,

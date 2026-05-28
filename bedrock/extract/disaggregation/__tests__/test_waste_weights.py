@@ -354,7 +354,7 @@ def test_apply_correspondence_to_series_incomplete_mapping_raises() -> None:
 # Fixtures shared by the 2017-CSV value-verification tests
 # ---------------------------------------------------------------------------
 
-DATA_DIR = pathlib.Path(__file__).resolve().parents[1]
+DATA_DIR = pathlib.Path(__file__).resolve().parents[1] / "waste_disagg_inputs"
 USE_PATH = DATA_DIR / "WasteDisaggregationDetail2017_Use.csv"
 MAKE_PATH = DATA_DIR / "WasteDisaggregationDetail2017_Make.csv"
 
@@ -839,7 +839,7 @@ class TestUseFDColumnsForWasteCommodityRows:
 
 @pytest.mark.eeio_integration
 def test_load_disagg_weights_integration_with_2017_files() -> None:
-    data_dir = pathlib.Path(__file__).resolve().parents[1]
+    data_dir = pathlib.Path(__file__).resolve().parents[1] / "waste_disagg_inputs"
     use_path = data_dir / "WasteDisaggregationDetail2017_Use.csv"
     make_path = data_dir / "WasteDisaggregationDetail2017_Make.csv"
 
