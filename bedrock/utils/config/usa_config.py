@@ -83,8 +83,9 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     apply_inflation_to_V: bool = False  # DRI: WesIngwersen
-    apply_ceda_margins_filters: bool = False  # DRI: WesIngwersen
-    apply_useeio_margins_filters: bool = False  # DRI: WesIngwersen
+    ceda_margins: bool = False  # DRI: WesIngwersen
+    useeio_margins: bool = False  # DRI: WesIngwersen
+    cornerstone_margins: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
