@@ -79,11 +79,12 @@ def scale_cornerstone_A(
     """Scale detail A element-wise using summary A ratios.
 
     When ``cfg.adjust_summary_A_and_q_dollar_year`` is set, the target-year summary A
-    is rebased into ``original_year`` USD via the ITA-based summary commodity
-    price ratio before the ratio is taken, so the structural cross-year ratio
-    is formed in a consistent dollar year. Otherwise the ratio is taken on the
-    raw target-year summary A (pre-realignment behavior). See plan
-    `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
+    is rebased into ``original_year`` USD via the ITA-based (industry technology assumption)
+    summary commodity price ratio before the ratio is derived and taken, so the structural
+    cross-year ratio is formed in a consistent dollar year.
+
+    Since the target-year summary A is rebased into ``original_year`` USD, the resulting
+    detail A is in ``original_year`` USD.
     """
     A_summary_base = _get_summary_A(original_year, dom_or_imp_or_total)
     A_summary_target = _get_summary_A(target_year, dom_or_imp_or_total)

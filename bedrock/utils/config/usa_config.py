@@ -77,6 +77,7 @@ class USAConfig(BaseModel):
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
+    scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_industry_price_index: bool = False  # DRI: mo.li
