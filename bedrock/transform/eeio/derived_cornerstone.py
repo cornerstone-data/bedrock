@@ -261,7 +261,19 @@ def _derive_cornerstone_io_after_electricity_reallocation() -> _CornerstoneIOBun
     Udom, Uimp = _derive_cornerstone_U_after_waste()
     VA = _derive_cornerstone_VA_after_waste()
     V, Udom, Uimp, VA = reallocate_electricity_coproduction(V, Udom, Uimp, VA)
-    return _CornerstoneIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
+    bundle = _CornerstoneIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
+
+    from bedrock.utils.validation.analysis.electricity_disagg_intermediate_outputs import (  # noqa: PLC0415
+        maybe_write_electricity_disagg_intermediate_outputs,
+    )
+
+    maybe_write_electricity_disagg_intermediate_outputs(
+        v=bundle.V,
+        udom=bundle.Udom,
+        uimp=bundle.Uimp,
+        va=bundle.VA,
+    )
+    return bundle
 
 
 # ---------------------------------------------------------------------------
