@@ -39,14 +39,6 @@ The project is complete when **all** of the following are true:
 4. The six "Key Questions" below each have a written answer backed by a figure reference.
 5. A code change exists on a branch that contains the new `bedrock/analysis/a_matrix_time_series/` module and the README, and at least one peer has reviewed it.
 
-### Before writing any code — read these (in order)
-
-1. [.claude/plans/issue_182_a_matrix_methods.md](issue_182_a_matrix_methods.md) — background on the three alternative methods. *(Existing doc from Feb 2026 — scoped when Issue #182 was opened. Read this first for the "why".)*
-2. [.claude/plans/issue_182_implementation_plan.md](issue_182_implementation_plan.md) — how the existing flags are wired. *(Existing doc from Feb 2026 — the implementation blueprint that was executed to land the three flags now on `main`.)*
-3. [bedrock/transform/eeio/derived_cornerstone.py](../bedrock/transform/eeio/derived_cornerstone.py) — read `derive_cornerstone_Aq_scaled()` (L498) top to bottom. You should be able to explain what each existing if-branch does (USEEIO, summary tables, industry price index) plus the default CEDA path before writing any code.
-4. [bedrock/analysis/time_series_B_matrix/derive_B_time_series.py](../bedrock/analysis/time_series_B_matrix/derive_B_time_series.py) — this is your template. Your code should feel structurally similar.
-5. Run the smoke test: `pytest bedrock/transform/__tests__/test_usa.py -k cornerstone` and confirm it passes on `main` before branching.
-
 ### Check-in checkpoints (don't skip)
 
 Show work to a reviewer before proceeding past these gates:
@@ -421,5 +413,3 @@ Total: roughly 1.5–2 working weeks for the core path (M1–M5).
 | [bedrock/transform/iot/derived_gross_industry_output.py](../bedrock/transform/iot/derived_gross_industry_output.py) | `derive_gross_output_after_redefinition()` — ground-truth anchor |
 | [bedrock/analysis/time_series_B_matrix/derive_B_time_series.py](../bedrock/analysis/time_series_B_matrix/derive_B_time_series.py) | Template for time-series caching + plotting module layout |
 | [bedrock/utils/validation/calculate_ef_diagnostics.py](../bedrock/utils/validation/calculate_ef_diagnostics.py) | Existing EF diagnostics pipeline (Step 6) |
-| [.claude/plans/issue_182_a_matrix_methods.md](issue_182_a_matrix_methods.md) | Background analysis of the three methods |
-| [.claude/plans/issue_182_implementation_plan.md](issue_182_implementation_plan.md) | How the three flags were wired in |
