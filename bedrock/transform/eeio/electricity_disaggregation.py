@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from typing import cast
 
@@ -30,28 +29,38 @@ class CoprodTransfer:
 
 
 def build_coproduction_transfer_schedule(V: pd.DataFrame) -> list[CoprodTransfer]:
-    """Build ordered transfer list for 221100 row/column off-diagonals."""
+    """Build ordered transfer list for 221100 row/column off-diagonals.
+
+    Inbound transfers (other industries -> 221100 diagonal) run first, then
+    outbound transfers (221100 row -> other commodity diagonals).
+    """
     agg = ELECTRICITY_AGGREGATE
-    phase1: list[tuple[float, CoprodTransfer]] = []
-    phase2: list[tuple[float, CoprodTransfer]] = []
+    inbound_to_221100_diagonal: list[tuple[float, CoprodTransfer]] = []
+    outbound_from_221100_diagonal: list[tuple[float, CoprodTransfer]] = []
 
     for s in V.index:
         if s == agg:
             continue
         t = _frame_cell_float(V, str(s), agg)
         if t > 0:
-            phase1.append((t, CoprodTransfer(source=str(s), target=agg, amount=t)))
+            inbound_to_221100_diagonal.append(
+                (t, CoprodTransfer(source=str(s), target=agg, amount=t))
+            )
 
     for d in V.columns:
         if d == agg:
             continue
         t = _frame_cell_float(V, agg, str(d))
         if t > 0:
-            phase2.append((t, CoprodTransfer(source=agg, target=str(d), amount=t)))
+            outbound_from_221100_diagonal.append(
+                (t, CoprodTransfer(source=agg, target=str(d), amount=t))
+            )
 
-    phase1.sort(key=lambda x: x[0], reverse=True)
-    phase2.sort(key=lambda x: x[0], reverse=True)
-    return [tr for _, tr in phase1] + [tr for _, tr in phase2]
+    inbound_to_221100_diagonal.sort(key=lambda x: x[0], reverse=True)
+    outbound_from_221100_diagonal.sort(key=lambda x: x[0], reverse=True)
+    return [tr for _, tr in inbound_to_221100_diagonal] + [
+        tr for _, tr in outbound_from_221100_diagonal
+    ]
 
 
 def _assert_row_totals_unchanged(
@@ -83,7 +92,6 @@ def apply_single_coproduction_transfer(
     Uimp: pd.DataFrame,
     VA: pd.DataFrame,
     transfer: CoprodTransfer,
-    _y_commodity: pd.Series[float],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Apply one co-production transfer and run post-transfer assertions."""
     s, d = transfer.source, transfer.target
@@ -127,9 +135,11 @@ def reallocate_electricity_coproduction(
     Udom: pd.DataFrame,
     Uimp: pd.DataFrame,
     VA: pd.DataFrame,
-    y_commodity: pd.Series[float],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Run the full 221100 co-production reallocation schedule on Make/Use/VA."""
+    """Run the full 221100 co-production reallocation schedule on Make/Use/VA.
+
+    Final demand (Y) is not modified.
+    """
     V = V.copy()
     Udom = Udom.copy()
     Uimp = Uimp.copy()
@@ -138,7 +148,7 @@ def reallocate_electricity_coproduction(
     schedule = build_coproduction_transfer_schedule(V)
     for transfer in schedule:
         V, Udom, Uimp, VA = apply_single_coproduction_transfer(
-            V, Udom, Uimp, VA, transfer, y_commodity
+            V, Udom, Uimp, VA, transfer
         )
 
     assert_221100_make_sparsity(V)
@@ -158,55 +168,3 @@ def assert_221100_make_sparsity(V: pd.DataFrame, *, atol: float = 1.0) -> None:
             f"row_max={float(row_off.abs().max())}, "
             f"col_max={float(col_off.abs().max())}"
         )
-
-
-def expected_post_reallocation_diagonals(
-    V_pre: pd.DataFrame,
-    aggregate: str = ELECTRICITY_AGGREGATE,
-) -> pd.Series[float]:
-    """Expected diagonal Make values after full reallocation (static schedule)."""
-    expected = pd.Series({i: _make_diagonal(V_pre, i) for i in V_pre.index})
-    for s in V_pre.index:
-        if s != aggregate:
-            t = _frame_cell_float(V_pre, str(s), aggregate)
-            if t > 0:
-                expected[aggregate] += t
-    for d in V_pre.columns:
-        if d != aggregate:
-            t = _frame_cell_float(V_pre, aggregate, str(d))
-            if t > 0:
-                expected[d] += t
-    return expected
-
-
-def check_y_unchanged(
-    Y_before: pd.DataFrame,
-    Y_after: pd.DataFrame,
-    commodity: str = ELECTRICITY_AGGREGATE,
-    atol: float = 1e-6,
-) -> pd.DataFrame:
-    """Return Y_after, warning and proportionally adjusting FD if row drift exceeds atol."""
-    if commodity not in Y_before.index or commodity not in Y_after.index:
-        return Y_after.copy()
-
-    before = Y_before.loc[commodity].astype(float)
-    after = Y_after.loc[commodity].astype(float)
-    if np.allclose(
-        _float_ndarray(before.to_numpy()),
-        _float_ndarray(after.to_numpy()),
-        rtol=0,
-        atol=atol,
-    ):
-        return Y_after.copy()
-
-    delta = float(after.sum() - before.sum())
-    warnings.warn(
-        f"Y row {commodity} changed by {delta}; distributing proportionally across FD",
-        stacklevel=2,
-    )
-    out = Y_after.copy()
-    total = float(before.sum())
-    if abs(total) < atol:
-        return out
-    out.loc[commodity] = before + delta * (before / total)
-    return out

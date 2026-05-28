@@ -28,10 +28,10 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     CoprodTransfer,
     _float_ndarray,
+    _frame_cell_float,
     _make_diagonal,
     apply_single_coproduction_transfer,
     build_coproduction_transfer_schedule,
-    expected_post_reallocation_diagonals,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
@@ -68,6 +68,25 @@ def _teardown() -> None:
     reset_usa_config(should_reset_env_var=True)
 
 
+def _expected_post_reallocation_diagonals(
+    V_pre: pd.DataFrame,
+    aggregate: str = ELECTRICITY_AGGREGATE,
+) -> pd.Series[float]:
+    """Expected diagonal Make values after full reallocation (static schedule)."""
+    expected = pd.Series({i: _make_diagonal(V_pre, i) for i in V_pre.index})
+    for s in V_pre.index:
+        if s != aggregate:
+            t = _frame_cell_float(V_pre, str(s), aggregate)
+            if t > 0:
+                expected[aggregate] += t
+    for d in V_pre.columns:
+        if d != aggregate:
+            t = _frame_cell_float(V_pre, aggregate, str(d))
+            if t > 0:
+                expected[d] += t
+    return expected
+
+
 class TestTransferSchedule:
     def test_transfer_schedule_order(self) -> None:
         codes = ["221200", ELECTRICITY_AGGREGATE, "531ORE"]
@@ -94,10 +113,9 @@ class TestTransferSchedule:
         V = pd.DataFrame([[0.0, 0.0], [0.0, 10.0]], index=codes, columns=codes)
         U = pd.DataFrame(1.0, index=codes, columns=codes)
         VA = pd.DataFrame(1.0, index=["va1"], columns=codes)
-        y = pd.Series(0.0, index=codes)
         transfer = CoprodTransfer(source="A", target="B", amount=5.0)
         with pytest.raises(ValueError, match="row sum is zero"):
-            apply_single_coproduction_transfer(V, U, U, VA, transfer, y)
+            apply_single_coproduction_transfer(V, U, U, VA, transfer)
 
     def test_single_transfer_preserves_row_totals(self) -> None:
         rng = np.random.default_rng(0)
@@ -110,11 +128,10 @@ class TestTransferSchedule:
         Udom = pd.DataFrame(rng.random((3, 3)), index=codes, columns=codes)
         Uimp = pd.DataFrame(rng.random((3, 3)), index=codes, columns=codes)
         VA = pd.DataFrame(rng.random((2, 3)), index=["va1", "va2"], columns=codes)
-        y = pd.Series(rng.random(3), index=codes)
         transfer = CoprodTransfer(source="s", target="d", amount=5.0)
         rows_before = pd.concat([Udom, Uimp, VA]).sum(axis=1)
         _, Udom2, Uimp2, VA2 = apply_single_coproduction_transfer(
-            V, Udom, Uimp, VA, transfer, y
+            V, Udom, Uimp, VA, transfer
         )
         rows_after = pd.concat([Udom2, Uimp2, VA2]).sum(axis=1)
         np.testing.assert_allclose(
@@ -132,7 +149,7 @@ class TestElectricityReallocationIntegration:
     def test_post_reallocation_diagonal_values(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
         V_pre = _derive_cornerstone_V_after_waste()
-        expected = expected_post_reallocation_diagonals(V_pre)
+        expected = _expected_post_reallocation_diagonals(V_pre)
         touched = {t.source for t in build_coproduction_transfer_schedule(V_pre)} | {
             t.target for t in build_coproduction_transfer_schedule(V_pre)
         }

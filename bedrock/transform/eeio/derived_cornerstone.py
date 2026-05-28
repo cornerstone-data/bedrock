@@ -260,10 +260,7 @@ def _derive_cornerstone_io_after_electricity_reallocation() -> _CornerstoneIOBun
     V = _derive_cornerstone_V_after_waste()
     Udom, Uimp = _derive_cornerstone_U_after_waste()
     VA = _derive_cornerstone_VA_after_waste()
-    y_commodity = derive_cornerstone_Ytot_matrix_set().ytot
-    V, Udom, Uimp, VA = reallocate_electricity_coproduction(
-        V, Udom, Uimp, VA, y_commodity
-    )
+    V, Udom, Uimp, VA = reallocate_electricity_coproduction(V, Udom, Uimp, VA)
     return _CornerstoneIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
 
 
