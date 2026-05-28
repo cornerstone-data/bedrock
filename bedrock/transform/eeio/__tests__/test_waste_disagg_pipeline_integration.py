@@ -21,7 +21,6 @@ from bedrock.transform.eeio import (
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     _WASTE_NEW_CODES,
-    _derive_cornerstone_io_after_electricity_reallocation,
     _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
@@ -37,7 +36,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x_after_redefinition,
     derive_cornerstone_y_nab,
     derive_cornerstone_Ytot_matrix_set,
-    electricity_disaggregation_enabled,
     get_waste_disagg_weights,
 )
 from bedrock.utils.config.usa_config import (
@@ -51,8 +49,6 @@ _WASTE_SET = set(_WASTE_NEW_CODES)
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
-    electricity_disaggregation_enabled,
-    _derive_cornerstone_io_after_electricity_reallocation,
     derive_cornerstone_V,
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,
