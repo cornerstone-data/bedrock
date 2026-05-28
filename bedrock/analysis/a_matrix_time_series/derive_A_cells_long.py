@@ -11,16 +11,16 @@ and produces:
   unchanged BEA-2017 base) and CEDA-US (the production-default approach at
   the same year).
 
-- ``scatter_vs_baselines_{dom,imp}.png`` — 3×2 grid (alternative approach ×
+- ``scatter_vs_baselines_{dom,imp}.png`` — 2×2 grid (alternative approach ×
   baseline) of element-wise scatter plots. Per-row target year is the latest
   year where the approach and both baselines all have data:
-  ``commodity_price_index`` and ``industry_price_index`` rows resolve to 2024;
+  ``commodity_price_index`` rows resolve to 2024;
   ``summary_tables`` falls back to 2023 (BEA Excel hasn't published 2024 yet).
-  All 6 panels share the same ``xlim``/``ylim`` so the ``y=x`` line is a true
+  All 4 panels share the same ``xlim``/``ylim`` so the ``y=x`` line is a true
   45° reference. Each panel has a top-left summary box with ``n``, mean / p95
   / max ``|Δ|``, and ``R²``.
 
-- ``divergence_share_{dom,imp}.png`` — 3×2 grid (alternative × baseline) of
+- ``divergence_share_{dom,imp}.png`` — 2×2 grid (alternative × baseline) of
   the share of cells whose ``|A_approach − A_baseline|`` exceeds each
   threshold (1e-4, 1e-3, 1e-2, 1e-1) plotted over years. Answers "how
   widespread is the divergence and how does it spread?" — complements the
@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-SCATTER_APPROACHES = ("commodity_price_index", "industry_price_index", "summary_tables")
+SCATTER_APPROACHES = ("commodity_price_index", "summary_tables")
 SCATTER_BASELINES = (("useeio", "USEEIO"), ("ceda_default", "CEDA-US"))
 
 
@@ -220,13 +220,13 @@ def _latest_common_year(long: pd.DataFrame, approaches: list[str]) -> int | None
 
 
 def plot_scatter_vs_baselines(long: pd.DataFrame, kind: str, path: Path) -> None:
-    """3×2 grid of element-wise scatters; rows = alternative approach,
+    """2×2 grid of element-wise scatters; rows = alternative approach,
     cols = baseline (USEEIO | CEDA-US).
 
     Per-row target year: the latest year where the approach AND both
-    baselines all have data. ``commodity_price_index`` /
-    ``industry_price_index`` rows resolve to 2024; ``summary_tables`` falls
-    back to 2023 (BEA Excel hasn't published 2024). The actual year used
+    baselines all have data. ``commodity_price_index`` rows resolve to
+    2024; ``summary_tables`` falls back to 2023 (BEA Excel hasn't
+    published 2024). The actual year used
     appears in each panel title.
 
     All 6 panels share the same ``xlim``/``ylim`` (global min/max across
@@ -356,7 +356,7 @@ DIVERGENCE_THRESHOLDS: tuple[float, ...] = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
 
 
 def plot_divergence_share(long: pd.DataFrame, kind: str, path: Path) -> None:
-    """3×2 grid: share of cells whose ``|delta_vs_baseline|`` exceeds each
+    """2×2 grid: share of cells whose ``|delta_vs_baseline|`` exceeds each
     threshold, plotted over years.
 
     Rows are the three alternative approaches; columns are baselines

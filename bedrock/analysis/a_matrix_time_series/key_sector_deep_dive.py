@@ -79,7 +79,6 @@ A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 RANK_TARGET_YEAR = LATEST_TARGET_YEAR
 ALTERNATIVE_APPROACHES: tuple[str, ...] = (
     "summary_tables",
-    "industry_price_index",
     "commodity_price_index",
 )
 BASELINES: tuple[tuple[str, str], ...] = (
@@ -90,14 +89,12 @@ ALL_APPROACHES_PLOT_ORDER: tuple[str, ...] = (
     "useeio",
     "ceda_default",
     "summary_tables",
-    "industry_price_index",
     "commodity_price_index",
 )
 APPROACH_COLORS: dict[str, str] = {
     "useeio": "#7f7f7f",
     "ceda_default": "#bcbd22",
     "summary_tables": "#1f77b4",
-    "industry_price_index": "#ff7f0e",
     "commodity_price_index": "#2ca02c",
 }
 

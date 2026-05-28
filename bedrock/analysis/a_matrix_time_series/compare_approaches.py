@@ -3,11 +3,9 @@
 Reads the parquet caches produced by ``derive_A_time_series.py`` (Step 1) and
 produces:
 
-- ``pairwise_hexbins_{dom,imp}.png`` — 1×3 grid of log-log hexbin
-  density plots between the three alternative approaches at 2024
-  (``summary_tables`` vs ``industry_price_index``,
-  ``summary_tables`` vs ``commodity_price_index``,
-  ``industry_price_index`` vs ``commodity_price_index``). Hexbin density
+- ``pairwise_hexbins_{dom,imp}.png`` — log-log hexbin
+  density plots between the alternative approaches at 2024
+  (``summary_tables`` vs ``commodity_price_index``). Hexbin density
   uses ``bins='log'`` because A cells span ~6 orders of magnitude and a
   linear color scale would be dominated by the near-zero peak. Step 2
   already covers alternative-vs-baseline scatters at 2024 (linear axes);
@@ -51,15 +49,10 @@ TARGET_YEAR = LATEST_TARGET_YEAR
 
 ALTERNATIVE_APPROACHES: tuple[str, ...] = (
     "summary_tables",
-    "industry_price_index",
     "commodity_price_index",
 )
 BASELINE_APPROACHES: tuple[str, ...] = ("useeio", "ceda_default")
-PAIRS: tuple[tuple[str, str], ...] = (
-    ("summary_tables", "industry_price_index"),
-    ("summary_tables", "commodity_price_index"),
-    ("industry_price_index", "commodity_price_index"),
-)
+PAIRS: tuple[tuple[str, str], ...] = (("summary_tables", "commodity_price_index"),)
 KINDS: tuple[str, ...] = ("dom", "imp")
 
 # Column cap inside scale_cornerstone_A — re-stated here as a constant so the
@@ -106,7 +99,7 @@ def _aligned_arrays(a: pd.DataFrame, b: pd.DataFrame) -> tuple[np.ndarray, np.nd
 def plot_pairwise_hexbins(
     matrices: dict[str, dict[str, pd.DataFrame]], kind: str, path: Path
 ) -> None:
-    """1×3 log-log hexbin density grid: pairs of alternative approaches.
+    """Log-log hexbin density grid: pairs of alternative approaches.
 
     Cells where both values are zero (joint sparsity in A) are dropped — they
     inflate the density at the origin and obscure the disagreement story.

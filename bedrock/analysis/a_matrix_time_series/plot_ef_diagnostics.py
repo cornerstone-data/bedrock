@@ -14,9 +14,9 @@ each ``(baseline, ef_kind)`` pair, two figures:
   60-bin histogram. Vertical zero line. Mirrors the
   ``baseline_snapshot_comparison`` ``compare_B_Adom`` convention.
 
-vs CEDA (v0) panels: 4 candidates (``useeio``, ``summary_tables``,
-``industry_price_index``, ``commodity_price_index``).
-vs USEEIO panels: 3 candidates (``useeio`` is the comparator and is
+vs CEDA (v0) panels: 3 candidates (``useeio``, ``summary_tables``,
+``commodity_price_index``).
+vs USEEIO panels: 2 candidates (``useeio`` is the comparator and is
 hidden).
 
 Usage:
@@ -50,14 +50,12 @@ PanelFn = ta.Callable[[Axes, pd.DataFrame, str], None]
 APPROACH_ORDER: tuple[str, ...] = (
     "useeio",
     "summary_tables",
-    "industry_price_index",
     "commodity_price_index",
 )
 APPROACH_COLORS: dict[str, str] = {
     "useeio": "#7f7f7f",
     "ceda_default": "#bcbd22",
     "summary_tables": "#1f77b4",
-    "industry_price_index": "#ff7f0e",
     "commodity_price_index": "#2ca02c",
 }
 BASELINE_LABEL: dict[str, str] = {"ceda": "CEDA-US (v0)", "useeio": "USEEIO"}
