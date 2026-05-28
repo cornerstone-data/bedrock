@@ -168,8 +168,14 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
     waste_cfg = cfg.eeio_waste_disaggregation
     if waste_cfg is None:
         waste_cfg = EEIOWasteDisaggConfig(
-            use_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Use.csv",
-            make_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Make.csv",
+            use_weights_file=(
+                "extract/disaggregation/waste_disagg_inputs/"
+                "WasteDisaggregationDetail2017_Use.csv"
+            ),
+            make_weights_file=(
+                "extract/disaggregation/waste_disagg_inputs/"
+                "WasteDisaggregationDetail2017_Make.csv"
+            ),
             year=2017,
             source_name="WasteDisaggregationDetail2017",
         )
@@ -390,6 +396,16 @@ def _derive_cornerstone_Ytot_with_trade() -> pd.DataFrame:
     return Ytot
 
 
+def derive_cornerstone_Ytot_full_cs_matrix() -> pd.DataFrame:
+    """Full commodity-by-final-demand ``Y`` in Cornerstone space (incl. trade FD columns).
+
+    Same frame as the cached waste-aware pipeline used for ``derive_cornerstone_Ytot_matrix_set``
+    before export/import columns are collapsed. Returns a **copy** so callers cannot mutate
+    the cached matrix.
+    """
+    return _derive_cornerstone_Ytot_with_trade().copy()
+
+
 @functools.cache
 def derive_cornerstone_Ytot_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
     Ytot_with_trade = _derive_cornerstone_Ytot_with_trade()
@@ -526,8 +542,15 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # Summary tables only: scale 2017 → model_year directly using summary A ratios,
-    # skipping the intermediate io_year step and price inflation.
+    # Summary tables: scale 2017 → model_year using summary A ratios.
+    #
+    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
+    # rebases the target-year summary A into 2017 USD before the ratio is taken,
+    # so the structural cross-year ratio is formed entirely in 2017 USD; the
+    # scaled detail A is then inflated 2017 → model_year. When the flag is off,
+    # the ratio carries the raw target-year-vs-2017 price drift and no final
+    # inflation is applied (pre-realignment behavior). See
+    # `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
     if cfg.scale_a_matrix_with_summary_tables:
         Adom = scale_cornerstone_A(
             base.Adom,
@@ -542,8 +565,20 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             dom_or_imp_or_total='imp',
         )
         q = scale_cornerstone_q(
-            base.scaled_q, target_year=model_year, original_year=detail_year
+            base.scaled_q,
+            target_year=model_year,
+            original_year=detail_year,
         )
+        if cfg.adjust_summary_A_and_q_dollar_year:
+            Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Adom, original_year=detail_year, target_year=model_year
+            )
+            Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Aimp, original_year=detail_year, target_year=model_year
+            )
+            q = inflate_cornerstone_q_or_y_with_commodity_pi(
+                q, original_year=detail_year, target_year=model_year
+            )
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
             Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
@@ -653,26 +688,32 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 
     Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
     Industry ``x`` is:
-    - USEEIO B method (`use_useeio_B=True`): target-year gross output adjusted
-      to original-year USD using industry chained-price index ratio.
+    - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
+      gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
+      ``PI(usa_ghg_data_year)/PI(usa_detail_original_year)`` so ``E/x`` uses
+      ``usa_detail_original_year`` chain dollars. ``USAConfig`` requires
+      ``use_E_data_year_for_x_in_B`` to be true whenever deflation is on; the
+      deflate branch always builds nominal ``x`` via
+      ``derive_cornerstone_x_after_redefinition()`` before the PI ratio, so
+      ``use_E_data_year_for_x_in_B`` does not further branch choice here.
     - otherwise: ``derive_cornerstone_x_after_redefinition()`` when
       ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
     E = derive_E_usa()
     cfg = get_usa_config()
-    if cfg.use_useeio_B:
-        # USEEIO B method:
-        #   1) adjust target-year industry output into original-year USD
-        #   2) divide E by adjusted industry output
-        #   3) transform to commodity space using market shares (Vnorm)
+    if cfg.deflate_x_to_detail_io_year_for_B:
+        # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:
+        #   1) nominal industry output at usa_ghg_data_year
+        #   2) divide by PI(ghg)/PI(detail) so x matches usa_detail_original_year $
+        #   3) divide E by adjusted industry output; map to commodities via Vnorm
         x_nominal = derive_cornerstone_x_after_redefinition()
         ratio = get_cornerstone_industry_price_ratio(
             original_year=cfg.usa_detail_original_year,
             target_year=cfg.usa_ghg_data_year,
         )
-        # ratio is PI_target / PI_original; divide nominal target-year dollars
-        # to convert x into original-year dollars for USEEIO-style B.
+        # ratio is PI_target / PI_original; divide nominal GHG-year dollars
+        # so x is expressed in usa_detail_original_year chain dollars for E/x.
         ratio_aligned = ratio.reindex(x_nominal.index)
         ratio_aligned = ratio_aligned.where(ratio_aligned.notna(), 1.0)
         x = x_nominal / ratio_aligned
@@ -692,23 +733,21 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
     cfg = get_usa_config()
-    # USEEIO B method keeps B on the base derivation path (no summary scaling /
-    # price inflation of B). use_E_data_year_for_x_in_B remains an independent
-    # x-sourcing switch inside derive_cornerstone_B_via_vnorm().
-    if cfg.use_useeio_B:
-        return derive_cornerstone_B_via_vnorm()
+    # ``deflate_x_to_detail_io_year_for_B`` implies ``use_E_data_year_for_x_in_B``
+    # (``USAConfig``). When either path is active, keep B on vnorm only (no
+    # summary scaling / industry PI inflation of B here); vnorm applies the
+    # deflate branch when that flag is set.
     if cfg.use_E_data_year_for_x_in_B:
         return derive_cornerstone_B_via_vnorm()
-    else:
-        return inflate_cornerstone_B_matrix_with_industry_pi(
-            scale_cornerstone_B(
-                B=derive_cornerstone_B_via_vnorm(),
-                original_year=cfg.usa_detail_original_year,
-                target_year=cfg.usa_io_data_year,
-            ),
-            original_year=cfg.usa_io_data_year,
-            target_year=cfg.model_base_year,
-        )
+    return inflate_cornerstone_B_matrix_with_industry_pi(
+        scale_cornerstone_B(
+            B=derive_cornerstone_B_via_vnorm(),
+            original_year=cfg.usa_detail_original_year,
+            target_year=cfg.usa_io_data_year,
+        ),
+        original_year=cfg.usa_io_data_year,
+        target_year=cfg.model_base_year,
+    )
 
 
 # ---------------------------------------------------------------------------

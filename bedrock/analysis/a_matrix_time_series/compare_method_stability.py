@@ -39,6 +39,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 from bedrock.analysis.a_matrix_time_series.constants import (
     PLOTS_DIR,
@@ -300,24 +302,86 @@ def _indexed_lines_plot(
     plt.close(fig)
 
 
+def _pooled_yoy(big: pd.DataFrame, approach: str) -> pd.Series:
+    """All sector×transition |YoY|s for ``approach``, no per-sector averaging."""
+    sub = big[big["approach"] == approach]
+    return pd.concat(
+        [sub[f"yoy_{y0}_{y1}"].abs() for y0, y1 in YOY_TRANSITIONS]
+    ).dropna()
+
+
 def _yoy_distribution_plot(per_sector: pd.DataFrame, out_path: Path) -> None:
-    """Boxplot of per-sector |YoY %| distributions, one box per (method, transition)."""
+    """3-panel summary of per-sector |YoY| across methods.
+
+    Left:   pooled distribution per method (all sector×transition |YoY|s).
+    Middle: |YoY| per transition, grouped by method.
+    Right:  ECDF of pooled |YoY| per method (threshold-reading view).
+    """
     approaches = sorted(per_sector["approach"].unique())
     cutoff = per_sector["mean_N"].abs().quantile(MIN_MEAN_PERCENTILE / 100)
     big = per_sector[per_sector["mean_N"].abs() >= cutoff]
+    cmap = plt.get_cmap("tab10")
+    colors = {a: cmap(i) for i, a in enumerate(approaches)}
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
-    # Left: boxplot of mean_abs_yoy_pct per method.
+    # Plot in percent units (|YoY| × 100) so axes read 0–30 = 0–30 %.
+    pooled_by_approach = {a: _pooled_yoy(big, a) * 100 for a in approaches}
+
+    # Shared ylim across boxplot panels, with a small negative buffer so the
+    # lower whiskers sit off the axis instead of being pinned to it.
+    box_ylim = (-2.0, 30.0)
+    # ECDF y-range goes higher than the boxplots so the summary_tables tail
+    # is visible — boxplots hide outliers (showfliers=False), so the ECDF is
+    # the panel that should show the full distribution.
+    ecdf_ylim = (0.0, 50.0)
+    percent_ticks = list(range(0, 31, 5))
+    percent_tick_labels = [f"{t}%" for t in percent_ticks]
+    ecdf_y_ticks = list(range(0, 51, 5))
+    ecdf_y_tick_labels = [f"{t}%" for t in ecdf_y_ticks]
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
+
+    # Left: pooled |YoY| per method (one box per method, all sector-years pooled).
     ax = axes[0]
-    data = [
-        big.loc[big["approach"] == a, "mean_abs_yoy_pct"].dropna() for a in approaches
+    bp = ax.boxplot(
+        [pooled_by_approach[a] for a in approaches],
+        tick_labels=approaches,
+        showfliers=False,
+        patch_artist=True,
+    )
+    for i, patch in enumerate(bp["boxes"]):
+        patch.set_facecolor(colors[approaches[i]])
+        patch.set_alpha(0.6)
+    ax.axhline(0, color="black", linewidth=0.8, alpha=0.5)
+    ax.set_title("Pooled |YoY| (all sector-years)", fontsize=13)
+    ax.set_ylabel("|YoY| (lower = more stable)")
+    ax.set_ylim(*box_ylim)
+    ax.set_yticks(percent_ticks)
+    ax.set_yticklabels(percent_tick_labels)
+    legend_handles = [
+        Patch(facecolor=colors[a], alpha=0.6, label=a) for a in approaches
+    ] + [
+        Line2D([], [], color="tab:orange", linewidth=2.25, label="median"),
+        Patch(
+            facecolor="white",
+            edgecolor="black",
+            linewidth=1.5,
+            label="box (Q1–Q3 / IQR)",
+        ),
+        Line2D(
+            [],
+            [],
+            color="black",
+            linewidth=1.5,
+            marker="_",
+            markersize=13,
+            markeredgewidth=1.8,
+            label="whisker (non-outlier range)",
+        ),
     ]
-    ax.boxplot(data, tick_labels=approaches, showfliers=False)
-    ax.set_title("Per-sector mean |YoY %|", fontsize=13)
-    ax.set_ylabel("|YoY %| (lower = more stable)")
+    ax.legend(handles=legend_handles, loc="upper left", fontsize=12, framealpha=0.9)
     ax.grid(axis="y", alpha=0.3)
 
-    # Right: per-transition |YoY %|, grouped boxes per method.
+    # Middle: per-transition |YoY|, grouped boxes per method.
     ax = axes[1]
     transition_labels = [f"{y0}→{y1}" for y0, y1 in YOY_TRANSITIONS]
     n_methods = len(approaches)
@@ -325,7 +389,7 @@ def _yoy_distribution_plot(per_sector: pd.DataFrame, out_path: Path) -> None:
     for i, approach in enumerate(approaches):
         sub = big[big["approach"] == approach]
         per_transition = [
-            sub[f"yoy_{y0}_{y1}"].abs().dropna() for y0, y1 in YOY_TRANSITIONS
+            sub[f"yoy_{y0}_{y1}"].abs().dropna() * 100 for y0, y1 in YOY_TRANSITIONS
         ]
         positions = [
             j + (i - (n_methods - 1) / 2) * width for j in range(len(YOY_TRANSITIONS))
@@ -337,17 +401,45 @@ def _yoy_distribution_plot(per_sector: pd.DataFrame, out_path: Path) -> None:
             patch_artist=True,
             showfliers=False,
         )
-        color = plt.get_cmap("tab10")(i)
         for patch in bp["boxes"]:
-            patch.set_facecolor(color)
+            patch.set_facecolor(colors[approach])
             patch.set_alpha(0.6)
-        ax.plot([], [], color=color, label=approach, linewidth=8, alpha=0.6)
+    ax.axhline(0, color="black", linewidth=0.8, alpha=0.5)
     ax.set_xticks(range(len(YOY_TRANSITIONS)))
     ax.set_xticklabels(transition_labels)
-    ax.set_title("|YoY %| per transition, by method", fontsize=13)
-    ax.set_ylabel("|YoY %|")
-    ax.legend(loc="upper right", fontsize=9)
+    ax.set_title("|YoY| per transition, by method", fontsize=13)
+    ax.set_ylabel("|YoY|")
+    ax.set_ylim(*box_ylim)
+    ax.set_yticks(percent_ticks)
+    ax.set_yticklabels(percent_tick_labels)
     ax.grid(axis="y", alpha=0.3)
+
+    # Right: ECDF of pooled |YoY| per method, rotated so |YoY| stays on the
+    # y-axis (matching the boxplot panels). Read: "fraction of sector-years
+    # with |YoY| ≤ y" — pick a y (e.g. 5%), trace to the curve, read x.
+    ax = axes[2]
+    for approach in approaches:
+        vals = np.sort(pooled_by_approach[approach].to_numpy())
+        if len(vals) == 0:
+            continue
+        cdf = np.arange(1, len(vals) + 1) / len(vals)
+        ax.plot(cdf, vals, color=colors[approach], label=approach, linewidth=2)
+    for thr in (5, 10):
+        ax.axhline(thr, color="black", linestyle=":", linewidth=1, alpha=0.5)
+    for x_ref in (0.9, 0.95):
+        ax.axvline(x_ref, color="grey", linestyle="--", linewidth=1, alpha=0.7)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(*ecdf_ylim)
+    ax.set_title("Empirical cumulative distribution of pooled |YoY|", fontsize=13)
+    ax.set_xlabel("% of sector-years with |YoY| ≤ y-axis value")
+    ax.set_ylabel("|YoY|")
+    x_ticks = [i / 10 for i in range(0, 11)]
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels([f"{int(t * 100)}%" for t in x_ticks])
+    ax.set_yticks(ecdf_y_ticks)
+    ax.set_yticklabels(ecdf_y_tick_labels)
+    ax.legend(loc="upper left", fontsize=12, framealpha=0.9)
+    ax.grid(alpha=0.3)
 
     fig.suptitle("Year-over-year fluctuation in N across A-matrix methods", fontsize=15)
     fig.tight_layout()

@@ -571,7 +571,7 @@ if __name__ == "__main__":
     from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
     from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
-    _data_dir = pathlib.Path(__file__).resolve().parent
+    _data_dir = pathlib.Path(__file__).resolve().parent / "waste_disagg_inputs"
     _cfg = EEIOWasteDisaggConfig(
         use_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Use.csv"),
         make_weights_file=str(_data_dir / "WasteDisaggregationDetail2017_Make.csv"),

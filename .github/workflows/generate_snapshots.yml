@@ -7,7 +7,7 @@ on:
         description: "USA config name (without .yaml extension)"
         required: true
         type: string
-        default: "v8_ceda_2025_usa"
+        default: "2025_usa_cornerstone_full_model"
       snapshot_prefix_override:
         description: "Override snapshot prefix (optional)"
         required: false
@@ -42,7 +42,7 @@ jobs:
       - name: Generate snapshots
         id: generate
         run: |
-          CONFIG_NAME="${{ github.event.inputs.config_name || 'v8_ceda_2025_usa' }}"
+          CONFIG_NAME="${{ github.event.inputs.config_name || '2025_usa_cornerstone_full_model' }}"
           PREFIX="${{ github.event.inputs.snapshot_prefix_override }}"
           uv run python bedrock/utils/snapshots/generate_snapshots.py \
             --config_name "$CONFIG_NAME" \

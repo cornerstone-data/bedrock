@@ -1,5 +1,6 @@
-# Sensitivity from useeio_phoebe_23.
-# Turns off USEEIO B approach
+# Sensitivity from useeio_phoebe_23: restore Cornerstone B approach.
+# Sets deflate_x_to_detail_io_year_for_B to false so B-matrix construction returns to the
+# Cornerstone default (the rest of the rebuild stays as in useeio_phoebe_23).
 
 model_base_year: 2017
 iot_before_or_after_redefinition: before
@@ -15,7 +16,7 @@ implement_waste_disaggregation: true
 scale_a_matrix_with_useeio_method: true
 
 use_useeio_schema: true
-use_useeio_B: false # False means use Cornerstone B approach
+deflate_x_to_detail_io_year_for_B: false # False means use Cornerstone B approach
 use_ghg_national_2023_m2: true
 skip_scrap_adjustment_in_vnorm: true
 new_ghg_method: false
