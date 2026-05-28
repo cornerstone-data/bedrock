@@ -391,9 +391,7 @@ def _publish_q_deviation_tab(q_dev_df: pd.DataFrame) -> None:
     logger.info("Updated q_deviation_st_vs_cpi tab on sheet %s", sheet_id)
 
 
-def plot_q_commodity_pi_vs_summary_tables(
-    years: tuple[int, ...], path: Path
-) -> None:
+def plot_q_commodity_pi_vs_summary_tables(years: tuple[int, ...], path: Path) -> None:
     """Log-log scatter of q_summary_tables vs q_commodity_price_index per year.
 
     One subplot per year (2 × 4 grid). Each point is one Cornerstone commodity.
@@ -418,8 +416,13 @@ def plot_q_commodity_pi_vs_summary_tables(
 
         if not (cpi_path.exists() and st_path.exists()):
             ax.text(
-                0.5, 0.5, f"{year}\n(missing parquet)",
-                transform=ax.transAxes, ha="center", va="center", fontsize=9,
+                0.5,
+                0.5,
+                f"{year}\n(missing parquet)",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=9,
             )
             ax.set_title(str(year), fontsize=9)
             continue
@@ -427,18 +430,31 @@ def plot_q_commodity_pi_vs_summary_tables(
         q_cpi = _load_q_detail("commodity_price_index", year)
         q_st = _load_q_detail("summary_tables", year)
 
-        common = pd.Index(CORNERSTONE_COMMODITIES).intersection(q_cpi.index).intersection(q_st.index)
+        common = (
+            pd.Index(CORNERSTONE_COMMODITIES)
+            .intersection(q_cpi.index)
+            .intersection(q_st.index)
+        )
         x = q_cpi.reindex(common).to_numpy(dtype=float)
         y = q_st.reindex(common).to_numpy(dtype=float)
 
         # Mask non-positive values so log scale works cleanly
         mask = (x > 0) & (y > 0)
-        ax.scatter(x[mask], y[mask], s=6, alpha=0.6, color=APPROACH_COLORS["commodity_price_index"], zorder=2)
+        ax.scatter(
+            x[mask],
+            y[mask],
+            s=6,
+            alpha=0.6,
+            color=APPROACH_COLORS["commodity_price_index"],
+            zorder=2,
+        )
 
         # Identity line
         lo = min(x[mask].min(), y[mask].min()) * 0.9
         hi = max(x[mask].max(), y[mask].max()) * 1.1
-        ax.plot([lo, hi], [lo, hi], color="black", linewidth=0.8, linestyle="--", zorder=3)
+        ax.plot(
+            [lo, hi], [lo, hi], color="black", linewidth=0.8, linestyle="--", zorder=3
+        )
 
         ax.set_xscale("log")
         ax.set_yscale("log")
