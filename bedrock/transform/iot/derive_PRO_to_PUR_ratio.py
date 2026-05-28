@@ -79,7 +79,7 @@ def derive_2017_margins_cornerstone_inflated_usa(
     index (same basis as ``inflate_cornerstone_q_or_y_with_commodity_pi``).
 
     ``Transportation``, ``Wholesale``, and ``Retail`` are inflated using a
-    weighted average of industry price ratios for the relevant trade/transport
+    weighted average of commodity price ratios for the relevant trade/transport
     sectors — **TODO: implement once weighting spec is confirmed**.
 
     ``Purchasers' Value`` is recomputed as the sum of the four inflated
@@ -91,7 +91,7 @@ def derive_2017_margins_cornerstone_inflated_usa(
     df["Producers' Value"] *= commodity_pi.reindex(df.index, fill_value=1.0)
 
     # TODO: inflate Transportation, Wholesale, Retail with weighted-average
-    # industry price ratios for the relevant trade/transport sectors.
+    # commodity price ratios for the relevant trade/transport sectors.
 
     df["Purchasers' Value"] = (
         df["Producers' Value"] + df["Transportation"] + df["Wholesale"] + df["Retail"]
