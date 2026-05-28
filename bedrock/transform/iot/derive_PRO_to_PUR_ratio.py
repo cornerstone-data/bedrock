@@ -8,6 +8,7 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_sector_commodity_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
@@ -78,9 +79,9 @@ def derive_2017_margins_cornerstone_inflated_usa(
     ``Producers' Value`` is inflated using the V-norm-weighted commodity price
     index (same basis as ``inflate_cornerstone_q_or_y_with_commodity_pi``).
 
-    ``Transportation``, ``Wholesale``, and ``Retail`` are inflated using a
-    weighted average of commodity price ratios for the relevant trade/transport
-    sectors — **TODO: implement once weighting spec is confirmed**.
+    ``Transportation``, ``Wholesale``, and ``Retail`` are inflated using the
+    ITA-based sector commodity price ratio for BEA sector codes 48TW, 42,
+    and 44RT respectively (see ``get_sector_commodity_price_ratio``).
 
     ``Purchasers' Value`` is recomputed as the sum of the four inflated
     components to preserve internal consistency.
@@ -90,8 +91,10 @@ def derive_2017_margins_cornerstone_inflated_usa(
     commodity_pi = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
     df["Producers' Value"] *= commodity_pi.reindex(df.index, fill_value=1.0)
 
-    # TODO: inflate Transportation, Wholesale, Retail with weighted-average
-    # commodity price ratios for the relevant trade/transport sectors.
+    sector_pi = get_sector_commodity_price_ratio(original_year, target_year)
+    df["Transportation"] *= sector_pi["48TW"]
+    df["Wholesale"] *= sector_pi["42"]
+    df["Retail"] *= sector_pi["44RT"]
 
     df["Purchasers' Value"] = (
         df["Producers' Value"] + df["Transportation"] + df["Wholesale"] + df["Retail"]
