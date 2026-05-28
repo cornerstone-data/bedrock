@@ -196,10 +196,7 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
 @functools.cache
 def electricity_disaggregation_enabled() -> bool:
     cfg = get_usa_config()
-    return (
-        cfg.implement_electricity_disaggregation
-        and get_waste_disagg_weights() is not None
-    )
+    return cfg.implement_electricity_disaggregation
 
 
 @dataclass
@@ -414,10 +411,10 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 @functools.cache
 def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
     if electricity_disaggregation_enabled():
-        b = _derive_cornerstone_io_after_electricity_reallocation()
+        reallocated_io = _derive_cornerstone_io_after_electricity_reallocation()
         return SingleRegionUMatrixSet(
-            Udom=pt.DataFrame[CornerstoneUMatrix](b.Udom.copy()),  # type: ignore[arg-type]
-            Uimp=pt.DataFrame[CornerstoneUMatrix](b.Uimp.copy()),  # type: ignore[arg-type]
+            Udom=pt.DataFrame[CornerstoneUMatrix](reallocated_io.Udom.copy()),  # type: ignore[arg-type]
+            Uimp=pt.DataFrame[CornerstoneUMatrix](reallocated_io.Uimp.copy()),  # type: ignore[arg-type]
         )
     Udom_cs, Uimp_cs = _derive_cornerstone_U_after_waste()
     return SingleRegionUMatrixSet(
@@ -773,7 +770,6 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
     Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
-    E is not column-shifted by electricity reallocation; Vnorm and x use reallocated V.
     Industry ``x`` is:
     - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
       gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
