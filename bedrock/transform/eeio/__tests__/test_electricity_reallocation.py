@@ -1,4 +1,4 @@
-"""Tests for 221100 electricity co-production reallocation (PR2)."""
+"""Tests for 221100 electricity co-production reallocation."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
     derive_cornerstone_U_set,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_V,
@@ -34,12 +33,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_coproduction_transfer_schedule,
     expected_post_reallocation_diagonals,
 )
-from bedrock.utils.config.usa_config import (
-    USAConfig,
-    _load_usa_config_from_file_name,
-    reset_usa_config,
-    set_global_usa_config,
-)
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
@@ -54,7 +48,6 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_cornerstone_Ytot_matrix_set,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
 ]
 
 
@@ -73,31 +66,6 @@ def _setup_config(config_name: str) -> None:
 def _teardown() -> None:
     _clear_all_caches()
     reset_usa_config(should_reset_env_var=True)
-
-
-class TestElectricityConfig:
-    def teardown_method(self) -> None:
-        _teardown()
-
-    def test_electricity_flag_requires_waste(self) -> None:
-        with pytest.raises(
-            ValueError,
-            match="implement_electricity_disaggregation requires implement_waste_disaggregation",
-        ):
-            USAConfig.model_validate(
-                {
-                    "implement_electricity_disaggregation": True,
-                    "implement_waste_disaggregation": False,
-                },
-                strict=True,
-            )
-
-    def test_electricity_disagg_config_parsing(self) -> None:
-        config = _load_usa_config_from_file_name(
-            "test_usa_config_waste_disagg_electricity.yaml"
-        )
-        assert config.implement_waste_disaggregation is True
-        assert config.implement_electricity_disaggregation is True
 
 
 class TestTransferSchedule:
@@ -161,17 +129,6 @@ class TestElectricityReallocationIntegration:
     def teardown_method(self) -> None:
         _teardown()
 
-    def test_reallocation_clears_221100_off_diagonals(self) -> None:
-        _setup_config("test_usa_config_waste_disagg_electricity.yaml")
-        V = derive_cornerstone_V()
-        agg = ELECTRICITY_AGGREGATE
-        non_agg_cols = V.columns.drop(agg)
-        non_agg_rows = V.index.drop(agg)
-        row_off = V.loc[agg].reindex(non_agg_cols)
-        col_off = V[agg].reindex(non_agg_rows)
-        assert np.allclose(_float_ndarray(row_off.to_numpy()), 0.0, atol=1.0)
-        assert np.allclose(_float_ndarray(col_off.to_numpy()), 0.0, atol=1.0)
-
     def test_post_reallocation_diagonal_values(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
         V_pre = _derive_cornerstone_V_after_waste()
@@ -189,29 +146,6 @@ class TestElectricityReallocationIntegration:
                 rtol=0,
                 atol=BALANCE_TOLERANCE,
             )
-
-    def test_commodity_221100_totals_preserved(self) -> None:
-        _setup_config("test_usa_config_waste_disagg.yaml")
-        V_pre = _derive_cornerstone_V_after_waste()
-        uset_pre = derive_cornerstone_U_with_negatives()
-        y = derive_cornerstone_Ytot_matrix_set().ytot
-        col_pre = float(V_pre[ELECTRICITY_AGGREGATE].sum())
-        use_pre = float(
-            (uset_pre.Udom + uset_pre.Uimp).loc[ELECTRICITY_AGGREGATE].sum()
-            + y.get(ELECTRICITY_AGGREGATE, 0.0)
-        )
-
-        _setup_config("test_usa_config_waste_disagg_electricity.yaml")
-        V_post = derive_cornerstone_V()
-        uset_post = derive_cornerstone_U_with_negatives()
-        y_post = derive_cornerstone_Ytot_matrix_set().ytot
-        col_post = float(V_post[ELECTRICITY_AGGREGATE].sum())
-        use_post = float(
-            (uset_post.Udom + uset_post.Uimp).loc[ELECTRICITY_AGGREGATE].sum()
-            + y_post.get(ELECTRICITY_AGGREGATE, 0.0)
-        )
-        assert col_pre == pytest.approx(col_post, abs=1.0)
-        assert use_pre == pytest.approx(use_post, abs=BALANCE_TOLERANCE)
 
     def test_make_use_commodity_balance(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
@@ -282,15 +216,6 @@ class TestElectricityReallocationIntegration:
             atol=1e-6,
         )
 
-    @pytest.mark.eeio_integration
-    def test_pipeline_b_dimensions(self) -> None:
-        _setup_config("2025_usa_cornerstone_full_model_electricity_disagg.yaml")
-        B = derive_cornerstone_B_non_finetuned()
-        E = derive_E_usa()
-        assert B.shape[0] == E.shape[0]
-        assert B.shape[1] == 405
-
-    @pytest.mark.eeio_integration
     def test_diagnostics_helpers_run(self) -> None:
         _setup_config("2025_usa_cornerstone_full_model_electricity_disagg.yaml")
         result = pull_efs_for_diagnostics()

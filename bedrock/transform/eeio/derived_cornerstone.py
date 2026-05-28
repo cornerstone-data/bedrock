@@ -773,7 +773,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
     Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
-    E is not column-shifted by electricity reallocation (PR2); Vnorm and x use reallocated V.
+    E is not column-shifted by electricity reallocation; Vnorm and x use reallocated V.
     Industry ``x`` is:
     - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
       gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
