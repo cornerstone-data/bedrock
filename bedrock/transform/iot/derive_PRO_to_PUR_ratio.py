@@ -54,6 +54,21 @@ _useeio_margins_filters: MarginsFilters = MarginsFilters(
     exclude_industry_codes=frozenset({"F04000", "F05000", "F03000"}),
 )
 
+# Cornerstone filters
+# Exclude BEA bookkeeping commodities that are removed from model as well as scrap
+#   S00300 Noncomparable imports, S00900 Rest of the world adjustment, S00401 Scrap
+# Exclude final demand destinations whose margins do not reflect industry consumers
+# or consumption within the US. Exclude import and export and all final uses
+# except nonresidential investment (F02E00, F02N00, F02S00) and change in
+# private inventories (F03000)
+# See justification here:
+# https://github.com/cornerstone-data/methods/discussions/25
+_cornerstone_margins_filters: MarginsFilters = MarginsFilters(
+    exclude_commodity_codes=frozenset({"S00401", "S00300", "S00900"}),
+    exclude_industry_codes=frozenset(USA_2017_FINAL_DEMAND_CODES)
+    - frozenset({"F03000", "F02E00", "F02N00", "F02S00"}),
+)
+
 
 def set_ceda_margins_filters(filters: MarginsFilters) -> None:
     """Set the margins filters applied in the CEDA pipeline."""
@@ -70,15 +85,16 @@ def set_useeio_margins_filters(filters: MarginsFilters) -> None:
 def _get_active_margins_filters() -> MarginsFilters:
     """Return the active filter set based on config flags.
 
-    ``apply_useeio_margins_filters`` takes precedence when
-    ``use_useeio_schema`` is True; otherwise ``apply_ceda_margins_filters``
-    controls the CEDA/Cornerstone path. Returns an empty ``MarginsFilters``
-    (no-op) when the relevant flag is off.
+    ``useeio_margins`` takes precedence; otherwise ``cornerstone_margins``
+    controls the Cornerstone path, then ``ceda_margins`` the
+    CEDA path. Returns an empty ``MarginsFilters`` (no-op) when no flag is set.
     """
     cfg = get_usa_config()
-    if cfg.use_useeio_schema and cfg.apply_useeio_margins_filters:
+    if cfg.useeio_margins:
         return _useeio_margins_filters
-    if cfg.apply_ceda_margins_filters:
+    if cfg.cornerstone_margins:
+        return _cornerstone_margins_filters
+    if cfg.ceda_margins:
         return _ceda_margins_filters
     return MarginsFilters()
 
@@ -99,19 +115,42 @@ def _apply_margins_filter(df: pd.DataFrame, filters: MarginsFilters) -> pd.DataF
     return df.loc[mask]
 
 
+_MARGIN_VALUE_COLUMNS = ("Producers' Value", "Transportation", "Wholesale", "Retail")
+
+
+def _margin_negatives_treatment(
+    df: pd.DataFrame,
+    abs_negative_producers_value: bool = False,
+    abs_negative_margin_columns: bool = False,
+) -> pd.DataFrame:
+    """Flip negative margin values to positive in-place.
+
+    ``abs_negative_margin_columns`` (triggered by ``cornerstone_margins`` config
+    flag) flips negatives across all four margin columns and takes precedence.
+    ``abs_negative_producers_value`` flips only ``Producers' Value``.
+    """
+    if abs_negative_margin_columns:
+        for col in _MARGIN_VALUE_COLUMNS:
+            mask = df[col] < 0
+            df.loc[mask, col] = df.loc[mask, col].abs()
+    elif abs_negative_producers_value:
+        mask = df["Producers' Value"] < 0
+        df.loc[mask, "Producers' Value"] = df.loc[mask, "Producers' Value"].abs()
+    return df
+
+
 def _margins_by_commodity(
     filters: MarginsFilters,
     abs_negative_producers_value: bool = False,
+    abs_negative_margin_columns: bool = False,
 ) -> pd.DataFrame:
-    """Load raw margins, apply ``filters``, and sum to per-commodity totals.
-
-    When ``abs_negative_producers_value`` is ``True``, any row with a negative
-    ``Producers' Value`` has its sign flipped before the groupby-sum.
-    """
+    """Load raw margins, apply ``filters``, and sum to per-commodity totals."""
     df = _apply_margins_filter(load_2017_margins_usa(), filters)
-    if abs_negative_producers_value:
-        mask = df["Producers' Value"] < 0
-        df.loc[mask, "Producers' Value"] = df.loc[mask, "Producers' Value"].abs()
+    df = _margin_negatives_treatment(
+        df,
+        abs_negative_producers_value=abs_negative_producers_value,
+        abs_negative_margin_columns=abs_negative_margin_columns,
+    )
     return (
         df.groupby(level="Commodity Code")
         .sum()
@@ -132,7 +171,7 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
 
     filters = (
         _ceda_margins_filters
-        if get_usa_config().apply_ceda_margins_filters
+        if get_usa_config().ceda_margins
         else MarginsFilters()
     )
     margin = corresp @ _margins_by_commodity(filters)
@@ -160,8 +199,8 @@ def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
     corresp = load_usa_2017_commodity__cornerstone_commodity_correspondence()
     return corresp @ _margins_by_commodity(
         _get_active_margins_filters(),
-        abs_negative_producers_value=cfg.use_useeio_schema
-        and cfg.apply_useeio_margins_filters,
+        abs_negative_producers_value=cfg.useeio_margins,
+        abs_negative_margin_columns=cfg.cornerstone_margins,
     )
 
 
