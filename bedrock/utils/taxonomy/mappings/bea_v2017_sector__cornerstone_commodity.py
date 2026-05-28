@@ -21,7 +21,7 @@ def load_bea_v2017_sector_commodity_to_cornerstone_commodity() -> (
         load_bea_v2017_sector_commodity_to_bea_v2017_commodity(),
         load_bea_v2017_commodity_to_cornerstone_commodity(),
     )
-    validate_mapping(  # type: ignore[misc]
+    validate_mapping(
         mapping,
         domain=set(BEA_2017_SECTOR_COMMODITY_CODES),
         codomain=set(COMMODITIES),
