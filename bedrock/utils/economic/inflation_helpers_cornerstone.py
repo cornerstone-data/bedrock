@@ -13,8 +13,6 @@ from __future__ import annotations
 import functools
 import typing as ta
 
-_StrKey = ta.TypeVar("_StrKey", bound=str)
-
 import numpy as np
 import pandas as pd
 
@@ -49,6 +47,8 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity imp
 
 CORNERSTONE_INDUSTRIES: list[str] = list(INDUSTRIES)
 CORNERSTONE_COMMODITIES: list[str] = list(COMMODITIES)
+
+_StrKey = ta.TypeVar("_StrKey", bound=str)
 
 
 @functools.cache
