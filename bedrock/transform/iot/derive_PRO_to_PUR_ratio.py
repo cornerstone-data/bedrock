@@ -170,9 +170,7 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
     corresp.columns.names = ["commodity"]
 
     filters = (
-        _ceda_margins_filters
-        if get_usa_config().ceda_margins
-        else MarginsFilters()
+        _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
     )
     margin = corresp @ _margins_by_commodity(filters)
     # assume expanded_sectors will receive equal portion of value from aggregated sector
