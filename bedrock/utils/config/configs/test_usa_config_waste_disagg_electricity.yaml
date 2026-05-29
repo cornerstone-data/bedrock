@@ -2,7 +2,7 @@ model_base_year: 2023
 usa_ghg_data_year: 2023
 use_cornerstone_2026_model_schema: True
 implement_waste_disaggregation: True
-implement_electricity_disaggregation: True
+implement_electricity_reallocation: True
 eeio_waste_disaggregation:
   use_weights_file: "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Use.csv"
   make_weights_file: "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Make.csv"

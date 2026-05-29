@@ -77,7 +77,7 @@ class USAConfig(BaseModel):
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
-    implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
+    implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
@@ -176,11 +176,11 @@ class USAConfig(BaseModel):
                 'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
             )
         if (
-            self.implement_electricity_disaggregation
+            self.implement_electricity_reallocation
             and not self.implement_waste_disaggregation
         ):
             raise ValueError(
-                'implement_electricity_disaggregation requires '
+                'implement_electricity_reallocation requires '
                 'implement_waste_disaggregation'
             )
         return self

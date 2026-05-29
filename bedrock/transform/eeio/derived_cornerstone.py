@@ -194,9 +194,9 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
 
 
 @functools.cache
-def electricity_disaggregation_enabled() -> bool:
+def electricity_reallocation_enabled() -> bool:
     cfg = get_usa_config()
-    return cfg.implement_electricity_disaggregation
+    return cfg.implement_electricity_reallocation
 
 
 @dataclass
@@ -285,7 +285,7 @@ def _derive_cornerstone_io_after_electricity_reallocation() -> _CornerstoneIOBun
 @pa.check_output(CornerstoneVMatrix.to_schema())
 def derive_cornerstone_V() -> pd.DataFrame:
     """V matrix (industry × commodity) via correspondence multiplication."""
-    if electricity_disaggregation_enabled():
+    if electricity_reallocation_enabled():
         return _derive_cornerstone_io_after_electricity_reallocation().V.copy()
     return _derive_cornerstone_V_after_waste()
 
@@ -419,7 +419,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
 @functools.cache
 def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
-    if electricity_disaggregation_enabled():
+    if electricity_reallocation_enabled():
         reallocated_io = _derive_cornerstone_io_after_electricity_reallocation()
         return SingleRegionUMatrixSet(
             Udom=pt.DataFrame[CornerstoneUMatrix](reallocated_io.Udom.copy()),  # type: ignore[arg-type]
@@ -512,7 +512,7 @@ def derive_cornerstone_VA() -> pd.DataFrame:
     Callers needing Cornerstone-space VA should use this function rather than
     assembling VA manually.
     """
-    if electricity_disaggregation_enabled():
+    if electricity_reallocation_enabled():
         return _derive_cornerstone_io_after_electricity_reallocation().VA.copy()
     return _derive_cornerstone_VA_after_waste()
 

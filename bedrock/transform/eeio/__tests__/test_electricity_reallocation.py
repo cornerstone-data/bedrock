@@ -20,7 +20,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_V,
     derive_cornerstone_VA,
     derive_cornerstone_Ytot_matrix_set,
-    electricity_disaggregation_enabled,
+    electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
@@ -38,7 +38,7 @@ from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostic
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
-    electricity_disaggregation_enabled,
+    electricity_reallocation_enabled,
     _derive_cornerstone_io_after_electricity_reallocation,
     derive_cornerstone_V,
     derive_cornerstone_U_with_negatives,
@@ -216,7 +216,7 @@ class TestElectricityReallocationIntegration:
 
     def test_feature_off_regression(self) -> None:
         _setup_config("2025_usa_cornerstone_full_model.yaml")
-        assert electricity_disaggregation_enabled() is False
+        assert electricity_reallocation_enabled() is False
         V_full = derive_cornerstone_V()
         _setup_config("test_usa_config_waste_disagg.yaml")
         V_waste = derive_cornerstone_V()
@@ -234,6 +234,6 @@ class TestElectricityReallocationIntegration:
         )
 
     def test_diagnostics_helpers_run(self) -> None:
-        _setup_config("2025_usa_cornerstone_full_model_electricity_disagg.yaml")
+        _setup_config("2025_usa_cornerstone_full_model_electricity_reallocation.yaml")
         result = pull_efs_for_diagnostics()
         assert result is not None
