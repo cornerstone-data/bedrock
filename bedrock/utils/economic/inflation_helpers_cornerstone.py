@@ -13,6 +13,8 @@ from __future__ import annotations
 import functools
 import typing as ta
 
+_StrKey = ta.TypeVar("_StrKey", bound=str)
+
 import numpy as np
 import pandas as pd
 
@@ -291,7 +293,7 @@ def get_summary_commodity_price_ratio(
 def _aggregate_commodity_pi(
     pi_com_detail: pd.Series,
     q_y: pd.Series,
-    code_to_children: dict[str, list[str]],
+    code_to_children: ta.Mapping[_StrKey, ta.Sequence[str]],
 ) -> dict[str, float]:
     """q-weighted mean of cornerstone commodity PI over each group's children.
 
@@ -346,7 +348,9 @@ def get_summary_commodity_price_index(year: int) -> pd.Series[float]:
     an unweighted mean of children's PI.
     """
     q_y, pi_com_detail = _cornerstone_commodity_pi_for_year(year)
-    out = _aggregate_commodity_pi(pi_com_detail, q_y, load_bea_v2017_summary_to_cornerstone())
+    out = _aggregate_commodity_pi(
+        pi_com_detail, q_y, load_bea_v2017_summary_to_cornerstone()
+    )
     return pd.Series(out, dtype=float).reindex(
         USA_2017_SUMMARY_INDUSTRY_CODES, fill_value=100.0
     )
