@@ -1,0 +1,88 @@
+# CEDA 2023 with updated MECS year and GHGI allocation table aligned to MECS year
+# rather than GHGI year.
+# mecs_year 2022, ghg_fba EPA_GHGI_T_A_6, no ghgi_year in allocate_industrial_combustion.
+
+!include:GHG_national_CEDA_2023.yaml
+  mecs_year: &mecs_year 2022
+
+  _attribution_sources:
+    EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
+      activity_to_sector_mapping: CEDA_2025
+      year: *mecs_year
+
+  _industrial_combustion_dict: &industrial_combustion_dict
+    energy_fba: 'EIA_MECS_Energy'
+    year: *mecs_year
+    ghg_fba: 'EPA_GHGI_T_A_6'  # aligns with 2022 MECS
+
+  source_names: !include:GHG_national_CEDA_2023.yaml:source_names
+    "EPA_GHGI_T_A_5": !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5
+      clean_parameter: *industrial_combustion_dict
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5:activity_sets
+        coal_manufacturing_co2:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5:activity_sets:coal_manufacturing_co2
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5:activity_sets:coal_manufacturing_co2:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+        natural_gas_manufacturing:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5:activity_sets:natural_gas_manufacturing
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5:activity_sets:natural_gas_manufacturing:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+        petroleum_industrial:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5:activity_sets:petroleum_industrial
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_A_5:activity_sets:petroleum_industrial:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+
+    EPA_GHGI_T_3_8: &stationary_combustion
+      !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8
+      clean_parameter: *industrial_combustion_dict
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets
+        fuel_oil_industrial:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets:fuel_oil_industrial
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets:fuel_oil_industrial:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+        coal_manufacturing:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets:coal_manufacturing
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets:coal_manufacturing:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+        ng_manufacturing:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets:ng_manufacturing
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_8:activity_sets:ng_manufacturing:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+
+    EPA_GHGI_T_3_9: *stationary_combustion  # N2O emissions from stationary combustion
+
+    EPA_GHGI_T_3_25: !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25
+      activity_sets:
+        !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25:activity_sets
+        petroleum_neu:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25:activity_sets:petroleum_neu
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25:activity_sets:petroleum_neu:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+        natural_gas_neu:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25:activity_sets:natural_gas_neu
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25:activity_sets:natural_gas_neu:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
+        transportation_lubricants:
+          !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25:activity_sets:transportation_lubricants
+          attribution_source:
+            EIA_MECS_Energy_Allocation_CEDA:
+              !include:GHG_national_CEDA_2023.yaml:source_names:EPA_GHGI_T_3_25:activity_sets:transportation_lubricants:attribution_source:EIA_MECS_Energy_Allocation_CEDA
+              year: *mecs_year
