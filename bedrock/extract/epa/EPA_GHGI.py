@@ -806,8 +806,8 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
     # Load energy consumption by fuel from GHGI - year should
     # match MECS, but for older CEDA methods, the use of GHGI inventory year
     # is maintained when defined in yaml (for older FBS).
-    # TODO: update year call to only use mecs_year (drop ghgi_year) when 
-    # we drop the Cornerstone FBS flags
+    # TODO: update year call to only use mecs_year (drop ghgi_year) when
+    #  we drop the Cornerstone FBS flags
     ghgi = load_fba_w_standardized_units(
         datasource=cast(str, parameter_dict.get('ghg_fba')),
         year=cast(int, parameter_dict.get('ghgi_year', mecs_year)),
@@ -959,7 +959,6 @@ def clean_EPA_GHGI_T_4_124(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivit
 
 
 if __name__ == '__main__':
-
     # fba = bedrock.return_FBA('EPA_GHGI_T_4_101', 2016)
     # df = clean_HFC_fba(fba)
     tbl_list = [
