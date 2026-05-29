@@ -29,10 +29,20 @@ class CoprodTransfer:
 
 
 def build_coproduction_transfer_schedule(V: pd.DataFrame) -> list[CoprodTransfer]:
-    """Build ordered transfer list for 221100 row/column off-diagonals.
+    """
+    This function is creating an ordered list of transfers of the electricity
+    re-allocations for the make table 221100 row/column off-diagonals which are
+    carried out in reallocate_electricity_coproduction() function one at a time.
 
     Inbound transfers (other industries -> 221100 diagonal) run first, then
     outbound transfers (221100 row -> other commodity diagonals).
+
+    This order matters in two ways:
+    1) The movements for all tables (Make, Use, VA) have to be done for each step before
+    the next movement for any of these tables can be done, or else the totals will not match.
+    2) Applying inbound transfers first results in smaller transfers out of the Use and VA table's
+    221100 industry column in absolute value.
+
     """
     agg = ELECTRICITY_AGGREGATE
     inbound_to_221100_diagonal: list[tuple[float, CoprodTransfer]] = []

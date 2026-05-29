@@ -1,14 +1,12 @@
-"""Export V and extended U before/after 221100 electricity co-production reallocation."""
+"""Export before/after 221100 electricity co-production reallocation Make / Use tables."""
 
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 import pandas as pd
 
-import bedrock.utils.config.common as common
 from bedrock.publish.excel.writer import _apply_loc_suffix, _assemble_extended_U
 from bedrock.transform.eeio.derived_cornerstone import (
     _derive_cornerstone_U_after_waste,
@@ -16,15 +14,13 @@ from bedrock.transform.eeio.derived_cornerstone import (
     _derive_cornerstone_VA_after_waste,
     _derive_cornerstone_Ytot_with_trade,
 )
-from bedrock.utils.config.usa_config import USA_CONFIG_ENV_VAR
 from bedrock.utils.math.handle_negatives import handle_negative_matrix_values
 from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
 logger = logging.getLogger(__name__)
 
-OUTPUT_DIR = Path(__file__).resolve().parent
+_OUTPUT_DIR = Path(__file__).resolve().parent / 'output'
 OUTPUT_FILENAME = 'V_and_U_after_221100_reallocation.xlsx'
-_WRITTEN_CONFIGS: set[str] = set()
 
 
 def _industry_cols(extended_u: pd.DataFrame, va: pd.DataFrame) -> pd.Index:
@@ -75,13 +71,9 @@ def _delta_summary(before: pd.DataFrame, after: pd.DataFrame) -> pd.DataFrame:
     cols = ['x_make', 'x_use', 'q_make', 'q_use']
     idx = before.index.union(after.index)
     delta = after[cols].reindex(idx).fillna(0.0) - before[cols].reindex(idx).fillna(0.0)
-    delta.columns = [f'delta_{c}' for c in cols]
+    delta.columns = pd.Index([f'delta_{c}' for c in cols])
     delta['any_nonzero'] = (delta.abs() > 1.0).any(axis=1)
     return delta.sort_values('delta_x_make', key=lambda s: s.abs(), ascending=False)
-
-
-def _output_path() -> Path:
-    return OUTPUT_DIR / OUTPUT_FILENAME
 
 
 def _with_publish_loc_suffix(frame: pd.DataFrame) -> pd.DataFrame:
@@ -108,29 +100,15 @@ def _extended_use_tables(
     return extended, intermediate
 
 
-def maybe_write_electricity_disagg_intermediate_outputs(
+def write_electricity_reallocation_intermediate_outputs(
     *,
     v: pd.DataFrame,
     udom: pd.DataFrame,
     uimp: pd.DataFrame,
     va: pd.DataFrame,
-) -> Path | None:
-    """Write before/after reallocation V, extended U, and totals summaries to Excel.
-
-    Runs only during production-style pipelines (``download_fba_on_api_error``)
-    and skips pytest sessions.
-    """
-    if not common.download_fba_on_api_error:
-        return None
-    if os.environ.get('PYTEST_CURRENT_TEST'):
-        return None
-
-    config_file = os.environ.get(USA_CONFIG_ENV_VAR)
-    if not config_file:
-        return None
-    if config_file in _WRITTEN_CONFIGS:
-        return None
-
+    output_path: Path | None = None,
+) -> Path:
+    """Write before/after reallocation V, extended U, and totals summaries to Excel."""
     y_fd = _derive_cornerstone_Ytot_with_trade()[list(FINAL_DEMANDS)]
 
     v_before = _derive_cornerstone_V_after_waste()
@@ -166,9 +144,9 @@ def maybe_write_electricity_disagg_intermediate_outputs(
     )
     totals_delta = _delta_summary(summary_before, summary_after)
 
-    output_path = _output_path()
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+    dest = output_path or (_OUTPUT_DIR / OUTPUT_FILENAME)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(dest, engine='openpyxl') as writer:
         _with_publish_loc_suffix(v_before).to_excel(
             writer, sheet_name='V_waste_only', index=True
         )
@@ -191,10 +169,8 @@ def maybe_write_electricity_disagg_intermediate_outputs(
             writer, sheet_name='totals_delta', index=False
         )
 
-    _WRITTEN_CONFIGS.add(config_file)
     logger.info(
-        'Wrote electricity disagg intermediate outputs (7 sheets) to %s',
-        output_path.resolve(),
+        'Wrote electricity reallocation intermediate outputs (7 sheets) to %s',
+        dest.resolve(),
     )
-    print(f'Wrote electricity disagg intermediate outputs to {output_path.resolve()}')
-    return output_path
+    return dest
