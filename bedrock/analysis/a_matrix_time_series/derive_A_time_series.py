@@ -5,8 +5,8 @@ Steps 2–6, and creates a per-run Google Sheet in the analysis Drive folder
 (`1UcPmwLnL6MwTq9pMYJw5d43FJQOFQVO_`) with two summary tabs:
 
 - ``cache_summary`` — per (approach, year, matrix_kind) shape + integrity stats
-- ``sanity_2017_identity_check`` — confirms ``useeio``, ``industry_price_index``,
-  and ``commodity_price_index`` collapse to the BEA-2017 base A at
+- ``sanity_2017_identity_check`` — confirms ``useeio`` and
+  ``commodity_price_index`` collapse to the BEA-2017 base A at
   ``model_base_year = 2017``. ``summary_tables`` reads BEA's *summary*
   aggregation rather than the *detail* base, so it isn't expected to be
   identity at any year (recorded but not pass-fail tested). ``ceda_default``
@@ -50,7 +50,6 @@ logger = logging.getLogger(__name__)
 APPROACH_YAMLS: dict[str, str] = {
     "useeio": "2025_usa_cornerstone_A_useeio.yaml",
     "summary_tables": "2025_usa_cornerstone_A_summary_tables.yaml",
-    "industry_price_index": "2025_usa_cornerstone_A_industry_price_index.yaml",
     "commodity_price_index": "2025_usa_cornerstone_A_commodity_price_index.yaml",
     "ceda_default": "2025_usa_cornerstone_taxonomy.yaml",  # CEDA baseline with Cornerstone schema
     "useeio_nowcast": "2025_usa_cornerstone_A_useeio_nowcast.yaml",  # external reference
@@ -186,7 +185,6 @@ def _matrix_stats(
 
 _EXPECTED_IDENTITY_AT_2017 = {
     "useeio",
-    "industry_price_index",
     "commodity_price_index",
 }
 """Approaches whose 2017 output should equal the BEA-2017 base A within rtol.

@@ -67,7 +67,6 @@ YOY_SIGNED_VIOLIN_NO_IPI_PLOT_PATH = (
 TAB_RE = re.compile(r"^(?P<scenario>[a-z0-9_]+?)_(?P<year>\d{4})(?:\.0)?_(?P<rest>.+)$")
 APPROACH_PREFIXES: tuple[tuple[str, str], ...] = (
     ("commodity_pr", "commodity_price_index"),
-    ("industry_pri", "industry_price_index"),
     ("summary_tabl", "summary_tables"),
     # useeio_nowcast must come BEFORE useeio — "useeio" is a prefix of
     # "useeio_nowca" (the 31-char-truncated tab form), so the longer match

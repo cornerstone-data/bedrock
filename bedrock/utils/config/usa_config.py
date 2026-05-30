@@ -77,11 +77,13 @@ class USAConfig(BaseModel):
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
+    implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
+    scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
-    scale_a_matrix_with_industry_price_index: bool = False  # DRI: mo.li
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
+    adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     apply_inflation_to_V: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
@@ -100,6 +102,7 @@ class USAConfig(BaseModel):
     )
     update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
+    update_mecs_method: bool = False  # DRI: catherine.birney
     use_ghg_national_2023_m2: bool = False
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
@@ -173,6 +176,14 @@ class USAConfig(BaseModel):
         if self.use_ghg_national_2023_m2 and not self.use_useeio_schema:
             raise ValueError(
                 'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
+            )
+        if (
+            self.implement_electricity_reallocation
+            and not self.implement_waste_disaggregation
+        ):
+            raise ValueError(
+                'implement_electricity_reallocation requires '
+                'implement_waste_disaggregation'
             )
         return self
 

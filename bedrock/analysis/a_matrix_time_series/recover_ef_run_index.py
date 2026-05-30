@@ -75,7 +75,6 @@ APPROACH_BY_TEXT: dict[str, str] = {
     "USEEIO method": "useeio",
     "2017 benchmark A": "useeio",
     "summary tables": "summary_tables",
-    "industry price index": "industry_price_index",
     "commodity price index": "commodity_price_index",
     "USEEIO nowcast": "useeio_nowcast",
 }

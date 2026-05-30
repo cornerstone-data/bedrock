@@ -22,9 +22,9 @@ A-matrix change with the full bedrock v0.3 stack**
 (``bundle_v0_3``). Pooling them would mix two different counterfactuals
 against the same CEDA-US (v0) baseline.
 
-vs CEDA (v0) panels: 4 candidates (``useeio``, ``summary_tables``,
-``industry_price_index``, ``commodity_price_index``).
-vs USEEIO panels: 3 candidates (``useeio`` is the comparator and is
+vs CEDA (v0) panels: 3 candidates (``useeio``, ``summary_tables``,
+``commodity_price_index``).
+vs USEEIO panels: 2 candidates (``useeio`` is the comparator and is
 hidden).
 
 Usage:

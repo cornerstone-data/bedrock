@@ -57,7 +57,6 @@ DEFAULT_YEARS: tuple[int, ...] = (2019, 2020, 2021, 2022, 2023)
 ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
     "useeio": "2025_usa_cornerstone_A_useeio",
     "summary_tables": "2025_usa_cornerstone_A_summary_tables",
-    "industry_price_index": "2025_usa_cornerstone_A_industry_price_index",
     "commodity_price_index": "2025_usa_cornerstone_A_commodity_price_index",
     "useeio_nowcast": "2025_usa_cornerstone_A_useeio_nowcast",
 }
@@ -70,7 +69,6 @@ ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
 BUNDLE_V0_3_YAMLS: dict[str, str] = {
     "useeio": "2025_usa_cornerstone_full_model_A_useeio",
     "summary_tables": "2025_usa_cornerstone_full_model_A_summary_tables",
-    "industry_price_index": "2025_usa_cornerstone_full_model_A_industry_price_index",
     "commodity_price_index": "2025_usa_cornerstone_full_model_A_commodity_price_index",
     "useeio_nowcast": "2025_usa_cornerstone_full_model_A_useeio_nowcast",
 }
@@ -87,7 +85,6 @@ SCENARIO_YAMLS: dict[str, dict[str, str]] = {
 APPROACH_LABELS: dict[str, str] = {
     "useeio": "A matrix with 2017 benchmark A",
     "summary_tables": "A matrix with summary tables",
-    "industry_price_index": "A matrix with industry price index",
     "commodity_price_index": "A matrix with commodity price index",
     "useeio_nowcast": "A matrix from USEEIO nowcast",
     "full_model": "full v0.3 model",

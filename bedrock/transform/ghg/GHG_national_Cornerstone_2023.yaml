@@ -1,4 +1,4 @@
-# This is the 2023 method file for the Cornerstone GHG model (v2025)
+# This is the 2023 method file for the Cornerstone GHG model (v0.2)
 
 !include:Cornerstone_2025_target.yaml
 year: &ghgi_year 2023
@@ -578,7 +578,7 @@ source_names:
     # _allocate_industrial_coal_to_industries_energy_allocation() + _allocate_remaining_industrial_coal_usage()
     clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
     clean_parameter: # Override each year for use in allocate_industrial_combustion
-        energy_fba: 'EIA_MECS_Energy'  # todo: udpate for ceda to mecs table 3-1?
+        energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
         ghgi_year: *ghgi_year # CEDA uses the GHGI year not the MECS year
         ghg_fba: 'EPA_GHGI_T_A_5' # to align with ghgi year, use 'EPA_GHGI_T_A_10' for 2018 Table

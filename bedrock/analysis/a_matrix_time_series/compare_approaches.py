@@ -3,11 +3,9 @@
 Reads the parquet caches produced by ``derive_A_time_series.py`` (Step 1) and
 produces:
 
-- ``pairwise_hexbins_{dom,imp}.png`` — 1×3 grid of log-log hexbin
-  density plots between the three alternative approaches at 2024
-  (``summary_tables`` vs ``industry_price_index``,
-  ``summary_tables`` vs ``commodity_price_index``,
-  ``industry_price_index`` vs ``commodity_price_index``). Hexbin density
+- ``pairwise_hexbins_{dom,imp}.png`` — log-log hexbin
+  density plots between the alternative approaches at 2024
+  (``summary_tables`` vs ``commodity_price_index``). Hexbin density
   uses ``bins='log'`` because A cells span ~6 orders of magnitude and a
   linear color scale would be dominated by the near-zero peak. Step 2
   already covers alternative-vs-baseline scatters at 2024 (linear axes);

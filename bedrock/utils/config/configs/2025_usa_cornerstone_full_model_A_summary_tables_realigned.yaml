@@ -1,0 +1,10 @@
+# Full v0.2 model bundled with summary-tables A-matrix scaling and dollar-year
+# realignment: the target-year summary A/q is rebased into 2017 USD before the
+# cross-year ratio, then the scaled detail A/q is inflated 2017 -> model_year.
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+new_ghg_method: True
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+scale_a_matrix_with_summary_tables: True
+adjust_summary_A_and_q_dollar_year: True

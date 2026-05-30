@@ -291,17 +291,16 @@ fba_wsec_default_grouping_fields = get_flow_by_groupby_cols(
 )
 
 
-def clean_str_and_capitalize(s: str) -> str:
+def clean_str_and_capitalize(s: object) -> str:
     """
-    Trim whitespace, modify string so first letter capitalized.
-    :param s: str
-    :return: str, formatted
+    Trim whitespace, lowercase, and capitalize the first character.
+    Null and NaN values become an empty string.
     """
-    if isinstance(s.__class__, str):
-        s = s.strip()
-        s = s.lower()
-        s = s.capitalize()
-    return s
+    if s is None or (isinstance(s, float) and pd.isna(s)):
+        return ''
+    if not isinstance(s, str):
+        s = str(s)
+    return s.strip().lower().capitalize()
 
 
 def capitalize_first_letter(string: str) -> str:
