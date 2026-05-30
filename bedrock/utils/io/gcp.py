@@ -345,6 +345,17 @@ def create_spreadsheet_in_folder(title: str, folder_id: str) -> str:
     return ta.cast(str, file['id'])
 
 
+def list_sheet_tabs(sheet_id: str) -> list[str]:
+    """Return the ordered list of tab (worksheet) titles in a Google Sheet."""
+    client = __sheets_client()
+    meta = (
+        client.spreadsheets()
+        .get(spreadsheetId=sheet_id, fields="sheets.properties.title")
+        .execute()
+    )
+    return [s["properties"]["title"] for s in meta.get("sheets", [])]
+
+
 def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:
     """
     Read a Google Sheets tab into a DataFrame.

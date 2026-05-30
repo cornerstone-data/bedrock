@@ -40,11 +40,11 @@ Reads ``A_cells_long.parquet`` (Step 2 output). Produces:
 - Sheet tabs ``keysector_top_cells_ranked``, ``keysector_curated_shortlist``
   appended to the run-report Sheet.
 
-Tunable constants: ``RANK_TARGET_YEAR``, ``ALTERNATIVE_APPROACHES``,
+Tunable constants: ``RANK_TARGET_YEAR``, ``FOCUS_APPROACHES``,
 ``BASELINES``, ``HEATMAP_TOP_GROUPS``, ``DRILL_IN_TOP_N``, ``CSV_TOP_N``.
 
 Usage:
-    python -m bedrock.analysis.a_matrix_time_series.key_sector_deep_dive
+    python -m bedrock.analysis.a_matrix_time_series.compare_key_sectors
 """
 
 from __future__ import annotations
@@ -57,13 +57,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    LAST_RUN_SHEET_ID_PATH,
-    LATEST_TARGET_YEAR,
+    APPROACH_COLORS,
+    BASELINES,
+    FOCUS_APPROACHES,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.io.gcp import update_sheet_tab
+from bedrock.analysis.a_matrix_time_series.constants import (
+    APPROACH_ORDER as ALL_APPROACHES_PLOT_ORDER,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     USA_2017_SUMMARY_COMMODITY_DESC,
 )
@@ -76,27 +80,8 @@ logger = logging.getLogger(__name__)
 
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-RANK_TARGET_YEAR = LATEST_TARGET_YEAR
-ALTERNATIVE_APPROACHES: tuple[str, ...] = (
-    "summary_tables",
-    "commodity_price_index",
-)
-BASELINES: tuple[tuple[str, str], ...] = (
-    ("useeio", "USEEIO"),
-    ("ceda_default", "CEDA-US"),
-)
-ALL_APPROACHES_PLOT_ORDER: tuple[str, ...] = (
-    "useeio",
-    "ceda_default",
-    "summary_tables",
-    "commodity_price_index",
-)
-APPROACH_COLORS: dict[str, str] = {
-    "useeio": "#7f7f7f",
-    "ceda_default": "#bcbd22",
-    "summary_tables": "#1f77b4",
-    "commodity_price_index": "#2ca02c",
-}
+# 2023, not 2024 — useeio_nowcast has no 2024 upstream data.
+RANK_TARGET_YEAR = 2023
 
 HEATMAP_TOP_GROUPS = 15
 DRILL_IN_TOP_N = 12
@@ -195,7 +180,7 @@ def compute_impact_table(long: pd.DataFrame) -> pd.DataFrame:
     - ``impact_vs_ceda   = max_alt |A_alt − A_ceda|   × |A_ceda|``
     - per-approach values at ``RANK_TARGET_YEAR``
 
-    Where ``alt`` ranges over ``ALTERNATIVE_APPROACHES`` only — the two
+    Where ``alt`` ranges over ``FOCUS_APPROACHES`` only — the two
     baselines are anchors, not candidates being evaluated.
     """
     snap = long.loc[(long["dom_or_imp"] == "dom") & (long["year"] == RANK_TARGET_YEAR)]
@@ -206,7 +191,7 @@ def compute_impact_table(long: pd.DataFrame) -> pd.DataFrame:
     ).fillna(0.0)
 
     # Compute max-over-alternatives |A_alt − A_baseline| per cell.
-    alt_cols = [c for c in ALTERNATIVE_APPROACHES if c in pivot.columns]
+    alt_cols = [c for c in FOCUS_APPROACHES if c in pivot.columns]
     out = pivot.reset_index()
 
     for baseline_col, _ in BASELINES:
@@ -260,7 +245,7 @@ def aggregate_impact_by_group(
     for baseline_col, _ in BASELINES:
         if baseline_col not in pivot.columns:
             continue
-        for alt in ALTERNATIVE_APPROACHES:
+        for alt in FOCUS_APPROACHES:
             if alt not in pivot.columns:
                 continue
             cell_impact = np.abs(
@@ -299,7 +284,7 @@ def aggregate_impact_by_group(
     )
 
     # Make column order stable.
-    cols_order = [c for c in ALTERNATIVE_APPROACHES if c in df_u.columns]
+    cols_order = [c for c in FOCUS_APPROACHES if c in df_u.columns]
     df_u = df_u.reindex(columns=cols_order, fill_value=0.0)
     df_c = df_c.reindex(columns=cols_order, fill_value=0.0)
 
@@ -475,7 +460,7 @@ def plot_top_cells_grid(
             ncol=len(legend_labels),
             bbox_to_anchor=(0.5, -0.01),
             fontsize=9,
-            frameon=False,
+            framealpha=0.4,
         )
     fig.tight_layout(rect=(0, 0.02, 1, 1))
     fig.savefig(path, dpi=150, bbox_inches="tight")
@@ -494,30 +479,6 @@ def build_curated_shortlist_df() -> pd.DataFrame:
                 }
             )
     return pd.DataFrame(rows)
-
-
-def _publish_keysector_tabs(
-    top_cells_df: pd.DataFrame, curated_df: pd.DataFrame
-) -> None:
-    if not LAST_RUN_SHEET_ID_PATH.exists():
-        logger.warning(
-            "No %s found — skipping Sheet publish. Run derive_A_time_series "
-            "first (with valid Drive auth) to create the run report.",
-            LAST_RUN_SHEET_ID_PATH,
-        )
-        return
-    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
-    try:
-        update_sheet_tab(sheet_id, "keysector_top_cells_ranked", top_cells_df)
-        update_sheet_tab(sheet_id, "keysector_curated_shortlist", curated_df)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__,
-            e,
-        )
-        return
-    logger.info("Updated key-sector tabs on sheet %s", sheet_id)
 
 
 def main() -> None:
@@ -547,7 +508,12 @@ def main() -> None:
         PLOTS_DIR / "keysector_top_cells_grid.png",
     )
 
-    _publish_keysector_tabs(top_cells_df, curated_df)
+    publish_tabs(
+        {
+            "keysector_top_cells_ranked": top_cells_df,
+            "keysector_curated_shortlist": curated_df,
+        }
+    )
     logger.info("Step 4 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 

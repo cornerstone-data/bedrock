@@ -1,0 +1,12 @@
+# USEEIO nowcast approach: load externally-balanced detail SUTs from GCS
+# (gs://cornerstone-default/extract/input-data/USEEIO_nowcasted_MUTs/) and
+# derive Cornerstone A directly, bypassing bedrock's scale/inflate path.
+#
+# Background: USEEIO_nowcasting.md (repo root) and
+# bedrock/analysis/a_matrix_time_series/docs/implement_useeio_nowcast_plan.md.
+#
+# Supported model_base_year: 2018..2023 (USEEIO upstream pipeline has not
+# been run for 2024).
+use_cornerstone_2026_model_schema: True
+load_useeio_nowcast_A_matrix: True
+implement_waste_disaggregation: True
