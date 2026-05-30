@@ -44,27 +44,68 @@ _ceda_margins_filters: MarginsFilters = MarginsFilters(
     exclude_industry_codes=frozenset(USA_2017_FINAL_DEMAND_CODES)
 )
 
+# All BEA 2017 detailed commodity codes whose code begins with "4"
+# (wholesale trade, retail trade, transportation, and warehousing sectors).
+_COMMODITY_CODES_STARTING_WITH_4: frozenset[str] = frozenset(
+    {
+        "4200ID",
+        "423100",
+        "423400",
+        "423600",
+        "423800",
+        "423A00",
+        "424200",
+        "424400",
+        "424700",
+        "424A00",
+        "425000",
+        "441000",
+        "444000",
+        "445000",
+        "446000",
+        "447000",
+        "448000",
+        "452000",
+        "454000",
+        "481000",
+        "482000",
+        "483000",
+        "484000",
+        "485000",
+        "486000",
+        "48A000",
+        "491000",
+        "492000",
+        "493000",
+        "4B0000",
+    }
+)
+
 # Exclude BEA bookkeeping commodities that are not real product flows:
 #   S00401 Scrap, S00402 Used and secondhand goods,
 #   S00300 Noncomparable imports, S00900 Rest of the world adjustment
 # Exclude final demand destinations whose margins distort commodity-level ratios:
 #   F04000 Exports, F05000 Imports, F03000 Change in private inventories
+# Exclude wholesale, retail, transportation, and warehousing commodity flows.
 _useeio_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_commodity_codes=frozenset({"S00401", "S00402", "S00300", "S00900"}),
+    exclude_commodity_codes=frozenset({"S00401", "S00402", "S00300", "S00900"})
+    | _COMMODITY_CODES_STARTING_WITH_4,
     exclude_industry_codes=frozenset({"F04000", "F05000", "F03000"}),
 )
 
 # Cornerstone filters
 # Exclude BEA bookkeeping commodities that are removed from model as well as scrap
 #   S00300 Noncomparable imports, S00900 Rest of the world adjustment, S00401 Scrap
+# Exclude wholesale, retail, transportation, and warehousing commodity flows.
 # Exclude final demand destinations whose margins do not reflect industry consumers
 # or consumption within the US. Exclude import and export and all final uses
 # except nonresidential investment (F02E00, F02N00, F02S00) and change in
 # private inventories (F03000)
 # See justification here:
 # https://github.com/cornerstone-data/methods/discussions/25
-_cornerstone_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_commodity_codes=frozenset({"S00401", "S00300", "S00900"}),
+_cornerstone_industry_avg_margins_filters: MarginsFilters = MarginsFilters(
+    exclude_commodity_codes=frozenset({"S00401", "S00300", "S00900"})
+    | _COMMODITY_CODES_STARTING_WITH_4,
     exclude_industry_codes=frozenset(USA_2017_FINAL_DEMAND_CODES)
     - frozenset({"F03000", "F02E00", "F02N00", "F02S00"}),
 )
@@ -85,15 +126,15 @@ def set_useeio_margins_filters(filters: MarginsFilters) -> None:
 def _get_active_margins_filters() -> MarginsFilters:
     """Return the active filter set based on config flags.
 
-    ``useeio_margins`` takes precedence; otherwise ``cornerstone_margins``
+    ``useeio_margins`` takes precedence; otherwise ``cornerstone_industry_avg_margins``
     controls the Cornerstone path, then ``ceda_margins`` the
     CEDA path. Returns an empty ``MarginsFilters`` (no-op) when no flag is set.
     """
     cfg = get_usa_config()
     if cfg.useeio_margins:
         return _useeio_margins_filters
-    if cfg.cornerstone_margins:
-        return _cornerstone_margins_filters
+    if cfg.cornerstone_industry_avg_margins:
+        return _cornerstone_industry_avg_margins_filters
     if cfg.ceda_margins:
         return _ceda_margins_filters
     return MarginsFilters()
@@ -125,7 +166,7 @@ def _margin_negatives_treatment(
 ) -> pd.DataFrame:
     """Flip negative margin values to positive in-place.
 
-    ``abs_negative_margin_columns`` (triggered by ``cornerstone_margins`` config
+    ``abs_negative_margin_columns`` (triggered by ``cornerstone_industry_avg_margins`` config
     flag) flips negatives across all four margin columns and takes precedence.
     ``abs_negative_producers_value`` flips only ``Producers' Value``.
     """
@@ -178,9 +219,11 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
         EXPANDED_SECTORS_2012_TO_2017
     )
 
-    return (margin["Producers' Value"] / margin["Purchasers' Value"]).replace(
-        [np.inf, -np.inf, np.nan], 1.0
-    )
+    ratio = margin["Producers' Value"] / margin["Purchasers' Value"]
+    in_range_mask = (ratio > 0) & (ratio <= 1)
+    avg = ratio[in_range_mask].mean()
+    ratio[~in_range_mask] = avg
+    return ratio
 
 
 def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
@@ -198,7 +241,7 @@ def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
     return corresp @ _margins_by_commodity(
         _get_active_margins_filters(),
         abs_negative_producers_value=cfg.useeio_margins,
-        abs_negative_margin_columns=cfg.cornerstone_margins,
+        abs_negative_margin_columns=cfg.cornerstone_industry_avg_margins,
     )
 
 
