@@ -125,7 +125,7 @@ def plot_scatter(long: pd.DataFrame, path: Path) -> None:
         ax.set_xlabel("industry price ratio")
         ax.set_ylabel("V-norm commodity price ratio")
         ax.set_title(f"2017 → {year}")
-        ax.legend(loc="lower right", fontsize=8)
+        ax.legend(loc="lower right", fontsize=8, framealpha=0.4)
     for j in range(n, rows * cols):
         axes[j // cols][j % cols].axis("off")
     fig.tight_layout()

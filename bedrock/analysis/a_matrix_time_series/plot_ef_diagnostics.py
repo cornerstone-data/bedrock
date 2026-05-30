@@ -18,8 +18,8 @@ each ``(scenario, baseline, ef_kind)`` triple, two figures:
 The ``scenario`` axis separates runs that **isolate the A-matrix
 derivation** (``isolate_a_matrix``: only one A-matrix flag flipped
 versus the Cornerstone 2026 schema) from runs that **bundle the
-A-matrix change with the full bedrock v0.2 stack**
-(``bundle_v0_2``). Pooling them would mix two different counterfactuals
+A-matrix change with the full bedrock v0.3 stack**
+(``bundle_v0_3``). Pooling them would mix two different counterfactuals
 against the same CEDA-US (v0) baseline.
 
 vs CEDA (v0) panels: 4 candidates (``useeio``, ``summary_tables``,
@@ -59,19 +59,22 @@ logger = logging.getLogger(__name__)
 # (histograms).
 PanelFn = ta.Callable[[Axes, pd.DataFrame, str, float], None]
 
-# EF panels show the three alternatives + useeio comparator; ceda_default
-# is the baseline (x-axis), not a panel.
+# EF panels show only the v0.3 focus approaches — summary_tables and
+# commodity_price_index are the two top internal candidates, useeio_nowcast
+# is the external reference. industry_price_index is dropped (superseded by
+# commodity_price_index) and useeio (BEA-2017 do-nothing) is omitted because
+# it doesn't vary across years and confuses the time-series story.
+# ceda_default is the baseline on the x-axis, not a panel.
 APPROACH_ORDER: tuple[str, ...] = (
-    "useeio",
     "summary_tables",
-    "industry_price_index",
     "commodity_price_index",
+    "useeio_nowcast",
 )
 BASELINE_LABEL: dict[str, str] = {"ceda": "CEDA-US (v0)", "useeio": "USEEIO"}
 EF_KIND_LABEL: dict[str, str] = {"N": "total EF (N)", "D": "direct EF (D)"}
 SCENARIO_LABEL: dict[str, str] = {
     "isolate_a_matrix": "isolate A-matrix method",
-    "bundle_v0_2": "A-matrix method bundled with bedrock v0.2",
+    "bundle_v0_3": "A-matrix method bundled with bedrock v0.3",
 }
 
 # Base font sizes (multiplied by ``font_scale`` per panel).
@@ -149,11 +152,11 @@ def _scatter_panel(
         va="top",
         ha="left",
         bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="0.7"
+            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
         ),
     )
     ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
-    ax.legend(loc="lower right", fontsize=LEGEND_FONTSIZE * font_scale, frameon=False)
+    ax.legend(loc="lower right", fontsize=LEGEND_FONTSIZE * font_scale, framealpha=0.4)
 
 
 def _hist_panel(
@@ -173,7 +176,7 @@ def _hist_panel(
     finite = pct[np.isfinite(pct)]
     clipped = np.clip(finite, -HIST_PCT_CLIP, HIST_PCT_CLIP)
     ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
-    ax.axvline(0, color="k", lw=0.5)
+    ax.axvline(0, color="k", lw=1.0)
     ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
     ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax.grid(True, ls=":", alpha=0.3)
@@ -186,7 +189,7 @@ def _hist_panel(
         va="top",
         ha="left",
         bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="0.7"
+            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
         ),
     )
     ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
@@ -234,16 +237,30 @@ def _grid_2x2(
         return None
     # When a scenario carries multiple years, pool would mix dollar-years
     # and inflate `n` per panel — restrict to the latest year so each
-    # panel is a single-year snapshot.
+    # panel is a single-year snapshot. Legacy single-year runs predate the
+    # `year` column and store it as empty string; treat those as
+    # participating in the latest year (otherwise approaches without a
+    # tagged year would render "no data" while sibling approaches' year-
+    # tagged rows take over the panel).
     latest_year = _latest_year_in(sub)
     if latest_year:
-        sub = sub[sub["year"].astype(str) == latest_year]
+        year_str = sub["year"].fillna("").astype(str)
+        sub = sub[(year_str == latest_year) | (year_str == "")]
         suptitle = f"{suptitle} — year {int(float(latest_year))}"
 
-    # Scale canvas with text so a 2× font request gives a 2× figure.
-    base_w, base_h = 11.0, 10.5
+    # Layout: 1×N for N ≤ 3 (typical focus comparison), else 2×ceil(N/2)
+    # so the canvas stays roughly square as more approaches are added.
+    n = len(approaches)
+    if n <= 3:
+        nrows, ncols = 1, n
+        base_w, base_h = 5.5 * ncols, 6.0
+    else:
+        nrows = 2
+        ncols = (n + 1) // 2
+        base_w, base_h = 5.5 * ncols, 5.5 * nrows
+
     fig, axes_grid = plt.subplots(
-        2, 2, figsize=(base_w * font_scale, base_h * font_scale)
+        nrows, ncols, figsize=(base_w * font_scale, base_h * font_scale), squeeze=False
     )
     flat_axes = list(axes_grid.flat)
     for ax, approach in zip(flat_axes, approaches):

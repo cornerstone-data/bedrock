@@ -24,23 +24,43 @@ ORIGINAL_YEAR: int = get_usa_config().usa_base_io_data_year
 # commodity_pi at 2024; summary_tables falls back to 2023 internally).
 LATEST_TARGET_YEAR: int = 2024
 
-# Canonical 5-approach plot order (useeio + ceda_default baselines first,
-# then the three alternatives). Top-left → bottom-right when laid out in a
-# grid.
+# Canonical 6-approach plot order (useeio + ceda_default baselines first,
+# then the three internal alternatives, then the external reference).
+# Top-left → bottom-right when laid out in a grid.
 APPROACH_ORDER: tuple[str, ...] = (
     "useeio",
     "ceda_default",
     "summary_tables",
     "industry_price_index",
     "commodity_price_index",
+    "useeio_nowcast",
 )
 
-# Subset of APPROACH_ORDER that drops both baselines — the three
-# A-matrix-derivation alternatives we evaluate against either baseline.
+# Subset of APPROACH_ORDER that drops baselines AND external references —
+# the three A-matrix-derivation alternatives we evaluate as recommendation
+# candidates.
 ALTERNATIVE_APPROACHES: tuple[str, ...] = (
     "summary_tables",
     "industry_price_index",
     "commodity_price_index",
+)
+
+# Approaches that are external references — included in figures for context
+# but never proposed as the production method. Plot helpers should style
+# these distinctly (e.g. dashed/dotted line) so reviewers don't mistake them
+# for candidates.
+EXTERNAL_REFERENCES: tuple[str, ...] = ("useeio_nowcast",)
+
+# The 3 approaches the v0.3 Cornerstone recommendation focuses on for the
+# multi-path comparison plots. ``summary_tables`` and ``commodity_price_index``
+# are the two top internal candidates; ``useeio_nowcast`` is the external
+# reference. ``industry_price_index`` is excluded — superseded by
+# ``commodity_price_index`` in the recommendation. Use this in plot scripts
+# when ``ALTERNATIVE_APPROACHES`` (all 3 internal alts) is too broad.
+FOCUS_APPROACHES: tuple[str, ...] = (
+    "commodity_price_index",
+    "summary_tables",
+    "useeio_nowcast",
 )
 
 # Per-approach colors used by every plot in this package. Keys match
@@ -50,8 +70,9 @@ APPROACH_COLORS: dict[str, str] = {
     "useeio": "#7f7f7f",
     "ceda_default": "#bcbd22",
     "summary_tables": "#1f77b4",
-    "industry_price_index": "#ff7f0e",
+    "industry_price_index": "#9467bd",
     "commodity_price_index": "#2ca02c",
+    "useeio_nowcast": "#ff7f0e",
 }
 
 # (approach_key, display_label) for the two baselines that the alternatives
@@ -60,3 +81,12 @@ BASELINES: tuple[tuple[str, str], ...] = (
     ("useeio", "USEEIO"),
     ("ceda_default", "CEDA-US"),
 )
+
+# Year coverage gaps per approach. ``useeio_nowcast`` upstream pipeline has
+# not been run for 2024 — drop that year from any plot/comparison that
+# includes useeio_nowcast. Source of truth lives in the extract module.
+from bedrock.extract.iot.useeio_nowcast import USEEIO_NOWCAST_YEARS  # noqa: E402
+
+APPROACH_YEAR_COVERAGE: dict[str, tuple[int, ...]] = {
+    "useeio_nowcast": USEEIO_NOWCAST_YEARS,
+}
