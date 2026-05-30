@@ -48,36 +48,36 @@ _ceda_margins_filters: MarginsFilters = MarginsFilters(
 # (wholesale trade, retail trade, transportation, and warehousing sectors).
 _COMMODITY_CODES_STARTING_WITH_4: frozenset[str] = frozenset(
     {
-        "4200ID",
-        "423100",
-        "423400",
-        "423600",
-        "423800",
-        "423A00",
-        "424200",
-        "424400",
-        "424700",
-        "424A00",
-        "425000",
-        "441000",
-        "444000",
-        "445000",
-        "446000",
-        "447000",
-        "448000",
-        "452000",
-        "454000",
-        "481000",
-        "482000",
-        "483000",
-        "484000",
-        "485000",
-        "486000",
-        "48A000",
-        "491000",
-        "492000",
-        "493000",
-        "4B0000",
+        '4200ID',
+        '423100',
+        '423400',
+        '423600',
+        '423800',
+        '423A00',
+        '424200',
+        '424400',
+        '424700',
+        '424A00',
+        '425000',
+        '441000',
+        '444000',
+        '445000',
+        '446000',
+        '447000',
+        '448000',
+        '452000',
+        '454000',
+        '481000',
+        '482000',
+        '483000',
+        '484000',
+        '485000',
+        '486000',
+        '48A000',
+        '491000',
+        '492000',
+        '493000',
+        '4B0000',
     }
 )
 
@@ -88,9 +88,9 @@ _COMMODITY_CODES_STARTING_WITH_4: frozenset[str] = frozenset(
 #   F04000 Exports, F05000 Imports, F03000 Change in private inventories
 # Exclude wholesale, retail, transportation, and warehousing commodity flows.
 _useeio_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_commodity_codes=frozenset({"S00401", "S00402", "S00300", "S00900"})
+    exclude_commodity_codes=frozenset({'S00401', 'S00402', 'S00300', 'S00900'})
     | _COMMODITY_CODES_STARTING_WITH_4,
-    exclude_industry_codes=frozenset({"F04000", "F05000", "F03000"}),
+    exclude_industry_codes=frozenset({'F04000', 'F05000', 'F03000'}),
 )
 
 # Cornerstone filters
@@ -105,11 +105,11 @@ _useeio_margins_filters: MarginsFilters = MarginsFilters(
 # See justification here:
 # https://github.com/cornerstone-data/methods/discussions/25
 _cornerstone_industry_avg_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_commodity_codes=frozenset({"S00401", "S00300", "S00900"})
+    exclude_commodity_codes=frozenset({'S00401', 'S00300', 'S00900'})
     | _COMMODITY_CODES_STARTING_WITH_4,
     exclude_industry_codes=frozenset(USA_2017_FINAL_DEMAND_CODES)
-    - frozenset({"F03000", "F02E00", "F02N00", "F02S00"})
-    | frozenset({"GSLGE", "GSLGH", "GSLGO"}),
+    - frozenset({'F03000', 'F02E00', 'F02N00', 'F02S00'})
+    | frozenset({'GSLGE', 'GSLGH', 'GSLGO'}),
 )
 
 
@@ -148,17 +148,17 @@ def _apply_margins_filter(df: pd.DataFrame, filters: MarginsFilters) -> pd.DataF
         return df
     mask = pd.Series(True, index=df.index)
     if filters.exclude_commodity_codes:
-        mask &= ~df.index.get_level_values("Commodity Code").isin(
+        mask &= ~df.index.get_level_values('Commodity Code').isin(
             filters.exclude_commodity_codes
         )
     if filters.exclude_industry_codes:
-        mask &= ~df.index.get_level_values("Industry Code").isin(
+        mask &= ~df.index.get_level_values('Industry Code').isin(
             filters.exclude_industry_codes
         )
     return df.loc[mask]
 
 
-_MARGIN_VALUE_COLUMNS = ("Producers' Value", "Transportation", "Wholesale", "Retail")
+_MARGIN_VALUE_COLUMNS = ("Producers' Value", 'Transportation', 'Wholesale', 'Retail')
 
 
 def _margin_negatives_treatment(
@@ -194,12 +194,21 @@ def _margins_by_commodity(
         abs_negative_producers_value=abs_negative_producers_value,
         abs_negative_margin_columns=abs_negative_margin_columns,
     )
-    return (
-        df.groupby(level="Commodity Code")
+    result = (
+        df.groupby(level='Commodity Code')
         .sum()
         .reindex(USA_2017_COMMODITY_INDEX)
         .fillna(0.0)
     )
+    # Recompute Purchasers' Value from its components after aggregation so it
+    # stays consistent regardless of which negatives treatment was applied.
+    result["Purchasers' Value"] = (
+        result["Producers' Value"]
+        + result['Transportation']
+        + result['Wholesale']
+        + result['Retail']
+    )
+    return result
 
 
 def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]:
@@ -210,7 +219,7 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
     (output_producer / (output_producer + margin)).
     """
     corresp = load_usa_2017_commodity__ceda_v7_correspondence()
-    corresp.columns.names = ["commodity"]
+    corresp.columns.names = ['commodity']
 
     filters = (
         _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
@@ -271,12 +280,12 @@ def derive_2017_margins_cornerstone_inflated_usa(
     df["Producers' Value"] *= commodity_pi.reindex(df.index, fill_value=1.0)
 
     sector_pi = get_sector_commodity_price_ratio(original_year, target_year)
-    df["Transportation"] *= sector_pi["48TW"]
-    df["Wholesale"] *= sector_pi["42"]
-    df["Retail"] *= sector_pi["44RT"]
+    df['Transportation'] *= sector_pi['48TW']
+    df['Wholesale'] *= sector_pi['42']
+    df['Retail'] *= sector_pi['44RT']
 
     df["Purchasers' Value"] = (
-        df["Producers' Value"] + df["Transportation"] + df["Wholesale"] + df["Retail"]
+        df["Producers' Value"] + df['Transportation'] + df['Wholesale'] + df['Retail']
     )
     return df
 
