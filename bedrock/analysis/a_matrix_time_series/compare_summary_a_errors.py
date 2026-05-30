@@ -43,7 +43,7 @@ detail GO as the common weight — pending a Cornerstone-detail-to-BEA-
 detail GO split for sectors where Cornerstone disaggregates.
 
 Usage:
-    python -m bedrock.analysis.a_matrix_time_series.summary_a_errors
+    python -m bedrock.analysis.a_matrix_time_series.compare_summary_a_errors
 """
 
 from __future__ import annotations

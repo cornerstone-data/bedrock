@@ -18,8 +18,8 @@ each ``(scenario, baseline, ef_kind)`` triple, two figures:
 The ``scenario`` axis separates runs that **isolate the A-matrix
 derivation** (``isolate_a_matrix``: only one A-matrix flag flipped
 versus the Cornerstone 2026 schema) from runs that **bundle the
-A-matrix change with the full bedrock v0.2 stack**
-(``bundle_v0_2``). Pooling them would mix two different counterfactuals
+A-matrix change with the full bedrock v0.3 stack**
+(``bundle_v0_3``). Pooling them would mix two different counterfactuals
 against the same CEDA-US (v0) baseline.
 
 vs CEDA (v0) panels: 4 candidates (``useeio``, ``summary_tables``,
@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 # (histograms).
 PanelFn = ta.Callable[[Axes, pd.DataFrame, str, float], None]
 
-# EF panels show only the v0.2 focus approaches — summary_tables and
+# EF panels show only the v0.3 focus approaches — summary_tables and
 # commodity_price_index are the two top internal candidates, useeio_nowcast
 # is the external reference. industry_price_index is dropped (superseded by
 # commodity_price_index) and useeio (BEA-2017 do-nothing) is omitted because
@@ -74,7 +74,7 @@ BASELINE_LABEL: dict[str, str] = {"ceda": "CEDA-US (v0)", "useeio": "USEEIO"}
 EF_KIND_LABEL: dict[str, str] = {"N": "total EF (N)", "D": "direct EF (D)"}
 SCENARIO_LABEL: dict[str, str] = {
     "isolate_a_matrix": "isolate A-matrix method",
-    "bundle_v0_2": "A-matrix method bundled with bedrock v0.2",
+    "bundle_v0_3": "A-matrix method bundled with bedrock v0.3",
 }
 
 # Base font sizes (multiplied by ``font_scale`` per panel).

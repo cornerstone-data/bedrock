@@ -172,7 +172,7 @@ Edit [analysis_plan.md](analysis_plan.md) (or write a sibling `README.md` for th
 - [x] `bedrock/analysis/a_matrix_time_series/derive_A_time_series.py` — `APPROACH_YAMLS` + `_years_for()` filter + cache-clearing of the new module
 - [x] `bedrock/analysis/a_matrix_time_series/compare_approaches.py` — `USEEIO_NOWCAST_PAIRS` + plot block
 - [x] `bedrock/utils/config/configs/2025_usa_cornerstone_A_useeio_nowcast.yaml` — minimal config for A-matrix-only analysis (Steps N1–N3)
-- [x] `bedrock/utils/config/configs/2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` — full v0.2 model for EF diagnostics (Step N4 — runs `generate_diagnostics` workflow end-to-end)
+- [x] `bedrock/utils/config/configs/2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` — full v0.3 model for EF diagnostics (Step N4 — runs `generate_diagnostics` workflow end-to-end)
 
 ### Data artifacts (under `bedrock/analysis/a_matrix_time_series/output/results/`)
 - [ ] `A_useeio_nowcast_{yr}.parquet` for `yr ∈ 2017..2023`
