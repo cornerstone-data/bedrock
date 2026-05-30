@@ -5,7 +5,7 @@ Files were produced by the upstream USEEIO/useeior nowcasting team
 staged to GCS by the bedrock team. See:
 
 - [USEEIO_nowcasting.md](../../../../USEEIO_nowcasting.md) — methodology, what the nowcast does and doesn't capture
-- [bedrock/analysis/a_matrix_time_series/implement_useeio_nowcast_plan.md](../../analysis/a_matrix_time_series/implement_useeio_nowcast_plan.md) — integration plan
+- [bedrock/analysis/a_matrix_time_series/docs/implement_useeio_nowcast_plan.md](../../analysis/a_matrix_time_series/docs/implement_useeio_nowcast_plan.md) — integration plan
 
 Source CSVs at ``gs://cornerstone-default/extract/input-data/USEEIO_nowcasted_MUTs/``:
 

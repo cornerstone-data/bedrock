@@ -1,14 +1,14 @@
 """Render per-sector N + D % diff histograms from a single diagnostics Sheet.
 
 The reference 2×2 plot from ``plot_ef_diagnostics`` (e.g.
-``ef_pct_hist_bundle_v0_2_ceda_N.png``) panels four A-matrix methods side
+``ef_pct_hist_bundle_v0_3_ceda_N.png``) panels four A-matrix methods side
 by side. Each panel is one run's ``N_and_diffs`` / ``D_and_diffs`` tab vs
 the CEDA-US (v0) baseline. This script renders the same panel style for a
 *single* diagnostics Sheet — useful when the run you want to inspect lives
 outside the dispatched ``ef_run_index.csv`` set (e.g. a one-off
 investigation sheet, an ad-hoc config variation).
 
-The default Sheet ID points at the v0.2 "all changes" diagnostics run; pass
+The default Sheet ID points at the v0.3 "all changes" diagnostics run; pass
 a different ID on the command line to render any other run.
 
 Source schema: each tab must contain ``{kind}_perc_diff`` (the script also
@@ -22,12 +22,12 @@ The approach label (used in the title and panel color) is derived from the
 ``cornerstone_default`` (price-index-free default Cornerstone path).
 
 Outputs:
-- ``output/plots/ef_pct_hist_v0_2_sheet_ceda_N.png``
-- ``output/plots/ef_pct_hist_v0_2_sheet_ceda_D.png``
+- ``output/plots/ef_pct_hist_v0_3_sheet_ceda_N.png``
+- ``output/plots/ef_pct_hist_v0_3_sheet_ceda_D.png``
 
 Usage:
-    python -m bedrock.analysis.a_matrix_time_series.plot_v0_2_n_pct_hist
-    python -m bedrock.analysis.a_matrix_time_series.plot_v0_2_n_pct_hist <sheet_id>
+    python -m bedrock.analysis.a_matrix_time_series.plot_v0_3_n_pct_hist
+    python -m bedrock.analysis.a_matrix_time_series.plot_v0_3_n_pct_hist <sheet_id>
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ _KIND_SPEC: dict[str, dict[str, object]] = {
 }
 
 # Map config_summary flag → display approach name. The flag set in the
-# v0.2 config_summary mirrors the YAML names referenced in epic #337.
+# v0.3 config_summary mirrors the YAML names referenced in epic #337.
 _FLAG_TO_APPROACH: tuple[tuple[str, str], ...] = (
     ("scale_a_matrix_with_useeio_method", "useeio"),
     ("scale_a_matrix_with_summary_tables", "summary_tables"),
@@ -96,7 +96,7 @@ _DEFAULT_APPROACH_LABEL = "cornerstone_default"
 
 
 def _output_path(ef_kind: str) -> object:
-    return PLOTS_DIR / f"ef_pct_hist_v0_2_sheet_ceda_{ef_kind}.png"
+    return PLOTS_DIR / f"ef_pct_hist_v0_3_sheet_ceda_{ef_kind}.png"
 
 
 def _approach_from_config(config_df: pd.DataFrame) -> str:
@@ -165,7 +165,7 @@ def _render(
     font_scale = HIST_FONT_SCALE
     fig, ax = plt.subplots(figsize=(11.0 * font_scale * 0.6, 10.5 * font_scale * 0.6))
     ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
-    ax.axvline(0, color="k", lw=0.5)
+    ax.axvline(0, color="k", lw=1.0)
     ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
     ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax.grid(True, ls=":", alpha=0.3)
@@ -182,7 +182,7 @@ def _render(
         va="top",
         ha="left",
         bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="0.7"
+            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
         ),
     )
     ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
@@ -192,7 +192,7 @@ def _render(
 
     fig.suptitle(
         f"{kind_label} per-sector % diff distribution — vs CEDA-US (v0) "
-        f"[A-matrix method bundled with bedrock v0.2] — sheet {sheet_id[:10]}…",
+        f"[A-matrix method bundled with bedrock v0.3] — sheet {sheet_id[:10]}…",
         fontsize=SUPTITLE_FONTSIZE * font_scale,
         y=1.0,
     )

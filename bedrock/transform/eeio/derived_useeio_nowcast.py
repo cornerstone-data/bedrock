@@ -18,7 +18,7 @@ applied to USEEIO's year-specific V/U:
 6. Return year-specific q derived directly from the year's V (Cornerstone
    space).
 
-Settled policies (see [implement_useeio_nowcast_plan.md](../../analysis/a_matrix_time_series/implement_useeio_nowcast_plan.md)):
+Settled policies (see [implement_useeio_nowcast_plan.md](../../analysis/a_matrix_time_series/docs/implement_useeio_nowcast_plan.md)):
 
 - **2017 identity vs bedrock's BEA Aq is NOT enforced.** USEEIO and bedrock load
   different BEA 2017 vintages; expect ~9-22% L1 deviation.
