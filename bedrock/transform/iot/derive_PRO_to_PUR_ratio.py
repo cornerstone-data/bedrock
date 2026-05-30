@@ -101,13 +101,15 @@ _useeio_margins_filters: MarginsFilters = MarginsFilters(
 # or consumption within the US. Exclude import and export and all final uses
 # except nonresidential investment (F02E00, F02N00, F02S00) and change in
 # private inventories (F03000)
+# Exclude state and local government industries (GSLGE, GSLGH, GSLGO).
 # See justification here:
 # https://github.com/cornerstone-data/methods/discussions/25
 _cornerstone_industry_avg_margins_filters: MarginsFilters = MarginsFilters(
     exclude_commodity_codes=frozenset({"S00401", "S00300", "S00900"})
     | _COMMODITY_CODES_STARTING_WITH_4,
     exclude_industry_codes=frozenset(USA_2017_FINAL_DEMAND_CODES)
-    - frozenset({"F03000", "F02E00", "F02N00", "F02S00"}),
+    - frozenset({"F03000", "F02E00", "F02N00", "F02S00"})
+    | frozenset({"GSLGE", "GSLGH", "GSLGO"}),
 )
 
 
