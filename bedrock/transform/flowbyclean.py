@@ -369,9 +369,7 @@ def estimate_suppressed_sectors_equal_attribution(
             .first()
         )
         child_n = (
-            unsuppressed.loc[child_mask]
-            .groupby(level=groupcols, observed=True)
-            .size()
+            unsuppressed.loc[child_mask].groupby(level=groupcols, observed=True).size()
         )
         per_child = (parent_unattr / child_n).clip(lower=0)
 
