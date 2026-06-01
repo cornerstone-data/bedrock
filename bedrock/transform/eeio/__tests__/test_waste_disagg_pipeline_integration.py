@@ -14,8 +14,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.extract.disaggregation import useeior_waste_weights as uww
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
+from bedrock.extract.disaggregation.useeior_waste_weights import (
+    USEEIOR_V180_WASTE_SOURCE_NAME,
+)
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio import (
     cornerstone_expansion,
@@ -122,15 +124,11 @@ class TestWeightProvider:
     ) -> None:
         captured: dict[str, object] = {}
 
-        def _fake_download(url: str) -> str:
-            return f"C:/tmp/{url.rsplit('/', maxsplit=1)[-1]}"
-
         def _fake_loader(*args: object, **kwargs: object) -> object:
             captured["cfg"] = args[0]
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(uww, "download_waste_weights_to_cache", _fake_download)
         monkeypatch.setattr(dc, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23")
@@ -139,10 +137,7 @@ class TestWeightProvider:
 
         cfg = captured["cfg"]
         assert hasattr(cfg, "source_name")
-        assert (
-            getattr(cfg, "source_name")
-            == "useeior_v1.8.0_WasteDisaggregationDetail2017"
-        )
+        assert getattr(cfg, "source_name") == USEEIOR_V180_WASTE_SOURCE_NAME
         assert str(getattr(cfg, "use_weights_file")).endswith(
             "WasteDisaggregationDetail2017_Use.csv"
         )
@@ -155,15 +150,11 @@ class TestWeightProvider:
     ) -> None:
         captured: dict[str, object] = {}
 
-        def _fail_download(_url: str) -> str:
-            raise AssertionError("URL download must not run when config is 'after'")
-
         def _fake_loader(*args: object, **kwargs: object) -> object:
             captured["cfg"] = args[0]
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(uww, "download_waste_weights_to_cache", _fail_download)
         monkeypatch.setattr(dc, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23_restore_iot_redefinition")
@@ -172,6 +163,7 @@ class TestWeightProvider:
         cfg = captured["cfg"]
         assert hasattr(cfg, "source_name")
         assert getattr(cfg, "source_name") == "WasteDisaggregationDetail2017"
+        assert "useeior_v1.8.0" not in str(getattr(cfg, "use_weights_file"))
 
 
 # ---------------------------------------------------------------------------
