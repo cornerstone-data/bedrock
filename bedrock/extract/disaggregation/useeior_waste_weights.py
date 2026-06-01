@@ -6,13 +6,17 @@ import functools
 import pathlib
 import urllib.request
 
+from bedrock.extract.disaggregation.waste_weight_config import WASTE_INPUTS_REL
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
 
 _DISAGG_ROOT = pathlib.Path(__file__).resolve().parent
-USEEIOR_V180_INPUT_DIR = _DISAGG_ROOT / "waste_disagg_inputs" / "useeior_v1.8.0"
+
+USEEIOR_V180_SUBDIR = "useeior_v1.8.0"
+USEEIOR_V180_REL_PREFIX = f"{WASTE_INPUTS_REL}/{USEEIOR_V180_SUBDIR}"
+USEEIOR_V180_INPUT_DIR = _DISAGG_ROOT / "waste_disagg_inputs" / USEEIOR_V180_SUBDIR
+
 USEEIOR_V180_USE_FILENAME = "WasteDisaggregationDetail2017_Use.csv"
 USEEIOR_V180_MAKE_FILENAME = "WasteDisaggregationDetail2017_Make.csv"
-USEEIOR_V180_REL_PREFIX = "extract/disaggregation/waste_disagg_inputs/useeior_v1.8.0"
 
 USEEIOR_V180_WASTE_USE_URL = (
     "https://raw.githubusercontent.com/cornerstone-data/useeior/v1.8.0/"
@@ -49,13 +53,17 @@ def download_waste_weights_to_cache(url: str) -> str:
     return str(local_path)
 
 
-def useeior_v1_8_waste_disagg_config() -> EEIOWasteDisaggConfig:
-    """Weight file paths and metadata for USEEIOR v1.8.0 waste disagg specs."""
+def _ensure_useeior_v1_8_weight_files() -> None:
     download_waste_weights_to_cache(USEEIOR_V180_WASTE_USE_URL)
     download_waste_weights_to_cache(USEEIOR_V180_WASTE_MAKE_URL)
+
+
+def useeior_v1_8_waste_disagg_config() -> EEIOWasteDisaggConfig:
+    """Weight file paths and metadata for USEEIOR v1.8.0 waste disagg specs."""
+    _ensure_useeior_v1_8_weight_files()
     return EEIOWasteDisaggConfig(
-        use_weights_file=(f"{USEEIOR_V180_REL_PREFIX}/{USEEIOR_V180_USE_FILENAME}"),
-        make_weights_file=(f"{USEEIOR_V180_REL_PREFIX}/{USEEIOR_V180_MAKE_FILENAME}"),
+        use_weights_file=f"{USEEIOR_V180_REL_PREFIX}/{USEEIOR_V180_USE_FILENAME}",
+        make_weights_file=f"{USEEIOR_V180_REL_PREFIX}/{USEEIOR_V180_MAKE_FILENAME}",
         year=USEEIOR_V180_WASTE_YEAR,
         source_name=USEEIOR_V180_WASTE_SOURCE_NAME,
     )
