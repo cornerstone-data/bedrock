@@ -2,17 +2,16 @@
 
 ## Goal
 
-Analyze five approaches for deriving the A matrix (in commodity-by-commodity format) across a time-series (2017–2024), and recommend one approach as Cornerstone's method for the 2026 model.
+Analyze four approaches for deriving the A matrix (in commodity-by-commodity format) across a time-series (2017–2024), and recommend one approach as Cornerstone's method for the 2026 model.
 
-The five approaches partition into:
+The four approaches partition into:
 
 - **Two baselines** (always plotted, never the recommendation candidates):
   1. **USEEIO** — derive A in the 2017 benchmark year and use as-is.
   2. **CEDA** — current production default: scale 2017 → IO year via summary-table ratios, then inflate IO year → model year via price index.
-- **Three alternative approaches** (the candidates being evaluated):
+- **Two alternative approaches** (the candidates being evaluated):
   1. **Summary tables** — scale 2017 A directly to 2018–2024 via summary-table ratios (price *and* quantity changes captured together; no separate inflation step).
-  2. **Industry price index** — inflate 2017 A directly to 2018–2024 using industry-specific price indices applied as if commodity-specific.
-  3. **Commodity price index (V-norm)** — inflate 2017 A directly to 2018–2024 using a *commodity-specific* price index derived from the industry price index and Vnorm (commodity mix).
+  2. **Commodity price index (V-norm)** — inflate 2017 A directly to 2018–2024 using a *commodity-specific* price index derived from the industry price index and Vnorm (commodity mix).
 
 Element-wise comparison of every (approach × year) pair informs the recommendation.
 
@@ -38,14 +37,6 @@ The project is complete when **all** of the following are true:
 3. A README in that directory summarizes findings with a single-sentence recommendation per method and a one-paragraph methodology recommendation.
 4. The six "Key Questions" below each have a written answer backed by a figure reference.
 5. A code change exists on a branch that contains the new `bedrock/analysis/a_matrix_time_series/` module and the README, and at least one peer has reviewed it.
-
-### Before writing any code — read these (in order)
-
-1. [.claude/plans/issue_182_a_matrix_methods.md](issue_182_a_matrix_methods.md) — background on the three alternative methods. *(Existing doc from Feb 2026 — scoped when Issue #182 was opened. Read this first for the "why".)*
-2. [.claude/plans/issue_182_implementation_plan.md](issue_182_implementation_plan.md) — how the existing flags are wired. *(Existing doc from Feb 2026 — the implementation blueprint that was executed to land the three flags now on `main`.)*
-3. [bedrock/transform/eeio/derived_cornerstone.py](../bedrock/transform/eeio/derived_cornerstone.py) — read `derive_cornerstone_Aq_scaled()` (L498) top to bottom. You should be able to explain what each existing if-branch does (USEEIO, summary tables, industry price index) plus the default CEDA path before writing any code.
-4. [bedrock/analysis/time_series_B_matrix/derive_B_time_series.py](../bedrock/analysis/time_series_B_matrix/derive_B_time_series.py) — this is your template. Your code should feel structurally similar.
-5. Run the smoke test: `pytest bedrock/transform/__tests__/test_usa.py -k cornerstone` and confirm it passes on `main` before branching.
 
 ### Check-in checkpoints (don't skip)
 
@@ -75,27 +66,24 @@ Show work to a reviewer before proceeding past these gates:
 - Config flags are wired in `derive_cornerstone_Aq_scaled()` at [bedrock/transform/eeio/derived_cornerstone.py:498](../bedrock/transform/eeio/derived_cornerstone.py#L498):
   - `scale_a_matrix_with_useeio_method` → returns 2017 base A unchanged
   - `scale_a_matrix_with_summary_tables` → single-step `scale_cornerstone_A(2017 → model_year)`, skips price inflation
-  - `scale_a_matrix_with_price_index` → single-step `inflate_cornerstone_A_matrix(2017 → model_year)`, skips summary scaling
   - Default (CEDA): two-step `scale_cornerstone_A(2017 → io_year)` then `inflate_cornerstone_A_matrix(io_year → model_year)`
-- YAMLs already exist: `2025_usa_cornerstone_a_{useeio,summary_tables,price_index}.yaml`
-- **Pending** (Step 0 of this plan): a fifth branch + flag `scale_a_matrix_with_commodity_price_index` for approach #5 (V-norm-derived commodity price index) — identical to the industry-price-index path but uses commodity-level prices obtained by V-norm transforming the industry-level price index, rather than applying industry prices directly.
+- YAMLs already exist: `2025_usa_cornerstone_a_{useeio,summary_tables}.yaml`
+- **Pending** (Step 0 of this plan): a branch + flag `scale_a_matrix_with_commodity_price_index` for the V-norm-derived commodity price index alternative — inflates the 2017 A using commodity-level prices obtained by V-norm transforming the industry-level price index.
 
-### The five approaches recap (from [notes](https://docs.google.com/document/d/1RlK2ivSnHrku3Q2k5GxRVI_eO25xZ5VE4iIuAlm8TwU/edit?tab=t.0#heading=h.s7guag7kk8nq))
+### The four approaches recap (from [notes](https://docs.google.com/document/d/1RlK2ivSnHrku3Q2k5GxRVI_eO25xZ5VE4iIuAlm8TwU/edit?tab=t.0#heading=h.s7guag7kk8nq))
 
 | # | Role | Approach | Mechanism | Implicit assumption |
 |---|---|---|---|---|
 | 1 | Baseline | **USEEIO (do nothing)** | 2017 A used as-is | 2017 technology mix = target year technology mix |
 | 2 | Baseline | **CEDA (scale + inflate)** | Two-step: `scale_cornerstone_A(2017 → io_year)` then `inflate_cornerstone_A_matrix(io_year → model_year)` | Separating quantity changes (summary-table ratios) and price changes (price index) is more accurate than either alone |
 | 3 | Alternative | **Summary tables** | Element-wise multiply 2017 A by `A_summary(target) / A_summary(2017)`, with 0.98 column-cap | Summary-level structural change is the best signal for detail-level change; captures price + quantity in one step |
-| 4 | Alternative | **Industry price index** | `diag(p) @ A @ diag(1/p)` with `p = price(target) / price(2017)`, industry-level (treated as if commodity-level) | Perfect price inelasticity — physical flows constant, A shifts only from relative price changes |
-| 5 | Alternative | **Commodity price index (V-norm)** | Same formula as #4, but `p` is first V-norm transformed from industry → commodity space | Same as #4, plus: commodity prices are more appropriate than industry prices for A matrix inflation, and co-production mixing is non-negligible |
+| 4 | Alternative | **Commodity price index (V-norm)** | `diag(p) @ A @ diag(1/p)` with `p = price(target) / price(2017)`, where `p` is V-norm transformed from industry → commodity space | Perfect price inelasticity — physical flows constant, A shifts only from relative price changes; commodity prices are more appropriate than industry prices for A matrix inflation, and co-production mixing is non-negligible |
 
-**Note on #5**: this is the "commodity-transformed" price variant discussed in the notes under *V-Norm Transformation Discussion*. Requires a new config flag and a new branch in `derive_cornerstone_Aq_scaled()` — see Step 0 below. We will use the static Vnorm (2017 benchmark version, same as that used in the B matrix transformation). In the next phase, we will test adjusting Vnorm to years that are consistent with A matrix years.
+**Note on #4**: this is the "commodity-transformed" price variant discussed in the notes under *V-Norm Transformation Discussion*. Requires a new config flag and a new branch in `derive_cornerstone_Aq_scaled()` — see Step 0 below. We will use the static Vnorm (2017 benchmark version, same as that used in the B matrix transformation). In the next phase, we will test adjusting Vnorm to years that are consistent with A matrix years.
 
 ### Known caveats from the notes
 
 - **Summary table scaling** needs a 0.98 cap on column sums (implemented in `scale_cornerstone_A` at [cornerstone_year_scaling.py:111](../bedrock/transform/eeio/cornerstone_year_scaling.py#L111)) and is highly aggregated — especially in manufacturing/services.
-- **Price index** currently uses **industry-level** price indices, not V-norm-transformed commodity prices. This trades mathematical rigor for transparency and verifiability.
 - **USEEIO PR is old** — will need a smoke test and possibly a rebase/fix before it produces comparable outputs.
 - **No ground-truth A matrix** exists for the target year at BEA detail resolution, so we cannot judge "better" element-wise. Industry gross output (which we do have annually, after redefinition) is the closest external anchor.
 
@@ -103,30 +91,26 @@ Show work to a reviewer before proceeding past these gates:
 
 ## Analysis Steps
 
-### Step −1 — Rename the existing price-index approach for clarity (PREREQUISITE)
+### Step −1 — Capitalize the A-matrix YAML filenames (PREREQUISITE)
 
-Before the V-norm branch lands, rename the existing price-index pieces so that `industry_price_index` and `commodity_price_index` read as parallel siblings. Ship this as its own small PR — mechanical renames only, no logic changes. This keeps Step 0 a pure additive change instead of a mixed rename+add diff.
+Before the V-norm branch lands, rename the A-matrix method YAML files from lowercase-`a` to uppercase-`A` (the "A matrix" noun is capitalized everywhere else in the codebase and docs). Ship this as its own small PR — mechanical renames only, no logic changes. This keeps Step 0 a pure additive change instead of a mixed rename+add diff.
 
 **Changes required:**
 
-1. In [bedrock/utils/config/usa_config.py](../bedrock/utils/config/usa_config.py): rename the flag
-   - `scale_a_matrix_with_price_index` → `scale_a_matrix_with_industry_price_index`
-2. In [bedrock/transform/eeio/derived_cornerstone.py](../bedrock/transform/eeio/derived_cornerstone.py): rename the if-branch reference in `derive_cornerstone_Aq_scaled()`.
-3. Rename all YAML files in [bedrock/utils/config/configs/](../bedrock/utils/config/configs/) from lowercase-`a` to uppercase-`A` for the A-matrix methods (the "A matrix" noun is capitalized everywhere else in the codebase and docs):
+1. Rename the A-matrix method YAML files in [bedrock/utils/config/configs/](../bedrock/utils/config/configs/):
    - `2025_usa_cornerstone_a_useeio.yaml` → `2025_usa_cornerstone_A_useeio.yaml`
    - `2025_usa_cornerstone_a_summary_tables.yaml` → `2025_usa_cornerstone_A_summary_tables.yaml`
-   - `2025_usa_cornerstone_a_price_index.yaml` → `2025_usa_cornerstone_A_industry_price_index.yaml` (combines rename + clarifier)
-4. `grep -rn "scale_a_matrix_with_price_index\|2025_usa_cornerstone_a_" bedrock/` and update every hit (tests, CI configs, docs).
-5. Smoke test: `pytest bedrock/transform/__tests__/test_usa.py -k cornerstone`.
+2. `grep -rn "2025_usa_cornerstone_a_" bedrock/` and update every hit (tests, CI configs, docs).
+3. Smoke test: `pytest bedrock/transform/__tests__/test_usa.py -k cornerstone`.
 
 **Definition of Done for Step −1:**
 - Code change lands with only renames — no logic diffs — reviewed and merged.
-- Existing diagnostics CI still passes on the three old branches (the rename does not break downstream consumers).
-- No references to the old flag name or old YAML filename remain in the codebase.
+- Existing diagnostics CI still passes (the rename does not break downstream consumers).
+- No references to the old YAML filenames remain in the codebase.
 
 ### Step 0 — Implement Vnorm-derived price index approach (PREREQUISITE)
 
-Before any analysis can run, the 5th approach (commodity price index, alternative #3) must be wired into the pipeline.
+Before any analysis can run, the commodity price index approach (alternative #2) must be wired into the pipeline.
 
 **Changes required:**
 
@@ -135,8 +119,8 @@ Before any analysis can run, the 5th approach (commodity price index, alternativ
    - Takes the existing industry-level price ratio from `get_cornerstone_price_ratio()` (currently indexed by commodity because of how CEDA v7 is structured — confirm by reading the function).
    - Transforms to commodity space via `V @ diag(p_industry) @ V^{-1}` (or the equivalent Vnorm transform — verify the exact mechanics with a reviewer before coding).
    - Returns a commodity-indexed price ratio Series.
-3. Add `inflate_cornerstone_A_matrix_with_commodity_pi()` that uses the Vnorm ratio with the same `diag(p) @ A @ diag(1/p)` formula.
-4. Add a fourth `if cfg.scale_a_matrix_with_commodity_price_index:` branch in `derive_cornerstone_Aq_scaled()`, modeled on the existing `scale_a_matrix_with_price_index` branch.
+3. Add `inflate_cornerstone_A_matrix_with_commodity_pi()` that uses the Vnorm ratio with the `diag(p) @ A @ diag(1/p)` formula.
+4. Add an `if cfg.scale_a_matrix_with_commodity_price_index:` branch in `derive_cornerstone_Aq_scaled()` that applies this inflation directly to the 2017 A.
 5. Add YAML `bedrock/utils/config/configs/2025_usa_cornerstone_a_commodity_price_index.yaml`.
 6. Smoke test: `pytest bedrock/transform/__tests__/test_usa.py -k cornerstone`.
 
@@ -145,17 +129,17 @@ Before any analysis can run, the 5th approach (commodity price index, alternativ
 - Running the pipeline with the new YAML produces A matrices with no NaNs. Check column sums: if any column sum is ≥ 1, **surface for review** — do not silently clip or apply a 0.98-cap fix. Unlike summary-table scaling (which has a well-understood cap rationale), a column-sum violation on the V-norm path likely indicates a math error in the transform and needs human review.
 - Print the commodity-price-ratio distribution vs the industry-price-ratio distribution (mean, median, 5th/95th percentile) — if they are nearly identical, surface for review since the analysis may be moot.
 
-**Out of scope for this step:** do not refactor any of the other four branches (USEEIO, CEDA default, summary tables, industry price index). Do not add unit tests beyond what's needed to satisfy existing type checks — the analysis itself is the acceptance test.
+**Out of scope for this step:** do not refactor any of the other branches (USEEIO, CEDA default, summary tables). Do not add unit tests beyond what's needed to satisfy existing type checks — the analysis itself is the acceptance test.
 
 ### Step 1 — Produce A matrices for all (approach × year) combinations
 
-For each `model_base_year ∈ {2017, 2018, 2019, 2020, 2021, 2022, 2024}` and each approach ∈ `{useeio, ceda_default, summary_tables, industry_price_index, commodity_price_index}` (2 baselines + 3 alternatives = 5 total):
+For each `model_base_year ∈ {2017, 2018, 2019, 2020, 2021, 2022, 2024}` and each approach ∈ `{useeio, ceda_default, summary_tables, commodity_price_index}` (2 baselines + 2 alternatives = 4 total):
 
-1. **Do NOT create new YAML files per year.** Instead, load one of the five approach YAMLs via `get_usa_config()` and programmatically override `model_base_year` in memory (or use a pytest-style config fixture). Rationale: YAMLs are a user-facing deployment surface — committing 35 of them for a one-off analysis clutters the repo and invites copy-paste drift. The five approach YAMLs from Step −1 / Step 0 are sufficient; year is the only thing that varies per run.
+1. **Do NOT create new YAML files per year.** Instead, load one of the four approach YAMLs via `get_usa_config()` and programmatically override `model_base_year` in memory (or use a pytest-style config fixture). Rationale: YAMLs are a user-facing deployment surface — committing 28 of them for a one-off analysis clutters the repo and invites copy-paste drift. The four approach YAMLs from Step −1 / Step 0 are sufficient; year is the only thing that varies per run.
 2. Invoke `derive_cornerstone_Aq_scaled()` and cache the resulting `(Adom, Aimp, q)` to disk (parquet, keyed by approach + year).
 
 **Notes:**
-- For `Y = 2017`, all five variants should return the same A (ratios are 1.0, price factors are 1.0) — this is a useful sanity check.
+- For `Y = 2017`, all four variants should return the same A (ratios are 1.0, price factors are 1.0) — this is a useful sanity check.
 - USEEIO is year-invariant by construction — produce it once and reuse; it serves as one of the two fixed baseline lines on every plot (CEDA default is the other; CEDA *does* change with year).
 - Output path: `bedrock/analysis/a_matrix_time_series/output/A_{approach}_{year}.parquet`
 - Mirror the structure of `bedrock/analysis/time_series_B_matrix/derive_B_time_series.py` — it already solves the "loop over years and cache parquets" problem.
@@ -222,17 +206,16 @@ Step 2's `divergence_share_*.png` aggregates over cell identity: a flat year-ove
 
 Pick `model_base_year = 2024` and compute pairwise differences between approaches on the **same** A matrix grid:
 
-- Hexbin scatter: `A_summary_tables[i,j]` vs `A_industry_price_index[i,j]` (and vs `A_commodity_price_index`), colored by column-sector BEA summary code.
+- Hexbin scatter: `A_summary_tables[i,j]` vs `A_commodity_price_index[i,j]`, colored by column-sector BEA summary code.
 - **ECDF (paired)** of relative divergence per approach, computed twice — once vs USEEIO and once vs CEDA. Both ECDFs go in the same figure (or a 1×2 panel) so the reader can read off each approach's distance from each baseline at the same threshold.
   - Panel A: `(A_approach - A_useeio) / A_useeio` per approach
   - Panel B: `(A_approach - A_ceda) / A_ceda` per approach
 - Column-sum diagnostics: verify all columns ≤ 1 (summary tables relies on the 0.98 cap — count how many columns actually hit the cap).
-- Industry-price vs commodity-price ratio comparison (industry vs vnorm approach diff) — answers whether the V-norm transform produces a materially different A.
 
 **Why ECDF specifically (not histogram):**
 - **Answers the actual question directly.** The question is "what fraction of A cells diverge by more than X?" — an ECDF lets you read that off any threshold on the x-axis in one glance. A histogram forces the reader to eyeball-integrate.
 - **No binning artifacts.** A-matrix cells span many orders of magnitude (`~10^-6` to `~10^-1`), and divergence ratios have a heavy tail. Histograms require either log-bins or wide bins, both of which obscure the shape — ECDFs sidestep the choice entirely.
-- **Overlaying five approaches is cleaner than overlaying five histograms.** 5 lines stack readably; 5 colored histograms fight each other visually.
+- **Overlaying four approaches is cleaner than overlaying four histograms.** 4 lines stack readably; 4 colored histograms fight each other visually.
 - **Tail focus.** The interesting divergences live in the tails — e.g. "5% of cells diverge by more than 50%". ECDFs show the tail mass directly as the distance from 1.0 on the y-axis.
 
 **Expected finding from the notes:** summary-table scaling should show the largest divergence and is most prone to capping in manufacturing/service columns.
@@ -241,7 +224,7 @@ Pick `model_base_year = 2024` and compute pairwise differences between approache
 - PNG `step3_pairwise_hexbins.png` (grid of hexbins, one per approach-pair).
 - PNG `step3_divergence_ecdf_vs_useeio.png` and `step3_divergence_ecdf_vs_ceda.png` — one ECDF panel per baseline, same approach color convention across both.
 - CSV `step3_column_cap_audit.csv` listing every column where summary-tables scaling triggered the 0.98 cap.
-- Written answer to: "how much do approaches disagree against each baseline (USEEIO and CEDA), and is vnorm meaningfully different from industry-price?"
+- Written answer to: "how much do approaches disagree against each baseline (USEEIO and CEDA)?"
 
 ### Step 4 — Zoom into key sectors
 
@@ -275,7 +258,7 @@ For each approach, per year, compute industry-level relative error vs observed. 
 
 **Definition of Done for Step 5:**
 - CSV `step5_industry_output_errors.csv` with columns `(approach, year, industry_rmse_vs_bea, top_5_worst_industries)`.
-- PNG `step5_output_rmse_ranking.png` — bar chart of RMSE per approach per year (5 approaches × 7 years = 35 bars, grouped).
+- PNG `step5_output_rmse_ranking.png` — bar chart of RMSE per approach per year (4 approaches × 7 years = 28 bars, grouped).
 - Written answer to: "does industry output error meaningfully discriminate between approaches, or are they all within noise?"
 
 ### Step 6 — Full-model diagnostics (EF / EI impacts)
@@ -295,9 +278,9 @@ If the USEEIO checkbox is forgotten on any run, that run only produces the CEDA-
 
 #### Triggering the runs
 
-For each of the five approaches:
+For each of the four approaches:
 1. Open `generate_diagnostics` → `Run workflow`.
-2. Set **USA config name** to the approach's YAML stem (e.g. `2025_usa_cornerstone_A_industry_price_index`).
+2. Set **USA config name** to the approach's YAML stem (e.g. `2025_usa_cornerstone_A_summary_tables`).
 3. Set **Google Sheets ID** to the destination sheet for that approach.
 4. **Tick** the "Benchmark to USEEIO GCS Excel baseline" checkbox.
 5. (Optional) attach the PR URL for that approach.
@@ -310,10 +293,10 @@ The CEDA-default approach is already on `main` and already exercised by the prod
 - Emission factors per sector for each approach.
 - Percent difference in final-demand-driven emissions and sector-level gross output, against **both** baselines (USEEIO via the checkbox, CEDA-US via v0). Both come from the same diagnostics sheet — no extra computation needed on the engineer's side.
 
-**Action**: compile the resulting diagnostics sheets (one per approach) into one comparison workbook covering all five approaches rather than re-running from scratch.
+**Action**: compile the resulting diagnostics sheets (one per approach) into one comparison workbook covering all four approaches rather than re-running from scratch.
 
 **Definition of Done for Step 6:**
-- All five approaches have a completed diagnostics run with the USEEIO checkbox ticked. Save the run URLs in `step6_run_index.csv` (columns: `approach`, `run_id`, `sheet_id`, `useeio_box_ticked`, `triggered_at`) so the workbook compilation step can locate every input.
+- All four approaches have a completed diagnostics run with the USEEIO checkbox ticked. Save the run URLs in `step6_run_index.csv` (columns: `approach`, `run_id`, `sheet_id`, `useeio_box_ticked`, `triggered_at`) so the workbook compilation step can locate every input.
 - One Excel workbook `step6_ef_comparison.xlsx` in the output directory with one tab per approach plus a `summary_vs_useeio` tab and a `summary_vs_ceda` tab.
 - PNGs `step6_ef_divergence_scatter_vs_useeio.png` and `step6_ef_divergence_scatter_vs_ceda.png` — EF values per approach against each baseline, shared color convention.
 - Written answer to: "which approach's EFs look most plausible against the USEEIO published EFs and the CEDA-US production default?"
@@ -358,7 +341,7 @@ This is the exhaustive, named list of files the engineer must produce. If a file
 
 ### Write-up
 - [ ] `bedrock/analysis/a_matrix_time_series/README.md` — ≤2 pages. Must contain:
-   - Method-by-method pros/cons table (5 rows: 2 baselines + 3 alternatives)
+   - Method-by-method pros/cons table (4 rows: 2 baselines + 2 alternatives)
    - Answers to all six Key Questions (one paragraph each, figure reference inline)
    - **Explicit recommendation of one approach** as Cornerstone's method, with reasoning trace tying back to the figures
    - Explicit list of limitations + years/methods skipped for data-availability reasons
@@ -367,7 +350,7 @@ This is the exhaustive, named list of files the engineer must produce. If a file
 
 ## Key Questions to Answer (from the notes)
 
-- [ ] How much do the three alternative approaches disagree at the cell level, against each baseline (USEEIO and CEDA)? (Step 3)
+- [ ] How much do the two alternative approaches disagree at the cell level, against each baseline (USEEIO and CEDA)? (Step 3)
 - [ ] Where are the biggest disagreements — manufacturing, services, energy, or waste? (Steps 3–4)
 - [ ] Does industry-output error meaningfully discriminate between approaches? (Step 5)
 - [ ] Which approach's EF results land closest to each baseline (USEEIO published EFs and CEDA-US production default)? (Step 6)
@@ -388,7 +371,7 @@ This is the exhaustive, named list of files the engineer must produce. If a file
 ## Dependencies / Risks
 
 - **USEEIO PR freshness**: notes say "may need minor code updates since PR is from a while ago". Rebase + smoke-test the USEEIO YAML end-to-end before investing in comparisons. (USEEIO is a baseline, so the analysis is dead in the water until this is reliable.)
-- **Memory / runtime**: caching × 5 approaches × 7 years = 35 A matrices (USEEIO contributes 1 since it's year-invariant, so practically ~31). Leverage `@functools.cache` + parquet caching; only do full-model propagation (Step 6) for the single target year, not all 7.
+- **Memory / runtime**: caching × 4 approaches × 7 years = 28 A matrices (USEEIO contributes 1 since it's year-invariant, so practically ~22). Leverage `@functools.cache` + parquet caching; only do full-model propagation (Step 6) for the single target year, not all 7.
 - **No element-wise ground truth**: be explicit about this limitation in the write-up. The recommendation must be grounded in a combination of (industry output error + EF plausibility + methodological transparency), not in a single "best" metric.
 - **V-norm math must be verified**: Step 0's transform logic must be reviewed before merge. Getting this wrong silently produces a plausible-but-meaningless 5th approach.
 
@@ -421,5 +404,3 @@ Total: roughly 1.5–2 working weeks for the core path (M1–M5).
 | [bedrock/transform/iot/derived_gross_industry_output.py](../bedrock/transform/iot/derived_gross_industry_output.py) | `derive_gross_output_after_redefinition()` — ground-truth anchor |
 | [bedrock/analysis/time_series_B_matrix/derive_B_time_series.py](../bedrock/analysis/time_series_B_matrix/derive_B_time_series.py) | Template for time-series caching + plotting module layout |
 | [bedrock/utils/validation/calculate_ef_diagnostics.py](../bedrock/utils/validation/calculate_ef_diagnostics.py) | Existing EF diagnostics pipeline (Step 6) |
-| [.claude/plans/issue_182_a_matrix_methods.md](issue_182_a_matrix_methods.md) | Background analysis of the three methods |
-| [.claude/plans/issue_182_implementation_plan.md](issue_182_implementation_plan.md) | How the three flags were wired in |

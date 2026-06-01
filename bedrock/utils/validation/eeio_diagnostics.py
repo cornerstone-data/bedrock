@@ -14,18 +14,11 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_Ytot_usa_matrix_set,
-    derive_detail_VA_usa,
-)
-from bedrock.utils.economic.inflation_helpers_ceda import (
-    obtain_inflation_factors_from_reference_data,
-)
 from bedrock.utils.math.formulas import (
     backcompute_q_from_L_and_y,
     compute_commodity_mix_matrix,
-    compute_Vnorm_matrix,
 )
+from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVectorSet
 
 logger = logging.getLogger(__name__)
 
@@ -380,8 +373,8 @@ def commodity_industry_output_cpi_consistency(
     V: pd.DataFrame,
     q: pd.Series[float],
     x: pd.Series[float],
-    base_year: int,
-    target_year: int,
+    industry_CPI_ratio: pd.Series[float],
+    commodity_CPI_ratio: pd.Series[float],
     tolerance: float,
     include_details: bool = False,
 ) -> DiagnosticResult:
@@ -391,25 +384,6 @@ def commodity_industry_output_cpi_consistency(
     # This is equivalent to generateCommodityMixMatrix in useeior which also uses t(V) and x
     C_m = compute_commodity_mix_matrix(V=V, x=x)
 
-    # Market share matrix M_s (industry x commodity)
-    # This is equivalent to generateMarketSharesfromMake in useeior which also uses V and q
-    M_s = compute_Vnorm_matrix(V=V, q=q)
-
-    # CPI vectors from bedrock's inflation utilities
-    # This is equivalent to Detail_CPI_IO_17sch.rda which in turn is the same as model$MultiYearIndustryCPI
-    industry_CPI = obtain_inflation_factors_from_reference_data()
-
-    # Create commodity CPI by multiplying an I x 1 matrix @ a I x C matrix which yields a C x 1 matrix
-    # for each column of industry_CPI, which are the various years
-    commodity_CPI = pd.DataFrame().reindex_like(industry_CPI)
-    for i in range(len(industry_CPI.columns)):
-        commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ M_s
-
-    # Calculate CPI ratios
-    industry_CPI_ratio = industry_CPI[target_year] / industry_CPI[base_year]
-    commodity_CPI_ratio = commodity_CPI[target_year] / commodity_CPI[base_year]
-
-    # Calculate q_check and x_check
     q_check = q * commodity_CPI_ratio
     x_check = C_m @ (x * industry_CPI_ratio)
 
@@ -426,32 +400,39 @@ def compare_output_from_make_and_use(
     output: ta.Literal['Industry', 'Commodity'],
     V: pd.DataFrame,
     U: pd.DataFrame,
+    VA: pd.DataFrame,
+    y_set: SingleRegionYtotAndTradeVectorSet,
     tolerance: float,
     include_details: bool = False,
 ) -> DiagnosticResult:
     """Check that industry output from Use and Make tables are the same"""
 
     if output == "Industry":
-        VA = derive_detail_VA_usa()
         x_make = V.sum(axis=1)
         x_use = U.sum(axis=0) + VA.sum(axis=0)
 
         name = "compare_industry_output_from_make_and_use"
         d_result = validate_result(
-            name, x_make, x_use, tolerance=tolerance, include_details=include_details
+            name,
+            x_make,
+            x_use,
+            tolerance=tolerance,
+            include_details=include_details,
         )
     elif output == "Commodity":
-        y_set = derive_2017_Ytot_usa_matrix_set()
         q_make = V.sum(axis=0)
         q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
 
         name = "compare_commodity_output_from_make_and_use"
         d_result = validate_result(
-            name, q_make, q_use, tolerance=tolerance, include_details=include_details
+            name,
+            q_make,
+            q_use,
+            tolerance=tolerance,
+            include_details=include_details,
         )
     else:
         raise ValueError(
             'invalid output parameter requested for comparison between make and use, select commodity or industry'
         )
-
     return d_result

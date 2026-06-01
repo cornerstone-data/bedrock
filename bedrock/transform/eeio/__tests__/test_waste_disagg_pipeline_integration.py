@@ -17,7 +17,6 @@ import pytest
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio import (
-    cornerstone_bea_intermediates,
     cornerstone_expansion,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
@@ -52,6 +51,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     derive_cornerstone_V,
     derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_q,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
@@ -514,7 +514,6 @@ class TestPipelineB:
                 "B runtime path should not call BEA-expansion E helpers"
             )
 
-        monkeypatch.setattr(cornerstone_bea_intermediates, "bea_E", _raise_if_called)
         monkeypatch.setattr(
             cornerstone_expansion,
             "expand_ghg_matrix_from_bea_to_cornerstone",

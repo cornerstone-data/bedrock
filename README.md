@@ -20,7 +20,7 @@ These flags are grouped into themes:
 
 | Theme | Example flags |
 |---|---|
-| Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation` |
+| Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation`, `implement_electricity_reallocation` |
 | Economic IOT (input-output tables) | `use_E_data_year_for_x_in_B`, `iot_before_or_after_redefinition` |
 | GHG attribution — sector methods | `update_transportation_ghg_method`, `update_electricity_ghg_method` |
 | GHG attribution — gas coverage | `update_flowsa_refrigerant_method`, `add_new_ghg_activities` |
@@ -32,7 +32,7 @@ See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
 
 All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
 - A single *full-model* config represents a full set of methodology choices made for a data release. For example, [`2025_usa_cornerstone_full_model.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_full_model.yaml) is now the default config in `get_usa_config()`.
-- Several *per-flag ablation* configs each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, [`2025_usa_cornerstone_taxonomy.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_taxonomy.yaml) is the config for a specific choice to use Cornerstone taxonomy.
+- Several *atomic configs* each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, [`2025_usa_cornerstone_taxonomy.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_taxonomy.yaml) is the config for a specific choice to use Cornerstone taxonomy.
 
 A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.
 
@@ -45,6 +45,8 @@ The tests run twice every weekday on `main` and alert the Cornerstone team on an
 Snapshots are stored in GCS, one folder per git SHA, and [`bedrock/utils/snapshots/.SNAPSHOT_KEY`](bedrock/utils/snapshots/.SNAPSHOT_KEY) pins the SHA currently under test.
 When methodology changes, snapshots are regenerated and uploaded under the new SHA, and the pin is bumped.
 Old snapshots are retained, so every prior release remains independently reproducible.
+
+See [`bedrock/utils/snapshots/README.md`](bedrock/utils/snapshots/README.md) for the team-wide workflow for cutting a new snapshot, bumping the pin, and tagging a release (`v0.X.Y`).
 
 ### Diagnostics of model results compared to USEEIO and CEDA-US baselines
 

@@ -1,0 +1,12 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes
+EPA_eGRID,COAL,NAICS_2017_Code,221112,Fossil,PLFUELCT: coal fuel types; NAICS 221112 Fossil Fuel Electric Power Generation
+EPA_eGRID,GAS,NAICS_2017_Code,221112,Fossil,PLFUELCT: gas fuel types; aligned with GHGI Natural Gas Electric Power -> 221112
+EPA_eGRID,OIL,NAICS_2017_Code,221112,Fossil,PLFUELCT: oil fuel types; aligned with GHGI Fuel Oil Electric Power -> 221112
+EPA_eGRID,OFSL,NAICS_2017_Code,221112,Fossil,PLFUELCT: other fossil fuel types
+EPA_eGRID,BIOMASS,NAICS_2017_Code,221117,Biomass,PLFUELCT: biomass fuel types; aligned with GHGI Wood Electric Power -> 221117
+EPA_eGRID,NUCLEAR,NAICS_2017_Code,221113,Nuclear,PLFUELCT: nuclear fuel type; NAICS 221113 Nuclear Electric Power Generation
+EPA_eGRID,SOLAR,NAICS_2017_Code,221114,Solar,PLFUELCT: solar fuel type; NAICS 221114 Solar Electric Power Generation
+EPA_eGRID,WIND,NAICS_2017_Code,221115,Wind,PLFUELCT: wind fuel type; NAICS 221115 Wind Electric Power Generation
+EPA_eGRID,GEOTHERMAL,NAICS_2017_Code,221116,Geothermal,PLFUELCT: geothermal fuel type; NAICS 221116 Geothermal Electric Power Generation
+EPA_eGRID,HYDRO,NAICS_2017_Code,221111,Hydro,PLFUELCT: hydro fuel type; NAICS 221111 Hydroelectric Power Generation
+EPA_eGRID,OTHF,NAICS_2017_Code,221118,Other,PLFUELCT: other fuel (waste heat hydrogen purchased unknown); NAICS 221118 Other Electric Power Generation

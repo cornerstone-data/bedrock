@@ -248,12 +248,16 @@ def return_fbs_method_data(
 
     def process_primary_source(k: str, v: dict[str, Any], meta: dict[str, Any]) -> bool:
         if k == 'stewiFBS':
-            if v.get('local_inventory_name'):
+            local_inventory_name = v.get('local_inventory_name')
+            if isinstance(local_inventory_name, str):
                 meta['primary_source_meta'][k] = add_stewicombo_metadata(
-                    v.get('local_inventory_name')
+                    local_inventory_name
                 )
             else:
                 meta['primary_source_meta'][k] = add_stewi_metadata(v['inventory_dict'])
+            return True
+        if v.get('data_format') == 'FBS_outside_flowsa' and v.get('inventory_dict'):
+            meta['primary_source_meta'][k] = add_stewi_metadata(v['inventory_dict'])
             return True
         return False
 
@@ -420,17 +424,19 @@ def getMetadata(
     """
     from bedrock.extract.generateflowbyactivity import set_fba_name  # noqa: PLC0415
 
-    if category == "FlowByActivity":
+    if category == 'FlowByActivity':
         file_path = FBA_DIR
-    if category is None:
-        log.error('Category required, specify "FlowByActivity" or ' '"FlowBySector"')
-        category = 'FlowBySector'  # Default to avoid type errors
+    elif category is None:
+        log.error('Category required, specify "FlowByActivity" or "FlowBySector"')
+        category = 'FlowBySector'
         file_path = FBS_DIR
-    # if category is FBS ensure year is not added to source name when
-    # looking for metadata
-    if category == 'FlowBySector':
+    elif category.startswith('FlowBySector'):
         year = None
         file_path = FBS_DIR
+    else:
+        log.error('Unrecognized metadata category %s for %s', category, source)
+        file_path = FBS_DIR
+        year = None
 
     year_str = str(year) if isinstance(year, int) else year
     name = set_fba_name(source, year_str)

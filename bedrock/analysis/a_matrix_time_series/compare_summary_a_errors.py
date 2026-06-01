@@ -43,7 +43,7 @@ detail GO as the common weight — pending a Cornerstone-detail-to-BEA-
 detail GO split for sectors where Cornerstone disaggregates.
 
 Usage:
-    python -m bedrock.analysis.a_matrix_time_series.summary_a_errors
+    python -m bedrock.analysis.a_matrix_time_series.compare_summary_a_errors
 """
 
 from __future__ import annotations
@@ -55,39 +55,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
+from bedrock.analysis.a_matrix_time_series.constants import (
+    APPROACH_COLORS,
+    APPROACH_ORDER,
+    APPROACH_YEAR_COVERAGE,
+    PLOTS_DIR,
+    RESULTS_DIR,
+)
 from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Adom_usa,
     derive_summary_Aimp_usa,
 )
-from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     load_bea_v2017_summary_to_cornerstone,
 )
 
 logger = logging.getLogger(__name__)
 
-OUTPUT_DIR = Path(__file__).parent / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
-PLOTS_DIR = OUTPUT_DIR / "plots"
-LAST_RUN_SHEET_ID_PATH = RESULTS_DIR / "last_run_sheet_id.txt"
-
-YEARS: tuple[int, ...] = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
-APPROACH_ORDER: tuple[str, ...] = (
-    "useeio",
-    "ceda_default",
-    "summary_tables",
-    "industry_price_index",
-    "commodity_price_index",
+SUMMARY_A_ERROR_YEARS: tuple[int, ...] = (
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
 )
-APPROACH_COLORS: dict[str, str] = {
-    "useeio": "#7f7f7f",
-    "ceda_default": "#bcbd22",
-    "summary_tables": "#1f77b4",
-    "industry_price_index": "#ff7f0e",
-    "commodity_price_index": "#2ca02c",
-}
 
-TOP_K_WORST = 5
+TOP_K_WORST_CELLS_REPORTED = 5
 
 
 def _cornerstone_to_summary() -> dict[str, str]:
@@ -101,7 +98,7 @@ def _cornerstone_to_summary() -> dict[str, str]:
     }
 
 
-def _load_a_total(approach: str, year: int) -> pd.DataFrame:
+def _load_a_total_dom_plus_imp(approach: str, year: int) -> pd.DataFrame:
     """A_total = A_dom + A_imp, str-typed indices."""
     combined = pd.read_parquet(RESULTS_DIR / f"A_{approach}_{year}.parquet")
     adom = pd.DataFrame(combined.loc["dom"])
@@ -189,7 +186,7 @@ def _cell_errors_one_pair(
 
     flat = diff.flatten()
     flat_abs = np.abs(flat)
-    worst = np.argsort(flat_abs)[::-1][:TOP_K_WORST]
+    worst = np.argsort(flat_abs)[::-1][:TOP_K_WORST_CELLS_REPORTED]
     rows_arr = np.asarray(common_rows)
     cols_arr = np.asarray(common_cols)
     n_cols = len(common_cols)
@@ -204,19 +201,24 @@ def compute_errors_table() -> pd.DataFrame:
     """Per (approach, year) cell-level errors at summary aggregation."""
     cs_to_summary = _cornerstone_to_summary()
     rows: list[dict[str, object]] = []
-    for year in YEARS:
+    for year in SUMMARY_A_ERROR_YEARS:
         try:
             a_summary_obs = _bea_observed_summary_a(year)
         except Exception as e:  # noqa: BLE001
             logger.warning("BEA summary A unavailable for year=%d (%s)", year, e)
             continue
         for approach in APPROACH_ORDER:
+            # Skip year/approach combos the approach doesn't cover. Avoids
+            # log noise for known gaps (e.g. useeio_nowcast has no 2024).
+            coverage = APPROACH_YEAR_COVERAGE.get(approach)
+            if coverage is not None and year not in coverage:
+                continue
             a_path = RESULTS_DIR / f"A_{approach}_{year}.parquet"
             q_path = RESULTS_DIR / f"q_{approach}_{year}.parquet"
             if not (a_path.exists() and q_path.exists()):
                 logger.warning("Missing %s or %s — skipping", a_path, q_path)
                 continue
-            a_detail = _load_a_total(approach, year)
+            a_detail = _load_a_total_dom_plus_imp(approach, year)
             q_detail = _load_q_detail(approach, year)
             a_summary_pred = aggregate_detail_a_to_summary(
                 a_detail, q_detail, cs_to_summary
@@ -283,28 +285,11 @@ def plot_rmse_ranking(errors_df: pd.DataFrame, path: Path) -> None:
     ax.set_xlabel("year")
     ax.set_ylabel("Z-weighted RMSE")
     ax.grid(True, axis="y", alpha=0.3)
-    ax.legend(loc="upper left", fontsize=9, frameon=False)
+    ax.legend(loc="upper left", fontsize=9, framealpha=0.4)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-
-
-def _publish_summary_a_errors_tab(errors_df: pd.DataFrame) -> None:
-    if not LAST_RUN_SHEET_ID_PATH.exists():
-        logger.warning("No %s found — skipping Sheet publish.", LAST_RUN_SHEET_ID_PATH)
-        return
-    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
-    try:
-        update_sheet_tab(sheet_id, "summary_a_errors", errors_df)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__,
-            e,
-        )
-        return
-    logger.info("Updated summary_a_errors tab on sheet %s", sheet_id)
 
 
 def main() -> None:
@@ -317,7 +302,7 @@ def main() -> None:
 
     plot_rmse_ranking(errors_df, PLOTS_DIR / "summary_a_rmse_ranking.png")
 
-    _publish_summary_a_errors_tab(errors_df)
+    publish_tabs({"summary_a_errors": errors_df})
     logger.info("Step 5 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 
