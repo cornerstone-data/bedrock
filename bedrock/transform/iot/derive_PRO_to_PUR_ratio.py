@@ -243,50 +243,39 @@ def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
     Routes before/after BEA redefinitions via ``USAConfig.iot_before_or_after_redefinition``.
     Applies the active pipeline's ``MarginsFilters`` before aggregation.
 
+    When both ``useeio_margins`` and ``cornerstone_industry_avg_margins`` are set,
+    inflates from ``usa_base_io_data_year`` to ``model_base_year``.
+
     Returns a DataFrame indexed by Cornerstone ``COMMODITIES`` with columns:
     ``Producers' Value``, ``Transportation``, ``Wholesale``, ``Retail``,
     ``Purchasers' Value``. Unit is USD.
     """
     cfg = get_usa_config()
     corresp = load_usa_2017_commodity__cornerstone_commodity_correspondence()
-    return corresp @ _margins_by_commodity(
+    df = corresp @ _margins_by_commodity(
         _get_active_margins_filters(),
         abs_negative_producers_value=cfg.useeio_margins,
         abs_negative_margin_columns=cfg.cornerstone_industry_avg_margins,
     )
 
+    if cfg.useeio_margins or cfg.cornerstone_industry_avg_margins:
+        original_year = cfg.usa_base_io_data_year
+        target_year = cfg.model_base_year
+        if original_year != target_year:
+            commodity_pi = get_vnorm_adjusted_commodity_price_ratio(
+                original_year, target_year
+            )
+            df["Producers' Value"] *= commodity_pi.reindex(df.index, fill_value=1.0)
 
-@functools.cache
-def derive_2017_margins_cornerstone_inflated_usa(
-    original_year: int, target_year: int
-) -> pd.DataFrame:
-    """
-    Margins aggregated to Cornerstone commodity taxonomy, inflated from
-    ``original_year`` to ``target_year``.
-
-    ``Producers' Value`` is inflated using the V-norm-weighted commodity price
-    index (same basis as ``inflate_cornerstone_q_or_y_with_commodity_pi``).
-
-    ``Transportation``, ``Wholesale``, and ``Retail`` are inflated using the
-    ITA-based sector commodity price ratio for BEA sector codes 48TW, 42,
-    and 44RT respectively (see ``get_sector_commodity_price_ratio``).
-
-    ``Purchasers' Value`` is recomputed as the sum of the four inflated
-    components to preserve internal consistency.
-    """
-    df = derive_2017_margins_cornerstone_usa().copy()
-
-    commodity_pi = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
-    df["Producers' Value"] *= commodity_pi.reindex(df.index, fill_value=1.0)
-
-    sector_pi = get_sector_commodity_price_ratio(original_year, target_year)
-    df['Transportation'] *= sector_pi['48TW']
-    df['Wholesale'] *= sector_pi['42']
-    df['Retail'] *= sector_pi['44RT']
+            sector_pi = get_sector_commodity_price_ratio(original_year, target_year)
+            df['Transportation'] *= sector_pi['48TW']
+            df['Wholesale'] *= sector_pi['42']
+            df['Retail'] *= sector_pi['44RT']
 
     df["Purchasers' Value"] = (
         df["Producers' Value"] + df['Transportation'] + df['Wholesale'] + df['Retail']
     )
+
     return df
 
 
