@@ -382,8 +382,10 @@ def estimate_suppressed_qcew(fba: FlowByActivity) -> FlowByActivity:
 
         child_index = unsuppressed.index[child_mask]
         parent_present = has_parent.to_numpy()
-        unattributed = allocated.loc[has_parent, 'per_child'].to_numpy()
-        flow_amount = unattributed + allocated.loc[has_parent, 'Attributed'].to_numpy()
+        unattributed = allocated.loc[has_parent, 'per_child'].to_numpy(dtype=float)
+        flow_amount = unattributed + allocated.loc[has_parent, 'Attributed'].to_numpy(
+            dtype=float
+        )
         unsuppressed.loc[child_index[parent_present], 'Unattributed'] = unattributed
         unsuppressed.loc[child_index[parent_present], 'FlowAmount'] = flow_amount
 
