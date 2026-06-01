@@ -6,11 +6,11 @@ from typing import cast
 
 import pandas as pd
 
-from bedrock.publish.model_objects import get_M, get_N
-from bedrock.publish.placeholders import (
+from bedrock.publish.emission_factors.placeholders import (
     adjust_publish_matrix,
     placeholder_margin_ef,
 )
+from bedrock.publish.model_objects import get_M, get_N
 from bedrock.utils.emissions.characterization import GREENHOUSE_GASES_INDICATOR
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 
-from bedrock.publish.emission_factor_table import (
+from bedrock.publish.emission_factors.table import (
     build_emission_factor_table,
     build_purchaser_matrices,
     finalize_cornerstone_ef_table,
