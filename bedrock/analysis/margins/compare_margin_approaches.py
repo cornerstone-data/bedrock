@@ -1,4 +1,4 @@
-"""Compare commodity-level PRO:PUR ratios across all MarginsFilters configurations.
+"""Compare commodity-level PRO:PUR ratios across all margin model approaches.
 
 Scenarios and the production function each routes through:
 
@@ -7,8 +7,8 @@ Scenarios and the production function each routes through:
   ceda         — derive_2017_producer_to_purchaser_price_ratio_ceda_usa() with ceda_margins=True
 
 Outputs:
-  output/plots/margin_filter_comparison.png  — violin plots for useeio/cornerstone/ceda
-  output/margin_filter_comparison.csv        — Cornerstone commodity ratio table
+  output/plots/margin_approach_comparison.png  — violin plots for useeio/cornerstone/ceda
+  output/margin_approach_comparison.csv        — Cornerstone commodity ratio table
 """
 
 from __future__ import annotations
@@ -156,7 +156,7 @@ ax.set_xticks(range(n_sectors))
 ax.set_xticklabels(active_sectors, rotation=45, ha='right', fontsize=9)
 ax.set_ylabel('PRO:PUR ratio')
 ax.set_title(
-    'PRO:PUR ratio by BEA sector and filter configuration\n(Cornerstone commodities)'
+    'PRO:PUR ratio by BEA sector and margin approach\n(Cornerstone commodities)'
 )
 ax.grid(True, axis='y', linestyle=':', alpha=0.4)
 
@@ -167,12 +167,12 @@ legend_handles = [
 ax.legend(handles=legend_handles, loc='upper right', fontsize=8)
 
 fig.tight_layout()
-plot_path = os.path.join(PLOTS, 'margin_filter_comparison.png')
+plot_path = os.path.join(PLOTS, 'margin_approach_comparison.png')
 fig.savefig(plot_path, dpi=150)
 plt.close(fig)
 print(f'Plot saved to: {plot_path}')
 
 # --- CSVs ---
-csv_path = os.path.join(OUT, 'margin_filter_comparison.csv')
+csv_path = os.path.join(OUT, 'margin_approach_comparison.csv')
 ratio_df.to_csv(csv_path)
 print(f'Cornerstone table saved to: {csv_path}')
