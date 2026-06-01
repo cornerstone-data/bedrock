@@ -22,14 +22,15 @@ import pandas as pd
 import pytest
 
 from bedrock.publish.__tests__._helpers import setup_config, teardown
-from bedrock.publish.excel.writer import _LOCATION, write_model_to_xlsx
+from bedrock.publish.excel.writer import write_model_to_xlsx
+from bedrock.publish.model_objects import PUBLISH_LOCATION
 from bedrock.utils.snapshots.loader import load_current_snapshot
 
 _DEFAULT_CONFIG = '2025_usa_cornerstone_full_model'
 
 
 def _strip_loc_suffix(values: pd.Index) -> pd.Index:
-    suffix = f'/{_LOCATION}'
+    suffix = f'/{PUBLISH_LOCATION}'
     return pd.Index(
         [str(v)[: -len(suffix)] if str(v).endswith(suffix) else str(v) for v in values],
         name=values.name,

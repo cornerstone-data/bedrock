@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 from bedrock.publish.excel import writer as writer_module
+from bedrock.publish.model_objects import assemble_extended_U
 
 
 def _synthetic_registry(config_name: str) -> list[writer_module.SheetSpec]:
@@ -111,7 +112,7 @@ def test_round_trip_values_preserved(
 
 
 def test_assemble_extended_U_block_placement() -> None:
-    """Block placement and VA x FD zero corner for `_assemble_extended_U`.
+    """Block placement and VA x FD zero corner for `assemble_extended_U`.
 
     Validates the structural invariant: useeior-style extended-U has
     intermediate top-left, FD top-right, VA bottom-left, zeros at VA x FD.
@@ -139,9 +140,7 @@ def test_assemble_extended_U_block_placement() -> None:
         columns=industries,
     )
 
-    extended = writer_module._assemble_extended_U(
-        intermediate=intermediate, fd=fd, va=va
-    )
+    extended = assemble_extended_U(intermediate=intermediate, fd=fd, va=va)
 
     assert extended.shape == (5, 4), f'expected (5, 4); got {extended.shape}'
     assert extended.index.name == 'sector'
@@ -160,9 +159,7 @@ def test_assemble_extended_U_block_placement() -> None:
         (va_fd_corner == 0).all().all()
     ), f'VA x FD corner must be zero; got {va_fd_corner.values.tolist()}'
 
-    truncated = writer_module._assemble_extended_U(
-        intermediate=intermediate, fd=None, va=va
-    )
+    truncated = assemble_extended_U(intermediate=intermediate, fd=None, va=va)
     assert truncated.shape == (5, 2)
     assert list(truncated.index) == ['c1', 'c2', 'c3', 'V001', 'V002']
     assert list(truncated.columns) == ['ind1', 'ind2']

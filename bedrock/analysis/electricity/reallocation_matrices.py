@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from bedrock.publish.excel.writer import _apply_loc_suffix, _assemble_extended_U
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.publish.model_objects import apply_loc_suffix, assemble_extended_U
+from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_U_after_waste,
     derive_cornerstone_V_after_waste,
     derive_cornerstone_VA_after_waste,
@@ -77,7 +77,7 @@ def _delta_summary(before: pd.DataFrame, after: pd.DataFrame) -> pd.DataFrame:
 
 
 def _with_publish_loc_suffix(frame: pd.DataFrame) -> pd.DataFrame:
-    out = _apply_loc_suffix(frame)
+    out = apply_loc_suffix(frame)
     assert isinstance(out, pd.DataFrame)
     return out
 
@@ -92,7 +92,7 @@ def _extended_use_tables(
     udom_nonneg = handle_negative_matrix_values(udom.copy())
     uimp_nonneg = handle_negative_matrix_values(uimp.copy())
     intermediate = udom_nonneg + uimp_nonneg
-    extended = _assemble_extended_U(
+    extended = assemble_extended_U(
         intermediate=intermediate,
         fd=y_fd,
         va=va.copy(),
