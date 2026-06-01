@@ -48,26 +48,25 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
+from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    LAST_RUN_SHEET_ID_PATH,
+    FOCUS_APPROACHES,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.io.gcp import update_sheet_tab
 
 logger = logging.getLogger(__name__)
 
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-# Approaches we plot (rows). Excludes baselines (useeio, ceda_default) which
-# trivially have zero divergence against themselves.
-APPROACHES_FOR_STABILITY: tuple[str, ...] = (
-    "commodity_price_index",
-    "industry_price_index",
-    "summary_tables",
-)
-# (approach_name_in_long, display_label, delta_column_in_long)
-BASELINES: tuple[tuple[str, str, str], ...] = (
+# Approaches we plot (rows). Reversed from FOCUS_APPROACHES so rows are
+# stacked with `useeio_nowcast` at top (external reference reads first),
+# then `commodity_price_index`, then `summary_tables` at bottom.
+APPROACHES_FOR_STABILITY: tuple[str, ...] = tuple(reversed(FOCUS_APPROACHES))
+# (approach_name_in_long, display_label, delta_column_in_long). Carries the
+# delta-column suffix so this file is the only consumer; the shared
+# `BASELINES` 2-tuple in `constants.py` covers the simpler (name, label) form.
+BASELINES_WITH_DELTA_COL: tuple[tuple[str, str, str], ...] = (
     ("useeio", "USEEIO", "delta_vs_useeio"),
     ("ceda_default", "CEDA-US", "delta_vs_ceda"),
 )
@@ -104,6 +103,8 @@ def _wide_above_threshold(
 
     Drops cells with NaN in any year so the per-year sets are over an aligned
     cell population — same filter as ``plot_divergence_share`` in Step 2.
+
+    Consumed by: ``compute_set_stability``, ``compute_persistence_categories``.
     """
     sub = long[(long["approach"] == approach) & (long["dom_or_imp"] == kind)]
     pivot = pd.DataFrame(
@@ -127,7 +128,7 @@ def compute_set_stability(
     """
     rows: list[dict[str, object]] = []
     for approach in APPROACHES_FOR_STABILITY:
-        for baseline_col, _, delta_col in BASELINES:
+        for baseline_col, _, delta_col in BASELINES_WITH_DELTA_COL:
             wide = _wide_above_threshold(long, approach, kind, delta_col, threshold)
             if wide.empty:
                 continue
@@ -176,7 +177,7 @@ def compute_persistence_categories(
     """
     rows: list[dict[str, object]] = []
     for approach in APPROACHES_FOR_STABILITY:
-        for baseline_col, _, delta_col in BASELINES:
+        for baseline_col, _, delta_col in BASELINES_WITH_DELTA_COL:
             wide = _wide_above_threshold(long, approach, kind, delta_col, threshold)
             if wide.empty:
                 continue
@@ -327,7 +328,7 @@ def _draw_baseline_grouped_persistence(
 
     # Bar order: group by baseline (outer), approach (inner).
     bars: list[tuple[str, str, str]] = []
-    for baseline_col, baseline_label, _ in BASELINES:
+    for baseline_col, baseline_label, _ in BASELINES_WITH_DELTA_COL:
         for approach in APPROACHES_FOR_STABILITY:
             bars.append((approach, baseline_col, baseline_label))
     bar_labels = [f"{a}\nvs {bl}" for a, _, bl in bars]
@@ -449,6 +450,7 @@ def _draw_baseline_grouped_persistence(
             loc="center left",
             bbox_to_anchor=(1.02, 0.5),
             fontsize=8,
+            framealpha=0.4,
         )
     return handles, labels
 
@@ -466,7 +468,7 @@ def plot_set_stability_heatmap(
         (stability_df["dom_or_imp"] == kind) & (stability_df["threshold"] == threshold)
     ]
     n_rows = len(APPROACHES_FOR_STABILITY)
-    n_cols = len(BASELINES)
+    n_cols = len(BASELINES_WITH_DELTA_COL)
     fig, axes = plt.subplots(
         n_rows, n_cols, figsize=(5.0 * n_cols, 4.5 * n_rows), squeeze=False
     )
@@ -475,7 +477,7 @@ def plot_set_stability_heatmap(
         fontsize=12,
     )
     for i, approach in enumerate(APPROACHES_FOR_STABILITY):
-        for j, (baseline_col, baseline_label, _) in enumerate(BASELINES):
+        for j, (baseline_col, baseline_label, _) in enumerate(BASELINES_WITH_DELTA_COL):
             panel: pd.DataFrame = sub.loc[
                 (sub["approach"] == approach) & (sub["baseline"] == baseline_col)
             ]
@@ -548,6 +550,7 @@ def plot_persistence_by_threshold(
                 title="years above threshold",
                 loc="center",
                 fontsize=11,
+                framealpha=0.4,
             )
             legend_placed = True
 
@@ -559,31 +562,6 @@ def plot_persistence_by_threshold(
 # ---------------------------------------------------------------------------
 # Sheet publish + main
 # ---------------------------------------------------------------------------
-
-
-def _publish_stability_tabs(
-    stability_df: pd.DataFrame, persistence_df: pd.DataFrame
-) -> None:
-    """Append the two summary tabs to the run-report Sheet, if available."""
-    if not LAST_RUN_SHEET_ID_PATH.exists():
-        logger.warning(
-            "No %s found — skipping Sheet publish. Run derive_A_time_series "
-            "first (with valid Drive auth) to create the run report.",
-            LAST_RUN_SHEET_ID_PATH,
-        )
-        return
-    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
-    try:
-        update_sheet_tab(sheet_id, "set_stability_jaccard", stability_df)
-        update_sheet_tab(sheet_id, "persistence_categories", persistence_df)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__,
-            e,
-        )
-        return
-    logger.info("Updated stability tabs on sheet %s", sheet_id)
 
 
 def main() -> None:
@@ -625,7 +603,12 @@ def main() -> None:
             PLOTS_DIR / f"persistence_by_threshold_{kind}.png",
         )
 
-    _publish_stability_tabs(stability_df, persistence_df)
+    publish_tabs(
+        {
+            "set_stability_jaccard": stability_df,
+            "persistence_categories": persistence_df,
+        }
+    )
     logger.info("Step 2.5 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 

@@ -5,8 +5,6 @@
      against the 2017 summary A (so the ratio is in matched dollar years),
   2. applies the structural ratio to the 2017 detail A,
   3. inflates the result 2017 → model_year.
-
-See `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
 """
 
 from __future__ import annotations
@@ -26,7 +24,6 @@ def _set_summary_tables(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cfg, 'scale_a_matrix_with_summary_tables', True)
     monkeypatch.setattr(cfg, 'adjust_summary_A_and_q_dollar_year', True)
     monkeypatch.setattr(cfg, 'scale_a_matrix_with_useeio_method', False)
-    monkeypatch.setattr(cfg, 'scale_a_matrix_with_industry_price_index', False)
     monkeypatch.setattr(cfg, 'scale_a_matrix_with_commodity_price_index', False)
     derive_cornerstone_Aq_scaled.cache_clear()
 

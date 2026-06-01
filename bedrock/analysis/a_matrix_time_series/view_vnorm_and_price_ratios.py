@@ -1,3 +1,11 @@
+"""Print side-by-side industry vs V-norm-derived commodity price ratios.
+
+Diagnostic helper for the ``commodity_price_index`` approach: derives Vnorm and
+the two price-ratio series, checks index alignment between ``V`` and the
+upstream PI, and prints distributional summaries. Run when the V-norm code path
+changes or to sanity-check a new ``model_base_year``.
+"""
+
 from __future__ import annotations
 
 from bedrock.analysis.a_matrix_time_series.constants import (

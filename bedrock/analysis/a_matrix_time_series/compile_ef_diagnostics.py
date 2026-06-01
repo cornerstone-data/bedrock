@@ -12,10 +12,13 @@ each Sheet, and produces:
       ``n_significant`` (sectors where the percent diff exceeds
       ``SIGNIFICANT_PCT_THRESHOLD``).
 - ``output/results/ef_scatter_coords.parquet``: long-format coordinates
-  ``(approach, baseline, ef_kind, sector, x_baseline, y_approach)`` for the
-  Phase 3 scatter plots. ``x_baseline`` is ``*_old_inflated`` (the
-  baseline's EF, inflation-adjusted to the candidate's base year) and
-  ``y_approach`` is ``*_new``.
+  ``(scenario, year, approach, baseline, ef_kind, sector, x_baseline,
+  y_approach)`` for the Phase 3 scatter plots. ``x_baseline`` is
+  ``*_old_inflated`` (the baseline's EF, inflation-adjusted to the
+  candidate's base year) and ``y_approach`` is ``*_new``. ``scenario``
+  distinguishes runs where only the A-matrix derivation differs
+  (``isolate_a_matrix``) from runs that bundle the A-matrix change with
+  the full v0.3 stack (``bundle_v0_3``).
 - ``ef_summary_vs_useeio`` and ``ef_summary_vs_ceda`` tabs appended to the
   run-report Sheet (sheet ID from ``last_run_sheet_id.txt``, written by
   Step 1). Skipped with a warning if that file is missing.
@@ -35,7 +38,6 @@ import pandas as pd
 
 from bedrock.analysis.a_matrix_time_series.constants import (
     LAST_RUN_SHEET_ID_PATH,
-    PLOTS_DIR,
     RESULTS_DIR,
 )
 from bedrock.utils.io.gcp import read_sheet_tab, update_sheet_tab
@@ -51,6 +53,12 @@ EF_SCATTER_COORDS_PATH = RESULTS_DIR / "ef_scatter_coords.parquet"
 
 # A row counts as "significantly different" when |perc_diff| exceeds this.
 SIGNIFICANT_PCT_THRESHOLD = 0.10
+
+# Legacy single-year EF diagnostics runs (Step 6, pre-dispatch) lack a
+# ``scenario`` value in the run index. They were generated from the
+# `2025_usa_cornerstone_A_*` YAMLs, which flip only the A-matrix flag, so
+# retag them with this label.
+ISOLATE_A_MATRIX_SCENARIO = "isolate_a_matrix"
 
 # Time-series cells differ in `model_base_year`, so each cell's `D_new` /
 # `N_new` lives in its own dollar year. Deflate them to this common reference
@@ -147,8 +155,14 @@ def _summarize(joined: pd.DataFrame, approach: str) -> pd.Series:
     )
 
 
-def _scatter_coords(joined: pd.DataFrame, approach: str, baseline: str) -> pd.DataFrame:
-    """Long-format `(approach, baseline, ef_kind, sector, x_baseline, y_approach)`."""
+def _scatter_coords(
+    joined: pd.DataFrame,
+    approach: str,
+    baseline: str,
+    scenario: str,
+    year: str,
+) -> pd.DataFrame:
+    """Long-format scatter coords with run dimensions stamped on each row."""
     rows: list[pd.DataFrame] = []
     for kind, new_col, old_col in (
         ("N", "N_new", "N_old_inflated"),
@@ -159,6 +173,8 @@ def _scatter_coords(joined: pd.DataFrame, approach: str, baseline: str) -> pd.Da
         chunk = joined[[new_col, old_col]].dropna().copy()
         chunk.columns = pd.Index(["y_approach", "x_baseline"])
         chunk = chunk.reset_index().rename(columns={chunk.index.name: "sector"})
+        chunk["scenario"] = scenario
+        chunk["year"] = year
         chunk["approach"] = approach
         chunk["baseline"] = baseline
         chunk["ef_kind"] = kind
@@ -168,13 +184,21 @@ def _scatter_coords(joined: pd.DataFrame, approach: str, baseline: str) -> pd.Da
     combined = pd.concat(rows, ignore_index=True)
     return combined.loc[
         :,
-        ["approach", "baseline", "ef_kind", "sector", "x_baseline", "y_approach"],
+        [
+            "scenario",
+            "year",
+            "approach",
+            "baseline",
+            "ef_kind",
+            "sector",
+            "x_baseline",
+            "y_approach",
+        ],
     ]
 
 
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
     if not EF_RUN_INDEX_PATH.exists():
         raise FileNotFoundError(
@@ -183,7 +207,7 @@ def main() -> None:
             "  (a) Auto-rebuild from existing Sheets in the diagnostics "
             "Drive folder:\n"
             "      python -m bedrock.analysis.a_matrix_time_series."
-            "rebuild_run_index_from_drive --folder-id <DRIVE_FOLDER_ID>\n"
+            "recover_ef_run_index --folder-id <DRIVE_FOLDER_ID>\n"
             "  (b) Hand-write a CSV with at least 3 columns "
             "(approach, baseline, sheet_id), one row per Sheet."
         )
@@ -211,6 +235,10 @@ def main() -> None:
         sheet_id = str(row["sheet_id"])
         scenario = str(row["scenario"]) if pd.notna(row["scenario"]) else ""
         year = str(row["year"]) if pd.notna(row["year"]) else ""
+        # Retag legacy single-year rows (Step 6 era) so the scatter parquet
+        # carries a consistent scenario column for downstream plotting.
+        if not scenario:
+            scenario = ISOLATE_A_MATRIX_SCENARIO
         cell_label = ", ".join(
             f"{k}={v}"
             for k, v in (
@@ -222,7 +250,18 @@ def main() -> None:
             if v
         )
         logger.info("Pulling tabs for %s", cell_label)
-        joined = _read_pair(sheet_id)
+        try:
+            joined = _read_pair(sheet_id)
+        except (
+            Exception
+        ) as exc:  # noqa: BLE001 — surface but don't crash on one bad sheet
+            logger.warning(
+                "%s — failed to read Sheet %s (%s); skipping",
+                cell_label,
+                sheet_id,
+                exc,
+            )
+            continue
         if joined.empty:
             logger.warning("%s returned empty data; skipping", cell_label)
             continue
@@ -250,7 +289,9 @@ def main() -> None:
         if year:
             summary_row["year"] = year
         summaries_by_baseline.setdefault(baseline, []).append(summary_row)
-        scatter_chunks.append(_scatter_coords(joined, approach, baseline))
+        scatter_chunks.append(
+            _scatter_coords(joined, approach, baseline, scenario, year)
+        )
 
     summaries: dict[str, pd.DataFrame] = {
         baseline: pd.DataFrame(rows).set_index("approach")

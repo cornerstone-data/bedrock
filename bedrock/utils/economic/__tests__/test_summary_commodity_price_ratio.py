@@ -6,8 +6,6 @@ Validates:
 - Ratio is identity at year == year.
 - Index coverage matches USA_2017_SUMMARY_INDUSTRY_CODES.
 - Deflate / inflate round-trip preserves an A matrix.
-
-See `.claude/plans/summary_a_dollar_year_realignment_plan.md`.
 """
 
 from __future__ import annotations
