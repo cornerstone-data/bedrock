@@ -14,11 +14,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.extract.disaggregation import useeior_waste_weights as uww
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio import (
     cornerstone_expansion,
 )
+from bedrock.transform.eeio import derived_cornerstone as dc
 from bedrock.transform.eeio.derived_cornerstone import (
     _WASTE_NEW_CODES,
     _derive_cornerstone_Ytot_with_trade,
@@ -128,8 +130,8 @@ class TestWeightProvider:
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(dc, "_download_waste_weights_to_cache", _fake_download)
-        monkeypatch.setattr(dc, "load_waste_disagg_weights", _fake_loader)
+        monkeypatch.setattr(uww, "download_waste_weights_to_cache", _fake_download)
+        monkeypatch.setattr(dc, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23")
         result = get_waste_disagg_weights()
@@ -161,8 +163,8 @@ class TestWeightProvider:
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(dc, "_download_waste_weights_to_cache", _fail_download)
-        monkeypatch.setattr(dc, "load_waste_disagg_weights", _fake_loader)
+        monkeypatch.setattr(uww, "download_waste_weights_to_cache", _fail_download)
+        monkeypatch.setattr(dc, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23_restore_iot_redefinition")
         result = get_waste_disagg_weights()
