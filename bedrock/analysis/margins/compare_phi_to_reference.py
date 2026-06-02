@@ -119,7 +119,7 @@ def _compute_useeio_phi_model() -> pd.Series:
         _useeio_margins_filters, abs_negative_producers_value=True
     )
     phi = (margins["Producers' Value"] / margins["Purchasers' Value"]).replace(
-        [np.inf, -np.inf, np.nan], np.nan
+        [np.inf, -np.inf, np.nan], 1
     )
     phi.index.name = 'sector'
     return phi
