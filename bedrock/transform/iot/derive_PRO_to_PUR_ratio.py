@@ -211,6 +211,24 @@ def _margins_by_commodity(
     return result
 
 
+def derive_2017_margins_ceda_usa() -> pd.DataFrame:
+    """
+    Margins aggregated to CEDA v7 sector taxonomy, summed over all industries.
+    Applies ``_ceda_margins_filters`` when ``USAConfig.ceda_margins`` is set.
+
+    Returns a DataFrame indexed by CEDA v7 sectors with columns:
+    ``Producers' Value``, ``Transportation``, ``Wholesale``, ``Retail``,
+    ``Purchasers' Value``. Unit is USD.
+    """
+    corresp = load_usa_2017_commodity__ceda_v7_correspondence()
+    corresp.columns.names = ['commodity']
+    filters = _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
+    margin = corresp @ _margins_by_commodity(filters)
+    # Expanded sectors share value equally from the aggregated 2012 sector.
+    margin.loc[EXPANDED_SECTORS_2012_TO_2017, :] *= 1 / len(EXPANDED_SECTORS_2012_TO_2017)
+    return margin
+
+
 def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]:
     """
     Derive the ratio to convert EF from producer to purchaser price for each CEDA v7 sector.
@@ -218,24 +236,13 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
     Since original EF is in kgCO2e/USD_producer, ratio here is calculated as
     (output_producer / (output_producer + margin)).
     """
-    corresp = load_usa_2017_commodity__ceda_v7_correspondence()
-    corresp.columns.names = ['commodity']
-
-    filters = (
-        _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
-    )
-    margin = corresp @ _margins_by_commodity(filters)
-    # assume expanded_sectors will receive equal portion of value from aggregated sector
-    margin.loc[EXPANDED_SECTORS_2012_TO_2017, :] *= 1 / len(
-        EXPANDED_SECTORS_2012_TO_2017
-    )
-
-    ratio = margin["Producers' Value"] / margin["Purchasers' Value"]
-    avg_mask = (ratio > 0) & (ratio <= 1)
-    avg = ratio[avg_mask].mean()
-    in_range_mask = (ratio > 0) & (ratio < 1)
-    ratio[~in_range_mask] = avg
-    return ratio
+    margin = derive_2017_margins_ceda_usa()
+    phi = margin["Producers' Value"] / margin["Purchasers' Value"]
+    avg_mask = (phi > 0) & (phi <= 1)
+    avg = phi[avg_mask].mean()
+    in_range_mask = (phi > 0) & (phi < 1)
+    phi[~in_range_mask] = avg
+    return phi
 
 
 def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
