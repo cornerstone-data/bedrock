@@ -156,7 +156,8 @@ def _scatter_comparison(
             fontsize=7.5,
         )
 
-    return pd.DataFrame({'phi_model': y, 'phi_reference': x, 'diff': y - x}).reindex(
+    diff = y - x
+    return pd.DataFrame({'phi_model': y, 'phi_reference': x, 'diff': diff, 'abs_diff': diff.abs()}).reindex(
         common
     )
 
