@@ -51,8 +51,7 @@ _PIN_JSON = os.path.join(
     'useeio_baseline_pin.json',
 )
 _CEDA_GS_URI = (
-    'gs://cornerstone-default/snapshots/CEDA_2025/'
-    'CEDA 2025 (updated 2025-11-12).xlsx'
+    'gs://cornerstone-default/snapshots/CEDA_2025/CEDA 2025 (updated 2025-11-12).xlsx'
 )
 _GCS_PREFIX = 'gs://cornerstone-default/'
 
@@ -81,8 +80,8 @@ def _load_useeio_phi_reference(local_path: str, year: int) -> pd.Series:
     )
     sectors = raw.iloc[1:, 0].astype(str).str.strip()
     values = raw.iloc[1:, 1:].copy()
-    values.columns = headers.values
-    values.index = sectors.values
+    values.columns = pd.Index(headers)
+    values.index = pd.Index(sectors)
     year_str = str(year)
     if year_str not in values.columns:
         available = values.columns.tolist()
@@ -105,8 +104,8 @@ def _load_ceda_phi_reference(local_path: str) -> pd.Series:
     headers = raw.iloc[4, 1:].astype(str).str.strip()
     data_row = raw.iloc[5, 1:].copy()
     phi = pd.Series(
-        pd.to_numeric(data_row.values, errors='coerce'),
-        index=headers.values,
+        pd.to_numeric(pd.Series(data_row), errors='coerce'),
+        index=pd.Index(headers),
         name='phi_reference',
     )
     phi.index.name = 'sector'
@@ -157,9 +156,9 @@ def _scatter_comparison(
         )
 
     diff = y - x
-    return pd.DataFrame({'phi_model': y, 'phi_reference': x, 'diff': diff, 'abs_diff': diff.abs()}).reindex(
-        common
-    )
+    return pd.DataFrame(
+        {'phi_model': y, 'phi_reference': x, 'diff': diff, 'abs_diff': diff.abs()}
+    ).reindex(common)
 
 
 # ─── USEEIO ──────────────────────────────────────────────────────────────────
@@ -196,8 +195,7 @@ print(
     f'{len(phi_useeio_ref)} reference sectors'
 )
 print(
-    f'CEDA: {len(phi_ceda_model)} model sectors, '
-    f'{len(phi_ceda_ref)} reference sectors'
+    f'CEDA: {len(phi_ceda_model)} model sectors, {len(phi_ceda_ref)} reference sectors'
 )
 
 # ─── Plots ────────────────────────────────────────────────────────────────────
