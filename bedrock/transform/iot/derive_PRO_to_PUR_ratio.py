@@ -231,8 +231,9 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
     )
 
     ratio = margin["Producers' Value"] / margin["Purchasers' Value"]
-    in_range_mask = (ratio > 0) & (ratio <= 1)
-    avg = ratio[in_range_mask].mean()
+    avg_mask = (ratio > 0) & (ratio <= 1)
+    avg = ratio[avg_mask].mean()
+    in_range_mask = (ratio > 0) & (ratio < 1)
     ratio[~in_range_mask] = avg
     return ratio
 
