@@ -16,7 +16,9 @@ import pytest
 
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio import cornerstone_expansion
+from bedrock.transform.eeio import (
+    cornerstone_expansion,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     _WASTE_NEW_CODES,
     _derive_cornerstone_Ytot_with_trade,
@@ -49,6 +51,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     derive_cornerstone_V,
     derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_q,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,

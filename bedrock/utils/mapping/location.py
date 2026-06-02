@@ -7,6 +7,7 @@ Functions related to accessing and modifying location codes
 
 import io
 import urllib.error
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -140,38 +141,72 @@ def get_all_state_FIPS_2(year: str = '2015') -> pd.DataFrame:
 
 
 def apply_county_FIPS(
-    df: pd.DataFrame, year: str = '2015', source_state_abbrev: bool = True
+    df: pd.DataFrame,
+    year: str = '2015',
+    source_state_abbrev: bool = True,
+    unmatched: Literal['null', 'national'] = 'null',
 ) -> pd.DataFrame:
     """
-    Applies FIPS codes by county to dataframe containing columns with State
-    and County
-    :param df: dataframe must contain columns with 'State' and 'County', but
-        not 'Location'
-    :param year: str, FIPS year, defaults to 2015
-    :param source_state_abbrev: True or False, the state column uses
-        abbreviations
-    :return dataframe with new column 'FIPS', blanks not removed
+    Assign county FIPS when state and county match the crosswalk; otherwise state FIPS
+    (``xx000``). Unmatched rows keep null ``Location`` unless ``unmatched='national'``.
     """
-    # If using 2 letter abbrevations, map to state names
-    if source_state_abbrev:
-        df['State'] = df['State'].map(abbrev_us_state).fillna(df['State'])
-    df['State'] = df['State'].apply(lambda x: clean_str_and_capitalize(str(x)))
-    if 'County' not in df:
-        df['County'] = ''
-    df['County'] = df['County'].apply(lambda x: clean_str_and_capitalize(str(x)))
+    if 'State' not in df.columns:
+        raise KeyError('apply_county_FIPS requires a State column')
 
-    # Pull and merge FIPS on state and county
-    mapping_FIPS = get_county_FIPS(year)
-    df = df.merge(mapping_FIPS, how='left')
+    out = df.copy()
+    state_raw = out['State'].astype(str).str.strip()
+    state_name = (
+        state_raw.map(abbrev_us_state).fillna(state_raw)
+        if source_state_abbrev
+        else state_raw
+    )
+    out['_state_key'] = state_name.map(clean_str_and_capitalize)
 
-    # Where no county match occurs, assign state FIPS instead
-    mapping_FIPS = get_state_FIPS()
-    mapping_FIPS = mapping_FIPS.drop(columns=['County'])
-    df = df.merge(mapping_FIPS, left_on='State', right_on='State', how='left')
-    df['Location'] = df['FIPS_x'].where(df['FIPS_x'].notnull(), df['FIPS_y'])
-    df = df.drop(columns=['FIPS_x', 'FIPS_y'])
+    if 'County' not in out.columns:
+        out['County'] = ''
+    out['_county_key'] = (
+        out['County'].fillna('').astype(str).str.strip().map(clean_str_and_capitalize)
+    )
 
-    return df
+    county_map = (
+        get_county_FIPS(year)
+        .assign(
+            _state_key=lambda d: d['State'].map(clean_str_and_capitalize),
+            _county_key=lambda d: d['County'].map(clean_str_and_capitalize),
+        )[['_state_key', '_county_key', 'FIPS']]
+        .rename(columns={'FIPS': 'FIPS_county'})
+    )
+    state_map = (
+        get_state_FIPS(year)
+        .assign(_state_key=lambda d: d['State'].map(clean_str_and_capitalize))[
+            ['_state_key', 'FIPS']
+        ]
+        .rename(columns={'FIPS': 'FIPS_state'})
+        .drop_duplicates(subset='_state_key')
+    )
+
+    out = out.merge(county_map, on=['_state_key', '_county_key'], how='left')
+    out = out.merge(state_map, on='_state_key', how='left')
+    out['Location'] = out['FIPS_county'].fillna(out['FIPS_state'])
+    out['State'] = out['_state_key']
+    out['County'] = out['_county_key']
+
+    missing = out['Location'].isna()
+    if missing.any() and unmatched == 'national':
+        n_missing = int(missing.sum())
+        states = sorted(state_raw.loc[missing].unique())
+        log.warning(
+            'Facilities without county or state FIPS (%s rows); assigning national FIPS. '
+            'States: %s',
+            n_missing,
+            states[:20],
+        )
+        out.loc[missing, 'Location'] = US_FIPS
+
+    return out.drop(
+        columns=['_state_key', '_county_key', 'FIPS_county', 'FIPS_state'],
+        errors='ignore',
+    )
 
 
 def update_geoscale(df: pd.DataFrame, to_scale: str) -> pd.DataFrame:

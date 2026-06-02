@@ -1,0 +1,7 @@
+# Summary-tables A-matrix scaling with dollar-year realignment.
+# Like 2025_usa_cornerstone_A_summary_tables.yaml, but rebases the target-year
+# summary A/q into 2017 USD before forming the cross-year ratio, then inflates
+# the scaled detail A/q 2017 -> model_year.
+use_cornerstone_2026_model_schema: True
+scale_a_matrix_with_summary_tables: True
+adjust_summary_A_and_q_dollar_year: True

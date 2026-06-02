@@ -11,8 +11,14 @@ Sheet title formats supported:
 - Time-series dispatch (``dispatch_ef_time_series.py``):
   ``[YYYY-MM-DD, YYYY, BASELINE based, A matrix with APPROACH, SCENARIO] EFs diagnostics``
 
+The approach phrase is "A matrix with APPROACH" for the in-repo derivations and
+"A matrix from USEEIO nowcast" for the external nowcast reference, so the parser
+accepts both "with" and "from" (see ``APPROACH_LABELS`` in
+``dispatch_ef_time_series.py``). Titles that don't match this shape (e.g. ad-hoc
+``[..., mecs year updates] EFs diagnostics`` runs) are intentionally skipped.
+
 Usage:
-    python -m bedrock.analysis.a_matrix_time_series.rebuild_run_index_from_drive \\
+    python -m bedrock.analysis.a_matrix_time_series.recover_ef_run_index \\
         --folder-id <DRIVE_FOLDER_ID>
 """
 
@@ -47,15 +53,16 @@ INDEX_COLUMNS: tuple[str, ...] = (
 
 # Title regex:
 #   prefix '[' then 1 or 2 leading date-like tokens (date + optional year)
-#   then 'BASELINE based, A matrix with APPROACH' and optional trailing ', SCENARIO'
-#   then '] EFs diagnostics'
+#   then 'BASELINE based, A matrix with/from APPROACH' and optional trailing
+#   ', SCENARIO' then '] EFs diagnostics'. "with" covers the in-repo
+#   derivations; "from" covers the external "A matrix from USEEIO nowcast".
 TITLE_RE = re.compile(
     r"""
     ^\[
     (?P<date>\d{4}-\d{2}-\d{2})       # YYYY-MM-DD
     (?:,\s*(?P<year>\d{4}))?          # optional ', YYYY' (time-series cell)
     ,\s*(?P<baseline>[A-Za-z]+)\sbased
-    ,\s*A\smatrix\swith\s(?P<approach_text>[^,\]]+)
+    ,\s*A\smatrix\s(?:with|from)\s(?P<approach_text>[^,\]]+)
     (?:,\s*(?P<scenario>[^\]]+))?     # optional ', SCENARIO'
     \]\sEFs\sdiagnostics$
     """,
@@ -68,8 +75,8 @@ APPROACH_BY_TEXT: dict[str, str] = {
     "USEEIO method": "useeio",
     "2017 benchmark A": "useeio",
     "summary tables": "summary_tables",
-    "industry price index": "industry_price_index",
     "commodity price index": "commodity_price_index",
+    "USEEIO nowcast": "useeio_nowcast",
 }
 
 BASELINE_BY_TEXT: dict[str, str] = {
