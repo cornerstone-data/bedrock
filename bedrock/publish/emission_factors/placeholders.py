@@ -33,8 +33,10 @@ def adjust_publish_matrix(
 
     if dollar_year != base_year:
         pi = get_cornerstone_industry_price_ratio(base_year, dollar_year)
-        aligned = pi.reindex(out.columns, fill_value=1.0)
-        out = out.mul(aligned.values, axis=1)
+        price_ratio_for_columns = pi.reindex(out.columns, fill_value=1.0)
+        # get_cornerstone_industry_price_ratio(base, target) is PI_target / PI_base.
+        # Divide EF columns so values are expressed per target-year USD denominator.
+        out = out.div(price_ratio_for_columns.values, axis=1)
 
     if purchaser_price:
         phi = placeholder_phi(out.columns)
