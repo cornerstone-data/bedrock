@@ -26,14 +26,14 @@ GHG_LABEL = 'All GHGs'
 ELECTRICITY_COMMODITY = '221100'
 
 
-def _greenhouse_gases_row(n: pd.DataFrame) -> pd.Series[float]:
+def _greenhouse_gases_row(n: pd.DataFrame) -> pd.Series:
     if GREENHOUSE_GASES_INDICATOR not in n.index:
         raise KeyError(
             f'N missing {GREENHOUSE_GASES_INDICATOR!r} indicator row; '
             f'got index {list(n.index)!r}'
         )
     row = n.loc[GREENHOUSE_GASES_INDICATOR].astype(float)
-    return cast(pd.Series[float], row)
+    return cast(pd.Series, row)
 
 
 def _unit_label(dollar_year: int) -> str:
