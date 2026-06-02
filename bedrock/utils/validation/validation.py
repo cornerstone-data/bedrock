@@ -210,7 +210,8 @@ def compare_summation_at_sector_lengths_between_two_dfs(
     df_list[0] = df_list[0].rename(columns={'FlowAmount': 'df1'})
     df_list[1] = df_list[1].rename(columns={'FlowAmount': 'df2'})
     dfm = df_list[0].merge(df_list[1], how='outer')
-    dfm = dfm.fillna(0)
+    with pd.option_context('future.no_silent_downcasting', True):
+        dfm = dfm.fillna(0)
     dfm['flowIncrease_df1_to_df2_perc'] = (dfm['df2'] - dfm['df1']) / dfm['df1'] * 100
     # dfm2 = dfm[dfm['flowIncrease_df1_to_df2'] != 0]
     # drop cases where sector length is 0 because not included in naics cw

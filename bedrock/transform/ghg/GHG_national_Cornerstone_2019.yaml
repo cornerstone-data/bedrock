@@ -8,6 +8,16 @@ geoscale: national
 mecs_year: &mecs_year 2018
 coa_year: &coa_year 2017
 
+sources_to_cache:
+  USDA_CoA_Cropland_NAICS:
+    year: *coa_year
+    selection_fields:
+      Class: Land
+      FlowName:
+        - FARM OPERATIONS
+        - AG LAND, CROPLAND, HARVESTED
+    estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
+
 _attribution_sources:
   EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
     activity_to_sector_mapping: CEDA_2025
@@ -24,33 +34,6 @@ _attribution_sources:
       ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
                            'MCIF']
     attribution_method: equal
-
-  _cropland_allocation: &cropland_allocation
-    USDA_CoA_Cropland:
-      year: *coa_year
-      selection_fields:
-        Class: Land
-        FlowName:
-          - AREA HARVESTED
-          - AREA BEARING & NON-BEARING # Orchards
-          - AREA GROWN # Berry totals
-      attribution_method: proportional
-      attribution_source:
-        USDA_CoA_Cropland_NAICS:
-          year: *coa_year
-          selection_fields:
-            Class: Land
-            FlowName: AG LAND, CROPLAND, HARVESTED
-          estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
-
-  _animal_land_allocation: &animal_land_allocation
-    USDA_CoA_Cropland_NAICS:
-      year: *coa_year
-      selection_fields:
-        Class: Land
-        FlowName: FARM OPERATIONS
-      estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
-
 
 source_names:
   EPA_GHGI_T_2_1: #U.S. GHG emissions
@@ -275,14 +258,30 @@ source_names:
             - Mineralization and Asymbiotic Fixation Cropland
             - Drained Organic Soils Cropland
         attribution_method: proportional
-        attribution_source: *cropland_allocation
+        attribution_source:
+          USDA_CoA_Cropland:
+            year: *coa_year
+            selection_fields:
+              Class: Land
+              FlowName:
+                - AREA HARVESTED
+                - AREA BEARING & NON-BEARING # Orchards
+                - AREA GROWN # Berry totals
+            attribution_method: proportional
+            attribution_source:
+              USDA_CoA_Cropland_NAICS:
+                selection_fields:
+                  Flowable: AG LAND, CROPLAND, HARVESTED
 
       pasture:
         selection_fields:
           PrimaryActivity:
             - All activities Grassland
         attribution_method: proportional
-        attribution_source: *animal_land_allocation
+        attribution_source:
+          USDA_CoA_Cropland_NAICS:
+            selection_fields:
+              Flowable: FARM OPERATIONS
 
 
   EPA_GHGI_T_5_19: #Indirect N2O emissions from agricultural soils
@@ -306,7 +305,10 @@ source_names:
           PrimaryActivity:
             - All activities Grassland
         attribution_method: proportional
-        attribution_source: *animal_land_allocation
+        attribution_source:
+          USDA_CoA_Cropland_NAICS:
+            selection_fields:
+              Flowable: FARM OPERATIONS
 
 
 ### Mobile Sources
