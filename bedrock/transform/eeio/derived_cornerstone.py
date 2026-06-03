@@ -379,10 +379,26 @@ def derive_cornerstone_q() -> pd.Series[float]:
 
 @functools.cache
 @pa.check_output(CornerstoneVMatrix.to_schema())
-def derive_cornerstone_Vnorm_scrap_corrected(target_year: int = 0) -> pd.DataFrame:
-    cfg = get_usa_config()
+def derive_cornerstone_Vnorm_scrap_corrected(
+    apply_inflation: bool | None = None,
+    target_year: int = 0,
+) -> pd.DataFrame:
+    """Scrap-corrected V norm. Inflation is applied via ``derive_cornerstone_V``.
 
-    V = derive_cornerstone_V(cfg.apply_inflation_to_V, target_year)
+    When ``apply_inflation`` is omitted, uses ``USAConfig.apply_inflation_to_V``.
+    When ``target_year`` is not positive and inflation is on, uses
+    ``USAConfig.model_base_year``.
+    """
+    cfg = get_usa_config()
+    use_inflation = (
+        cfg.apply_inflation_to_V if apply_inflation is None else apply_inflation
+    )
+    effective_year = (
+        target_year
+        if target_year > 0
+        else (cfg.model_base_year if use_inflation else 0)
+    )
+    V = derive_cornerstone_V(use_inflation, effective_year)
 
     q = compute_q(V=V)
     x = compute_x(V=V)
