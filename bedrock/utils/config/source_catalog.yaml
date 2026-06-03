@@ -344,6 +344,14 @@ UNEP_IRP_GMFD:
     - Chemicals
   activity_schema: None
   sector_hierarchy: "flat"
+UMD_GHGIA:
+  data_format: FBA
+  class:
+    - Chemicals
+    - Energy
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
 USDA_CoA_Cropland:
   data_format: FBA
   class:
