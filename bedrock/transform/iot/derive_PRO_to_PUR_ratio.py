@@ -222,10 +222,14 @@ def derive_2017_margins_ceda_usa() -> pd.DataFrame:
     """
     corresp = load_usa_2017_commodity__ceda_v7_correspondence()
     corresp.columns.names = ['commodity']
-    filters = _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
+    filters = (
+        _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
+    )
     margin = corresp @ _margins_by_commodity(filters)
     # Expanded sectors share value equally from the aggregated 2012 sector.
-    margin.loc[EXPANDED_SECTORS_2012_TO_2017, :] *= 1 / len(EXPANDED_SECTORS_2012_TO_2017)
+    margin.loc[EXPANDED_SECTORS_2012_TO_2017, :] *= 1 / len(
+        EXPANDED_SECTORS_2012_TO_2017
+    )
     return margin
 
 
