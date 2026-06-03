@@ -7,7 +7,7 @@ on:
         description: "USA config name (without .yaml extension)"
         required: true
         type: string
-        default: "v8_ceda_2025_usa"
+        default: "2025_usa_cornerstone_full_model"
       sheet_id:
         description: "Google Sheets ID for EF diagnostics"
         required: true

@@ -505,7 +505,12 @@ class TestApplyWasteDisaggToYtot:
 # Integration tests using real 2017 CSV weights
 # ===========================================================================
 
-_DATA_DIR = pathlib.Path(__file__).resolve().parents[3] / "extract" / "disaggregation"
+_DATA_DIR = (
+    pathlib.Path(__file__).resolve().parents[3]
+    / "extract"
+    / "disaggregation"
+    / "waste_disagg_inputs"
+)
 _USE_PATH = _DATA_DIR / "WasteDisaggregationDetail2017_Use.csv"
 _MAKE_PATH = _DATA_DIR / "WasteDisaggregationDetail2017_Make.csv"
 _WASTE_CODES_2017 = cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"]))

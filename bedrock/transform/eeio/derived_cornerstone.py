@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import functools
 import pathlib
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -66,6 +67,9 @@ from bedrock.transform.eeio.cornerstone_year_scaling import (
 from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
+)
+from bedrock.transform.eeio.electricity_disaggregation import (
+    reallocate_electricity_coproduction,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
@@ -168,8 +172,14 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
     waste_cfg = cfg.eeio_waste_disaggregation
     if waste_cfg is None:
         waste_cfg = EEIOWasteDisaggConfig(
-            use_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Use.csv",
-            make_weights_file="extract/disaggregation/WasteDisaggregationDetail2017_Make.csv",
+            use_weights_file=(
+                "extract/disaggregation/waste_disagg_inputs/"
+                "WasteDisaggregationDetail2017_Use.csv"
+            ),
+            make_weights_file=(
+                "extract/disaggregation/waste_disagg_inputs/"
+                "WasteDisaggregationDetail2017_Make.csv"
+            ),
             year=2017,
             source_name="WasteDisaggregationDetail2017",
         )
@@ -183,6 +193,77 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
     )
 
 
+@functools.cache
+def electricity_reallocation_enabled() -> bool:
+    cfg = get_usa_config()
+    return cfg.implement_electricity_reallocation
+
+
+@dataclass
+class _CornerstoneIOBundle:
+    V: pd.DataFrame
+    Udom: pd.DataFrame
+    Uimp: pd.DataFrame
+    VA: pd.DataFrame
+
+
+def _derive_cornerstone_V_after_waste() -> pd.DataFrame:
+    V_2017 = load_2017_V_usa()
+    V = industry_corresp() @ V_2017 @ commodity_corresp().T
+    V.index.name = 'sector'
+    V.columns.name = 'sector'
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        V = apply_waste_disagg_to_V(V, weights)
+        V.index.name = 'sector'
+        V.columns.name = 'sector'
+    return V
+
+
+def _derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
+    Utot = load_2017_Utot_usa()
+    Uimp = load_2017_Uimp_usa()
+    Udom = Utot - Uimp
+
+    com_c = commodity_corresp()
+    ind_c = industry_corresp()
+
+    Udom_cs = com_c @ Udom @ ind_c.T
+    Uimp_cs = com_c @ Uimp @ ind_c.T
+
+    for df in (Udom_cs, Uimp_cs):
+        df.index.name = 'sector'
+        df.columns.name = 'sector'
+
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        Udom_cs, Uimp_cs = apply_waste_disagg_to_U(Udom_cs, Uimp_cs, weights)
+        for df in (Udom_cs, Uimp_cs):
+            df.index.name = 'sector'
+            df.columns.name = 'sector'
+
+    return Udom_cs, Uimp_cs
+
+
+def _derive_cornerstone_VA_after_waste() -> pd.DataFrame:
+    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA.columns.name = 'sector'
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        VA = apply_waste_disagg_to_VA(VA, weights)
+        VA.columns.name = 'sector'
+    return VA
+
+
+@functools.cache
+def _derive_cornerstone_io_after_electricity_reallocation() -> _CornerstoneIOBundle:
+    V = _derive_cornerstone_V_after_waste()
+    Udom, Uimp = _derive_cornerstone_U_after_waste()
+    VA = _derive_cornerstone_VA_after_waste()
+    V, Udom, Uimp, VA = reallocate_electricity_coproduction(V, Udom, Uimp, VA)
+    return _CornerstoneIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
+
+
 # ---------------------------------------------------------------------------
 # Base 2017 IO matrices — V, g, q
 # ---------------------------------------------------------------------------
@@ -194,35 +275,22 @@ def derive_cornerstone_V(
     apply_inflation: bool = False, target_year: int = 0
 ) -> pd.DataFrame:
     """V matrix (industry × commodity) via correspondence multiplication."""
-    V_2017 = load_2017_V_usa()
-    V = industry_corresp() @ V_2017 @ commodity_corresp().T
-    V.index.name = 'sector'
-    V.columns.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        V = apply_waste_disagg_to_V(V, weights)
-        V.index.name = 'sector'
-        V.columns.name = 'sector'
+    if electricity_reallocation_enabled():
+        V = _derive_cornerstone_io_after_electricity_reallocation().V.copy()
+    else:
+        V = _derive_cornerstone_V_after_waste()
+
     if apply_inflation:
         if target_year <= 0:
-            raise ValueError(
-                f"target_year must be a positive year when apply_inflation=True, "
-                f"got {target_year}"
-            )
-
-        # Adjust V by applying industry price ratio
+            raise ValueError(...)
         cfg = get_usa_config()
         price_ratio = get_cornerstone_industry_price_ratio(
-            cfg.usa_base_io_data_year,  # 2017 by default
+            cfg.usa_base_io_data_year,
             target_year,
         )
-
         price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
         V = pd.DataFrame(
-            V.multiply(
-                price_ratio,
-                axis=0,  # axis=0 means aligning on rows (i.e. industries)
-            ).values,
+            V.multiply(price_ratio, axis=0).values,
             index=V.index,
             columns=V.columns,
         )
@@ -311,9 +379,7 @@ def derive_cornerstone_q() -> pd.Series[float]:
 
 @functools.cache
 @pa.check_output(CornerstoneVMatrix.to_schema())
-def derive_cornerstone_Vnorm_scrap_corrected(
-    apply_inflation: bool = False, target_year: int = 0
-) -> pd.DataFrame:
+def derive_cornerstone_Vnorm_scrap_corrected(target_year: int = 0) -> pd.DataFrame:
     cfg = get_usa_config()
 
     V = derive_cornerstone_V(cfg.apply_inflation_to_V, target_year)
@@ -336,27 +402,13 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
 @functools.cache
 def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
-    Udom = Utot - Uimp
-
-    com_c = commodity_corresp()
-    ind_c = industry_corresp()
-
-    Udom_cs = com_c @ Udom @ ind_c.T
-    Uimp_cs = com_c @ Uimp @ ind_c.T
-
-    for df in (Udom_cs, Uimp_cs):
-        df.index.name = 'sector'
-        df.columns.name = 'sector'
-
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        Udom_cs, Uimp_cs = apply_waste_disagg_to_U(Udom_cs, Uimp_cs, weights)
-        for df in (Udom_cs, Uimp_cs):
-            df.index.name = 'sector'
-            df.columns.name = 'sector'
-
+    if electricity_reallocation_enabled():
+        reallocated_io = _derive_cornerstone_io_after_electricity_reallocation()
+        return SingleRegionUMatrixSet(
+            Udom=pt.DataFrame[CornerstoneUMatrix](reallocated_io.Udom.copy()),  # type: ignore[arg-type]
+            Uimp=pt.DataFrame[CornerstoneUMatrix](reallocated_io.Uimp.copy()),  # type: ignore[arg-type]
+        )
+    Udom_cs, Uimp_cs = _derive_cornerstone_U_after_waste()
     return SingleRegionUMatrixSet(
         Udom=pt.DataFrame[CornerstoneUMatrix](Udom_cs),  # type: ignore[arg-type]
         Uimp=pt.DataFrame[CornerstoneUMatrix](Uimp_cs),  # type: ignore[arg-type]
@@ -391,6 +443,16 @@ def _derive_cornerstone_Ytot_with_trade() -> pd.DataFrame:
         Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
         Ytot.index.name = 'sector'
     return Ytot
+
+
+def derive_cornerstone_Ytot_full_cs_matrix() -> pd.DataFrame:
+    """Full commodity-by-final-demand ``Y`` in Cornerstone space (incl. trade FD columns).
+
+    Same frame as the cached waste-aware pipeline used for ``derive_cornerstone_Ytot_matrix_set``
+    before export/import columns are collapsed. Returns a **copy** so callers cannot mutate
+    the cached matrix.
+    """
+    return _derive_cornerstone_Ytot_with_trade().copy()
 
 
 @functools.cache
@@ -433,13 +495,9 @@ def derive_cornerstone_VA() -> pd.DataFrame:
     Callers needing Cornerstone-space VA should use this function rather than
     assembling VA manually.
     """
-    VA = load_2017_value_added_usa() @ industry_corresp().T
-    VA.columns.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        VA = apply_waste_disagg_to_VA(VA, weights)
-        VA.columns.name = 'sector'
-    return VA
+    if electricity_reallocation_enabled():
+        return _derive_cornerstone_io_after_electricity_reallocation().VA.copy()
+    return _derive_cornerstone_VA_after_waste()
 
 
 # ---------------------------------------------------------------------------
@@ -529,8 +587,26 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # Summary tables only: scale 2017 → model_year directly using summary A ratios,
-    # skipping the intermediate io_year step and price inflation.
+    # USEEIO nowcast: load externally-balanced detail SUTs from GCS and
+    # derive Cornerstone A directly. Bypasses all internal scaling/inflation;
+    # treats the upstream USEEIO team's GRAS-balanced 2018–2023 SUTs as the
+    # source of structural change. Loaders: bedrock.extract.iot.useeio_nowcast;
+    # derivation: bedrock.transform.eeio.derived_useeio_nowcast.
+    if cfg.load_useeio_nowcast_A_matrix:
+        from bedrock.transform.eeio.derived_useeio_nowcast import (  # noqa: PLC0415
+            derive_useeio_nowcast_Aq_cornerstone,
+        )
+
+        return derive_useeio_nowcast_Aq_cornerstone(year=model_year)
+
+    # Summary tables: scale 2017 → model_year using summary A ratios.
+    #
+    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
+    # rebases the target-year summary A into 2017 USD before the ratio is taken,
+    # so the structural cross-year ratio is formed entirely in 2017 USD; the
+    # scaled detail A is then inflated 2017 → model_year. When the flag is off,
+    # the ratio carries the raw target-year-vs-2017 price drift and no final
+    # inflation is applied (pre-realignment behavior).
     if cfg.scale_a_matrix_with_summary_tables:
         Adom = scale_cornerstone_A(
             base.Adom,
@@ -545,26 +621,20 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             dom_or_imp_or_total='imp',
         )
         q = scale_cornerstone_q(
-            base.scaled_q, target_year=model_year, original_year=detail_year
+            base.scaled_q,
+            target_year=model_year,
+            original_year=detail_year,
         )
-        return SingleRegionAqMatrixSet(
-            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-            scaled_q=q,
-        )
-
-    # Price index only: inflate 2017 → model_year directly using industry price index,
-    # as if it is commodity price index.
-    if cfg.scale_a_matrix_with_industry_price_index:
-        Adom = inflate_cornerstone_A_matrix_with_industry_pi(
-            base.Adom, original_year=detail_year, target_year=model_year
-        )
-        Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
-            base.Aimp, original_year=detail_year, target_year=model_year
-        )
-        q = inflate_cornerstone_q_or_y_with_industry_pi(
-            base.scaled_q, original_year=detail_year, target_year=model_year
-        )
+        if cfg.adjust_summary_A_and_q_dollar_year:
+            Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Adom, original_year=detail_year, target_year=model_year
+            )
+            Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Aimp, original_year=detail_year, target_year=model_year
+            )
+            q = inflate_cornerstone_q_or_y_with_commodity_pi(
+                q, original_year=detail_year, target_year=model_year
+            )
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
             Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
@@ -584,6 +654,55 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             base.scaled_q, original_year=detail_year, target_year=model_year
         )
+        return SingleRegionAqMatrixSet(
+            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
+            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
+            scaled_q=q,
+        )
+
+    # CEDA method: our fallback option as of CY26Q2.
+    # Scale to 2022 (io_year), then inflate to model_base_year.
+    # However, we are applying some subtle changes to this method:
+    # 1. scale detail A and q with dollar year adjusted summary numbers
+    # 2. inflate with commodity pi instead of industry pi
+    #
+    # Codepath of this approach is very similar to the scale_a_matrix_with_summary_tables approach,
+    # the only difference is which year to scale to.
+    #
+    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
+    # rebases the target-year summary A into 2017 USD before the ratio is taken,
+    # so the structural cross-year ratio is formed entirely in 2017 USD; the
+    # scaled detail A is then inflated 2017 → io_year. When the flag is off,
+    # the ratio carries the raw target-year-vs-2017 price drift and no final
+    # inflation is applied (pre-realignment behavior).
+    if cfg.scale_a_matrix_with_ceda_method_as_fallback:
+        Adom = scale_cornerstone_A(
+            base.Adom,
+            target_year=io_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='dom',
+        )
+        Aimp = scale_cornerstone_A(
+            base.Aimp,
+            target_year=io_year,
+            original_year=detail_year,
+            dom_or_imp_or_total='imp',
+        )
+        q = scale_cornerstone_q(
+            base.scaled_q,
+            target_year=io_year,
+            original_year=detail_year,
+        )
+        if cfg.adjust_summary_A_and_q_dollar_year:
+            Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Adom, original_year=detail_year, target_year=model_year
+            )
+            Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
+                Aimp, original_year=detail_year, target_year=model_year
+            )
+            q = inflate_cornerstone_q_or_y_with_commodity_pi(
+                q, original_year=detail_year, target_year=model_year
+            )
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
             Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
@@ -656,26 +775,32 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 
     Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
     Industry ``x`` is:
-    - USEEIO B method (`use_useeio_B=True`): target-year gross output adjusted
-      to original-year USD using industry chained-price index ratio.
+    - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
+      gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
+      ``PI(usa_ghg_data_year)/PI(usa_detail_original_year)`` so ``E/x`` uses
+      ``usa_detail_original_year`` chain dollars. ``USAConfig`` requires
+      ``use_E_data_year_for_x_in_B`` to be true whenever deflation is on; the
+      deflate branch always builds nominal ``x`` via
+      ``derive_cornerstone_x_after_redefinition()`` before the PI ratio, so
+      ``use_E_data_year_for_x_in_B`` does not further branch choice here.
     - otherwise: ``derive_cornerstone_x_after_redefinition()`` when
       ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
     E = derive_E_usa()
     cfg = get_usa_config()
-    if cfg.use_useeio_B:
-        # USEEIO B method:
-        #   1) adjust target-year industry output into original-year USD
-        #   2) divide E by adjusted industry output
-        #   3) transform to commodity space using market shares (Vnorm)
+    if cfg.deflate_x_to_detail_io_year_for_B:
+        # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:
+        #   1) nominal industry output at usa_ghg_data_year
+        #   2) divide by PI(ghg)/PI(detail) so x matches usa_detail_original_year $
+        #   3) divide E by adjusted industry output; map to commodities via Vnorm
         x_nominal = derive_cornerstone_x_after_redefinition()
         ratio = get_cornerstone_industry_price_ratio(
             original_year=cfg.usa_detail_original_year,
             target_year=cfg.usa_ghg_data_year,
         )
-        # ratio is PI_target / PI_original; divide nominal target-year dollars
-        # to convert x into original-year dollars for USEEIO-style B.
+        # ratio is PI_target / PI_original; divide nominal GHG-year dollars
+        # so x is expressed in usa_detail_original_year chain dollars for E/x.
         ratio_aligned = ratio.reindex(x_nominal.index)
         ratio_aligned = ratio_aligned.where(ratio_aligned.notna(), 1.0)
         x = x_nominal / ratio_aligned
@@ -695,23 +820,21 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
     cfg = get_usa_config()
-    # USEEIO B method keeps B on the base derivation path (no summary scaling /
-    # price inflation of B). use_E_data_year_for_x_in_B remains an independent
-    # x-sourcing switch inside derive_cornerstone_B_via_vnorm().
-    if cfg.use_useeio_B:
-        return derive_cornerstone_B_via_vnorm()
+    # ``deflate_x_to_detail_io_year_for_B`` implies ``use_E_data_year_for_x_in_B``
+    # (``USAConfig``). When either path is active, keep B on vnorm only (no
+    # summary scaling / industry PI inflation of B here); vnorm applies the
+    # deflate branch when that flag is set.
     if cfg.use_E_data_year_for_x_in_B:
         return derive_cornerstone_B_via_vnorm()
-    else:
-        return inflate_cornerstone_B_matrix_with_industry_pi(
-            scale_cornerstone_B(
-                B=derive_cornerstone_B_via_vnorm(),
-                original_year=cfg.usa_detail_original_year,
-                target_year=cfg.usa_io_data_year,
-            ),
-            original_year=cfg.usa_io_data_year,
-            target_year=cfg.model_base_year,
-        )
+    return inflate_cornerstone_B_matrix_with_industry_pi(
+        scale_cornerstone_B(
+            B=derive_cornerstone_B_via_vnorm(),
+            original_year=cfg.usa_detail_original_year,
+            target_year=cfg.usa_io_data_year,
+        ),
+        original_year=cfg.usa_io_data_year,
+        target_year=cfg.model_base_year,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,17 @@
+# Full v0.2 model bundled with USEEIO-nowcast A-matrix method:
+# A is derived directly from the upstream USEEIO team's GRAS-balanced
+# detail SUTs for the target year (2018-2023 supported; 2024 raises).
+# See bedrock/transform/eeio/derived_useeio_nowcast.py and the in-repo
+# summary USEEIO_nowcasting.md for methodology.
+#
+# Waste disaggregation: ON. derive_useeio_nowcast_Aq_cornerstone() applies
+# the 2017 benchmark WasteDisaggregationDetail2017 weights to V and U
+# (via apply_waste_disagg_to_V / apply_waste_disagg_to_U) before computing
+# A — same helper and same weights the other 4 full-model A approaches
+# use, so waste rows are comparable across approaches.
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+new_ghg_method: True
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+load_useeio_nowcast_A_matrix: True

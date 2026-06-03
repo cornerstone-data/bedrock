@@ -5,9 +5,9 @@ Two scenarios:
 - ``isolate_a_matrix`` — vary only the A-matrix scaling methodology, hold
   every other config knob to v0 defaults. Reuses the four Step 6 candidate
   YAMLs.
-- ``bundle_v0_2`` — full v0.2 release-candidate ensembles that bundle
-  A-matrix selection with every other v0.2 change. YAMLs TBD; populate
-  ``BUNDLE_V0_2_YAMLS`` when v0.2 is assembled.
+- ``bundle_v0_3`` — full v0.3 release-candidate ensembles that bundle
+  A-matrix selection with every other v0.3 change. YAMLs TBD; populate
+  ``BUNDLE_V0_3_YAMLS`` when v0.3 is assembled.
 
 Per ``(scenario, approach, year)`` cell:
 
@@ -25,7 +25,7 @@ are skipped, so re-running picks up only the unfilled cells.
 Usage:
     python -m bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series \\
         --git-ref main \\
-        [--scenarios isolate_a_matrix,bundle_v0_2] \\
+        [--scenarios isolate_a_matrix,bundle_v0_3] \\
         [--years 2019,2020,2021,2022,2023] \\
         [--dry-run]
 """
@@ -57,25 +57,25 @@ DEFAULT_YEARS: tuple[int, ...] = (2019, 2020, 2021, 2022, 2023)
 ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
     "useeio": "2025_usa_cornerstone_A_useeio",
     "summary_tables": "2025_usa_cornerstone_A_summary_tables",
-    "industry_price_index": "2025_usa_cornerstone_A_industry_price_index",
     "commodity_price_index": "2025_usa_cornerstone_A_commodity_price_index",
+    "useeio_nowcast": "2025_usa_cornerstone_A_useeio_nowcast",
 }
 
-# `bundle_v0_2`: full v0.2 release-candidate ensembles. Each YAML carries
-# the full v0.2 flag stack (cornerstone 2026 schema, cornerstone GHG FBS,
+# `bundle_v0_3`: full v0.3 release-candidate ensembles. Each YAML carries
+# the full v0.3 flag stack (cornerstone 2026 schema, cornerstone GHG FBS,
 # USEEIO B method, waste disagg) PLUS one A-matrix scaling alternative.
 # The `model_base_year` and `usa_ghg_data_year` overrides drive the time
 # series; the YAMLs themselves are year-agnostic.
-BUNDLE_V0_2_YAMLS: dict[str, str] = {
+BUNDLE_V0_3_YAMLS: dict[str, str] = {
     "useeio": "2025_usa_cornerstone_full_model_A_useeio",
     "summary_tables": "2025_usa_cornerstone_full_model_A_summary_tables",
-    "industry_price_index": "2025_usa_cornerstone_full_model_A_industry_price_index",
     "commodity_price_index": "2025_usa_cornerstone_full_model_A_commodity_price_index",
+    "useeio_nowcast": "2025_usa_cornerstone_full_model_A_useeio_nowcast",
 }
 
 SCENARIO_YAMLS: dict[str, dict[str, str]] = {
     "isolate_a_matrix": ISOLATE_A_MATRIX_YAMLS,
-    "bundle_v0_2": BUNDLE_V0_2_YAMLS,
+    "bundle_v0_3": BUNDLE_V0_3_YAMLS,
 }
 
 # Human-readable labels for sheet titles. `useeio` is renamed to make
@@ -85,9 +85,9 @@ SCENARIO_YAMLS: dict[str, dict[str, str]] = {
 APPROACH_LABELS: dict[str, str] = {
     "useeio": "A matrix with 2017 benchmark A",
     "summary_tables": "A matrix with summary tables",
-    "industry_price_index": "A matrix with industry price index",
     "commodity_price_index": "A matrix with commodity price index",
-    "full_model": "full v0.2 model",
+    "useeio_nowcast": "A matrix from USEEIO nowcast",
+    "full_model": "full v0.3 model",
 }
 BASELINE_LABELS: dict[str, str] = {
     "ceda": "CEDA based",
@@ -304,8 +304,9 @@ def _already_recorded(
 def dispatch(
     *,
     git_ref: str,
-    scenarios: tuple[str, ...] = ("bundle_v0_2",),
+    scenarios: tuple[str, ...] = ("bundle_v0_3",),
     years: tuple[int, ...] = DEFAULT_YEARS,
+    approaches: tuple[str, ...] | None = None,
     use_useeio_baseline: bool = False,
     dry_run: bool = False,
     throttle: str = "poll",
@@ -329,6 +330,8 @@ def dispatch(
                 f"the corresponding mapping in this script before dispatching."
             )
         for approach, config_name in yamls.items():
+            if approaches is not None and approach not in approaches:
+                continue
             for year in years:
                 n_planned += 1
                 index_df = _load_index()
@@ -483,16 +486,24 @@ def main() -> None:
     )
     parser.add_argument(
         "--scenarios",
-        default="bundle_v0_2",
+        default="bundle_v0_3",
         help=(
             "Comma-separated scenarios to dispatch. Valid values: "
-            "'isolate_a_matrix', 'bundle_v0_2'."
+            "'isolate_a_matrix', 'bundle_v0_3'."
         ),
     )
     parser.add_argument(
         "--years",
         default=",".join(str(y) for y in DEFAULT_YEARS),
         help=f"Comma-separated years (default: {','.join(str(y) for y in DEFAULT_YEARS)}).",
+    )
+    parser.add_argument(
+        "--approaches",
+        default="",
+        help=(
+            "Optional comma-separated approach filter (e.g. 'useeio_nowcast'). "
+            "Default empty = all approaches in the chosen scenarios."
+        ),
     )
     parser.add_argument(
         "--use-useeio-baseline",
@@ -526,6 +537,8 @@ def main() -> None:
 
     scenarios = tuple(s.strip() for s in args.scenarios.split(",") if s.strip())
     years = tuple(int(y) for y in args.years.split(",") if y.strip())
+    approaches_arg = tuple(a.strip() for a in args.approaches.split(",") if a.strip())
+    approaches = approaches_arg if approaches_arg else None
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.re_dispatch_from_csv:
@@ -540,6 +553,7 @@ def main() -> None:
             git_ref=args.git_ref,
             scenarios=scenarios,
             years=years,
+            approaches=approaches,
             use_useeio_baseline=args.use_useeio_baseline,
             dry_run=args.dry_run,
             throttle=args.throttle,

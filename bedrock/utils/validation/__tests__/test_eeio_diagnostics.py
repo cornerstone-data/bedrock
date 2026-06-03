@@ -13,6 +13,17 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Ytot_usa_matrix_set,
     derive_detail_y_imp_usa,
 )
+from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_Aq_scaled,
+    derive_cornerstone_q,
+    derive_cornerstone_U_set,
+    derive_cornerstone_U_with_negatives,
+    derive_cornerstone_x,
+    derive_cornerstone_Y_and_trade_scaled,
+    derive_cornerstone_y_nab,
+    derive_cornerstone_Ytot_matrix_set,
+)
+from bedrock.utils.math.formulas import compute_y_imp
 from bedrock.utils.validation.eeio_diagnostics import (
     DiagnosticResult,
     compare_commodity_output_to_domestics_use_plus_exports,
@@ -278,17 +289,58 @@ class TestRunAllDiagnostics:
 
 
 @pytest.mark.eeio_integration
-@pytest.mark.xfail(
-    reason="This test is failing because of data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
+@pytest.mark.parametrize(
+    "pipeline",
+    [
+        pytest.param(
+            "ceda",
+            marks=pytest.mark.xfail(
+                reason="CEDA: q≠U_dom+y_d for 13 sectors after schema-alignment changes to 2017 detail trade/U.",
+            ),
+        ),
+        pytest.param(
+            "cornerstone",
+            marks=pytest.mark.xfail(
+                reason="Cornerstone: q≠U_dom+y_d for 13 sectors; BEA→CS remap and waste disagg break NAB identity.",
+            ),
+        ),
+    ],
 )
-def test_compare_Uset_y_dom_and_q_usa() -> None:
-    U_set = derive_2017_U_with_negatives()
-    y_set = derive_2017_Ytot_usa_matrix_set()
-    y_imp = derive_detail_y_imp_usa()
-    q = derive_2017_q_usa()
+def test_compare_Uset_y_dom_and_q_usa(
+    pipeline: str,
+) -> None:
 
-    U_d = U_set.Udom
-    y_d = y_set.ytot - y_imp + y_set.exports
+    if pipeline != "cornerstone":
+        U_set = derive_2017_U_with_negatives()
+        y_set = derive_2017_Ytot_usa_matrix_set()
+        # CEDA has derive_detail_y_imp_usa(); it uses derive_2017_U_set_usa().Uimp
+        # (negatives handled), not U_with_negatives().Uimp.
+        y_imp = derive_detail_y_imp_usa()
+        q = derive_2017_q_usa()
+
+        U_d = U_set.Udom
+        y_d = y_set.ytot - y_imp + y_set.exports
+    else:
+        # Cornerstone checks q (from V / Make) against U_dom row sums plus domestic
+        # final demand y_d = y_tot − y_imp + exports, all in 2017-detail nominal
+        # units mapped to CS commodities. Thirteen sectors fail at 1% tolerance,
+        # concentrated in mining/petroleum and new waste codes (562*, S00402): the
+        # BEA→Cornerstone correspondence and waste disaggregation split parent GO
+        # across children without preserving the national-accounts identity sector-
+        # by-sector. rel_diff blows up to inf where remapped q is near zero.
+        U_set = derive_cornerstone_U_with_negatives()
+        y_set = derive_cornerstone_Ytot_matrix_set()
+        # No derive_cornerstone_y_imp wrapper; inline compute_y_imp as in
+        # derive_cornerstone_y_nab(). Uimp from derive_cornerstone_U_set() (negatives
+        # handled), not U_with_negatives().Uimp.
+        y_imp = compute_y_imp(
+            imports=y_set.imports,
+            Uimp=derive_cornerstone_U_set().Uimp,
+        )
+        # q from V (Make), same role as derive_2017_q_usa() on the CEDA branch.
+        q = derive_cornerstone_q()
+        U_d = U_set.Udom
+        y_d = y_set.ytot - y_imp + y_set.exports
 
     r_q_with_U_d_and_y_d_validation = (
         compare_commodity_output_to_domestics_use_plus_exports(
@@ -299,9 +351,6 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     assert len(r_q_with_U_d_and_y_d_validation.failing_sectors) == 0
 
 
-@pytest.mark.xfail(
-    reason="Data manipulation for aligning with the CEDA schema. Need to resolve during method reconciliation."
-)
 @pytest.mark.eeio_integration
 @pytest.mark.parametrize(
     "modelType, use_domestic",
@@ -309,39 +358,66 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
         ("Commodity", False),
     ],
 )  # TODO: add ("Commodity", True) test and industry parameters when Industry models become available [("Industry", False), ("Industry", True)]
+@pytest.mark.parametrize(
+    "pipeline",
+    [
+        pytest.param(
+            "ceda",
+            marks=pytest.mark.xfail(
+                reason="CEDA: scaled q≠L_total·y_total for ~298 commodity sectors (total Leontief identity).",
+            ),
+        ),
+        pytest.param(
+            "cornerstone",
+            marks=pytest.mark.xfail(
+                reason="Cornerstone: scaled q≠L_total·y_total for 323 sectors; A-matrix vs Y-inflation path mismatch.",
+            ),
+        ),
+    ],
+)
 def test_compare_output_and_L_y(
     modelType: str,
     use_domestic: bool,
+    pipeline: str,
 ) -> None:
 
-    # Load Aq model objects
-    Aq = derive_2017_Aq_usa()
-    Adom = Aq.Adom
-    Aimp = Aq.Aimp
-
-    # Load y vectors
-    y_set = derive_2017_Ytot_usa_matrix_set()
-    y_imp = derive_detail_y_imp_usa()
-
-    # Load output value
-    if modelType == "Commodity":
-        output = derive_2017_q_usa()
+    if pipeline != "cornerstone":
+        # CEDA: unscaled 2017-detail A and q; y built from 2017 Ytot/trade in IO year.
+        Aq = derive_2017_Aq_usa()
+        y_set = derive_2017_Ytot_usa_matrix_set()
+        y_imp = derive_detail_y_imp_usa()
+        output = (
+            derive_2017_q_usa() if modelType == "Commodity" else derive_2017_x_usa()
+        )
+        if use_domestic:
+            y = y_set.ytot - y_imp + y_set.exports
+            L = formulas.compute_L_matrix(A=Aq.Adom)
+        else:
+            y = y_set.ytot + y_set.exports - y_set.imports
+            L = formulas.compute_L_matrix(A=Aq.Adom + Aq.Aimp)
     else:
-        # TODO: For industry models need to add x = output via derive_2017_x_usa(). Using q = output for now.
-        output = derive_2017_x_usa()
-
-    # Compute appropriate L and y
-    if use_domestic:
-        y = y_set.ytot - y_imp + y_set.exports  # y_d
-        L = formulas.compute_L_matrix(A=Adom)  # L_d
-    else:
-        y = y_set.ytot + y_set.exports - y_set.imports  # total y (non-domestic)
-        L = formulas.compute_L_matrix(
-            A=(Adom + Aimp)
-        )  # Is this correct? total L (non domestic)
+        # Cornerstone total L·y uses year-scaled Adom+Aimp and scaled_q from
+        # derive_cornerstone_Aq_scaled, compared to L @ y where y = y_tot +
+        # exports − imports from derive_cornerstone_Y_and_trade_scaled (summary-
+        # disaggregated and inflated to model year). 323 of 392 commodities fail
+        # at 1% tolerance—a systemic scale mismatch between the A-matrix scaling
+        # pipeline and the Y/trade inflation path (see zero-weight disaggregation
+        # warning during Y scaling), not an isolated wiring error in this test.
+        # Cornerstone scales A and q to model year; CEDA branch stays in 2017 detail.
+        Aq = derive_cornerstone_Aq_scaled()
+        # Output must match Aq scaling (scaled_q), not derive_cornerstone_q() from V.
+        output = Aq.scaled_q if modelType == "Commodity" else derive_cornerstone_x()
+        if use_domestic:
+            # Precomputed scaled y_nab (same path as derive_y_for_national_accounting_balance_usa).
+            y = derive_cornerstone_y_nab()
+            L = formulas.compute_L_matrix(A=Aq.Adom)
+        else:
+            # Total y from summary-disaggregated inflated trade, not raw Ytot_matrix_set.
+            y_trade = derive_cornerstone_Y_and_trade_scaled()
+            y = y_trade.ytot + y_trade.exports - y_trade.imports
+            L = formulas.compute_L_matrix(A=Aq.Adom + Aq.Aimp)
 
     r_output_L_y_validation = compare_output_vs_leontief_x_demand(
         output=output, L=L, y=y, tolerance=0.01, include_details=True
     )
-    print(len(r_output_L_y_validation.failing_sectors))
     assert len(r_output_L_y_validation.failing_sectors) == 0
