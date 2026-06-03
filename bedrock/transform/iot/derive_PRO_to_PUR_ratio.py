@@ -93,6 +93,14 @@ _useeio_margins_filters: MarginsFilters = MarginsFilters(
     exclude_industry_codes=frozenset({'F04000', 'F05000', 'F03000'}),
 )
 
+# Matches exported ``useeior`` ``model$Margins``: keep Import ``F05000`` rows because
+# R ``purchaser_removal`` uses ``%in%`` on a length-3 vector; drop only Export and
+# change-in-inventories industries; scrap/RoW commodities only (no ``4*``).
+_useeio_margins_filters_w_imports_bug: MarginsFilters = MarginsFilters(
+    exclude_commodity_codes=frozenset({'S00401', 'S00402', 'S00300', 'S00900'}),
+    exclude_industry_codes=frozenset({'F04000', 'F03000'}),
+)
+
 # Cornerstone filters
 # Exclude BEA bookkeeping commodities that are removed from model as well as scrap
 #   S00300 Noncomparable imports, S00900 Rest of the world adjustment, S00401 Scrap
