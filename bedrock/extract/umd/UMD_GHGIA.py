@@ -967,8 +967,7 @@ def allocate_industrial_combustion(
         'Industrial Other Coal Industrial': 'Coal',
         'Natural Gas Industrial': 'Natural Gas',
         'Coal Industrial': 'Coal',
-        # 'Total Petroleum Industrial': 'Petroleum',
-        # 'Fuel Oil Industrial': 'Petroleum',
+        'Petroleum Industrial': 'Petroleum',
     }
 
     for activity, fuel in activities_to_split.items():

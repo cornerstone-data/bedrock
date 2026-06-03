@@ -581,7 +581,7 @@ source_names:
            Coal Electric Power: Coal Electric Power
            Natural Gas Electric Power: Natural Gas Electric Power
            Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
-           Fuel Oil Electric Power: Fuel Oil Electric Power
+           Petroleum Electric Power: Petroleum Electric Power
            Wood Electric Power: Wood Electric Power
        attribution_method: direct
 
@@ -599,10 +599,10 @@ source_names:
         ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
      fedefl_mapping: GHGI_AR5_100
      activity_sets:
-       fuel_oil_industrial:
+       petroleum_industrial:
          selection_fields:
            PrimaryActivity:
-             - Fuel Oil Industrial
+             - Petroleum Industrial
          attribution_method: proportional
          attribution_source:
            EIA_MECS_Energy_Allocation_CEDA:
@@ -671,7 +671,7 @@ source_names:
              - Coal Residential and Commercial
              - Natural Gas Residential and Commercial
              - Wood Residential and Commercial
-             - Fuel Oil Residential and Commercial
+             - Petroleum Residential and Commercial
          attribution_method: proportional
          attribution_source:
            # todo: note CH4 proportions applied to all gases in UMD T_3_12
@@ -688,7 +688,7 @@ source_names:
                     - Natural Gas Residential
                     - Wood Residential
                     - Wood Commercial
-                    - Fuel Oil Residential
+                    - Fuel Oil Residential: Petroleum Residential
                 attribution_method: direct
 
               natural_gas_commercial:
@@ -703,9 +703,10 @@ source_names:
                     selection_fields:
                       ActivityProducedBy: {'221200': ''}  # purchases of natural gas
 
-              fuel_oil_commercial:
+              petroleum_commercial:
                 selection_fields:
-                  PrimaryActivity: Fuel Oil Commercial
+                  PrimaryActivity:
+                    Fuel Oil Commercial: Petroleum Commercial
                 attribution_method: proportional
                 attribution_source:
                   BEA_Detail_Use_AfterRedef:

@@ -122,13 +122,13 @@ UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,GSLGO,,,"UMD_GHGIA_T_3_14, U
 UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,S00203,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
 UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,F01000,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
 UMD_GHGIA,Coal Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)","UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)","UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
+UMD_GHGIA,Petroleum Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)",UMD_GHGIA_T_3_7
 UMD_GHGIA,Natural Gas Electric Power,NAICS_2017_Code,221112,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Wood Electric Power,NAICS_2017_Code,221117,,"Commodity: 221100 (or I: 221100, S00101, S00202)","UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Coal Residential,NAICS_2017_Code,F01000,,F01000,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Coal Residential and Commercial,NAICS_2017_Code,F01000,,F01000,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential,NAICS_2017_Code,F01000,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,F01000,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
+UMD_GHGIA,Petroleum Residential,NAICS_2017_Code,F01000,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,F01000,,,UMD_GHGIA_T_3_12
 UMD_GHGIA,Natural Gas Residential,NAICS_2017_Code,F01000,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Natural Gas Residential and Commercial,NAICS_2017_Code,F01000,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Wood Residential,NAICS_2017_Code,F01000,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
@@ -140,13 +140,13 @@ UMD_GHGIA,Coal Industrial,NAICS_2017_Code,23,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_
 UMD_GHGIA,Coal Industrial - Manufacturing,NAICS_2017_Code,31,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
 UMD_GHGIA,Coal Industrial - Manufacturing,NAICS_2017_Code,32,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
 UMD_GHGIA,Coal Industrial - Manufacturing,NAICS_2017_Code,33,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
-UMD_GHGIA,Fuel Oil Industrial,NAICS_2017_Code,11,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Industrial,NAICS_2017_Code,21,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Industrial,NAICS_2017_Code,2212,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Industrial,NAICS_2017_Code,23,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Industrial,NAICS_2017_Code,31,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Industrial,NAICS_2017_Code,32,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Industrial,NAICS_2017_Code,33,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
+UMD_GHGIA,Petroleum Industrial,NAICS_2017_Code,11,,,UMD_GHGIA_T_3_11
+UMD_GHGIA,Petroleum Industrial,NAICS_2017_Code,21,,,UMD_GHGIA_T_3_11
+UMD_GHGIA,Petroleum Industrial,NAICS_2017_Code,2212,,,UMD_GHGIA_T_3_11
+UMD_GHGIA,Petroleum Industrial,NAICS_2017_Code,23,,,UMD_GHGIA_T_3_11
+UMD_GHGIA,Petroleum Industrial,NAICS_2017_Code,31,,,UMD_GHGIA_T_3_11
+UMD_GHGIA,Petroleum Industrial,NAICS_2017_Code,32,,,UMD_GHGIA_T_3_11
+UMD_GHGIA,Petroleum Industrial,NAICS_2017_Code,33,,,UMD_GHGIA_T_3_11
 UMD_GHGIA,Natural gas Industrial - Manufacturing,NAICS_2017_Code,31,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Natural gas Industrial - Manufacturing,NAICS_2017_Code,32,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Natural gas Industrial - Manufacturing,NAICS_2017_Code,33,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
@@ -176,44 +176,44 @@ UMD_GHGIA,Coal Commercial,NAICS_2017_Code,81,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_
 UMD_GHGIA,Coal Commercial,NAICS_2017_Code,S00102,,S00102,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
 UMD_GHGIA,Coal Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
 UMD_GHGIA,Coal Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,2213,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,2213,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,42,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,42,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,44,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,44,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,45,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,45,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,493,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,493,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,51,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,51,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,52,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,52,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,53,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,53,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,54,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,54,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,55,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,55,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,56,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,56,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,61,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,61,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,62,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,62,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,71,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,71,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,72,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,72,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,81,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,81,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,S00102,,S00102,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,S00102,,S00102,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
-UMD_GHGIA,Fuel Oil Residential and Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,2213,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,2213,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,42,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,42,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,44,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,44,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,45,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,45,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,493,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,493,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,51,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,51,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,52,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,52,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,53,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,53,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,54,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,54,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,55,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,55,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,56,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,56,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,61,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,61,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,62,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,62,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,71,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,71,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,72,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,72,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,81,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,81,,,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,S00102,,S00102,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,S00102,,S00102,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,GSLGE,,GSLGE,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,GSLGE,,GSLGE,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Commercial,NAICS_2017_Code,GSLGH,,GSLGH,UMD_GHGIA_T_3_12
+UMD_GHGIA,Petroleum Residential and Commercial,NAICS_2017_Code,GSLGH,,GSLGH,UMD_GHGIA_T_3_12
 UMD_GHGIA,Wood Commercial,NAICS_2017_Code,2213,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Wood Commercial,NAICS_2017_Code,42,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Wood Commercial,NAICS_2017_Code,44,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
