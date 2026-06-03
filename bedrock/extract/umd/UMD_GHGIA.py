@@ -595,13 +595,16 @@ def umd_ghgia_parse(
 
         # Define special table lists from config
         multi_chem_names: list[str] = config.get('multi_chem_names') or []
+        multi_chem_names_activity_header: list[str] = (
+            config.get('multi_chem_names_activity_header') or []
+        )
         source_No_activity: list[str] = config.get('source_No_activity') or []
         source_activity_1: list[str] = config.get('source_activity_1') or []
         source_activity_1_fuel: list[str] = config.get('source_activity_1_fuel') or []
         source_activity_2: list[str] = config.get('source_activity_2') or []
         rows_as_flows: list[str] = config.get('rows_as_flows') or []
 
-        if table_name in multi_chem_names:
+        if table_name in multi_chem_names or table_name in multi_chem_names_activity_header:
             bool_apb = False
             bool_LULUCF = False
             apbe_value = ''
@@ -648,6 +651,19 @@ def umd_ghgia_parse(
                     df.loc[index, 'ActivityProducedBy'] = apb_txt  # type: ignore[index]
                     if bool_apb:
                         df.loc[index, 'FlowName'] = apbe_value  # type: ignore[index]
+
+            if table_name in multi_chem_names_activity_header:
+                desc = meta.get('desc', '')
+                for sector in (
+                    'Electric Power',
+                    'Industrial',
+                    'Residential and Commercial',
+                ):
+                    if sector in desc:
+                        df['ActivityProducedBy'] = (
+                            df['ActivityProducedBy'] + ' ' + sector
+                        )
+                        break
 
         elif table_name in source_No_activity:
             apbe_value = ''
