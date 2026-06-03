@@ -569,119 +569,122 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
-  # EPA_GHGI_T_3_8:  # TODO: maps to multiple UMD tables (3-11, 3-11 + 3-12)
-#     year: *ghgi_year
-#     activity_to_sector_mapping: UMD_GHGIA
-#     # note - below clean function splits ghgi data into manufacturing and non manufacturing
-#     # while ceda does not originally use this terminology/append "manufacturing" to activity names, ceda
-#     # accomplishes the same methods through
-#     # _allocate_industrial_coal_to_industries_energy_allocation() + _allocate_remaining_industrial_coal_usage()
-#     clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
-#     clean_parameter: # Override each year for use in allocate_industrial_combustion
-#         energy_fba: 'EIA_MECS_Energy'
-#         year: *mecs_year
-#          ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
-#     fedefl_mapping: GHGI_AR5_100
-#     activity_sets:
-#       residential:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Fuel Oil Residential
-#             - Coal Residential
-#             - Natural Gas Residential
-#             - Wood Residential
-#         attribution_method: direct
 
-#       electric_power:
-#         selection_fields:
-#           PrimaryActivity:
-#             Coal Electric Power: Coal Electric Power
-#             Natural Gas Electric Power: Natural Gas Electric Power
-#             Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
-#             Fuel Oil Electric Power: Fuel Oil Electric Power
-#             Wood Electric Power: Wood Electric Power
-#         attribution_method: direct
+  UMD_GHGIA_T_3_7:  # stationary combustion - electricity
+    year: *ghgi_year
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+     electric_power:
+       selection_fields:
+         PrimaryActivity:
+           Coal Electric Power: Coal Electric Power
+           Natural Gas Electric Power: Natural Gas Electric Power
+           Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
+           Fuel Oil Electric Power: Fuel Oil Electric Power
+           Wood Electric Power: Wood Electric Power
+       attribution_method: direct
 
-#       # updated from flowsa, only includes commercial
-#       fuel_oil_commercial:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Fuel Oil Commercial
-#         attribution_method: proportional
-#         attribution_source:
-#           BEA_Detail_Use_AfterRedef:
-#             <<: *bea
-#             selection_fields:
-#               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
+  UMD_GHGIA_T_3_11:  # Stationary combustion - industrial
+     year: *ghgi_year
+     activity_to_sector_mapping: UMD_GHGIA
+     # note - below clean function splits ghgi data into manufacturing and non manufacturing
+     # while ceda does not originally use this terminology/append "manufacturing" to activity names, ceda
+     # accomplishes the same methods through
+     # _allocate_industrial_coal_to_industries_energy_allocation() + _allocate_remaining_industrial_coal_usage()
+     clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
+     clean_parameter: # Override each year for use in allocate_industrial_combustion
+        energy_fba: 'EIA_MECS_Energy'
+        year: *mecs_year
+        ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
+     fedefl_mapping: GHGI_AR5_100
+     activity_sets:
+       fuel_oil_industrial:
+         selection_fields:
+           PrimaryActivity:
+             - Fuel Oil Industrial
+         attribution_method: proportional
+         attribution_source:
+           EIA_MECS_Energy_Allocation_CEDA:
+             <<: *mecs_energy_alloc
+             selection_fields:
+               FlowName: Petroleum
+               Description: 'energy'
 
-#       # new code for industrial
-#       fuel_oil_industrial:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Fuel Oil Industrial
-#         attribution_method: proportional
-#         attribution_source:
-#           EIA_MECS_Energy_Allocation_CEDA:
-#             <<: *mecs_energy_alloc
-#             selection_fields:
-#               FlowName: Petroleum
-#               Description: 'energy'
+       natural_gas_nonmanufacturing:
+         selection_fields:
+           PrimaryActivity:
+             Natural gas Industrial: Natural Gas Industrial # fix capitalization
+             Natural Gas Industrial: Natural Gas Industrial
+         attribution_method: proportional
+         attribution_source:
+           BEA_Detail_Use_AfterRedef:
+             <<: *bea
+             selection_fields:
+               ActivityProducedBy: {'221200': ''}  # purchases of natural gas
 
-#       natural_gas_nonmanufacturing:  # Commercial Natural gas
-#         selection_fields:
-#           PrimaryActivity:
-#             Natural gas Commercial: Natural Gas Commercial # fix capitalization
-#             Natural gas Industrial: Natural Gas Industrial # fix capitalization
-#             Natural Gas Commercial: Natural Gas Commercial
-#             Natural Gas Industrial: Natural Gas Industrial
-#         attribution_method: proportional
-#         attribution_source:
-#           BEA_Detail_Use_AfterRedef:
-#             <<: *bea
-#             selection_fields:
-#               ActivityProducedBy: {'221200': ''}  # purchases of natural gas
+       ng_manufacturing:
+         selection_fields:
+           PrimaryActivity:
+             - Natural gas Industrial - Manufacturing
+             - Natural Gas Industrial - Manufacturing
+         attribution_method: proportional
+         attribution_source:
+           EIA_MECS_Energy_Allocation_CEDA:
+             <<: *mecs_energy_alloc
+             selection_fields:
+               FlowName: Natural Gas
+               Description: "energy"
 
-#       # note - this replicates _allocate_remaining_industrial_coal_usage()
-#       coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
-#         selection_fields:
-#           PrimaryActivity: Coal Industrial
-#         attribution_method: proportional
-#         attribution_source:
-#           BEA_Detail_Use_AfterRedef:
-#             <<: *bea
-#             selection_fields:
-#               ActivityProducedBy: {'212100': ''}  # purchases of coal
+       coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
+         selection_fields:
+           PrimaryActivity: Coal Industrial
+         attribution_method: proportional
+         attribution_source:
+           BEA_Detail_Use_AfterRedef:
+             <<: *bea
+             selection_fields:
+               ActivityProducedBy: {'212100': ''}  # purchases of coal
 
-#       # ceda splits coal into manufacturing/non manufacturing, but did not update the activity names, same method
-#       coal_manufacturing:
-#         selection_fields:
-#           PrimaryActivity: Coal Industrial - Manufacturing
-#         attribution_method: proportional
-#         attribution_source:
-#           EIA_MECS_Energy_Allocation_CEDA:
-#             <<: *mecs_energy_alloc
-#             selection_fields:
-#               FlowName: Coal
-#               Description: 'energy'
+       coal_manufacturing:
+         selection_fields:
+           PrimaryActivity: Coal Industrial - Manufacturing
+         attribution_method: proportional
+         attribution_source:
+           EIA_MECS_Energy_Allocation_CEDA:
+             <<: *mecs_energy_alloc
+             selection_fields:
+               FlowName: Coal
+               Description: 'energy'
 
-#       # ceda accomplishes similar through
-#       # _allocate_industrial_nat_gas_to_industries_energy_allocation() + _allocate_remaining_industrial_nat_gas_usage()
-#       ng_manufacturing:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Natural gas Industrial - Manufacturing
-#             - Natural Gas Industrial - Manufacturing  # only in flowsa, CEDA does not call on manufacturing
-#         attribution_method: proportional
-#         attribution_source:
-#           EIA_MECS_Energy_Allocation_CEDA:
-#             <<: *mecs_energy_alloc
-#             selection_fields:
-#               FlowName: Natural Gas
-#               Description: "energy"
+     # Intentionally left out 'Wood Commercial' and 'Wood Industrial'
 
-#     #Intentionally left out 'Wood Commercial' and 'Wood Industrial'  # flowsa note, but ceda also does not include
 
-  # EPA_GHGI_T_3_9:  # TODO: maps to multiple UMD tables (3-7, 3-11 + 3-12)
+  UMD_GHGIA_T_3_12:  # Stationary combustion - residential + commercial
+     year: *ghgi_year
+     activity_to_sector_mapping: UMD_GHGIA
+     fedefl_mapping: GHGI_AR5_100
+     activity_sets:
+       residential:
+         selection_fields:
+           PrimaryActivity:
+             - Fuel Oil Residential and Commercial
+             - Coal Residential and Commercial
+             - Natural Gas Residential and Commercial
+             - Wood Residential and Commercial
+         attribution_method: direct  # TODO: update to proportional and use epa table to split res and com
+
+       # updated from flowsa, only includes commercial
+       fuel_oil_commercial:
+         selection_fields:
+           PrimaryActivity:
+             - Fuel Oil Residential and Commercial  # todo: note this is now duplicate. want to prop allocate just the commercial data with BEA
+         attribution_method: proportional
+         attribution_source:
+           BEA_Detail_Use_AfterRedef:
+             <<: *bea
+             selection_fields:
+               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
 
 ## Other sources
