@@ -9,6 +9,16 @@ geoscale: national
 mecs_year: &mecs_year 2022
 coa_year: &coa_year 2022
 
+sources_to_cache:
+  USDA_CoA_Cropland_NAICS:
+    year: *coa_year
+    selection_fields:
+      Class: Land
+      FlowName:
+        - FARM OPERATIONS
+        - AG LAND, CROPLAND, HARVESTED
+    estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
+
 _attribution_sources:
   EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
     activity_to_sector_mapping: CEDA_2025
@@ -25,33 +35,6 @@ _attribution_sources:
       ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
                            'MCIF']
     attribution_method: equal
-
-  _cropland_allocation: &cropland_allocation
-    USDA_CoA_Cropland:
-      year: *coa_year
-      selection_fields:
-        Class: Land
-        FlowName:
-          - AREA HARVESTED
-          - AREA BEARING & NON-BEARING # Orchards
-          - AREA GROWN # Berry totals
-      attribution_method: proportional
-      attribution_source:
-        USDA_CoA_Cropland_NAICS:
-          year: *coa_year
-          selection_fields:
-            Class: Land
-            FlowName: AG LAND, CROPLAND, HARVESTED
-          estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
-
-  _animal_land_allocation: &animal_land_allocation
-    USDA_CoA_Cropland_NAICS:
-      year: *coa_year
-      selection_fields:
-        Class: Land
-        FlowName: FARM OPERATIONS
-      estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
-
 
 source_names:
   UMD_GHGIA_T_2_S1: # U.S. GHG totals
@@ -273,21 +256,35 @@ source_names:
               ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
       direct_cropland:
-
         selection_fields:
           PrimaryActivity:
             - Mineralization and Asymbiotic Fixation Cropland
             - Drained Organic Soils Cropland
         attribution_method: proportional
-        attribution_source: *cropland_allocation
+        attribution_source:
+          USDA_CoA_Cropland:
+            year: *coa_year
+            selection_fields:
+              Class: Land
+              FlowName:
+                - AREA HARVESTED
+                - AREA BEARING & NON-BEARING # Orchards
+                - AREA GROWN # Berry totals
+            attribution_method: proportional
+            attribution_source:
+              USDA_CoA_Cropland_NAICS:
+                selection_fields:
+                  Flowable: AG LAND, CROPLAND, HARVESTED
 
       direct_pasture:
-
         selection_fields:
           PrimaryActivity:
             - All activities Grassland
         attribution_method: proportional
-        attribution_source: *animal_land_allocation
+        attribution_source:
+          USDA_CoA_Cropland_NAICS:
+            selection_fields:
+              Flowable: FARM OPERATIONS
 
 
       # activities from GHGI T_5_19 (indirect soils)
@@ -304,12 +301,14 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'325310': ''} # fertilizer sectors
       indirect_pasture:
-
         selection_fields:
           PrimaryActivity:
             - All activities Grassland
         attribution_method: proportional
-        attribution_source: *animal_land_allocation
+        attribution_source:
+          USDA_CoA_Cropland_NAICS:
+            selection_fields:
+              Flowable: FARM OPERATIONS
 
 
 ### Mobile Sources
