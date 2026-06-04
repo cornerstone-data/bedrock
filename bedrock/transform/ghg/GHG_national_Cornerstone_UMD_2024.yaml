@@ -1,5 +1,5 @@
 # Cornerstone GHG national methods (v2025), inventory year 2024.
-# Uses UMD GHGIA FBAs - previous years use EPA GHGI.
+# Uses UMD GHGIA FBAs.
 
 !include:Cornerstone_2025_target.yaml
 year: &ghgi_year 2024
@@ -8,6 +8,7 @@ geoscale: national
 
 mecs_year: &mecs_year 2022
 coa_year: &coa_year 2022
+epa_ghgi_year: &epa_ghgi_year 2023
 
 sources_to_cache:
   USDA_CoA_Cropland_NAICS:
@@ -75,7 +76,6 @@ source_names:
        electricity_transmission:
          selection_fields:
            PrimaryActivity:
-             - Electrical Transmission and Distribution  # SF6
              - Electrical Equipment  # SF6
            FlowName: SF6
          attribution_method: direct
@@ -198,7 +198,7 @@ source_names:
         - Transmission and Storage
     attribution_method: direct
   UMD_GHGIA_T_3_29: *natgas # CO2 from Natural Gas Systems mimics CH4
-  UMD_GHGIA_T_3_30: *natgas # N2O from Natural Gas Systems mimics CH4
+  UMD_GHGIA_T_3_30: *natgas # N2O from Natural Gas Systems mimics CH4, note 3-30 does not have "Post-Meter"
 
   UMD_GHGIA_T_3_25: &petroleum #CH4 from Petroleum Systems
     year: *ghgi_year
@@ -206,12 +206,12 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-        - Crude Oil Transportation
+#        - Crude Oil Transportation  # not included in UMD
         - Transportation
         - Exploration
         - Production
-        - Refining
-        - Crude Refining
+        - Refineries
+#        - Crude Refining  # not included in UMD
     attribution_method: direct
   UMD_GHGIA_T_3_26: *petroleum # CO2 from Petroleum Systems mimics CH4
   UMD_GHGIA_T_3_27: *petroleum # N2O from Petroleum Systems mimics CH4
@@ -231,84 +231,100 @@ source_names:
         - Mules and Asses
         - Sheep
         - Swine
-        - Poultry
+        - Poultry  # note, not in 5-3, is included in 5-6
     attribution_method: direct
   UMD_GHGIA_T_5_6:  *animals # CH4 and N2O from manure management
 
-  UMD_GHGIA_T_5_10: # GHGI T_5_18 + T_5_19 → UMD Table 5-10
+  UMD_GHGIA_T_5_10: # UMD Table 5-10 totals; allocate via EPA T_5_18 (direct) and T_5_19 (indirect)
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      # activities from GHGI T_5_18 (direct soils)
-      direct_fertilizer_use:
-
+      direct:
         selection_fields:
-          PrimaryActivity:
-            - Organic Amendment Cropland
-            - Residue N Cropland
-            - Synthetic Fertilizer Cropland
+          PrimaryActivity: Direct Agricultural Soil Management
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'325310': ''} # fertilizer sectors
-
-      direct_cropland:
-        selection_fields:
-          PrimaryActivity:
-            - Mineralization and Asymbiotic Fixation Cropland
-            - Drained Organic Soils Cropland
-        attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Cropland:
-            year: *coa_year
-            selection_fields:
-              Class: Land
-              FlowName:
-                - AREA HARVESTED
-                - AREA BEARING & NON-BEARING # Orchards
-                - AREA GROWN # Berry totals
-            attribution_method: proportional
-            attribution_source:
-              USDA_CoA_Cropland_NAICS:
+          EPA_GHGI_T_5_18:
+            year: *epa_ghgi_year
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              fertilizer_use:
                 selection_fields:
-                  Flowable: AG LAND, CROPLAND, HARVESTED
+                  PrimaryActivity:
+                    - Organic Amendment Cropland
+                    - Residue N Cropland
+                    - Synthetic Fertilizer Cropland
+                attribution_method: proportional
+                attribution_source:
+                  BEA_Detail_Use_AfterRedef:
+                    <<: *bea
+                    selection_fields:
+                      ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
-      direct_pasture:
+              cropland:
+                selection_fields:
+                  PrimaryActivity:
+                    - Mineralization and Asymbiotic Fixation Cropland
+                    - Drained Organic Soils Cropland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland:
+                    year: *coa_year
+                    selection_fields:
+                      Class: Land
+                      FlowName:
+                        - AREA HARVESTED
+                        - AREA BEARING & NON-BEARING # Orchards
+                        - AREA GROWN # Berry totals
+                    attribution_method: proportional
+                    attribution_source:
+                      USDA_CoA_Cropland_NAICS:
+                        selection_fields:
+                          Flowable: AG LAND, CROPLAND, HARVESTED
+
+              pasture:
+                selection_fields:
+                  PrimaryActivity:
+                    - All activities Grassland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland_NAICS:
+                    selection_fields:
+                      Flowable: FARM OPERATIONS
+
+      indirect:
         selection_fields:
-          PrimaryActivity:
-            - All activities Grassland
+          PrimaryActivity: Indirect Agricultural Soil Management
         attribution_method: proportional
         attribution_source:
-          USDA_CoA_Cropland_NAICS:
-            selection_fields:
-              Flowable: FARM OPERATIONS
+          EPA_GHGI_T_5_19:
+            year: *epa_ghgi_year
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              fertilizer_use:
+                selection_fields:
+                  PrimaryActivity:
+                    - Volatilization & Atm. Deposition Cropland
+                    - Surface Leaching & Run-Off Cropland
+                attribution_method: proportional
+                attribution_source:
+                  BEA_Detail_Use_AfterRedef:
+                    <<: *bea
+                    selection_fields:
+                      ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
-
-      # activities from GHGI T_5_19 (indirect soils)
-      indirect_fertilizer_use:
-
-        selection_fields:
-          PrimaryActivity:
-            - Volatilization & Atm. Deposition Cropland
-            - Surface Leaching & Run-Off Cropland
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'325310': ''} # fertilizer sectors
-      indirect_pasture:
-        selection_fields:
-          PrimaryActivity:
-            - All activities Grassland
-        attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Cropland_NAICS:
-            selection_fields:
-              Flowable: FARM OPERATIONS
+              pasture:
+                selection_fields:
+                  PrimaryActivity:
+                    - All activities Grassland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland_NAICS:
+                    selection_fields:
+                      Flowable: FARM OPERATIONS
 
 
 ### Mobile Sources
@@ -352,9 +368,9 @@ source_names:
       direct_diesel:
         selection_fields:
           PrimaryActivity:
-            Rail Distillate Fuel Oil: Rail
-            Recreational Boats Distillate Fuel Oil: Recreational Boats
-            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
+            Rail Diesel Fuel: Rail
+            Recreational Boats Diesel Fuel: Recreational Boats
+            Ships and Non-Recreational Boats Diesel Fuel: Ships and Non-Recreational Boats
         attribution_method: direct
 
       direct_gasoline:
@@ -369,10 +385,10 @@ source_names:
       petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
-            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-            Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
-            Passenger Cars Distillate Fuel Oil: Passenger Cars
-            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks
+            Medium- and Heavy-Duty Trucks Diesel Fuel: Medium- and Heavy-Duty Trucks Diesel Fuel
+            Buses Diesel Fuel: Buses Diesel Fuel
+            Passenger Cars Diesel Fuel: Passenger Cars
+            Light-Duty Trucks Diesel Fuel: Light-Duty Trucks
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
@@ -570,119 +586,150 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
-  # EPA_GHGI_T_3_8:  # TODO: maps to multiple UMD tables (3-11 + 3-12)
-#     year: *ghgi_year
-#     activity_to_sector_mapping: UMD_GHGIA
-#     # note - below clean function splits ghgi data into manufacturing and non manufacturing
-#     # while ceda does not originally use this terminology/append "manufacturing" to activity names, ceda
-#     # accomplishes the same methods through
-#     # _allocate_industrial_coal_to_industries_energy_allocation() + _allocate_remaining_industrial_coal_usage()
-#     clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
-#     clean_parameter: # Override each year for use in allocate_industrial_combustion
-#         energy_fba: 'EIA_MECS_Energy'
-#         year: *mecs_year
-#          ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
-#     fedefl_mapping: GHGI_AR5_100
-#     activity_sets:
-#       residential:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Fuel Oil Residential
-#             - Coal Residential
-#             - Natural Gas Residential
-#             - Wood Residential
-#         attribution_method: direct
 
-#       electric_power:
-#         selection_fields:
-#           PrimaryActivity:
-#             Coal Electric Power: Coal Electric Power
-#             Natural Gas Electric Power: Natural Gas Electric Power
-#             Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
-#             Fuel Oil Electric Power: Fuel Oil Electric Power
-#             Wood Electric Power: Wood Electric Power
-#         attribution_method: direct
+  UMD_GHGIA_T_3_7:  # stationary combustion - electricity
+    year: *ghgi_year
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: GHGI_AR5_100
+    activity_sets:
+     electric_power:
+       selection_fields:
+         PrimaryActivity:
+           Coal Electric Power: Coal Electric Power
+           Natural Gas Electric Power: Natural Gas Electric Power
+           Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
+           Petroleum Electric Power: Petroleum Electric Power
+           Wood Electric Power: Wood Electric Power
+       attribution_method: direct
 
-#       # updated from flowsa, only includes commercial
-#       fuel_oil_commercial:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Fuel Oil Commercial
-#         attribution_method: proportional
-#         attribution_source:
-#           BEA_Detail_Use_AfterRedef:
-#             <<: *bea
-#             selection_fields:
-#               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
+  UMD_GHGIA_T_3_11:  # Stationary combustion - industrial
+     year: *ghgi_year
+     activity_to_sector_mapping: UMD_GHGIA
+     # note - below clean function splits ghgi data into manufacturing and non manufacturing
+     # while ceda does not originally use this terminology/append "manufacturing" to activity names, ceda
+     # accomplishes the same methods through
+     # _allocate_industrial_coal_to_industries_energy_allocation() + _allocate_remaining_industrial_coal_usage()
+     clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
+     clean_parameter: # Override each year for use in allocate_industrial_combustion
+        energy_fba: 'EIA_MECS_Energy'
+        year: *mecs_year
+        ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
+     fedefl_mapping: GHGI_AR5_100
+     activity_sets:
+       petroleum_industrial:
+         selection_fields:
+           PrimaryActivity:
+             - Petroleum Industrial
+         attribution_method: proportional
+         attribution_source:
+           EIA_MECS_Energy_Allocation_CEDA:
+             <<: *mecs_energy_alloc
+             selection_fields:
+               FlowName: Petroleum
+               Description: 'energy'
 
-#       # new code for industrial
-#       fuel_oil_industrial:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Fuel Oil Industrial
-#         attribution_method: proportional
-#         attribution_source:
-#           EIA_MECS_Energy_Allocation_CEDA:
-#             <<: *mecs_energy_alloc
-#             selection_fields:
-#               FlowName: Petroleum
-#               Description: 'energy'
+       natural_gas_nonmanufacturing:
+         selection_fields:
+           PrimaryActivity:
+             Natural gas Industrial: Natural Gas Industrial # fix capitalization
+             Natural Gas Industrial: Natural Gas Industrial
+         attribution_method: proportional
+         attribution_source:
+           BEA_Detail_Use_AfterRedef:
+             <<: *bea
+             selection_fields:
+               ActivityProducedBy: {'221200': ''}  # purchases of natural gas
 
-#       natural_gas_nonmanufacturing:  # Commercial Natural gas
-#         selection_fields:
-#           PrimaryActivity:
-#             Natural gas Commercial: Natural Gas Commercial # fix capitalization
-#             Natural gas Industrial: Natural Gas Industrial # fix capitalization
-#             Natural Gas Commercial: Natural Gas Commercial
-#             Natural Gas Industrial: Natural Gas Industrial
-#         attribution_method: proportional
-#         attribution_source:
-#           BEA_Detail_Use_AfterRedef:
-#             <<: *bea
-#             selection_fields:
-#               ActivityProducedBy: {'221200': ''}  # purchases of natural gas
+       ng_manufacturing:
+         selection_fields:
+           PrimaryActivity:
+             - Natural gas Industrial - Manufacturing
+             - Natural Gas Industrial - Manufacturing
+         attribution_method: proportional
+         attribution_source:
+           EIA_MECS_Energy_Allocation_CEDA:
+             <<: *mecs_energy_alloc
+             selection_fields:
+               FlowName: Natural Gas
+               Description: "energy"
 
-#       # note - this replicates _allocate_remaining_industrial_coal_usage()
-#       coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
-#         selection_fields:
-#           PrimaryActivity: Coal Industrial
-#         attribution_method: proportional
-#         attribution_source:
-#           BEA_Detail_Use_AfterRedef:
-#             <<: *bea
-#             selection_fields:
-#               ActivityProducedBy: {'212100': ''}  # purchases of coal
+       coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
+         selection_fields:
+           PrimaryActivity: Coal Industrial
+         attribution_method: proportional
+         attribution_source:
+           BEA_Detail_Use_AfterRedef:
+             <<: *bea
+             selection_fields:
+               ActivityProducedBy: {'212100': ''}  # purchases of coal
 
-#       # ceda splits coal into manufacturing/non manufacturing, but did not update the activity names, same method
-#       coal_manufacturing:
-#         selection_fields:
-#           PrimaryActivity: Coal Industrial - Manufacturing
-#         attribution_method: proportional
-#         attribution_source:
-#           EIA_MECS_Energy_Allocation_CEDA:
-#             <<: *mecs_energy_alloc
-#             selection_fields:
-#               FlowName: Coal
-#               Description: 'energy'
+       coal_manufacturing:
+         selection_fields:
+           PrimaryActivity: Coal Industrial - Manufacturing
+         attribution_method: proportional
+         attribution_source:
+           EIA_MECS_Energy_Allocation_CEDA:
+             <<: *mecs_energy_alloc
+             selection_fields:
+               FlowName: Coal
+               Description: 'energy'
 
-#       # ceda accomplishes similar through
-#       # _allocate_industrial_nat_gas_to_industries_energy_allocation() + _allocate_remaining_industrial_nat_gas_usage()
-#       ng_manufacturing:
-#         selection_fields:
-#           PrimaryActivity:
-#             - Natural gas Industrial - Manufacturing
-#             - Natural Gas Industrial - Manufacturing  # only in flowsa, CEDA does not call on manufacturing
-#         attribution_method: proportional
-#         attribution_source:
-#           EIA_MECS_Energy_Allocation_CEDA:
-#             <<: *mecs_energy_alloc
-#             selection_fields:
-#               FlowName: Natural Gas
-#               Description: "energy"
+     # Intentionally left out 'Wood Commercial' and 'Wood Industrial'
 
-#     #Intentionally left out 'Wood Commercial' and 'Wood Industrial'  # flowsa note, but ceda also does not include
 
-  # EPA_GHGI_T_3_9:  # TODO: maps to multiple UMD tables (3-11 + 3-12)
+  UMD_GHGIA_T_3_12:  # Stationary combustion - residential + commercial
+     year: *ghgi_year
+     activity_to_sector_mapping: UMD_GHGIA
+     fedefl_mapping: GHGI_AR5_100
+     activity_sets:
+       residential:
+         selection_fields:
+           PrimaryActivity:
+             - Coal Residential and Commercial
+             - Natural Gas Residential and Commercial
+             - Wood Residential and Commercial
+             - Petroleum Residential and Commercial
+         attribution_method: proportional
+         attribution_source:
+           # todo: note CH4 proportions applied to all gases in UMD T_3_12
+           EPA_GHGI_T_3_8:
+            year: *epa_ghgi_year
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              direct:
+                selection_fields:
+                  PrimaryActivity:
+                    - Coal Residential
+                    - Coal Commercial
+                    - Natural Gas Residential
+                    - Wood Residential
+                    - Wood Commercial
+                    - Fuel Oil Residential
+                attribution_method: direct
+
+              natural_gas_commercial:
+                selection_fields:
+                  PrimaryActivity:
+                    Natural gas Commercial: Natural Gas Commercial # fix capitalization
+                    Natural Gas Commercial: Natural Gas Commercial
+                attribution_method: proportional
+                attribution_source:
+                  BEA_Detail_Use_AfterRedef:
+                    <<: *bea
+                    selection_fields:
+                      ActivityProducedBy: {'221200': ''}  # purchases of natural gas
+
+              petroleum_commercial:
+                selection_fields:
+                  PrimaryActivity:
+                    - Fuel Oil Commercial
+                attribution_method: proportional
+                attribution_source:
+                  BEA_Detail_Use_AfterRedef:
+                    <<: *bea
+                    selection_fields:
+                      ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
 
 ## Other sources
@@ -700,121 +747,72 @@ source_names:
         - Methanol
     attribution_method: direct
 
-  UMD_GHGIA_T_3_14: # GHGI T_3_25 → UMD Table 3-14
+  UMD_GHGIA_T_3_14: # UMD Table 3-14 totals; allocate via EPA T_3_25
     year: *ghgi_year
+    activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      coal:
+      emissions:
         selection_fields:
-          PrimaryActivity:
-            - Industry Industrial Coking Coal
-            - Industry Industrial Other Coal
-        attribution_method: direct
-
-      petroleum_neu: # consumed petroleum products
-        selection_fields:
-          PrimaryActivity:
-            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
-            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
-            # Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Lubricants: Industry Petroleum Products Non-energy
-            Industry Miscellaneous Products: Industry Petroleum Products Non-energy
-            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
-            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
-            # Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Petroleum Coke: Industry Petroleum Products Non-energy
-            Industry Special Naphtha: Industry Petroleum Products Non-energy
-            Industry Still Gas: Industry Petroleum Products Non-energy
-            Industry Waxes: Industry Petroleum Products Non-energy
-            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
-            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
+          PrimaryActivity: Emissions NEU Fossil Fuel Consumption
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Petroleum
-              Description: "non energy"
+          EPA_GHGI_T_3_25:
+            year: *epa_ghgi_year
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              coal:
+                selection_fields:
+                  PrimaryActivity:
+                    - Industry Industrial Coking Coal
+                    - Industry Industrial Other Coal
+                attribution_method: direct
 
-      natural_gas_neu: # consumed nat gas to chemical plants
-        selection_fields:
-          PrimaryActivity: Industry Natural Gas to Chemical Plants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Natural Gas
-              Description: "non energy"
+              petroleum_neu:
+                selection_fields:
+                  PrimaryActivity:
+                    'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
+                    Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
+                    Industry Lubricants: Industry Petroleum Products Non-energy
+                    Industry Miscellaneous Products: Industry Petroleum Products Non-energy
+                    'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
+                    'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
+                    Industry Petroleum Coke: Industry Petroleum Products Non-energy
+                    Industry Special Naphtha: Industry Petroleum Products Non-energy
+                    Industry Still Gas: Industry Petroleum Products Non-energy
+                    Industry Waxes: Industry Petroleum Products Non-energy
+                    Industry Natural Gasoline: Industry Petroleum Products Non-energy
+                    Industry HGL: Industry Petroleum Products Non-energy
+                attribution_method: proportional
+                attribution_source:
+                  EIA_MECS_Energy_Allocation_CEDA:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      FlowName: Petroleum
+                      Description: "non energy"
 
-      transportation_lubricants:
-        selection_fields:
-          PrimaryActivity: Transportation Lubricants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Transport
-              Description: "non energy"
+              natural_gas_neu:
+                selection_fields:
+                  PrimaryActivity: Industry Natural Gas to Chemical Plants
+                attribution_method: proportional
+                attribution_source:
+                  EIA_MECS_Energy_Allocation_CEDA:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      FlowName: Natural Gas
+                      Description: "non energy"
 
-  UMD_GHGIA_T_3_15: # GHGI T_3_25 → UMD Table 3-15
-    year: *ghgi_year
-    fedefl_mapping: GHGI_AR5_100
-    activity_sets:
-      coal:
-        selection_fields:
-          PrimaryActivity:
-            - Industry Industrial Coking Coal
-            - Industry Industrial Other Coal
-        attribution_method: direct
-
-      petroleum_neu: # consumed petroleum products
-        selection_fields:
-          PrimaryActivity:
-            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
-            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
-            # Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Lubricants: Industry Petroleum Products Non-energy
-            Industry Miscellaneous Products: Industry Petroleum Products Non-energy
-            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
-            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
-            # Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Petroleum Coke: Industry Petroleum Products Non-energy
-            Industry Special Naphtha: Industry Petroleum Products Non-energy
-            Industry Still Gas: Industry Petroleum Products Non-energy
-            Industry Waxes: Industry Petroleum Products Non-energy
-            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
-            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Petroleum
-              Description: "non energy"
-
-      natural_gas_neu: # consumed nat gas to chemical plants
-        selection_fields:
-          PrimaryActivity: Industry Natural Gas to Chemical Plants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Natural Gas
-              Description: "non energy"
-
-      transportation_lubricants:
-        selection_fields:
-          PrimaryActivity: Transportation Lubricants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Transport
-              Description: "non energy"
+              transportation_lubricants:
+                selection_fields:
+                  PrimaryActivity: Transportation Lubricants
+                attribution_method: proportional
+                attribution_source:
+                  EIA_MECS_Energy_Allocation_CEDA:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      FlowName: Transport
+                      Description: "non energy"
 
 ## Other Emissions
   UMD_GHGIA_T_4_33: # HFCs from HCFC-22 production
@@ -834,15 +832,16 @@ source_names:
       FlowName: ["Other PFCs", "Other HFCs"]
     attribution_method: direct
 
-  # EPA_GHGI_T_4_64: # Fluorochemical production (MT) — TODO: update with UMD (missing).
-#     year: *ghgi_year
-#     activity_to_sector_mapping: UMD_GHGIA
-#     fedefl_mapping: GHGI_AR5_100
-#     selection_fields:
-#       PrimaryActivity: Fluorochemical Production
-#     exclusion_fields:
-#       FlowName: ["Other PFCs", "Other HFCs"]
-#     attribution_method: direct
+  # TODO: Note that this is EPA GHGI data, not UMD GHGIA, as UMD does not publish this data
+  EPA_GHGI_T_4_64: # Fluorochemical production (MT)
+     year: *epa_ghgi_year
+     activity_to_sector_mapping: EPA_GHGI_Cornerstone
+     fedefl_mapping: GHGI_AR5_100
+     selection_fields:
+       PrimaryActivity: Fluorochemical Production
+     exclusion_fields:
+       FlowName: ["Other PFCs", "Other HFCs"]
+     attribution_method: direct
 
   UMD_GHGIA_T_4_52: # HFCs, SF6, CO2 from magnesium production
     year: *ghgi_year
@@ -935,27 +934,27 @@ source_names:
                 '326140': '' # Polystyrene foam
                 '326150': '' # Urethane and other foam
 
-
-  # EPA_GHGI_T_A_90: # Transportation HFCs — TODO: update with UMD (missing).
-#     year: *ghgi_year
-#     activity_to_sector_mapping: UMD_GHGIA
-#     clean_fba_before_mapping: !script_function:EPA_GHGI split_HFCs_by_type
-#     clean_parameter:
-#         # Proportions of specific HFCs are assigned based on national total
-#         flow_fba: UMD_GHGIA_T_4_59
-#     fedefl_mapping: GHGI_AR5_100
-#     selection_fields:
-#       PrimaryActivity:
-#         Mobile AC - Passenger Cars: Passenger Cars - Households
-#         Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households
-#         Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles
-#         Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses
-#         Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses
-#         Comfort Cooling for Trains and Buses - Rail: Rail
-#         Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks
-#         Refrigerated Transport - Rail: Rail
-#         Refrigerated Transport - Ships and Boats: Ships and Boats
-#     attribution_method: direct
+  # TODO: Note that this is EPA GHGI data, not UMD GHGIA, as UMD does not publish this data
+  EPA_GHGI_T_A_90: # Transportation HFCs
+     year: *epa_ghgi_year
+     activity_to_sector_mapping: EPA_GHGI_Cornerstone
+     clean_fba_before_mapping: !script_function:EPA_GHGI split_HFCs_by_type
+     clean_parameter:
+         # Proportions of specific HFCs are assigned based on national total
+         flow_fba: UMD_GHGIA_T_4_59
+     fedefl_mapping: GHGI_AR5_100
+     selection_fields:
+       PrimaryActivity:
+         Mobile AC - Passenger Cars: Passenger Cars - Households
+         Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households
+         Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles
+         Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses
+         Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses
+         Comfort Cooling for Trains and Buses - Rail: Rail
+         Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks
+         Refrigerated Transport - Rail: Rail
+         Refrigerated Transport - Ships and Boats: Ships and Boats
+     attribution_method: direct
 
 
   UMD_GHGIA_T_4_50: # PFCs from aluminum production
