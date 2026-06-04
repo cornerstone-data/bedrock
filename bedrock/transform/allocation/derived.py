@@ -491,7 +491,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
-    if methodname == 'GHG_national_2023_m2':
+    if usa.use_ghg_national_2023_m2:
         # Keep m2 diagnostics aligned with USEEIO workbook characterization.
         ghg_mapping['CH4_fossil'] = _USEEIO_WORKBOOK_CH4_GWP
         ghg_mapping['CH4_non_fossil'] = _USEEIO_WORKBOOK_CH4_GWP
