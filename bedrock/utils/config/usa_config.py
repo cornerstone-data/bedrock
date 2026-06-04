@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import typing as ta
+import warnings
 
 import pandas as pd
 import yaml
@@ -164,6 +165,21 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
                 'to be true'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
+        if (
+            self.iot_before_or_after_redefinition == 'before'
+            and self.eeio_waste_disaggregation is not None
+        ):
+            warnings.warn(
+                "iot_before_or_after_redefinition is 'before', so "
+                'eeio_waste_disaggregation is ignored; USEEIOR v1.8.0 waste '
+                'weights apply (USEEIO parity).',
+                UserWarning,
+                stacklevel=2,
             )
         return self
 
