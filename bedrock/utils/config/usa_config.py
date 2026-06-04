@@ -168,6 +168,23 @@ class USAConfig(BaseModel):
         return self
 
     @model_validator(mode='after')
+    def _validate_margins_mutual_exclusivity(self) -> USAConfig:
+        active = [
+            name
+            for name, val in [
+                ('useeio_margins', self.useeio_margins),
+                ('ceda_margins', self.ceda_margins),
+                ('cornerstone_industry_avg_margins', self.cornerstone_industry_avg_margins),
+            ]
+            if val
+        ]
+        if len(active) > 1:
+            raise ValueError(
+                f'At most one margins flag may be true; got: {", ".join(active)}'
+            )
+        return self
+
+    @model_validator(mode='after')
     def _validate_ghg_flag_compatibility(self) -> USAConfig:
         if self.new_ghg_method and self.use_ghg_national_2023_m2:
             raise ValueError(
