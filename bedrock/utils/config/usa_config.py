@@ -85,7 +85,6 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
-    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
@@ -107,7 +106,8 @@ class USAConfig(BaseModel):
     use_ghg_national_2023_m2: bool = False
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
-    update_inflation_factors: bool = False  # mo.li
+    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
+    update_inflation_factors: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
