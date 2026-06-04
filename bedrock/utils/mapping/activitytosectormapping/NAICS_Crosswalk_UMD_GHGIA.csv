@@ -32,7 +32,7 @@ UMD_GHGIA,N2O from Product Uses,NAICS_2017_Code,622,,,EPA_GHGI_T_2_1
 UMD_GHGIA,N2O from Product Uses,NAICS_2017_Code,623,,,EPA_GHGI_T_2_1
 UMD_GHGIA,"Caprolactam, Glyoxal, and Glyoxylic Acid Production",NAICS_2017_Code,32519,,325190,EPA_GHGI_T_2_1
 UMD_GHGIA,Electronics Industry,NAICS_2017_Code,334413,,"334413, name change from Semiconductor Manufacture",EPA_GHGI_T_2_1
-UMD_GHGIA,Electrical Transmission and Distribution,NAICS_2017_Code,2211,,221100,EPA_GHGI_T_2_1
+UMD_GHGIA,Electrical Transmission,NAICS_2017_Code,2211,,221100,EPA_GHGI_T_2_1
 UMD_GHGIA,Electrical Equipment,NAICS_2017_Code,2211,,new activity,EPA_GHGI_T_2_1
 UMD_GHGIA,Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)",EPA_GHGI_T_2_1
 UMD_GHGIA,Liming,NAICS_2017_Code,111,,all ag sectors - proportional via BEA 327400,EPA_GHGI_T_2_1
@@ -70,7 +70,7 @@ UMD_GHGIA,Exploration,NAICS_2017_Code,213112,,211000,"UMD_GHGIA_T_3_25, UMD_GHGI
 UMD_GHGIA,Production,NAICS_2017_Code,211130,,211000,"UMD_GHGIA_T_3_25, UMD_GHGIA_T_3_28"
 UMD_GHGIA,Crude Oil Transportation,NAICS_2017_Code,486110,,not mapped,UMD_GHGIA_T_3_25
 UMD_GHGIA,Transportation,NAICS_2017_Code,486110,,not mapped,UMD_GHGIA_T_3_25
-UMD_GHGIA,Refining,NAICS_2017_Code,324110,,324110,UMD_GHGIA_T_3_25
+UMD_GHGIA,Refineries,NAICS_2017_Code,324110,,324110,UMD_GHGIA_T_3_25
 UMD_GHGIA,Crude Refining,NAICS_2017_Code,324110,,324110,UMD_GHGIA_T_3_25
 UMD_GHGIA,Distribution,NAICS_2017_Code,221210,,221200,UMD_GHGIA_T_3_28
 UMD_GHGIA,Post-Meter,NAICS_2017_Code,221210,,,UMD_GHGIA_T_3_28

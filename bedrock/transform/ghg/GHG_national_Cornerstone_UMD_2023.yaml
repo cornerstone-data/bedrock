@@ -76,7 +76,7 @@ source_names:
        electricity_transmission:
          selection_fields:
            PrimaryActivity:
-             - Electrical Transmission and Distribution  # SF6
+             - Electrical Transmission  # SF6
              - Electrical Equipment  # SF6
            FlowName: SF6
          attribution_method: direct
@@ -199,7 +199,7 @@ source_names:
         - Transmission and Storage
     attribution_method: direct
   UMD_GHGIA_T_3_29: *natgas # CO2 from Natural Gas Systems mimics CH4
-  UMD_GHGIA_T_3_30: *natgas # N2O from Natural Gas Systems mimics CH4
+  UMD_GHGIA_T_3_30: *natgas # N2O from Natural Gas Systems mimics CH4, note 3-30 does not have "Post-Meter"
 
   UMD_GHGIA_T_3_25: &petroleum #CH4 from Petroleum Systems
     year: *ghgi_year
@@ -207,12 +207,12 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     selection_fields:
       PrimaryActivity:
-        - Crude Oil Transportation
+#        - Crude Oil Transportation  # not included in UMD
         - Transportation
         - Exploration
         - Production
-        - Refining
-        - Crude Refining
+        - Refineries
+#        - Crude Refining  # not included in UMD
     attribution_method: direct
   UMD_GHGIA_T_3_26: *petroleum # CO2 from Petroleum Systems mimics CH4
   UMD_GHGIA_T_3_27: *petroleum # N2O from Petroleum Systems mimics CH4
@@ -232,7 +232,7 @@ source_names:
         - Mules and Asses
         - Sheep
         - Swine
-        - Poultry
+        - Poultry  # note, not in 5-3, is included in 5-6
     attribution_method: direct
   UMD_GHGIA_T_5_6:  *animals # CH4 and N2O from manure management
 
