@@ -9,8 +9,12 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    cornerstone_sector_disagg_active,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
-    _derive_cornerstone_io_after_electricity_reallocation,
     _derive_cornerstone_V_after_waste,
     _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Aq,
@@ -39,12 +43,13 @@ from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostic
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     electricity_reallocation_enabled,
-    _derive_cornerstone_io_after_electricity_reallocation,
+    derive_disagg_io_bundle,
+    cornerstone_sector_disagg_active,
     derive_cornerstone_V,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_U_set,
     derive_cornerstone_VA,
-    _derive_cornerstone_Ytot_with_trade,
+    derive_disagg_Ytot_with_trade,
     derive_cornerstone_Ytot_matrix_set,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,

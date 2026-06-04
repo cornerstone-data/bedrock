@@ -23,6 +23,11 @@ from bedrock.transform.eeio import (
     cornerstone_expansion,
 )
 from bedrock.transform.eeio import derived_cornerstone as dc
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    cornerstone_sector_disagg_active,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     _WASTE_NEW_CODES,
     _derive_cornerstone_Ytot_with_trade,
@@ -52,7 +57,10 @@ from bedrock.utils.math.formulas import compute_q
 _WASTE_SET = set(_WASTE_NEW_CODES)
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
+    cornerstone_sector_disagg_active,
     get_waste_disagg_weights,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
     derive_cornerstone_V,
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,
@@ -60,7 +68,6 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_U_set,
-    _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Ytot_matrix_set,
     derive_cornerstone_VA,
     derive_cornerstone_Aq,
