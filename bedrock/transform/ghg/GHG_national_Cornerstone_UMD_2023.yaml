@@ -76,7 +76,6 @@ source_names:
        electricity_transmission:
          selection_fields:
            PrimaryActivity:
-             - Electrical Transmission  # SF6
              - Electrical Equipment  # SF6
            FlowName: SF6
          attribution_method: direct
@@ -369,9 +368,9 @@ source_names:
       direct_diesel:
         selection_fields:
           PrimaryActivity:
-            Rail Distillate Fuel Oil: Rail
-            Recreational Boats Distillate Fuel Oil: Recreational Boats
-            Ships and Non-Recreational Boats Distillate Fuel Oil: Ships and Non-Recreational Boats
+            Rail Diesel Fuel: Rail
+            Recreational Boats Diesel Fuel: Recreational Boats
+            Ships and Non-Recreational Boats Diesel Fuel: Ships and Non-Recreational Boats
         attribution_method: direct
 
       direct_gasoline:
@@ -386,10 +385,10 @@ source_names:
       petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
-            Medium- and Heavy-Duty Trucks Distillate Fuel Oil: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
-            Buses Distillate Fuel Oil: Buses - Distillate Fuel Oil
-            Passenger Cars Distillate Fuel Oil: Passenger Cars
-            Light-Duty Trucks Distillate Fuel Oil: Light-Duty Trucks
+            Medium- and Heavy-Duty Trucks Diesel Fuel: Medium- and Heavy-Duty Trucks Diesel Fuel
+            Buses Diesel Fuel: Buses Diesel Fuel
+            Passenger Cars Diesel Fuel: Passenger Cars
+            Light-Duty Trucks Diesel Fuel: Light-Duty Trucks
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_AfterRedef:
