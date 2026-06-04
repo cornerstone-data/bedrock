@@ -602,9 +602,13 @@ def umd_ghgia_parse(
         source_activity_1: list[str] = config.get('source_activity_1') or []
         source_activity_1_fuel: list[str] = config.get('source_activity_1_fuel') or []
         source_activity_2: list[str] = config.get('source_activity_2') or []
+        flat_activity_header: list[str] = config.get('flat_activity_header') or []
         rows_as_flows: list[str] = config.get('rows_as_flows') or []
 
-        if table_name in multi_chem_names or table_name in multi_chem_names_activity_header:
+        if (
+            table_name in multi_chem_names
+            or table_name in multi_chem_names_activity_header
+        ):
             bool_apb = False
             bool_LULUCF = False
             apbe_value = ''
@@ -664,6 +668,19 @@ def umd_ghgia_parse(
                             df['ActivityProducedBy'] + ' ' + sector
                         )
                         break
+
+        elif table_name in flat_activity_header:
+            desc = meta.get('desc', '')
+            for append_act in ('Agricultural Soil Management',):
+                if append_act in desc:
+                    for index, row in df.iterrows():
+                        apb_value = strip_char(cast(str, row['ActivityProducedBy']))
+                        if apb_value.startswith('Total'):
+                            df = df.drop(index)
+                    df['ActivityProducedBy'] = (
+                        df['ActivityProducedBy'] + ' ' + append_act
+                    )
+                    break
 
         elif table_name in source_No_activity:
             apbe_value = ''

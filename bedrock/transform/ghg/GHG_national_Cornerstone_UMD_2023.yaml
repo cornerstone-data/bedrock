@@ -236,78 +236,96 @@ source_names:
     attribution_method: direct
   UMD_GHGIA_T_5_6:  *animals # CH4 and N2O from manure management
 
-  UMD_GHGIA_T_5_10: # GHGI T_5_18 + T_5_19 → UMD Table 5-10
+  UMD_GHGIA_T_5_10: # UMD Table 5-10 totals; allocate via EPA T_5_18 (direct) and T_5_19 (indirect)
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      # activities from GHGI T_5_18 (direct soils)
-      direct_fertilizer_use:
-
+      direct:
         selection_fields:
-          PrimaryActivity:
-            - Organic Amendment Cropland
-            - Residue N Cropland
-            - Synthetic Fertilizer Cropland
+          PrimaryActivity: Direct Agricultural Soil Management
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'325310': ''} # fertilizer sectors
-
-      direct_cropland:
-        selection_fields:
-          PrimaryActivity:
-            - Mineralization and Asymbiotic Fixation Cropland
-            - Drained Organic Soils Cropland
-        attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Cropland:
-            year: *coa_year
-            selection_fields:
-              Class: Land
-              FlowName:
-                - AREA HARVESTED
-                - AREA BEARING & NON-BEARING # Orchards
-                - AREA GROWN # Berry totals
-            attribution_method: proportional
-            attribution_source:
-              USDA_CoA_Cropland_NAICS:
+          EPA_GHGI_T_5_18:
+            year: *epa_ghgi_year
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              fertilizer_use:
                 selection_fields:
-                  Flowable: AG LAND, CROPLAND, HARVESTED
+                  PrimaryActivity:
+                    - Organic Amendment Cropland
+                    - Residue N Cropland
+                    - Synthetic Fertilizer Cropland
+                attribution_method: proportional
+                attribution_source:
+                  BEA_Detail_Use_AfterRedef:
+                    <<: *bea
+                    selection_fields:
+                      ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
-      direct_pasture:
-        selection_fields:
-          PrimaryActivity:
-            - All activities Grassland
-        attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Cropland_NAICS:
-            selection_fields:
-              Flowable: FARM OPERATIONS
+              cropland:
+                selection_fields:
+                  PrimaryActivity:
+                    - Mineralization and Asymbiotic Fixation Cropland
+                    - Drained Organic Soils Cropland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland:
+                    year: *coa_year
+                    selection_fields:
+                      Class: Land
+                      FlowName:
+                        - AREA HARVESTED
+                        - AREA BEARING & NON-BEARING # Orchards
+                        - AREA GROWN # Berry totals
+                    attribution_method: proportional
+                    attribution_source:
+                      USDA_CoA_Cropland_NAICS:
+                        selection_fields:
+                          Flowable: AG LAND, CROPLAND, HARVESTED
 
-      # activities from GHGI T_5_19 (indirect soils)
-      indirect_fertilizer_use:
+              pasture:
+                selection_fields:
+                  PrimaryActivity:
+                    - All activities Grassland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland_NAICS:
+                    selection_fields:
+                      Flowable: FARM OPERATIONS
+
+      indirect:
         selection_fields:
-          PrimaryActivity:
-            - Volatilization & Atm. Deposition Cropland
-            - Surface Leaching & Run-Off Cropland
+          PrimaryActivity: Indirect Agricultural Soil Management
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'325310': ''} # fertilizer sectors
-      indirect_pasture:
-        selection_fields:
-          PrimaryActivity:
-            - All activities Grassland
-        attribution_method: proportional
-        attribution_source:
-          USDA_CoA_Cropland_NAICS:
-            selection_fields:
-              Flowable: FARM OPERATIONS
+          EPA_GHGI_T_5_19:
+            year: *epa_ghgi_year
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              fertilizer_use:
+                selection_fields:
+                  PrimaryActivity:
+                    - Volatilization & Atm. Deposition Cropland
+                    - Surface Leaching & Run-Off Cropland
+                attribution_method: proportional
+                attribution_source:
+                  BEA_Detail_Use_AfterRedef:
+                    <<: *bea
+                    selection_fields:
+                      ActivityProducedBy: {'325310': ''} # fertilizer sectors
+
+              pasture:
+                selection_fields:
+                  PrimaryActivity:
+                    - All activities Grassland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland_NAICS:
+                    selection_fields:
+                      Flowable: FARM OPERATIONS
 
 
 ### Mobile Sources
