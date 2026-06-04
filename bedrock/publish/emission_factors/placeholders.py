@@ -6,7 +6,7 @@ import pandas as pd
 
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    get_cornerstone_industry_price_ratio,
+    get_vnorm_adjusted_commodity_price_ratio,
 )
 
 
@@ -26,15 +26,15 @@ def adjust_publish_matrix(
     dollar_year: int,
     purchaser_price: bool,
 ) -> pd.DataFrame:
-    """Rebase sector columns to ``dollar_year`` and optionally apply purchaser Phi."""
+    """Rebase commodity columns to ``dollar_year`` and optionally apply purchaser Phi."""
     cfg = get_usa_config()
     base_year = cfg.model_base_year
     out = matrix.copy()
 
     if dollar_year != base_year:
-        pi = get_cornerstone_industry_price_ratio(base_year, dollar_year)
+        pi = get_vnorm_adjusted_commodity_price_ratio(base_year, dollar_year)
         price_ratio_for_columns = pi.reindex(out.columns, fill_value=1.0)
-        # get_cornerstone_industry_price_ratio(base, target) is PI_target / PI_base.
+        # get_vnorm_adjusted_commodity_price_ratio(base, target) is PI_target / PI_base.
         # Divide EF columns so values are expressed per target-year USD denominator.
         out = out.div(price_ratio_for_columns.values, axis=1)
 
