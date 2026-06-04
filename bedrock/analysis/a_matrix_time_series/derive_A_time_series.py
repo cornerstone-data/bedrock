@@ -38,11 +38,8 @@ from bedrock.analysis.a_matrix_time_series.constants import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.config.config_controllers import (
-    clear_caches,
-    reset_usa_config,
-    set_usa_config,
-)
+from bedrock.utils.config.config_controllers import clear_caches, force_set_usa_config
+from bedrock.utils.config.usa_config import reset_usa_config
 from bedrock.utils.io.gcp import create_spreadsheet_in_folder, update_sheet_tab
 
 logger = logging.getLogger(__name__)
@@ -81,7 +78,7 @@ def _derive_one_pair(
     # only allows 2022–2024). update_inflation_factors and apply_inflation_to_V
     # are set explicitly because __init__.py flips them on the initial config
     # load; replacing _usa_config directly would otherwise drop them to defaults.
-    set_usa_config(
+    force_set_usa_config(
         APPROACH_YAMLS[approach],
         model_base_year=year,
         update_inflation_factors=True,

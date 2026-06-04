@@ -299,9 +299,9 @@ def get_usa_config() -> USAConfig:
     return _usa_config
 
 
-def reset_usa_config(should_reset_env_var: bool = False) -> None:
-    """For testing purposes"""
+def reset_usa_config(should_reset_env_var: bool = True) -> None:
+    """Clear the process-wide USA config."""
     global _usa_config
     _usa_config = None
-    if should_reset_env_var and USA_CONFIG_ENV_VAR in os.environ:
-        del os.environ[USA_CONFIG_ENV_VAR]
+    if should_reset_env_var:
+        os.environ.pop(USA_CONFIG_ENV_VAR, None)

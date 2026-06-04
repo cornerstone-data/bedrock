@@ -30,11 +30,11 @@ from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: E402
     _useeio_margins_filters,
     derive_2017_producer_to_purchaser_price_ratio_ceda_usa,
 )
-from bedrock.utils.config.config_controllers import (  # noqa: E402
+from bedrock.utils.config.config_controllers import force_set_usa_config  # noqa: E402
+from bedrock.utils.config.usa_config import (  # noqa: E402
+    get_usa_config,
     reset_usa_config,
-    set_usa_config,
 )
-from bedrock.utils.config.usa_config import get_usa_config  # noqa: E402
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists  # noqa: E402
 from bedrock.utils.snapshots.loader import useeio_baseline_local_dir  # noqa: E402
 from bedrock.utils.validation.useeio_excel_baseline import (  # noqa: E402
@@ -164,7 +164,7 @@ def _scatter_comparison(
 # ─── USEEIO ──────────────────────────────────────────────────────────────────
 print('Computing USEEIO model Phi...')
 reset_usa_config()
-set_usa_config('useeio_phoebe_23')
+force_set_usa_config('useeio_phoebe_23')
 phi_useeio_model = _compute_useeio_phi_model()
 useeio_year = get_usa_config().model_base_year
 
@@ -180,7 +180,7 @@ phi_useeio_ref = _load_useeio_phi_reference(_useeio_local, useeio_year)
 # ─── CEDA ────────────────────────────────────────────────────────────────────
 print('Computing CEDA model Phi...')
 reset_usa_config()
-set_usa_config('v8_ceda_2025_usa')
+force_set_usa_config('v8_ceda_2025_usa')
 phi_ceda_model = derive_2017_producer_to_purchaser_price_ratio_ceda_usa()
 
 print('Loading CEDA reference Phi...')

@@ -25,13 +25,7 @@ import bedrock.utils.config.usa_config as _cfg_module
 from bedrock.utils.config.usa_config import USAConfig
 
 
-def reset_usa_config() -> None:
-    """Clear the process-wide USA config and its env var sentinel."""
-    _cfg_module._usa_config = None
-    os.environ.pop(_cfg_module.USA_CONFIG_ENV_VAR, None)
-
-
-def set_usa_config(config_name: str, **field_overrides: Any) -> None:
+def force_set_usa_config(config_name: str, **field_overrides: Any) -> None:
     """Load a named YAML config and install it as the process-wide USA config.
 
     Bypasses the 'already set' guard in ``set_global_usa_config``; call
@@ -79,11 +73,11 @@ def temp_usa_config(
         with temp_usa_config("useeio_phoebe_23", cache_bearing_modules=(...,)):
             ratio = _ratio_from_margins(derive_2017_margins_cornerstone_usa())
     """
-    reset_usa_config()
+    _cfg_module.reset_usa_config()
     clear_caches(*cache_bearing_modules)
-    set_usa_config(config_name, **field_overrides)
+    force_set_usa_config(config_name, **field_overrides)
     try:
         yield
     finally:
-        reset_usa_config()
+        _cfg_module.reset_usa_config()
         clear_caches(*cache_bearing_modules)
