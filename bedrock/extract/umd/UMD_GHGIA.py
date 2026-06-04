@@ -59,11 +59,8 @@ ANNEX_HEADERS = {
 # Tables for annual CO2 emissions from fossil fuel combustion
 ANNEX_ENERGY_TABLES = ['A-' + str(x) for x in list(range(4, 16))]
 
-# UMD tables that use a two-row CSV header (Annex A-style + NEU / petroleum tables per UMD_GHGIA.yaml).
-# TODO: verify staged CSV layout for 3-14/3-15 (NEU)
-UMD_TWO_ROW_HEADER_TABLES = frozenset(
-    [*ANNEX_ENERGY_TABLES]
-)  # frozenset([*ANNEX_ENERGY_TABLES, '3-14', '3-15'])
+# UMD tables that use a two-row CSV header (Annex A-style per UMD_GHGIA.yaml).
+UMD_TWO_ROW_HEADER_TABLES = frozenset([*ANNEX_ENERGY_TABLES])
 
 DROP_COLS = ['Unnamed: 0'] + list(
     pd.date_range(start='1990', end='2010', freq='YE').year.astype(str)
@@ -264,21 +261,6 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
         # remove notes from column headers in some years (GHGI Table 3-13 analogue)
         cols = [c[:4] for c in list(df.columns[1:])]
         return df.rename(columns=dict(zip(df.columns[1:], cols)))
-    elif table in ('3-14', '3-15'):  # todo - check if necessary
-        # Row 0 is header, row 1 is unit (GHGI Table 3-25 / UMD NEU & petroleum layouts).
-        new_headers = []
-        for col in df.columns:
-            new_header = 'Unnamed: 0'
-            if 'Unnamed' not in col[0]:
-                if 'Unnamed' not in col[1]:
-                    new_header = f'{col[0]} {col[1]}'
-                else:
-                    new_header = col[0]
-            else:
-                new_header = col[1]
-            new_headers.append(new_header)
-        df.columns = new_headers
-        return df
     elif table == '5-15':
         # only keep string after last slash, so update activities like Cereals/Wheat and Pulses/Other/Soybeans
         col = df.columns[0]
@@ -500,21 +482,7 @@ def umd_ghgia_parse(
 
         meta = get_table_meta(source_name, config)
 
-        if table_name in ['3-14']:  # todo - check if necessary
-            df = df.melt(
-                id_vars=id_vars, var_name=meta.get('melt_var'), value_name='FlowAmount'
-            )
-            act_template = meta['activity']
-            if isinstance(act_template, str):
-                act_template = act_template.replace('__year__', year)
-            name_unit = series_separate_name_and_units(
-                df['FlowName'], act_template, meta['unit']
-            )
-            df['FlowName'] = name_unit['names']
-            df['Unit'] = name_unit['units']
-            df['Year'] = year
-
-        elif table_name in ANNEX_ENERGY_TABLES:
+        if table_name in ANNEX_ENERGY_TABLES:
             df = df.melt(id_vars=id_vars, var_name='FlowName', value_name='FlowAmount')
             df['Year'] = year
             for index, row in df.iterrows():
@@ -671,7 +639,10 @@ def umd_ghgia_parse(
 
         elif table_name in flat_activity_header:
             desc = meta.get('desc', '')
-            for append_act in ('Agricultural Soil Management',):
+            for append_act in (
+                'Agricultural Soil Management',
+                'NEU Fossil Fuel Consumption',
+            ):
                 if append_act in desc:
                     for index, row in df.iterrows():
                         apb_value = strip_char(cast(str, row['ActivityProducedBy']))

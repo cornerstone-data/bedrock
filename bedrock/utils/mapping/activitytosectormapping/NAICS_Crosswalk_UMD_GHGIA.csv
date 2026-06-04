@@ -100,27 +100,24 @@ UMD_GHGIA,Ethylene,NAICS_2017_Code,325110,,,UMD_GHGIA_T_4_31
 UMD_GHGIA,Ethylene Dichloride,NAICS_2017_Code,325199,,,UMD_GHGIA_T_4_31
 UMD_GHGIA,Ethylene Oxide,NAICS_2017_Code,325199,,,UMD_GHGIA_T_4_31
 UMD_GHGIA,Methanol,NAICS_2017_Code,325199,,,UMD_GHGIA_T_4_31
-UMD_GHGIA,Industry Industrial Coking Coal,NAICS_2017_Code,212210,,2122A0 (incorrect in original?),"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Industrial Other Coal,NAICS_2017_Code,212210,,2122A0 (incorrect in original?),"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,31,,"31, 32, 33","UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324110,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324199,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,32412,,Used in CEDA,
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,325,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,326,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,327,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,33,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Natural Gas to Chemical Plants,NAICS_2017_Code,31,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Natural Gas to Chemical Plants,NAICS_2017_Code,32,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Industry Natural Gas to Chemical Plants,NAICS_2017_Code,33,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,48,,"48, 491, 492, S00500, S00600, GSLGO, S00201, S00203, F01000","UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,491,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,492,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,S00500,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,S00600,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,GSLGO,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,S00203,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
-UMD_GHGIA,Transportation Lubricants,NAICS_2017_Code,F01000,,,"UMD_GHGIA_T_3_14, UMD_GHGIA_T_3_15"
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,212210,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,31,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,324110,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,324199,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,32412,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,325,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,326,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,327,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,33,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,32,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,48,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,491,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,492,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,S00500,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,S00600,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,GSLGO,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,S00203,,,UMD_GHGIA_T_3_14
+UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,NAICS_2017_Code,F01000,,,UMD_GHGIA_T_3_14
 UMD_GHGIA,Coal Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)","UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Petroleum Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)",UMD_GHGIA_T_3_7
 UMD_GHGIA,Natural Gas Electric Power,NAICS_2017_Code,221112,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"

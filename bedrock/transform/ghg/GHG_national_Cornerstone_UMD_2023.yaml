@@ -748,121 +748,72 @@ source_names:
         - Methanol
     attribution_method: direct
 
-  UMD_GHGIA_T_3_14: # GHGI T_3_25 → UMD Table 3-14
+  UMD_GHGIA_T_3_14: # UMD Table 3-14 totals; allocate via EPA T_3_25
     year: *ghgi_year
+    activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      coal:
+      emissions:
         selection_fields:
-          PrimaryActivity:
-            - Industry Industrial Coking Coal
-            - Industry Industrial Other Coal
-        attribution_method: direct
-
-      petroleum_neu: # consumed petroleum products
-        selection_fields:
-          PrimaryActivity:
-            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
-            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
-            # Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Lubricants: Industry Petroleum Products Non-energy
-            Industry Miscellaneous Products: Industry Petroleum Products Non-energy
-            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
-            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
-            # Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Petroleum Coke: Industry Petroleum Products Non-energy
-            Industry Special Naphtha: Industry Petroleum Products Non-energy
-            Industry Still Gas: Industry Petroleum Products Non-energy
-            Industry Waxes: Industry Petroleum Products Non-energy
-            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
-            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
+          PrimaryActivity: Emissions NEU Fossil Fuel Consumption
         attribution_method: proportional
         attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Petroleum
-              Description: "non energy"
+          EPA_GHGI_T_3_25:
+            year: *epa_ghgi_year
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              coal:
+                selection_fields:
+                  PrimaryActivity:
+                    - Industry Industrial Coking Coal
+                    - Industry Industrial Other Coal
+                attribution_method: direct
 
-      natural_gas_neu: # consumed nat gas to chemical plants
-        selection_fields:
-          PrimaryActivity: Industry Natural Gas to Chemical Plants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Natural Gas
-              Description: "non energy"
+              petroleum_neu:
+                selection_fields:
+                  PrimaryActivity:
+                    'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
+                    Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
+                    Industry Lubricants: Industry Petroleum Products Non-energy
+                    Industry Miscellaneous Products: Industry Petroleum Products Non-energy
+                    'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
+                    'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
+                    Industry Petroleum Coke: Industry Petroleum Products Non-energy
+                    Industry Special Naphtha: Industry Petroleum Products Non-energy
+                    Industry Still Gas: Industry Petroleum Products Non-energy
+                    Industry Waxes: Industry Petroleum Products Non-energy
+                    Industry Natural Gasoline: Industry Petroleum Products Non-energy
+                    Industry HGL: Industry Petroleum Products Non-energy
+                attribution_method: proportional
+                attribution_source:
+                  EIA_MECS_Energy_Allocation_CEDA:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      FlowName: Petroleum
+                      Description: "non energy"
 
-      transportation_lubricants:
-        selection_fields:
-          PrimaryActivity: Transportation Lubricants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Transport
-              Description: "non energy"
+              natural_gas_neu:
+                selection_fields:
+                  PrimaryActivity: Industry Natural Gas to Chemical Plants
+                attribution_method: proportional
+                attribution_source:
+                  EIA_MECS_Energy_Allocation_CEDA:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      FlowName: Natural Gas
+                      Description: "non energy"
 
-  UMD_GHGIA_T_3_15: # GHGI T_3_25 → UMD Table 3-15
-    year: *ghgi_year
-    fedefl_mapping: GHGI_AR5_100
-    activity_sets:
-      coal:
-        selection_fields:
-          PrimaryActivity:
-            - Industry Industrial Coking Coal
-            - Industry Industrial Other Coal
-        attribution_method: direct
-
-      petroleum_neu: # consumed petroleum products
-        selection_fields:
-          PrimaryActivity:
-            'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
-            Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
-            # Industry LPG: Industry Petroleum Products Non-energy  #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Lubricants: Industry Petroleum Products Non-energy
-            Industry Miscellaneous Products: Industry Petroleum Products Non-energy
-            'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
-            'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
-            # Industry Pentanes Plus: Industry Petroleum Products Non-energy #not in 2023 ghg, this is the same as HGL in 2018
-            Industry Petroleum Coke: Industry Petroleum Products Non-energy
-            Industry Special Naphtha: Industry Petroleum Products Non-energy
-            Industry Still Gas: Industry Petroleum Products Non-energy
-            Industry Waxes: Industry Petroleum Products Non-energy
-            Industry Natural Gasoline: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
-            Industry HGL: Industry Petroleum Products Non-energy #T_3_22. Also produced by nat gas plants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Petroleum
-              Description: "non energy"
-
-      natural_gas_neu: # consumed nat gas to chemical plants
-        selection_fields:
-          PrimaryActivity: Industry Natural Gas to Chemical Plants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Natural Gas
-              Description: "non energy"
-
-      transportation_lubricants:
-        selection_fields:
-          PrimaryActivity: Transportation Lubricants
-        attribution_method: proportional
-        attribution_source:
-          EIA_MECS_Energy_Allocation_CEDA:
-            <<: *mecs_energy_alloc
-            selection_fields:
-              FlowName: Transport
-              Description: "non energy"
+              transportation_lubricants:
+                selection_fields:
+                  PrimaryActivity: Transportation Lubricants
+                attribution_method: proportional
+                attribution_source:
+                  EIA_MECS_Energy_Allocation_CEDA:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      FlowName: Transport
+                      Description: "non energy"
 
 ## Other Emissions
   UMD_GHGIA_T_4_33: # HFCs from HCFC-22 production

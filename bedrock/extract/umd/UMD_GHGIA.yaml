@@ -24,10 +24,9 @@ years:
 # Special table lists — based on EPA_GHGI.yaml parameter names
 # Flows as group headers
 multi_chem_names: ["2-S1", "4-31", "5-6", "5-15"]
-source_No_activity: ["3-14", "3-15"]
 multi_chem_names_activity_header: ["3-7", "3-11", "3-12"]
 # Flat activities: append partial table name to activity
-flat_activity_header: ["5-10"]
+flat_activity_header: ["5-10", "3-14"]
 # Handle tables with 1 parent level category
 source_activity_1: ["3-4"]  # fuel listed first, sector nested. Append fuel after sector
 source_activity_1_fuel: ["3-8", "3-9", "3-10"]  # fuel listed first, vehicle nested. Append vehicle after fuel.
@@ -69,18 +68,9 @@ Tables:
     "3-12":
       desc: "Table 3-12: GHG Emissions from Fossil Fuel Combustion in the Residential and Commercial Sectors (MMT CO2 Eq.)"
       data_reliability: 4
-    "3-14":  #TODO: determine if used in ghg method - if so, update source_no_activity fxn
-      unit: Other
+    "3-14":
       flow: CO2
-      activity: "__year__ Adjusted Non-Energy Use Fossil Fuel - __type__"
       desc: "Table 3-14: CO2 Emissions from NEU Fossil Fuel Consumption (MMT CO2 Eq. and Percent Carbon)"
-      melt_var: FlowName
-      layout: non_energy_melt
-      two_row_header: true
-      data_reliability: 4
-    "3-15":  #TODO: determine if used in ghg method - if so, update source_no_activity fxn
-      unit: TBtu
-      desc: "Table 3-15: Adjusted Consumption of Fossil Fuels for NEUs (TBtu)"
       data_reliability: 4
     "3-25":
       "flow": "CH4"
