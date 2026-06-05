@@ -87,6 +87,7 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     inflate_cornerstone_B_matrix_with_industry_pi,
     inflate_cornerstone_q_or_y_with_commodity_pi,
     inflate_cornerstone_q_or_y_with_industry_pi,
+    inflate_cornerstone_V_with_industry_pi,
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
@@ -222,19 +223,7 @@ def derive_cornerstone_V(
         V = _derive_cornerstone_V_baseline()
 
     if apply_inflation:
-        if target_year <= 0:
-            raise ValueError(...)
-        cfg = get_usa_config()
-        price_ratio = get_cornerstone_industry_price_ratio(
-            cfg.usa_base_io_data_year,
-            target_year,
-        )
-        price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
-        V = pd.DataFrame(
-            V.multiply(price_ratio, axis=0).values,
-            index=V.index,
-            columns=V.columns,
-        )
+        V = inflate_cornerstone_V_with_industry_pi(V, target_year=target_year)
     return V
 
 
@@ -468,6 +457,10 @@ def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
 
 def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
     """A and q from disaggregated Cornerstone V and U (no intragroup treatment)."""
+    # When apply_inflation_to_V is True: q and x use uninflated derive_cornerstone_V()
+    # (2017 $), while Vnorm uses derive_cornerstone_Vnorm_scrap_corrected() (model-year $).
+    # derive_cornerstone_q() applies the flag but is not used here. Intentional for now;
+    # see inflation/A dollar-year design notes.
     V = derive_cornerstone_V()
     uset = derive_cornerstone_U_set()
     Udom: pd.DataFrame = uset.Udom

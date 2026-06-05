@@ -124,6 +124,28 @@ def inflate_cornerstone_q_or_y_with_industry_pi(
     return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
 
 
+def inflate_cornerstone_V_with_industry_pi(
+    V: pd.DataFrame,
+    *,
+    target_year: int,
+) -> pd.DataFrame:
+    """Scale Make-table V rows by industry price ratio (axis=0).
+
+    Uses ``USAConfig.usa_base_io_data_year`` as ``original_year``.
+    """
+    if target_year <= 0:
+        raise ValueError("target_year must be positive")
+    cfg = get_usa_config()
+    original_year = cfg.usa_base_io_data_year
+    price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
+    price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
+    return pd.DataFrame(
+        V.multiply(price_ratio, axis=0).values,
+        index=V.index,
+        columns=V.columns,
+    )
+
+
 @functools.cache
 def get_vnorm_adjusted_commodity_price_ratio(
     original_year: int, target_year: int
