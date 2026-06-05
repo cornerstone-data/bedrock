@@ -27,6 +27,7 @@ from __future__ import annotations
 import functools
 import pathlib
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -122,6 +123,7 @@ from bedrock.utils.schemas.single_region_types import (
     SingleRegionYtotAndTradeVectorSet,
     SingleRegionYVectorSet,
 )
+from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT_YEARS
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_EXPORT_CODE,
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
@@ -138,7 +140,7 @@ from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 
 _BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-_WASTE_ORIGINAL_CODE = "562000"
+_WASTE_ORIGINAL_CODE = '562000'
 _WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[_WASTE_ORIGINAL_CODE])
 
 # ---------------------------------------------------------------------------
@@ -326,30 +328,36 @@ def _distribute_waste_parent_x_using_v_row_shares(
 
 @functools.cache
 @pa.check_output(CornerstoneXVectorSchema)
-def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
+def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     """Gross industry output in Cornerstone schema, after BEA redefinitions.
 
-    Uses gross-output time series for the configured GHG data year, selecting
-    before/after-redefinition source from config, then expands it to
-    Cornerstone industries via the BEA→Cornerstone industry correspondence.
+    Uses gross-output time series for *year* (defaults to
+    ``usa_ghg_data_year`` when *year* is 0), selecting before/after-redefinition
+    source from config, then expands it to Cornerstone industries via the
+    BEA→Cornerstone industry correspondence.
 
     For one-to-many splits (e.g. waste 562000), ``expand_vector`` first
     duplicates the parent scalar to each child. When waste disaggregation is
     on, those waste rows are then replaced so each child gets a share of the
     parent total consistent with row sums of disaggregated ``V`` (same nominal
-    level as the GHG-year BEA gross output, split from 2017 Make structure).
+    level as the BEA gross output for *year*, split from 2017 Make structure).
 
     This is the industry ``x`` in ``derive_cornerstone_B_via_vnorm`` when
     ``use_E_data_year_for_x_in_B`` is True; otherwise that path uses
     ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
+    effective_year = (
+        cfg.usa_ghg_data_year
+        if year == 0
+        else cast('USA_GROSS_INDUSTRY_OUTPUT_YEARS', year)
+    )
     x_bea = derive_gross_output(
-        target_year=cfg.usa_ghg_data_year,
+        target_year=effective_year,
         iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
     )
     x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
-    x_cs.index.name = "sector"
+    x_cs.index.name = 'sector'
     return _distribute_waste_parent_x_using_v_row_shares(x_cs)
 
 
@@ -396,6 +404,57 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
     V_scrap_corrected = Vnorm.divide((1.0 - (scrap_fraction / x).fillna(0.0)), axis=0)
     return V_scrap_corrected
+
+
+@functools.cache
+def scale_cornerstone_V_with_authoritative_x() -> pd.DataFrame:
+    """Estimate V rescaled to match model-year gross industry output.
+
+    Derives x_new from the BEA gross-output time series at ``model_base_year``
+    (after redefinitions) via ``derive_cornerstone_x_after_redefinition``.
+    Inflates the base 2017 V to model-year dollars, computes its row sums
+    (x_model_year), then scales each row i proportionally by
+    ``x_new[i] / x_model_year[i]``.  Industries with zero model-year output
+    receive a zero row.
+
+    Returns
+    -------
+    pd.DataFrame
+        New V with ``V_new.sum(axis=1) ≈ x_new`` for all industries that have
+        non-zero model-year output.
+    """
+    cfg = get_usa_config()
+    x_new = derive_cornerstone_x_after_redefinition(year=cfg.model_base_year)
+
+    V_model_year = derive_cornerstone_V(
+        apply_inflation=True, target_year=cfg.model_base_year
+    )
+    x_model_year = V_model_year.sum(axis=1)
+    x_new_aligned = x_new.reindex(x_model_year.index).fillna(0.0)
+
+    x_model_year_np = x_model_year.to_numpy(dtype=float)
+    x_new_aligned_np = x_new_aligned.to_numpy(dtype=float)
+    scale = pd.Series(
+        np.where(
+            x_model_year_np != 0,
+            x_new_aligned_np / x_model_year_np,
+            0.0,
+        ),
+        index=x_model_year.index,
+    )
+    V_new = V_model_year.multiply(scale, axis=0)
+
+    mask = x_model_year_np != 0
+    assert np.allclose(
+        V_new.sum(axis=1).to_numpy(dtype=float)[mask], x_new_aligned_np[mask], rtol=1e-6
+    ), 'Row sums of V_new do not match x_new'
+
+    return V_new
+
+
+def derive_q_from_scaled_cornerstone_V_from_authoritative_x() -> pd.Series[float]:
+    V = scale_cornerstone_V_with_authoritative_x()
+    return compute_q(V=V)
 
 
 # ---------------------------------------------------------------------------
