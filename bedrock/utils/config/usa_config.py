@@ -174,7 +174,10 @@ class USAConfig(BaseModel):
             for name, val in [
                 ('useeio_margins', self.useeio_margins),
                 ('ceda_margins', self.ceda_margins),
-                ('cornerstone_industry_avg_margins', self.cornerstone_industry_avg_margins),
+                (
+                    'cornerstone_industry_avg_margins',
+                    self.cornerstone_industry_avg_margins,
+                ),
             ]
             if val
         ]
