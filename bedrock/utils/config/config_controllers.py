@@ -71,7 +71,7 @@ def temp_usa_config(
     Example::
 
         with temp_usa_config("useeio_phoebe_23", cache_bearing_modules=(...,)):
-            ratio = _ratio_from_margins(derive_2017_margins_cornerstone_usa())
+            phi = derive_phi_cornerstone_usa()
     """
     _cfg_module.reset_usa_config()
     clear_caches(*cache_bearing_modules)

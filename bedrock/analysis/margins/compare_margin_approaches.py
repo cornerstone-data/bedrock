@@ -2,9 +2,9 @@
 
 Scenarios and the production function each routes through:
 
-  useeio       — derive_2017_margins_cornerstone_usa() with useeio_margins=True
-  cornerstone  — derive_2017_margins_cornerstone_usa() with cornerstone_industry_avg_margins=True
-  ceda         — derive_2017_producer_to_purchaser_price_ratio_ceda_usa() with ceda_margins=True
+  useeio       — derive_margins_cornerstone_usa() with useeio_margins=True
+  cornerstone  — derive_margins_cornerstone_usa() with cornerstone_industry_avg_margins=True
+  ceda         — derive_phi_ceda_usa() with ceda_margins=True
 
 Outputs:
   output/plots/margin_approach_comparison.png  — violin plots for useeio/cornerstone/ceda
