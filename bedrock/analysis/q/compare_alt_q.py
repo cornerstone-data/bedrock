@@ -33,7 +33,7 @@ to the aggregated x_authoritative.
 
 Usage
 -----
-    python -m bedrock.analysis.compare_alt_q
+    python -m bedrock.analysis.q.compare_alt_q
 """
 
 from __future__ import annotations
