@@ -1,7 +1,18 @@
+"""
+Functions to process and filter Margins data
+for various models, triggered by *_margins config vars
+
+- Prepares Margins tabels using filters and other
+margins treatment and recalculates PUR price from
+PRO price and margins
+- Generates phi (PRO:PUR) ratios, generally in model_base_year
+unless otherwise specified
+
+"""
+
 from __future__ import annotations
 
 import dataclasses
-import functools
 
 import numpy as np
 import pandas as pd
@@ -222,11 +233,11 @@ def derive_2017_margins_ceda_usa() -> pd.DataFrame:
     return margin
 
 
-def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]:
+def derive_phi_ceda_usa() -> pd.Series[float]:
     """
-    Derive the ratio to convert EF from producer to purchaser price for each CEDA v7 sector.
+    Derive the Phi ratio to convert EF from producer to purchaser price for each CEDA v7 sector.
     Formula: purchaser price = producer price + margin
-    Since original EF is in kgCO2e/USD_producer, ratio here is calculated as
+    Since original EF is in kgCO2e/USD_producer, Phi here is calculated as
     (output_producer / (output_producer + margin)).
     """
     margin = derive_2017_margins_ceda_usa()
@@ -238,7 +249,7 @@ def derive_2017_producer_to_purchaser_price_ratio_ceda_usa() -> pd.Series[float]
     return phi
 
 
-def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
+def derive_margins_cornerstone_usa() -> pd.DataFrame:
     """
     Margins aggregated to Cornerstone commodity taxonomy, summed over all industries.
     Routes before/after BEA redefinitions via ``USAConfig.iot_before_or_after_redefinition``.
@@ -280,16 +291,17 @@ def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
     return df
 
 
-def derive_2017_pur_price_ratio_cornerstone_usa() -> pd.Series:
+def derive_phi_cornerstone_usa() -> pd.Series:
     """
-    Producer-to-purchaser price ratio per Cornerstone commodity.
+    Phi (Producer-to-purchaser price ratio) per Cornerstone commodity for
+    model_base_year.
 
     Computed as ``Producers' Value / Purchasers' Value`` from the margins table.
     Rows where the purchaser price is zero (``inf`` / ``nan``) are set to ``1.0``
     (no margin adjustment). Routes before/after BEA redefinitions via
     ``USAConfig.iot_before_or_after_redefinition``.
     """
-    margins = derive_2017_margins_cornerstone_usa()
+    margins = derive_margins_cornerstone_usa()
     return (margins["Producers' Value"] / margins["Purchasers' Value"]).replace(
         [np.inf, -np.inf, np.nan], 1.0
     )

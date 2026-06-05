@@ -28,7 +28,7 @@ os.makedirs(PLOTS, exist_ok=True)
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: E402
     _margins_by_commodity,
     _useeio_margins_filters,
-    derive_2017_producer_to_purchaser_price_ratio_ceda_usa,
+    derive_phi_ceda_usa,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config  # noqa: E402
 from bedrock.utils.config.usa_config import get_usa_config  # noqa: E402
@@ -181,7 +181,7 @@ phi_useeio_ref = _load_useeio_phi_reference(_useeio_local, useeio_year)
 # ─── CEDA ────────────────────────────────────────────────────────────────────
 print('Computing CEDA model Phi...')
 with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
-    phi_ceda_model = derive_2017_producer_to_purchaser_price_ratio_ceda_usa()
+    phi_ceda_model = derive_phi_ceda_usa()
 
 print('Loading CEDA reference Phi...')
 _ceda_local = _ensure_ceda_xlsx_local()
