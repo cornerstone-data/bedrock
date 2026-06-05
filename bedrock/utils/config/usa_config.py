@@ -85,7 +85,6 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
-    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
@@ -190,6 +189,7 @@ class USAConfig(BaseModel):
             raise ValueError(
                 f'At most one margins flag may be true; got: {", ".join(active)}'
             )
+        return self
 
     @model_validator(mode='after')
     def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
