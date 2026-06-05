@@ -280,7 +280,6 @@ def derive_2017_margins_cornerstone_usa() -> pd.DataFrame:
     return df
 
 
-@functools.cache
 def derive_2017_pur_price_ratio_cornerstone_usa() -> pd.Series:
     """
     Producer-to-purchaser price ratio per Cornerstone commodity.
