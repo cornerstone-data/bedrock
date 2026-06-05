@@ -27,6 +27,9 @@ from bedrock.utils.math.formulas import (
     compute_x,
 )
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT_YEARS
+from bedrock.utils.taxonomy.bea.v2017_commodity_sector import (
+    BEA_2017_SECTOR_COMMODITY_CODES,
+)
 from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
@@ -38,9 +41,14 @@ from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__cornerstone_commodity import (
     load_bea_v2017_commodity_to_cornerstone_commodity,
 )
+from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity import (
+    load_bea_v2017_sector_commodity_to_cornerstone_commodity,
+)
 
 CORNERSTONE_INDUSTRIES: list[str] = list(INDUSTRIES)
 CORNERSTONE_COMMODITIES: list[str] = list(COMMODITIES)
+
+_StrKey = ta.TypeVar("_StrKey", bound=str)
 
 
 @functools.cache
@@ -282,6 +290,41 @@ def get_summary_commodity_price_ratio(
     return ratio.where(np.isfinite(ratio), 1.0).fillna(1.0)
 
 
+def _aggregate_commodity_pi(
+    pi_com_detail: pd.Series,
+    q_y: pd.Series,
+    code_to_children: ta.Mapping[_StrKey, ta.Sequence[str]],
+) -> dict[str, float]:
+    """q-weighted mean of cornerstone commodity PI over each group's children.
+
+    Falls back to an unweighted mean when all children have zero q weight.
+    Groups with no children present in ``pi_com_detail`` are omitted.
+    """
+    out: dict[str, float] = {}
+    for code, children in code_to_children.items():
+        children_in_idx = [c for c in children if c in pi_com_detail.index]
+        if not children_in_idx:
+            continue
+        w = q_y.reindex(children_in_idx, fill_value=0.0)
+        p = pi_com_detail.reindex(children_in_idx, fill_value=100.0)
+        wsum = float(w.sum())
+        out[str(code)] = float((p * w).sum() / wsum) if wsum > 0 else float(p.mean())
+    return out
+
+
+def _cornerstone_commodity_pi_for_year(year: int) -> tuple[pd.Series, pd.Series]:
+    """Return ``(q_y, pi_com_detail)`` — the two inputs needed for aggregation.
+
+    Shared by ``get_summary_commodity_price_index`` and
+    ``get_sector_commodity_price_index``.
+    """
+    pi_year_industry = _cornerstone_indexed_industry_pi(year)
+    q_y, V_norm_y = derive_cornerstone_q_and_vnorm_for_year(year)
+    pi_ind_aligned = pi_year_industry.reindex(V_norm_y.index, fill_value=100.0)
+    pi_com_detail = V_norm_y.T @ pi_ind_aligned  # (cornerstone commodities,)
+    return q_y, pi_com_detail
+
+
 @functools.cache
 def get_summary_commodity_price_index(year: int) -> pd.Series[float]:
     """Summary commodity price index for ``year``, ITA-based Paasche
@@ -304,28 +347,47 @@ def get_summary_commodity_price_index(year: int) -> pd.Series[float]:
     summary blocks where all children have zero ``q[y]`` weight fall back to
     an unweighted mean of children's PI.
     """
-    pi_year_industry = _cornerstone_indexed_industry_pi(year)
-    q_y, V_norm_y = derive_cornerstone_q_and_vnorm_for_year(year)
-
-    # V_norm rows are cornerstone industries; align pi_year_industry on those.
-    pi_ind_aligned = pi_year_industry.reindex(V_norm_y.index, fill_value=100.0)
-    pi_com_detail = V_norm_y.T @ pi_ind_aligned  # (cornerstone commodities,)
-
-    summary_to_corn = load_bea_v2017_summary_to_cornerstone()
-    out: dict[str, float] = {}
-    for summary_code, children in summary_to_corn.items():
-        children_in_idx = [c for c in children if c in pi_com_detail.index]
-        if not children_in_idx:
-            continue
-        w = q_y.reindex(children_in_idx, fill_value=0.0)
-        p = pi_com_detail.reindex(children_in_idx, fill_value=100.0)
-        wsum = float(w.sum())
-        out[str(summary_code)] = (
-            float((p * w).sum() / wsum) if wsum > 0 else float(p.mean())
-        )
+    q_y, pi_com_detail = _cornerstone_commodity_pi_for_year(year)
+    out = _aggregate_commodity_pi(
+        pi_com_detail, q_y, load_bea_v2017_summary_to_cornerstone()
+    )
     return pd.Series(out, dtype=float).reindex(
         USA_2017_SUMMARY_INDUSTRY_CODES, fill_value=100.0
     )
+
+
+@functools.cache
+def get_sector_commodity_price_index(year: int) -> pd.Series[float]:
+    """Sector-level commodity price index for ``year``, same ITA-based Paasche
+    construction as ``get_summary_commodity_price_index`` but aggregated to
+    BEA 2017 sector codes. Indexed on ``BEA_2017_SECTOR_COMMODITY_CODES``.
+
+    Useful for inflating margin components: Transportation (48TW),
+    Wholesale (42), Retail (44RT).
+    """
+    q_y, pi_com_detail = _cornerstone_commodity_pi_for_year(year)
+    out = _aggregate_commodity_pi(
+        pi_com_detail, q_y, load_bea_v2017_sector_commodity_to_cornerstone_commodity()
+    )
+    return pd.Series(out, dtype=float).reindex(
+        BEA_2017_SECTOR_COMMODITY_CODES, fill_value=100.0
+    )
+
+
+@functools.cache
+def get_sector_commodity_price_ratio(
+    original_year: int, target_year: int
+) -> pd.Series[float]:
+    """Cross-year ratio of sector commodity price indices, indexed on
+    ``BEA_2017_SECTOR_COMMODITY_CODES``.
+
+    Built as the ratio of two ITA-based Paasche sector commodity PIs (see
+    ``get_sector_commodity_price_index``).
+    """
+    pi_orig = get_sector_commodity_price_index(original_year)
+    pi_targ = get_sector_commodity_price_index(target_year)
+    ratio = pi_targ / pi_orig
+    return ratio.where(np.isfinite(ratio), 1.0).fillna(1.0)
 
 
 @functools.cache

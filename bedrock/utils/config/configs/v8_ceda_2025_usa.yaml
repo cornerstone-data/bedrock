@@ -15,5 +15,10 @@ ipcc_ar_version: "AR6"
 
 
 #####
+# PUR price conversion
+#####
+ceda_margins: True
+
+#####
 # Bugfix
 #####
