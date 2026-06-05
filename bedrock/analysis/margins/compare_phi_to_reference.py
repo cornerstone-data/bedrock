@@ -30,11 +30,8 @@ from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: E402
     _useeio_margins_filters,
     derive_2017_producer_to_purchaser_price_ratio_ceda_usa,
 )
-from bedrock.utils.config.config_controllers import force_set_usa_config  # noqa: E402
-from bedrock.utils.config.usa_config import (  # noqa: E402
-    get_usa_config,
-    reset_usa_config,
-)
+from bedrock.utils.config.config_controllers import temp_usa_config  # noqa: E402
+from bedrock.utils.config.usa_config import get_usa_config  # noqa: E402
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists  # noqa: E402
 from bedrock.utils.snapshots.loader import useeio_baseline_local_dir  # noqa: E402
 from bedrock.utils.validation.useeio_excel_baseline import (  # noqa: E402
@@ -104,7 +101,7 @@ def _load_ceda_phi_reference(local_path: str) -> pd.Series:
     headers = raw.iloc[4, 1:].astype(str).str.strip()
     data_row = raw.iloc[5, 1:].copy()
     phi = pd.Series(
-        pd.to_numeric(pd.Series(data_row), errors='coerce'),
+        pd.to_numeric(pd.Series(data_row), errors='coerce').values,
         index=pd.Index(headers),
         name='phi_reference',
     )
@@ -161,12 +158,16 @@ def _scatter_comparison(
     ).reindex(common)
 
 
+_CACHE_MODULES = (
+    'bedrock.extract.iot.io_2017',
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio',
+)
+
 # ─── USEEIO ──────────────────────────────────────────────────────────────────
 print('Computing USEEIO model Phi...')
-reset_usa_config()
-force_set_usa_config('useeio_phoebe_23')
-phi_useeio_model = _compute_useeio_phi_model()
-useeio_year = get_usa_config().model_base_year
+with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
+    phi_useeio_model = _compute_useeio_phi_model()
+    useeio_year = get_usa_config().model_base_year
 
 print('Loading USEEIO reference Phi...')
 _pin = load_useeio_baseline_pin_overrides(_PIN_JSON)
@@ -179,15 +180,12 @@ phi_useeio_ref = _load_useeio_phi_reference(_useeio_local, useeio_year)
 
 # ─── CEDA ────────────────────────────────────────────────────────────────────
 print('Computing CEDA model Phi...')
-reset_usa_config()
-force_set_usa_config('v8_ceda_2025_usa')
-phi_ceda_model = derive_2017_producer_to_purchaser_price_ratio_ceda_usa()
+with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
+    phi_ceda_model = derive_2017_producer_to_purchaser_price_ratio_ceda_usa()
 
 print('Loading CEDA reference Phi...')
 _ceda_local = _ensure_ceda_xlsx_local()
 phi_ceda_ref = _load_ceda_phi_reference(_ceda_local)
-
-reset_usa_config()
 
 # ─── Comparison summary ───────────────────────────────────────────────────────
 print(
