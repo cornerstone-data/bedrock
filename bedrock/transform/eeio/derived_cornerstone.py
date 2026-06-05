@@ -138,7 +138,7 @@ from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 
 _BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-_WASTE_ORIGINAL_CODE = "562000"
+_WASTE_ORIGINAL_CODE = '562000'
 _WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[_WASTE_ORIGINAL_CODE])
 
 # ---------------------------------------------------------------------------
@@ -351,7 +351,7 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
         iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
     )
     x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
-    x_cs.index.name = "sector"
+    x_cs.index.name = 'sector'
     return _distribute_waste_parent_x_using_v_row_shares(x_cs)
 
 
@@ -439,9 +439,14 @@ def scale_cornerstone_V_with_authoritative_x() -> pd.DataFrame:
     mask = x_model_year.values != 0
     assert np.allclose(
         V_new.sum(axis=1).values[mask], x_new_aligned.values[mask], rtol=1e-6
-    ), "Row sums of V_new do not match x_new"
+    ), 'Row sums of V_new do not match x_new'
 
     return V_new
+
+
+def derive_q_from_scaled_cornerstone_V_from_authoritative_x() -> pd.Series[float]:
+    V = scale_cornerstone_V_with_authoritative_x()
+    return compute_q(V=V)
 
 
 # ---------------------------------------------------------------------------
