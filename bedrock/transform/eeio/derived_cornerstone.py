@@ -27,6 +27,7 @@ from __future__ import annotations
 import functools
 import pathlib
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -122,6 +123,7 @@ from bedrock.utils.schemas.single_region_types import (
     SingleRegionYtotAndTradeVectorSet,
     SingleRegionYVectorSet,
 )
+from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT_YEARS
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_EXPORT_CODE,
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
@@ -345,7 +347,7 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
-    effective_year = cfg.usa_ghg_data_year if year == 0 else year
+    effective_year = cfg.usa_ghg_data_year if year == 0 else cast("USA_GROSS_INDUSTRY_OUTPUT_YEARS", year)
     x_bea = derive_gross_output(
         target_year=effective_year,
         iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
@@ -426,19 +428,21 @@ def scale_cornerstone_V_with_authoritative_x() -> pd.DataFrame:
     x_model_year = V_model_year.sum(axis=1)
     x_new_aligned = x_new.reindex(x_model_year.index).fillna(0.0)
 
+    x_model_year_np = x_model_year.to_numpy(dtype=float)
+    x_new_aligned_np = x_new_aligned.to_numpy(dtype=float)
     scale = pd.Series(
         np.where(
-            x_model_year.values != 0,
-            x_new_aligned.values / x_model_year.values,
+            x_model_year_np != 0,
+            x_new_aligned_np / x_model_year_np,
             0.0,
         ),
         index=x_model_year.index,
     )
     V_new = V_model_year.multiply(scale, axis=0)
 
-    mask = x_model_year.values != 0
+    mask = x_model_year_np != 0
     assert np.allclose(
-        V_new.sum(axis=1).values[mask], x_new_aligned.values[mask], rtol=1e-6
+        V_new.sum(axis=1).to_numpy(dtype=float)[mask], x_new_aligned_np[mask], rtol=1e-6
     ), 'Row sums of V_new do not match x_new'
 
     return V_new
