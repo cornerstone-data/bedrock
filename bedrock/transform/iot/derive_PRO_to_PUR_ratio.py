@@ -81,22 +81,15 @@ _COMMODITY_CODES_STARTING_WITH_4: frozenset[str] = frozenset(
     }
 )
 
-# Exclude BEA bookkeeping commodities that are not real product flows:
+# Exclude BEA bookkeeping commodities that are not real product flows or special commodities:
 #   S00401 Scrap, S00402 Used and secondhand goods,
 #   S00300 Noncomparable imports, S00900 Rest of the world adjustment
 # Exclude final demand destinations whose margins distort commodity-level ratios:
-#   F04000 Exports, F05000 Imports, F03000 Change in private inventories
-# Exclude wholesale, retail, transportation, and warehousing commodity flows.
-_useeio_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_commodity_codes=frozenset({'S00401', 'S00402', 'S00300', 'S00900'})
-    | _COMMODITY_CODES_STARTING_WITH_4,
-    exclude_industry_codes=frozenset({'F04000', 'F05000', 'F03000'}),
-)
-
-# Matches exported ``useeior`` ``model$Margins``: keep Import ``F05000`` rows because
+#   F04000 Exports, F03000 Change in private inventories
+# # Matches exported ``useeior`` ``model$Margins``: keep Import ``F05000`` rows because
 # R ``purchaser_removal`` uses ``%in%`` on a length-3 vector; drop only Export and
 # change-in-inventories industries; scrap/RoW commodities only (no ``4*``).
-_useeio_margins_filters_w_imports_bug: MarginsFilters = MarginsFilters(
+_useeio_margins_filters: MarginsFilters = MarginsFilters(
     exclude_commodity_codes=frozenset({'S00401', 'S00402', 'S00300', 'S00900'}),
     exclude_industry_codes=frozenset({'F04000', 'F03000'}),
 )
@@ -119,18 +112,6 @@ _cornerstone_industry_avg_margins_filters: MarginsFilters = MarginsFilters(
     - frozenset({'F03000', 'F02E00', 'F02N00', 'F02S00'})
     | frozenset({'GSLGE', 'GSLGH', 'GSLGO'}),
 )
-
-
-def set_ceda_margins_filters(filters: MarginsFilters) -> None:
-    """Set the margins filters applied in the CEDA pipeline."""
-    global _ceda_margins_filters
-    _ceda_margins_filters = filters
-
-
-def set_useeio_margins_filters(filters: MarginsFilters) -> None:
-    """Set the margins filters applied in the USEEIO pipeline."""
-    global _useeio_margins_filters
-    _useeio_margins_filters = filters
 
 
 def _get_active_margins_filters() -> MarginsFilters:
