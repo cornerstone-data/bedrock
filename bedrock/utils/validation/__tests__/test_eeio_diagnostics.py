@@ -353,28 +353,27 @@ def test_compare_Uset_y_dom_and_q_usa(
 
 @pytest.mark.eeio_integration
 @pytest.mark.parametrize(
-    "modelType, use_domestic",
+    "modelType, use_domestic, pipeline",
     [
-        ("Commodity", False),
-    ],
-)  # TODO: add ("Commodity", True) test and industry parameters when Industry models become available [("Industry", False), ("Industry", True)]
-@pytest.mark.parametrize(
-    "pipeline",
-    [
+        ("Commodity", True, "cornerstone"),
         pytest.param(
+            "Commodity",
+            False,
+            "cornerstone",
+            marks=pytest.mark.xfail(
+                reason="Cornerstone total L·y still uses ytot/trade, not y_nab.",
+            ),
+        ),
+        pytest.param(
+            "Commodity",
+            False,
             "ceda",
             marks=pytest.mark.xfail(
                 reason="CEDA: scaled q≠L_total·y_total for ~298 commodity sectors (total Leontief identity).",
             ),
         ),
-        pytest.param(
-            "cornerstone",
-            marks=pytest.mark.xfail(
-                reason="Cornerstone: scaled q≠L_total·y_total for 323 sectors; A-matrix vs Y-inflation path mismatch.",
-            ),
-        ),
     ],
-)
+)  # TODO: add industry parameters when Industry models become available
 def test_compare_output_and_L_y(
     modelType: str,
     use_domestic: bool,
@@ -396,23 +395,17 @@ def test_compare_output_and_L_y(
             y = y_set.ytot + y_set.exports - y_set.imports
             L = formulas.compute_L_matrix(A=Aq.Adom + Aq.Aimp)
     else:
-        # Cornerstone total L·y uses year-scaled Adom+Aimp and scaled_q from
-        # derive_cornerstone_Aq_scaled, compared to L @ y where y = y_tot +
-        # exports − imports from derive_cornerstone_Y_and_trade_scaled (summary-
-        # disaggregated and inflated to model year). 323 of 392 commodities fail
-        # at 1% tolerance—a systemic scale mismatch between the A-matrix scaling
-        # pipeline and the Y/trade inflation path (see zero-weight disaggregation
-        # warning during Y scaling), not an isolated wiring error in this test.
         # Cornerstone scales A and q to model year; CEDA branch stays in 2017 detail.
         Aq = derive_cornerstone_Aq_scaled()
         # Output must match Aq scaling (scaled_q), not derive_cornerstone_q() from V.
         output = Aq.scaled_q if modelType == "Commodity" else derive_cornerstone_x()
         if use_domestic:
-            # Precomputed scaled y_nab (same path as derive_y_for_national_accounting_balance_usa).
+            # y_nab from backcompute_y_from_q_and_Aq(Adom, scaled_q); unclipped.
             y = derive_cornerstone_y_nab()
             L = formulas.compute_L_matrix(A=Aq.Adom)
         else:
-            # Total y from summary-disaggregated inflated trade, not raw Ytot_matrix_set.
+            # Total L·y still uses y from derive_cornerstone_Y_and_trade_scaled
+            # (summary-disaggregated BEA Y/trade), not IO-balanced y_nab.
             y_trade = derive_cornerstone_Y_and_trade_scaled()
             y = y_trade.ytot + y_trade.exports - y_trade.imports
             L = formulas.compute_L_matrix(A=Aq.Adom + Aq.Aimp)
