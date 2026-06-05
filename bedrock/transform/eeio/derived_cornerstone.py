@@ -347,7 +347,11 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
-    effective_year = cfg.usa_ghg_data_year if year == 0 else cast("USA_GROSS_INDUSTRY_OUTPUT_YEARS", year)
+    effective_year = (
+        cfg.usa_ghg_data_year
+        if year == 0
+        else cast('USA_GROSS_INDUSTRY_OUTPUT_YEARS', year)
+    )
     x_bea = derive_gross_output(
         target_year=effective_year,
         iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
