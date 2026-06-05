@@ -209,3 +209,23 @@ def test_disallow_deflate_x_without_use_e_for_x_in_b() -> None:
 def test_disallow_multiple_margins_flags(flags: dict[str, bool]) -> None:
     with pytest.raises(ValueError, match='At most one margins flag may be true'):
         USAConfig.model_validate(flags, strict=True)
+def test_electricity_disagg_config_parsing() -> None:
+    config = _load_usa_config_from_file_name(
+        "test_usa_config_waste_disagg_electricity.yaml"
+    )
+    assert config.implement_waste_disaggregation is True
+    assert config.implement_electricity_reallocation is True
+
+
+def test_electricity_disagg_requires_waste() -> None:
+    with pytest.raises(
+        ValueError,
+        match="implement_electricity_reallocation requires implement_waste_disaggregation",
+    ):
+        USAConfig.model_validate(
+            {
+                "implement_electricity_reallocation": True,
+                "implement_waste_disaggregation": False,
+            },
+            strict=True,
+        )

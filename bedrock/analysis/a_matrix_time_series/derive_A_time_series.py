@@ -32,6 +32,7 @@ import pandas as pd
 
 from bedrock.analysis.a_matrix_time_series.constants import (
     ANALYSIS_DRIVE_FOLDER_ID,
+    APPROACH_YEAR_COVERAGE,
     LAST_RUN_SHEET_ID_PATH,
     LATEST_TARGET_YEAR,
     ORIGINAL_YEAR,
@@ -45,12 +46,27 @@ from bedrock.utils.io.gcp import create_spreadsheet_in_folder, update_sheet_tab
 logger = logging.getLogger(__name__)
 
 APPROACH_YAMLS: dict[str, str] = {
-    'useeio': '2025_usa_cornerstone_A_useeio.yaml',
-    'summary_tables': '2025_usa_cornerstone_A_summary_tables.yaml',
-    'commodity_price_index': '2025_usa_cornerstone_A_commodity_price_index.yaml',
-    'ceda_default': '2025_usa_cornerstone_taxonomy.yaml',  # CEDA baseline with Cornerstone schema
+    "useeio": "2025_usa_cornerstone_A_useeio.yaml",
+    "summary_tables": "2025_usa_cornerstone_A_summary_tables.yaml",
+    "commodity_price_index": "2025_usa_cornerstone_A_commodity_price_index.yaml",
+    "ceda_default": "2025_usa_cornerstone_taxonomy.yaml",  # CEDA baseline with Cornerstone schema
+    "useeio_nowcast": "2025_usa_cornerstone_A_useeio_nowcast.yaml",  # external reference
 }
 APPROACHES: list[str] = list(APPROACH_YAMLS.keys())
+
+
+def _years_for(approach: str, all_years: list[int]) -> list[int]:
+    """Filter ``all_years`` to the set this approach has data for.
+
+    ``useeio_nowcast`` has no 2024 upstream — skip silently rather than
+    fail or extrapolate. Other approaches default to the full range.
+    """
+    allowed = APPROACH_YEAR_COVERAGE.get(approach)
+    if allowed is None:
+        return all_years
+    return [y for y in all_years if y in allowed]
+
+
 # Includes ORIGINAL_YEAR (the BEA detail base year) for the 2017-identity
 # sanity check tab.
 TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR, LATEST_TARGET_YEAR + 1))
@@ -58,9 +74,10 @@ TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR, LATEST_TARGET_YEAR + 1))
 # Modules whose @functools.cache outputs are config-dependent and must be
 # invalidated between (approach, year) iterations.
 _CACHE_BEARING_MODULE_PATHS = (
-    'bedrock.transform.eeio.derived_cornerstone',
-    'bedrock.transform.eeio.cornerstone_bea_intermediates',
-    'bedrock.utils.economic.inflation_helpers_cornerstone',
+    "bedrock.transform.eeio.derived_cornerstone",
+    "bedrock.transform.eeio.cornerstone_bea_intermediates",
+    "bedrock.transform.eeio.derived_useeio_nowcast",
+    "bedrock.utils.economic.inflation_helpers_cornerstone",
 )
 
 
@@ -220,8 +237,8 @@ def main() -> None:
     matrices_2017: dict[str, tuple[pd.DataFrame, pd.DataFrame, pd.Series]] = {}
 
     for approach in APPROACHES:
-        for year in TARGET_YEARS:
-            logger.info('Deriving A matrix: approach=%s year=%d', approach, year)
+        for year in _years_for(approach, TARGET_YEARS):
+            logger.info("Deriving A matrix: approach=%s year=%d", approach, year)
             try:
                 adom, aimp, q = _derive_one_pair(approach, year)
             except Exception as e:  # noqa: BLE001 — record any per-pair failure

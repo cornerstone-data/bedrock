@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import typing as ta
+import warnings
 
 import pandas as pd
 import yaml
@@ -77,10 +78,12 @@ class USAConfig(BaseModel):
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
+    implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
+    load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     apply_inflation_to_V: bool = False  # DRI: WesIngwersen
     ceda_margins: bool = False  # DRI: WesIngwersen
@@ -103,10 +106,12 @@ class USAConfig(BaseModel):
     )
     update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
+    update_mecs_method: bool = False  # DRI: catherine.birney
     use_ghg_national_2023_m2: bool = False
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
-    update_inflation_factors: bool = False  # mo.li
+    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
+    update_inflation_factors: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -184,6 +189,19 @@ class USAConfig(BaseModel):
         if len(active) > 1:
             raise ValueError(
                 f'At most one margins flag may be true; got: {", ".join(active)}'
+              
+    @model_validator(mode='after')
+    def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
+        if (
+            self.iot_before_or_after_redefinition == 'before'
+            and self.eeio_waste_disaggregation is not None
+        ):
+            warnings.warn(
+                "iot_before_or_after_redefinition is 'before', so "
+                'eeio_waste_disaggregation is ignored; USEEIOR v1.8.0 waste '
+                'weights apply (USEEIO parity).',
+                UserWarning,
+                stacklevel=2,
             )
         return self
 
@@ -196,6 +214,14 @@ class USAConfig(BaseModel):
         if self.use_ghg_national_2023_m2 and not self.use_useeio_schema:
             raise ValueError(
                 'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
+            )
+        if (
+            self.implement_electricity_reallocation
+            and not self.implement_waste_disaggregation
+        ):
+            raise ValueError(
+                'implement_electricity_reallocation requires '
+                'implement_waste_disaggregation'
             )
         return self
 

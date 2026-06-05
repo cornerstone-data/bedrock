@@ -2,7 +2,7 @@
 # Turns off USEEIO-style A scaling so A-matrix construction returns to the
 # Cornerstone default (the rest of the rebuild stays as in useeio_phoebe_23).
 
-model_base_year: 2017
+model_base_year: 2023
 iot_before_or_after_redefinition: before
 
 usa_io_data_year: 2017

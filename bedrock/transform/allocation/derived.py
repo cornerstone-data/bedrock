@@ -30,6 +30,9 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity imp
 
 logger = logging.getLogger(__name__)
 
+# USEEIO does not distinguish fossil from non-fossil CH4
+_USEEIO_WORKBOOK_CH4_GWP = 27.9
+
 
 def _select_flowsa_ghg_method() -> str:
     """Select FBS methodname from USA config (first match wins).
@@ -51,6 +54,7 @@ def _select_flowsa_ghg_method() -> str:
         or usa.add_new_ghg_activities
         or usa.update_enteric_fermentation_and_manure_management_ghg_method
         or usa.update_liming_and_fertilizer_ghg_method
+        or usa.update_mecs_method
     )
     if needs_2023 and year != 2023:
         raise ValueError(
@@ -81,6 +85,8 @@ def _select_flowsa_ghg_method() -> str:
         return 'GHG_national_Cornerstone_2023_ag_livestock'
     if usa.update_liming_and_fertilizer_ghg_method:
         return 'GHG_national_Cornerstone_2023_ag_soils'
+    if usa.update_mecs_method:
+        return 'GHG_national_Cornerstone_2023_mecs'
     return f'GHG_national_CEDA_{year}'
 
 
@@ -392,6 +398,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_enteric_fermentation_and_manure_management_ghg_method is True
     - GHG_national_Cornerstone_2023_ag_soils when
       update_liming_and_fertilizer_ghg_method is True
+    - GHG_national_Cornerstone_2023_mecs when
+      update_mecs_method is True
     - GHG_national_CEDA_2023 otherwise
 
     Only used when load_E_from_flowsa is True in USA config.
@@ -412,6 +420,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         or usa.add_new_ghg_activities
         or usa.update_enteric_fermentation_and_manure_management_ghg_method
         or usa.update_liming_and_fertilizer_ghg_method
+        or usa.update_mecs_method
     )
     if needs_2023 and year != 2023:
         raise ValueError(
@@ -482,6 +491,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
+    if usa.use_ghg_national_2023_m2:
+        # Keep m2 diagnostics aligned with USEEIO workbook characterization.
+        ghg_mapping['CH4_fossil'] = _USEEIO_WORKBOOK_CH4_GWP
+        ghg_mapping['CH4_non_fossil'] = _USEEIO_WORKBOOK_CH4_GWP
     ghg_mapping['HFCs'] = 1  # should already be in CO2e
     ghg_mapping['PFCs'] = 1  # should already be in CO2e
     fbs['CO2e'] = fbs['FlowAmount'] * fbs['Flowable'].map(ghg_mapping)
