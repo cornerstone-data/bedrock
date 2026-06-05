@@ -189,7 +189,8 @@ class USAConfig(BaseModel):
         if len(active) > 1:
             raise ValueError(
                 f'At most one margins flag may be true; got: {", ".join(active)}'
-              
+            )
+
     @model_validator(mode='after')
     def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
         if (
