@@ -27,8 +27,7 @@ from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: E402
     derive_2017_margins_cornerstone_usa,
     derive_2017_producer_to_purchaser_price_ratio_ceda_usa,
 )
-from bedrock.utils.config.config_controllers import force_set_usa_config  # noqa: E402
-from bedrock.utils.config.usa_config import reset_usa_config  # noqa: E402
+from bedrock.utils.config.config_controllers import temp_usa_config  # noqa: E402
 from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity import (  # noqa: E402
     load_bea_v2017_sector_commodity_to_cornerstone_commodity,
 )
@@ -43,22 +42,26 @@ def _ratio_from_margins(margins: pd.DataFrame) -> pd.Series:
     )
 
 
+_CACHE_MODULES = (
+    'bedrock.extract.iot.io_2017',
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio',
+)
+
 # --- compute ratios ---
 
 print('Computing USEEIO ratios...')
-reset_usa_config()
-force_set_usa_config('useeio_phoebe_23')
-ratio_useeio = _ratio_from_margins(derive_2017_margins_cornerstone_usa())
+with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
+    ratio_useeio = _ratio_from_margins(derive_2017_margins_cornerstone_usa())
 
 print('Computing Cornerstone ratios...')
-reset_usa_config()
-force_set_usa_config('2025_usa_cornerstone_full_model')
-ratio_cornerstone = _ratio_from_margins(derive_2017_margins_cornerstone_usa())
+with temp_usa_config(
+    '2025_usa_cornerstone_full_model', cache_bearing_modules=_CACHE_MODULES
+):
+    ratio_cornerstone = _ratio_from_margins(derive_2017_margins_cornerstone_usa())
 
 print('Computing CEDA ratios...')
-reset_usa_config()
-force_set_usa_config('v8_ceda_2025_usa')
-ratio_ceda_by_sector = derive_2017_producer_to_purchaser_price_ratio_ceda_usa()
+with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
+    ratio_ceda_by_sector = derive_2017_producer_to_purchaser_price_ratio_ceda_usa()
 
 # Map CEDA v7 sector ratios → Cornerstone commodities.
 # The correspondence is (Cornerstone × CEDA_v7); row-normalize so that
