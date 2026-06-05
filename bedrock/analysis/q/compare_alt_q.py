@@ -142,11 +142,16 @@ def _build_q_inflated(
 def _cornerstone_to_summary_map() -> dict[str, str]:
     """cornerstone_code → bea_summary_code lookup."""
     summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
-    return {
+    mapping = {
         code: str(summary)
         for summary, codes in summary_to_cornerstone.items()
         for code in codes
     }
+    # BEA industry 331314 (secondary aluminum smelting) is not a commodity code;
+    # after redefinitions its output is attributed to commodity 331313.
+    if "331313" in mapping:
+        mapping["331314"] = mapping["331313"]
+    return mapping
 
 
 def aggregate_q_to_summary(q: pd.Series, cs_to_summary: dict[str, str]) -> pd.Series:
