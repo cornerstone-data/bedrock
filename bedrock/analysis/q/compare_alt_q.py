@@ -109,12 +109,11 @@ def _build_q_Aq_scaled(
 
     summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
     q_scaled = base_q.copy()
-    for summary_sector, val in ratio.items():
-        if summary_sector not in summary_to_cornerstone:
+    for summary_sector, cs_sectors in summary_to_cornerstone.items():
+        if summary_sector not in ratio.index:
             continue
-        sectors = [
-            s for s in summary_to_cornerstone[summary_sector] if s in q_scaled.index
-        ]
+        val = ratio.loc[summary_sector]
+        sectors = [s for s in cs_sectors if s in q_scaled.index]
         if sectors:
             q_scaled.loc[sectors] *= float(val)
 
