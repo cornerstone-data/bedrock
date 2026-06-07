@@ -453,7 +453,9 @@ def derive_cornerstone_q_and_vnorm_for_year(
     )
 
     cfg = get_usa_config()
-    V_2017 = derive_cornerstone_V()
+    V_2017 = derive_cornerstone_V(
+        apply_inflation=False
+    )  # Flip inflation to false to stay in USD 2017
     x_2017 = compute_x(V=V_2017)
     # C_m: commodity × industry, each row sums to 1 (within-industry split).
     C_m = compute_commodity_mix_matrix(V=V_2017, x=x_2017)
