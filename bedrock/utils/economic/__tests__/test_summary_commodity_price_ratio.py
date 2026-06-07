@@ -13,13 +13,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_q
+from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_V
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     adjust_summary_A_dollar_year,
     derive_cornerstone_q_and_vnorm_for_year,
     get_summary_commodity_price_index,
     get_summary_commodity_price_ratio,
 )
+from bedrock.utils.math.formulas import compute_q
 from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
@@ -28,11 +29,11 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 def test_ita_q_at_2017_matches_derive_cornerstone_q() -> None:
     """Under ITA, ``q[y] = C_m[2017] @ x[y]`` is exact when ``y == 2017``
     (because C_m and x are then both from the 2017 V). The result must
-    therefore agree with ``derive_cornerstone_q()`` (which is V.sum(axis=0)
-    directly off 2017 V) within numerical noise.
+    therefore agree with V.sum(axis=0) directly off the uninflated 2017 V
+    within numerical noise.
     """
     q_ita = derive_cornerstone_q_and_vnorm_for_year(2017)[0]
-    q_truth = derive_cornerstone_q()
+    q_truth = compute_q(V=derive_cornerstone_V(apply_inflation=False))
 
     aligned_ita = q_ita.reindex(q_truth.index, fill_value=0.0)
     # The BEA detail x for 2017 may differ slightly from V.sum(axis=1) due to
@@ -42,7 +43,7 @@ def test_ita_q_at_2017_matches_derive_cornerstone_q() -> None:
     rel_dev = ((aligned_ita - q_truth).abs() / q_truth.abs())[nonzero]
     assert (
         rel_dev.median() < 0.01
-    ), f"ITA q at 2017 deviates from derive_cornerstone_q (median rel dev {rel_dev.median():.2%})"
+    ), f"ITA q at 2017 deviates from 2017 V.sum (median rel dev {rel_dev.median():.2%})"
 
 
 def test_ita_vnorm_columns_are_stochastic() -> None:
