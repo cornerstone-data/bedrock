@@ -20,11 +20,11 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_value_added_usa,
     load_2017_Ytot_usa,
 )
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import get_waste_disagg_weights
 from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     industry_corresp,
 )
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import get_waste_disagg_weights
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
     apply_waste_disagg_to_V,

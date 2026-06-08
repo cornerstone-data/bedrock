@@ -135,9 +135,7 @@ class TestWeightProvider:
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(
-            disagg_weights_module, "load_disagg_weights", _fake_loader
-        )
+        monkeypatch.setattr(disagg_weights_module, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23")
         result = get_waste_disagg_weights()
@@ -163,9 +161,7 @@ class TestWeightProvider:
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(
-            disagg_weights_module, "load_disagg_weights", _fake_loader
-        )
+        monkeypatch.setattr(disagg_weights_module, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23_restore_iot_redefinition")
         result = get_waste_disagg_weights()
