@@ -24,12 +24,12 @@ from bedrock.transform.eeio import (
 )
 from bedrock.transform.eeio import derived_cornerstone as dc
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    _WASTE_NEW_CODES,
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
-    _WASTE_NEW_CODES,
     _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,

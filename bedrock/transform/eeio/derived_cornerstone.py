@@ -45,7 +45,6 @@ from bedrock.transform.eeio.cornerstone_bea_intermediates import (
     bea_Aq,
 )
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    _WASTE_NEW_CODES,
     CornerstoneDisaggIOBundle,
     cornerstone_sector_disagg_active,
     derive_cornerstone_U_after_waste,
@@ -140,7 +139,6 @@ __all__ = [
     "get_waste_disagg_weights",
     "electricity_reallocation_enabled",
     "cornerstone_sector_disagg_active",
-    "_WASTE_NEW_CODES",
     "_CornerstoneIOBundle",
     "_derive_cornerstone_V_after_waste",
     "_derive_cornerstone_U_after_waste",
@@ -663,26 +661,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 # ---------------------------------------------------------------------------
 # B matrix (runtime E path)
 # ---------------------------------------------------------------------------
-
-
-def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
-    """Distribute E's waste industry columns proportionally by industry output.
-
-    Instead of duplicating E_bea[:, 562000] to every waste subsector, each
-    waste industry i gets E_bea[:, 562000] * share_i, where share_i is i's
-    fraction of total waste industry output (Make table column sums).
-    """
-    waste_industries = [c for c in _WASTE_NEW_CODES if c in E.columns]
-    if not waste_industries:
-        return E
-    g_waste = V.sum(axis=0).loc[waste_industries]
-    total = float(g_waste.sum())
-    if total <= 0:
-        return E
-    shares = g_waste / total
-    E_norm = E.copy()
-    E_norm[waste_industries] = E_norm[waste_industries].multiply(shares, axis=1)
-    return E_norm
 
 
 @pa.check_output(CornerstoneBMatrix.to_schema())

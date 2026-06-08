@@ -1,4 +1,5 @@
-"""Cornerstone sector-disaggregation orchestration (waste + optional electricity).
+"""Cornerstone sector-disaggregation Orchestration of disagg when one
+or more disagg-related config flags are true.
 
 Returns uninflated 2017-chain-dollar IO matrices only. Public entry points in
 ``derived_cornerstone`` apply inflation and year-scaling after routing here.
