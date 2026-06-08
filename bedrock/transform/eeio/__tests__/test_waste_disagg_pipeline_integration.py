@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.extract.disaggregation import disagg_weights as disagg_weights_module
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.extract.disaggregation.useeior_waste_weights import (
     USEEIOR_V180_WASTE_SOURCE_NAME,
@@ -22,10 +23,14 @@ from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio import (
     cornerstone_expansion,
 )
-from bedrock.transform.eeio import derived_cornerstone as dc
-from bedrock.transform.eeio.derived_cornerstone import (
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     _WASTE_NEW_CODES,
-    _derive_cornerstone_Ytot_with_trade,
+    cornerstone_sector_disagg_active,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    get_waste_disagg_weights,
+)
+from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
@@ -40,7 +45,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x_after_redefinition,
     derive_cornerstone_y_nab,
     derive_cornerstone_Ytot_matrix_set,
-    get_waste_disagg_weights,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -52,7 +56,10 @@ from bedrock.utils.math.formulas import compute_q
 _WASTE_SET = set(_WASTE_NEW_CODES)
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
+    cornerstone_sector_disagg_active,
     get_waste_disagg_weights,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
     derive_cornerstone_V,
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,
@@ -60,7 +67,6 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_U_set,
-    _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Ytot_matrix_set,
     derive_cornerstone_VA,
     derive_cornerstone_Aq,
@@ -129,7 +135,7 @@ class TestWeightProvider:
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(dc, "load_disagg_weights", _fake_loader)
+        monkeypatch.setattr(disagg_weights_module, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23")
         result = get_waste_disagg_weights()
@@ -155,7 +161,7 @@ class TestWeightProvider:
             captured["kwargs"] = kwargs
             return object()
 
-        monkeypatch.setattr(dc, "load_disagg_weights", _fake_loader)
+        monkeypatch.setattr(disagg_weights_module, "load_disagg_weights", _fake_loader)
 
         _setup_config("useeio_phoebe_23_restore_iot_redefinition")
         result = get_waste_disagg_weights()
@@ -191,7 +197,7 @@ def baseline_U() -> tuple[pd.DataFrame, pd.DataFrame]:
 @pytest.fixture(scope="module")
 def baseline_Ytot() -> pd.DataFrame:
     _setup_config("2025_usa_cornerstone_taxonomy_and_B_transformation")
-    Ytot = _derive_cornerstone_Ytot_with_trade()
+    Ytot = derive_disagg_Ytot_with_trade()
     _teardown()
     return Ytot
 
@@ -237,7 +243,7 @@ def disagg_U() -> tuple[pd.DataFrame, pd.DataFrame]:
 @pytest.fixture(scope="module")
 def disagg_Ytot() -> pd.DataFrame:
     _setup_config("test_usa_config_waste_disagg")
-    Ytot = _derive_cornerstone_Ytot_with_trade()
+    Ytot = derive_disagg_Ytot_with_trade()
     _teardown()
     return Ytot
 
