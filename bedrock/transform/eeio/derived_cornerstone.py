@@ -17,6 +17,7 @@ This module is self-contained: it does NOT modify or gate any existing CEDA v7
 code paths. The caller decides which pipeline to invoke based on config.
 
 Internal helpers live in sibling modules:
+- ``cornerstone_disagg_pipeline`` — waste/electricity sector-disaggregation orchestration
 - ``cornerstone_expansion`` — BEA ↔ Cornerstone correspondence & expansion
 - ``cornerstone_bea_intermediates`` — BEA-space intermediate matrices
 - ``cornerstone_year_scaling`` — summary-ratio year-scaling for A, q, B
@@ -31,7 +32,6 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.extract.disaggregation.disagg_weights import load_disagg_weights
 from bedrock.extract.iot.io_2017 import (
     load_2017_Uimp_usa,
     load_2017_Utot_usa,
@@ -45,16 +45,10 @@ from bedrock.transform.eeio.cornerstone_bea_intermediates import (
     bea_Aq,
 )
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    CornerstoneDisaggIOBundle,
     cornerstone_sector_disagg_active,
-    derive_cornerstone_U_after_waste,
-    derive_cornerstone_V_after_waste,
-    derive_cornerstone_VA_after_waste,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     distribute_waste_parent_x_using_v_row_shares,
-    electricity_reallocation_enabled,
-    get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
@@ -129,30 +123,6 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
 )
-
-# ---------------------------------------------------------------------------
-# Re-exports (backward compat for tests, analysis, nowcast)
-# ---------------------------------------------------------------------------
-
-__all__ = [
-    "load_disagg_weights",
-    "get_waste_disagg_weights",
-    "electricity_reallocation_enabled",
-    "cornerstone_sector_disagg_active",
-    "_CornerstoneIOBundle",
-    "_derive_cornerstone_V_after_waste",
-    "_derive_cornerstone_U_after_waste",
-    "_derive_cornerstone_VA_after_waste",
-    "_derive_cornerstone_io_after_electricity_reallocation",
-    "_derive_cornerstone_Ytot_with_trade",
-]
-
-_CornerstoneIOBundle = CornerstoneDisaggIOBundle
-_derive_cornerstone_V_after_waste = derive_cornerstone_V_after_waste
-_derive_cornerstone_U_after_waste = derive_cornerstone_U_after_waste
-_derive_cornerstone_VA_after_waste = derive_cornerstone_VA_after_waste
-_derive_cornerstone_io_after_electricity_reallocation = derive_disagg_io_bundle
-_derive_cornerstone_Ytot_with_trade = derive_disagg_Ytot_with_trade
 
 # ---------------------------------------------------------------------------
 # Baseline IO (correspondence only — no waste, no electricity)

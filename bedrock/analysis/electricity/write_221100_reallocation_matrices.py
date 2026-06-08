@@ -17,8 +17,8 @@ import bedrock.utils.config.common as common
 from bedrock.analysis.electricity.reallocation_matrices import (
     write_electricity_reallocation_intermediate_outputs,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    _derive_cornerstone_io_after_electricity_reallocation,
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    derive_disagg_io_bundle,
     electricity_reallocation_enabled,
 )
 from bedrock.utils.config.usa_config import set_global_usa_config
@@ -45,7 +45,7 @@ def main(config_name: str) -> None:
             f'{config_name!r} must set implement_electricity_reallocation: true'
         )
 
-    bundle = _derive_cornerstone_io_after_electricity_reallocation()
+    bundle = derive_disagg_io_bundle()
     output_path = write_electricity_reallocation_intermediate_outputs(
         v=bundle.V,
         udom=bundle.Udom,

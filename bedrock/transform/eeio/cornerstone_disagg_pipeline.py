@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.extract.disaggregation.waste_weight_config import (
     effective_waste_disagg_config,
@@ -82,11 +83,8 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
     cfg = get_usa_config()
     if not cfg.implement_waste_disaggregation:
         return None
-    # Lazy import so tests can monkeypatch ``derived_cornerstone.load_disagg_weights``.
-    import bedrock.transform.eeio.derived_cornerstone as _dc  # noqa: PLC0415
-
     resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
-    return _dc.load_disagg_weights(
+    return _disagg_weights.load_disagg_weights(
         resolved_cfg,
         original_code=_WASTE_ORIGINAL_CODE,
         new_codes=_WASTE_NEW_CODES,

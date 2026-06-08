@@ -12,12 +12,12 @@ import pathlib
 
 from bedrock.publish.excel.writer import clear_publish_caches
 from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import get_waste_disagg_weights
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_U_set,
     derive_cornerstone_V,
     derive_cornerstone_VA,
     derive_cornerstone_Ytot_full_cs_matrix,
-    get_waste_disagg_weights,
 )
 from bedrock.utils.config.usa_config import USA_CONFIG_ENV_VAR
 

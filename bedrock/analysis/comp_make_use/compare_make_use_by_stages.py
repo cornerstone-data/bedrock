@@ -24,7 +24,7 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     industry_corresp,
 )
-from bedrock.transform.eeio.derived_cornerstone import get_waste_disagg_weights
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import get_waste_disagg_weights
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
     apply_waste_disagg_to_V,

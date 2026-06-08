@@ -8,11 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.publish.excel.writer import _apply_loc_suffix, _assemble_extended_U
-from bedrock.transform.eeio.derived_cornerstone import (
-    _derive_cornerstone_U_after_waste,
-    _derive_cornerstone_V_after_waste,
-    _derive_cornerstone_VA_after_waste,
-    _derive_cornerstone_Ytot_with_trade,
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    derive_cornerstone_U_after_waste,
+    derive_cornerstone_V_after_waste,
+    derive_cornerstone_VA_after_waste,
+    derive_disagg_Ytot_with_trade,
 )
 from bedrock.utils.math.handle_negatives import handle_negative_matrix_values
 from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
@@ -109,11 +109,11 @@ def write_electricity_reallocation_intermediate_outputs(
     output_path: Path | None = None,
 ) -> Path:
     """Write before/after reallocation V, extended U, and totals summaries to Excel."""
-    y_fd = _derive_cornerstone_Ytot_with_trade()[list(FINAL_DEMANDS)]
+    y_fd = derive_disagg_Ytot_with_trade()[list(FINAL_DEMANDS)]
 
-    v_before = _derive_cornerstone_V_after_waste()
-    udom_before, uimp_before = _derive_cornerstone_U_after_waste()
-    va_before = _derive_cornerstone_VA_after_waste()
+    v_before = derive_cornerstone_V_after_waste()
+    udom_before, uimp_before = derive_cornerstone_U_after_waste()
+    va_before = derive_cornerstone_VA_after_waste()
     u_before, intermediate_before = _extended_use_tables(
         udom=udom_before,
         uimp=uimp_before,

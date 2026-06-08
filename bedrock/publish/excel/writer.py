@@ -383,12 +383,10 @@ def _get_V() -> pd.DataFrame:
 
 @functools.cache
 def _get_U() -> pd.DataFrame:
-    # TODO: `_derive_cornerstone_Ytot_with_trade` is single-underscore private.
-    # Promote to a public `derive_cornerstone_Y_matrix()` once another
-    # non-publish caller appears -- see option A in the writer module
-    # docstring discussion.
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+        derive_disagg_Ytot_with_trade,
+    )
     from bedrock.transform.eeio.derived_cornerstone import (
-        _derive_cornerstone_Ytot_with_trade,
         derive_cornerstone_U_set,
         derive_cornerstone_VA,
     )
@@ -398,7 +396,7 @@ def _get_U() -> pd.DataFrame:
     intermediate = uset.Udom + uset.Uimp
     # Reindex by canonical FINAL_DEMANDS order so column layout matches
     # useeior's `U` regardless of source column ordering.
-    fd_block = _derive_cornerstone_Ytot_with_trade()[list(FINAL_DEMANDS)]
+    fd_block = derive_disagg_Ytot_with_trade()[list(FINAL_DEMANDS)]
     return _assemble_extended_U(
         intermediate=intermediate,
         fd=fd_block,
