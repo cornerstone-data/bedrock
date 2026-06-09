@@ -31,6 +31,7 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
+import pandera.typing as pt
 
 from bedrock.extract.iot.io_2017 import (
     load_2017_Uimp_usa,
@@ -72,6 +73,9 @@ from bedrock.transform.eeio.derived_2017 import (
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_margins_cornerstone_usa,
 )
+from bedrock.transform.eeio.electricity_disaggregation import (
+    split_electricity_e_for_disaggregated_b,
+)
 from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output,
 )
@@ -101,8 +105,11 @@ from bedrock.utils.math.split_using_aggregated_weights import (
     split_vector_using_agg_ratio,
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
     validate_cornerstone,
 )
+from bedrock.utils.schemas.single_region_schemas import AMatrix, UMatrix
 from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,
     SingleRegionUMatrixSet,
@@ -122,6 +129,7 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity imp
     load_margin_type_to_cornerstone_commodity,
 )
 
+
 def _cornerstone_aq_matrix_set(
     Adom: pd.DataFrame,
     Aimp: pd.DataFrame,
@@ -130,7 +138,11 @@ def _cornerstone_aq_matrix_set(
     validate_cornerstone(Adom, "A")
     validate_cornerstone(Aimp, "A")
     validate_cornerstone(scaled_q, "Q")
-    return SingleRegionAqMatrixSet(Adom=Adom, Aimp=Aimp, scaled_q=scaled_q)
+    return SingleRegionAqMatrixSet(
+        Adom=pt.DataFrame[AMatrix](Adom),
+        Aimp=pt.DataFrame[AMatrix](Aimp),
+        scaled_q=scaled_q,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -326,13 +338,10 @@ def derive_cornerstone_Vnorm_scrap_corrected(
     scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
     scrap_fraction = industry_corresp() @ scrap_2017
     if cfg.implement_electricity_disaggregation:
-        from bedrock.utils.schemas.cornerstone_schemas import (
-            ELECTRICITY_AGGREGATE_SECTOR,
-            ELECTRICITY_DISAGG_SECTORS,
-        )
-
         parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
-        scrap_fraction = scrap_fraction.drop(ELECTRICITY_AGGREGATE_SECTOR, errors='ignore')
+        scrap_fraction = scrap_fraction.drop(
+            ELECTRICITY_AGGREGATE_SECTOR, errors='ignore'
+        )
         for code in ELECTRICITY_DISAGG_SECTORS:
             scrap_fraction.loc[code] = parent_scrap
     scrap_fraction = scrap_fraction.reindex(V.index, fill_value=0.0)
@@ -447,7 +456,10 @@ def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
         Udom_cs, Uimp_cs = _derive_cornerstone_U_baseline()
     validate_cornerstone(Udom_cs, "U")
     validate_cornerstone(Uimp_cs, "U")
-    return SingleRegionUMatrixSet(Udom=Udom_cs, Uimp=Uimp_cs)
+    return SingleRegionUMatrixSet(
+        Udom=pt.DataFrame[UMatrix](Udom_cs),
+        Uimp=pt.DataFrame[UMatrix](Uimp_cs),
+    )
 
 
 @functools.cache
@@ -459,7 +471,10 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
     assert not (Uimp < 0).any().any(), 'Uimp has negative values.'
     validate_cornerstone(Udom, "U")
     validate_cornerstone(Uimp, "U")
-    return SingleRegionUMatrixSet(Udom=Udom, Uimp=Uimp)
+    return SingleRegionUMatrixSet(
+        Udom=pt.DataFrame[UMatrix](Udom),
+        Uimp=pt.DataFrame[UMatrix](Uimp),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -871,10 +886,6 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     cfg = get_usa_config()
     E = derive_E_usa()
     if cfg.implement_electricity_disaggregation:
-        from bedrock.transform.eeio.electricity_disaggregation import (
-            split_electricity_e_for_disaggregated_b,
-        )
-
         E = split_electricity_e_for_disaggregated_b(E)
     if cfg.deflate_x_to_detail_io_year_for_B:
         # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:
