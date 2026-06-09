@@ -433,6 +433,7 @@ def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
         Aimp_bea, CS_COMMODITY_LIST, com_map, zero_intragroup_cross_terms=True
     )
     q = expand_vector(q_bea, CS_COMMODITY_LIST, com_map)
+    q.index.name = 'sector'
 
     assert (Adom >= 0).all().all(), 'Adom has negative values.'
     assert (Aimp >= 0).all().all(), 'Aimp has negative values.'
