@@ -18,6 +18,7 @@ from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
+from bedrock.utils.schemas.cornerstone_schemas import CORNERSTONE_INDUSTRIES_ELEC
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.cornerstone.industries import (
     INDUSTRIES,
@@ -137,7 +138,9 @@ def _should_use_output_weighted_mapping() -> bool:
     return bool(get_usa_config().use_ghg_national_2023_m2)
 
 
-def _apply_electricity_disagg_cornerstone_mapping(mapping: pd.DataFrame) -> pd.DataFrame:
+def _apply_electricity_disagg_cornerstone_mapping(
+    mapping: pd.DataFrame,
+) -> pd.DataFrame:
     """Retarget electric-power NAICS to disaggregated Cornerstone sectors."""
     mapping = mapping.copy()
     gen_naics = {f'22111{i}' for i in range(1, 9)}
@@ -444,9 +447,9 @@ def load_E_from_flowsa() -> pd.DataFrame:
     if usa.new_ghg_method:
         if usa.implement_electricity_disaggregation:
             try:
-                from flowsa import getFlowBySector
+                from flowsa import getFlowBySector as get_flowsa_fbs  # noqa: PLC0415
 
-                fbs = getFlowBySector(
+                fbs = get_flowsa_fbs(
                     methodname='GHG_national_Cornerstone_2023_egrid',
                     download_FBS_if_missing=True,
                 )
@@ -545,10 +548,6 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # Collapse across sectors (when CEDA: group BEA→CEDA; when Cornerstone: already in schema)
     if get_usa_config().use_cornerstone_2026_model_schema:
         if get_usa_config().implement_electricity_disaggregation:
-            from bedrock.utils.schemas.cornerstone_schemas import (
-                CORNERSTONE_INDUSTRIES_ELEC,
-            )
-
             target_columns = [str(sector) for sector in CORNERSTONE_INDUSTRIES_ELEC]
         else:
             target_columns = [str(sector) for sector in INDUSTRIES]

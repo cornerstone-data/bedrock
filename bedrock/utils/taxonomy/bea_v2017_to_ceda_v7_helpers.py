@@ -74,9 +74,11 @@ def load_bea_v2017_summary_to_cornerstone() -> (
         commodity_to_cornerstone, new_domain=set(COMMODITIES)
     )
     cornerstone_to_summary = traverse(cornerstone_to_commodity, commodity_to_summary)
-    mapping = reverse(cornerstone_to_summary, new_domain=set(BEA_2012_SUMMARY_CODES))
+    mapping_raw = reverse(
+        cornerstone_to_summary, new_domain=set(BEA_2012_SUMMARY_CODES)
+    )
     if get_usa_config().implement_electricity_disaggregation:
-        mapping = {
+        expanded_mapping: dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]] = {
             summary_code: (
                 _replace_sector_in_cornerstone_summary_list(
                     list(sectors),
@@ -84,11 +86,12 @@ def load_bea_v2017_summary_to_cornerstone() -> (
                     ELECTRICITY_DISAGG_SECTORS,
                 )
                 if isinstance(sectors, list)
-                else sectors
+                else cast(list[str], sectors)
             )
-            for summary_code, sectors in mapping.items()
+            for summary_code, sectors in mapping_raw.items()
         }
-    return cast(dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]], mapping)
+        return expanded_mapping
+    return cast(dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]], mapping_raw)
 
 
 def _replace_sector_in_cornerstone_summary_list(
@@ -115,10 +118,11 @@ def get_bea_v2017_summary_to_ceda_corresp_df() -> pd.DataFrame:
 
 def get_bea_v2017_summary_to_cornerstone_corresp_df() -> pd.DataFrame:
     summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
-    if get_usa_config().implement_electricity_disaggregation:
-        cornerstone_index: list[str] = CORNERSTONE_COMMODITIES_ELEC
-    else:
-        cornerstone_index = COMMODITIES
+    cornerstone_index = (
+        CORNERSTONE_COMMODITIES_ELEC
+        if get_usa_config().implement_electricity_disaggregation
+        else list(COMMODITIES)
+    )
     corresp_df = create_correspondence_matrix(summary_to_cornerstone).reindex(
         index=cornerstone_index,
         columns=USA_2017_SUMMARY_INDUSTRY_CODES,
