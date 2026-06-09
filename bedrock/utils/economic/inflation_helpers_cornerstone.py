@@ -29,6 +29,11 @@ from bedrock.utils.math.formulas import (
     compute_Vnorm_matrix,
     compute_x,
 )
+from bedrock.utils.schemas.cornerstone_schemas import (
+    CORNERSTONE_COMMODITIES_ELEC,
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_GROSS_INDUSTRY_OUTPUT_YEARS,
 )
@@ -124,12 +129,6 @@ def get_cornerstone_industry_price_ratio(
     # Anything still NaN (truly no parent, e.g. S00402) gets neutral 1.0
     ratio = ratio.fillna(1.0)
     if cfg.implement_electricity_disaggregation:
-        from bedrock.utils.schemas.cornerstone_schemas import (
-            CORNERSTONE_COMMODITIES_ELEC,
-            ELECTRICITY_AGGREGATE_SECTOR,
-            ELECTRICITY_DISAGG_SECTORS,
-        )
-
         parent_ratio = float(ratio.get(ELECTRICITY_AGGREGATE_SECTOR, 1.0))
         ratio = ratio.drop(ELECTRICITY_AGGREGATE_SECTOR, errors='ignore')
         for code in ELECTRICITY_DISAGG_SECTORS:

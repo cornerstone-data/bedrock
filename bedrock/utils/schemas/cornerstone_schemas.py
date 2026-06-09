@@ -70,7 +70,9 @@ def active_cornerstone_industries() -> list[str]:
     return CORNERSTONE_INDUSTRIES
 
 
-def validate_cornerstone(df: pd.DataFrame | pd.Series, kind: CornerstoneMatrixKind) -> None:
+def validate_cornerstone(
+    df: pd.DataFrame | pd.Series, kind: CornerstoneMatrixKind
+) -> None:
     """Flag-aware pandera validation for Cornerstone outputs (405 vs 407)."""
     commodities = active_cornerstone_commodities()
     industries = active_cornerstone_industries()

@@ -71,6 +71,14 @@ def _frame_cell_float(frame: pd.DataFrame, row: str, col: str) -> float:
     return cast(float, frame.at[row, col])
 
 
+def _loc_cols_sum(frame: pd.DataFrame, row: str, cols: list[str]) -> float:
+    return float(frame[cols].loc[row].sum())
+
+
+def _loc_rows_col_sum(frame: pd.DataFrame, rows: list[str], col: str) -> float:
+    return float(frame[col].loc[rows].sum())
+
+
 @dataclass(frozen=True)
 class CoprodTransfer:
     source: str
@@ -404,7 +412,7 @@ def _enforce_go_identity_precondition(
     if va_total != 0.0:
         VA.loc[list(VALUE_ADDEDS), agg] = va_col + residual * (va_col / va_total)
     else:
-        VA.loc["V00300", agg] = float(VA.at["V00300", agg]) + residual
+        VA.loc["V00300", agg] = _frame_cell_float(VA, "V00300", agg) + residual
     c_after = _column_total_use_plus_va(Udom, Uimp, VA, agg)
     np.testing.assert_allclose(
         x_make,
@@ -453,7 +461,7 @@ def disaggregate_use_intersection(
     results: list[pd.DataFrame] = []
     for U in (Udom, Uimp):
         U = U.copy()
-        orig = float(U.at[agg, agg])
+        orig = _frame_cell_float(U, agg, agg)
         for code in ELECTRICITY_DISAGG_SECTORS:
             if code not in U.index:
                 U.loc[code] = 0.0
@@ -478,7 +486,7 @@ def _split_aggregate_column_by_rule(
     for row in U.index:
         if row in elec_set or row == agg:
             continue
-        val = float(U.at[row, agg])
+        val = _frame_cell_float(U, str(row), agg)
         if val == 0.0:
             for code in ELECTRICITY_DISAGG_SECTORS:
                 U.at[row, code] = 0.0
@@ -505,13 +513,15 @@ def disaggregate_use_industry_columns(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Step 3 — split 221100 industry column + VA balancing."""
     agg = ELECTRICITY_AGGREGATE
-    va_rows = list(VALUE_ADDEDS)
+    va_rows = [str(va) for va in VALUE_ADDEDS]
     orig_va = VA[agg].copy()
     orig_row_totals: dict[str, float] = {}
     for com in Udom.index:
         if com in set(ELECTRICITY_DISAGG_SECTORS) | {agg} | set(va_rows):
             continue
-        orig_row_totals[com] = float(Udom.at[com, agg]) + float(Uimp.at[com, agg])
+        orig_row_totals[str(com)] = _frame_cell_float(
+            Udom, str(com), agg
+        ) + _frame_cell_float(Uimp, str(com), agg)
 
     Udom = _split_aggregate_column_by_rule(Udom, w=w, va_rows=va_rows)
     Uimp = _split_aggregate_column_by_rule(Uimp, w=w, va_rows=va_rows)
@@ -521,8 +531,10 @@ def disaggregate_use_industry_columns(
         if code not in VA.columns:
             VA[code] = 0.0
 
-    va_share = orig_va / float(orig_va.sum()) if float(orig_va.sum()) != 0 else (
-        pd.Series(1.0 / len(va_rows), index=va_rows)
+    va_share = (
+        orig_va / float(orig_va.sum())
+        if float(orig_va.sum()) != 0
+        else (pd.Series(1.0 / len(va_rows), index=va_rows))
     )
 
     for code in ELECTRICITY_DISAGG_SECTORS:
@@ -548,7 +560,7 @@ def disaggregate_use_industry_columns(
 
     for va_row in va_rows:
         orig_row_total = float(orig_va[va_row])
-        new_total = float(VA.loc[va_row, ELECTRICITY_DISAGG_SECTORS].sum())
+        new_total = _loc_cols_sum(VA, va_row, list(ELECTRICITY_DISAGG_SECTORS))
         np.testing.assert_allclose(
             new_total,
             orig_row_total,
@@ -558,10 +570,9 @@ def disaggregate_use_industry_columns(
         )
 
     for com, orig_val in orig_row_totals.items():
-        new_val = (
-            float(Udom.loc[com, ELECTRICITY_DISAGG_SECTORS].sum())
-            + float(Uimp.loc[com, ELECTRICITY_DISAGG_SECTORS].sum())
-        )
+        new_val = _loc_cols_sum(
+            Udom, com, list(ELECTRICITY_DISAGG_SECTORS)
+        ) + _loc_cols_sum(Uimp, com, list(ELECTRICITY_DISAGG_SECTORS))
         np.testing.assert_allclose(
             new_val,
             orig_val,
@@ -588,14 +599,16 @@ def disaggregate_use_commodity_rows(
     for col in Udom.columns:
         if col in elec_set:
             continue
-        orig_col_totals[col] = float(Udom.at[agg, col]) + float(Uimp.at[agg, col])
+        orig_col_totals[str(col)] = _frame_cell_float(
+            Udom, agg, str(col)
+        ) + _frame_cell_float(Uimp, agg, str(col))
     results: list[pd.DataFrame] = []
     for U in (Udom, Uimp):
         U = U.copy()
         for col in U.columns:
             if col in elec_set:
                 continue
-            orig = float(U.at[agg, col])
+            orig = _frame_cell_float(U, agg, str(col))
             for code in ELECTRICITY_DISAGG_SECTORS:
                 if code not in U.index:
                     U.loc[code] = 0.0
@@ -604,10 +617,9 @@ def disaggregate_use_commodity_rows(
         results.append(U)
     Udom_out, Uimp_out = results
     for col, orig in orig_col_totals.items():
-        new = (
-            float(Udom_out.loc[ELECTRICITY_DISAGG_SECTORS, col].sum())
-            + float(Uimp_out.loc[ELECTRICITY_DISAGG_SECTORS, col].sum())
-        )
+        new = _loc_rows_col_sum(
+            Udom_out, list(ELECTRICITY_DISAGG_SECTORS), col
+        ) + _loc_rows_col_sum(Uimp_out, list(ELECTRICITY_DISAGG_SECTORS), col)
         np.testing.assert_allclose(
             new,
             orig,
@@ -628,7 +640,7 @@ def disaggregate_electricity_commodity_row_in_y(
     agg = ELECTRICITY_AGGREGATE
     Y = Y.copy()
     for col in Y.columns:
-        orig = float(Y.at[agg, col])
+        orig = _frame_cell_float(Y, agg, str(col))
         for code in ELECTRICITY_DISAGG_SECTORS:
             if code not in Y.index:
                 Y.loc[code] = 0.0
@@ -680,7 +692,10 @@ def disaggregate_electricity_make_use_va(
     if ELECTRICITY_AGGREGATE in V.index or ELECTRICITY_AGGREGATE in V.columns:
         raise AssertionError("221100 remains in V after electricity disaggregation")
     for frame, label in ((Udom, "Udom"), (Uimp, "Uimp")):
-        if ELECTRICITY_AGGREGATE in frame.index or ELECTRICITY_AGGREGATE in frame.columns:
+        if (
+            ELECTRICITY_AGGREGATE in frame.index
+            or ELECTRICITY_AGGREGATE in frame.columns
+        ):
             raise AssertionError(f"221100 remains in {label} after disaggregation")
 
     return V, Udom, Uimp, VA

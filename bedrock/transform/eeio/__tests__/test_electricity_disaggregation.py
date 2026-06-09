@@ -23,15 +23,15 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_U_set,
     derive_cornerstone_V,
-    derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_VA,
+    derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
-    DISAGG_BALANCE_ATOL,
     ELECTRICITY_AGGREGATE,
     ELECTRICITY_DISAGG_SECTORS,
+    _float_ndarray,
     build_electricity_disagg_go_weights,
     disaggregate_use_industry_columns,
 )
@@ -118,38 +118,33 @@ class TestStep3WorkedExample:
         VA.at["V00300", agg] = 60.0
         x_agg = 350.0
 
-        Udom, Uimp, VA = disaggregate_use_industry_columns(
-            x_agg, Udom, Uimp, VA, w
-        )
+        Udom, Uimp, VA = disaggregate_use_industry_columns(x_agg, Udom, Uimp, VA, w)
 
         use_sub = pd.Series(
-            {
-                code: float(Udom[code].sum()) + float(Uimp[code].sum())
-                for code in codes
-            }
+            {code: float(Udom[code].sum()) + float(Uimp[code].sum()) for code in codes}
         )
         np.testing.assert_allclose(
-            use_sub.values,
+            _float_ndarray(use_sub.to_numpy()),
             np.array([97.6, 5.6, 86.8]),
             rtol=1e-9,
             atol=1e-6,
         )
         va_col_totals = VA[codes].sum(axis=0)
         np.testing.assert_allclose(
-            va_col_totals.values,
+            _float_ndarray(va_col_totals.to_numpy()),
             np.array([21.4, 8.4, 130.2]),
             rtol=1e-9,
             atol=1e-6,
         )
         np.testing.assert_allclose(
-            VA.sum(axis=1).values,
+            _float_ndarray(VA.sum(axis=1).to_numpy()),
             np.array([70.0, 30.0, 60.0]),
             rtol=1e-9,
             atol=1e-6,
         )
         col_totals = use_sub + va_col_totals
         np.testing.assert_allclose(
-            col_totals.values,
+            _float_ndarray(col_totals.to_numpy()),
             np.array([119.0, 14.0, 217.0]),
             rtol=1e-9,
             atol=1e-6,
@@ -179,9 +174,7 @@ class TestElectricityDisaggregationPipeline:
         finally:
             _teardown()
 
-    def test_pipeline_aq_and_diagnostics(
-        self, electricity_disagg_config: str
-    ) -> None:
+    def test_pipeline_aq_and_diagnostics(self, electricity_disagg_config: str) -> None:
         _setup_config(electricity_disagg_config)
         try:
             aq = derive_cornerstone_Aq_scaled()
@@ -193,9 +186,7 @@ class TestElectricityDisaggregationPipeline:
             _teardown()
 
     def test_e_attribution(self, electricity_disagg_config: str) -> None:
-        _setup_config(
-            "2025_usa_cornerstone_full_model_electricity_disaggregation.yaml"
-        )
+        _setup_config("2025_usa_cornerstone_full_model_electricity_disaggregation.yaml")
         try:
             E = derive_E_usa()
             elec_cols = [c for c in ELECTRICITY_DISAGG_SECTORS if c in E.columns]
