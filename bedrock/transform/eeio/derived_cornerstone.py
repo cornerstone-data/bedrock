@@ -130,9 +130,11 @@ def _cornerstone_aq_matrix_set(
     validate_cornerstone(Adom, "A")
     validate_cornerstone(Aimp, "A")
     validate_cornerstone(scaled_q, "Q")
+    # Cornerstone A uses 405/407-sector taxonomy; cast only for mypy — do not
+    # use pt.DataFrame[AMatrix](...) which runs CEDA v7 Pandera validation.
     return SingleRegionAqMatrixSet(
-        Adom=pt.DataFrame[AMatrix](Adom),
-        Aimp=pt.DataFrame[AMatrix](Aimp),
+        Adom=cast(pt.DataFrame[AMatrix], Adom),
+        Aimp=cast(pt.DataFrame[AMatrix], Aimp),
         scaled_q=scaled_q,
     )
 
@@ -392,8 +394,8 @@ def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
     validate_cornerstone(Udom_cs, "U")
     validate_cornerstone(Uimp_cs, "U")
     return SingleRegionUMatrixSet(
-        Udom=pt.DataFrame[UMatrix](Udom_cs),
-        Uimp=pt.DataFrame[UMatrix](Uimp_cs),
+        Udom=cast(pt.DataFrame[UMatrix], Udom_cs),
+        Uimp=cast(pt.DataFrame[UMatrix], Uimp_cs),
     )
 
 
@@ -407,8 +409,8 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
     validate_cornerstone(Udom, "U")
     validate_cornerstone(Uimp, "U")
     return SingleRegionUMatrixSet(
-        Udom=pt.DataFrame[UMatrix](Udom),
-        Uimp=pt.DataFrame[UMatrix](Uimp),
+        Udom=cast(pt.DataFrame[UMatrix], Udom),
+        Uimp=cast(pt.DataFrame[UMatrix], Uimp),
     )
 
 
