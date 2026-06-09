@@ -7,3 +7,4 @@ implement_waste_disaggregation: True
 implement_electricity_reallocation: True
 implement_electricity_disaggregation: True
 cornerstone_industry_avg_margins: True
+snapshot_version_or_git_sha: "7372464249c434c9bebb172c065a4d0e3702176e" # v0.2
