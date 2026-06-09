@@ -137,6 +137,16 @@ def _should_use_output_weighted_mapping() -> bool:
     return bool(get_usa_config().use_ghg_national_2023_m2)
 
 
+def _apply_electricity_disagg_cornerstone_mapping(mapping: pd.DataFrame) -> pd.DataFrame:
+    """Retarget electric-power NAICS to disaggregated Cornerstone sectors."""
+    mapping = mapping.copy()
+    gen_naics = {f'22111{i}' for i in range(1, 9)}
+    mapping.loc[mapping['Sector'].isin(gen_naics), 'Activity'] = '221110'
+    mapping.loc[mapping['Sector'] == '221121', 'Activity'] = '221121'
+    mapping.loc[mapping['Sector'] == '221122', 'Activity'] = '221122'
+    return mapping
+
+
 def _apply_cornerstone_waste_overrides(mapping: pd.DataFrame) -> pd.DataFrame:
     """Override waste NAICS mappings with Cornerstone waste-disaggregated targets."""
     waste_targets = set(WASTE_DISAGG_INDUSTRIES['562000'])
@@ -292,6 +302,8 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
                 get_activitytosector_mapping('Cornerstone_2025'),
                 use_output_weights=False,
             )
+            if get_usa_config().implement_electricity_disaggregation:
+                mapping = _apply_electricity_disagg_cornerstone_mapping(mapping)
         else:
             mapping = _build_mapping_with_allocations(
                 get_activitytosector_mapping('CEDA_2025'),
@@ -430,12 +442,22 @@ def load_E_from_flowsa() -> pd.DataFrame:
             'update_*_ghg_method flag.'
         )
     if usa.new_ghg_method:
-        # Bypass flowsa regen for non-2023 years: the EPA loader behind
-        # `getFlowBySector` is hard-capped at {2022, 2023}, but the
-        # already-built FBS parquets exist on GCS at
-        # `transform/output_data/` for 2019–2023. Load the cached parquet
-        # directly so the year-Y diagnostics get year-Y GHG data.
-        fbs = _load_cornerstone_ghg_fbs_from_gcs(usa.usa_ghg_data_year)
+        if usa.implement_electricity_disaggregation:
+            try:
+                from flowsa import getFlowBySector
+
+                fbs = getFlowBySector(
+                    methodname='GHG_national_Cornerstone_2023_egrid',
+                    download_FBS_if_missing=True,
+                )
+            except Exception as exc:
+                logger.warning(
+                    'eGRID FBS unavailable (%s); falling back to cached national FBS',
+                    exc,
+                )
+                fbs = _load_cornerstone_ghg_fbs_from_gcs(usa.usa_ghg_data_year)
+        else:
+            fbs = _load_cornerstone_ghg_fbs_from_gcs(usa.usa_ghg_data_year)
     else:
         methodname = _select_flowsa_ghg_method()
         if methodname == 'GHG_national_2023_m2':
@@ -522,7 +544,14 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     # Collapse across sectors (when CEDA: group BEA→CEDA; when Cornerstone: already in schema)
     if get_usa_config().use_cornerstone_2026_model_schema:
-        target_columns = [str(sector) for sector in INDUSTRIES]
+        if get_usa_config().implement_electricity_disaggregation:
+            from bedrock.utils.schemas.cornerstone_schemas import (
+                CORNERSTONE_INDUSTRIES_ELEC,
+            )
+
+            target_columns = [str(sector) for sector in CORNERSTONE_INDUSTRIES_ELEC]
+        else:
+            target_columns = [str(sector) for sector in INDUSTRIES]
         # E_usa already has Cornerstone columns from derive_E_usa_emissions_sources
         E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
     else:

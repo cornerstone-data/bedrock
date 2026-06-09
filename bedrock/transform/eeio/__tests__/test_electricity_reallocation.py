@@ -14,6 +14,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_cornerstone_V_after_waste,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
@@ -24,6 +25,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_V,
     derive_cornerstone_VA,
+    derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_Ytot_matrix_set,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
@@ -42,9 +44,11 @@ from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostic
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     electricity_reallocation_enabled,
+    electricity_disaggregation_enabled,
     derive_disagg_io_bundle,
     cornerstone_sector_disagg_active,
     derive_cornerstone_V,
+    derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_U_set,
     derive_cornerstone_VA,

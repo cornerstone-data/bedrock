@@ -1,0 +1,65 @@
+﻿.................................xxxxF.................................. [ 36%]
+........................................................................ [ 73%]
+..............................F................s.xxxx                    [100%]
+================================== FAILURES ===================================
+c:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\transform\__tests__\test_fbs.py:39: AssertionError: DataFrame are different
+C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\utils\schemas\cornerstone_schemas.py:93: pandera.errors.SchemaError: U index does not match active Cornerstone commodities
+============================== warnings summary ===============================
+bedrock/transform/allocation/__tests__/test_mecs_mapping.py::test_all_naics_codes_in_mecs_covered_in_mapping
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\extract\allocation\mecs.py:79: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+    tbl_3_1.replace(["*", "W", "Q", "D"], 0.0, inplace=True)
+
+bedrock/transform/allocation/ch4/__tests__/test_ch4.py::test_ch4[-allocate_stationary_combustion_industrial_fuel_oil]
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\extract\allocation\mecs.py:36: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+    tbl_2_1.replace(["*", "W", "Q", "D"], 0, inplace=True)
+
+bedrock/transform/allocation/other_gases/__tests__/test_other_gases.py::test_other_gases[-allocate_hfc_32_others]
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\extract\allocation\epa.py:1033: SettingWithCopyWarning: 
+  A value is trying to be set on a copy of a slice from a DataFrame
+  
+  See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+    final_tbl["Aerosols"] = (
+
+bedrock/transform/allocation/other_gases/__tests__/test_other_gases.py::test_other_gases[-allocate_hfc_32_others]
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\extract\allocation\epa.py:1038: SettingWithCopyWarning: 
+  A value is trying to be set on a copy of a slice from a DataFrame
+  
+  See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+    final_tbl["Foams"] = (
+
+bedrock/transform/allocation/other_gases/__tests__/test_other_gases.py::test_other_gases[-allocate_hfc_32_others]
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\extract\allocation\epa.py:1042: SettingWithCopyWarning: 
+  A value is trying to be set on a copy of a slice from a DataFrame
+  
+  See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+    final_tbl["Solvents"] = (
+
+bedrock/transform/allocation/other_gases/__tests__/test_other_gases.py::test_other_gases[-allocate_hfc_32_others]
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\extract\allocation\epa.py:1047: SettingWithCopyWarning: 
+  A value is trying to be set on a copy of a slice from a DataFrame
+  
+  See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+    final_tbl["Fire Protection"] = (
+
+bedrock/transform/allocation/other_gases/__tests__/test_other_gases.py::test_other_gases[-allocate_hfc_134a_magnesium_production]
+bedrock/transform/eeio/__tests__/test_electricity_reallocation.py::TestElectricityReallocationIntegration::test_e_unchanged_with_electricity_reallocation
+bedrock/transform/eeio/__tests__/test_electricity_reallocation.py::TestElectricityReallocationIntegration::test_e_unchanged_with_electricity_reallocation
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\transform\allocation\other_gases\hfc_134a_magnesium_production.py:23: FutureWarning: Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+    industry_output.loc[pd.Index([key])][0]
+
+bedrock/transform/eeio/__tests__/test_electricity_disaggregation.py::TestElectricityDisaggregationPipeline::test_schema_is_407_sectors
+bedrock/transform/eeio/__tests__/test_electricity_disaggregation.py::TestElectricityDisaggregationPipeline::test_make_and_use_balance
+bedrock/transform/eeio/__tests__/test_electricity_disaggregation.py::TestElectricityDisaggregationPipeline::test_pipeline_aq_and_diagnostics
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\transform\eeio\electricity_disaggregation.py:667: UserWarning: 221100 GO identity residual 1,766,247,520 (0.3875% of Make GO); absorbing into aggregate VA column before disaggregation
+    _enforce_go_identity_precondition(V, Udom, Uimp, VA)
+
+bedrock/transform/eeio/__tests__/test_electricity_reallocation.py::TestElectricityReallocationIntegration::test_e_unchanged_with_electricity_reallocation
+bedrock/transform/eeio/__tests__/test_electricity_reallocation.py::TestElectricityReallocationIntegration::test_e_unchanged_with_electricity_reallocation
+  C:\Users\jvend\Documents\CodeProjects\bedrock\bedrock\transform\allocation\derived.py:225: FutureWarning: The 'axis' keyword in DataFrame.groupby is deprecated and will be removed in a future version.
+    .groupby(lambda es: EmissionsSource(es).gas, axis=0)  # type: ignore
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED bedrock/transform/__tests__/test_fbs.py::test_generate_fbs_compare_to_remote[GHG_national_Cornerstone_2023]
+FAILED bedrock/transform/eeio/__tests__/test_electricity_disaggregation.py::TestElectricityDisaggregationPipeline::test_pipeline_aq_and_diagnostics
+2 failed, 186 passed, 1 skipped, 227 deselected, 8 xfailed, 14 warnings in 1174.81s (0:19:34)
