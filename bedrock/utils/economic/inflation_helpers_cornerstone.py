@@ -123,6 +123,18 @@ def get_cornerstone_industry_price_ratio(
 
     # Anything still NaN (truly no parent, e.g. S00402) gets neutral 1.0
     ratio = ratio.fillna(1.0)
+    if cfg.implement_electricity_disaggregation:
+        from bedrock.utils.schemas.cornerstone_schemas import (
+            CORNERSTONE_COMMODITIES_ELEC,
+            ELECTRICITY_AGGREGATE_SECTOR,
+            ELECTRICITY_DISAGG_SECTORS,
+        )
+
+        parent_ratio = float(ratio.get(ELECTRICITY_AGGREGATE_SECTOR, 1.0))
+        ratio = ratio.drop(ELECTRICITY_AGGREGATE_SECTOR, errors='ignore')
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            ratio.loc[code] = parent_ratio
+        ratio = ratio.reindex(CORNERSTONE_COMMODITIES_ELEC, fill_value=1.0)
     return ratio
 
 
@@ -200,6 +212,7 @@ def inflate_cornerstone_A_matrix_with_industry_pi(
     A: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
     price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
+    price_ratio = price_ratio.reindex(A.index, fill_value=1.0)
     return pd.DataFrame(
         (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
         index=A.index,
