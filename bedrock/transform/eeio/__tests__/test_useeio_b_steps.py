@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any, cast
 
 import pandas as pd
 import pytest
@@ -48,8 +47,10 @@ def test_useeio_b_adjust_divide_transform_steps(
             usa_ghg_data_year=2023,
             usa_detail_original_year=2017,
             implement_electricity_reallocation=False,
+            implement_electricity_disaggregation=False,
         ),
     )
+    monkeypatch.setattr(dc, "validate_cornerstone", lambda df, kind: None)
     monkeypatch.setattr(dc, "derive_E_usa", lambda: e)
     monkeypatch.setattr(
         dc, "derive_cornerstone_x_after_redefinition", lambda: x_nominal
@@ -62,7 +63,7 @@ def test_useeio_b_adjust_divide_transform_steps(
     monkeypatch.setattr(dc, "derive_cornerstone_Vnorm_scrap_corrected", lambda: vnorm)
 
     try:
-        out = cast(Any, dc.derive_cornerstone_B_via_vnorm).__wrapped__()
+        out = dc.derive_cornerstone_B_via_vnorm()
     finally:
         electricity_reallocation_enabled.cache_clear()
         cornerstone_sector_disagg_active.cache_clear()

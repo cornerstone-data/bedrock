@@ -19,6 +19,7 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.ghg import GHG
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
@@ -54,8 +55,6 @@ CornerstoneMatrixKind = ta.Literal["V", "U", "A", "B", "X", "Q"]
 
 
 def _electricity_disaggregation_active() -> bool:
-    from bedrock.utils.config.usa_config import get_usa_config
-
     return get_usa_config().implement_electricity_disaggregation
 
 
