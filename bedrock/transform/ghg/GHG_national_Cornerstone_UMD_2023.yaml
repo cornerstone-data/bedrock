@@ -875,14 +875,6 @@ source_names:
     fedefl_mapping: GHGI_AR5_100
     attribution_method: direct
 
-  UMD_GHGIA_T_4_59: # GHGI Table 4-122 analogue — flow_fba for split_HFCs_by_type
-    year: *ghgi_year
-    activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
-    selection_fields:
-      PrimaryActivity: ODS Substitute
-    attribution_method: direct
-
   UMD_GHGIA_T_4_60: # HFCs and PFCs from ODS Substitutes
     activity_to_sector_mapping: UMD_GHGIA
     clean_fba_before_activity_sets: !script_function:EPA_GHGI split_HFCs_by_type
