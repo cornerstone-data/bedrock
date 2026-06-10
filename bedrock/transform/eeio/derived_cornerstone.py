@@ -38,7 +38,6 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_V_usa,
     load_2017_value_added_usa,
     load_2017_Ytot_usa,
-    load_summary_Uimp_usa,
 )
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_bea_intermediates import (
@@ -84,12 +83,11 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
+    backcompute_y_from_q_and_Aq,
     compute_q,
     compute_Unorm_matrix,
     compute_Vnorm_matrix,
     compute_x,
-    compute_y_for_national_accounting_balance,
-    compute_y_imp,
 )
 from bedrock.utils.math.handle_negatives import (
     handle_negative_matrix_values,
@@ -116,9 +114,6 @@ from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_EXPORT_CODE,
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
     USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE,
-)
-from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
-    USA_2017_SUMMARY_INDUSTRY_CODES,
 )
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
@@ -765,40 +760,17 @@ def derive_cornerstone_Y_and_trade_scaled() -> SingleRegionYtotAndTradeVectorSet
 
 @functools.cache
 def derive_cornerstone_y_nab() -> pd.Series[float]:
-    """Y for national accounting balance, year-scaled."""
-    cfg = get_usa_config()
-    detail_2017 = derive_cornerstone_Ytot_matrix_set()
+    """National-accounting final demand consistent with scaled ``Adom`` and ``q``.
 
-    y_nab_2017 = compute_y_for_national_accounting_balance(
-        y_tot=detail_2017.ytot,
-        y_imp=compute_y_imp(
-            imports=detail_2017.imports,
-            Uimp=derive_cornerstone_U_set().Uimp,
-        ),
-        exports=detail_2017.exports,
-    )
+    Enforces row balance ``q = Adom @ diag(q) + y_nab`` using the same
+    ``derive_cornerstone_Aq_scaled`` object whose ``scaled_q`` is snapshotted.
+    Any future change to ``scaled_q`` in that path propagates to ``y_nab``.
 
-    summary_Y = derive_summary_Ytot_usa_matrix_set(cfg.usa_io_data_year)
-    y_nab_summary = compute_y_for_national_accounting_balance(
-        y_tot=summary_Y.ytot,
-        y_imp=compute_y_imp(
-            imports=summary_Y.imports,
-            Uimp=load_summary_Uimp_usa(cfg.usa_io_data_year).loc[
-                USA_2017_SUMMARY_INDUSTRY_CODES, USA_2017_SUMMARY_INDUSTRY_CODES
-            ],
-        ),
-        exports=summary_Y.exports,
-    )
-
-    y_nab_scaled = _disaggregate_and_inflate_vector(
-        base=y_nab_summary,
-        weight=y_nab_2017,
-        corresp_df=get_bea_v2017_summary_to_cornerstone_corresp_df(),
-        original_year=cfg.usa_io_data_year,
-        target_year=cfg.model_base_year,
-    )
-
-    return handle_negative_vector_values(y_nab_scaled)
+    Negative values are retained so ``q ≈ L_dom @ y_nab`` holds numerically;
+    clipping would break the domestic Leontief identity.
+    """
+    aq = derive_cornerstone_Aq_scaled()
+    return backcompute_y_from_q_and_Aq(A=aq.Adom, q=aq.scaled_q)
 
 
 def derive_cornerstone_ydom_and_yimp() -> SingleRegionYVectorSet:
