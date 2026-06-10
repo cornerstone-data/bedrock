@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.publish.model_objects import apply_loc_suffix, assemble_extended_U
-from bedrock.transform.eeio.derived_cornerstone import (
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_cornerstone_U_after_waste,
     derive_cornerstone_V_after_waste,
     derive_cornerstone_VA_after_waste,

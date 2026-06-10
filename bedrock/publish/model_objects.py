@@ -84,8 +84,10 @@ def get_V() -> pd.DataFrame:
 
 @functools.cache
 def get_U() -> pd.DataFrame:
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+        derive_disagg_Ytot_with_trade,
+    )
     from bedrock.transform.eeio.derived_cornerstone import (
-        _derive_cornerstone_Ytot_with_trade,
         derive_cornerstone_U_set,
         derive_cornerstone_VA,
     )
@@ -93,7 +95,7 @@ def get_U() -> pd.DataFrame:
 
     uset = derive_cornerstone_U_set()
     intermediate = uset.Udom + uset.Uimp
-    fd_block = _derive_cornerstone_Ytot_with_trade()[list(FINAL_DEMANDS)]
+    fd_block = derive_disagg_Ytot_with_trade()[list(FINAL_DEMANDS)]
     return assemble_extended_U(
         intermediate=intermediate,
         fd=fd_block,
