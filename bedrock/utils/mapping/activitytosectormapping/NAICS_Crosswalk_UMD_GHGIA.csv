@@ -32,7 +32,7 @@ UMD_GHGIA,N2O from Product Uses,NAICS_2017_Code,622,,,EPA_GHGI_T_2_1
 UMD_GHGIA,N2O from Product Uses,NAICS_2017_Code,623,,,EPA_GHGI_T_2_1
 UMD_GHGIA,"Caprolactam, Glyoxal, and Glyoxylic Acid Production",NAICS_2017_Code,32519,,325190,EPA_GHGI_T_2_1
 UMD_GHGIA,Electronics Industry,NAICS_2017_Code,334413,,"334413, name change from Semiconductor Manufacture",EPA_GHGI_T_2_1
-UMD_GHGIA,Electrical Equipment,NAICS_2017_Code,2211,,new activity,EPA_GHGI_T_2_1
+UMD_GHGIA,Electrical Equipment,NAICS_2017_Code,221121,,,EPA_GHGI_T_2_1
 UMD_GHGIA,Electric Power,NAICS_2017_Code,2211,,"Commodity: 221100 (or I: 221100, S00101, S00202)",EPA_GHGI_T_2_1
 UMD_GHGIA,Liming,NAICS_2017_Code,111,,all ag sectors - proportional via BEA 327400,EPA_GHGI_T_2_1
 UMD_GHGIA,Urea Fertilization,NAICS_2017_Code,111,,"111, 112",EPA_GHGI_T_2_1
@@ -231,6 +231,8 @@ UMD_GHGIA,Wood Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"UMD_GHGIA_T_3_11, UMD_GH
 UMD_GHGIA,Wood Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12"
 UMD_GHGIA,Direct Agricultural Soil Management,NAICS_2017_Code,111,,111,UMD_GHGIA_T_5_10
 UMD_GHGIA,Indirect Agricultural Soil Management,NAICS_2017_Code,111,,111,UMD_GHGIA_T_5_10
+UMD_GHGIA,Direct Agricultural Soil Management,NAICS_2017_Code,112,,112,UMD_GHGIA_T_5_10
+UMD_GHGIA,Indirect Agricultural Soil Management,NAICS_2017_Code,112,,112,UMD_GHGIA_T_5_10
 UMD_GHGIA,Natural Gas Industrial,NAICS_2017_Code,11,,"11, 21, 2212, 23","UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
 UMD_GHGIA,Natural Gas Industrial,NAICS_2017_Code,21,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
 UMD_GHGIA,Natural Gas Industrial,NAICS_2017_Code,2212,,,"UMD_GHGIA_T_3_11, UMD_GHGIA_T_3_12, EPA_GHGI_T_A_14"
@@ -400,8 +402,8 @@ UMD_GHGIA,Heavy-Duty Vehicles,NAICS_2017_Code,484,,484000,EPA_GHGI_T_A_90
 UMD_GHGIA,School and Tour Buses,NAICS_2017_Code,485,,485000,EPA_GHGI_T_A_90
 UMD_GHGIA,Transit Buses,NAICS_2017_Code,485,,,EPA_GHGI_T_A_90
 UMD_GHGIA,Buses,NAICS_2017_Code,485,,485000,UMD_GHGIA_T_3_8
-UMD_GHGIA,Buses Diesel Fuel,NAICS_2017_Code,485,,485000,UMD_GHGIA_T_3_8
-UMD_GHGIA,Buses Diesel Fuel,NAICS_2017_Code,487,,48A000,UMD_GHGIA_T_3_8
+UMD_GHGIA,Buses - Distillate Fuel Oil,NAICS_2017_Code,485,,485000,UMD_GHGIA_T_3_8
+UMD_GHGIA,Buses - Distillate Fuel Oil,NAICS_2017_Code,487,,48A000,UMD_GHGIA_T_3_8
 UMD_GHGIA,Commercial Aircraft,NAICS_2017_Code,481,,481000,UMD_GHGIA_T_3_8
 UMD_GHGIA,General Aviation Aircraft,NAICS_2017_Code,481,,481000,"UMD_GHGIA_T_3_8, UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10"
 UMD_GHGIA,Military Aircraft,NAICS_2017_Code,S00500,,S00500,UMD_GHGIA_T_3_8
@@ -409,13 +411,13 @@ UMD_GHGIA,Light-Duty Trucks - Households,NAICS_2017_Code,F01000,,F01000,"UMD_GHG
 UMD_GHGIA,Light-Duty Trucks,NAICS_2017_Code,F01000,,F01000,"UMD_GHGIA_T_3_8, UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10"
 UMD_GHGIA,Light-Duty Trucks,NAICS_2017_Code,492,,492000,"UMD_GHGIA_T_3_8, UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10"
 UMD_GHGIA,Medium- and Heavy-Duty Trucks,NAICS_2017_Code,484,,484000,"UMD_GHGIA_T_3_8, EPA_GHGI_T_A_97"
-UMD_GHGIA,Medium- and Heavy-Duty Trucks Diesel Fuel,NAICS_2017_Code,484,,484000,UMD_GHGIA_T_3_8
-UMD_GHGIA,Medium- and Heavy-Duty Trucks Diesel Fuel,NAICS_2017_Code,491,,491000,UMD_GHGIA_T_3_8
-UMD_GHGIA,Medium- and Heavy-Duty Trucks Diesel Fuel,NAICS_2017_Code,GSLGO,,GSLGO,UMD_GHGIA_T_3_8
-UMD_GHGIA,Medium- and Heavy-Duty Trucks Diesel Fuel,NAICS_2017_Code,GSLGE,,GSLGE,UMD_GHGIA_T_3_8
-UMD_GHGIA,Medium- and Heavy-Duty Trucks Diesel Fuel,NAICS_2017_Code,GSLGH,,GSLGH,UMD_GHGIA_T_3_8
-UMD_GHGIA,Medium- and Heavy-Duty Trucks Diesel Fuel,NAICS_2017_Code,S00102,,,UMD_GHGIA_T_3_8
-UMD_GHGIA,Medium- and Heavy-Duty Trucks Diesel Fuel,NAICS_2017_Code,S00203,,,UMD_GHGIA_T_3_8
+UMD_GHGIA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,484,,484000,UMD_GHGIA_T_3_8
+UMD_GHGIA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,491,,491000,UMD_GHGIA_T_3_8
+UMD_GHGIA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGO,,GSLGO,UMD_GHGIA_T_3_8
+UMD_GHGIA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGE,,GSLGE,UMD_GHGIA_T_3_8
+UMD_GHGIA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGH,,GSLGH,UMD_GHGIA_T_3_8
+UMD_GHGIA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00102,,,UMD_GHGIA_T_3_8
+UMD_GHGIA,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00203,,,UMD_GHGIA_T_3_8
 UMD_GHGIA,Motorcycles,NAICS_2017_Code,F01000,,F01000,"UMD_GHGIA_T_3_8, UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10"
 UMD_GHGIA,Passenger Cars - Households,NAICS_2017_Code,F01000,,F01000,"UMD_GHGIA_T_3_8, EPA_GHGI_T_A_97"
 UMD_GHGIA,Passenger Cars,NAICS_2017_Code,F01000,,F01000,"UMD_GHGIA_T_3_8, UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10"
@@ -426,4 +428,5 @@ UMD_GHGIA,Pipeline Natural Gas,NAICS_2017_Code,486,,,UMD_GHGIA_T_3_8
 UMD_GHGIA,Rail,NAICS_2017_Code,482,,482000,"UMD_GHGIA_T_3_8, UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10, EPA_GHGI_T_A_97"
 UMD_GHGIA,Recreational Boats,NAICS_2017_Code,F01000,,F01000,UMD_GHGIA_T_3_8
 UMD_GHGIA,Ships and Boats,NAICS_2017_Code,483,,483000,"UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10, EPA_GHGI_T_A_97"
+UMD_GHGIA,Ships & Boats,NAICS_2017_Code,483,,483000,"UMD_GHGIA_T_3_9, UMD_GHGIA_T_3_10, EPA_GHGI_T_A_97"
 UMD_GHGIA,Ships and Non-Recreational Boats,NAICS_2017_Code,483,,483000,UMD_GHGIA_T_3_8

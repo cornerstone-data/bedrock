@@ -336,7 +336,7 @@ source_names:
       direct_residual_fuel_oil:
         selection_fields:
           PrimaryActivity:
-            Ships and Non-Recreational Boats Residual Fuel Oil: Ships and Non-Recreational Boats
+            Ships & Boats Residual Fuel Oil: Ships and Boats
         attribution_method: direct
 
       direct_lpg:
@@ -385,8 +385,8 @@ source_names:
       petroleum_fuels_diesel:
         selection_fields:
           PrimaryActivity:
-            Medium- and Heavy-Duty Trucks Diesel Fuel: Medium- and Heavy-Duty Trucks Diesel Fuel
-            Buses Diesel Fuel: Buses Diesel Fuel
+            Medium- and Heavy-Duty Trucks Diesel Fuel: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+            Buses Diesel Fuel: Buses - Distillate Fuel Oil
             Passenger Cars Diesel Fuel: Passenger Cars
             Light-Duty Trucks Diesel Fuel: Light-Duty Trucks
         attribution_method: proportional
