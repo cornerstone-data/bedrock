@@ -26,10 +26,10 @@ Internal helpers live in sibling modules:
 from __future__ import annotations
 
 import functools
+from typing import cast
 
 import numpy as np
 import pandas as pd
-import pandera.pandas as pa
 import pandera.typing as pt
 
 from bedrock.extract.iot.io_2017 import (
@@ -69,6 +69,9 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
 )
+from bedrock.transform.eeio.electricity_disaggregation import (
+    split_electricity_e_for_disaggregated_b,
+)
 from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output,
 )
@@ -99,13 +102,11 @@ from bedrock.utils.math.split_using_aggregated_weights import (
     split_vector_using_agg_ratio,
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
-    CornerstoneAMatrix,
-    CornerstoneBMatrix,
-    CornerstoneQVectorSchema,
-    CornerstoneUMatrix,
-    CornerstoneVMatrix,
-    CornerstoneXVectorSchema,
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+    validate_cornerstone,
 )
+from bedrock.utils.schemas.single_region_schemas import AMatrix, UMatrix
 from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,
     SingleRegionUMatrixSet,
@@ -123,6 +124,24 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
 )
+
+
+def _cornerstone_aq_matrix_set(
+    Adom: pd.DataFrame,
+    Aimp: pd.DataFrame,
+    scaled_q: pd.Series[float],
+) -> SingleRegionAqMatrixSet:
+    validate_cornerstone(Adom, "A")
+    validate_cornerstone(Aimp, "A")
+    validate_cornerstone(scaled_q, "Q")
+    # Cornerstone A uses 405/407-sector taxonomy; cast only for mypy — do not
+    # use pt.DataFrame[AMatrix](...) which runs CEDA v7 Pandera validation.
+    return SingleRegionAqMatrixSet(
+        Adom=cast(pt.DataFrame[AMatrix], Adom),
+        Aimp=cast(pt.DataFrame[AMatrix], Aimp),
+        scaled_q=scaled_q,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Baseline IO (correspondence only — no waste, no electricity)
@@ -180,7 +199,6 @@ def _ytot_for_public_routers() -> pd.DataFrame:
 
 
 @functools.cache
-@pa.check_output(CornerstoneVMatrix.to_schema())
 def derive_cornerstone_V(
     apply_inflation: bool = False, target_year: int = 0
 ) -> pd.DataFrame:
@@ -192,13 +210,15 @@ def derive_cornerstone_V(
 
     if apply_inflation:
         V = inflate_cornerstone_V_with_industry_pi(V, target_year=target_year)
+    validate_cornerstone(V, "V")
     return V
 
 
 @functools.cache
-@pa.check_output(CornerstoneXVectorSchema)
 def derive_cornerstone_x() -> pd.Series[float]:
-    return compute_x(V=derive_cornerstone_V())
+    x = compute_x(V=derive_cornerstone_V())
+    validate_cornerstone(x, "X")
+    return x
 
 
 def _distribute_waste_parent_x_using_v_row_shares(
@@ -217,7 +237,6 @@ def _distribute_waste_parent_x_using_v_row_shares(
 
 
 @functools.cache
-@pa.check_output(CornerstoneXVectorSchema)
 def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
     """Gross industry output in Cornerstone schema, after BEA redefinitions.
 
@@ -242,22 +261,24 @@ def derive_cornerstone_x_after_redefinition() -> pd.Series[float]:
     )
     x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
     x_cs.index.name = "sector"
-    return _distribute_waste_parent_x_using_v_row_shares(x_cs)
+    x_out = _distribute_waste_parent_x_using_v_row_shares(x_cs)
+    validate_cornerstone(x_out, "X")
+    return x_out
 
 
 @functools.cache
-@pa.check_output(CornerstoneQVectorSchema)
 def derive_cornerstone_q() -> pd.Series[float]:
     cfg = get_usa_config()
-    return compute_q(
+    q = compute_q(
         V=derive_cornerstone_V(
             apply_inflation=cfg.apply_inflation_to_V, target_year=cfg.model_base_year
         )
     )
+    validate_cornerstone(q, "Q")
+    return q
 
 
 @functools.cache
-@pa.check_output(CornerstoneVMatrix.to_schema())
 def derive_cornerstone_Vnorm_scrap_corrected(
     apply_inflation: bool | None = None,
     target_year: int = 0,
@@ -285,8 +306,23 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
     scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
     scrap_fraction = industry_corresp() @ scrap_2017
+    if cfg.implement_electricity_disaggregation:
+        parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
+        scrap_fraction = scrap_fraction.drop(
+            ELECTRICITY_AGGREGATE_SECTOR, errors='ignore'
+        )
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            scrap_fraction.loc[code] = parent_scrap
+    scrap_fraction = scrap_fraction.reindex(V.index, fill_value=0.0)
+    x_aligned = x.reindex(V.index, fill_value=0.0)
 
-    V_scrap_corrected = Vnorm.divide((1.0 - (scrap_fraction / x).fillna(0.0)), axis=0)
+    V_scrap_corrected = Vnorm.divide(
+        (1.0 - (scrap_fraction / x_aligned).fillna(0.0)), axis=0
+    )
+    V_scrap_corrected = V_scrap_corrected.reindex(
+        index=V.index, columns=V.columns, fill_value=0.0
+    )
+    validate_cornerstone(V_scrap_corrected, "V")
     return V_scrap_corrected
 
 
@@ -302,9 +338,11 @@ def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
         Udom_cs, Uimp_cs = bundle.Udom.copy(), bundle.Uimp.copy()
     else:
         Udom_cs, Uimp_cs = _derive_cornerstone_U_baseline()
+    validate_cornerstone(Udom_cs, "U")
+    validate_cornerstone(Uimp_cs, "U")
     return SingleRegionUMatrixSet(
-        Udom=pt.DataFrame[CornerstoneUMatrix](Udom_cs),  # type: ignore[arg-type]
-        Uimp=pt.DataFrame[CornerstoneUMatrix](Uimp_cs),  # type: ignore[arg-type]
+        Udom=cast(pt.DataFrame[UMatrix], Udom_cs),
+        Uimp=cast(pt.DataFrame[UMatrix], Uimp_cs),
     )
 
 
@@ -315,9 +353,11 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
     Uimp = handle_negative_matrix_values(uset.Uimp)
     assert not (Udom < 0).any().any(), 'Udom has negative values.'
     assert not (Uimp < 0).any().any(), 'Uimp has negative values.'
+    validate_cornerstone(Udom, "U")
+    validate_cornerstone(Uimp, "U")
     return SingleRegionUMatrixSet(
-        Udom=pt.DataFrame[CornerstoneUMatrix](Udom),  # type: ignore[arg-type]
-        Uimp=pt.DataFrame[CornerstoneUMatrix](Uimp),  # type: ignore[arg-type]
+        Udom=cast(pt.DataFrame[UMatrix], Udom),
+        Uimp=cast(pt.DataFrame[UMatrix], Uimp),
     )
 
 
@@ -411,16 +451,13 @@ def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
         Aimp_bea, CS_COMMODITY_LIST, com_map, zero_intragroup_cross_terms=True
     )
     q = expand_vector(q_bea, CS_COMMODITY_LIST, com_map)
+    q.index.name = 'sector'
 
     assert (Adom >= 0).all().all(), 'Adom has negative values.'
     assert (Aimp >= 0).all().all(), 'Aimp has negative values.'
     assert (q >= 0).all(), 'q has negative values.'
 
-    return SingleRegionAqMatrixSet(
-        Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-        Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-        scaled_q=q,
-    )
+    return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
 
 def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
@@ -446,11 +483,7 @@ def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
     Aimp.index.name = 'sector'
     Aimp.columns.name = 'sector'
 
-    return SingleRegionAqMatrixSet(
-        Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-        Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-        scaled_q=q,
-    )
+    return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
 
 # ---------------------------------------------------------------------------
@@ -519,11 +552,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             q = inflate_cornerstone_q_or_y_with_commodity_pi(
                 q, original_year=detail_year, target_year=model_year
             )
-        return SingleRegionAqMatrixSet(
-            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-            scaled_q=q,
-        )
+        return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
     # Commodity price index (V-norm-derived): like the industry-price branch,
     # but uses V_norm to weight industry price ratios into commodity space
@@ -538,11 +567,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             base.scaled_q, original_year=detail_year, target_year=model_year
         )
-        return SingleRegionAqMatrixSet(
-            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-            scaled_q=q,
-        )
+        return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
     # CEDA method: our fallback option as of CY26Q2.
     # Scale to 2022 (io_year), then inflate to model_base_year.
@@ -587,11 +612,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             q = inflate_cornerstone_q_or_y_with_commodity_pi(
                 q, original_year=detail_year, target_year=model_year
             )
-        return SingleRegionAqMatrixSet(
-            Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-            Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-            scaled_q=q,
-        )
+        return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
     Adom = inflate_cornerstone_A_matrix_with_industry_pi(
         scale_cornerstone_A(
@@ -621,11 +642,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         target_year=model_year,
     )
 
-    return SingleRegionAqMatrixSet(
-        Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
-        Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
-        scaled_q=q,
-    )
+    return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
 
 # ---------------------------------------------------------------------------
@@ -633,7 +650,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 # ---------------------------------------------------------------------------
 
 
-@pa.check_output(CornerstoneBMatrix.to_schema())
 def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
@@ -651,8 +667,10 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
       ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
-    E = derive_E_usa()
     cfg = get_usa_config()
+    E = derive_E_usa()
+    if cfg.implement_electricity_disaggregation:
+        E = split_electricity_e_for_disaggregated_b(E)
     if cfg.deflate_x_to_detail_io_year_for_B:
         # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:
         #   1) nominal industry output at usa_ghg_data_year
@@ -676,11 +694,12 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
         )
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
     Bi = E.divide(x, axis=1).fillna(0.0)
-    return Bi @ Vnorm
+    B = Bi @ Vnorm
+    validate_cornerstone(B, "B")
+    return B
 
 
 @functools.cache
-@pa.check_output(CornerstoneBMatrix.to_schema())
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
     cfg = get_usa_config()

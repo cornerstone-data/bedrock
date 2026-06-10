@@ -24,6 +24,10 @@ from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
+from bedrock.utils.schemas.cornerstone_schemas import (
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
 from bedrock.utils.snapshots.loader import load_configured_snapshot
 from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
@@ -34,9 +38,10 @@ logger = logging.getLogger(__name__)
 # Sector alignment constants for CEDA v7 (old) ↔ cornerstone (new)
 #
 # Sources of truth:
-#   Waste:     taxonomy/cornerstone/commodities.py  → WASTE_DISAGG_COMMODITIES
-#   Appliance: taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (335220 → 4 codes)
-#   Aluminum:  taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (33131B → 331313)
+#   Waste:       taxonomy/cornerstone/commodities.py  → WASTE_DISAGG_COMMODITIES
+#   Appliance:   taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (335220 → 4 codes)
+#   Aluminum:    taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (33131B → 331313)
+#   Electricity: schemas/cornerstone_schemas.py  (221100 → 221110/221121/221122)
 # ---------------------------------------------------------------------------
 # Appliances: old has 4 codes (see bea_v2017_commodity__bea_ceda_v7); new aggregates to 335220
 _APPLIANCE_OLD_CODES: ta.List[str] = ['335221', '335222', '335224', '335228']
@@ -44,6 +49,13 @@ _APPLIANCE_NEW_CODE = '335220'
 # Aluminum: old has 331313 only; new may split into 331313 + 33131B
 _ALUMINUM_OLD_CODE = '331313'
 _ALUMINUM_NEW_EXTRA_CODE = '33131B'
+# Diagnostics-only sector names for electricity disaggregation children (not in COMMODITY_DESC).
+# 221110: Cornerstone synthetic label — no NAICS 221110 in Sector_2017_Names.csv.
+_ELECTRICITY_DISAGG_SECTOR_DESC: ta.Dict[str, str] = {
+    '221110': 'Electric power generation',
+    '221121': 'Electric Bulk Power Transmission and Control',
+    '221122': 'Electric Power Distribution',
+}
 
 
 class OldEfSet(BaseModel):
@@ -158,6 +170,8 @@ def get_aligned_sector_desc() -> ta.Dict[str, str]:
     for code, name in COMMODITY_DESC.items():
         if code not in desc:
             desc[code] = name
+    if get_usa_config().implement_electricity_disaggregation:
+        desc.update(_ELECTRICITY_DISAGG_SECTOR_DESC)
     return desc
 
 
@@ -177,6 +191,8 @@ def compute_active_mapped_sectors(
       - ``old-only (appliance detail)``  – old detail codes that were aggregated
       - ``new-only (appliance aggregate)`` – new aggregate of the above
       - ``old-only (aluminum)`` / ``new-only (aluminum)`` – aluminum split
+      - ``old-only (electricity aggregate)`` – old aggregate that was disaggregated
+      - ``new-only (electricity subsector)`` – new subsectors of the above
     """
     waste_old, waste_new = _waste_disagg()
     old_idx = set(old_ef.index)
@@ -201,6 +217,19 @@ def compute_active_mapped_sectors(
     if _ALUMINUM_NEW_EXTRA_CODE in new_idx and _ALUMINUM_NEW_EXTRA_CODE not in old_idx:
         active[_ALUMINUM_NEW_EXTRA_CODE] = 'new-only (aluminum)'
 
+    # Electricity: old has aggregate 221100, new has subsectors
+    if get_usa_config().implement_electricity_disaggregation:
+        if (
+            ELECTRICITY_AGGREGATE_SECTOR in old_idx
+            and ELECTRICITY_AGGREGATE_SECTOR not in new_idx
+        ):
+            if all(c in new_idx for c in ELECTRICITY_DISAGG_SECTORS):
+                active[ELECTRICITY_AGGREGATE_SECTOR] = (
+                    'old-only (electricity aggregate)'
+                )
+                for c in ELECTRICITY_DISAGG_SECTORS:
+                    active[c] = 'new-only (electricity subsector)'
+
     return active
 
 
@@ -212,7 +241,7 @@ def _compute_full_union_index(
     return sorted(set(old_ef.index) | set(new_ef.index))
 
 
-# A fill-map entry: target_code → source (single code or list to sum).
+# A fill-map entry: target_code → source (single code or list to mean).
 FillMap = ta.Dict[str, ta.Union[str, ta.List[str]]]
 
 
@@ -226,12 +255,14 @@ def _build_fill_maps(
 
     Old-side fills (codes missing from old EF):
       - Waste subsectors (562111 …) ← old aggregate 562000
-      - Appliance aggregate (335220) ← sum of old detail codes
+      - Appliance aggregate (335220) ← mean of old detail codes
       - Aluminum new code (33131B) ← old 331313
+      - Electricity subsectors (221110 …) ← old aggregate 221100
 
     New-side fills (codes missing from new EF):
-      - Waste aggregate (562000) ← sum of new subsectors
+      - Waste aggregate (562000) ← mean of new subsectors
       - Appliance detail codes (335221 …) ← new aggregate 335220
+      - Electricity aggregate (221100) ← mean of new subsectors
     """
     waste_old, waste_new = _waste_disagg()
     old_fill: FillMap = {}
@@ -252,6 +283,12 @@ def _build_fill_maps(
     # Aluminum: disaggregated in new schema
     if _ALUMINUM_NEW_EXTRA_CODE in active_mappings:
         old_fill[_ALUMINUM_NEW_EXTRA_CODE] = _ALUMINUM_OLD_CODE
+
+    # Electricity: disaggregated in new schema (same guard pattern as waste)
+    if ELECTRICITY_AGGREGATE_SECTOR in active_mappings:
+        for c in ELECTRICITY_DISAGG_SECTORS:
+            old_fill[c] = ELECTRICITY_AGGREGATE_SECTOR
+        new_fill[ELECTRICITY_AGGREGATE_SECTOR] = ELECTRICITY_DISAGG_SECTORS
 
     return old_fill, new_fill
 
