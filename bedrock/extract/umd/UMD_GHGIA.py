@@ -418,6 +418,7 @@ def strip_char(text: str) -> str:
         'Non-Roadc': 'Non-Road',
         'Non-Roada': 'Non-Road',  # UMD 3-9
         'HFCsa': 'HFCs',
+        'HFC-134a': 'HFC-134',
         'HFOsb': 'HFOs',
         'CO_{2}': 'CO2',
         'CH?^{c}': 'CH4',
@@ -427,6 +428,7 @@ def strip_char(text: str) -> str:
         'SF?': 'SF6',
         'NF?': 'NF3',
         'CH_{4}': 'CH4',
+        'FK 5-1-12a': 'FK 5-1-12',
         'Total e,j': 'Total',
         'Naphtha (<401Â° F)': 'Naphtha (<401° F)',
         'Other Oil (>401Â° F)': 'Other Oil (>401° F)',
