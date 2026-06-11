@@ -42,7 +42,7 @@ Tables:
       desc: "Table 2-S1: Supplemental Data for Trends in Greenhouse Gas Emissions and Sinks by Gas (MMT CO2 Eq.)"
       data_reliability: 4
   "Chapter 3 - Energy":
-    "3-4":  # TODO: determine if needed after full data release - contains only partial data
+    "3-4":
       unit: MMT CO2e
       flow: CO2
       desc: "Table 3-4: CO2 Emissions from Fossil Fuel Combustion by Fuel Type and Sector (MMT CO2 Eq.)"
