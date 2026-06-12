@@ -106,6 +106,26 @@ def get_cornerstone_industry_price_ratio(
     return ratio
 
 
+@functools.cache
+def get_rho_inflation_ratio(original_year: int, target_year: int) -> pd.Series[float]:
+    """Sector-specific USD inflation factor from *original_year* to *target_year*.
+
+    Matches useeior ``Rho[target] / Rho[original]`` when ``Rho[y]`` is the
+    per-sector ``IO_year / y`` ratio from the model commodity CPI table
+    (``calculateProducerbyPurchaserPriceRatio`` PRO scaling). Implemented as
+    ``PI[original] / PI[target]`` on the same 1:1 sector index as
+    ``get_cornerstone_industry_price_ratio``.
+
+    Independent of margins, Phi, and ``N``; sourced only from the configured
+    industry price-index panel.
+    """
+    if original_year == target_year:
+        return get_cornerstone_industry_price_ratio(original_year, target_year)
+    forward = get_cornerstone_industry_price_ratio(original_year, target_year)
+    ratio = 1.0 / forward
+    return ratio.where(np.isfinite(ratio), 1.0).fillna(1.0)
+
+
 def inflate_cornerstone_A_matrix_with_industry_pi(
     A: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
