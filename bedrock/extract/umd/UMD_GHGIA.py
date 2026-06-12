@@ -418,7 +418,6 @@ def strip_char(text: str) -> str:
         'Non-Roadc': 'Non-Road',
         'Non-Roada': 'Non-Road',  # UMD 3-9
         'HFCsa': 'HFCs',
-        'HFC-134a': 'HFC-134',
         'HFOsb': 'HFOs',
         'CO_{2}': 'CO2',
         'CH?^{c}': 'CH4',
