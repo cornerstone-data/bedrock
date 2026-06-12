@@ -5,8 +5,20 @@ from bedrock.transform.eeio.derived_cornerstone import (
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_cornerstone_industry_price_ratio,
+    get_rho_inflation_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
+
+
+def test_rho_inflation_ratio_is_inverse_of_industry_price_ratio() -> None:
+    """useeior PRO margin scaling uses PI[orig]/PI[targ], not PI[targ]/PI[orig]."""
+    original_year, target_year = 2017, 2024
+    industry = get_cornerstone_industry_price_ratio(original_year, target_year)
+    rho = get_rho_inflation_ratio(original_year, target_year)
+    product = (industry * rho).replace([float("inf"), float("-inf")], float("nan"))
+    max_dev = (product - 1.0).abs().max()
+    assert max_dev < 1e-9, f"expected industry * rho == 1, max deviation {max_dev:.2e}"
 
 
 def test_vnorm_commodity_price_ratio_is_identity_at_year_to_self() -> None:

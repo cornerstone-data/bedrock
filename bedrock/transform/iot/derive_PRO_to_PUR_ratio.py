@@ -13,6 +13,7 @@ unless otherwise specified
 from __future__ import annotations
 
 import dataclasses
+import functools
 
 import numpy as np
 import pandas as pd
@@ -20,7 +21,11 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
+from bedrock.utils.economic.inflation_helpers_ceda import (
+    obtain_inflation_factors_from_reference_data,
+)
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_rho_inflation_ratio,
     get_sector_commodity_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
@@ -249,14 +254,68 @@ def derive_phi_ceda_usa() -> pd.Series[float]:
     return phi
 
 
-def derive_margins_cornerstone_usa() -> pd.DataFrame:
+def _inflate_margin_trade_components(
+    df: pd.DataFrame, *, original_year: int, target_year: int
+) -> pd.DataFrame:
+    """Scale transportation, wholesale, and retail margin columns to *target_year*."""
+    sector_pi = get_sector_commodity_price_ratio(original_year, target_year)
+    out = df.copy()
+    out['Transportation'] *= sector_pi['48TW']
+    out['Wholesale'] *= sector_pi['42']
+    out['Retail'] *= sector_pi['44RT']
+    return out
+
+
+def _inflate_margins_bedrock_style(
+    df: pd.DataFrame, *, original_year: int, target_year: int
+) -> pd.DataFrame:
+    """Inflate producer margin with V-norm commodity PI (Cornerstone convention)."""
+    out = df.copy()
+    commodity_pi = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    out["Producers' Value"] *= commodity_pi.reindex(out.index, fill_value=1.0)
+    return _inflate_margin_trade_components(
+        out, original_year=original_year, target_year=target_year
+    )
+
+
+def _inflate_margins_useeior_style(
+    df: pd.DataFrame, *, original_year: int, target_year: int
+) -> pd.DataFrame:
+    """Inflate producer margin with per-sector Rho (useeior convention)."""
+    out = df.copy()
+    rho = get_rho_inflation_ratio(original_year, target_year)
+    out["Producers' Value"] *= rho.reindex(out.index, fill_value=1.0)
+    return _inflate_margin_trade_components(
+        out, original_year=original_year, target_year=target_year
+    )
+
+
+def _inflate_margins_to_year(df: pd.DataFrame, *, target_year: int) -> pd.DataFrame:
+    """Inflate margin components from ``usa_base_io_data_year`` to *target_year*."""
+    cfg = get_usa_config()
+    if not (cfg.useeio_margins or cfg.cornerstone_industry_avg_margins):
+        return df
+    original_year = cfg.usa_base_io_data_year
+    if original_year == target_year:
+        return df
+    if cfg.useeio_margins:
+        return _inflate_margins_useeior_style(
+            df, original_year=original_year, target_year=target_year
+        )
+    return _inflate_margins_bedrock_style(
+        df, original_year=original_year, target_year=target_year
+    )
+
+
+@functools.cache
+def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
     """
     Margins aggregated to Cornerstone commodity taxonomy, summed over all industries.
-    Routes before/after BEA redefinitions via ``USAConfig.iot_before_or_after_redefinition``.
-    Applies the active pipeline's ``MarginsFilters`` before aggregation.
 
-    When both ``useeio_margins`` and ``cornerstone_industry_avg_margins`` are set,
-    inflates from ``usa_base_io_data_year`` to ``model_base_year``.
+    Margin components inflate from ``usa_base_io_data_year`` to *target_year* when
+    a margins methodology flag is active. PRO inflation follows the useeior ``Rho``
+    path when ``useeio_margins`` is set; otherwise the V-norm commodity PI path
+    (``cornerstone_industry_avg_margins``).
 
     Returns a DataFrame indexed by Cornerstone ``COMMODITIES`` with columns:
     ``Producers' Value``, ``Transportation``, ``Wholesale``, ``Retail``,
@@ -269,42 +328,58 @@ def derive_margins_cornerstone_usa() -> pd.DataFrame:
         abs_negative_producers_value=cfg.useeio_margins,
         abs_negative_margin_columns=cfg.cornerstone_industry_avg_margins,
     )
-
-    if cfg.useeio_margins or cfg.cornerstone_industry_avg_margins:
-        original_year = cfg.usa_base_io_data_year
-        target_year = cfg.model_base_year
-        if original_year != target_year:
-            commodity_pi = get_vnorm_adjusted_commodity_price_ratio(
-                original_year, target_year
-            )
-            df["Producers' Value"] *= commodity_pi.reindex(df.index, fill_value=1.0)
-
-            sector_pi = get_sector_commodity_price_ratio(original_year, target_year)
-            df['Transportation'] *= sector_pi['48TW']
-            df['Wholesale'] *= sector_pi['42']
-            df['Retail'] *= sector_pi['44RT']
-
+    df = _inflate_margins_to_year(df, target_year=target_year)
     df["Purchasers' Value"] = (
         df["Producers' Value"] + df['Transportation'] + df['Wholesale'] + df['Retail']
     )
-
     return df
 
 
-def derive_phi_cornerstone_usa() -> pd.Series:
-    """
-    Phi (Producer-to-purchaser price ratio) per Cornerstone commodity for
-    model_base_year.
+def derive_margins_cornerstone_usa() -> pd.DataFrame:
+    """Margins at ``model_base_year`` (alias for :func:`derive_margins_cornerstone_usa_at_year`)."""
+    return derive_margins_cornerstone_usa_at_year(get_usa_config().model_base_year)
 
-    Computed as ``Producers' Value / Purchasers' Value`` from the margins table.
-    Rows where the purchaser price is zero (``inf`` / ``nan``) are set to ``1.0``
-    (no margin adjustment). Routes before/after BEA redefinitions via
-    ``USAConfig.iot_before_or_after_redefinition``.
-    """
-    margins = derive_margins_cornerstone_usa()
+
+def _phi_from_margins(margins: pd.DataFrame) -> pd.Series[float]:
     return (margins["Producers' Value"] / margins["Purchasers' Value"]).replace(
         [np.inf, -np.inf, np.nan], 1.0
     )
+
+
+@functools.cache
+def derive_phi_cornerstone_usa_at_year(target_year: int) -> pd.Series[float]:
+    """
+    Phi (PRO:PUR) per Cornerstone commodity for *target_year* USD margins.
+
+    Rows where purchaser price is zero (``inf`` / ``nan``) are set to ``1.0``.
+    """
+    return _phi_from_margins(derive_margins_cornerstone_usa_at_year(target_year))
+
+
+def derive_phi_cornerstone_usa() -> pd.Series[float]:
+    """Phi at ``model_base_year``."""
+    return derive_phi_cornerstone_usa_at_year(get_usa_config().model_base_year)
+
+
+def default_phi_panel_years() -> tuple[int, ...]:
+    """Years with price-index coverage for Phi panel export (from IO base year onward)."""
+    cfg = get_usa_config()
+    base = cfg.usa_base_io_data_year
+    years = sorted(
+        int(y) for y in obtain_inflation_factors_from_reference_data().columns
+    )
+    return tuple(y for y in years if y >= base)
+
+
+@functools.cache
+def derive_phi_cornerstone_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
+    """Sector × year Phi panel; column labels are year strings."""
+    if not years:
+        raise ValueError('years must be non-empty')
+    series_by_year = {
+        str(year): derive_phi_cornerstone_usa_at_year(year) for year in years
+    }
+    return pd.DataFrame(series_by_year)
 
 
 def margins_phi_active(cfg: USAConfig | None = None) -> bool:
@@ -313,13 +388,24 @@ def margins_phi_active(cfg: USAConfig | None = None) -> bool:
     return bool(c.useeio_margins or c.cornerstone_industry_avg_margins)
 
 
-def phi_for_sectors(sector_index: pd.Index) -> pd.Series[float]:
-    """Phi aligned to *sector_index*; identity when margins methodology is inactive."""
+def phi_for_sectors(
+    sector_index: pd.Index,
+    *,
+    year: int | None = None,
+) -> pd.Series[float]:
+    """Phi aligned to *sector_index* at *year* USD; identity when margins inactive."""
     if not margins_phi_active():
         return pd.Series(1.0, index=sector_index, dtype=float)
-    return derive_phi_cornerstone_usa().reindex(sector_index, fill_value=1.0)
+    phi_year = year if year is not None else get_usa_config().model_base_year
+    return derive_phi_cornerstone_usa_at_year(phi_year).reindex(
+        sector_index, fill_value=1.0
+    )
 
 
-def apply_phi_to_ef_vector(ef: pd.Series[float]) -> pd.Series[float]:
-    """Convert producer-price EFs to purchaser price via sector Phi."""
-    return ef * phi_for_sectors(ef.index)
+def apply_phi_to_ef_vector(
+    ef: pd.Series[float],
+    *,
+    year: int | None = None,
+) -> pd.Series[float]:
+    """Convert producer-price EFs to purchaser price via sector Phi at *year*."""
+    return ef * phi_for_sectors(ef.index, year=year)
