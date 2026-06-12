@@ -63,8 +63,8 @@ def _ratio_from_margins(margins: pd.DataFrame) -> pd.Series:
 
 def _comparison_years() -> tuple[int, ...]:
     with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
-        base_year = get_usa_config().usa_base_io_data_year
-    years = [base_year]
+        base_year = int(get_usa_config().usa_base_io_data_year)
+    years: list[int] = [base_year]
     if _PANEL_YEAR not in years:
         years.append(_PANEL_YEAR)
     return tuple(years)
@@ -72,7 +72,9 @@ def _comparison_years() -> tuple[int, ...]:
 
 def _ceda_ratios_on_cornerstone() -> pd.Series:
     _ceda_corresp = load_ceda_v7_commodity__cornerstone_commodity_correspondence()
-    _ceda_corresp_norm = _ceda_corresp.div(_ceda_corresp.sum(axis=1), axis=0).fillna(0.0)
+    _ceda_corresp_norm = _ceda_corresp.div(_ceda_corresp.sum(axis=1), axis=0).fillna(
+        0.0
+    )
     with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
         ratio_ceda_by_sector = derive_phi_ceda_usa()
     return _ceda_corresp_norm @ ratio_ceda_by_sector
@@ -81,9 +83,7 @@ def _ceda_ratios_on_cornerstone() -> pd.Series:
 def _ratios_by_scenario(year: int, *, ratio_ceda: pd.Series) -> dict[str, pd.Series]:
     print(f'Computing margin ratios for {year}...')
     with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
-        ratio_useeio = _ratio_from_margins(
-            derive_margins_cornerstone_usa_at_year(year)
-        )
+        ratio_useeio = _ratio_from_margins(derive_margins_cornerstone_usa_at_year(year))
     with temp_usa_config(
         '2025_usa_cornerstone_full_model', cache_bearing_modules=_CACHE_MODULES
     ):
@@ -97,9 +97,7 @@ def _ratios_by_scenario(year: int, *, ratio_ceda: pd.Series) -> dict[str, pd.Ser
     }
 
 
-def _plot_year(
-    long_df: pd.DataFrame, active_sectors: list[str], year: int
-) -> str:
+def _plot_year(long_df: pd.DataFrame, active_sectors: list[str], year: int) -> str:
     plot_df = long_df[long_df['year'] == year]
     n_scenarios = len(_CORNERSTONE_SCENARIOS)
     n_sectors = len(active_sectors)
@@ -115,9 +113,14 @@ def _plot_year(
                 'ratio',
             ].dropna()
             if len(data) < 2:
+                y_vals = (
+                    data.to_numpy(dtype=float)
+                    if len(data)
+                    else np.array([1.0], dtype=float)
+                )
                 ax.scatter(
                     [g_idx + (s_idx - (n_scenarios - 1) / 2) * violin_width],
-                    data.values if len(data) else [1.0],
+                    y_vals,
                     color=_COLORS[scenario],
                     s=20,
                     zorder=3,
@@ -167,7 +170,9 @@ def main() -> None:
     ratio_ceda = _ceda_ratios_on_cornerstone()
     ratio_columns: dict[str, pd.Series] = {}
     for year in years:
-        for scenario, series in _ratios_by_scenario(year, ratio_ceda=ratio_ceda).items():
+        for scenario, series in _ratios_by_scenario(
+            year, ratio_ceda=ratio_ceda
+        ).items():
             ratio_columns[f'{scenario}_{year}'] = series
 
     ratio_df = pd.DataFrame(ratio_columns)
@@ -199,7 +204,9 @@ def main() -> None:
         lambda s: (s - 1.0).abs().max() > 1e-6
     )
     active_sectors = non_unity[non_unity].index.tolist()
-    print(f'\n{len(active_sectors)} of {len(sector_map)} sectors have non-unity ratios.')
+    print(
+        f'\n{len(active_sectors)} of {len(sector_map)} sectors have non-unity ratios.'
+    )
 
     for year in years:
         plot_path = _plot_year(long_df, active_sectors, year)

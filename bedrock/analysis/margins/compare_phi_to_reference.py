@@ -164,8 +164,8 @@ def _scatter_comparison(
 
 def _useeio_comparison_years() -> tuple[int, ...]:
     with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
-        base_year = get_usa_config().usa_base_io_data_year
-    years = [base_year]
+        base_year = int(get_usa_config().usa_base_io_data_year)
+    years: list[int] = [base_year]
     if _USEEIO_PANEL_YEAR not in years:
         years.append(_USEEIO_PANEL_YEAR)
     return tuple(years)

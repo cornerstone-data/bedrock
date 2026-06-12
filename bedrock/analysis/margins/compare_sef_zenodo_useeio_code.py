@@ -26,6 +26,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import bedrock.utils.config.common as common
+from bedrock.publish.cache_reset import clear_all_publish_caches
+from bedrock.publish.emission_factors.writer import write_emission_factors
+from bedrock.utils.config.settings import GIT_HASH_LONG
+from bedrock.utils.config.usa_config import set_global_usa_config
+
 logger = logging.getLogger(__name__)
 
 _PKG_DIR = Path(__file__).resolve().parent
@@ -100,11 +106,7 @@ def load_zenodo_without_margins_by_reference_code(xlsx_path: Path) -> pd.Series:
         )
     df = df.loc[~multi_code_rows]
 
-    out = (
-        df.groupby(_REF_CODE_COL, sort=True)[_ZENODO_WITHOUT_COL]
-        .mean()
-        .astype(float)
-    )
+    out = df.groupby(_REF_CODE_COL, sort=True)[_ZENODO_WITHOUT_COL].mean().astype(float)
     out.index.name = 'useeio_code'
     return out
 
@@ -137,12 +139,6 @@ def compare_series(
 
 
 def _publish_sef(config_name: str, dollar_year: int) -> Path:
-    import bedrock.utils.config.common as common
-    from bedrock.publish.cache_reset import clear_all_publish_caches
-    from bedrock.publish.emission_factors.writer import write_emission_factors
-    from bedrock.utils.config.settings import GIT_HASH_LONG
-    from bedrock.utils.config.usa_config import set_global_usa_config
-
     if not GIT_HASH_LONG:
         raise RuntimeError('GIT_HASH_LONG is not set')
     out_dir = (
