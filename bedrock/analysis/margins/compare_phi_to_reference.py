@@ -1,15 +1,18 @@
 """Compare model-computed Phi (PRO:PUR ratio) against external reference data.
 
-USEEIO: bedrock Phi at BEA detail commodity level vs the Phi sheet in the pinned
-        USEEIO Excel workbook, column = model_base_year.
-CEDA:   bedrock Phi at CEDA v7 sector level vs the 'Purchaser - producer
-        conversion' sheet in the CEDA 2025 Excel workbook (header row 5,
-        data row 6).
+USEEIO: ``derive_phi_cornerstone_usa_at_year`` vs the Phi sheet in the pinned
+        USEEIO Excel workbook at ``usa_base_io_data_year`` and 2024.
+CEDA:   ``derive_phi_ceda_usa`` vs the 'Purchaser - producer conversion' sheet
+        in the CEDA 2025 Excel workbook (IO-year only; no year panel).
+
+Usage::
+
+    uv run python -m bedrock.analysis.margins.compare_phi_to_reference
 
 Outputs:
-  output/plots/phi_comparison.png   — side-by-side scatter plots
-  output/phi_comparison_useeio.csv  — USEEIO sector-level comparison table
-  output/phi_comparison_ceda.csv    — CEDA sector-level comparison table
+  output/plots/phi_comparison.png
+  output/phi_comparison_useeio_<year>.csv
+  output/phi_comparison_ceda.csv
 """
 
 from __future__ import annotations
@@ -26,9 +29,8 @@ PLOTS = os.path.join(OUT, 'plots')
 os.makedirs(PLOTS, exist_ok=True)
 
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: E402
-    _margins_by_commodity,
-    _useeio_margins_filters,
     derive_phi_ceda_usa,
+    derive_phi_cornerstone_usa_at_year,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config  # noqa: E402
 from bedrock.utils.config.usa_config import get_usa_config  # noqa: E402
@@ -51,6 +53,12 @@ _CEDA_GS_URI = (
     'gs://cornerstone-default/snapshots/CEDA_2025/CEDA 2025 (updated 2025-11-12).xlsx'
 )
 _GCS_PREFIX = 'gs://cornerstone-default/'
+_USEEIO_PANEL_YEAR = 2024
+
+_CACHE_MODULES = (
+    'bedrock.extract.iot.io_2017',
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio',
+)
 
 
 def _xlsx_local_path(gs_uri: str) -> str:
@@ -109,14 +117,9 @@ def _load_ceda_phi_reference(local_path: str) -> pd.Series:
     return phi.dropna()
 
 
-def _compute_useeio_phi_model() -> pd.Series:
-    """PRO:PUR at BEA detail commodity level under the active USEEIO config."""
-    margins = _margins_by_commodity(
-        _useeio_margins_filters, abs_negative_producers_value=True
-    )
-    phi = (margins["Producers' Value"] / margins["Purchasers' Value"]).replace(
-        [np.inf, -np.inf, np.nan], 1
-    )
+def _compute_useeio_phi_model(year: int) -> pd.Series:
+    """Phi from the publish margins path at *year* USD."""
+    phi = derive_phi_cornerstone_usa_at_year(year).astype(float)
     phi.index.name = 'sector'
     return phi
 
@@ -144,10 +147,11 @@ def _scatter_comparison(
     if len(x) > 1:
         corr = float(x.corr(y))
         mae = float((y - x).abs().mean())
+        med_rel = float(((y - x) / x.replace(0.0, np.nan)).abs().median())
         ax.text(
             0.04,
             0.92,
-            f'n={len(x)}  r={corr:.3f}  MAE={mae:.4f}',
+            f'n={len(x)}  r={corr:.3f}  MAE={mae:.4f}  med|rel|={med_rel:.3f}',
             transform=ax.transAxes,
             fontsize=7.5,
         )
@@ -158,62 +162,84 @@ def _scatter_comparison(
     ).reindex(common)
 
 
-_CACHE_MODULES = (
-    'bedrock.extract.iot.io_2017',
-    'bedrock.transform.iot.derive_PRO_to_PUR_ratio',
-)
+def _useeio_comparison_years() -> tuple[int, ...]:
+    with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
+        base_year = get_usa_config().usa_base_io_data_year
+    years = [base_year]
+    if _USEEIO_PANEL_YEAR not in years:
+        years.append(_USEEIO_PANEL_YEAR)
+    return tuple(years)
 
-# ─── USEEIO ──────────────────────────────────────────────────────────────────
-print('Computing USEEIO model Phi...')
-with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
-    phi_useeio_model = _compute_useeio_phi_model()
-    useeio_year = get_usa_config().model_base_year
 
-print('Loading USEEIO reference Phi...')
-_pin = load_useeio_baseline_pin_overrides(_PIN_JSON)
-_useeio_gs_uri = _pin['useeio_baseline_xlsx_gs_uri']
-_useeio_local = _xlsx_local_path(_useeio_gs_uri)
-ensure_useeio_xlsx_local(
-    _useeio_gs_uri, _pin['useeio_baseline_xlsx_sha256'], _useeio_local
-)
-phi_useeio_ref = _load_useeio_phi_reference(_useeio_local, useeio_year)
+def main() -> None:
+    useeio_years = _useeio_comparison_years()
+    useeio_model_by_year: dict[int, pd.Series] = {}
+    print('Computing USEEIO model Phi...')
+    with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
+        for year in useeio_years:
+            print(f'  year {year}...')
+            useeio_model_by_year[year] = _compute_useeio_phi_model(year)
 
-# ─── CEDA ────────────────────────────────────────────────────────────────────
-print('Computing CEDA model Phi...')
-with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
-    phi_ceda_model = derive_phi_ceda_usa()
+    print('Loading USEEIO reference Phi...')
+    pin = load_useeio_baseline_pin_overrides(_PIN_JSON)
+    useeio_gs_uri = pin['useeio_baseline_xlsx_gs_uri']
+    useeio_local = _xlsx_local_path(useeio_gs_uri)
+    ensure_useeio_xlsx_local(
+        useeio_gs_uri, pin['useeio_baseline_xlsx_sha256'], useeio_local
+    )
+    useeio_ref_by_year = {
+        year: _load_useeio_phi_reference(useeio_local, year) for year in useeio_years
+    }
 
-print('Loading CEDA reference Phi...')
-_ceda_local = _ensure_ceda_xlsx_local()
-phi_ceda_ref = _load_ceda_phi_reference(_ceda_local)
+    print('Computing CEDA model Phi...')
+    with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
+        phi_ceda_model = derive_phi_ceda_usa()
 
-# ─── Comparison summary ───────────────────────────────────────────────────────
-print(
-    f'\nUSEEIO: {len(phi_useeio_model.dropna())} model sectors, '
-    f'{len(phi_useeio_ref)} reference sectors'
-)
-print(
-    f'CEDA: {len(phi_ceda_model)} model sectors, {len(phi_ceda_ref)} reference sectors'
-)
+    print('Loading CEDA reference Phi...')
+    ceda_local = _ensure_ceda_xlsx_local()
+    phi_ceda_ref = _load_ceda_phi_reference(ceda_local)
 
-# ─── Plots ────────────────────────────────────────────────────────────────────
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-df_useeio = _scatter_comparison(
-    ax1, phi_useeio_model, phi_useeio_ref, f'USEEIO Phi ({useeio_year})'
-)
-df_ceda = _scatter_comparison(ax2, phi_ceda_model, phi_ceda_ref, 'CEDA Phi')
-fig.suptitle('PRO:PUR Phi — model (bedrock) vs external reference', fontsize=11)
-fig.tight_layout()
-plot_path = os.path.join(PLOTS, 'phi_comparison.png')
-fig.savefig(plot_path, dpi=150)
-plt.close(fig)
-print(f'\nPlot saved to: {plot_path}')
+    n_axes = len(useeio_years) + 1
+    fig, axes = plt.subplots(1, n_axes, figsize=(5 * n_axes, 5))
+    if n_axes == 1:
+        axes = [axes]
 
-# ─── CSVs ─────────────────────────────────────────────────────────────────────
-useeio_csv = os.path.join(OUT, 'phi_comparison_useeio.csv')
-df_useeio.to_csv(useeio_csv)
-print(f'USEEIO CSV: {useeio_csv}')
+    useeio_tables: dict[int, pd.DataFrame] = {}
+    for ax, year in zip(axes, useeio_years, strict=False):
+        model = useeio_model_by_year[year]
+        ref = useeio_ref_by_year[year]
+        print(
+            f'\nUSEEIO {year}: {len(model.dropna())} model sectors, '
+            f'{len(ref)} reference sectors'
+        )
+        useeio_tables[year] = _scatter_comparison(
+            ax, model, ref, f'USEEIO Phi ({year})'
+        )
 
-ceda_csv = os.path.join(OUT, 'phi_comparison_ceda.csv')
-df_ceda.to_csv(ceda_csv)
-print(f'CEDA CSV: {ceda_csv}')
+    print(
+        f'\nCEDA: {len(phi_ceda_model)} model sectors, '
+        f'{len(phi_ceda_ref)} reference sectors'
+    )
+    df_ceda = _scatter_comparison(
+        axes[-1], phi_ceda_model, phi_ceda_ref, 'CEDA Phi (IO year)'
+    )
+
+    fig.suptitle('PRO:PUR Phi — model (bedrock) vs external reference', fontsize=11)
+    fig.tight_layout()
+    plot_path = os.path.join(PLOTS, 'phi_comparison.png')
+    fig.savefig(plot_path, dpi=150)
+    plt.close(fig)
+    print(f'\nPlot saved to: {plot_path}')
+
+    for year, table in useeio_tables.items():
+        path = os.path.join(OUT, f'phi_comparison_useeio_{year}.csv')
+        table.to_csv(path)
+        print(f'USEEIO CSV ({year}): {path}')
+
+    ceda_csv = os.path.join(OUT, 'phi_comparison_ceda.csv')
+    df_ceda.to_csv(ceda_csv)
+    print(f'CEDA CSV: {ceda_csv}')
+
+
+if __name__ == '__main__':
+    main()
