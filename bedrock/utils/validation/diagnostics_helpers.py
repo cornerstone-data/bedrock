@@ -680,10 +680,10 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
 
         if n_new_inflated is not None:
             n_base = ta.cast('pd.Series[float]', n_new_inflated.squeeze())
-            phi_year_new = new_base_year
+            phi_year_new = int(new_base_year)
         else:
             n_base = ta.cast('pd.Series[float]', N_new.squeeze())
-            phi_year_new = config.usa_detail_original_year
+            phi_year_new = int(config.usa_detail_original_year)
         n_new_purchaser = apply_phi_to_ef_vector(n_base, year=phi_year_new).to_frame()
         n_old_purchaser = apply_phi_to_ef_vector(
             ta.cast('pd.Series[float]', N_old_inflated.squeeze()),
