@@ -21,6 +21,9 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
+from bedrock.utils.economic.inflation_helpers_ceda import (
+    obtain_inflation_factors_from_reference_data,
+)
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_rho_inflation_ratio,
     get_sector_commodity_price_ratio,
@@ -358,19 +361,51 @@ def derive_phi_cornerstone_usa() -> pd.Series[float]:
     return derive_phi_cornerstone_usa_at_year(get_usa_config().model_base_year)
 
 
+def default_phi_panel_years() -> tuple[int, ...]:
+    """Years with price-index coverage for Phi panel export (from IO base year onward)."""
+    cfg = get_usa_config()
+    base = cfg.usa_base_io_data_year
+    years = sorted(
+        int(y) for y in obtain_inflation_factors_from_reference_data().columns
+    )
+    return tuple(y for y in years if y >= base)
+
+
+@functools.cache
+def derive_phi_cornerstone_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
+    """Sector × year Phi panel; column labels are year strings."""
+    if not years:
+        raise ValueError('years must be non-empty')
+    series_by_year = {
+        str(year): derive_phi_cornerstone_usa_at_year(year) for year in years
+    }
+    return pd.DataFrame(series_by_year)
+
+
 def margins_phi_active(cfg: USAConfig | None = None) -> bool:
     """Return whether margins-based Phi should be applied for *cfg*."""
     c = cfg or get_usa_config()
     return bool(c.useeio_margins or c.cornerstone_industry_avg_margins)
 
 
-def phi_for_sectors(sector_index: pd.Index) -> pd.Series[float]:
-    """Phi aligned to *sector_index*; identity when margins methodology is inactive."""
+def phi_for_sectors(
+    sector_index: pd.Index,
+    *,
+    year: int | None = None,
+) -> pd.Series[float]:
+    """Phi aligned to *sector_index* at *year* USD; identity when margins inactive."""
     if not margins_phi_active():
         return pd.Series(1.0, index=sector_index, dtype=float)
-    return derive_phi_cornerstone_usa().reindex(sector_index, fill_value=1.0)
+    phi_year = year if year is not None else get_usa_config().model_base_year
+    return derive_phi_cornerstone_usa_at_year(phi_year).reindex(
+        sector_index, fill_value=1.0
+    )
 
 
-def apply_phi_to_ef_vector(ef: pd.Series[float]) -> pd.Series[float]:
-    """Convert producer-price EFs to purchaser price via sector Phi."""
-    return ef * phi_for_sectors(ef.index)
+def apply_phi_to_ef_vector(
+    ef: pd.Series[float],
+    *,
+    year: int | None = None,
+) -> pd.Series[float]:
+    """Convert producer-price EFs to purchaser price via sector Phi at *year*."""
+    return ef * phi_for_sectors(ef.index, year=year)

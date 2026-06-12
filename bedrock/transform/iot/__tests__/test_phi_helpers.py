@@ -28,11 +28,14 @@ class TestMarginsPhiActive:
     'bedrock.transform.iot.derive_PRO_to_PUR_ratio.margins_phi_active',
     return_value=True,
 )
-@patch('bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa')
+@patch(
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa_at_year'
+)
 def test_apply_phi_to_ef_vector(mock_phi: MagicMock, _mock_active: MagicMock) -> None:
     mock_phi.return_value = pd.Series({'1111A0': 0.5, '221100': 0.8})
     ef = pd.Series({'1111A0': 10.0, '221100': 20.0, '311111': 2.0})
-    got = apply_phi_to_ef_vector(ef)
+    got = apply_phi_to_ef_vector(ef, year=2024)
+    mock_phi.assert_called_once_with(2024)
     assert got['1111A0'] == 5.0
     assert got['221100'] == 16.0
     assert got['311111'] == 2.0
