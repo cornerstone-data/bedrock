@@ -19,7 +19,7 @@ import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_sector_commodity_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
@@ -305,3 +305,21 @@ def derive_phi_cornerstone_usa() -> pd.Series:
     return (margins["Producers' Value"] / margins["Purchasers' Value"]).replace(
         [np.inf, -np.inf, np.nan], 1.0
     )
+
+
+def margins_phi_active(cfg: USAConfig | None = None) -> bool:
+    """Return whether margins-based Phi should be applied for *cfg*."""
+    c = cfg or get_usa_config()
+    return bool(c.useeio_margins or c.cornerstone_industry_avg_margins)
+
+
+def phi_for_sectors(sector_index: pd.Index) -> pd.Series[float]:
+    """Phi aligned to *sector_index*; identity when margins methodology is inactive."""
+    if not margins_phi_active():
+        return pd.Series(1.0, index=sector_index, dtype=float)
+    return derive_phi_cornerstone_usa().reindex(sector_index, fill_value=1.0)
+
+
+def apply_phi_to_ef_vector(ef: pd.Series[float]) -> pd.Series[float]:
+    """Convert producer-price EFs to purchaser price via sector Phi."""
+    return ef * phi_for_sectors(ef.index)

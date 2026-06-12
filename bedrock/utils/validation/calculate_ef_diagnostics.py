@@ -60,6 +60,47 @@ def _merge_ef_new_inflated_into_comparison(
     return out[ordered]
 
 
+def _merge_ef_new_purchaser_into_comparison(
+    comparison: pd.DataFrame,
+    purchaser_new: pd.DataFrame,
+    *,
+    ef_name: str,
+    purchaser_old: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Insert purchaser columns; ``{ef}_perc_diff`` uses new vs old purchaser price."""
+    new_col = f'{ef_name}_new'
+    inflated_col = f'{ef_name}_new_inflated'
+    old_inflated_col = f'{ef_name}_old_inflated'
+    purchaser_new_col = f'{ef_name}_new_purchaser'
+    purchaser_old_col = f'{ef_name}_old_purchaser'
+    perc_col = f'{ef_name}_perc_diff'
+
+    new_ser = _ef_vector_as_series(purchaser_new).reindex(comparison.index)
+    if purchaser_old is not None:
+        old_ser = _ef_vector_as_series(purchaser_old).reindex(comparison.index)
+    else:
+        old_ser = ta.cast('pd.Series[float]', comparison[old_inflated_col])
+
+    out = comparison.copy()
+    out[purchaser_new_col] = new_ser
+    if purchaser_old is not None:
+        out[purchaser_old_col] = old_ser
+    out[perc_col] = _vector_perc_diff(new_ser, old_ser)
+
+    cols = comparison.columns.tolist()
+    if inflated_col in cols:
+        insert_at = cols.index(inflated_col)
+    else:
+        insert_at = cols.index(new_col)
+    ordered = cols[:insert_at] + [purchaser_new_col] + cols[insert_at:]
+    if purchaser_old is not None:
+        old_insert_at = ordered.index(old_inflated_col)
+        ordered = (
+            ordered[:old_insert_at] + [purchaser_old_col] + ordered[old_insert_at:]
+        )
+    return out[ordered]
+
+
 def _add_comparison_type_column(
     df: pd.DataFrame,
     mapped_sectors: ta.Dict[str, str],
@@ -186,6 +227,20 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         )
         logger.info(
             '[TIMING] attach D_new_inflated/N_new_inflated columns to EF tabs in %.1fs',
+            time.time() - t0,
+        )
+
+    if efs.N_new_purchaser is not None:
+        t0 = time.time()
+        N_comparison = _merge_ef_new_purchaser_into_comparison(
+            N_comparison,
+            efs.N_new_purchaser,
+            ef_name='N',
+            purchaser_old=efs.N_old_purchaser,
+        )
+        logger.info(
+            '[TIMING] attach N_new_purchaser/N_old_purchaser columns to N_and_diffs '
+            'in %.1fs',
             time.time() - t0,
         )
 
