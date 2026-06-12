@@ -80,9 +80,26 @@ class EfsForDiagnostics(BaseModel):
     N_old: OldEfSet
     D_new_inflated: ta.Optional[pd.DataFrame] = None
     N_new_inflated: ta.Optional[pd.DataFrame] = None
+    N_new_purchaser: ta.Optional[pd.DataFrame] = None
+    N_old_purchaser: ta.Optional[pd.DataFrame] = None
 
     class Config:
         arbitrary_types_allowed = True
+
+
+def n_purchaser_adjustment_eligibility(cfg: USAConfig) -> tuple[bool, str]:
+    """Whether purchaser-price N columns should be computed for USEEIO baseline comparisons.
+
+    When eligible, both ``N_new_purchaser`` and ``N_old_purchaser`` are emitted so
+    ``N_perc_diff`` compares purchaser vs purchaser.
+    """
+    if cfg.diagnostics_baseline_source != 'gcs_useeio_xlsx':
+        return (False, 'diagnostics_baseline_source is not gcs_useeio_xlsx')
+    from bedrock.transform.iot.derive_PRO_to_PUR_ratio import margins_phi_active
+
+    if not margins_phi_active(cfg):
+        return (False, 'no active margins methodology flag (useeio or cornerstone avg)')
+    return (True, '')
 
 
 def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
@@ -325,6 +342,16 @@ def align_efs_across_schemas(
         N_new_inflated=(
             _reindex_and_fill(efs.N_new_inflated, full_index, new_fill)
             if efs.N_new_inflated is not None
+            else None
+        ),
+        N_new_purchaser=(
+            _reindex_and_fill(efs.N_new_purchaser, full_index, new_fill)
+            if efs.N_new_purchaser is not None
+            else None
+        ),
+        N_old_purchaser=(
+            _reindex_and_fill(efs.N_old_purchaser, full_index, old_fill)
+            if efs.N_old_purchaser is not None
             else None
         ),
     )
@@ -645,6 +672,27 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     )
     logger.info(f'[TIMING] Inflation adjustment completed in {time.time() - t0:.1f}s')
 
+    n_new_purchaser: pd.DataFrame | None = None
+    n_old_purchaser: pd.DataFrame | None = None
+    emit_purchaser, purchaser_skip_reason = n_purchaser_adjustment_eligibility(config)
+    if emit_purchaser:
+        from bedrock.transform.iot.derive_PRO_to_PUR_ratio import apply_phi_to_ef_vector
+
+        if n_new_inflated is not None:
+            n_base = ta.cast('pd.Series[float]', n_new_inflated.squeeze())
+        else:
+            n_base = ta.cast('pd.Series[float]', N_new.squeeze())
+        n_new_purchaser = apply_phi_to_ef_vector(n_base).to_frame()
+        n_old_purchaser = apply_phi_to_ef_vector(
+            ta.cast('pd.Series[float]', N_old_inflated.squeeze())
+        ).to_frame()
+        logger.info(
+            '[TIMING] N_new_purchaser and N_old_purchaser (Phi on new/old N) '
+            'computed for USEEIO baseline'
+        )
+    else:
+        logger.info('Skipping N_new_purchaser: %s', purchaser_skip_reason)
+
     return EfsForDiagnostics(
         D_new=D_new.to_frame(),
         N_new=N_new.to_frame(),
@@ -658,6 +706,8 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         ),
         D_new_inflated=d_new_inflated,
         N_new_inflated=n_new_inflated,
+        N_new_purchaser=n_new_purchaser,
+        N_old_purchaser=n_old_purchaser,
     )
 
 

@@ -50,11 +50,17 @@ def _default_output_dir(config_name: str) -> str:
     default=False,
     help='Also write M_pur and N_pur CSVs under matrices/.',
 )
+@click.option(
+    '--purchaser_price/--no-purchaser_price',
+    default=True,
+    help='Apply PRO:PUR (Phi) purchaser-price adjustment (default: on).',
+)
 def publish(
     config_name: str,
     dollar_year: int,
     output_dir: str | None,
     write_matrices: bool,
+    purchaser_price: bool,
 ) -> None:
     from bedrock.publish.emission_factors.writer import write_emission_factors
 
@@ -68,6 +74,7 @@ def publish(
         local_dir,
         config_name=config_name,
         dollar_year=dollar_year,
+        purchaser_price=purchaser_price,
         write_matrices=write_matrices,
     )
 

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from bedrock.extract.iot.io_2017 import (
+    load_2017_margins_after_redef_usa,
+    load_2017_margins_before_redef_usa,
+)
 from bedrock.publish.model_objects import clear_publish_caches
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
@@ -55,6 +59,8 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_y_nab,
+    load_2017_margins_before_redef_usa,
+    load_2017_margins_after_redef_usa,
 ]
 
 

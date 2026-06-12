@@ -36,8 +36,9 @@ def _greenhouse_gases_row(n: pd.DataFrame) -> pd.Series:
     return cast(pd.Series, row)
 
 
-def _unit_label(dollar_year: int) -> str:
-    return f'kg CO2e / {dollar_year} USD, purchaser price'
+def _unit_label(dollar_year: int, *, purchaser_price: bool) -> str:
+    price_type = 'purchaser price' if purchaser_price else 'producer price'
+    return f'kg CO2e / {dollar_year} USD, {price_type}'
 
 
 def _commodity_base_code(code: str) -> str:
@@ -55,12 +56,14 @@ def _is_excluded_commodity(code: str) -> bool:
     return False
 
 
-def build_emission_factor_table(*, dollar_year: int) -> pd.DataFrame:
-    """Long-form CO2e supply-chain factors at purchaser price in ``dollar_year``."""
+def build_emission_factor_table(
+    *, dollar_year: int, purchaser_price: bool = True
+) -> pd.DataFrame:
+    """Long-form CO2e supply-chain factors in ``dollar_year`` USD."""
     n_pur = adjust_publish_matrix(
         get_N(),
         dollar_year=dollar_year,
-        purchaser_price=True,
+        purchaser_price=purchaser_price,
     )
     without = _greenhouse_gases_row(n_pur)
     margins = placeholder_margin_ef(without)
@@ -73,7 +76,7 @@ def build_emission_factor_table(*, dollar_year: int) -> pd.DataFrame:
                 COL_CODE: code,
                 COL_NAME: COMMODITY_DESC.get(code, ''),
                 COL_GHG: GHG_LABEL,
-                COL_UNIT: _unit_label(dollar_year),
+                COL_UNIT: _unit_label(dollar_year, purchaser_price=purchaser_price),
                 COL_WITHOUT: float(without[code]),
                 COL_MARGINS: float(margins[code]),
                 COL_WITH: float(with_margins[code]),
@@ -95,16 +98,18 @@ def finalize_cornerstone_ef_table(table: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
-def build_purchaser_matrices(*, dollar_year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Return M and N at purchaser price in ``dollar_year`` (raw sector labels)."""
+def build_purchaser_matrices(
+    *, dollar_year: int, purchaser_price: bool = True
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return M and N adjusted to ``dollar_year`` (raw sector labels)."""
     m_pur = adjust_publish_matrix(
         get_M(),
         dollar_year=dollar_year,
-        purchaser_price=True,
+        purchaser_price=purchaser_price,
     )
     n_pur = adjust_publish_matrix(
         get_N(),
         dollar_year=dollar_year,
-        purchaser_price=True,
+        purchaser_price=purchaser_price,
     )
     return m_pur, n_pur

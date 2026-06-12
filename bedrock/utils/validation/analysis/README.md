@@ -59,7 +59,9 @@ back, caches them locally as parquet, and renders analysis figures.
   `pinned_useeio_baseline` column into `D_and_diffs_merged` /
   `N_and_diffs_merged` /
   `config_summary_merged`, sourced from the first input run's
-  `D_old_inflated` / `N_old_inflated` and pin metadata. This lets a
+  `D_old_inflated` and `N_old_purchaser` (falling back to
+  `N_old_inflated`) and pin metadata. Per-config N columns prefer
+  `N_new_purchaser`, then `N_new_inflated`, then `N_new`. This lets a
   USEEIO-rebuild combo's net-diff show `run.D_new − pinned_baseline`
   instead of the default self vs self. Combos that don't opt in (e.g.
   the v0.2 release-vs-release setup) keep their original output schema
@@ -101,8 +103,10 @@ uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
 ```
 
 `--combo` picks a `ComboSpec` from `combinations.COMBINATIONS`. Merged
-`D_and_diffs` / `N_and_diffs` tabs use each run's `D_new_inflated` /
-`N_new_inflated` column when present, otherwise `D_new` / `N_new`. The local
+`D_and_diffs` / `N_and_diffs` tabs use each run's `D_new_inflated` when
+present, otherwise `D_new`. N columns prefer `N_new_purchaser` (when the
+producer emitted purchaser-price columns), then `N_new_inflated`, then
+`N_new`. The local
 workbook is always written, defaulting to
 `analysis/output/<combo>/ef_diagnostics_merged.xlsx`; pass `--output-xlsx
 <path>` to override or `--output-xlsx ""` to skip. The Google Sheets push
