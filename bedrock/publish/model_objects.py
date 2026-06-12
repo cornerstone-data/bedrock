@@ -210,21 +210,18 @@ def get_q() -> pd.Series:
 
 @functools.cache
 def get_Phi() -> pd.DataFrame | None:
-    """Producer-to-purchaser ratio per sector for ``model_base_year`` (Excel ``Phi`` sheet)."""
+    """Producer-to-purchaser ratio panel per sector (Excel ``Phi`` sheet)."""
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
+        default_phi_panel_years,
+        derive_phi_cornerstone_usa_panel,
         margins_phi_active,
-        phi_for_sectors,
     )
 
     if not margins_phi_active():
         return None
-    cfg = get_usa_config()
     sectors = get_N().columns
-    phi = phi_for_sectors(sectors)
-    out = pd.DataFrame(
-        {str(cfg.model_base_year): phi.astype(float).values},
-        index=phi.index,
-    )
+    panel = derive_phi_cornerstone_usa_panel(default_phi_panel_years())
+    out = panel.reindex(sectors).astype(float)
     out.index.name = 'sector'
     return out
 

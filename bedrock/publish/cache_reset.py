@@ -39,6 +39,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_margins_cornerstone_usa_at_year,
     derive_phi_cornerstone_usa_at_year,
+    derive_phi_cornerstone_usa_panel,
 )
 
 UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
@@ -67,6 +68,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     load_2017_margins_after_redef_usa,
     derive_margins_cornerstone_usa_at_year,
     derive_phi_cornerstone_usa_at_year,
+    derive_phi_cornerstone_usa_panel,
 ]
 
 

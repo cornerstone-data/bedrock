@@ -35,7 +35,7 @@ def adjust_publish_matrix(
         out = out.div(price_ratio_for_columns.values, axis=1)
 
     if purchaser_price:
-        phi = phi_for_sectors(out.columns)
+        phi = phi_for_sectors(out.columns, year=dollar_year)
         out = out.mul(phi.reindex(out.columns, fill_value=1.0).values, axis=1)
 
     return out

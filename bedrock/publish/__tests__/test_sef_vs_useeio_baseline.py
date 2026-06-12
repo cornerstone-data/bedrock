@@ -11,11 +11,7 @@ import pytest
 import bedrock.utils.config.common as common
 from bedrock.publish.__tests__._helpers import clear_all_caches, teardown
 from bedrock.publish.model_objects import PUBLISH_LOCATION, get_Phi
-from bedrock.utils.config.usa_config import (
-    get_usa_config,
-    reset_usa_config,
-    set_global_usa_config,
-)
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.validation.useeio_excel_baseline import (
     _local_cache_path,
     ensure_useeio_xlsx_local,
@@ -74,10 +70,10 @@ def _load_workbook_phi(xlsx_path: str, year: int) -> pd.Series:
 
 
 @pytest.mark.eeio_integration
-def test_published_phi_matches_useeio_workbook() -> None:
+@pytest.mark.parametrize('year', [2017])
+def test_published_phi_matches_useeio_workbook(year: int) -> None:
     try:
         pin = _setup_phoebe_with_useeio_pin()
-        cfg = get_usa_config()
         xlsx = _local_cache_path(pin['useeio_baseline_xlsx_gs_uri'])
         ensure_useeio_xlsx_local(
             pin['useeio_baseline_xlsx_gs_uri'],
@@ -86,10 +82,14 @@ def test_published_phi_matches_useeio_workbook() -> None:
         )
         bedrock_phi_df = get_Phi()
         assert bedrock_phi_df is not None
-        bedrock_phi = bedrock_phi_df[str(cfg.model_base_year)].astype(float)
+        year_str = str(year)
+        assert (
+            year_str in bedrock_phi_df.columns
+        ), f'bedrock Phi panel missing column {year_str!r}'
+        bedrock_phi = bedrock_phi_df[year_str].astype(float)
         bedrock_phi.index = _strip_loc_suffix(bedrock_phi.index)
 
-        ref_phi = _load_workbook_phi(xlsx, cfg.model_base_year)
+        ref_phi = _load_workbook_phi(xlsx, year)
         common_sectors = bedrock_phi.index.intersection(ref_phi.index)
         assert len(common_sectors) > 100
         np.testing.assert_allclose(
