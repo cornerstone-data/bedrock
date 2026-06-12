@@ -431,6 +431,7 @@ def strip_char(text: str) -> str:
         'Total e,j': 'Total',
         'Naphtha (<401Â° F)': 'Naphtha (<401° F)',
         'Other Oil (>401Â° F)': 'Other Oil (>401° F)',
+        'Geothermala': 'Geothermal',
     }
     text = re.sub(r'\^\{[a-zA-Z]\}', '', text)
 
@@ -715,28 +716,43 @@ def umd_ghgia_parse(
                 'Distillate Fuel Oil',
             ]
             if table_name in source_activity_1:
-                activity_subtotal = activity_subtotal_sector
+                # Fuel listed first, sector nested — name rows "{Fuel} {Sector}".
+                fuel_value = ''
+                for index, row in df.iterrows():
+                    apb_value = strip_char(row['ActivityProducedBy'])
+                    if apb_value.startswith('Total') or apb_value.startswith('NO'):
+                        df = df.drop(index)
+                    elif apb_value in activity_subtotal_sector:
+                        if fuel_value:
+                            df.loc[index, 'ActivityProducedBy'] = (  # type: ignore[index]
+                                f'{fuel_value} {apb_value}'
+                            )
+                        else:
+                            df = df.drop(index)
+                    else:
+                        fuel_value = apb_value
+                        df = df.drop(index)
             else:
                 activity_subtotal = activity_subtotal_fuel
-            after_Total = False
-            for index, row in df.iterrows():
-                apb_value = strip_char(row['ActivityProducedBy'])
-                if apb_value in activity_subtotal or after_Total:
-                    # set the header
-                    apbe_value = apb_value
-                    df.loc[index, 'ActivityProducedBy'] = f'All activities {apbe_value}'  # type: ignore[index]
-                else:
-                    # apply the header
-                    apb_txt = apb_value
-                    if table_name == 'X-X':  # was EPA  3-10
-                        # Separate Flows and activities for this table
-                        df.loc[index, 'ActivityProducedBy'] = apbe_value  # type: ignore[index]
-                        df.loc[index, 'FlowName'] = apb_txt  # type: ignore[index]
+                after_Total = False
+                for index, row in df.iterrows():
+                    apb_value = strip_char(row['ActivityProducedBy'])
+                    if apb_value in activity_subtotal or after_Total:
+                        # set the header
+                        apbe_value = apb_value
+                        df.loc[index, 'ActivityProducedBy'] = f'All activities {apbe_value}'  # type: ignore[index]
                     else:
-                        df.loc[index, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'  # type: ignore[index]
-                if apb_value.startswith('Total'):
-                    df = df.drop(index)
-                    after_Total = True
+                        # apply the header
+                        apb_txt = apb_value
+                        if table_name == 'X-X':  # was EPA  3-10
+                            # Separate Flows and activities for this table
+                            df.loc[index, 'ActivityProducedBy'] = apbe_value  # type: ignore[index]
+                            df.loc[index, 'FlowName'] = apb_txt  # type: ignore[index]
+                        else:
+                            df.loc[index, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'  # type: ignore[index]
+                    if apb_value.startswith('Total'):
+                        df = df.drop(index)
+                        after_Total = True
 
         elif table_name in source_activity_2:
             bool_apb = False
