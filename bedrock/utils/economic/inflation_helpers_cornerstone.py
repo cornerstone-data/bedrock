@@ -108,22 +108,74 @@ def get_cornerstone_industry_price_ratio(
 
 @functools.cache
 def get_rho_inflation_ratio(original_year: int, target_year: int) -> pd.Series[float]:
-    """Sector-specific USD inflation factor from *original_year* to *target_year*.
+    """Sector 1:1 price-index ratio ``PI[original] / PI[target]``.
 
     Matches useeior ``Rho[target] / Rho[original]`` when ``Rho[y]`` is the
     per-sector ``IO_year / y`` ratio from the model commodity CPI table
-    (``calculateProducerbyPurchaserPriceRatio`` PRO scaling). Implemented as
-    ``PI[original] / PI[target]`` on the same 1:1 sector index as
-    ``get_cornerstone_industry_price_ratio``.
+    (``calculateProducerbyPurchaserPriceRatio``). Implemented on the same
+    1:1 sector index as ``get_cornerstone_industry_price_ratio``.
 
-    Independent of margins, Phi, and ``N``; sourced only from the configured
-    industry price-index panel.
+    This is the ``useeio_margins`` branch of ``get_price_index_ratio``; kept
+    as a named primitive for sector-level index math and tests.
     """
     if original_year == target_year:
         return get_cornerstone_industry_price_ratio(original_year, target_year)
     forward = get_cornerstone_industry_price_ratio(original_year, target_year)
     ratio = 1.0 / forward
     return ratio.where(np.isfinite(ratio), 1.0).fillna(1.0)
+
+
+def default_price_index_panel_years() -> tuple[int, ...]:
+    """Years with price-index coverage for panel export (from IO base year onward)."""
+    cfg = get_usa_config()
+    base = cfg.usa_base_io_data_year
+    years = sorted(
+        int(y) for y in obtain_inflation_factors_from_reference_data().columns
+    )
+    return tuple(y for y in years if y >= base)
+
+
+@functools.cache
+def derive_price_index_panel(years: tuple[int, ...]) -> pd.DataFrame:
+    """Sector × year Rho panel (useeior convention).
+
+    Per-sector ``PI[IO_year] / PI[y]`` on cornerstone commodity codes (sector
+    1:1). Same definition regardless of margin config; feeds Excel ``Rho``.
+    Margin inflation uses ``get_price_index_ratio``, which may differ under
+    ``cornerstone_industry_avg_margins``.
+
+    Column labels are year strings.
+    """
+    if not years:
+        raise ValueError('years must be non-empty')
+    io_year = get_usa_config().usa_base_io_data_year
+    series_by_year: dict[str, pd.Series[float]] = {
+        str(year): get_rho_inflation_ratio(io_year, year) for year in years
+    }
+    return pd.DataFrame(series_by_year)
+
+
+@functools.cache
+def get_price_index_ratio(original_year: int, target_year: int) -> pd.Series[float]:
+    """Cross-year price-index ratio for the active config construction.
+
+    ``useeio_margins``: sector 1:1 ``PI[original] / PI[target]`` (Rho approach).
+
+    ``cornerstone_industry_avg_margins``: V-norm commodity
+    ``PI[target] / PI[original]``.
+
+    Used when inflating PRO margins and (in follow-up work) rebasing ``N`` for
+    publish. Distinct from the Excel ``Rho`` panel (``derive_price_index_panel``),
+    which always uses the useeior sector 1:1 convention.
+    """
+    cfg = get_usa_config()
+    if cfg.useeio_margins:
+        return get_rho_inflation_ratio(original_year, target_year)
+    if cfg.cornerstone_industry_avg_margins:
+        return get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    return pd.Series(
+        1.0, index=pd.Index(CORNERSTONE_COMMODITIES, dtype=object), dtype=float
+    )
 
 
 def inflate_cornerstone_A_matrix_with_industry_pi(

@@ -21,13 +21,10 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
-from bedrock.utils.economic.inflation_helpers_ceda import (
-    obtain_inflation_factors_from_reference_data,
-)
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    get_rho_inflation_ratio,
+    default_price_index_panel_years,
+    get_price_index_ratio,
     get_sector_commodity_price_ratio,
-    get_vnorm_adjusted_commodity_price_ratio,
 )
 from bedrock.utils.taxonomy.bea.v2017_final_demand import USA_2017_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
@@ -266,30 +263,6 @@ def _inflate_margin_trade_components(
     return out
 
 
-def _inflate_margins_bedrock_style(
-    df: pd.DataFrame, *, original_year: int, target_year: int
-) -> pd.DataFrame:
-    """Inflate producer margin with V-norm commodity PI (Cornerstone convention)."""
-    out = df.copy()
-    commodity_pi = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
-    out["Producers' Value"] *= commodity_pi.reindex(out.index, fill_value=1.0)
-    return _inflate_margin_trade_components(
-        out, original_year=original_year, target_year=target_year
-    )
-
-
-def _inflate_margins_useeior_style(
-    df: pd.DataFrame, *, original_year: int, target_year: int
-) -> pd.DataFrame:
-    """Inflate producer margin with per-sector Rho (useeior convention)."""
-    out = df.copy()
-    rho = get_rho_inflation_ratio(original_year, target_year)
-    out["Producers' Value"] *= rho.reindex(out.index, fill_value=1.0)
-    return _inflate_margin_trade_components(
-        out, original_year=original_year, target_year=target_year
-    )
-
-
 def _inflate_margins_to_year(df: pd.DataFrame, *, target_year: int) -> pd.DataFrame:
     """Inflate margin components from ``usa_base_io_data_year`` to *target_year*."""
     cfg = get_usa_config()
@@ -298,12 +271,11 @@ def _inflate_margins_to_year(df: pd.DataFrame, *, target_year: int) -> pd.DataFr
     original_year = cfg.usa_base_io_data_year
     if original_year == target_year:
         return df
-    if cfg.useeio_margins:
-        return _inflate_margins_useeior_style(
-            df, original_year=original_year, target_year=target_year
-        )
-    return _inflate_margins_bedrock_style(
-        df, original_year=original_year, target_year=target_year
+    out = df.copy()
+    pro_ratio = get_price_index_ratio(original_year, target_year)
+    out["Producers' Value"] *= pro_ratio.reindex(out.index, fill_value=1.0)
+    return _inflate_margin_trade_components(
+        out, original_year=original_year, target_year=target_year
     )
 
 
@@ -363,12 +335,7 @@ def derive_phi_cornerstone_usa() -> pd.Series[float]:
 
 def default_phi_panel_years() -> tuple[int, ...]:
     """Years with price-index coverage for Phi panel export (from IO base year onward)."""
-    cfg = get_usa_config()
-    base = cfg.usa_base_io_data_year
-    years = sorted(
-        int(y) for y in obtain_inflation_factors_from_reference_data().columns
-    )
-    return tuple(y for y in years if y >= base)
+    return default_price_index_panel_years()
 
 
 @functools.cache

@@ -41,6 +41,10 @@ from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_phi_cornerstone_usa_at_year,
     derive_phi_cornerstone_usa_panel,
 )
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    derive_price_index_panel,
+    get_price_index_ratio,
+)
 
 UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_B_usa_non_finetuned,
@@ -69,6 +73,8 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_margins_cornerstone_usa_at_year,
     derive_phi_cornerstone_usa_at_year,
     derive_phi_cornerstone_usa_panel,
+    derive_price_index_panel,
+    get_price_index_ratio,
 ]
 
 

@@ -35,8 +35,12 @@ shareable file formats, mirroring the shape of `useeior`'s
   `cornerstone_industry_avg_margins` is active (`get_Phi()` in
   `model_objects.py`). Sector × year panel for years with BEA price-index
   coverage from ``usa_base_io_data_year`` onward (~2017–2025).
-- **Useeior-only valuation matrices** (`Rho`, `Tau`) and long-form
-  metadata (`demands`, `SectorCrosswalk`): registered as placeholders.
+- **`Rho` sheet**: emitted under the same margin flags (`get_Rho()` in
+  `model_objects.py`). Sector × year panel, always useeior convention:
+  sector 1:1 ``PI[IO]/PI[y]`` from ``derive_price_index_panel`` (independent
+  of which margin inflation path ``get_price_index_ratio`` uses).
+- **Useeior-only valuation matrices** (`Tau`) and long-form metadata
+  (`demands`, `SectorCrosswalk`): registered as placeholders.
 
 ## Known divergence from useeior (B units)
 

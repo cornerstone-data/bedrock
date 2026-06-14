@@ -226,6 +226,24 @@ def get_Phi() -> pd.DataFrame | None:
     return out
 
 
+@functools.cache
+def get_Rho() -> pd.DataFrame | None:
+    """useeior-style Rho panel per sector (Excel ``Rho`` sheet)."""
+    from bedrock.transform.iot.derive_PRO_to_PUR_ratio import margins_phi_active
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (
+        default_price_index_panel_years,
+        derive_price_index_panel,
+    )
+
+    if not margins_phi_active():
+        return None
+    sectors = get_N().columns
+    panel = derive_price_index_panel(default_price_index_panel_years())
+    out = panel.reindex(sectors).astype(float)
+    out.index.name = 'sector'
+    return out
+
+
 _CACHED_GETTERS: tuple[Callable[[], pd.DataFrame | pd.Series | None], ...] = (
     get_V,
     get_U,
@@ -243,6 +261,7 @@ _CACHED_GETTERS: tuple[Callable[[], pd.DataFrame | pd.Series | None], ...] = (
     get_N,
     get_Ndom,
     get_Phi,
+    get_Rho,
     get_q,
 )
 
