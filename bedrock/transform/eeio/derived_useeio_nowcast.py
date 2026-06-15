@@ -89,11 +89,11 @@ def derive_useeio_nowcast_Aq_cornerstone(year: int) -> SingleRegionAqMatrixSet:
             f"Available years: {USEEIO_NOWCAST_YEARS}"
         )
 
-    # Lazy import — ``get_waste_disagg_weights`` lives in derived_cornerstone,
+    # Lazy import — ``get_waste_disagg_weights`` lives in cornerstone_disagg_pipeline,
     # which transitively pulls flowsa via allocation.derived at module import.
     # Keeping this lazy lets the analysis driver populate parquets without
     # initializing the flowsa log handler at module-import time.
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         get_waste_disagg_weights,
     )
 

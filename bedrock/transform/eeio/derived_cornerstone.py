@@ -17,6 +17,7 @@ This module is self-contained: it does NOT modify or gate any existing CEDA v7
 code paths. The caller decides which pipeline to invoke based on config.
 
 Internal helpers live in sibling modules:
+- ``cornerstone_disagg_pipeline`` — waste/electricity sector-disaggregation orchestration
 - ``cornerstone_expansion`` — BEA ↔ Cornerstone correspondence & expansion
 - ``cornerstone_bea_intermediates`` — BEA-space intermediate matrices
 - ``cornerstone_year_scaling`` — summary-ratio year-scaling for A, q, B
@@ -25,22 +26,12 @@ Internal helpers live in sibling modules:
 from __future__ import annotations
 
 import functools
-import pathlib
-from dataclasses import dataclass
-from typing import cast
 
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
-from bedrock.extract.disaggregation.disagg_weights import (
-    DisaggWeights,
-    load_disagg_weights,
-)
-from bedrock.extract.disaggregation.waste_weight_config import (
-    effective_waste_disagg_config,
-)
 from bedrock.extract.iot.io_2017 import (
     load_2017_Uimp_usa,
     load_2017_Utot_usa,
@@ -52,6 +43,12 @@ from bedrock.extract.iot.io_2017 import (
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_bea_intermediates import (
     bea_Aq,
+)
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    cornerstone_sector_disagg_active,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    distribute_waste_parent_x_using_v_row_shares,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
@@ -72,19 +69,10 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
 )
-from bedrock.transform.eeio.electricity_disaggregation import (
-    reallocate_electricity_coproduction,
-)
-from bedrock.transform.eeio.waste_disaggregation import (
-    apply_waste_disagg_to_U,
-    apply_waste_disagg_to_V,
-    apply_waste_disagg_to_VA,
-    apply_waste_disagg_to_Ytot,
-)
 from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output,
 )
-from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
     inflate_cornerstone_A_matrix_with_commodity_pi,
@@ -92,6 +80,7 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     inflate_cornerstone_B_matrix_with_industry_pi,
     inflate_cornerstone_q_or_y_with_commodity_pi,
     inflate_cornerstone_q_or_y_with_industry_pi,
+    inflate_cornerstone_V_with_industry_pi,
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
@@ -135,81 +124,21 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
 )
-from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
-from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
-
-_BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
-
-_WASTE_ORIGINAL_CODE = '562000'
-_WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[_WASTE_ORIGINAL_CODE])
 
 # ---------------------------------------------------------------------------
-# Waste disaggregation weight provider (4a)
+# Baseline IO (correspondence only — no waste, no electricity)
 # ---------------------------------------------------------------------------
 
 
-def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfig:
-    """Return a copy of *cfg* with weight file paths resolved to absolute paths."""
-
-    def _resolve(p: str) -> str:
-        path = pathlib.Path(p)
-        if path.is_absolute():
-            return p
-        resolved = _BEDROCK_PKG_ROOT / path
-        return str(resolved)
-
-    return EEIOWasteDisaggConfig(
-        use_weights_file=_resolve(cfg.use_weights_file),
-        make_weights_file=_resolve(cfg.make_weights_file),
-        year=cfg.year,
-        source_name=cfg.source_name,
-    )
-
-
-@functools.cache
-def get_waste_disagg_weights() -> DisaggWeights | None:
-    """Return waste disaggregation weights if the feature is enabled, else None."""
-    cfg = get_usa_config()
-    if not cfg.implement_waste_disaggregation:
-        return None
-    resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
-    return load_disagg_weights(
-        resolved_cfg,
-        original_code=_WASTE_ORIGINAL_CODE,
-        new_codes=_WASTE_NEW_CODES,
-        disagg_sectors=_WASTE_NEW_CODES,
-        va_row_codes=list(VALUE_ADDEDS),
-    )
-
-
-@functools.cache
-def electricity_reallocation_enabled() -> bool:
-    cfg = get_usa_config()
-    return cfg.implement_electricity_reallocation
-
-
-@dataclass
-class _CornerstoneIOBundle:
-    V: pd.DataFrame
-    Udom: pd.DataFrame
-    Uimp: pd.DataFrame
-    VA: pd.DataFrame
-
-
-def _derive_cornerstone_V_after_waste() -> pd.DataFrame:
+def _derive_cornerstone_V_baseline() -> pd.DataFrame:
     V_2017 = load_2017_V_usa()
     V = industry_corresp() @ V_2017 @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        V = apply_waste_disagg_to_V(V, weights)
-        V.index.name = 'sector'
-        V.columns.name = 'sector'
     return V
 
 
-def _derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
+def _derive_cornerstone_U_baseline() -> tuple[pd.DataFrame, pd.DataFrame]:
     Utot = load_2017_Utot_usa()
     Uimp = load_2017_Uimp_usa()
     Udom = Utot - Uimp
@@ -224,33 +153,26 @@ def _derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
         df.index.name = 'sector'
         df.columns.name = 'sector'
 
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        Udom_cs, Uimp_cs = apply_waste_disagg_to_U(Udom_cs, Uimp_cs, weights)
-        for df in (Udom_cs, Uimp_cs):
-            df.index.name = 'sector'
-            df.columns.name = 'sector'
-
     return Udom_cs, Uimp_cs
 
 
-def _derive_cornerstone_VA_after_waste() -> pd.DataFrame:
+def _derive_cornerstone_VA_baseline() -> pd.DataFrame:
     VA = load_2017_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        VA = apply_waste_disagg_to_VA(VA, weights)
-        VA.columns.name = 'sector'
     return VA
 
 
-@functools.cache
-def _derive_cornerstone_io_after_electricity_reallocation() -> _CornerstoneIOBundle:
-    V = _derive_cornerstone_V_after_waste()
-    Udom, Uimp = _derive_cornerstone_U_after_waste()
-    VA = _derive_cornerstone_VA_after_waste()
-    V, Udom, Uimp, VA = reallocate_electricity_coproduction(V, Udom, Uimp, VA)
-    return _CornerstoneIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
+def _derive_cornerstone_Ytot_baseline() -> pd.DataFrame:
+    Ytot_orig = load_2017_Ytot_usa()
+    Ytot = commodity_corresp() @ Ytot_orig
+    Ytot.index.name = 'sector'
+    return Ytot
+
+
+def _ytot_for_public_routers() -> pd.DataFrame:
+    if cornerstone_sector_disagg_active():
+        return derive_disagg_Ytot_with_trade().copy()
+    return _derive_cornerstone_Ytot_baseline()
 
 
 # ---------------------------------------------------------------------------
@@ -264,25 +186,13 @@ def derive_cornerstone_V(
     apply_inflation: bool = False, target_year: int = 0
 ) -> pd.DataFrame:
     """V matrix (industry × commodity) via correspondence multiplication."""
-    if electricity_reallocation_enabled():
-        V = _derive_cornerstone_io_after_electricity_reallocation().V.copy()
+    if cornerstone_sector_disagg_active():
+        V = derive_disagg_io_bundle().V.copy()
     else:
-        V = _derive_cornerstone_V_after_waste()
+        V = _derive_cornerstone_V_baseline()
 
     if apply_inflation:
-        if target_year <= 0:
-            raise ValueError(...)
-        cfg = get_usa_config()
-        price_ratio = get_cornerstone_industry_price_ratio(
-            cfg.usa_base_io_data_year,
-            target_year,
-        )
-        price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
-        V = pd.DataFrame(
-            V.multiply(price_ratio, axis=0).values,
-            index=V.index,
-            columns=V.columns,
-        )
+        V = inflate_cornerstone_V_with_industry_pi(V, target_year=target_year)
     return V
 
 
@@ -300,30 +210,11 @@ def _distribute_waste_parent_x_using_v_row_shares(
     After ``expand_vector``, one-to-many BEA→Cornerstone splits (e.g. 562000)
     assign the **full** parent total to **each** child. When waste
     disaggregation is enabled, replace those rows with
-    ``parent_go * (x_v[i] / sum_j x_v[j])`` where ``x_v`` is
-    ``derive_cornerstone_x()`` (2017-detail Make structure as mapped to
+    ``parent_go * (x_v[i] / sum_j x_v[j])`` where ``x_v`` is row sums of
+    uninflated disaggregated ``V`` (2017-detail Make structure as mapped to
     Cornerstone) and ``parent_go`` is the duplicated scalar (GHG-year \$ scale).
     """
-    if get_waste_disagg_weights() is None:
-        return x_cs
-    x = x_cs.copy()
-    x_v = derive_cornerstone_x()
-    present = [
-        c
-        for c in _WASTE_NEW_CODES
-        if c in x.index and c in x_v.index and pd.notna(x_v.loc[c])
-    ]
-    if not present:
-        return x
-    xv_w = x_v.reindex(present).astype(float)
-    total_v = float(xv_w.sum())
-    if total_v <= 0:
-        return x
-    parent_go = float(x.loc[present[0]])
-    shares = xv_w / total_v
-    for code in present:
-        x.loc[code] = parent_go * float(shares.loc[code])
-    return x
+    return distribute_waste_parent_x_using_v_row_shares(x_cs)
 
 
 @functools.cache
@@ -464,13 +355,11 @@ def derive_q_from_scaled_cornerstone_V_from_authoritative_x() -> pd.Series[float
 
 @functools.cache
 def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
-    if electricity_reallocation_enabled():
-        reallocated_io = _derive_cornerstone_io_after_electricity_reallocation()
-        return SingleRegionUMatrixSet(
-            Udom=pt.DataFrame[CornerstoneUMatrix](reallocated_io.Udom.copy()),  # type: ignore[arg-type]
-            Uimp=pt.DataFrame[CornerstoneUMatrix](reallocated_io.Uimp.copy()),  # type: ignore[arg-type]
-        )
-    Udom_cs, Uimp_cs = _derive_cornerstone_U_after_waste()
+    if cornerstone_sector_disagg_active():
+        bundle = derive_disagg_io_bundle()
+        Udom_cs, Uimp_cs = bundle.Udom.copy(), bundle.Uimp.copy()
+    else:
+        Udom_cs, Uimp_cs = _derive_cornerstone_U_baseline()
     return SingleRegionUMatrixSet(
         Udom=pt.DataFrame[CornerstoneUMatrix](Udom_cs),  # type: ignore[arg-type]
         Uimp=pt.DataFrame[CornerstoneUMatrix](Uimp_cs),  # type: ignore[arg-type]
@@ -495,31 +384,18 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
 # ---------------------------------------------------------------------------
 
 
-@functools.cache
-def _derive_cornerstone_Ytot_with_trade() -> pd.DataFrame:
-    Ytot_orig = load_2017_Ytot_usa()
-    Ytot = commodity_corresp() @ Ytot_orig
-    Ytot.index.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
-        Ytot.index.name = 'sector'
-    return Ytot
-
-
 def derive_cornerstone_Ytot_full_cs_matrix() -> pd.DataFrame:
     """Full commodity-by-final-demand ``Y`` in Cornerstone space (incl. trade FD columns).
 
-    Same frame as the cached waste-aware pipeline used for ``derive_cornerstone_Ytot_matrix_set``
-    before export/import columns are collapsed. Returns a **copy** so callers cannot mutate
-    the cached matrix.
+    Returns a **copy** of the gated public-router Y pipeline so callers cannot
+    mutate cached state.
     """
-    return _derive_cornerstone_Ytot_with_trade().copy()
+    return _ytot_for_public_routers()
 
 
 @functools.cache
 def derive_cornerstone_Ytot_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
-    Ytot_with_trade = _derive_cornerstone_Ytot_with_trade()
+    Ytot_with_trade = _ytot_for_public_routers()
     return SingleRegionYtotAndTradeVectorSet(
         ytot=handle_negative_vector_values(
             Ytot_with_trade.drop(
@@ -540,7 +416,7 @@ def derive_cornerstone_Ytot_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
 
 
 def derive_cornerstone_Y_personal_consumption_expenditure() -> pd.Series[float]:
-    return _derive_cornerstone_Ytot_with_trade()[
+    return _ytot_for_public_routers()[
         USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE
     ]
 
@@ -557,9 +433,9 @@ def derive_cornerstone_VA() -> pd.DataFrame:
     Callers needing Cornerstone-space VA should use this function rather than
     assembling VA manually.
     """
-    if electricity_reallocation_enabled():
-        return _derive_cornerstone_io_after_electricity_reallocation().VA.copy()
-    return _derive_cornerstone_VA_after_waste()
+    if cornerstone_sector_disagg_active():
+        return derive_disagg_io_bundle().VA.copy()
+    return _derive_cornerstone_VA_baseline()
 
 
 # ---------------------------------------------------------------------------
@@ -580,7 +456,7 @@ def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
     Cornerstone space from disaggregated V and U. No intragroup treatment
     is applied — the waste block already reflects real CSV weights.
     """
-    if get_waste_disagg_weights() is not None:
+    if cornerstone_sector_disagg_active():
         return _derive_cornerstone_Aq_from_disaggregated()
 
     Adom_bea, Aimp_bea, q_bea = bea_Aq()
@@ -607,6 +483,10 @@ def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
 
 def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
     """A and q from disaggregated Cornerstone V and U (no intragroup treatment)."""
+    # When apply_inflation_to_V is True: q and x use uninflated derive_cornerstone_V()
+    # (2017 $), while Vnorm uses derive_cornerstone_Vnorm_scrap_corrected() (model-year $).
+    # derive_cornerstone_q() applies the flag but is not used here. Intentional for now;
+    # see inflation/A dollar-year design notes.
     V = derive_cornerstone_V()
     uset = derive_cornerstone_U_set()
     Udom: pd.DataFrame = uset.Udom
@@ -809,26 +689,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 # ---------------------------------------------------------------------------
 # B matrix (runtime E path)
 # ---------------------------------------------------------------------------
-
-
-def _normalize_E_for_waste(E: pd.DataFrame, V: pd.DataFrame) -> pd.DataFrame:
-    """Distribute E's waste industry columns proportionally by industry output.
-
-    Instead of duplicating E_bea[:, 562000] to every waste subsector, each
-    waste industry i gets E_bea[:, 562000] * share_i, where share_i is i's
-    fraction of total waste industry output (Make table column sums).
-    """
-    waste_industries = [c for c in _WASTE_NEW_CODES if c in E.columns]
-    if not waste_industries:
-        return E
-    g_waste = V.sum(axis=0).loc[waste_industries]
-    total = float(g_waste.sum())
-    if total <= 0:
-        return E
-    shares = g_waste / total
-    E_norm = E.copy()
-    E_norm[waste_industries] = E_norm[waste_industries].multiply(shares, axis=1)
-    return E_norm
 
 
 @pa.check_output(CornerstoneBMatrix.to_schema())

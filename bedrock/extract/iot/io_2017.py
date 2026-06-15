@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import warnings
 
 import pandas as pd
 from typing_extensions import deprecated
@@ -267,6 +268,97 @@ def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
     df.index = USA_2017_COMMODITY_INDEX
     df.columns = USA_2017_INDUSTRY_INDEX
     return df
+
+
+_MARGINS_COLUMNS = [
+    "Industry Code",
+    "Industry Description",
+    "Commodity Code",
+    "Commodity Description",
+    "Producers' Value",
+    "Transportation",
+    "Wholesale",
+    "Retail",
+    "Purchasers' Value",
+]
+_MARGINS_VALUE_COLUMNS = [
+    "Producers' Value",
+    "Transportation",
+    "Wholesale",
+    "Retail",
+    "Purchasers' Value",
+]
+
+
+def load_2017_margins_usa() -> pd.DataFrame:
+    """2017 Margins before vs after BEA redefinitions from ``USAConfig``."""
+    stage = get_usa_config().iot_before_or_after_redefinition
+    if stage == "before":
+        return load_2017_margins_before_redef_usa()
+    if stage == "after":
+        return load_2017_margins_after_redef_usa()
+    raise ValueError(
+        "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
+    )
+
+
+def _load_margins_excel(pth: str) -> pd.DataFrame:
+    """Read the Margins Excel file, suppressing the openpyxl header/footer warning."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Cannot parse header or footer so it will be ignored",
+            category=UserWarning,
+        )
+        return pd.read_excel(
+            pth,
+            sheet_name="2017",
+            skiprows=5,
+            header=None,
+            names=_MARGINS_COLUMNS,
+            dtype={"Industry Code": str, "Commodity Code": str},
+        )
+
+
+def _load_2017_margins_from_file(filename: str) -> pd.DataFrame:
+    """Shared loader for margins tables; applies index filtering and unit scaling."""
+    df = load_from_gcs(
+        name=filename,
+        sub_bucket=GCS_USA_MAKE_USE_DIR,
+        local_dir=LOCAL_USA_MAKE_USE_DIR,
+        loader=_load_margins_excel,
+    ).set_index(["Industry Code", "Commodity Code"])
+    valid_industry = set(USA_2017_INDUSTRY_CODES) | set(USA_2017_FINAL_DEMAND_CODES)
+    valid_commodity = set(USA_2017_COMMODITY_CODES) | set(USA_2017_VALUE_ADDED_CODES)
+    mask = df.index.get_level_values("Industry Code").isin(
+        valid_industry
+    ) & df.index.get_level_values("Commodity Code").isin(valid_commodity)
+    return (
+        df.loc[mask, _MARGINS_VALUE_COLUMNS].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+
+
+@functools.cache
+def load_2017_margins_after_redef_usa() -> pd.DataFrame:
+    """
+    Margins table, (industry, commodity) x margin type, after redefinition, in producer price.
+    Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
+    unit is USD, original unit is million USD.
+    """
+    return _load_2017_margins_from_file(USA_2017_DETAIL_IO_MATRIX_MAPPING["Margins"])
+
+
+@functools.cache
+def load_2017_margins_before_redef_usa() -> pd.DataFrame:
+    """
+    Margins table, (industry, commodity) x margin type, before redefinition, in producer price.
+    Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
+    unit is USD, original unit is million USD.
+    """
+    return _load_2017_margins_from_file(
+        USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING["Margins"]
+    )
 
 
 def load_2017_Ytot_usa() -> pd.DataFrame:
