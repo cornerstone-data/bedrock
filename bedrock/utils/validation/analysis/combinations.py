@@ -73,6 +73,7 @@ COMBINATIONS: dict[str, ComboSpec] = {
             'useeio_phoebe_23_restore_cornerstone_B': 'useeio_phoebe_23',
             'useeio_phoebe_23_restore_cornerstone_A': 'useeio_phoebe_23',
             'useeio_phoebe_23_restore_iot_redefinition': 'useeio_phoebe_23',
+            'useeio_phoebe_23_cornerstone_margins': 'useeio_phoebe_23',
             '2025_usa_cornerstone_full_model': 'useeio_phoebe_23',
         },
     ),
