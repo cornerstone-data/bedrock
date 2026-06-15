@@ -31,7 +31,7 @@ flat_activity_header: ["5-10", "3-14"]
 source_activity_1: ["3-4"]  # fuel listed first, sector nested. Append fuel after sector
 source_activity_1_fuel: ["3-8", "3-9", "3-10"]  # fuel listed first, vehicle nested. Append vehicle after fuel.
 # Tables with sub categories
-source_activity_2: ["3-25", "3-26", "3-27", "3-28", "3-29", "3-30"]  # no nesting, cell A2 is blank, different from epa ghgi
+source_activity_2: ["3-25", "3-26", "3-27", "3-28", "3-29", "3-30", "A5-5-2"]  # no nesting, cell A2 is blank, different from epa ghgi
 rows_as_flows: ["4-33", "4-35", "4-50", "4-52", "4-59"]
 
 # Optional table overrides
@@ -154,3 +154,21 @@ Tables:
       flow: CO2e
       desc: "Table 5-15: CH4 and N2O Emissions from Field Burning of Agricultural Residues (MMT CO2 Eq.)"
       data_reliability: 4
+
+Annex:
+  "Annex 5":
+      "A5-1-S2": # Separate emissions table for each year - 2022
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": "Table A5.1-S2: 2022 Energy Consumption Data and CO2 Emissions from Fossil Fuel Combustion by Fuel Type"
+
+      "A5-5-2":
+        "class": "Chemicals"
+        "unit": "MMT CO2e"
+        "compartment": "air"
+        "flow": "HFCs"
+        "desc": "Table A5.5-2: HFC Emissions from Transportation Sources (MMT CO2 Eq.)"
