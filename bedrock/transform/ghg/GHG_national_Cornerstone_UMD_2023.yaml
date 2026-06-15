@@ -583,7 +583,7 @@ source_names:
      clean_parameter: # Override each year for use in allocate_industrial_combustion
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
-        ghg_fba: 'EPA_GHGI_T_A_6'  # align with 2022 MECS
+        ghg_fba: 'UMD_GHGIA_T_A5_1_S2'  # align with 2022 MECS
      fedefl_mapping: GHGI_AR5_100
      activity_sets:
        petroleum_industrial:
@@ -870,10 +870,9 @@ source_names:
                 '326140': '' # Polystyrene foam
                 '326150': '' # Urethane and other foam
 
-  # TODO: Note that this is EPA GHGI data, not UMD GHGIA, as UMD does not publish this data
-  EPA_GHGI_T_A_90: # Transportation HFCs
-     year: *epa_ghgi_year
-     activity_to_sector_mapping: EPA_GHGI_Cornerstone
+  UMD_GHGIA_T_A5_5_2: # Transportation HFCs
+     year: *ghgi_year
+     activity_to_sector_mapping: UMD_GHGIA
      clean_fba_before_mapping: !script_function:EPA_GHGI split_HFCs_by_type
      clean_parameter:
          # Proportions of specific HFCs are assigned based on national total
