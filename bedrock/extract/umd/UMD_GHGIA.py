@@ -37,27 +37,24 @@ DEFAULT_UMD_TABLE_COMPARTMENT = 'air'
 UMD_GHGIA_INPUT_LAYOUT_YEAR = '2024'
 
 
-SECTOR_DICT = {
-    'Res.': 'Residential',
-    'Comm.': 'Commercial',
-    'Ind.': 'Industrial',
-    'Trans.': 'Transportation',
-    'Elec.': 'Electricity Power',
-    'Terr.': 'U.S. Territory',
-}
+# SECTOR_DICT = {
+#     'Res.': 'Residential',
+#     'Comm.': 'Commercial',
+#     'Ind.': 'Industrial',
+#     'Trans.': 'Transportation',
+#     'Elec.': 'Electricity Power',
+#     'Terr.': 'U.S. Territory',
+# }
 
 ANNEX_HEADERS = {
-    'Total Consumption (TBtu) a': 'Total Consumption (TBtu)',
-    'Total Consumption (TBtu)a': 'Total Consumption (TBtu)',
-    'Adjustments (TBtu) b': 'Adjustments (TBtu)',
-    'Adjusted Consumption (TBtu) a': 'Adjusted Consumption (TBtu)',
-    'Adjusted Consumption (TBtu)a': 'Adjusted Consumption (TBtu)',
-    'Emissions b (MMT CO2 Eq.) from Energy Use': 'Emissions (MMT CO2 Eq.) from Energy Use',
-    'Emissionsb (MMT CO2 Eq.) from Energy Use': 'Emissions (MMT CO2 Eq.) from Energy Use',
+    'Total Consumption (TBtu)',
+    'Adjustments (TBtu)',
+    'Adjusted Consumption (TBtu)',
+    'Emissions from Energy Use (MMT CO2 Eq.)',
 }
 
-# Tables for annual CO2 emissions from fossil fuel combustion
-ANNEX_ENERGY_TABLES = ['A-' + str(x) for x in list(range(4, 16))]
+# Annex 5 energy tables (Annexes_v1): Table A5.1-5 and A5.1-S1 through A5.1-S34
+ANNEX_ENERGY_TABLES = ['A5-1-5'] + [f'A5-1-S{i}' for i in range(1, 35)]
 
 # UMD tables that use a two-row CSV header (Annex A-style per UMD_GHGIA.yaml).
 UMD_TWO_ROW_HEADER_TABLES = frozenset([*ANNEX_ENERGY_TABLES])
@@ -131,18 +128,13 @@ def series_separate_name_and_units(
 
 def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
     """Special handling of ANNEX Energy Tables"""
-    if table == 'A-4':
-        # Table "Energy Consumption Data by Fuel Type (TBtu) and Adjusted
-        # Energy Consumption Data"
-        # Extra row to drop in this table
-        df = df.drop([0])
     header_name = ''
     newcols = []  # empty list to have new column names
     dropcols = []
     for i in range(len(df.columns)):
         fuel_type = str(df.iloc[0, i])
-        for abbrev, full_name in SECTOR_DICT.items():
-            fuel_type = fuel_type.replace(abbrev, full_name)
+        # for abbrev, full_name in SECTOR_DICT.items():
+        #     fuel_type = fuel_type.replace(abbrev, full_name)
         fuel_type = fuel_type.strip()
 
         col_name = df.columns[i][1]
@@ -152,9 +144,9 @@ def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
             continue
         if 'Unnamed' in col_name:
             column_name = header_name
-        elif col_name in ANNEX_HEADERS.keys():
-            column_name = ANNEX_HEADERS[col_name]
-            header_name = ANNEX_HEADERS[col_name]
+        elif col_name in ANNEX_HEADERS:
+            column_name = col_name
+            header_name = col_name
         else:
             # Fallback assignment if col_name is not in ANNEX_HEADERS
             column_name = col_name.strip()
@@ -182,10 +174,12 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
             if data.get('year') not in (None, year):
                 # Skip tables when the year does not align with target year
                 continue
-            # TODO: confirm whether UMD extract uses 3-25b (EPA-only alternate layout).
-            # if year in ('2023', '2024') and table == '3-25b':
-            #     continue
-            df = _load_umd_ghgia_table(table)
+
+            df = _load_umd_ghgia_table(
+                table,
+                chapter if chapter.startswith('Annex') else None,
+                'emission' in data,
+            )
             # for some of the imported tables, cell A2 is blank, where in the EPA GHGI tables, the column is labeled
             # "Activity". We want to retain the activities, so give the column a header to prevent being dropped
             if (
@@ -212,7 +206,9 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
     return df_list
 
 
-def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
+def _load_umd_ghgia_table(
+    table: str, annex_folder: str | None = None, energy_annex: bool = False
+) -> pd.DataFrame:
     """Load one UMD GHGIA CSV from GCS and apply table-specific reshape."""
     # if table == '3-25b':
     #     return pd.read_csv(
@@ -233,7 +229,16 @@ def _load_umd_ghgia_table(table: str) -> pd.DataFrame:
         '9': 'Chapter 9 - Recalculations',
     }
     section = table.split('-')[0]
-    if section == 'A':
+    if re.match(r'^A\d', table):
+        annex_num = re.match(r'^A(\d+)', table).group(1)
+        rest = table[len(f'A{annex_num}-') :]
+        csv_label = f'A{annex_num}.{rest}'
+        rel = posixpath.join(
+            'Annexes_v1',
+            annex_folder or f'Annex {annex_num}',
+            f'Table {csv_label}.csv',
+        )
+    elif section == 'A':
         rel = posixpath.join('Annex', f'Table {table}.csv')
     else:
         rel = posixpath.join(chapter_dir[section], f'Table {table}.csv')
@@ -281,7 +286,12 @@ def _get_unnamed_cols(df: pd.DataFrame) -> List[str]:
 
 def get_table_meta(source_name: str, config: dict[str, Any]) -> dict[str, Any]:
     """Find and return table meta from source_name."""
-    td = config.get('Annex', {}) if '_A_' in source_name else config['Tables']
+    suffix = source_name.removeprefix(UMD_SOURCE_PREFIX)
+    td = (
+        config.get('Annex', {})
+        if '_A_' in source_name or re.match(r'^A\d', suffix)
+        else config['Tables']
+    )
     for chapter in td.keys():
         for k, v in td[chapter].items():
             if source_name.endswith(k.replace('-', '_')):
@@ -455,7 +465,8 @@ def umd_ghgia_parse(
     cleaned_list = []
     for df in df_list:
         source_name = df['SourceName'][0]
-        table_name = source_name.removeprefix(UMD_SOURCE_PREFIX).replace('_', '-')
+        suffix = source_name.removeprefix(UMD_SOURCE_PREFIX)
+        table_name = suffix.replace('_', '-')
         log.info(f'Processing {source_name}')
 
         # Specify to ignore errors in case one of the drop_cols is missing.
