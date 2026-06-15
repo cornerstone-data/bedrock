@@ -93,7 +93,7 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 )
 from bedrock.utils.math.disaggregation import disaggregate_vector
 from bedrock.utils.math.formulas import (
-    backcompute_y_from_q_and_Aq,
+    backcompute_y_from_q_and_A,
     compute_q,
     compute_Unorm_matrix,
     compute_Vnorm_matrix,
@@ -909,7 +909,7 @@ def derive_cornerstone_y_nab() -> pd.Series[float]:
     clipping would break the domestic Leontief identity.
     """
     aq = derive_cornerstone_Aq_scaled()
-    return backcompute_y_from_q_and_Aq(A=aq.Adom, q=aq.scaled_q)
+    return backcompute_y_from_q_and_A(A=aq.Adom, q=aq.scaled_q)
 
 
 def derive_cornerstone_ydom_and_yimp() -> SingleRegionYVectorSet:

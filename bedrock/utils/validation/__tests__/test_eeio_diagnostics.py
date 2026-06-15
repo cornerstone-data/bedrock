@@ -400,7 +400,7 @@ def test_compare_output_and_L_y(
         # Output must match Aq scaling (scaled_q), not derive_cornerstone_q() from V.
         output = Aq.scaled_q if modelType == "Commodity" else derive_cornerstone_x()
         if use_domestic:
-            # y_nab from backcompute_y_from_q_and_Aq(Adom, scaled_q); unclipped.
+            # y_nab from backcompute_y_from_A_and_q(Adom, scaled_q); unclipped.
             y = derive_cornerstone_y_nab()
             L = formulas.compute_L_matrix(A=Aq.Adom)
         else:
