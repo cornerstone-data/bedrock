@@ -37,21 +37,12 @@ DEFAULT_UMD_TABLE_COMPARTMENT = 'air'
 UMD_GHGIA_INPUT_LAYOUT_YEAR = '2024'
 
 
-# SECTOR_DICT = {
-#     'Res.': 'Residential',
-#     'Comm.': 'Commercial',
-#     'Ind.': 'Industrial',
-#     'Trans.': 'Transportation',
-#     'Elec.': 'Electricity Power',
-#     'Terr.': 'U.S. Territory',
-# }
-
-ANNEX_HEADERS = {
+ANNEX_HEADERS = [
     'Total Consumption (TBtu)',
     'Adjustments (TBtu)',
     'Adjusted Consumption (TBtu)',
     'Emissions from Energy Use (MMT CO2 Eq.)',
-}
+]
 
 # Annex 5 energy tables (Annexes_v1): Table A5.1-5 and A5.1-S1 through A5.1-S34
 ANNEX_ENERGY_TABLES = ['A5-1-5'] + [f'A5-1-S{i}' for i in range(1, 35)]
@@ -133,8 +124,6 @@ def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
     dropcols = []
     for i in range(len(df.columns)):
         fuel_type = str(df.iloc[0, i])
-        # for abbrev, full_name in SECTOR_DICT.items():
-        #     fuel_type = fuel_type.replace(abbrev, full_name)
         fuel_type = fuel_type.strip()
 
         col_name = df.columns[i][1]
@@ -160,8 +149,9 @@ def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
     df.columns = newcols  # assign column names
     df = df.iloc[1:, :]  # exclude first row
     df.dropna(how='all', inplace=True)
-    df = df.reset_index(drop=True)
-    return df
+    fuel_col = df.columns[0]
+    df = df[~df[fuel_col].astype(str).str.match(r'^(\+|Note:)', na=False)]
+    return df.reset_index(drop=True)
 
 
 def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
@@ -507,7 +497,7 @@ def umd_ghgia_parse(
                 activity = f'{acb.strip()} {name_split[1].split("- ")[1]}'
 
                 df.at[index, 'Description'] = meta['desc']  # type: ignore[index]
-                if name_split[0] == 'Emissions':
+                if name_split[0].startswith('Emissions'):
                     df.at[index, 'FlowName'] = meta['emission']  # type: ignore[index]
                     df.at[index, 'Unit'] = meta['emission_unit']  # type: ignore[index]
                     df.at[index, 'Class'] = meta['emission_class']  # type: ignore[index]
