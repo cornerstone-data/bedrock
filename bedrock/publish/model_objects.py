@@ -208,7 +208,43 @@ def get_q() -> pd.Series:
     return pd.Series(derive_Aq_usa().scaled_q, name='q')
 
 
-_CACHED_GETTERS: tuple[Callable[[], pd.DataFrame | pd.Series], ...] = (
+@functools.cache
+def get_Phi() -> pd.DataFrame | None:
+    """Producer-to-purchaser ratio panel per sector (Excel ``Phi`` sheet)."""
+    from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
+        default_phi_panel_years,
+        derive_phi_cornerstone_usa_panel,
+        margins_phi_active,
+    )
+
+    if not margins_phi_active():
+        return None
+    sectors = get_N().columns
+    panel = derive_phi_cornerstone_usa_panel(default_phi_panel_years())
+    out = panel.reindex(sectors).astype(float)
+    out.index.name = 'sector'
+    return out
+
+
+@functools.cache
+def get_Rho() -> pd.DataFrame | None:
+    """useeior-style Rho panel per sector (Excel ``Rho`` sheet)."""
+    from bedrock.transform.iot.derive_PRO_to_PUR_ratio import margins_phi_active
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (
+        default_price_index_panel_years,
+        derive_price_index_panel,
+    )
+
+    if not margins_phi_active():
+        return None
+    sectors = get_N().columns
+    panel = derive_price_index_panel(default_price_index_panel_years())
+    out = panel.reindex(sectors).astype(float)
+    out.index.name = 'sector'
+    return out
+
+
+_CACHED_GETTERS: tuple[Callable[[], pd.DataFrame | pd.Series | None], ...] = (
     get_V,
     get_U,
     get_Udom,
@@ -224,6 +260,8 @@ _CACHED_GETTERS: tuple[Callable[[], pd.DataFrame | pd.Series], ...] = (
     get_Mdom,
     get_N,
     get_Ndom,
+    get_Phi,
+    get_Rho,
     get_q,
 )
 

@@ -20,6 +20,7 @@ def write_emission_factors(
     *,
     config_name: str,
     dollar_year: int,
+    purchaser_price: bool = True,
     write_matrices: bool = False,
 ) -> dict[str, str]:
     """Write CO2e SEF CSV (and optional M/N purchaser matrices) under ``output_dir``."""
@@ -27,7 +28,10 @@ def write_emission_factors(
     os.makedirs(output_dir, exist_ok=True)
 
     table = finalize_cornerstone_ef_table(
-        build_emission_factor_table(dollar_year=dollar_year)
+        build_emission_factor_table(
+            dollar_year=dollar_year,
+            purchaser_price=purchaser_price,
+        )
     )
     co2e_name = f'CornerstoneSupplyChainGHG_CO2e_USD{dollar_year}.csv'
     co2e_path = os.path.join(output_dir, co2e_name)
@@ -44,7 +48,10 @@ def write_emission_factors(
     if write_matrices:
         matrices_dir = os.path.join(output_dir, 'matrices')
         os.makedirs(matrices_dir, exist_ok=True)
-        m_pur, n_pur = build_purchaser_matrices(dollar_year=dollar_year)
+        m_pur, n_pur = build_purchaser_matrices(
+            dollar_year=dollar_year,
+            purchaser_price=purchaser_price,
+        )
         m_path = os.path.join(matrices_dir, f'M_pur_{dollar_year}.csv')
         n_path = os.path.join(matrices_dir, f'N_pur_{dollar_year}.csv')
         apply_loc_suffix(m_pur).to_csv(m_path)

@@ -21,6 +21,9 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
+from bedrock.utils.economic.inflation_helpers_useeio import (
+    obtain_useeior_detail_industry_cpi_levels,
+)
 from bedrock.utils.math.formulas import (
     compute_commodity_mix_matrix,
     compute_Vnorm_matrix,
@@ -70,6 +73,22 @@ def _cornerstone_to_ceda_v7_parent() -> dict[str, str]:
 
 
 @functools.cache
+def _industry_price_index_levels() -> pd.DataFrame:
+    """Wide sector × year PI levels for cornerstone industry-ratio math.
+
+    ``useeio_margins``: USEEIOR v1.8.0 ``Detail_CPI_IO_17sch`` (GCS snapshot).
+    ``update_inflation_factors``: bedrock-derived industry PI.
+    Otherwise: bedrock BEA parquet (``BEA_PriceIndex``).
+    """
+    cfg = get_usa_config()
+    if cfg.useeio_margins:
+        return obtain_useeior_detail_industry_cpi_levels()
+    if cfg.update_inflation_factors:
+        return derive_industry_price_index()
+    return obtain_inflation_factors_from_reference_data()
+
+
+@functools.cache
 def get_cornerstone_industry_price_ratio(
     original_year: int, target_year: int
 ) -> pd.Series[float]:
@@ -79,15 +98,14 @@ def get_cornerstone_industry_price_ratio(
     parent's price ratio so that inflation is applied consistently.
     """
     cfg = get_usa_config()
+    price_index = _industry_price_index_levels()
     if cfg.update_inflation_factors:
-        price_index = derive_industry_price_index()
         target_codes = CORNERSTONE_INDUSTRIES
     else:
         # Reindex to commodities so downstream `diag(p) @ A @ diag(1/p)`
         # aligns positionally against a commodity-indexed A. INDUSTRIES and
         # COMMODITIES order diverges at 351/405 positions, so the target
         # list is load-bearing despite the function's name.
-        price_index = obtain_inflation_factors_from_reference_data()
         target_codes = CORNERSTONE_COMMODITIES
     pi_ratio: pd.Series[float] = price_index[target_year] / price_index[original_year]
 
@@ -104,6 +122,76 @@ def get_cornerstone_industry_price_ratio(
     # Anything still NaN (truly no parent, e.g. S00402) gets neutral 1.0
     ratio = ratio.fillna(1.0)
     return ratio
+
+
+@functools.cache
+def get_rho_inflation_ratio(original_year: int, target_year: int) -> pd.Series[float]:
+    """Sector 1:1 price-index ratio ``PI[original] / PI[target]``.
+
+    Matches useeior ``Rho[target] / Rho[original]`` when ``Rho[y]`` is the
+    per-sector ``IO_year / y`` ratio from the model commodity CPI table
+    (``calculateProducerbyPurchaserPriceRatio``). Implemented on the same
+    1:1 sector index as ``get_cornerstone_industry_price_ratio``.
+
+    This is the ``useeio_margins`` branch of ``get_price_index_ratio``; kept
+    as a named primitive for sector-level index math and tests.
+    """
+    if original_year == target_year:
+        return get_cornerstone_industry_price_ratio(original_year, target_year)
+    forward = get_cornerstone_industry_price_ratio(original_year, target_year)
+    ratio = 1.0 / forward
+    return ratio.where(np.isfinite(ratio), 1.0).fillna(1.0)
+
+
+def default_price_index_panel_years() -> tuple[int, ...]:
+    """Years with price-index coverage for panel export (from IO base year onward)."""
+    cfg = get_usa_config()
+    base = cfg.usa_base_io_data_year
+    years = sorted(int(y) for y in _industry_price_index_levels().columns)
+    return tuple(y for y in years if y >= base)
+
+
+@functools.cache
+def derive_price_index_panel(years: tuple[int, ...]) -> pd.DataFrame:
+    """Sector × year Rho panel (useeior convention).
+
+    Per-sector ``PI[IO_year] / PI[y]`` on cornerstone commodity codes (sector
+    1:1). Same definition regardless of margin config; feeds Excel ``Rho``.
+    Margin inflation uses ``get_price_index_ratio``, which may differ under
+    ``cornerstone_industry_avg_margins``.
+
+    Column labels are year strings.
+    """
+    if not years:
+        raise ValueError('years must be non-empty')
+    io_year = get_usa_config().usa_base_io_data_year
+    series_by_year: dict[str, pd.Series[float]] = {
+        str(year): get_rho_inflation_ratio(io_year, year) for year in years
+    }
+    return pd.DataFrame(series_by_year)
+
+
+@functools.cache
+def get_price_index_ratio(original_year: int, target_year: int) -> pd.Series[float]:
+    """Cross-year price-index ratio for the active config construction.
+
+    ``useeio_margins``: sector 1:1 ``PI[original] / PI[target]`` (Rho approach).
+
+    ``cornerstone_industry_avg_margins``: V-norm commodity
+    ``PI[target] / PI[original]``.
+
+    Used when inflating PRO margins and (in follow-up work) rebasing ``N`` for
+    publish. Distinct from the Excel ``Rho`` panel (``derive_price_index_panel``),
+    which always uses the useeior sector 1:1 convention.
+    """
+    cfg = get_usa_config()
+    if cfg.useeio_margins:
+        return get_rho_inflation_ratio(original_year, target_year)
+    if cfg.cornerstone_industry_avg_margins:
+        return get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    return pd.Series(
+        1.0, index=pd.Index(CORNERSTONE_COMMODITIES, dtype=object), dtype=float
+    )
 
 
 def inflate_cornerstone_A_matrix_with_industry_pi(
@@ -496,12 +584,7 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
     Codes with no parent in the upstream PI fall back to 100 (BEA convention
     2017 = 100); any ratio against another year that also falls back is 1.0.
     """
-    cfg = get_usa_config()
-    price_index = (
-        derive_industry_price_index()
-        if cfg.update_inflation_factors
-        else obtain_inflation_factors_from_reference_data()
-    )
+    price_index = _industry_price_index_levels()
 
     pi_year: pd.Series[float] = price_index[year]
     series = pi_year.reindex(CORNERSTONE_INDUSTRIES).astype(float)
@@ -514,3 +597,25 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
         ):
             series.loc[child] = float(pi_year.loc[parent_code])
     return series.fillna(100.0)
+
+
+# Config-sensitive ``@functools.cache`` helpers (omit config from cache keys).
+_CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
+    _industry_price_index_levels,
+    get_cornerstone_industry_price_ratio,
+    get_rho_inflation_ratio,
+    derive_price_index_panel,
+    get_price_index_ratio,
+    get_vnorm_adjusted_commodity_price_ratio,
+    _cornerstone_indexed_industry_pi,
+    get_summary_commodity_price_index,
+    get_sector_commodity_price_index,
+    derive_cornerstone_q_and_vnorm_for_year,
+    obtain_useeior_detail_industry_cpi_levels,
+)
+
+
+def clear_cornerstone_inflation_caches() -> None:
+    """Clear inflation helpers that depend on ``get_usa_config()`` dispatch."""
+    for fn in _CONFIG_SENSITIVE_INFLATION_CACHES:
+        fn.cache_clear()  # type: ignore[attr-defined]
