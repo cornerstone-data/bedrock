@@ -117,7 +117,9 @@ def series_separate_name_and_units(
     return {'names': names, 'units': units}
 
 
-def _read_yearly_annex_tables(df: pd.DataFrame, table: str) -> pd.DataFrame:
+def _read_yearly_annex_tables(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     """Special handling of ANNEX Energy Tables"""
     header_name = ''
     newcols = []  # empty list to have new column names
@@ -197,16 +199,10 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
 
 
 def _load_umd_ghgia_table(
-    table: str, annex_folder: str | None = None, energy_annex: bool = False
+    table: str,
+    annex_folder: str | None = None,
 ) -> pd.DataFrame:
     """Load one UMD GHGIA CSV from GCS and apply table-specific reshape."""
-    # if table == '3-25b':
-    #     return pd.read_csv(
-    #         externaldatapath / f'GHGI_Table_{table}.csv',
-    #         skiprows=2,
-    #         encoding='ISO-8859-1',
-    #         thousands=',',
-    #     )
 
     chapter_dir = {
         '1': 'Chapter 1 - Introduction',
