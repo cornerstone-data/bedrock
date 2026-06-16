@@ -16,6 +16,7 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Adom_usa,
     derive_summary_Aimp_usa,
     derive_summary_q_usa,
+    derive_summary_x_usa,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
@@ -161,6 +162,21 @@ def scale_cornerstone_q(
     return ta.cast(
         pd.Series,
         _apply_summary_ratio_to_sectors(ratio, q, axis='rows'),
+    )
+
+
+def scale_cornerstone_x(
+    x: pd.Series[float],
+    target_year: USA_SUMMARY_MUT_YEARS,
+    original_year: USA_SUMMARY_MUT_YEARS,
+) -> pd.Series[float]:
+    """Scale detail x element-wise using summary x ratios."""
+    ratio = (
+        derive_summary_x_usa(target_year) / derive_summary_x_usa(original_year)
+    ).fillna(1.0)
+    return ta.cast(
+        pd.Series,
+        _apply_summary_ratio_to_sectors(ratio, x, axis='rows'),
     )
 
 
