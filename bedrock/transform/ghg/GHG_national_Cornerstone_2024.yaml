@@ -1,5 +1,5 @@
 # Cornerstone GHG national methods (v2025), inventory year 2024.
-# Uses UMD GHGIA FBAs - previous years use EPA GHGI.
+# Uses UMD GHGIA FBAs - 2022 and earlier years use EPA GHGI.
 
 !include:Cornerstone_2025_target.yaml
 year: &ghgi_year 2024
