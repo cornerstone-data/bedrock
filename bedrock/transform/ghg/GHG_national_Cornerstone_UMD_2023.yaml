@@ -498,64 +498,52 @@ source_names:
   UMD_GHGIA_T_3_10:  *mobile #N2O from mobile combustion duplicates method for CH4
 
 ## Stationary Combustion
-  UMD_GHGIA_T_3_4: # stationary combustion -  CO2 residential + commercial (other gases from 3-12)
+  UMD_GHGIA_T_3_4: &umd_t_3_4 # stationary combustion -  CO2 residential + commercial (other gases from 3-12)
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
-      residential_commercial_co2: &umd_t_3_4_rescom_co2
+      residential_commercial_co2:
         selection_fields:
           FlowName: CO2
           PrimaryActivity:
             - Coal Residential
-            - Coal Commercial
             - Natural Gas Residential
-            - Natural Gas Commercial
             - Petroleum Residential
+        attribution_method: direct
+
+      non_manufacturing_coal:
+        selection_fields:
+          PrimaryActivity:
+            - Coal Commercial
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'212100': ''} # purchases of coal
+
+      non_manufacturing_natural_gas:
+        selection_fields:
+          PrimaryActivity:
+            - Natural Gas Commercial
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'221200': ''} # purchases of natural gas
+
+      petroleum_commercial:
+        selection_fields:
+          PrimaryActivity:
             - Petroleum Commercial
         attribution_method: proportional
         attribution_source:
-          EPA_GHGI_T_A_5:
-            year: *epa_ghgi_year
-            fedefl_mapping: GHGI_AR5_100
-            activity_sets:
-              direct_attribution:
-                selection_fields:
-                  PrimaryActivity: Total (All Fuels) Residential
-                attribution_method: direct
-
-              non_manufacturing_coal:
-                selection_fields:
-                  PrimaryActivity:
-                    Commercial Coal Commercial: Coal Commercial
-                attribution_method: proportional
-                attribution_source:
-                  BEA_Detail_Use_AfterRedef:
-                    <<: *bea
-                    selection_fields:
-                      ActivityProducedBy: {'212100': ''} # purchases of coal
-
-              non_manufacturing_natural_gas:
-                selection_fields:
-                  PrimaryActivity:
-                    - Natural Gas Commercial
-                attribution_method: proportional
-                attribution_source:
-                  BEA_Detail_Use_AfterRedef:
-                    <<: *bea
-                    selection_fields:
-                      ActivityProducedBy: {'221200': ''} # purchases of natural gas
-
-              petroleum_commercial:
-                selection_fields:
-                  PrimaryActivity:
-                    - Total Petroleum Commercial
-                attribution_method: proportional
-                attribution_source:
-                  BEA_Detail_Use_AfterRedef:
-                    <<: *bea
-                    selection_fields:
-                      ActivityProducedBy: {'324110': ''} # purchases of refinery products
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea
+            selection_fields:
+              ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
   UMD_GHGIA_T_3_7:  # stationary combustion - electricity
     year: *ghgi_year
@@ -564,6 +552,7 @@ source_names:
     activity_sets:
      electric_power:
        selection_fields:
+         FlowName: [CH4, N2O]  # exclude co2 - counted in T 2-S1
          PrimaryActivity:
            Coal Electric Power: Coal Electric Power
            Natural Gas Electric Power: Natural Gas Electric Power
@@ -590,7 +579,6 @@ source_names:
          selection_fields:
            PrimaryActivity:
              - Petroleum Industrial
-             - Total Petroleum Industrial
          attribution_method: proportional
          attribution_source:
            EIA_MECS_Energy_Allocation_CEDA:
@@ -602,8 +590,7 @@ source_names:
        natural_gas_nonmanufacturing:
          selection_fields:
            PrimaryActivity:
-             Natural gas Industrial: Natural Gas Industrial # fix capitalization
-             Natural Gas Industrial: Natural Gas Industrial
+            - Natural Gas Industrial
          attribution_method: proportional
          attribution_source:
            BEA_Detail_Use_AfterRedef:
@@ -614,7 +601,6 @@ source_names:
        ng_manufacturing:
          selection_fields:
            PrimaryActivity:
-             - Natural gas Industrial - Manufacturing
              - Natural Gas Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
@@ -627,8 +613,7 @@ source_names:
        coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
          selection_fields:
            PrimaryActivity:
-             Coal Industrial: Coal Industrial
-             Industrial Other Coal Industrial: Coal Industrial
+            - Coal Industrial
          attribution_method: proportional
          attribution_source:
            BEA_Detail_Use_AfterRedef:
@@ -639,8 +624,7 @@ source_names:
        coal_manufacturing:
          selection_fields:
            PrimaryActivity:
-             Coal Industrial - Manufacturing: Coal Industrial - Manufacturing
-             Industrial Other Coal Industrial - Manufacturing: Coal Industrial - Manufacturing
+            - Coal Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
            EIA_MECS_Energy_Allocation_CEDA:
@@ -659,7 +643,7 @@ source_names:
      activity_sets:
        residential:
          selection_fields:
-           FlowName: [CH4, N2O]
+           FlowName: [CH4, N2O]  # exclude co2
            PrimaryActivity:
              - Coal Residential and Commercial
              - Natural Gas Residential and Commercial
@@ -667,13 +651,8 @@ source_names:
              - Petroleum Residential and Commercial
          attribution_method: proportional
          attribution_source:
-           # using
-           UMD_GHGIA_T_3_4:
-             year: *ghgi_year
-             activity_to_sector_mapping: UMD_GHGIA
-             fedefl_mapping: GHGI_AR5_100
-             activity_sets:
-               residential_commercial_co2: *umd_t_3_4_rescom_co2
+           # using co2 data to proportionally attribute to residential and commercial
+           UMD_GHGIA_T_3_4: *umd_t_3_4
 
 
 ## Other sources
