@@ -15,8 +15,15 @@ shareable file formats, mirroring the shape of `useeior`'s
   - Metadata: `flows`, `indicators`, `commodities_meta`,
     `industries_meta`, `final_demand_meta`, `value_added_meta`,
     `config_summary`, `model_info`.
-- **Supply-chain factors**: not implemented. Upstream R
-  counterpart:
+- **Supply-chain emission factors (CSV)**: implemented for cornerstone
+  configs via `bedrock.publish.emission_factors`. Emits a long-form CO2e
+  table (`CornerstoneSupplyChainGHG_CO2e_USD<year>.csv`) with three
+  supply-chain factor columns (without margins, margins, with margins).
+  Purchaser-price adjustment uses industry price ratios from
+  `model_base_year` to `--dollar_year`. Phi and margin factors are
+  placeholders (identity Phi, zero margins) until real valuation matrices
+  land.
+- **Supply-chain factors (R repo)**: not ported. Upstream counterpart:
   [cornerstone-data/supply-chain-factors](https://github.com/cornerstone-data/supply-chain-factors).
 - **Import-emissions matrices** (`A_m`, `M_m`, `N_m`): require real
   import emission factors (`B_imp`), which bedrock does not yet
@@ -126,3 +133,35 @@ computes `Ydom_matrix = Ytot_matrix - Yimp_matrix`. Then re-extend
 
 4. Inspect the workbook (especially `model_info`). Manual distribution
    for now; GCS upload is a TODO.
+
+## Supply-chain emission factor CSV
+
+Cornerstone-schema configs only. Clears publish caches, sets global
+config, then writes purchaser-price CO2e factors rebased to
+`--dollar_year`:
+
+```
+uv run python -m bedrock.publish.emission_factors.cli \
+  --config_name useeio_phoebe_23 --dollar_year 2024
+```
+
+Output layout:
+
+```
+bedrock/publish/output/<git_sha>/<config_name>/
+  CornerstoneSupplyChainGHG_CO2e_USD2024.csv
+```
+
+Optional purchaser matrices (`--write_matrices`):
+
+```
+  matrices/M_pur_2024.csv
+  matrices/N_pur_2024.csv
+```
+
+Row filters: government commodities (codes starting with `S` or `G`),
+electricity commodity `221100`, and rows with zero without-margins
+factor. Commodity codes are emitted with a `/US` suffix.
+
+Shared cached getters live in `bedrock/publish/model_objects.py` (also
+used by the XLSX publisher).

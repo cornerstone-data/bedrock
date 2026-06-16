@@ -23,10 +23,13 @@ def test_derive_cornerstone_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
     # This test guards the thin wrapper used to produce cornerstone_Ytot_full_cs.csv
     # (full commodity x FD Y matrix in cornerstone space, including trade columns).
     fake = pd.DataFrame({"F1": [1.0, 2.0]}, index=["c1", "c2"])
-    with patch.object(
-        derived_cornerstone,
-        "_derive_cornerstone_Ytot_with_trade",
-        return_value=fake,
+    with (
+        patch.object(
+            derived_cornerstone, "cornerstone_sector_disagg_active", return_value=True
+        ),
+        patch.object(
+            derived_cornerstone, "derive_disagg_Ytot_with_trade", return_value=fake
+        ),
     ):
         out = derived_cornerstone.derive_cornerstone_Ytot_full_cs_matrix()
     pd.testing.assert_frame_equal(out, fake)

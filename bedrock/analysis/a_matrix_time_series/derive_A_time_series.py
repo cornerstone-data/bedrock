@@ -24,15 +24,12 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-import os
 import subprocess
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml
 
-import bedrock.utils.config.usa_config as cfg_module
 from bedrock.analysis.a_matrix_time_series.constants import (
     ANALYSIS_DRIVE_FOLDER_ID,
     APPROACH_YEAR_COVERAGE,
@@ -42,7 +39,8 @@ from bedrock.analysis.a_matrix_time_series.constants import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.config.usa_config import USAConfig
+from bedrock.utils.config.config_controllers import clear_caches, force_set_usa_config
+from bedrock.utils.config.usa_config import reset_usa_config
 from bedrock.utils.io.gcp import create_spreadsheet_in_folder, update_sheet_tab
 
 logger = logging.getLogger(__name__)
@@ -83,48 +81,6 @@ _CACHE_BEARING_MODULE_PATHS = (
 )
 
 
-def _clear_config_dependent_caches() -> None:
-    """Clear `@functools.cache` outputs in all config-dependent modules."""
-    import importlib  # noqa: PLC0415
-
-    for module_path in _CACHE_BEARING_MODULE_PATHS:
-        module = importlib.import_module(module_path)
-        for name in dir(module):
-            obj = getattr(module, name, None)
-            if callable(obj) and hasattr(obj, "cache_clear"):
-                obj.cache_clear()
-
-
-def _set_config(approach: str, year: int) -> None:
-    """Install a config for the given (approach, year), bypassing pydantic
-    Literal validation on ``model_base_year`` since we run for 2017–2024 but
-    the schema only allows 2022–2024.
-
-    Uses ``USAConfig.model_construct`` to skip validation. Also clears the
-    ``USA_CONFIG_FILE`` env var and ``_usa_config`` module global so each call
-    is fresh — ``set_global_usa_config`` raises if invoked twice.
-    """
-    yaml_path = Path(cfg_module.CONFIG_DIR) / APPROACH_YAMLS[approach]
-    with open(yaml_path) as f:
-        data = yaml.safe_load(f) or {}
-    data["model_base_year"] = year
-    # The package `__init__.py` flips these on the initial config; replacing
-    # `_usa_config` here would otherwise drop them back to field defaults.
-    data["update_inflation_factors"] = True
-    # `commodity_price_index.yaml` already sets this; setting it for every
-    # approach is harmless (only `commodity_price_index` reads it via
-    # `get_vnorm_adjusted_commodity_price_ratio`).
-    data["apply_inflation_to_V"] = True
-
-    cfg_module._usa_config = USAConfig.model_construct(**data)
-    os.environ[cfg_module.USA_CONFIG_ENV_VAR] = APPROACH_YAMLS[approach]
-
-
-def _reset_config() -> None:
-    cfg_module._usa_config = None
-    os.environ.pop(cfg_module.USA_CONFIG_ENV_VAR, None)
-
-
 def _derive_one_pair(
     approach: str, year: int
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
@@ -133,9 +89,18 @@ def _derive_one_pair(
     Returns ``(Adom, Aimp, q)``. Caches are cleared and the config is
     reinstalled before the call to guarantee a fresh derivation.
     """
-    _reset_config()
-    _clear_config_dependent_caches()
-    _set_config(approach, year)
+    reset_usa_config()
+    clear_caches(*_CACHE_BEARING_MODULE_PATHS)
+    # model_base_year bypasses Literal validation (runs 2017–2024 but schema
+    # only allows 2022–2024). update_inflation_factors and apply_inflation_to_V
+    # are set explicitly because __init__.py flips them on the initial config
+    # load; replacing _usa_config directly would otherwise drop them to defaults.
+    force_set_usa_config(
+        APPROACH_YAMLS[approach],
+        model_base_year=year,
+        update_inflation_factors=True,
+        apply_inflation_to_V=True,
+    )
 
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_Aq_scaled,
@@ -155,12 +120,12 @@ def _save_parquets(
     column makes a stacked layout awkward.
     """
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    a_path = RESULTS_DIR / f"A_{approach}_{year}.parquet"
-    q_path = RESULTS_DIR / f"q_{approach}_{year}.parquet"
+    a_path = RESULTS_DIR / f'A_{approach}_{year}.parquet'
+    q_path = RESULTS_DIR / f'q_{approach}_{year}.parquet'
 
-    combined = pd.concat({"dom": adom, "imp": aimp}, axis=0, names=["dom_or_imp"])
+    combined = pd.concat({'dom': adom, 'imp': aimp}, axis=0, names=['dom_or_imp'])
     combined.to_parquet(a_path)
-    q.to_frame("q").to_parquet(q_path)
+    q.to_frame('q').to_parquet(q_path)
 
     return a_path, q_path
 
@@ -171,21 +136,21 @@ def _matrix_stats(
     """Per-matrix summary row for the cache_summary tab."""
     arr = df.to_numpy()
     return {
-        "approach": approach,
-        "year": year,
-        "matrix_kind": kind,
-        "n_rows": int(df.shape[0]),
-        "n_cols": int(df.shape[1]),
-        "nan_count": int(np.isnan(arr).sum()),
-        "neg_count": int((arr < 0).sum()),
-        "max_col_sum": float(np.nansum(arr, axis=0).max()) if arr.size else 0.0,
-        "file_size_bytes": int(file_path.stat().st_size),
+        'approach': approach,
+        'year': year,
+        'matrix_kind': kind,
+        'n_rows': int(df.shape[0]),
+        'n_cols': int(df.shape[1]),
+        'nan_count': int(np.isnan(arr).sum()),
+        'neg_count': int((arr < 0).sum()),
+        'max_col_sum': float(np.nansum(arr, axis=0).max()) if arr.size else 0.0,
+        'file_size_bytes': int(file_path.stat().st_size),
     }
 
 
 _EXPECTED_IDENTITY_AT_2017 = {
-    "useeio",
-    "commodity_price_index",
+    'useeio',
+    'commodity_price_index',
 }
 """Approaches whose 2017 output should equal the BEA-2017 base A within rtol.
 
@@ -206,10 +171,10 @@ def _build_sanity_2017(
 
     Reference is ``useeio`` (returns ``base`` directly — simplest semantics).
     """
-    if not matrices_2017 or "useeio" not in matrices_2017:
+    if not matrices_2017 or 'useeio' not in matrices_2017:
         return pd.DataFrame()
 
-    ref_dom, ref_imp, ref_q = matrices_2017["useeio"]
+    ref_dom, ref_imp, ref_q = matrices_2017['useeio']
 
     def _max_rel_dev(a: pd.DataFrame, b: pd.DataFrame) -> float:
         diff = a.to_numpy() - b.to_numpy()
@@ -225,13 +190,13 @@ def _build_sanity_2017(
         max_rel_dev = max(max_dom, max_imp, max_q)
         rows.append(
             {
-                "approach": name,
-                "reference": "useeio",
-                "expected_identity": expected_identity,
-                "max_rel_dev_Adom": max_dom,
-                "max_rel_dev_Aimp": max_imp,
-                "max_rel_dev_q": max_q,
-                "passes": (bool(max_rel_dev <= rtol) if expected_identity else None),
+                'approach': name,
+                'reference': 'useeio',
+                'expected_identity': expected_identity,
+                'max_rel_dev_Adom': max_dom,
+                'max_rel_dev_Aimp': max_imp,
+                'max_rel_dev_q': max_q,
+                'passes': (bool(max_rel_dev <= rtol) if expected_identity else None),
             }
         )
     return pd.DataFrame(rows)
@@ -240,11 +205,11 @@ def _build_sanity_2017(
 def _git_sha_short() -> str:
     try:
         sha = subprocess.check_output(
-            ["git", "rev-parse", "--short=7", "HEAD"], text=True
+            ['git', 'rev-parse', '--short=7', 'HEAD'], text=True
         ).strip()
-        return sha or "unknown"
+        return sha or 'unknown'
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return "unknown"
+        return 'unknown'
 
 
 def _publish_run_report(summary_df: pd.DataFrame, sanity_df: pd.DataFrame) -> str:
@@ -253,15 +218,15 @@ def _publish_run_report(summary_df: pd.DataFrame, sanity_df: pd.DataFrame) -> st
     Returns the new sheet ID.
     """
     title = (
-        f"a_matrix_time_series__{_git_sha_short()}__"
-        f"{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        f'a_matrix_time_series__{_git_sha_short()}__'
+        f'{dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")}'
     )
     sheet_id = create_spreadsheet_in_folder(
         title=title, folder_id=ANALYSIS_DRIVE_FOLDER_ID
     )
-    update_sheet_tab(sheet_id, "cache_summary", summary_df)
+    update_sheet_tab(sheet_id, 'cache_summary', summary_df)
     if not sanity_df.empty:
-        update_sheet_tab(sheet_id, "sanity_2017_identity_check", sanity_df)
+        update_sheet_tab(sheet_id, 'sanity_2017_identity_check', sanity_df)
     return sheet_id
 
 
@@ -277,22 +242,22 @@ def main() -> None:
             try:
                 adom, aimp, q = _derive_one_pair(approach, year)
             except Exception as e:  # noqa: BLE001 — record any per-pair failure
-                logger.warning("Pair (%s, %d) failed: %s", approach, year, e)
+                logger.warning('Pair (%s, %d) failed: %s', approach, year, e)
                 summary_rows.append(
                     {
-                        "approach": approach,
-                        "year": year,
-                        "matrix_kind": "FAILED",
-                        "error": f"{type(e).__name__}: {e}",
+                        'approach': approach,
+                        'year': year,
+                        'matrix_kind': 'FAILED',
+                        'error': f'{type(e).__name__}: {e}',
                     }
                 )
                 continue
 
             a_path, q_path = _save_parquets(approach, year, adom, aimp, q)
-            summary_rows.append(_matrix_stats(approach, year, "Adom", adom, a_path))
-            summary_rows.append(_matrix_stats(approach, year, "Aimp", aimp, a_path))
+            summary_rows.append(_matrix_stats(approach, year, 'Adom', adom, a_path))
+            summary_rows.append(_matrix_stats(approach, year, 'Aimp', aimp, a_path))
             summary_rows.append(
-                _matrix_stats(approach, year, "q", q.to_frame("q"), q_path)
+                _matrix_stats(approach, year, 'q', q.to_frame('q'), q_path)
             )
 
             if year == 2017:
@@ -300,30 +265,30 @@ def main() -> None:
 
     summary_df = pd.DataFrame(summary_rows)
     sanity_df = _build_sanity_2017(matrices_2017)
-    summary_df.to_csv(RESULTS_DIR / "cache_summary.csv", index=False)
+    summary_df.to_csv(RESULTS_DIR / 'cache_summary.csv', index=False)
     if not sanity_df.empty:
-        sanity_df.to_csv(RESULTS_DIR / "sanity_2017_identity_check.csv", index=False)
+        sanity_df.to_csv(RESULTS_DIR / 'sanity_2017_identity_check.csv', index=False)
 
     try:
         sheet_id = _publish_run_report(summary_df, sanity_df)
     except Exception as e:  # noqa: BLE001
         logger.warning(
-            "Sheet publish skipped (%s: %s). Local parquet caches and CSVs in "
+            'Sheet publish skipped (%s: %s). Local parquet caches and CSVs in '
             "%s are complete; Steps 2-5 that read last_run_sheet_id.txt won't "
-            "have a target until the run is re-published with valid Drive auth.",
+            'have a target until the run is re-published with valid Drive auth.',
             type(e).__name__,
             e,
             RESULTS_DIR,
         )
         return
 
-    LAST_RUN_SHEET_ID_PATH.write_text(sheet_id + "\n")
-    sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}"
-    logger.info("Run report: %s", sheet_url)
-    print(f"Run report Sheet: {sheet_url}")
-    print(f"Sheet ID written to: {LAST_RUN_SHEET_ID_PATH}")
+    LAST_RUN_SHEET_ID_PATH.write_text(sheet_id + '\n')
+    sheet_url = f'https://docs.google.com/spreadsheets/d/{sheet_id}'
+    logger.info('Run report: %s', sheet_url)
+    print(f'Run report Sheet: {sheet_url}')
+    print(f'Sheet ID written to: {LAST_RUN_SHEET_ID_PATH}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     main()

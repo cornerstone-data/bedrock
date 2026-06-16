@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import typing as ta
+import warnings
 
 import pandas as pd
 import yaml
@@ -84,7 +85,9 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
-    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
+    ceda_margins: bool = False  # DRI: WesIngwersen
+    useeio_margins: bool = False  # DRI: WesIngwersen
+    cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
@@ -106,7 +109,8 @@ class USAConfig(BaseModel):
     use_ghg_national_2023_m2: bool = False
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
-    update_inflation_factors: bool = False  # mo.li
+    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
+    update_inflation_factors: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -164,6 +168,41 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
                 'to be true'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_margins_mutual_exclusivity(self) -> USAConfig:
+        active = [
+            name
+            for name, val in [
+                ('useeio_margins', self.useeio_margins),
+                ('ceda_margins', self.ceda_margins),
+                (
+                    'cornerstone_industry_avg_margins',
+                    self.cornerstone_industry_avg_margins,
+                ),
+            ]
+            if val
+        ]
+        if len(active) > 1:
+            raise ValueError(
+                f'At most one margins flag may be true; got: {", ".join(active)}'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
+        if (
+            self.iot_before_or_after_redefinition == 'before'
+            and self.eeio_waste_disaggregation is not None
+        ):
+            warnings.warn(
+                "iot_before_or_after_redefinition is 'before', so "
+                'eeio_waste_disaggregation is ignored; USEEIOR v1.8.0 waste '
+                'weights apply (USEEIO parity).',
+                UserWarning,
+                stacklevel=2,
             )
         return self
 
@@ -307,9 +346,9 @@ def get_usa_config() -> USAConfig:
     return _usa_config
 
 
-def reset_usa_config(should_reset_env_var: bool = False) -> None:
-    """For testing purposes"""
+def reset_usa_config(should_reset_env_var: bool = True) -> None:
+    """Clear the process-wide USA config."""
     global _usa_config
     _usa_config = None
-    if should_reset_env_var and USA_CONFIG_ENV_VAR in os.environ:
-        del os.environ[USA_CONFIG_ENV_VAR]
+    if should_reset_env_var:
+        os.environ.pop(USA_CONFIG_ENV_VAR, None)
