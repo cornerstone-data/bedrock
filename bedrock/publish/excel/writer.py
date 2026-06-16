@@ -83,6 +83,7 @@ from bedrock.publish.model_objects import (
     get_Mdom,
     get_N,
     get_Ndom,
+    get_Phi,
     get_q,
     get_U,
     get_Udom,
@@ -294,10 +295,8 @@ def _build_matrix_registry(config_name: str) -> list[SheetSpec]:
         SheetSpec('N', get_N),
         SheetSpec('N_d', get_Ndom),
         SheetSpec('N_m', lambda: None),  # requires B_imp
-        # Rho, Phi, Tau are useeior valuation-adjustment matrices with no
-        # direct bedrock analogue. Leave as TODO until a design call is made.
         SheetSpec('Rho', lambda: None),
-        SheetSpec('Phi', lambda: None),
+        SheetSpec('Phi', get_Phi),
         SheetSpec('Tau', lambda: None),
         # --- outputs (useeior writes these after the matrices block) ---
         SheetSpec('q', get_q),
