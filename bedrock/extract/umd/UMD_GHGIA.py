@@ -170,7 +170,6 @@ def umd_ghgia_load(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
             df = _load_umd_ghgia_table(
                 table,
                 chapter if chapter.startswith('Annex') else None,
-                'emission' in data,
             )
             # for some of the imported tables, cell A2 is blank, where in the EPA GHGI tables, the column is labeled
             # "Activity". We want to retain the activities, so give the column a header to prevent being dropped
@@ -215,8 +214,9 @@ def _load_umd_ghgia_table(
         '9': 'Chapter 9 - Recalculations',
     }
     section = table.split('-')[0]
-    if re.match(r'^A\d', table):
-        annex_num = re.match(r'^A(\d+)', table).group(1)
+    annex_match = re.match(r'^A(\d+)', table)
+    if annex_match:
+        annex_num = annex_match.group(1)
         rest = table[len(f'A{annex_num}-') :]
         csv_label = f'A{annex_num}.{rest}'
         rel = posixpath.join(
@@ -247,7 +247,7 @@ def _load_umd_ghgia_table(
         header=[0, 1] if use_two_row else 0,
     )
     if table in ANNEX_ENERGY_TABLES:
-        return _read_yearly_annex_tables(df, table)
+        return _read_yearly_annex_tables(df)
     elif table == '3-8':  # todo - check if necessary
         # remove notes from column headers in some years (GHGI Table 3-13 analogue)
         cols = [c[:4] for c in list(df.columns[1:])]
