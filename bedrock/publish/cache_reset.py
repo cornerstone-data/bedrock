@@ -42,6 +42,7 @@ from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_phi_cornerstone_usa_panel,
 )
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    clear_cornerstone_inflation_caches,
     derive_price_index_panel,
     get_price_index_ratio,
 )
@@ -79,6 +80,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
 
 
 def clear_all_publish_caches() -> None:
+    clear_cornerstone_inflation_caches()
     for fn in UPSTREAM_CACHED_DERIVES:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
