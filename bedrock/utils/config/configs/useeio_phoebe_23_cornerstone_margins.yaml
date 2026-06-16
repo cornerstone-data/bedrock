@@ -1,0 +1,39 @@
+# Sensitivity from useeio_phoebe_23: Cornerstone industry-average margins.
+# Identical rebuild to useeio_phoebe_23 except margin inflation uses
+# cornerstone_industry_avg_margins (V-norm commodity PI on PRO) instead of
+# useeio_margins (sector Rho on PRO). B, L, N, and GHG flags are unchanged.
+
+#####
+# Model base settings
+#####
+model_base_year: 2017
+iot_before_or_after_redefinition: before
+
+#####
+# Data selection
+#####
+usa_io_data_year: 2017
+usa_ghg_data_year: 2023
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: true
+load_E_from_flowsa: true
+use_E_data_year_for_x_in_B: true
+implement_waste_disaggregation: true
+
+scale_a_matrix_with_useeio_method: true
+
+use_useeio_schema: true
+deflate_x_to_detail_io_year_for_B: true
+use_ghg_national_2023_m2: true
+skip_scrap_adjustment_in_vnorm: true
+
+new_ghg_method: false
+
+#####
+# Margins (single change vs useeio_phoebe_23)
+#####
+useeio_margins: false
+cornerstone_industry_avg_margins: true

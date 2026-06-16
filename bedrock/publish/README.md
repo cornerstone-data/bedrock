@@ -19,9 +19,9 @@ shareable file formats, mirroring the shape of `useeior`'s
   configs via `bedrock.publish.emission_factors`. Emits a long-form CO2e
   table (`CornerstoneSupplyChainGHG_CO2e_USD<year>.csv`) with three
   supply-chain factor columns (without margins, margins, with margins).
-  Purchaser-price adjustment applies PRO:PUR (Phi) from
-  `derive_phi_cornerstone_usa()` and rebases denominators from
-  `model_base_year` to `--dollar_year` via commodity price indices.
+  Purchaser-price adjustment applies PRO:PUR (Phi) at ``--dollar_year``
+  after rebasing producer N from ``model_base_year`` to ``--dollar_year``
+  via commodity price indices (matches supply-chain-factors ``Phi[currency_year]``).
   Margin SEF column remains zero until `N_margin` is wired.
   CLI: `--purchaser_price` / `--no-purchaser_price` (default on).
 - **Supply-chain factors (R repo)**: not ported. Upstream counterpart:
@@ -33,11 +33,14 @@ shareable file formats, mirroring the shape of `useeior`'s
   `B_imp` lands.
 - **`Phi` sheet**: emitted when `useeio_margins` or
   `cornerstone_industry_avg_margins` is active (`get_Phi()` in
-  `model_objects.py`). Values are at **`model_base_year` only** (one
-  column per config, e.g. 2017 for `useeio_phoebe_23`); not a full
-  year panel like useeior's `Phi` matrix yet.
-- **Useeior-only valuation matrices** (`Rho`, `Tau`) and long-form
-  metadata (`demands`, `SectorCrosswalk`): registered as placeholders.
+  `model_objects.py`). Sector × year panel for years with BEA price-index
+  coverage from ``usa_base_io_data_year`` onward (~2017–2025).
+- **`Rho` sheet**: emitted under the same margin flags (`get_Rho()` in
+  `model_objects.py`). Sector × year panel, always useeior convention:
+  sector 1:1 ``PI[IO]/PI[y]`` from ``derive_price_index_panel`` (independent
+  of which margin inflation path ``get_price_index_ratio`` uses).
+- **Useeior-only valuation matrices** (`Tau`) and long-form metadata
+  (`demands`, `SectorCrosswalk`): registered as placeholders.
 
 ## Known divergence from useeior (B units)
 
@@ -175,7 +178,8 @@ used by the XLSX publisher).
 | Artifact | Automated test | Year / basis |
 |----------|----------------|--------------|
 | `Phi` sheet vs pinned phoebe USEEIO workbook | `test_published_phi_matches_useeio_workbook` (`eeio_integration`) | Workbook **`Phi` column `model_base_year`** only (2017 on phoebe pin) |
-| SEF CSV wiring (Phi × CPI on `N`) | `test_sef_phi_wiring` (`eeio_integration`) | Export at `--dollar_year` (test uses 2024); **Phi stays at `model_base_year` (2017)** |
-| SEF vs [supply-chain-factors](https://github.com/cornerstone-data/supply-chain-factors) or Zenodo NAICS publish | None in bedrock | Not in scope for Phi PR (#449) |
+| SEF CSV wiring (Phi × CPI on `N`) | `test_sef_phi_wiring` (`eeio_integration`) | Export at `--dollar_year` (test uses 2024); **Phi at `dollar_year`** after CPI |
+| Phi panel vs phoebe workbook | `test_published_phi_matches_useeio_workbook` (`eeio_integration`) | Column **2017** (1% rtol); full panel in Excel |
+| SEF vs Zenodo v1.4.0 on Reference USEEIO Code | `bedrock.analysis.margins.compare_sef_zenodo_useeio_code` (manual) | Collapses NAICS rows; not CI |
 
 Default `uv run pytest` excludes `eeio_integration`; run `-m eeio_integration` for workbook Phi parity and SEF wiring tests.

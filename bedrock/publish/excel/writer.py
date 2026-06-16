@@ -85,6 +85,7 @@ from bedrock.publish.model_objects import (
     get_Ndom,
     get_Phi,
     get_q,
+    get_Rho,
     get_U,
     get_Udom,
     get_V,
@@ -295,7 +296,7 @@ def _build_matrix_registry(config_name: str) -> list[SheetSpec]:
         SheetSpec('N', get_N),
         SheetSpec('N_d', get_Ndom),
         SheetSpec('N_m', lambda: None),  # requires B_imp
-        SheetSpec('Rho', lambda: None),
+        SheetSpec('Rho', get_Rho),
         SheetSpec('Phi', get_Phi),
         SheetSpec('Tau', lambda: None),
         # --- outputs (useeior writes these after the matrices block) ---

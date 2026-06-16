@@ -36,7 +36,7 @@ def test_sef_applies_phi_and_dollar_year() -> None:
         n_producer = get_N().loc[GREENHOUSE_GASES_INDICATOR].astype(float)
         pi = get_vnorm_adjusted_commodity_price_ratio(cfg.model_base_year, dollar_year)
         n_producer_cpi = n_producer / pi.reindex(n_producer.index, fill_value=1.0)
-        phi = phi_for_sectors(n_producer.index)
+        phi = phi_for_sectors(n_producer.index, year=dollar_year)
 
         for _, row in table.iterrows():
             code = str(row['Cornerstone Commodity Code']).removesuffix('/US')
