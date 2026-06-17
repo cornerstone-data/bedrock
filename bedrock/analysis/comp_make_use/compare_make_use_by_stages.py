@@ -202,8 +202,9 @@ def write_results_csv(
 def _print_result(output: str, result: DiagnosticResult) -> None:
     status = "PASS" if result.passed else "FAIL"
     print(
-        f"{output} (x_V vs Use-side output): max_rel_diff={result.max_rel_diff:.4g}, "
-        f"failures>{result.tolerance:.0%}={len(result.failing_sectors)} — {status}"
+        f"{output} (x_V vs Use-side output): max normalized residual="
+        f"{result.max_rel_diff:.4g} (pass if <= 1.0, rtol={result.tolerance:.0%}), "
+        f"failing sectors={len(result.failing_sectors)} — {status}"
     )
     if not result.passed:
         for sector in result.failing_sectors:

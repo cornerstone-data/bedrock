@@ -22,6 +22,10 @@ from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVe
 
 logger = logging.getLogger(__name__)
 
+# Absolute floor for |value| in relative-error diagnostics. Sectors with q ≈ 0
+# (e.g. S00402 used goods) compare |diff| against atol instead of (diff / q).
+_VALIDATE_RESULT_ATOL = 1e-4
+
 
 @dc.dataclass
 class DiagnosticResult:
@@ -31,8 +35,12 @@ class DiagnosticResult:
     Attributes:
         name: Descriptive name of the diagnostic check.
         passed: Whether the diagnostic check passed.
-        tolerance: The tolerance threshold used for the check.
-        max_rel_diff: Maximum relative difference observed.
+        tolerance: Relative tolerance (rtol) passed to ``validate_result``;
+            scales the allowed residual as ``tolerance * |value| + atol``.
+        max_rel_diff: Worst-case normalized residual from ``validate_result``:
+            ``max(|diff| / (tolerance * |value| + atol))`` over sectors.
+            Values <= 1.0 are within tolerance; > 1.0 fail. Not directly
+            comparable to ``tolerance``. Structural errors may set this to inf.
         failing_sectors: List of sector identifiers that failed the check.
         details: Optional DataFrame with detailed diagnostic information.
     """
@@ -70,14 +78,14 @@ def format_diagnostic_result(result: DiagnosticResult) -> str:
         ...     name="Row sum check",
         ...     passed=False,
         ...     tolerance=0.01,
-        ...     max_rel_diff=0.05,
+        ...     max_rel_diff=1.5,
         ...     failing_sectors=["11", "21"]
         ... )
         >>> print(format_diagnostic_result(result))
         Diagnostic: Row sum check
         Status: FAILED
-        Tolerance: 0.0100
-        Max relative difference: 0.0500
+        Tolerance (rtol): 0.0100
+        Max normalized residual: 1.5000 (pass if <= 1.0)
         Failing sectors (2): 11, 21
     """
     status = "PASSED" if result.passed else "FAILED"
@@ -85,8 +93,8 @@ def format_diagnostic_result(result: DiagnosticResult) -> str:
     lines = [
         f"Diagnostic: {result.name}",
         f"Status: {status}",
-        f"Tolerance: {result.tolerance:.4f}",
-        f"Max relative difference: {result.max_rel_diff:.4f}",
+        f"Tolerance (rtol): {result.tolerance:.4f}",
+        f"Max normalized residual: {result.max_rel_diff:.4f} (pass if <= 1.0)",
     ]
 
     if result.failing_sectors:
@@ -162,8 +170,8 @@ def run_all_diagnostics(
             if stop_on_failure and not result.passed:
                 raise RuntimeError(
                     f"Diagnostic '{result.name}' failed. "
-                    f"Max relative difference: {result.max_rel_diff:.4f} "
-                    f"(tolerance: {result.tolerance:.4f})"
+                    f"Max normalized residual: {result.max_rel_diff:.4f} "
+                    f"(pass if <= 1.0; rtol: {result.tolerance:.4f})"
                 )
 
         except Exception as e:
@@ -201,12 +209,15 @@ def validate_result(
     value_check: pd.Series[float],
     *,
     tolerance: float = 0.01,
+    atol: float = _VALIDATE_RESULT_ATOL,
     include_details: bool = False,
 ) -> DiagnosticResult:
     """
-    Helper function to compare and format validation results
-    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
-    is treated as 0.
+    Helper function to compare and format validation results.
+
+    Pass/fail uses ``|diff| <= tolerance * |value| + atol`` (same form as
+    ``numpy.isclose``). Where ``|value|`` is near zero, ``atol`` bounds the
+    absolute residual instead of dividing by zero.
 
     Parameters
     ----------
@@ -216,42 +227,52 @@ def validate_result(
     value_check - computed value to compare against original
         Float series obtained from calcualtion
     tolerance
-        Tolerance for |rel_diff|; default 0.05.
+        Relative tolerance (rtol) in ``|diff| <= tolerance * |value| + atol``;
+        default 0.01.
+    atol
+        Absolute tolerance added to the allowed residual; default 1e-4.
     include_details
-        If True, attach a details DataFrame (sector, expected, actual, rel_diff).
+        If True, attach a details DataFrame with per-sector normalized
+        residuals in the ``failing values`` column.
 
     Returns
     -------
     DiagnosticResult
-        Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
+        ``passed`` is True when all normalized residuals are <= 1.0.
+        ``max_rel_diff`` is the worst normalized residual (see
+        ``DiagnosticResult``).
 
     """
-    rel_diff = (value - value_check) / value
-    rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
-    rel_diff_abs = np.abs(rel_diff)
+    abs_diff = (value - value_check).abs()
+    value_abs = value.abs()
+    allowed = tolerance * value_abs + atol
 
-    failing_sectors = rel_diff_abs[rel_diff_abs > tolerance]
-    passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
-    max_rd = float(np.max(rel_diff_abs))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        normalized = abs_diff / allowed
+    normalized = normalized.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    failing_sectors = normalized.index[normalized > 1.0]
+    passing_sectors = normalized.index[normalized <= 1.0]
+    max_rd = float(normalized.max()) if len(normalized) else 0.0
 
     details = None
     if include_details:
         data = {
-            "failing sectors": list(getattr(failing_sectors, "index", [])),
-            "passing sectors": list(getattr(passing_sectors, "index", [])),
-            "failing values": np.array(failing_sectors).tolist(),
+            "failing sectors": list(getattr(failing_sectors, "index", failing_sectors)),
+            "passing sectors": list(getattr(passing_sectors, "index", passing_sectors)),
+            "failing values": normalized.loc[failing_sectors].tolist(),
             "max_rel_diff": max_rd,
         }
 
         details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
 
-    passed = len(value) == len(passing_sectors)
+    passed = len(failing_sectors) == 0
     return DiagnosticResult(
         name=name,
         passed=passed,
         tolerance=tolerance,
         max_rel_diff=max_rd,
-        failing_sectors=list(getattr(failing_sectors, "index", [])),
+        failing_sectors=list(failing_sectors.astype(str)),
         details=details,
     )
 
@@ -267,8 +288,8 @@ def compare_commodity_output_to_domestics_use_plus_exports(
     """
     Compares the total commodity output against the summation of model domestic Use (U_D) and production demand (y_d, including exports)
 
-    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
-    is treated as 0.
+    Pass/fail: ``|diff| <= tolerance * |value| + atol`` for all sectors (see
+    ``validate_result``).
 
     Parameters
     ----------
@@ -279,14 +300,15 @@ def compare_commodity_output_to_domestics_use_plus_exports(
     y_d
         Float series from e.g. ``derive_ydom_and_yimp_usa().ydom``
     tolerance
-        Tolerance for |rel_diff|; default 0.05.
+        Relative tolerance (rtol) forwarded to ``validate_result``; default 0.01.
     include_details
-        If True, attach a details DataFrame (sector, expected, actual, rel_diff).
+        If True, attach per-sector normalized residuals via ``validate_result``.
 
     Returns
     -------
     DiagnosticResult
-        Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
+        Pass/fail and ``max_rel_diff`` follow ``validate_result`` (normalized
+        residual <= 1.0).
     """
 
     # Make sure all elements have common sectors
@@ -322,8 +344,8 @@ def compare_output_vs_leontief_x_demand(
     """
     Compares the total sector output (commodity or industry) against
     the model result calculation of L @ y.
-    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
-    is treated as 0.
+    Pass/fail: ``|diff| <= tolerance * |value| + atol`` for all sectors (see
+    ``validate_result``).
 
     Parameters
     ----------
@@ -336,14 +358,15 @@ def compare_output_vs_leontief_x_demand(
     use_domestic
         If True, use the domestic Leontief inverse and final demand. Default is False.
     tolerance
-        Tolerance for |rel_diff|; default 0.01.
+        Relative tolerance (rtol) forwarded to ``validate_result``; default 0.01.
     include_details
-        If True, attach a details DataFrame (sector, expected, actual, rel_diff).
+        If True, attach per-sector normalized residuals via ``validate_result``.
 
     Returns
     -------
     DiagnosticResult
-        Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
+        Pass/fail and ``max_rel_diff`` follow ``validate_result`` (normalized
+        residual <= 1.0).
     """
 
     # Make sure all elements have common sectors:
@@ -378,7 +401,10 @@ def commodity_industry_output_cpi_consistency(
     tolerance: float,
     include_details: bool = False,
 ) -> DiagnosticResult:
-    """Test that commodity output adjusted by CPI equals market share matrix times CPI-adjusted industry output."""
+    """Test that CPI-adjusted commodity output matches the market-share mix of CPI-adjusted industry output.
+
+    Pass/fail and ``max_rel_diff`` are computed by ``validate_result``.
+    """
 
     # Commodity mix matrix C_m (commodity x industry) (Marketshares transposed)
     # This is equivalent to generateCommodityMixMatrix in useeior which also uses t(V) and x
@@ -405,7 +431,10 @@ def compare_output_from_make_and_use(
     tolerance: float,
     include_details: bool = False,
 ) -> DiagnosticResult:
-    """Check that industry output from Use and Make tables are the same"""
+    """Check that Make-table and Use-table output agree for industry or commodity.
+
+    Pass/fail and ``max_rel_diff`` are computed by ``validate_result``.
+    """
 
     if output == "Industry":
         x_make = V.sum(axis=1)
