@@ -30,6 +30,7 @@ from bedrock.utils.validation.eeio_diagnostics import (
     compare_output_vs_leontief_x_demand,
     format_diagnostic_result,
     run_all_diagnostics,
+    validate_result,
 )
 
 
@@ -132,6 +133,39 @@ class TestDiagnosticResult:
 
         assert result.tolerance == 0.0
         assert result.max_rel_diff == 0.0
+
+
+class TestValidateResult:
+    """Tests for zero-denominator handling in validate_result."""
+
+    def test_zero_value_tiny_residual_passes(self) -> None:
+        """Sectors with q=0 compare absolute residual against atol, not rel_diff."""
+        value = pd.Series({"S00402": 0.0, "1111A0": 100.0})
+        value_check = pd.Series({"S00402": 7.6e-6, "1111A0": 100.5})
+
+        result = validate_result("zero q", value, value_check, tolerance=0.01)
+
+        assert result.passed is True
+        assert result.failing_sectors == []
+        assert result.max_rel_diff <= 1.0
+
+    def test_zero_value_large_residual_fails(self) -> None:
+        value = pd.Series({"S00402": 0.0})
+        value_check = pd.Series({"S00402": 1.0})
+
+        result = validate_result("zero q", value, value_check, tolerance=0.01)
+
+        assert result.passed is False
+        assert result.failing_sectors == ["S00402"]
+
+    def test_nonzero_value_uses_relative_tolerance(self) -> None:
+        value = pd.Series({"1111A0": 100.0})
+        value_check = pd.Series({"1111A0": 102.0})
+
+        result = validate_result("rel", value, value_check, tolerance=0.01)
+
+        assert result.passed is False
+        assert result.failing_sectors == ["1111A0"]
 
 
 class TestFormatDiagnosticResult:

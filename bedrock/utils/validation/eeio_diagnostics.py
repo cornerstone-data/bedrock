@@ -22,6 +22,10 @@ from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVe
 
 logger = logging.getLogger(__name__)
 
+# Absolute floor for |value| in relative-error diagnostics. Sectors with q ≈ 0
+# (e.g. S00402 used goods) compare |diff| against atol instead of (diff / q).
+_VALIDATE_RESULT_ATOL = 1e-4
+
 
 @dc.dataclass
 class DiagnosticResult:
@@ -201,12 +205,15 @@ def validate_result(
     value_check: pd.Series[float],
     *,
     tolerance: float = 0.01,
+    atol: float = _VALIDATE_RESULT_ATOL,
     include_details: bool = False,
 ) -> DiagnosticResult:
     """
-    Helper function to compare and format validation results
-    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
-    is treated as 0.
+    Helper function to compare and format validation results.
+
+    Pass/fail uses ``|diff| <= tolerance * |value| + atol`` (same form as
+    ``numpy.isclose``). Where ``|value|`` is near zero, ``atol`` bounds the
+    absolute residual instead of dividing by zero.
 
     Parameters
     ----------
@@ -216,7 +223,9 @@ def validate_result(
     value_check - computed value to compare against original
         Float series obtained from calcualtion
     tolerance
-        Tolerance for |rel_diff|; default 0.05.
+        Relative tolerance for |rel_diff|; default 0.01.
+    atol
+        Absolute tolerance added to the allowed residual; default 1e-4.
     include_details
         If True, attach a details DataFrame (sector, expected, actual, rel_diff).
 
@@ -226,32 +235,36 @@ def validate_result(
         Standardized result with pass/fail, max_rel_diff, failing_sectors, optional details.
 
     """
-    rel_diff = (value - value_check) / value
-    rel_diff = rel_diff.fillna(0.0)  # convert NaN (e.g., div by 0) to 0s
-    rel_diff_abs = np.abs(rel_diff)
+    abs_diff = (value - value_check).abs()
+    value_abs = value.abs()
+    allowed = tolerance * value_abs + atol
 
-    failing_sectors = rel_diff_abs[rel_diff_abs > tolerance]
-    passing_sectors = rel_diff_abs[rel_diff_abs <= tolerance]
-    max_rd = float(np.max(rel_diff_abs))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        normalized = abs_diff / allowed
+    normalized = normalized.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    failing_sectors = normalized.index[normalized > 1.0]
+    passing_sectors = normalized.index[normalized <= 1.0]
+    max_rd = float(normalized.max()) if len(normalized) else 0.0
 
     details = None
     if include_details:
         data = {
-            "failing sectors": list(getattr(failing_sectors, "index", [])),
-            "passing sectors": list(getattr(passing_sectors, "index", [])),
-            "failing values": np.array(failing_sectors).tolist(),
+            "failing sectors": list(getattr(failing_sectors, "index", failing_sectors)),
+            "passing sectors": list(getattr(passing_sectors, "index", passing_sectors)),
+            "failing values": normalized.loc[failing_sectors].tolist(),
             "max_rel_diff": max_rd,
         }
 
         details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
 
-    passed = len(value) == len(passing_sectors)
+    passed = len(failing_sectors) == 0
     return DiagnosticResult(
         name=name,
         passed=passed,
         tolerance=tolerance,
         max_rel_diff=max_rd,
-        failing_sectors=list(getattr(failing_sectors, "index", [])),
+        failing_sectors=list(failing_sectors.astype(str)),
         details=details,
     )
 
@@ -267,8 +280,8 @@ def compare_commodity_output_to_domestics_use_plus_exports(
     """
     Compares the total commodity output against the summation of model domestic Use (U_D) and production demand (y_d, including exports)
 
-    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
-    is treated as 0.
+    Pass/fail: ``|diff| <= tolerance * |value| + atol`` for all sectors (see
+    ``validate_result``).
 
     Parameters
     ----------
@@ -322,8 +335,8 @@ def compare_output_vs_leontief_x_demand(
     """
     Compares the total sector output (commodity or industry) against
     the model result calculation of L @ y.
-    Pass/fail: |(c - x) / x| <= tolerance for all sectors. Where x = 0, rel_diff
-    is treated as 0.
+    Pass/fail: ``|diff| <= tolerance * |value| + atol`` for all sectors (see
+    ``validate_result``).
 
     Parameters
     ----------
