@@ -35,7 +35,12 @@ from bedrock.utils.validation.eeio_diagnostics import (
 
 
 class TestDiagnosticResult:
-    """Tests for the DiagnosticResult dataclass."""
+    """Tests for the DiagnosticResult dataclass (field storage and validation).
+
+    ``max_rel_diff`` values in these fixtures are arbitrary; they are not
+    required to satisfy ``validate_result``'s pass rule (normalized residual
+    <= 1.0). See ``TestValidateResult`` for that semantics.
+    """
 
     def test_basic_passing_result(self) -> None:
         """Test basic instantiation with a passing result."""
@@ -69,7 +74,7 @@ class TestDiagnosticResult:
         assert "11" in result.failing_sectors
         assert "21" in result.failing_sectors
         assert "31" in result.failing_sectors
-        assert result.max_rel_diff > result.tolerance
+        assert result.max_rel_diff == 0.05
 
     def test_result_with_details_dataframe(self) -> None:
         """Test a result with a details DataFrame."""
@@ -136,7 +141,7 @@ class TestDiagnosticResult:
 
 
 class TestValidateResult:
-    """Tests for zero-denominator handling in validate_result."""
+    """Tests for ``validate_result`` pass/fail semantics (normalized residual)."""
 
     def test_zero_value_tiny_residual_passes(self) -> None:
         """Sectors with q=0 compare absolute residual against atol, not rel_diff."""
@@ -185,8 +190,8 @@ class TestFormatDiagnosticResult:
 
         assert "Diagnostic: Row sum check" in formatted
         assert "Status: PASSED" in formatted
-        assert "Tolerance: 0.0100" in formatted
-        assert "Max relative difference: 0.0050" in formatted
+        assert "Tolerance (rtol): 0.0100" in formatted
+        assert "Max normalized residual: 0.0050 (pass if <= 1.0)" in formatted
         assert "Failing sectors: None" in formatted
 
     def test_format_failed_result_with_sectors(self) -> None:
@@ -357,11 +362,12 @@ def test_compare_Uset_y_dom_and_q_usa(
     else:
         # Cornerstone checks q (from V / Make) against U_dom row sums plus domestic
         # final demand y_d = y_tot − y_imp + exports, all in 2017-detail nominal
-        # units mapped to CS commodities. Thirteen sectors fail at 1% tolerance,
-        # concentrated in mining/petroleum and new waste codes (562*, S00402): the
+        # units mapped to CS commodities. Thirteen sectors fail at 1% rtol,
+        # concentrated in mining/petroleum and waste codes (562*, S00402): the
         # BEA→Cornerstone correspondence and waste disaggregation split parent GO
-        # across children without preserving the national-accounts identity sector-
-        # by-sector. rel_diff blows up to inf where remapped q is near zero.
+        # across children without preserving the national-accounts identity
+        # sector-by-sector. Near-zero q on special codes (e.g. S00402) is a
+        # separate issue from the L·y atol fix in validate_result.
         U_set = derive_cornerstone_U_with_negatives()
         y_set = derive_cornerstone_Ytot_matrix_set()
         # No derive_cornerstone_y_imp wrapper; inline compute_y_imp as in
