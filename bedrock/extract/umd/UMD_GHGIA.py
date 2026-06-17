@@ -937,13 +937,6 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
         pct = np.minimum(mecs_energy / ghgi_energy, 1)
         pct_dict[label] = pct
 
-    # based on 2018 datasets
-    # {'Coal': np.float64(0.7599),
-    #  'Natural Gas': np.float64(0.6822)}
-
-    # based on 2018 MECS / 2023 GHGI
-    # {'Coal': np.float64(1.0),
-    #  'Natural Gas': np.float64(0.6540)}
     return pct_dict
 
 
@@ -1032,36 +1025,3 @@ def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
         setattr(new_fba, attr, attributes_to_save[attr])
 
     return new_fba
-
-
-def clean_UMD_GHGIA_T_4_60(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
-    """Subtract out refrigeration transport emissions from the
-    Refrigeration/Air Conditioning activity (GHGI 4-124 → UMD 4-60)."""
-
-    attributes_to_save = {
-        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
-    }
-
-    # TODO: GHGI Table A-90 has no UMD equivalent—verify subtraction (EPA FBA, derived values, or omit).
-    tbl = load_fba_w_standardized_units(
-        datasource='EPA_GHGI_T_A_90', year=fba['Year'][0], download_FBA_if_missing=True
-    )
-
-    activities = [
-        "Comfort Cooling for Trains and Buses",
-        "Mobile AC",
-        "Refrigerated Transport",
-    ]
-
-    total = tbl.loc[tbl["ActivityProducedBy"].isin(activities), "FlowAmount"].sum()
-
-    fba.loc[
-        fba["ActivityProducedBy"] == "Refrigeration/Air Conditioning", "FlowAmount"
-    ] -= total
-
-    for attr in attributes_to_save:
-        setattr(fba, attr, attributes_to_save[attr])
-
-    fba2 = split_HFCs_by_type(fba)
-
-    return fba2
