@@ -883,5 +883,8 @@ source_names:
     fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity: Aluminum Production
+    # CO2 from aluminum is attributed in UMD_GHGIA_T_2_S1 (direct activity set).
+    exclusion_fields:
+      FlowName: CO2
     attribution_method: direct
 
