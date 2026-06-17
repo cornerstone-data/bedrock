@@ -41,7 +41,7 @@ source_names:
   UMD_GHGIA_T_2_S1: # U.S. GHG totals
      year: *ghgi_year
      activity_to_sector_mapping: UMD_GHGIA
-     fedefl_mapping: GHGI_AR5_100
+     fedefl_mapping: UMD_GHGIA_AR5_100
      activity_sets:
        direct:
          selection_fields:
@@ -187,7 +187,7 @@ source_names:
   UMD_GHGIA_T_3_28: &natgas #CH4 from Natural Gas Systems
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity:
         - Distribution
@@ -203,7 +203,7 @@ source_names:
   UMD_GHGIA_T_3_25: &petroleum #CH4 from Petroleum Systems
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity:
 #        - Crude Oil Transportation  # not included in UMD
@@ -220,7 +220,7 @@ source_names:
   UMD_GHGIA_T_5_3:  &animals #CH4 from Enteric Fermentation
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity:
         - American Bison
@@ -238,7 +238,7 @@ source_names:
   UMD_GHGIA_T_5_10: # UMD Table 5-10 totals; allocate via EPA T_5_18 (direct) and T_5_19 (indirect)
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     activity_sets:
       direct:
         selection_fields:
@@ -331,7 +331,7 @@ source_names:
   UMD_GHGIA_T_3_8: #CO2 from mobile combustion
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     activity_sets:
       direct_residual_fuel_oil:
         selection_fields:
@@ -411,7 +411,7 @@ source_names:
   UMD_GHGIA_T_3_9: &mobile #CH4 from mobile combustion
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     activity_sets:
       direct_gasoline: # empty in some years (<0.05 MMT CO2eq)
         selection_fields:
@@ -501,7 +501,7 @@ source_names:
   UMD_GHGIA_T_3_4: &umd_t_3_4 # stationary combustion -  CO2 residential + commercial (other gases from 3-12)
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     activity_sets:
       residential_commercial_co2:
         selection_fields:
@@ -548,7 +548,7 @@ source_names:
   UMD_GHGIA_T_3_7:  # stationary combustion - electricity
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     activity_sets:
      electric_power:
        selection_fields:
@@ -573,7 +573,7 @@ source_names:
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
         ghg_fba: 'UMD_GHGIA_T_A5_1_S2'  # align with 2022 MECS
-     fedefl_mapping: GHGI_AR5_100
+     fedefl_mapping: UMD_GHGIA_AR5_100
      activity_sets:
        petroleum_industrial:
          selection_fields:
@@ -639,7 +639,7 @@ source_names:
   UMD_GHGIA_T_3_12:  # Stationary combustion - CH4 + N2O residential + commercial (CO2 from T_3_4)
      year: *ghgi_year
      activity_to_sector_mapping: UMD_GHGIA
-     fedefl_mapping: GHGI_AR5_100
+     fedefl_mapping: UMD_GHGIA_AR5_100
      activity_sets:
        residential_non_co2_direct:
          selection_fields:
@@ -665,7 +665,7 @@ source_names:
   UMD_GHGIA_T_4_31: #CO2 for selected petrochemicals
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity:
         - Acrylonitrile
@@ -679,7 +679,7 @@ source_names:
   UMD_GHGIA_T_3_14: # UMD Table 3-14 totals; allocate via EPA T_3_25
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     activity_sets:
       emissions:
         selection_fields:
@@ -747,7 +747,7 @@ source_names:
   UMD_GHGIA_T_4_33: # HFCs from HCFC-22 production
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity: HCFC-22 Production
     attribution_method: direct
@@ -755,7 +755,7 @@ source_names:
   UMD_GHGIA_T_4_35: # Fluorochemical production (in CO2e)
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity: Fluorochemical Production
       FlowName: ["Other PFCs", "Other HFCs"]
@@ -775,7 +775,7 @@ source_names:
   UMD_GHGIA_T_4_52: # HFCs, SF6, CO2 from magnesium production
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity: Magnesium Production
     attribution_method: proportional
@@ -789,7 +789,7 @@ source_names:
   UMD_GHGIA_T_4_57: # HFCs and other emissions from electronics manufacture
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity:
         - Electronics Industry
@@ -801,7 +801,7 @@ source_names:
   UMD_GHGIA_T_4_62: # SF6 and PFCs from Other Product Use
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     attribution_method: direct
 
   UMD_GHGIA_T_4_60: # HFCs and PFCs from ODS Substitutes
@@ -810,7 +810,7 @@ source_names:
     clean_parameter:
         flow_fba: UMD_GHGIA_T_4_59
     year: *ghgi_year
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     activity_sets:
       households:
         selection_fields:
@@ -862,7 +862,7 @@ source_names:
      clean_parameter:
          # Proportions of specific HFCs are assigned based on national total
          flow_fba: UMD_GHGIA_T_4_59
-     fedefl_mapping: GHGI_AR5_100
+     fedefl_mapping: UMD_GHGIA_AR5_100
      selection_fields:
        PrimaryActivity:
          Mobile AC - Passenger Cars: Passenger Cars - Households
@@ -880,7 +880,7 @@ source_names:
   UMD_GHGIA_T_4_50: # PFCs from aluminum production
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: GHGI_AR5_100
+    fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity: Aluminum Production
     attribution_method: direct
