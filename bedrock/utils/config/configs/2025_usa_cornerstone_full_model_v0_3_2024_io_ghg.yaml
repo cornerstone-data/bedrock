@@ -1,4 +1,4 @@
-# Fully impelmented Cornerstone 2025 model
+# Fully impelmented Cornerstone 2026 model
 # Use 2024 US IO + GHG data: model_base_year 2024 paired with the 2024 UMD GHG FBS.
 # GHG via v0_3_umd_2024_ghgia (GHG_national_Cornerstone_2024); UMD GHGIA data (rather than EPA GHGI).
 # Pipeline loads E from flowsa.
