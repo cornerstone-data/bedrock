@@ -12,6 +12,11 @@
 #   - 2024 US IO+GHG data                -> usa_ghg_data_year: 2024 (IO x and GHG both at 2024).
 
 #####
+# Model base settings
+#####
+model_base_year: 2024
+
+#####
 # Data selection
 #####
 usa_ghg_data_year: 2024
