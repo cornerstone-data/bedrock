@@ -55,6 +55,7 @@ def _select_flowsa_ghg_method() -> str:
         or usa.update_enteric_fermentation_and_manure_management_ghg_method
         or usa.update_liming_and_fertilizer_ghg_method
         or usa.update_mecs_method
+        or usa.v0_3_umd_ghgia
     )
     if needs_2023 and year != 2023:
         raise ValueError(
@@ -86,7 +87,9 @@ def _select_flowsa_ghg_method() -> str:
     if usa.update_liming_and_fertilizer_ghg_method:
         return 'GHG_national_Cornerstone_2023_ag_soils'
     if usa.update_mecs_method:
-        return 'GHG_national_Cornerstone_2023_mecs'
+        return 'GHG_national_Cornerstone_2023_release_v0.3'
+    if usa.v0_3_umd_ghgia:
+        return 'GHG_national_Cornerstone_2023_umd_ghgia'
     return f'GHG_national_CEDA_{year}'
 
 
@@ -398,8 +401,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_enteric_fermentation_and_manure_management_ghg_method is True
     - GHG_national_Cornerstone_2023_ag_soils when
       update_liming_and_fertilizer_ghg_method is True
-    - GHG_national_Cornerstone_2023_mecs when
+    - GHG_national_Cornerstone_2023_release_0.3 when
       update_mecs_method is True
+    - GHG_national_2023_umd_ghgia when
+      v0_3_umd_ghgia is True
     - GHG_national_CEDA_2023 otherwise
 
     Only used when load_E_from_flowsa is True in USA config.
@@ -421,6 +426,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         or usa.update_enteric_fermentation_and_manure_management_ghg_method
         or usa.update_liming_and_fertilizer_ghg_method
         or usa.update_mecs_method
+        or usa.v0_3_umd_ghgia
     )
     if needs_2023 and year != 2023:
         raise ValueError(
