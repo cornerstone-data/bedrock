@@ -1,8 +1,8 @@
-# Cornerstone GHG national methods (v2025), inventory year 2024.
+# Cornerstone GHG national methods (v2025), inventory year 2023.
 # Uses UMD GHGIA FBAs - 2022 and earlier years use EPA GHGI.
 
 !include:Cornerstone_2025_target.yaml
-year: &ghgi_year 2024
+year: &ghgi_year 2023
 target_naics_year: 2017
 geoscale: national
 
@@ -636,7 +636,7 @@ source_names:
      # Intentionally left out 'Wood Commercial' and 'Wood Industrial'
 
 
-  UMD_GHGIA_T_3_12:  # Stationary combustion - CH4 + N2O residential + commercial (CO2 from T_3_4)
+  UMD_GHGIA_T_3_12:  # CH4 + N2O residential + commercial (CO2 from T_3_4)
      year: *ghgi_year
      activity_to_sector_mapping: UMD_GHGIA
      fedefl_mapping: GHGI_AR5_100
@@ -884,4 +884,3 @@ source_names:
     selection_fields:
       PrimaryActivity: Aluminum Production
     attribution_method: direct
-
