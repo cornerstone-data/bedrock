@@ -254,7 +254,7 @@ def backcompute_q_from_L_and_y(
     return (L @ np.diag(y)).sum(axis=1)
 
 
-def backcompute_y_from_q_and_Aq(
+def backcompute_y_from_A_and_q(
     *, A: pd.DataFrame, q: pd.Series[float]
 ) -> pd.Series[float]:
     return q - A.multiply(q, axis=1).sum(axis=1)

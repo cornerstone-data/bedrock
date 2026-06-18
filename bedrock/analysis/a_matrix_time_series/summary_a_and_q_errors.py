@@ -30,9 +30,21 @@ caches from Step 1 and the BEA summary A from
   ``rmse_vs_bea_summary_a`` (Z-magnitude weighted), ``mean_abs_diff``,
   ``top_5_worst_cells`` (semicolon-joined ``ROW->COL:diff`` pairs).
 
+- ``q_deviation_summary_tables_vs_cpi.csv`` — one row per year with three
+  deviation statistics of ``q_summary_tables`` relative to
+  ``q_commodity_price_index`` across all Cornerstone commodities:
+  ``q_weighted_rmse`` (q_cpi-magnitude-weighted), ``mean_abs_pct_err``, and
+  ``median_abs_pct_err`` (percentage units).
+
 - ``summary_a_rmse_ranking.png`` — grouped bar chart, x = year, five bars
   per group (one per approach), y = weighted RMSE for the combined
   (dom + imp) A matrix.
+
+- ``q_commodity_pi_vs_summary_tables.png`` — 8-panel log-log scatter (one
+  subplot per year) comparing ``q_summary_tables`` (y) against
+  ``q_commodity_price_index`` (x) for all Cornerstone commodities. The
+  dashed identity line marks perfect agreement; deviation reveals where
+  the two q-scaling approaches diverge at the commodity level.
 
 - Sheet tab ``summary_a_errors`` appended to the run-report Sheet.
 
@@ -63,6 +75,9 @@ from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     load_bea_v2017_summary_to_cornerstone,
 )
+from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
+
+CORNERSTONE_COMMODITIES: list[str] = list(COMMODITIES)
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +256,59 @@ def compute_errors_table() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def compute_q_deviation_table() -> pd.DataFrame:
+    """Per-year deviation of q_summary_tables from q_commodity_price_index.
+
+    Three statistics per year, all over the full set of CORNERSTONE_COMMODITIES
+    present in both parquets:
+
+    - ``q_weighted_rmse`` — q_cpi-magnitude-weighted RMSE, analogous to the
+      Z-weighted RMSE used for A-matrix errors.  Large-q commodities dominate.
+    - ``mean_abs_pct_err`` — mean |q_st − q_cpi| / q_cpi × 100 (uniform weight,
+      percentage units).
+    - ``median_abs_pct_err`` — median of the same per-commodity ratio × 100.
+      More robust to a handful of extreme deviants.
+    - ``n_commodities`` — number of commodities included (positive in both series).
+    """
+    rows: list[dict[str, object]] = []
+    for year in YEARS:
+        cpi_path = RESULTS_DIR / f"q_commodity_price_index_{year}.parquet"
+        st_path = RESULTS_DIR / f"q_summary_tables_{year}.parquet"
+        if not (cpi_path.exists() and st_path.exists()):
+            logger.warning("Missing q parquet for year=%d — skipping q deviation", year)
+            continue
+
+        q_cpi = _load_q_detail("commodity_price_index", year)
+        q_st = _load_q_detail("summary_tables", year)
+
+        common = (
+            pd.Index(CORNERSTONE_COMMODITIES)
+            .intersection(q_cpi.index)
+            .intersection(q_st.index)
+        )
+        cpi_vals = q_cpi.reindex(common).to_numpy(dtype=float)
+        st_vals = q_st.reindex(common).to_numpy(dtype=float)
+
+        mask = (cpi_vals > 0) & (st_vals > 0)
+        cpi_vals = cpi_vals[mask]
+        st_vals = st_vals[mask]
+
+        diff = st_vals - cpi_vals
+        weights = cpi_vals / cpi_vals.sum()
+        q_weighted_rmse = float(np.sqrt(np.sum(weights * diff**2)))
+        abs_pct = np.abs(diff / cpi_vals) * 100.0
+        rows.append(
+            {
+                "year": year,
+                "q_weighted_rmse": q_weighted_rmse,
+                "mean_abs_pct_err": float(abs_pct.mean()),
+                "median_abs_pct_err": float(np.median(abs_pct)),
+                "n_commodities": int(mask.sum()),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def plot_rmse_ranking(errors_df: pd.DataFrame, path: Path) -> None:
     """Grouped bar chart: x = year, 5 bars per group (one per approach).
 
@@ -307,6 +375,102 @@ def _publish_summary_a_errors_tab(errors_df: pd.DataFrame) -> None:
     logger.info("Updated summary_a_errors tab on sheet %s", sheet_id)
 
 
+def _publish_q_deviation_tab(q_dev_df: pd.DataFrame) -> None:
+    if not LAST_RUN_SHEET_ID_PATH.exists():
+        return
+    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
+    try:
+        update_sheet_tab(sheet_id, "q_deviation_st_vs_cpi", q_dev_df)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "Sheet publish skipped (%s: %s). Local CSV still complete.",
+            type(e).__name__,
+            e,
+        )
+        return
+    logger.info("Updated q_deviation_st_vs_cpi tab on sheet %s", sheet_id)
+
+
+def plot_q_commodity_pi_vs_summary_tables(years: tuple[int, ...], path: Path) -> None:
+    """Log-log scatter of q_summary_tables vs q_commodity_price_index per year.
+
+    One subplot per year (2 × 4 grid). Each point is one Cornerstone commodity.
+    The identity line (y = x) marks where both approaches agree. Points above
+    the line have a higher q in the summary_tables approach; points below are
+    lower. Missing parquet files for a given year produce an empty panel.
+    """
+    ncols = 4
+    nrows = (len(years) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
+    axes_flat = np.asarray(axes).flatten()
+
+    fig.suptitle(
+        "q: summary_tables vs commodity_price_index (all Cornerstone commodities)",
+        fontsize=11,
+    )
+
+    for idx, year in enumerate(years):
+        ax = axes_flat[idx]
+        cpi_path = RESULTS_DIR / f"q_commodity_price_index_{year}.parquet"
+        st_path = RESULTS_DIR / f"q_summary_tables_{year}.parquet"
+
+        if not (cpi_path.exists() and st_path.exists()):
+            ax.text(
+                0.5,
+                0.5,
+                f"{year}\n(missing parquet)",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=9,
+            )
+            ax.set_title(str(year), fontsize=9)
+            continue
+
+        q_cpi = _load_q_detail("commodity_price_index", year)
+        q_st = _load_q_detail("summary_tables", year)
+
+        common = (
+            pd.Index(CORNERSTONE_COMMODITIES)
+            .intersection(q_cpi.index)
+            .intersection(q_st.index)
+        )
+        x = q_cpi.reindex(common).to_numpy(dtype=float)
+        y = q_st.reindex(common).to_numpy(dtype=float)
+
+        # Mask non-positive values so log scale works cleanly
+        mask = (x > 0) & (y > 0)
+        ax.scatter(
+            x[mask],
+            y[mask],
+            s=6,
+            alpha=0.6,
+            color=APPROACH_COLORS["commodity_price_index"],
+            zorder=2,
+        )
+
+        # Identity line
+        lo = min(x[mask].min(), y[mask].min()) * 0.9
+        hi = max(x[mask].max(), y[mask].max()) * 1.1
+        ax.plot(
+            [lo, hi], [lo, hi], color="black", linewidth=0.8, linestyle="--", zorder=3
+        )
+
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_title(str(year), fontsize=9)
+        ax.set_xlabel("q  commodity_price_index ($)", fontsize=7)
+        ax.set_ylabel("q  summary_tables ($)", fontsize=7)
+        ax.grid(True, alpha=0.25, which="both")
+
+    for i in range(len(years), len(axes_flat)):
+        axes_flat[i].set_visible(False)
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -315,9 +479,17 @@ def main() -> None:
     errors_df = compute_errors_table()
     errors_df.to_csv(RESULTS_DIR / "summary_a_errors.csv", index=False)
 
+    logger.info("Computing q deviation: summary_tables vs commodity_price_index")
+    q_dev_df = compute_q_deviation_table()
+    q_dev_df.to_csv(RESULTS_DIR / "q_deviation_summary_tables_vs_cpi.csv", index=False)
+
     plot_rmse_ranking(errors_df, PLOTS_DIR / "summary_a_rmse_ranking.png")
+    plot_q_commodity_pi_vs_summary_tables(
+        YEARS, PLOTS_DIR / "q_commodity_pi_vs_summary_tables.png"
+    )
 
     _publish_summary_a_errors_tab(errors_df)
+    _publish_q_deviation_tab(q_dev_df)
     logger.info("Step 5 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 

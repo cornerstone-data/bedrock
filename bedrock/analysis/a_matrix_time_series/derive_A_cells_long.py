@@ -11,16 +11,16 @@ and produces:
   unchanged BEA-2017 base) and CEDA-US (the production-default approach at
   the same year).
 
-- ``scatter_vs_baselines_{dom,imp}.png`` — 3×2 grid (alternative approach ×
+- ``scatter_vs_baselines_{dom,imp}.png`` — 2×2 grid (alternative approach ×
   baseline) of element-wise scatter plots. Per-row target year is the latest
   year where the approach and both baselines all have data:
-  ``commodity_price_index`` and ``industry_price_index`` rows resolve to 2024;
+  ``commodity_price_index`` rows resolve to 2024;
   ``summary_tables`` falls back to 2023 (BEA Excel hasn't published 2024 yet).
-  All 6 panels share the same ``xlim``/``ylim`` so the ``y=x`` line is a true
+  All 4 panels share the same ``xlim``/``ylim`` so the ``y=x`` line is a true
   45° reference. Each panel has a top-left summary box with ``n``, mean / p95
   / max ``|Δ|``, and ``R²``.
 
-- ``divergence_share_{dom,imp}.png`` — 3×2 grid (alternative × baseline) of
+- ``divergence_share_{dom,imp}.png`` — 2×2 grid (alternative × baseline) of
   the share of cells whose ``|A_approach − A_baseline|`` exceeds each
   threshold (1e-4, 1e-3, 1e-2, 1e-1) plotted over years. Answers "how
   widespread is the divergence and how does it spread?" — complements the
@@ -54,19 +54,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series._loaders import load_a_pair
+from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    LAST_RUN_SHEET_ID_PATH,
+    BASELINES,
+    FOCUS_APPROACHES,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.io.gcp import update_sheet_tab
 
 logger = logging.getLogger(__name__)
 
 A_CELLS_LONG_PATH = RESULTS_DIR / "A_cells_long.parquet"
 
-SCATTER_APPROACHES = ("commodity_price_index", "industry_price_index", "summary_tables")
-SCATTER_BASELINES = (("useeio", "USEEIO"), ("ceda_default", "CEDA-US"))
+# v0.3 focus: scatter rows are the 3 focus approaches (summary_tables,
+# commodity_price_index, useeio_nowcast). Reversed so the matrix shows
+# useeio_nowcast on top, commodity_price_index middle, summary_tables bottom —
+# matches "external reference at top, candidates below" reading order.
+SCATTER_APPROACHES: tuple[str, ...] = tuple(reversed(FOCUS_APPROACHES))
 
 
 def _list_pairs() -> list[tuple[str, int]]:
@@ -75,6 +80,8 @@ def _list_pairs() -> list[tuple[str, int]]:
     Skips files that don't match ``A_{approach}_{4-digit-year}.parquet`` so
     other artifacts in the same dir (e.g. ``A_cells_long.parquet``) are
     ignored.
+
+    Consumed by: ``build_a_cells_long``.
     """
     pairs: list[tuple[str, int]] = []
     for path in sorted(RESULTS_DIR.glob("A_*.parquet")):
@@ -87,21 +94,14 @@ def _list_pairs() -> list[tuple[str, int]]:
     return pairs
 
 
-def _load_pair(approach: str, year: int) -> dict[str, pd.DataFrame]:
-    """Load Adom + Aimp from the combined parquet for one (approach, year)."""
-    combined = pd.read_parquet(RESULTS_DIR / f"A_{approach}_{year}.parquet")
-    return {
-        "dom": pd.DataFrame(combined.loc["dom"]),
-        "imp": pd.DataFrame(combined.loc["imp"]),
-    }
-
-
 def _melt(df: pd.DataFrame, approach: str, year: int, kind: str) -> pd.DataFrame:
     """Wide A matrix → long (row_sector, col_sector, A_value) + metadata.
 
     Direct numpy-based melt: faster than ``df.stack().reset_index(...)`` and
     avoids the duplicate-column collision when both axes share the source
     parquet's ``sector`` name.
+
+    Consumed by: ``build_a_cells_long``.
     """
     rows = df.index.to_numpy()
     cols = df.columns.to_numpy()
@@ -124,7 +124,7 @@ def build_a_cells_long() -> pd.DataFrame:
     year)."""
     chunks: list[pd.DataFrame] = []
     for approach, year in _list_pairs():
-        matrices = _load_pair(approach, year)
+        matrices = load_a_pair(approach, year)
         for kind, mat in matrices.items():
             chunks.append(_melt(mat, approach, year, kind))
 
@@ -209,7 +209,10 @@ def compute_divergence_quantiles(long: pd.DataFrame, baseline: str) -> pd.DataFr
 
 
 def _latest_common_year(long: pd.DataFrame, approaches: list[str]) -> int | None:
-    """Latest year for which every approach in ``approaches`` has data."""
+    """Latest year for which every approach in ``approaches`` has data.
+
+    Consumed by: ``plot_scatter_vs_baselines``, ``plot_baseline_reference``.
+    """
     years_per_approach = [
         set(long.loc[long["approach"] == a, "year"].unique()) for a in approaches
     ]
@@ -220,13 +223,13 @@ def _latest_common_year(long: pd.DataFrame, approaches: list[str]) -> int | None
 
 
 def plot_scatter_vs_baselines(long: pd.DataFrame, kind: str, path: Path) -> None:
-    """3×2 grid of element-wise scatters; rows = alternative approach,
+    """2×2 grid of element-wise scatters; rows = alternative approach,
     cols = baseline (USEEIO | CEDA-US).
 
     Per-row target year: the latest year where the approach AND both
-    baselines all have data. ``commodity_price_index`` /
-    ``industry_price_index`` rows resolve to 2024; ``summary_tables`` falls
-    back to 2023 (BEA Excel hasn't published 2024). The actual year used
+    baselines all have data. ``commodity_price_index`` rows resolve to
+    2024; ``summary_tables`` falls back to 2023 (BEA Excel hasn't
+    published 2024). The actual year used
     appears in each panel title.
 
     All 6 panels share the same ``xlim``/``ylim`` (global min/max across
@@ -243,9 +246,7 @@ def plot_scatter_vs_baselines(long: pd.DataFrame, kind: str, path: Path) -> None
     global_max = -np.inf
 
     for i, approach in enumerate(SCATTER_APPROACHES):
-        target_year = _latest_common_year(
-            sub, [approach, *(b[0] for b in SCATTER_BASELINES)]
-        )
+        target_year = _latest_common_year(sub, [approach, *(b[0] for b in BASELINES)])
         if target_year is None:
             logger.warning(
                 "No common year between %s and baselines for kind=%s; " "skipping row.",
@@ -259,7 +260,7 @@ def plot_scatter_vs_baselines(long: pd.DataFrame, kind: str, path: Path) -> None
             columns="approach",
             values="A_value",
         )
-        for j, (baseline_col, baseline_label) in enumerate(SCATTER_BASELINES):
+        for j, (baseline_col, baseline_label) in enumerate(BASELINES):
             if (
                 approach not in year_pivot.columns
                 or baseline_col not in year_pivot.columns
@@ -285,7 +286,7 @@ def plot_scatter_vs_baselines(long: pd.DataFrame, kind: str, path: Path) -> None
         return
 
     n_rows = len(SCATTER_APPROACHES)
-    n_cols = len(SCATTER_BASELINES)
+    n_cols = len(BASELINES)
     fig, axes = plt.subplots(
         n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows), squeeze=False
     )
@@ -356,7 +357,7 @@ DIVERGENCE_THRESHOLDS: tuple[float, ...] = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
 
 
 def plot_divergence_share(long: pd.DataFrame, kind: str, path: Path) -> None:
-    """3×2 grid: share of cells whose ``|delta_vs_baseline|`` exceeds each
+    """2×2 grid: share of cells whose ``|delta_vs_baseline|`` exceeds each
     threshold, plotted over years.
 
     Rows are the three alternative approaches; columns are baselines
@@ -369,7 +370,7 @@ def plot_divergence_share(long: pd.DataFrame, kind: str, path: Path) -> None:
     """
     sub = long[long["dom_or_imp"] == kind]
     n_rows = len(SCATTER_APPROACHES)
-    n_cols = len(SCATTER_BASELINES)
+    n_cols = len(BASELINES)
     fig, axes = plt.subplots(
         n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows), squeeze=False
     )
@@ -385,7 +386,7 @@ def plot_divergence_share(long: pd.DataFrame, kind: str, path: Path) -> None:
     ]
 
     for i, approach in enumerate(SCATTER_APPROACHES):
-        for j, (baseline_col, baseline_label) in enumerate(SCATTER_BASELINES):
+        for j, (baseline_col, baseline_label) in enumerate(BASELINES):
             ax = axes[i][j]
             delta_col = (
                 "delta_vs_useeio" if baseline_col == "useeio" else "delta_vs_ceda"
@@ -434,36 +435,11 @@ def plot_divergence_share(long: pd.DataFrame, kind: str, path: Path) -> None:
                 fontsize=10,
             )
             ax.grid(True, alpha=0.3)
-            ax.legend(loc="upper left", fontsize=8, framealpha=0.85)
+            ax.legend(loc="upper left", fontsize=8, framealpha=0.4)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
-
-
-def _publish_divergence_tabs(
-    div_useeio_df: pd.DataFrame, div_ceda_df: pd.DataFrame
-) -> None:
-    """Append divergence summary tabs to the run-report Sheet, if available."""
-    if not LAST_RUN_SHEET_ID_PATH.exists():
-        logger.warning(
-            "No %s found — skipping Sheet publish. Run derive_A_time_series "
-            "first (with valid Drive auth) to create the run report.",
-            LAST_RUN_SHEET_ID_PATH,
-        )
-        return
-    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
-    try:
-        update_sheet_tab(sheet_id, "divergence_vs_useeio", div_useeio_df)
-        update_sheet_tab(sheet_id, "divergence_vs_ceda", div_ceda_df)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__,
-            e,
-        )
-        return
-    logger.info("Updated tabs on sheet %s", sheet_id)
 
 
 def plot_baseline_reference(long: pd.DataFrame, kind: str, path: Path) -> None:
@@ -608,7 +584,7 @@ def plot_baseline_reference(long: pd.DataFrame, kind: str, path: Path) -> None:
                 )
             ax_share.set_xlim(years_arr.min(), years_arr.max())
             ax_share.set_ylim(0, max(panel_max * 1.1, 0.01))
-            ax_share.legend(loc="upper left", fontsize=8, framealpha=0.85)
+            ax_share.legend(loc="upper left", fontsize=8, framealpha=0.4)
     ax_share.set_xlabel("year")
     ax_share.set_ylabel("share of cells")
     ax_share.set_title("Share with |USEEIO − CEDA-US| above threshold", fontsize=10)
@@ -642,7 +618,12 @@ def main() -> None:
             long, kind, PLOTS_DIR / f"baseline_reference_{kind}.png"
         )
 
-    _publish_divergence_tabs(div_useeio_df, div_ceda_df)
+    publish_tabs(
+        {
+            "divergence_vs_useeio": div_useeio_df,
+            "divergence_vs_ceda": div_ceda_df,
+        }
+    )
     logger.info("Step 2 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 

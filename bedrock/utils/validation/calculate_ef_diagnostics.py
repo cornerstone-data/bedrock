@@ -23,6 +23,84 @@ from bedrock.utils.validation.significant_sectors import SIGNIFICANT_SECTORS
 logger = logging.getLogger(__name__)
 
 
+def _ef_vector_as_series(single_col_df: pd.DataFrame) -> pd.Series[float]:
+    return ta.cast('pd.Series[float]', single_col_df.iloc[:, 0])
+
+
+def _vector_perc_diff(new: pd.Series[float], old: pd.Series[float]) -> pd.Series[float]:
+    """Match :func:`diff_and_perc_diff_two_vectors` percent branch (old in denominator)."""
+    diff = new - old
+    return (
+        (diff / old.replace(0, np.nan)).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    )
+
+
+def _merge_ef_new_inflated_into_comparison(
+    comparison: pd.DataFrame,
+    inflated_new: pd.DataFrame,
+    *,
+    ef_name: str,
+) -> pd.DataFrame:
+    """Place ``{ef}_new_inflated`` before ``{ef}_new``; ``{ef}_perc_diff`` uses inflated vs old."""
+    new_col = f'{ef_name}_new'
+    old_inflated_col = f'{ef_name}_old_inflated'
+    inflated_col = f'{ef_name}_new_inflated'
+    perc_col = f'{ef_name}_perc_diff'
+
+    ser = _ef_vector_as_series(inflated_new).reindex(comparison.index)
+    old_infl = ta.cast('pd.Series[float]', comparison[old_inflated_col])
+
+    out = comparison.copy()
+    out[inflated_col] = ser
+    out[perc_col] = _vector_perc_diff(ser, old_infl)
+
+    cols = comparison.columns.tolist()
+    insert_at = cols.index(new_col)
+    ordered = cols[:insert_at] + [inflated_col] + cols[insert_at:]
+    return out[ordered]
+
+
+def _merge_ef_new_purchaser_into_comparison(
+    comparison: pd.DataFrame,
+    purchaser_new: pd.DataFrame,
+    *,
+    ef_name: str,
+    purchaser_old: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Insert purchaser columns; ``{ef}_perc_diff`` uses new vs old purchaser price."""
+    new_col = f'{ef_name}_new'
+    inflated_col = f'{ef_name}_new_inflated'
+    old_inflated_col = f'{ef_name}_old_inflated'
+    purchaser_new_col = f'{ef_name}_new_purchaser'
+    purchaser_old_col = f'{ef_name}_old_purchaser'
+    perc_col = f'{ef_name}_perc_diff'
+
+    new_ser = _ef_vector_as_series(purchaser_new).reindex(comparison.index)
+    if purchaser_old is not None:
+        old_ser = _ef_vector_as_series(purchaser_old).reindex(comparison.index)
+    else:
+        old_ser = ta.cast('pd.Series[float]', comparison[old_inflated_col])
+
+    out = comparison.copy()
+    out[purchaser_new_col] = new_ser
+    if purchaser_old is not None:
+        out[purchaser_old_col] = old_ser
+    out[perc_col] = _vector_perc_diff(new_ser, old_ser)
+
+    cols = comparison.columns.tolist()
+    if inflated_col in cols:
+        insert_at = cols.index(inflated_col)
+    else:
+        insert_at = cols.index(new_col)
+    ordered = cols[:insert_at] + [purchaser_new_col] + cols[insert_at:]
+    if purchaser_old is not None:
+        old_insert_at = ordered.index(old_inflated_col)
+        ordered = (
+            ordered[:old_insert_at] + [purchaser_old_col] + ordered[old_insert_at:]
+        )
+    return out[ordered]
+
+
 def _add_comparison_type_column(
     df: pd.DataFrame,
     mapped_sectors: ta.Dict[str, str],
@@ -64,8 +142,12 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     Compares current emission factors (EFs) against a previous snapshot release,
     writing results to a Google Sheet. The following tabs are produced:
 
-    - N_and_diffs: Total EFs new vs old, with absolute and percent diffs.
-    - D_and_diffs: Direct EFs new vs old.
+    - N_and_diffs: Total EFs new vs old. When eligible, inserts ``N_new_inflated``
+      before ``N_new`` and sets ``N_perc_diff`` from ``N_new_inflated`` vs
+      ``N_old_inflated``. Omitted when ``model_base_year`` equals
+      ``usa_detail_original_year`` (identity adjustment).
+    - D_and_diffs: Direct EFs new vs old; same ``D_new_inflated`` / ``D_perc_diff``
+      rules as ``N_and_diffs`` when eligible.
     - D_and_N_significant_sectors: Combined D and N comparisons for significant sectors.
     - N_and_D_summary_stats: Summary statistics of percent diffs.
     - output_contrib_new_vs_old: Top N contributing sectors to each EF's change,
@@ -118,8 +200,49 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         sector_desc=sector_desc,
     )
 
+    # Compare D (direct EFs) new vs old
+    D_comparison = construct_ef_diff_dataframe(
+        ef_name='D',
+        ef_new=efs.D_new,
+        ef_old=efs.D_old,
+        sector_desc=sector_desc,
+    )
+
     if use_cornerstone:
         _add_comparison_type_column(N_comparison, active_mappings)
+        _add_comparison_type_column(D_comparison, active_mappings)
+
+    if efs.D_new_inflated is not None:
+        assert efs.N_new_inflated is not None
+        t0 = time.time()
+        N_comparison = _merge_ef_new_inflated_into_comparison(
+            N_comparison,
+            efs.N_new_inflated,
+            ef_name='N',
+        )
+        D_comparison = _merge_ef_new_inflated_into_comparison(
+            D_comparison,
+            efs.D_new_inflated,
+            ef_name='D',
+        )
+        logger.info(
+            '[TIMING] attach D_new_inflated/N_new_inflated columns to EF tabs in %.1fs',
+            time.time() - t0,
+        )
+
+    if efs.N_new_purchaser is not None:
+        t0 = time.time()
+        N_comparison = _merge_ef_new_purchaser_into_comparison(
+            N_comparison,
+            efs.N_new_purchaser,
+            ef_name='N',
+            purchaser_old=efs.N_old_purchaser,
+        )
+        logger.info(
+            '[TIMING] attach N_new_purchaser/N_old_purchaser columns to N_and_diffs '
+            'in %.1fs',
+            time.time() - t0,
+        )
 
     t0 = time.time()
     update_sheet_tab(
@@ -131,17 +254,6 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     logger.info(
         f'[TIMING] Write N_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
-
-    # Compare D (direct EFs) new vs old
-    D_comparison = construct_ef_diff_dataframe(
-        ef_name='D',
-        ef_new=efs.D_new,
-        ef_old=efs.D_old,
-        sector_desc=sector_desc,
-    )
-
-    if use_cornerstone:
-        _add_comparison_type_column(D_comparison, active_mappings)
 
     t0 = time.time()
     update_sheet_tab(

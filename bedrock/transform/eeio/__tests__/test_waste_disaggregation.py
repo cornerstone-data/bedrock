@@ -15,9 +15,11 @@ from bedrock.extract.disaggregation.disagg_weights import (
     load_disagg_weights,
 )
 from bedrock.extract.iot.io_2017 import load_2017_value_added_usa
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    derive_disagg_Ytot_with_trade,
+)
 from bedrock.transform.eeio.cornerstone_expansion import industry_corresp
 from bedrock.transform.eeio.derived_cornerstone import (
-    _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_V,
 )
@@ -505,7 +507,12 @@ class TestApplyWasteDisaggToYtot:
 # Integration tests using real 2017 CSV weights
 # ===========================================================================
 
-_DATA_DIR = pathlib.Path(__file__).resolve().parents[3] / "extract" / "disaggregation"
+_DATA_DIR = (
+    pathlib.Path(__file__).resolve().parents[3]
+    / "extract"
+    / "disaggregation"
+    / "waste_disagg_inputs"
+)
 _USE_PATH = _DATA_DIR / "WasteDisaggregationDetail2017_Use.csv"
 _MAKE_PATH = _DATA_DIR / "WasteDisaggregationDetail2017_Make.csv"
 _WASTE_CODES_2017 = cast(list[str], list(WASTE_DISAGG_COMMODITIES["562000"]))
@@ -562,7 +569,7 @@ def real_Ytot() -> pd.DataFrame:
     """Cornerstone Final Demand (commodity x FD columns) from derived_cornerstone.
     May already have waste disaggregated (7 subsectors, no 562000 in index).
     """
-    return _derive_cornerstone_Ytot_with_trade()
+    return derive_disagg_Ytot_with_trade()
 
 
 def _build_V(waste_codes: list[str]) -> pd.DataFrame:

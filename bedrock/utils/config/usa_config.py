@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import typing as ta
+import warnings
 
 import pandas as pd
 import yaml
@@ -59,15 +60,34 @@ class USAConfig(BaseModel):
     use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
     use_useeio_schema: bool = False
     ### IO Methodology selection
-    use_E_data_year_for_x_in_B: bool = False  # DRI: mo.li
-    use_useeio_B: bool = False
+    use_E_data_year_for_x_in_B: bool = Field(
+        default=False,
+        description=(
+            'Use BEA gross-output time series at usa_ghg_data_year for industry x '
+            'in B. Must be true whenever deflate_x_to_detail_io_year_for_B is true.'
+        ),
+    )
+    deflate_x_to_detail_io_year_for_B: bool = Field(
+        default=False,
+        description=(
+            'Deflate BEA gross-output industry x at usa_ghg_data_year to '
+            'usa_detail_original_year chain dollars before E/x in B '
+            '(derive_cornerstone_B_via_vnorm). Requires '
+            'use_E_data_year_for_x_in_B to be true.'
+        ),
+    )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
+    implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
+    scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
-    scale_a_matrix_with_industry_price_index: bool = False  # DRI: mo.li
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
-    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
+    load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
+    adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
+    ceda_margins: bool = False  # DRI: WesIngwersen
+    useeio_margins: bool = False  # DRI: WesIngwersen
+    cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
@@ -85,10 +105,14 @@ class USAConfig(BaseModel):
     )
     update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
+    update_mecs_method: bool = False  # DRI: catherine.birney
+    v0_3_umd_2023_ghgia: bool = False  # DRI: catherine.birney
+    v0_3_umd_2024_ghgia: bool = False  # DRI: catherine.birney
     use_ghg_national_2023_m2: bool = False
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
-    update_inflation_factors: bool = False  # mo.li
+    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
+    update_inflation_factors: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -138,6 +162,53 @@ class USAConfig(BaseModel):
         return self
 
     @model_validator(mode='after')
+    def _validate_deflate_x_requires_use_e_for_x_in_b(self) -> USAConfig:
+        if (
+            self.deflate_x_to_detail_io_year_for_B
+            and not self.use_E_data_year_for_x_in_B
+        ):
+            raise ValueError(
+                'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
+                'to be true'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_margins_mutual_exclusivity(self) -> USAConfig:
+        active = [
+            name
+            for name, val in [
+                ('useeio_margins', self.useeio_margins),
+                ('ceda_margins', self.ceda_margins),
+                (
+                    'cornerstone_industry_avg_margins',
+                    self.cornerstone_industry_avg_margins,
+                ),
+            ]
+            if val
+        ]
+        if len(active) > 1:
+            raise ValueError(
+                f'At most one margins flag may be true; got: {", ".join(active)}'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
+        if (
+            self.iot_before_or_after_redefinition == 'before'
+            and self.eeio_waste_disaggregation is not None
+        ):
+            warnings.warn(
+                "iot_before_or_after_redefinition is 'before', so "
+                'eeio_waste_disaggregation is ignored; USEEIOR v1.8.0 waste '
+                'weights apply (USEEIO parity).',
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
+
+    @model_validator(mode='after')
     def _validate_ghg_flag_compatibility(self) -> USAConfig:
         if self.new_ghg_method and self.use_ghg_national_2023_m2:
             raise ValueError(
@@ -147,9 +218,13 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
             )
-        if self.use_useeio_B and self.use_E_data_year_for_x_in_B:
+        if (
+            self.implement_electricity_reallocation
+            and not self.implement_waste_disaggregation
+        ):
             raise ValueError(
-                'use_useeio_B and use_E_data_year_for_x_in_B cannot both be true'
+                'implement_electricity_reallocation requires '
+                'implement_waste_disaggregation'
             )
         return self
 
@@ -161,8 +236,10 @@ class USAConfig(BaseModel):
     snapshot_version_or_git_sha: ta.Literal[
         'v0',
         '1bda811e0169436ae90fd356fbef512ce7518ccb',  # v0.1
-        '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # v0.2
-        '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # v0.2 2025_usa_cornerstone_fbs_schema
+        '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # test
+        '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # test: snapshot from 2025_usa_cornerstone_fbs_schema
+        '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2
+        '4d67c8f0f5721a30ce03f4d3eef85a82e7199032',  # v0.3.0-alpha (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
@@ -272,9 +349,9 @@ def get_usa_config() -> USAConfig:
     return _usa_config
 
 
-def reset_usa_config(should_reset_env_var: bool = False) -> None:
-    """For testing purposes"""
+def reset_usa_config(should_reset_env_var: bool = True) -> None:
+    """Clear the process-wide USA config."""
     global _usa_config
     _usa_config = None
-    if should_reset_env_var and USA_CONFIG_ENV_VAR in os.environ:
-        del os.environ[USA_CONFIG_ENV_VAR]
+    if should_reset_env_var:
+        os.environ.pop(USA_CONFIG_ENV_VAR, None)

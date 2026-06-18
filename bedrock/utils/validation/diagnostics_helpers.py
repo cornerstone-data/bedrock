@@ -5,7 +5,8 @@ This module provides:
 - Core comparison functions (diff, percent diff)
 - Summary statistics calculations
 - Inflation adjustment for EF denominators
-- Data loading for diagnostics
+- Data loading for diagnostics (optional ``D_new_inflated`` / ``N_new_inflated`` when
+  eligible; merged into ``D_and_diffs`` / ``N_and_diffs`` by ``calculate_ef_diagnostics``)
 - Schema alignment for CEDA v7 ↔ cornerstone diagnostics
 """
 
@@ -19,7 +20,7 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel
 
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
@@ -65,15 +66,84 @@ class EfsForDiagnostics(BaseModel):
     Contains new (derived) EFs and old (snapshot) EFs for both D and N:
     - D = direct emission factors (from B matrix)
     - N = total emission factors (from M matrix)
+
+    ``D_new_inflated`` / ``N_new_inflated`` are optional: when present, they are
+    ``D`` / ``N`` after sector price-index adjustment from ``usa_detail_original_year``
+    to ``model_base_year`` (same machinery as ``D_old_inflated`` /
+    ``N_old_inflated``). Emitted only when ``deflate_x_to_detail_io_year_for_B`` is
+    enabled and :func:`d_n_new_inflated_eligibility` allows it.
     """
 
     D_new: pd.DataFrame
     N_new: pd.DataFrame
     D_old: OldEfSet
     N_old: OldEfSet
+    D_new_inflated: ta.Optional[pd.DataFrame] = None
+    N_new_inflated: ta.Optional[pd.DataFrame] = None
+    N_new_purchaser: ta.Optional[pd.DataFrame] = None
+    N_old_purchaser: ta.Optional[pd.DataFrame] = None
 
     class Config:
         arbitrary_types_allowed = True
+
+
+def n_purchaser_adjustment_eligibility(cfg: USAConfig) -> tuple[bool, str]:
+    """Whether purchaser-price N columns should be computed for USEEIO baseline comparisons.
+
+    When eligible, both ``N_new_purchaser`` and ``N_old_purchaser`` are emitted so
+    ``N_perc_diff`` compares purchaser vs purchaser.
+    """
+    if cfg.diagnostics_baseline_source != 'gcs_useeio_xlsx':
+        return (False, 'diagnostics_baseline_source is not gcs_useeio_xlsx')
+    from bedrock.transform.iot.derive_PRO_to_PUR_ratio import margins_phi_active
+
+    if not margins_phi_active(cfg):
+        return (False, 'no active margins methodology flag (useeio or cornerstone avg)')
+    return (True, '')
+
+
+def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
+    """Whether ``D_new_inflated`` / ``N_new_inflated`` should be computed for *cfg*.
+
+    Uses :func:`inflation_adjust_ef_denom_to_new_base_year` on ``D_new`` / ``N_new``
+    (sector BEA price indices), matching the baseline side. Applies when ``B`` is built
+    with ``deflate_x_to_detail_io_year_for_B`` (denominator in
+    ``usa_detail_original_year`` chain dollars). When ``model_base_year`` equals
+    ``usa_detail_original_year``, adjustment is identity.
+
+    Returns:
+        ``(True, "")`` to emit adjusted vectors, or ``(False, reason)`` to skip
+        (leaving optional fields ``None``) and avoid double-applying inflation when
+        ``derive_cornerstone_B_non_finetuned`` already inflates ``B`` to
+        ``model_base_year``.
+    """
+    if not cfg.use_cornerstone_2026_model_schema:
+        return (
+            False,
+            'use_cornerstone_2026_model_schema is false (legacy B path; no '
+            'cornerstone D_new_inflated hook)',
+        )
+    if cfg.deflate_x_to_detail_io_year_for_B:
+        if cfg.model_base_year == cfg.usa_detail_original_year:
+            return (
+                False,
+                'model_base_year equals usa_detail_original_year; '
+                'EF denominator adjustment for D/N is identity (no separate inflated columns)',
+            )
+        return (True, '')
+    if cfg.use_E_data_year_for_x_in_B:
+        return (
+            False,
+            'use_E_data_year_for_x_in_B without deflate_x_to_detail_io_year_for_B: '
+            'B uses GHG-year nominal gross output in the denominator; adjusting '
+            'from usa_detail_original_year would mis-state dollar years',
+        )
+    return (
+        False,
+        'derive_cornerstone_B_non_finetuned already applies '
+        'inflate_cornerstone_B_matrix_with_industry_pi to model_base_year; '
+        'skipping second denominator inflation pass (would double-apply)',
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +333,26 @@ def align_efs_across_schemas(
         N_old=OldEfSet(
             raw=_reindex_and_fill(efs.N_old.raw, full_index, old_fill),
             inflated=_reindex_and_fill(efs.N_old.inflated, full_index, old_fill),
+        ),
+        D_new_inflated=(
+            _reindex_and_fill(efs.D_new_inflated, full_index, new_fill)
+            if efs.D_new_inflated is not None
+            else None
+        ),
+        N_new_inflated=(
+            _reindex_and_fill(efs.N_new_inflated, full_index, new_fill)
+            if efs.N_new_inflated is not None
+            else None
+        ),
+        N_new_purchaser=(
+            _reindex_and_fill(efs.N_new_purchaser, full_index, new_fill)
+            if efs.N_new_purchaser is not None
+            else None
+        ),
+        N_old_purchaser=(
+            _reindex_and_fill(efs.N_old_purchaser, full_index, old_fill)
+            if efs.N_old_purchaser is not None
+            else None
         ),
     )
     return aligned_efs, active_mappings
@@ -510,6 +600,35 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     N_new = compute_n(M=M_new)
     logger.info(f'[TIMING] New L, M, D, N matrices computed in {time.time() - t0:.1f}s')
 
+    emit_inflated, inflated_skip_reason = d_n_new_inflated_eligibility(config)
+    d_new_inflated: pd.DataFrame | None = None
+    n_new_inflated: pd.DataFrame | None = None
+    if emit_inflated:
+        t_inf = time.time()
+        d_ser = inflation_adjust_ef_denom_to_new_base_year(
+            old_ef_vector=ta.cast('pd.Series[float]', D_new.squeeze()),
+            new_base_year=config.model_base_year,
+            old_base_year=config.usa_detail_original_year,
+        )
+        n_ser = inflation_adjust_ef_denom_to_new_base_year(
+            old_ef_vector=ta.cast('pd.Series[float]', N_new.squeeze()),
+            new_base_year=config.model_base_year,
+            old_base_year=config.usa_detail_original_year,
+        )
+        d_new_inflated = d_ser.to_frame()
+        n_new_inflated = n_ser.to_frame()
+        logger.info(
+            '[TIMING] D_new_inflated/N_new_inflated (sector PI %s→%s $) in %.1fs',
+            config.usa_detail_original_year,
+            config.model_base_year,
+            time.time() - t_inf,
+        )
+    else:
+        logger.info(
+            'Skipping D_new_inflated/N_new_inflated: %s',
+            inflated_skip_reason,
+        )
+
     t0 = time.time()
     if config.diagnostics_baseline_source == 'gcs_useeio_xlsx':
         from bedrock.utils.validation.useeio_excel_baseline import (
@@ -553,6 +672,30 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     )
     logger.info(f'[TIMING] Inflation adjustment completed in {time.time() - t0:.1f}s')
 
+    n_new_purchaser: pd.DataFrame | None = None
+    n_old_purchaser: pd.DataFrame | None = None
+    emit_purchaser, purchaser_skip_reason = n_purchaser_adjustment_eligibility(config)
+    if emit_purchaser:
+        from bedrock.transform.iot.derive_PRO_to_PUR_ratio import apply_phi_to_ef_vector
+
+        if n_new_inflated is not None:
+            n_base = ta.cast('pd.Series[float]', n_new_inflated.squeeze())
+            phi_year_new = int(new_base_year)
+        else:
+            n_base = ta.cast('pd.Series[float]', N_new.squeeze())
+            phi_year_new = int(config.usa_detail_original_year)
+        n_new_purchaser = apply_phi_to_ef_vector(n_base, year=phi_year_new).to_frame()
+        n_old_purchaser = apply_phi_to_ef_vector(
+            ta.cast('pd.Series[float]', N_old_inflated.squeeze()),
+            year=new_base_year,
+        ).to_frame()
+        logger.info(
+            '[TIMING] N_new_purchaser and N_old_purchaser (Phi on new/old N) '
+            'computed for USEEIO baseline'
+        )
+    else:
+        logger.info('Skipping N_new_purchaser: %s', purchaser_skip_reason)
+
     return EfsForDiagnostics(
         D_new=D_new.to_frame(),
         N_new=N_new.to_frame(),
@@ -564,6 +707,10 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
             raw=N_old_raw.to_frame(),
             inflated=N_old_inflated.to_frame(),
         ),
+        D_new_inflated=d_new_inflated,
+        N_new_inflated=n_new_inflated,
+        N_new_purchaser=n_new_purchaser,
+        N_old_purchaser=n_old_purchaser,
     )
 
 

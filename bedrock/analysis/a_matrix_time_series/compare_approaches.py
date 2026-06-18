@@ -3,11 +3,9 @@
 Reads the parquet caches produced by ``derive_A_time_series.py`` (Step 1) and
 produces:
 
-- ``pairwise_hexbins_{dom,imp}.png`` — 1×3 grid of log-log hexbin
-  density plots between the three alternative approaches at 2024
-  (``summary_tables`` vs ``industry_price_index``,
-  ``summary_tables`` vs ``commodity_price_index``,
-  ``industry_price_index`` vs ``commodity_price_index``). Hexbin density
+- ``pairwise_hexbins_{dom,imp}.png`` — log-log hexbin
+  density plots between the alternative approaches at 2024
+  (``summary_tables`` vs ``commodity_price_index``). Hexbin density
   uses ``bins='log'`` because A cells span ~6 orders of magnitude and a
   linear color scale would be dominated by the near-zero peak. Step 2
   already covers alternative-vs-baseline scatters at 2024 (linear axes);
@@ -37,28 +35,32 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.a_matrix_time_series._loaders import load_a_pair
+from bedrock.analysis.a_matrix_time_series._run_report import publish_tabs
 from bedrock.analysis.a_matrix_time_series.constants import (
-    LAST_RUN_SHEET_ID_PATH,
-    LATEST_TARGET_YEAR,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from bedrock.utils.io.gcp import update_sheet_tab
 
 logger = logging.getLogger(__name__)
 
-TARGET_YEAR = LATEST_TARGET_YEAR
+# 2023, not LATEST_TARGET_YEAR (=2024): useeio_nowcast has no 2024 upstream,
+# and we want all 6 approaches on a single shared year for apples-to-apples.
+HEXBIN_TARGET_YEAR = 2023
 
-ALTERNATIVE_APPROACHES: tuple[str, ...] = (
-    "summary_tables",
-    "industry_price_index",
-    "commodity_price_index",
-)
 BASELINE_APPROACHES: tuple[str, ...] = ("useeio", "ceda_default")
-PAIRS: tuple[tuple[str, str], ...] = (
-    ("summary_tables", "industry_price_index"),
+
+# v0.3 focus pairs at HEXBIN_TARGET_YEAR:
+#   - The two top internal candidates vs each other.
+#   - Each candidate vs the external reference (useeio_nowcast).
+#   - The external reference vs each baseline.
+# industry_price_index is dropped (superseded by commodity_price_index).
+HEXBIN_PAIRS: tuple[tuple[str, str], ...] = (
     ("summary_tables", "commodity_price_index"),
-    ("industry_price_index", "commodity_price_index"),
+    ("summary_tables", "useeio_nowcast"),
+    ("commodity_price_index", "useeio_nowcast"),
+    ("ceda_default", "useeio_nowcast"),
+    ("useeio", "useeio_nowcast"),
 )
 KINDS: tuple[str, ...] = ("dom", "imp")
 
@@ -69,31 +71,23 @@ CAP_TOL = 1e-9
 NEAR_CAP_THRESHOLD = 0.97  # report borderline columns too
 
 
-def _load_pair(approach: str, year: int) -> dict[str, pd.DataFrame]:
-    """Load the (Adom, Aimp) parquet for one (approach, year) into a dict."""
-    combined = pd.read_parquet(RESULTS_DIR / f"A_{approach}_{year}.parquet")
-    return {
-        "dom": pd.DataFrame(combined.loc["dom"]),
-        "imp": pd.DataFrame(combined.loc["imp"]),
-    }
-
-
-def _load_all_at_year(year: int) -> dict[str, dict[str, pd.DataFrame]]:
-    """Returns ``{kind: {approach: A_matrix}}`` at ``year``.
-
-    Only loads the alternative approaches — Step 3's hexbins compare
-    alternatives against each other, not against baselines.
-    """
+def _load_approaches_at_year(
+    approaches: tuple[str, ...], year: int
+) -> dict[str, dict[str, pd.DataFrame]]:
+    """Returns ``{kind: {approach: A_matrix}}`` for the given approaches at ``year``."""
     out: dict[str, dict[str, pd.DataFrame]] = {kind: {} for kind in KINDS}
-    for approach in ALTERNATIVE_APPROACHES:
-        pair = _load_pair(approach, year)
+    for approach in approaches:
+        pair = load_a_pair(approach, year)
         for kind in KINDS:
             out[kind][approach] = pair[kind]
     return out
 
 
 def _aligned_arrays(a: pd.DataFrame, b: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Reindex ``b`` to ``a``'s row/column order and return raveled values."""
+    """Reindex ``b`` to ``a``'s row/column order and return raveled values.
+
+    Consumed by: ``plot_pairwise_hexbins``.
+    """
     b_aligned = b.reindex(index=a.index, columns=a.columns)
     return a.to_numpy().ravel(), b_aligned.to_numpy().ravel()
 
@@ -104,20 +98,25 @@ def _aligned_arrays(a: pd.DataFrame, b: pd.DataFrame) -> tuple[np.ndarray, np.nd
 
 
 def plot_pairwise_hexbins(
-    matrices: dict[str, dict[str, pd.DataFrame]], kind: str, path: Path
+    matrices: dict[str, dict[str, pd.DataFrame]],
+    kind: str,
+    path: Path,
+    *,
+    pairs: tuple[tuple[str, str], ...] = HEXBIN_PAIRS,
+    year: int = HEXBIN_TARGET_YEAR,
 ) -> None:
-    """1×3 log-log hexbin density grid: pairs of alternative approaches.
+    """1×N log-log hexbin density grid: pairs of A-matrix approaches.
 
     Cells where both values are zero (joint sparsity in A) are dropped — they
     inflate the density at the origin and obscure the disagreement story.
     Each panel reports n_cells, R², and the share of cells off the y=x
     diagonal by more than 1× (i.e. ratio outside [0.5, 2]).
     """
-    fig, axes = plt.subplots(1, len(PAIRS), figsize=(5 * len(PAIRS), 5), squeeze=False)
-    fig.suptitle(f"Pairwise A-matrix comparison — {kind} — {TARGET_YEAR}", fontsize=12)
+    fig, axes = plt.subplots(1, len(pairs), figsize=(5 * len(pairs), 5), squeeze=False)
+    fig.suptitle(f"Pairwise A-matrix comparison — {kind} — {year}", fontsize=12)
     eps = 1e-12
 
-    for ax_idx, (a_name, b_name) in enumerate(PAIRS):
+    for ax_idx, (a_name, b_name) in enumerate(pairs):
         ax = axes[0][ax_idx]
         x, y = _aligned_arrays(matrices[kind][a_name], matrices[kind][b_name])
         mask = ~(np.isnan(x) | np.isnan(y)) & ~((x == 0) & (y == 0))
@@ -207,7 +206,7 @@ def column_cap_audit(years: list[int]) -> pd.DataFrame:
     """
     rows: list[dict[str, object]] = []
     for year in years:
-        pair = _load_pair("summary_tables", year)
+        pair = load_a_pair("summary_tables", year)
         for kind in KINDS:
             col_sum = pair[kind].sum(axis=0)
             for col, val in col_sum.items():
@@ -236,34 +235,20 @@ def column_cap_audit(years: list[int]) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def _publish_cap_audit_tab(cap_audit_df: pd.DataFrame) -> None:
-    """Append the column-cap audit tab to the run-report Sheet, if available."""
-    if not LAST_RUN_SHEET_ID_PATH.exists():
-        logger.warning(
-            "No %s found — skipping Sheet publish. Run derive_A_time_series "
-            "first (with valid Drive auth) to create the run report.",
-            LAST_RUN_SHEET_ID_PATH,
-        )
-        return
-    sheet_id = LAST_RUN_SHEET_ID_PATH.read_text().strip()
-    try:
-        update_sheet_tab(sheet_id, "column_cap_audit", cap_audit_df)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Sheet publish skipped (%s: %s). Local artifacts still complete.",
-            type(e).__name__,
-            e,
-        )
-        return
-    logger.info("Updated column_cap_audit tab on sheet %s", sheet_id)
-
-
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    logger.info("Loading matrices for %d", TARGET_YEAR)
-    matrices = _load_all_at_year(TARGET_YEAR)
+    # Load every approach mentioned in HEXBIN_PAIRS at HEXBIN_TARGET_YEAR (2023). One plot
+    # per kind covers all 5 pairs — internal-vs-internal, internal-vs-nowcast,
+    # nowcast-vs-baselines — on a single shared year.
+    pair_approaches = tuple(dict.fromkeys(a for pair in HEXBIN_PAIRS for a in pair))
+    logger.info(
+        "Loading %d approaches at %d for pairwise hexbins",
+        len(pair_approaches),
+        HEXBIN_TARGET_YEAR,
+    )
+    matrices = _load_approaches_at_year(pair_approaches, HEXBIN_TARGET_YEAR)
 
     for kind in KINDS:
         plot_pairwise_hexbins(
@@ -279,7 +264,7 @@ def main() -> None:
     cap_audit_df = column_cap_audit(audit_years)
     cap_audit_df.to_csv(RESULTS_DIR / "column_cap_audit.csv", index=False)
 
-    _publish_cap_audit_tab(cap_audit_df)
+    publish_tabs({"column_cap_audit": cap_audit_df})
     logger.info("Step 3 outputs written to %s and %s", RESULTS_DIR, PLOTS_DIR)
 
 

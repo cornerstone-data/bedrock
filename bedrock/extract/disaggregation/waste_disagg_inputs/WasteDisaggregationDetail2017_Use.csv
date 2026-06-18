@@ -1,0 +1,148 @@
+IndustryCode,CommodityCode,PercentUsed,Note
+562111/US,562000/US,0.476,"Use column sum, industry output"
+562HAZ/US,562000/US,0.121,"Use column sum, industry output"
+562212/US,562000/US,0.0827,"Use column sum, industry output"
+562213/US,562000/US,0.0151,"Use column sum, industry output"
+562910/US,562000/US,0.166,"Use column sum, industry output"
+562920/US,562000/US,0.0448,"Use column sum, industry output"
+562OTH/US,562000/US,0.0943,"Use column sum, industry output"
+562000/US,562111/US,0.463,"Use row sum, commodity output"
+562000/US,562HAZ/US,0.103,"Use row sum, commodity output"
+562000/US,562212/US,0.098,"Use row sum, commodity output"
+562000/US,562213/US,0.015,"Use row sum, commodity output"
+562000/US,562910/US,0.166,"Use row sum, commodity output"
+562000/US,562920/US,0.0753,"Use row sum, commodity output"
+562000/US,562OTH/US,0.0797,"Use row sum, commodity output"
+562111/US,562111/US,0.00000616,Use table intersection
+562111/US,562HAZ/US,0.0111,Use table intersection
+562111/US,562212/US,0.000932,Use table intersection
+562111/US,562213/US,0.00000616,Use table intersection
+562111/US,562910/US,0,Use table intersection
+562111/US,562920/US,0.00000589,Use table intersection
+562111/US,562OTH/US,0.000269,Use table intersection
+562HAZ/US,562111/US,0.0000324,Use table intersection
+562HAZ/US,562HAZ/US,0.58,Use table intersection
+562HAZ/US,562212/US,0.0717,Use table intersection
+562HAZ/US,562213/US,0.0000324,Use table intersection
+562HAZ/US,562910/US,0,Use table intersection
+562HAZ/US,562920/US,0.000663,Use table intersection
+562HAZ/US,562OTH/US,0.0141,Use table intersection
+562212/US,562111/US,0.00000622,Use table intersection
+562212/US,562HAZ/US,0.143,Use table intersection
+562212/US,562212/US,0.000598,Use table intersection
+562212/US,562213/US,0.00000622,Use table intersection
+562212/US,562910/US,0,Use table intersection
+562212/US,562920/US,0.0000297,Use table intersection
+562212/US,562OTH/US,0.00554,Use table intersection
+562213/US,562111/US,0,Use table intersection
+562213/US,562HAZ/US,0.00184,Use table intersection
+562213/US,562212/US,0,Use table intersection
+562213/US,562213/US,0,Use table intersection
+562213/US,562910/US,0,Use table intersection
+562213/US,562920/US,0,Use table intersection
+562213/US,562OTH/US,0,Use table intersection
+562910/US,562111/US,0.0000111,Use table intersection
+562910/US,562HAZ/US,0.0554,Use table intersection
+562910/US,562212/US,0.00104,Use table intersection
+562910/US,562213/US,0.0000111,Use table intersection
+562910/US,562910/US,0.00128,Use table intersection
+562910/US,562920/US,0,Use table intersection
+562910/US,562OTH/US,0.000212,Use table intersection
+562920/US,562111/US,0,Use table intersection
+562920/US,562HAZ/US,0.00406,Use table intersection
+562920/US,562212/US,1.87E-08,Use table intersection
+562920/US,562213/US,0,Use table intersection
+562920/US,562910/US,0,Use table intersection
+562920/US,562920/US,0.0000422,Use table intersection
+562920/US,562OTH/US,0.00000246,Use table intersection
+562OTH/US,562111/US,0.000049,Use table intersection
+562OTH/US,562HAZ/US,0.0949,Use table intersection
+562OTH/US,562212/US,0.0000389,Use table intersection
+562OTH/US,562213/US,0.000049,Use table intersection
+562OTH/US,562910/US,0,Use table intersection
+562OTH/US,562920/US,0.0000103,Use table intersection
+562OTH/US,562OTH/US,0.0133,Use table intersection
+S00102/US,562111/US,0.108,"Commodity disaggregation, Federal government"
+S00102/US,562HAZ/US,0.521,"Commodity disaggregation, Federal government"
+S00102/US,562212/US,0.00592,"Commodity disaggregation, Federal government"
+S00102/US,562213/US,0.00288,"Commodity disaggregation, Federal government"
+S00102/US,562910/US,0.311,"Commodity disaggregation, Federal government"
+S00102/US,562920/US,0.0103,"Commodity disaggregation, Federal government"
+S00102/US,562OTH/US,0.0411,"Commodity disaggregation, Federal government"
+F01000/US,562111/US,0.722,"Commodity disaggregation, Household consumers and individuals"
+F01000/US,562HAZ/US,0.0168,"Commodity disaggregation, Household consumers and individuals"
+F01000/US,562212/US,0.04,"Commodity disaggregation, Household consumers and individuals"
+F01000/US,562213/US,0.00335,"Commodity disaggregation, Household consumers and individuals"
+F01000/US,562910/US,0.0691,"Commodity disaggregation, Household consumers and individuals"
+F01000/US,562920/US,0.0341,"Commodity disaggregation, Household consumers and individuals"
+F01000/US,562OTH/US,0.115,"Commodity disaggregation, Household consumers and individuals"
+813100/US,562111/US,0.677,"Commodity disaggregation, Not-for-profit organizations"
+813100/US,562HAZ/US,0.036,"Commodity disaggregation, Not-for-profit organizations"
+813100/US,562212/US,0.00609,"Commodity disaggregation, Not-for-profit organizations"
+813100/US,562213/US,0.0029,"Commodity disaggregation, Not-for-profit organizations"
+813100/US,562910/US,0.182,"Commodity disaggregation, Not-for-profit organizations"
+813100/US,562920/US,0.0288,"Commodity disaggregation, Not-for-profit organizations"
+813100/US,562OTH/US,0.0672,"Commodity disaggregation, Not-for-profit organizations"
+813A00/US,562111/US,0.677,"Commodity disaggregation, Not-for-profit organizations"
+813A00/US,562HAZ/US,0.036,"Commodity disaggregation, Not-for-profit organizations"
+813A00/US,562212/US,0.00609,"Commodity disaggregation, Not-for-profit organizations"
+813A00/US,562213/US,0.0029,"Commodity disaggregation, Not-for-profit organizations"
+813A00/US,562910/US,0.182,"Commodity disaggregation, Not-for-profit organizations"
+813A00/US,562920/US,0.0288,"Commodity disaggregation, Not-for-profit organizations"
+813A00/US,562OTH/US,0.0672,"Commodity disaggregation, Not-for-profit organizations"
+813B00/US,562111/US,0.677,"Commodity disaggregation, Not-for-profit organizations"
+813B00/US,562HAZ/US,0.036,"Commodity disaggregation, Not-for-profit organizations"
+813B00/US,562212/US,0.00609,"Commodity disaggregation, Not-for-profit organizations"
+813B00/US,562213/US,0.0029,"Commodity disaggregation, Not-for-profit organizations"
+813B00/US,562910/US,0.182,"Commodity disaggregation, Not-for-profit organizations"
+813B00/US,562920/US,0.0288,"Commodity disaggregation, Not-for-profit organizations"
+813B00/US,562OTH/US,0.0672,"Commodity disaggregation, Not-for-profit organizations"
+S00203/US,562111/US,0.469,"Commodity disaggregation, State and local governments"
+S00203/US,562HAZ/US,0.0613,"Commodity disaggregation, State and local governments"
+S00203/US,562212/US,0.0583,"Commodity disaggregation, State and local governments"
+S00203/US,562213/US,0.0278,"Commodity disaggregation, State and local governments"
+S00203/US,562910/US,0.212,"Commodity disaggregation, State and local governments"
+S00203/US,562920/US,0.0438,"Commodity disaggregation, State and local governments"
+S00203/US,562OTH/US,0.128,"Commodity disaggregation, State and local governments"
+GSLGE/US,562111/US,0.469,"Commodity disaggregation, State and local governments"
+GSLGE/US,562HAZ/US,0.0613,"Commodity disaggregation, State and local governments"
+GSLGE/US,562212/US,0.0583,"Commodity disaggregation, State and local governments"
+GSLGE/US,562213/US,0.0278,"Commodity disaggregation, State and local governments"
+GSLGE/US,562910/US,0.212,"Commodity disaggregation, State and local governments"
+GSLGE/US,562920/US,0.0438,"Commodity disaggregation, State and local governments"
+GSLGE/US,562OTH/US,0.128,"Commodity disaggregation, State and local governments"
+GSLGH/US,562111/US,0.469,"Commodity disaggregation, State and local governments"
+GSLGH/US,562HAZ/US,0.0613,"Commodity disaggregation, State and local governments"
+GSLGH/US,562212/US,0.0583,"Commodity disaggregation, State and local governments"
+GSLGH/US,562213/US,0.0278,"Commodity disaggregation, State and local governments"
+GSLGH/US,562910/US,0.212,"Commodity disaggregation, State and local governments"
+GSLGH/US,562920/US,0.0438,"Commodity disaggregation, State and local governments"
+GSLGH/US,562OTH/US,0.128,"Commodity disaggregation, State and local governments"
+GSLGO/US,562111/US,0.469,"Commodity disaggregation, State and local governments"
+GSLGO/US,562HAZ/US,0.0613,"Commodity disaggregation, State and local governments"
+GSLGO/US,562212/US,0.0583,"Commodity disaggregation, State and local governments"
+GSLGO/US,562213/US,0.0278,"Commodity disaggregation, State and local governments"
+GSLGO/US,562910/US,0.212,"Commodity disaggregation, State and local governments"
+GSLGO/US,562920/US,0.0438,"Commodity disaggregation, State and local governments"
+GSLGO/US,562OTH/US,0.128,"Commodity disaggregation, State and local governments"
+562111/US,V00100/US,0.458,VA disaggregation
+562HAZ/US,V00100/US,0.0209,VA disaggregation
+562212/US,V00100/US,0.0805,VA disaggregation
+562213/US,V00100/US,0.0138,VA disaggregation
+562910/US,V00100/US,0.205,VA disaggregation
+562920/US,V00100/US,0.071,VA disaggregation
+562OTH/US,V00100/US,0.151,VA disaggregation
+562111/US,V00200/US,0.458,VA disaggregation
+562HAZ/US,V00200/US,0.0209,VA disaggregation
+562212/US,V00200/US,0.0805,VA disaggregation
+562213/US,V00200/US,0.0138,VA disaggregation
+562910/US,V00200/US,0.205,VA disaggregation
+562920/US,V00200/US,0.071,VA disaggregation
+562OTH/US,V00200/US,0.151,VA disaggregation
+562111/US,V00300/US,0.458,VA disaggregation
+562HAZ/US,V00300/US,0.0209,VA disaggregation
+562212/US,V00300/US,0.0805,VA disaggregation
+562213/US,V00300/US,0.0138,VA disaggregation
+562910/US,V00300/US,0.205,VA disaggregation
+562920/US,V00300/US,0.071,VA disaggregation
+562OTH/US,V00300/US,0.151,VA disaggregation

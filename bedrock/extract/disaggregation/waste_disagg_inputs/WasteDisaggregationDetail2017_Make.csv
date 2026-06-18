@@ -1,0 +1,22 @@
+IndustryCode,CommodityCode,PercentMake,Note
+562000/US,562111/US,0.479,Make column sum
+562000/US,562HAZ/US,0.128,Make column sum
+562000/US,562212/US,0.0815,Make column sum
+562000/US,562213/US,0.0135,Make column sum
+562000/US,562910/US,0.146,Make column sum
+562000/US,562920/US,0.0542,Make column sum
+562000/US,562OTH/US,0.0976,Make column sum
+562111/US,562111/US,0.423,Make table intersection
+562HAZ/US,562HAZ/US,0.15,Make table intersection
+562212/US,562212/US,0.079,Make table intersection
+562213/US,562213/US,0.0131,Make table intersection
+562910/US,562910/US,0.168,Make table intersection
+562920/US,562920/US,0.0526,Make table intersection
+562OTH/US,562OTH/US,0.114,Make table intersection
+484000/US,562111/US,1,commodity disaggregation
+561700/US,562910/US,1,commodity disaggregation
+GSLGO/US,562111/US,0.762,commodity disaggregation
+GSLGO/US,562212/US,0.13,commodity disaggregation
+GSLGO/US,562213/US,0.0215,commodity disaggregation
+GSLGO/US,562920/US,0.0863,commodity disaggregation
+562212/US,211000/US,1,industry disaggregation

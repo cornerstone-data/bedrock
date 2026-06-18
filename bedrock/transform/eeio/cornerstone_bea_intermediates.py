@@ -16,11 +16,6 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_Utot_usa,
     load_2017_V_usa,
 )
-from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.iot.derived_gross_industry_output import (
-    derive_gross_output_after_redefinition,
-)
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
     compute_q,
@@ -29,9 +24,6 @@ from bedrock.utils.math.formulas import (
     compute_x,
 )
 from bedrock.utils.math.handle_negatives import handle_negative_matrix_values
-from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
-    load_usa_2017_industry__ceda_v7_correspondence,
-)
 
 # ---------------------------------------------------------------------------
 # Core output vectors
@@ -95,50 +87,3 @@ def bea_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series[float]]:
         V_norm=Vnorm,
     )
     return Adom, Aimp, bea_q()
-
-
-# ---------------------------------------------------------------------------
-# Emissions: CEDA v7 → BEA industry → B
-# ---------------------------------------------------------------------------
-
-
-@functools.cache
-def _ceda_v7_industry_corresp() -> pd.DataFrame:
-    """CEDA v7 → BEA 2017 industry correspondence (rows=CEDA v7, cols=BEA industry)."""
-    return load_usa_2017_industry__ceda_v7_correspondence()
-
-
-@functools.cache
-def _x_weighted_ceda_industry_corresp() -> pd.DataFrame:
-    """CEDA v7 → BEA industry correspondence, row-normalized by industry output (x).
-
-    Handles both disaggregation (one CEDA v7 → multiple BEA codes) and
-    government aggregation by weighting proportionally by x.
-    """
-    corresp = _ceda_v7_industry_corresp()
-    x = bea_x()
-    x_aligned = x.reindex(corresp.columns, fill_value=0.0)
-    weighted = corresp.multiply(x_aligned, axis=1)
-    row_sums = weighted.sum(axis=1)
-    return weighted.div(row_sums.replace(0, 1), axis=0)
-
-
-@functools.cache
-def bea_E() -> pd.DataFrame:
-    """E (ghg × BEA_industry) — CEDA v7 emissions mapped to BEA industry space."""
-    return derive_E_usa() @ _x_weighted_ceda_industry_corresp()
-
-
-@functools.cache
-def bea_B() -> pd.DataFrame:
-    """B (ghg × BEA_commodity).  B = (E / x) @ V_norm."""
-    E = bea_E()
-    if get_usa_config().use_E_data_year_for_x_in_B:
-        x = derive_gross_output_after_redefinition(
-            target_year=get_usa_config().usa_ghg_data_year
-        )
-    else:
-        x = bea_x()  # this is 2017 x
-    Vnorm = bea_Vnorm_scrap_corrected()
-    Bi = E.divide(x, axis=1).fillna(0.0)
-    return Bi @ Vnorm

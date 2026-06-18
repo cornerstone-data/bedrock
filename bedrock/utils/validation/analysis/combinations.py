@@ -62,8 +62,9 @@ COMBINATIONS: dict[str, ComboSpec] = {
             # ``useeio_phoebe_23`` is the Bedrock attempt to rebuild the pinned
             # USEEIO model and is itself imperfect, so its net-diff column
             # subtracts the synthetic ``pinned_useeio_baseline`` (sourced from
-            # this Sheet's ``D_old_inflated`` / ``N_old_inflated``, i.e. the
-            # pinned USEEIO Excel baseline). Every restoration step then
+            # this Sheet's ``D_old_inflated`` and ``N_old_purchaser``, i.e.
+            # the pinned USEEIO Excel baseline at purchaser price). Every
+            # restoration step then
             # compares against the rebuild so the chain of divergence reads
             # naturally.
             'useeio_phoebe_23': 'pinned_useeio_baseline',
@@ -72,6 +73,7 @@ COMBINATIONS: dict[str, ComboSpec] = {
             'useeio_phoebe_23_restore_cornerstone_B': 'useeio_phoebe_23',
             'useeio_phoebe_23_restore_cornerstone_A': 'useeio_phoebe_23',
             'useeio_phoebe_23_restore_iot_redefinition': 'useeio_phoebe_23',
+            'useeio_phoebe_23_cornerstone_margins': 'useeio_phoebe_23',
             '2025_usa_cornerstone_full_model': 'useeio_phoebe_23',
         },
     ),
