@@ -18,6 +18,7 @@ ipcc_ar_version: "AR6"
 # PUR price conversion
 #####
 ceda_margins: True
+cornerstone_industry_avg_margins: False
 
 #####
 # Bugfix

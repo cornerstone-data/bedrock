@@ -63,7 +63,7 @@ class USAConfig(BaseModel):
     use_E_data_year_for_x_in_B: bool = Field(
         default=False,
         description=(
-            'Use BEA gross-output time series at usa_ghg_data_year for industry x '
+            'Use an x corresponding to usa_ghg_data_year'
             'in B. Must be true whenever deflate_x_to_detail_io_year_for_B is true.'
         ),
     )
@@ -84,10 +84,20 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
-    adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
+    adjust_summary_dollar_year_before_scaling: bool = False  # DRI: mo.li
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
+    use_scaled_x_and_scaled_Vnorm_for_B: bool = Field(
+        default=False,
+        description=(
+            'Derives x from scaled_X and Vnorm from scaled_V and scaled_q'
+            'Either scale_a_matrix_with_summary_tables or scale_a_matrix_with_ceda_method_as_fallback'
+            ' must be True'
+            'use_E_data_year_for_x_in_B must be True'
+        ),
+    )  # DRI: WesIngwersen
+
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
@@ -174,6 +184,25 @@ class USAConfig(BaseModel):
         return self
 
     @model_validator(mode='after')
+    def _validate_scaled_x_vnorm_for_B_prerequisites(self) -> USAConfig:
+        if self.use_scaled_x_and_scaled_Vnorm_for_B:
+            if not (
+                self.scale_a_matrix_with_summary_tables
+                or self.scale_a_matrix_with_ceda_method_as_fallback
+            ):
+                raise ValueError(
+                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
+                    'scale_a_matrix_with_summary_tables or '
+                    'scale_a_matrix_with_ceda_method_as_fallback to be true'
+                )
+            if not self.use_E_data_year_for_x_in_B:
+                raise ValueError(
+                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
+                    'use_E_data_year_for_x_in_B to be true'
+                )
+        return self
+
+    @model_validator(mode='after')
     def _validate_margins_mutual_exclusivity(self) -> USAConfig:
         active = [
             name
@@ -240,6 +269,7 @@ class USAConfig(BaseModel):
         '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # test: snapshot from 2025_usa_cornerstone_fbs_schema
         '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2
         '4d67c8f0f5721a30ce03f4d3eef85a82e7199032',  # v0.3.0-alpha (current .SNAPSHOT_KEY)
+        '5a90baf0272fe8841e40db8cd513885b34051e86',  # v0.3-beta (config: 2025_usa_cornerstone_v0_3)
     ] = 'v0'
 
     @property
