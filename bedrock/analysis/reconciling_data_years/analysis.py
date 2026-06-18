@@ -27,19 +27,12 @@ Model1 is only one model then the final d and n get adjusted to the time series 
 from __future__ import annotations
 
 import logging
-import os
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
 
 import bedrock.analysis.a_matrix_time_series.compare_method_stability as cms
-import bedrock.utils.config.usa_config as usa_config
-from bedrock.analysis.a_matrix_time_series.derive_A_time_series import (
-    _clear_config_dependent_caches,
-    _reset_config,
-)
 from bedrock.analysis.reconciling_data_years.constants import (
     LATEST_TARGET_YEAR,
     MODEL_YAMLS,
@@ -59,7 +52,8 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x_after_redefinition,
 )
-from bedrock.utils.config.usa_config import USAConfig
+from bedrock.utils.config.config_controllers import clear_caches, force_set_usa_config
+from bedrock.utils.config.usa_config import get_usa_config, reset_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
     inflate_cornerstone_q_or_y_with_commodity_pi,
@@ -80,36 +74,12 @@ TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR, LATEST_TARGET_YEAR))
 logger = logging.getLogger(__name__)
 
 
-def _set_config(model: str, year: int) -> None:
-    """Install a config for the given (model, year), bypassing pydantic
-    Literal validation on ``model_base_year`` since we run for target years but
-    the schema only allows 2022–2024.
-
-    Uses ``USAConfig.model_construct`` to skip validation. Also clears the
-    ``USA_CONFIG_FILE`` env var and ``_usa_config`` module global so each call
-    is fresh — ``set_global_usa_config`` raises if invoked twice.
-    """
-    yaml_path = Path(usa_config.CONFIG_DIR) / MODEL_YAMLS[model]
-    with open(yaml_path) as f:
-        data = yaml.safe_load(f) or {}
-    data["use_cornerstone_2026_model_schema"] = (
-        True  # if not it will default to CEDAv7 schema which could cause issues with ghg_method?
-    )
-    data["implement_waste_disaggregation"] = True
-    # For model 1 the values should not change year to year
-    if model != "model1":
-        data["usa_ghg_data_year"] = year
-
-    # Model base year for models 4 should change but not for 1, 2 or 3
-    if model == "model4":
-        data["model_base_year"] = year
-    else:
-        data["model_base_year"] = 2017
-
-    # The package `__init__.py` flips these on the initial config; replacing
-    # `_usa_config` here would otherwise drop them back to field defaults.
-    usa_config._usa_config = USAConfig.model_construct(**data)
-    os.environ[usa_config.USA_CONFIG_ENV_VAR] = MODEL_YAMLS[model]
+_CACHE_BEARING_MODULE_PATHS = (
+    "bedrock.transform.eeio.derived_cornerstone",
+    "bedrock.transform.eeio.cornerstone_bea_intermediates",
+    "bedrock.transform.eeio.derived_useeio_nowcast",
+    "bedrock.utils.economic.inflation_helpers_cornerstone",
+)
 
 
 def store_E_matrices() -> dict[int, pd.DataFrame]:
@@ -307,12 +277,18 @@ def main() -> None:
             logger.info("Building matrices: model=%s year=%d", model, year)
             try:
                 # Clear cache and reset
-                _reset_config()
-                _clear_config_dependent_caches()
-                _set_config(model, year)
+                reset_usa_config()
+                clear_caches(*_CACHE_BEARING_MODULE_PATHS)
+                force_set_usa_config(
+                    MODEL_YAMLS[model],
+                    use_cornerstone_2026_model_schema=True,
+                    implement_waste_disaggregation=True,
+                    **({} if model == "model1" else {"usa_ghg_data_year": year}),
+                    model_base_year=year if model == "model4" else 2017,
+                )
 
                 # Get model config vars to understand settings
-                cfg = usa_config._usa_config
+                cfg = get_usa_config()
                 config_vars = cfg.model_dump()
                 config_file = OUTPUT_DIR / f"config_vars_{model}_{year}.yaml"
                 with open(config_file, "w") as f:
