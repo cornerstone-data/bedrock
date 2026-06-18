@@ -8,16 +8,12 @@ import pandas as pd
 from bedrock.transform.allocation.constants import EmissionsSource
 from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
-from bedrock.transform.iot.derived_gross_industry_output import (
-    derive_gross_output,
-)
+from bedrock.transform.iot.derived_gross_industry_output import derive_gross_output
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
-from bedrock.utils.mapping.sectormapping import (
-    get_activitytosector_mapping,
-)
+from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.cornerstone.industries import (
     INDUSTRIES,
@@ -55,7 +51,7 @@ def _select_flowsa_ghg_method() -> str:
         or usa.update_enteric_fermentation_and_manure_management_ghg_method
         or usa.update_liming_and_fertilizer_ghg_method
         or usa.update_mecs_method
-        or usa.v0_3_umd_ghgia
+        or usa.v0_3_umd_2023_ghgia
     )
     if needs_2023 and year != 2023:
         raise ValueError(
@@ -63,6 +59,12 @@ def _select_flowsa_ghg_method() -> str:
             'update_*_ghg_method flag — variant FBS methods only exist '
             'for 2023. Either set usa_ghg_data_year=2023 or disable the '
             'update_*_ghg_method flag.'
+        )
+    if usa.v0_3_umd_2024_ghgia and year != 2024:
+        raise ValueError(
+            f'usa_ghg_data_year={year} is incompatible with v0_3_umd_2024_ghgia '
+            '— the 2024 UMD GHGIA FBS only exists for 2024. Set '
+            'usa_ghg_data_year=2024 or use v0_3_umd_2023_ghgia.'
         )
     if usa.new_ghg_method:
         return f'GHG_national_Cornerstone_{year}'
@@ -88,8 +90,10 @@ def _select_flowsa_ghg_method() -> str:
         return 'GHG_national_Cornerstone_2023_ag_soils'
     if usa.update_mecs_method:
         return 'GHG_national_Cornerstone_2023_release_v0.3'
-    if usa.v0_3_umd_ghgia:
+    if usa.v0_3_umd_2023_ghgia:
         return 'GHG_national_Cornerstone_2023_umd_ghgia'
+    if usa.v0_3_umd_2024_ghgia:
+        return 'GHG_national_Cornerstone_2024'
     return f'GHG_national_CEDA_{year}'
 
 
@@ -335,18 +339,18 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
 
 
 def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
-    """Download a year-specific Cornerstone GHG FBS parquet from GCS.
+    """Download a pre-built, year-specific Cornerstone GHG FBS parquet from GCS.
 
     Bypasses ``getFlowBySector`` for the time-series case. The flowsa
     regen path goes through `EPA_GHGI` loaders that are hard-capped at
     `{2022, 2023}` (`bedrock/extract/allocation/epa.py:_get_epa_data_year`),
-    so years like 2019–2021 fail there. The pre-built FBS parquets in
-    ``gs://cornerstone-default/transform/output_data/`` cover 2019–2023
-    already, so we load them directly.
+    so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
+    FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
+    ``base_name`` is ``GHG_national_Cornerstone_<year>`` are loaded directly
+    instead (used by new_ghg_method and v0_3_umd_2024_ghgia).
 
-    Picks the most-recently-uploaded parquet whose ``base_name`` matches
-    ``GHG_national_Cornerstone_<year>`` so we follow the FBS regeneration
-    cadence without pinning the version/hash here.
+    Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
+    follow the FBS regeneration cadence without pinning the version/hash here.
     """
     import os  # noqa: PLC0415
 
@@ -374,7 +378,7 @@ def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
     # the same `pth`, so the metadata JSON overwrites the parquet.
     if not os.path.exists(local_path):
         download_gcs_file(filename, sub_bucket, local_path)
-    logger.info("Loaded cached FBS for %d from %s", year, filename)
+    logger.info("Loaded cached FBS from %s", filename)
     return pd.read_parquet(local_path)
 
 
@@ -403,8 +407,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_liming_and_fertilizer_ghg_method is True
     - GHG_national_Cornerstone_2023_release_0.3 when
       update_mecs_method is True
-    - GHG_national_2023_umd_ghgia when
-      v0_3_umd_ghgia is True
+    - GHG_national_Cornerstone_2023_umd_ghgia when
+      v0_3_umd_2023_ghgia is True
+    - GHG_national_Cornerstone_2024 when
+      v0_3_umd_2024_ghgia is True (loaded from GCS parquet)
     - GHG_national_CEDA_2023 otherwise
 
     Only used when load_E_from_flowsa is True in USA config.
@@ -426,7 +432,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         or usa.update_enteric_fermentation_and_manure_management_ghg_method
         or usa.update_liming_and_fertilizer_ghg_method
         or usa.update_mecs_method
-        or usa.v0_3_umd_ghgia
+        or usa.v0_3_umd_2023_ghgia
     )
     if needs_2023 and year != 2023:
         raise ValueError(
@@ -435,13 +441,19 @@ def load_E_from_flowsa() -> pd.DataFrame:
             'for 2023. Either set usa_ghg_data_year=2023 or disable the '
             'update_*_ghg_method flag.'
         )
-    if usa.new_ghg_method:
-        # Bypass flowsa regen for non-2023 years: the EPA loader behind
-        # `getFlowBySector` is hard-capped at {2022, 2023}, but the
-        # already-built FBS parquets exist on GCS at
-        # `transform/output_data/` for 2019–2023. Load the cached parquet
-        # directly so the year-Y diagnostics get year-Y GHG data.
-        fbs = _load_cornerstone_ghg_fbs_from_gcs(usa.usa_ghg_data_year)
+    if usa.v0_3_umd_2024_ghgia and year != 2024:
+        raise ValueError(
+            f'usa_ghg_data_year={year} is incompatible with v0_3_umd_2024_ghgia '
+            '— the 2024 UMD GHGIA FBS only exists for 2024. Set '
+            'usa_ghg_data_year=2024 or use v0_3_umd_2023_ghgia.'
+        )
+    if usa.new_ghg_method or usa.v0_3_umd_2024_ghgia:
+        # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
+        # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
+        # FBS) fail there. Load the pre-built FBS parquet from GCS at
+        # `transform/output_data/` (GHG_national_Cornerstone_<year>) directly
+        # so the year-Y diagnostics get year-Y GHG data.
+        fbs = _load_cornerstone_ghg_fbs_from_gcs(year)
     else:
         methodname = _select_flowsa_ghg_method()
         if methodname == 'GHG_national_2023_m2':
@@ -494,6 +506,13 @@ def load_E_from_flowsa() -> pd.DataFrame:
     fbs.loc[ch4_non_fossil_mask & (fbs['Flowable'] == 'CH4_fossil'), 'Flowable'] = (
         'CH4_non_fossil'
     )
+
+    # Drop FK 5-1-12 (fluoroketone cover gas, UMD GHGIA Table 4-52 Magnesium
+    # Production). UMD itself excludes it from totals (footnote a), it has no GWP
+    # in GWP100_AR6_CEDA (→ NaN CO2e), and it falls outside CEDA's Kyoto 7-gas
+    # scheme, so the gas-collapse below would leave it as a stray index entry and
+    # break the CornerstoneBMatrix schema. ~6.5e-6 MMT CO2e across 3 sectors.
+    fbs = fbs[fbs['Flowable'] != 'FK 5-1-12']
 
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
