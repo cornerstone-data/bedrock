@@ -178,6 +178,78 @@ def percent_histogram(
         )
 
 
+def normalize_pct_diff_to_percent(raw: "pd.Series[Any]") -> "pd.Series[float]":
+    """Normalize a diagnostics ``*_perc_diff`` column to percent units.
+
+    Diagnostics Sheets store percent diffs in two conventions:
+    - percent-formatted strings, e.g. ``"-6.86%"`` (already in percent)
+    - bare fractions, e.g. ``"0.0155"`` (= 1.55%, needs ×100)
+
+    Cells containing ``%`` are parsed as percent; bare numerics are treated as
+    fractions and scaled to percent. Non-parseable cells become NaN. This lets
+    one overlay mix older (``%``-string) and newer (fraction) runs safely.
+    """
+    s = raw.astype(str).str.strip()
+    has_pct = s.str.contains("%", na=False)
+    num = pd.to_numeric(s.str.replace("%", "", regex=False), errors="coerce")
+    return num.where(has_pct, num * 100.0)
+
+
+def overlay_pct_diff_histogram(
+    ax: Axes,
+    series_by_label: dict[str, "pd.Series[float]"],
+    *,
+    colors: dict[str, str] | None = None,
+    xlim: tuple[float, float] = (-100.0, 100.0),
+    bin_width: float = 5.0,
+    beyond_threshold: float = 20.0,
+    xlabel: str = "EF change vs baseline (%)",
+    ylabel: str = "sector count",
+    title: str | None = None,
+    legend_loc: str = "upper right",
+    legend_fontsize: int = LEGEND_FONTSIZE,
+) -> None:
+    """Overlay multiple percent-diff distributions on one axis.
+
+    Each series renders as a semi-transparent histogram with a dashed median
+    line; the legend reports per-series ``median``, ``% up`` (share > 0), and
+    ``% beyond ±threshold``. Inputs are in percent units (run values through
+    :func:`normalize_pct_diff_to_percent` first). Bars are clipped to ``xlim``;
+    stats are computed on the unclipped values so tails are not hidden.
+    """
+    palette = ("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b")
+    bin_edges = np.arange(xlim[0], xlim[1] + bin_width, bin_width).tolist()
+    for i, (label, raw) in enumerate(series_by_label.items()):
+        vals = pd.to_numeric(raw, errors="coerce").dropna()
+        if vals.empty:
+            continue
+        color = (colors or {}).get(label) or palette[i % len(palette)]
+        median = float(vals.median())
+        pct_up = float((vals > 0).mean() * 100.0)
+        beyond = float((vals.abs() > beyond_threshold).mean() * 100.0)
+        legend = (
+            f"{label} (n={len(vals)})\nmedian {median:+.0f}% | {pct_up:.0f}% up | "
+            f"{beyond:.0f}% beyond ±{beyond_threshold:g}%"
+        )
+        ax.hist(
+            vals.clip(xlim[0], xlim[1]),
+            bins=bin_edges,
+            color=color,
+            alpha=0.5,
+            label=legend,
+        )
+        ax.axvline(median, color=color, linestyle="--", linewidth=1.3)
+    ax.axvline(0, color=ZERO_COLOR, linewidth=1.0)
+    ax.set_xlim(xlim)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    if title is not None:
+        ax.set_title(title)
+    format_percent_axis(ax, PERCENT_TICKS)
+    ax.grid(True, ls=":", alpha=0.3)
+    ax.legend(fontsize=legend_fontsize, loc=legend_loc, framealpha=0.5)
+
+
 def abs_change_histogram(
     ax: Axes,
     values: "pd.Series[float]",
