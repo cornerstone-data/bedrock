@@ -1,4 +1,4 @@
-# This is the 2023 method file for the Cornerstone GHG model (v0.3)
+# This is the 2023 method file for the Cornerstone GHG model with EPA GHGI and updated EIA MECS attribution
 
 !include:Cornerstone_2025_target.yaml
 year: &ghgi_year 2023
