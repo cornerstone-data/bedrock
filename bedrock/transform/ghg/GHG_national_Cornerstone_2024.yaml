@@ -777,6 +777,7 @@ source_names:
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
+      FlowName: [SF6, HFC-134a, CO2]  # exclude FK 5-1-12a
       PrimaryActivity: Magnesium Production
     attribution_method: proportional
     attribution_source:

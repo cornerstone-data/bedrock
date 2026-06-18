@@ -507,13 +507,6 @@ def load_E_from_flowsa() -> pd.DataFrame:
         'CH4_non_fossil'
     )
 
-    # Drop FK 5-1-12 (fluoroketone cover gas, UMD GHGIA Table 4-52 Magnesium
-    # Production). UMD itself excludes it from totals (footnote a), it has no GWP
-    # in GWP100_AR6_CEDA (→ NaN CO2e), and it falls outside CEDA's Kyoto 7-gas
-    # scheme, so the gas-collapse below would leave it as a stray index entry and
-    # break the CornerstoneBMatrix schema. ~6.5e-6 MMT CO2e across 3 sectors.
-    fbs = fbs[fbs['Flowable'] != 'FK 5-1-12']
-
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
     if usa.use_ghg_national_2023_m2:
