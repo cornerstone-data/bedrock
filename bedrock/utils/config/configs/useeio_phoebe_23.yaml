@@ -34,3 +34,4 @@ skip_scrap_adjustment_in_vnorm: true
 new_ghg_method: false
 
 useeio_margins: True
+cornerstone_industry_avg_margins: False

@@ -20,3 +20,6 @@ deflate_x_to_detail_io_year_for_B: true
 use_ghg_national_2023_m2: false # Restore Cornerstone GHG method
 skip_scrap_adjustment_in_vnorm: true
 new_ghg_method: true
+
+useeio_margins: True
+cornerstone_industry_avg_margins: False
