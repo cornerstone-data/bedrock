@@ -1,0 +1,43 @@
+# FINAL Cornerstone 2025 model — v0.3 release config.
+#
+# Combines the v0.3 feature set:
+#   - Update inflation factors          -> update_inflation_factors
+#   - CEDA A approach w/ price adjust    -> scale_a_matrix_with_ceda_method_as_fallback
+#                                           + adjust_summary_A_and_q_dollar_year
+#   - Purchaser Price Conversion         -> N/A (not part of v0.3)
+#   - MECS adjustment + UMD GHG data     -> v0_3_umd_2024_ghgia at usa_ghg_data_year=2024
+#                                           selects GHG_national_Cornerstone_2024 (the UMD GHGIA 2024
+#                                           inventory, which already carries the 2022 MECS
+#                                           attribution). Loaded from a pre-built GCS parquet.
+#   - 2024 US IO+GHG data                -> usa_ghg_data_year: 2024 (IO x and GHG both at 2024).
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+
+# GHG model: UMD GHGIA 2024 inventory (+ 2022 MECS attribution).
+v0_3_umd_2024_ghgia: True
+
+# A matrix: CEDA's A approach as fallback, with summary A/q dollar-year price adjustment.
+scale_a_matrix_with_ceda_method_as_fallback: True
+adjust_summary_dollar_year_before_scaling: True
+
+# Inflation factors.
+update_inflation_factors: True
+
+# Shared full-model flags.
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True
