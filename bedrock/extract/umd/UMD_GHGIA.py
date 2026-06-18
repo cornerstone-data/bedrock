@@ -940,47 +940,6 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
     return pct_dict
 
 
-def allocate_industrial_combustion(
-    fba: FlowByActivity, **_kwargs: Any
-) -> FlowByActivity:
-    """
-    Split industrial combustion emissions into two buckets to be further allocated.
-
-    clean_fba_before_activity_sets. Calculate the percentage of fuel consumption captured in
-    EIA MECS relative to GHGI/UMD GHGIA. Create new activities to distinguish those
-    which use EIA MECS as allocation source and those that use alternate source.
-    """
-    clean_parameter = fba.config.get('clean_parameter')
-    if clean_parameter is None:
-        raise ValueError('clean_parameter is required in config')
-    pct_dict = get_manufacturing_energy_ratios(clean_parameter)
-
-    # TODO: stationary CH4/N2O in UMD come from 3-11/3-12 (GHGI 3-8/3-9 analogues); industrial split
-    # still keys off Annex A-14-style consumption where available (UMD partial: 3-4 per GHGI A-5 mapping).
-    # activities reflect flows in A_14 and UMD 3-11 / 3-12
-    activities_to_split = {
-        'Industrial Other Coal Industrial': 'Coal',
-        'Natural Gas Industrial': 'Natural Gas',
-        'Coal Industrial': 'Coal',
-        'Petroleum Industrial': 'Petroleum',
-    }
-
-    for activity, fuel in activities_to_split.items():
-        df_subset = fba.loc[fba['ActivityProducedBy'] == activity].reset_index(
-            drop=True
-        )
-        if len(df_subset) == 0:
-            continue
-        df_subset['FlowAmount'] = df_subset['FlowAmount'] * pct_dict[fuel]
-        df_subset['ActivityProducedBy'] = f'{activity} - Manufacturing'
-        fba.loc[fba['ActivityProducedBy'] == activity, 'FlowAmount'] = fba[
-            'FlowAmount'
-        ] * (1 - pct_dict[fuel])
-        fba = FlowByActivity(pd.concat([fba, df_subset], ignore_index=True))
-
-    return fba
-
-
 def split_HFCs_by_type(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     """Speciates HFCs and PFCs using shares from ODS substitute table (GHGI 4-122 → UMD `UMD_GHGIA_T_4_59`).
 
