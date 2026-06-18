@@ -87,7 +87,7 @@ class USAConfig(BaseModel):
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
-    cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
+    cornerstone_industry_avg_margins: bool = True  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
