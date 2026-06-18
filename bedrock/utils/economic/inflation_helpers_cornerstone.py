@@ -483,7 +483,12 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
     pi_ind_detail = _cornerstone_indexed_industry_pi(year)
     x_y = derive_cornerstone_x()
     out = _aggregate_industry_pi(
-        pi_ind_detail, x_y, load_bea_v2017_industry_to_bea_v2017_summary()
+        pi_ind_detail,
+        x_y,
+        ta.cast(
+            ta.Mapping[str, ta.Sequence[str]],
+            load_bea_v2017_industry_to_bea_v2017_summary(),
+        ),
     )
     return pd.Series(out, dtype=float).reindex(
         USA_2017_SUMMARY_INDUSTRY_CODES, fill_value=100.0

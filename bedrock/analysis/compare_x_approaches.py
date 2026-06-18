@@ -109,5 +109,5 @@ x_scaled_from_2017 = scale_cornerstone_x(
 )
 print(
     f'\nSanity: derive_cornerstone_x_after_redefinition matches scale_cornerstone_x: '
-    f'{np.allclose(x_current.values, x_scaled_from_2017.reindex(x_current.index).values)}'
+    f'{np.allclose(np.asarray(x_current.values, dtype=float), np.asarray(x_scaled_from_2017.reindex(x_current.index).values, dtype=float))}'
 )
