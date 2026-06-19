@@ -762,21 +762,20 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:  # modify for scaled appro
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
     cfg = get_usa_config()
-    # ``deflate_x_to_detail_io_year_for_B`` implies ``use_E_data_year_for_x_in_B``
-    # (``USAConfig``). When either path is active, keep B on vnorm only (no
-    # summary scaling / industry PI inflation of B here); vnorm applies the
-    # deflate branch when that flag is set.
-    if cfg.use_E_data_year_for_x_in_B:
+    # When use_scaled_x_and_scaled_Vnorm_for_B is True, scale and inflate B.
+    # Otherwise keep B on vnorm only.
+    if cfg.use_scaled_x_and_scaled_Vnorm_for_B:
+        return inflate_cornerstone_B_matrix_with_industry_pi(
+            scale_cornerstone_B(
+                B=derive_cornerstone_B_via_vnorm(),
+                original_year=cfg.usa_detail_original_year,
+                target_year=cfg.usa_io_data_year,
+            ),
+            original_year=cfg.usa_io_data_year,
+            target_year=cfg.model_base_year,
+        )
+    else:
         return derive_cornerstone_B_via_vnorm()
-    return inflate_cornerstone_B_matrix_with_industry_pi(
-        scale_cornerstone_B(
-            B=derive_cornerstone_B_via_vnorm(),
-            original_year=cfg.usa_detail_original_year,
-            target_year=cfg.usa_io_data_year,
-        ),
-        original_year=cfg.usa_io_data_year,
-        target_year=cfg.model_base_year,
-    )
 
 
 # ---------------------------------------------------------------------------
