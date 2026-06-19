@@ -44,29 +44,21 @@ from bedrock.analysis.reconciling_data_years.constants import (
     sector_names,
     sectors,
 )
-from bedrock.analysis.time_series_B_matrix.derive_B_time_series import (
-    derive_E_time_series,
-)
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x_after_redefinition,
+    derive_cornerstone_B_non_finetuned,
 )
 from bedrock.utils.config.config_controllers import clear_caches, force_set_usa_config
 from bedrock.utils.config.usa_config import get_usa_config, reset_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    get_cornerstone_industry_price_ratio,
     inflate_cornerstone_q_or_y_with_commodity_pi,
 )
 from bedrock.utils.math.formulas import (
     backcompute_E_matrix_via_commodity_shortcut,
-    compute_B_ind_matrix,
-    compute_B_matrix,
     compute_d,
     compute_L_matrix,
     compute_M_matrix,
     compute_n,
-    derive_q_from_x_and_Vnorm,
 )
 
 TARGET_YEARS: list[int] = list(range(ORIGINAL_YEAR, LATEST_TARGET_YEAR))
@@ -80,31 +72,6 @@ _CACHE_BEARING_MODULE_PATHS = (
     "bedrock.transform.eeio.derived_useeio_nowcast",
     "bedrock.utils.economic.inflation_helpers_cornerstone",
 )
-
-
-def store_E_matrices() -> dict[int, pd.DataFrame]:
-    """Load FBS parquets from fbs_cache, derive E matrices, save to e_cache."""
-    fbs_cache = OUTPUT_DIR / "fbs_cache"
-    e_cache = OUTPUT_DIR / "e_cache"
-    e_cache.mkdir(parents=True, exist_ok=True)
-
-    fbs_by_year: dict[int, pd.DataFrame] = {}
-    for year in TARGET_YEARS:
-        matches = list(fbs_cache.glob(f"GHG_national_Cornerstone_{year}_*.parquet"))
-        if not matches:
-            logger.warning("No FBS parquet found for %d in %s", year, fbs_cache)
-            continue
-        logger.info("Loading FBS for %d: %s", year, matches[0].name)
-        fbs_by_year[year] = pd.read_parquet(matches[0])
-
-    E_by_year = derive_E_time_series(fbs_by_year)
-
-    for year, E in E_by_year.items():
-        out_path = e_cache / f"E_{year}.parquet"
-        E.to_parquet(out_path)
-        logger.info("Saved E matrix for %d to %s", year, out_path)
-
-    return E_by_year
 
 
 def deflate_ef(
@@ -156,7 +123,11 @@ def _plot_ef_trends(
 
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     fig, axes = plt.subplots(
-        len(row_models), 4, figsize=(20, 4 * len(row_models)), sharey="row"
+        len(row_models),
+        4,
+        figsize=(20, 4 * len(row_models)),
+        sharey="row",
+        squeeze=False,
     )
     fig.suptitle("e_c, q, d, and n — indexed to first year = 100", fontsize=12)
 
@@ -268,7 +239,6 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    E_by_year = store_E_matrices()
     all_results: dict[str, dict[int, dict[str, pd.Series]]] = {}
 
     for model in MODELS:
@@ -281,10 +251,13 @@ def main() -> None:
                 clear_caches(*_CACHE_BEARING_MODULE_PATHS)
                 force_set_usa_config(
                     MODEL_YAMLS[model],
-                    use_cornerstone_2026_model_schema=True,
-                    implement_waste_disaggregation=True,
                     **({} if model == "model1" else {"usa_ghg_data_year": year}),
-                    model_base_year=year if model == "model4" else 2017,
+                    **(
+                        {"model_base_year": year}
+                        if model not in {"model1", "model3a"}
+                        else {}
+                    ),
+                    **({"usa_io_data_year": year} if model == "model4" else {}),
                 )
 
                 # Get model config vars to understand settings
@@ -294,30 +267,11 @@ def main() -> None:
                 with open(config_file, "w") as f:
                     yaml.dump(config_vars, f, default_flow_style=False)
 
-                x = derive_cornerstone_x_after_redefinition()
-                ## Mimick derive_cornerstone_B_via_vnorm
-                if cfg.deflate_x_to_detail_io_year_for_B:
-                    ratio = get_cornerstone_industry_price_ratio(
-                        original_year=cfg.usa_ghg_data_year,
-                        target_year=cfg.usa_detail_original_year,
-                    )
-                    # ratio is PI_target / PI_original; divide nominal target-year dollars
-                    # to convert x into original-year dollars for USEEIO-style B.
-                    ratio_aligned = ratio.reindex(x.index)
-                    ratio_aligned = ratio_aligned.where(ratio_aligned.notna(), 1.0)
-                    x = x * ratio_aligned
-                Vnorm = derive_cornerstone_Vnorm_scrap_corrected(
-                    apply_inflation=cfg.apply_inflation_to_V,
-                    target_year=cfg.model_base_year,
-                )
-                B_ind = compute_B_ind_matrix(E=E_by_year[cfg.usa_ghg_data_year], x=x)
-
-                B = compute_B_matrix(B_ind=B_ind, V_norm=Vnorm)
+                B = derive_cornerstone_B_non_finetuned()
                 d_current_USD = compute_d(B=B)
                 Aqset = derive_cornerstone_Aq_scaled()
                 A = Aqset.Adom + Aqset.Aimp
-
-                q_current_USD = derive_q_from_x_and_Vnorm(x=x, Vnorm=Vnorm)
+                q_current_USD = Aqset.scaled_q
                 e_c = backcompute_E_matrix_via_commodity_shortcut(B=B, q=q_current_USD)
                 L = compute_L_matrix(A=A)
                 n_current_USD = compute_n(M=compute_M_matrix(B=B, L=L))

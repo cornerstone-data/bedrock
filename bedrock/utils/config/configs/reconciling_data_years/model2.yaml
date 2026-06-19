@@ -2,6 +2,11 @@
 #  Use data as is without adjustment
 # In this option the data are used as is with the latest data of each type used for each year without adjustment. For the B matrix the annual GHG data are used with the same year annual industry output and they are used along with the 2017 data as given.  
 
+use_cornerstone_2026_model_schema: true
+implement_waste_disaggregation: true
 apply_inflation_to_V: false
 scale_a_matrix_with_useeio_method: true #necessary not to inflate or scale A
+
+load_E_from_flowsa: true
+use_E_data_year_for_x_in_B: true
 new_ghg_method: true #get FBS from cache
