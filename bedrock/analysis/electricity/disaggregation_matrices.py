@@ -135,9 +135,9 @@ def _commodity_row_sum(extended_u: pd.DataFrame, commodity: str) -> float:
     return float(extended_u.loc[commodity].sum())
 
 
-def derive_post_reallocation_checkpoint() -> tuple[
-    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
-]:
+def derive_post_reallocation_checkpoint() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
     """Stage-2 checkpoint: waste-disaggregated IO after PR2 co-production reallocation.
 
     Y is waste-only (aggregate ``221100`` row intact). Used by ``d_85`` scenario
