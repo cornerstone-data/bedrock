@@ -3,3 +3,4 @@
 
 apply_inflation_to_V: true
 scale_a_matrix_with_commodity_price_index: true
+new_ghg_method: true #get FBS from cache

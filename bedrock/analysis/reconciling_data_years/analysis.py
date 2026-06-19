@@ -296,7 +296,7 @@ def main() -> None:
 
                 x = derive_cornerstone_x_after_redefinition()
                 ## Mimick derive_cornerstone_B_via_vnorm
-                if cfg.use_useeio_B:
+                if cfg.deflate_x_to_detail_io_year_for_B:
                     ratio = get_cornerstone_industry_price_ratio(
                         original_year=cfg.usa_ghg_data_year,
                         target_year=cfg.usa_detail_original_year,
@@ -362,8 +362,7 @@ def main() -> None:
             (TARGET_YEARS[i], TARGET_YEARS[i + 1]) for i in range(len(TARGET_YEARS) - 1)
         )
         per_sector = _build_n_yoy_per_sector(all_results)
-        cms._yoy_distribution_plot(per_sector, PLOTS_DIR / "n_yoy_distribution.png")
-
+        cms._yoy_signed_violin_plot(per_sector, PLOTS_DIR / "n_yoy_distribution.png")
         records = []
         for model, year_results in all_results.items():
             for year, ef_dict in year_results.items():

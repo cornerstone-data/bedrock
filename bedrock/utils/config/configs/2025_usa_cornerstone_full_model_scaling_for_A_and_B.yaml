@@ -17,4 +17,5 @@ scale_a_matrix_with_summary_tables: True
 adjust_summary_dollar_year_before_scaling: True
 use_scaled_x_and_scaled_Vnorm_for_B: True #unique setting not in cornerstone full model A summary realigned
 # or the full model
+new_ghg_method: true #get FBS from cache
 

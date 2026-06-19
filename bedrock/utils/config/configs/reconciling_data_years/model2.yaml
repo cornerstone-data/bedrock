@@ -4,4 +4,4 @@
 
 apply_inflation_to_V: false
 scale_a_matrix_with_useeio_method: true #necessary not to inflate or scale A
-
+new_ghg_method: true #get FBS from cache

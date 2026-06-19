@@ -33,7 +33,8 @@ sector_names = {sector: COMMODITY_DESC[sector] for sector in sectors}
 MODEL_YAMLS: dict[str, str] = {
     "model1": "reconciling_data_years/model1.yaml",
     "model2": "reconciling_data_years/model2.yaml",
-    "model3": "reconciling_data_years/model3.yaml",
-    "model4": "reconciling_data_years/model4.yaml",
+    "model3a": "reconciling_data_years/model3a.yaml",
+    "model3b": "reconciling_data_years/model3b.yaml",
+    "model4": "2025_usa_cornerstone_full_model_scaling_for_A_and_B.yaml",
 }
 MODELS: list[str] = list(MODEL_YAMLS.keys())
