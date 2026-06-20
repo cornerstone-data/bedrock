@@ -368,6 +368,36 @@ def derive_q_from_scaled_cornerstone_V_from_authoritative_x() -> pd.Series[float
     return compute_q(V=V)
 
 
+def derive_q_from_deflated_ghg_year_x() -> pd.Series[float]:
+    """q derived from GHG-year gross output deflated to detail IO year (2017 USD).
+
+    Mirrors the deflate_x_to_detail_io_year_for_B logic: takes nominal
+    usa_ghg_data_year industry output, divides by PI(ghg)/PI(detail) to express
+    it in usa_detail_original_year chain dollars, then scales the base 2017 V so
+    each industry row sum matches that deflated x before computing q.
+    """
+    cfg = get_usa_config()
+    x_nominal = derive_cornerstone_x_after_redefinition()
+    ratio = get_cornerstone_industry_price_ratio(
+        original_year=cfg.usa_detail_original_year,
+        target_year=cfg.usa_ghg_data_year,
+    )
+    ratio_aligned = ratio.reindex(x_nominal.index).where(ratio.reindex(x_nominal.index).notna(), 1.0)
+    x_deflated = x_nominal / ratio_aligned
+
+    V_base = derive_cornerstone_V()
+    x_base = V_base.sum(axis=1)
+    x_deflated_aligned = x_deflated.reindex(x_base.index).fillna(0.0)
+    scale = pd.Series(
+        np.where(x_base.to_numpy(dtype=float) != 0,
+                 x_deflated_aligned.to_numpy(dtype=float) / x_base.to_numpy(dtype=float),
+                 0.0),
+        index=x_base.index,
+    )
+    V_scaled = V_base.multiply(scale, axis=0)
+    return compute_q(V=V_scaled)
+
+
 # ---------------------------------------------------------------------------
 # Base 2017 IO matrices — U
 # ---------------------------------------------------------------------------
@@ -547,12 +577,20 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 
     # USEEIO method: return 2017 base A unchanged — no scaling, no inflation.
     # If get_q_from_authoritative_x is also set, replace q before returning.
+    # When deflate_x_to_detail_io_year_for_B is also True (e.g. model 3a), the
+    # authoritative x is GHG-year output deflated to detail_year USD, mirroring
+    # the B matrix approach. Otherwise use the model_base_year x path.
     if cfg.scale_a_matrix_with_useeio_method:
         if cfg.get_q_from_authoritative_x:
+            q_fn = (
+                derive_q_from_deflated_ghg_year_x
+                if cfg.deflate_x_to_detail_io_year_for_B
+                else derive_q_from_scaled_cornerstone_V_from_authoritative_x
+            )
             return SingleRegionAqMatrixSet(
                 Adom=base.Adom,
                 Aimp=base.Aimp,
-                scaled_q=derive_q_from_scaled_cornerstone_V_from_authoritative_x(),
+                scaled_q=q_fn(),
             )
         return base
 
