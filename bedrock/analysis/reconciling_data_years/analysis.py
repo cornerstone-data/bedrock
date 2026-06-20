@@ -112,7 +112,7 @@ def _plot_ef_trends(
 ) -> None:
     from matplotlib.lines import Line2D  # noqa: PLC0415
 
-    row_models = [m for m in all_results if m != "model1"]
+    row_models = list(all_results)
     col_vars = ["e_c", "q", "d", "n"]
     col_titles = {
         "e_c": "e_c (emissions)",
@@ -126,7 +126,7 @@ def _plot_ef_trends(
         len(row_models),
         4,
         figsize=(20, 4 * len(row_models)),
-        sharey="row",
+        sharey="col",
         squeeze=False,
     )
     fig.suptitle("e_c, q, d, and n — indexed to first year = 100", fontsize=12)
