@@ -546,7 +546,14 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     model_year = cfg.model_base_year
 
     # USEEIO method: return 2017 base A unchanged — no scaling, no inflation.
+    # If get_q_from_authoritative_x is also set, replace q before returning.
     if cfg.scale_a_matrix_with_useeio_method:
+        if cfg.get_q_from_authoritative_x:
+            return SingleRegionAqMatrixSet(
+                Adom=base.Adom,
+                Aimp=base.Aimp,
+                scaled_q=derive_q_from_scaled_cornerstone_V_from_authoritative_x(),
+            )
         return base
 
     # USEEIO nowcast: load externally-balanced detail SUTs from GCS and
