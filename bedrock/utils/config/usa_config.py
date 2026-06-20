@@ -97,7 +97,13 @@ class USAConfig(BaseModel):
             'use_E_data_year_for_x_in_B must be True'
         ),
     )  # DRI: WesIngwersen
-
+    get_q_from_authoritative_x: bool = Field(
+        default=False,
+        description=(
+            'Derive q using derive_q_from_scaled_cornerstone_V_from_authoritative_x'
+            'instead of the default in derive_**_Aq'
+        ),
+    )  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
