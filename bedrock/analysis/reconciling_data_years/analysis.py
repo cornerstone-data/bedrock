@@ -234,6 +234,76 @@ def _build_n_yoy_per_sector(
     return pd.DataFrame(rows)
 
 
+def _build_q_ec_correlation(
+    all_results: dict[str, dict[int, dict]],
+) -> pd.DataFrame:
+    """Correlation between q and total e_c (summed across stressors) per model.
+
+    Two measures per (model, year-transition):
+    - level_r: Pearson r between q and e_c across sectors for that year.
+    - yoy_r: Pearson r between YoY Δq and YoY Δe_c across sectors —
+      answers whether output and emissions move in the same direction.
+    - pct_same_sign: fraction of sectors where Δq and Δe_c share sign.
+    """
+    import numpy as np  # noqa: PLC0415
+
+    rows = []
+    for model, year_results in all_results.items():
+        years = sorted(year_results)
+
+        # YoY change correlation for each consecutive pair
+        for y0, y1 in zip(years[:-1], years[1:]):
+            q0, q1 = year_results[y0]["q"], year_results[y1]["q"]
+            ec0 = year_results[y0]["e_c"]
+            ec1 = year_results[y1]["e_c"]
+            ec0_total = ec0.sum(axis=0) if isinstance(ec0, pd.DataFrame) else ec0
+            ec1_total = ec1.sum(axis=0) if isinstance(ec1, pd.DataFrame) else ec1
+
+            common = q0.index.intersection(q1.index).intersection(ec0_total.index).intersection(ec1_total.index)
+            dq = (q1[common] - q0[common]).values.astype(float)
+            dec = (ec1_total[common] - ec0_total[common]).values.astype(float)
+
+            yoy_r = float(pd.Series(dq).corr(pd.Series(dec)))
+            both_nonzero = (dq != 0) & (dec != 0)
+            pct_same = float(np.mean(np.sign(dq[both_nonzero]) == np.sign(dec[both_nonzero]))) if both_nonzero.any() else float("nan")
+            transition = f"{y0}-{y1}"
+            rows.append({"model": model, "year": y1, "transition": transition, "metric": "yoy_r", "value": yoy_r})
+            rows.append({"model": model, "year": y1, "transition": transition, "metric": "pct_same_sign", "value": pct_same})
+
+    return pd.DataFrame(rows, columns=["model", "year", "transition", "metric", "value"])
+
+
+def _summarize_q_ec_correlation(q_ec_corr: pd.DataFrame) -> pd.DataFrame:
+    """Wide-format summary of yoy_r and pct_same_sign with per-model averages."""
+    rows = []
+    for metric in ("yoy_r", "pct_same_sign"):
+        subset = q_ec_corr[q_ec_corr["metric"] == metric]
+        pivot = subset.pivot(index="model", columns="transition", values="value")
+        pivot.insert(0, "metric", metric)
+        pivot["mean"] = pivot.drop(columns="metric").mean(axis=1)
+        rows.append(pivot)
+    return pd.concat(rows).reset_index().rename(columns={"index": "model"})
+
+
+def _build_n_stats(
+    all_results: dict[str, dict[int, dict[str, pd.Series]]],
+) -> pd.DataFrame:
+    """Mean and median of n across all sectors, per model per year."""
+    rows = []
+    for model, year_results in all_results.items():
+        for year in sorted(year_results):
+            n = year_results[year]["n"]
+            rows.append(
+                {
+                    "model": model,
+                    "year": year,
+                    "mean_n": float(n.mean()),
+                    "median_n": float(n.median()),
+                }
+            )
+    return pd.DataFrame(rows, columns=["model", "year", "mean_n", "median_n"])
+
+
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -338,6 +408,23 @@ def main() -> None:
         csv_path = RESULTS_DIR / "efs.csv"
         results_df.to_csv(csv_path, index=False)
         logger.info("Saved results to %s", csv_path)
+
+        n_stats = _build_n_stats(all_results)
+        n_stats_path = RESULTS_DIR / "n_stats.csv"
+        n_stats.to_csv(n_stats_path, index=False)
+        logger.info("Saved n statistics to %s", n_stats_path)
+        logger.info("\n%s", n_stats.to_string(index=False))
+
+        q_ec_corr = _build_q_ec_correlation(all_results)
+        q_ec_corr_path = RESULTS_DIR / "q_ec_correlation.csv"
+        q_ec_corr.to_csv(q_ec_corr_path, index=False)
+        logger.info("Saved q/e_c correlation to %s", q_ec_corr_path)
+
+        q_ec_summary = _summarize_q_ec_correlation(q_ec_corr)
+        q_ec_summary_path = RESULTS_DIR / "q_ec_correlation_summary.csv"
+        q_ec_summary.to_csv(q_ec_summary_path, index=False)
+        logger.info("Saved q/e_c correlation summary to %s", q_ec_summary_path)
+        logger.info("\n%s", q_ec_summary.to_string(index=False))
 
     print("Done.")
 
