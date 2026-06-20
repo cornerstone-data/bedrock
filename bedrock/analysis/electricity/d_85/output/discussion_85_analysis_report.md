@@ -32,6 +32,30 @@ config
 
 ---
 
+## Background — PR3 electricity disaggregation (steps 1–4)
+
+All Decision 3 and 5 scenarios start from the **stage-2 checkpoint**: waste
+disaggregation and co-production reallocation are complete, but aggregate sector
+`221100` is still intact in V, U, and Y. PR3 then splits that aggregate into
+three child sectors — `221110` (generation), `221121` (transmission), and
+`221122` (distribution) — using normalized weight shares. Production baseline
+uses UGO305-A 2017 gross-output weights for every step; non-baseline scenarios
+override one step at a time while holding the others on UGO305.
+
+| Step | Matrix | What it does |
+|------|--------|--------------|
+| **1 — Make intersection** | `V` | Splits the `221100` Make diagonal into a 3×3 diagonal block (each child commodity maps to its matching industry column). Preserves total Make industry and commodity totals. |
+| **2 — Use intersection** | `Udom`, `Uimp` | Replaces the single aggregate cell `U[221100, 221100]` with a 3×3 block on the Use diagonal (commodity × industry). Total dollars in the intersection cell are preserved (`T`). |
+| **3 — Use industry columns** | `Udom`, `Uimp`, `VA` | Splits the aggregate `221100` **industry column** (all commodity rows that purchase electricity as an input). Rebalances VA so each child column sums to its gross output `x_k = w_k × x_agg`. Preserves purchaser column totals and industry GO (`q = x`). **Fuel commodities** (`212100`, `211000`, `324110`, `424700`, `221200`) purchasing the aggregate industry column are routed **100% to `221110`**, not split by weights. |
+| **4 — Commodity rows** | `Udom`, `Uimp`, `Y` | Splits the aggregate `221100` **commodity row** (electricity sales) across purchaser industry columns and final-demand columns in `Y` using weight shares. Decision 5 replaces uniform weights with Table 2.4 price-tilted per-column weights. No separate fuel routing at this step — fuel was already assigned in step 3. |
+
+After step 4, aggregate `221100` is removed from V, U, and Y and the IO is
+reindexed to the 407-sector electricity schema. **Decision 7** does not alter
+these disaggregation steps; it simulates a different **year-scaling** path on the
+resulting A/q matrices after baseline disaggregation is complete.
+
+---
+
 ## Decision 3 — Table 8.3 intersection weights
 
 **Question:** How do EPA Table 8.3 IOU expense shares differ from UGO305-A GO
@@ -50,6 +74,15 @@ distribution). It is heavily generation-weighted and nearly inverts the UGO305
 distribution share. IOU expense shares are not a national IOU+coop+public mix.
 
 ### Scenarios
+
+Each scenario below changes **step 2 only** (Use intersection). Steps 1, 3,
+and 4 use UGO305 weights; step 4 row/Y splits are uniform (equal-price).
+
+| ID | Meaning |
+|----|---------|
+| **`baseline`** | Production PR3 path: UGO305-A 2017 weights at all four steps. Serves as the reference for balance and EF comparisons. |
+| **`d8_mixed`** | **Table 8.3 diagonal at step 2.** The 3×3 Use-intersection block uses EPA Table 8.3 IOU expense shares instead of UGO305, but remains purely diagonal (no off-diagonal cells). Isolates the effect of swapping intersection weights without changing the off-diagonal structure. |
+| **`d8_offdiag`** | **Hybrid off-diagonal at step 2.** Column totals follow UGO305 (Rule D1); generation column is 100% diagonal; transmission and distribution columns split their column totals across rows using Table 8.3 shares (Rule D2). Tests whether a mixed UGO/8.3 intersection can preserve both weight sources. |
 
 | ID | Step 2 change | Result |
 |----|---------------|--------|
@@ -101,6 +134,19 @@ this pipeline. E attribution is fixed via `split_electricity_e_for_disaggregated
 **Question:** If row/Y splits use Table 2.4 retail price tilts (steps 1–3 on
 UGO305), what happens to q/x balance and EFs?
 
+Steps 1–3 are unchanged (UGO305 throughout). Only **step 4** differs: each
+purchaser column gets its own row/Y weight vector based on the EPA end-use class
+of that column and the Table 2.4 retail price for that end-use relative to the
+national average.
+
+### Scenarios
+
+| ID | Meaning |
+|----|---------|
+| **`baseline`** | Uniform UGO305 weights at step 4 (equal-price split of the `221100` commodity row on U and Y). Same as production PR3. |
+| **`p24_2017`** | Step 4 uses Table 2.4 **2017** retail prices to tilt row/Y weights. Higher residential prices shift share toward transmission/distribution columns; lower industrial prices shift share toward generation. Steps 1–3 unchanged. |
+| **`p24_target`** | Same price-tilt method as `p24_2017`, but Table 2.4 prices at **`usa_ghg_data_year` (2023)** instead of 2017. Tests sensitivity to price year choice. |
+
 ### End-use mapping coverage (aggregate 221100 purchases)
 
 | EPA end-use | Share of electricity purchases |
@@ -133,8 +179,7 @@ for target-year prices).
 
 Direct **D** changes are **0%** vs baseline. Row/Y reallocation does not alter
 **V** (Make); therefore **B** and direct **D** are unchanged in the current EF
-pipeline. Fuel commodity rows are not price-tilted (production fuel rule
-preserved).
+pipeline.
 
 ### Decision 5 conclusion
 
@@ -152,6 +197,20 @@ preserved).
 
 **Question:** What if Step-1 summary-ratio scaling uses per-child UGO305 detail
 GO ratios instead of a shared Utilities `"22"` ratio?
+
+Decision 7 is a **post-disaggregation scaling simulation**, not a change to
+steps 1–4. After baseline PR3 IO is built, the analysis substitutes
+per-child UGO305 gross-output growth ratios (2017 → `usa_io_data_year`) into the
+summary-ratio step that normally applies one identical Utilities sector `"22"`
+ratio to all three electricity children.
+
+### Variants
+
+| ID | Meaning |
+|----|---------|
+| **`baseline` / `scenario_baseline` / `production_baseline`** | Current production scaling: identical Utilities `"22"` summary ratio applied to 221110, 221121, and 221122 in the 2017→2022 step, then per-industry PI inflation to model base year. `scenario_baseline` and `production_baseline` scaled q values match in this run. |
+| **`d7_pure`** | Replace the shared `"22"` ratio with each child's own UGO305 detail GO ratio `ratio_k = GO_k(2022) / GO_k(2017)`. Generation, transmission, and distribution scale independently in Step 1. |
+| **`d7_anchored`** | Same per-child UGO305 ratios as `d7_pure`, then rescaled so the **weighted mean** of electricity-block scale factors (weights = UGO305 2017 shares) equals the shared Utilities `"22"` ratio. Preserves aggregate Utilities scaling while allowing G/T/D differentiation. |
 
 ### Detail GO ratios (2017 → 2022)
 
