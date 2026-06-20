@@ -8,46 +8,45 @@ from pathlib import Path
 
 import pandas as pd
 
-warnings.filterwarnings('ignore')
-
-from bedrock.analysis.electricity.d_85.balance_metrics import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.balance_metrics import (
     aggregate_221100_row_by_end_use,
     compute_balance_metrics,
     va_summary_by_scenario,
 )
-from bedrock.analysis.electricity.d_85.decision3_table83_analysis import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.decision3_table83_analysis import (
     build_report as build_d3_report,
 )
-from bedrock.analysis.electricity.d_85.decision5_table24_analysis import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.decision5_table24_analysis import (
     build_report as build_d5_report,
 )
-from bedrock.analysis.electricity.d_85.decision7_ugo305_scaling_analysis import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.decision7_ugo305_scaling_analysis import (
     build_report as build_d7_report,
 )
-from bedrock.analysis.electricity.d_85.diagnostics_comparison import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.diagnostics_comparison import (
     diff_ef_vectors,
     report_metadata,
 )
-from bedrock.analysis.electricity.d_85.disagg_scenarios import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.disagg_scenarios import (
     run_decision3_scenarios,
     run_decision5_scenarios,
     run_scenario,
 )
-from bedrock.analysis.electricity.d_85.disagg_weights import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.disagg_weights import (
     table83_go_weights,
     ugo305_go_weights,
 )
-from bedrock.analysis.electricity.d_85.end_use_mapping import build_end_use_map  # noqa: E402
-from bedrock.analysis.electricity.d_85.scaling_scenarios import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.end_use_mapping import build_end_use_map
+from bedrock.analysis.electricity.d_85.scaling_scenarios import (
     compare_q_trajectories,
     ratio_table,
     run_d7_scenario,
 )
-from bedrock.analysis.electricity.disaggregation_matrices import (  # noqa: E402
+from bedrock.analysis.electricity.d_85.scenario_types import DisaggScenarioResult
+from bedrock.analysis.electricity.disaggregation_matrices import (
     assert_disaggregation_export_config,
     derive_post_reallocation_checkpoint,
 )
-from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config  # noqa: E402
+from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
 
 OUT_DIR = Path(__file__).resolve().parent
 SUMMARY_PATH = OUT_DIR / 'analysis_summary.json'
@@ -59,8 +58,8 @@ def _records(df: pd.DataFrame) -> list[dict[str, object]]:
 
 def _ef_summary(
     label: str,
-    base,
-    scen,
+    base: DisaggScenarioResult,
+    scen: DisaggScenarioResult | None,
     *,
     overrides: dict[str, float] | None = None,
 ) -> list[dict[str, object]]:
@@ -78,7 +77,10 @@ def _ef_summary(
 
 
 def main() -> None:
-    set_global_usa_config('2025_usa_cornerstone_full_model_electricity_disaggregation.yaml')
+    warnings.filterwarnings('ignore')
+    set_global_usa_config(
+        '2025_usa_cornerstone_full_model_electricity_disaggregation.yaml'
+    )
     assert_disaggregation_export_config()
     cfg = get_usa_config()
 
@@ -144,18 +146,14 @@ def main() -> None:
             'balance': _records(
                 pd.concat([compute_balance_metrics(s) for s in d3.values()])
             ),
-            'va': _records(
-                pd.concat([va_summary_by_scenario(s) for s in d3.values()])
-            ),
+            'va': _records(pd.concat([va_summary_by_scenario(s) for s in d3.values()])),
         },
         'decision5': {
             'scenario_flags': {k: v.metrics_only for k, v in d5.items()},
             'balance': _records(
                 pd.concat([compute_balance_metrics(s) for s in d5.values()])
             ),
-            'va': _records(
-                pd.concat([va_summary_by_scenario(s) for s in d5.values()])
-            ),
+            'va': _records(pd.concat([va_summary_by_scenario(s) for s in d5.values()])),
             'end_use_pct': {
                 k: round(float(v) / eu_total * 100, 2) for k, v in eu.items()
             },
