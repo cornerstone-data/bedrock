@@ -561,6 +561,15 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 
         return derive_useeio_nowcast_Aq_cornerstone(year=model_year)
 
+    # When get_q_from_authoritative_x is set, q is derived from V rescaled to
+    # match BEA model-year gross output rather than via scale_cornerstone_q()
+    # or any inflation function. A scaling is unaffected in every branch.
+    q_auth = (
+        derive_q_from_scaled_cornerstone_V_from_authoritative_x()
+        if cfg.get_q_from_authoritative_x
+        else None
+    )
+
     # Summary tables: scale 2017 → model_year using summary A ratios.
     #
     # When `cfg.adjust_summary_dollar_year_before_scaling` is set, `scale_cornerstone_A`
@@ -597,6 +606,8 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             q = inflate_cornerstone_q_or_y_with_commodity_pi(
                 q, original_year=detail_year, target_year=model_year
             )
+        if q_auth is not None:
+            q = q_auth
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
             Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
@@ -616,6 +627,8 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             base.scaled_q, original_year=detail_year, target_year=model_year
         )
+        if q_auth is not None:
+            q = q_auth
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
             Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
@@ -665,6 +678,8 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             q = inflate_cornerstone_q_or_y_with_commodity_pi(
                 q, original_year=detail_year, target_year=model_year
             )
+        if q_auth is not None:
+            q = q_auth
         return SingleRegionAqMatrixSet(
             Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
             Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
@@ -698,6 +713,8 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         original_year=io_year,
         target_year=model_year,
     )
+    if q_auth is not None:
+        q = q_auth
 
     return SingleRegionAqMatrixSet(
         Adom=pt.DataFrame[CornerstoneAMatrix](Adom),  # type: ignore[arg-type]
