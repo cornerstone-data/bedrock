@@ -6,7 +6,8 @@ use_cornerstone_2026_model_schema: true
 implement_waste_disaggregation: true
 deflate_x_to_detail_io_year_for_B: true
 use_E_data_year_for_x_in_B: true
-scale_a_matrix_with_useeio_method: true #necessary not to inflate or scale A 
+scale_a_matrix_with_useeio_method: true #necessary not to inflate or scale A
+get_q_from_authoritative_x: true
 apply_inflation_to_V: false
 load_E_from_flowsa: true
 new_ghg_method: true #get FBS from cache

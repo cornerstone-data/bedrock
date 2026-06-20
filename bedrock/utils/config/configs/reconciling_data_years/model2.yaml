@@ -6,6 +6,7 @@ use_cornerstone_2026_model_schema: true
 implement_waste_disaggregation: true
 apply_inflation_to_V: false
 scale_a_matrix_with_useeio_method: true #necessary not to inflate or scale A
+get_q_from_authoritative_x: true
 
 load_E_from_flowsa: true
 use_E_data_year_for_x_in_B: true
