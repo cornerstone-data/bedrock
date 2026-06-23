@@ -9,6 +9,7 @@ import pandas as pd
 from bedrock.analysis.electricity.d_85.disagg_weights import (
     build_ugo_col_table83_row_intersection_matrix,
     table83_go_weights,
+    table83_purchased_power_weights,
     ugo305_go_weights,
 )
 from bedrock.analysis.electricity.d_85.eia_inputs import table_2_4_prices_cents_kwh
@@ -49,7 +50,15 @@ from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 ELEC = list(ELECTRICITY_DISAGG_SECTORS)
 AGG = ELECTRICITY_AGGREGATE
 
-ScenarioId = ta.Literal['baseline', 'd8_mixed', 'd8_offdiag', 'p24_2017', 'p24_target']
+ScenarioId = ta.Literal[
+    'baseline',
+    't8.3_production_diag',
+    't8.3_production_offdiag',
+    't8.3_purchased_power_diag',
+    't8.3_purchased_power_offdiag',
+    'p24_2017',
+    'p24_target',
+]
 
 
 def apply_use_intersection_custom(
@@ -254,9 +263,8 @@ def _split_uniform_row(
     return disaggregate_use_commodity_rows(Udom, Uimp, w)
 
 
-def _weights_d8_mixed() -> ScenarioWeights:
+def _weights_t83_diag(w_83: pd.Series[float]) -> ScenarioWeights:
     w_ugo = ugo305_go_weights()
-    w_83 = table83_go_weights()
     return ScenarioWeights(
         w_make_intersection=w_ugo,
         w_use_intersection=w_83,
@@ -267,9 +275,8 @@ def _weights_d8_mixed() -> ScenarioWeights:
     )
 
 
-def _weights_d8_offdiag() -> ScenarioWeights:
+def _weights_t83_offdiag(w_83: pd.Series[float]) -> ScenarioWeights:
     w_ugo = ugo305_go_weights()
-    w_83 = table83_go_weights()
     _, Udom, _, _, _ = derive_post_reallocation_checkpoint()
     T = _frame_cell_float(Udom, AGG, AGG)
     matrix = build_ugo_col_table83_row_intersection_matrix(w_ugo, w_83, T)
@@ -281,6 +288,22 @@ def _weights_d8_offdiag() -> ScenarioWeights:
         w_row_by_column=None,
         intersection_3x3=matrix,
     )
+
+
+def _weights_t83_production_diag() -> ScenarioWeights:
+    return _weights_t83_diag(table83_go_weights())
+
+
+def _weights_t83_production_offdiag() -> ScenarioWeights:
+    return _weights_t83_offdiag(table83_go_weights())
+
+
+def _weights_t83_purchased_power_diag() -> ScenarioWeights:
+    return _weights_t83_diag(table83_purchased_power_weights())
+
+
+def _weights_t83_purchased_power_offdiag() -> ScenarioWeights:
+    return _weights_t83_offdiag(table83_purchased_power_weights())
 
 
 def _weights_p24(price_year: int) -> ScenarioWeights:
@@ -307,10 +330,23 @@ def run_scenario(scenario_id: ScenarioId) -> DisaggScenarioResult:
     """Run one registered disaggregation scenario."""
     if scenario_id == 'baseline':
         return _run_baseline()
-    if scenario_id == 'd8_mixed':
-        return _run_stepwise('d8_mixed', weights=_weights_d8_mixed())
-    if scenario_id == 'd8_offdiag':
-        return _run_stepwise('d8_offdiag', weights=_weights_d8_offdiag())
+    if scenario_id == 't8.3_production_diag':
+        return _run_stepwise(
+            't8.3_production_diag', weights=_weights_t83_production_diag()
+        )
+    if scenario_id == 't8.3_production_offdiag':
+        return _run_stepwise(
+            't8.3_production_offdiag', weights=_weights_t83_production_offdiag()
+        )
+    if scenario_id == 't8.3_purchased_power_diag':
+        return _run_stepwise(
+            't8.3_purchased_power_diag', weights=_weights_t83_purchased_power_diag()
+        )
+    if scenario_id == 't8.3_purchased_power_offdiag':
+        return _run_stepwise(
+            't8.3_purchased_power_offdiag',
+            weights=_weights_t83_purchased_power_offdiag(),
+        )
     if scenario_id == 'p24_2017':
         return _run_stepwise('p24_2017', weights=_weights_p24(2017))
     if scenario_id == 'p24_target':
@@ -322,8 +358,10 @@ def run_scenario(scenario_id: ScenarioId) -> DisaggScenarioResult:
 def run_decision3_scenarios() -> dict[str, DisaggScenarioResult]:
     return {
         'baseline': run_scenario('baseline'),
-        'd8_mixed': run_scenario('d8_mixed'),
-        'd8_offdiag': run_scenario('d8_offdiag'),
+        't8.3_production_diag': run_scenario('t8.3_production_diag'),
+        't8.3_production_offdiag': run_scenario('t8.3_production_offdiag'),
+        't8.3_purchased_power_diag': run_scenario('t8.3_purchased_power_diag'),
+        't8.3_purchased_power_offdiag': run_scenario('t8.3_purchased_power_offdiag'),
     }
 
 

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.analysis.electricity.d_85.eia_inputs import table_8_3_gtd_expenses_musd
+from bedrock.analysis.electricity.d_85.eia_inputs import (
+    table_8_3_gtd_expenses_musd,
+    table_8_3_purchased_power_gtd_expenses_musd,
+)
 from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_disagg_go_weights,
 )
@@ -26,19 +29,36 @@ def ugo305_go_weights(year: int = 2017) -> pd.Series[float]:
     return w.reindex(ELEC_CODES).astype(float)
 
 
-def table83_go_weights(
-    year: int = 2017, *, fba: pd.DataFrame | None = None
-) -> pd.Series[float]:
-    """Map Table 8.3 G/T/D expense shares to 221110/221121/221122."""
-    expenses = table_8_3_gtd_expenses_musd(year, fba=fba)
+def _table83_weights_from_expenses(expenses: dict[str, float]) -> pd.Series[float]:
+    """Map three G/T/D expense buckets to 221110/221121/221122 shares."""
+    keys = list(expenses.keys())
+    if len(keys) != 3:
+        raise ValueError(f'expected 3 expense buckets, got {keys!r}')
+    gen_key, trans_key, dist_key = keys
     total = sum(expenses.values())
     return pd.Series(
         {
-            '221110': expenses['Production'] / total,
-            '221121': expenses['Transmission'] / total,
-            '221122': expenses['Distribution'] / total,
+            '221110': expenses[gen_key] / total,
+            '221121': expenses[trans_key] / total,
+            '221122': expenses[dist_key] / total,
         },
         dtype=float,
+    )
+
+
+def table83_go_weights(
+    year: int = 2017, *, fba: pd.DataFrame | None = None
+) -> pd.Series[float]:
+    """Map Table 8.3 Production + T/D expense shares to 221110/221121/221122."""
+    return _table83_weights_from_expenses(table_8_3_gtd_expenses_musd(year, fba=fba))
+
+
+def table83_purchased_power_weights(
+    year: int = 2017, *, fba: pd.DataFrame | None = None
+) -> pd.Series[float]:
+    """Map Table 8.3 Purchased Power + T/D expense shares to 221110/221121/221122."""
+    return _table83_weights_from_expenses(
+        table_8_3_purchased_power_gtd_expenses_musd(year, fba=fba)
     )
 
 
@@ -47,7 +67,7 @@ def build_ugo_col_table83_row_intersection_matrix(
     w_83: pd.Series[float],
     total: float,
 ) -> pd.DataFrame:
-    """Build 3×3 Use-intersection matrix for ``d8_offdiag`` (Rules D1/D2).
+    """Build 3×3 Use-intersection matrix for hybrid off-diagonal step 2 (Rules D1/D2).
 
     Rows/columns indexed ``[221110, 221121, 221122]`` (commodity × industry).
     Cell values are absolute dollars summing to ``total`` (aggregate intersection T).
