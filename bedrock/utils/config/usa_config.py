@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
+CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_3'
 
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
@@ -345,7 +346,7 @@ def get_usa_config() -> USAConfig:
         if env_usa_config_file:
             _usa_config = _load_usa_config_from_file_name(env_usa_config_file)
         else:
-            set_global_usa_config('2025_usa_cornerstone_full_model.yaml')
+            set_global_usa_config(f'{CANONICAL_USA_CONFIG}.yaml')
     assert _usa_config is not None
     return _usa_config
 

@@ -27,7 +27,7 @@ These are **independent** concepts and frequently point at different commits:
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
 | Named release | [`releases.py`](releases.py) | Reference-only map of release labels → snapshot SHAs. Not imported by runtime code; update in Phase A alongside `.SNAPSHOT_KEY`. |
 | Diagnostic baseline pin | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs that any config may point at as its diagnostic baseline. Every released snapshot SHA must be added here. |
-| Canonical config | [`2025_usa_cornerstone_full_model.yaml`](../config/configs/2025_usa_cornerstone_full_model.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
+| Canonical config | [`2025_usa_cornerstone_v0_3.yaml`](../config/configs/2025_usa_cornerstone_v0_3.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
 
 ### Where snapshot SHAs live
 
@@ -112,7 +112,7 @@ Trigger the `generate_snapshots` workflow manually:
 
 - GitHub → Actions → **generate_snapshots** → Run workflow
 - Branch: `main` (or the specific SHA from step A1 if newer commits have landed)
-- `config_name`: leave as the default `2025_usa_cornerstone_full_model` (the canonical config)
+- `config_name`: leave as the default `2025_usa_cornerstone_v0_3` (the canonical config)
 - Leave `snapshot_prefix_override` blank so the prefix is the commit SHA
 
 Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>/`.
@@ -165,7 +165,7 @@ git tag -a v0.X.Y -m "Bedrock release v0.X.Y
 
 Snapshot SHA:  $SNAP
 GCS prefix:    gs://cornerstone-default/snapshots/$SNAP/
-Canonical config: 2025_usa_cornerstone_full_model
+Canonical config: 2025_usa_cornerstone_v0_3
 
 Highlights since previous tag:
 - <bullet>
@@ -188,7 +188,7 @@ Post in `#alerts-bedrock` (and any other relevant channel):
 > :package: **Bedrock release `v0.X.Y`**
 > Tag SHA: `<short_tag_sha>` ([compare](https://github.com/cornerstone-data/bedrock/compare/v0.X.<prev>...v0.X.Y))
 > Snapshot SHA: `<short_snapshot_sha>` (unchanged from previous release / new since `v0.X.<prev>`)
-> Canonical config: `2025_usa_cornerstone_full_model`
+> Canonical config: `2025_usa_cornerstone_v0_3`
 > Highlights: <one or two lines>
 > Downstream impact: <e.g. diagnostics baselines should bump to this SHA when ready>
 
@@ -208,7 +208,7 @@ A clean bump PR diff looks roughly like this (anticipating release `v0.3.0`):
 --- a/bedrock/utils/snapshots/releases.py
 +++ b/bedrock/utils/snapshots/releases.py
  v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_full_model
-+v0_3_0 = "<new_sha>"  # config: 2025_usa_cornerstone_full_model
++v0_3_0 = "<new_sha>"  # config: 2025_usa_cornerstone_v0_3
 
 --- a/bedrock/utils/config/usa_config.py
 +++ b/bedrock/utils/config/usa_config.py
@@ -238,7 +238,7 @@ If a bad snapshot accidentally got uploaded under a SHA you want to keep, you ca
 
 The `generate_snapshots.py` script supports `--adhoc`, which uploads to `gs://cornerstone-default/snapshots/<sha>/adhoc/` instead of the top-level SHA folder. Use this for:
 
-- Snapshotting an atomic config (anything other than `2025_usa_cornerstone_full_model`)
+- Snapshotting an atomic config (anything other than `2025_usa_cornerstone_v0_3`)
 - Local experimentation where you don't want to pollute the canonical snapshot prefix
 
 Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exist for ad-hoc diagnostic comparisons only.

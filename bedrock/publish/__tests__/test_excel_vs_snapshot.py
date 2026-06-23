@@ -6,7 +6,7 @@ written at HEAD reproduces the values of the pinned
 implies either (a) bedrock derivation drift, or (b) the snapshot is stale
 and needs regenerating via `bedrock.utils.snapshots.generate_snapshots`.
 
-TODO: `_DEFAULT_CONFIG` is hard-coded to `2025_usa_cornerstone_full_model`,
+TODO: `_DEFAULT_CONFIG` is hard-coded to ``CANONICAL_USA_CONFIG``
 so this guard only covers that config. Parameterize via env var or pytest
 parameter so arbitrary configs published via `bedrock.publish.excel.cli` can be
 validated against their corresponding snapshots before upload.
@@ -24,9 +24,10 @@ import pytest
 from bedrock.publish.__tests__._helpers import setup_config, teardown
 from bedrock.publish.excel.writer import write_model_to_xlsx
 from bedrock.publish.model_objects import PUBLISH_LOCATION
+from bedrock.utils.config.usa_config import CANONICAL_USA_CONFIG
 from bedrock.utils.snapshots.loader import load_current_snapshot
 
-_DEFAULT_CONFIG = '2025_usa_cornerstone_full_model'
+_DEFAULT_CONFIG = CANONICAL_USA_CONFIG
 
 
 def _strip_loc_suffix(values: pd.Index) -> pd.Index:
