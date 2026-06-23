@@ -16,7 +16,7 @@ SECTOR = sys.argv[1] if len(sys.argv) > 1 else '221100'
 
 from bedrock.utils.config.usa_config import set_global_usa_config  # noqa: E402
 
-set_global_usa_config('2025_usa_cornerstone_full_model')
+set_global_usa_config('2025_usa_cornerstone_v0_2')
 
 from bedrock.transform.eeio.derived import (  # noqa: E402
     derive_Aq_usa,
