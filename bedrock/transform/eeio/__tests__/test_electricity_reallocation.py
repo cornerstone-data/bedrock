@@ -238,6 +238,6 @@ class TestElectricityReallocationIntegration:
         )
 
     def test_diagnostics_helpers_run(self) -> None:
-        _setup_config("2025_usa_cornerstone_full_model_electricity_reallocation.yaml")
+        _setup_config("2025_usa_cornerstone_v0_2_electricity_reallocation.yaml")
         result = pull_efs_for_diagnostics()
         assert result is not None
