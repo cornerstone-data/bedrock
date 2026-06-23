@@ -15,9 +15,9 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / 'data'
 _CHECKPOINT_PATH = _DATA_DIR / 'stage2_checkpoint_subset.parquet'
 
 
-def load_stage2_checkpoint_subset() -> tuple[
-    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
-]:
+def load_stage2_checkpoint_subset() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
     """Load frozen stage-2 IO subset from parquet."""
     raw = pd.read_parquet(_CHECKPOINT_PATH)
     out: dict[str, pd.DataFrame] = {}
@@ -123,9 +123,9 @@ def minimal_balanced_checkpoint(
 
 
 @pytest.fixture
-def stage2_checkpoint() -> tuple[
-    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
-]:
+def stage2_checkpoint() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
     return load_stage2_checkpoint_subset()
 
 
