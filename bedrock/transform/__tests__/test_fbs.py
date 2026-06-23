@@ -1,50 +1,57 @@
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
+
+import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.utils.config import settings
+from bedrock.utils.snapshots.fbs_pin import (
+    download_pinned_cornerstone_ghg_fbs,
+    load_cornerstone_ghg_fbs_pin,
+)
 from bedrock.utils.validation.validation import compare_FBS
 
-
-@pytest.mark.skip  # replaced by compare to remote test
-def test_generate_fbs() -> None:
-    y = 2022
-    method = f'GHG_national_{y}_m1'
-    FlowBySector.generateFlowBySector(method, download_sources_ok=False)
-    fbs = getFlowBySector(method)
-
-    assert len(fbs) > 0
+_SKIP_FBS_COMPARE_COLUMNS = ['ProducedBySectorType', 'ConsumedBySectorType']
 
 
-METHODS = [
-    pytest.param('GHG_national_Cornerstone_2023', id='GHG_national_Cornerstone_2023'),
-]
+@pytest.fixture
+def isolated_flow_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[Path]:
+    """Empty FBA/FBS output dirs so regen cannot reuse developer-local caches."""
+    fba_dir = tmp_path / 'fba'
+    fbs_dir = tmp_path / 'fbs'
+    fba_dir.mkdir()
+    fbs_dir.mkdir()
+    monkeypatch.setattr(settings, 'FBA_DIR', fba_dir)
+    monkeypatch.setattr(settings, 'FBS_DIR', fbs_dir)
+    yield fbs_dir
 
 
 @pytest.mark.eeio_integration
-@pytest.mark.parametrize('method', METHODS)
-def test_generate_fbs_compare_to_remote(method: str) -> None:
-    # Download and load from GCS (local directory needs to be empty of this
-    # method to force download)
-    fbs_remote = getFlowBySector(method, download_FBS_if_missing=True)
+def test_generate_cornerstone_ghg_fbs_2024_matches_pinned_reference(
+    isolated_flow_dirs: Path,
+) -> None:
+    """Regenerated GHG_national_Cornerstone_2024 matches the pinned GCS parquet."""
+    fbs_dir = isolated_flow_dirs
+    pin = load_cornerstone_ghg_fbs_pin()
+    method = pin['method']
 
-    # Compare to newly generated version
-    FlowBySector.generateFlowBySector(method, download_sources_ok=False)
-    fbs = getFlowBySector(method)
+    pinned_path = download_pinned_cornerstone_ghg_fbs(pin, fbs_dir)
+    fbs_reference = pd.read_parquet(pinned_path)
 
-    df_m = compare_FBS(fbs_remote, fbs, ignore_metasources=False)
+    FlowBySector.generateFlowBySector(method, download_sources_ok=True)
+    fbs_regenerated = getFlowBySector(method)
 
-    # Drop some columns that may have different dtypes and are not used
-    skip_columns = ['ProducedBySectorType', 'ConsumedBySectorType']
+    df_m = compare_FBS(fbs_reference, fbs_regenerated, ignore_metasources=False)
 
     assert_frame_equal(
-        fbs_remote.drop(columns=skip_columns),
-        fbs.drop(columns=skip_columns),
+        fbs_reference.drop(columns=_SKIP_FBS_COMPARE_COLUMNS, errors='ignore'),
+        fbs_regenerated.drop(columns=_SKIP_FBS_COMPARE_COLUMNS, errors='ignore'),
         check_like=True,
     )
-
     assert len(df_m) == 0
-
-
-if __name__ == '__main__':
-    # test_generate_fbs()
-    test_generate_fbs_compare_to_remote(method='GHG_national_Cornerstone_2023')
