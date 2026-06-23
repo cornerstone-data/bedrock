@@ -89,7 +89,7 @@ def _select_flowsa_ghg_method() -> str:
     if usa.update_liming_and_fertilizer_ghg_method:
         return 'GHG_national_Cornerstone_2023_ag_soils'
     if usa.update_mecs_method:
-        return 'GHG_national_Cornerstone_2023_release_v0.3'
+        return 'GHG_national_Cornerstone_2023_ghgi_mecs'
     if usa.v0_3_umd_2023_ghgia:
         return 'GHG_national_Cornerstone_2023_umd_ghgia'
     if usa.v0_3_umd_2024_ghgia:
@@ -405,7 +405,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_enteric_fermentation_and_manure_management_ghg_method is True
     - GHG_national_Cornerstone_2023_ag_soils when
       update_liming_and_fertilizer_ghg_method is True
-    - GHG_national_Cornerstone_2023_release_0.3 when
+    - GHG_national_Cornerstone_2023_ghgi_mecs when
       update_mecs_method is True
     - GHG_national_Cornerstone_2023_umd_ghgia when
       v0_3_umd_2023_ghgia is True

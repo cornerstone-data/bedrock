@@ -23,4 +23,3 @@ load_E_from_flowsa: true
 v0_3_umd_2024_ghgia: true
 use_E_data_year_for_x_in_B: True
 implement_waste_disaggregation: True
-cornerstone_industry_avg_margins: True
