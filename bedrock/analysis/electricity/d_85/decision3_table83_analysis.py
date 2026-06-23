@@ -18,6 +18,7 @@ from bedrock.analysis.electricity.d_85.disagg_scenarios import run_decision3_sce
 from bedrock.analysis.electricity.d_85.disagg_weights import (
     build_ugo_col_table83_row_intersection_matrix,
     table83_go_weights,
+    table83_purchased_power_weights,
     ugo305_go_weights,
 )
 from bedrock.analysis.electricity.d_85.scenario_types import DisaggScenarioResult
@@ -28,7 +29,8 @@ _REPORT = 'decision3_table83_report.xlsx'
 
 def _weight_comparison_table() -> pd.DataFrame:
     w_ugo = ugo305_go_weights()
-    w_83 = table83_go_weights()
+    w_prod = table83_go_weights()
+    w_pp = table83_purchased_power_weights()
     rows = [
         {
             'source': 'UGO305-A 2017',
@@ -38,11 +40,18 @@ def _weight_comparison_table() -> pd.DataFrame:
             'denominator': '10 BEA GO sectors',
         },
         {
-            'source': 'EPA Table 8.3 2017',
-            'w_221110': float(w_83['221110']),
-            'w_221121': float(w_83['221121']),
-            'w_221122': float(w_83['221122']),
-            'denominator': 'Prod+Trans+Dist IOU expenses',
+            'source': 'EPA Table 8.3 2017 — Production + T/D',
+            'w_221110': float(w_prod['221110']),
+            'w_221121': float(w_prod['221121']),
+            'w_221122': float(w_prod['221122']),
+            'denominator': 'Production+Trans+Dist IOU expenses',
+        },
+        {
+            'source': 'EPA Table 8.3 2017 — Purchased Power + T/D',
+            'w_221110': float(w_pp['221110']),
+            'w_221121': float(w_pp['221121']),
+            'w_221122': float(w_pp['221122']),
+            'denominator': 'PurchasedPower+Trans+Dist IOU expenses',
         },
     ]
     df = pd.DataFrame(rows)

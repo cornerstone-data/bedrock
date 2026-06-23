@@ -54,7 +54,7 @@ def test_split_y_removes_aggregate_row() -> None:
 @mock.patch(
     'bedrock.analysis.electricity.d_85.disagg_scenarios.derive_post_reallocation_checkpoint'
 )
-def test_d8_mixed_step2_uses_table83_weights(
+def test_t83_production_diag_step2_uses_table83_weights(
     checkpoint_mock: mock.Mock,
     ugo_mock: mock.Mock,
     t83_mock: mock.Mock,
@@ -86,7 +86,7 @@ def test_d8_mixed_step2_uses_table83_weights(
                         with mock.patch(
                             'bedrock.analysis.electricity.d_85.disagg_scenarios.validate_cornerstone'
                         ):
-                            run_scenario('d8_mixed')
+                            run_scenario('t8.3_production_diag')
     _, _, w_passed = use_int.call_args[0]
     assert pytest.approx(float(w_passed['221110'])) == 0.86
 

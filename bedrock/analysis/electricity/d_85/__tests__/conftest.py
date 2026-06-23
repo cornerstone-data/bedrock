@@ -15,9 +15,9 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / 'data'
 _CHECKPOINT_PATH = _DATA_DIR / 'stage2_checkpoint_subset.parquet'
 
 
-def load_stage2_checkpoint_subset() -> (
-    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
-):
+def load_stage2_checkpoint_subset() -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
+]:
     """Load frozen stage-2 IO subset from parquet."""
     raw = pd.read_parquet(_CHECKPOINT_PATH)
     out: dict[str, pd.DataFrame] = {}
@@ -62,6 +62,17 @@ def mock_fba_table83_table24() -> pd.DataFrame:
             'ActivityConsumedBy': '',
             'FlowName': 'expenses: Distribution',
             'FlowAmount': 4358.0,
+        },
+        {
+            'Year': 2017,
+            'Description': (
+                'Table 8.3 Revenue and expense statistics for major U.S. '
+                'investor-owned electric utilities'
+            ),
+            'ActivityProducedBy': 'Investor-owned electric utilities',
+            'ActivityConsumedBy': '',
+            'FlowName': 'expenses: Purchased Power',
+            'FlowAmount': 49030.0,
         },
     ]
     for sector, price in (
@@ -112,9 +123,9 @@ def minimal_balanced_checkpoint(
 
 
 @pytest.fixture
-def stage2_checkpoint() -> (
-    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
-):
+def stage2_checkpoint() -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
+]:
     return load_stage2_checkpoint_subset()
 
 
