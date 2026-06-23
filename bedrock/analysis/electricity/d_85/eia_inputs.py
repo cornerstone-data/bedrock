@@ -15,10 +15,18 @@ TABLE_2_4_DESCRIPTION = 'Table 2.4 Average price of electricity to ultimate cust
 TABLE_2_4_PROVIDER = 'Total Electric Industry'
 
 # Authoritative leaf FlowNames (from EPA Table 8.3 discovery — do not sum parent rows).
-TABLE_8_3_FLOWNAMES: dict[str, str] = {
+TABLE_8_3_GENERATION_FLOWNAMES: dict[str, str] = {
     'Production': 'expenses: Production',
+    'PurchasedPower': 'expenses: Purchased Power',
+}
+TABLE_8_3_SHARED_FLOWNAMES: dict[str, str] = {
     'Transmission': 'expenses: Transmission',
     'Distribution': 'expenses: Distribution',
+}
+# Back-compat alias for production-based G/T/D expense queries.
+TABLE_8_3_FLOWNAMES: dict[str, str] = {
+    **TABLE_8_3_GENERATION_FLOWNAMES,
+    **TABLE_8_3_SHARED_FLOWNAMES,
 }
 
 EPAEndUse = ta.Literal[
@@ -32,12 +40,13 @@ def _load_eia_fba(year: int) -> pd.DataFrame:
     return getFlowByActivity('EIA_ElectricPowerAnnual', year)
 
 
-def table_8_3_gtd_expenses_musd(
-    year: int = 2017,
+def _table_8_3_gtd_expenses(
+    year: int,
     *,
-    fba: pd.DataFrame | None = None,
+    generation_key: ta.Literal['Production', 'PurchasedPower'],
+    fba: pd.DataFrame | None,
 ) -> dict[str, float]:
-    """Return G/T/D operating expenses in $M from Table 8.3 (IOU utilities)."""
+    """Return generation + T/D operating expenses from Table 8.3 (IOU utilities)."""
     df = fba if fba is not None else _load_eia_fba(year)
     mask = (
         (df['Year'] == year)
@@ -45,8 +54,12 @@ def table_8_3_gtd_expenses_musd(
         & (df['ActivityProducedBy'] == TABLE_8_3_PRODUCER)
     )
     subset = df.loc[mask]
+    flownames = {
+        'Generation': TABLE_8_3_GENERATION_FLOWNAMES[generation_key],
+        **TABLE_8_3_SHARED_FLOWNAMES,
+    }
     out: dict[str, float] = {}
-    for label, flow_name in TABLE_8_3_FLOWNAMES.items():
+    for label, flow_name in flownames.items():
         rows = subset.loc[subset['FlowName'] == flow_name, 'FlowAmount']
         if rows.empty:
             raise ValueError(
@@ -54,6 +67,34 @@ def table_8_3_gtd_expenses_musd(
             )
         out[label] = float(rows.iloc[0])
     return out
+
+
+def table_8_3_gtd_expenses_musd(
+    year: int = 2017,
+    *,
+    fba: pd.DataFrame | None = None,
+) -> dict[str, float]:
+    """Return Production + T/D operating expenses from Table 8.3 (IOU utilities)."""
+    raw = _table_8_3_gtd_expenses(year, generation_key='Production', fba=fba)
+    return {
+        'Production': raw['Generation'],
+        'Transmission': raw['Transmission'],
+        'Distribution': raw['Distribution'],
+    }
+
+
+def table_8_3_purchased_power_gtd_expenses_musd(
+    year: int = 2017,
+    *,
+    fba: pd.DataFrame | None = None,
+) -> dict[str, float]:
+    """Return Purchased Power + T/D operating expenses from Table 8.3 (IOU utilities)."""
+    raw = _table_8_3_gtd_expenses(year, generation_key='PurchasedPower', fba=fba)
+    return {
+        'PurchasedPower': raw['Generation'],
+        'Transmission': raw['Transmission'],
+        'Distribution': raw['Distribution'],
+    }
 
 
 def table_2_4_prices_cents_kwh(

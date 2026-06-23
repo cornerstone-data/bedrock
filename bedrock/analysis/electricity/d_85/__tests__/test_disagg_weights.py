@@ -8,6 +8,7 @@ import pytest
 from bedrock.analysis.electricity.d_85.disagg_weights import (
     build_ugo_col_table83_row_intersection_matrix,
     table83_go_weights,
+    table83_purchased_power_weights,
 )
 
 
@@ -15,6 +16,13 @@ def test_table83_go_weights_normalizes(mock_fba: pd.DataFrame) -> None:
     w = table83_go_weights(fba=mock_fba)
     assert pytest.approx(float(w.sum())) == 1.0
     assert w['221110'] > w['221121'] > w['221122']
+
+
+def test_table83_purchased_power_weights_normalizes(mock_fba: pd.DataFrame) -> None:
+    w = table83_purchased_power_weights(fba=mock_fba)
+    assert pytest.approx(float(w.sum())) == 1.0
+    assert w['221110'] > w['221121'] > w['221122']
+    assert w['221110'] < table83_go_weights(fba=mock_fba)['221110']
 
 
 def test_offdiag_matrix_rules_d1_d2(mock_fba: pd.DataFrame) -> None:

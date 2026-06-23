@@ -33,6 +33,11 @@ def main() -> None:
         default='all',
         help='Which decision report(s) to generate',
     )
+    parser.add_argument(
+        '--figures',
+        action='store_true',
+        help='Also write Decisions 3/5 figures A, C, D to d_85/output/',
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -58,6 +63,24 @@ def main() -> None:
         )
 
         paths.append(str(build_d7_report()))
+
+    if args.figures and args.decision in ('3', '5', 'all'):
+        from bedrock.analysis.electricity.d_85.disagg_scenarios import (  # noqa: PLC0415
+            run_decision3_scenarios,
+            run_decision5_scenarios,
+        )
+        from bedrock.analysis.electricity.d_85.figures import (  # noqa: PLC0415
+            build_decision_figures,
+        )
+
+        d3 = run_decision3_scenarios() if args.decision in ('3', 'all') else {}
+        d5 = run_decision5_scenarios() if args.decision in ('5', 'all') else {}
+        if args.decision == '3':
+            d5 = {'baseline': d3['baseline']}
+        elif args.decision == '5':
+            d3 = {'baseline': d5['baseline']}
+        figure_paths = build_decision_figures(d3, d5)
+        paths.extend(str(p) for p in figure_paths.values())
 
     for path in paths:
         logger.info('Wrote report: %s', path)

@@ -33,9 +33,11 @@ from bedrock.analysis.electricity.d_85.disagg_scenarios import (
 )
 from bedrock.analysis.electricity.d_85.disagg_weights import (
     table83_go_weights,
+    table83_purchased_power_weights,
     ugo305_go_weights,
 )
 from bedrock.analysis.electricity.d_85.end_use_mapping import build_end_use_map
+from bedrock.analysis.electricity.d_85.figures import build_decision_figures
 from bedrock.analysis.electricity.d_85.scaling_scenarios import (
     compare_q_trajectories,
     ratio_table,
@@ -96,17 +98,33 @@ def main() -> None:
     d7_path = build_d7_report()
     baseline = run_scenario('baseline')
 
+    print('Building figures A, C, D...')
+    figure_paths = build_decision_figures(d3, d5)
+    for name, path in figure_paths.items():
+        print(f'  {name}: {path}')
+
     _, udom, uimp, _, y = derive_post_reallocation_checkpoint()
     eu = aggregate_221100_row_by_end_use(udom, uimp, y, build_end_use_map())
     eu_total = float(eu.sum())
 
     w_ugo = ugo305_go_weights()
-    w_83 = table83_go_weights()
+    w_prod = table83_go_weights()
+    w_pp = table83_purchased_power_weights()
 
     ef_rows: list[dict[str, object]] = []
     for label, base, scen in (
-        ('d8_mixed', d3['baseline'], d3['d8_mixed']),
-        ('d8_offdiag', d3['baseline'], d3['d8_offdiag']),
+        ('t8.3_production_diag', d3['baseline'], d3['t8.3_production_diag']),
+        ('t8.3_production_offdiag', d3['baseline'], d3['t8.3_production_offdiag']),
+        (
+            't8.3_purchased_power_diag',
+            d3['baseline'],
+            d3['t8.3_purchased_power_diag'],
+        ),
+        (
+            't8.3_purchased_power_offdiag',
+            d3['baseline'],
+            d3['t8.3_purchased_power_offdiag'],
+        ),
         ('p24_2017', d5['baseline'], d5['p24_2017']),
         ('p24_target', d5['baseline'], d5['p24_target']),
     ):
@@ -126,6 +144,7 @@ def main() -> None:
             'decision5': str(d5_path),
             'decision7': str(d7_path),
         },
+        'figures': {k: str(v) for k, v in figure_paths.items()},
         'metadata': report_metadata(),
         'decision3_weights': [
             {
@@ -135,10 +154,16 @@ def main() -> None:
                 'w_221122': float(w_ugo['221122']),
             },
             {
-                'source': 'EPA Table 8.3 2017',
-                'w_221110': float(w_83['221110']),
-                'w_221121': float(w_83['221121']),
-                'w_221122': float(w_83['221122']),
+                'source': 'EPA Table 8.3 2017 — Production + T/D',
+                'w_221110': float(w_prod['221110']),
+                'w_221121': float(w_prod['221121']),
+                'w_221122': float(w_prod['221122']),
+            },
+            {
+                'source': 'EPA Table 8.3 2017 — Purchased Power + T/D',
+                'w_221110': float(w_pp['221110']),
+                'w_221121': float(w_pp['221121']),
+                'w_221122': float(w_pp['221122']),
             },
         ],
         'decision3': {
