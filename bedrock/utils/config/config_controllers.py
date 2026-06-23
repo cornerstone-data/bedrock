@@ -5,7 +5,7 @@ that run the same pipeline under multiple configurations sequentially.
 helpers bypass that guard by writing directly to the module globals, enabling
 patterns like::
 
-    for config_name in ("useeio_phoebe_23", "2025_usa_cornerstone_full_model"):
+    for config_name in ("useeio_phoebe_23", "2025_usa_cornerstone_v0_3"):
         reset_usa_config()
         set_usa_config(config_name)
         results[config_name] = run_pipeline()

@@ -14,7 +14,7 @@ import pyarrow.parquet as pq
 
 import bedrock.utils.config.common as common
 from bedrock.utils.config.settings import GIT_HASH_LONG, PATHS
-from bedrock.utils.config.usa_config import set_global_usa_config
+from bedrock.utils.config.usa_config import CANONICAL_USA_CONFIG, set_global_usa_config
 from bedrock.utils.io.gcp import upload_file_to_gcs
 from bedrock.utils.io.gcp_paths import GCS_SNAPSHOT_DIR
 from bedrock.utils.snapshots.names import SnapshotName
@@ -126,9 +126,7 @@ def upload_snapshots(
 
 
 @click.command(help='Generate snapshots for bedrock EEIO model')
-@click.option(
-    '--config_name', required=True, type=str, default='2025_usa_cornerstone_full_model'
-)
+@click.option('--config_name', required=True, type=str, default=CANONICAL_USA_CONFIG)
 @click.option('--adhoc', is_flag=True, help='Upload to adhoc directory')
 @click.option(
     '--snapshot_prefix_override',
