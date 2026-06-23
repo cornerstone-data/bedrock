@@ -702,7 +702,6 @@ source_names:
 
   EPA_GHGI_T_3_25b: # Fossil fuel for non-energy uses (2024 GHGI report table id; see GHG_national_2019_m2.yaml)
     year: *ghgi_year
-    activity_to_sector_mapping: EPA_GHGI_Cornerstone
     fedefl_mapping: GHGI_AR5_100
     activity_sets:
       coal:
