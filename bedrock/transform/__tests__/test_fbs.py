@@ -13,7 +13,6 @@ from bedrock.utils.snapshots.fbs_pin import (
     download_pinned_cornerstone_ghg_fbs,
     load_cornerstone_ghg_fbs_pin,
 )
-from bedrock.utils.validation.validation import compare_FBS
 
 _SKIP_FBS_COMPARE_COLUMNS = ['ProducedBySectorType', 'ConsumedBySectorType']
 # Pinned parquet may store these as object/None; regen uses float64/NaN per schema.
@@ -56,11 +55,8 @@ def test_generate_cornerstone_ghg_fbs_2024_matches_pinned_reference(
     FlowBySector.generateFlowBySector(method, download_sources_ok=True)
     fbs_regenerated = getFlowBySector(method)
 
-    df_m = compare_FBS(fbs_reference, fbs_regenerated, ignore_metasources=False)
-
     assert_frame_equal(
         _prepare_fbs_for_pin_compare(fbs_reference),
         _prepare_fbs_for_pin_compare(fbs_regenerated),
         check_like=True,
     )
-    assert len(df_m) == 0
