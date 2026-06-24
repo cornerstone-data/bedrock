@@ -27,6 +27,7 @@ Model1 is only one model then the final d and n get adjusted to the time series 
 from __future__ import annotations
 
 import logging
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -235,7 +236,7 @@ def _build_n_yoy_per_sector(
 
 
 def _build_q_ec_correlation(
-    all_results: dict[str, dict[int, dict]],
+    all_results: dict[str, dict[int, dict[str, Any]]],
 ) -> pd.DataFrame:
     """Correlation between q and total e_c (summed across stressors) per model.
     Two measures per (model, year-transition):
@@ -403,13 +404,14 @@ def main() -> None:
             all_results[model] = year_results
 
     if all_results:
-        top = _top_fluctuating_sectors(all_results)
+        _series_only = cast(dict[str, dict[int, dict[str, pd.Series]]], all_results)
+        top = _top_fluctuating_sectors(_series_only)
         _plot_ef_trends(all_results, top)
 
         cms.YOY_TRANSITIONS = tuple(
             (TARGET_YEARS[i], TARGET_YEARS[i + 1]) for i in range(len(TARGET_YEARS) - 1)
         )
-        per_sector = _build_n_yoy_per_sector(all_results)
+        per_sector = _build_n_yoy_per_sector(_series_only)
         cms._yoy_signed_violin_plot(per_sector, PLOTS_DIR / 'n_yoy_distribution.png')
         records = []
         for model, year_results in all_results.items():
@@ -433,7 +435,7 @@ def main() -> None:
         results_df.to_csv(csv_path, index=False)
         logger.info('Saved results to %s', csv_path)
 
-        n_stats = _build_n_stats(all_results)
+        n_stats = _build_n_stats(_series_only)
         n_stats_path = RESULTS_DIR / 'n_stats.csv'
         n_stats.to_csv(n_stats_path, index=False)
         logger.info('Saved n statistics to %s', n_stats_path)
