@@ -26,11 +26,7 @@ def available_gross_output_years() -> tuple[int, ...]:
 
     go_detail = map_detail_table(load_go_detail())
     return tuple(
-        sorted(
-            int(col)
-            for col in go_detail.columns
-            if col not in _GO_METADATA_COLS
-        )
+        sorted(int(col) for col in go_detail.columns if col not in _GO_METADATA_COLS)
     )
 
 
