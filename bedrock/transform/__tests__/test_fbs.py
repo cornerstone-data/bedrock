@@ -16,6 +16,16 @@ from bedrock.utils.snapshots.fbs_pin import (
 from bedrock.utils.validation.validation import compare_FBS
 
 _SKIP_FBS_COMPARE_COLUMNS = ['ProducedBySectorType', 'ConsumedBySectorType']
+# Pinned parquet may store these as object/None; regen uses float64/NaN per schema.
+_NUMERIC_FBS_COMPARE_COLUMNS = ('Spread', 'Min', 'Max')
+
+
+def _prepare_fbs_for_pin_compare(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.drop(columns=_SKIP_FBS_COMPARE_COLUMNS, errors='ignore').copy()
+    for col in _NUMERIC_FBS_COMPARE_COLUMNS:
+        if col in out.columns:
+            out[col] = pd.to_numeric(out[col], errors='coerce')
+    return out
 
 
 @pytest.fixture
@@ -49,8 +59,8 @@ def test_generate_cornerstone_ghg_fbs_2024_matches_pinned_reference(
     df_m = compare_FBS(fbs_reference, fbs_regenerated, ignore_metasources=False)
 
     assert_frame_equal(
-        fbs_reference.drop(columns=_SKIP_FBS_COMPARE_COLUMNS, errors='ignore'),
-        fbs_regenerated.drop(columns=_SKIP_FBS_COMPARE_COLUMNS, errors='ignore'),
+        _prepare_fbs_for_pin_compare(fbs_reference),
+        _prepare_fbs_for_pin_compare(fbs_regenerated),
         check_like=True,
     )
     assert len(df_m) == 0
