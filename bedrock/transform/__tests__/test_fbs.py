@@ -19,25 +19,24 @@ _SKIP_FBS_COMPARE_COLUMNS = ['ProducedBySectorType', 'ConsumedBySectorType']
 
 
 @pytest.fixture
-def isolated_flow_dirs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[Path]:
-    """Empty FBA/FBS output dirs so regen cannot reuse developer-local caches."""
-    fba_dir = tmp_path / 'fba'
+def isolated_fbs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Empty FBS output dir so regen cannot reuse a developer-local FBS cache.
+
+    FBA_DIR stays at the default extract/output_data path so upstream FBAs
+    load from GCS when available instead of being regenerated in an empty tmp dir.
+    """
     fbs_dir = tmp_path / 'fbs'
-    fba_dir.mkdir()
     fbs_dir.mkdir()
-    monkeypatch.setattr(settings, 'FBA_DIR', fba_dir)
     monkeypatch.setattr(settings, 'FBS_DIR', fbs_dir)
     yield fbs_dir
 
 
 @pytest.mark.eeio_integration
 def test_generate_cornerstone_ghg_fbs_2024_matches_pinned_reference(
-    isolated_flow_dirs: Path,
+    isolated_fbs_dir: Path,
 ) -> None:
     """Regenerated GHG_national_Cornerstone_2024 matches the pinned GCS parquet."""
-    fbs_dir = isolated_flow_dirs
+    fbs_dir = isolated_fbs_dir
     pin = load_cornerstone_ghg_fbs_pin()
     method = pin['method']
 

@@ -24,6 +24,7 @@ _attribution_sources:
   EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
     activity_to_sector_mapping: CEDA_2025
     year: *mecs_year
+    geoscale: national
 
   BEA: &bea # 2017 Make and Use tables
     year: 2017
