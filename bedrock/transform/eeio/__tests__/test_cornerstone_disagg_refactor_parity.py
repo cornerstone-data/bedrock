@@ -8,17 +8,18 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from bedrock.transform.eeio import derived_cornerstone as dc
+from bedrock.extract.disaggregation import disagg_weights as disagg_weights_module
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
+    derive_cornerstone_U_after_waste,
+    derive_cornerstone_V_after_waste,
+    derive_cornerstone_VA_after_waste,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     electricity_reallocation_enabled,
+    get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
-    _derive_cornerstone_U_after_waste,
-    _derive_cornerstone_V_after_waste,
-    _derive_cornerstone_VA_after_waste,
     derive_cornerstone_Aq,
     derive_cornerstone_q,
     derive_cornerstone_U_with_negatives,
@@ -28,7 +29,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Y_personal_consumption_expenditure,
     derive_cornerstone_Ytot_full_cs_matrix,
     derive_cornerstone_Ytot_matrix_set,
-    get_waste_disagg_weights,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 
@@ -36,9 +36,9 @@ _RTOL = 1e-9
 _ATOL = 1e-6
 
 _PARITY_CONFIGS = [
-    "2025_usa_cornerstone_taxonomy_and_B_transformation",
-    "test_usa_config_waste_disagg",
-    "test_usa_config_waste_disagg_electricity",
+    '2025_usa_cornerstone_taxonomy_and_B_transformation',
+    'test_usa_config_waste_disagg',
+    'test_usa_config_waste_disagg_electricity',
 ]
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
@@ -59,7 +59,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
 
 def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
-        if hasattr(fn, "cache_clear"):
+        if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
 
 
@@ -100,16 +100,16 @@ class TestRouterParity:
         assert len(Y_pce) == V.shape[0]
         assert Aq.Adom.shape == V.shape
 
-    @pytest.mark.parametrize("config_name", _PARITY_CONFIGS)
+    @pytest.mark.parametrize('config_name', _PARITY_CONFIGS)
     def test_waste_only_bundle_matches_after_waste(self, config_name: str) -> None:
         _setup_config(config_name)
         try:
             if not get_waste_disagg_weights():
-                pytest.skip("waste disagg not enabled")
+                pytest.skip('waste disagg not enabled')
             bundle = derive_disagg_io_bundle()
-            V_w = _derive_cornerstone_V_after_waste()
-            Udom_w, Uimp_w = _derive_cornerstone_U_after_waste()
-            VA_w = _derive_cornerstone_VA_after_waste()
+            V_w = derive_cornerstone_V_after_waste()
+            Udom_w, Uimp_w = derive_cornerstone_U_after_waste()
+            VA_w = derive_cornerstone_VA_after_waste()
 
             if electricity_reallocation_enabled():
                 assert_frame_equal(
@@ -145,7 +145,7 @@ class TestRouterParity:
         finally:
             _teardown()
 
-    @pytest.mark.parametrize("config_name", _PARITY_CONFIGS)
+    @pytest.mark.parametrize('config_name', _PARITY_CONFIGS)
     def test_y_public_router_matches_disagg_when_active(self, config_name: str) -> None:
         _setup_config(config_name)
         try:
@@ -163,24 +163,24 @@ class TestLazyImportMonkeypatch:
     def test_load_disagg_weights_monkeypatch(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        called = {"n": 0}
+        called = {'n': 0}
 
         def _fake(*args: object, **kwargs: object) -> object:
-            called["n"] += 1
+            called['n'] += 1
             return object()
 
-        monkeypatch.setattr(dc, "load_disagg_weights", _fake)
-        _setup_config("test_usa_config_waste_disagg")
+        monkeypatch.setattr(disagg_weights_module, 'load_disagg_weights', _fake)
+        _setup_config('test_usa_config_waste_disagg')
         try:
             get_waste_disagg_weights()
-            assert called["n"] == 1
+            assert called['n'] == 1
         finally:
             _teardown()
 
 
 class TestInflationParity:
     def test_q_and_vnorm_inflation(self) -> None:
-        _setup_config("2025_usa_cornerstone_full_model_A_commodity_price_index")
+        _setup_config('2025_usa_cornerstone_full_model_A_commodity_price_index')
         try:
             q = derive_cornerstone_q()
             Vnorm = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=True)
