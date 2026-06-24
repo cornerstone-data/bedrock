@@ -24,7 +24,7 @@ def _prepare_fbs_for_pin_compare(df: pd.DataFrame) -> pd.DataFrame:
     out = df.drop(columns=_SKIP_FBS_COMPARE_COLUMNS, errors='ignore').copy()
     for col in _NUMERIC_FBS_COMPARE_COLUMNS:
         if col in out.columns:
-            out[col] = pd.to_numeric(out[col], errors='coerce')
+            out[col] = pd.to_numeric(out[col], errors='coerce').fillna(0.0)
     return out
 
 
