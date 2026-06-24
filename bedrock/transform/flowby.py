@@ -1107,6 +1107,10 @@ class _FlowBy(pd.DataFrame):
                 download_sources_ok=download_sources_ok
             )
 
+        geoscale = config.get('geoscale') or self.config.get('geoscale')
+        if geoscale is not None:
+            attribution_fbs.config['geoscale'] = geoscale
+
         return attribution_fbs
 
     def harmonize_geoscale(
