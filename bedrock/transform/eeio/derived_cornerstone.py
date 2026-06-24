@@ -382,16 +382,20 @@ def derive_q_from_deflated_ghg_year_x() -> pd.Series[float]:
         original_year=cfg.usa_detail_original_year,
         target_year=cfg.usa_ghg_data_year,
     )
-    ratio_aligned = ratio.reindex(x_nominal.index).where(ratio.reindex(x_nominal.index).notna(), 1.0)
+    ratio_aligned = ratio.reindex(x_nominal.index).where(
+        ratio.reindex(x_nominal.index).notna(), 1.0
+    )
     x_deflated = x_nominal / ratio_aligned
 
     V_base = derive_cornerstone_V()
     x_base = V_base.sum(axis=1)
     x_deflated_aligned = x_deflated.reindex(x_base.index).fillna(0.0)
     scale = pd.Series(
-        np.where(x_base.to_numpy(dtype=float) != 0,
-                 x_deflated_aligned.to_numpy(dtype=float) / x_base.to_numpy(dtype=float),
-                 0.0),
+        np.where(
+            x_base.to_numpy(dtype=float) != 0,
+            x_deflated_aligned.to_numpy(dtype=float) / x_base.to_numpy(dtype=float),
+            0.0,
+        ),
         index=x_base.index,
     )
     V_scaled = V_base.multiply(scale, axis=0)

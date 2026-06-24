@@ -67,10 +67,10 @@ logger = logging.getLogger(__name__)
 
 
 _CACHE_BEARING_MODULE_PATHS = (
-    "bedrock.transform.eeio.derived_cornerstone",
-    "bedrock.transform.eeio.cornerstone_bea_intermediates",
-    "bedrock.transform.eeio.derived_useeio_nowcast",
-    "bedrock.utils.economic.inflation_helpers_cornerstone",
+    'bedrock.transform.eeio.derived_cornerstone',
+    'bedrock.transform.eeio.cornerstone_bea_intermediates',
+    'bedrock.transform.eeio.derived_useeio_nowcast',
+    'bedrock.utils.economic.inflation_helpers_cornerstone',
 )
 
 
@@ -94,42 +94,42 @@ def _top_fluctuating_sectors(
     for sector in sectors:
         max_range = 0.0
         for year_results in all_results.values():
-            for ef_key in ("d", "n"):
+            for ef_key in ('d', 'n'):
                 vals = [year_results[yr][ef_key][sector] for yr in sorted(year_results)]
                 max_range = max(max_range, max(vals) - min(vals))
         scores[sector] = max_range
 
     top = sorted(scores, key=lambda s: scores[s], reverse=True)[:top_n]
-    logger.info("Top %d fluctuating sectors:", top_n)
+    logger.info('Top %d fluctuating sectors:', top_n)
     for s in top:
-        logger.info("  %s  %s  range=%.4f", s, sector_names.get(s, s), scores[s])
+        logger.info('  %s  %s  range=%.4f', s, sector_names.get(s, s), scores[s])
     return top
 
 
 def _plot_ef_trends(
-    all_results: dict[str, dict[int, dict]],
+    all_results: dict[str, dict[int, dict[str, pd.Series | pd.DataFrame]]],
     plot_sectors: list[str],
 ) -> None:
     from matplotlib.lines import Line2D  # noqa: PLC0415
 
     row_models = list(all_results)
-    col_vars = ["e_c", "q", "d", "n"]
+    col_vars = ['e_c', 'q', 'd', 'n']
     col_titles = {
-        "e_c": "e_c (emissions)",
-        "q": "q (output)",
-        "d": "d (intensity)",
-        "n": "n (total intensity)",
+        'e_c': 'e_c (emissions)',
+        'q': 'q (output)',
+        'd': 'd (intensity)',
+        'n': 'n (total intensity)',
     }
 
-    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     fig, axes = plt.subplots(
         len(row_models),
         4,
         figsize=(20, 4 * len(row_models)),
-        sharey="col",
+        sharey='col',
         squeeze=False,
     )
-    fig.suptitle("e_c, q, d, and n — indexed to first year = 100", fontsize=12)
+    fig.suptitle('e_c, q, d, and n — indexed to first year = 100', fontsize=12)
 
     for row_idx, model in enumerate(row_models):
         year_results = all_results[model]
@@ -147,25 +147,25 @@ def _plot_ef_trends(
                         val = (
                             float(item[sector].sum())
                             if sector in item.columns
-                            else float("nan")
+                            else float('nan')
                         )
                     else:
                         val = (
                             float(item[sector])
                             if sector in item.index
-                            else float("nan")
+                            else float('nan')
                         )
                     vals.append(val)
-                base = vals[0] if vals[0] else float("nan")
+                base = vals[0] if vals[0] else float('nan')
                 indexed = [v / base * 100 for v in vals]
                 ax.plot(
-                    years, indexed, color=color, marker="o", markersize=3, linewidth=1.2
+                    years, indexed, color=color, marker='o', markersize=3, linewidth=1.2
                 )
 
-            ax.axhline(100, color="black", linewidth=0.7, linestyle="--")
-            ax.set_xlabel("Year")
+            ax.axhline(100, color='black', linewidth=0.7, linestyle='--')
+            ax.set_xlabel('Year')
             if col_idx == 0:
-                ax.set_ylabel(f"{model}\nIndex (first year = 100)", fontsize=8)
+                ax.set_ylabel(f'{model}\nIndex (first year = 100)', fontsize=8)
             if row_idx == 0:
                 ax.set_title(col_titles[var_key])
 
@@ -182,18 +182,18 @@ def _plot_ef_trends(
     fig.legend(
         handles=sector_handles,
         fontsize=7,
-        loc="lower center",
+        loc='lower center',
         ncol=len(plot_sectors),
-        title="sector",
+        title='sector',
         title_fontsize=7,
         bbox_to_anchor=(0.5, 0),
     )
 
-    fig.tight_layout(rect=[0, 0.05, 1, 1])
-    plot_path = PLOTS_DIR / "trends_d_q_ec.png"
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    plot_path = PLOTS_DIR / 'trends_d_q_ec.png'
     fig.savefig(plot_path, dpi=150)
     plt.close(fig)
-    logger.info("Saved plot: %s", plot_path)
+    logger.info('Saved plot: %s', plot_path)
 
 
 def _build_n_yoy_per_sector(
@@ -210,25 +210,25 @@ def _build_n_yoy_per_sector(
     for model, year_results in all_results.items():
         for sector in sectors:
             n_by_year = {
-                yr: float(year_results[yr]["n"].get(sector, float("nan")))
+                yr: float(year_results[yr]['n'].get(sector, float('nan')))
                 for yr in TARGET_YEARS
                 if yr in year_results
             }
-            row: dict = {"approach": model, "sector": sector}
-            row["mean_N"] = pd.Series(list(n_by_year.values())).mean()
+            row: dict[str, object] = {'approach': model, 'sector': sector}
+            row['mean_N'] = pd.Series(list(n_by_year.values())).mean()
             yoy_abs: list[float] = []
             for y0, y1 in transitions:
-                v0 = n_by_year.get(y0, float("nan"))
-                v1 = n_by_year.get(y1, float("nan"))
+                v0 = n_by_year.get(y0, float('nan'))
+                v1 = n_by_year.get(y1, float('nan'))
                 if v0 and v0 != 0:
                     pct = (v1 - v0) / abs(v0)
                 else:
-                    pct = float("nan")
-                row[f"yoy_{y0}_{y1}"] = pct
+                    pct = float('nan')
+                row[f'yoy_{y0}_{y1}'] = pct
                 if not pd.isna(pct):
                     yoy_abs.append(abs(pct))
-            row["mean_abs_yoy_pct"] = (
-                pd.Series(yoy_abs).mean() if yoy_abs else float("nan")
+            row['mean_abs_yoy_pct'] = (
+                pd.Series(yoy_abs).mean() if yoy_abs else float('nan')
             )
             rows.append(row)
     return pd.DataFrame(rows)
@@ -238,9 +238,7 @@ def _build_q_ec_correlation(
     all_results: dict[str, dict[int, dict]],
 ) -> pd.DataFrame:
     """Correlation between q and total e_c (summed across stressors) per model.
-
     Two measures per (model, year-transition):
-    - level_r: Pearson r between q and e_c across sectors for that year.
     - yoy_r: Pearson r between YoY Δq and YoY Δe_c across sectors —
       answers whether output and emissions move in the same direction.
     - pct_same_sign: fraction of sectors where Δq and Δe_c share sign.
@@ -253,36 +251,62 @@ def _build_q_ec_correlation(
 
         # YoY change correlation for each consecutive pair
         for y0, y1 in zip(years[:-1], years[1:]):
-            q0, q1 = year_results[y0]["q"], year_results[y1]["q"]
-            ec0 = year_results[y0]["e_c"]
-            ec1 = year_results[y1]["e_c"]
+            q0, q1 = year_results[y0]['q'], year_results[y1]['q']
+            ec0 = year_results[y0]['e_c']
+            ec1 = year_results[y1]['e_c']
             ec0_total = ec0.sum(axis=0) if isinstance(ec0, pd.DataFrame) else ec0
             ec1_total = ec1.sum(axis=0) if isinstance(ec1, pd.DataFrame) else ec1
 
-            common = q0.index.intersection(q1.index).intersection(ec0_total.index).intersection(ec1_total.index)
+            common = (
+                q0.index.intersection(q1.index)
+                .intersection(ec0_total.index)
+                .intersection(ec1_total.index)
+            )
             dq = (q1[common] - q0[common]).values.astype(float)
             dec = (ec1_total[common] - ec0_total[common]).values.astype(float)
 
             yoy_r = float(pd.Series(dq).corr(pd.Series(dec)))
             both_nonzero = (dq != 0) & (dec != 0)
-            pct_same = float(np.mean(np.sign(dq[both_nonzero]) == np.sign(dec[both_nonzero]))) if both_nonzero.any() else float("nan")
-            transition = f"{y0}-{y1}"
-            rows.append({"model": model, "year": y1, "transition": transition, "metric": "yoy_r", "value": yoy_r})
-            rows.append({"model": model, "year": y1, "transition": transition, "metric": "pct_same_sign", "value": pct_same})
+            pct_same = (
+                float(np.mean(np.sign(dq[both_nonzero]) == np.sign(dec[both_nonzero])))
+                if both_nonzero.any()
+                else float('nan')
+            )
+            transition = f'{y0}-{y1}'
+            rows.append(
+                {
+                    'model': model,
+                    'year': y1,
+                    'transition': transition,
+                    'metric': 'yoy_r',
+                    'value': yoy_r,
+                }
+            )
+            rows.append(
+                {
+                    'model': model,
+                    'year': y1,
+                    'transition': transition,
+                    'metric': 'pct_same_sign',
+                    'value': pct_same,
+                }
+            )
 
-    return pd.DataFrame(rows, columns=["model", "year", "transition", "metric", "value"])
+    return pd.DataFrame(
+        rows, columns=['model', 'year', 'transition', 'metric', 'value']
+    )
 
 
 def _summarize_q_ec_correlation(q_ec_corr: pd.DataFrame) -> pd.DataFrame:
     """Wide-format summary of yoy_r and pct_same_sign with per-model averages."""
     rows = []
-    for metric in ("yoy_r", "pct_same_sign"):
-        subset = q_ec_corr[q_ec_corr["metric"] == metric]
-        pivot = subset.pivot(index="model", columns="transition", values="value")
-        pivot.insert(0, "metric", metric)
-        pivot["mean"] = pivot.drop(columns="metric").mean(axis=1)
+    for metric in ('yoy_r', 'pct_same_sign'):
+        subset = q_ec_corr[q_ec_corr['metric'] == metric]
+        pivot = subset.pivot(index='model', columns='transition', values='value')
+        pivot.insert(0, 'metric', metric)
+        pivot['mean'] = pivot.drop(columns='metric').mean(axis=1)
         rows.append(pivot)
-    return pd.concat(rows).reset_index().rename(columns={"index": "model"})
+    return pd.concat(rows).reset_index().rename(columns={'index': 'model'})
 
 
 def _build_n_stats(
@@ -292,16 +316,16 @@ def _build_n_stats(
     rows = []
     for model, year_results in all_results.items():
         for year in sorted(year_results):
-            n = year_results[year]["n"]
+            n = year_results[year]['n']
             rows.append(
                 {
-                    "model": model,
-                    "year": year,
-                    "mean_n": float(n.mean()),
-                    "median_n": float(n.median()),
+                    'model': model,
+                    'year': year,
+                    'mean_n': float(n.mean()),
+                    'median_n': float(n.median()),
                 }
             )
-    return pd.DataFrame(rows, columns=["model", "year", "mean_n", "median_n"])
+    return pd.DataFrame(rows, columns=['model', 'year', 'mean_n', 'median_n'])
 
 
 def main() -> None:
@@ -309,32 +333,32 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    all_results: dict[str, dict[int, dict[str, pd.Series]]] = {}
+    all_results: dict[str, dict[int, dict[str, pd.Series | pd.DataFrame]]] = {}
 
     for model in MODELS:
-        year_results: dict[int, dict[str, pd.Series]] = {}
+        year_results: dict[int, dict[str, pd.Series | pd.DataFrame]] = {}
         for year in TARGET_YEARS:
-            logger.info("Building matrices: model=%s year=%d", model, year)
+            logger.info('Building matrices: model=%s year=%d', model, year)
             try:
                 # Clear cache and reset
                 reset_usa_config()
                 clear_caches(*_CACHE_BEARING_MODULE_PATHS)
                 force_set_usa_config(
                     MODEL_YAMLS[model],
-                    **({} if model == "model1" else {"usa_ghg_data_year": year}),
+                    **({} if model == 'model1' else {'usa_ghg_data_year': year}),
                     **(
-                        {"model_base_year": year}
-                        if model not in {"model1", "model3a"}
+                        {'model_base_year': year}
+                        if model not in {'model1', 'model3a'}
                         else {}
                     ),
-                    **({"usa_io_data_year": year} if model == "model4" else {}),
+                    **({'usa_io_data_year': year} if model == 'model4' else {}),
                 )
 
                 # Get model config vars to understand settings
                 cfg = get_usa_config()
                 config_vars = cfg.model_dump()
-                config_file = OUTPUT_DIR / f"config_vars_{model}_{year}.yaml"
-                with open(config_file, "w") as f:
+                config_file = OUTPUT_DIR / f'config_vars_{model}_{year}.yaml'
+                with open(config_file, 'w') as f:
                     yaml.dump(config_vars, f, default_flow_style=False)
 
                 B = derive_cornerstone_B_non_finetuned()
@@ -363,16 +387,16 @@ def main() -> None:
                     target_year=LATEST_TARGET_YEAR,
                 )
                 year_results[year] = {
-                    "d": d,
-                    "n": n,
-                    "d_current_USD": d_current_USD,
-                    "n_current_USD": n_current_USD,
-                    "q": q,
-                    "e_c": e_c,
+                    'd': d,
+                    'n': n,
+                    'd_current_USD': d_current_USD,
+                    'n_current_USD': n_current_USD,
+                    'q': q,
+                    'e_c': e_c,
                 }
 
             except Exception as e:
-                logger.warning("Model,year (%s, %d) failed: %s", model, year, e)
+                logger.warning('Model,year (%s, %d) failed: %s', model, year, e)
                 continue
 
         if year_results:
@@ -386,7 +410,7 @@ def main() -> None:
             (TARGET_YEARS[i], TARGET_YEARS[i + 1]) for i in range(len(TARGET_YEARS) - 1)
         )
         per_sector = _build_n_yoy_per_sector(all_results)
-        cms._yoy_signed_violin_plot(per_sector, PLOTS_DIR / "n_yoy_distribution.png")
+        cms._yoy_signed_violin_plot(per_sector, PLOTS_DIR / 'n_yoy_distribution.png')
         records = []
         for model, year_results in all_results.items():
             for year, ef_dict in year_results.items():
@@ -395,40 +419,40 @@ def main() -> None:
                         if sector in series.index:
                             records.append(
                                 {
-                                    "year": year,
-                                    "model": model,
-                                    "sector": sector,
-                                    "variable": variable,
-                                    "ef": series[sector],
+                                    'year': year,
+                                    'model': model,
+                                    'sector': sector,
+                                    'variable': variable,
+                                    'ef': series[sector],
                                 }
                             )
         results_df = pd.DataFrame(
-            records, columns=["year", "model", "sector", "variable", "ef"]
+            records, columns=['year', 'model', 'sector', 'variable', 'ef']
         )
-        csv_path = RESULTS_DIR / "efs.csv"
+        csv_path = RESULTS_DIR / 'efs.csv'
         results_df.to_csv(csv_path, index=False)
-        logger.info("Saved results to %s", csv_path)
+        logger.info('Saved results to %s', csv_path)
 
         n_stats = _build_n_stats(all_results)
-        n_stats_path = RESULTS_DIR / "n_stats.csv"
+        n_stats_path = RESULTS_DIR / 'n_stats.csv'
         n_stats.to_csv(n_stats_path, index=False)
-        logger.info("Saved n statistics to %s", n_stats_path)
-        logger.info("\n%s", n_stats.to_string(index=False))
+        logger.info('Saved n statistics to %s', n_stats_path)
+        logger.info('\n%s', n_stats.to_string(index=False))
 
         q_ec_corr = _build_q_ec_correlation(all_results)
-        q_ec_corr_path = RESULTS_DIR / "q_ec_correlation.csv"
+        q_ec_corr_path = RESULTS_DIR / 'q_ec_correlation.csv'
         q_ec_corr.to_csv(q_ec_corr_path, index=False)
-        logger.info("Saved q/e_c correlation to %s", q_ec_corr_path)
+        logger.info('Saved q/e_c correlation to %s', q_ec_corr_path)
 
         q_ec_summary = _summarize_q_ec_correlation(q_ec_corr)
-        q_ec_summary_path = RESULTS_DIR / "q_ec_correlation_summary.csv"
+        q_ec_summary_path = RESULTS_DIR / 'q_ec_correlation_summary.csv'
         q_ec_summary.to_csv(q_ec_summary_path, index=False)
-        logger.info("Saved q/e_c correlation summary to %s", q_ec_summary_path)
-        logger.info("\n%s", q_ec_summary.to_string(index=False))
+        logger.info('Saved q/e_c correlation summary to %s', q_ec_summary_path)
+        logger.info('\n%s', q_ec_summary.to_string(index=False))
 
-    print("Done.")
+    print('Done.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     main()
