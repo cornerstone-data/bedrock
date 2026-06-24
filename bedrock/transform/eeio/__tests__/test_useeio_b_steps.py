@@ -9,8 +9,6 @@ import pytest
 from bedrock.transform.eeio import derived_cornerstone as dc
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
-)
-from bedrock.transform.eeio.derived_cornerstone import (
     electricity_reallocation_enabled,
 )
 

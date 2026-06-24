@@ -133,6 +133,11 @@ def generate_diagnostics(
     )
     # Run metadata only — diagnostics_baseline_source and useeio_* already appear
     # once in config_df from USAConfig.to_dataframe().
+    from bedrock.utils.validation.diagnostics_helpers import (
+        n_purchaser_adjustment_eligibility,
+    )
+
+    purchaser_applied, _ = n_purchaser_adjustment_eligibility(cfg)
     git_rows: list[dict[str, str]] = [
         {'config_field': 'git_commit', 'value': GIT_HASH_LONG or 'unknown'},
         {
@@ -141,6 +146,10 @@ def generate_diagnostics(
         },
         {'config_field': 'git_pr_url', 'value': pr_url or GIT_PR_URL or 'N/A'},
         {'config_field': 'baseline_snapshot_key_used', 'value': baseline_snap},
+        {
+            'config_field': 'purchaser_price_adjustment_applied',
+            'value': str(purchaser_applied),
+        },
     ]
     git_metadata = pd.DataFrame(git_rows)
     config_df = pd.concat([git_metadata, config_df], ignore_index=True)

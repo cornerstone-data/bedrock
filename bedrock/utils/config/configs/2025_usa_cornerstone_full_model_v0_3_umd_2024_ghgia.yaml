@@ -1,0 +1,20 @@
+# Fully impelmented Cornerstone 2025 model
+# Use Cornerstone 2024 UMD GHG FBS (GHG_national_Cornerstone_2024) via v0_3_umd_2024_ghgia
+# Relies on published UMD GHGIA data (rather than EPA GHGI)
+# Pipeline loads E from flowsa.
+# Transform B matrix with USEEIO method
+# Implement waste disaggregation.
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+v0_3_umd_2024_ghgia: true
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True

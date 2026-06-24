@@ -87,7 +87,7 @@ class USAConfig(BaseModel):
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
-    cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
+    cornerstone_industry_avg_margins: bool = True  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
@@ -106,6 +106,8 @@ class USAConfig(BaseModel):
     update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
     update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
     update_mecs_method: bool = False  # DRI: catherine.birney
+    v0_3_umd_2023_ghgia: bool = False  # DRI: catherine.birney
+    v0_3_umd_2024_ghgia: bool = False  # DRI: catherine.birney
     use_ghg_national_2023_m2: bool = False
     skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
@@ -236,7 +238,9 @@ class USAConfig(BaseModel):
         '1bda811e0169436ae90fd356fbef512ce7518ccb',  # v0.1
         '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # test
         '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # test: snapshot from 2025_usa_cornerstone_fbs_schema
-        '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2 (current .SNAPSHOT_KEY)
+        '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2
+        '4d67c8f0f5721a30ce03f4d3eef85a82e7199032',  # v0.3.0-alpha (current .SNAPSHOT_KEY)
+        '5a90baf0272fe8841e40db8cd513885b34051e86',  # v0.3-beta (config: 2025_usa_cornerstone_v0_3)
     ] = 'v0'
 
     @property

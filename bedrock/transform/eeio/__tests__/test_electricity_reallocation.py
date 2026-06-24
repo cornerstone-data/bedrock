@@ -15,8 +15,6 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
-    _derive_cornerstone_V_after_waste,
-    _derive_cornerstone_Ytot_with_trade,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_U_set,
@@ -24,8 +22,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_V,
     derive_cornerstone_VA,
     derive_cornerstone_Ytot_matrix_set,
-    electricity_reallocation_enabled,
-    get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     BALANCE_TOLERANCE,
@@ -153,7 +149,7 @@ class TestElectricityReallocationIntegration:
 
     def test_post_reallocation_diagonal_values(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
-        V_pre = _derive_cornerstone_V_after_waste()
+        V_pre = derive_cornerstone_V_after_waste()
         expected = _expected_post_reallocation_diagonals(V_pre)
         touched = {t.source for t in build_coproduction_transfer_schedule(V_pre)} | {
             t.target for t in build_coproduction_transfer_schedule(V_pre)
@@ -171,7 +167,7 @@ class TestElectricityReallocationIntegration:
 
     def test_make_use_commodity_balance(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
-        V_pre = _derive_cornerstone_V_after_waste()
+        V_pre = derive_cornerstone_V_after_waste()
         uset_pre = derive_cornerstone_U_with_negatives()
         y_pre = derive_cornerstone_Ytot_matrix_set().ytot
         q_make_pre = float(V_pre[ELECTRICITY_AGGREGATE].sum())
@@ -194,10 +190,10 @@ class TestElectricityReallocationIntegration:
 
     def test_y_221100_unchanged(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
-        y_waste = _derive_cornerstone_Ytot_with_trade().loc[ELECTRICITY_AGGREGATE]
+        y_waste = derive_disagg_Ytot_with_trade().loc[ELECTRICITY_AGGREGATE]
 
         _setup_config("test_usa_config_waste_disagg_electricity.yaml")
-        y_elec = _derive_cornerstone_Ytot_with_trade().loc[ELECTRICITY_AGGREGATE]
+        y_elec = derive_disagg_Ytot_with_trade().loc[ELECTRICITY_AGGREGATE]
         np.testing.assert_allclose(
             _float_ndarray(y_waste.to_numpy()),
             _float_ndarray(y_elec.to_numpy()),

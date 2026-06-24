@@ -20,3 +20,6 @@ deflate_x_to_detail_io_year_for_B: false # False means use Cornerstone B approac
 use_ghg_national_2023_m2: true
 skip_scrap_adjustment_in_vnorm: true
 new_ghg_method: false
+
+useeio_margins: True
+cornerstone_industry_avg_margins: False
