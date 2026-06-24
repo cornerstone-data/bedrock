@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import logging
 import typing as ta
 
@@ -10,10 +11,27 @@ from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT_YEARS
 
 SECTOR_CODE_COL = 'sector_code'
+_GO_METADATA_COLS = frozenset({'sector_name', SECTOR_CODE_COL})
 
 logger = logging.getLogger(__name__)
 
 RedefinitionMode = ta.Literal['before', 'after']
+
+
+@functools.cache
+def available_gross_output_years() -> tuple[int, ...]:
+    """Calendar years present in the BEA detail gross-output workbook (UGO305-A)."""
+    from bedrock.extract.iot.gdp import load_go_detail
+    from bedrock.transform.iot.helpers import map_detail_table
+
+    go_detail = map_detail_table(load_go_detail())
+    return tuple(
+        sorted(
+            int(col)
+            for col in go_detail.columns
+            if col not in _GO_METADATA_COLS
+        )
+    )
 
 
 def derive_gross_output(
