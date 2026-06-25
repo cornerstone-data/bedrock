@@ -1,4 +1,4 @@
-"""Compare y_new (live) vs y_old (v0 snapshot) under 2025_usa_cornerstone_full_model."""
+"""Compare y_new (live) vs y_old (v0 snapshot) under 2025_usa_cornerstone_v0_2."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ os.makedirs(OUT, exist_ok=True)
 
 from bedrock.utils.config.usa_config import set_global_usa_config  # noqa: E402
 
-set_global_usa_config('2025_usa_cornerstone_full_model')
+set_global_usa_config('2025_usa_cornerstone_v0_2')
 
 from bedrock.transform.eeio.derived import (  # noqa: E402
     derive_y_for_national_accounting_balance_usa,

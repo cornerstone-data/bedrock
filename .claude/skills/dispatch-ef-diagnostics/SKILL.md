@@ -120,7 +120,7 @@ These surface as a **failed GH run after a successful dispatch** — the sheet i
 - **Run index:** `output/results/ef_run_index.csv` — columns `scenario, approach, year, baseline, config_name, sheet_id, sheet_title, useeio_box_ticked, git_ref, triggered_at`.
 - **Scenario → YAML** (in `dispatch_ef_time_series.py`), keyed by approach:
   - `isolate_a_matrix` (A-matrix method only, else v0 defaults): `2025_usa_cornerstone_A_{useeio,summary_tables,commodity_price_index,useeio_nowcast}`.
-  - `bundle_v0_3` (full v0.3 stack + one A-matrix alternative): `2025_usa_cornerstone_full_model_A_{…}`.
+  - `bundle_v0_3` (full v0.3 stack + one A-matrix alternative): `2025_usa_cornerstone_v0_2_A_{…}`.
 - **Approach labels** (title text): `useeio → "A matrix with 2017 benchmark A"`, `summary_tables → "A matrix with summary tables"`, `commodity_price_index → "A matrix with commodity price index"`, `useeio_nowcast → "A matrix from USEEIO nowcast"`.
 
 ## Recovery / utilities

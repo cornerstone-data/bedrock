@@ -3,7 +3,7 @@
 Scenarios (each at ``derive_margins_cornerstone_usa_at_year(year)`` unless noted):
 
   useeio       — ``useeio_phoebe_23`` with ``useeio_margins`` (Rho PRO inflation)
-  cornerstone  — ``2025_usa_cornerstone_full_model`` with industry-avg margins
+  cornerstone  — ``2025_usa_cornerstone_v0_2`` with industry-avg margins
                    (V-norm commodity PI on PRO)
   ceda         — ``derive_phi_ceda_usa`` mapped to Cornerstone commodities (IO year)
 
@@ -85,7 +85,7 @@ def _ratios_by_scenario(year: int, *, ratio_ceda: pd.Series) -> dict[str, pd.Ser
     with temp_usa_config('useeio_phoebe_23', cache_bearing_modules=_CACHE_MODULES):
         ratio_useeio = _ratio_from_margins(derive_margins_cornerstone_usa_at_year(year))
     with temp_usa_config(
-        '2025_usa_cornerstone_full_model', cache_bearing_modules=_CACHE_MODULES
+        '2025_usa_cornerstone_v0_2', cache_bearing_modules=_CACHE_MODULES
     ):
         ratio_cornerstone = _ratio_from_margins(
             derive_margins_cornerstone_usa_at_year(year)

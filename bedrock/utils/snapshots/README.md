@@ -216,7 +216,7 @@ A clean bump PR diff looks roughly like this (anticipating release `v0.3.0`):
 
 --- a/bedrock/utils/snapshots/releases.py
 +++ b/bedrock/utils/snapshots/releases.py
- v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_full_model
+ v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_v0_2
 +v0_3_0 = "<new_sha>"  # config: 2025_usa_cornerstone_v0_3
 
 --- a/bedrock/utils/config/usa_config.py

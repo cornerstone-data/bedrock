@@ -49,7 +49,7 @@ from bedrock.utils.validation.eeio_diagnostics import (
 
 log = logging.getLogger(__name__)
 
-DEFAULT_CONFIG = "2025_usa_cornerstone_full_model.yaml"
+DEFAULT_CONFIG = "2025_usa_cornerstone_v0_2.yaml"
 DEFAULT_TOLERANCE = 0.05
 DEFAULT_CSV_DIR = Path(__file__).resolve().parent / "output"
 DEFAULT_CSV_SUMMARY = DEFAULT_CSV_DIR / "compare_make_use_by_stages_summary.csv"

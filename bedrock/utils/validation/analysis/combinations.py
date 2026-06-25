@@ -74,7 +74,7 @@ COMBINATIONS: dict[str, ComboSpec] = {
             'useeio_phoebe_23_restore_cornerstone_A': 'useeio_phoebe_23',
             'useeio_phoebe_23_restore_iot_redefinition': 'useeio_phoebe_23',
             'useeio_phoebe_23_cornerstone_margins': 'useeio_phoebe_23',
-            '2025_usa_cornerstone_full_model': 'useeio_phoebe_23',
+            '2025_usa_cornerstone_v0_2': 'useeio_phoebe_23',
         },
     ),
     'v0.2': ComboSpec(
@@ -117,7 +117,7 @@ COMBINATIONS: dict[str, ComboSpec] = {
             '2025_usa_cornerstone_taxonomy_and_waste_disagg': '2025_usa_cornerstone_fbs_schema',
             '2025_usa_cornerstone_taxonomy_and_B_transformation': 'v8_ceda_2025_usa',
             '2025_usa_cornerstone_B_transformation_and_waste_disaggregation': '2025_usa_cornerstone_taxonomy_and_waste_disagg',
-            '2025_usa_cornerstone_full_model': 'v8_ceda_2025_usa',
+            '2025_usa_cornerstone_v0_2': 'v8_ceda_2025_usa',
         },
     ),
 }
