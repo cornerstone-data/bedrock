@@ -100,14 +100,14 @@ def get_memory() -> int:
 def return_pkg_version(MODULEPATH: Path, package_name: str) -> str:
     """Return the bedrock package version stamped on FBA/FBS artifacts.
 
-  ``tool_version`` in flow metadata and parquet filenames
-  (``{method}_v{tool_version}_{git_hash}.parquet``) comes from here via
-  ``set_fb_meta`` in ``metadata.py``.
+    ``tool_version`` in flow metadata and parquet filenames
+    (``{method}_v{tool_version}_{git_hash}.parquet``) comes from here via
+    ``set_fb_meta`` in ``metadata.py``.
 
-  Prefer the installed package version from ``pyproject.toml`` so
-  between-tag development (e.g. pyproject at 0.3.0 before ``v0.3.0`` is cut)
-  stamps new outputs correctly. Fall back to the nearest ``v*`` git tag when
-  the package is not installed (e.g. running method YAMLs outside the repo).
+    Prefer the installed package version from ``pyproject.toml`` so
+    between-tag development (e.g. pyproject at 0.3.0 before ``v0.3.0`` is cut)
+    stamps new outputs correctly. Fall back to the nearest ``v*`` git tag when
+    the package is not installed (e.g. running method YAMLs outside the repo).
     """
     try:
         return version(package_name)
