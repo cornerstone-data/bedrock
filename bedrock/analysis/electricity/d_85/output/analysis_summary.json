@@ -1,0 +1,737 @@
+{
+  "config": {
+    "model_base_year": 2023,
+    "usa_io_data_year": 2022,
+    "usa_ghg_data_year": 2023
+  },
+  "reports": {
+    "decision3": "C:\\Users\\jvend\\Documents\\CodeProjects\\bedrock\\bedrock\\analysis\\electricity\\d_85\\output\\decision3_table83_report.xlsx",
+    "decision5": "C:\\Users\\jvend\\Documents\\CodeProjects\\bedrock\\bedrock\\analysis\\electricity\\d_85\\output\\decision5_table24_report.xlsx",
+    "decision7": "C:\\Users\\jvend\\Documents\\CodeProjects\\bedrock\\bedrock\\analysis\\electricity\\d_85\\output\\decision7_ugo305_scaling_report.xlsx"
+  },
+  "metadata": {
+    "e_source": "national_gcs",
+    "e_source_note": "No module named 'flowsa'",
+    "x_basis_note": "Non-baseline B uses scenario compute_x(V) at 2017; production baseline uses derive_cornerstone_x_after_redefinition at usa_ghg_data_year"
+  },
+  "decision3_weights": [
+    {
+      "source": "UGO305-A 2017",
+      "w_221110": 0.34171400104769045,
+      "w_221121": 0.03899822303481003,
+      "w_221122": 0.6192877759174995
+    },
+    {
+      "source": "EPA Table 8.3 2017",
+      "w_221110": 0.8670244954876734,
+      "w_221121": 0.09475447505284114,
+      "w_221122": 0.03822102945948554
+    }
+  ],
+  "decision3": {
+    "scenario_flags": {
+      "baseline": false,
+      "d8_mixed": false,
+      "d8_offdiag": true
+    },
+    "balance": [
+      {
+        "scenario": "baseline",
+        "sector": "221110",
+        "q": 155740256545.4975,
+        "x": 155740256545.4975,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 94920973497.0264,
+        "y_row_sum": 60816207622.46166,
+        "market_clearing_gap": -3075426.0094299316,
+        "va_total": 70208977648.18524,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221121",
+        "q": 17773908126.79109,
+        "x": 17773908126.79109,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 10832887396.386496,
+        "y_row_sum": 6940669746.39728,
+        "market_clearing_gap": -350984.0073127747,
+        "va_total": 12829199310.63715,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221122",
+        "q": 282247835327.7114,
+        "x": 282247835327.7114,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 172025139106.5871,
+        "y_row_sum": 110217122631.14107,
+        "market_clearing_gap": -5573589.983276367,
+        "va_total": 203726367244.8634,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "d8_mixed",
+        "sector": "221110",
+        "q": 155740256545.4975,
+        "x": 155740256545.4975,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 100788368826.44626,
+        "y_row_sum": 60816207622.46166,
+        "market_clearing_gap": 5864319903.410431,
+        "va_total": 64341582318.7654,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "d8_mixed",
+        "sector": "221121",
+        "q": 17773908126.79109,
+        "x": 17773908126.79109,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 11455650459.6398,
+        "y_row_sum": 6940669746.39728,
+        "market_clearing_gap": 622412079.2459908,
+        "va_total": 12206436247.383844,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "d8_mixed",
+        "sector": "221122",
+        "q": 282247835327.7114,
+        "x": 282247835327.7114,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 165534980713.91394,
+        "y_row_sum": 110217122631.14107,
+        "market_clearing_gap": -6495731982.656433,
+        "va_total": 210216525637.53656,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "d8_offdiag",
+        "sector": "221110",
+        "q": 155740256545.4975,
+        "x": 155740256545.4975,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 111379890051.26607,
+        "y_row_sum": 60816207622.46166,
+        "market_clearing_gap": 16455841128.230225,
+        "va_total": 0.0,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "d8_offdiag",
+        "sector": "221121",
+        "q": 17773908126.79109,
+        "x": 17773908126.79109,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 11783333653.656477,
+        "y_row_sum": 6940669746.39728,
+        "market_clearing_gap": 950095273.2626686,
+        "va_total": 0.0,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "d8_offdiag",
+        "sector": "221122",
+        "q": 282247835327.7114,
+        "x": 282247835327.7114,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 165667157996.35788,
+        "y_row_sum": 110217122631.14107,
+        "market_clearing_gap": -6363554700.212463,
+        "va_total": 0.0,
+        "has_negative_va": false
+      }
+    ],
+    "va": [
+      {
+        "scenario": "baseline",
+        "sector": "221110",
+        "va_total": 70208977648.18524,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221121",
+        "va_total": 12829199310.63715,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221122",
+        "va_total": 203726367244.8634,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "d8_mixed",
+        "sector": "221110",
+        "va_total": 64341582318.7654,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "d8_mixed",
+        "sector": "221121",
+        "va_total": 12206436247.383844,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "d8_mixed",
+        "sector": "221122",
+        "va_total": 210216525637.53656,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "d8_offdiag",
+        "sector": "221110",
+        "va_total": 0.0,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "d8_offdiag",
+        "sector": "221121",
+        "va_total": 0.0,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "d8_offdiag",
+        "sector": "221122",
+        "va_total": 0.0,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      }
+    ]
+  },
+  "decision5": {
+    "scenario_flags": {
+      "baseline": false,
+      "p24_2017": false,
+      "p24_target": false
+    },
+    "balance": [
+      {
+        "scenario": "baseline",
+        "sector": "221110",
+        "q": 155740256545.4975,
+        "x": 155740256545.4975,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 94920973497.0264,
+        "y_row_sum": 60816207622.46166,
+        "market_clearing_gap": -3075426.0094299316,
+        "va_total": 70208977648.18524,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221121",
+        "q": 17773908126.79109,
+        "x": 17773908126.79109,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 10832887396.386496,
+        "y_row_sum": 6940669746.39728,
+        "market_clearing_gap": -350984.0073127747,
+        "va_total": 12829199310.63715,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221122",
+        "q": 282247835327.7114,
+        "x": 282247835327.7114,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 172025139106.5871,
+        "y_row_sum": 110217122631.14107,
+        "market_clearing_gap": -5573589.983276367,
+        "va_total": 203726367244.8634,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "p24_2017",
+        "sector": "221110",
+        "q": 155740256545.4975,
+        "x": 155740256545.4975,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 103051817680.31192,
+        "y_row_sum": 46989117235.35949,
+        "market_clearing_gap": -5699321629.82608,
+        "va_total": 70208977648.18524,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "p24_2017",
+        "sector": "221121",
+        "q": 17773908126.79109,
+        "x": 17773908126.79109,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 10351199383.234589,
+        "y_row_sum": 7759815156.898033,
+        "market_clearing_gap": 337106413.34153366,
+        "va_total": 12829199310.63715,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "p24_2017",
+        "sector": "221122",
+        "q": 282247835327.7114,
+        "x": 282247835327.7114,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 164375982936.45352,
+        "y_row_sum": 123225067607.74248,
+        "market_clearing_gap": 5353215216.484558,
+        "va_total": 203726367244.8634,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "p24_target",
+        "sector": "221110",
+        "q": 155740256545.4975,
+        "x": 155740256545.4975,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 104884202185.26761,
+        "y_row_sum": 45069464882.20191,
+        "market_clearing_gap": -5786589478.027985,
+        "va_total": 70208977648.18524,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "p24_target",
+        "sector": "221121",
+        "q": 17773908126.79109,
+        "x": 17773908126.79109,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 10242645138.235422,
+        "y_row_sum": 7873539329.578121,
+        "market_clearing_gap": 342276341.0224571,
+        "va_total": 12829199310.63715,
+        "has_negative_va": false
+      },
+      {
+        "scenario": "p24_target",
+        "sector": "221122",
+        "q": 282247835327.7114,
+        "x": 282247835327.7114,
+        "q_minus_x": 0.0,
+        "qx_relative_error": 0.0,
+        "use_row_sum": 162652152676.49698,
+        "y_row_sum": 125030995788.21996,
+        "market_clearing_gap": 5435313137.005493,
+        "va_total": 203726367244.8634,
+        "has_negative_va": false
+      }
+    ],
+    "va": [
+      {
+        "scenario": "baseline",
+        "sector": "221110",
+        "va_total": 70208977648.18524,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221121",
+        "va_total": 12829199310.63715,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "baseline",
+        "sector": "221122",
+        "va_total": 203726367244.8634,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "p24_2017",
+        "sector": "221110",
+        "va_total": 70208977648.18524,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "p24_2017",
+        "sector": "221121",
+        "va_total": 12829199310.63715,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "p24_2017",
+        "sector": "221122",
+        "va_total": 203726367244.8634,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "p24_target",
+        "sector": "221110",
+        "va_total": 70208977648.18524,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "p24_target",
+        "sector": "221121",
+        "va_total": 12829199310.63715,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      },
+      {
+        "scenario": "p24_target",
+        "sector": "221122",
+        "va_total": 203726367244.8634,
+        "negative_va_count": 0,
+        "negative_va_min": 0.0
+      }
+    ],
+    "end_use_pct": {
+      "Industrial": 17.48,
+      "Commercial": 40.72,
+      "Transportation": 1.84,
+      "Residential": 39.96
+    }
+  },
+  "decision7": {
+    "ratios": [
+      {
+        "sector": "221110",
+        "ratio_k": 1.6229062244,
+        "utilities_summary_ratio": 1.4322846681,
+        "d7_pure_override": 1.6229062244,
+        "d7_anchored_override": 1.6264279596
+      },
+      {
+        "sector": "221121",
+        "ratio_k": 1.2919602291,
+        "utilities_summary_ratio": 1.4322846681,
+        "d7_pure_override": 1.2919602291,
+        "d7_anchored_override": 1.2947638057
+      },
+      {
+        "sector": "221122",
+        "ratio_k": 1.3309311351,
+        "utilities_summary_ratio": 1.4322846681,
+        "d7_pure_override": 1.3309311351,
+        "d7_anchored_override": 1.3338192793
+      }
+    ],
+    "q_trajectories": [
+      {
+        "source": "scenario_baseline",
+        "sector": "221110",
+        "q": 203352253888.53107
+      },
+      {
+        "source": "scenario_baseline",
+        "sector": "221121",
+        "q": 23207643021.537964
+      },
+      {
+        "source": "scenario_baseline",
+        "sector": "221122",
+        "q": 368534987306.1347
+      },
+      {
+        "source": "production_baseline",
+        "sector": "221110",
+        "q": 203352253888.53107
+      },
+      {
+        "source": "production_baseline",
+        "sector": "221121",
+        "q": 23207643021.537964
+      },
+      {
+        "source": "production_baseline",
+        "sector": "221122",
+        "q": 368534987306.1347
+      },
+      {
+        "source": "d7_pure",
+        "sector": "221110",
+        "q": 230416233538.80246
+      },
+      {
+        "source": "d7_pure",
+        "sector": "221121",
+        "q": 20933933360.798477
+      },
+      {
+        "source": "d7_pure",
+        "sector": "221122",
+        "q": 342456147101.6958
+      },
+      {
+        "source": "d7_anchored",
+        "sector": "221110",
+        "q": 230916240845.1722
+      },
+      {
+        "source": "d7_anchored",
+        "sector": "221121",
+        "q": 20979360366.83316
+      },
+      {
+        "source": "d7_anchored",
+        "sector": "221122",
+        "q": 343199283004.19836
+      }
+    ]
+  },
+  "ef_diagnostics": [
+    {
+      "sector": "212100",
+      "D_baseline": 2.238151585,
+      "D_scenario": 2.238151585,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d8_mixed"
+    },
+    {
+      "sector": "221110",
+      "D_baseline": 9.2337598986,
+      "D_scenario": 9.2337598986,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d8_mixed"
+    },
+    {
+      "sector": "221121",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "d8_mixed"
+    },
+    {
+      "sector": "221122",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "d8_mixed"
+    },
+    {
+      "sector": "331110",
+      "D_baseline": 0.6935948132,
+      "D_scenario": 0.6935948132,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d8_mixed"
+    },
+    {
+      "scenario": "d8_offdiag",
+      "note": "metrics_only \u2014 EF skipped"
+    },
+    {
+      "sector": "212100",
+      "D_baseline": 2.238151585,
+      "D_scenario": 2.238151585,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "p24_2017"
+    },
+    {
+      "sector": "221110",
+      "D_baseline": 9.2337598986,
+      "D_scenario": 9.2337598986,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "p24_2017"
+    },
+    {
+      "sector": "221121",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "p24_2017"
+    },
+    {
+      "sector": "221122",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "p24_2017"
+    },
+    {
+      "sector": "331110",
+      "D_baseline": 0.6935948132,
+      "D_scenario": 0.6935948132,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "p24_2017"
+    },
+    {
+      "sector": "212100",
+      "D_baseline": 2.238151585,
+      "D_scenario": 2.238151585,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "p24_target"
+    },
+    {
+      "sector": "221110",
+      "D_baseline": 9.2337598986,
+      "D_scenario": 9.2337598986,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "p24_target"
+    },
+    {
+      "sector": "221121",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "p24_target"
+    },
+    {
+      "sector": "221122",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "p24_target"
+    },
+    {
+      "sector": "331110",
+      "D_baseline": 0.6935948132,
+      "D_scenario": 0.6935948132,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "p24_target"
+    },
+    {
+      "sector": "212100",
+      "D_baseline": 2.238151585,
+      "D_scenario": 2.238151585,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d7_pure"
+    },
+    {
+      "sector": "221110",
+      "D_baseline": 9.2337598986,
+      "D_scenario": 9.2337598986,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d7_pure"
+    },
+    {
+      "sector": "221121",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "d7_pure"
+    },
+    {
+      "sector": "221122",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "d7_pure"
+    },
+    {
+      "sector": "331110",
+      "D_baseline": 0.6935948132,
+      "D_scenario": 0.6935948132,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d7_pure"
+    },
+    {
+      "sector": "212100",
+      "D_baseline": 2.238151585,
+      "D_scenario": 2.238151585,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d7_anchored"
+    },
+    {
+      "sector": "221110",
+      "D_baseline": 9.2337598986,
+      "D_scenario": 9.2337598986,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d7_anchored"
+    },
+    {
+      "sector": "221121",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "d7_anchored"
+    },
+    {
+      "sector": "221122",
+      "D_baseline": 0.0,
+      "D_scenario": 0.0,
+      "delta": 0.0,
+      "pct_change": null,
+      "significant": true,
+      "scenario": "d7_anchored"
+    },
+    {
+      "sector": "331110",
+      "D_baseline": 0.6935948132,
+      "D_scenario": 0.6935948132,
+      "delta": 0.0,
+      "pct_change": 0.0,
+      "significant": true,
+      "scenario": "d7_anchored"
+    }
+  ]
+}
