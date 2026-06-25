@@ -13,3 +13,4 @@ url: None
 parse_response_fxn: !script_function:EIA_MECS eia_mecs_energy_ceda_parse
 years:
   - 2018
+  - 2022
