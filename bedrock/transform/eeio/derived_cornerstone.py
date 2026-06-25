@@ -70,9 +70,6 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
 )
-from bedrock.transform.eeio.electricity_disaggregation import (
-    split_electricity_e_for_disaggregated_b,
-)
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_margins_cornerstone_usa,
 )
@@ -135,9 +132,9 @@ def _cornerstone_aq_matrix_set(
     Aimp: pd.DataFrame,
     scaled_q: pd.Series[float],
 ) -> SingleRegionAqMatrixSet:
-    validate_cornerstone(Adom, "A")
-    validate_cornerstone(Aimp, "A")
-    validate_cornerstone(scaled_q, "Q")
+    validate_cornerstone(Adom, 'A')
+    validate_cornerstone(Aimp, 'A')
+    validate_cornerstone(scaled_q, 'Q')
     # Cornerstone A uses 405/407-sector taxonomy; cast only for mypy — do not
     # use pt.DataFrame[AMatrix](...) which runs CEDA v7 Pandera validation.
     return SingleRegionAqMatrixSet(
@@ -214,14 +211,14 @@ def derive_cornerstone_V(
 
     if apply_inflation:
         V = inflate_cornerstone_V_with_industry_pi(V, target_year=target_year)
-    validate_cornerstone(V, "V")
+    validate_cornerstone(V, 'V')
     return V
 
 
 @functools.cache
 def derive_cornerstone_x() -> pd.Series[float]:
     x = compute_x(V=derive_cornerstone_V())
-    validate_cornerstone(x, "X")
+    validate_cornerstone(x, 'X')
     return x
 
 
@@ -285,7 +282,7 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     x_cs = expand_industry_output_vector(x_bea)
     x_cs.index.name = 'sector'
     x_out = _distribute_waste_parent_x_using_v_row_shares(x_cs)
-    validate_cornerstone(x_out, "X")
+    validate_cornerstone(x_out, 'X')
     return x_out
 
 
@@ -297,7 +294,7 @@ def derive_cornerstone_q() -> pd.Series[float]:
             apply_inflation=cfg.apply_inflation_to_V, target_year=cfg.model_base_year
         )
     )
-    validate_cornerstone(q, "Q")
+    validate_cornerstone(q, 'Q')
     return q
 
 
@@ -355,7 +352,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
     V_scrap_corrected = V_scrap_corrected.reindex(
         index=V.index, columns=V.columns, fill_value=0.0
     )
-    validate_cornerstone(V_scrap_corrected, "V")
+    validate_cornerstone(V_scrap_corrected, 'V')
     return V_scrap_corrected
 
 
@@ -456,8 +453,8 @@ def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
         Udom_cs, Uimp_cs = bundle.Udom.copy(), bundle.Uimp.copy()
     else:
         Udom_cs, Uimp_cs = _derive_cornerstone_U_baseline()
-    validate_cornerstone(Udom_cs, "U")
-    validate_cornerstone(Uimp_cs, "U")
+    validate_cornerstone(Udom_cs, 'U')
+    validate_cornerstone(Uimp_cs, 'U')
     return SingleRegionUMatrixSet(
         Udom=cast(pt.DataFrame[UMatrix], Udom_cs),
         Uimp=cast(pt.DataFrame[UMatrix], Uimp_cs),
@@ -471,8 +468,8 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
     Uimp = handle_negative_matrix_values(uset.Uimp)
     assert not (Udom < 0).any().any(), 'Udom has negative values.'
     assert not (Uimp < 0).any().any(), 'Uimp has negative values.'
-    validate_cornerstone(Udom, "U")
-    validate_cornerstone(Uimp, "U")
+    validate_cornerstone(Udom, 'U')
+    validate_cornerstone(Uimp, 'U')
     return SingleRegionUMatrixSet(
         Udom=cast(pt.DataFrame[UMatrix], Udom),
         Uimp=cast(pt.DataFrame[UMatrix], Uimp),
@@ -887,8 +884,6 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """
     cfg = get_usa_config()
     E = derive_E_usa()
-    if cfg.implement_electricity_disaggregation:
-        E = split_electricity_e_for_disaggregated_b(E)
     if cfg.deflate_x_to_detail_io_year_for_B:
         # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:
         #   1) nominal industry output at usa_ghg_data_year
@@ -913,7 +908,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
     Bi = E.divide(x, axis=1).fillna(0.0)
     B = Bi @ Vnorm
-    validate_cornerstone(B, "B")
+    validate_cornerstone(B, 'B')
     return B
 
 
