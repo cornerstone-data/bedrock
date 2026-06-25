@@ -1,6 +1,6 @@
 [project]
 name = "bedrock"
-version = "0.1.0"
+version = "0.3.0"
 description = "Core data pipeline for Cornerstone artifacts"
 authors = [
     { name = "Cornerstone Sustainability Data Initiative", email = "team@cornerstonedata.org" },
