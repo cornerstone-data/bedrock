@@ -98,16 +98,23 @@ def get_memory() -> int:
 
 
 def return_pkg_version(MODULEPATH: Path, package_name: str) -> str:
-    """
-    Return package version, first look for git tag, then look for installed package version
-    :param MODULEPATH: str, package path
-    :param packagename: str, such as "bedrock"
-    """
+    """Return the bedrock package version stamped on FBA/FBS artifacts.
 
-    # return version with git describe
+  ``tool_version`` in flow metadata and parquet filenames
+  (``{method}_v{tool_version}_{git_hash}.parquet``) comes from here via
+  ``set_fb_meta`` in ``metadata.py``.
+
+  Prefer the installed package version from ``pyproject.toml`` so
+  between-tag development (e.g. pyproject at 0.3.0 before ``v0.3.0`` is cut)
+  stamps new outputs correctly. Fall back to the nearest ``v*`` git tag when
+  the package is not installed (e.g. running method YAMLs outside the repo).
+    """
     try:
-        # set path to package repository, necessary if running method files
-        # outside the package repo
+        return version(package_name)
+    except Exception:
+        pass
+
+    try:
         tags = (
             subprocess.check_output(
                 ['git', 'describe', '--tags', '--always', '--match', 'v[0-9]*'],
@@ -120,12 +127,10 @@ def return_pkg_version(MODULEPATH: Path, package_name: str) -> str:
         if tags.startswith('v'):
             return tags.split('-', 1)[0].replace('v', '')
 
-    # If it's a hash, pass
     except subprocess.CalledProcessError:
         pass
 
-    # else return installed package version
-    return version(package_name)
+    return '0.0.0'
 
 
 def get_git_hash(MODULEPATH: Path, length: str = 'short') -> str | None:
