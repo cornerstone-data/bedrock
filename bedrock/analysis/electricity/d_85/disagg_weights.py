@@ -10,6 +10,7 @@ from bedrock.analysis.electricity.d_85.eia_inputs import (
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_disagg_go_weights,
+    build_electricity_disagg_use_intersection_weights,
 )
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
 
@@ -57,9 +58,15 @@ def table83_purchased_power_weights(
     year: int = 2017, *, fba: pd.DataFrame | None = None
 ) -> pd.Series[float]:
     """Map Table 8.3 Purchased Power + T/D expense shares to 221110/221121/221122."""
-    return _table83_weights_from_expenses(
-        table_8_3_purchased_power_gtd_expenses_musd(year, fba=fba)
-    )
+    if fba is not None:
+        return _table83_weights_from_expenses(
+            table_8_3_purchased_power_gtd_expenses_musd(year, fba=fba)
+        )
+    if year != 2017:
+        raise NotImplementedError(
+            f'table83_purchased_power_weights for year {year} not implemented'
+        )
+    return build_electricity_disagg_use_intersection_weights()
 
 
 def build_ugo_col_table83_row_intersection_matrix(
