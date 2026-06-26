@@ -325,15 +325,38 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return fbs3
 
 
-def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
-    """Download a pre-built, year-specific Cornerstone GHG FBS parquet from GCS.
+_EGRID_FBS_METHOD = 'GHG_national_Cornerstone_2023_egrid'
+
+
+def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
+    """Load the eGRID-based national GHG FBS for electricity disaggregation."""
+    try:
+        return _load_cornerstone_ghg_fbs_from_gcs(base_name=_EGRID_FBS_METHOD)
+    except FileNotFoundError:
+        logger.info(
+            'eGRID FBS parquet not in transform/output_data; '
+            'loading via getFlowBySector'
+        )
+        return getFlowBySector(
+            methodname=_EGRID_FBS_METHOD,
+            download_FBS_if_missing=True,
+        )
+
+
+def _load_cornerstone_ghg_fbs_from_gcs(
+    year: int | None = None,
+    *,
+    base_name: str | None = None,
+) -> pd.DataFrame:
+    """Download a pre-built Cornerstone GHG FBS parquet from GCS.
 
     Bypasses ``getFlowBySector`` for the time-series case. The flowsa
     regen path goes through `EPA_GHGI` loaders that are hard-capped at
     `{2022, 2023}` (`bedrock/extract/allocation/epa.py:_get_epa_data_year`),
     so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
     FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
-    ``base_name`` is ``GHG_national_Cornerstone_<year>`` are loaded directly
+    ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
+    name such as ``GHG_national_Cornerstone_2023_egrid``) are loaded directly
     instead (used by new_ghg_method and v0_3_umd_2024_ghgia).
 
     Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
@@ -347,16 +370,23 @@ def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
         list_bucket_files,
     )
 
+    if base_name is None:
+        if year is None:
+            raise ValueError('Either year or base_name must be provided')
+        resolved_base_name = f'GHG_national_Cornerstone_{year}'
+    else:
+        resolved_base_name = base_name
+
     sub_bucket = 'transform/output_data'
-    base_name = f'GHG_national_Cornerstone_{year}'
     bucket_df = list_bucket_files(sub_bucket)
     matches = bucket_df[
-        (bucket_df['base_name'] == base_name) & (bucket_df['extension'] == '.parquet')
+        (bucket_df['base_name'] == resolved_base_name)
+        & (bucket_df['extension'] == '.parquet')
     ].sort_values('created', ascending=False)
     if matches.empty:
         raise FileNotFoundError(
             f'No FBS parquet found at gs://cornerstone-default/{sub_bucket}/ '
-            f'matching base_name={base_name!r}'
+            f'matching base_name={resolved_base_name!r}'
         )
     filename = matches.iloc[0]['full_path'].rsplit('/', 1)[-1]
     local_path = str(FBS_DIR / filename)
@@ -405,12 +435,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         )
     if usa.new_ghg_method or usa.v0_3_umd_2024_ghgia:
         if usa.new_ghg_method and usa.implement_electricity_disaggregation:
-            from flowsa import getFlowBySector as get_flowsa_fbs  # noqa: PLC0415
-
-            fbs = get_flowsa_fbs(
-                methodname='GHG_national_Cornerstone_2023_egrid',
-                download_FBS_if_missing=True,
-            )
+            fbs = _load_egrid_fbs_for_electricity_disagg()
         else:
             # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
             # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
