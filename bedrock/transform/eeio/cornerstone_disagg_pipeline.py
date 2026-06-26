@@ -30,10 +30,10 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     industry_corresp,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
-    build_electricity_disagg_go_weights,
     disaggregate_electricity_commodity_row_in_y,
     disaggregate_electricity_make_use_va,
     distribute_electricity_aggregate_x_using_v_row_shares,
+    get_electricity_commodity_row_weights,
     reallocate_electricity_coproduction,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
@@ -49,7 +49,7 @@ from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 
 _BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-WASTE_ORIGINAL_CODE = "562000"
+WASTE_ORIGINAL_CODE = '562000'
 WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[WASTE_ORIGINAL_CODE])
 
 # Backward-compat aliases (re-exported from derived_cornerstone with leading underscore).
@@ -158,6 +158,18 @@ def derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
     return Udom_cs, Uimp_cs
 
 
+def _derive_y_before_electricity_disagg() -> pd.DataFrame:
+    """Correspondence-mapped Y after waste disagg, before electricity row split."""
+    ytot_orig = load_2017_Ytot_usa()
+    ytot = commodity_corresp() @ ytot_orig
+    ytot.index.name = 'sector'
+    weights = get_waste_disagg_weights()
+    if weights is not None:
+        ytot = apply_waste_disagg_to_Ytot(ytot, weights)
+        ytot.index.name = 'sector'
+    return ytot
+
+
 def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
     VA = load_2017_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
@@ -192,8 +204,8 @@ def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
         Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
         Ytot.index.name = 'sector'
     if electricity_disaggregation_enabled():
-        w = build_electricity_disagg_go_weights()
-        Ytot = disaggregate_electricity_commodity_row_in_y(Ytot, w)
+        w_row = get_electricity_commodity_row_weights()
+        Ytot = disaggregate_electricity_commodity_row_in_y(Ytot, w_row)
         Ytot.index.name = 'sector'
     return Ytot
 

@@ -135,6 +135,18 @@ def scale_cornerstone_A(
         compute_total_industry_inputs(A=A_scaled) <= 1
     ).all(), 'A column sums exceed 1 after scaling.'
 
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_disaggregation_enabled,
+    )
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        apply_electricity_d7_scaling_correction_to_A,
+    )
+
+    if electricity_disaggregation_enabled():
+        A_scaled = apply_electricity_d7_scaling_correction_to_A(
+            A_scaled, original_year, target_year
+        )
+
     return A_scaled
 
 
@@ -158,10 +170,24 @@ def scale_cornerstone_q(
             to_year=original_year,
         )
     ratio = (q_summary_target / derive_summary_q_usa(original_year)).fillna(1.0)
-    return ta.cast(
+    q_scaled = ta.cast(
         pd.Series,
         _apply_summary_ratio_to_sectors(ratio, q, axis='rows'),
     )
+
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_disaggregation_enabled,
+    )
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        apply_electricity_d7_scaling_correction_to_q,
+    )
+
+    if electricity_disaggregation_enabled():
+        q_scaled = apply_electricity_d7_scaling_correction_to_q(
+            q_scaled, original_year, target_year
+        )
+
+    return q_scaled
 
 
 def scale_cornerstone_B(
