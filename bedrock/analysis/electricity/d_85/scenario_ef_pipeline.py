@@ -209,9 +209,9 @@ def probe_e_source() -> dict[str, str]:
     if not (cfg.new_ghg_method and cfg.implement_electricity_disaggregation):
         return {'source': 'standard', 'note': 'electricity disagg flag off'}
     try:
-        from flowsa import getFlowBySector as get_flowsa_fbs  # noqa: PLC0415
+        from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415
 
-        get_flowsa_fbs(
+        getFlowBySector(
             methodname='GHG_national_Cornerstone_2023_egrid',
             download_FBS_if_missing=False,
         )
