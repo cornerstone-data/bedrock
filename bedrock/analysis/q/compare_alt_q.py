@@ -10,7 +10,7 @@ Pathways
 2. q_Aq_scaled
    scale_cornerstone_q (with dollar-year adjustment) + inflate_with_commodity_pi.
    Replicates the derive_cornerstone_Aq_scaled() branch that is active when
-   scale_a_matrix_with_summary_tables=True AND adjust_summary_A_and_q_dollar_year=True.
+   scale_a_matrix_with_summary_tables=True AND adjust_summary_dollar_year_before_scaling=True.
    The dollar-year flag is hardwired here so the comparison is independent of the
    live config.
 
@@ -94,7 +94,7 @@ def _build_q_Aq_scaled(
 
     Replicates derive_cornerstone_Aq_scaled() with
     scale_a_matrix_with_summary_tables=True and
-    adjust_summary_A_and_q_dollar_year=True, regardless of the active config.
+    adjust_summary_dollar_year_before_scaling=True, regardless of the active config.
     """
     # --- scale step (dollar-year-adjusted) ---
     q_summary_target = derive_summary_q_usa(model_year)
