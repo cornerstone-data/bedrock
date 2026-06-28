@@ -1,27 +1,26 @@
 """
-Depict the time series of changes to d, L and n in the given models
-Use initial cfg settings in __init__ and constants
-Build d, L and n components of model1, model2 and model3
-Avoid generating model diagnostics instead compute components right here in this script
+Time-series analysis of emission factor components (d, n, q, e_c) across multiple
+EEIO model configurations and data years (ORIGINAL_YEAR to LATEST_TARGET_YEAR - 1).
 
-The script inherits the cache management of the model config from the A matrix time series
-analysis script to handle multiple years of multiple models.
-And it uses the E time series generation and storage from the B time series analysis
-so a single set of E's is used for the models. Not this means
-derive_cornerstone_B_via_vnorm is not used to get B because we want to be able to
-derive it with our own E
+For each (model, year) combination the script:
+  - Resets config and clears module-level caches before each run.
+  - Derives B (non-finetuned) and backcomputes E from B and q directly, bypassing
+    derive_cornerstone_B_via_vnorm so E remains under local control.
+  - Deflates d, n, and q to constant LATEST_TARGET_YEAR dollars for cross-year comparison.
+  - Persists the resolved config as a YAML file for traceability.
 
-The script uses sectors from SIGNIFICANT_SECTORS modified in constants.
-The script identifies those among this list with the max range of efs over those years
-to display in the plots
+Model-specific config overrides applied per year:
+  - model1: GHG data year is fixed (only base year steps).
+  - model3a: model_base_year is also fixed (GHG year steps only).
+  - model4: additionally varies usa_io_data_year.
 
-
-For d and n there are plots for each model with lines for each sectors over the time period.
-
-Resulting efs are put in a common dollar year of LATEST_TARGET_YEAR
-
-Model1 is only one model then the final d and n get adjusted to the time series years
-
+Outputs (written to RESULTS_DIR / PLOTS_DIR):
+  - trends_d_q_ec.png: indexed (first year = 100) time series of e_c, q, d, n.
+  - n_yoy_distribution.png: signed YoY distribution violin plot for n.
+  - efs.csv: long-format table of all variables for SIGNIFICANT_SECTORS.
+  - n_stats.csv: mean and median of n per model per year.
+  - q_ec_correlation.csv / q_ec_correlation_summary.csv: Pearson r and same-sign
+    fraction between YoY Δq and YoY Δe_c.
 """
 
 from __future__ import annotations
@@ -78,6 +77,11 @@ _CACHE_BEARING_MODULE_PATHS = (
 def deflate_ef(
     ef: pd.Series[float], original_year: int, target_year: int
 ) -> pd.Series[float]:
+    """Convert an emission factor from original_year dollars to target_year dollars.
+
+    Uses the inverse of the vnorm-adjusted commodity price ratio so that intensity
+    values expressed in different base-year dollars are comparable on a single scale.
+    """
     from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
         get_vnorm_adjusted_commodity_price_ratio,
     )
@@ -90,7 +94,7 @@ def _top_fluctuating_sectors(
     all_results: dict[str, dict[int, dict[str, pd.Series]]],
     top_n: int = 5,
 ) -> list[str]:
-    """Rank sectors by their maximum value range across all models and ef keys."""
+    """Return the top_n sectors with the largest value range of d and n across all models and years."""
     scores: dict[str, float] = {}
     for sector in sectors:
         max_range = 0.0
@@ -111,6 +115,11 @@ def _plot_ef_trends(
     all_results: dict[str, dict[int, dict[str, pd.Series | pd.DataFrame]]],
     plot_sectors: list[str],
 ) -> None:
+    """Save a grid plot of e_c, q, d, and n indexed to 100 at the first year.
+
+    Rows are models; columns are variables. Each line is one sector from plot_sectors.
+    e_c is a DataFrame (stressors × sectors) and is summed across stressors before indexing.
+    """
     from matplotlib.lines import Line2D  # noqa: PLC0415
 
     row_models = list(all_results)
@@ -200,9 +209,10 @@ def _plot_ef_trends(
 def _build_n_yoy_per_sector(
     all_results: dict[str, dict[int, dict[str, pd.Series]]],
 ) -> pd.DataFrame:
-    """Build a per_sector DataFrame compatible with _yoy_distribution_plot.
+    """Build a per-sector YoY percent-change table for n, compatible with _yoy_signed_violin_plot.
 
-    Columns: approach, sector, mean_N, mean_abs_yoy_pct, yoy_{y0}_{y1} per transition.
+    Returns a DataFrame with columns: approach, sector, mean_N, mean_abs_yoy_pct,
+    and one yoy_{y0}_{y1} column per consecutive year transition in TARGET_YEARS.
     """
     transitions = [
         (TARGET_YEARS[i], TARGET_YEARS[i + 1]) for i in range(len(TARGET_YEARS) - 1)
@@ -238,11 +248,14 @@ def _build_n_yoy_per_sector(
 def _build_q_ec_correlation(
     all_results: dict[str, dict[int, dict[str, Any]]],
 ) -> pd.DataFrame:
-    """Correlation between q and total e_c (summed across stressors) per model.
-    Two measures per (model, year-transition):
-    - yoy_r: Pearson r between YoY Δq and YoY Δe_c across sectors —
-      answers whether output and emissions move in the same direction.
-    - pct_same_sign: fraction of sectors where Δq and Δe_c share sign.
+    """Compute two alignment measures between YoY Δq and YoY Δe_c for each model.
+
+    Returns a long-format DataFrame with one row per (model, year-transition, metric):
+      - yoy_r: Pearson r between sector-level Δq and Δe_c — whether output and
+        emissions move in the same direction across sectors.
+      - pct_same_sign: fraction of sectors where Δq and Δe_c share the same sign.
+
+    e_c is summed across stressors before differencing.
     """
     import numpy as np  # noqa: PLC0415
 
@@ -299,7 +312,7 @@ def _build_q_ec_correlation(
 
 
 def _summarize_q_ec_correlation(q_ec_corr: pd.DataFrame) -> pd.DataFrame:
-    """Wide-format summary of yoy_r and pct_same_sign with per-model averages."""
+    """Pivot q/e_c correlation results to wide format with a per-model mean column."""
     rows = []
     for metric in ('yoy_r', 'pct_same_sign'):
         subset = q_ec_corr[q_ec_corr['metric'] == metric]
@@ -313,7 +326,7 @@ def _summarize_q_ec_correlation(q_ec_corr: pd.DataFrame) -> pd.DataFrame:
 def _build_n_stats(
     all_results: dict[str, dict[int, dict[str, pd.Series]]],
 ) -> pd.DataFrame:
-    """Mean and median of n across all sectors, per model per year."""
+    """Compute mean and median of n across all sectors for each (model, year) combination."""
     rows = []
     for model, year_results in all_results.items():
         for year in sorted(year_results):
@@ -330,6 +343,12 @@ def _build_n_stats(
 
 
 def main() -> None:
+    """Run the full reconciling-data-years analysis and write all outputs.
+
+    Iterates over every (model, year) combination, building B, d, n, q, and e_c with
+    appropriate config overrides. Deflates intensity vectors to LATEST_TARGET_YEAR dollars,
+    then produces trend plots, YoY distribution plots, and summary CSVs.
+    """
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
