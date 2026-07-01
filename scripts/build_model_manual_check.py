@@ -6,7 +6,7 @@ for that model.
 
 from bedrock.utils.config.usa_config import set_global_usa_config
 
-config = "useeio_phoebe_23"
+# config = "useeio_phoebe_23"
 # config = "useeio_phoebe_23_restore_schema_and_ghg"
 # config = "useeio_phoebe_23_restore_cornerstone_B"
 # config = "useeio_phoebe_23_restore_iot_redefinition"
@@ -21,6 +21,7 @@ config = "useeio_phoebe_23"
 # config = "2025_usa_cornerstone_fbs_schema_and_waste_disagg"
 # config = "2025_usa_cornerstone_fbs_schema_and_B_transformation_and_waste_disaggregation"
 # config = "2025_usa_cornerstone_fbs_schema_and_ghg"
+config = "2025_usa_cornerstone_full_model_electricity_disaggregation"
 
 
 def main() -> None:
