@@ -40,6 +40,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,
     derive_cornerstone_y_nab,
+    derive_cornerstone_y_nab_mixed_units,
     derive_cornerstone_Ytot_matrix_set,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
@@ -91,6 +92,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_B_mixed_units,
     derive_cornerstone_y_nab,
+    derive_cornerstone_y_nab_mixed_units,
     load_2017_margins_before_redef_usa,
     load_2017_margins_after_redef_usa,
     derive_margins_cornerstone_usa_at_year,
