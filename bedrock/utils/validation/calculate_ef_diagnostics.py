@@ -350,7 +350,18 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     # Compare output contribution (parquet baseline only; omitted for gcs_useeio_xlsx)
     if config.diagnostics_baseline_source != 'gcs_useeio_xlsx':
         t0 = time.time()
-        Aq_set = derive_Aq_usa()
+        from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+            electricity_mixed_units_enabled,
+        )
+        from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_mixed_units,
+        )
+
+        if electricity_mixed_units_enabled():
+            Aq_set = derive_cornerstone_Aq_mixed_units()
+        else:
+            Aq_set = derive_Aq_usa()
         L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
 
         OC_new = compute_output_contribution(

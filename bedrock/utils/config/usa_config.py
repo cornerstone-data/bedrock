@@ -81,6 +81,7 @@ class USAConfig(BaseModel):
     eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
+    implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
@@ -235,6 +236,13 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'implement_electricity_disaggregation requires '
                 'implement_waste_disaggregation and implement_electricity_reallocation'
+            )
+        if self.implement_electricity_mixed_units and not (
+            self.implement_electricity_disaggregation
+        ):
+            raise ValueError(
+                'implement_electricity_mixed_units requires '
+                'implement_electricity_disaggregation'
             )
         return self
 
