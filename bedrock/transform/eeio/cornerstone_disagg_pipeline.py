@@ -10,8 +10,10 @@ from __future__ import annotations
 import functools
 import pathlib
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
+import pandera.typing as pt
 
 from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
@@ -30,11 +32,24 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     industry_corresp,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
+    GENERATION_SECTOR,
+    apply_electricity_unit_conversion_to_A,
+    apply_electricity_unit_conversion_to_B,
+    apply_electricity_unit_conversion_to_q,
     disaggregate_electricity_commodity_row_in_y,
     disaggregate_electricity_make_use_va,
     distribute_electricity_aggregate_x_using_v_row_shares,
+    electricity_class_row_factors,
+    electricity_output_factor,
     get_electricity_commodity_row_weights,
     reallocate_electricity_coproduction,
+)
+from bedrock.transform.eeio.electricity_end_use_mapping import (
+    END_USE_MAPPING_REVIEW_STATUS,  # noqa: F401 — re-export
+    build_end_use_map,
+    build_end_use_map_resolved,  # noqa: F401 — re-export
+    classify_industry_end_use,  # noqa: F401 — re-export
+    table_2_4_prices_cents_kwh,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
@@ -43,7 +58,9 @@ from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_Ytot,
 )
 from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
-from bedrock.utils.math.formulas import compute_x
+from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_x
+from bedrock.utils.schemas.single_region_schemas import AMatrix
+from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 
@@ -237,3 +254,82 @@ def distribute_waste_parent_x_using_v_row_shares(
             x, derive_disagg_io_bundle().V
         )
     return x
+
+
+@functools.cache
+def electricity_mixed_units_enabled() -> bool:
+    return get_usa_config().implement_electricity_mixed_units
+
+
+def _model_year_y_row_221110(aq_scaled: SingleRegionAqMatrixSet) -> pd.Series[float]:
+    """Model-year 221110 FD row from backcompute total × 2017 share split."""
+    y_2017 = derive_disagg_Ytot_with_trade().loc[GENERATION_SECTOR]
+    y_total = float(
+        backcompute_y_from_A_and_q(A=aq_scaled.Adom, q=aq_scaled.scaled_q).loc[
+            GENERATION_SECTOR
+        ]
+    )
+    y_sum = float(y_2017.sum())
+    if y_sum <= 0:
+        raise ValueError(
+            'model_year_y_row_221110: 2017 Y row for 221110 sums to zero or negative'
+        )
+    return cast(pd.Series, y_total * (y_2017 / y_sum))
+
+
+def electricity_conversion_factors(
+    aq_scaled: SingleRegionAqMatrixSet,
+) -> tuple[float, pd.Series[float]]:
+    """Return (c_col, c_row) for generation sector unit conversion."""
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        us_total_net_generation_mwh,
+    )
+
+    cfg = get_usa_config()
+    q_usd = float(aq_scaled.scaled_q[GENERATION_SECTOR])
+    mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
+    c_col = electricity_output_factor(q_usd, mwh)
+    prices = cast(dict[str, float], table_2_4_prices_cents_kwh(cfg.usa_ghg_data_year))
+    end_use_map = build_end_use_map()
+    y_row = _model_year_y_row_221110(aq_scaled)
+    adom_row = cast(pd.Series, aq_scaled.Adom.loc[GENERATION_SECTOR])
+    c_row = electricity_class_row_factors(
+        adom_row,
+        aq_scaled.scaled_q,
+        y_row,
+        prices,
+        end_use_map,
+        mwh,
+    )
+    return c_col, c_row
+
+
+def build_electricity_mixed_units_aq(
+    aq_scaled: SingleRegionAqMatrixSet,
+) -> SingleRegionAqMatrixSet:
+    """Return mixed-unit A/q when gate is on; else pass-through."""
+    if not electricity_mixed_units_enabled():
+        return aq_scaled
+    c_col, c_row = electricity_conversion_factors(aq_scaled)
+    Adom = apply_electricity_unit_conversion_to_A(
+        aq_scaled.Adom, c_col=c_col, c_row=c_row
+    )
+    Aimp = apply_electricity_unit_conversion_to_A(
+        aq_scaled.Aimp, c_col=c_col, c_row=c_row
+    )
+    scaled_q = apply_electricity_unit_conversion_to_q(aq_scaled.scaled_q, c_col)
+    return SingleRegionAqMatrixSet(
+        Adom=cast(pt.DataFrame[AMatrix], Adom),
+        Aimp=cast(pt.DataFrame[AMatrix], Aimp),
+        scaled_q=scaled_q,
+    )
+
+
+def build_electricity_mixed_units_b(
+    b: pd.DataFrame,
+    c_col: float,
+) -> pd.DataFrame:
+    """Return mixed-unit B when gate is on; else pass-through."""
+    if not electricity_mixed_units_enabled():
+        return b
+    return apply_electricity_unit_conversion_to_B(b, c_col)

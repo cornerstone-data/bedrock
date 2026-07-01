@@ -555,7 +555,7 @@ def construct_ef_diff_dataframe(
         raw_values,
     )
 
-    return ef_comparison
+    return apply_mixed_units_ef_diff_exemptions(ef_comparison, ef_name)
 
 
 def inflation_adjust_ef_denom_to_new_base_year(
@@ -590,6 +590,27 @@ def inflation_adjust_ef_denom_to_new_base_year(
     return old_ef_vector * price_ratio_aligned
 
 
+def apply_mixed_units_ef_diff_exemptions(
+    comparison: pd.DataFrame,
+    ef_name: str,
+) -> pd.DataFrame:
+    """NaN out 221110 old-vs-new percent diff when units are incommensurate."""
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
+
+    if not electricity_mixed_units_enabled():
+        return comparison
+    out = comparison.copy()
+    perc_col = f'{ef_name}_perc_diff'
+    if '221110' in out.index and perc_col in out.columns:
+        out.loc['221110', perc_col] = np.nan
+        if 'exemption_reason' not in out.columns:
+            out['exemption_reason'] = ''
+        out.loc['221110', 'exemption_reason'] = 'unit_incommensurate_mixed_units'
+    return out
+
+
 def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     """Load and prepare all emission factor data for diagnostics.
 
@@ -603,9 +624,16 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         EfsForDiagnostics with new and old EF data for comparison
     """
     # Late-binding imports - these depend on global config
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
+    )
+    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+        derive_cornerstone_Aq_mixed_units,
+        derive_cornerstone_B_mixed_units,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_d,
@@ -621,14 +649,15 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     Aimp_snapshot_name: SnapshotName = 'Aimp_USA'
 
     t0 = time.time()
-    B_new = derive_B_usa_non_finetuned()
+    if electricity_mixed_units_enabled():
+        B_new = derive_cornerstone_B_mixed_units()
+        Aq_set = derive_cornerstone_Aq_mixed_units()
+    else:
+        B_new = derive_B_usa_non_finetuned()
+        Aq_set = derive_Aq_usa()
     logger.info(
-        f'[TIMING] derive_B_usa_non_finetuned completed in {time.time() - t0:.1f}s'
+        f'[TIMING] derive B/Aq for diagnostics completed in {time.time() - t0:.1f}s'
     )
-
-    t0 = time.time()
-    Aq_set = derive_Aq_usa()
-    logger.info(f'[TIMING] derive_Aq_usa completed in {time.time() - t0:.1f}s')
 
     t0 = time.time()
     L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
@@ -652,6 +681,14 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
             new_base_year=config.model_base_year,
             old_base_year=config.usa_detail_original_year,
         )
+        if electricity_mixed_units_enabled() and '221110' in d_ser.index:
+            d_ser.loc['221110'] = float(
+                ta.cast('pd.Series[float]', D_new.squeeze()).loc['221110']
+            )
+        if electricity_mixed_units_enabled() and '221110' in n_ser.index:
+            n_ser.loc['221110'] = float(
+                ta.cast('pd.Series[float]', N_new.squeeze()).loc['221110']
+            )
         d_new_inflated = d_ser.to_frame()
         n_new_inflated = n_ser.to_frame()
         logger.info(
