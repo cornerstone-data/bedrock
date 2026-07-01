@@ -55,6 +55,10 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
 
         with (
             patch(
+                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                return_value=False,
+            ),
+            patch(
                 "bedrock.transform.eeio.derived.derive_B_usa_non_finetuned",
                 return_value=B,
             ),
@@ -190,3 +194,135 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         assert pd.isna(detail["BLy_old (MtCO2e)"].iloc[2])
         assert detail["BLy_new - BLy_old (MtCO2e)"].iloc[2] == pytest.approx(3.0)
         assert pd.isna(detail["(BLy_new - BLy_old) / BLy_old (%)"].iloc[2])
+
+    def test_bly_uses_mixed_path_under_gate(self) -> None:
+        """When mixed gate is on, NAB uses mixed B/Aq/y derives."""
+        idx = pd.Index(SECTORS)
+        n = len(SECTORS)
+        B = pd.DataFrame(np.eye(n), index=idx, columns=idx)
+        Adom = pd.DataFrame(np.zeros((n, n)), index=idx, columns=idx)
+        y = pd.Series([1e9, 2e9, 3e9], index=idx)
+        E_orig = pd.DataFrame([[3e9, 3e9, 3e9]], index=["CO2"], columns=idx)
+
+        mock_Aq = MagicMock()
+        mock_Aq.Adom = Adom
+
+        def fake_load_snapshot(name: str, key: str) -> pd.DataFrame | pd.Series:
+            if name == "B_USA_non_finetuned":
+                return B
+            if name == "Adom_USA":
+                return Adom
+            if name == "y_nab_USA":
+                return y
+            raise AssertionError(f"unexpected snapshot {name}")
+
+        mock_update_sheet = MagicMock()
+
+        with (
+            patch(
+                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                return_value=True,
+            ),
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_B_mixed_units",
+                return_value=B,
+            ) as mock_b,
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_mixed_units",
+                return_value=mock_Aq,
+            ) as mock_aq,
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_y_nab_mixed_units",
+                return_value=y,
+            ) as mock_y,
+            patch(
+                "bedrock.transform.eeio.derived.derive_B_usa_non_finetuned",
+                return_value=B,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.load_configured_snapshot",
+                return_value=E_orig,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.load_snapshot",
+                side_effect=fake_load_snapshot,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.resolve_snapshot_key",
+                return_value="test_snap_key",
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.update_sheet_tab",
+                mock_update_sheet,
+            ),
+        ):
+            calculate_national_accounting_balance_diagnostics(sheet_id="test_sheet")
+
+        mock_b.assert_called_once()
+        mock_aq.assert_called_once()
+        mock_y.assert_called_once()
+        bly_tab = mock_update_sheet.call_args_list[1][0][2]
+        assert "exemption_reason" in bly_tab.columns
+
+    def test_bly_e_orig_mixed_note_when_gate_on(self) -> None:
+        """Mixed gate adds note column on BLy_and_E_orig_diffs."""
+        idx = pd.Index(SECTORS)
+        n = len(SECTORS)
+        B = pd.DataFrame(np.eye(n), index=idx, columns=idx)
+        Adom = pd.DataFrame(np.zeros((n, n)), index=idx, columns=idx)
+        y = pd.Series([1e9, 2e9, 3e9], index=idx)
+        E_orig = pd.DataFrame([[3e9, 3e9, 3e9]], index=["CO2"], columns=idx)
+
+        mock_Aq = MagicMock()
+        mock_Aq.Adom = Adom
+
+        def fake_load_snapshot(name: str, key: str) -> pd.DataFrame | pd.Series:
+            if name == "B_USA_non_finetuned":
+                return B
+            if name == "Adom_USA":
+                return Adom
+            if name == "y_nab_USA":
+                return y
+            raise AssertionError(f"unexpected snapshot {name}")
+
+        mock_update_sheet = MagicMock()
+
+        with (
+            patch(
+                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                return_value=True,
+            ),
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_B_mixed_units",
+                return_value=B,
+            ),
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_mixed_units",
+                return_value=mock_Aq,
+            ),
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_y_nab_mixed_units",
+                return_value=y,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.load_configured_snapshot",
+                return_value=E_orig,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.load_snapshot",
+                side_effect=fake_load_snapshot,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.resolve_snapshot_key",
+                return_value="test_snap_key",
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.update_sheet_tab",
+                mock_update_sheet,
+            ),
+        ):
+            calculate_national_accounting_balance_diagnostics(sheet_id="test_sheet")
+
+        e_df = mock_update_sheet.call_args_list[0][0][2]
+        assert "note" in e_df.columns
+        assert "mixed BLy_new vs monetary E_orig" in str(e_df["note"].iloc[0])
