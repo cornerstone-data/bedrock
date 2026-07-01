@@ -10,10 +10,13 @@ from bedrock.extract.iot.io_2017 import (
 )
 from bedrock.publish.model_objects import clear_publish_caches
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    build_end_use_map,
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    electricity_mixed_units_enabled,
     get_waste_disagg_weights,
+    table_2_4_prices_cents_kwh,
 )
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
@@ -24,7 +27,9 @@ from bedrock.transform.eeio.derived import (
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq,
+    derive_cornerstone_Aq_mixed_units,
     derive_cornerstone_Aq_scaled,
+    derive_cornerstone_B_mixed_units,
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_q,
     derive_cornerstone_U_set,
@@ -61,7 +66,10 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_Aq_usa,
     derive_y_for_national_accounting_balance_usa,
     cornerstone_sector_disagg_active,
+    electricity_mixed_units_enabled,
     get_waste_disagg_weights,
+    build_end_use_map,
+    table_2_4_prices_cents_kwh,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     get_electricity_commodity_row_weights,
@@ -79,7 +87,9 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_cornerstone_VA,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
+    derive_cornerstone_Aq_mixed_units,
     derive_cornerstone_B_non_finetuned,
+    derive_cornerstone_B_mixed_units,
     derive_cornerstone_y_nab,
     load_2017_margins_before_redef_usa,
     load_2017_margins_after_redef_usa,
