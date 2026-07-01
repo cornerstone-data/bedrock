@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import functools
 import pathlib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
 
@@ -279,6 +280,8 @@ def _model_year_y_row_221110(aq_scaled: SingleRegionAqMatrixSet) -> pd.Series[fl
 
 def electricity_conversion_factors(
     aq_scaled: SingleRegionAqMatrixSet,
+    *,
+    prices_by_class: Mapping[str, float] | None = None,
 ) -> tuple[float, pd.Series[float]]:
     """Return (c_col, c_row) for generation sector unit conversion."""
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
@@ -289,7 +292,12 @@ def electricity_conversion_factors(
     q_usd = float(aq_scaled.scaled_q[GENERATION_SECTOR])
     mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
     c_col = electricity_output_factor(q_usd, mwh)
-    prices = cast(dict[str, float], table_2_4_prices_cents_kwh(cfg.usa_ghg_data_year))
+    if prices_by_class is None:
+        prices = cast(
+            dict[str, float], table_2_4_prices_cents_kwh(cfg.usa_ghg_data_year)
+        )
+    else:
+        prices = dict(prices_by_class)
     end_use_map = build_end_use_map()
     y_row = _model_year_y_row_221110(aq_scaled)
     adom_row = cast(pd.Series, aq_scaled.Adom.loc[GENERATION_SECTOR])
@@ -306,11 +314,15 @@ def electricity_conversion_factors(
 
 def build_electricity_mixed_units_aq(
     aq_scaled: SingleRegionAqMatrixSet,
+    *,
+    prices_by_class: Mapping[str, float] | None = None,
 ) -> SingleRegionAqMatrixSet:
     """Return mixed-unit A/q when gate is on; else pass-through."""
     if not electricity_mixed_units_enabled():
         return aq_scaled
-    c_col, c_row = electricity_conversion_factors(aq_scaled)
+    c_col, c_row = electricity_conversion_factors(
+        aq_scaled, prices_by_class=prices_by_class
+    )
     Adom = apply_electricity_unit_conversion_to_A(
         aq_scaled.Adom, c_col=c_col, c_row=c_row
     )
@@ -333,3 +345,45 @@ def build_electricity_mixed_units_b(
     if not electricity_mixed_units_enabled():
         return b
     return apply_electricity_unit_conversion_to_B(b, c_col)
+
+
+@dataclass(frozen=True)
+class MixedUnitEfResult:
+    """Non-cached mixed-unit EF vectors from monetary scaled inputs."""
+
+    D: pd.Series[float]
+    N: pd.Series[float]
+    M: pd.DataFrame
+    c_col: float
+    c_row: pd.Series[float]
+
+
+def compute_mixed_unit_ef_vectors(
+    aq_scaled: SingleRegionAqMatrixSet,
+    b: pd.DataFrame,
+    *,
+    prices_by_class: Mapping[str, float] | None = None,
+) -> MixedUnitEfResult:
+    """Apply mixed conversion to monetary scaled A/q/B; never use cached mixed derives."""
+    from bedrock.utils.math.formulas import (  # noqa: PLC0415
+        compute_d,
+        compute_L_matrix,
+        compute_M_matrix,
+        compute_n,
+    )
+
+    c_col, c_row = electricity_conversion_factors(
+        aq_scaled, prices_by_class=prices_by_class
+    )
+    adom = apply_electricity_unit_conversion_to_A(
+        aq_scaled.Adom, c_col=c_col, c_row=c_row
+    )
+    aimp = apply_electricity_unit_conversion_to_A(
+        aq_scaled.Aimp, c_col=c_col, c_row=c_row
+    )
+    b_mixed = apply_electricity_unit_conversion_to_B(b, c_col)
+    l_tot = compute_L_matrix(A=adom + aimp)
+    m = compute_M_matrix(B=b_mixed, L=l_tot)
+    d = compute_d(B=b_mixed)
+    n = compute_n(M=m)
+    return MixedUnitEfResult(D=d, N=n, M=m, c_col=c_col, c_row=c_row)

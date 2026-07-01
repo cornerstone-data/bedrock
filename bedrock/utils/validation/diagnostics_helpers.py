@@ -611,6 +611,101 @@ def apply_mixed_units_ef_diff_exemptions(
     return out
 
 
+def apply_mixed_units_bly_diff_exemptions(df: pd.DataFrame) -> pd.DataFrame:
+    """NaN 221110 BLy percent diff vs monetary snapshot baseline."""
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
+
+    if not electricity_mixed_units_enabled():
+        return df
+    out = df.copy()
+    pct_col = '(BLy_new - BLy_old) / BLy_old (%)'
+    if pct_col not in out.columns or 'index' not in out.columns:
+        return out
+    if 'exemption_reason' not in out.columns:
+        out['exemption_reason'] = ''
+    mask = out['index'].astype(str) == '221110'
+    out.loc[mask, pct_col] = np.nan
+    out.loc[mask, 'exemption_reason'] = 'baseline_monetary_vs_live_mixed'
+    return out
+
+
+MIXED_VS_MONETARY_TAB_COLUMNS: tuple[str, ...] = (
+    'index',
+    'sector_desc',
+    'D_mon',
+    'D_mix',
+    'c_col',
+    'D_mon_over_c_col',
+    'D_mix_minus_D_mon_over_c_col',
+    'N_mon',
+    'N_mix',
+    'N_uniform',
+    'N_mix_minus_N_mon',
+    'N_mix_minus_N_uniform',
+    'units_note',
+)
+
+
+def sectors_for_mixed_vs_monetary_tab(
+    N_mix: pd.Series[float],
+    N_mon: pd.Series[float],
+) -> list[str]:
+    """Fixed electricity rows + top 5 |N_mix - N_mon| excluding 221110."""
+    fixed = list(ELECTRICITY_DISAGG_SECTORS)
+    spillover = (
+        (N_mix - N_mon)
+        .abs()
+        .drop(labels=['221110'], errors='ignore')
+        .nlargest(5)
+        .index.astype(str)
+        .tolist()
+    )
+    return fixed + [s for s in spillover if s not in fixed]
+
+
+def build_mixed_vs_monetary_comparison_df(
+    *,
+    sectors: ta.Sequence[str],
+    D_mon: pd.Series[float],
+    N_mon: pd.Series[float],
+    D_mix: pd.Series[float],
+    N_mix: pd.Series[float],
+    N_uniform: pd.Series[float],
+    c_col: float,
+    sector_desc_lookup: ta.Mapping[str, str] | None = None,
+) -> pd.DataFrame:
+    """Build long comparison DataFrame for mixed_vs_monetary_221110 tab."""
+    desc = sector_desc_lookup or {}
+    units_note = 'D_mon: CO2e/$; D_mix/N_*: CO2e/MWh for elec cols'
+    rows: list[dict[str, ta.Any]] = []
+    for sector in sectors:
+        d_mon = float(D_mon.get(sector, np.nan))
+        d_mix = float(D_mix.get(sector, np.nan))
+        d_mon_over_c = d_mon / c_col if c_col != 0 else np.nan
+        rows.append(
+            {
+                'index': sector,
+                'sector_desc': desc.get(sector, ''),
+                'D_mon': d_mon,
+                'D_mix': d_mix,
+                'c_col': c_col,
+                'D_mon_over_c_col': d_mon_over_c,
+                'D_mix_minus_D_mon_over_c_col': d_mix - d_mon_over_c,
+                'N_mon': float(N_mon.get(sector, np.nan)),
+                'N_mix': float(N_mix.get(sector, np.nan)),
+                'N_uniform': float(N_uniform.get(sector, np.nan)),
+                'N_mix_minus_N_mon': float(N_mix.get(sector, np.nan))
+                - float(N_mon.get(sector, np.nan)),
+                'N_mix_minus_N_uniform': float(N_mix.get(sector, np.nan))
+                - float(N_uniform.get(sector, np.nan)),
+                'units_note': units_note,
+            }
+        )
+    return pd.DataFrame(rows, columns=list(MIXED_VS_MONETARY_TAB_COLUMNS))
+
+
 def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     """Load and prepare all emission factor data for diagnostics.
 

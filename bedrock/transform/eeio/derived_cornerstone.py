@@ -51,6 +51,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     distribute_waste_parent_x_using_v_row_shares,
     electricity_conversion_factors,
+    electricity_mixed_units_enabled,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
@@ -859,6 +860,19 @@ def derive_cornerstone_y_nab() -> pd.Series[float]:
     clipping would break the domestic Leontief identity.
     """
     aq = derive_cornerstone_Aq_scaled()
+    return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
+
+
+@functools.cache
+def derive_cornerstone_y_nab_mixed_units() -> pd.Series[float]:
+    """Hybrid final demand for mixed-unit BLy diagnostics (221110 in MWh).
+
+    When the mixed-units gate is off, delegates to monetary
+    ``derive_cornerstone_y_nab``. Does not alter monetary ``y_nab`` consumers.
+    """
+    if not electricity_mixed_units_enabled():
+        return derive_cornerstone_y_nab()
+    aq = derive_cornerstone_Aq_mixed_units()
     return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
 
 
