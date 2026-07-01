@@ -138,17 +138,33 @@ def calculate_national_accounting_balance_diagnostics(
       unchanged: snapshot ``B`` and ``y_nab`` already share one dollar year.
     """
     # Late-binding imports - depend on global config
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
         derive_y_for_national_accounting_balance_usa,
     )
+    from bedrock.transform.eeio.derived_cornerstone import (
+        derive_cornerstone_Aq_mixed_units,
+        derive_cornerstone_B_mixed_units,
+        derive_cornerstone_y_nab_mixed_units,
+    )
+    from bedrock.utils.validation.diagnostics_helpers import (
+        apply_mixed_units_bly_diff_exemptions,
+    )
 
     logger.info("------ Calculating national accounting balance diagnostics ------")
 
-    B_new = derive_B_usa_non_finetuned()
-    Aq_set = derive_Aq_usa()
-    y_new = derive_y_for_national_accounting_balance_usa()
+    if electricity_mixed_units_enabled():
+        B_new = derive_cornerstone_B_mixed_units()
+        Aq_set = derive_cornerstone_Aq_mixed_units()
+        y_new = derive_cornerstone_y_nab_mixed_units()
+    else:
+        B_new = derive_B_usa_non_finetuned()
+        Aq_set = derive_Aq_usa()
+        y_new = derive_y_for_national_accounting_balance_usa()
 
     logger.info("1. Calculating BLy (live)...")
     BLy_new = _compute_bly_series(B=B_new, Adom=Aq_set.Adom, y=y_new)
@@ -164,14 +180,26 @@ def calculate_national_accounting_balance_diagnostics(
         diff = BLy_total - E_orig_total
         perc_diff = diff / E_orig_total if E_orig_total != 0 else 0.0
 
+        comparison_data: dict[str, list[float | str]] = {
+            "BLy (MtCO2e)": [BLy_total / 1e9],
+            "E_orig (MtCO2e)": [E_orig_total / 1e9],
+            "BLy - E_orig (MtCO2e)": [diff / 1e9],
+            "(BLy - E_orig) / E_orig (%)": [perc_diff],
+        }
+        if electricity_mixed_units_enabled():
+            mixed_note = "mixed BLy_new vs monetary E_orig; national drift expected"
+            logger.info(mixed_note)
+            if abs(perc_diff) > 0.10:
+                logger.warning(
+                    "BLy vs E_orig national drift |perc_diff|=%.4f exceeds 0.10: %s",
+                    abs(perc_diff),
+                    mixed_note,
+                )
+            comparison_data["note"] = [mixed_note]
+
         logger.info("3. Writing BLy vs E (national totals)...")
         comparison = pd.DataFrame(
-            {
-                "BLy (MtCO2e)": [BLy_total / 1e9],
-                "E_orig (MtCO2e)": [E_orig_total / 1e9],
-                "BLy - E_orig (MtCO2e)": [diff / 1e9],
-                "(BLy - E_orig) / E_orig (%)": [perc_diff],
-            },
+            comparison_data,
             index=pd.Index(["USA"]),
         )
         update_sheet_tab(
@@ -254,6 +282,7 @@ def calculate_national_accounting_balance_diagnostics(
             "(BLy_new - BLy_old) / BLy_old (%)": perc_arr,
         }
     )
+    bly_diff_out = apply_mixed_units_bly_diff_exemptions(bly_diff_out)
     logger.info("5. Writing BLy_new vs BLy_old (by sector)...")
     update_sheet_tab(
         sheet_id,

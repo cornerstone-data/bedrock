@@ -11,32 +11,41 @@ import pytest
 
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     build_end_use_map,
+    compute_mixed_unit_ef_vectors,
     electricity_mixed_units_enabled,
+    table_2_4_prices_cents_kwh,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_mixed_units,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_y_nab,
+    derive_cornerstone_y_nab_mixed_units,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
     apply_electricity_unit_conversion_to_A,
+    apply_electricity_unit_conversion_to_B,
     electricity_class_row_factors,
     electricity_output_factor,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_d
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
+from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.validation.diagnostics_helpers import (
+    apply_mixed_units_bly_diff_exemptions,
     apply_mixed_units_ef_diff_exemptions,
+    pull_efs_for_diagnostics,
 )
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_mixed_units_enabled,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_Aq_mixed_units,
-    derive_cornerstone_Aq_scaled,
     derive_cornerstone_y_nab,
+    derive_cornerstone_y_nab_mixed_units,
     build_end_use_map,
+    table_2_4_prices_cents_kwh,
 ]
 
 
@@ -180,6 +189,28 @@ def test_apply_mixed_units_ef_diff_exemptions() -> None:
         _teardown()
 
 
+def test_apply_mixed_units_bly_diff_exemptions() -> None:
+    _setup('test_usa_config_waste_disagg_electricity_mixed_units.yaml')
+    try:
+        df = pd.DataFrame(
+            {
+                'index': ['221110', '1111A0'],
+                'BLy_new (MtCO2e)': [1.0, 2.0],
+                'BLy_old (MtCO2e)': [0.5, 2.0],
+                '(BLy_new - BLy_old) / BLy_old (%)': [1.0, 0.0],
+            }
+        )
+        out = apply_mixed_units_bly_diff_exemptions(df)
+        row = out.loc[out['index'] == '221110'].iloc[0]
+        assert bool(np.isnan(cast(float, row['(BLy_new - BLy_old) / BLy_old (%)'])))
+        assert row['exemption_reason'] == 'baseline_monetary_vs_live_mixed'
+        other = out.loc[out['index'] == '1111A0'].iloc[0]
+        assert other['(BLy_new - BLy_old) / BLy_old (%)'] == pytest.approx(0.0)
+        assert other['exemption_reason'] == ''
+    finally:
+        _teardown()
+
+
 def test_y_nab_stays_monetary_under_mixed_gate(mixed_units_config: str) -> None:
     _setup('test_usa_config_waste_disagg_electricity_disaggregation.yaml')
     try:
@@ -190,6 +221,104 @@ def test_y_nab_stays_monetary_under_mixed_gate(mixed_units_config: str) -> None:
     try:
         y_on = derive_cornerstone_y_nab()
         pd.testing.assert_series_equal(y_off, y_on)
+    finally:
+        _teardown()
+
+
+@patch(
+    'bedrock.extract.disaggregation.egrid_generation.us_total_net_generation_mwh',
+    return_value=4_000_000_000.0,
+)
+@patch(
+    'bedrock.transform.eeio.cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh',
+)
+def test_y_nab_mixed_differs_from_monetary_under_gate(
+    mock_prices: Mock,
+    mock_mwh: Mock,
+    mixed_units_config: str,
+) -> None:
+    mock_prices.return_value = {
+        'Residential': 12.0,
+        'Commercial': 10.0,
+        'Industrial': 7.0,
+        'Transportation': 9.0,
+        'Total': 10.0,
+    }
+    _setup(mixed_units_config)
+    try:
+        y_mon = derive_cornerstone_y_nab()
+        y_mix = derive_cornerstone_y_nab_mixed_units()
+        aq = derive_cornerstone_Aq_mixed_units()
+        assert y_mix[GENERATION_SECTOR] != pytest.approx(y_mon[GENERATION_SECTOR])
+        y_back = backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
+        pd.testing.assert_series_equal(y_mix, y_back)
+        u = aq.Adom.multiply(aq.scaled_q, axis=1).sum(axis=1) + y_mix
+        pd.testing.assert_series_equal(aq.scaled_q, u, rtol=1e-6, check_names=False)
+    finally:
+        _teardown()
+
+
+@patch(
+    'bedrock.extract.disaggregation.egrid_generation.us_total_net_generation_mwh',
+    return_value=4_000_000_000.0,
+)
+@patch(
+    'bedrock.transform.eeio.cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh',
+)
+def test_d_scalar_bridge_under_gate(
+    mock_prices: Mock,
+    mock_mwh: Mock,
+    mixed_units_config: str,
+) -> None:
+    mock_prices.return_value = {
+        'Residential': 12.0,
+        'Commercial': 10.0,
+        'Industrial': 7.0,
+        'Transportation': 9.0,
+        'Total': 10.0,
+    }
+    _setup(mixed_units_config)
+    try:
+        gen = GENERATION_SECTOR
+        cols = [gen, '1111A0', '1111B0']
+        b_mon = pd.DataFrame(np.eye(len(cols)) * 10.0, index=cols, columns=cols)
+        c_col = 0.02
+        b_mix = apply_electricity_unit_conversion_to_B(b_mon, c_col)
+        d_mon = compute_d(B=b_mon)
+        d_mix = compute_d(B=b_mix)
+        assert float(d_mix[gen]) == pytest.approx(float(d_mon[gen]) / c_col)
+    finally:
+        _teardown()
+
+
+def test_compute_mixed_unit_ef_vectors_not_cached() -> None:
+    gen = GENERATION_SECTOR
+    cols = [gen, '1111A0']
+    adom = pd.DataFrame([[0.0, 0.01], [0.0, 0.0]], index=cols, columns=cols)
+    aimp = pd.DataFrame(0.0, index=cols, columns=cols)
+    q = pd.Series({gen: 100.0, '1111A0': 50.0}, dtype=float)
+    aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+    b = pd.DataFrame(10.0, index=cols, columns=cols)
+    c_row_a = pd.Series({gen: 0.5, '1111A0': 0.5})
+    c_row_b = pd.Series({gen: 0.8, '1111A0': 0.8})
+    with patch(
+        'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_conversion_factors',
+        side_effect=[(0.5, c_row_a), (0.5, c_row_b)],
+    ):
+        r_class = compute_mixed_unit_ef_vectors(aq, b, prices_by_class=None)
+        r_uniform = compute_mixed_unit_ef_vectors(
+            aq, b, prices_by_class={'Industrial': 10.0, 'Total': 10.0}
+        )
+    assert not r_class.N.equals(r_uniform.N)
+
+
+@pytest.mark.eeio_integration
+def test_pull_efs_mixed_units_config(mixed_units_config: str) -> None:
+    _setup(mixed_units_config)
+    try:
+        result = pull_efs_for_diagnostics()
+        assert result.D_new is not None
+        assert result.N_new is not None
     finally:
         _teardown()
 
