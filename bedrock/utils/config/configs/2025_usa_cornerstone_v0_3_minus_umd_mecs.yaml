@@ -1,0 +1,38 @@
+# Leave-one-out (GHG chain, step 2): full v0.3 with the entire UMD GHGIA + MECS
+# methodology removed, reverting the GHG inventory to the v0.2 EPA-GHGI method
+# (GHG_national_Cornerstone_2023). There is no EPA-GHGI-only 2024 inventory, so
+# this necessarily sits at usa_ghg_data_year 2023.
+#   v0_3_umd_2024_ghgia -> new_ghg_method, usa_ghg_data_year 2024 -> 2023.
+# The IO/dollar base year stays at 2024. All other v0.3 changes remain on.
+#
+# (minus_ghg_2024_refresh) - this  = marginal effect of adopting UMD GHGIA + MECS.
+# FINAL - this                     = full GHG-overhaul effect.
+#####
+# Model base settings
+#####
+model_base_year: 2024
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2023
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+
+# GHG model: v0.2 EPA-GHGI inventory (GHG_national_Cornerstone_2023), no MECS/UMD.
+new_ghg_method: True
+
+# A matrix: CEDA's A approach as fallback, with summary A/q dollar-year price adjustment.
+scale_a_matrix_with_ceda_method_as_fallback: True
+adjust_summary_A_and_q_dollar_year: True
+
+# Inflation factors.
+update_inflation_factors: True
+
+# Shared full-model flags.
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True

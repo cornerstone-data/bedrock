@@ -1,0 +1,31 @@
+# Leave-one-out: full v0.3 with the inflation-factor update removed
+# (update_inflation_factors True -> False). All other v0.3 changes remain on.
+#####
+# Model base settings
+#####
+model_base_year: 2024
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+
+# GHG model: UMD GHGIA 2024 inventory (+ 2022 MECS attribution).
+v0_3_umd_2024_ghgia: True
+
+# A matrix: CEDA's A approach as fallback, with summary A/q dollar-year price adjustment.
+scale_a_matrix_with_ceda_method_as_fallback: True
+adjust_summary_A_and_q_dollar_year: True
+
+# Inflation factors: REMOVED for this leave-one-out.
+update_inflation_factors: False
+
+# Shared full-model flags.
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
