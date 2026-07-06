@@ -705,7 +705,7 @@ def _margin_sector_commodity_output_ratio(
     """
     ratios: dict[str, float] = {}
     for codes in margin_sector_commodities.values():
-        group_q = q.loc[codes]
+        group_q = q.loc[list(codes)]
         group_total = group_q.sum()
         ratios.update((group_q / group_total).to_dict() if group_total else {})
     return pd.Series(ratios, dtype=float)
@@ -744,7 +744,8 @@ def derive_cornerstone_A_margin() -> pd.DataFrame:
 
     margin_allocation = pd.DataFrame(0.0, index=margin_types, columns=CS_COMMODITY_LIST)
     for margin_type, codes in margin_sector_commodities.items():
-        margin_allocation.loc[margin_type, codes] = output_ratio.loc[codes]
+        code_list = list(codes)
+        margin_allocation.loc[margin_type, code_list] = output_ratio.loc[code_list]
 
     margins_by_sector = margin_coefficients @ margin_allocation
 
@@ -752,7 +753,8 @@ def derive_cornerstone_A_margin() -> pd.DataFrame:
     A_margin.index.name = 'sector'
     A_margin.columns.name = 'sector'
     for codes in margin_sector_commodities.values():
-        A_margin.loc[codes, :] = margins_by_sector[codes].T
+        code_list = list(codes)
+        A_margin.loc[code_list, :] = margins_by_sector[code_list].T
     return A_margin
 
 
