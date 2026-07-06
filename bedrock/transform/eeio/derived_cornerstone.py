@@ -26,6 +26,7 @@ Internal helpers live in sibling modules:
 from __future__ import annotations
 
 import functools
+import typing as ta
 from typing import cast
 
 import numpy as np
@@ -694,7 +695,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 
 
 def _margin_sector_commodity_output_ratio(
-    q: pd.Series[float], margin_sector_commodities: dict[str, list[str]]
+    q: pd.Series[float], margin_sector_commodities: ta.Mapping[str, ta.Sequence[str]]
 ) -> pd.Series[float]:
     """Each margin-sector commodity's share of its group's total ``q``.
 
