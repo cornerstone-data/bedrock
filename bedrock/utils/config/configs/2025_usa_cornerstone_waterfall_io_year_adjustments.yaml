@@ -1,0 +1,16 @@
+# v0.3 final-waterfall isolation config: IO-year adjustments only.
+# Isolated single change on the bare Cornerstone base (~ CEDA v0 + IO-year adj):
+# the B denominator transformation (use_E_data_year_for_x_in_B, a v0.2 change)
+# plus the CEDA A approach (scale_a_matrix_with_ceda_method_as_fallback +
+# adjust_summary_A_and_q_dollar_year, a v0.3 change). No GHG-method change and no
+# waste disaggregation.
+# Used to attribute the "IO year adjustments" bar in the v0->v0.3 BLy waterfall.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+use_E_data_year_for_x_in_B: True
+scale_a_matrix_with_ceda_method_as_fallback: True
+adjust_summary_A_and_q_dollar_year: True
