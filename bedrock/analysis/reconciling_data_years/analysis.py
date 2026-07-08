@@ -436,6 +436,10 @@ def main() -> None:
         for model, year_results in all_results.items():
             for year, ef_dict in year_results.items():
                 for variable, series in ef_dict.items():
+                    # e_c is a DataFrame (stressors x sectors); sum across
+                    # stressors so it can be indexed by sector like the rest.
+                    if isinstance(series, pd.DataFrame):
+                        series = series.sum(axis=0)
                     for sector in sectors:
                         if sector in series.index:
                             records.append(
@@ -444,11 +448,11 @@ def main() -> None:
                                     'model': model,
                                     'sector': sector,
                                     'variable': variable,
-                                    'ef': series[sector],
+                                    'value': series[sector],
                                 }
                             )
         results_df = pd.DataFrame(
-            records, columns=['year', 'model', 'sector', 'variable', 'ef']
+            records, columns=['year', 'model', 'sector', 'variable', 'value']
         )
         csv_path = RESULTS_DIR / 'efs.csv'
         results_df.to_csv(csv_path, index=False)
