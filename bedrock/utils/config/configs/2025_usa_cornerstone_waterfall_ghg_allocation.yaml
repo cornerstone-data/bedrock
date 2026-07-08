@@ -1,0 +1,12 @@
+# v0.3 final-waterfall isolation config: GHG model allocation only.
+# Isolated single change on the bare Cornerstone base (~ CEDA v0 + GHG method):
+# the v0.2 GHG allocation (new_ghg_method -> GHG_national_Cornerstone_2023), with
+# no waste disaggregation, no B/IO-year adjustment, and no v0.3 changes.
+# Used to attribute the "GHG model allocation" bar in the v0->v0.3 BLy waterfall.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+new_ghg_method: true
