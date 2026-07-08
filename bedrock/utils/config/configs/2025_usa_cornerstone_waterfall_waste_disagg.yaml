@@ -1,0 +1,12 @@
+# v0.3 final-waterfall isolation config: waste disaggregation only.
+# Isolated single change on the bare Cornerstone base (~ CEDA v0 + waste disagg):
+# implement_waste_disaggregation with no GHG-method change, no B/IO-year
+# adjustment, and no v0.3 changes.
+# Used to attribute the "Waste dis." bar in the v0->v0.3 BLy waterfall.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+implement_waste_disaggregation: True
