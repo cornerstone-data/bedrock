@@ -26,7 +26,6 @@ from bedrock.utils.validation.analysis.ef_hist_panels import (
 )
 from bedrock.utils.validation.analysis.ef_progression import (
     pct_fractions_stacked_group,
-    pct_fractions_useeio_purchaser_vs_v0,
     pct_fractions_vs_v0,
 )
 from bedrock.utils.validation.analysis.plotting import (
@@ -37,7 +36,6 @@ from bedrock.utils.validation.analysis.plotting import (
 from bedrock.utils.validation.analysis.release_v0_3_progression import ProgressionSheet
 from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
     FINAL_V03_USEEIO,
-    REF_2023_FOR_INFLATION,
     V0_V03_USEEIO_STACK_SHEETS,
 )
 
@@ -133,17 +131,17 @@ def _plot_group_grid(
 def _plot_final_useeio_overlay(out_dir: Path) -> None:
     series_by_label = {
         "FINAL v0.3": pd.Series(
-            pct_fractions_useeio_purchaser_vs_v0(FINAL_V03_USEEIO.sheet_id) * 100.0
+            pct_fractions_vs_v0(FINAL_V03_USEEIO.sheet_id, "N") * 100.0
         ),
     }
     fig, ax = plt.subplots(figsize=(11, 6.5))
     overlay_pct_diff_histogram(
         ax,
         series_by_label,
-        xlabel="EF change vs USEEIO baseline (purchaser, %)",
+        xlabel="EF change vs USEEIO baseline (producer, %)",
         title=(
             f"{EF_KIND_LABEL['N']} per-sector % diff vs pinned USEEIO — "
-            "shipped v0.3 (cumulative)"
+            "shipped v0.3 (cumulative, producer)"
         ),
     )
     fig.tight_layout()
@@ -185,37 +183,26 @@ def main(out_dir: Path, skip_overlay: bool) -> None:
     setup_mpl(font_size=13)
     out_dir.mkdir(parents=True, exist_ok=True)
     steps = V0_V03_USEEIO_STACK_SHEETS
-
-    _plot_group_grid(
-        steps,
-        group_title=(
-            "[v0→v0.3 USEEIO · stacked groups] per-sector N % diff "
-            "(purchaser / pinned USEEIO)"
-        ),
-        out_path=out_dir / "progression_v0_v03_useeio_groups_N.png",
-        bar_color=USEEIO_BAR,
-        panel_loader=_loader_stacked(
-            steps,
-            "N",
-            prefer_purchaser=True,
-            ref_2023_sheet_id=REF_2023_FOR_INFLATION,
-        ),
-    )
+    # All group endpoints target IO@2024 producer footing; no 2023→2024 inflation.
+    ref_2023_sheet_id: str | None = None
+    prefer_purchaser = False
 
     for ef_kind in ("N", "D"):
+        bar_color = USEEIO_BAR if ef_kind == "N" else CEDA_BAR
+        baseline_label = "pinned USEEIO" if ef_kind == "N" else "CEDA v0"
         _plot_group_grid(
             steps,
             group_title=(
                 f"[v0→v0.3 USEEIO · stacked groups] per-sector {ef_kind} % diff "
-                "(producer / CEDA v0)"
+                f"(producer / {baseline_label})"
             ),
             out_path=out_dir / f"progression_v0_v03_useeio_groups_{ef_kind}.png",
-            bar_color=CEDA_BAR,
+            bar_color=bar_color,
             panel_loader=_loader_stacked(
                 steps,
                 ef_kind,
-                prefer_purchaser=False,
-                ref_2023_sheet_id=REF_2023_FOR_INFLATION,
+                prefer_purchaser=prefer_purchaser,
+                ref_2023_sheet_id=ref_2023_sheet_id,
             ),
         )
 

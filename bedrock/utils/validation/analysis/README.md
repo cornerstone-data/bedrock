@@ -83,8 +83,12 @@ back, caches them locally as parquet, and renders analysis figures.
   `2025_usa_cornerstone_v0_2` in configs after dispatch). Atomic v0.3 steps
   (inflation, A/price, MECS) net-diff against that column, not stepwise.
 - `release_v0_v03_useeio_groups.py` — wholesale v0→v0.3 USEEIO group
-  endpoints (G1 schema/GHG, G2 methods, G3 data, FINAL). Consumed by combo
-  `v0_to_v03_useeio_groups` and `bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups`.
+  endpoints (G1 USEEIO-like schema/GHG, G2 methods, G3 data, FINAL). Configs:
+  `v03_waterfall_useeio_g1_schema_ghg`, `v03_waterfall_g2_methods`,
+  `v03_waterfall_g3_data`, `v03_waterfall_final` (IO@2024 producer footing).
+  Dispatch via `bedrock.analysis.v0_3.dispatch_ef_v03_waterfall`. Consumed by
+  combo `v0_to_v03_useeio_groups` and
+  `bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups`.
 
 ## Running
 

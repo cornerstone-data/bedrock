@@ -19,6 +19,7 @@ Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 | `plot_ef_release_v0_3.py` | Release progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
 | `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (3 marginal panels + FINAL cumulative overlays). |
 | `dispatch_ef_release_v0_3.py` | Dispatch v0.3 release steps (MECS through FINAL) to the EF time-series Drive folder; appends to `output/release_v0_3/ef_run_index_release_v0_3.csv`. |
+| `dispatch_ef_v03_waterfall.py` | Dispatch four `v03_waterfall_*` group endpoints (USEEIO baseline only); appends to `output/release_v0_v03_groups/ef_run_index_v03_waterfall.csv`. |
 
 ## Plot
 
@@ -32,11 +33,15 @@ Pass `--skip-progression`, `--skip-overlay`, or `--skip-bly` to omit figure grou
 `--compare-to v0.2` recomputes each v0.3 step vs FINAL v0.2 (2024 steps get
 `[+1yr infl]` on the panel title where applicable).
 
-Wholesale v0→v0.3 USEEIO groups (stacked G1→G2→G3 marginals):
+Wholesale v0→v0.3 USEEIO groups (stacked G1→G2→G3 marginals, IO@2024 producer):
 
 ```powershell
 uv run python -m bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups
 ```
+
+Dispatch group sheets with `dispatch_ef_v03_waterfall`, then paste sheet IDs from
+`ef_run_index_v03_waterfall.csv` into `release_v0_v03_useeio_groups.py` before
+combine/plot.
 
 ## Dispatch
 
@@ -44,6 +49,10 @@ uv run python -m bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups
 uv run python -m bedrock.analysis.v0_3.dispatch_ef_release_v0_3 --dry-run
 uv run python -m bedrock.analysis.v0_3.dispatch_ef_release_v0_3 `
     --only-configs 2025_usa_cornerstone_full_model_v0_3_ghgi_mecs
+
+uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --dry-run
+uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall `
+    --only-configs v03_waterfall_useeio_g1_schema_ghg
 ```
 
 ## Combine
