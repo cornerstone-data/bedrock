@@ -141,6 +141,117 @@ class TestCalculateEfDiagnostics:
         # Only significant sectors (2 in our mock)
         assert len(sig_sectors) == 2
 
+    def test_mixed_units_significant_sectors_join_deduplicates_exemption_reason(
+        self,
+    ) -> None:
+        """Mixed-units configs add exemption_reason to both D and N before join."""
+        idx = pd.Index(SECTORS + ["221110"])
+        n = len(idx)
+        D_new = pd.DataFrame({"ef": np.linspace(1.0, 4.0, n)}, index=idx)
+        N_new = pd.DataFrame({"ef": np.linspace(1.5, 6.0, n)}, index=idx)
+        D_old = OldEfSet(
+            raw=pd.DataFrame({"ef": np.linspace(0.9, 3.9, n)}, index=idx),
+            inflated=pd.DataFrame({"ef": np.linspace(0.95, 3.95, n)}, index=idx),
+        )
+        N_old = OldEfSet(
+            raw=pd.DataFrame({"ef": np.linspace(1.4, 5.9, n)}, index=idx),
+            inflated=pd.DataFrame({"ef": np.linspace(1.45, 5.85, n)}, index=idx),
+        )
+        efs = EfsForDiagnostics(D_new=D_new, N_new=N_new, D_old=D_old, N_old=N_old)
+        mock_update_sheet = MagicMock()
+        mock_Aq = MagicMock()
+        mock_Aq.Adom = pd.DataFrame(np.eye(n) * 0.05, index=idx, columns=idx)
+        mock_Aq.Aimp = pd.DataFrame(np.eye(n) * 0.02, index=idx, columns=idx)
+
+        def mock_load(name: str) -> pd.DataFrame:
+            if name == "Adom_USA":
+                return pd.DataFrame(np.eye(n) * 0.04, index=idx, columns=idx)
+            if name == "Aimp_USA":
+                return pd.DataFrame(np.eye(n) * 0.01, index=idx, columns=idx)
+            raise ValueError(f"Unexpected snapshot: {name}")
+
+        mock_significant_sectors = [{"sector": "1111A0"}, {"sector": "221110"}]
+        mock_config = MagicMock()
+        mock_config.use_cornerstone_2026_model_schema = True
+        mock_config.use_E_data_year_for_x_in_B = False
+        mock_config.diagnostics_baseline_source = "gcs_snapshot"
+        mock_config.usa_ghg_data_year = 2023
+
+        uniform_n = pd.Series({"221110": 1.0, "221121": 2.0, "221122": 3.0})
+        with (
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.get_usa_config",
+                return_value=mock_config,
+            ),
+            patch(
+                "bedrock.utils.validation.diagnostics_helpers.pull_efs_for_diagnostics",
+                return_value=efs,
+            ),
+            patch(
+                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                return_value=True,
+            ),
+            patch(
+                "bedrock.transform.eeio.derived.derive_Aq_usa",
+                return_value=mock_Aq,
+            ),
+            patch(
+                "bedrock.transform.eeio.derived.derive_B_usa_non_finetuned",
+                return_value=pd.DataFrame(np.eye(n), index=idx, columns=idx),
+            ),
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_scaled",
+                return_value=mock_Aq,
+            ),
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_B_non_finetuned",
+                return_value=pd.DataFrame(np.eye(n), index=idx, columns=idx),
+            ),
+            patch(
+                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_mixed_units",
+                return_value=mock_Aq,
+            ),
+            patch(
+                "bedrock.transform.eeio.cornerstone_disagg_pipeline.compute_mixed_unit_ef_vectors",
+            ) as mock_uniform,
+            patch(
+                "bedrock.transform.eeio.cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh",
+                return_value={"Total": 10.0},
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.load_configured_snapshot",
+                side_effect=mock_load,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.update_sheet_tab",
+                mock_update_sheet,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.SIGNIFICANT_SECTORS",
+                mock_significant_sectors,
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.align_efs_across_schemas",
+                return_value=(efs, {}),
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.get_aligned_sector_desc",
+                return_value={s: s for s in idx},
+            ),
+        ):
+            mock_uniform.return_value = MagicMock(
+                N=uniform_n,
+                c_col=0.5,
+            )
+            calculate_ef_diagnostics(sheet_id="test_sheet")
+
+        sig_tab = next(
+            c.args[2]
+            for c in mock_update_sheet.call_args_list
+            if c.args[1] == "D_and_N_significant_sectors"
+        )
+        assert list(sig_tab.columns).count("exemption_reason") == 1
+
     def test_output_contribution_has_expected_columns(self) -> None:
         tabs = self._run_ef_diagnostics()
         oc = tabs[4][2]
