@@ -22,33 +22,44 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
     sheets_in_order,
 )
 
-# TODO: replace sheet_id / sheet_title after dispatch_ef_v03_waterfall run.
 G1_SCHEMA_GHG = ProgressionSheet(
     step_label="G1: USEEIO-like A/margins + Cornerstone schema/GHG",
-    sheet_id="",
+    sheet_id="18Nz4dfrv0kvSFo3G1dGrOgM_1HLC9843o4-yrO6m-uM",
     config_name="v03_waterfall_useeio_g1_schema_ghg",
-    sheet_title="(pending v03_waterfall dispatch)",
+    sheet_title=(
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall USEEIO G1 schema/GHG] EFs diagnostics"
+    ),
 )
 
 G2_METHODS = ProgressionSheet(
     step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
-    sheet_id="",
+    sheet_id="1RPd44RBxUTtThz33EGH2ILt8o0WGWsLtJU4763run8U",
     config_name="v03_waterfall_g2_methods",
-    sheet_title="(pending v03_waterfall dispatch)",
+    sheet_title=(
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall G2 methods] EFs diagnostics"
+    ),
 )
 
 G3_DATA = ProgressionSheet(
     step_label="G3: Data update (MECS, UMD, 2024 IO/GHG)",
-    sheet_id="",
+    sheet_id="1uFL4hfOofBUeV05fQOFIophabRFrVizo_N5wSqd_2wA",
     config_name="v03_waterfall_g3_data",
-    sheet_title="(pending v03_waterfall dispatch)",
+    sheet_title=(
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall G3 data] EFs diagnostics"
+    ),
 )
 
 FINAL_V03_USEEIO = ProgressionSheet(
     step_label="FINAL v0.3 (waterfall)",
-    sheet_id="",
+    sheet_id="1SHSf6IINj6a79qjmhwJGHZR0Oo8XOaxCpv0dggsfkSU",
     config_name="v03_waterfall_final",
-    sheet_title="(pending v03_waterfall dispatch)",
+    sheet_title=(
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall FINAL v0.3] EFs diagnostics"
+    ),
 )
 
 V0_V03_USEEIO_GROUP_SHEETS: tuple[ProgressionSheet, ...] = (
