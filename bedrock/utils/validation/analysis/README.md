@@ -11,6 +11,9 @@ back, caches them locally as parquet, and renders analysis figures.
 
 - `plotting.py` — shared matplotlib primitives (percent histogram, absolute-change
   histogram, reference lines, styled text boxes).
+- `ef_hist_panels.py` — clipped per-sector % diff histogram panels and
+  ``pct_values`` for diagnostics ``N_and_diffs`` / ``D_and_diffs`` tabs
+  (release-progression grids, single-sheet renders, A-matrix bundle histograms).
 - `fetch.py` — `load_tab` / `load_tabs` read Sheet tabs via
   `bedrock.utils.io.gcp.read_sheet_tab`, coerce numerics, and cache as parquet
   under `.cache/<sheet_id>/<tab>.parquet`.
@@ -63,14 +66,25 @@ back, caches them locally as parquet, and renders analysis figures.
   `N_old_inflated`) and pin metadata. Per-config N columns prefer
   `N_new_purchaser`, then `N_new_inflated`, then `N_new`. This lets a
   USEEIO-rebuild combo's net-diff show `run.D_new − pinned_baseline`
-  instead of the default self vs self. Combos that don't opt in (e.g.
-  the v0.2 release-vs-release setup) keep their original output schema
-  unchanged.
+  instead of the default self vs self. For `totals_net_diff`, targets of
+  `pinned_useeio_baseline` use that config's `BLy_new - BLy_old (MtCO2e)`
+  from the `totals` tab (`BLy_old` is the pinned Excel baseline). Combos
+  that don't opt in (e.g. the v0.2 release-vs-release setup) keep their
+  original output schema unchanged.
 - `combinations.py` — registered diagnostics combinations (one `ComboSpec`
   per named multi-run comparison). Holds the Drive folder ID, ordered input
   Sheet titles, and per-`config_name` target mapping. The destination Sheet
   for merged output is always passed on the command line via
   `--output-sheet-id`.
+- `release_v0_3_progression.py` — v0.3 release-deck sheet registry (IDs,
+  titles, `config_name` per step). Consumed by `combinations.py` and
+  `bedrock.analysis.v0_3.plot_ef_release_v0_3`. v0.2 FINAL sheets record
+  `config_name` `2025_usa_cornerstone_full_model` (renamed to
+  `2025_usa_cornerstone_v0_2` in configs after dispatch). Atomic v0.3 steps
+  (inflation, A/price, MECS) net-diff against that column, not stepwise.
+- `release_v0_v03_useeio_groups.py` — wholesale v0→v0.3 USEEIO group
+  endpoints (G1 schema/GHG, G2 methods, G3 data, FINAL). Consumed by combo
+  `v0_to_v03_useeio_groups` and `bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups`.
 
 ## Running
 
@@ -123,3 +137,27 @@ uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
     --combo v0.2 \
     --output-sheet-id 1TOLpjg80GBeb3C8sVKGvYRL9U5HfUgKSz_IHoWHainY
 ```
+
+### v0.3 release
+
+Plot, dispatch, and sheet registry live in `bedrock/analysis/v0_3/` — see
+[`bedrock/analysis/v0_3/README.md`](../../../analysis/v0_3/README.md).
+
+Combine v0 baseline through v0.3 (CEDA) or FINAL v0.2 through v0.3
+(USEEIO) from this package:
+
+```bash
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
+    --combo v0.2_to_v0.3_ceda \
+    --output-xlsx bedrock/analysis/v0_3/output/release_v0_3/ef_diagnostics_merged_v0_2_to_v0_3_ceda.xlsx
+
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
+    --combo v0.2_to_v0.3_useeio \
+    --output-xlsx bedrock/analysis/v0_3/output/release_v0_3/ef_diagnostics_merged_v0_2_to_v0_3_useeio.xlsx
+
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
+    --combo v0_to_v03_useeio_groups \
+    --output-xlsx bedrock/analysis/v0_3/output/release_v0_v03_groups/ef_diagnostics_merged_v0_to_v03_useeio_groups_useeio.xlsx
+```
+
+Re-run with `--refresh` after sheet tabs change.

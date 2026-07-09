@@ -37,11 +37,9 @@ import logging
 import typing as ta
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.ticker import PercentFormatter
 
 from bedrock.analysis.a_matrix_time_series.compile_ef_diagnostics import (
     EF_SCATTER_COORDS_PATH,
@@ -50,6 +48,11 @@ from bedrock.analysis.a_matrix_time_series.compile_ef_diagnostics import (
 from bedrock.analysis.a_matrix_time_series.constants import (
     APPROACH_COLORS,
     PLOTS_DIR,
+)
+from bedrock.utils.validation.analysis.ef_hist_panels import (
+    EF_KIND_LABEL,
+    HIST_FONT_SCALE,
+    draw_per_sector_pct_hist_panel,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,7 +74,6 @@ APPROACH_ORDER: tuple[str, ...] = (
     "useeio_nowcast",
 )
 BASELINE_LABEL: dict[str, str] = {"ceda": "CEDA-US (v0)", "useeio": "USEEIO"}
-EF_KIND_LABEL: dict[str, str] = {"N": "total EF (N)", "D": "direct EF (D)"}
 SCENARIO_LABEL: dict[str, str] = {
     "isolate_a_matrix": "isolate A-matrix method",
     "bundle_v0_3": "A-matrix method bundled with bedrock v0.3",
@@ -84,15 +86,6 @@ SUPTITLE_FONTSIZE = 14
 STATS_FONTSIZE = 10
 LEGEND_FONTSIZE = 9
 TICK_LABEL_FONTSIZE = 10
-
-# Histograms enlarge text 2× for readability in side-by-side reports.
-HIST_FONT_SCALE = 2.0
-# Stats annotation gets an extra 2× on top of HIST_FONT_SCALE so the per-
-# panel n / median / p95 box is easy to read at a glance.
-HIST_STATS_EXTRA_SCALE = 2.0
-
-HIST_PCT_CLIP = 100.0
-HIST_BINS = 60
 
 
 def _panel_stats(panel_df: pd.DataFrame) -> dict[str, float]:
@@ -170,29 +163,17 @@ def _hist_panel(
         ax.text(0.5, 0.5, "no data", transform=ax.transAxes, ha="center", va="center")
         ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
         return
-    pct = ((df["y_approach"] - df["x_baseline"]) / df["x_baseline"].abs()).to_numpy(
-        dtype=float
-    ) * 100.0
-    finite = pct[np.isfinite(pct)]
-    clipped = np.clip(finite, -HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
-    ax.axvline(0, color="k", lw=1.0)
-    ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax.grid(True, ls=":", alpha=0.3)
-    ax.text(
-        0.04,
-        0.96,
-        f"n={len(finite)}\nmedian={np.median(finite):.1f}%\np95(|·|)={np.quantile(np.abs(finite), 0.95):.1f}%",
-        transform=ax.transAxes,
-        fontsize=STATS_FONTSIZE * font_scale * HIST_STATS_EXTRA_SCALE,
-        va="top",
-        ha="left",
-        bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
-        ),
+    pct_fraction = (
+        (df["y_approach"] - df["x_baseline"]) / df["x_baseline"].abs()
+    ).to_numpy(dtype=float)
+    draw_per_sector_pct_hist_panel(
+        ax,
+        pct_fraction,
+        title=approach,
+        color=color,
+        font_scale=font_scale,
+        ylabel="",
     )
-    ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
 
 
 def _latest_year_in(sub: pd.DataFrame) -> str:
