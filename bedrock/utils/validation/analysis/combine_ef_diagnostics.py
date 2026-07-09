@@ -49,7 +49,9 @@ Output tabs (identical schema to the legacy xlsx flow):
   5) ``totals_net_diff`` -- net differences against the target mapping,
      on the BLy column appropriate to the source tab
      (``BLy (MtCO2e)`` for release-vs-snapshot, ``BLy_new (MtCO2e)``
-     for USEEIO mode).
+     for USEEIO mode). When the target is ``pinned_useeio_baseline``, the
+     row uses ``BLy_new - BLy_old (MtCO2e)`` from that config's totals row
+     (``BLy_old`` is the pinned USEEIO baseline in USEEIO mode).
   6) ``config_summary_merged`` -- all config fields across runs, with a
      first row labelled ``filename`` holding each input Sheet's title.
      When the combo opts into ``pinned_useeio_baseline`` (USEEIO mode),
@@ -705,19 +707,38 @@ def merge_sheets(
                 )
 
             target_cfg = target_mapping[cfg_name]
-            # ``pinned_useeio_baseline`` is allowed in target_mapping for D/N
-            # tabs but isn't a config column in the totals data. For USEEIO
-            # combos this is fine: the same diff is already visible directly
-            # in the totals row's ``BLy_new - BLy_old (MtCO2e)`` column
-            # (since BLy_old IS the pinned baseline in USEEIO mode).
             if target_cfg == PINNED_USEEIO_BASELINE_COLUMN:
-                logger.info(
-                    'Skipping totals_net_diff for %r (targets %r); see the '
-                    'BLy_new - BLy_old (MtCO2e) column of the totals row for '
-                    'the same comparison.',
-                    cfg_name,
-                    target_cfg,
+                if not any_useeio:
+                    logger.info(
+                        'Skipping totals_net_diff for %r (targets %r); '
+                        'pinned USEEIO baseline totals apply only in USEEIO mode.',
+                        cfg_name,
+                        target_cfg,
+                    )
+                    continue
+                src = totals_merged[totals_merged['config_name'] == cfg_name].copy()
+                if src.empty:
+                    raise KeyError(
+                        f'Config {cfg_name!r} was not found in totals_merged '
+                        'config_name values.'
+                    )
+                bly_diff_col = 'BLy_new - BLy_old (MtCO2e)'
+                if bly_diff_col not in src.columns:
+                    raise KeyError(
+                        f'Expected column {bly_diff_col!r} in totals data for '
+                        f'{cfg_name!r} (vs {target_cfg!r}). Got: {list(src.columns)}'
+                    )
+                out = pd.DataFrame(
+                    {
+                        'config_name': cfg_name,
+                        'target_config_name': target_cfg,
+                        'row_order': src['row_order'],
+                        totals_value_col: pd.to_numeric(
+                            src[bly_diff_col], errors='coerce'
+                        ),
+                    }
                 )
+                totals_net_frames.append(out)
                 continue
 
             src = totals_merged[totals_merged['config_name'] == cfg_name].copy()

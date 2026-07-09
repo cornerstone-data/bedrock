@@ -27,6 +27,10 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
     sheets_in_order,
     useeio_stepwise_target_mapping,
 )
+from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
+    V0_V03_USEEIO_GROUP_SHEETS,
+    useeio_group_stack_target_mapping,
+)
 
 
 @dataclass(frozen=True)
@@ -148,5 +152,12 @@ COMBINATIONS: dict[str, ComboSpec] = {
         names_in_order=[],
         target_mapping=useeio_stepwise_target_mapping(USEEIO_V02_TO_V03_SHEETS),
         sheets_in_order=sheets_in_order(USEEIO_V02_TO_V03_SHEETS),
+    ),
+    # Wholesale v0→v0.3 USEEIO: three stacked group endpoints + FINAL.
+    'v0_to_v03_useeio_groups': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=useeio_group_stack_target_mapping(V0_V03_USEEIO_GROUP_SHEETS),
+        sheets_in_order=sheets_in_order(V0_V03_USEEIO_GROUP_SHEETS),
     ),
 }

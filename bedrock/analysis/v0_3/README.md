@@ -5,10 +5,11 @@ progression. They read or dispatch Google Sheets produced by
 `bedrock.utils.validation.generate_diagnostics` and reuse shared loaders in
 `bedrock.utils.validation.analysis` (`fetch`, `plotting`, `bly_plots`, etc.).
 
-The sheet registry (`release_v0_3_progression.py`) lives in
-`bedrock.utils.validation.analysis` so combine combos stay self-contained.
+The sheet registries (`release_v0_3_progression.py`,
+`release_v0_v03_useeio_groups.py`) live in `bedrock.utils.validation.analysis`
+so combine combos stay self-contained.
 
-Plot, dispatch, and merged workbooks all land in `output/release_v0_3/`
+Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 (gitignored).
 
 ## Scripts
@@ -16,6 +17,7 @@ Plot, dispatch, and merged workbooks all land in `output/release_v0_3/`
 | Script | Purpose |
 |--------|---------|
 | `plot_ef_release_v0_3.py` | Release progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
+| `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (3 marginal panels + FINAL cumulative overlays). |
 | `dispatch_ef_release_v0_3.py` | Dispatch v0.3 release steps (MECS through FINAL) to the EF time-series Drive folder; appends to `output/release_v0_3/ef_run_index_release_v0_3.csv`. |
 
 ## Plot
@@ -30,6 +32,12 @@ Pass `--skip-progression`, `--skip-overlay`, or `--skip-bly` to omit figure grou
 `--compare-to v0.2` recomputes each v0.3 step vs FINAL v0.2 (2024 steps get
 `[+1yr infl]` on the panel title where applicable).
 
+Wholesale v0→v0.3 USEEIO groups (stacked G1→G2→G3 marginals):
+
+```powershell
+uv run python -m bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups
+```
+
 ## Dispatch
 
 ```powershell
@@ -41,8 +49,9 @@ uv run python -m bedrock.analysis.v0_3.dispatch_ef_release_v0_3 `
 ## Combine
 
 Merged workbooks use combos in `bedrock.utils.validation.analysis.combinations`
-(`v0.2_to_v0.3_ceda`, `v0.2_to_v0.3_useeio`), which read sheet IDs from
-`release_v0_3_progression.py` in that package:
+(`v0.2_to_v0.3_ceda`, `v0.2_to_v0.3_useeio`, `v0_to_v03_useeio_groups`). Example
+filenames end with the baseline tag (`_ceda`, `_useeio`) so both v0.2→v0.3
+workbooks can sit in one folder:
 
 ```powershell
 uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
@@ -52,6 +61,10 @@ uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
 uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
     --combo v0.2_to_v0.3_useeio `
     --output-xlsx bedrock/analysis/v0_3/output/release_v0_3/ef_diagnostics_merged_v0_2_to_v0_3_useeio.xlsx
+
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
+    --combo v0_to_v03_useeio_groups `
+    --output-xlsx bedrock/analysis/v0_3/output/release_v0_v03_groups/ef_diagnostics_merged_v0_to_v03_useeio_groups_useeio.xlsx
 ```
 
 Re-run with `--refresh` after sheet tab content changes.
