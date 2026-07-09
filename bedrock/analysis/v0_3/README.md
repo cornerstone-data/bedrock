@@ -17,7 +17,7 @@ Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 | Script | Purpose |
 |--------|---------|
 | `plot_ef_release_v0_3.py` | Release progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
-| `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (3 marginal panels + FINAL cumulative overlays). |
+| `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (3 marginal panels + FINAL vs pinned USEEIO overlays, producer). |
 | `dispatch_ef_release_v0_3.py` | Dispatch v0.3 release steps (MECS through FINAL) to the EF time-series Drive folder; appends to `output/release_v0_3/ef_run_index_release_v0_3.csv`. |
 | `dispatch_ef_v03_waterfall.py` | Dispatch four `v03_waterfall_*` group endpoints (USEEIO baseline only) to the v03 waterfall Drive folder; appends to `output/release_v0_v03_groups/ef_run_index_v03_waterfall.csv`. |
 

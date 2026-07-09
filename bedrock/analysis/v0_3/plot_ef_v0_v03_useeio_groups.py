@@ -27,7 +27,6 @@ from bedrock.utils.validation.analysis.ef_hist_panels import (
 from bedrock.utils.validation.analysis.ef_progression import (
     pct_fractions_producer_vs_old,
     pct_fractions_stacked_group,
-    pct_fractions_vs_v0,
 )
 from bedrock.utils.validation.analysis.plotting import (
     overlay_pct_diff_histogram,
@@ -129,47 +128,28 @@ def _plot_group_grid(
     print(f"Wrote: {out_path}")
 
 
-def _plot_final_useeio_overlay(out_dir: Path) -> None:
-    series_by_label = {
-        "FINAL v0.3": pd.Series(
-            pct_fractions_producer_vs_old(FINAL_V03_USEEIO.sheet_id, "N") * 100.0
-        ),
-    }
-    fig, ax = plt.subplots(figsize=(11, 6.5))
-    overlay_pct_diff_histogram(
-        ax,
-        series_by_label,
-        xlabel="EF change vs USEEIO baseline (producer, %)",
-        title=(
-            f"{EF_KIND_LABEL['N']} per-sector % diff vs pinned USEEIO — "
-            "shipped v0.3 (cumulative, producer)"
-        ),
-    )
-    fig.tight_layout()
-    out = out_dir / "overlay_final_useeio_N_cumulative.png"
-    save_and_close(fig, out)
-    print(f"Wrote: {out}")
-
-
-def _plot_final_ceda_overlay(out_dir: Path) -> None:
+def _plot_final_useeio_overlays(out_dir: Path) -> None:
+    """Cumulative FINAL vs pinned USEEIO (producer) on the USEEIO-baseline sheet."""
     for ef_kind in ("N", "D"):
-        if ef_kind == "N":
-            fractions = pct_fractions_producer_vs_old(FINAL_V03_USEEIO.sheet_id, "N")
-        else:
-            fractions = pct_fractions_vs_v0(FINAL_V03_USEEIO.sheet_id, ef_kind)
         series_by_label = {
-            "FINAL v0.3": pd.Series(fractions * 100.0),
+            "FINAL v0.3": pd.Series(
+                pct_fractions_producer_vs_old(FINAL_V03_USEEIO.sheet_id, ef_kind)
+                * 100.0
+            ),
         }
         fig, ax = plt.subplots(figsize=(11, 6.5))
         kind_label = EF_KIND_LABEL[ef_kind]
         overlay_pct_diff_histogram(
             ax,
             series_by_label,
-            xlabel="EF change vs CEDA v0 baseline (%)",
-            title=f"{kind_label} per-sector % diff vs CEDA v0 — shipped v0.3 (cumulative)",
+            xlabel="EF change vs pinned USEEIO baseline (producer, %)",
+            title=(
+                f"{kind_label} per-sector % diff vs pinned USEEIO — "
+                "shipped v0.3 (cumulative, producer)"
+            ),
         )
         fig.tight_layout()
-        out = out_dir / f"overlay_final_ceda_{ef_kind}_cumulative.png"
+        out = out_dir / f"overlay_final_useeio_{ef_kind}_cumulative.png"
         save_and_close(fig, out)
         print(f"Wrote: {out}")
 
@@ -192,12 +172,11 @@ def main(out_dir: Path, skip_overlay: bool) -> None:
 
     for ef_kind in ("N", "D"):
         bar_color = USEEIO_BAR if ef_kind == "N" else CEDA_BAR
-        baseline_label = "pinned USEEIO" if ef_kind == "N" else "CEDA v0"
         _plot_group_grid(
             steps,
             group_title=(
                 f"[v0→v0.3 USEEIO · stacked groups] per-sector {ef_kind} % diff "
-                f"(producer / {baseline_label})"
+                "(producer; G1 vs pinned USEEIO, G2+ vs prior step)"
             ),
             out_path=out_dir / f"progression_v0_v03_useeio_groups_{ef_kind}.png",
             bar_color=bar_color,
@@ -210,8 +189,7 @@ def main(out_dir: Path, skip_overlay: bool) -> None:
         )
 
     if not skip_overlay:
-        _plot_final_useeio_overlay(out_dir)
-        _plot_final_ceda_overlay(out_dir)
+        _plot_final_useeio_overlays(out_dir)
 
 
 if __name__ == "__main__":
