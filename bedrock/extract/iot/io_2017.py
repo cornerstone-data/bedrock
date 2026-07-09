@@ -8,6 +8,7 @@ from typing_extensions import deprecated
 
 from bedrock.extract.iot.constants import (
     GCS_USA_MAKE_USE_DIR,
+    GCS_USA_PCE_BRIDGE_DIR,
     GCS_USA_SUP_DIR,
 )
 from bedrock.utils.config.usa_config import get_usa_config
@@ -61,6 +62,7 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
 
 LOCAL_USA_MAKE_USE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_MAKE_USE_DIR)
 LOCAL_USA_SUP_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_SUP_DIR)
+LOCAL_USA_PCE_BRIDGE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_PCE_BRIDGE_DIR)
 
 
 # ----- Documentation ----- #
@@ -74,6 +76,9 @@ LOCAL_USA_SUP_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_SUP_DIR)
 #     > Requirements Tables
 #       > After Redefinitions
 #         > Import Matrices/After Redefinitions
+#
+# PCE Bridge (detail, 403 commodities) is downloaded from:
+# https://apps.bea.gov/industry/release/xlsx/PCEBridge_Detail.xlsx
 #
 # ``load_2017_V_usa``, ``load_2017_Utot_usa``, and ``load_2017_Uimp_usa`` branch on
 # ``USAConfig.iot_before_or_after_redefinition`` and are not cached. Pipelines that
@@ -359,6 +364,70 @@ def load_2017_margins_before_redef_usa() -> pd.DataFrame:
     return _load_2017_margins_from_file(
         USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING["Margins"]
     )
+
+
+_PCE_BRIDGE_DETAIL_COLUMNS = [
+    "NIPA Line",
+    "PCE Category",
+    "Commodity Code",
+    "Commodity Description",
+    "Producers' Value",
+    "Transportation Costs",
+    "Wholesale",
+    "Retail",
+    "Purchasers' Value",
+    "Year",
+]
+_PCE_BRIDGE_DETAIL_VALUE_COLUMNS = [
+    "Producers' Value",
+    "Transportation Costs",
+    "Wholesale",
+    "Retail",
+    "Purchasers' Value",
+]
+
+
+def _load_pce_bridge_detail_excel(pth: str) -> pd.DataFrame:
+    """Read the PCE Bridge Detail Excel file, suppressing the openpyxl header/footer warning."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Cannot parse header or footer so it will be ignored",
+            category=UserWarning,
+        )
+        return pd.read_excel(
+            pth,
+            sheet_name="2017",
+            skiprows=5,
+            header=None,
+            names=_PCE_BRIDGE_DETAIL_COLUMNS,
+            dtype={"Commodity Code": str},
+        )
+
+
+@functools.cache
+def load_2017_pce_bridge_detail_usa() -> pd.DataFrame:
+    """
+    PCE Bridge table (detail, 403 commodities), long format: one row per
+    (NIPA PCE line, commodity) pair, after redefinition, in producer price.
+    Columns: NIPA Line, PCE Category, Commodity Code, Commodity Description,
+    Producers' Value, Transportation Costs, Wholesale, Retail, Purchasers' Value, Year.
+    unit is USD, original unit is million USD.
+    """
+    df = load_from_gcs(
+        name="PCEBridge_Detail.xlsx",
+        sub_bucket=GCS_USA_PCE_BRIDGE_DIR,
+        local_dir=LOCAL_USA_PCE_BRIDGE_DIR,
+        loader=_load_pce_bridge_detail_excel,
+    )
+    assert set(df["Commodity Code"]).issubset(USA_2017_COMMODITY_CODES), (
+        "PCE Bridge Detail has commodity codes outside the 2017 taxonomy: "
+        f"{set(df['Commodity Code']) - set(USA_2017_COMMODITY_CODES)}"
+    )
+    df[_PCE_BRIDGE_DETAIL_VALUE_COLUMNS] = (
+        df[_PCE_BRIDGE_DETAIL_VALUE_COLUMNS].astype(float) * MILLION_CURRENCY_TO_CURRENCY
+    )
+    return df
 
 
 def load_2017_Ytot_usa() -> pd.DataFrame:
