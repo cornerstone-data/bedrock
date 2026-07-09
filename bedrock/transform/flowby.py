@@ -1674,16 +1674,9 @@ class _FlowBy(pd.DataFrame):
 
         fbs = self.copy()
         if not target_year:
-            try:
-                match = re.search(r"\d{4}", fbs.full_name)
-                assert match is not None
-                target_year = int(match.group())
-            except (AttributeError, AssertionError):
-                target_year = self.config['year']
-                log.info(
-                    f"Method year cannot be determined from method name. Using year "
-                    f"{target_year} defined in model config to assign TemporalCorrelation."
-                )
+            match = re.search(r"\d{4}", fbs.full_name)
+            assert match is not None
+            target_year = int(match.group())
         if 'TemporalCorrelation' not in fbs:
             fbs['TemporalCorrelation'] = 1
         fbs = esupy.dqi.adjust_dqi_scores(
