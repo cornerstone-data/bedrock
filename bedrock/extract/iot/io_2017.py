@@ -372,7 +372,7 @@ _PCE_BRIDGE_DETAIL_COLUMNS = [
     "Commodity Code",
     "Commodity Description",
     "Producers' Value",
-    "Transportation Costs",
+    "Transportation",
     "Wholesale",
     "Retail",
     "Purchasers' Value",
@@ -380,7 +380,7 @@ _PCE_BRIDGE_DETAIL_COLUMNS = [
 ]
 _PCE_BRIDGE_DETAIL_VALUE_COLUMNS = [
     "Producers' Value",
-    "Transportation Costs",
+    "Transportation",
     "Wholesale",
     "Retail",
     "Purchasers' Value",
@@ -406,13 +406,13 @@ def _load_pce_bridge_detail_excel(pth: str) -> pd.DataFrame:
 
 
 @functools.cache
-def load_2017_pce_bridge_detail_usa() -> pd.DataFrame:
+def _load_pce_bridge_detail_raw_usa() -> pd.DataFrame:
     """
-    PCE Bridge table (detail, 403 commodities), long format: one row per
-    (NIPA PCE line, commodity) pair, after redefinition, in producer price.
-    Columns: NIPA Line, PCE Category, Commodity Code, Commodity Description,
-    Producers' Value, Transportation Costs, Wholesale, Retail, Purchasers' Value, Year.
-    unit is USD, original unit is million USD.
+    PCE Bridge table (detail, 403 commodities), long format, as published: one
+    row per (NIPA PCE line, commodity) pair, after redefinition, in producer
+    price. Columns: NIPA Line, PCE Category, Commodity Code, Commodity
+    Description, Producers' Value, Transportation Costs, Wholesale, Retail,
+    Purchasers' Value, Year. unit is million USD, matching the source file.
     """
     df = load_from_gcs(
         name="PCEBridge_Detail.xlsx",
@@ -424,8 +424,18 @@ def load_2017_pce_bridge_detail_usa() -> pd.DataFrame:
         "PCE Bridge Detail has commodity codes outside the 2017 taxonomy: "
         f"{set(df['Commodity Code']) - set(USA_2017_COMMODITY_CODES)}"
     )
+    return df
+
+
+def load_2017_pce_bridge_detail_usa() -> pd.DataFrame:
+    """
+    PCE Bridge table (detail, 403 commodities); see `_load_pce_bridge_detail_raw_usa`
+    for column layout. unit is USD, original unit is million USD.
+    """
+    df = _load_pce_bridge_detail_raw_usa().copy()
     df[_PCE_BRIDGE_DETAIL_VALUE_COLUMNS] = (
-        df[_PCE_BRIDGE_DETAIL_VALUE_COLUMNS].astype(float) * MILLION_CURRENCY_TO_CURRENCY
+        df[_PCE_BRIDGE_DETAIL_VALUE_COLUMNS].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
     )
     return df
 

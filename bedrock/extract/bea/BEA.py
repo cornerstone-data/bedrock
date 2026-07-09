@@ -20,8 +20,10 @@ from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.extract.iot.gdp import load_go_detail
 from bedrock.extract.iot.io_2017 import (
+    _PCE_BRIDGE_DETAIL_VALUE_COLUMNS,
     _load_2017_detail_make_use_usa,
     _load_2017_detail_supply_use_usa,
+    _load_pce_bridge_detail_raw_usa,
     _load_usa_summary_sut,
 )
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
@@ -120,6 +122,23 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
             var_name="ActivityConsumedBy",
             value_name="FlowAmount",
         )
+    elif "PCEBridge" in source:
+        df = _load_pce_bridge_detail_raw_usa()
+        df = df.rename(
+            columns={
+                'PCE Category': 'ActivityProducedBy',
+                'Commodity Code': 'ActivityConsumedBy',
+            }
+        )
+        # melt the 5 value-chain columns (Producers' Value -> Purchasers'
+        # Value) into separate rows; value type is folded into FlowName
+        # below since FBA has one FlowAmount column per row.
+        df = df.melt(
+            id_vars=['ActivityProducedBy', 'ActivityConsumedBy'],
+            value_vars=_PCE_BRIDGE_DETAIL_VALUE_COLUMNS,
+            var_name='FlowName',
+            value_name='FlowAmount',
+        )
     elif "GrossOutput" in source:
         df = map_detail_table(load_go_detail())
         df = df.iloc[:, 1:]  # drop first column
@@ -141,13 +160,14 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
     # columns relevant to all BEA data
     df["SourceName"] = source
     df['Year'] = str(year)
-    df['FlowName'] = f"USD{str(year)}"
+    if 'FlowName' not in df.columns:
+        df['FlowName'] = f"USD{str(year)}"
     df["Class"] = "Money"
     df["FlowType"] = "TECHNOSPHERE_FLOW"
     df["Location"] = US_FIPS
     df = assign_fips_location_system(df, year)
     df['FlowAmount'] = df['FlowAmount']
-    df["Unit"] = "Million USD"
+    df["Unit"] = f"Million USD {year}" if "PCEBridge" in source else "Million USD"
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 5  # tmp
     df['Description'] = (
