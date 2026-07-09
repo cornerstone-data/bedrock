@@ -11,6 +11,9 @@ back, caches them locally as parquet, and renders analysis figures.
 
 - `plotting.py` — shared matplotlib primitives (percent histogram, absolute-change
   histogram, reference lines, styled text boxes).
+- `ef_hist_panels.py` — clipped per-sector % diff histogram panels and
+  ``pct_values`` for diagnostics ``N_and_diffs`` / ``D_and_diffs`` tabs
+  (release-progression grids, single-sheet renders, A-matrix bundle histograms).
 - `fetch.py` — `load_tab` / `load_tabs` read Sheet tabs via
   `bedrock.utils.io.gcp.read_sheet_tab`, coerce numerics, and cache as parquet
   under `.cache/<sheet_id>/<tab>.parquet`.

@@ -7,11 +7,11 @@ import logging
 import numpy as np
 import pandas as pd
 
-from bedrock.analysis.a_matrix_time_series.plot_v0_3_n_pct_hist import _pct_values
 from bedrock.utils.validation.analysis.diagnostics_plots import (
     _drop_old_only,
     _normalize_schema,
 )
+from bedrock.utils.validation.analysis.ef_hist_panels import pct_values
 from bedrock.utils.validation.analysis.fetch import load_tab
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def _tab_frame(sheet_id: str, ef_kind: str) -> pd.DataFrame:
 
 def pct_fractions_vs_v0(sheet_id: str, ef_kind: str) -> np.ndarray:
     """In-sheet producer % diff vs CEDA v0 (``N_perc_diff`` / ``D_perc_diff``)."""
-    return _pct_values(_tab_frame(sheet_id, ef_kind), ef_kind)
+    return pct_values(_tab_frame(sheet_id, ef_kind), ef_kind)
 
 
 def pct_fractions_useeio_purchaser_vs_v0(sheet_id: str) -> np.ndarray:
@@ -132,9 +132,7 @@ def pct_fractions_vs_baseline_sheet(
         and not _skip_inflation(config_name)
         and ref_2023_sheet_id is not None
     ):
-        ratio = _inflation_ratio_2023_to_2024(
-            step_sheet_id, ref_2023_sheet_id, ef_kind
-        )
+        ratio = _inflation_ratio_2023_to_2024(step_sheet_id, ref_2023_sheet_id, ef_kind)
         merged = merged.set_index("sector")
         merged["_base"] = merged["_base"] * ratio.reindex(merged.index)
         merged = merged.reset_index()

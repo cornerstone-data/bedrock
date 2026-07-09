@@ -26,11 +26,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics import (
+from bedrock.utils.validation.analysis.bly_plots import (
+    TAB_BLY,
+    build_sector_stack_frame,
+)
+from bedrock.utils.validation.analysis.diagnostics_plots import bly_figsize
+from bedrock.utils.validation.analysis.ef_hist_panels import (
     EF_KIND_LABEL,
     draw_per_sector_pct_hist_panel,
 )
-from bedrock.utils.validation.analysis.bly_plots import TAB_BLY, build_sector_stack_frame
 from bedrock.utils.validation.analysis.ef_progression import (
     pct_fractions_useeio_purchaser_vs_v0,
     pct_fractions_vs_baseline_sheet,
@@ -44,13 +48,12 @@ from bedrock.utils.validation.analysis.plotting import (
     save_and_close,
     setup_mpl,
 )
-from bedrock.utils.validation.analysis.diagnostics_plots import bly_figsize
 from bedrock.utils.validation.analysis.release_v0_3_progression import (
-    ProgressionSheet,
     V02_FINAL_CEDA,
     V02_FINAL_USEEIO,
     V03_CEDA_STEPS,
     V03_USEEIO_STEPS,
+    ProgressionSheet,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,7 +152,9 @@ def _plot_progression_grid(
     for i, step in enumerate(steps):
         ax = flat[i]
         loaded = panel_loader(step.sheet_id)
-        title = _panel_title(step.step_label, inflation_applied=loaded.inflation_applied)
+        title = _panel_title(
+            step.step_label, inflation_applied=loaded.inflation_applied
+        )
         draw_per_sector_pct_hist_panel(
             ax,
             loaded.fractions,
@@ -291,8 +296,16 @@ def _plot_bly_pair(
     bly_max_sectors: int,
 ) -> None:
     runs = (
-        ("v0.2", FINAL_V02_CEDA, "[GROUP: v0.2 FINAL vs CEDA v0] BLy net change by sector"),
-        ("v0.3", FINAL_V03_CEDA, "[GROUP: v0.3 FINAL vs CEDA v0] BLy net change by sector"),
+        (
+            "v0.2",
+            FINAL_V02_CEDA,
+            "[GROUP: v0.2 FINAL vs CEDA v0] BLy net change by sector",
+        ),
+        (
+            "v0.3",
+            FINAL_V03_CEDA,
+            "[GROUP: v0.3 FINAL vs CEDA v0] BLy net change by sector",
+        ),
     )
     fig, axes = plt.subplots(1, 2, figsize=(2 * 7.5, bly_figsize(bly_max_sectors)[1]))
     for ax, (version, sheet_id, title) in zip(axes, runs, strict=True):
