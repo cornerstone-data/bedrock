@@ -25,6 +25,7 @@ from bedrock.utils.validation.analysis.ef_hist_panels import (
     draw_per_sector_pct_hist_panel,
 )
 from bedrock.utils.validation.analysis.ef_progression import (
+    pct_fractions_producer_vs_old,
     pct_fractions_stacked_group,
     pct_fractions_vs_v0,
 )
@@ -131,7 +132,7 @@ def _plot_group_grid(
 def _plot_final_useeio_overlay(out_dir: Path) -> None:
     series_by_label = {
         "FINAL v0.3": pd.Series(
-            pct_fractions_vs_v0(FINAL_V03_USEEIO.sheet_id, "N") * 100.0
+            pct_fractions_producer_vs_old(FINAL_V03_USEEIO.sheet_id, "N") * 100.0
         ),
     }
     fig, ax = plt.subplots(figsize=(11, 6.5))
@@ -152,10 +153,12 @@ def _plot_final_useeio_overlay(out_dir: Path) -> None:
 
 def _plot_final_ceda_overlay(out_dir: Path) -> None:
     for ef_kind in ("N", "D"):
+        if ef_kind == "N":
+            fractions = pct_fractions_producer_vs_old(FINAL_V03_USEEIO.sheet_id, "N")
+        else:
+            fractions = pct_fractions_vs_v0(FINAL_V03_USEEIO.sheet_id, ef_kind)
         series_by_label = {
-            "FINAL v0.3": pd.Series(
-                pct_fractions_vs_v0(FINAL_V03_USEEIO.sheet_id, ef_kind) * 100.0
-            ),
+            "FINAL v0.3": pd.Series(fractions * 100.0),
         }
         fig, ax = plt.subplots(figsize=(11, 6.5))
         kind_label = EF_KIND_LABEL[ef_kind]

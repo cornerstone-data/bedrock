@@ -43,8 +43,33 @@ def _tab_frame(sheet_id: str, ef_kind: str) -> pd.DataFrame:
 
 
 def pct_fractions_vs_v0(sheet_id: str, ef_kind: str) -> np.ndarray:
-    """In-sheet producer % diff vs CEDA v0 (``N_perc_diff`` / ``D_perc_diff``)."""
+    """In-sheet % diff from ``{kind}_perc_diff`` (or absolute columns as fallback).
+
+    On USEEIO-baseline sheets with purchaser columns, ``N_perc_diff`` compares
+    purchaser price, not producer. Use :func:`pct_fractions_producer_vs_old`
+    when the run targets producer footing.
+    """
     return pct_values(_tab_frame(sheet_id, ef_kind), ef_kind)
+
+
+def pct_fractions_producer_vs_old(sheet_id: str, ef_kind: str) -> np.ndarray:
+    """In-sheet producer % diff: ``{kind}_new[_inflated]`` vs ``{kind}_old_inflated``.
+
+    Ignores ``{kind}_perc_diff``, which on USEEIO-baseline sheets may reflect
+    purchaser price when ``N_new_purchaser`` is emitted.
+    """
+    df = _tab_frame(sheet_id, ef_kind)
+    inflated_col = f"{ef_kind}_new_inflated"
+    new_col = f"{ef_kind}_new"
+    old_col = f"{ef_kind}_old_inflated"
+    if inflated_col in df.columns and pd.to_numeric(df[inflated_col], errors="coerce").notna().any():
+        new = pd.to_numeric(df[inflated_col], errors="coerce")
+    else:
+        new = pd.to_numeric(df[new_col], errors="coerce")
+    old = pd.to_numeric(df[old_col], errors="coerce")
+    pdiff = (new - old) / old.abs()
+    arr = pdiff.dropna().to_numpy(dtype=float)
+    return arr[np.isfinite(arr)]
 
 
 def pct_fractions_useeio_purchaser_vs_v0(sheet_id: str) -> np.ndarray:
@@ -166,7 +191,7 @@ def pct_fractions_stacked_group(
     if prior_sheet_id is None:
         if prefer_purchaser and ef_kind == "N":
             return pct_fractions_useeio_purchaser_vs_v0(step_sheet_id), False
-        return pct_fractions_vs_v0(step_sheet_id, ef_kind), False
+        return pct_fractions_producer_vs_old(step_sheet_id, ef_kind), False
     baseline_year = _model_base_year(prior_sheet_id)
     return pct_fractions_vs_baseline_sheet(
         step_sheet_id,
