@@ -556,8 +556,7 @@ class _FlowBy(pd.DataFrame):
                     self = self.query(f'{field} not in @values')
 
         # assign column values as defined in FBS method yaml
-        assign_fields = (assign_fields or
-                            self.config.get('assign_fields', {}))
+        assign_fields = assign_fields or self.config.get('assign_fields', {})
         for field, values in assign_fields.items():
             self = self.assign(**{f"{field}": values})
 
