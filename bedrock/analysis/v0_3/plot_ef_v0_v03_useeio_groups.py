@@ -47,6 +47,13 @@ USEEIO_BAR = "#ff7f0e"
 CEDA_BAR = "#1f77b4"
 PANEL_FONT_SCALE = 0.9
 
+# Short panel headers — full step labels live in the registry for combine/docs.
+_STACK_PANEL_TITLES = (
+    "GHG reconciliation",
+    "IO year adjustments",
+    "US data update",
+)
+
 
 @dataclass(frozen=True)
 class PanelLoad:
@@ -108,7 +115,8 @@ def _plot_group_grid(
         ax = flat[i]
         loaded = panel_loader(i)
         title = _panel_title(
-            step.step_label, inflation_applied=loaded.inflation_applied
+            _STACK_PANEL_TITLES[i],
+            inflation_applied=loaded.inflation_applied,
         )
         draw_per_sector_pct_hist_panel(
             ax,
@@ -123,7 +131,7 @@ def _plot_group_grid(
     for ax in flat[n:]:
         ax.axis("off")
     fig.suptitle(group_title, fontsize=14, y=1.02)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
     save_and_close(fig, out_path)
     print(f"Wrote: {out_path}")
 
@@ -176,7 +184,7 @@ def main(out_dir: Path, skip_overlay: bool) -> None:
             steps,
             group_title=(
                 f"[v0→v0.3 USEEIO · stacked groups] per-sector {ef_kind} % diff "
-                "(producer; G1 vs pinned USEEIO, G2+ vs prior step)"
+                "(producer, sequential comparisons)"
             ),
             out_path=out_dir / f"progression_v0_v03_useeio_groups_{ef_kind}.png",
             bar_color=bar_color,
