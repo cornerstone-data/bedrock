@@ -54,7 +54,9 @@ class ReleaseCell:
 
 
 RELEASE_STEPS: tuple[ReleaseCell, ...] = (
-    ReleaseCell("2025_usa_cornerstone_full_model_v0_3_ghgi_mecs", "MECS adjustment", 2023),
+    ReleaseCell(
+        "2025_usa_cornerstone_full_model_v0_3_ghgi_mecs", "MECS adjustment", 2023
+    ),
     ReleaseCell(
         "2025_usa_cornerstone_full_model_v0_3_umd_2023_ghgia",
         "Switch to 2023 UMD data",
@@ -212,7 +214,9 @@ def main() -> None:
     )
     args = parser.parse_args()
     only = tuple(s.strip() for s in args.only_configs.split(",") if s.strip()) or None
-    baselines = tuple(s.strip() for s in args.only_baselines.split(",") if s.strip()) or None
+    baselines = (
+        tuple(s.strip() for s in args.only_baselines.split(",") if s.strip()) or None
+    )
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     dispatch_release(
         git_ref=args.git_ref,
