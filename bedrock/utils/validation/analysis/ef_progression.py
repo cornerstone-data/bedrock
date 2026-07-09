@@ -50,9 +50,15 @@ def pct_fractions_vs_v0(sheet_id: str, ef_kind: str) -> np.ndarray:
 def pct_fractions_useeio_purchaser_vs_v0(sheet_id: str) -> np.ndarray:
     """Purchaser-price N % diff vs pinned USEEIO on a USEEIO-baseline sheet."""
     df = _tab_frame(sheet_id, "N")
-    num = pd.to_numeric(df["N_new_purchaser"], errors="coerce")
-    den = pd.to_numeric(df["N_old_purchaser"], errors="coerce")
-    return ((num - den) / den.abs()).dropna().to_numpy(dtype=float)
+    if "N_new_purchaser" in df.columns and df["N_new_purchaser"].notna().any():
+        num = pd.to_numeric(df["N_new_purchaser"], errors="coerce")
+        den = pd.to_numeric(df["N_old_purchaser"], errors="coerce")
+        return ((num - den) / den.abs()).dropna().to_numpy(dtype=float)
+    logger.warning(
+        "Sheet %s has no usable N_new_purchaser; falling back to producer N vs v0.",
+        sheet_id,
+    )
+    return pct_fractions_vs_v0(sheet_id, "N")
 
 
 def _inflation_ratio_2023_to_2024(
@@ -141,3 +147,32 @@ def pct_fractions_vs_baseline_sheet(
     pdiff = (merged[step_col] - merged["_base"]) / merged["_base"].abs()
     arr = pdiff.dropna().to_numpy(dtype=float)
     return arr[np.isfinite(arr)], inflation_applied
+
+
+def pct_fractions_stacked_group(
+    step_sheet_id: str,
+    prior_sheet_id: str | None,
+    ef_kind: str,
+    *,
+    ref_2023_sheet_id: str | None,
+    prefer_purchaser: bool = False,
+) -> tuple[np.ndarray, bool]:
+    """Marginal % diff for one stacked group vs its prior endpoint.
+
+    When ``prior_sheet_id`` is ``None`` (G1), returns in-sheet diff vs CEDA v0
+    or USEEIO purchaser baseline. Otherwise cross-sheet diff vs the prior
+    group absolute EF column, with 2023→2024 inflation when applicable.
+    """
+    if prior_sheet_id is None:
+        if prefer_purchaser and ef_kind == "N":
+            return pct_fractions_useeio_purchaser_vs_v0(step_sheet_id), False
+        return pct_fractions_vs_v0(step_sheet_id, ef_kind), False
+    baseline_year = _model_base_year(prior_sheet_id)
+    return pct_fractions_vs_baseline_sheet(
+        step_sheet_id,
+        prior_sheet_id,
+        ef_kind,
+        ref_2023_sheet_id=ref_2023_sheet_id,
+        baseline_year=baseline_year,
+        prefer_purchaser=prefer_purchaser,
+    )
