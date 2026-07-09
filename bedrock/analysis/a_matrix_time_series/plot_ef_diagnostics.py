@@ -95,6 +95,55 @@ HIST_PCT_CLIP = 100.0
 HIST_BINS = 60
 
 
+def draw_per_sector_pct_hist_panel(
+    ax: Axes,
+    pct_fraction: np.ndarray,
+    *,
+    title: str,
+    color: str,
+    font_scale: float = 1.0,
+    ylabel: str = "sector count",
+) -> None:
+    """Draw one clipped per-sector % diff histogram on ``ax``.
+
+    Shared by A-matrix bundle panels (``_hist_panel``), single-sheet renders
+    (``plot_v0_3_n_pct_hist._render``), and release-progression grids.
+    ``pct_fraction`` values are unit fractions (0.15 = 15%).
+    """
+    pct_percent = np.asarray(pct_fraction, dtype=float) * 100.0
+    finite = pct_percent[np.isfinite(pct_percent)]
+    if finite.size == 0:
+        ax.text(0.5, 0.5, "no data", transform=ax.transAxes, ha="center", va="center")
+        ax.set_title(title, fontsize=TITLE_FONTSIZE * font_scale, color="black")
+        return
+    clipped = np.clip(finite, -HIST_PCT_CLIP, HIST_PCT_CLIP)
+    ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
+    ax.axvline(0, color="k", lw=1.0)
+    ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
+    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
+    ax.grid(True, ls=":", alpha=0.3)
+    ax.text(
+        0.04,
+        0.96,
+        (
+            f"n={len(finite)}\n"
+            f"median={np.median(finite):.1f}%\n"
+            f"p95(|·|)={np.quantile(np.abs(finite), 0.95):.1f}%"
+        ),
+        transform=ax.transAxes,
+        fontsize=STATS_FONTSIZE * font_scale * HIST_STATS_EXTRA_SCALE,
+        va="top",
+        ha="left",
+        bbox=dict(
+            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
+        ),
+    )
+    ax.set_title(title, fontsize=TITLE_FONTSIZE * font_scale, color="black")
+    ax.set_xlabel("Percentage Diff (%)", fontsize=AXIS_LABEL_FONTSIZE * font_scale)
+    ax.set_ylabel(ylabel, fontsize=AXIS_LABEL_FONTSIZE * font_scale)
+    ax.tick_params(axis="both", labelsize=TICK_LABEL_FONTSIZE * font_scale)
+
+
 def _panel_stats(panel_df: pd.DataFrame) -> dict[str, float]:
     """``R²`` against ``y=x``, ``p95`` of ``|y-x|/|x|``, and ``n_significant``.
 
@@ -170,29 +219,17 @@ def _hist_panel(
         ax.text(0.5, 0.5, "no data", transform=ax.transAxes, ha="center", va="center")
         ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
         return
-    pct = ((df["y_approach"] - df["x_baseline"]) / df["x_baseline"].abs()).to_numpy(
-        dtype=float
-    ) * 100.0
-    finite = pct[np.isfinite(pct)]
-    clipped = np.clip(finite, -HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
-    ax.axvline(0, color="k", lw=1.0)
-    ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax.grid(True, ls=":", alpha=0.3)
-    ax.text(
-        0.04,
-        0.96,
-        f"n={len(finite)}\nmedian={np.median(finite):.1f}%\np95(|·|)={np.quantile(np.abs(finite), 0.95):.1f}%",
-        transform=ax.transAxes,
-        fontsize=STATS_FONTSIZE * font_scale * HIST_STATS_EXTRA_SCALE,
-        va="top",
-        ha="left",
-        bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
-        ),
+    pct_fraction = (
+        (df["y_approach"] - df["x_baseline"]) / df["x_baseline"].abs()
+    ).to_numpy(dtype=float)
+    draw_per_sector_pct_hist_panel(
+        ax,
+        pct_fraction,
+        title=approach,
+        color=color,
+        font_scale=font_scale,
+        ylabel="",
     )
-    ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
 
 
 def _latest_year_in(sub: pd.DataFrame) -> str:

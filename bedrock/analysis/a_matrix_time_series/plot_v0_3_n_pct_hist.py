@@ -38,7 +38,6 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import PercentFormatter
 
 from bedrock.analysis.a_matrix_time_series.compile_ef_diagnostics import (
     _coerce_numeric,
@@ -48,16 +47,10 @@ from bedrock.analysis.a_matrix_time_series.constants import (
     PLOTS_DIR,
 )
 from bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics import (
-    AXIS_LABEL_FONTSIZE,
     EF_KIND_LABEL,
-    HIST_BINS,
     HIST_FONT_SCALE,
-    HIST_PCT_CLIP,
-    HIST_STATS_EXTRA_SCALE,
-    STATS_FONTSIZE,
     SUPTITLE_FONTSIZE,
-    TICK_LABEL_FONTSIZE,
-    TITLE_FONTSIZE,
+    draw_per_sector_pct_hist_panel,
 )
 from bedrock.utils.io.gcp import read_sheet_tab
 
@@ -159,36 +152,16 @@ def _render(
     # ``cornerstone_default`` — visually signals "no scaling flag set".
     color = APPROACH_COLORS.get(approach, "#7f7f7f")
     kind_label = EF_KIND_LABEL[ef_kind]
-    pct_percent = pct * 100.0
-    clipped = np.clip(pct_percent, -HIST_PCT_CLIP, HIST_PCT_CLIP)
-
     font_scale = HIST_FONT_SCALE
+
     fig, ax = plt.subplots(figsize=(11.0 * font_scale * 0.6, 10.5 * font_scale * 0.6))
-    ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
-    ax.axvline(0, color="k", lw=1.0)
-    ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax.grid(True, ls=":", alpha=0.3)
-    ax.text(
-        0.04,
-        0.96,
-        (
-            f"n={len(pct_percent)}\n"
-            f"median={np.median(pct_percent):.1f}%\n"
-            f"p95(|·|)={np.quantile(np.abs(pct_percent), 0.95):.1f}%"
-        ),
-        transform=ax.transAxes,
-        fontsize=STATS_FONTSIZE * font_scale * HIST_STATS_EXTRA_SCALE,
-        va="top",
-        ha="left",
-        bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
-        ),
+    draw_per_sector_pct_hist_panel(
+        ax,
+        pct,
+        title=approach,
+        color=color,
+        font_scale=font_scale,
     )
-    ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
-    ax.set_xlabel("Percentage Diff (%)", fontsize=AXIS_LABEL_FONTSIZE * font_scale)
-    ax.set_ylabel("sector count", fontsize=AXIS_LABEL_FONTSIZE * font_scale)
-    ax.tick_params(axis="both", labelsize=TICK_LABEL_FONTSIZE * font_scale)
 
     fig.suptitle(
         f"{kind_label} per-sector % diff distribution — vs CEDA-US (v0) "

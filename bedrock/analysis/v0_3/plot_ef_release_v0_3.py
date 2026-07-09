@@ -1,4 +1,4 @@
-"""Release-deck EF plots for the v0.3 diagnostics progression.
+"""Release EF progression plots for the v0.3 diagnostics refresh.
 
 Uses existing diagnostics Sheets on Drive (no re-dispatch). Figures:
 
@@ -9,6 +9,7 @@ Uses existing diagnostics Sheets on Drive (no re-dispatch). Figures:
 
 Usage:
     uv run python -m bedrock.analysis.v0_3.plot_ef_release_v0_3
+    uv run python -m bedrock.analysis.v0_3.plot_ef_release_v0_3 --compare-to v0.2
 """
 
 from __future__ import annotations
@@ -16,30 +17,24 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import click
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import PercentFormatter
 
 from bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics import (
-    AXIS_LABEL_FONTSIZE,
     EF_KIND_LABEL,
-    HIST_BINS,
-    HIST_PCT_CLIP,
-    HIST_STATS_EXTRA_SCALE,
-    STATS_FONTSIZE,
-    TICK_LABEL_FONTSIZE,
-    TITLE_FONTSIZE,
+    draw_per_sector_pct_hist_panel,
 )
-from bedrock.analysis.a_matrix_time_series.plot_v0_3_n_pct_hist import _pct_values
 from bedrock.utils.validation.analysis.bly_plots import TAB_BLY, build_sector_stack_frame
-from bedrock.utils.validation.analysis.diagnostics_plots import (
-    _drop_old_only,
-    _normalize_schema,
-    bly_figsize,
+from bedrock.utils.validation.analysis.ef_progression import (
+    pct_fractions_useeio_purchaser_vs_v0,
+    pct_fractions_vs_baseline_sheet,
+    pct_fractions_vs_v0,
 )
 from bedrock.utils.validation.analysis.fetch import load_tab
 from bedrock.utils.validation.analysis.overlay_ef_hist import _series_for_kind
@@ -49,6 +44,7 @@ from bedrock.utils.validation.analysis.plotting import (
     save_and_close,
     setup_mpl,
 )
+from bedrock.utils.validation.analysis.diagnostics_plots import bly_figsize
 from bedrock.utils.validation.analysis.release_v0_3_progression import (
     ProgressionSheet,
     V02_FINAL_CEDA,
@@ -63,62 +59,74 @@ OUT_DIR = Path(__file__).resolve().parent / "output" / "release_v0_3"
 
 CEDA_BAR = "#1f77b4"
 USEEIO_BAR = "#ff7f0e"
+PANEL_FONT_SCALE = 0.85
+
+CompareTo = Literal["v0", "v0.2"]
 
 FINAL_V02_CEDA = V02_FINAL_CEDA.sheet_id
 FINAL_V03_CEDA = V03_CEDA_STEPS[-1].sheet_id
 FINAL_V02_USEEIO = V02_FINAL_USEEIO.sheet_id
 FINAL_V03_USEEIO = V03_USEEIO_STEPS[-1].sheet_id
 
-
-def _ceda_kind_fractions(sheet_id: str, ef_kind: str) -> np.ndarray:
-    tab = f"{ef_kind}_and_diffs"
-    df = _drop_old_only(_normalize_schema(load_tab(sheet_id, tab)))
-    return _pct_values(df, ef_kind)
+V02_BASELINE_YEAR = 2023
 
 
-def _useeio_purchaser_fractions(sheet_id: str) -> np.ndarray:
-    df = _drop_old_only(_normalize_schema(load_tab(sheet_id, "N_and_diffs")))
-    num = pd.to_numeric(df["N_new_purchaser"], errors="coerce")
-    den = pd.to_numeric(df["N_old_purchaser"], errors="coerce")
-    return ((num - den) / den.abs()).dropna().to_numpy(dtype=float)
+@dataclass(frozen=True)
+class PanelLoad:
+    fractions: np.ndarray
+    inflation_applied: bool = False
 
 
-def _draw_deck_panel(
-    ax: plt.Axes,
-    pct_fraction: np.ndarray,
-    title: str,
+def _ref_2023_sheet_id(steps: tuple[ProgressionSheet, ...]) -> str | None:
+    for step in steps:
+        if "umd_2023_ghgia" in step.config_name:
+            return step.sheet_id
+    return steps[0].sheet_id if steps else None
+
+
+def _panel_title(step_label: str, *, inflation_applied: bool) -> str:
+    if inflation_applied:
+        return f"{step_label} [+1yr infl]"
+    return step_label
+
+
+def _loader_ceda_v0(ef_kind: str) -> Callable[[str], PanelLoad]:
+    def load(sheet_id: str) -> PanelLoad:
+        return PanelLoad(pct_fractions_vs_v0(sheet_id, ef_kind))
+
+    return load
+
+
+def _loader_useeio_purchaser_v0() -> Callable[[str], PanelLoad]:
+    def load(sheet_id: str) -> PanelLoad:
+        return PanelLoad(pct_fractions_useeio_purchaser_vs_v0(sheet_id))
+
+    return load
+
+
+def _loader_vs_v02(
+    baseline_sheet_id: str,
+    ef_kind: str,
     *,
-    bar_color: str,
-    font_scale: float = 1.0,
-) -> None:
-    pct_percent = pct_fraction * 100.0
-    finite = pct_percent[np.isfinite(pct_percent)]
-    clipped = np.clip(finite, -HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.hist(clipped, bins=HIST_BINS, color=bar_color, alpha=0.85)
-    ax.axvline(0, color="k", lw=1.0)
-    ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax.grid(True, ls=":", alpha=0.3)
-    ax.text(
-        0.04,
-        0.96,
-        (
-            f"n={len(finite)}\n"
-            f"median={np.median(finite):.1f}%\n"
-            f"p95(|·|)={np.quantile(np.abs(finite), 0.95):.1f}%"
-        ),
-        transform=ax.transAxes,
-        fontsize=STATS_FONTSIZE * font_scale * HIST_STATS_EXTRA_SCALE,
-        va="top",
-        ha="left",
-        bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
-        ),
-    )
-    ax.set_title(title, fontsize=TITLE_FONTSIZE * font_scale, color="black")
-    ax.set_xlabel("Percentage Diff (%)", fontsize=AXIS_LABEL_FONTSIZE * font_scale)
-    ax.set_ylabel("sector count", fontsize=AXIS_LABEL_FONTSIZE * font_scale)
-    ax.tick_params(axis="both", labelsize=TICK_LABEL_FONTSIZE * font_scale)
+    ref_2023_sheet_id: str | None,
+    prefer_purchaser: bool = False,
+) -> Callable[[str], PanelLoad]:
+    def load(sheet_id: str) -> PanelLoad:
+        fractions, inflation_applied = pct_fractions_vs_baseline_sheet(
+            sheet_id,
+            baseline_sheet_id,
+            ef_kind,
+            ref_2023_sheet_id=ref_2023_sheet_id,
+            baseline_year=V02_BASELINE_YEAR,
+            prefer_purchaser=prefer_purchaser,
+        )
+        return PanelLoad(fractions, inflation_applied=inflation_applied)
+
+    return load
+
+
+def _useeio_purchaser_series_percent(sheet_id: str) -> pd.Series[float]:
+    return pd.Series(pct_fractions_useeio_purchaser_vs_v0(sheet_id) * 100.0)
 
 
 def _plot_progression_grid(
@@ -127,7 +135,7 @@ def _plot_progression_grid(
     group_title: str,
     out_path: Path,
     bar_color: str,
-    pct_loader: Callable[[str], np.ndarray],
+    panel_loader: Callable[[str], PanelLoad],
     ncols: int = 3,
 ) -> None:
     n = len(steps)
@@ -140,8 +148,15 @@ def _plot_progression_grid(
     ymax = 0.0
     for i, step in enumerate(steps):
         ax = flat[i]
-        pct = pct_loader(step.sheet_id)
-        _draw_deck_panel(ax, pct, step.step_label, bar_color=bar_color, font_scale=0.85)
+        loaded = panel_loader(step.sheet_id)
+        title = _panel_title(step.step_label, inflation_applied=loaded.inflation_applied)
+        draw_per_sector_pct_hist_panel(
+            ax,
+            loaded.fractions,
+            title=title,
+            color=bar_color,
+            font_scale=PANEL_FONT_SCALE,
+        )
         ymax = max(ymax, ax.get_ylim()[1])
     for i in range(n):
         flat[i].set_ylim(0, ymax)
@@ -153,48 +168,84 @@ def _plot_progression_grid(
     print(f"Wrote: {out_path}")
 
 
-def _plot_v03_progressions(out_dir: Path) -> None:
-    for ef_kind in ("N", "D"):
+def _baseline_label(compare_to: CompareTo) -> str:
+    return "CEDA-US (v0)" if compare_to == "v0" else "v0.2 FINAL"
 
-        def ceda_loader(sid: str, kind: str = ef_kind) -> np.ndarray:
-            return _ceda_kind_fractions(sid, kind)
+
+def _compare_slug(compare_to: CompareTo) -> str:
+    return "" if compare_to == "v0" else "_vs_v02"
+
+
+def _plot_v03_progressions(out_dir: Path, compare_to: CompareTo) -> None:
+    slug = _compare_slug(compare_to)
+    baseline_label = _baseline_label(compare_to)
+
+    ceda_ref_2023 = _ref_2023_sheet_id(V03_CEDA_STEPS)
+    useeio_ref_2023 = _ref_2023_sheet_id(V03_USEEIO_STEPS)
+
+    for ef_kind in ("N", "D"):
+        if compare_to == "v0":
+            loader = _loader_ceda_v0(ef_kind)
+        else:
+            loader = _loader_vs_v02(
+                FINAL_V02_CEDA,
+                ef_kind,
+                ref_2023_sheet_id=ceda_ref_2023,
+            )
 
         _plot_progression_grid(
             V03_CEDA_STEPS,
             group_title=(
-                f"[GROUP: v0.3 · baseline: CEDA-US (v0)] per-sector {ef_kind} % diff, "
+                f"[GROUP: v0.3 · baseline: {baseline_label}] per-sector {ef_kind} % diff, "
                 "by release step"
             ),
-            out_path=out_dir / f"progression_v03_ceda_{ef_kind}.png",
+            out_path=out_dir / f"progression_v03_ceda_{ef_kind}{slug}.png",
             bar_color=CEDA_BAR,
-            pct_loader=ceda_loader,
+            panel_loader=loader,
+        )
+
+    if compare_to == "v0":
+        useeio_n_loader = _loader_useeio_purchaser_v0()
+    else:
+        useeio_n_loader = _loader_vs_v02(
+            FINAL_V02_USEEIO,
+            "N",
+            ref_2023_sheet_id=useeio_ref_2023,
+            prefer_purchaser=True,
         )
 
     _plot_progression_grid(
         V03_USEEIO_STEPS,
         group_title=(
-            "[GROUP: v0.3 · baseline: USEEIO (purchaser)] per-sector N % diff, "
-            "by release step"
+            f"[GROUP: v0.3 · baseline: {'USEEIO (purchaser)' if compare_to == 'v0' else 'v0.2 FINAL (purchaser)'}] "
+            "per-sector N % diff, by release step"
         ),
-        out_path=out_dir / "progression_v03_useeio_N.png",
+        out_path=out_dir / f"progression_v03_useeio_N{slug}.png",
         bar_color=USEEIO_BAR,
-        pct_loader=_useeio_purchaser_fractions,
+        panel_loader=useeio_n_loader,
     )
+
+    if compare_to == "v0":
+        useeio_d_loader = _loader_ceda_v0("D")
+        d_subtitle = "by release step (producer / CEDA v0)"
+    else:
+        useeio_d_loader = _loader_vs_v02(
+            FINAL_V02_CEDA,
+            "D",
+            ref_2023_sheet_id=ceda_ref_2023,
+        )
+        d_subtitle = "by release step (producer / vs v0.2 FINAL)"
 
     _plot_progression_grid(
         V03_USEEIO_STEPS,
         group_title=(
-            "[GROUP: v0.3 · baseline: USEEIO (purchaser)] per-sector D % diff, "
-            "by release step (producer / CEDA v0)"
+            f"[GROUP: v0.3 · baseline: {baseline_label}] per-sector D % diff, "
+            f"{d_subtitle}"
         ),
-        out_path=out_dir / "progression_v03_useeio_D.png",
+        out_path=out_dir / f"progression_v03_useeio_D{slug}.png",
         bar_color=USEEIO_BAR,
-        pct_loader=lambda sid: _ceda_kind_fractions(sid, "D"),
+        panel_loader=useeio_d_loader,
     )
-
-
-def _useeio_purchaser_series_percent(sheet_id: str) -> "pd.Series[float]":
-    return pd.Series(_useeio_purchaser_fractions(sheet_id) * 100.0)
 
 
 def _plot_final_overlays(out_dir: Path) -> None:
@@ -269,6 +320,16 @@ def _plot_bly_pair(
     default=OUT_DIR,
     show_default=True,
 )
+@click.option(
+    "--compare-to",
+    type=click.Choice(["v0", "v0.2"], case_sensitive=False),
+    default="v0",
+    show_default=True,
+    help=(
+        "Baseline for progression panels: in-sheet diff vs v0 (default) or "
+        "cross-sheet diff vs FINAL v0.2 (with 2023→2024 inflation on 2024 steps)."
+    ),
+)
 @click.option("--skip-progression", is_flag=True)
 @click.option("--skip-overlay", is_flag=True)
 @click.option("--skip-bly", is_flag=True)
@@ -276,6 +337,7 @@ def _plot_bly_pair(
 @click.option("--bly-max-sectors", type=int, default=0, show_default=True)
 def main(
     out_dir: Path,
+    compare_to: str,
     skip_progression: bool,
     skip_overlay: bool,
     skip_bly: bool,
@@ -284,9 +346,10 @@ def main(
 ) -> None:
     setup_mpl(font_size=13)
     out_dir.mkdir(parents=True, exist_ok=True)
+    compare: CompareTo = "v0.2" if compare_to.lower() == "v0.2" else "v0"
 
     if not skip_progression:
-        _plot_v03_progressions(out_dir)
+        _plot_v03_progressions(out_dir, compare)
     if not skip_overlay:
         _plot_final_overlays(out_dir)
     if not skip_bly:

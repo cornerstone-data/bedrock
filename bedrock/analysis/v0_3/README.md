@@ -1,6 +1,6 @@
 # v0.3 release diagnostics
 
-Plot and dispatch scripts for the v0.3 release-deck EF diagnostics
+Plot and dispatch scripts for the v0.3 release EF diagnostics
 progression. They read or dispatch Google Sheets produced by
 `bedrock.utils.validation.generate_diagnostics` and reuse shared loaders in
 `bedrock.utils.validation.analysis` (`fetch`, `plotting`, `bly_plots`, etc.).
@@ -15,16 +15,20 @@ Plot, dispatch, and merged workbooks all land in `output/release_v0_3/`
 
 | Script | Purpose |
 |--------|---------|
-| `plot_ef_release_v0_3.py` | Deck-style progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
+| `plot_ef_release_v0_3.py` | Release progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
 | `dispatch_ef_release_v0_3.py` | Dispatch v0.3 release steps (MECS through FINAL) to the EF time-series Drive folder; appends to `output/release_v0_3/ef_run_index_release_v0_3.csv`. |
 
 ## Plot
 
 ```powershell
 uv run python -m bedrock.analysis.v0_3.plot_ef_release_v0_3
+uv run python -m bedrock.analysis.v0_3.plot_ef_release_v0_3 --compare-to v0.2
 ```
 
 Pass `--skip-progression`, `--skip-overlay`, or `--skip-bly` to omit figure groups.
+`--compare-to v0` (default) uses each sheet's in-tab diff vs CEDA v0 / USEEIO.
+`--compare-to v0.2` recomputes each v0.3 step vs FINAL v0.2 (2024 steps get
+`[+1yr infl]` on the panel title where applicable).
 
 ## Dispatch
 
