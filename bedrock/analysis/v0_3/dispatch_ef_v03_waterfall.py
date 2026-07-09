@@ -1,7 +1,7 @@
 """Dispatch v03_waterfall USEEIO diagnostics (four cumulative group endpoints).
 
-Four ``v03_waterfall_*`` configs × USEEIO baseline → four Sheets in the EF
-time-series Drive folder. Persists to
+Four ``v03_waterfall_*`` configs × USEEIO baseline → four Sheets in the
+v03 waterfall Drive folder (default below). Persists to
 ``output/release_v0_v03_groups/ef_run_index_v03_waterfall.csv``.
 
 Usage:
@@ -20,7 +20,6 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
-    EF_TIME_SERIES_DRIVE_FOLDER_ID,
     _create_sheet,
     _throttle,
     _trigger_workflow,
@@ -31,6 +30,9 @@ from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
 )
 
 logger = logging.getLogger(__name__)
+
+# v0.3 wholesale waterfall diagnostics (separate from Step 7 EF time-series folder).
+V03_WATERFALL_DRIVE_FOLDER_ID = "107RNHx1OUGN6roYdRi3BbdCSrMNFhl6u"
 
 _OUTPUT_DIR = Path(__file__).resolve().parent / "output" / "release_v0_v03_groups"
 WATERFALL_INDEX_PATH = _OUTPUT_DIR / "ef_run_index_v03_waterfall.csv"
@@ -102,6 +104,7 @@ def _already_recorded(df: pd.DataFrame, sheet_title: str) -> bool:
 def dispatch_waterfall(
     *,
     git_ref: str = "main",
+    drive_folder_id: str = V03_WATERFALL_DRIVE_FOLDER_ID,
     dry_run: bool = False,
     throttle: str = "poll",
     only_configs: tuple[str, ...] | None = None,
@@ -138,9 +141,10 @@ def dispatch_waterfall(
 
         if dry_run:
             logger.info(
-                "DRY-RUN would create: %s | config=%s use_useeio=true "
+                "DRY-RUN would create: %s | folder=%s config=%s use_useeio=true "
                 "model_base_year=%d usa_ghg_data_year=%d",
                 title,
+                drive_folder_id,
                 cell.config_name,
                 model_base_year,
                 usa_ghg_data_year,
@@ -150,7 +154,7 @@ def dispatch_waterfall(
 
         _throttle(throttle)
 
-        sheet_id = _create_sheet(EF_TIME_SERIES_DRIVE_FOLDER_ID, title)
+        sheet_id = _create_sheet(drive_folder_id, title)
         logger.info("Created sheet %s: %s", sheet_id, title)
         _trigger_workflow(
             git_ref=git_ref,
@@ -192,6 +196,14 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--drive-folder-id",
+        default=V03_WATERFALL_DRIVE_FOLDER_ID,
+        help=(
+            "Google Drive folder ID for new diagnostics Sheets "
+            f"(default: v03 waterfall folder {V03_WATERFALL_DRIVE_FOLDER_ID})."
+        ),
+    )
+    parser.add_argument(
         "--title-date",
         default="",
         help="YYYY-MM-DD prefix for sheet titles (default: UTC today).",
@@ -201,6 +213,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     dispatch_waterfall(
         git_ref=args.git_ref,
+        drive_folder_id=args.drive_folder_id,
         dry_run=args.dry_run,
         throttle=args.throttle,
         only_configs=only,
