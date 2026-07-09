@@ -37,7 +37,7 @@ For Recipe B, surface the **dollar-year guard** (below) and ask whether to proce
 
 - **Fetch (parquet-cached):** `from bedrock.utils.validation.analysis.fetch import load_tab` → `load_tab(sheet_id, "N_and_diffs")` (pass `refresh=True` to re-pull).
 - **Plot primitives:** `from bedrock.utils.validation.analysis.plotting import setup_mpl, percent_histogram, apply_axis_fonts, save_and_close, DEFAULT_XLIM, TITLE_FONTSIZE`.
-- **Deck-panel extractor + constants:** `from bedrock.analysis.a_matrix_time_series.plot_v0_3_n_pct_hist import _pct_values` and `from bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics import HIST_BINS, HIST_PCT_CLIP, HIST_FONT_SCALE, HIST_STATS_EXTRA_SCALE, STATS_FONTSIZE, TITLE_FONTSIZE, AXIS_LABEL_FONTSIZE, TICK_LABEL_FONTSIZE`.
+- **Deck-panel extractor + constants:** `from bedrock.utils.validation.analysis.ef_hist_panels import pct_values, draw_per_sector_pct_hist_panel, HIST_BINS, HIST_PCT_CLIP, HIST_FONT_SCALE, HIST_STATS_EXTRA_SCALE, PANEL_STATS_FONTSIZE, PANEL_TITLE_FONTSIZE, PANEL_AXIS_LABEL_FONTSIZE, PANEL_TICK_LABEL_FONTSIZE`.
 - **Approach palette** (`from bedrock.analysis.a_matrix_time_series.constants import APPROACH_COLORS`): `useeio #7f7f7f`, `ceda_default #bcbd22`, `summary_tables #1f77b4`, `industry_price_index #9467bd`, `commodity_price_index #2ca02c`, `useeio_nowcast #ff7f0e`.
 
 ## Recipe A — single sheet, N/D vs CEDA v0 (full suite)
@@ -59,10 +59,10 @@ Reuse `load_tab` + `percent_histogram`: produce a log-log scatter (`x = baseline
 
 ## Recipe C — deck histogram style (match the slides)
 
-Deck panels (e.g. "[CEDA as baseline] Bundled effect in N", titled by approach) come from `plot_ef_diagnostics._hist_panel` / `plot_v0_3_n_pct_hist._render`: each panel is one sheet's `N_perc_diff`, clipped to ±`HIST_PCT_CLIP` (100%), `HIST_BINS` (60) bins, zero line, `PercentFormatter` x-axis "Percentage Diff (%)", y "sector count", an `n / median / p95(|·|)` white box top-left, title + bar color from the approach.
+Deck panels (e.g. "[CEDA as baseline] Bundled effect in N", titled by approach) use `draw_per_sector_pct_hist_panel` from `ef_hist_panels` (also used by `plot_v0_3_n_pct_hist` and A-matrix `plot_ef_diagnostics` histogram grids): each panel is one sheet's `N_perc_diff`, clipped to ±`HIST_PCT_CLIP` (100%), `HIST_BINS` (60) bins, zero line, `PercentFormatter` x-axis "Percentage Diff (%)", y "sector count", an `n / median / p95(|·|)` white box top-left, title + bar color from the approach.
 
 - Single sheet, exact deck style: `python -m bedrock.analysis.a_matrix_time_series.plot_v0_3_n_pct_hist <SHEET_ID>`.
-- **Color override** (the script colors by approach, grey for unrecognized configs): replicate the `_render` body in a small figure, pulling pct via `_pct_values(load_tab(sid, "N_and_diffs"), "N")`, and pass an explicit color. **Orange = `#ff7f0e`** (the `useeio_nowcast` entry).
+- **Color override** (the script colors by approach, grey for unrecognized configs): replicate the `_render` body in a small figure, pulling pct via `pct_values(load_tab(sid, "N_and_diffs"), "N")`, and pass an explicit color. **Orange = `#ff7f0e`** (the `useeio_nowcast` entry).
 - **Side-by-side** (e.g. "v0.2 vs new"): lay panels out 1×N reusing the same constants so output matches the deck. Keep v0.2 blue (`#1f77b4`); color the new scenario as requested.
 
 ## Recipe D — release-progression panels (one panel per scenario step)
@@ -102,7 +102,7 @@ uv run python -m bedrock.utils.validation.analysis.overlay_ef_hist \
 
 ## Reference
 
-- `bedrock/utils/validation/analysis/`: `diagnostics_plots.py` (single-sheet CLI), `overlay_ef_hist.py` (version-overlay CLI), `bly_plots.py` (`build_sector_stack_frame`), `plotting.py` (primitives: `percent_histogram`, `overlay_pct_diff_histogram`, `plot_stacked_net_change`), `fetch.py` (cached loader).
-- `bedrock/analysis/a_matrix_time_series/`: `plot_ef_diagnostics.py` (`_hist_panel`, `_scatter_panel`, constants), `plot_v0_3_n_pct_hist.py` (`_render`, `_pct_values`), `constants.py` (`APPROACH_COLORS`).
+- `bedrock/utils/validation/analysis/`: `diagnostics_plots.py` (single-sheet CLI), `overlay_ef_hist.py` (version-overlay CLI), `ef_hist_panels.py` (`pct_values`, `draw_per_sector_pct_hist_panel`), `bly_plots.py` (`build_sector_stack_frame`), `plotting.py` (primitives: `percent_histogram`, `overlay_pct_diff_histogram`, `plot_stacked_net_change`), `fetch.py` (cached loader).
+- `bedrock/analysis/a_matrix_time_series/`: `plot_ef_diagnostics.py` (A-matrix scatter + histogram grids), `plot_v0_3_n_pct_hist.py` (single-sheet CLI), `constants.py` (`APPROACH_COLORS`).
 - `bedrock/utils/config/usa_config.py`: `_load_usa_config_from_file_name("<name>.yaml")` to resolve a config's intrinsic dollar years.
 - Sheets come from the `dispatch-ef-diagnostics` skill / `generate_diagnostics` workflow.

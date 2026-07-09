@@ -89,9 +89,8 @@ from bedrock.utils.validation.analysis.fetch import load_tab, load_tabs_optional
 
 logger = logging.getLogger(__name__)
 
-# Default output xlsx lives next to diagnostics_plots' output under
-# analysis/output/<combo>/ef_diagnostics_merged.xlsx. Override with
-# --output-xlsx <path>; pass --output-xlsx "" to skip the local file.
+# Default output xlsx lives under analysis/output/<combo>/ef_diagnostics_merged.xlsx.
+# Override with --output-xlsx <path>; pass --output-xlsx "" to skip the local file.
 OUTPUT_ROOT = Path(__file__).resolve().parent / 'output'
 DEFAULT_OUTPUT_XLSX_NAME = 'ef_diagnostics_merged.xlsx'
 
@@ -803,6 +802,21 @@ def _resolve_combo(combo_name: str) -> ComboSpec:
     return COMBINATIONS[combo_name]
 
 
+def _resolve_combo_sheet_inputs(spec: ComboSpec) -> list[tuple[str, str]]:
+    """Return ordered ``(sheet_id, title)`` pairs for a combo."""
+    if spec.sheets_in_order:
+        return list(spec.sheets_in_order)
+    if not spec.drive_folder_id or not spec.names_in_order:
+        raise ValueError(
+            'Combo must set either sheets_in_order or both drive_folder_id '
+            'and names_in_order.'
+        )
+    return _resolve_sheets_from_folder(
+        folder_id=spec.drive_folder_id,
+        titles_in_order=spec.names_in_order,
+    )
+
+
 @click.command(
     help=(
         'Merge multiple EF diagnostics Google Sheets into one comparison '
@@ -850,10 +864,7 @@ def main(
     output_sheet_id: str | None,
 ) -> None:
     spec = _resolve_combo(combo_name)
-    sheet_inputs = _resolve_sheets_from_folder(
-        folder_id=spec.drive_folder_id,
-        titles_in_order=spec.names_in_order,
-    )
+    sheet_inputs = _resolve_combo_sheet_inputs(spec)
     if output_xlsx is None:
         effective_xlsx_path: str | None = str(_default_output_xlsx_path(combo_name))
     else:
