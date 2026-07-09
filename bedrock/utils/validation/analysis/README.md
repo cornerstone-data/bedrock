@@ -71,6 +71,12 @@ back, caches them locally as parquet, and renders analysis figures.
   Sheet titles, and per-`config_name` target mapping. The destination Sheet
   for merged output is always passed on the command line via
   `--output-sheet-id`.
+- `release_v0_3_progression.py` — v0.3 release-deck sheet registry (IDs,
+  titles, `config_name` per step). Consumed by `combinations.py` and
+  `bedrock.analysis.v0_3.plot_ef_release_v0_3`. v0.2 FINAL sheets record
+  `config_name` `2025_usa_cornerstone_full_model` (renamed to
+  `2025_usa_cornerstone_v0_2` in configs after dispatch). Atomic v0.3 steps
+  (inflation, A/price, MECS) net-diff against that column, not stepwise.
 
 ## Running
 
@@ -123,3 +129,23 @@ uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
     --combo v0.2 \
     --output-sheet-id 1TOLpjg80GBeb3C8sVKGvYRL9U5HfUgKSz_IHoWHainY
 ```
+
+### v0.3 release
+
+Plot, dispatch, and sheet registry live in `bedrock/analysis/v0_3/` — see
+[`bedrock/analysis/v0_3/README.md`](../../../analysis/v0_3/README.md).
+
+Combine v0 baseline through v0.3 (CEDA) or FINAL v0.2 through v0.3
+(USEEIO) from this package:
+
+```bash
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
+    --combo v0.2_to_v0.3_ceda \
+    --output-xlsx bedrock/analysis/v0_3/output/release_v0_3/ef_diagnostics_merged_v0_2_to_v0_3_ceda.xlsx
+
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics \
+    --combo v0.2_to_v0.3_useeio \
+    --output-xlsx bedrock/analysis/v0_3/output/release_v0_3/ef_diagnostics_merged_v0_2_to_v0_3_useeio.xlsx
+```
+
+Re-run with `--refresh` after sheet tabs change.
