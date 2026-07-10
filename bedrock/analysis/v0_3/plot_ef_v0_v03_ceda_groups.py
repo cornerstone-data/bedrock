@@ -48,8 +48,8 @@ CEDA_BAR = "#1f77b4"
 PANEL_FONT_SCALE = 0.9
 
 _STACK_PANEL_TITLES = (
-    "GHG reconciliation",
-    "Waste disaggregation",
+    "GHG method",
+    "Schema + waste",
     "IO year adjustments",
     "US data update",
 )

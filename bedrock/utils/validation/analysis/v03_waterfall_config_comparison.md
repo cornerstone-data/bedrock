@@ -31,8 +31,8 @@ All waterfall endpoints use **IO@2024 producer** footing (`model_base_year: 2024
 | Step | Config stem | Marginal change |
 |------|-------------|-----------------|
 | Baseline | `v8_ceda_2025_usa` | CEDA v0 parquet snapshot |
-| G1a | `v03_waterfall_ceda_g1a_schema_ghg` | CEDA v0 → Cornerstone schema + GHG (no waste) |
-| G1b | `v03_waterfall_ceda_g1b_waste_disagg` | G1a → waste disaggregation |
+| G1a | `v03_waterfall_ceda_g1a_ghg` | CEDA v0 → Cornerstone GHG FBS (CEDA v7 schema) |
+| G1b | `v03_waterfall_ceda_g1b_schema_waste` | G1a → Cornerstone schema + waste disaggregation |
 | G2 | `v03_waterfall_g2_methods` | G1b → CEDA A/price, cornerstone margins, inflation |
 | G3 | `v03_waterfall_g3_data` | G2 → 2024 UMD GHG / IO data |
 | FINAL | `v03_waterfall_final` | Shipped v0.3 mix |
@@ -82,8 +82,8 @@ CEDA waterfall path (`CEDA_V0_BASELINE` in `release_v0_3_progression.py`).
 | Pinned USEEIO | *(Excel)* | ~2023 | purchaser (Excel) | ~2023 | — |
 | CEDA v0 | `v8_ceda_2025_usa` | 2023 | producer | 2023 | after |
 | USEEIO G1 | `v03_waterfall_useeio_g1_schema_ghg` | 2024 | producer | 2023 | **before** |
-| CEDA G1a | `v03_waterfall_ceda_g1a_schema_ghg` | 2024 | producer | 2023 | after |
-| CEDA G1b | `v03_waterfall_ceda_g1b_waste_disagg` | 2024 | producer | 2023 | after |
+| CEDA G1a | `v03_waterfall_ceda_g1a_ghg` | 2024 | producer | 2023 | after |
+| CEDA G1b | `v03_waterfall_ceda_g1b_schema_waste` | 2024 | producer | 2023 | after |
 | G2 | `v03_waterfall_g2_methods` | 2024 | producer | 2023 | after |
 | G3 | `v03_waterfall_g3_data` | 2024 | producer | **2024** | after |
 | FINAL | `v03_waterfall_final` | 2024 | producer | **2024** | after |
@@ -94,7 +94,7 @@ CEDA waterfall path (`CEDA_V0_BASELINE` in `release_v0_3_progression.py`).
 |------|-------------------------------------|----------------------|------------------|-----------------------|------------------------------|
 | CEDA v0 | false | false | false | false | false |
 | USEEIO G1 | true | true | true | false | true |
-| CEDA G1a | true | true | true | false | false |
+| CEDA G1a | false | true | true | false | false |
 | CEDA G1b | true | true | true | false | false |
 | G2 | true | true | true | false | true |
 | G3 | true | true | false | **true** | true |
@@ -122,7 +122,7 @@ switch to the UMD GHGIA 2024 inventory (`v0_3_umd_2024_ghgia`), matching
 |------|------------------|----------------|------------------------------------|---------------------------------------|-----------------------------------------------|--------------------------------------|------------------------------|
 | CEDA v0 | false | **true** | false | false | false | false | false |
 | USEEIO G1 | **true** | false | false | **true** | false | false | false |
-| CEDA G1a | false | false | true | false | false | false | false |
+| CEDA G1a | false | **true** | false | false | false | false | false |
 | CEDA G1b | false | false | true | false | false | false | false |
 | G2 | false | false | true | false | **true** | **true** | **true** |
 | G3 | false | false | true | false | true | true | true |
@@ -161,8 +161,8 @@ Both combos use `n_price_type='producer'` in `combinations.py`.
 | Step | `use_E_data_year_for_x_in_B` | `usa_ghg_data_year` | New-side `B` construction | Old-side (in-sheet diff) |
 |------|------------------------------|---------------------|---------------------------|--------------------------|
 | CEDA v0 | false | 2023 | Legacy scale + PI to `model_base_year` (2023) | — |
-| G1a | false | 2023 | Legacy scale + PI to `model_base_year` (2024) | v0 snapshot inflated 2023→2024 |
-| G1b | false | 2023 | Same as G1a | Prior run snapshot inflated to 2024 |
+| G1a | false | 2023 | Legacy CEDA scale + PI to `model_base_year` (2024) | v0 snapshot inflated 2023→2024 |
+| G1b | false | 2023 | Cornerstone B path + PI to `model_base_year` (2024) | Prior run snapshot inflated to 2024 |
 | G2 | true | 2023 | Vnorm; gross output at `usa_ghg_data_year` | Prior run snapshot inflated to 2024 |
 | G3 | true | 2024 | Vnorm; gross output at `usa_ghg_data_year` | Prior run snapshot inflated to 2024 |
 | FINAL | true | 2024 | Same as G3 | Prior run snapshot inflated to 2024 |

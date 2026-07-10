@@ -69,11 +69,9 @@ USEEIO_WATERFALL_STEPS: tuple[WaterfallCell, ...] = (
 )
 
 CEDA_WATERFALL_STEPS: tuple[WaterfallCell, ...] = (
+    WaterfallCell("v03_waterfall_ceda_g1a_ghg", "waterfall CEDA G1a GHG", 2024),
     WaterfallCell(
-        "v03_waterfall_ceda_g1a_schema_ghg", "waterfall CEDA G1a schema/GHG", 2024
-    ),
-    WaterfallCell(
-        "v03_waterfall_ceda_g1b_waste_disagg", "waterfall CEDA G1b waste disagg", 2024
+        "v03_waterfall_ceda_g1b_schema_waste", "waterfall CEDA G1b schema+waste", 2024
     ),
     WaterfallCell("v03_waterfall_g2_methods", "waterfall G2 methods", 2024),
     WaterfallCell("v03_waterfall_g3_data", "waterfall G3 data", 2024),

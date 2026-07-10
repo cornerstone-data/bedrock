@@ -63,7 +63,7 @@ uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall `
 
 uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --baseline ceda --dry-run
 uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --baseline ceda `
-    --only-configs v03_waterfall_ceda_g1a_schema_ghg
+    --only-configs v03_waterfall_ceda_g1a_ghg
 ```
 
 Run indexes: `ef_run_index_v03_waterfall.csv` (USEEIO), `ef_run_index_v03_waterfall_ceda.csv` (CEDA).
