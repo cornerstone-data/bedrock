@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import typing as ta
+
 import pandas as pd
 
 from bedrock.transform.eeio.electricity_disaggregation import (
@@ -27,7 +29,7 @@ def compute_toy_conversion_factors(
     """Return ``(c_col, c_row)`` using production conversion helpers."""
     q_usd = float(q[generation_sector])
     c_col = electricity_output_factor(q_usd, mwh_221110)
-    adom_row = a.loc[generation_sector]
+    adom_row = ta.cast(pd.Series, a.loc[generation_sector])
     c_row = electricity_class_row_factors(
         adom_row,
         q,
@@ -63,15 +65,15 @@ def apply_mixed_conversion_to_flows(
     y_m = y.copy()
     gen = generation_sector
 
-    v_m.loc[gen, gen] = float(v_m.loc[gen, gen]) * c_col
+    v_m.loc[gen, gen] = float(ta.cast(ta.Any, v_m.loc[gen, gen])) * c_col
 
     for col in u_m.columns:
         c_j = float(c_row.get(col, c_col))
-        u_m.loc[gen, col] = float(u_m.loc[gen, col]) * c_j
+        u_m.loc[gen, col] = float(ta.cast(ta.Any, u_m.loc[gen, col])) * c_j
 
     for col in y_m.columns:
         c_j = float(c_row.get(col, c_col))
-        y_m.loc[gen, col] = float(y_m.loc[gen, col]) * c_j
+        y_m.loc[gen, col] = float(ta.cast(ta.Any, y_m.loc[gen, col])) * c_j
 
     return v_m, u_m, y_m
 

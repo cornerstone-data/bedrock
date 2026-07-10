@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 import pandas as pd
 import pytest
 
@@ -17,7 +15,6 @@ from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics import (
     _compute_bly_series,
 )
-from bedrock.utils.validation.eeio_diagnostics import DiagnosticResult
 
 
 def test_section1_production_identities() -> None:
@@ -25,8 +22,8 @@ def test_section1_production_identities() -> None:
     ef = result.ef
     assert ef.commodity_identity is not None
     assert ef.leontief_identity is not None
-    assert cast(DiagnosticResult, ef.commodity_identity).passed
-    assert cast(DiagnosticResult, ef.leontief_identity).passed
+    assert ef.commodity_identity.passed
+    assert ef.leontief_identity.passed
 
 
 def test_section2_flow_mixed_matches_section3() -> None:

@@ -6,10 +6,12 @@ from pathlib import Path
 
 import pandas as pd
 
+from bedrock.analysis.electricity.d_86.toy_dom_imp import ToyDomImpScaledInflated
 from bedrock.analysis.electricity.d_86.toy_paths import (
     Section1ProductionResult,
     Section2FlowMixedResult,
     Section3DirectMixedResult,
+    ToyEfOutputs,
     assert_section2_matches_section3,
     rebuild_scaled_dom_imp_flows,
     run_section1_production,
@@ -45,7 +47,14 @@ def _series(series: pd.Series[float], *, float_fmt: str = '.6g') -> str:
 
 
 def _q_table(q: pd.Series[float], *, mixed: bool = False) -> str:
-    frame = pd.DataFrame({'q': q, 'units': ['MWh' if mixed and s == GENERATION_SECTOR else 'USD' for s in q.index]})
+    frame = pd.DataFrame(
+        {
+            'q': q,
+            'units': [
+                'MWh' if mixed and s == GENERATION_SECTOR else 'USD' for s in q.index
+            ],
+        }
+    )
     return _df(frame)
 
 
@@ -61,8 +70,7 @@ def _intro() -> list[str]:
         '',
         '- `Adom = Unorm(Udom) @ Vnorm`, `Aimp = Unorm(Uimp) @ Vnorm`',
         '- `Atot = Adom + Aimp`',
-        '- Detail year = '
-        f'`{TOY_DETAIL_YEAR}`; model year = `{TOY_MODEL_YEAR}`',
+        '- Detail year = ' f'`{TOY_DETAIL_YEAR}`; model year = `{TOY_MODEL_YEAR}`',
         '',
         '| Section | Path | Mixed units? |',
         '| --- | --- | --- |',
@@ -111,7 +119,7 @@ def _derive_aq_step() -> list[str]:
     ]
 
 
-def _scale_inflate_step(scaled: object) -> list[str]:
+def _scale_inflate_step(scaled: ToyDomImpScaledInflated) -> list[str]:
     si = scaled
     lines = [
         '**Scale** (``scale_cornerstone_A`` / ``scale_cornerstone_q``):',
@@ -158,7 +166,7 @@ def _l_tot_caption(*, mixed: bool) -> str:
 
 
 def _ef_step(
-    ef: object,
+    ef: ToyEfOutputs,
     *,
     mixed: bool,
     section_label: str,
@@ -225,14 +233,18 @@ def _matrix_side_by_side(
 ) -> list[str]:
     """Side-by-side markdown for two aligned matrices or q vectors."""
     if isinstance(left, pd.Series):
-        left_tbl = _q_table(left, mixed=mixed_q)
-        right_tbl = _q_table(right, mixed=mixed_q)
-        diff = left.astype(float) - right.astype(float)
+        left_s = left.astype(float)
+        right_s = pd.Series(right).astype(float)
+        left_tbl = _q_table(left_s, mixed=mixed_q)
+        right_tbl = _q_table(right_s, mixed=mixed_q)
+        diff = left_s - right_s
         diff_tbl = _q_table(diff, mixed=mixed_q)
     else:
-        left_tbl = _df(left)
-        right_tbl = _df(right)
-        diff_tbl = _df(left.astype(float) - right.astype(float))
+        left_df = left if isinstance(left, pd.DataFrame) else left.to_frame()
+        right_df = right if isinstance(right, pd.DataFrame) else right.to_frame()
+        left_tbl = _df(left_df)
+        right_tbl = _df(right_df)
+        diff_tbl = _df(left_df.astype(float) - right_df.astype(float))
     return [
         f'#### `{label}`',
         '',
@@ -287,12 +299,24 @@ def _section2_section3_comparison(
     return lines
 
 
-def _identity_block(ef: object, *, mixed: bool, atot: pd.DataFrame, q: pd.Series, l_tot: pd.DataFrame, udom: pd.DataFrame, uimp: pd.DataFrame, y: pd.DataFrame) -> list[str]:
-    if ef.commodity_identity is None:
+def _identity_block(
+    ef: ToyEfOutputs,
+    *,
+    mixed: bool,
+    atot: pd.DataFrame,
+    q: pd.Series[float],
+    l_tot: pd.DataFrame,
+    udom: pd.DataFrame,
+    uimp: pd.DataFrame,
+    y: pd.DataFrame,
+) -> list[str]:
+    if ef.commodity_identity is None or ef.leontief_identity is None:
         return [
             'Output identities are not evaluated on this path (no flow-table round-trip in production §3).',
             '',
         ]
+    commodity_identity = ef.commodity_identity
+    leontief_identity = ef.leontief_identity
     u_total = udom + uimp
     y_d = y.sum(axis=1).astype(float)
     q_check_c = u_total.sum(axis=1) + y_d
@@ -300,7 +324,9 @@ def _identity_block(ef: object, *, mixed: bool, atot: pd.DataFrame, q: pd.Series
     q_check_l = backcompute_q_from_L_and_y(L=l_tot, y=y_tot)
     sectors = TOY_SECTORS
     frame = pd.DataFrame(index=list(sectors))
-    frame['units'] = ['MWh' if mixed and s == GENERATION_SECTOR else 'USD' for s in sectors]
+    frame['units'] = [
+        'MWh' if mixed and s == GENERATION_SECTOR else 'USD' for s in sectors
+    ]
     frame['q'] = q.reindex(sectors)
     frame['U·1 + y_d'] = q_check_c.reindex(sectors)
     frame['q − (U·1 + y_d)'] = frame['q'] - frame['U·1 + y_d']
@@ -309,7 +335,7 @@ def _identity_block(ef: object, *, mixed: bool, atot: pd.DataFrame, q: pd.Series
         '',
         _df(frame),
         '',
-        format_diagnostic_result(ef.commodity_identity),
+        format_diagnostic_result(commodity_identity),
         '',
         '**Leontief identity** `q ≈ L_tot @ y_nab`:',
         '',
@@ -319,7 +345,7 @@ def _identity_block(ef: object, *, mixed: bool, atot: pd.DataFrame, q: pd.Series
     frame2['q'] = q.reindex(sectors)
     frame2['L @ y_nab'] = q_check_l.reindex(sectors)
     frame2['q − L @ y_nab'] = frame2['q'] - frame2['L @ y_nab']
-    lines += [_df(frame2), '', format_diagnostic_result(ef.leontief_identity), '']
+    lines += [_df(frame2), '', format_diagnostic_result(leontief_identity), '']
     return lines
 
 
@@ -337,10 +363,29 @@ def _section1(s1: Section1ProductionResult) -> list[str]:
     lines += _monetary_io_tables(s1)
     lines += _step('1.2 Derive `Adom`, `Aimp`, `Atot`, `q`')
     lines += _derive_aq_step()
-    lines += ['**`Adom`:**', '', _df(mon.Adom), '', '**`Aimp`:**', '', _df(mon.Aimp), '', '**`Atot`:**', '', _df(mon.Atot), '', '**`q` [USD]:**', '', _q_table(mon.q, mixed=False), '']
+    lines += [
+        '**`Adom`:**',
+        '',
+        _df(mon.Adom),
+        '',
+        '**`Aimp`:**',
+        '',
+        _df(mon.Aimp),
+        '',
+        '**`Atot`:**',
+        '',
+        _df(mon.Atot),
+        '',
+        '**`q` [USD]:**',
+        '',
+        _q_table(mon.q, mixed=False),
+        '',
+    ]
     lines += _step('1.3 Scale + inflate to model year')
     lines += _scale_inflate_step(s1.scaled)
-    lines += _step('1.4 Rebuilt scaled flows (analysis illustration only — not in production)')
+    lines += _step(
+        '1.4 Rebuilt scaled flows (analysis illustration only — not in production)'
+    )
     lines += [
         'Production stops at scaled `A`/`q`. For identity checks in this section we rebuild',
         'diagonal-Make flows from scaled `Atot`/`q`/`y_nab`:',
@@ -485,7 +530,9 @@ def _section2(s2: Section2FlowMixedResult) -> list[str]:
     y_nab_tot = backcompute_y_from_A_and_q(A=s2.atot, q=s2.q)
     y_bal = pd.DataFrame(0.0, index=s2.atot.index, columns=s2.monetary.Y.columns)
     y_bal.iloc[:, 0] = y_nab_tot.reindex(y_bal.index).astype(float)
-    lines += _step('2.6 Output identities (row-balanced `U`/`Y` from rederived mixed `A`/`q`)')
+    lines += _step(
+        '2.6 Output identities (row-balanced `U`/`Y` from rederived mixed `A`/`q`)'
+    )
     lines += [
         'Raw mixed IO tables need not row-balance exactly; identities use',
         '`Udom = Adom ⊙ q`, `Uimp = Aimp ⊙ q`, `y_nab` from `Atot`/`q`.',

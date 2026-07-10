@@ -85,6 +85,20 @@ def table_8_3_gtd_expenses_musd(
     }
 
 
+def table_8_3_purchased_power_gtd_expenses_musd(
+    year: int = 2017,
+    *,
+    fba: pd.DataFrame | None = None,
+) -> dict[str, float]:
+    """Return Purchased Power + T/D operating expenses from Table 8.3 (IOU utilities)."""
+    raw = _table_8_3_gtd_expenses(year, generation_key='PurchasedPower', fba=fba)
+    return {
+        'PurchasedPower': raw['Generation'],
+        'Transmission': raw['Transmission'],
+        'Distribution': raw['Distribution'],
+    }
+
+
 __all__ = [
     'EPAEndUse',
     'TABLE_2_4_DESCRIPTION',
@@ -96,4 +110,5 @@ __all__ = [
     'TABLE_8_3_SHARED_FLOWNAMES',
     'table_2_4_prices_cents_kwh',
     'table_8_3_gtd_expenses_musd',
+    'table_8_3_purchased_power_gtd_expenses_musd',
 ]
