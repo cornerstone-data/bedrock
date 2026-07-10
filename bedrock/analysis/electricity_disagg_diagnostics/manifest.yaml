@@ -3,27 +3,27 @@ meta:
 
 footing:
   label: Cornerstone v0.2
-  sheet_id: <SHEET_ID_FOOTING>
+  sheet_id: 1IGBsq9c7B2EuC9P8BgcL4QDV6SaRpYcZ1_qhQUDWu8U
   config: 2025_usa_cornerstone_v0_2
 
 steps:
   - label: |
       Co-production
       reallocation
-    sheet_id: <SHEET_ID_REALLOC>
+    sheet_id: 1jjaKCH1HmiMtBVVXBd5o0a-ShlrmkElrYN-CnW7BZyg
     config: 2025_usa_cornerstone_v0_2_electricity_reallocation
   - label: |
       3-way
       monetary split
-    sheet_id: <SHEET_ID_DISAGG>
+    sheet_id: 1t_cziYV86ypAi_1PAmIxFz5-6nLecQ4wMY-7cvb3KFI
     config: 2025_usa_cornerstone_v0_2_electricity_disaggregation
   - label: |
       Conversion to
       physical units
-    sheet_id: <SHEET_ID_MIXED>
+    sheet_id: 18KhRbA1ELnyMSsdvhVfuoMJyaQStHI8rMMpD4Jo6e-8
     config: 2025_usa_cornerstone_v0_2_electricity_mixed_units
 
 final:
   label: Combined (FINAL)
-  sheet_id: <SHEET_ID_MIXED>
+  sheet_id: 18KhRbA1ELnyMSsdvhVfuoMJyaQStHI8rMMpD4Jo6e-8
   config: 2025_usa_cornerstone_v0_2_electricity_mixed_units

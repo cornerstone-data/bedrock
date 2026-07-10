@@ -21,7 +21,9 @@ def test_no_oscillation_combined_equals_sum_steps() -> None:
         [step1, step2, step3],
         ['s1', 's2', 's3'],
     )
-    assert result.combined_mmt == pytest.approx(sum(result.step_values_mmt), abs=DISPERSION_TOL)
+    assert result.combined_mmt == pytest.approx(
+        sum(result.step_values_mmt), abs=DISPERSION_TOL
+    )
     assert not result.show_offsetting_bar
 
 

@@ -29,7 +29,9 @@ def test_footing_final_schema_only_near_zero_dispersion() -> None:
 
 
 def test_children_only_side_keeps_aggregate_zero() -> None:
-    a = pd.Series({ELECTRICITY_AGGREGATE_SECTOR: 0.0, ELECTRICITY_DISAGG_SECTORS[0]: 10.0})
+    a = pd.Series(
+        {ELECTRICITY_AGGREGATE_SECTOR: 0.0, ELECTRICITY_DISAGG_SECTORS[0]: 10.0}
+    )
     b = pd.Series(
         {
             ELECTRICITY_DISAGG_SECTORS[0]: 34.0,
