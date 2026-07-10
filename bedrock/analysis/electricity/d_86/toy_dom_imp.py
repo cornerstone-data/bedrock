@@ -124,7 +124,10 @@ def scale_and_inflate_dom_imp(
 
 
 def dom_imp_y_row(y: pd.DataFrame) -> pd.Series[float]:
-    return y.loc[GENERATION_SECTOR].astype(float)
+    row = y.loc[GENERATION_SECTOR]
+    if isinstance(row, pd.DataFrame):
+        return row.iloc[0].astype(float)
+    return row.astype(float)
 
 
 __all__ = [

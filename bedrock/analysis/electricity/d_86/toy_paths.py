@@ -36,6 +36,7 @@ from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics 
     _compute_bly_series,
 )
 from bedrock.utils.validation.eeio_diagnostics import (
+    DiagnosticResult,
     compare_commodity_output_to_domestics_use_plus_exports,
     compare_output_vs_leontief_x_demand,
 )
@@ -63,8 +64,8 @@ class ToyEfOutputs:
     d: pd.Series[float]
     n: pd.Series[float]
     bly: pd.Series[float]
-    commodity_identity: object | None = None
-    leontief_identity: object | None = None
+    commodity_identity: DiagnosticResult | None = None
+    leontief_identity: DiagnosticResult | None = None
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,13 @@ def rebuild_scaled_dom_imp_flows(
     return ToyScaledFlows(v=v, udom=udom, uimp=uimp, y=y, va=va)
 
 
+def _generation_y_row(y: pd.DataFrame) -> pd.Series[float]:
+    row = y.loc[GENERATION_SECTOR]
+    if isinstance(row, pd.DataFrame):
+        return row.iloc[0].astype(float)
+    return row.astype(float)
+
+
 def _conversion_factors(
     *,
     adom_target: pd.DataFrame,
@@ -147,9 +155,7 @@ def _conversion_factors(
     mwh: float | None,
 ) -> tuple[float, pd.Series[float], float]:
     mwh_val = (
-        default_toy_mwh(float(q_target[GENERATION_SECTOR]))
-        if mwh is None
-        else mwh
+        default_toy_mwh(float(q_target[GENERATION_SECTOR])) if mwh is None else mwh
     )
     c_col, c_row = compute_toy_conversion_factors(
         a=adom_target,
@@ -253,7 +259,7 @@ def run_section2_flow_mixed(
     scaled = scale_and_inflate_dom_imp(monetary)
     scaled_flows = rebuild_scaled_dom_imp_flows(monetary, scaled)
 
-    y_row = scaled_flows.y.loc[GENERATION_SECTOR].astype(float)
+    y_row = _generation_y_row(scaled_flows.y)
     c_col, c_row, mwh = _conversion_factors(
         adom_target=scaled.adom.a_target,
         q_target=scaled.q_target,
@@ -336,7 +342,7 @@ def run_section3_direct_mixed(
     scaled = scale_and_inflate_dom_imp(monetary)
     flows = rebuild_scaled_dom_imp_flows(monetary, scaled)
 
-    y_row = flows.y.loc[GENERATION_SECTOR].astype(float)
+    y_row = _generation_y_row(flows.y)
     c_col, c_row, mwh = _conversion_factors(
         adom_target=scaled.adom.a_target,
         q_target=scaled.q_target,
