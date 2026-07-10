@@ -44,11 +44,12 @@ def _collapse_waste_bly(series: pd.Series[float]) -> pd.Series[float]:
         return series
 
     out = series.copy()
-    waste_mask = out.index.astype(str).str.startswith(WASTE_PREFIX)
-    child_mask = out.index.astype(str).isin(disagg_children)
+    labels = out.index.astype(str)
+    waste_mask = labels.str.startswith(WASTE_PREFIX)
+    child_mask = labels.isin(disagg_children)
     lumped = out.loc[waste_mask | child_mask]
     out.loc[WASTE_AGGREGATE] = float(lumped.sum())
-    drop = child_mask & ~out.index.astype(str).eq(WASTE_AGGREGATE)
+    drop = child_mask & (labels != WASTE_AGGREGATE)
     return out.loc[~drop]
 
 

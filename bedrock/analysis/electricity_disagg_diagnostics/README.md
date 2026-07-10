@@ -16,6 +16,34 @@ Chained incremental BLy dispersion charts for PR2 (reallocation) → PR3 (3-way 
 
 ## Usage
 
+### Option A — local Excel exports (no Google API)
+
+If Application Default Credentials cannot read Cornerstone Sheets, download each diagnostics
+workbook from Drive (**File → Download → Microsoft Excel (.xlsx)**) and save under
+[`local_data/`](local_data/) using the config stem as the filename:
+
+| File name | Config |
+|---|---|
+| `2025_usa_cornerstone_v0_2.xlsx` | footing |
+| `2025_usa_cornerstone_v0_2_electricity_reallocation.xlsx` | step 1 |
+| `2025_usa_cornerstone_v0_2_electricity_disaggregation.xlsx` | step 2 |
+| `2025_usa_cornerstone_v0_2_electricity_mixed_units.xlsx` | step 3 + FINAL |
+
+Then run (imports workbooks into the parquet cache, then plots):
+
+```bash
+uv run python -m bedrock.analysis.electricity_disagg_diagnostics.run_all --local-dir bedrock/analysis/electricity_disagg_diagnostics/local_data
+```
+
+Or import and plot in two steps:
+
+```bash
+uv run python -m bedrock.analysis.electricity_disagg_diagnostics.import_local
+uv run python -m bedrock.analysis.electricity_disagg_diagnostics.run_all
+```
+
+### Option B — live Google Sheets
+
 ```bash
 # from repo root, using .venv
 uv run python -m bedrock.analysis.electricity_disagg_diagnostics.refresh_cache
@@ -27,10 +55,10 @@ Outputs (gitignored):
 
 - `output/electricity_bly_dispersion_waterfall_mmt.png`
 - `output/electricity_bly_dispersion_waterfall_pct.png`
+- `output/electricity_bly_net_change_waterfall_mmt.png`
+- `output/electricity_bly_net_change_waterfall_pct.png`
 
 ## Metrics
 
-- Each step bar: `Σ_sector |ΔBLy|` for one chained transition (after sum-preserving `221100`↔children alignment).
-- Combined (FINAL): footing → mixed-units config.
-- Offsetting bar: shown when `sum(steps) - combined > 1e-4` MMT.
-- % chart: normalized to footing `BLy_new` total (Cornerstone v0.2), not CEDA v0 `BLy_old`.
+- **Dispersion** charts: each step bar = `Σ_sector |ΔBLy|` (gross cross-sector reallocation).
+- **Net change** charts: level bars = `Σ BLy_new` at each step; a **"BLy change due to …"** bar appears only when total U.S. BLy changes between consecutive steps (signed net, after alignment).

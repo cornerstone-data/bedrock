@@ -73,7 +73,9 @@ def _expect_flag(
     actual = _coerce_bool(summary.get(field))
     if expected is None:
         if actual:
-            raise ValueError(f'{field} must be absent or false, got {summary.get(field)!r}')
+            raise ValueError(
+                f'{field} must be absent or false, got {summary.get(field)!r}'
+            )
     elif actual is not expected:
         raise ValueError(f'{field} expected {expected}, got {summary.get(field)!r}')
 
