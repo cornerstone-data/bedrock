@@ -27,6 +27,10 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
     sheets_in_order,
     useeio_stepwise_target_mapping,
 )
+from bedrock.utils.validation.analysis.release_v0_v03_ceda_groups import (
+    V0_V03_CEDA_GROUP_SHEETS,
+    ceda_group_stack_target_mapping,
+)
 from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
     V0_V03_USEEIO_GROUP_SHEETS,
     useeio_group_stack_target_mapping,
@@ -163,6 +167,14 @@ COMBINATIONS: dict[str, ComboSpec] = {
         names_in_order=[],
         target_mapping=useeio_group_stack_target_mapping(V0_V03_USEEIO_GROUP_SHEETS),
         sheets_in_order=sheets_in_order(V0_V03_USEEIO_GROUP_SHEETS),
+        n_price_type='producer',
+    ),
+    # Wholesale v0→v0.3 CEDA: four stacked group endpoints + FINAL (waste in G2).
+    'v0_to_v03_ceda_groups': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=ceda_group_stack_target_mapping(V0_V03_CEDA_GROUP_SHEETS),
+        sheets_in_order=sheets_in_order(V0_V03_CEDA_GROUP_SHEETS),
         n_price_type='producer',
     ),
 }

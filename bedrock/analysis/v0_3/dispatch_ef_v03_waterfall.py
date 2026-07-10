@@ -1,12 +1,12 @@
-"""Dispatch v03_waterfall USEEIO diagnostics (four cumulative group endpoints).
+"""Dispatch v03_waterfall diagnostics (cumulative group endpoints).
 
-Four ``v03_waterfall_*`` configs × USEEIO baseline → four Sheets in the
-v03 waterfall Drive folder (default below). Persists to
-``output/release_v0_v03_groups/ef_run_index_v03_waterfall.csv``.
+Five configs for CEDA baseline (G1a/G1b split, then shared G2/G3/FINAL)
+or four for USEEIO baseline. Persists to a baseline-specific run index CSV under
+``output/release_v0_v03_groups/``.
 
 Usage:
     uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --dry-run
-    uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall
+    uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --baseline ceda
 """
 
 from __future__ import annotations
@@ -25,6 +25,9 @@ from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
     _trigger_workflow,
 )
 from bedrock.utils.config.usa_config import _load_usa_config_from_file_name
+from bedrock.utils.validation.analysis.release_v0_v03_ceda_groups import (
+    V03_WATERFALL_CEDA_CONFIGS,
+)
 from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
     V03_WATERFALL_CONFIGS,
 )
@@ -35,7 +38,6 @@ logger = logging.getLogger(__name__)
 V03_WATERFALL_DRIVE_FOLDER_ID = "107RNHx1OUGN6roYdRi3BbdCSrMNFhl6u"
 
 _OUTPUT_DIR = Path(__file__).resolve().parent / "output" / "release_v0_v03_groups"
-WATERFALL_INDEX_PATH = _OUTPUT_DIR / "ef_run_index_v03_waterfall.csv"
 
 INDEX_COLUMNS = (
     "config_name",
@@ -57,7 +59,7 @@ class WaterfallCell:
     title_year: int
 
 
-WATERFALL_STEPS: tuple[WaterfallCell, ...] = (
+USEEIO_WATERFALL_STEPS: tuple[WaterfallCell, ...] = (
     WaterfallCell(
         "v03_waterfall_useeio_g1_schema_ghg", "waterfall USEEIO G1 schema/GHG", 2024
     ),
@@ -66,10 +68,58 @@ WATERFALL_STEPS: tuple[WaterfallCell, ...] = (
     WaterfallCell("v03_waterfall_final", "waterfall FINAL v0.3", 2024),
 )
 
+CEDA_WATERFALL_STEPS: tuple[WaterfallCell, ...] = (
+    WaterfallCell(
+        "v03_waterfall_ceda_g1a_schema_ghg", "waterfall CEDA G1a schema/GHG", 2024
+    ),
+    WaterfallCell(
+        "v03_waterfall_ceda_g1b_waste_disagg", "waterfall CEDA G1b waste disagg", 2024
+    ),
+    WaterfallCell("v03_waterfall_g2_methods", "waterfall G2 methods", 2024),
+    WaterfallCell("v03_waterfall_g3_data", "waterfall G3 data", 2024),
+    WaterfallCell("v03_waterfall_final", "waterfall FINAL v0.3", 2024),
+)
 
-def _sheet_title(*, today: str, title_year: int, step_label: str) -> str:
+
+@dataclass(frozen=True)
+class WaterfallBaselineSpec:
+    name: str
+    steps: tuple[WaterfallCell, ...]
+    config_names: tuple[str, ...]
+    index_path: Path
+    use_useeio_baseline: bool
+    title_baseline_label: str
+
+
+WATERFALL_BASELINES: dict[str, WaterfallBaselineSpec] = {
+    "useeio": WaterfallBaselineSpec(
+        name="useeio",
+        steps=USEEIO_WATERFALL_STEPS,
+        config_names=V03_WATERFALL_CONFIGS,
+        index_path=_OUTPUT_DIR / "ef_run_index_v03_waterfall.csv",
+        use_useeio_baseline=True,
+        title_baseline_label="USEEIO based",
+    ),
+    "ceda": WaterfallBaselineSpec(
+        name="ceda",
+        steps=CEDA_WATERFALL_STEPS,
+        config_names=V03_WATERFALL_CEDA_CONFIGS,
+        index_path=_OUTPUT_DIR / "ef_run_index_v03_waterfall_ceda.csv",
+        use_useeio_baseline=False,
+        title_baseline_label="CEDA based",
+    ),
+}
+
+
+def _sheet_title(
+    *,
+    today: str,
+    title_year: int,
+    step_label: str,
+    baseline_label: str,
+) -> str:
     return (
-        f"[{today}, bedrock repo, {title_year}, USEEIO based, "
+        f"[{today}, bedrock repo, {title_year}, {baseline_label}, "
         f"v0.3 / {step_label}] EFs diagnostics"
     )
 
@@ -79,9 +129,9 @@ def _years_for_config(config_name: str) -> tuple[int, int]:
     return cfg.model_base_year, cfg.usa_ghg_data_year
 
 
-def _load_index() -> pd.DataFrame:
-    if WATERFALL_INDEX_PATH.exists():
-        df = pd.read_csv(WATERFALL_INDEX_PATH)
+def _load_index(index_path: Path) -> pd.DataFrame:
+    if index_path.exists():
+        df = pd.read_csv(index_path)
     else:
         df = pd.DataFrame(columns=list(INDEX_COLUMNS))
     for col in INDEX_COLUMNS:
@@ -90,11 +140,11 @@ def _load_index() -> pd.DataFrame:
     return df
 
 
-def _append_index_row(row: dict[str, object]) -> None:
-    df = _load_index()
+def _append_index_row(index_path: Path, row: dict[str, object]) -> None:
+    df = _load_index(index_path)
     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    WATERFALL_INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(WATERFALL_INDEX_PATH, index=False)
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(index_path, index=False)
 
 
 def _already_recorded(df: pd.DataFrame, sheet_title: str) -> bool:
@@ -105,6 +155,7 @@ def _already_recorded(df: pd.DataFrame, sheet_title: str) -> bool:
 
 def dispatch_waterfall(
     *,
+    baseline: WaterfallBaselineSpec,
     git_ref: str = "main",
     drive_folder_id: str = V03_WATERFALL_DRIVE_FOLDER_ID,
     dry_run: bool = False,
@@ -112,23 +163,23 @@ def dispatch_waterfall(
     only_configs: tuple[str, ...] | None = None,
     title_date: str | None = None,
 ) -> None:
-    unknown = set(only_configs or ()) - set(V03_WATERFALL_CONFIGS)
+    unknown = set(only_configs or ()) - set(baseline.config_names)
     if unknown:
         raise ValueError(
             f"Unknown config(s) {sorted(unknown)!r}; expected subset of "
-            f"{list(V03_WATERFALL_CONFIGS)!r}"
+            f"{list(baseline.config_names)!r}"
         )
 
     today = title_date or dt.datetime.utcnow().strftime("%Y-%m-%d")
     n_dispatched = 0
 
-    steps = WATERFALL_STEPS
+    steps = baseline.steps
     if only_configs:
         only_set = set(only_configs)
-        steps = tuple(c for c in WATERFALL_STEPS if c.config_name in only_set)
+        steps = tuple(c for c in baseline.steps if c.config_name in only_set)
         if not steps:
             raise ValueError(
-                f"No WATERFALL_STEPS match --only-configs {only_configs!r}"
+                f"No waterfall steps match --only-configs {only_configs!r}"
             )
 
     for cell in steps:
@@ -137,19 +188,22 @@ def dispatch_waterfall(
             today=today,
             title_year=cell.title_year,
             step_label=cell.step_label,
+            baseline_label=baseline.title_baseline_label,
         )
-        index_df = _load_index()
+        index_df = _load_index(baseline.index_path)
         if _already_recorded(index_df, title):
             logger.info("Skip already-recorded: %s", title)
             continue
 
         if dry_run:
             logger.info(
-                "DRY-RUN would create: %s | folder=%s config=%s use_useeio=true "
-                "model_base_year=%d usa_ghg_data_year=%d",
+                "DRY-RUN would create: %s | folder=%s config=%s baseline=%s "
+                "use_useeio=%s model_base_year=%d usa_ghg_data_year=%d",
                 title,
                 drive_folder_id,
                 cell.config_name,
+                baseline.name,
+                baseline.use_useeio_baseline,
                 model_base_year,
                 usa_ghg_data_year,
             )
@@ -165,39 +219,45 @@ def dispatch_waterfall(
             config_name=cell.config_name,
             sheet_id=sheet_id,
             model_base_year=model_base_year,
-            use_useeio_baseline=True,
+            use_useeio_baseline=baseline.use_useeio_baseline,
             usa_ghg_data_year=usa_ghg_data_year,
         )
         _append_index_row(
+            baseline.index_path,
             {
                 "config_name": cell.config_name,
-                "baseline": "useeio",
+                "baseline": baseline.name,
                 "sheet_id": sheet_id,
                 "sheet_title": title,
-                "useeio_box_ticked": "true",
+                "useeio_box_ticked": (
+                    "true" if baseline.use_useeio_baseline else "false"
+                ),
                 "model_base_year": model_base_year,
                 "usa_ghg_data_year": usa_ghg_data_year,
                 "git_ref": git_ref,
                 "triggered_at": dt.datetime.utcnow().isoformat() + "Z",
-            }
+            },
         )
         n_dispatched += 1
 
-    logger.info("Done. cells=%d", n_dispatched)
+    logger.info("Done. baseline=%s cells=%d", baseline.name, n_dispatched)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--baseline",
+        choices=sorted(WATERFALL_BASELINES),
+        default="useeio",
+        help="Diagnostics baseline (default: useeio).",
+    )
     parser.add_argument("--git-ref", default="main")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--throttle", default="poll")
     parser.add_argument(
         "--only-configs",
         default="",
-        help=(
-            "Comma-separated v03_waterfall config stems to dispatch "
-            f"(default: all {len(V03_WATERFALL_CONFIGS)})."
-        ),
+        help="Comma-separated v03_waterfall config stems to dispatch.",
     )
     parser.add_argument(
         "--drive-folder-id",
@@ -216,6 +276,7 @@ def main() -> None:
     only = tuple(s.strip() for s in args.only_configs.split(",") if s.strip()) or None
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     dispatch_waterfall(
+        baseline=WATERFALL_BASELINES[args.baseline],
         git_ref=args.git_ref,
         drive_folder_id=args.drive_folder_id,
         dry_run=args.dry_run,

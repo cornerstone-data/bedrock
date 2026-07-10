@@ -88,6 +88,7 @@ from bedrock.utils.io.gcp import (
 )
 from bedrock.utils.validation.analysis.combinations import COMBINATIONS, ComboSpec
 from bedrock.utils.validation.analysis.fetch import load_tab, load_tabs_optional
+from bedrock.utils.validation.analysis.release_v0_3_progression import CEDA_V0_BASELINE
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,7 @@ USEEIO_EXCEL_BASELINE_SOURCE = 'gcs_useeio_xlsx'
 # ``target_mapping`` opt in keeps combos that don't need it (e.g. v0.2-style
 # release-vs-release runs) on their original output schema.
 PINNED_USEEIO_BASELINE_COLUMN = 'pinned_useeio_baseline'
+CEDA_V0_BASELINE_COLUMN = CEDA_V0_BASELINE
 
 # config_summary fields surfaced in the ``pinned_useeio_baseline`` column.
 # These only carry signal for USEEIO-comparison runs -- a non-USEEIO run
@@ -136,6 +138,15 @@ _USEEIO_BASELINE_PIN_FIELDS: frozenset[str] = frozenset(
         'useeio_baseline_pin_model_version_label',
         'model_version_label',
         'baseline_snapshot_key_used',
+    }
+)
+
+# config_summary fields for the synthetic CEDA v0 baseline column.
+_SNAPSHOT_BASELINE_PIN_FIELDS: frozenset[str] = frozenset(
+    {
+        'diagnostics_baseline_source',
+        'baseline_snapshot_key_used',
+        'model_version_label',
     }
 )
 
@@ -542,6 +553,37 @@ def merge_sheets(
             refresh=refresh,
         )
 
+    include_ceda_v0_baseline = CEDA_V0_BASELINE_COLUMN in target_mapping.values()
+    ceda_v0_baseline_d: pd.Series | None = None
+    ceda_v0_baseline_n: pd.Series | None = None
+    if include_ceda_v0_baseline:
+        if is_useeio_by_run[0]:
+            logger.warning(
+                'target_mapping references %r but the first input run %r is a '
+                'USEEIO Excel-baseline comparison. The %r column will carry '
+                "that run's D_old_inflated and N_old_inflated values but "
+                'snapshot baseline metadata may be empty.',
+                CEDA_V0_BASELINE_COLUMN,
+                sheet_inputs_in_order[0][1],
+                CEDA_V0_BASELINE_COLUMN,
+            )
+        first_sheet_id, first_label = sheet_inputs_in_order[0]
+        _, ceda_v0_baseline_d = _read_sector_and_values(
+            sheet_id=first_sheet_id,
+            label=first_label,
+            tab='D_and_diffs',
+            preferred_metric_col='D_old_inflated',
+            refresh=refresh,
+        )
+        _, ceda_v0_baseline_n = _read_sector_and_values(
+            sheet_id=first_sheet_id,
+            label=first_label,
+            tab='N_and_diffs',
+            preferred_metric_col='N_old_inflated',
+            fallback_metric_cols=('N_old',),
+            refresh=refresh,
+        )
+
     for (sheet_id, label), config_name in zip(sheet_inputs_in_order, config_names):
         sector_meta, d_new = _read_sector_and_values(
             sheet_id=sheet_id,
@@ -586,6 +628,10 @@ def merge_sheets(
         merged_d[PINNED_USEEIO_BASELINE_COLUMN] = pinned_baseline_d.reindex(
             merged_d['sector']
         ).values
+    if include_ceda_v0_baseline and ceda_v0_baseline_d is not None:
+        merged_d[CEDA_V0_BASELINE_COLUMN] = ceda_v0_baseline_d.reindex(
+            merged_d['sector']
+        ).values
     for config_name in config_names:
         merged_d[config_name] = (
             d_new_by_config[config_name].reindex(merged_d['sector']).values
@@ -599,6 +645,10 @@ def merge_sheets(
     )
     if include_pinned_useeio_baseline and pinned_baseline_n is not None:
         merged_n[PINNED_USEEIO_BASELINE_COLUMN] = pinned_baseline_n.reindex(
+            merged_n['sector']
+        ).values
+    if include_ceda_v0_baseline and ceda_v0_baseline_n is not None:
+        merged_n[CEDA_V0_BASELINE_COLUMN] = ceda_v0_baseline_n.reindex(
             merged_n['sector']
         ).values
     for config_name in config_names:
@@ -637,6 +687,14 @@ def merge_sheets(
         config_fields_merged[PINNED_USEEIO_BASELINE_COLUMN] = config_fields_merged[
             'config_field'
         ].map(baseline_pin_map)
+    if include_ceda_v0_baseline:
+        first_cfg_map = config_maps[0]
+        snapshot_pin_map = {
+            k: v for k, v in first_cfg_map.items() if k in _SNAPSHOT_BASELINE_PIN_FIELDS
+        }
+        config_fields_merged[CEDA_V0_BASELINE_COLUMN] = config_fields_merged[
+            'config_field'
+        ].map(snapshot_pin_map)
     for cfg_map, config_name in zip(config_maps, config_names):
         config_fields_merged[config_name] = config_fields_merged['config_field'].map(
             cfg_map
@@ -650,6 +708,10 @@ def merge_sheets(
     if include_pinned_useeio_baseline:
         filename_row[PINNED_USEEIO_BASELINE_COLUMN] = (
             f'pinned_useeio_baseline (from {labels_in_order[0]})'
+        )
+    if include_ceda_v0_baseline:
+        filename_row[CEDA_V0_BASELINE_COLUMN] = (
+            f'{CEDA_V0_BASELINE_COLUMN} (from {labels_in_order[0]})'
         )
     for config_name, label in zip(config_names, labels_in_order):
         filename_row[config_name] = label
@@ -741,6 +803,40 @@ def merge_sheets(
                         'config_name values.'
                     )
                 bly_diff_col = 'BLy_new - BLy_old (MtCO2e)'
+                if bly_diff_col not in src.columns:
+                    raise KeyError(
+                        f'Expected column {bly_diff_col!r} in totals data for '
+                        f'{cfg_name!r} (vs {target_cfg!r}). Got: {list(src.columns)}'
+                    )
+                out = pd.DataFrame(
+                    {
+                        'config_name': cfg_name,
+                        'target_config_name': target_cfg,
+                        'row_order': src['row_order'],
+                        totals_value_col: pd.to_numeric(
+                            src[bly_diff_col], errors='coerce'
+                        ),
+                    }
+                )
+                totals_net_frames.append(out)
+                continue
+
+            if target_cfg == CEDA_V0_BASELINE_COLUMN:
+                if any_useeio:
+                    logger.info(
+                        'Skipping totals_net_diff for %r (targets %r); '
+                        'CEDA v0 baseline totals apply only in snapshot mode.',
+                        cfg_name,
+                        target_cfg,
+                    )
+                    continue
+                src = totals_merged[totals_merged['config_name'] == cfg_name].copy()
+                if src.empty:
+                    raise KeyError(
+                        f'Config {cfg_name!r} was not found in totals_merged '
+                        'config_name values.'
+                    )
+                bly_diff_col = 'BLy - E_orig (MtCO2e)'
                 if bly_diff_col not in src.columns:
                     raise KeyError(
                         f'Expected column {bly_diff_col!r} in totals data for '
