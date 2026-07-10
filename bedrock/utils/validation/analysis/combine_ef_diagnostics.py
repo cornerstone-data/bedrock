@@ -459,14 +459,10 @@ def merge_sheets(
         )
 
     n_new_preferred = (
-        "N_new_purchaser"
-        if n_price_type == "purchaser"
-        else "N_new_inflated"
+        "N_new_purchaser" if n_price_type == "purchaser" else "N_new_inflated"
     )
     n_new_fallback: tuple[str, ...] = (
-        ("N_new_inflated", "N_new")
-        if n_price_type == "purchaser"
-        else ("N_new",)
+        ("N_new_inflated", "N_new") if n_price_type == "purchaser" else ("N_new",)
     )
     pinned_n_preferred = (
         "N_old_purchaser" if n_price_type == "purchaser" else "N_old_inflated"

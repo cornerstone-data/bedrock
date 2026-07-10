@@ -75,7 +75,9 @@ V0_V03_USEEIO_STACK_SHEETS: tuple[ProgressionSheet, ...] = (
     G3_DATA,
 )
 
-V03_WATERFALL_CONFIGS: tuple[str, ...] = tuple(s.config_name for s in V0_V03_USEEIO_GROUP_SHEETS)
+V03_WATERFALL_CONFIGS: tuple[str, ...] = tuple(
+    s.config_name for s in V0_V03_USEEIO_GROUP_SHEETS
+)
 
 # Default local merge workbook for combo ``v0_to_v03_useeio_groups`` (USEEIO baseline).
 V0_TO_V03_USEEIO_GROUPS_MERGED_XLSX = (

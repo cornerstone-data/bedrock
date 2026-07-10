@@ -58,7 +58,9 @@ class WaterfallCell:
 
 
 WATERFALL_STEPS: tuple[WaterfallCell, ...] = (
-    WaterfallCell("v03_waterfall_useeio_g1_schema_ghg", "waterfall USEEIO G1 schema/GHG", 2024),
+    WaterfallCell(
+        "v03_waterfall_useeio_g1_schema_ghg", "waterfall USEEIO G1 schema/GHG", 2024
+    ),
     WaterfallCell("v03_waterfall_g2_methods", "waterfall G2 methods", 2024),
     WaterfallCell("v03_waterfall_g3_data", "waterfall G3 data", 2024),
     WaterfallCell("v03_waterfall_final", "waterfall FINAL v0.3", 2024),
@@ -125,7 +127,9 @@ def dispatch_waterfall(
         only_set = set(only_configs)
         steps = tuple(c for c in WATERFALL_STEPS if c.config_name in only_set)
         if not steps:
-            raise ValueError(f"No WATERFALL_STEPS match --only-configs {only_configs!r}")
+            raise ValueError(
+                f"No WATERFALL_STEPS match --only-configs {only_configs!r}"
+            )
 
     for cell in steps:
         model_base_year, usa_ghg_data_year = _years_for_config(cell.config_name)

@@ -62,7 +62,10 @@ def pct_fractions_producer_vs_old(sheet_id: str, ef_kind: str) -> np.ndarray:
     inflated_col = f"{ef_kind}_new_inflated"
     new_col = f"{ef_kind}_new"
     old_col = f"{ef_kind}_old_inflated"
-    if inflated_col in df.columns and pd.to_numeric(df[inflated_col], errors="coerce").notna().any():
+    if (
+        inflated_col in df.columns
+        and pd.to_numeric(df[inflated_col], errors="coerce").notna().any()
+    ):
         new = pd.to_numeric(df[inflated_col], errors="coerce")
     else:
         new = pd.to_numeric(df[new_col], errors="coerce")
