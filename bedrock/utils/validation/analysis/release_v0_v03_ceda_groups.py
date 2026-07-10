@@ -5,8 +5,8 @@ G1a/G1b split plus shared G2/G3/FINAL). Combine net-diffs chain G1a → G1b →
 G2 → G3 (marginal strips); FINAL verifies the shipped feature mix.
 
 Group definitions (cumulative):
-  G1a — ``v03_waterfall_ceda_g1a_ghg`` — Cornerstone GHG FBS on CEDA v7 schema
-  G1b — ``v03_waterfall_ceda_g1b_schema_waste`` — G1a + Cornerstone schema + waste
+  G1a — ``v03_waterfall_ceda_g1a_schema_ghg`` — Cornerstone schema/GHG (no waste)
+  G1b — ``v03_waterfall_ceda_g1b_waste_disagg`` — G1a + waste disaggregation
   G2 — ``v03_waterfall_g2_methods`` — G1b + CEDA A/price, margins, inflation
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
@@ -25,23 +25,23 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
     sheets_in_order,
 )
 
-G1A_GHG = ProgressionSheet(
-    step_label="G1a: Cornerstone GHG (CEDA v7 schema)",
-    sheet_id="TBD",
-    config_name="v03_waterfall_ceda_g1a_ghg",
+G1A_SCHEMA_GHG = ProgressionSheet(
+    step_label="G1a: Cornerstone schema/GHG (no waste)",
+    sheet_id="1rFe4PmoEqDZ2NNUf5gx9jyvy3IQJEE7QGxXkygvVjhU",
+    config_name="v03_waterfall_ceda_g1a_schema_ghg",
     sheet_title=(
-        "[bedrock repo, 2024, CEDA based, "
-        "v0.3 / waterfall CEDA G1a GHG] EFs diagnostics"
+        "[2026-07-10, bedrock repo, 2024, CEDA based, "
+        "v0.3 / waterfall CEDA G1a schema/GHG] EFs diagnostics"
     ),
 )
 
-G1B_SCHEMA_WASTE = ProgressionSheet(
-    step_label="G1b: Cornerstone schema + waste",
-    sheet_id="TBD",
-    config_name="v03_waterfall_ceda_g1b_schema_waste",
+G1B_WASTE_DISAGG = ProgressionSheet(
+    step_label="G1b: Waste disaggregation",
+    sheet_id="1cTWFxTt2ux51Lk6x6pesJiOMKlNMgZABquV3GCJhJXE",
+    config_name="v03_waterfall_ceda_g1b_waste_disagg",
     sheet_title=(
-        "[bedrock repo, 2024, CEDA based, "
-        "v0.3 / waterfall CEDA G1b schema+waste] EFs diagnostics"
+        "[2026-07-10, bedrock repo, 2024, CEDA based, "
+        "v0.3 / waterfall CEDA G1b waste disagg] EFs diagnostics"
     ),
 )
 
@@ -76,16 +76,16 @@ FINAL_V03_CEDA = ProgressionSheet(
 )
 
 V0_V03_CEDA_GROUP_SHEETS: tuple[ProgressionSheet, ...] = (
-    G1A_GHG,
-    G1B_SCHEMA_WASTE,
+    G1A_SCHEMA_GHG,
+    G1B_WASTE_DISAGG,
     G2_METHODS,
     G3_DATA,
     FINAL_V03_CEDA,
 )
 
 V0_V03_CEDA_STACK_SHEETS: tuple[ProgressionSheet, ...] = (
-    G1A_GHG,
-    G1B_SCHEMA_WASTE,
+    G1A_SCHEMA_GHG,
+    G1B_WASTE_DISAGG,
     G2_METHODS,
     G3_DATA,
 )
@@ -115,8 +115,8 @@ def ceda_group_stack_target_mapping(
 __all__ = [
     "CEDA_V0_BASELINE",
     "FINAL_V03_CEDA",
-    "G1A_GHG",
-    "G1B_SCHEMA_WASTE",
+    "G1A_SCHEMA_GHG",
+    "G1B_WASTE_DISAGG",
     "G2_METHODS",
     "G3_DATA",
     "V03_WATERFALL_CEDA_CONFIGS",

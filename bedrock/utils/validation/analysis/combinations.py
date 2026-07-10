@@ -169,7 +169,7 @@ COMBINATIONS: dict[str, ComboSpec] = {
         sheets_in_order=sheets_in_order(V0_V03_USEEIO_GROUP_SHEETS),
         n_price_type='producer',
     ),
-    # Wholesale v0→v0.3 CEDA: G1a GHG, G1b schema+waste, G2, G3, FINAL.
+    # Wholesale v0→v0.3 CEDA: four stacked group endpoints + FINAL.
     'v0_to_v03_ceda_groups': ComboSpec(
         drive_folder_id='',
         names_in_order=[],

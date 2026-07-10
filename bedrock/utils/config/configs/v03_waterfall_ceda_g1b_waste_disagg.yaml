@@ -1,5 +1,5 @@
-# v03_waterfall CEDA G1b: G1a + Cornerstone schema + waste disaggregation.
-# Bundles taxonomy migration (incl. waste code split) with Make/VA weights.
+# v03_waterfall CEDA G1b: G1a + waste disaggregation @ IO@2024 producer.
+# Marginal CEDA-specific split before shared G2 methods.
 
 model_base_year: 2024
 price_type: producer
