@@ -1,7 +1,8 @@
 """Stacked G1a→G1b→G2→G3 EF histograms for wholesale v0→v0.3 CEDA progression.
 
-Four marginal panels (each vs the prior group endpoint) plus an optional
-FINAL vs CEDA v0 overlay. Uses existing diagnostics Sheets only.
+Writes sequential panels (each vs the prior group endpoint) and cumulative
+panels (each vs CEDA v0), plus an optional FINAL vs CEDA v0 overlay. Uses
+existing diagnostics Sheets only.
 
 Usage:
     uv run python -m bedrock.analysis.v0_3.plot_ef_v0_v03_ceda_groups
@@ -91,6 +92,19 @@ def _loader_stacked(
             prefer_purchaser=prefer_purchaser,
         )
         return PanelLoad(fractions, inflation_applied=inflation_applied)
+
+    return load
+
+
+def _loader_cumulative_vs_baseline(
+    steps: Sequence[ProgressionSheet],
+    ef_kind: str,
+) -> Callable[[int], PanelLoad]:
+    """Each panel: in-sheet % diff vs CEDA v0 on that step's sheet."""
+
+    def load(index: int) -> PanelLoad:
+        step = steps[index]
+        return PanelLoad(pct_fractions_producer_vs_old(step.sheet_id, ef_kind))
 
     return load
 
@@ -192,6 +206,18 @@ def main(out_dir: Path, skip_overlay: bool) -> None:
                 prefer_purchaser=prefer_purchaser,
                 ref_2023_sheet_id=ref_2023_sheet_id,
             ),
+        )
+        _plot_group_grid(
+            steps,
+            group_title=(
+                f"[v0→v0.3 CEDA · stacked groups] per-sector {ef_kind} % diff "
+                "(producer, cumulative vs CEDA v0)"
+            ),
+            out_path=(
+                out_dir / f"progression_v0_v03_ceda_groups_{ef_kind}_cumulative.png"
+            ),
+            bar_color=bar_color,
+            panel_loader=_loader_cumulative_vs_baseline(steps, ef_kind),
         )
 
     if not skip_overlay:
