@@ -313,9 +313,10 @@ def derive_useeio_excel_y_nab_scaled_to_model_base_year(
     ``model_base_year`` (not workbook ``dollar_year``).
 
     Note:
-    This helper is currently used for diagnostics/support comparisons (e.g. CSV
-    exports), not for the active USEEIO BLy ``y_old`` path. The BLy USEEIO path
-    now uses Cornerstone ``derive_cornerstone_y_nab`` reindexed to USEEIO axis.
+    This helper is used for diagnostics/support comparisons (e.g. CSV exports).
+    The active USEEIO BLy ``y_old`` path uses Cornerstone ``derive_cornerstone_y_nab``
+    reindexed to the USEEIO axis, and rebases workbook ``B`` intensities from
+    workbook ``dollar_year`` to that ``y``'s dollar year when they differ.
     """
     from bedrock.extract.iot.io_2017 import load_summary_Uimp_usa  # noqa: PLC0415
     from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
