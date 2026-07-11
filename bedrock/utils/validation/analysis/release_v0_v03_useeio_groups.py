@@ -34,30 +34,30 @@ G1_SCHEMA_GHG = ProgressionSheet(
 
 G2_METHODS = ProgressionSheet(
     step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
-    sheet_id="1RPd44RBxUTtThz33EGH2ILt8o0WGWsLtJU4763run8U",
+    sheet_id="1SogCbcLbRAE96R8ymij7B8uueIPYCk8MZIeSI5Km-5E",
     config_name="v03_waterfall_g2_methods",
     sheet_title=(
-        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "[2026-07-11, bedrock repo, 2024, USEEIO based, "
         "v0.3 / waterfall G2 methods] EFs diagnostics"
     ),
 )
 
 G3_DATA = ProgressionSheet(
     step_label="G3: Data update (MECS, UMD, 2024 IO/GHG)",
-    sheet_id="1uFL4hfOofBUeV05fQOFIophabRFrVizo_N5wSqd_2wA",
+    sheet_id="1F_v_m5y6o0OYJc1uTeFUn0qPys18s-N9TZmlqu-8SzY",
     config_name="v03_waterfall_g3_data",
     sheet_title=(
-        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "[2026-07-11, bedrock repo, 2024, USEEIO based, "
         "v0.3 / waterfall G3 data] EFs diagnostics"
     ),
 )
 
 FINAL_V03_USEEIO = ProgressionSheet(
     step_label="FINAL v0.3 (waterfall)",
-    sheet_id="1SHSf6IINj6a79qjmhwJGHZR0Oo8XOaxCpv0dggsfkSU",
+    sheet_id="1rWmekEraXOgXx5eEgf3zW86gDzgxh4uqe3Izsq6m_zo",
     config_name="v03_waterfall_final",
     sheet_title=(
-        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "[2026-07-11, bedrock repo, 2024, USEEIO based, "
         "v0.3 / waterfall FINAL v0.3] EFs diagnostics"
     ),
 )
