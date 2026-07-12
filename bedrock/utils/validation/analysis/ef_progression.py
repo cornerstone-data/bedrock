@@ -134,15 +134,26 @@ def _absolute_ef_column(
     *,
     prefer_purchaser: bool = False,
 ) -> str:
-    """Return the absolute EF column to read from a diagnostics tab."""
+    """Return the absolute EF column to read from a diagnostics tab.
+
+    Prefers dollar-year–aligned ``{kind}_new_inflated`` when present (e.g. USEEIO
+    G1 with ``deflate_x_to_detail_io_year_for_B``), so cross-sheet sequential
+    compares match ``model_base_year`` footing. Falls back to ``{kind}_new``.
+    """
+    df = _tab_frame(sheet_id, ef_kind)
     if prefer_purchaser and ef_kind == "N":
-        df = _tab_frame(sheet_id, ef_kind)
         if "N_new_purchaser" in df.columns and df["N_new_purchaser"].notna().any():
             return "N_new_purchaser"
         logger.warning(
-            "Sheet %s has no usable N_new_purchaser; falling back to N_new.",
+            "Sheet %s has no usable N_new_purchaser; falling back to producer N.",
             sheet_id,
         )
+    inflated_col = f"{ef_kind}_new_inflated"
+    if (
+        inflated_col in df.columns
+        and pd.to_numeric(df[inflated_col], errors="coerce").notna().any()
+    ):
+        return inflated_col
     return f"{ef_kind}_new"
 
 
