@@ -4,6 +4,10 @@ Writes sequential panels (each vs the prior group endpoint) and cumulative
 panels (each vs CEDA v0), plus an optional FINAL vs CEDA v0 overlay. Uses
 existing diagnostics Sheets only.
 
+The FINAL N overlay optionally flags pinned key sectors (rugs + callout) —
+same shortlist as ceda ``usa_mrio_final``. Progression multi-panel grids omit
+the overlay (too small).
+
 Usage:
     uv run python -m bedrock.analysis.v0_3.plot_ef_v0_v03_ceda_groups
 """
@@ -23,11 +27,14 @@ import pandas as pd
 
 from bedrock.utils.validation.analysis.ef_hist_panels import (
     EF_KIND_LABEL,
+    annotate_key_sectors,
     draw_per_sector_pct_hist_panel,
+    key_sectors_frame,
 )
 from bedrock.utils.validation.analysis.ef_progression import (
-    pct_fractions_producer_vs_old,
-    pct_fractions_stacked_group,
+    pct_series_producer_vs_old,
+    pct_series_stacked_group,
+    sector_names_from_sheet,
 )
 from bedrock.utils.validation.analysis.plotting import (
     overlay_pct_diff_histogram,
@@ -84,14 +91,16 @@ def _loader_stacked(
     def load(index: int) -> PanelLoad:
         step = steps[index]
         prior = _prior_sheet_id(steps, index)
-        fractions, inflation_applied = pct_fractions_stacked_group(
+        series, inflation_applied = pct_series_stacked_group(
             step.sheet_id,
             prior,
             ef_kind,
             ref_2023_sheet_id=ref_2023_sheet_id,
             prefer_purchaser=prefer_purchaser,
         )
-        return PanelLoad(fractions, inflation_applied=inflation_applied)
+        return PanelLoad(
+            series.to_numpy(dtype=float), inflation_applied=inflation_applied
+        )
 
     return load
 
@@ -104,7 +113,8 @@ def _loader_cumulative_vs_baseline(
 
     def load(index: int) -> PanelLoad:
         step = steps[index]
-        return PanelLoad(pct_fractions_producer_vs_old(step.sheet_id, ef_kind))
+        series = pct_series_producer_vs_old(step.sheet_id, ef_kind)
+        return PanelLoad(series.to_numpy(dtype=float))
 
     return load
 
@@ -125,7 +135,7 @@ def _plot_group_grid(
     )
     flat = list(axes.flat)
     ymax = 0.0
-    for i, step in enumerate(steps):
+    for i, _step in enumerate(steps):
         ax = flat[i]
         loaded = panel_loader(i)
         title = _panel_title(
@@ -150,16 +160,18 @@ def _plot_group_grid(
     print(f"Wrote: {out_path}")
 
 
-def _plot_final_ceda_overlays(out_dir: Path) -> None:
+def _plot_final_ceda_overlays(
+    out_dir: Path,
+    *,
+    key_sectors: pd.DataFrame | None,
+) -> None:
     """Cumulative FINAL vs CEDA v0 (producer) on the CEDA-baseline FINAL sheet."""
     for ef_kind in ("N", "D"):
-        series_by_label = {
-            "FINAL v0.3": pd.Series(
-                pct_fractions_producer_vs_old(FINAL_V03_CEDA.sheet_id, ef_kind) * 100.0
-            ),
-        }
+        series = pct_series_producer_vs_old(FINAL_V03_CEDA.sheet_id, ef_kind)
+        series_by_label = {"FINAL v0.3": series * 100.0}
         fig, ax = plt.subplots(figsize=(11, 6.5))
         kind_label = EF_KIND_LABEL[ef_kind]
+        use_keys = key_sectors is not None and ef_kind == "N"
         overlay_pct_diff_histogram(
             ax,
             series_by_label,
@@ -168,7 +180,10 @@ def _plot_final_ceda_overlays(out_dir: Path) -> None:
                 f"{kind_label} per-sector % diff vs CEDA v0 — "
                 "shipped v0.3 (cumulative, producer)"
             ),
+            legend_loc="upper left" if use_keys else "upper right",
         )
+        if use_keys:
+            annotate_key_sectors(ax, key_sectors, series * 100.0, font_scale=1.0)
         fig.tight_layout()
         out = out_dir / f"overlay_final_ceda_{ef_kind}_cumulative.png"
         save_and_close(fig, out)
@@ -183,12 +198,19 @@ def _plot_final_ceda_overlays(out_dir: Path) -> None:
     show_default=True,
 )
 @click.option("--skip-overlay", is_flag=True)
-def main(out_dir: Path, skip_overlay: bool) -> None:
+@click.option(
+    "--no-key-sectors",
+    is_flag=True,
+    help="Omit pinned key-sector rugs/callouts on the FINAL N overlay.",
+)
+def main(out_dir: Path, skip_overlay: bool, no_key_sectors: bool) -> None:
     setup_mpl(font_size=13)
     out_dir.mkdir(parents=True, exist_ok=True)
     steps = V0_V03_CEDA_STACK_SHEETS
     ref_2023_sheet_id: str | None = None
     prefer_purchaser = False
+    names = sector_names_from_sheet(FINAL_V03_CEDA.sheet_id, "N")
+    key_frame = None if no_key_sectors else key_sectors_frame(names)
 
     for ef_kind in ("N", "D"):
         bar_color = CEDA_BAR if ef_kind == "N" else USEEIO_BAR
@@ -221,7 +243,7 @@ def main(out_dir: Path, skip_overlay: bool) -> None:
         )
 
     if not skip_overlay:
-        _plot_final_ceda_overlays(out_dir)
+        _plot_final_ceda_overlays(out_dir, key_sectors=key_frame)
 
 
 if __name__ == "__main__":

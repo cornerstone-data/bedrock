@@ -3,6 +3,10 @@
 Release-progression grids, single-sheet renders, and A-matrix bundle histograms
 share this panel style: ±100% clip, 60 bins, zero line, n/median/p95 stats box.
 Distinct from ``plotting.percent_histogram`` (wider xlim, median reference lines).
+
+Optional key-sector overlays (rugs + callout) mirror the ceda
+``usa_mrio_final`` N histograms: annotation-only; the %-diff distribution is
+unchanged.
 """
 
 from __future__ import annotations
@@ -27,6 +31,20 @@ HIST_FONT_SCALE = 2.0
 HIST_STATS_EXTRA_SCALE = 2.0
 HIST_PCT_CLIP = 100.0
 HIST_BINS = 60
+
+# Pinned callout sectors for N histograms (same shortlist as ceda usa_mrio_final).
+# Top |BLy| emitters after dropping waste (562*) and |N%| > 100 outliers.
+KEY_USA_SECTORS: tuple[str, ...] = (
+    "221100",  # Electric power generation, transmission, and distribution
+    "211000",  # Oil and gas extraction
+    "1121A0",  # Beef cattle ranching and farming (incl. feedlots)
+    "GSLGO",  # State and local government (other services)
+    "481000",  # Air transportation
+    "1111B0",  # Grain farming
+    "324110",  # Petroleum refineries
+    "484000",  # Truck transportation
+)
+_COLOR_KEY_SECTOR = "#4a5568"  # neutral; no up/down encoding
 
 _KIND_SPEC: dict[str, dict[str, object]] = {
     "N": {
@@ -86,6 +104,114 @@ def pct_values(df: pd.DataFrame, ef_kind: str) -> np.ndarray:
     return arr[np.isfinite(arr)]
 
 
+def key_sectors_frame(sector_names: pd.Series | None = None) -> pd.DataFrame:
+    """Pinned ``KEY_USA_SECTORS`` with optional live ``sector_name`` labels.
+
+    ``sector_names`` is indexed by sector code. Missing names fall back to "".
+    """
+    names = (
+        sector_names.astype(str) if sector_names is not None else pd.Series(dtype=str)
+    )
+    return pd.DataFrame(
+        {
+            "sector": list(KEY_USA_SECTORS),
+            "sector_name": names.reindex(list(KEY_USA_SECTORS)).fillna("").to_numpy(),
+        }
+    )
+
+
+def annotate_key_sectors(
+    ax: Axes,
+    sectors: pd.DataFrame,
+    pct_by_sector: pd.Series,
+    *,
+    font_scale: float = 1.0,
+) -> None:
+    """Neutral rug ticks (sector-ID labels) + name/N% callout (hist unchanged).
+
+    ``pct_by_sector`` is in **percent** units (same as the panel x-axis), indexed
+    by stripped sector code. Values outside ``±HIST_PCT_CLIP`` are clipped for
+    rug placement only.
+    """
+    lo, hi = -HIST_PCT_CLIP, HIST_PCT_CLIP
+    y0, y1 = ax.get_ylim()
+    rug_h = (y1 - y0) * 0.07
+    pct_lookup = pct_by_sector.copy()
+    pct_lookup.index = pct_lookup.index.astype(str).str.strip()
+
+    marks: list[tuple[str, float, float]] = []
+    rows: list[str] = []
+    for r in sectors.itertuples(index=False):
+        sec = str(r.sector).strip()
+        pct_val = pct_lookup.get(sec)
+        has_pct = pct_val is not None and np.isfinite(float(pct_val))
+        pct = float(pct_val) if has_pct else float("nan")
+
+        if has_pct:
+            marks.append((sec, float(np.clip(pct, lo, hi)), pct))
+
+        name = str(r.sector_name).strip() or sec
+        if len(name) > 28:
+            name = name[:27] + "…"
+        pct_str = f"{pct:+5.1f}%" if has_pct else "  n/a"
+        rows.append(f"{sec:<6} {name:<28} {pct_str}")
+
+    marks.sort(key=lambda t: t[1])
+    heights: list[int] = []
+    last_x_at_level: dict[int, float] = {}
+    min_sep = (hi - lo) * 0.04
+    for _, x, _ in marks:
+        level = 0
+        while level in last_x_at_level and abs(x - last_x_at_level[level]) < min_sep:
+            level += 1
+        heights.append(level)
+        last_x_at_level[level] = x
+
+    label_fs = 7.5 * font_scale
+    for (sec, x, _), level in zip(marks, heights, strict=True):
+        ax.vlines(
+            x,
+            y0,
+            y0 + rug_h,
+            colors=_COLOR_KEY_SECTOR,
+            linewidths=2.0,
+            zorder=5,
+        )
+        ax.plot(x, y0 + rug_h, "^", color=_COLOR_KEY_SECTOR, markersize=6, zorder=6)
+        ax.text(
+            x,
+            y0 + rug_h * (1.15 + 0.85 * level),
+            sec,
+            ha="center",
+            va="bottom",
+            fontsize=label_fs,
+            color=_COLOR_KEY_SECTOR,
+            fontweight="bold",
+            zorder=7,
+        )
+
+    if not rows:
+        return
+
+    header = f"{'code':<6} {'name':<28} {'N%':>6}"
+    box = "Key sectors (by BLy)\n" + header + "\n" + "\n".join(rows)
+    ax.text(
+        0.98,
+        0.97,
+        box,
+        transform=ax.transAxes,
+        fontsize=max(6.5, 8.5 * font_scale),
+        va="top",
+        ha="right",
+        fontfamily="monospace",
+        linespacing=1.25,
+        bbox=dict(
+            boxstyle="round,pad=0.35", facecolor="white", edgecolor="0.6", alpha=0.92
+        ),
+        zorder=7,
+    )
+
+
 def draw_per_sector_pct_hist_panel(
     ax: Axes,
     pct_fraction: np.ndarray,
@@ -94,10 +220,15 @@ def draw_per_sector_pct_hist_panel(
     color: str,
     font_scale: float = 1.0,
     ylabel: str = "sector count",
+    pct_by_sector: pd.Series | None = None,
+    key_sectors: pd.DataFrame | None = None,
 ) -> None:
     """Draw one clipped per-sector % diff histogram on ``ax``.
 
     ``pct_fraction`` values are unit fractions (0.15 = 15%).
+    When ``key_sectors`` and ``pct_by_sector`` are provided, draws the key-sector
+    overlay. ``pct_by_sector`` may be fractions or percent; values with typical
+    |median| <= 2 are treated as fractions and scaled to percent.
     """
     pct_percent = np.asarray(pct_fraction, dtype=float) * 100.0
     finite = pct_percent[np.isfinite(pct_percent)]
@@ -133,3 +264,13 @@ def draw_per_sector_pct_hist_panel(
     )
     ax.set_ylabel(ylabel, fontsize=PANEL_AXIS_LABEL_FONTSIZE * font_scale)
     ax.tick_params(axis="both", labelsize=PANEL_TICK_LABEL_FONTSIZE * font_scale)
+
+    if key_sectors is not None and pct_by_sector is not None and not key_sectors.empty:
+        overlay = pd.to_numeric(pct_by_sector, errors="coerce")
+        finite_overlay = overlay[np.isfinite(overlay.to_numpy(dtype=float))]
+        if (
+            finite_overlay.size
+            and float(np.nanmedian(np.abs(finite_overlay.to_numpy(dtype=float)))) <= 2.0
+        ):
+            overlay = overlay * 100.0
+        annotate_key_sectors(ax, key_sectors, overlay, font_scale=font_scale)
