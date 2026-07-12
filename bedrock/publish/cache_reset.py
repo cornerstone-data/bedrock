@@ -33,6 +33,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_VA,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_y_nab,
     derive_cornerstone_Ytot_matrix_set,
 )
@@ -59,6 +60,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_disagg_Ytot_with_trade,
     derive_cornerstone_V,
     derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_q,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
