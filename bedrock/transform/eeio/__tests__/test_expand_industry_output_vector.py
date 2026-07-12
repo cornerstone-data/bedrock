@@ -21,9 +21,18 @@ def _synthetic_bea_x() -> pd.Series[float]:
     return pd.Series(values, dtype=float)
 
 
+def _bea_parents(corresp: pd.DataFrame, cs: str) -> list[str]:
+    """BEA industry columns with a positive weight on the Cornerstone row ``cs``."""
+    return [
+        str(col)
+        for col in corresp.columns
+        if float(pd.to_numeric(corresp.at[cs, col], errors="coerce") or 0.0) > 0
+    ]
+
+
 def _multi_parent_industry_rows() -> list[str]:
     corresp = industry_corresp_raw()
-    return [c for c in corresp.index if (corresp.loc[c] > 0).sum() > 1]
+    return [str(c) for c in corresp.index if len(_bea_parents(corresp, str(c))) > 1]
 
 
 def _first_parent_industry_expand(x_bea: pd.Series[float]) -> pd.Series[float]:
@@ -31,7 +40,7 @@ def _first_parent_industry_expand(x_bea: pd.Series[float]) -> pd.Series[float]:
     corresp = industry_corresp_raw()
     out = pd.Series(0.0, index=CS_INDUSTRY_LIST, dtype=float)
     for cs in CS_INDUSTRY_LIST:
-        parents = corresp.columns[corresp.loc[cs] > 0].tolist()
+        parents = _bea_parents(corresp, cs)
         if parents and parents[0] in x_bea.index:
             out[cs] = float(x_bea[parents[0]])
     return out
@@ -45,7 +54,7 @@ def test_expand_industry_output_sums_all_multi_parent_rows() -> None:
     multi = _multi_parent_industry_rows()
     assert multi, "expected at least one industry many-to-one row"
     for cs in multi:
-        parents = corresp.columns[corresp.loc[cs] > 0].tolist()
+        parents = _bea_parents(corresp, cs)
         assert x_cs[cs] == sum(float(x_bea[p]) for p in parents)
 
 
@@ -60,7 +69,7 @@ def test_expand_industry_output_vs_first_parent_only_multi_parent_rows_differ() 
     delta = x_new - x_old
     assert set(delta.index[delta.abs() > 1e-9]) == multi
     for cs in multi:
-        parents = corresp.columns[corresp.loc[cs] > 0].tolist()
+        parents = _bea_parents(corresp, cs)
         assert delta[cs] == sum(float(x_bea[p]) for p in parents[1:])
 
 
