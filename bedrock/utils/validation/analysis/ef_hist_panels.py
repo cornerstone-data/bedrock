@@ -32,13 +32,13 @@ HIST_STATS_EXTRA_SCALE = 2.0
 HIST_PCT_CLIP = 100.0
 HIST_BINS = 60
 
-# Pinned callout sectors for N histograms (same shortlist as ceda usa_mrio_final).
-# Top |BLy| emitters after dropping waste (562*) and |N%| > 100 outliers.
+# Pinned callout sectors for N histograms. Top |BLy| emitters after dropping
+# waste (562*), government (G*/S00*), and |N%| > 100 outliers.
 KEY_USA_SECTORS: tuple[str, ...] = (
     "221100",  # Electric power generation, transmission, and distribution
     "211000",  # Oil and gas extraction
     "1121A0",  # Beef cattle ranching and farming (incl. feedlots)
-    "GSLGO",  # State and local government (other services)
+    "212100",  # Coal mining
     "481000",  # Air transportation
     "1111B0",  # Grain farming
     "324110",  # Petroleum refineries

@@ -4,8 +4,9 @@ Writes sequential panels (each vs the prior group endpoint) and cumulative
 panels (each vs CEDA v0), plus an optional FINAL vs CEDA v0 overlay. Uses
 existing diagnostics Sheets only.
 
-The FINAL N overlay optionally flags pinned key sectors (rugs + callout) —
-same shortlist as ceda ``usa_mrio_final``. Progression multi-panel grids omit
+The FINAL N overlay optionally flags pinned key sectors (rugs + callout)
+from ``KEY_USA_SECTORS`` (BLy-ranked; waste and government excluded).
+Progression multi-panel grids omit
 the overlay (too small).
 
 Usage:
