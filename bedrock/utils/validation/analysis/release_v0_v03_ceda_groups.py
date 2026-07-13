@@ -27,50 +27,50 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 
 G1A_SCHEMA_GHG = ProgressionSheet(
     step_label="G1a: Cornerstone schema/GHG (no waste)",
-    sheet_id="1rFe4PmoEqDZ2NNUf5gx9jyvy3IQJEE7QGxXkygvVjhU",
+    sheet_id="1jIfLzBfAcpJqq6h4KwMOvZICCVYuQOfWjhy7gBY-VA0",
     config_name="v03_waterfall_ceda_g1a_schema_ghg",
     sheet_title=(
-        "[2026-07-10, bedrock repo, 2024, CEDA based, "
+        "[2026-07-13, bedrock repo, 2024, CEDA based, "
         "v0.3 / waterfall CEDA G1a schema/GHG] EFs diagnostics"
     ),
 )
 
 G1B_WASTE_DISAGG = ProgressionSheet(
     step_label="G1b: Waste disaggregation",
-    sheet_id="1cTWFxTt2ux51Lk6x6pesJiOMKlNMgZABquV3GCJhJXE",
+    sheet_id="1Px61a96Mq-GnMvHf09zpURbzNQI0MYmuV1ot-sfnRtU",
     config_name="v03_waterfall_ceda_g1b_waste_disagg",
     sheet_title=(
-        "[2026-07-10, bedrock repo, 2024, CEDA based, "
+        "[2026-07-13, bedrock repo, 2024, CEDA based, "
         "v0.3 / waterfall CEDA G1b waste disagg] EFs diagnostics"
     ),
 )
 
 G2_METHODS = ProgressionSheet(
     step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
-    sheet_id="1SrBs3qrWdPGExxCCMoblDslmzGxps4BUq4EHMGSiNeA",
+    sheet_id="15w6-uMNxXgzhDKGZXzZeD4ihjlD9igg_tg-qizKZJgE",
     config_name="v03_waterfall_g2_methods",
     sheet_title=(
-        "[2026-07-10, bedrock repo, 2024, CEDA based, "
+        "[2026-07-13, bedrock repo, 2024, CEDA based, "
         "v0.3 / waterfall G2 methods] EFs diagnostics"
     ),
 )
 
 G3_DATA = ProgressionSheet(
     step_label="G3: Data update (MECS, UMD, 2024 IO/GHG)",
-    sheet_id="1TgyffESrSghyfwEez_nE3vPpuLusus4uoa10bSSO1BA",
+    sheet_id="1OcmhKNxDXgJdvGgMpP8q04a-DhWkpDIzIbKs9Rp7g-Q",
     config_name="v03_waterfall_g3_data",
     sheet_title=(
-        "[2026-07-10, bedrock repo, 2024, CEDA based, "
+        "[2026-07-13, bedrock repo, 2024, CEDA based, "
         "v0.3 / waterfall G3 data] EFs diagnostics"
     ),
 )
 
 FINAL_V03_CEDA = ProgressionSheet(
     step_label="FINAL v0.3 (waterfall)",
-    sheet_id="19b0Nmuz4Ymj-jKlCrGWVymgpcBereD738DNcTN3kZgA",
+    sheet_id="17QWanjL_5wn_lCGcJ_XNWF_F5katycfPrOzECbkr8Ww",
     config_name="v03_waterfall_final",
     sheet_title=(
-        "[2026-07-10, bedrock repo, 2024, CEDA based, "
+        "[2026-07-13, bedrock repo, 2024, CEDA based, "
         "v0.3 / waterfall FINAL v0.3] EFs diagnostics"
     ),
 )
