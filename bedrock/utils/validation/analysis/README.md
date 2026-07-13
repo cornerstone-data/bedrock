@@ -89,6 +89,16 @@ back, caches them locally as parquet, and renders analysis figures.
   Dispatch via `bedrock.analysis.v0_3.dispatch_ef_v03_waterfall`. Consumed by
   combo `v0_to_v03_useeio_groups` and
   `bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups`.
+- `release_v0_v03_ceda_groups.py` — wholesale v0→v0.3 CEDA group endpoints
+  (G1a schema/GHG, G1b waste disaggregation, G2 methods, G3 data, FINAL). Configs:
+  `v03_waterfall_ceda_g1a_schema_ghg`, `v03_waterfall_ceda_g1b_waste_disagg`,
+  plus shared `v03_waterfall_g2_methods`, `v03_waterfall_g3_data`,
+  `v03_waterfall_final`. Dispatch via
+  `bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --baseline ceda`. Consumed by
+  combo `v0_to_v03_ceda_groups` and
+  `bedrock.analysis.v0_3.plot_ef_v0_v03_ceda_groups`.
+- `v03_waterfall_config_comparison.md` — resolved flag tables for waterfall
+  configs and baseline anchors (pinned USEEIO Excel, `v8_ceda_2025_usa`).
 
 ## Running
 

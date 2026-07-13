@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 PINNED_USEEIO_BASELINE = 'pinned_useeio_baseline'
+CEDA_V0_BASELINE = 'v8_ceda_2025_usa'
 # ``config_summary`` on the v0.2 FINAL diagnostics sheets records this stem.
 # The yaml was renamed to ``2025_usa_cornerstone_v0_2`` after those runs;
 # keep this literal for merge keys and net-diff column lookup.

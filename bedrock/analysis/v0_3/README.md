@@ -6,8 +6,8 @@ progression. They read or dispatch Google Sheets produced by
 `bedrock.utils.validation.analysis` (`fetch`, `plotting`, `bly_plots`, etc.).
 
 The sheet registries (`release_v0_3_progression.py`,
-`release_v0_v03_useeio_groups.py`) live in `bedrock.utils.validation.analysis`
-so combine combos stay self-contained.
+`release_v0_v03_useeio_groups.py`, `release_v0_v03_ceda_groups.py`) live in
+`bedrock.utils.validation.analysis` so combine combos stay self-contained.
 
 Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 (gitignored).
@@ -18,8 +18,9 @@ Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 |--------|---------|
 | `plot_ef_release_v0_3.py` | Release progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
 | `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (3 marginal panels + FINAL vs pinned USEEIO overlays, producer). |
+| `plot_ef_v0_v03_ceda_groups.py` | Stacked G1a→G1b→G2→G3 wholesale CEDA progression (4 marginal panels + FINAL vs CEDA v0 overlays, producer). |
 | `dispatch_ef_release_v0_3.py` | Dispatch v0.3 release steps (MECS through FINAL) to the EF time-series Drive folder; appends to `output/release_v0_3/ef_run_index_release_v0_3.csv`. |
-| `dispatch_ef_v03_waterfall.py` | Dispatch four `v03_waterfall_*` group endpoints (USEEIO baseline only) to the v03 waterfall Drive folder; appends to `output/release_v0_v03_groups/ef_run_index_v03_waterfall.csv`. |
+| `dispatch_ef_v03_waterfall.py` | Dispatch `v03_waterfall_*` group endpoints (USEEIO or CEDA baseline) to the v03 waterfall Drive folder; appends to a baseline-specific run index CSV. |
 
 ## Plot
 
@@ -39,9 +40,15 @@ Wholesale v0→v0.3 USEEIO groups (stacked G1→G2→G3 marginals, IO@2024 produ
 uv run python -m bedrock.analysis.v0_3.plot_ef_v0_v03_useeio_groups
 ```
 
+Wholesale v0→v0.3 CEDA groups (stacked G1a→G1b→G2→G3 marginals, IO@2024 producer):
+
+```powershell
+uv run python -m bedrock.analysis.v0_3.plot_ef_v0_v03_ceda_groups
+```
+
 Dispatch group sheets with `dispatch_ef_v03_waterfall`, then paste sheet IDs from
-`ef_run_index_v03_waterfall.csv` into `release_v0_v03_useeio_groups.py` before
-combine/plot.
+the baseline-specific run index into `release_v0_v03_useeio_groups.py` or
+`release_v0_v03_ceda_groups.py` before combine/plot.
 
 ## Dispatch
 
@@ -53,14 +60,20 @@ uv run python -m bedrock.analysis.v0_3.dispatch_ef_release_v0_3 `
 uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --dry-run
 uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall `
     --only-configs v03_waterfall_useeio_g1_schema_ghg
+
+uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --baseline ceda --dry-run
+uv run python -m bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --baseline ceda `
+    --only-configs v03_waterfall_ceda_g1a_schema_ghg
 ```
+
+Run indexes: `ef_run_index_v03_waterfall.csv` (USEEIO), `ef_run_index_v03_waterfall_ceda.csv` (CEDA).
 
 ## Combine
 
 Merged workbooks use combos in `bedrock.utils.validation.analysis.combinations`
-(`v0.2_to_v0.3_ceda`, `v0.2_to_v0.3_useeio`, `v0_to_v03_useeio_groups`). Example
-filenames end with the baseline tag (`_ceda`, `_useeio`) so both v0.2→v0.3
-workbooks can sit in one folder:
+(`v0.2_to_v0.3_ceda`, `v0.2_to_v0.3_useeio`, `v0_to_v03_useeio_groups`,
+`v0_to_v03_ceda_groups`). Example filenames end with the baseline tag (`_ceda`,
+`_useeio`) so both v0.2→v0.3 workbooks can sit in one folder:
 
 ```powershell
 uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
@@ -74,6 +87,13 @@ uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
 uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
     --combo v0_to_v03_useeio_groups `
     --output-xlsx bedrock/analysis/v0_3/output/release_v0_v03_groups/ef_diagnostics_merged_v0_to_v03_useeio_groups_useeio.xlsx
+
+uv run python -m bedrock.utils.validation.analysis.combine_ef_diagnostics `
+    --combo v0_to_v03_ceda_groups `
+    --output-xlsx bedrock/analysis/v0_3/output/release_v0_v03_groups/ef_diagnostics_merged_v0_to_v03_ceda_groups_ceda.xlsx
 ```
 
 Re-run with `--refresh` after sheet tab content changes.
+
+Flag comparison for waterfall configs and baselines:
+`bedrock/utils/validation/analysis/v03_waterfall_config_comparison.md`.
