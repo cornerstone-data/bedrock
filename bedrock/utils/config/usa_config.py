@@ -242,7 +242,8 @@ class USAConfig(BaseModel):
         '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2
         '4d67c8f0f5721a30ce03f4d3eef85a82e7199032',  # v0.3.0-alpha (config: 2025_usa_cornerstone_v0_2)
         '5a90baf0272fe8841e40db8cd513885b34051e86',  # v0.3-beta (config: 2025_usa_cornerstone_v0_3)
-        '9a47eaa1060e6900154c7b819934a8a1669461c3',  # v0.3.0 (current .SNAPSHOT_KEY)
+        '9a47eaa1060e6900154c7b819934a8a1669461c3',  # v0.3.0 before #513 (industry-x expand fix)
+        'c60bdf4308cb660eee80a246214901cff9122820',  # v0.3.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
