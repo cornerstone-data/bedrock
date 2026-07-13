@@ -38,7 +38,7 @@ def download_snapshot(name: SnapshotName, key: str) -> None:
 
 def current_snapshot_key() -> str:
     with open(os.path.join(SNAPSHOT_BASE, ".SNAPSHOT_KEY")) as f:
-        return f.read()
+        return f.read().strip()
 
 
 def snapshot_local_dir(key: str) -> str:

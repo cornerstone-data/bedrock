@@ -22,7 +22,7 @@ v0_3_0_alpha = (
 v0_3_beta = (
     "5a90baf0272fe8841e40db8cd513885b34051e86"  # config: 2025_usa_cornerstone_v0_3
 )
-v0_3_0 = "9a47eaa1060e6900154c7b819934a8a1669461c3"  # config: 2025_usa_cornerstone_v0_3; matches .SNAPSHOT_KEY
+v0_3_0 = "c60bdf4308cb660eee80a246214901cff9122820"  # config: 2025_usa_cornerstone_v0_3; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
