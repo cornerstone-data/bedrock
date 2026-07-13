@@ -182,6 +182,7 @@ def _plot_final_useeio_overlays(
             legend_loc="upper left" if use_keys else "upper right",
         )
         if use_keys:
+            assert key_sectors is not None
             annotate_key_sectors(ax, key_sectors, series * 100.0, font_scale=1.0)
         fig.tight_layout()
         out = out_dir / f"overlay_final_useeio_{ef_kind}_cumulative.png"

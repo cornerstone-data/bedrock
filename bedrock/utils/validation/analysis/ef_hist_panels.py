@@ -144,8 +144,14 @@ def annotate_key_sectors(
     for r in sectors.itertuples(index=False):
         sec = str(r.sector).strip()
         pct_val = pct_lookup.get(sec)
-        has_pct = pct_val is not None and np.isfinite(float(pct_val))
-        pct = float(pct_val) if has_pct else float("nan")
+        if pct_val is None:
+            has_pct = False
+            pct = float("nan")
+        else:
+            pct = float(pct_val)
+            has_pct = bool(np.isfinite(pct))
+            if not has_pct:
+                pct = float("nan")
 
         if has_pct:
             marks.append((sec, float(np.clip(pct, lo, hi)), pct))
