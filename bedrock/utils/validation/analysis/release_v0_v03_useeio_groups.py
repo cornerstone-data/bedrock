@@ -1,14 +1,17 @@
-"""Wholesale v0→v0.3 USEEIO diagnostics — three stacked group endpoints + FINAL.
+"""Wholesale v0→v0.3 USEEIO diagnostics — v03_waterfall cumulative group endpoints.
 
-Each group endpoint is a dispatched diagnostics Sheet. Combine net-diffs chain
-G1 → G2 → G3 (marginal strips); FINAL is the shipped release (verification
-column, not a fourth deck marginal).
+Four ``v03_waterfall_*`` configs at IO@2024 producer footing. Combine net-diffs
+chain G1 → G2 → G3 (marginal strips); FINAL verifies the shipped feature mix.
 
-Group definitions:
-  G1 — Cornerstone 2023 GHG + 2026 schema (Phoebe restore schema+GHG)
-  G2 — Methods: Phoebe B/A/IoT bridge + inflation + CEDA A/price (A_ceda endpoint)
-  G3 — Data: MECS + UMD + 2024 IO/GHG (2024_io_ghg endpoint)
-  FINAL — ``2025_usa_cornerstone_v0_3``
+Group definitions (cumulative):
+  G1 — ``v03_waterfall_useeio_g1_schema_ghg`` — USEEIO-like A/margins + Cornerstone schema/GHG
+  G2 — ``v03_waterfall_g2_methods`` — G1 + CEDA A/price, cornerstone margins, inflation
+  G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
+  FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
+
+Dispatch: ``bedrock.analysis.v0_3.dispatch_ef_v03_waterfall``. After dispatch,
+paste sheet IDs from ``output/release_v0_v03_groups/ef_run_index_v03_waterfall.csv``
+into the ``ProgressionSheet`` entries below.
 """
 
 from __future__ import annotations
@@ -20,44 +23,44 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 )
 
 G1_SCHEMA_GHG = ProgressionSheet(
-    step_label="G1: Cornerstone 2023 GHG + schema",
-    sheet_id="1l6Yzys1yNNvmZX2Fno30ftWjuMBCtRPFTESTbinYKz0",
-    config_name="useeio_phoebe_23_restore_schema_and_ghg",
-    sheet_title="[05-06-2026] USEEIO - restore GHG model and schema",
+    step_label="G1: USEEIO-like A/margins + Cornerstone schema/GHG",
+    sheet_id="18Nz4dfrv0kvSFo3G1dGrOgM_1HLC9843o4-yrO6m-uM",
+    config_name="v03_waterfall_useeio_g1_schema_ghg",
+    sheet_title=(
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall USEEIO G1 schema/GHG] EFs diagnostics"
+    ),
 )
 
 G2_METHODS = ProgressionSheet(
-    step_label="G2: Methods (A/B, IoT, inflation, CEDA A/price)",
-    sheet_id="1QZBKKHqaZm84-Kn1Fz0gpEdRTNCqnw0YJ8TQAsDn87o",
-    config_name="2025_usa_cornerstone_full_model_v0_3_A_ceda_fallback_approach",
+    step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
+    sheet_id="1RPd44RBxUTtThz33EGH2ILt8o0WGWsLtJU4763run8U",
+    config_name="v03_waterfall_g2_methods",
     sheet_title=(
-        "[2026-06-18, bedrock repo, 2023, USEEIO based, "
-        "v0.3 / CEDA A approach w/ price adj] EFs diagnostics"
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall G2 methods] EFs diagnostics"
     ),
 )
 
 G3_DATA = ProgressionSheet(
     step_label="G3: Data update (MECS, UMD, 2024 IO/GHG)",
-    sheet_id="1lqwoSVuDcMkSp56p1U8uQBkNuIVgDYJiy8Pog8IU-Zg",
-    config_name="2025_usa_cornerstone_full_model_v0_3_2024_io_ghg",
+    sheet_id="1uFL4hfOofBUeV05fQOFIophabRFrVizo_N5wSqd_2wA",
+    config_name="v03_waterfall_g3_data",
     sheet_title=(
-        "[2026-06-24, bedrock repo, 2024, USEEIO based, "
-        "v0.3 / 2024 US IO+GHG data] EFs diagnostics"
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall G3 data] EFs diagnostics"
     ),
 )
 
 FINAL_V03_USEEIO = ProgressionSheet(
-    step_label="FINAL v0.3 (shipped)",
-    sheet_id="1FJYZHmQVN9D0JcUq7_hkqrxBU_h_K_xUPFQGDvf7gII",
-    config_name="2025_usa_cornerstone_v0_3",
+    step_label="FINAL v0.3 (waterfall)",
+    sheet_id="1SHSf6IINj6a79qjmhwJGHZR0Oo8XOaxCpv0dggsfkSU",
+    config_name="v03_waterfall_final",
     sheet_title=(
-        "[2026-06-24, bedrock repo, 2024, USEEIO based, "
-        "v0.3 / FINAL v0.3] EFs diagnostics"
+        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "v0.3 / waterfall FINAL v0.3] EFs diagnostics"
     ),
 )
-
-# IO@2023 reference for 2023→2024 inflation on the G3 marginal (G3 vs G2).
-REF_2023_FOR_INFLATION = "1rzJEZuDe-GK_C5juKtIlrkYyQpnU0S9KUCBzMl9FT4M"
 
 V0_V03_USEEIO_GROUP_SHEETS: tuple[ProgressionSheet, ...] = (
     G1_SCHEMA_GHG,
@@ -70,6 +73,10 @@ V0_V03_USEEIO_STACK_SHEETS: tuple[ProgressionSheet, ...] = (
     G1_SCHEMA_GHG,
     G2_METHODS,
     G3_DATA,
+)
+
+V03_WATERFALL_CONFIGS: tuple[str, ...] = tuple(
+    s.config_name for s in V0_V03_USEEIO_GROUP_SHEETS
 )
 
 # Default local merge workbook for combo ``v0_to_v03_useeio_groups`` (USEEIO baseline).
@@ -96,7 +103,7 @@ __all__ = [
     "G1_SCHEMA_GHG",
     "G2_METHODS",
     "G3_DATA",
-    "REF_2023_FOR_INFLATION",
+    "V03_WATERFALL_CONFIGS",
     "V0_TO_V03_USEEIO_GROUPS_MERGED_XLSX",
     "V0_V03_USEEIO_GROUP_SHEETS",
     "V0_V03_USEEIO_STACK_SHEETS",

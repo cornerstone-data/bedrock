@@ -432,6 +432,7 @@ def merge_sheets(
     output_xlsx_path: str | None,
     output_sheet_id: str | None = None,
     refresh: bool = False,
+    n_price_type: str = "purchaser",
 ) -> dict[str, pd.DataFrame]:
     """Merge multiple diagnostics Sheets into the 7 comparison tabs.
 
@@ -452,6 +453,23 @@ def merge_sheets(
     """
     if not sheet_inputs_in_order:
         raise ValueError('Need at least one input Sheet.')
+    if n_price_type not in ("purchaser", "producer"):
+        raise ValueError(
+            f"n_price_type must be 'purchaser' or 'producer', got {n_price_type!r}"
+        )
+
+    n_new_preferred = (
+        "N_new_purchaser" if n_price_type == "purchaser" else "N_new_inflated"
+    )
+    n_new_fallback: tuple[str, ...] = (
+        ("N_new_inflated", "N_new") if n_price_type == "purchaser" else ("N_new",)
+    )
+    pinned_n_preferred = (
+        "N_old_purchaser" if n_price_type == "purchaser" else "N_old_inflated"
+    )
+    pinned_n_fallback: tuple[str, ...] = (
+        ("N_old_inflated",) if n_price_type == "purchaser" else ()
+    )
 
     # Read each run's config_summary upfront and classify it. This is the
     # source of truth for two behaviors that both depend on whether a run
@@ -519,8 +537,8 @@ def merge_sheets(
             sheet_id=first_sheet_id,
             label=first_label,
             tab='N_and_diffs',
-            preferred_metric_col='N_old_purchaser',
-            fallback_metric_cols=('N_old_inflated',),
+            preferred_metric_col=pinned_n_preferred,
+            fallback_metric_cols=pinned_n_fallback,
             refresh=refresh,
         )
 
@@ -537,8 +555,8 @@ def merge_sheets(
             sheet_id=sheet_id,
             label=label,
             tab='N_and_diffs',
-            preferred_metric_col='N_new_purchaser',
-            fallback_metric_cols=('N_new_inflated', 'N_new'),
+            preferred_metric_col=n_new_preferred,
+            fallback_metric_cols=n_new_fallback,
             refresh=refresh,
         )
 
@@ -896,6 +914,7 @@ def main(
         output_xlsx_path=effective_xlsx_path,
         output_sheet_id=output_sheet_id or None,
         refresh=refresh,
+        n_price_type=spec.n_price_type,
     )
 
 
