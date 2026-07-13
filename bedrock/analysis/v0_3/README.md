@@ -17,8 +17,8 @@ Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 | Script | Purpose |
 |--------|---------|
 | `plot_ef_release_v0_3.py` | Release progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
-| `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (3 marginal panels + FINAL vs pinned USEEIO overlays, producer). |
-| `plot_ef_v0_v03_ceda_groups.py` | Stacked G1a→G1b→G2→G3 wholesale CEDA progression (4 marginal panels + FINAL vs CEDA v0 overlays, producer). |
+| `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (sequential + cumulative-vs-pin panels, FINAL overlays, producer). FINAL N overlay flags pinned key sectors. |
+| `plot_ef_v0_v03_ceda_groups.py` | Stacked G1a→G1b→G2→G3 wholesale CEDA progression (sequential + cumulative-vs-v0 panels, FINAL overlays, producer). FINAL N overlay flags pinned key sectors. |
 | `dispatch_ef_release_v0_3.py` | Dispatch v0.3 release steps (MECS through FINAL) to the EF time-series Drive folder; appends to `output/release_v0_3/ef_run_index_release_v0_3.csv`. |
 | `dispatch_ef_v03_waterfall.py` | Dispatch `v03_waterfall_*` group endpoints (USEEIO or CEDA baseline) to the v03 waterfall Drive folder; appends to a baseline-specific run index CSV. |
 
