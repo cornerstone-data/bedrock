@@ -24,40 +24,40 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 
 G1_SCHEMA_GHG = ProgressionSheet(
     step_label="G1: USEEIO-like A/margins + Cornerstone schema/GHG",
-    sheet_id="18Nz4dfrv0kvSFo3G1dGrOgM_1HLC9843o4-yrO6m-uM",
+    sheet_id="1AaMWSXaHfyTHWfdNvICQ13RDA-CXEQir5W77RcntQRE",
     config_name="v03_waterfall_useeio_g1_schema_ghg",
     sheet_title=(
-        "[2026-07-09, bedrock repo, 2024, USEEIO based, "
+        "[2026-07-13, bedrock repo, 2024, USEEIO based, "
         "v0.3 / waterfall USEEIO G1 schema/GHG] EFs diagnostics"
     ),
 )
 
 G2_METHODS = ProgressionSheet(
     step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
-    sheet_id="1SogCbcLbRAE96R8ymij7B8uueIPYCk8MZIeSI5Km-5E",
+    sheet_id="1ooNKUDndc3mOdBVt0HBFzIk1SNA1OjGTfh-3uJq1iUc",
     config_name="v03_waterfall_g2_methods",
     sheet_title=(
-        "[2026-07-11, bedrock repo, 2024, USEEIO based, "
+        "[2026-07-13, bedrock repo, 2024, USEEIO based, "
         "v0.3 / waterfall G2 methods] EFs diagnostics"
     ),
 )
 
 G3_DATA = ProgressionSheet(
     step_label="G3: Data update (MECS, UMD, 2024 IO/GHG)",
-    sheet_id="1F_v_m5y6o0OYJc1uTeFUn0qPys18s-N9TZmlqu-8SzY",
+    sheet_id="1LXt5cZTsXFKG6l09Hw56zkrxIhnnqwXDxMjMOERrE6c",
     config_name="v03_waterfall_g3_data",
     sheet_title=(
-        "[2026-07-11, bedrock repo, 2024, USEEIO based, "
+        "[2026-07-13, bedrock repo, 2024, USEEIO based, "
         "v0.3 / waterfall G3 data] EFs diagnostics"
     ),
 )
 
 FINAL_V03_USEEIO = ProgressionSheet(
     step_label="FINAL v0.3 (waterfall)",
-    sheet_id="1rWmekEraXOgXx5eEgf3zW86gDzgxh4uqe3Izsq6m_zo",
+    sheet_id="1l4YBYPkcp4jgV7-tOUhVbbWr08zUcm7jR55US_wjwpM",
     config_name="v03_waterfall_final",
     sheet_title=(
-        "[2026-07-11, bedrock repo, 2024, USEEIO based, "
+        "[2026-07-13, bedrock repo, 2024, USEEIO based, "
         "v0.3 / waterfall FINAL v0.3] EFs diagnostics"
     ),
 )
