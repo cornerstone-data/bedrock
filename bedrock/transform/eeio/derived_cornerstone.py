@@ -264,6 +264,7 @@ def derive_cornerstone_x_after_redefinition(
         x_cs.index.name = 'sector'
     return _distribute_waste_parent_x_using_v_row_shares(x_cs)
 
+
 @functools.cache
 @pa.check_output(CornerstoneQVectorSchema)
 def derive_cornerstone_q() -> pd.Series[float]:
