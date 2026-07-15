@@ -31,7 +31,7 @@ os.makedirs(OUT, exist_ok=True)
 
 from bedrock.utils.config.usa_config import set_global_usa_config  # noqa: E402
 
-set_global_usa_config('2025_usa_cornerstone_full_model')
+set_global_usa_config('2025_usa_cornerstone_v0_2')
 
 from bedrock.transform.allocation.derived import derive_E_usa  # noqa: E402
 from bedrock.transform.eeio.derived_cornerstone import (  # noqa: E402

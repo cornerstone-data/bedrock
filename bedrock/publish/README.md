@@ -113,14 +113,14 @@ computes `Ydom_matrix = Ytot_matrix - Yimp_matrix`. Then re-extend
    `write_model_to_xlsx` to a tmp directory and compares against the
    parquet snapshot.
 
-   **The test is hard-coded to `2025_usa_cornerstone_full_model`.** If
+   **The test uses `CANONICAL_USA_CONFIG` (`2025_usa_cornerstone_v0_3`).** If
    `<cfg>` differs, this step does NOT validate the artifact you are
    about to publish. (TODO: parameterize the test to validate arbitrary
    configs; tracked in
    [bedrock/publish/__tests__/test_excel_vs_snapshot.py](__tests__/test_excel_vs_snapshot.py).)
 
    **Skippable when** all three hold:
-   - `<cfg>` is `2025_usa_cornerstone_full_model`, AND
+   - `<cfg>` is `2025_usa_cornerstone_v0_3`, AND
    - you are publishing from a `main` SHA covered by the most recent
      green
      [`test_integration.yml`](../../.github/workflows/test_integration.yml)

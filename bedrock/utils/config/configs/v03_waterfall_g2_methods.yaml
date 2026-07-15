@@ -1,0 +1,20 @@
+# v03_waterfall G2: bedrock methods on IO@2024 producer footing.
+# Cumulative on G1: CEDA A/price, cornerstone margins, inflation; drops USEEIO A/margins.
+
+model_base_year: 2024
+price_type: producer
+
+usa_ghg_data_year: 2023
+
+use_cornerstone_2026_model_schema: true
+load_E_from_flowsa: true
+new_ghg_method: true
+use_E_data_year_for_x_in_B: true
+implement_waste_disaggregation: true
+
+scale_a_matrix_with_useeio_method: false
+useeio_margins: false
+cornerstone_industry_avg_margins: true
+scale_a_matrix_with_ceda_method_as_fallback: true
+adjust_summary_A_and_q_dollar_year: true
+update_inflation_factors: true

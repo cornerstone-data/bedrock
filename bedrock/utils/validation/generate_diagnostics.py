@@ -13,7 +13,11 @@ from bedrock.utils.config.settings import (
     GIT_HASH_LONG,
     GIT_PR_URL,
 )
-from bedrock.utils.config.usa_config import get_usa_config, set_global_usa_config
+from bedrock.utils.config.usa_config import (
+    CANONICAL_USA_CONFIG,
+    get_usa_config,
+    set_global_usa_config,
+)
 from bedrock.utils.io.gcp import delete_default_sheet1, update_sheet_tab
 from bedrock.utils.snapshots.loader import resolve_snapshot_key
 
@@ -28,7 +32,7 @@ logger = logging.getLogger(__name__)
     '--config_name',
     required=True,
     type=str,
-    default='2025_usa_cornerstone_full_model',
+    default=CANONICAL_USA_CONFIG,
 )
 @click.option('--git_branch', default=None, type=str, help='Override git branch name')
 @click.option('--pr_url', default=None, type=str, help='Override PR URL')
