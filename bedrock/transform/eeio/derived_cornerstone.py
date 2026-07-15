@@ -52,10 +52,9 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
-    CS_INDUSTRY_LIST,
     commodity_corresp,
     cs_commodity_to_bea_map,
-    cs_industry_to_bea_map,
+    expand_industry_output_vector,
     expand_square_matrix,
     expand_vector,
     industry_corresp,
@@ -206,9 +205,9 @@ def _distribute_waste_parent_x_using_v_row_shares(
 ) -> pd.Series[float]:
     """Split duplicated BEA parent gross output across waste children using ``V`` row-sum shares.
 
-    After ``expand_vector``, one-to-many BEA→Cornerstone splits (e.g. 562000)
-    assign the **full** parent total to **each** child. When waste
-    disaggregation is enabled, replace those rows with
+    After industry-output expand, one-to-many BEA→Cornerstone splits
+    (e.g. 562000) assign the **full** parent total to **each** child. When
+    waste disaggregation is enabled, replace those rows with
     ``parent_go * (x_v[i] / sum_j x_v[j])`` where ``x_v`` is row sums of
     uninflated disaggregated ``V`` (2017-detail Make structure as mapped to
     Cornerstone) and ``parent_go`` is the duplicated scalar (GHG-year \$ scale).
@@ -228,7 +227,10 @@ def derive_cornerstone_x_after_redefinition(
     source from config, then expands it to Cornerstone industries via the
     BEA→Cornerstone industry correspondence.
 
-    For one-to-many splits (e.g. waste 562000), ``expand_vector`` first
+    Industry gross output is expanded with
+    ``expand_industry_output_vector`` so many-to-one aggregates (government
+    electric / transit enterprises into ``221100`` / ``485000``) sum BEA
+    parents. For one-to-many splits (e.g. waste 562000), that expand first
     duplicates the parent scalar to each child. When waste disaggregation is
     on, those waste rows are then replaced so each child gets a share of the
     parent total consistent with row sums of disaggregated ``V`` (same nominal
@@ -244,6 +246,7 @@ def derive_cornerstone_x_after_redefinition(
         if year == 0
         else cast('USA_GROSS_INDUSTRY_OUTPUT_YEARS', year)
     )
+
     if (
         cfg.use_scaled_x_and_scaled_Vnorm_for_B
     ):  # does not use effective_year but rather uses cfg.model_base_year
@@ -257,10 +260,9 @@ def derive_cornerstone_x_after_redefinition(
             target_year=effective_year,
             iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
         )
-        x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
+        x_cs = expand_industry_output_vector(x_bea)
         x_cs.index.name = 'sector'
     return _distribute_waste_parent_x_using_v_row_shares(x_cs)
-
 
 @functools.cache
 @pa.check_output(CornerstoneQVectorSchema)

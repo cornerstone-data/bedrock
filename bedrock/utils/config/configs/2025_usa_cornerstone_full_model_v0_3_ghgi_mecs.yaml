@@ -1,0 +1,13 @@
+# v0.3 release-deck MECS step on the v0.2 full-model footing.
+# Same non-GHG stack as v0.2 (schema, waste, use_E_data_year_for_x_in_B) with
+# update_mecs_method as the only GHG delta. Selects
+# GHG_national_Cornerstone_2023_ghgi_mecs (2022 MECS year) via flowsa.
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: true
+update_mecs_method: true
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True

@@ -777,6 +777,7 @@ source_names:
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
+      FlowName: [SF6, HFC-134a, CO2]  # exclude FK 5-1-12a
       PrimaryActivity: Magnesium Production
     attribution_method: proportional
     attribution_source:
@@ -883,4 +884,7 @@ source_names:
     fedefl_mapping: UMD_GHGIA_AR5_100
     selection_fields:
       PrimaryActivity: Aluminum Production
+    # CO2 from aluminum is attributed in UMD_GHGIA_T_2_S1 (direct activity set).
+    exclusion_fields:
+      FlowName: CO2
     attribution_method: direct

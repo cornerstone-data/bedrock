@@ -89,7 +89,7 @@ def _select_flowsa_ghg_method() -> str:
     if usa.update_liming_and_fertilizer_ghg_method:
         return 'GHG_national_Cornerstone_2023_ag_soils'
     if usa.update_mecs_method:
-        return 'GHG_national_Cornerstone_2023_release_v0.3'
+        return 'GHG_national_Cornerstone_2023_ghgi_mecs'
     if usa.v0_3_umd_2023_ghgia:
         return 'GHG_national_Cornerstone_2023_umd_ghgia'
     if usa.v0_3_umd_2024_ghgia:
@@ -405,7 +405,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
       update_enteric_fermentation_and_manure_management_ghg_method is True
     - GHG_national_Cornerstone_2023_ag_soils when
       update_liming_and_fertilizer_ghg_method is True
-    - GHG_national_Cornerstone_2023_release_0.3 when
+    - GHG_national_Cornerstone_2023_ghgi_mecs when
       update_mecs_method is True
     - GHG_national_Cornerstone_2023_umd_ghgia when
       v0_3_umd_2023_ghgia is True
@@ -506,13 +506,6 @@ def load_E_from_flowsa() -> pd.DataFrame:
     fbs.loc[ch4_non_fossil_mask & (fbs['Flowable'] == 'CH4_fossil'), 'Flowable'] = (
         'CH4_non_fossil'
     )
-
-    # Drop FK 5-1-12 (fluoroketone cover gas, UMD GHGIA Table 4-52 Magnesium
-    # Production). UMD itself excludes it from totals (footnote a), it has no GWP
-    # in GWP100_AR6_CEDA (→ NaN CO2e), and it falls outside CEDA's Kyoto 7-gas
-    # scheme, so the gas-collapse below would leave it as a stray index entry and
-    # break the CornerstoneBMatrix schema. ~6.5e-6 MMT CO2e across 3 sectors.
-    fbs = fbs[fbs['Flowable'] != 'FK 5-1-12']
 
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}

@@ -2,4 +2,6 @@
 .DS_Store
 __pycache__/
 
-!output/**/*.png
+# Generated diagnostic plots are local artifacts — keep them untracked
+# (they stay ignored via the repo-root `*.png` rule; do NOT re-include them).
+output/

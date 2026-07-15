@@ -67,10 +67,10 @@ ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
 # The `model_base_year` and `usa_ghg_data_year` overrides drive the time
 # series; the YAMLs themselves are year-agnostic.
 BUNDLE_V0_3_YAMLS: dict[str, str] = {
-    "useeio": "2025_usa_cornerstone_full_model_A_useeio",
-    "summary_tables": "2025_usa_cornerstone_full_model_A_summary_tables",
-    "commodity_price_index": "2025_usa_cornerstone_full_model_A_commodity_price_index",
-    "useeio_nowcast": "2025_usa_cornerstone_full_model_A_useeio_nowcast",
+    "useeio": "2025_usa_cornerstone_v0_2_A_useeio",
+    "summary_tables": "2025_usa_cornerstone_v0_2_A_summary_tables",
+    "commodity_price_index": "2025_usa_cornerstone_v0_2_A_commodity_price_index",
+    "useeio_nowcast": "2025_usa_cornerstone_v0_2_A_useeio_nowcast",
 }
 
 SCENARIO_YAMLS: dict[str, dict[str, str]] = {
