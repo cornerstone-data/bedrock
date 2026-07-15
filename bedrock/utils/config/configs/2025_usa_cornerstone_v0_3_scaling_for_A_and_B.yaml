@@ -1,0 +1,38 @@
+# Fully implemented Cornerstone v0.3 model with addition of 
+# use_scaled_x_and_scaled_Vnorm_for_B = True
+
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+
+# GHG model: UMD GHGIA 2024 inventory (+ 2022 MECS attribution).
+v0_3_umd_2024_ghgia: True
+
+# A matrix: CEDA's A approach as fallback, with summary A/q dollar-year price adjustment.
+scale_a_matrix_with_ceda_method_as_fallback: True
+adjust_summary_dollar_year_before_scaling: True
+
+# Inflation factors.
+update_inflation_factors: True
+
+# Shared full-model flags.
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True
+
+use_scaled_x_and_scaled_Vnorm_for_B: True #unique setting not in cornerstone full model A summary realigned
+# or the full model
+
