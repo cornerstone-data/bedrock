@@ -108,9 +108,7 @@ def load_zenodo_sef_by_reference_code(
         )
     missing = [c for c in value_cols if c not in raw.columns]
     if missing:
-        raise KeyError(
-            f'CO2e sheet missing {missing!r}; columns={list(raw.columns)!r}'
-        )
+        raise KeyError(f'CO2e sheet missing {missing!r}; columns={list(raw.columns)!r}')
 
     df = raw[[REF_CODE_COL, *value_cols]].copy()
     df[REF_CODE_COL] = df[REF_CODE_COL].astype(str).str.strip()

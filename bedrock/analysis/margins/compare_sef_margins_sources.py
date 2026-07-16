@@ -92,7 +92,9 @@ def build_margins_comparison(
     out['phoebe_without'] = phoebe.reindex(codes)[COL_WITHOUT]
     out['v0_3_without'] = v0_3.reindex(codes)[COL_WITHOUT]
 
-    out['pct_phoebe_vs_zenodo'] = _pct_diff(out['phoebe_margins'], out['zenodo_margins'])
+    out['pct_phoebe_vs_zenodo'] = _pct_diff(
+        out['phoebe_margins'], out['zenodo_margins']
+    )
     out['pct_v0_3_vs_zenodo'] = _pct_diff(out['v0_3_margins'], out['zenodo_margins'])
     out['pct_v0_3_vs_phoebe'] = _pct_diff(out['v0_3_margins'], out['phoebe_margins'])
 
