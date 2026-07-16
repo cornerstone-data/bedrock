@@ -19,11 +19,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
-    _create_sheet,
-    _throttle,
-    _trigger_workflow,
-)
 from bedrock.utils.config.usa_config import _load_usa_config_from_file_name
 from bedrock.utils.validation.analysis.release_v0_v03_ceda_groups import (
     V03_WATERFALL_CEDA_CONFIGS,
@@ -31,11 +26,16 @@ from bedrock.utils.validation.analysis.release_v0_v03_ceda_groups import (
 from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
     V03_WATERFALL_CONFIGS,
 )
+from bedrock.utils.validation.dispatch_diagnostics import (
+    V03_WATERFALL_DRIVE_FOLDER_ID,
+    create_sheet,
+    trigger_workflow,
+)
+from bedrock.utils.validation.dispatch_diagnostics import (
+    throttle as apply_throttle,
+)
 
 logger = logging.getLogger(__name__)
-
-# v0.3 wholesale waterfall diagnostics (separate from Step 7 EF time-series folder).
-V03_WATERFALL_DRIVE_FOLDER_ID = "107RNHx1OUGN6roYdRi3BbdCSrMNFhl6u"
 
 _OUTPUT_DIR = Path(__file__).resolve().parent / "output" / "release_v0_v03_groups"
 
@@ -210,11 +210,11 @@ def dispatch_waterfall(
             n_dispatched += 1
             continue
 
-        _throttle(throttle)
+        apply_throttle(throttle)
 
-        sheet_id = _create_sheet(drive_folder_id, title)
+        sheet_id = create_sheet(drive_folder_id, title)
         logger.info("Created sheet %s: %s", sheet_id, title)
-        _trigger_workflow(
+        trigger_workflow(
             git_ref=git_ref,
             config_name=cell.config_name,
             sheet_id=sheet_id,

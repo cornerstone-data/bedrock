@@ -97,3 +97,10 @@ Re-run with `--refresh` after sheet tab content changes.
 
 Flag comparison for waterfall configs and baselines:
 `bedrock/utils/validation/analysis/v03_waterfall_config_comparison.md`.
+
+For a single methodology flag (not a release waterfall), use
+[`bedrock/utils/config/feature_flag.md`](../../utils/config/feature_flag.md) and
+[`bedrock/utils/validation/evaluate_feature_impact.md`](../../utils/validation/evaluate_feature_impact.md)
+with `dispatch_diagnostics` (v0.4 Diagnostics folder). Shared create/trigger
+helpers used by `dispatch_ef_release_v0_3` and `dispatch_ef_v03_waterfall` live
+in `bedrock.utils.validation.dispatch_diagnostics`.

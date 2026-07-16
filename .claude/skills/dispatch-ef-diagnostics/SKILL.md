@@ -1,15 +1,17 @@
 ---
 name: dispatch-ef-diagnostics
-description: Use this skill to dispatch EF (emission-factor) diagnostics runs for the a_matrix_time_series epic — create and name empty diagnostics Google Sheets in the Drive folder, trigger the generate_diagnostics GitHub Actions workflow per (scenario, approach, year) cell, and record the run index. Trigger when the user says "dispatch the EF diagnostics", "kick off the diagnostics runs", "create the diagnostics sheets and run them", "trigger generate_diagnostics", "re-dispatch the failed cells", or asks to run the model under several A-matrix configs and produce per-run diagnostics sheets.
+description: Use this skill to dispatch EF (emission-factor) diagnostics runs — create and name empty diagnostics Google Sheets, trigger generate_diagnostics, and record a run index. Covers the a_matrix_time_series epic matrix and generic feature-config lists via bedrock.utils.validation.dispatch_diagnostics. Trigger when the user says "dispatch the EF diagnostics", "kick off the diagnostics runs", "create the diagnostics sheets and run them", "trigger generate_diagnostics", "re-dispatch the failed cells", or asks to run the model under several configs and produce per-run diagnostics sheets.
 disable-model-invocation: false
 argument-hint: [scenarios] [years] [approaches] (e.g. "bundle_v0_3 2019-2023" or "isolate_a_matrix useeio_nowcast 2023")
 ---
 
 # Dispatch EF diagnostics runs
 
-Fan out the `generate_diagnostics` GitHub Actions workflow to produce **one diagnostics Google Sheet per `(scenario, approach, year)` cell**. Each sheet gets the `N_and_diffs` / `D_and_diffs` / `D_and_N_significant_sectors` / `config_summary` tabs that the `plot-ef-diagnostics` skill consumes. Default baseline is **CEDA-US (v0)**.
+**Playbooks:** [`bedrock/utils/validation/evaluate_feature_impact.md`](../../bedrock/utils/validation/evaluate_feature_impact.md) (feature impact); [`bedrock/utils/config/feature_flag.md`](../../bedrock/utils/config/feature_flag.md) (flag + atomic YAML). Shared helpers + feature CLI: `bedrock.utils.validation.dispatch_diagnostics` (default Drive folder: v0.4 Diagnostics).
 
-The driver is `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py`. Per cell it: (1) **creates** a Sheet in the Drive folder with a deterministic title, (2) **triggers** `gh workflow run generate_diagnostics.yml`, (3) **records** a row in `output/results/ef_run_index.csv`. It is **idempotent** — cells already in the index are skipped, so re-running only fills gaps.
+Fan out the `generate_diagnostics` GitHub Actions workflow to produce **one diagnostics Google Sheet per cell**. Each sheet gets the `N_and_diffs` / `D_and_diffs` / `D_and_N_significant_sectors` / `config_summary` tabs that the `plot-ef-diagnostics` skill consumes.
+
+For the **A-matrix time-series epic**, the driver is `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py` (one sheet per `(scenario, approach, year)`). Per cell it: (1) **creates** a Sheet in the epic Drive folder with a deterministic title, (2) **triggers** `gh workflow run generate_diagnostics.yml`, (3) **records** a row in `output/results/ef_run_index.csv`. It is **idempotent** — cells already in the index are skipped, so re-running only fills gaps. Default baseline for that epic is **CEDA-US (v0)**.
 
 ## Prerequisites — verify, don't assume
 
@@ -48,10 +50,25 @@ Most real requests come as a **config-spec Google Sheet**, not the two canned sc
 Instead drive the dispatcher's **helper functions** with the custom list (reuse, don't reinvent):
 
 ```python
-from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
-    _create_sheet, _trigger_workflow, _wait_for_capacity, EF_TIME_SERIES_DRIVE_FOLDER_ID,
+from bedrock.utils.validation.dispatch_diagnostics import (
+    create_sheet, trigger_workflow, wait_for_capacity,
+    V04_DIAGNOSTICS_DRIVE_FOLDER_ID,
 )
-# per config: _wait_for_capacity(...) → _create_sheet(folder, title) → _trigger_workflow(...) → persist a row
+# A-matrix / release-progression folder stays on the epic dispatcher:
+# from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
+#     EF_TIME_SERIES_DRIVE_FOLDER_ID,
+# )
+# per config: wait_for_capacity(...) → create_sheet(folder, title) → trigger_workflow(...) → persist a row
+```
+
+Or for a simple feature-config list use the validation CLI:
+
+```bash
+uv run python -m bedrock.utils.validation.dispatch_diagnostics \
+    --git-ref main \
+    --configs <cfg1>,<cfg2> \
+    --baseline-label "Bedrock v0.3 snapshot based" \
+    --dry-run
 ```
 
 A spec sheet's observed layout has two baseline-grouped tables:
@@ -139,7 +156,9 @@ gh workflow run generate_diagnostics.yml --ref main \
 
 ## Reference
 
-- Driver: `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py`
+- Driver (A-matrix epic): `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py`
+- Shared helpers + feature CLI: `bedrock/utils/validation/dispatch_diagnostics.py`
 - Workflow: `.github/workflows/generate_diagnostics.yml` → `bedrock/utils/validation/generate_diagnostics.py` (single-run entry) → `calculate_ef_diagnostics.py` (writes the tabs).
 - Package overview + DAG: `bedrock/analysis/a_matrix_time_series/README.md`.
 - Operator checklist: `bedrock/analysis/a_matrix_time_series/useeio_nowcast_ef_runbook.md`.
+- Feature-flag playbook: `bedrock/utils/validation/evaluate_feature_impact.md`.
