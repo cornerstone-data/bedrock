@@ -202,6 +202,30 @@ def get_Ndom() -> pd.DataFrame:
 
 
 @functools.cache
+def get_A_margin() -> pd.DataFrame:
+    """Margin-provider A matrix (commodity supplying margin x commodity purchased)."""
+    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_A_margin
+
+    return derive_cornerstone_A_margin()
+
+
+@functools.cache
+def get_M_margin() -> pd.DataFrame:
+    """Total requirements × margin allocation (``M @ A_margin``)."""
+    M_margin = get_M() @ get_A_margin()
+    M_margin.columns.name = 'sector'
+    return M_margin
+
+
+@functools.cache
+def get_N_margin() -> pd.DataFrame:
+    """Characterized margin impacts (``N @ A_margin``)."""
+    N_margin = get_N() @ get_A_margin()
+    N_margin.columns.name = 'sector'
+    return N_margin
+
+
+@functools.cache
 def get_q() -> pd.Series:
     from bedrock.transform.eeio.derived import derive_Aq_usa
 
@@ -260,6 +284,9 @@ _CACHED_GETTERS: tuple[Callable[[], pd.DataFrame | pd.Series | None], ...] = (
     get_Mdom,
     get_N,
     get_Ndom,
+    get_A_margin,
+    get_M_margin,
+    get_N_margin,
     get_Phi,
     get_Rho,
     get_q,

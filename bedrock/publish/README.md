@@ -20,9 +20,10 @@ shareable file formats, mirroring the shape of `useeior`'s
   table (`CornerstoneSupplyChainGHG_CO2e_USD<year>.csv`) with three
   supply-chain factor columns (without margins, margins, with margins).
   Purchaser-price adjustment applies PRO:PUR (Phi) at ``--dollar_year``
-  after rebasing producer N from ``model_base_year`` to ``--dollar_year``
-  via commodity price indices (matches supply-chain-factors ``Phi[currency_year]``).
-  Margin SEF column remains zero until `N_margin` is wired.
+  after rebasing producer N / N_margin from ``model_base_year`` to
+  ``--dollar_year`` via commodity price indices (matches supply-chain-factors
+  ``Phi[currency_year]``). The margins column is the Greenhouse Gases row of
+  ``N @ A_margin`` (useeior ``calculateMarginSectorImpacts``).
   CLI: `--purchaser_price` / `--no-purchaser_price` (default on).
 - **Supply-chain factors (R repo)**: not ported. Upstream counterpart:
   [cornerstone-data/supply-chain-factors](https://github.com/cornerstone-data/supply-chain-factors).

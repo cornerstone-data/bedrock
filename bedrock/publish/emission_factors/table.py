@@ -6,11 +6,8 @@ from typing import cast
 
 import pandas as pd
 
-from bedrock.publish.emission_factors.placeholders import (
-    adjust_publish_matrix,
-    placeholder_margin_ef,
-)
-from bedrock.publish.model_objects import get_M, get_N
+from bedrock.publish.emission_factors.placeholders import adjust_publish_matrix
+from bedrock.publish.model_objects import get_M, get_N, get_N_margin
 from bedrock.utils.emissions.characterization import GREENHOUSE_GASES_INDICATOR
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 
@@ -65,8 +62,13 @@ def build_emission_factor_table(
         dollar_year=dollar_year,
         purchaser_price=purchaser_price,
     )
+    n_margin_pur = adjust_publish_matrix(
+        get_N_margin(),
+        dollar_year=dollar_year,
+        purchaser_price=purchaser_price,
+    )
     without = _greenhouse_gases_row(n_pur)
-    margins = placeholder_margin_ef(without)
+    margins = _greenhouse_gases_row(n_margin_pur)
     with_margins = without + margins
 
     rows: list[dict[str, object]] = []

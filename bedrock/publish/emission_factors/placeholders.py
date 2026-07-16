@@ -11,11 +11,6 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 )
 
 
-def placeholder_margin_ef(without_margins: pd.Series) -> pd.Series[float]:
-    """Per-sector margin supply-chain factors; zeros until N_margin is wired."""
-    return pd.Series(0.0, index=without_margins.index, dtype=float)
-
-
 def adjust_publish_matrix(
     matrix: pd.DataFrame,
     *,
