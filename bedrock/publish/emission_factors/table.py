@@ -6,8 +6,12 @@ from typing import cast
 
 import pandas as pd
 
-from bedrock.publish.emission_factors.placeholders import adjust_publish_matrix
 from bedrock.publish.model_objects import get_M, get_N, get_N_margin
+from bedrock.transform.iot.derive_PRO_to_PUR_ratio import phi_for_sectors
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_vnorm_adjusted_commodity_price_ratio,
+)
 from bedrock.utils.emissions.characterization import GREENHOUSE_GASES_INDICATOR
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 
@@ -51,6 +55,31 @@ def _is_excluded_commodity(code: str) -> bool:
     if base == ELECTRICITY_COMMODITY:
         return True
     return False
+
+
+def adjust_publish_matrix(
+    matrix: pd.DataFrame,
+    *,
+    dollar_year: int,
+    purchaser_price: bool,
+) -> pd.DataFrame:
+    """Rebase commodity columns to ``dollar_year`` and optionally apply purchaser Phi."""
+    cfg = get_usa_config()
+    base_year = cfg.model_base_year
+    out = matrix.copy()
+
+    if dollar_year != base_year:
+        pi = get_vnorm_adjusted_commodity_price_ratio(base_year, dollar_year)
+        price_ratio_for_columns = pi.reindex(out.columns, fill_value=1.0)
+        # get_vnorm_adjusted_commodity_price_ratio(base, target) is PI_target / PI_base.
+        # Divide EF columns so values are expressed per target-year USD denominator.
+        out = out.div(price_ratio_for_columns.values, axis=1)
+
+    if purchaser_price:
+        phi = phi_for_sectors(out.columns, year=dollar_year)
+        out = out.mul(phi.reindex(out.columns, fill_value=1.0).values, axis=1)
+
+    return out
 
 
 def build_emission_factor_table(
