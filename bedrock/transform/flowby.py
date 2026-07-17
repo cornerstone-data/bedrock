@@ -487,6 +487,7 @@ class _FlowBy(pd.DataFrame):
         selection_fields: dict[str, Any] | None = None,
         exclusion_fields: dict[str, Any] | None = None,
         skip_select_by: bool = False,
+        assign_fields: dict[str, Any] | None = None,
     ) -> FB:
         '''
         Filter the calling FlowBy dataset according to the 'selection_fields'
@@ -527,6 +528,8 @@ class _FlowBy(pd.DataFrame):
 
         Similarly, can use 'exclusion_fields' to remove particular data in the
         same manner.
+
+        Use 'assign_fields' to assign column values
         '''
         if skip_select_by:
             return self
@@ -552,6 +555,12 @@ class _FlowBy(pd.DataFrame):
                 else:
                     self = self.query(f'{field} not in @values')
 
+        # assign column values as defined in FBS method yaml
+        assign_fields = assign_fields or self.config.get('assign_fields', {})
+        for field, values in assign_fields.items():
+            self = self.assign(**{f"{field}": values})
+
+        # subset FBA by selection fields identified in FBS yaml
         selection_fields_resolved: dict[str, Any] | None = (
             selection_fields or self.config.get('selection_fields')
         )
@@ -1022,6 +1031,7 @@ class _FlowBy(pd.DataFrame):
             ).select_by_fields(
                 selection_fields=activity_config.get('selection_fields'),
                 exclusion_fields=activity_config.get('exclusion_fields'),
+                assign_fields=activity_config.get('assign_fields'),
             )
 
             child_df.config = {**parent_config, **activity_config}
@@ -1106,6 +1116,10 @@ class _FlowBy(pd.DataFrame):
             ).prepare_fbs(  # type: ignore[operator]
                 download_sources_ok=download_sources_ok
             )
+
+        geoscale = config.get('geoscale') or self.config.get('geoscale')
+        if geoscale is not None:
+            attribution_fbs.config['geoscale'] = geoscale
 
         return attribution_fbs
 

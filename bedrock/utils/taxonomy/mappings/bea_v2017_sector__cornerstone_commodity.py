@@ -28,3 +28,21 @@ def load_bea_v2017_sector_commodity_to_cornerstone_commodity() -> (
         dangerously_skip_empty_mapping_check=True,
     )
     return mapping
+
+
+# Margin type (as named in derive_margins_cornerstone_usa()'s columns) to the
+# BEA 2017 Sector-level code of the commodities that supply that margin.
+MARGIN_TYPE_TO_BEA_SECTOR_CODE: ta.Dict[str, BEA_2017_SECTOR_COMMODITY_CODE] = {
+    'Transportation': '48TW',
+    'Wholesale': '42',
+    'Retail': '44RT',
+}
+
+
+def load_margin_type_to_cornerstone_commodity() -> ta.Dict[str, ta.List[COMMODITY]]:
+    """Transportation/Wholesale/Retail margin type name to its Cornerstone commodities."""
+    sector_to_commodities = load_bea_v2017_sector_commodity_to_cornerstone_commodity()
+    return {
+        margin_type: sector_to_commodities[sector_code]
+        for margin_type, sector_code in MARGIN_TYPE_TO_BEA_SECTOR_CODE.items()
+    }

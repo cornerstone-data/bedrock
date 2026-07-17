@@ -27,9 +27,18 @@ These are **independent** concepts and frequently point at different commits:
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
 | Named release | [`releases.py`](releases.py) | Reference-only map of release labels → snapshot SHAs. Not imported by runtime code; update in Phase A alongside `.SNAPSHOT_KEY`. |
 | Diagnostic baseline pin | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs that any config may point at as its diagnostic baseline. Every released snapshot SHA must be added here. |
-| Canonical config | [`2025_usa_cornerstone_full_model.yaml`](../config/configs/2025_usa_cornerstone_full_model.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
+| Canonical config | [`2025_usa_cornerstone_v0_3.yaml`](../config/configs/2025_usa_cornerstone_v0_3.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
+| Cornerstone GHG FBS pin | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pins one `GHG_national_Cornerstone_2024` parquet in `transform/output_data` (filename + SHA256). Guards FBS regeneration in [`test_fbs.py`](../../transform/__tests__/test_fbs.py). See "Cornerstone GHG FBS pin" below. |
 
-### Where snapshot SHAs live
+### Pins vs runtime loaders
+
+| Artifact | Pins | Consumed by |
+|---|---|---|
+| [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | Full pipeline outputs at a git SHA | `test_usa.py` (`eeio_integration`) |
+| [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | One `GHG_national_Cornerstone_2024` parquet | `test_fbs.py` (`eeio_integration`) |
+| `_load_cornerstone_ghg_fbs_from_gcs` in [`derived.py`](../../transform/allocation/derived.py) | Nothing — selects the newest upload matching `GHG_national_Cornerstone_<year>` | `load_E_from_flowsa()` for v0.3 (`v0_3_umd_2024_ghgia`) |
+
+The FBS pin and the runtime loader are independent: bumping the pin updates the regeneration test golden file; production still follows the latest GCS upload until `load_E_from_flowsa` is wired to the pin.
 
 | Store | Releases (`v0`, `v0.1`, `v0.2`) | Test-only SHAs |
 |---|---|---|
@@ -37,7 +46,7 @@ These are **independent** concepts and frequently point at different commits:
 | [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2` | `TEST_*` (intermediate bumps, not release labels) |
 | `USAConfig.snapshot_version_or_git_sha` | `'v0'`, `1bda811e...` `# v0.1`, `7372464249...` `# v0.2` | `2ebb51f7...`, `9fe22d9a...` `# test` |
 
-**Atomic config** — a YAML config that changes a single methodology flag relative to the baseline, used to measure that change in isolation.
+**Atomic config** — a YAML config that changes a single methodology flag relative to the baseline, used to measure that change in isolation. See [`../config/feature_flag.md`](../config/feature_flag.md). Diagnostics against a chosen snapshot or USEEIO baseline: [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md).
 
 `v0.2` is the current integration baseline. `v0` and `v0.1` are earlier release snapshots. The two `TEST_*` SHAs are intermediate bumps kept in the Literal so atomic configs and test fixtures can pin them for comparison.
 
@@ -112,7 +121,7 @@ Trigger the `generate_snapshots` workflow manually:
 
 - GitHub → Actions → **generate_snapshots** → Run workflow
 - Branch: `main` (or the specific SHA from step A1 if newer commits have landed)
-- `config_name`: leave as the default `2025_usa_cornerstone_full_model` (the canonical config)
+- `config_name`: leave as the default `2025_usa_cornerstone_v0_3` (the canonical config)
 - Leave `snapshot_prefix_override` blank so the prefix is the commit SHA
 
 Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>/`.
@@ -165,7 +174,7 @@ git tag -a v0.X.Y -m "Bedrock release v0.X.Y
 
 Snapshot SHA:  $SNAP
 GCS prefix:    gs://cornerstone-default/snapshots/$SNAP/
-Canonical config: 2025_usa_cornerstone_full_model
+Canonical config: 2025_usa_cornerstone_v0_3
 
 Highlights since previous tag:
 - <bullet>
@@ -188,7 +197,7 @@ Post in `#alerts-bedrock` (and any other relevant channel):
 > :package: **Bedrock release `v0.X.Y`**
 > Tag SHA: `<short_tag_sha>` ([compare](https://github.com/cornerstone-data/bedrock/compare/v0.X.<prev>...v0.X.Y))
 > Snapshot SHA: `<short_snapshot_sha>` (unchanged from previous release / new since `v0.X.<prev>`)
-> Canonical config: `2025_usa_cornerstone_full_model`
+> Canonical config: `2025_usa_cornerstone_v0_3`
 > Highlights: <one or two lines>
 > Downstream impact: <e.g. diagnostics baselines should bump to this SHA when ready>
 
@@ -207,8 +216,8 @@ A clean bump PR diff looks roughly like this (anticipating release `v0.3.0`):
 
 --- a/bedrock/utils/snapshots/releases.py
 +++ b/bedrock/utils/snapshots/releases.py
- v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_full_model
-+v0_3_0 = "<new_sha>"  # config: 2025_usa_cornerstone_full_model
+ v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_v0_2
++v0_3_0 = "<new_sha>"  # config: 2025_usa_cornerstone_v0_3
 
 --- a/bedrock/utils/config/usa_config.py
 +++ b/bedrock/utils/config/usa_config.py
@@ -238,10 +247,53 @@ If a bad snapshot accidentally got uploaded under a SHA you want to keep, you ca
 
 The `generate_snapshots.py` script supports `--adhoc`, which uploads to `gs://cornerstone-default/snapshots/<sha>/adhoc/` instead of the top-level SHA folder. Use this for:
 
-- Snapshotting an atomic config (anything other than `2025_usa_cornerstone_full_model`)
+- Snapshotting an atomic config (anything other than `2025_usa_cornerstone_v0_3`)
 - Local experimentation where you don't want to pollute the canonical snapshot prefix
 
 Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exist for ad-hoc diagnostic comparisons only.
+
+## Cornerstone GHG FBS pin
+
+[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the `GHG_national_Cornerstone_2024` FlowBySector parquet that v0.3 loads from `gs://cornerstone-default/transform/output_data/`. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates the method from YAML + GCS sources and asserts a byte-identical match to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
+
+### When to bump the pin
+
+Bump the pin when the team **intentionally** ships a new `GHG_national_Cornerstone_2024` FBS to GCS, for example:
+
+- Changes to [`GHG_national_Cornerstone_2024.yaml`](../../transform/ghg/GHG_national_Cornerstone_2024.yaml) or its upstream FBAs (UMD GHGIA, EPA attribution tables, MECS, etc.)
+- A refreshed upstream data drop uploaded as a new parquet
+
+Do **not** bump the pin to silence a failing test without diagnosing the diff. A red `test_generate_cornerstone_ghg_fbs_2024_matches_pinned_reference` means either regeneration is broken or the pin is stale relative to an upload that was already blessed.
+
+A pin bump is separate from a `.SNAPSHOT_KEY` bump. Snapshot tests cover the full pipeline; the FBS pin covers only whether `generateFlowBySector('GHG_national_Cornerstone_2024')` still reproduces the committed golden parquet.
+
+### How to bump the pin
+
+**1. Regenerate and upload.**
+
+Run `FlowBySector.generateFlowBySector('GHG_national_Cornerstone_2024', download_sources_ok=True)` locally (or via an internal job), then upload the parquet and metadata JSON to `gs://cornerstone-default/transform/output_data/`. Filenames follow `{method}_v{tool_version}_{git_hash}.parquet`.
+
+**2. Compute SHA256** of the uploaded parquet:
+
+```powershell
+uv run python -c "import hashlib, sys; p=sys.argv[1]; h=hashlib.sha256(open(p,'rb').read()).hexdigest(); print(h)" path\to\GHG_national_Cornerstone_2024_....parquet
+```
+
+**3. Update** [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json):
+
+- `filename` — exact GCS object name
+- `sha256` — 64-char hex digest from step 2
+- `method` and `gcs_sub_bucket` stay `GHG_national_Cornerstone_2024` and `transform/output_data` unless the bucket layout changes
+
+**4. Verify** on the pin-bump branch:
+
+```powershell
+uv run pytest bedrock/transform/__tests__/test_fbs.py -m eeio_integration -v
+```
+
+**5. Merge** the pin bump — in the same PR as the FBS regen/upload when possible, or immediately after. Keep the diff mechanical: the JSON pin file (and any upload-related method changes) only.
+
+After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on the next run (newest `base_name` match) even before the pin bump merges; the pin bump aligns CI with the blessed file.
 
 ## File map
 
@@ -255,3 +307,6 @@ Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exis
 | [`../config/usa_config.py`](../config/usa_config.py) | `USAConfig.snapshot_version_or_git_sha` `Literal` of allowed baseline SHAs |
 | [`../../../.github/workflows/generate_snapshots.yml`](../../../.github/workflows/generate_snapshots.yml) | `workflow_dispatch` CI that runs `generate_snapshots.py` |
 | [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Scheduled CI that diffs current pipeline output against `.SNAPSHOT_KEY` |
+| [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pinned `GHG_national_Cornerstone_2024` parquet for FBS regen test |
+| [`fbs_pin.py`](fbs_pin.py) | Load pin JSON, download from GCS, verify SHA256 |
+| [`../../transform/__tests__/test_fbs.py`](../../transform/__tests__/test_fbs.py) | `eeio_integration` test: regen vs pinned FBS |

@@ -1,6 +1,6 @@
 [project]
 name = "bedrock"
-version = "0.1.0"
+version = "0.3.0"
 description = "Core data pipeline for Cornerstone artifacts"
 authors = [
     { name = "Cornerstone Sustainability Data Initiative", email = "team@cornerstonedata.org" },
@@ -101,6 +101,7 @@ known-first-party = ["bedrock"]
 "bedrock/extract/stateio/*" = ["ALL"]
 "bedrock/extract/unep/*" = ["ALL"]
 "bedrock/extract/usgs/*" = ["ALL"]
+"bedrock/extract/bea/BEA_NIPA.py" = ["ALL"]
 
 [tool.ruff.format]
 quote-style = "single"
@@ -140,6 +141,7 @@ exclude = [
     'bedrock/extract/stateio/',
     'bedrock/extract/unep/',
     'bedrock/extract/usgs/',
+    'bedrock/extract/bea/BEA_NIPA.py',
     'scripts/*.py',
 ]
 

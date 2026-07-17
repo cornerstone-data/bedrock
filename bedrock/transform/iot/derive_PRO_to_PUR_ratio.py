@@ -20,6 +20,9 @@ import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
 from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
+from bedrock.transform.iot.derived_gross_industry_output import (
+    available_gross_output_years,
+)
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     default_price_index_panel_years,
@@ -334,8 +337,22 @@ def derive_phi_cornerstone_usa() -> pd.Series[float]:
 
 
 def default_phi_panel_years() -> tuple[int, ...]:
-    """Years with price-index coverage for Phi panel export (from IO base year onward)."""
-    return default_price_index_panel_years()
+    """Years exportable on the Excel Phi panel (from IO base year onward).
+
+    Margin inflation for Phi uses ITA commodity price indices, which require
+    detail gross output at each target year. Price-index levels can run one year
+    ahead of detail GO when quarterly summary PI is stitched in before the
+    annual detail release.
+    """
+    pi_years = default_price_index_panel_years()
+    go_years = set(available_gross_output_years())
+    years = tuple(y for y in pi_years if y in go_years)
+    if not years:
+        raise ValueError(
+            'No Phi panel years remain after intersecting price-index coverage '
+            f'{pi_years} with gross-output availability {go_years}.'
+        )
+    return years
 
 
 @functools.cache
