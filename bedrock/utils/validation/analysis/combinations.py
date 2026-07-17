@@ -27,6 +27,14 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
     sheets_in_order,
     useeio_stepwise_target_mapping,
 )
+from bedrock.utils.validation.analysis.release_v0_v03_ceda_groups import (
+    V0_V03_CEDA_GROUP_SHEETS,
+    ceda_group_stack_target_mapping,
+)
+from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
+    V0_V03_USEEIO_GROUP_SHEETS,
+    useeio_group_stack_target_mapping,
+)
 
 
 @dataclass(frozen=True)
@@ -45,6 +53,9 @@ class ComboSpec:
         sheets_in_order: Optional explicit ``(sheet_id, title)`` pairs. When
             non-empty, inputs are taken directly and ``drive_folder_id`` /
             ``names_in_order`` are ignored (for Sheets that span folders).
+        n_price_type: Which N columns to merge for absolute-EF tabs:
+            ``purchaser`` (default; USEEIO release-deck convention) or
+            ``producer`` (``N_new`` / ``N_old_inflated`` footing).
 
     The destination Sheet for merged output is always supplied on the
     command line via ``--output-sheet-id``; it is intentionally not part of
@@ -55,6 +66,7 @@ class ComboSpec:
     names_in_order: list[str]
     target_mapping: dict[str, str]
     sheets_in_order: tuple[tuple[str, str], ...] = ()
+    n_price_type: str = "purchaser"
 
 
 # Historical destination Sheets (pass via --output-sheet-id when reproducing):
@@ -148,5 +160,21 @@ COMBINATIONS: dict[str, ComboSpec] = {
         names_in_order=[],
         target_mapping=useeio_stepwise_target_mapping(USEEIO_V02_TO_V03_SHEETS),
         sheets_in_order=sheets_in_order(USEEIO_V02_TO_V03_SHEETS),
+    ),
+    # Wholesale v0→v0.3 USEEIO: three stacked group endpoints + FINAL.
+    'v0_to_v03_useeio_groups': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=useeio_group_stack_target_mapping(V0_V03_USEEIO_GROUP_SHEETS),
+        sheets_in_order=sheets_in_order(V0_V03_USEEIO_GROUP_SHEETS),
+        n_price_type='producer',
+    ),
+    # Wholesale v0→v0.3 CEDA: four stacked group endpoints + FINAL.
+    'v0_to_v03_ceda_groups': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=ceda_group_stack_target_mapping(V0_V03_CEDA_GROUP_SHEETS),
+        sheets_in_order=sheets_in_order(V0_V03_CEDA_GROUP_SHEETS),
+        n_price_type='producer',
     ),
 }

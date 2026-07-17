@@ -4,10 +4,18 @@ Loads and caches binary correspondence matrices between BEA 2017 (or CEDA v7)
 and Cornerstone 2026 taxonomies, and provides functions to *expand*
 BEA-space or CEDA-space matrices/vectors to the 405-sector Cornerstone space.
 
-Expansion strategy: rows/columns for disaggregated sectors (waste, aluminum)
-are **duplicated** from the BEA parent — this preserves per-unit intensities
-for A and B.  Waste subsectors receive special intragroup treatment to prevent
-Leontief-inverse inflation.
+Expansion covers both taxonomy directions:
+
+- **One-to-many disaggregation** (e.g. waste ``562000`` → seven children):
+  ``expand_vector`` / ``expand_square_matrix`` **duplicate** the BEA parent onto
+  each Cornerstone child so per-unit intensities are preserved. Waste
+  subsectors then get special intragroup treatment (and, for industry gross
+  output, a V-share redistribute) to prevent Leontief-inverse inflation.
+- **Many-to-one aggregation** (e.g. government electric utilities into
+  ``221100``): ``expand_industry_output_vector`` **sums** all BEA parents via
+  the raw industry correspondence. Reverse-map helpers keep a single parent
+  for intensity-preserving matrix expand and must not be used for industry
+  gross-output vectors.
 """
 
 from __future__ import annotations
@@ -206,12 +214,53 @@ def expand_vector(
     target_codes: list[str],
     code_map: dict[str, str],
 ) -> pd.Series[float]:
-    """Expand a BEA vector to Cornerstone by duplicating entries."""
+    """Expand a BEA vector to Cornerstone by duplicating entries.
+
+    Uses a single-parent reverse map: one-to-many children each receive the
+    full parent value; many-to-one Cornerstone rows keep only the first BEA
+    parent.
+
+    Raises ``ValueError`` if *code_map* is the cached industry reverse map
+    from :func:`cs_industry_to_bea_map`. That map silently drops secondary
+    parents on aggregates (government enterprises into ``221100`` /
+    ``485000``). Industry gross output must use
+    :func:`expand_industry_output_vector` instead. Commodity expand and
+    matrix helpers that need first-parent duplication are unaffected
+    (they do not pass the industry reverse map into this function).
+    """
+    if code_map is cs_industry_to_bea_map():
+        raise ValueError(
+            "expand_vector with cs_industry_to_bea_map() drops many-to-one BEA "
+            "parents (e.g. S00101/S00202 into 221100). Use "
+            "expand_industry_output_vector for industry gross output."
+        )
     cs_valid, bea_valid = _valid_pairs(target_codes, code_map, v.index)
 
     expanded = v.loc[bea_valid].copy()
     expanded.index = cs_valid
     return expanded.reindex(target_codes, fill_value=0.0)
+
+
+def expand_industry_output_vector(x_bea: pd.Series[float]) -> pd.Series[float]:
+    """Expand BEA industry gross output to Cornerstone industries.
+
+    Multiplies by the raw binary industry correspondence
+    (Cornerstone × BEA) so:
+
+    - many-to-one rows (``221100`` ← private + gov utilities; ``485000`` ←
+      private + gov transit) **sum** parent gross output;
+    - one-to-many rows (waste children ← ``562000``) **duplicate** the parent
+      scalar onto each child (same intermediate as :func:`expand_vector`).
+
+    The waste duplication is **not** final industry output: callers must run
+    ``_distribute_waste_parent_x_using_v_row_shares`` (or equivalent) so the
+    waste children share a single copy of parent gross output rather than
+    counting it seven times. Without that step, ``sum(x)`` overstates waste.
+    """
+    corresp = industry_corresp_raw()
+    x_aligned = x_bea.reindex(corresp.columns, fill_value=0.0)
+    expanded = corresp @ x_aligned
+    return expanded.reindex(CS_INDUSTRY_LIST, fill_value=0.0)
 
 
 def expand_ghg_matrix_from_bea_to_cornerstone(

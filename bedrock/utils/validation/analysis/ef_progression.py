@@ -43,16 +43,71 @@ def _tab_frame(sheet_id: str, ef_kind: str) -> pd.DataFrame:
 
 
 def pct_fractions_vs_v0(sheet_id: str, ef_kind: str) -> np.ndarray:
-    """In-sheet producer % diff vs CEDA v0 (``N_perc_diff`` / ``D_perc_diff``)."""
+    """In-sheet % diff from ``{kind}_perc_diff`` (or absolute columns as fallback).
+
+    On USEEIO-baseline sheets with purchaser columns, ``N_perc_diff`` compares
+    purchaser price, not producer. Use :func:`pct_fractions_producer_vs_old`
+    when the run targets producer footing.
+    """
     return pct_values(_tab_frame(sheet_id, ef_kind), ef_kind)
+
+
+def pct_fractions_producer_vs_old(sheet_id: str, ef_kind: str) -> np.ndarray:
+    """In-sheet producer % diff: ``{kind}_new[_inflated]`` vs ``{kind}_old_inflated``.
+
+    Ignores ``{kind}_perc_diff``, which on USEEIO-baseline sheets may reflect
+    purchaser price when ``N_new_purchaser`` is emitted.
+    """
+    s = pct_series_producer_vs_old(sheet_id, ef_kind)
+    return s.to_numpy(dtype=float)
+
+
+def pct_series_producer_vs_old(sheet_id: str, ef_kind: str) -> pd.Series:
+    """Same as :func:`pct_fractions_producer_vs_old`, indexed by sector code."""
+    df = _tab_frame(sheet_id, ef_kind)
+    inflated_col = f"{ef_kind}_new_inflated"
+    new_col = f"{ef_kind}_new"
+    old_col = f"{ef_kind}_old_inflated"
+    if (
+        inflated_col in df.columns
+        and pd.to_numeric(df[inflated_col], errors="coerce").notna().any()
+    ):
+        new = pd.to_numeric(df[inflated_col], errors="coerce")
+    else:
+        new = pd.to_numeric(df[new_col], errors="coerce")
+    old = pd.to_numeric(df[old_col], errors="coerce")
+    pdiff = (new - old) / old.abs()
+    out = pd.Series(
+        pdiff.to_numpy(dtype=float), index=df["sector"].astype(str).str.strip()
+    )
+    return out.replace([np.inf, -np.inf], np.nan).dropna()
+
+
+def sector_names_from_sheet(sheet_id: str, ef_kind: str = "N") -> pd.Series:
+    """``sector -> sector_name`` from a diagnostics EF tab."""
+    df = _tab_frame(sheet_id, ef_kind)
+    if "sector_name" not in df.columns:
+        return pd.Series(dtype=str)
+    return (
+        df.drop_duplicates("sector")
+        .assign(sector=lambda d: d["sector"].astype(str).str.strip())
+        .set_index("sector")["sector_name"]
+        .astype(str)
+    )
 
 
 def pct_fractions_useeio_purchaser_vs_v0(sheet_id: str) -> np.ndarray:
     """Purchaser-price N % diff vs pinned USEEIO on a USEEIO-baseline sheet."""
     df = _tab_frame(sheet_id, "N")
-    num = pd.to_numeric(df["N_new_purchaser"], errors="coerce")
-    den = pd.to_numeric(df["N_old_purchaser"], errors="coerce")
-    return ((num - den) / den.abs()).dropna().to_numpy(dtype=float)
+    if "N_new_purchaser" in df.columns and df["N_new_purchaser"].notna().any():
+        num = pd.to_numeric(df["N_new_purchaser"], errors="coerce")
+        den = pd.to_numeric(df["N_old_purchaser"], errors="coerce")
+        return ((num - den) / den.abs()).dropna().to_numpy(dtype=float)
+    logger.warning(
+        "Sheet %s has no usable N_new_purchaser; falling back to producer N vs v0.",
+        sheet_id,
+    )
+    return pct_fractions_vs_v0(sheet_id, "N")
 
 
 def _inflation_ratio_2023_to_2024(
@@ -79,15 +134,26 @@ def _absolute_ef_column(
     *,
     prefer_purchaser: bool = False,
 ) -> str:
-    """Return the absolute EF column to read from a diagnostics tab."""
+    """Return the absolute EF column to read from a diagnostics tab.
+
+    Prefers dollar-year–aligned ``{kind}_new_inflated`` when present (e.g. USEEIO
+    G1 with ``deflate_x_to_detail_io_year_for_B``), so cross-sheet sequential
+    compares match ``model_base_year`` footing. Falls back to ``{kind}_new``.
+    """
+    df = _tab_frame(sheet_id, ef_kind)
     if prefer_purchaser and ef_kind == "N":
-        df = _tab_frame(sheet_id, ef_kind)
         if "N_new_purchaser" in df.columns and df["N_new_purchaser"].notna().any():
             return "N_new_purchaser"
         logger.warning(
-            "Sheet %s has no usable N_new_purchaser; falling back to N_new.",
+            "Sheet %s has no usable N_new_purchaser; falling back to producer N.",
             sheet_id,
         )
+    inflated_col = f"{ef_kind}_new_inflated"
+    if (
+        inflated_col in df.columns
+        and pd.to_numeric(df[inflated_col], errors="coerce").notna().any()
+    ):
+        return inflated_col
     return f"{ef_kind}_new"
 
 
@@ -107,6 +173,29 @@ def pct_fractions_vs_baseline_sheet(
     run and the baseline is 2023, the baseline EF is inflated per-sector using
     ``{kind}_old_inflated`` on the step sheet vs ``ref_2023_sheet_id``.
     """
+    series, inflation_applied = pct_series_vs_baseline_sheet(
+        step_sheet_id,
+        baseline_sheet_id,
+        ef_kind,
+        value_col=value_col,
+        ref_2023_sheet_id=ref_2023_sheet_id,
+        baseline_year=baseline_year,
+        prefer_purchaser=prefer_purchaser,
+    )
+    return series.to_numpy(dtype=float), inflation_applied
+
+
+def pct_series_vs_baseline_sheet(
+    step_sheet_id: str,
+    baseline_sheet_id: str,
+    ef_kind: str,
+    *,
+    value_col: str | None = None,
+    ref_2023_sheet_id: str | None,
+    baseline_year: int,
+    prefer_purchaser: bool = False,
+) -> tuple[pd.Series, bool]:
+    """Same as :func:`pct_fractions_vs_baseline_sheet`, indexed by sector."""
     step_col = value_col or _absolute_ef_column(
         step_sheet_id, ef_kind, prefer_purchaser=prefer_purchaser
     )
@@ -139,5 +228,67 @@ def pct_fractions_vs_baseline_sheet(
         inflation_applied = True
 
     pdiff = (merged[step_col] - merged["_base"]) / merged["_base"].abs()
-    arr = pdiff.dropna().to_numpy(dtype=float)
-    return arr[np.isfinite(arr)], inflation_applied
+    series = pd.Series(
+        pdiff.to_numpy(dtype=float),
+        index=merged["sector"].astype(str).str.strip(),
+    )
+    series = series.replace([np.inf, -np.inf], np.nan).dropna()
+    return series[np.isfinite(series.to_numpy(dtype=float))], inflation_applied
+
+
+def pct_fractions_stacked_group(
+    step_sheet_id: str,
+    prior_sheet_id: str | None,
+    ef_kind: str,
+    *,
+    ref_2023_sheet_id: str | None,
+    prefer_purchaser: bool = False,
+) -> tuple[np.ndarray, bool]:
+    """Marginal % diff for one stacked group vs its prior endpoint.
+
+    When ``prior_sheet_id`` is ``None`` (G1), returns in-sheet diff vs CEDA v0
+    or USEEIO purchaser baseline. Otherwise cross-sheet diff vs the prior
+    group absolute EF column, with 2023→2024 inflation when applicable.
+    """
+    series, inflation_applied = pct_series_stacked_group(
+        step_sheet_id,
+        prior_sheet_id,
+        ef_kind,
+        ref_2023_sheet_id=ref_2023_sheet_id,
+        prefer_purchaser=prefer_purchaser,
+    )
+    return series.to_numpy(dtype=float), inflation_applied
+
+
+def pct_series_stacked_group(
+    step_sheet_id: str,
+    prior_sheet_id: str | None,
+    ef_kind: str,
+    *,
+    ref_2023_sheet_id: str | None,
+    prefer_purchaser: bool = False,
+) -> tuple[pd.Series, bool]:
+    """Same as :func:`pct_fractions_stacked_group`, indexed by sector."""
+    if prior_sheet_id is None:
+        if prefer_purchaser and ef_kind == "N":
+            df = _tab_frame(step_sheet_id, "N")
+            if "N_new_purchaser" in df.columns and df["N_new_purchaser"].notna().any():
+                num = pd.to_numeric(df["N_new_purchaser"], errors="coerce")
+                den = pd.to_numeric(df["N_old_purchaser"], errors="coerce")
+                s = pd.Series(
+                    ((num - den) / den.abs()).to_numpy(dtype=float),
+                    index=df["sector"].astype(str).str.strip(),
+                )
+                s = s.replace([np.inf, -np.inf], np.nan).dropna()
+                return s[np.isfinite(s.to_numpy(dtype=float))], False
+            return pct_series_producer_vs_old(step_sheet_id, ef_kind), False
+        return pct_series_producer_vs_old(step_sheet_id, ef_kind), False
+    baseline_year = _model_base_year(prior_sheet_id)
+    return pct_series_vs_baseline_sheet(
+        step_sheet_id,
+        prior_sheet_id,
+        ef_kind,
+        ref_2023_sheet_id=ref_2023_sheet_id,
+        baseline_year=baseline_year,
+        prefer_purchaser=prefer_purchaser,
+    )

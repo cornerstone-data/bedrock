@@ -528,9 +528,7 @@ def derive_cornerstone_q_and_vnorm_for_year(
     # Local import: derived_cornerstone imports from this module, mirroring the
     # existing pattern at the top of `get_vnorm_adjusted_commodity_price_ratio`.
     from bedrock.transform.eeio.cornerstone_expansion import (  # noqa: PLC0415
-        CS_INDUSTRY_LIST,
-        cs_industry_to_bea_map,
-        expand_vector,
+        expand_industry_output_vector,
     )
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         _distribute_waste_parent_x_using_v_row_shares,
@@ -552,11 +550,11 @@ def derive_cornerstone_q_and_vnorm_for_year(
         target_year=ta.cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year),
         iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
     )
-    x_y = expand_vector(x_bea_y, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
-    # When waste disagg is on, expand_vector duplicates the 562000 parent GO
-    # across waste children; redistribute via 2017 V row shares so the
-    # disaggregated industries get the right share. No-op when waste disagg
-    # is off (the helper short-circuits on missing weights).
+    x_y = expand_industry_output_vector(x_bea_y)
+    # When waste disagg is on, industry-output expand duplicates the 562000
+    # parent GO across waste children; redistribute via 2017 V row shares so
+    # the disaggregated industries get the right share. No-op when waste
+    # disagg is off (the helper short-circuits on missing weights).
     x_y = _distribute_waste_parent_x_using_v_row_shares(x_y)
     x_y = x_y.reindex(x_2017.index, fill_value=0.0)
 

@@ -1,0 +1,14 @@
+# v03_waterfall CEDA G1a: Cornerstone schema + GHG @ IO@2024 producer.
+# Cumulative wholesale CEDA group anchor (CEDA v0 snapshot → Cornerstone GHG).
+# Waste disaggregation is off until G1b.
+
+model_base_year: 2024
+price_type: producer
+
+usa_ghg_data_year: 2023
+
+use_cornerstone_2026_model_schema: true
+load_E_from_flowsa: true
+new_ghg_method: true
+use_E_data_year_for_x_in_B: false
+implement_waste_disaggregation: false
