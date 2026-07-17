@@ -24,6 +24,7 @@ from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
     _throttle,
     _trigger_workflow,
 )
+from bedrock.analysis.v0_3.constants import V03_WATERFALL_DRIVE_FOLDER_ID
 from bedrock.utils.config.usa_config import _load_usa_config_from_file_name
 from bedrock.utils.validation.analysis.release_v0_v03_ceda_groups import (
     V03_WATERFALL_CEDA_CONFIGS,
@@ -33,9 +34,6 @@ from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
 )
 
 logger = logging.getLogger(__name__)
-
-# v0.3 wholesale waterfall diagnostics (separate from Step 7 EF time-series folder).
-V03_WATERFALL_DRIVE_FOLDER_ID = "107RNHx1OUGN6roYdRi3BbdCSrMNFhl6u"
 
 _OUTPUT_DIR = Path(__file__).resolve().parent / "output" / "release_v0_v03_groups"
 
