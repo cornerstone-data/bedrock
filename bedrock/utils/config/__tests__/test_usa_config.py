@@ -73,6 +73,13 @@ def test_global_usa_config_with_snapshot_git_sha() -> None:
     )
 
 
+def test_retired_usa_config_cannot_be_loaded() -> None:
+    with pytest.raises(ValueError, match='retired and cannot be loaded'):
+        _load_usa_config_from_file_name('v8_ceda_2025_usa.yaml')
+    with pytest.raises(ValueError, match='retired and cannot be loaded'):
+        set_global_usa_config('2025_usa_ceda_ghg_from_flowsa')
+
+
 def test_unknown_diagnostics_cli_override_key_raises() -> None:
     with pytest.raises(ValueError, match='Unknown diagnostics_cli_overrides'):
         set_global_usa_config(

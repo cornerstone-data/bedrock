@@ -12,6 +12,16 @@ CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
 CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_3'
 
+# Stems with no yaml under configs/. Historical EF sheets / combine keys may
+# still use these strings (e.g. CEDA_V0_BASELINE); load/run is not supported.
+# Compare against frozen GCS snapshot key ``v0`` via snapshot_version_or_git_sha.
+RETIRED_USA_CONFIG_STEMS: frozenset[str] = frozenset(
+    {
+        'v8_ceda_2025_usa',
+        '2025_usa_ceda_ghg_from_flowsa',
+    }
+)
+
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         'diagnostics_baseline_source',
@@ -288,8 +298,25 @@ class USAConfig(BaseModel):
 _usa_config: ta.Optional[USAConfig] = None
 
 
+def _normalize_usa_config_file_name(config_file_name: str) -> str:
+    if not config_file_name.endswith('.yaml'):
+        return f'{config_file_name}.yaml'
+    return config_file_name
+
+
+def _raise_if_retired_usa_config(config_file_name: str) -> None:
+    stem = _normalize_usa_config_file_name(config_file_name).removesuffix('.yaml')
+    if stem in RETIRED_USA_CONFIG_STEMS:
+        raise ValueError(
+            f'USA config {stem!r} is retired and cannot be loaded. '
+            "For CEDA v0 EF comparisons, pin snapshot_version_or_git_sha to 'v0' "
+            'on a live Cornerstone config; do not regenerate the legacy model.'
+        )
+
+
 def _load_usa_config_from_file_name(config_file_name: str) -> USAConfig:
     assert config_file_name.endswith('.yaml'), 'config file name must end with .yaml'
+    _raise_if_retired_usa_config(config_file_name)
     with open(os.path.join(CONFIG_DIR, config_file_name)) as f:
         data = yaml.safe_load(f)
     config = USAConfig.model_validate(data, strict=True)
@@ -318,8 +345,8 @@ def set_global_usa_config(
     if (_usa_config is not None) or (config_file_env is not None):
         raise ValueError('Global USA config already set')
 
-    if not config_file.endswith('.yaml'):
-        config_file += '.yaml'
+    config_file = _normalize_usa_config_file_name(config_file)
+    _raise_if_retired_usa_config(config_file)
 
     base = _load_usa_config_from_file_name(config_file)
     if diagnostics_cli_overrides:
