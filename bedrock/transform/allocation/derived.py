@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 import logging
-import time
 
 import pandas as pd
 
-from bedrock.transform.allocation.constants import EmissionsSource
-from bedrock.transform.allocation.registry import ALLOCATED_EMISSIONS_REGISTRY
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.transform.iot.derived_gross_industry_output import derive_gross_output
 from bedrock.utils.config.common import load_crosswalk
@@ -19,7 +16,6 @@ from bedrock.utils.taxonomy.cornerstone.industries import (
     INDUSTRIES,
     WASTE_DISAGG_INDUSTRIES,
 )
-from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
     load_bea_v2017_industry_to_bea_v2017_commodity,
 )
@@ -177,47 +173,7 @@ def _build_naics_to_bea_weighted_mapping() -> pd.DataFrame:
 
 
 def derive_E_usa() -> pd.DataFrame:
-    if get_usa_config().load_E_from_flowsa:
-        # Return E_usa (ghg × CEDA v7 sectors). Branches on config load_E_from_flowsa.
-        # TODO: update future FBS calls with if else gating here
-        return load_E_from_flowsa()
-    else:
-        # aggregate E from 15 gases to 7 gases
-        return create_correspondence_matrix(GHG_MAPPING).T @ derive_E_usa_by_gas()
-
-
-def derive_E_usa_by_gas() -> pd.DataFrame:
-    return (
-        derive_E_usa_emissions_sources()
-        .groupby(lambda es: EmissionsSource(es).gas, axis=0)  # type: ignore
-        .sum()
-    )
-
-
-def derive_E_usa_emissions_sources() -> pd.DataFrame:
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        target_columns: list[str] = [str(sector) for sector in INDUSTRIES]
-    else:
-        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
-    E_usa = pd.DataFrame(
-        0.0,
-        index=[es.value for es in EmissionsSource],
-        columns=target_columns,
-    )
-
-    total_start = time.time()
-    for es, allocator in ALLOCATED_EMISSIONS_REGISTRY.items():
-        logger.info(f"Allocating {es}")
-        allocated = allocator()
-        if allocated.isna().any():
-            raise ValueError(f"NaNs found in {es} allocator")
-        E_usa.loc[es.value, :] += allocated.reindex(target_columns, fill_value=0.0)
-
-    logger.info(
-        f"[TIMING] All {len(ALLOCATED_EMISSIONS_REGISTRY)} allocations completed in {time.time() - total_start:.1f}s"
-    )
-
-    return E_usa
+    return load_E_from_flowsa()
 
 
 def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
@@ -364,8 +320,6 @@ def load_E_from_flowsa() -> pd.DataFrame:
     - GHG_national_Cornerstone_2024 when v0_3_umd_2024_ghgia is True
       (loaded from GCS parquet)
     - GHG_national_CEDA_{year} otherwise
-
-    Only used when load_E_from_flowsa is True in USA config.
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
@@ -480,7 +434,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     # Collapse across sectors (when CEDA: group BEA→CEDA; when Cornerstone: already in schema)
     if get_usa_config().use_cornerstone_2026_model_schema:
         target_columns = [str(sector) for sector in INDUSTRIES]
-        # E_usa already has Cornerstone columns from derive_E_usa_emissions_sources
+        # FBS SectorProducedBy is already in Cornerstone industry space.
         E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
     else:
         mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
@@ -518,7 +472,4 @@ if __name__ == "__main__":
     from bedrock.utils.config.usa_config import set_global_usa_config
 
     set_global_usa_config("2025_usa_cornerstone_taxonomy_and_waste_disagg.yaml")
-    df1 = load_E_from_flowsa()
-    # df2 = derive_E_usa()
-    # row_diff = df1.sum(axis=1) - df2.sum(axis=1)
-    # row_rel_diff = df1.sum(axis=1) / df2.sum(axis=1)
+    load_E_from_flowsa()
