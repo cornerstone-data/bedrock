@@ -34,25 +34,13 @@ def _select_flowsa_ghg_method() -> str:
     """Select FBS methodname from USA config (first match wins).
 
     The base `new_ghg_method` and CEDA fallback methods are parameterized on
-    `usa_ghg_data_year`. The variant FBSes (`*_coa_allocation`, `*_electricity`,
-    etc.) are 2023-only; if any of those flags is set with a non-2023 year we
-    raise here rather than failing later with an opaque "FBS not found".
+    `usa_ghg_data_year`. The 2023-only variants (`*_ghgi_mecs`, `*_umd_ghgia`)
+    raise here if set with a non-2023 year rather than failing later with an
+    opaque "FBS not found".
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
-    needs_2023 = (
-        usa.update_ghg_coa_allocation
-        or usa.update_electricity_ghg_method
-        or usa.update_other_gases_ghg_method
-        or usa.update_ghg_attribution_method_for_ng_and_petrol_systems
-        or usa.update_flowsa_refrigerant_method
-        or usa.update_transportation_ghg_method
-        or usa.add_new_ghg_activities
-        or usa.update_enteric_fermentation_and_manure_management_ghg_method
-        or usa.update_liming_and_fertilizer_ghg_method
-        or usa.update_mecs_method
-        or usa.v0_3_umd_2023_ghgia
-    )
+    needs_2023 = usa.update_mecs_method or usa.v0_3_umd_2023_ghgia
     if needs_2023 and year != 2023:
         raise ValueError(
             f'usa_ghg_data_year={year} is incompatible with the active '
@@ -70,24 +58,6 @@ def _select_flowsa_ghg_method() -> str:
         return f'GHG_national_Cornerstone_{year}'
     if usa.use_ghg_national_2023_m2:
         return 'GHG_national_2023_m2'
-    if usa.update_ghg_coa_allocation:
-        return 'GHG_national_Cornerstone_2023_coa_allocation'
-    if usa.update_electricity_ghg_method:
-        return 'GHG_national_Cornerstone_2023_electricity'
-    if usa.update_other_gases_ghg_method:
-        return 'GHG_national_Cornerstone_2023_other_gases'
-    if usa.update_ghg_attribution_method_for_ng_and_petrol_systems:
-        return 'GHG_national_Cornerstone_2023_petroleum_natgas'
-    if usa.update_flowsa_refrigerant_method:
-        return "GHG_national_Cornerstone_2023_refrigerants_foams"
-    if usa.update_transportation_ghg_method:
-        return 'GHG_national_Cornerstone_2023_mobile_combustion'
-    if usa.add_new_ghg_activities:
-        return 'GHG_national_Cornerstone_2023_new_activities'
-    if usa.update_enteric_fermentation_and_manure_management_ghg_method:
-        return 'GHG_national_Cornerstone_2023_ag_livestock'
-    if usa.update_liming_and_fertilizer_ghg_method:
-        return 'GHG_national_Cornerstone_2023_ag_soils'
     if usa.update_mecs_method:
         return 'GHG_national_Cornerstone_2023_ghgi_mecs'
     if usa.v0_3_umd_2023_ghgia:
@@ -386,54 +356,23 @@ def load_E_from_flowsa() -> pd.DataFrame:
     """Load E_usa (GHG × CEDA v7 sectors) from the CEDA FBS.
 
     FBS method is chosen by USA config (first match wins):
-    - GHG_national_Cornerstone_2023 when
-      new_ghg_method is True
+    - GHG_national_Cornerstone_{year} when new_ghg_method is True
+      (loaded from GCS parquet)
     - GHG_national_2023_m2 when use_ghg_national_2023_m2 is True
-    - GHG_national_Cornerstone_2023_coa_allocation when update_ghg_coa_allocation is True
-    - GHG_national_Cornerstone_2023_electricity when
-      update_electricity_ghg_method is True
-    - GHG_national_Cornerstone_2023_petroleum_natgas when
-      update_ghg_attribution_method_for_ng_and_petrol_systems is True
-    - GHG_national_Cornerstone_2023_refrigerants_foams when
-      update_flowsa_refrigerant_method is True
-    - GHG_national_Cornerstone_2023_new_activities when
-      add_new_ghg_activities is True
-    - GHG_national_Cornerstone_2023_other_gases when
-      update_other_gases_ghg_method is True
-    - GHG_national_Cornerstone_2023_mobile_combustion when update_transportation_ghg_method is True
-    - GHG_national_Cornerstone_2023_ag_livestock when
-      update_enteric_fermentation_and_manure_management_ghg_method is True
-    - GHG_national_Cornerstone_2023_ag_soils when
-      update_liming_and_fertilizer_ghg_method is True
-    - GHG_national_Cornerstone_2023_ghgi_mecs when
-      update_mecs_method is True
-    - GHG_national_Cornerstone_2023_umd_ghgia when
-      v0_3_umd_2023_ghgia is True
-    - GHG_national_Cornerstone_2024 when
-      v0_3_umd_2024_ghgia is True (loaded from GCS parquet)
-    - GHG_national_CEDA_2023 otherwise
+    - GHG_national_Cornerstone_2023_ghgi_mecs when update_mecs_method is True
+    - GHG_national_Cornerstone_2023_umd_ghgia when v0_3_umd_2023_ghgia is True
+    - GHG_national_Cornerstone_2024 when v0_3_umd_2024_ghgia is True
+      (loaded from GCS parquet)
+    - GHG_national_CEDA_{year} otherwise
 
     Only used when load_E_from_flowsa is True in USA config.
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
     # Only the base `new_ghg_method` and CEDA fallback FBS methods exist
-    # for years other than 2023. The variant FBSes (`*_coa_allocation`,
-    # `*_electricity`, etc.) are 2023-only; raise here rather than failing
-    # with an opaque "FBS not found" later.
-    needs_2023 = (
-        usa.update_ghg_coa_allocation
-        or usa.update_electricity_ghg_method
-        or usa.update_other_gases_ghg_method
-        or usa.update_ghg_attribution_method_for_ng_and_petrol_systems
-        or usa.update_flowsa_refrigerant_method
-        or usa.update_transportation_ghg_method
-        or usa.add_new_ghg_activities
-        or usa.update_enteric_fermentation_and_manure_management_ghg_method
-        or usa.update_liming_and_fertilizer_ghg_method
-        or usa.update_mecs_method
-        or usa.v0_3_umd_2023_ghgia
-    )
+    # for years other than 2023. The 2023-only variants raise here rather
+    # than failing later with an opaque "FBS not found".
+    needs_2023 = usa.update_mecs_method or usa.v0_3_umd_2023_ghgia
     if needs_2023 and year != 2023:
         raise ValueError(
             f'usa_ghg_data_year={year} is incompatible with the active '

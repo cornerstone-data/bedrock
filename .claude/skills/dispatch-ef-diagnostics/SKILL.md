@@ -93,7 +93,7 @@ Persist this batch to a **separate index CSV** (e.g. `output/results/ef_run_inde
 These surface as a **failed GH run after a successful dispatch** — the sheet is created but stays empty. Pre-flight by grepping each config for year flags and snapshot pins.
 
 - **Year / flag mismatch.** Overriding `usa_ghg_data_year`/`model_base_year` to a value a config forbids → e.g. `ValueError: usa_ghg_data_year=2023 is incompatible with v0_3_umd_2024_ghgia`. Catch up front: `grep -lE 'v0_3_umd_2024_ghgia:\s*[Tt]rue' …/configs/*.yaml` → those run at 2024. Fix: re-run at the required year **and rename the sheet's year** to match.
-- **Interim configs pinned to an old snapshot.** A config that pins `snapshot_version_or_git_sha` and flips an interim flag (e.g. `2025_usa_cornerstone_ghg_mecs` + `update_mecs_method`) may fail to resolve its GHG FlowBySector method on `main` HEAD → `AttributeError: 'NoneType' object has no attribute 'pop'` in flowsa `generateFlowBySector`. Run these against their **pinned snapshot/branch**, not `main`. Often the effect is already folded into a later bundled config (MECS ⊂ `…_umd_2024_ghgia`), so the standalone cell can be skipped.
+- **Interim configs pinned to an old snapshot.** A config that pins `snapshot_version_or_git_sha` and flips an interim flag (e.g. `2025_usa_cornerstone_full_model_v0_3_ghgi_mecs` + `update_mecs_method` against an old SHA) may fail to resolve its GHG FlowBySector method on `main` HEAD → `AttributeError: 'NoneType' object has no attribute 'pop'` in flowsa `generateFlowBySector`. Run these against their **pinned snapshot/branch**, not `main`. Often the effect is already folded into a later bundled config (MECS ⊂ `…_umd_2024_ghgia`), so the standalone cell can be skipped.
 
 ## Standard procedure
 
