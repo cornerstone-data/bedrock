@@ -16,7 +16,7 @@ Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 
 | Script | Purpose |
 |--------|---------|
-| `export_q_v0_3_cornerstone.py` | Export USA `scaled_q_USA` (commodity gross output) to Excel for ceda v0.3 weighted-N waterfalls. |
+| `export_q_v0_3_cornerstone.py` | Dispatch USA `scaled_q_USA` (commodity gross output) to a Google Sheet for ceda v0.3 weighted-N waterfalls. |
 | `plot_ef_release_v0_3.py` | Release progression histograms, FINAL v0.2 vs v0.3 overlays, and BLy charts from registered sheets. |
 | `plot_ef_v0_v03_useeio_groups.py` | Stacked G1→G2→G3 wholesale USEEIO progression (sequential + cumulative-vs-pin panels, FINAL overlays, producer). FINAL N overlay flags pinned key sectors. |
 | `plot_ef_v0_v03_ceda_groups.py` | Stacked G1a→G1b→G2→G3 wholesale CEDA progression (sequential + cumulative-vs-v0 panels, FINAL overlays, producer). FINAL N overlay flags pinned key sectors. |
@@ -26,15 +26,18 @@ Plot outputs land in `output/release_v0_3/` or `output/release_v0_v03_groups/`
 ## Export USA q (for ceda weighted-N)
 
 ```powershell
-# Default: bedrock/analysis/v0_3/output/q_v0_3_cornerstone.xlsx
+# Default: create/update Google Sheet ``q_v0_3_cornerstone`` in the v0.3
+# waterfall Drive folder (tabs: q, README, optional extra_codes).
 uv run python -m bedrock.analysis.v0_3.export_q_v0_3_cornerstone
 
-# Drop directly into the ceda assessment output folder
+# Override Drive folder or sheet title
 uv run python -m bedrock.analysis.v0_3.export_q_v0_3_cornerstone `
-    --out ../ceda/projects/v0_3_assessment/output/q_v0_3_cornerstone.xlsx
+    --folder-id <DRIVE_FOLDER_ID> --sheet-title q_v0_3_cornerstone
 ```
 
 Uses the current snapshot key (`.SNAPSHOT_KEY`) unless `--snapshot-key` is set.
+Default Drive folder: `V03_WATERFALL_DRIVE_FOLDER_ID` in
+`bedrock.analysis.v0_3.constants`.
 
 ## Plot
 
