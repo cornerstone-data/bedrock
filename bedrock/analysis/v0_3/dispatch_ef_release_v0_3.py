@@ -22,11 +22,15 @@ import pandas as pd
 
 from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
     EF_TIME_SERIES_DRIVE_FOLDER_ID,
-    _create_sheet,
-    _throttle,
-    _trigger_workflow,
 )
 from bedrock.utils.config.usa_config import _load_usa_config_from_file_name
+from bedrock.utils.validation.dispatch_diagnostics import (
+    create_sheet,
+    trigger_workflow,
+)
+from bedrock.utils.validation.dispatch_diagnostics import (
+    throttle as apply_throttle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -162,11 +166,11 @@ def dispatch_release(
                 n_dispatched += 1
                 continue
 
-            _throttle(throttle)
+            apply_throttle(throttle)
 
-            sheet_id = _create_sheet(EF_TIME_SERIES_DRIVE_FOLDER_ID, title)
+            sheet_id = create_sheet(EF_TIME_SERIES_DRIVE_FOLDER_ID, title)
             logger.info("Created sheet %s: %s", sheet_id, title)
-            _trigger_workflow(
+            trigger_workflow(
                 git_ref=git_ref,
                 config_name=cell.config_name,
                 sheet_id=sheet_id,

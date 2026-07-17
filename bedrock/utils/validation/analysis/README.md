@@ -7,6 +7,12 @@ The producer side writes results (N, D, significant sectors, etc.) to a
 Google Sheet. This package is the consumer side: it loads those tabs
 back, caches them locally as parquet, and renders analysis figures.
 
+Playbooks for methodology flags and diagnostics dispatch:
+[`../../config/feature_flag.md`](../../config/feature_flag.md) (flag + atomic YAML) and
+[`../evaluate_feature_impact.md`](../evaluate_feature_impact.md) (baselines,
+dispatch, interpret). Shared dispatch helpers:
+`bedrock.utils.validation.dispatch_diagnostics`.
+
 ## Layout
 
 - `plotting.py` — shared matplotlib primitives (percent histogram, absolute-change

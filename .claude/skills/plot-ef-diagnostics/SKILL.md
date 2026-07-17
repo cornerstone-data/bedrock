@@ -7,6 +7,8 @@ argument-hint: <diagnostics-sheet-id-or-url> [vs <baseline-sheet-id> | --deck-st
 
 # Plot EF diagnostics
 
+**Playbook:** [`bedrock/utils/validation/evaluate_feature_impact.md`](../../bedrock/utils/validation/evaluate_feature_impact.md). Single-sheet CLI and merge docs: [`bedrock/utils/validation/analysis/README.md`](../../bedrock/utils/validation/analysis/README.md).
+
 Produce N/EF comparison plots from diagnostics sheets. **Reuse the repo's existing plotting machinery — every panel style the user asks for already exists.** Import the fetch + plot primitives below before writing anything new.
 
 ## Step 0 — orient (always)
