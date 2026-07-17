@@ -32,7 +32,7 @@ v0_3_umd_2024_ghgia: True
 
 # A matrix: CEDA's A approach as fallback, with summary A/q dollar-year price adjustment.
 scale_a_matrix_with_ceda_method_as_fallback: True
-adjust_summary_dollar_year_before_scaling: True
+adjust_summary_A_and_q_dollar_year: True
 
 # Inflation factors.
 update_inflation_factors: True

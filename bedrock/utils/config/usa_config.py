@@ -85,7 +85,7 @@ class USAConfig(BaseModel):
     scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
     scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
     load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
-    adjust_summary_dollar_year_before_scaling: bool = False  # DRI: mo.li
+    adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
@@ -108,20 +108,7 @@ class USAConfig(BaseModel):
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
-    update_transportation_ghg_method: bool = False  # DRI: ben.young
-    update_ghg_coa_allocation: bool = False  # DRI: catherine.birney
-    update_electricity_ghg_method: bool = False  # DRI: catherine.birney
-    update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
-        False  # DRI: catherine.birney
-    )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
-    update_flowsa_refrigerant_method: bool = False  # DRI: catherine.birney
-    add_new_ghg_activities: bool = False  # DRI: catherine.birney
-    update_enteric_fermentation_and_manure_management_ghg_method: bool = (
-        False  # DRI: mo.li
-    )
-    update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
-    update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
     update_mecs_method: bool = False  # DRI: catherine.birney
     v0_3_umd_2023_ghgia: bool = False  # DRI: catherine.birney
     v0_3_umd_2024_ghgia: bool = False  # DRI: catherine.birney

@@ -46,7 +46,7 @@ The FBS pin and the runtime loader are independent: bumping the pin updates the 
 | [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2` | `TEST_*` (intermediate bumps, not release labels) |
 | `USAConfig.snapshot_version_or_git_sha` | `'v0'`, `1bda811e...` `# v0.1`, `7372464249...` `# v0.2` | `2ebb51f7...`, `9fe22d9a...` `# test` |
 
-**Atomic config** — a YAML config that changes a single methodology flag relative to the baseline, used to measure that change in isolation.
+**Atomic config** — a YAML config that changes a single methodology flag relative to the baseline, used to measure that change in isolation. See [`../config/feature_flag.md`](../config/feature_flag.md). Diagnostics against a chosen snapshot or USEEIO baseline: [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md).
 
 `v0.2` is the current integration baseline. `v0` and `v0.1` are earlier release snapshots. The two `TEST_*` SHAs are intermediate bumps kept in the Literal so atomic configs and test fixtures can pin them for comparison.
 
