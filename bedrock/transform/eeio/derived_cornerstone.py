@@ -621,7 +621,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
 
     # Summary tables: scale 2017 → model_year using summary A ratios.
     #
-    # When `cfg.adjust_summary_dollar_year_before_scaling` is set, `scale_cornerstone_A`
+    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
     # rebases the target-year summary A into 2017 USD before thebase.scaled_q, ratio is taken,
     # so the structural cross-year ratio is formed entirely in 2017 USD; the
     # scaled detail A is then inflated 2017 → model_year. When the flag is off,
@@ -645,7 +645,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             target_year=model_year,
             original_year=detail_year,
         )
-        if cfg.adjust_summary_dollar_year_before_scaling:
+        if cfg.adjust_summary_A_and_q_dollar_year:
             Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
                 Adom, original_year=detail_year, target_year=model_year
             )
@@ -693,7 +693,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     # Codepath of this approach is very similar to the scale_a_matrix_with_summary_tables approach,
     # the only difference is which year to scale to.
     #
-    # When `cfg.adjust_summary_dollar_year_before_scaling` is set, `scale_cornerstone_A`
+    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
     # rebases the target-year summary A into 2017 USD before the ratio is taken,
     # so the structural cross-year ratio is formed entirely in 2017 USD; the
     # scaled detail A is then inflated 2017 → io_year. When the flag is off,
@@ -717,7 +717,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             target_year=io_year,
             original_year=detail_year,
         )
-        if cfg.adjust_summary_dollar_year_before_scaling:
+        if cfg.adjust_summary_A_and_q_dollar_year:
             Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
                 Adom, original_year=detail_year, target_year=model_year
             )
