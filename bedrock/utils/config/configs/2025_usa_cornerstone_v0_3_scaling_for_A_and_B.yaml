@@ -36,3 +36,5 @@ cornerstone_industry_avg_margins: True
 use_scaled_x_and_scaled_Vnorm_for_B: True #unique setting not in cornerstone full model A summary realigned
 # or the full model
 
+# Set baseline for comparison to v0.3 snapshot
+snapshot_version_or_git_sha: 'c60bdf4308cb660eee80a246214901cff9122820'
