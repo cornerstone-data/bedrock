@@ -26,6 +26,7 @@ Internal helpers live in sibling modules:
 from __future__ import annotations
 
 import functools
+import typing as ta
 from typing import cast
 
 import numpy as np
@@ -67,6 +68,9 @@ from bedrock.transform.eeio.cornerstone_year_scaling import (
 from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
+)
+from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
+    derive_margins_cornerstone_usa,
 )
 from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output,
@@ -118,6 +122,9 @@ from bedrock.utils.taxonomy.bea.v2017_final_demand import (
 )
 from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
+)
+from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity import (
+    load_margin_type_to_cornerstone_commodity,
 )
 
 # ---------------------------------------------------------------------------
@@ -682,6 +689,75 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         Aimp=pt.DataFrame[CornerstoneAMatrix](Aimp),  # type: ignore[arg-type]
         scaled_q=q,
     )
+
+
+# ---------------------------------------------------------------------------
+# Margin A matrix (A_margin)
+# ---------------------------------------------------------------------------
+
+
+def _margin_sector_commodity_output_ratio(
+    q: pd.Series[float], margin_sector_commodities: ta.Mapping[str, ta.Sequence[str]]
+) -> pd.Series[float]:
+    """Each margin-sector commodity's share of its group's total ``q``.
+
+    Analogous to useeior's ``calculateOutputRatio(model, output_type="Commodity")``
+    ``toSectorRatio`` column, restricted to the Transportation/Wholesale/Retail
+    BEA-Sector groups used to allocate margins.
+    """
+    ratios: dict[str, float] = {}
+    for codes in margin_sector_commodities.values():
+        group_q = q.loc[list(codes)]
+        group_total = group_q.sum()
+        ratios.update((group_q / group_total).to_dict() if group_total else {})
+    return pd.Series(ratios, dtype=float)
+
+
+@functools.cache
+@pa.check_output(CornerstoneAMatrix.to_schema())
+def derive_cornerstone_A_margin() -> pd.DataFrame:
+    """Margin-provider A matrix (commodity supplying margin x commodity purchased).
+
+    Python port of useeior's ``calculateMarginSectorImpacts`` A_margin
+    construction: for each Cornerstone commodity, its Transportation/Wholesale/
+    Retail margin fraction of producer price (from ``derive_margins_cornerstone_usa()``,
+    the equivalent of ``model$Margins``) is allocated across the Cornerstone
+    commodities in the corresponding BEA-Sector margin group in proportion to
+    each commodity's share of that group's total ``derive_cornerstone_q()``
+    output (the equivalent of ``model$q``).
+
+    Row ``i`` (a margin-providing commodity) gives, for every column ``j``
+    (purchasing commodity), the fraction of ``j``'s producer-price purchase
+    that flows to commodity ``i`` to cover ``j``'s trade/transportation margin.
+    Non-margin-providing rows are all zero.
+    """
+    margins = derive_margins_cornerstone_usa()
+    margin_sector_commodities = load_margin_type_to_cornerstone_commodity()
+    margin_types = list(margin_sector_commodities)
+    margin_coefficients = (
+        margins[margin_types]
+        .div(margins["Producers' Value"], axis=0)
+        .replace([np.inf, -np.inf, np.nan], 0.0)
+    )
+
+    output_ratio = _margin_sector_commodity_output_ratio(
+        derive_cornerstone_q(), margin_sector_commodities
+    )
+
+    margin_allocation = pd.DataFrame(0.0, index=margin_types, columns=CS_COMMODITY_LIST)
+    for margin_type, codes in margin_sector_commodities.items():
+        code_list = list(codes)
+        margin_allocation.loc[margin_type, code_list] = output_ratio.loc[code_list]
+
+    margins_by_sector = margin_coefficients @ margin_allocation
+
+    A_margin = pd.DataFrame(0.0, index=CS_COMMODITY_LIST, columns=CS_COMMODITY_LIST)
+    A_margin.index.name = 'sector'
+    A_margin.columns.name = 'sector'
+    for codes in margin_sector_commodities.values():
+        code_list = list(codes)
+        A_margin.loc[code_list, :] = margins_by_sector[code_list].T
+    return A_margin
 
 
 # ---------------------------------------------------------------------------
