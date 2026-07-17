@@ -24,13 +24,23 @@ from bedrock.utils.snapshots.loader import (
     load_current_snapshot,
     load_snapshot,
 )
+from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES, COMMODITY_DESC
 
 DEFAULT_OUT = Path(__file__).resolve().parent / "output" / "q_v0_3_cornerstone.xlsx"
 DEFAULT_CONFIG = "2025_usa_cornerstone_v0_3"
 DEFAULT_RELEASE = "v0_3_0"
-SNAPSHOT_OBJECT = "scaled_q_USA"
+SNAPSHOT_OBJECT: SnapshotName = "scaled_q_USA"
 PUBLISH_LOCATION = "US"
+
+
+def _series_from_snapshot(frame: pd.DataFrame) -> pd.Series[float]:
+    squeezed = frame.squeeze()
+    if not isinstance(squeezed, pd.Series):
+        raise TypeError(
+            f"Expected Series after squeeze of {SNAPSHOT_OBJECT}, got {type(squeezed)}"
+        )
+    return squeezed.astype(float)
 
 
 def build_q_frame(q: pd.Series) -> tuple[pd.DataFrame, list[str]]:
@@ -63,10 +73,10 @@ def export_q_xlsx(
     """Write ``q`` + ``README`` sheets; return ``out_path``."""
     if snapshot_key is None:
         key = current_snapshot_key()
-        q = load_current_snapshot(SNAPSHOT_OBJECT).squeeze()
+        q = _series_from_snapshot(load_current_snapshot(SNAPSHOT_OBJECT))
     else:
         key = snapshot_key
-        q = load_snapshot(SNAPSHOT_OBJECT, key=key).squeeze()
+        q = _series_from_snapshot(load_snapshot(SNAPSHOT_OBJECT, key=key))
 
     meta, extra = build_q_frame(q)
     missing = int(meta["q"].isna().sum())
@@ -89,15 +99,13 @@ def export_q_xlsx(
                 "n_commodities": [len(meta)],
                 "n_missing_in_q": [missing],
                 "n_extra_in_q": [len(extra)],
-                "units_note": [
-                    "Commodity gross output (q = V column sums), USD"
-                ],
+                "units_note": ["Commodity gross output (q = V column sums), USD"],
             }
         ).to_excel(writer, sheet_name="README", index=False)
         if extra:
-            pd.DataFrame(
-                {"Code": extra, "q": [float(q[c]) for c in extra]}
-            ).to_excel(writer, sheet_name="extra_codes", index=False)
+            pd.DataFrame({"Code": extra, "q": [float(q[c]) for c in extra]}).to_excel(
+                writer, sheet_name="extra_codes", index=False
+            )
 
     return out_path
 
