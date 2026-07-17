@@ -1,0 +1,301 @@
+!include:BEA_detail_target.yaml
+year: &nipa_year 2021
+target_naics_year: 2017
+geoscale: national
+activity_schema: None
+
+_attribution_sources:
+  BEA: &bea # 2017 Make and Use tables
+    year: 2017
+    activity_to_sector_mapping: BEA_2017_Detail
+    exclusion_fields:
+      # Drop irrelevant final demand and total sectors
+      ActivityConsumedBy: ['T001', 'T004', 'T007', 'T019']
+      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                           'MCIF']
+    attribution_method: equal
+
+source_names:
+  BEA_NIPA:
+    geoscale: national
+    year: *nipa_year
+    data_format: FBA
+    clean_fba_before_activity_sets: !script_function:BEA_NIPA extract_table_info
+    clean_fba_w_sec: !script_function:BEA_NIPA drop_unassigned
+    activity_sets:
+
+      # FD_PCE:
+      #   activity_to_sector_mapping: BEA_NIPA_FD_PCE
+      #   selection_fields:
+      #     Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+      #   assign_fields:
+      #     ActivityConsumedBy: Personal Consumption Expenditures
+      #   attribution_method: proportional
+      #   attribution_source: ## Change this to use the PCE Bridge directly
+      #     BEA_Detail_Use_SUT:
+      #       <<: *bea
+      #       selection_fields:
+      #         ActivityConsumedBy: {'F01000': ''}
+
+      FD_IP_direct:
+        activity_to_sector_mapping: BEA_NIPA_FD_IP
+        selection_fields:
+          Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type 
+          ActivityProducedBy:
+            - Research and development (6)
+        assign_fields:
+          ActivityConsumedBy: Private Fixed Investment
+        attribution_method: direct
+
+      FD_IP_proportional:
+        activity_to_sector_mapping: BEA_NIPA_FD_IP
+        selection_fields:
+          Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type 
+        exclusion_fields:
+          ActivityProducedBy:
+            - Research and development (6)
+        assign_fields:
+          ActivityConsumedBy: Private Fixed Investment
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F02N00': ''}
+
+      FD_Gov_FedD_CE:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Consumption expenditures (18)
+        assign_fields:
+          ActivityConsumedBy: Federal Government Defense Consumption Expenditures
+        attribution_method: direct
+        # attribution_source:
+        #   BEA_Detail_Use_SUT:
+        #     <<: *bea
+        #     selection_fields:
+        #       ActivityConsumedBy: {'F06C00': ''}
+
+      FD_Gov_FedD_Equipment:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Equipment (21)
+        assign_fields:
+          ActivityConsumedBy: Federal Government Defense Investment in Equipment
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F06E00': ''}
+
+      FD_Gov_FedD_IP:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Software (23)
+            - Research and development (24) # Direct
+        assign_fields:
+          ActivityConsumedBy: Federal Government Defense IP
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F06N00': ''}
+
+      FD_Gov_FedD_Structures:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Structures (20)
+        assign_fields:
+          ActivityConsumedBy: Federal Government Defense Investment in Structures
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F06S00': ''}
+
+      FD_Gov_FedND_CE:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Consumption expenditures (26)
+        assign_fields:
+          ActivityConsumedBy: Federal Government Nondefense Consumption Expenditures
+        attribution_method: direct
+        # attribution_source:
+        #   BEA_Detail_Use_SUT:
+        #     <<: *bea
+        #     selection_fields:
+        #       ActivityConsumedBy: {'F07C00': ''}
+
+      FD_Gov_FedND_Structures:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Structures (28)
+        assign_fields:
+          ActivityConsumedBy: Federal Government Nondefense Investment in Structures
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F07S00': ''}
+
+      FD_Gov_FedND_Equipment:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Equipment (29)
+        assign_fields:
+          ActivityConsumedBy: Federal Government Nondefense Investment in Equipment
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F07E00': ''}
+
+      FD_Gov_FedND_IP:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Software (31)
+            - Research and development (32) # Direct
+        assign_fields:
+          ActivityConsumedBy: Federal Government Nondefense IP
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F07N00': ''}
+
+      FD_Gov_SLG_CE:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - State and local (34)
+        assign_fields:
+          ActivityConsumedBy: State and Local Consumption Expenditures
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F10C00': ''}
+
+      FD_Gov_SLG_Equipment:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Equipment (37)
+        assign_fields:
+          ActivityConsumedBy: State and Local Investment in Equipment
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F10E00': ''}
+
+      FD_Gov_SLG_Structures:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Structures (36)
+        assign_fields:
+          ActivityConsumedBy: State and Local Investment in Structures
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F10S00': ''}
+
+      FD_Gov_SLG_IP:
+        activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        selection_fields:
+          Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
+          ActivityProducedBy:
+            - Software (39)
+            - Research and development (40) # Direct
+        assign_fields:
+          ActivityConsumedBy: State and Local IP
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F10N00': ''}
+
+      FD_Structures1:
+        activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        selection_fields:
+          Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
+          ActivityProducedBy:
+           - Single family (41)
+           - Multifamily (42)
+           - Manufactured homes (44)
+           - Dormitories (45)
+           - Improvements (46)
+           - "Brokers' commissions and other ownership transfer costs (47)"
+           - Net purchases of used structures (48)
+        assign_fields:
+          ActivityConsumedBy: Residential Investment
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F02R00': ''}
+
+      FD_Structures2:
+        activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        selection_fields:
+          Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
+          ActivityProducedBy:
+           - Office (4)
+           - Health care (7)
+           - Multimerchandise shopping (12)
+           - Food and beverage establishments (13)
+           - Warehouses (14)
+           - Other commercial (15)
+           - Manufacturing (16)
+           - Power and communication (17)
+           - Petroleum and natural gas (25)
+           - Mining (26)
+           - Religious (28)
+           - Educational and vocational (29)
+           - Lodging (30)
+           - Amusement and recreation (31)
+           - Transportation (32)
+           - Farm (35)
+           - Other (36)
+           - "Brokers' commissions on sale of structures (37)"
+           - Net purchases of used structures (38)
+        assign_fields:
+          ActivityConsumedBy: Nonresidential Investment in Structures
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F02S00': ''}

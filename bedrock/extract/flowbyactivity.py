@@ -797,6 +797,7 @@ class FlowByActivity(_FlowBy):
             ).select_by_fields(
                 selection_fields=activity_config.get('selection_fields'),
                 exclusion_fields=activity_config.get('exclusion_fields'),
+                assign_fields=activity_config.get('assign_fields'),
             )
 
             child_fba.config = {**parent_config, **activity_config}
