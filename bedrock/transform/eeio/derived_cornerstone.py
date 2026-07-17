@@ -197,8 +197,7 @@ def derive_cornerstone_V(
 @functools.cache
 @pa.check_output(CornerstoneXVectorSchema)
 def derive_cornerstone_x() -> pd.Series[float]:
-    x = compute_x(V=derive_cornerstone_V())
-    return _distribute_waste_parent_x_using_v_row_shares(x)
+    return compute_x(V=derive_cornerstone_V())
 
 
 def _distribute_waste_parent_x_using_v_row_shares(
@@ -252,6 +251,7 @@ def derive_cornerstone_x_after_redefinition(
             target_year=cfg.model_base_year,
             original_year=cfg.usa_detail_original_year,
         )
+        return x_cs
     else:
         x_bea = derive_gross_output(
             target_year=effective_year,
@@ -259,7 +259,7 @@ def derive_cornerstone_x_after_redefinition(
         )
         x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
         x_cs.index.name = 'sector'
-    return _distribute_waste_parent_x_using_v_row_shares(x_cs)
+        return _distribute_waste_parent_x_using_v_row_shares(x_cs)
 
 
 @functools.cache
