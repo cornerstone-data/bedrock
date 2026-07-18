@@ -12,15 +12,19 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+from bedrock.extract.iot.io_2017 import load_summary_V_usa
 from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Adom_usa,
     derive_summary_Aimp_usa,
     derive_summary_q_usa,
+    derive_summary_x_usa,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     adjust_summary_A_dollar_year,
     adjust_summary_q_dollar_year,
+    adjust_summary_V_dollar_year,
+    adjust_summary_x_dollar_year,
 )
 from bedrock.utils.math.formulas import compute_total_industry_inputs
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_MUT_YEARS
@@ -162,6 +166,84 @@ def scale_cornerstone_q(
         pd.Series,
         _apply_summary_ratio_to_sectors(ratio, q, axis='rows'),
     )
+
+
+def scale_cornerstone_x(
+    x: pd.Series[float],
+    target_year: USA_SUMMARY_MUT_YEARS,
+    original_year: USA_SUMMARY_MUT_YEARS,
+) -> pd.Series[float]:
+    """Scale detail x element-wise using summary x ratios.
+
+    When ``cfg.adjust_summary_A_and_q_dollar_year`` is set, the target-year
+    summary x is rebased into ``original_year`` USD via the summary industry
+    price ratio before the ratio is formed.
+    """
+    x_summary_target = derive_summary_x_usa(target_year)
+    if get_usa_config().adjust_summary_A_and_q_dollar_year:
+        x_summary_target = adjust_summary_x_dollar_year(
+            x_summary=x_summary_target,
+            from_year=target_year,
+            to_year=original_year,
+        )
+    ratio = (x_summary_target / derive_summary_x_usa(original_year)).fillna(1.0)
+    return ta.cast(
+        pd.Series,
+        _apply_summary_ratio_to_sectors(ratio, x, axis='rows'),
+    )
+
+
+def scale_cornerstone_V(
+    V: pd.DataFrame,
+    target_year: USA_SUMMARY_MUT_YEARS,
+    original_year: USA_SUMMARY_MUT_YEARS,
+) -> pd.DataFrame:
+    """Scale detail V element-wise using summary V ratios.
+
+    When ``cfg.adjust_summary_A_and_q_dollar_year`` is set, the target-year
+    summary V is rebased into ``original_year`` USD via the ITA-based summary
+    commodity price ratio before the ratio is derived and taken, so the
+    structural cross-year ratio is formed in a consistent dollar year.
+    """
+    V_summary_base = load_summary_V_usa(original_year)
+    V_summary_target = load_summary_V_usa(target_year)
+    if get_usa_config().adjust_summary_A_and_q_dollar_year:
+        V_summary_target = adjust_summary_V_dollar_year(
+            V_summary=V_summary_target,
+            from_year=target_year,
+            to_year=original_year,
+        )
+
+    summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
+    detail_commodities = list(V.columns)
+    summary_ratios = (V_summary_target / V_summary_base).fillna(1.0)
+    summary_ratios[np.isinf(summary_ratios)] = 1.0
+
+    V_scaled = V.copy()
+
+    block_rows = []
+    for i, row in summary_ratios.iterrows():
+        if i not in summary_to_cornerstone:
+            continue
+        block_mat = pd.DataFrame(
+            index=summary_to_cornerstone[i],  # type: ignore
+            columns=detail_commodities,
+            data=0,
+            dtype=float,
+        )
+        for col_summary_sector, val in row.items():
+            if val == 0:
+                continue
+            if col_summary_sector in ['Used', 'Other']:
+                continue
+            col_sectors = summary_to_cornerstone[col_summary_sector]  # type: ignore
+            block_mat.loc[:, col_sectors] = val
+        block_rows.append(block_mat)
+
+    ratio_multiplier = pd.concat(block_rows, axis=0).reindex(
+        index=V_scaled.index, columns=V_scaled.columns, fill_value=1.0
+    )
+    return V_scaled * ratio_multiplier
 
 
 def scale_cornerstone_B(

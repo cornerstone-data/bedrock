@@ -19,6 +19,9 @@ Per ``(scenario, approach, year)`` cell:
 3. Append a row to ``output/results/ef_run_index.csv`` so the compile step has
    a complete audit trail.
 
+Shared create-sheet / trigger / throttle helpers live in
+``bedrock.utils.validation.dispatch_diagnostics``.
+
 The script is idempotent — already-recorded ``(scenario, approach, year)`` cells
 are skipped, so re-running picks up only the unfilled cells.
 
@@ -34,18 +37,28 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import json
 import logging
-import subprocess
-import time
 
 import pandas as pd
 
 from bedrock.analysis.a_matrix_time_series.constants import RESULTS_DIR
+from bedrock.utils.validation.dispatch_diagnostics import (
+    create_sheet,
+    throttle,
+    trigger_workflow,
+    wait_for_capacity,
+)
+
+# Backward-compatible aliases for epic scripts / skills that imported the
+# private names from this module.
+_create_sheet = create_sheet
+_throttle = throttle
+_trigger_workflow = trigger_workflow
+_wait_for_capacity = wait_for_capacity
 
 logger = logging.getLogger(__name__)
 
-# v0.3 Diagnostics Drive folder — same one Step 6 used.
+# A-matrix time-series / v0.3 release-progression Drive folder.
 EF_TIME_SERIES_DRIVE_FOLDER_ID = "1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s"
 
 EF_RUN_INDEX_PATH = RESULTS_DIR / "ef_run_index.csv"
@@ -67,10 +80,10 @@ ISOLATE_A_MATRIX_YAMLS: dict[str, str] = {
 # The `model_base_year` and `usa_ghg_data_year` overrides drive the time
 # series; the YAMLs themselves are year-agnostic.
 BUNDLE_V0_3_YAMLS: dict[str, str] = {
-    "useeio": "2025_usa_cornerstone_full_model_A_useeio",
-    "summary_tables": "2025_usa_cornerstone_full_model_A_summary_tables",
-    "commodity_price_index": "2025_usa_cornerstone_full_model_A_commodity_price_index",
-    "useeio_nowcast": "2025_usa_cornerstone_full_model_A_useeio_nowcast",
+    "useeio": "2025_usa_cornerstone_v0_2_A_useeio",
+    "summary_tables": "2025_usa_cornerstone_v0_2_A_summary_tables",
+    "commodity_price_index": "2025_usa_cornerstone_v0_2_A_commodity_price_index",
+    "useeio_nowcast": "2025_usa_cornerstone_v0_2_A_useeio_nowcast",
 }
 
 SCENARIO_YAMLS: dict[str, dict[str, str]] = {
@@ -106,161 +119,6 @@ INDEX_COLUMNS = (
     "git_ref",
     "triggered_at",
 )
-
-
-def _drive_client():  # type: ignore[no-untyped-def]
-    """Return an authenticated Drive v3 client for the active ADC."""
-    import google.auth  # noqa: PLC0415
-    import googleapiclient.discovery  # noqa: PLC0415
-
-    creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/drive"])
-    return googleapiclient.discovery.build("drive", "v3", credentials=creds)
-
-
-def _create_sheet(folder_id: str, title: str) -> str:
-    drive = _drive_client()
-    body = {
-        "name": title,
-        "mimeType": "application/vnd.google-apps.spreadsheet",
-        "parents": [folder_id],
-    }
-    file = (
-        drive.files().create(body=body, fields="id", supportsAllDrives=True).execute()
-    )
-    return str(file["id"])
-
-
-def _trigger_workflow(
-    *,
-    git_ref: str,
-    config_name: str,
-    sheet_id: str,
-    model_base_year: int,
-    use_useeio_baseline: bool,
-    usa_ghg_data_year: int | None = None,
-) -> None:
-    cmd = [
-        "gh",
-        "workflow",
-        "run",
-        "generate_diagnostics.yml",
-        "--ref",
-        git_ref,
-        "-f",
-        f"config_name={config_name}",
-        "-f",
-        f"sheet_id={sheet_id}",
-        "-f",
-        f"model_base_year={model_base_year}",
-        "-f",
-        f"use_useeio_baseline={'true' if use_useeio_baseline else 'false'}",
-    ]
-    if usa_ghg_data_year is not None:
-        cmd += ["-f", f"usa_ghg_data_year={usa_ghg_data_year}"]
-    subprocess.run(cmd, check=True)
-
-
-def _busy_count(workflow: str = "generate_diagnostics") -> int:
-    """Number of `queued` + `in_progress` runs of the named workflow.
-
-    Retries each ``gh run list`` call on transient subprocess failures
-    (e.g. GitHub API hiccups). After exhausted retries, returns ``1`` to
-    signal "still busy" so the caller keeps polling rather than dispatching
-    blindly into an unknown queue state.
-    """
-    count = 0
-    for status in ("queued", "in_progress"):
-        for attempt in range(3):
-            try:
-                result = subprocess.run(
-                    [
-                        "gh",
-                        "run",
-                        "list",
-                        "--workflow",
-                        f"{workflow}.yml",
-                        "--status",
-                        status,
-                        "--limit",
-                        "20",
-                        "--json",
-                        "databaseId",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                count += len(json.loads(result.stdout))
-                break
-            except subprocess.CalledProcessError as e:
-                stderr = (e.stderr or "").strip()
-                if attempt == 2:
-                    logger.warning(
-                        "gh run list failed for status=%s after 3 attempts: %s; "
-                        "treating as busy and continuing poll loop",
-                        status,
-                        stderr or "(no stderr)",
-                    )
-                    return 1
-                time.sleep(5)
-    return count
-
-
-def _wait_for_capacity(
-    *,
-    poll_interval: int = 15,
-    timeout: int = 1800,
-    workflow: str = "generate_diagnostics",
-    initial_delay: int = 15,
-) -> None:
-    """Block until no `generate_diagnostics` run is queued or in progress.
-
-    Combined with the workflow's `concurrency:` directive, this is the
-    primary serialization mechanism — guarantees we don't dispatch a new
-    run while one is still in flight (which would either get cancelled by
-    the directive or stack up against the Sheets API write quota).
-
-    ``initial_delay`` blocks before the first poll so a just-triggered
-    workflow has time to register as ``queued``. Without it, the post-
-    dispatch visibility lag (~10–20s) lets ``_busy_count`` see 0 and we
-    fire the next dispatch immediately, which the workflow's
-    ``cancel-in-progress: false`` then resolves by killing the older
-    pending run.
-    """
-    if initial_delay:
-        time.sleep(initial_delay)
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        n = _busy_count(workflow)
-        if n == 0:
-            return
-        logger.info("Waiting for %d in-flight %s run(s) to clear...", n, workflow)
-        time.sleep(poll_interval)
-    raise TimeoutError(
-        f"{workflow} runs still busy after {timeout}s; aborting dispatch"
-    )
-
-
-def _throttle(mode: str) -> None:
-    """Apply the configured throttle between successive dispatches.
-
-    Modes:
-      - ``poll``: block until the workflow has no queued or in-progress runs.
-      - ``sleep:N``: sleep N seconds (e.g. ``sleep:120``).
-      - ``none``: no throttle; useful only with a bumped Sheets API quota.
-    """
-    if mode == "poll":
-        _wait_for_capacity()
-    elif mode.startswith("sleep:"):
-        seconds = int(mode.split(":", 1)[1])
-        logger.info("Sleeping %ds before next dispatch...", seconds)
-        time.sleep(seconds)
-    elif mode == "none":
-        return
-    else:
-        raise ValueError(
-            f"Unknown throttle {mode!r}. Valid: 'poll', 'sleep:N', 'none'."
-        )
 
 
 def _load_index() -> pd.DataFrame:

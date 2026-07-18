@@ -1,0 +1,47 @@
+# Same as 2025_usa_cornerstone_v0_3, with one delta:
+#   apply_inflation_to_V: True  (off / default False on v0.3)
+#
+# Inflates Make matrix V to model_base_year so Vnorm (and V-norm-weighted
+# commodity price ratios) use model-year supplier mix instead of 2017
+# Make-table structure.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_2026_model_schema: True
+load_E_from_flowsa: True
+
+# GHG model: UMD GHGIA 2024 inventory (+ 2022 MECS attribution).
+v0_3_umd_2024_ghgia: True
+
+# A matrix: CEDA's A approach as fallback, with summary A/q dollar-year price adjustment.
+scale_a_matrix_with_ceda_method_as_fallback: True
+adjust_summary_A_and_q_dollar_year: True
+
+# Inflation factors.
+update_inflation_factors: True
+
+# Shared full-model flags.
+use_E_data_year_for_x_in_B: True
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True
+
+#####
+# Delta vs 2025_usa_cornerstone_v0_3
+#####
+apply_inflation_to_V: True
+
+#####
+# Diagnostics baseline (Bedrock v0.3.0 snapshot = 2025_usa_cornerstone_v0_3)
+#####
+snapshot_version_or_git_sha: c60bdf4308cb660eee80a246214901cff9122820

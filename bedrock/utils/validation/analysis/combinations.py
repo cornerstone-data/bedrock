@@ -20,6 +20,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from bedrock.utils.validation.analysis.release_v0_3_progression import (
+    CEDA_V02_TO_V03_SHEETS,
+    USEEIO_V02_TO_V03_SHEETS,
+    ceda_stepwise_target_mapping,
+    sheets_in_order,
+    useeio_stepwise_target_mapping,
+)
+from bedrock.utils.validation.analysis.release_v0_v03_ceda_groups import (
+    V0_V03_CEDA_GROUP_SHEETS,
+    ceda_group_stack_target_mapping,
+)
+from bedrock.utils.validation.analysis.release_v0_v03_useeio_groups import (
+    V0_V03_USEEIO_GROUP_SHEETS,
+    useeio_group_stack_target_mapping,
+)
+
 
 @dataclass(frozen=True)
 class ComboSpec:
@@ -27,12 +43,19 @@ class ComboSpec:
 
     Attributes:
         drive_folder_id: Drive folder holding the per-run diagnostics Sheets.
-            Used to resolve ``names_in_order`` to Sheet IDs.
+            Used to resolve ``names_in_order`` to Sheet IDs when
+            ``sheets_in_order`` is empty.
         names_in_order: Ordered Sheet titles (one per diagnostics run). Order
             controls merge order in the output tabs.
         target_mapping: Per-``config_name`` target column for the net-diff
             tabs (subtract ``target`` from ``config``). Keys must match the
             ``config_name`` value stored in each run's ``config_summary`` tab.
+        sheets_in_order: Optional explicit ``(sheet_id, title)`` pairs. When
+            non-empty, inputs are taken directly and ``drive_folder_id`` /
+            ``names_in_order`` are ignored (for Sheets that span folders).
+        n_price_type: Which N columns to merge for absolute-EF tabs:
+            ``purchaser`` (default; USEEIO release-deck convention) or
+            ``producer`` (``N_new`` / ``N_old_inflated`` footing).
 
     The destination Sheet for merged output is always supplied on the
     command line via ``--output-sheet-id``; it is intentionally not part of
@@ -42,6 +65,8 @@ class ComboSpec:
     drive_folder_id: str
     names_in_order: list[str]
     target_mapping: dict[str, str]
+    sheets_in_order: tuple[tuple[str, str], ...] = ()
+    n_price_type: str = "purchaser"
 
 
 # Historical destination Sheets (pass via --output-sheet-id when reproducing):
@@ -74,7 +99,7 @@ COMBINATIONS: dict[str, ComboSpec] = {
             'useeio_phoebe_23_restore_cornerstone_A': 'useeio_phoebe_23',
             'useeio_phoebe_23_restore_iot_redefinition': 'useeio_phoebe_23',
             'useeio_phoebe_23_cornerstone_margins': 'useeio_phoebe_23',
-            '2025_usa_cornerstone_full_model': 'useeio_phoebe_23',
+            '2025_usa_cornerstone_v0_2': 'useeio_phoebe_23',
         },
     ),
     'v0.2': ComboSpec(
@@ -117,7 +142,39 @@ COMBINATIONS: dict[str, ComboSpec] = {
             '2025_usa_cornerstone_taxonomy_and_waste_disagg': '2025_usa_cornerstone_fbs_schema',
             '2025_usa_cornerstone_taxonomy_and_B_transformation': 'v8_ceda_2025_usa',
             '2025_usa_cornerstone_B_transformation_and_waste_disaggregation': '2025_usa_cornerstone_taxonomy_and_waste_disagg',
-            '2025_usa_cornerstone_full_model': 'v8_ceda_2025_usa',
+            '2025_usa_cornerstone_v0_2': 'v8_ceda_2025_usa',
         },
+    ),
+    # v0 baseline → FINAL v0.2 → v0.3 release steps. Net-diff chains stepwise;
+    # atomic v0.2-footing configs (inflation, A/price, MECS) diff vs full_model.
+    'v0.2_to_v0.3_ceda': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=ceda_stepwise_target_mapping(CEDA_V02_TO_V03_SHEETS),
+        sheets_in_order=sheets_in_order(CEDA_V02_TO_V03_SHEETS),
+    ),
+    # FINAL v0.2 → v0.3 release steps. Net-diff chains stepwise; atomic
+    # v0.2-footing configs (inflation, A/price, MECS) diff vs full_model.
+    'v0.2_to_v0.3_useeio': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=useeio_stepwise_target_mapping(USEEIO_V02_TO_V03_SHEETS),
+        sheets_in_order=sheets_in_order(USEEIO_V02_TO_V03_SHEETS),
+    ),
+    # Wholesale v0→v0.3 USEEIO: three stacked group endpoints + FINAL.
+    'v0_to_v03_useeio_groups': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=useeio_group_stack_target_mapping(V0_V03_USEEIO_GROUP_SHEETS),
+        sheets_in_order=sheets_in_order(V0_V03_USEEIO_GROUP_SHEETS),
+        n_price_type='producer',
+    ),
+    # Wholesale v0→v0.3 CEDA: four stacked group endpoints + FINAL.
+    'v0_to_v03_ceda_groups': ComboSpec(
+        drive_folder_id='',
+        names_in_order=[],
+        target_mapping=ceda_group_stack_target_mapping(V0_V03_CEDA_GROUP_SHEETS),
+        sheets_in_order=sheets_in_order(V0_V03_CEDA_GROUP_SHEETS),
+        n_price_type='producer',
     ),
 }

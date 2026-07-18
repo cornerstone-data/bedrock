@@ -507,7 +507,7 @@ class TestPipelineB:
     def test_runtime_B_path_does_not_use_bea_expansion_helpers(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _setup_config("2025_usa_cornerstone_full_model.yaml")
+        _setup_config("2025_usa_cornerstone_v0_2.yaml")
 
         def _raise_if_called(*args: object, **kwargs: object) -> None:
             raise AssertionError(
@@ -529,7 +529,7 @@ class TestPipelineB:
 
     @pytest.mark.eeio_integration
     def test_runtime_B_formula_matches_implementation(self) -> None:
-        _setup_config("2025_usa_cornerstone_full_model.yaml")
+        _setup_config("2025_usa_cornerstone_v0_2.yaml")
         try:
             cfg = get_usa_config()
             actual = derive_cornerstone_B_via_vnorm()

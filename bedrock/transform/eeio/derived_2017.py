@@ -99,8 +99,8 @@ def derive_2017_Aq_usa() -> SingleRegionAqMatrixSet:
     # domestic & import direct requirements (after redefinition) in industry technology
     Adom = compute_A_matrix(U_norm=Udom_norm, V_norm=Vnorm_scrap_corrected)
     Aimp = compute_A_matrix(U_norm=Uimp_norm, V_norm=Vnorm_scrap_corrected)
-    assert (Adom >= 0).all().all(), "Adom_USA has negative values."
-    assert (Aimp >= 0).all().all(), "Aimp_USA has negative values."
+    assert (Adom >= 0).all().all(), 'Adom_USA has negative values.'
+    assert (Aimp >= 0).all().all(), 'Aimp_USA has negative values.'
 
     # NOTE: turning this off for now, there is only one sector (S00102) with total industry inputs exceeding 1
     # _total_industry_output = compute_total_industry_inputs(A=Adom + Aimp)
@@ -109,7 +109,7 @@ def derive_2017_Aq_usa() -> SingleRegionAqMatrixSet:
     # ).all(), f"USA has industry with total industry inputs exceed 1:{list(_total_industry_output[_total_industry_output>1].index)}"
 
     q = derive_2017_q_usa()
-    assert (q >= 0).all(), "q_USA has negative values."
+    assert (q >= 0).all(), 'q_USA has negative values.'
     return SingleRegionAqMatrixSet(
         Adom=pt.DataFrame[AMatrix](Adom),
         Aimp=pt.DataFrame[AMatrix](Aimp),
@@ -124,8 +124,8 @@ def derive_2017_U_set_usa() -> SingleRegionUMatrixSet:
     Udom = handle_negative_matrix_values(Uset_with_negatives.Udom)
     Uimp = handle_negative_matrix_values(Uset_with_negatives.Uimp)
 
-    assert not (Udom < 0).any().any(), "Udom_USA has negative values."
-    assert not (Uimp < 0).any().any(), "Uimp_USA has negative values."
+    assert not (Udom < 0).any().any(), 'Udom_USA has negative values.'
+    assert not (Uimp < 0).any().any(), 'Uimp_USA has negative values.'
 
     return SingleRegionUMatrixSet(
         Udom=pt.DataFrame[UMatrix](Udom),
@@ -145,8 +145,8 @@ def derive_2017_V_usa() -> pt.DataFrame[VMatrix]:
         expected_col_dropped=EXPECTED_COMMODITIES_DROPPED,
     )
 
-    V_2017_structural_reflected.index.name = "sector"
-    V_2017_structural_reflected.columns.name = "sector"
+    V_2017_structural_reflected.index.name = 'sector'
+    V_2017_structural_reflected.columns.name = 'sector'
     return pt.DataFrame[VMatrix](V_2017_structural_reflected)
 
 
@@ -182,7 +182,7 @@ def derive_2017_Vnorm_scrap_corrected() -> pt.DataFrame[VMatrix]:
     q = compute_q(V=V_usa)
     Vnorm = compute_Vnorm_matrix(V=V_usa, q=q)
 
-    scrap_2017 = load_2017_V_after_redef_usa().loc[:, "S00401"]
+    scrap_2017 = load_2017_V_after_redef_usa().loc[:, 'S00401']
     scrap_faction = structural_reflect_vector(
         corresp_df=load_usa_2017_industry__ceda_v7_correspondence(),
         ser_base=scrap_2017,
@@ -223,10 +223,10 @@ def derive_2017_U_with_negatives() -> SingleRegionUMatrixSet:
         expected_row_dropped=EXPECTED_COMMODITIES_DROPPED,
     )
 
-    Udom.index.name = "sector"
-    Udom.columns.name = "sector"
-    Uimp.index.name = "sector"
-    Uimp.columns.name = "sector"
+    Udom.index.name = 'sector'
+    Udom.columns.name = 'sector'
+    Uimp.index.name = 'sector'
+    Uimp.columns.name = 'sector'
 
     return SingleRegionUMatrixSet(
         Udom=pt.DataFrame[UMatrix](Udom), Uimp=pt.DataFrame[UMatrix](Uimp)
@@ -289,7 +289,7 @@ def _derive_detail_Ytot_with_trade_usa() -> pd.DataFrame:
         df_weights=derive_2017_Y_weight(Y_2012=Y_2012, Y_2017=Ytot_with_trade_usa_orig),
         expected_row_dropped=EXPECTED_COMMODITIES_DROPPED,
     )
-    Ytot_with_trade_usa.index.name = "sector"
+    Ytot_with_trade_usa.index.name = 'sector'
 
     return Ytot_with_trade_usa
 
@@ -321,7 +321,7 @@ def derive_summary_Adom_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     Udom_norm = handle_negative_matrix_values(
         compute_Unorm_matrix(
             U=load_summary_Utot_usa(year) - load_summary_Uimp_usa(year),
-            x=_derive_summary_x_usa(year),
+            x=derive_summary_x_usa(year),
         )
     )
     Vnorm = compute_Vnorm_matrix(
@@ -330,8 +330,8 @@ def derive_summary_Adom_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     A = compute_A_matrix(U_norm=Udom_norm, V_norm=Vnorm).loc[
         USA_2017_SUMMARY_INDUSTRY_CODES, USA_2017_SUMMARY_INDUSTRY_CODES
     ]
-    A.index.name = "commodity_supply"
-    A.columns.name = "commodity_consumption"
+    A.index.name = 'commodity_supply'
+    A.columns.name = 'commodity_consumption'
 
     return A
 
@@ -340,7 +340,7 @@ def derive_summary_Adom_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
 def derive_summary_Aimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     Uimp_norm = handle_negative_matrix_values(
         compute_Unorm_matrix(
-            U=load_summary_Uimp_usa(year), x=_derive_summary_x_usa(year)
+            U=load_summary_Uimp_usa(year), x=derive_summary_x_usa(year)
         )
     )
     Vnorm = compute_Vnorm_matrix(
@@ -349,8 +349,8 @@ def derive_summary_Aimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     A = compute_A_matrix(U_norm=Uimp_norm, V_norm=Vnorm).loc[
         USA_2017_SUMMARY_INDUSTRY_CODES, USA_2017_SUMMARY_INDUSTRY_CODES
     ]
-    A.index.name = "commodity_supply"
-    A.columns.name = "commodity_consumption"
+    A.index.name = 'commodity_supply'
+    A.columns.name = 'commodity_consumption'
 
     return A
 
@@ -412,5 +412,5 @@ def derive_summary_Yimp_usa(
 
 
 @functools.cache
-def _derive_summary_x_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.Series[float]:
+def derive_summary_x_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.Series[float]:
     return compute_x(V=load_summary_V_usa(year))

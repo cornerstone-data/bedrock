@@ -22,8 +22,7 @@ These flags are grouped into themes:
 |---|---|
 | Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation`, `implement_electricity_reallocation` |
 | Economic IOT (input-output tables) | `use_E_data_year_for_x_in_B`, `iot_before_or_after_redefinition` |
-| GHG attribution — sector methods | `update_transportation_ghg_method`, `update_electricity_ghg_method` |
-| GHG attribution — gas coverage | `update_flowsa_refrigerant_method`, `add_new_ghg_activities` |
+| GHG attribution | `new_ghg_method`, `update_mecs_method`, `v0_3_umd_2023_ghgia`, `v0_3_umd_2024_ghgia` |
 | Data vintage | `model_base_year`, `usa_base_io_data_year`, `ipcc_ar_version` |
 
 See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
@@ -31,7 +30,7 @@ See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
 ### Configuration files
 
 All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
-- A single *full-model* config represents a full set of methodology choices made for a data release. For example, [`2025_usa_cornerstone_full_model.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_full_model.yaml) is now the default config in `get_usa_config()`.
+- A single *full-model* config represents a full set of methodology choices made for a data release. [`2025_usa_cornerstone_v0_3.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_3.yaml) is the default config in `get_usa_config()`. [`2025_usa_cornerstone_v0_2.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_2.yaml) is the v0.2 methodology stack for historical comparison.
 - Several *atomic configs* each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, [`2025_usa_cornerstone_taxonomy.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_taxonomy.yaml) is the config for a specific choice to use Cornerstone taxonomy.
 
 A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.

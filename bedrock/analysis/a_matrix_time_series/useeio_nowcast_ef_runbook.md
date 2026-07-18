@@ -2,6 +2,11 @@
 
 Step N4 of [`docs/implement_useeio_nowcast_plan.md`](docs/implement_useeio_nowcast_plan.md). Steps N1–N3 are code changes that landed in this branch; this step is operator-triggered.
 
+For `USAConfig` flag and diagnostics playbooks (any methodology flag, not this
+approach), see
+[`../../utils/config/feature_flag.md`](../../utils/config/feature_flag.md) and
+[`../../utils/validation/evaluate_feature_impact.md`](../../utils/validation/evaluate_feature_impact.md).
+
 ## Pre-flight checklist
 
 - [ ] All 7 useeio_nowcast parquets exist locally (sanity for the analyst path; the workflow re-derives via the new branch in CI):
@@ -12,11 +17,9 @@ Step N4 of [`docs/implement_useeio_nowcast_plan.md`](docs/implement_useeio_nowca
 
 - [ ] Both YAMLs exist:
   - `bedrock/utils/config/configs/2025_usa_cornerstone_A_useeio_nowcast.yaml` — minimal config for the A-matrix-only analysis (Steps N1–N3).
-  - `bedrock/utils/config/configs/2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` — **full v0.3 model** (`load_E_from_flowsa`, `new_ghg_method`, `use_E_data_year_for_x_in_B`, `implement_waste_disaggregation`, `load_useeio_nowcast_A_matrix`) — required for EF diagnostics so apples-to-apples vs the other 4 `full_model_A_*` YAMLs.
+  - `bedrock/utils/config/configs/2025_usa_cornerstone_v0_2_A_useeio_nowcast.yaml` — **full v0.3 model** (`load_E_from_flowsa`, `new_ghg_method`, `use_E_data_year_for_x_in_B`, `implement_waste_disaggregation`, `load_useeio_nowcast_A_matrix`) — required for EF diagnostics so apples-to-apples vs the other 4 `full_model_A_*` YAMLs.
 
-- [ ] The new flag is wired: `load_useeio_nowcast_A_matrix` in `bedrock/utils/config/usa_config.py`.
-
-- [ ] The branch is wired: `if cfg.load_useeio_nowcast_A_matrix:` near the top of `derive_cornerstone_Aq_scaled()` in `bedrock/transform/eeio/derived_cornerstone.py`.
+- [ ] Flag wired per [`feature_flag.md`](../../utils/config/feature_flag.md): `load_useeio_nowcast_A_matrix` on `USAConfig` and gated in `derive_cornerstone_Aq_scaled()`.
 
 - [ ] PR is open and CI is green (especially `pytest bedrock/transform/__tests__/test_usa.py -k cornerstone`).
 
@@ -31,13 +34,13 @@ For each `model_base_year ∈ {2018, 2019, 2020, 2021, 2022, 2023}`:
    | Parameter | Value |
    |---|---|
    | **Branch** | the branch with this change |
-   | **USA config name** | `2025_usa_cornerstone_full_model_A_useeio_nowcast` |
+   | **USA config name** | `2025_usa_cornerstone_v0_2_A_useeio_nowcast` |
    | **Model base year override** | `2023` (or whichever target year) |
    | **Google Sheets ID** | a fresh sheet ID for this approach × year |
    | **Benchmark to USEEIO GCS Excel baseline** | ☑ **tick this** (gives the USEEIO-do-nothing comparison automatically) |
 3. Click **Run workflow**.
 4. The workflow:
-   - Loads `2025_usa_cornerstone_full_model_A_useeio_nowcast.yaml` → sets `load_useeio_nowcast_A_matrix=True` (plus all v0.3 full-model flags).
+   - Loads `2025_usa_cornerstone_v0_2_A_useeio_nowcast.yaml` → sets `load_useeio_nowcast_A_matrix=True` (plus all v0.3 full-model flags).
    - Calls `derive_cornerstone_Aq_scaled()` → short-circuits to our new branch → calls `derive_useeio_nowcast_Aq_cornerstone(year=2023)`.
    - That function loads V/U/U_imports from `gs://cornerstone-default/extract/input-data/USEEIO_nowcasted_MUTs/`, derives Cornerstone A, applies 0.98 cap, returns `SingleRegionAqMatrixSet`.
    - Workflow runs full model end-to-end and writes EFs + sector outputs to the Sheet.

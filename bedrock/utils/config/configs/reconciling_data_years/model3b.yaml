@@ -1,0 +1,11 @@
+## Config for model 3b in Reconciling Data Years study
+# For each year, deflate the A matrix to current year dollars and use annual GHG data with annual output to create the B matrix in current year dollars.
+
+use_cornerstone_2026_model_schema: true
+implement_waste_disaggregation: true
+apply_inflation_to_V: true
+scale_a_matrix_with_commodity_price_index: true
+get_q_from_authoritative_x: true
+use_E_data_year_for_x_in_B: true
+load_E_from_flowsa: true #must be the case to load E every time
+new_ghg_method: true #get FBS from cache

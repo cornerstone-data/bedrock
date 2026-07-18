@@ -1,6 +1,6 @@
 """Export waste-disaggregated Cornerstone matrices for offline electricity disaggregation.
 
-Requires ``USA_CONFIG_FILE=2025_usa_cornerstone_full_model.yaml`` and loadable waste
+Requires ``USA_CONFIG_FILE=2025_usa_cornerstone_v0_2.yaml`` and loadable waste
 disaggregation weights. Intended as a one-time offline script to generate electricity
 disaggregation inputs, not as a pipeline integration point.
 """
@@ -23,7 +23,7 @@ from bedrock.utils.config.usa_config import USA_CONFIG_ENV_VAR
 
 _DISAGG_ROOT: pathlib.Path = pathlib.Path(__file__).resolve().parent
 
-_REQUIRED_CONFIG_FILE: str = "2025_usa_cornerstone_full_model.yaml"
+_REQUIRED_CONFIG_FILE: str = "2025_usa_cornerstone_v0_2.yaml"
 
 
 def assert_cornerstone_matrix_export_preconditions() -> None:

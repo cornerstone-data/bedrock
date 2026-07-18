@@ -47,3 +47,6 @@ scratch/
 
 # Ignore VS Code files
 .vscode/
+
+# Ignore analysis output
+bedrock/analysis/**/output/

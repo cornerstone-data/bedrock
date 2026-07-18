@@ -38,52 +38,26 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import PercentFormatter
 
-from bedrock.analysis.a_matrix_time_series.compile_ef_diagnostics import (
-    _coerce_numeric,
-)
 from bedrock.analysis.a_matrix_time_series.constants import (
     APPROACH_COLORS,
     PLOTS_DIR,
 )
-from bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics import (
-    AXIS_LABEL_FONTSIZE,
-    EF_KIND_LABEL,
-    HIST_BINS,
-    HIST_FONT_SCALE,
-    HIST_PCT_CLIP,
-    HIST_STATS_EXTRA_SCALE,
-    STATS_FONTSIZE,
-    SUPTITLE_FONTSIZE,
-    TICK_LABEL_FONTSIZE,
-    TITLE_FONTSIZE,
-)
 from bedrock.utils.io.gcp import read_sheet_tab
+from bedrock.utils.validation.analysis.ef_hist_panels import (
+    EF_KIND_LABEL,
+    HIST_FONT_SCALE,
+    PANEL_SUPTITLE_FONTSIZE,
+    draw_per_sector_pct_hist_panel,
+    pct_values,
+)
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_SHEET_ID = "1pCSgLD14lmrQg3OtfHvnK4lQrFtqiavrjCt-C3R_bSw"
 CONFIG_TAB = "config_summary"
 
-# Per-EF-kind tab name and the columns we read from it. ``D`` mirrors ``N``
-# in the diagnostics schema (`compile_ef_diagnostics._read_pair`).
-_KIND_SPEC: dict[str, dict[str, object]] = {
-    "N": {
-        "tab": "N_and_diffs",
-        "pct_col": "N_perc_diff",
-        "new_col": "N_new",
-        "old_col": "N_old_inflated",
-        "numeric_cols": ("N_new", "N_old", "N_old_inflated", "N_perc_diff"),
-    },
-    "D": {
-        "tab": "D_and_diffs",
-        "pct_col": "D_perc_diff",
-        "new_col": "D_new",
-        "old_col": "D_old_inflated",
-        "numeric_cols": ("D_new", "D_old", "D_old_inflated", "D_perc_diff"),
-    },
-}
+_KIND_TAB = {"N": "N_and_diffs", "D": "D_and_diffs"}
 
 # Map config_summary flag → display approach name. The flag set in the
 # v0.3 config_summary mirrors the YAML names referenced in epic #337.
@@ -117,30 +91,6 @@ def _approach_from_config(config_df: pd.DataFrame) -> str:
     return _DEFAULT_APPROACH_LABEL
 
 
-def _pct_values(df: pd.DataFrame, ef_kind: str) -> np.ndarray:
-    """Return per-sector pct diff as a fraction array (not percent)."""
-    spec = _KIND_SPEC[ef_kind]
-    pct_col = str(spec["pct_col"])
-    new_col = str(spec["new_col"])
-    old_col = str(spec["old_col"])
-    numeric_cols = spec["numeric_cols"]
-    assert isinstance(numeric_cols, tuple)
-    df = _coerce_numeric(df.copy(), numeric_cols)
-    if pct_col in df.columns:
-        series = pd.Series(pd.to_numeric(df[pct_col], errors="coerce")).dropna()
-    elif new_col in df.columns and old_col in df.columns:
-        new = pd.Series(pd.to_numeric(df[new_col], errors="coerce"))
-        old = pd.Series(pd.to_numeric(df[old_col], errors="coerce"))
-        series = ((new - old) / old.abs()).dropna()
-    else:
-        raise KeyError(
-            f"Tab {spec['tab']!r} has neither {pct_col!r} nor "
-            f"({new_col!r}, {old_col!r}); got columns: {list(df.columns)}"
-        )
-    arr = series.to_numpy(dtype=float)
-    return arr[np.isfinite(arr)]
-
-
 def _render(
     pct: np.ndarray,
     approach: str,
@@ -151,49 +101,29 @@ def _render(
     """Render a single-panel histogram matching the per-panel style of
     ``ef_pct_hist_*`` figures.
 
-    Font scale, bins, clipping, stats-box layout, and percent x-axis are
-    pulled from ``plot_ef_diagnostics`` so this output reads as one of the
-    four panels in the reference bundle plot.
+    Font scale, bins, clipping, stats-box layout, and percent x-axis match
+    ``ef_hist_panels.draw_per_sector_pct_hist_panel`` so this output reads as
+    one of the four panels in the reference bundle plot.
     """
     # Fall back to grey (the useeio palette entry) for unknown approaches like
     # ``cornerstone_default`` — visually signals "no scaling flag set".
     color = APPROACH_COLORS.get(approach, "#7f7f7f")
     kind_label = EF_KIND_LABEL[ef_kind]
-    pct_percent = pct * 100.0
-    clipped = np.clip(pct_percent, -HIST_PCT_CLIP, HIST_PCT_CLIP)
-
     font_scale = HIST_FONT_SCALE
+
     fig, ax = plt.subplots(figsize=(11.0 * font_scale * 0.6, 10.5 * font_scale * 0.6))
-    ax.hist(clipped, bins=HIST_BINS, color=color, alpha=0.85)
-    ax.axvline(0, color="k", lw=1.0)
-    ax.set_xlim(-HIST_PCT_CLIP, HIST_PCT_CLIP)
-    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax.grid(True, ls=":", alpha=0.3)
-    ax.text(
-        0.04,
-        0.96,
-        (
-            f"n={len(pct_percent)}\n"
-            f"median={np.median(pct_percent):.1f}%\n"
-            f"p95(|·|)={np.quantile(np.abs(pct_percent), 0.95):.1f}%"
-        ),
-        transform=ax.transAxes,
-        fontsize=STATS_FONTSIZE * font_scale * HIST_STATS_EXTRA_SCALE,
-        va="top",
-        ha="left",
-        bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", alpha=0.4, edgecolor="0.7"
-        ),
+    draw_per_sector_pct_hist_panel(
+        ax,
+        pct,
+        title=approach,
+        color=color,
+        font_scale=font_scale,
     )
-    ax.set_title(approach, fontsize=TITLE_FONTSIZE * font_scale, color="black")
-    ax.set_xlabel("Percentage Diff (%)", fontsize=AXIS_LABEL_FONTSIZE * font_scale)
-    ax.set_ylabel("sector count", fontsize=AXIS_LABEL_FONTSIZE * font_scale)
-    ax.tick_params(axis="both", labelsize=TICK_LABEL_FONTSIZE * font_scale)
 
     fig.suptitle(
         f"{kind_label} per-sector % diff distribution — vs CEDA-US (v0) "
         f"[A-matrix method bundled with bedrock v0.3] — sheet {sheet_id[:10]}…",
-        fontsize=SUPTITLE_FONTSIZE * font_scale,
+        fontsize=PANEL_SUPTITLE_FONTSIZE * font_scale,
         y=1.0,
     )
     fig.tight_layout()
@@ -221,13 +151,12 @@ def main(sheet_id: str = DEFAULT_SHEET_ID) -> None:
     logger.info("Resolved approach=%r for sheet=%s", approach, sheet_id)
 
     for ef_kind in ("N", "D"):
-        spec = _KIND_SPEC[ef_kind]
-        tab = str(spec["tab"])
+        tab = _KIND_TAB[ef_kind]
         df = read_sheet_tab(sheet_id, tab)
         if df.empty:
             logger.warning("Tab %r in sheet %s is empty; skipping.", tab, sheet_id)
             continue
-        pct = _pct_values(df, ef_kind)
+        pct = pct_values(df, ef_kind)
         if pct.size == 0:
             logger.warning(
                 "No finite pct values in %r of sheet %s; skipping.", tab, sheet_id

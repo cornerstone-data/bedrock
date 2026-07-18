@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
+CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_3'
 
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
@@ -63,7 +64,7 @@ class USAConfig(BaseModel):
     use_E_data_year_for_x_in_B: bool = Field(
         default=False,
         description=(
-            'Use BEA gross-output time series at usa_ghg_data_year for industry x '
+            'Use an x corresponding to usa_ghg_data_year'
             'in B. Must be true whenever deflate_x_to_detail_io_year_for_B is true.'
         ),
     )
@@ -87,24 +88,27 @@ class USAConfig(BaseModel):
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
-    cornerstone_industry_avg_margins: bool = True  # DRI: WesIngwersen
+    cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
+    use_scaled_x_and_scaled_Vnorm_for_B: bool = Field(
+        default=False,
+        description=(
+            'Derives x from scaled_X and Vnorm from scaled_V and scaled_q'
+            'Either scale_a_matrix_with_summary_tables or scale_a_matrix_with_ceda_method_as_fallback'
+            ' must be True'
+            'use_E_data_year_for_x_in_B must be True'
+        ),
+    )  # DRI: WesIngwersen
+    get_q_from_authoritative_x: bool = Field(
+        default=False,
+        description=(
+            'Derive q using derive_q_from_scaled_cornerstone_V_from_authoritative_x'
+            'instead of the default in derive_**_Aq'
+        ),
+    )  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
-    update_transportation_ghg_method: bool = False  # DRI: ben.young
-    update_ghg_coa_allocation: bool = False  # DRI: catherine.birney
-    update_electricity_ghg_method: bool = False  # DRI: catherine.birney
-    update_ghg_attribution_method_for_ng_and_petrol_systems: bool = (
-        False  # DRI: catherine.birney
-    )
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
-    update_flowsa_refrigerant_method: bool = False  # DRI: catherine.birney
-    add_new_ghg_activities: bool = False  # DRI: catherine.birney
-    update_enteric_fermentation_and_manure_management_ghg_method: bool = (
-        False  # DRI: mo.li
-    )
-    update_liming_and_fertilizer_ghg_method: bool = False  # DRI: mo.li
-    update_other_gases_ghg_method: bool = False  # DRI: catherine.birney
     update_mecs_method: bool = False  # DRI: catherine.birney
     v0_3_umd_2023_ghgia: bool = False  # DRI: catherine.birney
     v0_3_umd_2024_ghgia: bool = False  # DRI: catherine.birney
@@ -174,6 +178,25 @@ class USAConfig(BaseModel):
         return self
 
     @model_validator(mode='after')
+    def _validate_scaled_x_vnorm_for_B_prerequisites(self) -> USAConfig:
+        if self.use_scaled_x_and_scaled_Vnorm_for_B:
+            if not (
+                self.scale_a_matrix_with_summary_tables
+                or self.scale_a_matrix_with_ceda_method_as_fallback
+            ):
+                raise ValueError(
+                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
+                    'scale_a_matrix_with_summary_tables or '
+                    'scale_a_matrix_with_ceda_method_as_fallback to be true'
+                )
+            if not self.use_E_data_year_for_x_in_B:
+                raise ValueError(
+                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
+                    'use_E_data_year_for_x_in_B to be true'
+                )
+        return self
+
+    @model_validator(mode='after')
     def _validate_margins_mutual_exclusivity(self) -> USAConfig:
         active = [
             name
@@ -232,15 +255,17 @@ class USAConfig(BaseModel):
     # Baseline snapshot
     #####
     # The git SHA below is the baseline snapshots used for diagnostic comparison
-    # generated on main with configuration: 2025_usa_cornerstone_full_model.
+    # generated on main with configuration: 2025_usa_cornerstone_v0_3.
     snapshot_version_or_git_sha: ta.Literal[
         'v0',
         '1bda811e0169436ae90fd356fbef512ce7518ccb',  # v0.1
         '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # test
         '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # test: snapshot from 2025_usa_cornerstone_fbs_schema
         '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2
-        '4d67c8f0f5721a30ce03f4d3eef85a82e7199032',  # v0.3.0-alpha (current .SNAPSHOT_KEY)
+        '4d67c8f0f5721a30ce03f4d3eef85a82e7199032',  # v0.3.0-alpha (config: 2025_usa_cornerstone_v0_2)
         '5a90baf0272fe8841e40db8cd513885b34051e86',  # v0.3-beta (config: 2025_usa_cornerstone_v0_3)
+        '9a47eaa1060e6900154c7b819934a8a1669461c3',  # v0.3.0 before #513 (industry-x expand fix)
+        'c60bdf4308cb660eee80a246214901cff9122820',  # v0.3.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
@@ -345,7 +370,7 @@ def get_usa_config() -> USAConfig:
         if env_usa_config_file:
             _usa_config = _load_usa_config_from_file_name(env_usa_config_file)
         else:
-            set_global_usa_config('2025_usa_cornerstone_full_model.yaml')
+            set_global_usa_config(f'{CANONICAL_USA_CONFIG}.yaml')
     assert _usa_config is not None
     return _usa_config
 

@@ -156,9 +156,7 @@ def derive_x_time_series() -> dict[int, pd.Series]:
     than nominal inflation.
     """
     from bedrock.transform.eeio.cornerstone_expansion import (  # noqa: PLC0415
-        CS_INDUSTRY_LIST,
-        cs_industry_to_bea_map,
-        expand_vector,
+        expand_industry_output_vector,
     )
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         _distribute_waste_parent_x_using_v_row_shares,
@@ -177,7 +175,7 @@ def derive_x_time_series() -> dict[int, pd.Series]:
         x_bea = derive_gross_output_after_redefinition(
             target_year=cast("USA_GROSS_INDUSTRY_OUTPUT_YEARS", year),
         )
-        x_cs = expand_vector(x_bea, CS_INDUSTRY_LIST, cs_industry_to_bea_map())
+        x_cs = expand_industry_output_vector(x_bea)
         x_cs.index.name = "sector"
         x_cs = _distribute_waste_parent_x_using_v_row_shares(x_cs)
 

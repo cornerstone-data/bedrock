@@ -268,3 +268,9 @@ def backcompute_y_from_A_and_q(
 def approximate_q_from_U(*, U: pd.DataFrame) -> pd.Series[float]:
     # U will not contain ALL users of a commodity, so the sum is approximate
     return U.sum(axis=1)
+
+
+def derive_q_from_x_and_Vnorm(
+    *, x: pd.Series[float], Vnorm: pd.DataFrame
+) -> pd.Series[float]:
+    return Vnorm.T @ x

@@ -14,11 +14,18 @@ Patch releases that leave ``.SNAPSHOT_KEY`` unchanged do not add entries here.
 
 # Release snapshots (GCS prefix or git SHA)
 v0 = "v0"  # config: legacy GCS prefix (pre git-SHA snapshots)
-v0_1 = "1bda811e0169436ae90fd356fbef512ce7518ccb"  # config: 2025_usa_cornerstone_full_model
-v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_full_model
-v0_3_0_alpha = "4d67c8f0f5721a30ce03f4d3eef85a82e7199032"  # config: 2025_usa_cornerstone_full_model; matches .SNAPSHOT_KEY
-v0_3_beta = "5a90baf0272fe8841e40db8cd513885b34051e86"  # config: 2025_usa_cornerstone_v0_3 (not .SNAPSHOT_KEY)
+v0_1 = "1bda811e0169436ae90fd356fbef512ce7518ccb"  # config: 2025_usa_cornerstone_v0_2
+v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_v0_2
+v0_3_0_alpha = (
+    "4d67c8f0f5721a30ce03f4d3eef85a82e7199032"  # config: 2025_usa_cornerstone_v0_2
+)
+v0_3_beta = (
+    "5a90baf0272fe8841e40db8cd513885b34051e86"  # config: 2025_usa_cornerstone_v0_3
+)
+v0_3_0 = "c60bdf4308cb660eee80a246214901cff9122820"  # config: 2025_usa_cornerstone_v0_3; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
-TEST_config_default = "2ebb51f7190c3a62b5d8b2420bff9b20f57282fc"  # config: 2025_usa_cornerstone_full_model
+TEST_config_default = (
+    "2ebb51f7190c3a62b5d8b2420bff9b20f57282fc"  # config: 2025_usa_cornerstone_v0_2
+)
 TEST_fbs_schema = "9fe22d9afdfdb6806397b2356eb3cf4c4c346744"  # config: 2025_usa_cornerstone_fbs_schema
