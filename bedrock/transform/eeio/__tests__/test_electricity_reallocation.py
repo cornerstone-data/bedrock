@@ -219,11 +219,7 @@ class TestElectricityReallocationIntegration:
         assert aq.Aimp.shape == (405, 405)
 
     def test_feature_off_regression(self) -> None:
-<<<<<<< HEAD
         _setup_config("2025_usa_cornerstone_v0_2.yaml")
-=======
-        _setup_config('2025_usa_cornerstone_full_model.yaml')
->>>>>>> d3ce6cd (update test where disagg refactor has to be applied)
         assert electricity_reallocation_enabled() is False
         V_full = derive_cornerstone_V()
         _setup_config('test_usa_config_waste_disagg.yaml')
@@ -242,10 +238,6 @@ class TestElectricityReallocationIntegration:
         )
 
     def test_diagnostics_helpers_run(self) -> None:
-<<<<<<< HEAD
         _setup_config("2025_usa_cornerstone_v0_2_electricity_reallocation.yaml")
-=======
-        _setup_config('2025_usa_cornerstone_full_model_electricity_reallocation.yaml')
->>>>>>> d3ce6cd (update test where disagg refactor has to be applied)
         result = pull_efs_for_diagnostics()
         assert result is not None
