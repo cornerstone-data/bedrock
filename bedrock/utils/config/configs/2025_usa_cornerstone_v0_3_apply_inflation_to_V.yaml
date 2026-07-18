@@ -40,3 +40,8 @@ cornerstone_industry_avg_margins: True
 # Delta vs 2025_usa_cornerstone_v0_3
 #####
 apply_inflation_to_V: True
+
+#####
+# Diagnostics baseline (Bedrock v0.3.0 snapshot = 2025_usa_cornerstone_v0_3)
+#####
+snapshot_version_or_git_sha: c60bdf4308cb660eee80a246214901cff9122820
