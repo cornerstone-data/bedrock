@@ -6,7 +6,8 @@ for that model.
 
 from bedrock.utils.config.usa_config import set_global_usa_config
 
-config = "useeio_phoebe_23"
+config = "2025_usa_cornerstone_full_model_scaling_for_A_and_B"
+# config = "useeio_phoebe_23"
 # config = "useeio_phoebe_23_restore_schema_and_ghg"
 # config = "useeio_phoebe_23_restore_cornerstone_B"
 # config = "useeio_phoebe_23_restore_iot_redefinition"
@@ -32,7 +33,7 @@ def main() -> None:
 
     derive_Aq_usa()
     derive_B_usa_non_finetuned()
-    print('Generated Aq set and B for config: ', config)
+    print('Generated Aqset and B for ', config)
 
 
 if __name__ == '__main__':

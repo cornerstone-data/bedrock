@@ -64,7 +64,7 @@ class USAConfig(BaseModel):
     use_E_data_year_for_x_in_B: bool = Field(
         default=False,
         description=(
-            'Use BEA gross-output time series at usa_ghg_data_year for industry x '
+            'Use an x corresponding to usa_ghg_data_year'
             'in B. Must be true whenever deflate_x_to_detail_io_year_for_B is true.'
         ),
     )
@@ -88,7 +88,23 @@ class USAConfig(BaseModel):
     adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
-    cornerstone_industry_avg_margins: bool = True  # DRI: WesIngwersen
+    cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
+    use_scaled_x_and_scaled_Vnorm_for_B: bool = Field(
+        default=False,
+        description=(
+            'Derives x from scaled_X and Vnorm from scaled_V and scaled_q'
+            'Either scale_a_matrix_with_summary_tables or scale_a_matrix_with_ceda_method_as_fallback'
+            ' must be True'
+            'use_E_data_year_for_x_in_B must be True'
+        ),
+    )  # DRI: WesIngwersen
+    get_q_from_authoritative_x: bool = Field(
+        default=False,
+        description=(
+            'Derive q using derive_q_from_scaled_cornerstone_V_from_authoritative_x'
+            'instead of the default in derive_**_Aq'
+        ),
+    )  # DRI: WesIngwersen
     ### GHG Methodology selection
     load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
@@ -159,6 +175,25 @@ class USAConfig(BaseModel):
                 'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
                 'to be true'
             )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_scaled_x_vnorm_for_B_prerequisites(self) -> USAConfig:
+        if self.use_scaled_x_and_scaled_Vnorm_for_B:
+            if not (
+                self.scale_a_matrix_with_summary_tables
+                or self.scale_a_matrix_with_ceda_method_as_fallback
+            ):
+                raise ValueError(
+                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
+                    'scale_a_matrix_with_summary_tables or '
+                    'scale_a_matrix_with_ceda_method_as_fallback to be true'
+                )
+            if not self.use_E_data_year_for_x_in_B:
+                raise ValueError(
+                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
+                    'use_E_data_year_for_x_in_B to be true'
+                )
         return self
 
     @model_validator(mode='after')
