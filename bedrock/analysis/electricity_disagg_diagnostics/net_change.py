@@ -74,6 +74,17 @@ class ChainedNetChange:
             strict=True,
         ):
             prev = running
+            if abs(delta) > DISPERSION_TOL:
+                short = self._multiline_label(step_label)
+                bars.append(
+                    NetChangeBar(
+                        label=f'Δ from\n{short}',
+                        kind='delta',
+                        value=abs(delta),
+                        bottom=min(prev, total),
+                        signed_delta=delta,
+                    )
+                )
             bars.append(
                 NetChangeBar(
                     label=self._level_label(step_label),
@@ -81,27 +92,18 @@ class ChainedNetChange:
                     value=total,
                 )
             )
-            if abs(delta) > DISPERSION_TOL:
-                short = self._short_step_label(step_label)
-                bars.append(
-                    NetChangeBar(
-                        label=f'BLy change due to\n{short}',
-                        kind='delta',
-                        value=abs(delta),
-                        bottom=min(prev, total),
-                        signed_delta=delta,
-                    )
-                )
             running = total
         return bars
 
     @staticmethod
-    def _short_step_label(label: str) -> str:
-        return ' '.join(label.split())
+    def _multiline_label(label: str) -> str:
+        """Preserve intentional line breaks; collapse extra whitespace within lines."""
+        lines = [line.strip() for line in label.strip().splitlines() if line.strip()]
+        return '\n'.join(lines) if lines else label.strip()
 
-    @staticmethod
-    def _level_label(label: str) -> str:
-        return ' '.join(label.split())
+    @classmethod
+    def _level_label(cls, label: str) -> str:
+        return cls._multiline_label(label)
 
 
 def pairwise_net_change(older: pd.Series[float], newer: pd.Series[float]) -> float:

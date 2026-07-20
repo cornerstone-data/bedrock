@@ -42,10 +42,10 @@ def test_build_bars_only_delta_when_total_changes() -> None:
     bars = result.build_bars()
     labels = [b.label for b in bars]
     assert labels[0] == 'Cornerstone v0.2'
-    assert labels[1] == 'Co-production reallocation'
-    assert labels[2] == '3-way split'
-    assert labels[3] == 'Conversion to physical units'
-    assert labels[4] == 'BLy change due to\nConversion to physical units'
+    assert labels[1] == 'Co-production\nreallocation'
+    assert labels[2] == '3-way\nsplit'
+    assert labels[3] == 'Δ from\nConversion to\nphysical units'
+    assert labels[4] == 'Conversion to\nphysical units'
     assert len([b for b in bars if b.kind == 'delta']) == 1
 
 
