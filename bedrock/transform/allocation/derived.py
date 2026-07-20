@@ -222,14 +222,14 @@ def derive_E_usa_emissions_sources() -> pd.DataFrame:
 
     total_start = time.time()
     for es, allocator in ALLOCATED_EMISSIONS_REGISTRY.items():
-        logger.info(f"Allocating {es}")
+        logger.info(f'Allocating {es}')
         allocated = allocator()
         if allocated.isna().any():
-            raise ValueError(f"NaNs found in {es} allocator")
+            raise ValueError(f'NaNs found in {es} allocator')
         E_usa.loc[es.value, :] += allocated.reindex(target_columns, fill_value=0.0)
 
     logger.info(
-        f"[TIMING] All {len(ALLOCATED_EMISSIONS_REGISTRY)} allocations completed in {time.time() - total_start:.1f}s"
+        f'[TIMING] All {len(ALLOCATED_EMISSIONS_REGISTRY)} allocations completed in {time.time() - total_start:.1f}s'
     )
 
     return E_usa
@@ -257,16 +257,16 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     else:
         # Prepare NAICS:NAICS_6 expansion used for non-weighted mapping flows.
         cw = load_crosswalk('NAICS_2017_Crosswalk')
-        cols_to_stack = ["NAICS_3", "NAICS_4", "NAICS_5"]
+        cols_to_stack = ['NAICS_3', 'NAICS_4', 'NAICS_5']
         cw_stack = (
-            cw.astype({c: "string" for c in cols_to_stack + ["NAICS_6"]})
+            cw.astype({c: 'string' for c in cols_to_stack + ['NAICS_6']})
             .melt(
-                id_vars="NAICS_6",
+                id_vars='NAICS_6',
                 value_vars=cols_to_stack,
-                var_name="level",
-                value_name="NAICS",
+                var_name='level',
+                value_name='NAICS',
             )
-            .dropna(subset=["NAICS_6", "NAICS"])[["NAICS", "NAICS_6"]]
+            .dropna(subset=['NAICS_6', 'NAICS'])[['NAICS', 'NAICS_6']]
             .drop_duplicates(subset='NAICS', keep='first')
             .reset_index(drop=True)
         )
@@ -275,7 +275,7 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
             how='left',
             left_on='SectorProducedBy',
             right_on='NAICS',
-            validate="m:1",
+            validate='m:1',
         )
         fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
 
@@ -299,7 +299,7 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
             how='left',
             left_on='NAICS_6',
             right_on=['Sector'],
-            validate="m:m",
+            validate='m:m',
         )
         .assign(Allocation=lambda x: x['Allocation'].fillna(1.0))
         .assign(FlowAmount=lambda x: x['FlowAmount'] * x['Allocation'])
@@ -325,15 +325,38 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return fbs3
 
 
-def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
-    """Download a pre-built, year-specific Cornerstone GHG FBS parquet from GCS.
+_EGRID_FBS_METHOD = 'GHG_national_Cornerstone_2023_egrid'
+
+
+def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
+    """Load the eGRID-based national GHG FBS for electricity disaggregation."""
+    try:
+        return _load_cornerstone_ghg_fbs_from_gcs(base_name=_EGRID_FBS_METHOD)
+    except FileNotFoundError:
+        logger.info(
+            'eGRID FBS parquet not in transform/output_data; '
+            'loading via getFlowBySector'
+        )
+        return getFlowBySector(
+            methodname=_EGRID_FBS_METHOD,
+            download_FBS_if_missing=True,
+        )
+
+
+def _load_cornerstone_ghg_fbs_from_gcs(
+    year: int | None = None,
+    *,
+    base_name: str | None = None,
+) -> pd.DataFrame:
+    """Download a pre-built Cornerstone GHG FBS parquet from GCS.
 
     Bypasses ``getFlowBySector`` for the time-series case. The flowsa
     regen path goes through `EPA_GHGI` loaders that are hard-capped at
     `{2022, 2023}` (`bedrock/extract/allocation/epa.py:_get_epa_data_year`),
     so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
     FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
-    ``base_name`` is ``GHG_national_Cornerstone_<year>`` are loaded directly
+    ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
+    name such as ``GHG_national_Cornerstone_2023_egrid``) are loaded directly
     instead (used by new_ghg_method and v0_3_umd_2024_ghgia).
 
     Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
@@ -347,25 +370,32 @@ def _load_cornerstone_ghg_fbs_from_gcs(year: int) -> pd.DataFrame:
         list_bucket_files,
     )
 
-    sub_bucket = "transform/output_data"
-    base_name = f"GHG_national_Cornerstone_{year}"
+    if base_name is None:
+        if year is None:
+            raise ValueError('Either year or base_name must be provided')
+        resolved_base_name = f'GHG_national_Cornerstone_{year}'
+    else:
+        resolved_base_name = base_name
+
+    sub_bucket = 'transform/output_data'
     bucket_df = list_bucket_files(sub_bucket)
     matches = bucket_df[
-        (bucket_df["base_name"] == base_name) & (bucket_df["extension"] == ".parquet")
-    ].sort_values("created", ascending=False)
+        (bucket_df['base_name'] == resolved_base_name)
+        & (bucket_df['extension'] == '.parquet')
+    ].sort_values('created', ascending=False)
     if matches.empty:
         raise FileNotFoundError(
-            f"No FBS parquet found at gs://cornerstone-default/{sub_bucket}/ "
-            f"matching base_name={base_name!r}"
+            f'No FBS parquet found at gs://cornerstone-default/{sub_bucket}/ '
+            f'matching base_name={resolved_base_name!r}'
         )
-    filename = matches.iloc[0]["full_path"].rsplit("/", 1)[-1]
+    filename = matches.iloc[0]['full_path'].rsplit('/', 1)[-1]
     local_path = str(FBS_DIR / filename)
     # Use `download_gcs_file` rather than `_if_not_exists`: the latter
     # downloads ALL files matching the parsed (base, version, hash) into
     # the same `pth`, so the metadata JSON overwrites the parquet.
     if not os.path.exists(local_path):
         download_gcs_file(filename, sub_bucket, local_path)
-    logger.info("Loaded cached FBS from %s", filename)
+    logger.info('Loaded cached FBS from %s', filename)
     return pd.read_parquet(local_path)
 
 
@@ -405,19 +435,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         )
     if usa.new_ghg_method or usa.v0_3_umd_2024_ghgia:
         if usa.new_ghg_method and usa.implement_electricity_disaggregation:
-            try:
-                from flowsa import getFlowBySector as get_flowsa_fbs  # noqa: PLC0415
-
-                fbs = get_flowsa_fbs(
-                    methodname='GHG_national_Cornerstone_2023_egrid',
-                    download_FBS_if_missing=True,
-                )
-            except Exception as exc:
-                logger.warning(
-                    'eGRID FBS unavailable (%s); falling back to cached national FBS',
-                    exc,
-                )
-                fbs = _load_cornerstone_ghg_fbs_from_gcs(year)
+            fbs = _load_egrid_fbs_for_electricity_disagg()
         else:
             # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
             # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
@@ -527,7 +545,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         dropped_by_groupby = sorted(set(E_usa.columns) - set(col_to_target.keys()))
         if dropped_by_groupby:
             logger.warning(
-                "E_usa columns with no mapping (dropped by groupby): %s",
+                'E_usa columns with no mapping (dropped by groupby): %s',
                 dropped_by_groupby,
             )
         E_usa = E_usa.groupby(col_to_target, axis=1).sum()  # type: ignore
@@ -536,12 +554,12 @@ def load_E_from_flowsa() -> pd.DataFrame:
         missing = sorted(target_set - set(E_usa.columns))
         if extra:
             logger.warning(
-                "E_usa columns not in target schema (will be dropped by reindex): %s",
+                'E_usa columns not in target schema (will be dropped by reindex): %s',
                 extra,
             )
         if missing:
             logger.debug(
-                "Target schema columns missing from E_usa (will be filled with 0): %s",
+                'Target schema columns missing from E_usa (will be filled with 0): %s',
                 missing,
             )
         E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
@@ -549,10 +567,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
     return E_usa
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     from bedrock.utils.config.usa_config import set_global_usa_config
 
-    set_global_usa_config("2025_usa_cornerstone_taxonomy_and_waste_disagg.yaml")
+    set_global_usa_config('2025_usa_cornerstone_taxonomy_and_waste_disagg.yaml')
     df1 = load_E_from_flowsa()
     # df2 = derive_E_usa()
     # row_diff = df1.sum(axis=1) - df2.sum(axis=1)

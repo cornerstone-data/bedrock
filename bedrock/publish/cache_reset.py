@@ -37,6 +37,12 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_y_nab,
     derive_cornerstone_Ytot_matrix_set,
 )
+from bedrock.transform.eeio.electricity_disaggregation import (
+    _derive_post_reallocation_checkpoint_for_disagg,
+    build_electricity_disagg_use_intersection_weights,
+    build_electricity_ugo305_scaling_ratios,
+    get_electricity_commodity_row_weights,
+)
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_margins_cornerstone_usa_at_year,
     derive_phi_cornerstone_usa_at_year,
@@ -58,6 +64,10 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    get_electricity_commodity_row_weights,
+    _derive_post_reallocation_checkpoint_for_disagg,
+    build_electricity_disagg_use_intersection_weights,
+    build_electricity_ugo305_scaling_ratios,
     derive_cornerstone_V,
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,

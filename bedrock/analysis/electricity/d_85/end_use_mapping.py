@@ -17,7 +17,7 @@ _OVERRIDES_PATH = _DATA_DIR / 'cornerstone_to_epa_end_use.csv'
 
 EPA_END_USES = ('Residential', 'Commercial', 'Industrial', 'Transportation')
 
-# FD codes → end-use (initial draft per plan §5.1)
+# FD codes → end-use (initial draft mapping)
 _FD_DEFAULTS: dict[str, str] = {
     'F01000': 'Residential',
     'F02R00': 'Residential',

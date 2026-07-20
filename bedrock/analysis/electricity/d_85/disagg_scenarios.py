@@ -28,12 +28,14 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     _enforce_go_identity_precondition,
     _frame_cell_float,
+    build_electricity_disagg_use_intersection_weights,
     build_electricity_disagg_weights,
     disaggregate_electricity_commodity_row_in_y,
     disaggregate_electricity_make_use_va,
     disaggregate_make_intersection,
     disaggregate_use_industry_columns,
     disaggregate_use_intersection,
+    get_electricity_commodity_row_weights,
     reindex_u_to_elec_schema,
     reindex_v_to_elec_schema,
     reindex_va_to_elec_schema,
@@ -56,6 +58,7 @@ ScenarioId = ta.Literal[
     't8.3_production_offdiag',
     't8.3_purchased_power_diag',
     't8.3_purchased_power_offdiag',
+    't8.3_purchased_power_diag_compensated',
     'p24_2017',
     'p24_target',
 ]
@@ -148,15 +151,16 @@ def _assert_no_aggregate(scenario: DisaggScenarioResult) -> None:
 def _run_baseline() -> DisaggScenarioResult:
     V, Udom, Uimp, VA, Y = derive_post_reallocation_checkpoint()
     V, Udom, Uimp, VA = disaggregate_electricity_make_use_va(V, Udom, Uimp, VA)
-    w = ugo305_go_weights()
-    Y = disaggregate_electricity_commodity_row_in_y(Y, w)
+    w_row = get_electricity_commodity_row_weights()
+    Y = disaggregate_electricity_commodity_row_in_y(Y, w_row)
     q = compute_q(V=V)
     x = compute_x(V=V)
+    w_go = ugo305_go_weights()
     weights = ScenarioWeights(
-        w_make_intersection=w,
-        w_use_intersection=None,
-        w_column_steps=w,
-        w_row_uniform=w,
+        w_make_intersection=w_go,
+        w_use_intersection=build_electricity_disagg_use_intersection_weights(),
+        w_column_steps=w_go,
+        w_row_uniform=w_row,
         w_row_by_column=None,
         intersection_3x3=None,
     )
@@ -306,6 +310,20 @@ def _weights_t83_purchased_power_offdiag() -> ScenarioWeights:
     return _weights_t83_offdiag(table83_purchased_power_weights())
 
 
+def _weights_t83_purchased_power_diag_compensated() -> ScenarioWeights:
+    w_ugo = ugo305_go_weights()
+    w_int = table83_purchased_power_weights()
+    w_row = get_electricity_commodity_row_weights()
+    return ScenarioWeights(
+        w_make_intersection=w_ugo,
+        w_use_intersection=w_int,
+        w_column_steps=w_ugo,
+        w_row_uniform=w_row,
+        w_row_by_column=None,
+        intersection_3x3=None,
+    )
+
+
 def _weights_p24(price_year: int) -> ScenarioWeights:
     w_ugo = ugo305_go_weights()
     raw_prices = table_2_4_prices_cents_kwh(price_year)
@@ -346,6 +364,11 @@ def run_scenario(scenario_id: ScenarioId) -> DisaggScenarioResult:
         return _run_stepwise(
             't8.3_purchased_power_offdiag',
             weights=_weights_t83_purchased_power_offdiag(),
+        )
+    if scenario_id == 't8.3_purchased_power_diag_compensated':
+        return _run_stepwise(
+            't8.3_purchased_power_diag_compensated',
+            weights=_weights_t83_purchased_power_diag_compensated(),
         )
     if scenario_id == 'p24_2017':
         return _run_stepwise('p24_2017', weights=_weights_p24(2017))
