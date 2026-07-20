@@ -6,6 +6,10 @@ Rows whose reference field lists **multiple** codes (comma-separated, e.g.
 reference code (mean across NAICS rows sharing the same code). Bedrock joins on
 the same USEEIO commodity codes.
 
+Default run compares **without-margins** for one bedrock config. For a
+three-source margins side-by-side (Zenodo / Phoebe / v0.3), see
+``compare_sef_margins_sources``.
+
 Usage (PowerShell, repo root)::
 
     uv run python -m bedrock.analysis.margins.compare_sef_zenodo_useeio_code \\
@@ -30,7 +34,7 @@ import bedrock.utils.config.common as common
 from bedrock.publish.cache_reset import clear_all_publish_caches
 from bedrock.publish.emission_factors.writer import write_emission_factors
 from bedrock.utils.config.settings import GIT_HASH_LONG
-from bedrock.utils.config.usa_config import set_global_usa_config
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +48,20 @@ _CACHE_DIR = (
 )
 _DEFAULT_OUTPUT = _PKG_DIR / 'output' / 'sef_zenodo_useeio_code_comparison.csv'
 
-_REF_CODE_COL = 'Reference USEEIO Code'
-_ZENODO_WITHOUT_COL = 'Supply Chain Emission Factors without Margins'
-_BEDROCK_CODE_COL = 'Cornerstone Commodity Code'
-_BEDROCK_WITHOUT_COL = 'Supply Chain Emission Factors without Margins'
+REF_CODE_COL = 'Reference USEEIO Code'
+BEDROCK_CODE_COL = 'Cornerstone Commodity Code'
+
+COL_WITHOUT = 'Supply Chain Emission Factors without Margins'
+COL_MARGINS = 'Margins of Supply Chain Emission Factors'
+COL_WITH = 'Supply Chain Emission Factors with Margins'
+SEF_VALUE_COLS: tuple[str, ...] = (COL_WITHOUT, COL_MARGINS, COL_WITH)
+ZENODO_DOI = _ZENODO_DOI
+
+# Backward-compatible aliases used by older call sites / docs.
+_REF_CODE_COL = REF_CODE_COL
+_ZENODO_WITHOUT_COL = COL_WITHOUT
+_BEDROCK_CODE_COL = BEDROCK_CODE_COL
+_BEDROCK_WITHOUT_COL = COL_WITHOUT
 
 
 def _zenodo_xlsx_cache_path() -> Path:
@@ -81,23 +95,28 @@ def _reference_code_lists_multiple_codes(value: object) -> bool:
     return ',' in str(value).strip()
 
 
-def load_zenodo_without_margins_by_reference_code(xlsx_path: Path) -> pd.Series:
-    """Zenodo without-margins SEF indexed by Reference USEEIO Code."""
+def load_zenodo_sef_by_reference_code(
+    xlsx_path: Path,
+    *,
+    value_cols: tuple[str, ...] = SEF_VALUE_COLS,
+) -> pd.DataFrame:
+    """Zenodo SEF columns indexed by Reference USEEIO Code."""
     raw = pd.read_excel(xlsx_path, sheet_name='CO2e', engine='openpyxl')
-    if _REF_CODE_COL not in raw.columns:
+    if REF_CODE_COL not in raw.columns:
         raise KeyError(
-            f'CO2e sheet missing {_REF_CODE_COL!r}; columns={list(raw.columns)!r}'
+            f'CO2e sheet missing {REF_CODE_COL!r}; columns={list(raw.columns)!r}'
         )
-    if _ZENODO_WITHOUT_COL not in raw.columns:
-        raise KeyError(
-            f'CO2e sheet missing {_ZENODO_WITHOUT_COL!r}; columns={list(raw.columns)!r}'
-        )
-    df = raw[[_REF_CODE_COL, _ZENODO_WITHOUT_COL]].copy()
-    df[_REF_CODE_COL] = df[_REF_CODE_COL].astype(str).str.strip()
-    df[_ZENODO_WITHOUT_COL] = pd.to_numeric(df[_ZENODO_WITHOUT_COL], errors='coerce')
-    df = df.dropna(subset=[_REF_CODE_COL, _ZENODO_WITHOUT_COL])
+    missing = [c for c in value_cols if c not in raw.columns]
+    if missing:
+        raise KeyError(f'CO2e sheet missing {missing!r}; columns={list(raw.columns)!r}')
 
-    multi_code_rows = df[_REF_CODE_COL].map(_reference_code_lists_multiple_codes)
+    df = raw[[REF_CODE_COL, *value_cols]].copy()
+    df[REF_CODE_COL] = df[REF_CODE_COL].astype(str).str.strip()
+    for col in value_cols:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.dropna(subset=[REF_CODE_COL])
+
+    multi_code_rows = df[REF_CODE_COL].map(_reference_code_lists_multiple_codes)
     n_multi_code = int(multi_code_rows.sum())
     if n_multi_code > 0:
         logger.info(
@@ -106,18 +125,44 @@ def load_zenodo_without_margins_by_reference_code(xlsx_path: Path) -> pd.Series:
         )
     df = df.loc[~multi_code_rows]
 
-    out = df.groupby(_REF_CODE_COL, sort=True)[_ZENODO_WITHOUT_COL].mean().astype(float)
+    out = df.groupby(REF_CODE_COL, sort=True)[list(value_cols)].mean().astype(float)
     out.index.name = 'useeio_code'
     return out
 
 
-def load_bedrock_without_margins(sef_csv: Path) -> pd.Series:
+def load_zenodo_without_margins_by_reference_code(xlsx_path: Path) -> pd.Series:
+    """Zenodo without-margins SEF indexed by Reference USEEIO Code."""
+    table = load_zenodo_sef_by_reference_code(xlsx_path, value_cols=(COL_WITHOUT,))
+    return table[COL_WITHOUT].rename('zenodo_without_margins')
+
+
+def load_bedrock_sef(
+    sef_csv: Path,
+    *,
+    value_cols: tuple[str, ...] = SEF_VALUE_COLS,
+) -> pd.DataFrame:
+    """Bedrock SEF CSV columns indexed by commodity code (``/US`` stripped)."""
     table = pd.read_csv(sef_csv)
-    if _BEDROCK_CODE_COL not in table.columns:
-        raise KeyError(f'SEF CSV missing {_BEDROCK_CODE_COL!r}')
-    codes = table[_BEDROCK_CODE_COL].astype(str).str.strip().str.removesuffix('/US')
-    values = pd.to_numeric(table[_BEDROCK_WITHOUT_COL], errors='coerce')
-    return pd.Series(values.values, index=codes, name='bedrock_without_margins')
+    if BEDROCK_CODE_COL not in table.columns:
+        raise KeyError(f'SEF CSV missing {BEDROCK_CODE_COL!r}')
+    missing = [c for c in value_cols if c not in table.columns]
+    if missing:
+        raise KeyError(f'SEF CSV missing {missing!r}; columns={list(table.columns)!r}')
+
+    codes = table[BEDROCK_CODE_COL].astype(str).str.strip().str.removesuffix('/US')
+    out = pd.DataFrame(
+        {
+            col: pd.to_numeric(table[col], errors='coerce').to_numpy()
+            for col in value_cols
+        },
+        index=pd.Index(codes, name='useeio_code'),
+    )
+    return out.astype(float)
+
+
+def load_bedrock_without_margins(sef_csv: Path) -> pd.Series:
+    table = load_bedrock_sef(sef_csv, value_cols=(COL_WITHOUT,))
+    return table[COL_WITHOUT].rename('bedrock_without_margins')
 
 
 def compare_series(
@@ -138,13 +183,15 @@ def compare_series(
     return out.sort_values('useeio_code').reset_index(drop=True)
 
 
-def _publish_sef(config_name: str, dollar_year: int) -> Path:
+def publish_sef(config_name: str, dollar_year: int) -> Path:
+    """Publish purchaser-price CO2e SEF CSV for ``config_name`` at ``dollar_year``."""
     if not GIT_HASH_LONG:
         raise RuntimeError('GIT_HASH_LONG is not set')
     out_dir = (
         _REPO_ROOT / 'bedrock' / 'publish' / 'output' / GIT_HASH_LONG / config_name
     )
     clear_all_publish_caches()
+    reset_usa_config(should_reset_env_var=True)
     set_global_usa_config(config_name)
     common.download_fba_on_api_error = True
     paths = write_emission_factors(
@@ -154,6 +201,10 @@ def _publish_sef(config_name: str, dollar_year: int) -> Path:
         purchaser_price=True,
     )
     return Path(paths['co2e'])
+
+
+def _publish_sef(config_name: str, dollar_year: int) -> Path:
+    return publish_sef(config_name, dollar_year)
 
 
 def main() -> int:
@@ -171,7 +222,7 @@ def main() -> int:
     zenodo = load_zenodo_without_margins_by_reference_code(zenodo_path)
 
     if args.sef_csv is None:
-        sef_path = _publish_sef(args.config_name, args.dollar_year)
+        sef_path = publish_sef(args.config_name, args.dollar_year)
     else:
         sef_path = args.sef_csv
     logger.info('bedrock SEF: %s', sef_path)

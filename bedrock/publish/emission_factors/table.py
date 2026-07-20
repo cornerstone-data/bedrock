@@ -6,11 +6,12 @@ from typing import cast
 
 import pandas as pd
 
-from bedrock.publish.emission_factors.placeholders import (
-    adjust_publish_matrix,
-    placeholder_margin_ef,
+from bedrock.publish.model_objects import get_M, get_N, get_N_margin
+from bedrock.transform.iot.derive_PRO_to_PUR_ratio import phi_for_sectors
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    get_vnorm_adjusted_commodity_price_ratio,
 )
-from bedrock.publish.model_objects import get_M, get_N
 from bedrock.utils.emissions.characterization import GREENHOUSE_GASES_INDICATOR
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 
@@ -56,6 +57,31 @@ def _is_excluded_commodity(code: str) -> bool:
     return False
 
 
+def adjust_publish_matrix(
+    matrix: pd.DataFrame,
+    *,
+    dollar_year: int,
+    purchaser_price: bool,
+) -> pd.DataFrame:
+    """Rebase commodity columns to ``dollar_year`` and optionally apply purchaser Phi."""
+    cfg = get_usa_config()
+    base_year = cfg.model_base_year
+    out = matrix.copy()
+
+    if dollar_year != base_year:
+        pi = get_vnorm_adjusted_commodity_price_ratio(base_year, dollar_year)
+        price_ratio_for_columns = pi.reindex(out.columns, fill_value=1.0)
+        # get_vnorm_adjusted_commodity_price_ratio(base, target) is PI_target / PI_base.
+        # Divide EF columns so values are expressed per target-year USD denominator.
+        out = out.div(price_ratio_for_columns.values, axis=1)
+
+    if purchaser_price:
+        phi = phi_for_sectors(out.columns, year=dollar_year)
+        out = out.mul(phi.reindex(out.columns, fill_value=1.0).values, axis=1)
+
+    return out
+
+
 def build_emission_factor_table(
     *, dollar_year: int, purchaser_price: bool = True
 ) -> pd.DataFrame:
@@ -65,8 +91,13 @@ def build_emission_factor_table(
         dollar_year=dollar_year,
         purchaser_price=purchaser_price,
     )
+    n_margin_pur = adjust_publish_matrix(
+        get_N_margin(),
+        dollar_year=dollar_year,
+        purchaser_price=purchaser_price,
+    )
     without = _greenhouse_gases_row(n_pur)
-    margins = placeholder_margin_ef(without)
+    margins = _greenhouse_gases_row(n_margin_pur)
     with_margins = without + margins
 
     rows: list[dict[str, object]] = []

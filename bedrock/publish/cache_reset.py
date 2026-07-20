@@ -23,6 +23,7 @@ from bedrock.transform.eeio.derived import (
     derive_y_for_national_accounting_balance_usa,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_A_margin,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
@@ -69,6 +70,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_cornerstone_VA,
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
+    derive_cornerstone_A_margin,
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_y_nab,
     load_2017_margins_before_redef_usa,
