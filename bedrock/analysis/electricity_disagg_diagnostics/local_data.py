@@ -14,6 +14,7 @@ from bedrock.utils.validation.analysis.fetch import _cache_path, _coerce_numeric
 logger = logging.getLogger(__name__)
 
 REQUIRED_TABS = (TAB_BLY, 'config_summary')
+EF_TABS = ('N_and_diffs', 'D_and_diffs', 'D_and_N_significant_sectors')
 
 
 def local_workbook_path(local_dir: Path, config_name: str) -> Path:
@@ -66,8 +67,17 @@ def import_workbook_to_cache(
         logger.info('Cached %s -> %s', tab, path)
 
 
-def seed_cache_from_local_dir(manifest: Manifest, local_dir: Path) -> None:
-    """Import all manifest workbooks from *local_dir* into the parquet cache."""
+def seed_cache_from_local_dir(
+    manifest: Manifest,
+    local_dir: Path,
+    *,
+    tabs: tuple[str, ...] = REQUIRED_TABS,
+) -> None:
+    """Import all manifest workbooks from *local_dir* into the parquet cache.
+
+    Default *tabs* is BLy-only (``REQUIRED_TABS``). Pass
+    ``REQUIRED_TABS + EF_TABS`` for EF diagnostics plots.
+    """
     jobs: list[tuple[str, str]] = [(manifest.footing.config, manifest.footing.sheet_id)]
     jobs.extend((step.config, step.sheet_id) for step in manifest.steps)
     if manifest.final.sheet_id != manifest.steps[-1].sheet_id:
@@ -80,4 +90,4 @@ def seed_cache_from_local_dir(manifest: Manifest, local_dir: Path) -> None:
         seen.add(sheet_id)
         xlsx_path = local_workbook_path(local_dir, config_name)
         print(f'  import {xlsx_path.name} -> cache/{sheet_id}/')
-        import_workbook_to_cache(xlsx_path, sheet_id)
+        import_workbook_to_cache(xlsx_path, sheet_id, tabs=tabs)
