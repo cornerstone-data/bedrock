@@ -21,7 +21,7 @@ DARKGREY = '#616161'
 
 TITLE = (
     'U.S. attributed emissions: electricity disaggregation drivers\n'
-    'chained PR2→PR4 vs Cornerstone v0.2 footing'
+    'chained PR2→PR4 vs Cornerstone v0.2'
 )
 FOOTNOTE_CHAINED = (
     'Each step bar = gross cross-sector reallocation (Σ|ΔBLy|) for one chained '
@@ -30,7 +30,7 @@ FOOTNOTE_CHAINED = (
 )
 NET_TITLE = (
     'U.S. total attributed BLy: electricity disaggregation net change\n'
-    'chained PR2→PR4 vs Cornerstone v0.2 footing'
+    'chained PR2→PR4 vs Cornerstone v0.2'
 )
 FOOTNOTE_NET = (
     'Level bars = Σ BLy_new (MMT CO2e) at each model step. A delta bar appears '
@@ -100,7 +100,7 @@ def render_dispersion_waterfall(
         tail_labels = ['Combined\n(FINAL)']
     labels = result.step_labels + tail_labels
     n = len(labels)
-    fig, ax = plt.subplots(figsize=(max(11, 1.3 * n), 7))
+    fig, ax = plt.subplots(figsize=(max(12, 1.8 * n), 7.5))
 
     _draw_step_bars(ax, step_values, use_pct=use_pct, label_color=BLUE)
 
@@ -163,7 +163,9 @@ def render_dispersion_waterfall(
 
     y_top = max(sum_steps, combined) * 1.12 or 1.0
     ax.set_xticks(range(n))
-    ax.set_xticklabels(labels, fontsize=9.5)
+    ax.set_xticklabels(labels, fontsize=9.0, linespacing=1.2)
+    ax.tick_params(axis='x', pad=8)
+    ax.set_xlim(-0.6, n - 0.4)
     ax.set_ylim(0, y_top)
     if use_pct:
         ylabel = (
@@ -175,16 +177,16 @@ def render_dispersion_waterfall(
     ax.set_ylabel(ylabel)
     ax.set_title(TITLE, fontsize=13, pad=12)
     ax.grid(axis='y', ls=':', alpha=0.4)
+    fig.subplots_adjust(bottom=0.22, top=0.88, left=0.10, right=0.98)
     ax.annotate(
         FOOTNOTE_CHAINED,
-        xy=(0.5, -0.15),
+        xy=(0.5, -0.26),
         xycoords='axes fraction',
         ha='center',
         va='top',
         fontsize=8.3,
         color='0.35',
     )
-    fig.tight_layout()
     save_and_close(fig, out_path)
 
 
@@ -248,7 +250,8 @@ def render_net_change_waterfall(
     ensure_dirs()
     bars = result.build_bars()
     n = len(bars)
-    fig, ax = plt.subplots(figsize=(max(11, 1.15 * n), 7))
+    fig_w = max(14.5, 2.0 * n)
+    fig, ax = plt.subplots(figsize=(fig_w, 8.0))
 
     level_values = [
         result.bar_value(b, use_pct=use_pct) for b in bars if b.kind == 'level'
@@ -278,7 +281,7 @@ def render_net_change_waterfall(
             ax.bar(
                 idx,
                 height,
-                width=0.64,
+                width=0.58,
                 color=color,
                 edgecolor='black',
                 linewidth=0.6,
@@ -290,7 +293,7 @@ def render_net_change_waterfall(
                 idx,
                 height,
                 bottom=bottom,
-                width=0.64,
+                width=0.58,
                 color=_delta_bar_color(bar.signed_delta),
                 edgecolor='black',
                 linewidth=0.6,
@@ -299,11 +302,18 @@ def render_net_change_waterfall(
         _annotate_bar(ax, idx, bar, use_pct=use_pct, result=result, y_pad=y_pad)
 
     ax.set_xticks(range(n))
-    ax.set_xticklabels([b.label for b in bars], fontsize=8.5)
+    ax.set_xticklabels(
+        [b.label for b in bars],
+        fontsize=8.0,
+        linespacing=1.2,
+        ha='center',
+    )
+    ax.tick_params(axis='x', pad=8, length=0)
+    ax.set_xlim(-0.7, n - 0.3)
     ax.set_ylim(0, y_top)
     if use_pct:
         ylabel = (
-            'Total U.S. attributed BLy (% of Cornerstone v0.2 footing total)\n'
+            'Total U.S. attributed BLy (% of Cornerstone v0.2 total)\n'
             '[level bars]; net step change [%]'
         )
     else:
@@ -313,16 +323,16 @@ def render_net_change_waterfall(
     ax.set_ylabel(ylabel)
     ax.set_title(NET_TITLE, fontsize=13, pad=12)
     ax.grid(axis='y', ls=':', alpha=0.4)
+    fig.subplots_adjust(bottom=0.28, top=0.88, left=0.08, right=0.98)
     ax.annotate(
         FOOTNOTE_NET,
-        xy=(0.5, -0.18),
+        xy=(0.5, -0.34),
         xycoords='axes fraction',
         ha='center',
         va='top',
         fontsize=8.3,
         color='0.35',
     )
-    fig.tight_layout()
     save_and_close(fig, out_path)
 
 
