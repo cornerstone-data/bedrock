@@ -166,7 +166,10 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     # Late-binding import - depends on global config
     from bedrock.transform.eeio.derived import derive_Aq_usa
     from bedrock.utils.math.formulas import (
+        compute_d,
         compute_L_matrix,
+        compute_M_matrix,
+        compute_n,
         compute_output_contribution,
     )
     from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
@@ -266,6 +269,69 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        compute_mixed_unit_ef_vectors,
+        electricity_mixed_units_enabled,
+        table_2_4_prices_cents_kwh,
+    )
+    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
+        derive_B_usa_non_finetuned,
+    )
+    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+        derive_cornerstone_Aq_scaled,
+        derive_cornerstone_B_non_finetuned,
+    )
+    from bedrock.utils.validation.diagnostics_helpers import (  # noqa: PLC0415
+        MIXED_VS_MONETARY_TAB_COLUMNS,
+        build_mixed_vs_monetary_comparison_df,
+        sectors_for_mixed_vs_monetary_tab,
+    )
+
+    if electricity_mixed_units_enabled():
+        t0 = time.time()
+        aq_mon = derive_cornerstone_Aq_scaled()
+        b_mon = derive_cornerstone_B_non_finetuned()
+        b_live = derive_B_usa_non_finetuned()
+        d_mon = ta.cast(
+            'pd.Series[float]',
+            compute_d(B=b_live).squeeze(),
+        )
+        l_mon = compute_L_matrix(A=aq_mon.Adom + aq_mon.Aimp)
+        m_mon = compute_M_matrix(B=b_live, L=l_mon)
+        n_mon = ta.cast('pd.Series[float]', compute_n(M=m_mon).squeeze())
+        d_mix = _ef_vector_as_series(efs.D_new)
+        n_mix = _ef_vector_as_series(efs.N_new)
+        table_prices = table_2_4_prices_cents_kwh(config.usa_ghg_data_year)
+        total_price = float(table_prices['Total'])
+        equal_prices: dict[str, float] = {str(k): total_price for k in table_prices}
+        uniform_result = compute_mixed_unit_ef_vectors(
+            aq_mon, b_mon, prices_by_class=equal_prices
+        )
+        sectors = sectors_for_mixed_vs_monetary_tab(n_mix, n_mon)
+        mixed_vs_mon = build_mixed_vs_monetary_comparison_df(
+            sectors=sectors,
+            D_mon=d_mon,
+            N_mon=n_mon,
+            D_mix=d_mix,
+            N_mix=n_mix,
+            N_uniform=uniform_result.N,
+            c_col=uniform_result.c_col,
+            sector_desc_lookup=sector_desc,
+        )
+        assert list(mixed_vs_mon.columns) == list(MIXED_VS_MONETARY_TAB_COLUMNS)
+        update_sheet_tab(
+            sheet_id,
+            'mixed_vs_monetary_221110',
+            mixed_vs_mon,
+            clean_nans=True,
+        )
+        logger.info(
+            '[TIMING] Write mixed_vs_monetary_221110 tab in %.1fs',
+            time.time() - t0,
+        )
+    else:
+        logger.info('Skipping mixed_vs_monetary_221110 (mixed-units gate off)')
+
     # Effective x decomposition (Cornerstone method only)
     if config.use_E_data_year_for_x_in_B:
         from bedrock.utils.validation.diagnostics_helpers import (
@@ -350,7 +416,18 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     # Compare output contribution (parquet baseline only; omitted for gcs_useeio_xlsx)
     if config.diagnostics_baseline_source != 'gcs_useeio_xlsx':
         t0 = time.time()
-        Aq_set = derive_Aq_usa()
+        from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+            electricity_mixed_units_enabled,
+        )
+        from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_mixed_units,
+        )
+
+        if electricity_mixed_units_enabled():
+            Aq_set = derive_cornerstone_Aq_mixed_units()
+        else:
+            Aq_set = derive_Aq_usa()
         L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
 
         OC_new = compute_output_contribution(

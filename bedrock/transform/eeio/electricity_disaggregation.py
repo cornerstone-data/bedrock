@@ -7,7 +7,7 @@ import logging
 import pathlib
 import warnings
 from dataclasses import dataclass
-from typing import cast
+from typing import Mapping, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -996,3 +996,138 @@ def distribute_electricity_aggregate_x_using_v_row_shares(
         x.loc[code] = parent_go * float(shares.loc[code])
     x = x.drop(agg)
     return x.reindex(CORNERSTONE_INDUSTRIES_ELEC)
+
+
+GENERATION_SECTOR = '221110'
+
+
+def electricity_output_factor(q_usd_221110: float, mwh_221110: float) -> float:
+    """Scalar c_col = MWh / $ for generation output/column conversion."""
+    if not np.isfinite(q_usd_221110) or q_usd_221110 <= 0:
+        raise ValueError(
+            f'electricity_output_factor: non-positive q$_221110={q_usd_221110!r}'
+        )
+    if not np.isfinite(mwh_221110) or mwh_221110 <= 0:
+        raise ValueError(
+            f'electricity_output_factor: non-positive mwh_221110={mwh_221110!r}'
+        )
+    return float(mwh_221110 / q_usd_221110)
+
+
+def _class_price(
+    col: str,
+    prices_by_class: Mapping[str, float],
+    end_use_map: dict[str, str],
+) -> float:
+    if col not in end_use_map:
+        raise ValueError(
+            f'electricity_class_row_factors: column {col!r} absent from end_use_map'
+        )
+    eu = end_use_map[col]
+    if eu not in prices_by_class:
+        raise ValueError(
+            f'electricity_class_row_factors: missing Table 2.4 price for class {eu!r}'
+        )
+    p = float(prices_by_class[eu])
+    if p <= 0 or not np.isfinite(p):
+        raise ValueError(
+            f'electricity_class_row_factors: non-positive price for class {eu!r} (col={col!r})'
+        )
+    return p
+
+
+def electricity_class_row_factors(
+    adom_row_221110: pd.Series,
+    scaled_q: pd.Series[float],
+    y_row_221110: pd.Series[float],
+    prices_by_class: Mapping[str, float],
+    end_use_map: dict[str, str],
+    mwh_221110: float,
+) -> pd.Series[float]:
+    """Per-column c_j = λ / p_j preserving domestic row MWh = mwh_221110."""
+    if not np.isfinite(mwh_221110) or mwh_221110 <= 0:
+        raise ValueError(
+            f'electricity_class_row_factors: non-positive mwh_221110={mwh_221110!r}'
+        )
+
+    denom = 0.0
+    for col in adom_row_221110.index:
+        coef = float(adom_row_221110[col])
+        if coef == 0.0:
+            continue
+        if col not in scaled_q.index:
+            raise ValueError(
+                f'electricity_class_row_factors: scaled_q missing column {col!r}'
+            )
+        p_j = _class_price(str(col), prices_by_class, end_use_map)
+        flow_usd = coef * float(scaled_q[col])
+        denom += flow_usd / p_j
+
+    for col in y_row_221110.index:
+        y_val = float(y_row_221110[col])
+        if y_val == 0.0:
+            continue
+        p_f = _class_price(str(col), prices_by_class, end_use_map)
+        denom += y_val / p_f
+
+    if denom <= 0 or not np.isfinite(denom):
+        raise ValueError(
+            'electricity_class_row_factors: λ denominator non-positive or non-finite'
+        )
+
+    lam = float(mwh_221110 / denom)
+    if lam <= 0 or not np.isfinite(lam):
+        raise ValueError(
+            f'electricity_class_row_factors: non-positive λ={lam!r} for sector 221110'
+        )
+
+    cols = adom_row_221110.index.union(y_row_221110.index)
+    c_row = pd.Series(index=cols, dtype=float)
+    for col in cols:
+        p_j = _class_price(str(col), prices_by_class, end_use_map)
+        c_row[col] = lam / p_j
+    return c_row
+
+
+def apply_electricity_unit_conversion_to_A(
+    A: pd.DataFrame,
+    *,
+    c_col: float,
+    c_row: pd.Series[float],
+    generation_sector: str = GENERATION_SECTOR,
+) -> pd.DataFrame:
+    """Convert generation sales row/column in a single A block."""
+    out = A.copy()
+    gen = generation_sector
+    for col in out.columns:
+        if col == gen:
+            c_j = float(c_row.get(col, c_col))
+            out.loc[gen, col] = cast(float, out.loc[gen, col]) * c_j / c_col
+        else:
+            c_j = float(c_row[col])
+            out.loc[gen, col] = cast(float, out.loc[gen, col]) * c_j
+    for idx in out.index:
+        if idx != gen:
+            out.loc[idx, gen] = cast(float, out.loc[idx, gen]) / c_col
+    return out
+
+
+def apply_electricity_unit_conversion_to_q(
+    q: pd.Series[float],
+    c_col: float,
+    generation_sector: str = GENERATION_SECTOR,
+) -> pd.Series[float]:
+    out = q.copy()
+    out.loc[generation_sector] = float(out.loc[generation_sector]) * c_col
+    return out
+
+
+def apply_electricity_unit_conversion_to_B(
+    B: pd.DataFrame,
+    c_col: float,
+    generation_sector: str = GENERATION_SECTOR,
+) -> pd.DataFrame:
+    out = B.copy()
+    if generation_sector in out.columns:
+        out[generation_sector] = out[generation_sector] / c_col
+    return out

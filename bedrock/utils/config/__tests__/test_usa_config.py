@@ -14,7 +14,7 @@ from bedrock.utils.config.usa_config import (
 )
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True, scope='function')
 def reset_global_usa_config_before_test() -> Generator[None, None, None]:
     reset_usa_config(should_reset_env_var=True)
     yield
@@ -22,54 +22,54 @@ def reset_global_usa_config_before_test() -> Generator[None, None, None]:
 
 def test_eeio_waste_disagg_config_parsing_happy_path() -> None:
     """Test to ensure that the disaggregation config file is properly loaded"""
-    config = _load_usa_config_from_file_name("test_usa_config_waste_disagg.yaml")
+    config = _load_usa_config_from_file_name('test_usa_config_waste_disagg.yaml')
     assert config.eeio_waste_disaggregation is not None
     wd = config.eeio_waste_disaggregation
     assert isinstance(wd, EEIOWasteDisaggConfig)
     assert (
         wd.use_weights_file
-        == "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Use.csv"
+        == 'extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Use.csv'
     )
     assert (
         wd.make_weights_file
-        == "extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Make.csv"
+        == 'extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_Make.csv'
     )
     assert wd.year == 2017
-    assert wd.source_name == "WasteDisaggregationDetail2017"
+    assert wd.source_name == 'WasteDisaggregationDetail2017'
 
 
 def test_eeio_waste_disagg_config_optional_missing() -> None:
     """Test to ensure that the disaggregation config is not
     true when not specified in the yaml file"""
-    config = _load_usa_config_from_file_name("test_usa_config.yaml")
+    config = _load_usa_config_from_file_name('test_usa_config.yaml')
     assert config.eeio_waste_disaggregation is None
 
 
 def test_get_usa_config_loads_waste_disagg() -> None:
     """Test that the usa_config correctly loads the waste
     disaggregation yaml file"""
-    set_global_usa_config("test_usa_config_waste_disagg.yaml")
+    set_global_usa_config('test_usa_config_waste_disagg.yaml')
     config = get_usa_config()
     assert config.implement_waste_disaggregation is True
     assert config.eeio_waste_disaggregation is not None
     assert (
-        config.eeio_waste_disaggregation.source_name == "WasteDisaggregationDetail2017"
+        config.eeio_waste_disaggregation.source_name == 'WasteDisaggregationDetail2017'
     )
 
 
 def test_global_usa_config() -> None:
-    set_global_usa_config("test_usa_config.yaml")
+    set_global_usa_config('test_usa_config.yaml')
     usa_config = get_usa_config()
     assert usa_config.usa_ghg_data_year == 2023
-    assert usa_config.snapshot_version_or_git_sha == "v0"
+    assert usa_config.snapshot_version_or_git_sha == 'v0'
 
 
 def test_global_usa_config_with_snapshot_git_sha() -> None:
-    set_global_usa_config("test_usa_config_git_sha.yaml")
+    set_global_usa_config('test_usa_config_git_sha.yaml')
     usa_config = get_usa_config()
     assert (
         usa_config.snapshot_version_or_git_sha
-        == "2ebb51f7190c3a62b5d8b2420bff9b20f57282fc"
+        == '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc'
     )
 
 
@@ -82,9 +82,9 @@ def test_unknown_diagnostics_cli_override_key_raises() -> None:
 
 
 def test_cannot_call_global_usa_config_twice() -> None:
-    set_global_usa_config("test_usa_config.yaml")
+    set_global_usa_config('test_usa_config.yaml')
     with pytest.raises(ValueError):
-        set_global_usa_config("test_usa_config.yaml")
+        set_global_usa_config('test_usa_config.yaml')
 
 
 def test_set_global_usa_config_diagnostics_cli_overrides() -> None:
@@ -130,9 +130,9 @@ def test_config_via_environment_variable() -> None:
 
     from bedrock.utils.config.usa_config import USA_CONFIG_ENV_VAR
 
-    set_global_usa_config("test_usa_config.yaml")
+    set_global_usa_config('test_usa_config.yaml')
     assert USA_CONFIG_ENV_VAR in os.environ
-    assert os.environ[USA_CONFIG_ENV_VAR] == "test_usa_config.yaml"
+    assert os.environ[USA_CONFIG_ENV_VAR] == 'test_usa_config.yaml'
 
     # reset config (mimick a worker process with a new
     # memory space) and reload the config from env variable
@@ -213,7 +213,7 @@ def test_disallow_multiple_margins_flags(flags: dict[str, bool]) -> None:
 
 def test_electricity_disagg_config_parsing() -> None:
     config = _load_usa_config_from_file_name(
-        "test_usa_config_waste_disagg_electricity.yaml"
+        'test_usa_config_waste_disagg_electricity.yaml'
     )
     assert config.implement_waste_disaggregation is True
     assert config.implement_electricity_reallocation is True
@@ -221,7 +221,7 @@ def test_electricity_disagg_config_parsing() -> None:
 
 def test_electricity_disaggregation_config_parsing() -> None:
     config = _load_usa_config_from_file_name(
-        "test_usa_config_waste_disagg_electricity_disaggregation.yaml"
+        'test_usa_config_waste_disagg_electricity_disaggregation.yaml'
     )
     assert config.implement_waste_disaggregation is True
     assert config.implement_electricity_reallocation is True
@@ -231,13 +231,13 @@ def test_electricity_disaggregation_config_parsing() -> None:
 def test_electricity_disaggregation_requires_reallocation_and_waste() -> None:
     with pytest.raises(
         ValueError,
-        match="implement_electricity_disaggregation requires",
+        match='implement_electricity_disaggregation requires',
     ):
         USAConfig.model_validate(
             {
-                "implement_electricity_disaggregation": True,
-                "implement_electricity_reallocation": False,
-                "implement_waste_disaggregation": True,
+                'implement_electricity_disaggregation': True,
+                'implement_electricity_reallocation': False,
+                'implement_waste_disaggregation': True,
             },
             strict=True,
         )
@@ -246,12 +246,36 @@ def test_electricity_disaggregation_requires_reallocation_and_waste() -> None:
 def test_electricity_disagg_requires_waste() -> None:
     with pytest.raises(
         ValueError,
-        match="implement_electricity_reallocation requires implement_waste_disaggregation",
+        match='implement_electricity_reallocation requires implement_waste_disaggregation',
     ):
         USAConfig.model_validate(
             {
-                "implement_electricity_reallocation": True,
-                "implement_waste_disaggregation": False,
+                'implement_electricity_reallocation': True,
+                'implement_waste_disaggregation': False,
+            },
+            strict=True,
+        )
+
+
+def test_electricity_mixed_units_config_parsing() -> None:
+    config = _load_usa_config_from_file_name(
+        'test_usa_config_waste_disagg_electricity_mixed_units.yaml'
+    )
+    assert config.implement_electricity_mixed_units is True
+    assert config.implement_electricity_disaggregation is True
+
+
+def test_electricity_mixed_units_requires_disaggregation() -> None:
+    with pytest.raises(
+        ValueError,
+        match='implement_electricity_mixed_units requires',
+    ):
+        USAConfig.model_validate(
+            {
+                'implement_electricity_mixed_units': True,
+                'implement_electricity_disaggregation': False,
+                'implement_electricity_reallocation': True,
+                'implement_waste_disaggregation': True,
             },
             strict=True,
         )
