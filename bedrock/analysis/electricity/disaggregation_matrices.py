@@ -45,10 +45,10 @@ from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
 logger = logging.getLogger(__name__)
 
-_OUTPUT_DIR = Path(__file__).resolve().parent / "output"
-OUTPUT_FILENAME = "electricity_pipeline_stages_V_U_Y.xlsx"
-GO_WEIGHTS_FILENAME = "electricity_disagg_go_weights.csv"
-WEIGHTS_FILENAME = "electricity_disagg_weights.csv"
+_OUTPUT_DIR = Path(__file__).resolve().parent / 'output'
+OUTPUT_FILENAME = 'electricity_pipeline_stages_V_U_Y.xlsx'
+GO_WEIGHTS_FILENAME = 'electricity_disagg_go_weights.csv'
+WEIGHTS_FILENAME = 'electricity_disagg_weights.csv'
 
 
 @dataclass(frozen=True)
@@ -71,13 +71,13 @@ def assert_disaggregation_export_config() -> None:
     missing = [
         name
         for name, enabled in (
-            ("implement_waste_disaggregation", cfg.implement_waste_disaggregation),
+            ('implement_waste_disaggregation', cfg.implement_waste_disaggregation),
             (
-                "implement_electricity_reallocation",
+                'implement_electricity_reallocation',
                 cfg.implement_electricity_reallocation,
             ),
             (
-                "implement_electricity_disaggregation",
+                'implement_electricity_disaggregation',
                 cfg.implement_electricity_disaggregation,
             ),
         )
@@ -85,9 +85,9 @@ def assert_disaggregation_export_config() -> None:
     ]
     if missing:
         raise ValueError(
-            "Electricity disaggregation export requires all of: "
-            "implement_waste_disaggregation, implement_electricity_reallocation, "
-            f"implement_electricity_disaggregation; missing: {', '.join(missing)}"
+            'Electricity disaggregation export requires all of: '
+            'implement_waste_disaggregation, implement_electricity_reallocation, '
+            f'implement_electricity_disaggregation; missing: {", ".join(missing)}'
         )
 
 
@@ -98,11 +98,11 @@ def _derive_y_after_waste_disagg() -> pd.DataFrame:
     """
     ytot_orig = load_2017_Ytot_usa()
     ytot = commodity_corresp() @ ytot_orig
-    ytot.index.name = "sector"
+    ytot.index.name = 'sector'
     weights = get_waste_disagg_weights()
     if weights is not None:
         ytot = apply_waste_disagg_to_Ytot(ytot, weights)
-        ytot.index.name = "sector"
+        ytot.index.name = 'sector'
     return ytot
 
 
@@ -135,6 +135,22 @@ def _commodity_row_sum(extended_u: pd.DataFrame, commodity: str) -> float:
     return float(extended_u.loc[commodity].sum())
 
 
+def derive_post_reallocation_checkpoint() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
+    """Stage-2 checkpoint: waste-disaggregated IO after PR2 co-production reallocation.
+
+    Y is waste-only (aggregate ``221100`` row intact). Used by ``d_85`` scenario
+    analysis and baseline parity tests — not full PR3 disaggregation.
+    """
+    v1 = derive_cornerstone_V_after_waste()
+    udom1, uimp1 = derive_cornerstone_U_after_waste()
+    va1 = derive_cornerstone_VA_after_waste()
+    y_waste = _derive_y_after_waste_disagg()
+    v2, udom2, uimp2, va2 = reallocate_electricity_coproduction(v1, udom1, uimp1, va1)
+    return v2, udom2, uimp2, va2, y_waste
+
+
 def _build_stage_tables() -> tuple[PipelineStage, PipelineStage, PipelineStage]:
     """Build waste, reallocation, and disaggregation checkpoints."""
     v1 = derive_cornerstone_V_after_waste()
@@ -146,7 +162,7 @@ def _build_stage_tables() -> tuple[PipelineStage, PipelineStage, PipelineStage]:
         udom=udom1, uimp=uimp1, va=va1, y_fd=y_fd_stages_12
     )
     stage1 = PipelineStage(
-        label="after_waste_disagg",
+        label='after_waste_disagg',
         v=v1,
         udom=udom1,
         uimp=uimp1,
@@ -156,12 +172,12 @@ def _build_stage_tables() -> tuple[PipelineStage, PipelineStage, PipelineStage]:
         intermediate=intermediate1,
     )
 
-    v2, udom2, uimp2, va2 = reallocate_electricity_coproduction(v1, udom1, uimp1, va1)
+    v2, udom2, uimp2, va2, _ = derive_post_reallocation_checkpoint()
     u2, intermediate2 = _extended_use_for_stage(
         udom=udom2, uimp=uimp2, va=va2, y_fd=y_fd_stages_12
     )
     stage2 = PipelineStage(
-        label="after_electricity_reallocation",
+        label='after_electricity_reallocation',
         v=v2,
         udom=udom2,
         uimp=uimp2,
@@ -181,7 +197,7 @@ def _build_stage_tables() -> tuple[PipelineStage, PipelineStage, PipelineStage]:
         y_fd=y_fd3,
     )
     stage3 = PipelineStage(
-        label="after_electricity_disaggregation",
+        label='after_electricity_disaggregation',
         v=bundle.V,
         udom=bundle.Udom,
         uimp=bundle.Uimp,
@@ -224,39 +240,39 @@ def _build_electricity_balance_summary(
     ) -> dict[str, object]:
         if not check_balance:
             return {
-                "metric": metric,
-                "stage2_value": stage2_val,
-                "stage3_value": stage3_val,
-                "delta": "",
-                "passes": "",
+                'metric': metric,
+                'stage2_value': stage2_val,
+                'stage3_value': stage3_val,
+                'delta': '',
+                'passes': '',
             }
         s2 = float(stage2_val)
         s3 = float(stage3_val)
         delta = s3 - s2
         return {
-            "metric": metric,
-            "stage2_value": s2,
-            "stage3_value": s3,
-            "delta": delta,
-            "passes": abs(delta) <= atol,
+            'metric': metric,
+            'stage2_value': s2,
+            'stage3_value': s3,
+            'delta': delta,
+            'passes': abs(delta) <= atol,
         }
 
     rows = [
-        _row("make_row_x", x2, x3),
-        _row("make_col_q", q2, q3),
+        _row('make_row_x', x2, x3),
+        _row('make_col_q', q2, q3),
         _row(
-            "use_col_total_udom_uimp_va",
+            'use_col_total_udom_uimp_va',
             c221100,
-            "N/A (221100 removed)",
+            'N/A (221100 removed)',
             check_balance=False,
         ),
-        _row("use_commodity_row_q_use", q_use2, q_use3),
-        _row("va_column_sum", va2, va3),
-        _row("y_row_sum", y2, y3),
+        _row('use_commodity_row_q_use', q_use2, q_use3),
+        _row('va_column_sum', va2, va3),
+        _row('y_row_sum', y2, y3),
         _row(
-            "go_identity_residual_stage2",
+            'go_identity_residual_stage2',
             go_residual,
-            "—",
+            '—',
             check_balance=False,
         ),
     ]
@@ -267,10 +283,10 @@ def _write_analysis_weight_csvs(output_dir: Path) -> None:
     """Write GO/disagg weight CSVs to analysis output (not extract)."""
     output_dir.mkdir(parents=True, exist_ok=True)
     w = build_electricity_disagg_go_weights()
-    w.to_csv(output_dir / GO_WEIGHTS_FILENAME, header=["weight"])
+    w.to_csv(output_dir / GO_WEIGHTS_FILENAME, header=['weight'])
     weights = build_electricity_disagg_weights(w)
     with (output_dir / WEIGHTS_FILENAME).open(
-        "w", encoding="utf-8", newline=""
+        'w', encoding='utf-8', newline=''
     ) as handle:
         weights_to_csv(weights, handle)
 
@@ -314,47 +330,47 @@ def write_electricity_disaggregation_intermediate_outputs(
     delta_disagg = _delta_summary(summary2, summary3)
     balance = _build_electricity_balance_summary(stage2, stage3)
 
-    with pd.ExcelWriter(dest, engine="openpyxl") as writer:
+    with pd.ExcelWriter(dest, engine='openpyxl') as writer:
         _with_publish_loc_suffix(stage1.v).to_excel(
-            writer, sheet_name="V_after_waste_disagg", index=True
+            writer, sheet_name='V_after_waste_disagg', index=True
         )
         _with_publish_loc_suffix(stage1.extended_u).to_excel(
-            writer, sheet_name="U_after_waste_disagg", index=True
+            writer, sheet_name='U_after_waste_disagg', index=True
         )
-        stage1.y.to_excel(writer, sheet_name="Y_after_waste_disagg", index=True)
+        stage1.y.to_excel(writer, sheet_name='Y_after_waste_disagg', index=True)
         _with_publish_loc_suffix(stage2.v).to_excel(
-            writer, sheet_name="V_after_elec_reallocation", index=True
+            writer, sheet_name='V_after_elec_reallocation', index=True
         )
         _with_publish_loc_suffix(stage2.extended_u).to_excel(
-            writer, sheet_name="U_after_elec_reallocation", index=True
+            writer, sheet_name='U_after_elec_reallocation', index=True
         )
-        stage2.y.to_excel(writer, sheet_name="Y_after_elec_reallocation", index=True)
+        stage2.y.to_excel(writer, sheet_name='Y_after_elec_reallocation', index=True)
         _with_publish_loc_suffix(stage3.v).to_excel(
-            writer, sheet_name="V_after_elec_disaggregation", index=True
+            writer, sheet_name='V_after_elec_disaggregation', index=True
         )
         _with_publish_loc_suffix(stage3.extended_u).to_excel(
-            writer, sheet_name="U_after_elec_disaggregation", index=True
+            writer, sheet_name='U_after_elec_disaggregation', index=True
         )
-        stage3.y.to_excel(writer, sheet_name="Y_after_elec_disaggregation", index=True)
+        stage3.y.to_excel(writer, sheet_name='Y_after_elec_disaggregation', index=True)
         summary1.reset_index().to_excel(
-            writer, sheet_name="totals_after_waste_disagg", index=False
+            writer, sheet_name='totals_after_waste_disagg', index=False
         )
         summary2.reset_index().to_excel(
-            writer, sheet_name="totals_after_elec_realloc", index=False
+            writer, sheet_name='totals_after_elec_realloc', index=False
         )
         summary3.reset_index().to_excel(
-            writer, sheet_name="totals_after_elec_disagg", index=False
+            writer, sheet_name='totals_after_elec_disagg', index=False
         )
         delta_realloc.reset_index().to_excel(
-            writer, sheet_name="totals_delta_realloc", index=False
+            writer, sheet_name='totals_delta_realloc', index=False
         )
         delta_disagg.reset_index().to_excel(
-            writer, sheet_name="totals_delta_disagg", index=False
+            writer, sheet_name='totals_delta_disagg', index=False
         )
-        balance.to_excel(writer, sheet_name="electricity_balance", index=False)
+        balance.to_excel(writer, sheet_name='electricity_balance', index=False)
 
     logger.info(
-        "Wrote electricity disaggregation intermediate outputs (16 sheets + 2 CSVs) to %s",
+        'Wrote electricity disaggregation intermediate outputs (16 sheets + 2 CSVs) to %s',
         dest.resolve(),
     )
     return dest
