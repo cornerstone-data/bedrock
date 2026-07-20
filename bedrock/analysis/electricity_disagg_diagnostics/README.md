@@ -58,6 +58,38 @@ Outputs (gitignored):
 - `output/electricity_bly_net_change_waterfall_mmt.png`
 - `output/electricity_bly_net_change_waterfall_pct.png`
 
+## EF diagnostics plots vs v0.2 footing
+
+Compares **each electricity step** (reallocation, 3-way split, mixed units) to the
+**Cornerstone v0.2** workbook’s absolute `N_new` / `D_new` — not to the previous
+step, and not via each sheet’s in-tab CEDA `%` columns.
+
+```bash
+uv run python -m bedrock.analysis.electricity_disagg_diagnostics.plot_ef \
+  --local-dir bedrock/analysis/electricity_disagg_diagnostics/local_data
+```
+
+Outputs under `output/ef/`:
+
+| Path | Contents |
+|---|---|
+| `output/ef/electricity_reallocation/` | Suite PNGs for that step vs v0.2 |
+| `output/ef/electricity_disaggregation/` | Suite PNGs for 3-way vs v0.2 |
+| `output/ef/electricity_mixed_units/` | Suite PNGs for mixed units vs v0.2 |
+| `output/ef/panel/ef_panels_vs_v0_2_N.png` | 3-panel N % hist (realloc / 3-way / mixed) |
+| `output/ef/panel/ef_panels_vs_v0_2_D.png` | 3-panel D % hist |
+
+Per-step suite includes `ef_perc_diff_histogram.png`, `ef_pct_change_vs_abs_change.png`,
+`ef_abs_change_histogram.png`, `ef_n_perc_diff_histogram.png`, `ef_pct_change_vs_ef_size.png`.
+
+When any of `221100` / `221110` / `221121` / `221122` are dropped from a figure
+(e.g. mixed-units `221110` kg/MWh vs kg/USD, or children missing from v0.2), the
+figure footnote lists the sector code and reason.
+
+`plot_ef` seeds the cache with `REQUIRED_TABS + EF_TABS` (`N_and_diffs`,
+`D_and_diffs`, `D_and_N_significant_sectors`). BLy-only import via `run_all` /
+`import_local` still uses `REQUIRED_TABS` only.
+
 ## Metrics
 
 - **Dispersion** charts: each step bar = `Σ_sector |ΔBLy|` (gross cross-sector reallocation).
