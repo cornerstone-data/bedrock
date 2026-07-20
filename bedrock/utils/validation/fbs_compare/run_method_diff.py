@@ -6,7 +6,7 @@ from bedrock.utils.config.schema import dq_fields
 from bedrock.utils.validation.validation import compare_FBS
 
 baseline = "GHG_national_CEDA_2023"
-test_method = "GHG_national_Cornerstone_2023_mobile_combustion"
+test_method = "GHG_national_Cornerstone_2023_ghgi_mecs"
 
 # Optional: show all data (baseline vs test side by side) for these MetaSources.
 # Leave empty to skip. Uses merge only — does not filter to differences.

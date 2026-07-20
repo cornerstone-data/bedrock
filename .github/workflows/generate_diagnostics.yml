@@ -37,9 +37,9 @@ env:
   FORCE_COLOR: 2
 
 # Belt-and-suspenders against the Sheets-API write quota. The dispatcher
-# in `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py`
-# polls for capacity client-side; this directive is the safety net
-# preventing accidental parallel runs (e.g. UI-triggered ones) from
+# in `bedrock/utils/validation/dispatch_diagnostics.py` (and epic wrappers
+# that call it) polls for capacity client-side; this directive is the safety
+# net preventing accidental parallel runs (e.g. UI-triggered ones) from
 # overlapping. With `cancel-in-progress: false`, any third concurrent
 # dispatch is dropped — the dispatcher's polling avoids that case.
 concurrency:

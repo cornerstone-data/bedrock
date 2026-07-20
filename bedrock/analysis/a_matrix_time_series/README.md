@@ -143,6 +143,13 @@ These three are independent (all read `output/results/*.parquet`); run in any or
 
 This phase fans out to the `generate_diagnostics` GitHub Actions workflow; one Sheet per `(scenario, approach, year)` cell. The runs for the v0.3 evaluation have already been dispatched and live in Drive folder [`1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s`](https://drive.google.com/drive/folders/1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s). See [`useeio_nowcast_ef_runbook.md`](useeio_nowcast_ef_runbook.md) for the operator checklist.
 
+For a methodology flag outside this A-matrix scenario matrix, use
+[`bedrock/utils/validation/evaluate_feature_impact.md`](../../utils/validation/evaluate_feature_impact.md)
+and `python -m bedrock.utils.validation.dispatch_diagnostics` instead of the
+scenario dispatcher below. Shared create-sheet / trigger helpers live in
+`bedrock.utils.validation.dispatch_diagnostics`; this module owns the
+time-series scenario matrix and `EF_TIME_SERIES_DRIVE_FOLDER_ID`.
+
 **Reviewer path — skip dispatch, use the existing runs:**
 
 ```bash
@@ -192,6 +199,9 @@ python -m bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series \
 
 ## Related reading
 
+- [`../../utils/config/feature_flag.md`](../../utils/config/feature_flag.md) /
+  [`../../utils/validation/evaluate_feature_impact.md`](../../utils/validation/evaluate_feature_impact.md)
+  — `USAConfig` flag and diagnostics playbooks.
 - [`useeio_nowcast_ef_runbook.md`](useeio_nowcast_ef_runbook.md) — **live** operator runbook for running the USEEIO-nowcast EF diagnostics via GH Actions.
 - [`docs/analysis_plan.md`](docs/analysis_plan.md) — **historical** epic spec: 5-approach taxonomy, Definition of Done, Checkpoints A–D, six Key Questions.
 - [`docs/implement_useeio_nowcast_plan.md`](docs/implement_useeio_nowcast_plan.md) — **historical** integration plan for the 6th (external) approach (Steps N1–N4).

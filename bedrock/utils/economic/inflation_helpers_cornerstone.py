@@ -29,7 +29,9 @@ from bedrock.utils.math.formulas import (
     compute_Vnorm_matrix,
     compute_x,
 )
-from bedrock.utils.taxonomy.bea.matrix_mappings import USA_GROSS_INDUSTRY_OUTPUT_YEARS
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity_sector import (
     BEA_2017_SECTOR_COMMODITY_CODES,
 )
@@ -383,6 +385,47 @@ def adjust_summary_q_dollar_year(
     return q_summary / p.reindex(q_summary.index, fill_value=1.0)
 
 
+def adjust_summary_x_dollar_year(
+    x_summary: pd.Series[float],
+    from_year: int,
+    to_year: int,
+) -> pd.Series[float]:
+    """Rebase a summary x (industry gross output) vector from ``from_year``
+    USD to ``to_year`` USD by elementwise division by the summary industry
+    price ratio — the industry-axis analogue of ``adjust_summary_q_dollar_year``.
+
+    Direction-agnostic: deflates when from_year > to_year, inflates when
+    from_year < to_year.
+    """
+    p = get_summary_industry_price_ratio(original_year=to_year, target_year=from_year)
+    return x_summary / p.reindex(x_summary.index, fill_value=1.0)
+
+
+def adjust_summary_V_dollar_year(
+    V_summary: pd.DataFrame,
+    from_year: int,
+    to_year: int,
+) -> pd.DataFrame:
+    """Rebase a summary V (Make) matrix from ``from_year`` USD to ``to_year``
+    USD by scaling rows (industries) by the inverse summary commodity price
+    ratio — the summary-level analogue of
+    ``inflate_cornerstone_V_with_industry_pi``.
+
+    Only the row (industry output) axis is adjusted; commodity columns are
+    left unchanged, consistent with how V inflation is handled at detail level.
+
+    Direction-agnostic: deflates when from_year > to_year, inflates when
+    from_year < to_year.
+    """
+    p = get_summary_industry_price_ratio(original_year=to_year, target_year=from_year)
+    p_row = p.reindex(V_summary.index, fill_value=1.0)
+    return pd.DataFrame(
+        V_summary.divide(p_row, axis=0).to_numpy(),
+        index=V_summary.index,
+        columns=V_summary.columns,
+    )
+
+
 @functools.cache
 def get_summary_commodity_price_ratio(
     original_year: int, target_year: int
@@ -419,6 +462,81 @@ def _aggregate_commodity_pi(
         p = pi_com_detail.reindex(children_in_idx, fill_value=100.0)
         wsum = float(w.sum())
         out[str(code)] = float((p * w).sum() / wsum) if wsum > 0 else float(p.mean())
+    return out
+
+
+@functools.cache
+def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
+    """Cornerstone-detail industry PI aggregated to BEA summary, x-weighted.
+
+    Uses 2017 base-year Cornerstone x as weights (relative within-group sizes
+    are stable across years, and this avoids a circular dependency through
+    scale_cornerstone_x → adjust_summary_x_dollar_year).
+    """
+    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+        derive_cornerstone_x,
+    )
+    from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
+        load_bea_v2017_industry_to_bea_v2017_summary,
+    )
+
+    pi_ind_detail = _cornerstone_indexed_industry_pi(year)
+    x_y = derive_cornerstone_x()
+    out = _aggregate_industry_pi(
+        pi_ind_detail,
+        x_y,
+        ta.cast(
+            ta.Mapping[str, ta.Sequence[str]],
+            load_bea_v2017_industry_to_bea_v2017_summary(),
+        ),
+    )
+    return pd.Series(out, dtype=float).reindex(
+        USA_2017_SUMMARY_INDUSTRY_CODES, fill_value=100.0
+    )
+
+
+@functools.cache
+def get_summary_industry_price_ratio(
+    original_year: int, target_year: int
+) -> pd.Series[float]:
+    """Cross-year ratio of summary industry price indices, indexed on
+    ``USA_2017_SUMMARY_INDUSTRY_CODES``.
+
+    Built by aggregating cornerstone-detail industry PI to summary level using
+    x-weighted averaging over each summary sector's cornerstone children.
+    Mirrors ``get_summary_commodity_price_ratio`` but on the industry (row) axis.
+    """
+    pi_orig = _get_summary_industry_price_index(original_year)
+    pi_targ = _get_summary_industry_price_index(target_year)
+    ratio = pi_targ / pi_orig
+    return ratio.where(np.isfinite(ratio), 1.0).fillna(1.0)
+
+
+def _aggregate_industry_pi(
+    pi_ind_detail: pd.Series,
+    x_y: pd.Series,
+    bea_detail_to_summary: ta.Mapping[str, ta.Sequence[str]],
+) -> dict[str, float]:
+    """x-weighted mean of detail industry PI aggregated to BEA summary.
+
+    Inverts ``bea_detail_to_summary`` (detail → summary) to summary → detail
+    children, then applies the same weighted-mean logic as
+    ``_aggregate_commodity_pi``.
+    """
+    summary_to_detail: dict[str, list[str]] = {}
+    for detail_code, summary_codes in bea_detail_to_summary.items():
+        for summary_code in summary_codes:
+            summary_to_detail.setdefault(summary_code, []).append(detail_code)
+
+    out: dict[str, float] = {}
+    for summary_code, children in summary_to_detail.items():
+        children_in_idx = [c for c in children if c in pi_ind_detail.index]
+        if not children_in_idx:
+            continue
+        w = x_y.reindex(children_in_idx, fill_value=0.0)
+        p = pi_ind_detail.reindex(children_in_idx, fill_value=100.0)
+        wsum = float(w.sum())
+        out[summary_code] = float((p * w).sum() / wsum) if wsum > 0 else float(p.mean())
     return out
 
 
@@ -608,6 +726,8 @@ _CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
     _cornerstone_indexed_industry_pi,
     get_summary_commodity_price_index,
     get_sector_commodity_price_index,
+    _get_summary_industry_price_index,
+    get_summary_industry_price_ratio,
     derive_cornerstone_q_and_vnorm_for_year,
     obtain_useeior_detail_industry_cpi_levels,
 )
