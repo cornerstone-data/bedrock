@@ -70,11 +70,11 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
     derive_summary_Ytot_usa_matrix_set,
 )
-from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
-    derive_margins_cornerstone_usa,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     split_electricity_e_for_disaggregated_b,
+)
+from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
+    derive_margins_cornerstone_usa,
 )
 from bedrock.transform.iot.derived_gross_industry_output import (
     derive_gross_output,
