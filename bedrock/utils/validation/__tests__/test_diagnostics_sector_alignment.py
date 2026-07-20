@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+from typing import Generator
+
 import pandas as pd
 import pytest
 
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.schemas.cornerstone_schemas import (
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
 from bedrock.utils.validation.diagnostics_helpers import (
     EfsForDiagnostics,
     OldEfSet,
     align_efs_across_schemas,
+    get_aligned_sector_desc,
 )
 
 # ---------------------------------------------------------------------------
@@ -24,6 +32,17 @@ _NEW_INDEX = (
     + ['S00402']
 )
 
+_ELECTRICITY_DISAGG_CONFIG = (
+    'test_usa_config_waste_disagg_electricity_disaggregation.yaml'
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_usa_config() -> Generator[None, None, None]:
+    reset_usa_config(should_reset_env_var=True)
+    yield
+    reset_usa_config(should_reset_env_var=True)
+
 
 def _build_efs(
     old_values: list[float],
@@ -31,6 +50,22 @@ def _build_efs(
 ) -> EfsForDiagnostics:
     old_df = pd.DataFrame({'v': old_values}, index=pd.Index(_OLD_INDEX))
     new_df = pd.DataFrame({'v': new_values}, index=pd.Index(_NEW_INDEX))
+    return EfsForDiagnostics(
+        D_new=new_df,
+        N_new=new_df.copy(),
+        D_old=OldEfSet(raw=old_df, inflated=old_df.copy()),
+        N_old=OldEfSet(raw=old_df.copy(), inflated=old_df.copy()),
+    )
+
+
+def _build_electricity_disagg_efs(
+    old_index: list[str],
+    new_index: list[str],
+    old_values: list[float],
+    new_values: list[float],
+) -> EfsForDiagnostics:
+    old_df = pd.DataFrame({'v': old_values}, index=pd.Index(old_index))
+    new_df = pd.DataFrame({'v': new_values}, index=pd.Index(new_index))
     return EfsForDiagnostics(
         D_new=new_df,
         N_new=new_df.copy(),
@@ -129,3 +164,93 @@ class TestAlignEfsAcrossSchemas:
         assert list(result.D_new.index) == idx
         assert result.D_new.loc['A', 'v'] == pytest.approx(4.0)
         assert result.D_old.raw.loc['A', 'v'] == pytest.approx(1.0)
+
+
+class TestElectricityDisaggAlignment:
+    _OLD_INDEX = ['1111A0', ELECTRICITY_AGGREGATE_SECTOR]
+    _NEW_INDEX = ['1111A0', *ELECTRICITY_DISAGG_SECTORS]
+
+    def test_electricity_disagg_alignment(self) -> None:
+        set_global_usa_config(_ELECTRICITY_DISAGG_CONFIG)
+
+        baseline_elec = 30.0
+        child_new_vals = [10.0, 20.0, 40.0]
+        efs = _build_electricity_disagg_efs(
+            old_index=self._OLD_INDEX,
+            new_index=self._NEW_INDEX,
+            old_values=[1.0, baseline_elec],
+            new_values=[1.1, *child_new_vals],
+        )
+
+        result, active = align_efs_across_schemas(efs)
+
+        assert (
+            active[ELECTRICITY_AGGREGATE_SECTOR] == 'old-only (electricity aggregate)'
+        )
+        for child in ELECTRICITY_DISAGG_SECTORS:
+            assert active[child] == 'new-only (electricity subsector)'
+        assert len(active) == 4
+
+        for child in ELECTRICITY_DISAGG_SECTORS:
+            assert result.D_old.raw.loc[child, 'v'] == pytest.approx(baseline_elec)
+        assert result.D_new.loc[ELECTRICITY_AGGREGATE_SECTOR, 'v'] == pytest.approx(
+            sum(child_new_vals) / len(child_new_vals)
+        )
+
+        assert result.N_old.raw.loc['221121', 'v'] == pytest.approx(baseline_elec)
+        assert result.N_new.loc[ELECTRICITY_AGGREGATE_SECTOR, 'v'] == pytest.approx(
+            sum(child_new_vals) / len(child_new_vals)
+        )
+
+        assert list(result.D_new.index) == list(result.D_old.raw.index)
+        assert list(result.N_new.index) == list(result.N_old.raw.index)
+
+    def test_flag_off_no_electricity_mapping(self) -> None:
+        efs = _build_electricity_disagg_efs(
+            old_index=self._OLD_INDEX,
+            new_index=self._NEW_INDEX,
+            old_values=[1.0, 30.0],
+            new_values=[1.1, 10.0, 20.0, 40.0],
+        )
+
+        result, active = align_efs_across_schemas(efs)
+
+        assert '221110' not in active
+        assert pd.isna(result.D_old.raw.loc['221110', 'v'])
+
+    def test_partial_electricity_disagg_skipped_when_incomplete(self) -> None:
+        set_global_usa_config(_ELECTRICITY_DISAGG_CONFIG)
+
+        partial_new_index = ['1111A0', '221110', '221121']
+        efs = _build_electricity_disagg_efs(
+            old_index=self._OLD_INDEX,
+            new_index=partial_new_index,
+            old_values=[1.0, 30.0],
+            new_values=[1.1, 10.0, 20.0],
+        )
+
+        result, active = align_efs_across_schemas(efs)
+
+        assert ELECTRICITY_AGGREGATE_SECTOR not in active
+        for child in ('221110', '221121'):
+            assert child not in active
+            assert pd.isna(result.D_old.raw.loc[child, 'v'])
+
+
+def test_get_aligned_sector_desc_electricity() -> None:
+    set_global_usa_config(_ELECTRICITY_DISAGG_CONFIG)
+    desc_on = get_aligned_sector_desc()
+
+    assert desc_on['221110'] == 'Electric power generation'
+    assert desc_on['221121'] == 'Electric Bulk Power Transmission and Control'
+    assert desc_on['221122'] == 'Electric Power Distribution'
+    assert (
+        desc_on[ELECTRICITY_AGGREGATE_SECTOR]
+        == 'Electric power generation, transmission, and distribution'
+    )
+
+    reset_usa_config(should_reset_env_var=True)
+    desc_off = get_aligned_sector_desc()
+
+    assert '221121' not in desc_off
+    assert '221122' not in desc_off

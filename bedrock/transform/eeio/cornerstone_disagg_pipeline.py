@@ -30,6 +30,10 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     industry_corresp,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
+    build_electricity_disagg_go_weights,
+    disaggregate_electricity_commodity_row_in_y,
+    disaggregate_electricity_make_use_va,
+    distribute_electricity_aggregate_x_using_v_row_shares,
     reallocate_electricity_coproduction,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
@@ -73,8 +77,17 @@ def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfi
 
 @functools.cache
 def cornerstone_sector_disagg_active() -> bool:
-    """True when sector disaggregation (waste and/or electricity) is enabled."""
+    """True when sector disaggregation (waste and/or electricity) is enabled.
+
+    Electricity disaggregation requires waste (``USAConfig`` validator), so
+    ``implement_waste_disaggregation`` alone is sufficient for routing.
+    """
     return get_usa_config().implement_waste_disaggregation
+
+
+@functools.cache
+def electricity_disaggregation_enabled() -> bool:
+    return get_usa_config().implement_electricity_disaggregation
 
 
 @functools.cache
@@ -163,18 +176,24 @@ def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
     VA = derive_cornerstone_VA_after_waste()
     if electricity_reallocation_enabled():
         V, Udom, Uimp, VA = reallocate_electricity_coproduction(V, Udom, Uimp, VA)
+    if electricity_disaggregation_enabled():
+        V, Udom, Uimp, VA = disaggregate_electricity_make_use_va(V, Udom, Uimp, VA)
     return CornerstoneDisaggIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
 
 
 @functools.cache
 def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
-    """Correspondence-mapped Y with optional waste disagg (no electricity step)."""
+    """Correspondence-mapped Y with optional waste and electricity disagg."""
     Ytot_orig = load_2017_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
     weights = get_waste_disagg_weights()
     if weights is not None:
         Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
+        Ytot.index.name = 'sector'
+    if electricity_disaggregation_enabled():
+        w = build_electricity_disagg_go_weights()
+        Ytot = disaggregate_electricity_commodity_row_in_y(Ytot, w)
         Ytot.index.name = 'sector'
     return Ytot
 
@@ -184,22 +203,25 @@ def distribute_waste_parent_x_using_v_row_shares(
 ) -> pd.Series[float]:
     """Split duplicated BEA parent gross output across waste children using V row shares."""
     if get_waste_disagg_weights() is None:
-        return x_cs
-    x = x_cs.copy()
-    x_v = compute_x(V=derive_disagg_io_bundle().V)
-    present = [
-        c
-        for c in _WASTE_NEW_CODES
-        if c in x.index and c in x_v.index and pd.notna(x_v.loc[c])
-    ]
-    if not present:
-        return x
-    xv_w = x_v.reindex(present).astype(float)
-    total_v = float(xv_w.sum())
-    if total_v <= 0:
-        return x
-    parent_go = float(x.loc[present[0]])
-    shares = xv_w / total_v
-    for code in present:
-        x.loc[code] = parent_go * float(shares.loc[code])
+        x = x_cs
+    else:
+        x = x_cs.copy()
+        x_v = compute_x(V=derive_disagg_io_bundle().V)
+        present = [
+            c
+            for c in _WASTE_NEW_CODES
+            if c in x.index and c in x_v.index and pd.notna(x_v.loc[c])
+        ]
+        if present:
+            xv_w = x_v.reindex(present).astype(float)
+            total_v = float(xv_w.sum())
+            if total_v > 0:
+                parent_go = float(x.loc[present[0]])
+                shares = xv_w / total_v
+                for code in present:
+                    x.loc[code] = parent_go * float(shares.loc[code])
+    if electricity_disaggregation_enabled():
+        return distribute_electricity_aggregate_x_using_v_row_shares(
+            x, derive_disagg_io_bundle().V
+        )
     return x
