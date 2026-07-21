@@ -228,6 +228,17 @@ def test_electricity_disaggregation_config_parsing() -> None:
     assert config.implement_electricity_disaggregation is True
 
 
+def test_v0_2_electricity_disaggregation_config_parsing() -> None:
+    config = _load_usa_config_from_file_name(
+        '2025_usa_cornerstone_v0_2_electricity_disaggregation.yaml'
+    )
+    assert config.implement_electricity_disaggregation is True
+    assert config.implement_electricity_mixed_units is False
+    assert config.snapshot_version_or_git_sha == (
+        '7372464249c434c9bebb172c065a4d0e3702176e'
+    )
+
+
 def test_electricity_disaggregation_requires_reallocation_and_waste() -> None:
     with pytest.raises(
         ValueError,
