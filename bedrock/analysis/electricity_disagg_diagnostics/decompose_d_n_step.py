@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
+
+import pandas as pd
 
 from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
     _clear_model_caches,
@@ -11,6 +13,10 @@ from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
     _weighted_ef,
 )
 from bedrock.publish.model_objects import get_B, get_D, get_L, get_N, get_q
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    electricity_conversion_factors,
+    electricity_mixed_units_enabled,
+)
 from bedrock.transform.eeio.derived import derive_E_usa
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_mixed_units,
@@ -19,9 +25,14 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x_after_redefinition,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
+    GENERATION_SECTOR,
     get_electricity_commodity_row_weights,
 )
-from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.config.usa_config import (
+    get_usa_config,
+    reset_usa_config,
+    set_global_usa_config,
+)
 from bedrock.utils.math.formulas import (
     backcompute_y_from_A_and_q,
     compute_d,
@@ -53,8 +64,15 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
     N_vec = compute_n(M=M)
     D_pub = get_D()
     N_pub = get_N()
-    aq = derive_cornerstone_Aq_scaled()
-    monetary_q = aq.scaled_q
+    aq_monetary = derive_cornerstone_Aq_scaled()
+    monetary_q = aq_monetary.scaled_q
+    mixed = electricity_mixed_units_enabled()
+    c_col: float | None = None
+    if mixed:
+        c_col, _ = electricity_conversion_factors(aq_monetary)
+        aq = derive_cornerstone_Aq_mixed_units()
+    else:
+        aq = aq_monetary
     q = get_q()
     y = backcompute_y_from_A_and_q(A=aq.Adom, q=q)
     L_dom = compute_L_matrix(A=aq.Adom)
@@ -70,7 +88,8 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
             continue
         e_s = _scalar_float(E[s].sum())
         x_s = _scalar_float(x[s])
-        q_s = _sector_q_usd(s, q, monetary_q)
+        q_usd = _sector_q_usd(s, q, monetary_q)
+        q_rep = _scalar_float(q[s]) if s in q.index else 0.0
         bi = e_s / x_s if x_s else 0.0
         vnorm_diag = (
             _scalar_float(Vnorm.at[s, s])
@@ -88,33 +107,44 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
             if s in N_pub.columns
             else _scalar_float(N_vec[s])
         )
+        # USD-comparable intensities for mixed generation (kg/MWh → kg/USD).
+        d_usd = (
+            d_s * float(c_col) if mixed and s == GENERATION_SECTOR and c_col else d_s
+        )
+        n_usd = (
+            n_s * float(c_col) if mixed and s == GENERATION_SECTOR and c_col else n_s
+        )
         l_diag = _scalar_float(L.at[s, s]) if s in L.index else float("nan")
         ldom_diag = _scalar_float(L_dom.at[s, s]) if s in L_dom.index else float("nan")
         y_s = _scalar_float(y[s]) if s in y.index else 0.0
         ly_s = _scalar_float(ly[s]) if s in ly.index else 0.0
         bly_s = _scalar_float(bly_vec[s]) if s in bly_vec.index else 0.0
         bly_check = d_s * ly_s
-        q_usd_sum += q_s
-        d_num += d_s * q_s
-        n_num += n_s * q_s
+        q_usd_sum += q_usd
+        d_num += d_usd * q_usd
+        n_num += n_usd * q_usd
         rows.append(
             {
                 "sector": s,
                 "E_Mt": e_s / 1e9,
                 "x_B": x_s / 1e9,
-                "q_usd_B": q_s / 1e9,
+                "q_usd_B": q_usd / 1e9,
+                "q_rep_B": q_rep / 1e9,
                 "E_over_x": bi,
                 "Vnorm_diag": vnorm_diag,
                 "sum_B_D": b_sum,
                 "D": d_s,
+                "D_usd": d_usd,
                 "L_diag": l_diag,
                 "Ldom_diag": ldom_diag,
                 "N": n_s,
+                "N_usd": n_usd,
                 "N_over_D": n_s / d_s if d_s else float("nan"),
                 "y_nab_B": y_s / 1e9,
                 "Ldom_y_B": ly_s / 1e9,
                 "BLy_Mt": bly_s / 1e9,
                 "D_times_Ldom_y_Mt": bly_check / 1e9,
+                "mixed_gen": mixed and s == GENERATION_SECTOR,
             }
         )
 
@@ -122,6 +152,8 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
         "label": label,
         "config": config,
         "sectors": sectors,
+        "mixed": mixed,
+        "c_col": c_col,
         "rows": rows,
         "E_total_Mt": sum(r["E_Mt"] for r in rows),
         "q_usd_total_B": q_usd_sum / 1e9,
@@ -129,8 +161,12 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
         "BLy_total_Mt": sum(r["BLy_Mt"] for r in rows),
         "D_weighted": d_num / q_usd_sum if q_usd_sum else 0.0,
         "N_weighted": n_num / q_usd_sum if q_usd_sum else 0.0,
-        "D_weighted_fn": _weighted_ef(D_pub, q, monetary_q, sectors),
-        "N_weighted_fn": _weighted_ef(N_pub, q, monetary_q, sectors),
+        "D_weighted_fn": _weighted_ef(
+            D_pub, q, monetary_q, sectors, c_col=c_col, mixed=mixed
+        ),
+        "N_weighted_fn": _weighted_ef(
+            N_pub, q, monetary_q, sectors, c_col=c_col, mixed=mixed
+        ),
     }
 
 
@@ -344,8 +380,10 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
         "",
         "## Walkthrough: reallocation to 3-way split (D, N, BLy)",
         "",
-        "This section explains why **D** rises from **2.883** to **3.347 kg/USD** and **N** from "
-        "**3.316** to **4.338 kg/USD**, and why **BLy** rises from **1,716** to **1,987 MtCO₂e**.",
+        "This section explains why **D** rises from "
+        f"**{realloc['D_weighted']:.3f}** to **{split['D_weighted']:.3f} kg/USD** and **N** from "
+        f"**{realloc['N_weighted']:.3f}** to **{split['N_weighted']:.3f} kg/USD**, and why **BLy** rises from "
+        f"**{realloc['BLy_total_Mt']:,.0f}** to **{split['BLy_total_Mt']:,.0f} MtCO₂e**.",
         "",
         "### Formulas (production diagnostics path)",
         "",
@@ -430,7 +468,8 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
     lines.extend(
         [
             "",
-            "Generation dominates (~99.7% of block D) because `D_110 = 8.60` and `q_110` is 39% of block q.",
+            "Generation dominates (~99.7% of block D) because `D_110` is large and "
+            "`q_110` is a substantial share of block q.",
             "",
             "#### Block N (q-weighted)",
             "",
@@ -483,11 +522,380 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
             f"| y_nab block (B) | {realloc['y_nab_total_B']:.2f} | {split['y_nab_total_B']:.2f} | "
             f"{split['y_nab_total_B']-realloc['y_nab_total_B']:+.2f} | IO split reallocates domestic demand |",
             "",
-            "**Why BLy rises more than E (+33 Mt):** BLy is not E. It is **attributed production** "
-            "through the IO identity. Generation BLy uses `D_110 = 8.60` (not the aggregate 2.88) "
-            "times `(L_dom @ y_nab)_110` ($230B). Transmission adds $5.7 MtCO₂e; distribution has "
-            "D≈0 so BLy≈0. The block sum **1,987 Mt** exceeds inventory **1,471 Mt** because BLy "
-            "counts attributed production through domestic final demand, not raw FBS totals.",
+            f"**Why BLy rises more than E ({split['E_total_Mt']-realloc['E_total_Mt']:+.0f} Mt):** "
+            "BLy is not E. It is **attributed production** through the IO identity. Generation BLy uses "
+            f"`D_110 = {s[0]['D']:.2f}` (not the aggregate {realloc['D_weighted']:.2f}) "
+            f"times `(L_dom @ y_nab)_110` (${s[0]['Ldom_y_B']:.0f}B). Transmission adds "
+            f"{s[1]['BLy_Mt']:.1f} MtCO₂e; distribution has D≈0 so BLy≈0. The block sum "
+            f"**{split['BLy_total_Mt']:,.0f} Mt** exceeds inventory **{split['E_total_Mt']:,.0f} Mt** "
+            "because BLy counts attributed production through domestic final demand, not raw FBS totals.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _conversion_factor_detail(config: str) -> dict[str, Any]:
+    """Live ``c_col`` / ``c_row`` inputs and a few example purchasers."""
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        us_total_net_generation_mwh,
+    )
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        _model_year_y_row_221110,
+    )
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        _class_price,
+        electricity_class_row_factors,
+        electricity_output_factor,
+    )
+    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+        build_end_use_map,
+        table_2_4_prices_cents_kwh,
+    )
+
+    reset_usa_config()
+    _clear_model_caches()
+    set_global_usa_config(config)
+    aq = derive_cornerstone_Aq_scaled()
+    cfg = get_usa_config()
+    q_usd = float(aq.scaled_q[GENERATION_SECTOR])
+    mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
+    c_col = electricity_output_factor(q_usd, mwh)
+    prices = cast(dict[str, float], table_2_4_prices_cents_kwh(cfg.usa_ghg_data_year))
+    end_use_map = build_end_use_map()
+    y_row = _model_year_y_row_221110(aq)
+    adom_row = cast(pd.Series, aq.Adom.loc[GENERATION_SECTOR])
+    c_row = electricity_class_row_factors(
+        adom_row, aq.scaled_q, y_row, prices, end_use_map, mwh
+    )
+
+    denom = 0.0
+    inter_examples: list[dict[str, Any]] = []
+    for col in adom_row.index:
+        coef = float(adom_row[col])
+        if coef == 0.0:
+            continue
+        p_j = _class_price(str(col), prices, end_use_map)
+        flow_usd = coef * float(aq.scaled_q[col])
+        denom += flow_usd / p_j
+        if abs(flow_usd) >= 5e9 and len(inter_examples) < 3:
+            inter_examples.append(
+                {
+                    "col": str(col),
+                    "end_use": end_use_map[str(col)],
+                    "p": p_j,
+                    "a": coef,
+                    "q_B": float(aq.scaled_q[col]) / 1e9,
+                    "flow_B": flow_usd / 1e9,
+                    "c_j": float(c_row[col]),
+                }
+            )
+    for col in y_row.index:
+        y_val = float(y_row[col])
+        if y_val == 0.0:
+            continue
+        denom += y_val / _class_price(str(col), prices, end_use_map)
+
+    lam = float(mwh / denom)
+    fd_examples: list[dict[str, Any]] = []
+    for col in y_row.index:
+        y_val = float(y_row[col])
+        if abs(y_val) < 5e9:
+            continue
+        p_f = _class_price(str(col), prices, end_use_map)
+        fd_examples.append(
+            {
+                "col": str(col),
+                "end_use": end_use_map[str(col)],
+                "p": p_f,
+                "y_B": y_val / 1e9,
+                "c_j": float(c_row[col]),
+            }
+        )
+        if len(fd_examples) >= 2:
+            break
+
+    return {
+        "model_base_year": int(cfg.model_base_year),
+        "ghg_year": int(cfg.usa_ghg_data_year),
+        "q_usd": q_usd,
+        "mwh": mwh,
+        "c_col": c_col,
+        "prices": prices,
+        "lam": lam,
+        "denom": denom,
+        "inter_examples": inter_examples,
+        "fd_examples": fd_examples,
+        "c_row_min": float(c_row.min()),
+        "c_row_median": float(c_row.median()),
+        "c_row_max": float(c_row.max()),
+        "n_c_row": int(c_row.notna().sum()),
+    }
+
+
+def _render_conversion_factors_subsection(detail: dict[str, Any]) -> list[str]:
+    q_b = detail["q_usd"] / 1e9
+    mwh_b = detail["mwh"] / 1e9
+    prices = detail["prices"]
+    lines = [
+        "### How `c_col` and `c_row` are calculated",
+        "",
+        "Mixed units need two kinds of conversion factors for generation (**221110**):",
+        "",
+        "| Factor | Role | Units |",
+        "|--------|------|-------|",
+        "| **`c_col`** | Converts the **generation column** "
+        "(output `q_110`, inputs into gen, `B[:,110]`) from USD to MWh | MWh / USD |",
+        "| **`c_row`** | Converts the **generation sales row** "
+        "(`Adom[110, ·]`, `Aimp[110, ·]`, and FD purchases of gen) from USD to MWh, "
+        "**by purchaser** (end-use class) | MWh / USD (per column) |",
+        "",
+        "`c_col` is a single national average intensity. `c_row` varies by purchaser "
+        "because residential, commercial, industrial, and transportation buyers face "
+        "different retail electricity prices (EIA EPA Table 2.4).",
+        "",
+        "#### `c_col` — output / column factor",
+        "",
+        "```",
+        "c_col = MWh_eGRID / q_USD_221110",
+        "```",
+        "",
+        f"- **MWh_eGRID** = U.S. total net generation from eGRID for "
+        f"model_base_year **{detail['model_base_year']}** "
+        f"= **{detail['mwh']:,.0f} MWh** ({mwh_b:.4f} × 10⁹).",
+        f"- **q_USD_221110** = scaled commodity output of generation "
+        f"= **${q_b:.4f} B**.",
+        "",
+        "```",
+        f"c_col = {detail['mwh']:,.0f} / {detail['q_usd']:,.2f}",
+        f"      = {detail['c_col']:.6f} MWh/USD",
+        "```",
+        "",
+        "Interpretation: each dollar of generation output corresponds to "
+        f"**{detail['c_col']:.4f} MWh** on average. Applying `q_MWh = q_USD × c_col` "
+        "and `B_MWh = B_USD / c_col` keeps `B·q` (kg CO₂e) unchanged.",
+        "",
+        "#### `c_row` — sales-row factors by purchaser class",
+        "",
+        "Purchaser column `j` is mapped to an EPA end-use class "
+        "(Residential / Commercial / Industrial / Transportation) via "
+        "`build_end_use_map()`, then priced with Table 2.4 retail rates "
+        f"(cents/kWh, GHG year **{detail['ghg_year']}**):",
+        "",
+        "| End-use class | Table 2.4 price (¢/kWh) |",
+        "|---------------|------------------------:|",
+        f"| Residential | {prices['Residential']:.2f} |",
+        f"| Commercial | {prices['Commercial']:.2f} |",
+        f"| Industrial | {prices['Industrial']:.2f} |",
+        f"| Transportation | {prices['Transportation']:.2f} |",
+        "",
+        "Domestic generation-row USD flows are intermediate sales "
+        "`A_110,j · q_j` plus model-year final-demand purchases `y_110,f`. "
+        "Define a price-weighted denominator and a scalar **λ** that forces "
+        "total converted MWh to equal eGRID generation:",
+        "",
+        "```",
+        "denom = Σ_j (A_110,j · q_j) / p_j  +  Σ_f y_110,f / p_f",
+        "λ     = MWh_eGRID / denom",
+        "c_j   = λ / p_j     # for every purchaser column j (and FD category f)",
+        "```",
+        "",
+        "Here `p_j` is the Table 2.4 price for `j`'s end-use class. **λ** absorbs "
+        "unit consistency between USD flows and ¢/kWh prices so that",
+        "",
+        "```",
+        "Σ_j (A_110,j · q_j · c_j) + Σ_f (y_110,f · c_f) = MWh_eGRID",
+        "```",
+        "",
+        "exactly (row MWh identity). Numerically for this run:",
+        "",
+        "```",
+        f"denom = {detail['denom']:.4e}",
+        f"λ     = {detail['mwh']:,.0f} / denom = {detail['lam']:.6f}",
+        f"c_row ranges [{detail['c_row_min']:.6f}, {detail['c_row_max']:.6f}] "
+        f"MWh/USD across {detail['n_c_row']} columns "
+        f"(median {detail['c_row_median']:.6f})",
+        "```",
+        "",
+    ]
+    if detail["inter_examples"]:
+        ex0 = detail["inter_examples"][0]
+        lines.extend(
+            [
+                f"**Example — intermediate purchaser** ({ex0['col']}, {ex0['end_use']}):",
+                "",
+                "```",
+                f"p_{ex0['col']} = {ex0['p']:.2f} ¢/kWh  ({ex0['end_use']})",
+                f"A_110,{ex0['col']} = {ex0['a']:.6f}",
+                f"q_{ex0['col']} = ${ex0['q_B']:.2f} B",
+                f"flow_USD = A · q = ${ex0['flow_B']:.2f} B",
+                f"c_{ex0['col']} = λ / p = {detail['lam']:.6f} / {ex0['p']:.2f} "
+                f"= {ex0['c_j']:.6f} MWh/USD",
+                "```",
+                "",
+            ]
+        )
+        if len(detail["inter_examples"]) > 1:
+            ex1 = detail["inter_examples"][1]
+            lines.extend(
+                [
+                    f"**Another intermediate example** ({ex1['col']}, {ex1['end_use']}): "
+                    f"`p = {ex1['p']:.2f}` ¢/kWh → "
+                    f"`c = {ex1['c_j']:.6f}` MWh/USD "
+                    f"(flow ${ex1['flow_B']:.2f} B).",
+                    "",
+                ]
+            )
+    if detail["fd_examples"]:
+        fd0 = detail["fd_examples"][0]
+        lines.extend(
+            [
+                f"**Example — final demand** ({fd0['col']}, {fd0['end_use']}):",
+                "",
+                "```",
+                f"y_110,{fd0['col']} = ${fd0['y_B']:.2f} B",
+                f"p = {fd0['p']:.2f} ¢/kWh ({fd0['end_use']})",
+                f"c = λ / p = {detail['lam']:.6f} / {fd0['p']:.2f} "
+                f"= {fd0['c_j']:.6f} MWh/USD",
+                "```",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "In `A`, the generation **row** is multiplied by `c_j` (USD sales → MWh sales) "
+            "and the generation **column** is divided by `c_col` (inputs per $ → inputs per MWh). "
+            "Cheaper industrial power gets a **larger** `c_j` than residential for the same λ, "
+            "so a dollar of industrial purchases maps to more MWh.",
+            "",
+        ]
+    )
+    return lines
+
+
+def render_unit_conversion_walkthrough_md(
+    split: dict[str, Any],
+    mixed: dict[str, Any],
+    *,
+    conversion_detail: dict[str, Any] | None = None,
+) -> str:
+    """Explain why electricity-block BLy is unchanged under PR4 mixed units."""
+    c_col = float(mixed["c_col"] or 0.0)
+    s_rows = {r["sector"]: r for r in split["rows"]}
+    m_rows = {r["sector"]: r for r in mixed["rows"]}
+    gen = GENERATION_SECTOR
+    s110, m110 = s_rows[gen], m_rows[gen]
+    d_bly = mixed["BLy_total_Mt"] - split["BLy_total_Mt"]
+    d_e = mixed["E_total_Mt"] - split["E_total_Mt"]
+    d_d = mixed["D_weighted"] - split["D_weighted"]
+    d_n = mixed["N_weighted"] - split["N_weighted"]
+
+    lines = [
+        "",
+        "---",
+        "",
+        "## Walkthrough: 3-way split to unit conversion (D, N, BLy)",
+        "",
+        "This section explains what PR4 (mixed units) changes — and why **electricity-block "
+        f"BLy stays at {split['BLy_total_Mt']:,.2f} MtCO₂e** (Δ = {d_bly:+.2e} Mt).",
+        "",
+        "### What PR4 does",
+        "",
+        "PR4 converts **only generation (221110)** from USD to physical MWh via "
+        f"`c_col = {c_col:.6f} MWh/USD` (eGRID net generation ÷ monetary `q_110`):",
+        "",
+        "| Object | Conversion |",
+        "|--------|------------|",
+        "| `q_110` | `q_MWh = q_USD × c_col` |",
+        "| `B[:, 110]` (and thus `D_110`) | `B_MWh = B_USD / c_col` → `D` in kg/MWh |",
+        "| `Adom`/`Aimp` gen row & column | Rescaled with `c_col` / `c_row` so IO balance holds in mixed units |",
+        "| `E`, `x`, T/D sectors (221121/221122) | **Unchanged** |",
+        "",
+    ]
+    if conversion_detail is not None:
+        lines.extend(_render_conversion_factors_subsection(conversion_detail))
+    lines.extend(
+        [
+            "### Side-by-side sector table",
+            "",
+            "3-way (all USD) vs unit conversion (221110 in MWh; T/D still USD). "
+            "`(L_dom @ y)` equals reported `q` under row balance.",
+            "",
+            "| Sector | E (Mt) | D (3-way) | D (mixed) | q (3-way, USD B) | q (mixed) | "
+            "L@y (3-way) | L@y (mixed) | BLy 3-way (Mt) | BLy mixed (Mt) |",
+            "|--------|-------:|----------:|----------:|-----------------:|----------:|"
+            "-----------:|------------:|---------------:|---------------:|",
+        ]
+    )
+    for s in ELECTRICITY_DISAGG_SECTORS:
+        sr, mr = s_rows[s], m_rows[s]
+        if mr["mixed_gen"]:
+            d_mix = f"{mr['D']:.4f} kg/MWh"
+            q_mix = f"{mr['q_rep_B']:.4f} B MWh"
+            ly_mix = f"{mr['Ldom_y_B']:.4f} B MWh"
+        else:
+            d_mix = f"{mr['D']:.4f} kg/USD"
+            q_mix = f"${mr['q_rep_B']:.2f} B"
+            ly_mix = f"${mr['Ldom_y_B']:.2f} B"
+        lines.append(
+            f"| {s} | {sr['E_Mt']:.2f} | {sr['D']:.4f} kg/USD | {d_mix} | "
+            f"${sr['q_usd_B']:.2f} | {q_mix} | ${sr['Ldom_y_B']:.2f} | {ly_mix} | "
+            f"**{sr['BLy_Mt']:.2f}** | **{mr['BLy_Mt']:.2f}** |"
+        )
+    lines.extend(
+        [
+            f"| **Sum** | **{split['E_total_Mt']:.2f}** | — | — | "
+            f"**${split['q_usd_total_B']:.2f}** | — | — | — | "
+            f"**{split['BLy_total_Mt']:.2f}** | **{mixed['BLy_total_Mt']:.2f}** |",
+            "",
+            "### Why BLy is unchanged (the key identity)",
+            "",
+            "Per sector, attributed emissions are",
+            "",
+            "```",
+            "BLy_j = D_j * (L_dom @ y_nab)_j",
+            "```",
+            "",
+            "With a balanced domestic IO, `L_dom @ y_nab = q`, so **`BLy_j = D_j * q_j`**.",
+            "",
+            "For generation, PR4 multiplies `q` by `c_col` and divides `D` by the **same** `c_col`:",
+            "",
+            "```",
+            f"c_col = {c_col:.6f} MWh/USD",
+            f"D_110_USD  = {s110['D']:.6f} kg/USD",
+            f"q_110_USD  = ${s110['q_usd_B']:.4f} B",
+            f"BLy_110    = {s110['D']:.6f} * ${s110['q_usd_B']:.4f}B = {s110['BLy_Mt']:.2f} Mt",
+            "",
+            f"D_110_MWh  = D_110_USD / c_col = {m110['D']:.6f} kg/MWh",
+            f"q_110_MWh  = q_110_USD * c_col = {m110['q_rep_B']:.6f} B MWh",
+            f"BLy_110    = {m110['D']:.6f} * {m110['q_rep_B']:.6f}B = {m110['BLy_Mt']:.2f} Mt",
+            "```",
+            "",
+            "The `c_col` factors cancel: `(D/c_col) * (q·c_col) = D·q`. Transmission and "
+            "distribution never change units, so their `BLy` is identical. Therefore the "
+            "**block sum is identical** at Mt precision — not an accident of rounding, but "
+            "the design of the mixed-units transform.",
+            "",
+            "National total U.S. BLy is likewise unchanged for the same reason: only the "
+            "generation column's intensity and activity units flip together; inventory `E` "
+            "and all other sectors' `(D, q)` pairs are untouched.",
+            "",
+            "### What *does* change (and what does not)",
+            "",
+            "| Metric | 3-way split | Unit conversion | Change | Why |",
+            "|--------|------------:|----------------:|-------:|-----|",
+            f"| E_block (Mt) | {split['E_total_Mt']:.2f} | {mixed['E_total_Mt']:.2f} | "
+            f"{d_e:+.2f} | FBS inventory not recomputed |",
+            f"| D_block (kg/USD-equiv) | {split['D_weighted']:.4f} | {mixed['D_weighted']:.4f} | "
+            f"{d_d:+.4f} | USD-equivalent D uses `D_MWh × c_col` for gen; stable |",
+            f"| N_block (kg/USD-equiv) | {split['N_weighted']:.4f} | {mixed['N_weighted']:.4f} | "
+            f"{d_n:+.4f} | `L` changes with mixed `A`; total EF intensities move |",
+            f"| BLy_block (Mt) | {split['BLy_total_Mt']:.2f} | {mixed['BLy_total_Mt']:.2f} | "
+            f"{d_bly:+.2e} | `D·q` invariant under `c_col` |",
+            "",
+            "**Takeaway:** Mixed units re-express generation on a physical activity basis "
+            "(`kg/MWh` × MWh). Absolute attributed emissions (`BLy`) are invariant; "
+            "Leontief total intensities (`N`) need not be, because `A`/`L` are rewritten.",
             "",
         ]
     )
@@ -513,6 +921,11 @@ def append_walkthrough_to_report(out_path: str) -> None:
         "3-way split",
         list(ELECTRICITY_DISAGG_SECTORS),
     )
+    mixed = _analyze(
+        "2025_usa_cornerstone_v0_2_electricity_mixed_units",
+        "unit conversion",
+        list(ELECTRICITY_DISAGG_SECTORS),
+    )
     split_block = _analyze_y_nab_block(
         "2025_usa_cornerstone_v0_2_electricity_disaggregation",
         list(ELECTRICITY_DISAGG_SECTORS),
@@ -522,10 +935,17 @@ def append_walkthrough_to_report(out_path: str) -> None:
         list(ELECTRICITY_DISAGG_SECTORS),
         mixed=True,
     )
+    conversion_detail = _conversion_factor_detail(
+        "2025_usa_cornerstone_v0_2_electricity_mixed_units"
+    )
     with open(out_path, encoding="utf-8") as f:
         base = _strip_supplemental_sections(f.read())
-    supplemental = render_walkthrough_md(realloc, split) + render_y_nab_section_md(
-        realloc, split_block, mixed_block
+    supplemental = (
+        render_walkthrough_md(realloc, split)
+        + render_unit_conversion_walkthrough_md(
+            split, mixed, conversion_detail=conversion_detail
+        )
+        + render_y_nab_section_md(realloc, split_block, mixed_block)
     )
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(base + supplemental)
