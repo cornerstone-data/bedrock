@@ -1,0 +1,10 @@
+author: U.S. Bureau of Economic Analysis
+source_name: PCE Bridge Detail
+source_url: 'https://apps.bea.gov/industry/release/xlsx/PCEBridge_Detail.xlsx'
+original_data_download_date: '2026-07-09'
+bib_id: BEA_PCEBridge
+format: csv
+url: None
+parse_response_fxn: !script_function:BEA bea_parse
+years:
+  - 2017

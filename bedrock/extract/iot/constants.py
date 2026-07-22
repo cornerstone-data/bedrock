@@ -4,6 +4,7 @@ from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 
 GCS_USA_MAKE_USE_DIR = gcs_extract_input_path("USA_AllTables_MakeUse")
 GCS_USA_SUP_DIR = gcs_extract_input_path("USA_AllTablesSUP")
+GCS_USA_PCE_BRIDGE_DIR = gcs_extract_input_path("USA_PCEBridge")
 
 GCS_GDP_DIR = gcs_extract_input_path("BEA_PriceIndex")
 GCS_GDP_DETAIL_TABLES = ta.Literal["UGO304-A", "UGO305-A"]
