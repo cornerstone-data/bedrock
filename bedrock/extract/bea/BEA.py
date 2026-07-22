@@ -167,7 +167,7 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
     df["Location"] = US_FIPS
     df = assign_fips_location_system(df, year)
     df['FlowAmount'] = df['FlowAmount']
-    df["Unit"] = f"Million USD {year}" if "PCEBridge" in source else "Million USD"
+    df["Unit"] = "Million USD"
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 5  # tmp
     df['Description'] = (
