@@ -1,6 +1,21 @@
 # extract
 
 This folder contains modules and scripts for data ingestion and raw data loaders. It serves as the entry point for extracting, reading, and importing datasets in their original form.
+Many of these datasets are extracted from raw sources and stored in the form of Flow-By-Activity (FBA) datasets.
+
+## Generate a Flow-By-Activity
+```
+uv run python -m bedrock.extract.generateflowbyactivity --year {YEAR} --source {SOURCE_NAME}
+```
+The {SOURCE_NAME} matches the name of the *.yaml file that defines the FBA method.
+
+example
+
+```
+uv run python -m bedrock.extract.generateflowbyactivity --year 2017 --source BEA_PCEBridge
+```
+
+The raw data will be downloaded and stored in `bedrock/extract/input_data` and the FBA will be stored in *.parquet format in `bedrock/extract/output_data`.
 
 ## Data Source Folders/Scripts
 The Python files in the data sources folders include functions 
@@ -29,6 +44,7 @@ source_names:
     clean_fba_w_sec_df_fxn: !script_function:BLS_QCEW bls_clean_allocation_fba_w_sec
     activity_sets:
 ```
+## Generate a FlowByActivity
 
 
 ## Data source configuration 
