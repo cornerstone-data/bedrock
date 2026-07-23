@@ -124,6 +124,8 @@ COMBINATIONS: dict[str, ComboSpec] = {
             '[2026-04-08 row 23, all changes] EF diagnostics',
         ],
         target_mapping={
+            # Merge keys for existing Drive sheets. ``v8_ceda_2025_usa`` /
+            # ``2025_usa_ceda_ghg_from_flowsa`` are not loadable configs.
             'v8_ceda_2025_usa': 'v8_ceda_2025_usa',
             '2025_usa_ceda_ghg_from_flowsa': 'v8_ceda_2025_usa',
             '2025_usa_cornerstone_taxonomy': 'v8_ceda_2025_usa',
