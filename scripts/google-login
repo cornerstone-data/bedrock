@@ -3,5 +3,30 @@
 # Exit if any command fails
 set -e
 
+# Google is rolling out a block on Drive/Sheets ("sensitive") scopes for
+# gcloud's built-in OAuth client, which makes this login fail for some
+# accounts with an "Access blocked" page in the browser. If that happens to
+# you, the supported path is to impersonate the diagnostics service account
+# (which is already shared on the Cornerstone Drive) instead of holding
+# Drive scopes on your user credentials:
+#
+#   BEDROCK_IMPERSONATE_SA=github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com \
+#     ./scripts/google-login
+#
+# This requires roles/iam.serviceAccountTokenCreator on that service account
+# (ask a cornerstone-data project owner). See "Authenticate with GCP" in the
+# README for details and trade-offs.
+#
+# Ref: https://docs.cloud.google.com/docs/authentication/troubleshoot-adc#access_blocked_when_using_scopes
+
+SCOPES="openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets"
+
 gcloud config set project cornerstone-data
-gcloud auth application-default login --scopes=openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/drive
+
+if [[ -n "${BEDROCK_IMPERSONATE_SA:-}" ]]; then
+    gcloud auth application-default login \
+        --impersonate-service-account="$BEDROCK_IMPERSONATE_SA" \
+        --scopes="$SCOPES"
+else
+    gcloud auth application-default login --scopes="$SCOPES"
+fi
