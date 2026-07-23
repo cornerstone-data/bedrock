@@ -7,8 +7,8 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from bedrock.extract.iot.constants import (
+    GCS_BEA_NIPA_IOT_BRIDGES_DIR,
     GCS_USA_MAKE_USE_DIR,
-    GCS_USA_PCE_BRIDGE_DIR,
     GCS_USA_SUP_DIR,
 )
 from bedrock.utils.config.usa_config import get_usa_config
@@ -62,7 +62,7 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
 
 LOCAL_USA_MAKE_USE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_MAKE_USE_DIR)
 LOCAL_USA_SUP_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_SUP_DIR)
-LOCAL_USA_PCE_BRIDGE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_PCE_BRIDGE_DIR)
+LOCAL_BEA_NIPA_IOT_BRIDGES_DIR = local_dir_for_gcs_sub_bucket(GCS_BEA_NIPA_IOT_BRIDGES_DIR)
 
 
 # ----- Documentation ----- #
@@ -79,6 +79,9 @@ LOCAL_USA_PCE_BRIDGE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_PCE_BRIDGE_DIR)
 #
 # PCE Bridge (detail, 403 commodities) is downloaded from:
 # https://apps.bea.gov/industry/release/xlsx/PCEBridge_Detail.xlsx
+# PEQ Bridge (private equipment investment, detail) is downloaded from:
+# https://apps.bea.gov/industry/release/xlsx/PEQBridge_Detail.xlsx
+# Both bridge workbooks live together under GCS_BEA_NIPA_IOT_BRIDGES_DIR.
 #
 # ``load_2017_V_usa``, ``load_2017_Utot_usa``, and ``load_2017_Uimp_usa`` branch on
 # ``USAConfig.iot_before_or_after_redefinition`` and are not cached. Pipelines that
@@ -416,8 +419,8 @@ def _load_pce_bridge_detail_raw_usa() -> pd.DataFrame:
     """
     df = load_from_gcs(
         name="PCEBridge_Detail.xlsx",
-        sub_bucket=GCS_USA_PCE_BRIDGE_DIR,
-        local_dir=LOCAL_USA_PCE_BRIDGE_DIR,
+        sub_bucket=GCS_BEA_NIPA_IOT_BRIDGES_DIR,
+        local_dir=LOCAL_BEA_NIPA_IOT_BRIDGES_DIR,
         loader=_load_pce_bridge_detail_excel,
     )
     assert set(df["Commodity Code"]).issubset(USA_2017_COMMODITY_CODES), (
@@ -435,6 +438,69 @@ def load_2017_pce_bridge_detail_usa() -> pd.DataFrame:
     df = _load_pce_bridge_detail_raw_usa().copy()
     df[_PCE_BRIDGE_DETAIL_VALUE_COLUMNS] = (
         df[_PCE_BRIDGE_DETAIL_VALUE_COLUMNS].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    return df
+
+
+# PEQ Bridge shares the exact same layout as PCE Bridge (skiprows=5, same 10 columns
+# in the same order - BEA reuses "PCE Category" as the category-column header even
+# though the values are equipment categories, e.g. "Computers and peripheral
+# equipment"), so the same column lists/parsing logic apply unchanged.
+_PEQ_BRIDGE_DETAIL_COLUMNS = _PCE_BRIDGE_DETAIL_COLUMNS
+_PEQ_BRIDGE_DETAIL_VALUE_COLUMNS = _PCE_BRIDGE_DETAIL_VALUE_COLUMNS
+
+
+def _load_peq_bridge_detail_excel(pth: str) -> pd.DataFrame:
+    """Read the PEQ Bridge Detail Excel file, suppressing the openpyxl header/footer warning."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Cannot parse header or footer so it will be ignored",
+            category=UserWarning,
+        )
+        return pd.read_excel(
+            pth,
+            sheet_name="2017",
+            skiprows=5,
+            header=None,
+            names=_PEQ_BRIDGE_DETAIL_COLUMNS,
+            dtype={"Commodity Code": str},
+        )
+
+
+@functools.cache
+def _load_peq_bridge_detail_raw_usa() -> pd.DataFrame:
+    """
+    PEQ Bridge table (private equipment investment, detail), long format, as
+    published: one row per (NIPA equipment line, commodity) pair, after
+    redefinition, in producer price. Columns: NIPA Line, PCE Category (equipment
+    category, e.g. "Autos"), Commodity Code, Commodity Description, Producers'
+    Value, Transportation Costs, Wholesale, Retail, Purchasers' Value, Year.
+    unit is million USD, matching the source file.
+    """
+    df = load_from_gcs(
+        name="PEQBridge_Detail.xlsx",
+        sub_bucket=GCS_BEA_NIPA_IOT_BRIDGES_DIR,
+        local_dir=LOCAL_BEA_NIPA_IOT_BRIDGES_DIR,
+        loader=_load_peq_bridge_detail_excel,
+    )
+    assert set(df["Commodity Code"]).issubset(USA_2017_COMMODITY_CODES), (
+        "PEQ Bridge Detail has commodity codes outside the 2017 taxonomy: "
+        f"{set(df['Commodity Code']) - set(USA_2017_COMMODITY_CODES)}"
+    )
+    return df
+
+
+def load_2017_peq_bridge_detail_usa() -> pd.DataFrame:
+    """
+    PEQ Bridge table (private equipment investment, detail); see
+    `_load_peq_bridge_detail_raw_usa` for column layout. unit is USD, original
+    unit is million USD.
+    """
+    df = _load_peq_bridge_detail_raw_usa().copy()
+    df[_PEQ_BRIDGE_DETAIL_VALUE_COLUMNS] = (
+        df[_PEQ_BRIDGE_DETAIL_VALUE_COLUMNS].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     return df

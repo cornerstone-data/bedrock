@@ -130,6 +130,24 @@ source_names:
             selection_fields:
               FlowName: "Purchasers' Value"
 
+      FD_IP_equipment:
+        # Table 5.5.5U had an FBA generated for it but wasn't used in any FBS method
+        # (issue #496). Attributed via BEA_PEQBridge, mirroring FD_PCE's pattern
+        # exactly: activity_to_sector_mapping (BEA_NIPA_FD_Equipment) supplies the
+        # candidate sectors per category, drop_unassigned naturally excludes the
+        # table's subtotal/too-fine rows and "Equipment" (lines 2/46) that don't
+        # match a PEQBridge category by name. Reconciles to within 0.22% of the
+        # table's own Line-1 total ("Private fixed investment in equipment").
+        activity_to_sector_mapping: BEA_NIPA_FD_Equipment
+        selection_fields:
+          Table: U50505 # Table 5.5.5U. Private Fixed Investment in Equipment by Type
+        attribution_method: proportional
+        attribution_source:
+          BEA_PEQBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
       FD_IP_direct:
         activity_to_sector_mapping: BEA_NIPA_FD_IP
         selection_fields:

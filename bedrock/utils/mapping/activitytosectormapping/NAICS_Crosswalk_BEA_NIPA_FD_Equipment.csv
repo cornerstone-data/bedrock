@@ -1,0 +1,181 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+BEA_NIPA,Agricultural machinery,NAICS_2017_Code,333111,,Farm machinery and equipment manufacturing
+BEA_NIPA,Agricultural machinery,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Agricultural machinery,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Aircraft,NAICS_2017_Code,334511,,"Search, detection, and navigation instruments manufacturing"
+BEA_NIPA,Aircraft,NAICS_2017_Code,336360,,Motor vehicle seating and interior trim manufacturing
+BEA_NIPA,Aircraft,NAICS_2017_Code,336411,,Aircraft manufacturing
+BEA_NIPA,Aircraft,NAICS_2017_Code,336412,,Aircraft engine and engine parts manufacturing
+BEA_NIPA,Aircraft,NAICS_2017_Code,336414,,Guided missile and space vehicle manufacturing
+BEA_NIPA,Aircraft,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Autos,NAICS_2017_Code,336111,,Automobile manufacturing
+BEA_NIPA,Autos,NAICS_2017_Code,S00401,,Scrap
+BEA_NIPA,Autos,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Communication equipment,NAICS_2017_Code,334118,,Computer terminals and other computer peripheral equipment manufacturing
+BEA_NIPA,Communication equipment,NAICS_2017_Code,334210,,Telephone apparatus manufacturing
+BEA_NIPA,Communication equipment,NAICS_2017_Code,334220,,Broadcast and wireless communications equipment
+BEA_NIPA,Communication equipment,NAICS_2017_Code,334290,,Other communications equipment manufacturing
+BEA_NIPA,Communication equipment,NAICS_2017_Code,334300,,Audio and video equipment manufacturing
+BEA_NIPA,Communication equipment,NAICS_2017_Code,334511,,"Search, detection, and navigation instruments manufacturing"
+BEA_NIPA,Communication equipment,NAICS_2017_Code,335920,,Communication and energy wire and cable manufacturing
+BEA_NIPA,Communication equipment,NAICS_2017_Code,336414,,Guided missile and space vehicle manufacturing
+BEA_NIPA,Communication equipment,NAICS_2017_Code,517110,,Wired telecommunications carriers
+BEA_NIPA,Communication equipment,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Communication equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Computers and peripheral equipment,NAICS_2017_Code,334111,,Electronic computer manufacturing
+BEA_NIPA,Computers and peripheral equipment,NAICS_2017_Code,334112,,Computer storage device manufacturing
+BEA_NIPA,Computers and peripheral equipment,NAICS_2017_Code,334118,,Computer terminals and other computer peripheral equipment manufacturing
+BEA_NIPA,Computers and peripheral equipment,NAICS_2017_Code,541512,,Computer systems design services
+BEA_NIPA,Computers and peripheral equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Construction machinery,NAICS_2017_Code,333120,,Construction machinery manufacturing
+BEA_NIPA,Construction machinery,NAICS_2017_Code,333920,,Material handling equipment manufacturing
+BEA_NIPA,Construction machinery,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Construction machinery,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,334610,,Manufacturing and reproducing magnetic and optical media
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,335120,,Lighting fixture manufacturing
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,335210,,Small electrical appliance manufacturing
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,335220,,Major Household Appliance Manufacturing
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,335911,,Storage battery manufacturing
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,335930,,Wiring device manufacturing
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,335999,,All other miscellaneous electrical equipment and component manufacturing
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,"Electrical equipment, not elsewhere classified",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Electrical transmission, distribution, and industrial apparatus",NAICS_2017_Code,334515,,Electricity and signal testing instruments manufacturing
+BEA_NIPA,"Electrical transmission, distribution, and industrial apparatus",NAICS_2017_Code,335311,,"Power, distribution, and specialty transformer manufacturing"
+BEA_NIPA,"Electrical transmission, distribution, and industrial apparatus",NAICS_2017_Code,335312,,Motor and generator manufacturing
+BEA_NIPA,"Electrical transmission, distribution, and industrial apparatus",NAICS_2017_Code,335313,,Switchgear and switchboard apparatus manufacturing
+BEA_NIPA,"Electrical transmission, distribution, and industrial apparatus",NAICS_2017_Code,335314,,Relay and industrial control manufacturing
+BEA_NIPA,"Electrical transmission, distribution, and industrial apparatus",NAICS_2017_Code,335999,,All other miscellaneous electrical equipment and component manufacturing
+BEA_NIPA,"Electrical transmission, distribution, and industrial apparatus",NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Engines and turbines,NAICS_2017_Code,333611,,Turbine and turbine generator set units manufacturing
+BEA_NIPA,Engines and turbines,NAICS_2017_Code,333618,,Other engine equipment manufacturing
+BEA_NIPA,Engines and turbines,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,2122A0,,"Iron, gold, silver, and other metal ore mining"
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,325180,,Other Basic Inorganic Chemical Manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332200,,Cutlery and handtool manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332310,,Plate work and fabricated structural product manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332320,,Ornamental and architectural metal products manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332410,,Power boiler and heat exchanger manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332420,,Metal tank (heavy gauge) manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332430,,"Metal can, box, and other metal container (light gauge) manufacturing"
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332500,,Hardware manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,33291A,,Valve and fittings other than plumbing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332996,,Fabricated pipe and pipe fitting manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,332999,,Other fabricated metal manufacturing
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,333415,,"Air conditioning, refrigeration, and warm air heating equipment manufacturing"
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,337215,,"Showcase, partition, shelving, and locker manufacturing"
+BEA_NIPA,Fabricated metal products,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,337110,,Wood kitchen cabinet and countertop manufacturing
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,337121,,Upholstered household furniture manufacturing
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,337122,,Nonupholstered wood household furniture manufacturing
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,337127,,Institutional furniture manufacturing
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,33712N,,Other household nonupholstered furniture
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,337215,,"Showcase, partition, shelving, and locker manufacturing"
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,33721A,,Office furniture and custom architectural woodwork and millwork manufacturing
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,337900,,Other furniture related product manufacturing
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,339940,,Office supplies (except paper) manufacturing
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Furniture and fixtures,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333120,,Construction machinery manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333413,,Industrial and commercial fan and blower and air purification equipment manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333414,,Heating equipment (except warm air furnaces) manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333912,,Air and gas compressor manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333914,,Pump and pumping equipment manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333920,,Material handling equipment manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333991,,Power-driven handtool manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333993,,Packaging machinery manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,333994,,Industrial process furnace and oven manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,33399A,,Other general purpose machinery manufacturing
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,33399B,,Fluid power process machinery
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,33451A,,"Watch, clock, and other measuring and controlling device manufacturing"
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,"General industrial, including materials handling, equipment",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Less: Sale of equipment scrap, excluding autos",NAICS_2017_Code,S00401,,Scrap
+BEA_NIPA,Light trucks (including utility vehicles),NAICS_2017_Code,336112,,Light truck and utility vehicle manufacturing
+BEA_NIPA,Light trucks (including utility vehicles),NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,334510,,Electromedical and electrotherapeutic apparatus manufacturing
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,334517,,Irradiation apparatus manufacturing
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,337127,,Institutional furniture manufacturing
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,339112,,Surgical and medical instrument manufacturing
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,339113,,Surgical appliance and supplies manufacturing
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,339114,,Dental equipment and supplies manufacturing
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Medical equipment and instruments,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Metalworking machinery,NAICS_2017_Code,333511,,Industrial mold manufacturing
+BEA_NIPA,Metalworking machinery,NAICS_2017_Code,333514,,"Special tool, die, jig, and fixture manufacturing"
+BEA_NIPA,Metalworking machinery,NAICS_2017_Code,333517,,Machine Tool Manufacturing
+BEA_NIPA,Metalworking machinery,NAICS_2017_Code,33351B,,"Cutting and machine tool accessory, rolling mill, and other metalworking machinery manufacturing"
+BEA_NIPA,Metalworking machinery,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Metalworking machinery,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Mining and oilfield machinery,NAICS_2017_Code,21311A,,Other support activities for mining
+BEA_NIPA,Mining and oilfield machinery,NAICS_2017_Code,333130,,Mining and oil and gas field machinery manufacturing
+BEA_NIPA,Mining and oilfield machinery,NAICS_2017_Code,333914,,Pump and pumping equipment manufacturing
+BEA_NIPA,Mining and oilfield machinery,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Mining and oilfield machinery,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Nonmedical instruments,NAICS_2017_Code,334513,,Industrial process variable instruments manufacturing
+BEA_NIPA,Nonmedical instruments,NAICS_2017_Code,334514,,Totalizing fluid meter and counting device manufacturing
+BEA_NIPA,Nonmedical instruments,NAICS_2017_Code,334516,,Analytical laboratory instrument manufacturing
+BEA_NIPA,Nonmedical instruments,NAICS_2017_Code,334517,,Irradiation apparatus manufacturing
+BEA_NIPA,Nonmedical instruments,NAICS_2017_Code,33451A,,"Watch, clock, and other measuring and controlling device manufacturing"
+BEA_NIPA,Nonmedical instruments,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Nonmedical instruments,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Office and accounting equipment,NAICS_2017_Code,333318,,Other commercial and service industry machinery manufacturing
+BEA_NIPA,Office and accounting equipment,NAICS_2017_Code,334118,,Computer terminals and other computer peripheral equipment manufacturing
+BEA_NIPA,Office and accounting equipment,NAICS_2017_Code,339940,,Office supplies (except paper) manufacturing
+BEA_NIPA,Office and accounting equipment,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Office and accounting equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Other,NAICS_2017_Code,313200,,Fabric mills
+BEA_NIPA,Other,NAICS_2017_Code,314110,,Carpet and rug mills
+BEA_NIPA,Other,NAICS_2017_Code,326140,,Polystyrene foam product manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,326150,,Urethane and other foam product (except polystyrene) manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,326290,,Other rubber product manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,332200,,Cutlery and handtool manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,333111,,Farm machinery and equipment manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,333112,,Lawn and garden equipment manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,333318,,Other commercial and service industry machinery manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,336213,,Motor home manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,336214,,Travel trailer and camper manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,336991,,"Motorcycle, bicycle, and parts manufacturing"
+BEA_NIPA,Other,NAICS_2017_Code,336999,,All other transportation equipment manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,339920,,Sporting and athletic goods manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,339950,,Sign manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,339990,,All other miscellaneous manufacturing
+BEA_NIPA,Other,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Other,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Other trucks, buses, and truck trailers",NAICS_2017_Code,336120,,Heavy duty truck manufacturing
+BEA_NIPA,"Other trucks, buses, and truck trailers",NAICS_2017_Code,336211,,Motor vehicle body manufacturing
+BEA_NIPA,"Other trucks, buses, and truck trailers",NAICS_2017_Code,336212,,Truck trailer manufacturing
+BEA_NIPA,"Other trucks, buses, and truck trailers",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Photocopy and related equipment,NAICS_2017_Code,333314,,Optical instrument and lens manufacturing
+BEA_NIPA,Photocopy and related equipment,NAICS_2017_Code,333316,,Photographic and photocopying equipment manufacturing
+BEA_NIPA,Photocopy and related equipment,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Photocopy and related equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Railroad equipment,NAICS_2017_Code,336500,,Railroad rolling stock manufacturing
+BEA_NIPA,Railroad equipment,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Railroad equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Residential equipment,NAICS_2017_Code,314110,,Carpet and rug mills
+BEA_NIPA,Residential equipment,NAICS_2017_Code,326150,,Urethane and other foam product (except polystyrene) manufacturing
+BEA_NIPA,Residential equipment,NAICS_2017_Code,326290,,Other rubber product manufacturing
+BEA_NIPA,Residential equipment,NAICS_2017_Code,334300,,Audio and video equipment manufacturing
+BEA_NIPA,Residential equipment,NAICS_2017_Code,335210,,Small electrical appliance manufacturing
+BEA_NIPA,Residential equipment,NAICS_2017_Code,335220,,Major Household Appliance Manufacturing
+BEA_NIPA,Residential equipment,NAICS_2017_Code,337121,,Upholstered household furniture manufacturing
+BEA_NIPA,Residential equipment,NAICS_2017_Code,337122,,Nonupholstered wood household furniture manufacturing
+BEA_NIPA,Residential equipment,NAICS_2017_Code,33712N,,Other household nonupholstered furniture
+BEA_NIPA,Residential equipment,NAICS_2017_Code,337215,,"Showcase, partition, shelving, and locker manufacturing"
+BEA_NIPA,Residential equipment,NAICS_2017_Code,337900,,Other furniture related product manufacturing
+BEA_NIPA,Service industry machinery,NAICS_2017_Code,333318,,Other commercial and service industry machinery manufacturing
+BEA_NIPA,Service industry machinery,NAICS_2017_Code,333415,,"Air conditioning, refrigeration, and warm air heating equipment manufacturing"
+BEA_NIPA,Service industry machinery,NAICS_2017_Code,333914,,Pump and pumping equipment manufacturing
+BEA_NIPA,Service industry machinery,NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Service industry machinery,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Ships and boats,NAICS_2017_Code,336611,,Ship building and repairing
+BEA_NIPA,Ships and boats,NAICS_2017_Code,336612,,Boat building
+BEA_NIPA,Ships and boats,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Special industry machinery, not elsewhere classified",NAICS_2017_Code,326290,,Other rubber product manufacturing
+BEA_NIPA,"Special industry machinery, not elsewhere classified",NAICS_2017_Code,332200,,Cutlery and handtool manufacturing
+BEA_NIPA,"Special industry machinery, not elsewhere classified",NAICS_2017_Code,333242,,Semiconductor machinery manufacturing
+BEA_NIPA,"Special industry machinery, not elsewhere classified",NAICS_2017_Code,33329A,,Other industrial machinery manufacturing
+BEA_NIPA,"Special industry machinery, not elsewhere classified",NAICS_2017_Code,333318,,Other commercial and service industry machinery manufacturing
+BEA_NIPA,"Special industry machinery, not elsewhere classified",NAICS_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,"Special industry machinery, not elsewhere classified",NAICS_2017_Code,S00402,,Used and secondhand goods

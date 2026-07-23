@@ -115,6 +115,11 @@ def bea_nipa_parse(
             # Bridge category names) write the same term slash-tight. Normalize so
             # names agree across tables.
             .str.replace(r'\s*/\s*', '/', regex=True)
+            # NIPA abbreviates "not elsewhere classified" as "n.e.c." (e.g. "Electrical
+            # equipment, n.e.c."), while other BEA tables (e.g. PEQ Bridge category
+            # names) spell it out ("Electrical equipment, not elsewhere classified").
+            # Expand so names agree across tables.
+            .str.replace(r'\bn\.e\.c\.', 'not elsewhere classified', regex=True)
         )
     )
 
