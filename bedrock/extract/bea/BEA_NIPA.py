@@ -9,12 +9,14 @@ Supporting functions for National Income and Product Accounts from BEA.
 import io
 import re
 import zipfile
+from typing import Any
+
 import pandas as pd
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
 
-def bea_nipa_call(*, resp, config, **_):
+def bea_nipa_call(*, resp: Any, config: dict[str, Any], **_: Any) -> list[pd.DataFrame]:
     zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
     df_list = []
     for filename in zip_file.namelist():
@@ -32,7 +34,14 @@ def bea_nipa_call(*, resp, config, **_):
     return df_list
 
 
-def bea_nipa_parse(*, df_list, source, year, config, **_):
+def bea_nipa_parse(
+    *,
+    df_list: list[pd.DataFrame],
+    source: str,
+    year: int,
+    config: dict[str, Any],
+    **_: Any,
+) -> pd.DataFrame:
     """
     Parse BEA data for GrossOutput, Make, and Use tables
     :param source:
@@ -48,7 +57,7 @@ def bea_nipa_parse(*, df_list, source, year, config, **_):
         elif 'SeriesLabel' in df:
             series = df
 
-    def extract_series_by_table(table):
+    def extract_series_by_table(table: str) -> pd.DataFrame:
         series1 = series.query('Table_and_Line.str.contains(@table)').reset_index(
             drop=True
         )
@@ -63,7 +72,7 @@ def bea_nipa_parse(*, df_list, source, year, config, **_):
         df = df.merge(tables, on='TableId', how='left', validate='m:1')
         return df.reset_index(drop=True)
 
-    def generate_data_table(table):
+    def generate_data_table(table: str) -> pd.DataFrame:
         series = extract_series_by_table(table)
         series1_wide = (
             series.merge(data.query('Period > 2011'), how='left', on='SeriesCode')
@@ -125,7 +134,7 @@ def bea_nipa_parse(*, df_list, source, year, config, **_):
     return df
 
 
-def extract_table_info(fba, **_):
+def extract_table_info(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     """ """
     # extract table info for easier parsing
     fba[['Table', 'Code_Line']] = fba['Description'].str.split(': ', expand=True)
@@ -137,7 +146,7 @@ def extract_table_info(fba, **_):
     return fba
 
 
-def drop_unassigned(fba, **_):
+def drop_unassigned(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     """clean_fba_w_sec fxn"""
     # Because ACB is assigned in the method yaml, need to drop those that don't
     # have an original APB assignment in the mapping file
