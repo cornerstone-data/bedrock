@@ -22,7 +22,8 @@ dependencies = [
     "pyyaml>=6.0,<7.0.0",
     "typing-extensions>=4.5.0,<5.0.0",
     # Google Cloud Platform
-    "google-auth>=2.17.0,<3.0.0",
+    # >=2.44.0: fixes TypeError in impersonated ADC refresh (google-auth #1884)
+    "google-auth>=2.44.0,<3.0.0",
     "google-cloud-storage>=2.12.0,<3.0.0",
     "google-api-python-client>=2.102.0,<3.0.0",
     # Utilities

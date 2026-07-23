@@ -22,8 +22,7 @@ These flags are grouped into themes:
 |---|---|
 | Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation`, `implement_electricity_reallocation` |
 | Economic IOT (input-output tables) | `use_E_data_year_for_x_in_B`, `iot_before_or_after_redefinition` |
-| GHG attribution — sector methods | `update_transportation_ghg_method`, `update_electricity_ghg_method` |
-| GHG attribution — gas coverage | `update_flowsa_refrigerant_method`, `add_new_ghg_activities` |
+| GHG attribution | `new_ghg_method`, `update_mecs_method`, `v0_3_umd_2023_ghgia`, `v0_3_umd_2024_ghgia` |
 | Data vintage | `model_base_year`, `usa_base_io_data_year`, `ipcc_ar_version` |
 
 See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
@@ -77,50 +76,7 @@ After cloning the repository, in the root directory:
    ```bash
    ./scripts/google-login
    ```
-   This will open a browser. Log in with your Cornerstone email — if your
-   browser is signed into multiple Google accounts, make sure you pick the
-   Cornerstone one at the consent screen.
-
-   Bedrock needs Application Default Credentials (ADC) with Drive and Sheets
-   scopes (for EF diagnostics sheets on the Cornerstone Drive) in addition to
-   the usual `cloud-platform` scope (for GCS).
-
-   > **Note:** Running a bare `gcloud auth application-default login`
-   > afterwards overwrites these credentials with identity-only scopes, which
-   > causes `HttpError 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT` on Sheets/Drive
-   > calls. Always re-authenticate via `./scripts/google-login`.
-
-   **If the browser shows "Access blocked":** Google is rolling out a block
-   on Drive/Sheets scopes for gcloud's default OAuth client
-   ([docs](https://docs.cloud.google.com/docs/authentication/troubleshoot-adc#access_blocked_when_using_scopes)),
-   so for some accounts the login above fails at the consent screen. The fix
-   is to impersonate the diagnostics service account, which already has
-   access to the EF diagnostics folder on the Cornerstone Drive (it is what
-   CI uses to write the sheets):
-
-   1. Ask a `cornerstone-data` project owner to grant you impersonation
-      rights (one-time):
-
-      ```bash
-      gcloud iam service-accounts add-iam-policy-binding \
-        github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com \
-        --project=cornerstone-data \
-        --member="user:YOU@cornerstonedata.org" \
-        --role=roles/iam.serviceAccountTokenCreator
-      ```
-
-   2. Log in with impersonation:
-
-      ```bash
-      BEDROCK_IMPERSONATE_SA=github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com \
-        ./scripts/google-login
-      ```
-
-   In this mode all ADC calls act as the service account: Drive/Sheets
-   diagnostics work, and GCS reads work, but GCS *uploads* will not (the
-   service account is read-only on the bucket). If you need to upload to
-   GCS, re-run `./scripts/google-login` without the variable to switch back
-   to your user credentials.
+   This will open a browser. Log in with your Cornerstone email.
 
 4. **Confirm setup successful:**
 
