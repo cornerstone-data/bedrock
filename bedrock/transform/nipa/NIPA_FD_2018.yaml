@@ -40,9 +40,9 @@ source_names:
       FD_IP_direct:
         activity_to_sector_mapping: BEA_NIPA_FD_IP
         selection_fields:
-          Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type 
+          Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
           ActivityProducedBy:
-            - Research and development (6)
+            - Research and development
         assign_fields:
           ActivityConsumedBy: Private Fixed Investment
         attribution_method: direct
@@ -50,10 +50,10 @@ source_names:
       FD_IP_proportional:
         activity_to_sector_mapping: BEA_NIPA_FD_IP
         selection_fields:
-          Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type 
+          Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
         exclusion_fields:
           ActivityProducedBy:
-            - Research and development (6)
+            - Research and development
         assign_fields:
           ActivityConsumedBy: Private Fixed Investment
         attribution_method: proportional
@@ -68,8 +68,10 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Consumption expenditures (18)
+            - Consumption expenditures
+          Line: 18 # disambiguate from Consumption expenditures at lines 2, 26 (same name, other Gov levels)
         assign_fields:
+          ActivityProducedBy: Consumption expenditures (Federal Defense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Defense Consumption Expenditures
         attribution_method: direct
         # attribution_source:
@@ -83,7 +85,8 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Equipment (21)
+            - Equipment
+          Line: 21 # disambiguate from Equipment (29), (37) — same name, different Gov levels
         assign_fields:
           ActivityConsumedBy: Federal Government Defense Investment in Equipment
         attribution_method: proportional
@@ -98,8 +101,9 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Software (23)
-            - Research and development (24) # Direct
+            - Software
+            - Research and development # Direct
+          Line: [23, 24] # disambiguate from the FedND (31, 32) and SLG (39, 40) Software/R&D rows
         assign_fields:
           ActivityConsumedBy: Federal Government Defense IP
         attribution_method: proportional
@@ -114,8 +118,10 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Structures (20)
+            - Structures
+          Line: 20 # disambiguate from Structures (28), (36) — same name, different Gov levels
         assign_fields:
+          ActivityProducedBy: Structures (Federal Defense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Defense Investment in Structures
         attribution_method: proportional
         attribution_source:
@@ -129,8 +135,10 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Consumption expenditures (26)
+            - Consumption expenditures
+          Line: 26 # disambiguate from Consumption expenditures at lines 2, 18 (same name, other Gov levels)
         assign_fields:
+          ActivityProducedBy: Consumption expenditures (Federal Nondefense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Nondefense Consumption Expenditures
         attribution_method: direct
         # attribution_source:
@@ -144,8 +152,10 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Structures (28)
+            - Structures
+          Line: 28 # disambiguate from Structures (20), (36) — same name, different Gov levels
         assign_fields:
+          ActivityProducedBy: Structures (Federal Nondefense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Nondefense Investment in Structures
         attribution_method: proportional
         attribution_source:
@@ -159,7 +169,8 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Equipment (29)
+            - Equipment
+          Line: 29 # disambiguate from Equipment (21), (37) — same name, different Gov levels
         assign_fields:
           ActivityConsumedBy: Federal Government Nondefense Investment in Equipment
         attribution_method: proportional
@@ -174,8 +185,9 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Software (31)
-            - Research and development (32) # Direct
+            - Software
+            - Research and development # Direct
+          Line: [31, 32] # disambiguate from the FedD (23, 24) and SLG (39, 40) Software/R&D rows
         assign_fields:
           ActivityConsumedBy: Federal Government Nondefense IP
         attribution_method: proportional
@@ -190,7 +202,8 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - State and local (34)
+            - State and local
+          Line: 34 # disambiguate: "State and local" recurs elsewhere in this table at other aggregation levels
         assign_fields:
           ActivityConsumedBy: State and Local Consumption Expenditures
         attribution_method: proportional
@@ -205,7 +218,8 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Equipment (37)
+            - Equipment
+          Line: 37 # disambiguate from Equipment at lines 5, 13, 21, 29 (same name, other Gov levels)
         assign_fields:
           ActivityConsumedBy: State and Local Investment in Equipment
         attribution_method: proportional
@@ -220,8 +234,10 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Structures (36)
+            - Structures
+          Line: 36 # disambiguate from Structures at lines 4, 12, 20, 28 (same name, other Gov levels)
         assign_fields:
+          ActivityProducedBy: Structures (State and Local) # matches crosswalk key
           ActivityConsumedBy: State and Local Investment in Structures
         attribution_method: proportional
         attribution_source:
@@ -235,8 +251,9 @@ source_names:
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
-            - Software (39)
-            - Research and development (40) # Direct
+            - Software
+            - Research and development # Direct
+          Line: [39, 40] # disambiguate from the FedD (23, 24) and FedND (31, 32) Software/R&D rows
         assign_fields:
           ActivityConsumedBy: State and Local IP
         attribution_method: proportional
@@ -251,14 +268,32 @@ source_names:
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
           ActivityProducedBy:
-           - Single family (41)
-           - Multifamily (42)
-           - Manufactured homes (44)
-           - Dormitories (45)
-           - Improvements (46)
-           - "Brokers' commissions and other ownership transfer costs (47)"
-           - Net purchases of used structures (48)
+           - Single family
+           - Multifamily
+           - Manufactured homes
+           - Dormitories
+           - Improvements
+           - "Brokers' commissions and other ownership transfer costs"
         assign_fields:
+          ActivityConsumedBy: Residential Investment
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F02R00': ''}
+
+      FD_Structures1_used:
+        # "Net purchases of used structures" recurs at both line 38 (Nonresidential) and
+        # line 48 (Residential); split out from FD_Structures1/2 so each occurrence can be
+        # relabeled to its own crosswalk key without affecting the other names in those lists.
+        activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        selection_fields:
+          Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
+          ActivityProducedBy: Net purchases of used structures
+          Line: 48
+        assign_fields:
+          ActivityProducedBy: Net purchases of used structures (Residential) # matches crosswalk key
           ActivityConsumedBy: Residential Investment
         attribution_method: proportional
         attribution_source:
@@ -272,26 +307,42 @@ source_names:
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
           ActivityProducedBy:
-           - Office (4)
-           - Health care (7)
-           - Multimerchandise shopping (12)
-           - Food and beverage establishments (13)
-           - Warehouses (14)
-           - Other commercial (15)
-           - Manufacturing (16)
-           - Power and communication (17)
-           - Petroleum and natural gas (25)
-           - Mining (26)
-           - Religious (28)
-           - Educational and vocational (29)
-           - Lodging (30)
-           - Amusement and recreation (31)
-           - Transportation (32)
-           - Farm (35)
-           - Other (36)
-           - "Brokers' commissions on sale of structures (37)"
-           - Net purchases of used structures (38)
+           - Office
+           - Health care
+           - Multimerchandise shopping
+           - Food and beverage establishments
+           - Warehouses
+           - Other commercial
+           - Manufacturing
+           - Power and communication
+           - Petroleum and natural gas
+           - Mining
+           - Religious
+           - Educational and vocational
+           - Lodging
+           - Amusement and recreation
+           - Transportation
+           - Farm
+           - Other
+           - "Brokers' commissions on sale of structures"
         assign_fields:
+          ActivityConsumedBy: Nonresidential Investment in Structures
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *bea
+            selection_fields:
+              ActivityConsumedBy: {'F02S00': ''}
+
+      FD_Structures2_used:
+        # See note on FD_Structures1_used: this is the Nonresidential (line 38) occurrence.
+        activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        selection_fields:
+          Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
+          ActivityProducedBy: Net purchases of used structures
+          Line: 38
+        assign_fields:
+          ActivityProducedBy: Net purchases of used structures (Nonresidential) # matches crosswalk key
           ActivityConsumedBy: Nonresidential Investment in Structures
         attribution_method: proportional
         attribution_source:
