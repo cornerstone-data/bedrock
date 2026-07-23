@@ -24,9 +24,13 @@ SCOPES="openid,https://www.googleapis.com/auth/userinfo.email,https://www.google
 gcloud config set project cornerstone-data
 
 if [[ -n "${BEDROCK_IMPERSONATE_SA:-}" ]]; then
+    # Deliberately no --scopes here: on some gcloud versions the flag leaks the
+    # Drive scope into the (blocked) user consent screen. Bedrock's code applies
+    # Drive/Sheets scopes when minting service-account tokens at runtime
+    # (google.auth.default(scopes=...) in bedrock/utils/io/gcp.py), so the
+    # login only needs default scopes.
     gcloud auth application-default login \
-        --impersonate-service-account="$BEDROCK_IMPERSONATE_SA" \
-        --scopes="$SCOPES"
+        --impersonate-service-account="$BEDROCK_IMPERSONATE_SA"
 else
     gcloud auth application-default login --scopes="$SCOPES"
 fi
