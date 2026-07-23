@@ -61,9 +61,13 @@ class ConfigTrace:
     mixed_units: bool
     c_col: float | None
     io: dict[str, float]
+    io_by_sector: dict[str, dict[str, float]]
     e_abs_kg: dict[str, float]
+    e_total_by_sector: dict[str, float]
     d_abs_kg_per_usd: dict[str, float]
+    d_total_by_sector: dict[str, float]
     n_abs_kg_per_usd: dict[str, float]
+    n_total_by_sector: dict[str, float]
     d_total: float
     n_total: float
     bly_mt: float
@@ -200,6 +204,48 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
         "L diagonal mean": _mean_diag(L, sectors),
         "x for B denominator (USD)": _sum_sectors(x_b, sectors),
     }
+    io_by_sector: dict[str, dict[str, float]] = {
+        "x industry output (USD)": {s: float(x[s]) for s in sectors},
+        "q commodity output (USD-equiv)": {
+            s: _sector_q_usd(s, q, monetary_q) for s in sectors
+        },
+        "V Make diagonal sum (USD)": {
+            s: _scalar_float(V.at[s, s])
+            for s in sectors
+            if s in V.index and s in V.columns
+        },
+        "Udom column sum (USD)": {
+            s: float(Udom[s].sum()) for s in sectors if s in Udom.columns
+        },
+        "Uimp column sum (USD)": {
+            s: float(Uimp[s].sum()) for s in sectors if s in Uimp.columns
+        },
+        "Udom row sum (USD)": {
+            s: float(Udom.loc[s].sum()) for s in sectors if s in Udom.index
+        },
+        "VA column sum (USD)": {
+            s: float(VA[s].sum()) for s in sectors if s in VA.columns
+        },
+        "Y row sum (USD)": {s: float(Y.loc[s].sum()) for s in sectors if s in Y.index},
+        "Vnorm diagonal mean": {
+            s: _scalar_float(Vnorm.at[s, s])
+            for s in sectors
+            if s in Vnorm.index and s in Vnorm.columns
+        },
+        "A diagonal mean (scaled)": {
+            s: _scalar_float(A.at[s, s])
+            for s in sectors
+            if s in A.index and s in A.columns
+        },
+        "L diagonal mean": {
+            s: _scalar_float(L.at[s, s])
+            for s in sectors
+            if s in L.index and s in L.columns
+        },
+        "x for B denominator (USD)": {
+            s: float(x_b[s]) for s in sectors if s in x_b.index
+        },
+    }
     if mixed and c_col is not None:
         io["q generation MWh (221110)"] = float(q[GENERATION_SECTOR])
         io["c_col (MWh per USD gen)"] = float(c_col)
@@ -214,6 +260,13 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
 
     d_total = _weighted_ef(get_D(), q, monetary_q, sectors, c_col=c_col, mixed=mixed)
     n_total = _weighted_ef(get_N(), q, monetary_q, sectors, c_col=c_col, mixed=mixed)
+    e_total_by_sector = {s: float(E[s].sum()) for s in sectors if s in E.columns}
+    d_total_by_sector = {
+        s: _ef_per_usd(get_D(), s, mixed=mixed, c_col=c_col) for s in sectors
+    }
+    n_total_by_sector = {
+        s: _ef_per_usd(get_N(), s, mixed=mixed, c_col=c_col) for s in sectors
+    }
 
     d_by_gas: dict[str, float] = {}
     n_by_gas: dict[str, float] = {}
@@ -252,9 +305,13 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
         mixed_units=mixed,
         c_col=c_col,
         io=io,
+        io_by_sector=io_by_sector,
         e_abs_kg=e_abs,
+        e_total_by_sector=e_total_by_sector,
         d_abs_kg_per_usd=d_by_gas,
+        d_total_by_sector=d_total_by_sector,
         n_abs_kg_per_usd=n_by_gas,
+        n_total_by_sector=n_total_by_sector,
         d_total=d_total,
         n_total=n_total,
         bly_mt=bly_mt,
@@ -429,9 +486,16 @@ def write_full_trace_markdown(
         "Configs: **v0.2** footing → **reallocation** (PR2) → **3-way split** (PR3) "
         "→ **unit conversion** (PR4 mixed units).",
         "",
-        "After PR3, values aggregate **221110 + 221121 + 221122** (summed) and compare "
-        "to parent **221100** in earlier steps. For mixed units, USD-comparable rows "
-        "use monetary q for generation; generation physical q is shown separately.",
+        "Rows labeled **221100\\*** after PR3 are re-aggregated values for "
+        "**221110 + 221121 + 221122**. They retain the report's existing aggregate "
+        "calculation (sums for additive metrics; output-weighted values for EFs). "
+        "The individual child-sector rows are also shown.",
+        "",
+        "Mixed units only change the pipeline starting at **A/q** (and matrices "
+        "derived from them: **L**, then **B**/**D**/**N** for generation). Make, "
+        "Use, VA, Y, Vnorm, and industry output **x** remain monetary even at the "
+        "unit-conversion step. Physical generation q and `c_col` are shown in the "
+        "mixed-units detail table below.",
         "",
     ]
 
@@ -450,7 +514,7 @@ def write_full_trace_markdown(
         "L diagonal mean",
         "x for B denominator (USD)",
     ]
-    lines.extend(_table_io(traces, labels, io_rows))
+    lines.extend(_table_io_by_sector(traces, labels, io_rows))
 
     mixed_rows = ["q generation MWh (221110)", "c_col (MWh per USD gen)"]
     if any(r in t.io for t in traces for r in mixed_rows):
@@ -463,35 +527,59 @@ def write_full_trace_markdown(
     lines.append("")
     lines.append("## E inventory (absolute, kg CO₂e)")
     lines.append("")
-    lines.extend(_table_gas_abs(traces, labels, "e_abs_kg", "kg CO₂e"))
+    lines.extend(
+        _table_total_ghg_by_sector(
+            traces,
+            labels,
+            aggregate_field="e_abs_kg",
+            sector_field="e_total_by_sector",
+            unit="kg CO₂e",
+        )
+    )
 
     # E shares
     lines.append("")
     lines.append("## E inventory (shares of total)")
     lines.append("")
-    lines.extend(_table_gas_share(traces, labels, "e_abs_kg"))
+    lines.extend(_table_total_ghg_share_by_sector(traces, labels))
 
     # D absolute
     lines.append("")
     lines.append("## D — direct EF (kg CO₂e / USD-equiv)")
     lines.append("")
-    lines.extend(_table_gas_abs(traces, labels, "d_abs_kg_per_usd", "kg/USD"))
+    lines.extend(
+        _table_total_ghg_by_sector(
+            traces,
+            labels,
+            aggregate_field="d_abs_kg_per_usd",
+            sector_field="d_total_by_sector",
+            unit="kg/USD",
+        )
+    )
 
     lines.append("")
     lines.append("## D — shares of total direct EF")
     lines.append("")
-    lines.extend(_table_gas_share(traces, labels, "d_abs_kg_per_usd"))
+    lines.extend(_table_total_ghg_share_by_sector(traces, labels))
 
     # N absolute
     lines.append("")
     lines.append("## N — total EF (kg CO₂e / USD-equiv)")
     lines.append("")
-    lines.extend(_table_gas_abs(traces, labels, "n_abs_kg_per_usd", "kg/USD"))
+    lines.extend(
+        _table_total_ghg_by_sector(
+            traces,
+            labels,
+            aggregate_field="n_abs_kg_per_usd",
+            sector_field="n_total_by_sector",
+            unit="kg/USD",
+        )
+    )
 
     lines.append("")
     lines.append("## N — shares of total EF")
     lines.append("")
-    lines.extend(_table_gas_share(traces, labels, "n_abs_kg_per_usd"))
+    lines.extend(_table_total_ghg_share_by_sector(traces, labels))
 
     # BLy
     lines.append("")
@@ -502,6 +590,212 @@ def write_full_trace_markdown(
     out_path = str(out_path)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
+
+
+SECTOR_TABLE_ROWS: tuple[tuple[str, str], ...] = (
+    (ELECTRICITY_AGGREGATE_SECTOR, "parent"),
+    (f"{ELECTRICITY_AGGREGATE_SECTOR}*", "aggregate"),
+    *((sector, "child") for sector in ELECTRICITY_DISAGG_SECTORS),
+)
+
+
+def _sector_table_value(
+    trace: ConfigTrace,
+    row_kind: str,
+    sector_label: str,
+    aggregate_value: float,
+    sector_values: dict[str, float],
+) -> float | None:
+    if row_kind == "parent":
+        return (
+            sector_values.get(ELECTRICITY_AGGREGATE_SECTOR)
+            if trace.sectors == [ELECTRICITY_AGGREGATE_SECTOR]
+            else None
+        )
+    if row_kind == "aggregate":
+        return (
+            aggregate_value if trace.sectors != [ELECTRICITY_AGGREGATE_SECTOR] else None
+        )
+    return sector_values.get(sector_label)
+
+
+def _fmt_io_value(row: str, value: float) -> str:
+    if row == "c_col (MWh per USD gen)":
+        return _fmt_c_col(value)
+    if row == "q generation MWh (221110)":
+        return f"{value:,.0f} MWh"
+    if "USD" in row or row.startswith("x ") or row.startswith("q commodity"):
+        return _fmt_usd_b(value)
+    return f"{value:.6f}"
+
+
+# How the unit-conversion column is sourced for each IO-anchor metric.
+_IO_UNIT_CONVERSION_SOURCE: dict[str, str] = {
+    "x industry output (USD)": (
+        "Unit conversion: monetary (Make-based industry x; not converted via c_col)."
+    ),
+    "q commodity output (USD-equiv)": (
+        "Unit conversion: monetary scaled_q (pre-conversion A/q); not q_MWh/c_col. "
+        "Physical generation q is in the mixed-units detail table."
+    ),
+    "V Make diagonal sum (USD)": (
+        "Unit conversion: monetary Make table (unchanged by mixed units)."
+    ),
+    "Udom column sum (USD)": (
+        "Unit conversion: monetary Use table (unchanged by mixed units)."
+    ),
+    "Uimp column sum (USD)": (
+        "Unit conversion: monetary Use table (unchanged by mixed units)."
+    ),
+    "Udom row sum (USD)": (
+        "Unit conversion: monetary Use table (unchanged by mixed units)."
+    ),
+    "VA column sum (USD)": (
+        "Unit conversion: monetary VA table (unchanged by mixed units)."
+    ),
+    "Y row sum (USD)": (
+        "Unit conversion: monetary final-demand table (unchanged by mixed units)."
+    ),
+    "Vnorm diagonal mean": (
+        "Unit conversion: monetary Make-normalized Vnorm (unchanged by mixed units)."
+    ),
+    "A diagonal mean (scaled)": (
+        "Unit conversion: physical mixed-units A (generation column in MWh basis)."
+    ),
+    "L diagonal mean": (
+        "Unit conversion: L rebuilt from mixed-units A (physical generation path)."
+    ),
+    "x for B denominator (USD)": (
+        "Unit conversion: monetary industry output used as B's E/x denominator."
+    ),
+}
+
+
+def _io_note(metric: str, aggregate_values: list[float]) -> str:
+    parts = [
+        p
+        for p in (
+            _IO_UNIT_CONVERSION_SOURCE.get(metric, ""),
+            _delta_note(metric, aggregate_values),
+        )
+        if p
+    ]
+    return " ".join(parts)
+
+
+def _table_io_by_sector(
+    traces: list[ConfigTrace],
+    labels: list[str],
+    rows: list[str],
+) -> list[str]:
+    header = ["Metric", "Electricity sector", *labels, "Notes"]
+    sep = ["---"] * len(header)
+    body: list[str] = []
+    for metric in rows:
+        aggregate_values = [t.io.get(metric, 0.0) for t in traces]
+        note = _io_note(metric, aggregate_values)
+        for row_index, (sector_label, row_kind) in enumerate(SECTOR_TABLE_ROWS):
+            cells = [metric if row_index == 0 else "", sector_label]
+            for trace in traces:
+                value = _sector_table_value(
+                    trace,
+                    row_kind,
+                    sector_label,
+                    trace.io.get(metric, 0.0),
+                    trace.io_by_sector.get(metric, {}),
+                )
+                cells.append("N/A" if value is None else _fmt_io_value(metric, value))
+            cells.append(note if row_index == 0 else "")
+            body.append("| " + " | ".join(cells) + " |")
+    return [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(sep) + " |",
+        *body,
+    ]
+
+
+def _table_total_ghg_by_sector(
+    traces: list[ConfigTrace],
+    labels: list[str],
+    *,
+    aggregate_field: str,
+    sector_field: str,
+    unit: str,
+) -> list[str]:
+    header = ["GHG", "Electricity sector", *labels, "Notes"]
+    sep = ["---"] * len(header)
+    body: list[str] = []
+    aggregate_values = [
+        getattr(trace, aggregate_field).get("TOTAL", 0.0) for trace in traces
+    ]
+    metric_name = (
+        "TOTAL"
+        if aggregate_field == "e_abs_kg"
+        else f"{'D' if aggregate_field.startswith('d_') else 'N'} total"
+    )
+    note = _delta_note(
+        metric_name,
+        aggregate_values,
+        is_intensity=aggregate_field != "e_abs_kg",
+    )
+    for row_index, (sector_label, row_kind) in enumerate(SECTOR_TABLE_ROWS):
+        cells = ["Total GHG" if row_index == 0 else "", sector_label]
+        for trace in traces:
+            aggregate_value = getattr(trace, aggregate_field).get("TOTAL", 0.0)
+            sector_values = getattr(trace, sector_field)
+            value = _sector_table_value(
+                trace,
+                row_kind,
+                sector_label,
+                aggregate_value,
+                sector_values,
+            )
+            if value is None:
+                cells.append("N/A")
+            elif aggregate_field == "e_abs_kg":
+                cells.append(_fmt_mtco2e_kg(value))
+            else:
+                cells.append(_fmt_ef(value))
+        cells.append(note if row_index == 0 else "")
+        body.append("| " + " | ".join(cells) + " |")
+    return [
+        f"*Units: {unit}*",
+        "",
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(sep) + " |",
+        *body,
+    ]
+
+
+def _table_total_ghg_share_by_sector(
+    traces: list[ConfigTrace],
+    labels: list[str],
+) -> list[str]:
+    header = ["GHG", "Electricity sector", *labels, "Notes"]
+    sep = ["---"] * len(header)
+    body: list[str] = []
+    for row_index, (sector_label, row_kind) in enumerate(SECTOR_TABLE_ROWS):
+        cells = ["Total GHG" if row_index == 0 else "", sector_label]
+        for trace in traces:
+            is_available = (
+                (
+                    row_kind == "parent"
+                    and trace.sectors == [ELECTRICITY_AGGREGATE_SECTOR]
+                )
+                or (
+                    row_kind == "aggregate"
+                    and trace.sectors != [ELECTRICITY_AGGREGATE_SECTOR]
+                )
+                or (row_kind == "child" and sector_label in trace.sectors)
+            )
+            cells.append("100.00%" if is_available else "N/A")
+        cells.append("Total GHG is 100% by definition." if row_index == 0 else "")
+        body.append("| " + " | ".join(cells) + " |")
+    return [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(sep) + " |",
+        *body,
+    ]
 
 
 def _table_io(
@@ -649,6 +943,11 @@ def main() -> None:
     traces = collect_all_traces()
     out = OUT_DIR / "electricity_full_trace.md"
     write_full_trace_markdown(traces, out)
+    from bedrock.analysis.electricity_disagg_diagnostics.decompose_d_n_step import (  # noqa: PLC0415
+        append_walkthrough_to_report,
+    )
+
+    append_walkthrough_to_report(str(out))
     print(f"Wrote {out}")
 
 
