@@ -76,8 +76,12 @@ def write_naics_year_concordance():
             # Merge df based on shared column
             cw_merged = pd.merge(cw_merged, cw, how='outer')
 
-    # append household and gov data
-    cw_name = ('FinalDemand_SectorCodes', 'Government_SectorCodes')
+    # append household, gov, and BEA custom codes
+    cw_name = (
+        'FinalDemand_SectorCodes',
+        'Government_SectorCodes',
+        'BEA_CustomCodes',
+    )
     for n in cw_name:
         df = load_crosswalk(n)
         df = df.query("NAICS_Level_to_Use_For == 'NAICS_6'")
