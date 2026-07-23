@@ -7,6 +7,7 @@ Supporting functions for National Income and Product Accounts from BEA.
 """
 
 import io
+import re
 import zipfile
 import pandas as pd
 from bedrock.utils.mapping.location import US_FIPS
@@ -14,7 +15,6 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
 
 def bea_nipa_call(*, resp, config, **_):
-
     zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
     df_list = []
     for filename in zip_file.namelist():
@@ -44,7 +44,7 @@ def bea_nipa_parse(*, df_list, source, year, config, **_):
             tables = df
         elif 'Value' in df:
             data = df
-            data['Value'] = data['Value'].str.replace(",", "").astype(float) * 1000000
+            data['Value'] = data['Value'].str.replace(',', '').astype(float) * 1000000
         elif 'SeriesLabel' in df:
             series = df
 
@@ -57,8 +57,8 @@ def bea_nipa_parse(*, df_list, source, year, config, **_):
         # Explode the lists into separate rows
         df = series1.explode('Table_and_Line')
         df = df.query('Table_and_Line.str.contains(@table)').reset_index(drop=True)
-        df['TableId'] = df['Table_and_Line'].str.split(":", expand=True)[0]
-        df['Line'] = df['Table_and_Line'].str.split(":", expand=True)[1].astype('int')
+        df['TableId'] = df['Table_and_Line'].str.split(':', expand=True)[0]
+        df['Line'] = df['Table_and_Line'].str.split(':', expand=True)[1].astype('int')
         df = df.drop(columns=['Table_and_Line'])
         df = df.merge(tables, on='TableId', how='left', validate='m:1')
         return df.reset_index(drop=True)
@@ -86,31 +86,39 @@ def bea_nipa_parse(*, df_list, source, year, config, **_):
     df = (
         df.assign(
             Description=lambda x: x['TableId']
-            + ": "
+            + ': '
             + x['SeriesCode']
-            + " - "
+            + ' - '
             + x['Line'].astype(str)
         )
         .assign(Year=lambda x: x['Period'].astype('Int64').astype(str))
         .rename(columns={'SeriesLabel': 'ActivityProducedBy', 'Value': 'FlowAmount'})
         .assign(
-            ActivityProducedBy=lambda x: x['ActivityProducedBy']
-            + ' ('
-            + x['Line'].astype(str)
-            + ')'
+            # BEA's SeriesLabel occasionally carries its own trailing footnote-reference
+            # number, e.g. "Accommodations (104)". That number is unrelated to Table/Line
+            # (which are already tracked separately via Description) and has no counterpart
+            # in other BEA tables (e.g. PCE Bridge category names), so it is dropped here.
+            ActivityProducedBy=lambda x: x['ActivityProducedBy'].str.replace(
+                r'(?:\s*\(\d+\))+$', '', regex=True
+            )
+            # BEA sometimes pads slash-separated terms with spaces (e.g. "Cosmetic /
+            # perfumes / bath / nail preparations"), while other BEA tables (e.g. PCE
+            # Bridge category names) write the same term slash-tight. Normalize so
+            # names agree across tables.
+            .str.replace(r'\s*/\s*', '/', regex=True)
         )
     )
 
     # columns relevant to all BEA data
-    df["SourceName"] = source
-    df['FlowName'] = "USD"
+    df['SourceName'] = source
+    df['FlowName'] = 'USD'
     df['ActivityConsumedBy'] = ''  # set something here?
     df['Compartment'] = ''  # set something here?
-    df["Class"] = "Money"
-    df["FlowType"] = "TECHNOSPHERE_FLOW"
-    df["Location"] = US_FIPS
+    df['Class'] = 'Money'
+    df['FlowType'] = 'TECHNOSPHERE_FLOW'
+    df['Location'] = US_FIPS
     df = assign_fips_location_system(df, 2024)
-    df["Unit"] = "USD"
+    df['Unit'] = 'USD'
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 5  # tmp
 
@@ -138,7 +146,7 @@ def drop_unassigned(fba, **_):
     return fba
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     from bedrock.extract.generateflowbyactivity import generateFlowByActivity
     from bedrock.extract.flowbyactivity import getFlowByActivity
 
