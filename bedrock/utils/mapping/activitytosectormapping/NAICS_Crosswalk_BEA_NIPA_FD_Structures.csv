@@ -66,5 +66,3 @@ BEA_NIPA,Net purchases of used structures (Residential),NAICS_2017_Code,,,
 BEA_NIPA,Private fixed investment in new structures,NAICS_2017_Code,,,
 BEA_NIPA,Nonresidential structures,NAICS_2017_Code,,,
 BEA_NIPA,Residential structures,NAICS_2017_Code,,,
-BEA_NIPA,Nonresidential Investment in Structures,NAICS_2017_Code,F02S00,,F02S00
-BEA_NIPA,Residential Investment,NAICS_2017_Code,F02R00,,F02R00

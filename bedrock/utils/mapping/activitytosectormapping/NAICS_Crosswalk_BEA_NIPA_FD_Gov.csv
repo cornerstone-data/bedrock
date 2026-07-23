@@ -50,14 +50,6 @@ BEA_NIPA,Structures (State and Local),NAICS_2017_Code,237990,,Other nonresidenti
 BEA_NIPA,Structures (State and Local),NAICS_2017_Code,237110,,Power and communication structures
 BEA_NIPA,Structures (State and Local),NAICS_2017_Code,236115,,Single-family residential structures
 BEA_NIPA,Structures (State and Local),NAICS_2017_Code,237310,,Transportation structures and highways and streets
-BEA_NIPA,Federal Government Defense Consumption Expenditures,NAICS_2017_Code,F06C00,,
-BEA_NIPA,Federal Government Defense Investment in Equipment,NAICS_2017_Code,F06E00,,
-BEA_NIPA,Federal Government Defense Investment in Structures,NAICS_2017_Code,F06S00,,
-BEA_NIPA,Federal Government Nondefense Consumption Expenditures,NAICS_2017_Code,F07C00,,
-BEA_NIPA,Federal Government Nondefense Investment in Equipment,NAICS_2017_Code,F07E00,,
-BEA_NIPA,Federal Government Nondefense Investment in Structures,NAICS_2017_Code,F07S00,,
-BEA_NIPA,Federal Government Defense IP,NAICS_2017_Code,F06N00,,
-BEA_NIPA,Federal Government Nondefense IP,NAICS_2017_Code,F07N00,,
 BEA_NIPA,State and Local Consumption Expenditures,NAICS_2017_Code,F10C00,,
 BEA_NIPA,State and Local Investment in Equipment,NAICS_2017_Code,F10E00,,
 BEA_NIPA,State and Local Investment in Structures,NAICS_2017_Code,F10S00,,
