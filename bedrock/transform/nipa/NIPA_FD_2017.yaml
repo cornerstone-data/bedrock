@@ -1,4 +1,4 @@
-!include:BEA_detail_target.yaml
+!include:Cornerstone_2025_target.yaml
 year: &nipa_year 2017
 target_naics_year: 2017
 geoscale: national
@@ -38,9 +38,12 @@ source_names:
           Line: [342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356,
                  357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371,
                  372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386,
-                 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402]
+                 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402,
+                 # Also exclude lines handled by their own dedicated activity_set below
+                 # (aliased to a different ActivityProducedBy before matching PCEBridge),
+                 # to avoid double-assigning these rows to both this and that activity_set.
+                 159, 52, 61, 60, 70]
         attribution_method: proportional
-        attribute_on: ['ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -53,12 +56,10 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
-          ActivityProducedBy: "Tenant-occupied, including landlord durables"
-          Line: 159
+          Line: 159 # "Tenant-occupied, including landlord durables"; Line uniquely selects this row
         assign_fields:
           ActivityProducedBy: Tenant landlord durables # matches PCEBridge's PCE Category name
         attribution_method: proportional
-        attribute_on: ['ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -77,12 +78,10 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
-          ActivityProducedBy: "Sporting equipment, supplies, guns, and ammunition (part of 80)"
-          Line: 52
+          Line: 52 # "Sporting equipment, supplies, guns, and ammunition (part of 80)"
         assign_fields:
           ActivityProducedBy: Sporting equipment, supplies, guns, and ammunition
         attribution_method: proportional
-        attribute_on: ['ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -93,12 +92,10 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
-          ActivityProducedBy: "Musical instruments (part of 80)"
-          Line: 61
+          Line: 61 # "Musical instruments (part of 80)"
         assign_fields:
           ActivityProducedBy: Musical instruments
         attribution_method: proportional
-        attribute_on: ['ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -109,12 +106,10 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
-          ActivityProducedBy: "Recreational books (part of 90)"
-          Line: 60
+          Line: 60 # "Recreational books (part of 90)"
         assign_fields:
           ActivityProducedBy: Recreational books
         attribution_method: proportional
-        attribute_on: ['ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -125,12 +120,10 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
-          ActivityProducedBy: "Luggage and similar personal items (part of 119)"
-          Line: 70
+          Line: 70 # "Luggage and similar personal items (part of 119)"
         assign_fields:
           ActivityProducedBy: Luggage and similar personal items
         attribution_method: proportional
-        attribute_on: ['ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -167,9 +160,7 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Consumption expenditures
-          Line: 18 # disambiguate from Consumption expenditures at lines 2, 26 (same name, other Gov levels)
+          Line: 18 # "Consumption expenditures"; Line uniquely selects this row (also at lines 2, 26)
         assign_fields:
           ActivityProducedBy: Consumption expenditures (Federal Defense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Defense Consumption Expenditures
@@ -217,9 +208,7 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Structures
-          Line: 20 # disambiguate from Structures (28), (36) — same name, different Gov levels
+          Line: 20 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 28, 36)
         assign_fields:
           ActivityProducedBy: Structures (Federal Defense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Defense Investment in Structures
@@ -234,9 +223,7 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Consumption expenditures
-          Line: 26 # disambiguate from Consumption expenditures at lines 2, 18 (same name, other Gov levels)
+          Line: 26 # "Consumption expenditures"; Line uniquely selects this row (also at lines 2, 18)
         assign_fields:
           ActivityProducedBy: Consumption expenditures (Federal Nondefense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Nondefense Consumption Expenditures
@@ -251,9 +238,7 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Structures
-          Line: 28 # disambiguate from Structures (20), (36) — same name, different Gov levels
+          Line: 28 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 20, 36)
         assign_fields:
           ActivityProducedBy: Structures (Federal Nondefense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Nondefense Investment in Structures
@@ -333,9 +318,7 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Structures
-          Line: 36 # disambiguate from Structures at lines 4, 12, 20, 28 (same name, other Gov levels)
+          Line: 36 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 20, 28)
         assign_fields:
           ActivityProducedBy: Structures (State and Local) # matches crosswalk key
           ActivityConsumedBy: State and Local Investment in Structures
@@ -390,8 +373,7 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
-          ActivityProducedBy: Net purchases of used structures
-          Line: 48
+          Line: 48 # "Net purchases of used structures" (Residential); also occurs at line 38
         assign_fields:
           ActivityProducedBy: Net purchases of used structures (Residential) # matches crosswalk key
           ActivityConsumedBy: Residential Investment
@@ -439,8 +421,7 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
-          ActivityProducedBy: Net purchases of used structures
-          Line: 38
+          Line: 38 # "Net purchases of used structures" (Nonresidential); also occurs at line 48
         assign_fields:
           ActivityProducedBy: Net purchases of used structures (Nonresidential) # matches crosswalk key
           ActivityConsumedBy: Nonresidential Investment in Structures
