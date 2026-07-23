@@ -366,23 +366,15 @@ source_names:
             selection_fields:
               ActivityConsumedBy: {'F02R00': ''}
 
-      FD_Structures1_used:
-        # "Net purchases of used structures" recurs at both line 38 (Nonresidential) and
-        # line 48 (Residential); split out from FD_Structures1/2 so each occurrence can be
-        # relabeled to its own crosswalk key without affecting the other names in those lists.
-        activity_to_sector_mapping: BEA_NIPA_FD_Structures
-        selection_fields:
-          Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
-          Line: 48 # "Net purchases of used structures" (Residential); also occurs at line 38
-        assign_fields:
-          ActivityProducedBy: Net purchases of used structures (Residential) # matches crosswalk key
-          ActivityConsumedBy: Residential Investment
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_SUT:
-            <<: *bea
-            selection_fields:
-              ActivityConsumedBy: {'F02R00': ''}
+      # Note: no FD_Structures1_used counterpart for line 48 ("Net purchases of used
+      # structures", Residential) - unlike line 38 (Nonresidential, mapped to S00402),
+      # line 48 has no sector in the crosswalk at all, so a dedicated activity_set for
+      # it would always produce an empty FBA. An empty primary FBA raises a ValueError
+      # deep in harmonize_geoscale that gets caught by a blanket except-ValueError several
+      # frames up (bedrock/extract/flowbyactivity.py's ".prepare_fbs" activity_sets
+      # branch), which silently discards the *entire* method's output - not just this one
+      # activity_set. Leaving line 48 out of every activity_set here lets it fall through
+      # to the normal "unassigned rows" drop instead.
 
       FD_Structures2:
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
