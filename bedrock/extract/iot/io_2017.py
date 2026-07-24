@@ -62,7 +62,9 @@ from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
 
 LOCAL_USA_MAKE_USE_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_MAKE_USE_DIR)
 LOCAL_USA_SUP_DIR = local_dir_for_gcs_sub_bucket(GCS_USA_SUP_DIR)
-LOCAL_BEA_NIPA_IOT_BRIDGES_DIR = local_dir_for_gcs_sub_bucket(GCS_BEA_NIPA_IOT_BRIDGES_DIR)
+LOCAL_BEA_NIPA_IOT_BRIDGES_DIR = local_dir_for_gcs_sub_bucket(
+    GCS_BEA_NIPA_IOT_BRIDGES_DIR
+)
 
 
 # ----- Documentation ----- #
