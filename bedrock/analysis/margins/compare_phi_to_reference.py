@@ -192,7 +192,12 @@ def main() -> None:
     }
 
     print('Computing CEDA model Phi...')
-    with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
+    # Enable CEDA Phi filters on legacy-default footing (test_usa_config).
+    with temp_usa_config(
+        'test_usa_config',
+        cache_bearing_modules=_CACHE_MODULES,
+        ceda_margins=True,
+    ):
         phi_ceda_model = derive_phi_ceda_usa()
 
     print('Loading CEDA reference Phi...')

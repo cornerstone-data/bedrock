@@ -22,7 +22,11 @@ from typing import Any, Generator
 import yaml
 
 import bedrock.utils.config.usa_config as _cfg_module
-from bedrock.utils.config.usa_config import USAConfig
+from bedrock.utils.config.usa_config import (
+    USAConfig,
+    _normalize_usa_config_file_name,
+    _raise_if_retired_usa_config,
+)
 
 
 def force_set_usa_config(config_name: str, **field_overrides: Any) -> None:
@@ -36,9 +40,9 @@ def force_set_usa_config(config_name: str, **field_overrides: Any) -> None:
     is necessary when overriding schema-constrained fields such as
     ``model_base_year``.
     """
-    yaml_path = Path(_cfg_module.CONFIG_DIR) / (
-        config_name if config_name.endswith(".yaml") else config_name + ".yaml"
-    )
+    config_file = _normalize_usa_config_file_name(config_name)
+    _raise_if_retired_usa_config(config_file)
+    yaml_path = Path(_cfg_module.CONFIG_DIR) / config_file
     with open(yaml_path) as f:
         data = yaml.safe_load(f) or {}
     data.update(field_overrides)

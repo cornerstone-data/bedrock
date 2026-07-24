@@ -10,6 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 PINNED_USEEIO_BASELINE = 'pinned_useeio_baseline'
+# Frozen CEDA v0 baseline id for combine/plot merge keys and Drive sheet labels.
+# Not a loadable yaml under configs/; diagnostics old-side uses GCS snapshot key
+# ``v0`` via ``snapshot_version_or_git_sha``.
 CEDA_V0_BASELINE = 'v8_ceda_2025_usa'
 # ``config_summary`` on the v0.2 FINAL diagnostics sheets records this stem.
 # The yaml was renamed to ``2025_usa_cornerstone_v0_2`` after those runs;
@@ -38,7 +41,7 @@ class ProgressionSheet:
 V0_BASELINE_CEDA = ProgressionSheet(
     step_label='v0 baseline',
     sheet_id='1lCh_LsNbylyLSfwQMqiSh2_oh5qtihXF800om5T02Lc',
-    config_name='v8_ceda_2025_usa',
+    config_name='v8_ceda_2025_usa',  # CEDA_V0_BASELINE label; no runnable yaml
     sheet_title='[2026-03-26 v0 baseline] EF diagnostics',
 )
 

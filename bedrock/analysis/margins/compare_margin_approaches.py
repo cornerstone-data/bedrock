@@ -75,7 +75,12 @@ def _ceda_ratios_on_cornerstone() -> pd.Series:
     _ceda_corresp_norm = _ceda_corresp.div(_ceda_corresp.sum(axis=1), axis=0).fillna(
         0.0
     )
-    with temp_usa_config('v8_ceda_2025_usa', cache_bearing_modules=_CACHE_MODULES):
+    # Enable CEDA Phi filters on legacy-default footing (test_usa_config).
+    with temp_usa_config(
+        'test_usa_config',
+        cache_bearing_modules=_CACHE_MODULES,
+        ceda_margins=True,
+    ):
         ratio_ceda_by_sector = derive_phi_ceda_usa()
     return _ceda_corresp_norm @ ratio_ceda_by_sector
 
