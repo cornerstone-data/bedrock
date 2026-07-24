@@ -399,6 +399,20 @@ def _pct_share(part: float, total: float) -> str:
     return f"{100 * part / total:.2f}%"
 
 
+def _earliest_max_rel_step_index(rel: list[float], max_rel: float) -> int:
+    """Return CONFIG_CHAIN index of the earliest step at/near max |Δ| vs footing.
+
+    Float noise can make later equal aggregates look slightly farther from the
+    footing; prefer the first step within a tight absolute tolerance on the
+    relative change so ties attribute to when the move actually happened.
+    """
+    atol = 1e-12
+    for i, r in enumerate(rel):
+        if r >= max_rel - atol:
+            return i + 1
+    return rel.index(max_rel) + 1
+
+
 def _delta_note(
     row: str,
     values: list[float],
@@ -410,11 +424,23 @@ def _delta_note(
     base = values[0]
     if base == 0:
         return ""
-    rel = [abs(v - base) / abs(base) for v in values[1:]]
+
+    # y_nab at unit conversion mixes MWh (generation) with USD (T/D), so the
+    # mixed block total is not comparable to prior USD footings. Rank largest
+    # change only through the 3-way step and always append the mixed-units caveat.
+    y_nab_mixed_caveat = (
+        "Unit conversion: block total mixes MWh (221110) and USD (T/D); "
+        "not comparable to prior USD totals — see walkthrough."
+    )
+    compare_values = values
+    if row == "y_nab (USD)" and len(values) >= 4:
+        compare_values = values[:3]
+
+    rel = [abs(v - base) / abs(base) for v in compare_values[1:]]
     max_rel = max(rel) if rel else 0.0
     if max_rel < 0.005:
-        return ""
-    idx = rel.index(max_rel) + 1
+        return y_nab_mixed_caveat if row == "y_nab (USD)" else ""
+    idx = _earliest_max_rel_step_index(rel, max_rel)
     step = CONFIG_CHAIN[idx][0]
     notes = {
         ("x industry output (USD)", "reallocation"): (
@@ -466,10 +492,18 @@ def _delta_note(
     }
     key = (row, step)
     if key in notes:
-        return notes[key]
-    if is_intensity:
-        return f"Largest change at {step} ({max_rel:.1%} vs v0.2); reflects IO and/or unit-basis shift."
-    return f"Largest change at {step} ({max_rel:.1%} vs v0.2)."
+        base_note = notes[key]
+    elif is_intensity:
+        base_note = (
+            f"Largest change at {step} ({max_rel:.1%} vs v0.2); "
+            "reflects IO and/or unit-basis shift."
+        )
+    else:
+        base_note = f"Largest change at {step} ({max_rel:.1%} vs v0.2)."
+
+    if row == "y_nab (USD)":
+        return f"{base_note} {y_nab_mixed_caveat}"
+    return base_note
 
 
 def write_full_trace_markdown(

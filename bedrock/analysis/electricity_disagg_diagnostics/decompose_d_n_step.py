@@ -402,101 +402,257 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
         "Block **D** and **N** in the summary tables are q-weighted across electricity sectors:",
         "`sum(D_s * q_s) / sum(q_s)` and the same for N.",
         "",
-        "### Reallocation — aggregate 221100",
+        "### x and q (scaled USD) in the walkthrough tables",
         "",
-        "| Quantity | Value |",
-        "|----------|------:|",
+        "These tables report two different output concepts. They are not required to match.",
+        "",
+        "- **`q (scaled USD)`** is **commodity** output from "
+        "`derive_cornerstone_Aq_scaled()` (`scaled_q`). On the v0.2 footing used here "
+        "(`model_base_year=2023`, `usa_io_data_year=2022`, detail IO year **2017**), "
+        "detail Make-based `q` is year-scaled **2017 → 2022** with summary IO ratios, "
+        "then inflated **2022 → 2023** with industry price indexes. "
+        '"Scaled" means that A/q year-scaling/inflation pipeline — **not** the later '
+        "PR4 mixed-units (MWh) conversion.",
+        "- **`x (B denominator)`** is **industry** gross output used in `E / x` for B. "
+        "With `use_E_data_year_for_x_in_B`, it comes from "
+        "`derive_cornerstone_x_after_redefinition()` at **`usa_ghg_data_year` = 2023** "
+        "(BEA gross-output time series expanded into Cornerstone). It is **year-selected "
+        "industry GO**, not the same summary-ratio `scale_cornerstone_q` path as `q`.",
+        "",
+        "Both values are therefore on a **2023** footing, but from different sources: "
+        "commodity Make → scale/inflate vs industry BEA GO@GHG year. A small gap "
+        "(here `q` slightly below `x`) is expected. The walkthrough identity that is "
+        "forced is `(L_dom @ y_nab) ≈ q`, not `x ≈ q`. Make-derived industry "
+        "`compute_x(V)` in the IO summary table above is a third series and is not "
+        "the B denominator.",
+        "",
     ]
+    lines.extend(_render_realloc_vs_split_table(realloc, split))
+    lines.extend(_render_realloc_worked_calcs(realloc))
+    lines.extend(_render_split_worked_calcs(split))
+    lines.extend(_render_delta_summary(realloc, split))
+    return "\n".join(lines)
+
+
+def _q_weighted(rows: list[dict[str, Any]], key: str) -> float:
+    num = sum(float(r[key]) * float(r["q_usd_B"]) for r in rows)
+    den = sum(float(r["q_usd_B"]) for r in rows)
+    return num / den if den else 0.0
+
+
+def _render_realloc_vs_split_table(
+    realloc: dict[str, Any],
+    split: dict[str, Any],
+) -> list[str]:
     r0 = realloc["rows"][0]
-    lines.extend(
-        [
-            f"| E | {r0['E_Mt']:.2f} MtCO₂e |",
-            f"| x (B denominator) | ${r0['x_B']:.2f} B |",
-            f"| q (scaled USD) | ${r0['q_usd_B']:.2f} B |",
-            f"| D = E/x (Vnorm=1) | {r0['D']:.4f} kg/USD |",
-            f"| L_dom diagonal | {r0['Ldom_diag']:.4f} |",
-            f"| L_total diagonal | {r0['L_diag']:.4f} |",
-            f"| N | {r0['N']:.4f} kg/USD |",
-            f"| y_nab | ${r0['y_nab_B']:.2f} B |",
-            f"| (L_dom @ y_nab) | ${r0['Ldom_y_B']:.2f} B |",
-            f"| **BLy** | **{r0['BLy_Mt']:.2f} MtCO₂e** |",
-            "",
-            "```",
-            f"D[221100] = E/x = {r0['E_Mt']:.2f}e12 / {r0['x_B']:.2f}e9 = {r0['D']:.4f}",
-            f"N[221100] = sum(B @ L) = {r0['N']:.4f}",
-            "BLy[221100] = D * (L_dom @ y_nab)_221100",
-            f"          = {r0['D']:.4f} * ${r0['Ldom_y_B']:.2f}B",
-            f"          = {r0['BLy_Mt']:.2f} MtCO2e",
-            "```",
-            "",
-            "### 3-way split — 221110 + 221121 + 221122",
-            "",
-            "PR3 reloads **E** from `GHG_national_Cornerstone_2023_egrid` and splits IO. "
-            "Almost all inventory lands on **221110** with a much smaller **x**.",
-            "",
-            "| Sector | E (Mt) | x (B) | q (B) | D | L_dom,ii | N | y_nab (B) | L_dom @ y_nab (B) | BLy (Mt) |",
-            "|--------|-------:|------:|------:|--:|---------:|--:|----------:|------------------:|---------:|",
-        ]
-    )
-    for r in split["rows"]:
-        lines.append(
-            f"| {r['sector']} | {r['E_Mt']:.2f} | {r['x_B']:.2f} | {r['q_usd_B']:.2f} | "
-            f"{r['D']:.4f} | {r['Ldom_diag']:.4f} | {r['N']:.4f} | {r['y_nab_B']:.2f} | "
-            f"{r['Ldom_y_B']:.2f} | **{r['BLy_Mt']:.2f}** |"
+    s = split["rows"]
+    e_star = sum(float(r["E_Mt"]) for r in s)
+    x_star = sum(float(r["x_B"]) for r in s)
+    q_star = sum(float(r["q_usd_B"]) for r in s)
+    # Match summary-table 221100*: q-weighted D/N (not sum(E)/sum(x)).
+    d_star = float(split["D_weighted"])
+    ldom_star = _q_weighted(s, "Ldom_diag")
+    ltot_star = _q_weighted(s, "L_diag")
+    n_star = float(split["N_weighted"])
+    y_star = sum(float(r["y_nab_B"]) for r in s)
+    ly_star = sum(float(r["Ldom_y_B"]) for r in s)
+    bly_star = sum(float(r["BLy_Mt"]) for r in s)
+
+    def fmt_star(value: str, marker: str) -> str:
+        return f"{value} ({marker})"
+
+    rows = [
+        (
+            "E",
+            "MtCO₂e",
+            f"{r0['E_Mt']:.2f}",
+            fmt_star(f"{e_star:.2f}", "+"),
+            f"{s[0]['E_Mt']:.2f}",
+            f"{s[1]['E_Mt']:.2f}",
+            f"{s[2]['E_Mt']:.2f}",
+        ),
+        (
+            "x (B denominator)",
+            "$billions",
+            f"${r0['x_B']:.2f}",
+            fmt_star(f"${x_star:.2f}", "+"),
+            f"${s[0]['x_B']:.2f}",
+            f"${s[1]['x_B']:.2f}",
+            f"${s[2]['x_B']:.2f}",
+        ),
+        (
+            "q (scaled USD)",
+            "$billions",
+            f"${r0['q_usd_B']:.2f}",
+            fmt_star(f"${q_star:.2f}", "+"),
+            f"${s[0]['q_usd_B']:.2f}",
+            f"${s[1]['q_usd_B']:.2f}",
+            f"${s[2]['q_usd_B']:.2f}",
+        ),
+        (
+            "D (kg/USD)",
+            "kg/USD",
+            f"{r0['D']:.4f}",
+            fmt_star(f"{d_star:.4f}", "q̄"),
+            f"{s[0]['D']:.4f}",
+            f"{s[1]['D']:.4f}",
+            f"{s[2]['D']:.4f}",
+        ),
+        (
+            "L_dom diagonal",
+            "USD/USD",
+            f"{r0['Ldom_diag']:.4f}",
+            fmt_star(f"{ldom_star:.4f}", "q̄"),
+            f"{s[0]['Ldom_diag']:.4f}",
+            f"{s[1]['Ldom_diag']:.4f}",
+            f"{s[2]['Ldom_diag']:.4f}",
+        ),
+        (
+            "L_total diagonal",
+            "USD/USD",
+            f"{r0['L_diag']:.4f}",
+            fmt_star(f"{ltot_star:.4f}", "q̄"),
+            f"{s[0]['L_diag']:.4f}",
+            f"{s[1]['L_diag']:.4f}",
+            f"{s[2]['L_diag']:.4f}",
+        ),
+        (
+            "N (kg/USD)",
+            "kg/USD",
+            f"{r0['N']:.4f}",
+            fmt_star(f"{n_star:.4f}", "q̄"),
+            f"{s[0]['N']:.4f}",
+            f"{s[1]['N']:.4f}",
+            f"{s[2]['N']:.4f}",
+        ),
+        (
+            "y_nab ($billions)",
+            "$billions",
+            f"${r0['y_nab_B']:.2f}",
+            fmt_star(f"${y_star:.2f}", "+"),
+            f"${s[0]['y_nab_B']:.2f}",
+            f"${s[1]['y_nab_B']:.2f}",
+            f"${s[2]['y_nab_B']:.2f}",
+        ),
+        (
+            "(L_dom @ y_nab) ($billions)",
+            "$billions",
+            f"${r0['Ldom_y_B']:.2f}",
+            fmt_star(f"${ly_star:.2f}", "+"),
+            f"${s[0]['Ldom_y_B']:.2f}",
+            f"${s[1]['Ldom_y_B']:.2f}",
+            f"${s[2]['Ldom_y_B']:.2f}",
+        ),
+        (
+            "BLy (MtCO₂e)",
+            "MtCO₂e",
+            f"**{r0['BLy_Mt']:.2f}**",
+            fmt_star(f"**{bly_star:.2f}**", "+"),
+            f"**{s[0]['BLy_Mt']:.2f}**",
+            f"**{s[1]['BLy_Mt']:.2f}**",
+            f"**{s[2]['BLy_Mt']:.2f}**",
+        ),
+    ]
+
+    out = [
+        "### Side-by-side: reallocation vs 3-way split",
+        "",
+        "PR3 reloads **E** from `GHG_national_Cornerstone_2023_egrid` and splits IO. "
+        "Almost all inventory lands on **221110** with a much smaller **x**.",
+        "",
+        "Column groups:",
+        "",
+        "- **Reallocation:** `221100` is the pre-split aggregate; `221100*` re-aggregates "
+        "the three child sectors for comparison with that aggregate.",
+        "- **3-way split:** individual `221110` / `221121` / `221122` values.",
+        "",
+        "`221100*` aggregation markers:",
+        "",
+        "- `+` — sum of child sectors",
+        "- `q̄` — q-weighted average across child sectors: "
+        "`sum(v_s * q_s) / sum(q_s)` (same rule as summary-table `221100*` for **D** and **N**)",
+        "",
+        "Per-sector **D** values are still `E/x` with `Vnorm=1`. The `221100*` **D**/**N** "
+        "cells use `q̄`, not `sum(E)/sum(x)`, so they match the summary tables above.",
+        "",
+        "| Quantity | Unit | Reallocation | | 3-way split | | |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
+        "|  |  | 221100 | 221100* | 221110 | 221121 | 221122 |",
+    ]
+    for quantity, unit, c100, c100s, c110, c121, c122 in rows:
+        out.append(
+            f"| {quantity} | {unit} | {c100} | {c100s} | {c110} | {c121} | {c122} |"
         )
-    lines.extend(
-        [
-            f"| **Sum** | **{split['E_total_Mt']:.2f}** | — | **{split['q_usd_total_B']:.2f}** | — | — | — | "
-            f"**{split['y_nab_total_B']:.2f}** | — | **{split['BLy_total_Mt']:.2f}** |",
-            "",
-            "#### Block D (q-weighted)",
-            "",
-            "```",
-            "D_block = (D_110*q_110 + D_121*q_121 + D_122*q_122) / (q_110 + q_121 + q_122)",
-        ]
-    )
+    out.append("")
+    return out
+
+
+def _render_realloc_worked_calcs(realloc: dict[str, Any]) -> list[str]:
+    r0 = realloc["rows"][0]
+    return [
+        "### Worked calculations — Step: reallocation (221100)",
+        "",
+        "These identities use the single aggregate electricity sector before the 3-way split.",
+        "",
+        "```",
+        f"D[221100] = E/x = {r0['E_Mt']:.2f}e12 / {r0['x_B']:.2f}e9 = {r0['D']:.4f}",
+        f"N[221100] = sum(B @ L) = {r0['N']:.4f}",
+        "BLy[221100] = D * (L_dom @ y_nab)_221100",
+        f"          = {r0['D']:.4f} * ${r0['Ldom_y_B']:.2f}B",
+        f"          = {r0['BLy_Mt']:.2f} MtCO2e",
+        "```",
+        "",
+    ]
+
+
+def _render_split_worked_calcs(
+    split: dict[str, Any],
+) -> list[str]:
     s = split["rows"]
     d_num = sum(r["D"] * r["q_usd_B"] for r in s)
-    lines.append(
-        f"        = ({s[0]['D']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['D']:.4f}*{s[1]['q_usd_B']:.2f} "
-        f"+ {s[2]['D']:.4f}*{s[2]['q_usd_B']:.2f}) / {split['q_usd_total_B']:.2f}"
-    )
-    lines.append(
-        f"        = {d_num:.2f} / {split['q_usd_total_B']:.2f} = {split['D_weighted']:.6f} kg/USD"
-    )
-    lines.append("```")
-    lines.extend(
-        [
-            "",
-            "Generation dominates (~99.7% of block D) because `D_110` is large and "
-            "`q_110` is a substantial share of block q.",
-            "",
-            "#### Block N (q-weighted)",
-            "",
-            "```",
-            "N_block = (N_110*q_110 + N_121*q_121 + N_122*q_122) / sum(q)",
-        ]
-    )
     n_num = sum(r["N"] * r["q_usd_B"] for r in s)
-    lines.append(
-        f"        = ({s[0]['N']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['N']:.4f}*{s[1]['q_usd_B']:.2f} "
-        f"+ {s[2]['N']:.4f}*{s[2]['q_usd_B']:.2f}) / {split['q_usd_total_B']:.2f}"
-    )
-    lines.append(
-        f"        = {n_num:.2f} / {split['q_usd_total_B']:.2f} = {split['N_weighted']:.6f} kg/USD"
-    )
-    lines.append("```")
-    lines.extend(
-        [
-            "",
-            "#### Block BLy (sum over electricity sectors)",
-            "",
-            "```",
-            "BLy_block = BLy_110 + BLy_121 + BLy_122",
-            "BLy_j     = D_j * (L_dom @ y_nab)_j",
-            "",
-        ]
-    )
+    e_star = sum(float(r["E_Mt"]) for r in s)
+    x_star = sum(float(r["x_B"]) for r in s)
+    d_ex_star = e_star / x_star if x_star else 0.0
+    lines = [
+        "### Worked calculations — Step: 3-way split (221110 + 221121 + 221122)",
+        "",
+        "These identities use the three child sectors. `221100*` in the table above "
+        "is the re-aggregation of these values (`+` / `q̄` as marked).",
+        "",
+        "#### Block D (q-weighted) — matches `221100*` table row `q̄` and summary D",
+        "",
+        "```",
+        "D[221100*] = D_block = (D_110*q_110 + D_121*q_121 + D_122*q_122) / (q_110 + q_121 + q_122)",
+        f"           = ({s[0]['D']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['D']:.4f}*{s[1]['q_usd_B']:.2f} "
+        f"+ {s[2]['D']:.4f}*{s[2]['q_usd_B']:.2f}) / {split['q_usd_total_B']:.2f}",
+        f"           = {d_num:.2f} / {split['q_usd_total_B']:.2f} = {split['D_weighted']:.6f} kg/USD",
+        "```",
+        "",
+        "Generation dominates (~99.7% of block D) because `D_110` is large and "
+        "`q_110` is a substantial share of block q.",
+        "",
+        f"Note: `sum(E)/sum(x) = {e_star:.2f}/{x_star:.2f} = {d_ex_star:.4f}` differs from "
+        "this q-weighted block D because industry `x` ≠ commodity `q` and emissions are "
+        "concentrated on generation. The summary tables and this walkthrough use the "
+        "q-weighted value.",
+        "",
+        "#### Block N (q-weighted) — matches `221100*` table row `q̄` and summary N",
+        "",
+        "```",
+        "N[221100*] = N_block = (N_110*q_110 + N_121*q_121 + N_122*q_122) / sum(q)",
+        f"           = ({s[0]['N']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['N']:.4f}*{s[1]['q_usd_B']:.2f} "
+        f"+ {s[2]['N']:.4f}*{s[2]['q_usd_B']:.2f}) / {split['q_usd_total_B']:.2f}",
+        f"           = {n_num:.2f} / {split['q_usd_total_B']:.2f} = {split['N_weighted']:.6f} kg/USD",
+        "```",
+        "",
+        "#### Block BLy (sum over electricity sectors) — matches `221100*` table row `+`",
+        "",
+        "```",
+        "BLy_block = BLy_110 + BLy_121 + BLy_122",
+        "BLy_j     = D_j * (L_dom @ y_nab)_j",
+        "",
+    ]
     for r in s:
         lines.append(
             f"BLy[{r['sector']}] = {r['D']:.4f} * ${r['Ldom_y_B']:.2f}B = {r['BLy_Mt']:.2f} MtCO2e"
@@ -504,35 +660,40 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
     bly_parts = " + ".join(f"{r['BLy_Mt']:.2f}" for r in s)
     lines.append(f"BLy_block = {bly_parts} = {split['BLy_total_Mt']:.2f} MtCO2e")
     lines.append("```")
-    lines.extend(
-        [
-            "",
-            "### Delta summary (reallocation → 3-way split)",
-            "",
-            "| Metric | Reallocation | 3-way split | Change | Primary driver |",
-            "|--------|-------------:|------------:|-------:|----------------|",
-            f"| D_block (kg/USD) | {realloc['D_weighted']:.4f} | {split['D_weighted']:.4f} | "
-            f"{split['D_weighted']-realloc['D_weighted']:+.4f} | eGRID E on 221110 / small x_gen |",
-            f"| N_block (kg/USD) | {realloc['N_weighted']:.4f} | {split['N_weighted']:.4f} | "
-            f"{split['N_weighted']-realloc['N_weighted']:+.4f} | Higher D_gen + higher L_gen |",
-            f"| BLy_block (Mt) | {realloc['BLy_total_Mt']:.2f} | {split['BLy_total_Mt']:.2f} | "
-            f"{split['BLy_total_Mt']-realloc['BLy_total_Mt']:+.2f} | BLy_110 jumps with D_110 and L_dom @ y_nab |",
-            f"| E_block (Mt) | {realloc['E_total_Mt']:.2f} | {split['E_total_Mt']:.2f} | "
-            f"{split['E_total_Mt']-realloc['E_total_Mt']:+.2f} | eGRID FBS vs aggregate FBS |",
-            f"| y_nab block (B) | {realloc['y_nab_total_B']:.2f} | {split['y_nab_total_B']:.2f} | "
-            f"{split['y_nab_total_B']-realloc['y_nab_total_B']:+.2f} | IO split reallocates domestic demand |",
-            "",
-            f"**Why BLy rises more than E ({split['E_total_Mt']-realloc['E_total_Mt']:+.0f} Mt):** "
-            "BLy is not E. It is **attributed production** through the IO identity. Generation BLy uses "
-            f"`D_110 = {s[0]['D']:.2f}` (not the aggregate {realloc['D_weighted']:.2f}) "
-            f"times `(L_dom @ y_nab)_110` (${s[0]['Ldom_y_B']:.0f}B). Transmission adds "
-            f"{s[1]['BLy_Mt']:.1f} MtCO₂e; distribution has D≈0 so BLy≈0. The block sum "
-            f"**{split['BLy_total_Mt']:,.0f} Mt** exceeds inventory **{split['E_total_Mt']:,.0f} Mt** "
-            "because BLy counts attributed production through domestic final demand, not raw FBS totals.",
-            "",
-        ]
-    )
-    return "\n".join(lines)
+    lines.append("")
+    return lines
+
+
+def _render_delta_summary(
+    realloc: dict[str, Any],
+    split: dict[str, Any],
+) -> list[str]:
+    s = split["rows"]
+    return [
+        "### Delta summary (reallocation → 3-way split)",
+        "",
+        "| Metric | Reallocation | 3-way split | Change | Primary driver |",
+        "|--------|-------------:|------------:|-------:|----------------|",
+        f"| D_block (kg/USD) | {realloc['D_weighted']:.4f} | {split['D_weighted']:.4f} | "
+        f"{split['D_weighted']-realloc['D_weighted']:+.4f} | eGRID E on 221110 / small x_gen |",
+        f"| N_block (kg/USD) | {realloc['N_weighted']:.4f} | {split['N_weighted']:.4f} | "
+        f"{split['N_weighted']-realloc['N_weighted']:+.4f} | Higher D_gen + higher L_gen |",
+        f"| BLy_block (Mt) | {realloc['BLy_total_Mt']:.2f} | {split['BLy_total_Mt']:.2f} | "
+        f"{split['BLy_total_Mt']-realloc['BLy_total_Mt']:+.2f} | BLy_110 jumps with D_110 and L_dom @ y_nab |",
+        f"| E_block (Mt) | {realloc['E_total_Mt']:.2f} | {split['E_total_Mt']:.2f} | "
+        f"{split['E_total_Mt']-realloc['E_total_Mt']:+.2f} | eGRID FBS vs aggregate FBS |",
+        f"| y_nab block (B) | {realloc['y_nab_total_B']:.2f} | {split['y_nab_total_B']:.2f} | "
+        f"{split['y_nab_total_B']-realloc['y_nab_total_B']:+.2f} | IO split reallocates domestic demand |",
+        "",
+        f"**Why BLy rises more than E ({split['E_total_Mt']-realloc['E_total_Mt']:+.0f} Mt):** "
+        "BLy is not E. It is **attributed production** through the IO identity. Generation BLy uses "
+        f"`D_110 = {s[0]['D']:.2f}` (not the aggregate {realloc['D_weighted']:.2f}) "
+        f"times `(L_dom @ y_nab)_110` (${s[0]['Ldom_y_B']:.0f}B). Transmission adds "
+        f"{s[1]['BLy_Mt']:.1f} MtCO₂e; distribution has D≈0 so BLy≈0. The block sum "
+        f"**{split['BLy_total_Mt']:,.0f} Mt** exceeds inventory **{split['E_total_Mt']:,.0f} Mt** "
+        "because BLy counts attributed production through domestic final demand, not raw FBS totals.",
+        "",
+    ]
 
 
 def _conversion_factor_detail(config: str) -> dict[str, Any]:
@@ -795,6 +956,27 @@ def render_unit_conversion_walkthrough_md(
         "---",
         "",
         "## Walkthrough: 3-way split to unit conversion (D, N, BLy)",
+        "",
+        "### Summary — why **D** is unchanged (USD-equiv)",
+        "",
+        "1. **Why does D stay flat for electricity between the 3-way split and unit "
+        "conversion?**",
+        "2. This walkthrough compares the **3-way split** (all USD) with **unit conversion** "
+        "(generation in MWh; T/D still USD).",
+        "3. **D is unchanged in kg/USD-equivalent** because PR4 rescales generation **D** "
+        "and **q** by the **same** `c_col`: "
+        f"`D_MWh = D_USD / c_col`, `q_MWh = q_USD × c_col` → USD-equivalent intensity is "
+        "`D_MWh × c_col = D_USD`. "
+        f"Here `c_col = {c_col:.6f}` MWh/USD, so "
+        f"`D_110` goes {s110['D']:.4f} kg/USD → {m110['D']:.4f} kg/MWh and back-converts to "
+        f"the same USD-equiv value. Block D stays "
+        f"**{split['D_weighted']:.4f}** kg/USD-equiv. **E** and T/D **D** are untouched.",
+        "4. Absolute attributed emissions (**BLy**) are likewise invariant (`BLy = D·q`); "
+        "what *does* move is **N**, via rewritten **A**/**L** "
+        f"({split['N_weighted']:.4f} → {mixed['N_weighted']:.4f} kg/USD-equiv).",
+        "",
+        "**Takeaway:** Mixed units re-express generation on a physical basis; they do not "
+        "change USD-equivalent direct EF or block `BLy`, because `c_col` cancels in `D·q`.",
         "",
         "This section explains what PR4 (mixed units) changes — and why **electricity-block "
         f"BLy stays at {split['BLy_total_Mt']:,.2f} MtCO₂e** (Δ = {d_bly:+.2e} Mt).",
