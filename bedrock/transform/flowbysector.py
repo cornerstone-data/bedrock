@@ -273,7 +273,8 @@ class FlowBySector(_FlowBy):
         """
         In the event activity sets in an FBS are at a less aggregated target
         sector level than the overall target level, aggregate the sectors to
-        the FBS target scale
+        the FBS target scale. Does not disaggregate coarser sector
+        codes to less aggregated targets.
         :return:
         """
         if industry_spec is None:
@@ -281,6 +282,44 @@ class FlowBySector(_FlowBy):
         naics_key = naics_industry_spec_key(
             industry_spec, self.config['target_naics_year']
         )
+        # Use Sector_Levels to compare aggregation level
+        levels = (
+            load_crosswalk('Sector_Levels')
+            .groupby('Sector', as_index=False)['SectorLength']
+            .max()
+        )
+        naics_key = (
+            naics_key.merge(
+                levels, how='left', left_on='source_naics', right_on='Sector'
+            )
+            .drop(columns='Sector')
+            .rename(columns={'SectorLength': 'sourceLength'})
+            .merge(levels, how='left', left_on='target_naics', right_on='Sector')
+            .drop(columns='Sector')
+            .rename(columns={'SectorLength': 'targetLength'})
+        )
+        # Aggregate / 1:1 only; do not expand e.g. 531 -> 531HSO
+        agg_key = naics_key.loc[
+            naics_key['sourceLength'] >= naics_key['targetLength'],
+            ['source_naics', 'target_naics'],
+        ]
+        # Warn when finer targets are skipped; keep source at its aggregation level
+        sectors = pd.concat(
+            [
+                self[c]
+                for c in ['SectorProducedBy', 'SectorConsumedBy', 'Sector']
+                if c in self
+            ],
+            ignore_index=True,
+        )
+        no_agg = naics_key[
+            (naics_key['sourceLength'] < naics_key['targetLength'])
+            & naics_key['source_naics'].isin(sectors)
+        ].drop_duplicates(['source_naics', 'target_naics'])
+        for s, t in no_agg.groupby('source_naics')['target_naics']:
+            log.info(
+                f'Target sectors {", ".join(t)} are not found in data, keeping data at {s}'
+            )
 
         fbs = self
         sector_cols = ['ProducedBy', 'ConsumedBy']
@@ -292,9 +331,15 @@ class FlowBySector(_FlowBy):
                 continue
             fbs = (
                 fbs.rename(columns={f'Sector{direction}': 'source_naics'})
-                .merge(naics_key, how='left')
-                .rename(columns={'target_naics': f'Sector{direction}'})
-                .drop(columns='source_naics')
+                .merge(agg_key, how='left')
+                .assign(
+                    **{
+                        f'Sector{direction}': lambda x: x['target_naics'].fillna(
+                            x['source_naics']
+                        )
+                    }
+                )
+                .drop(columns=['source_naics', 'target_naics'])
                 .aggregate_flowby(
                     columns_to_group_by=(
                         fbs.groupby_cols + ['group_id'] if 'group_id' in fbs else None
