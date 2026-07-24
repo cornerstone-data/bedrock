@@ -97,6 +97,9 @@ def _nipa_fd_activity_sets(
     fba = get_flowby_from_config(
         name=source_name, config=full_config, download_sources_ok=download_sources_ok
     )
+    assert isinstance(fba, FlowByActivity), (
+        f'Expected BEA_NIPA to load as FlowByActivity, got {type(fba)}'
+    )
     return (
         fba.select_by_fields()
         .function_socket('clean_fba_before_activity_sets')
