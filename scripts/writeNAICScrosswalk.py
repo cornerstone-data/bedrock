@@ -259,6 +259,10 @@ def write_annual_naics_crosswalk(year):
 
     # drop seclength column
     naics_cw = naics_cw.drop(columns='secLength')
+    # drop BEA HS/ORE parents (housing)
+    naics_cw = naics_cw[
+        ~(naics_cw['NAICS_2'].isin(['HS', 'ORE']) & naics_cw['NAICS_4'].isna())
+    ]
     # reorder
     naics_cw = naics_cw.reindex(sorted(naics_cw.columns), axis=1)
     # save as csv
