@@ -70,6 +70,12 @@ BEA_PCEBridge:
     - Money
   activity_schema: BEA_2017_Detail_Code
   sector_hierarchy: "flat"
+BEA_PEQBridge:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: BEA_2017_Detail_Code
+  sector_hierarchy: "flat"
 BEA_NIPA:
   data_format: FBA
   class:

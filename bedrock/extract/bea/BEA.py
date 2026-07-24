@@ -21,9 +21,11 @@ from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.extract.iot.gdp import load_go_detail
 from bedrock.extract.iot.io_2017 import (
     _PCE_BRIDGE_DETAIL_VALUE_COLUMNS,
+    _PEQ_BRIDGE_DETAIL_VALUE_COLUMNS,
     _load_2017_detail_make_use_usa,
     _load_2017_detail_supply_use_usa,
     _load_pce_bridge_detail_raw_usa,
+    _load_peq_bridge_detail_raw_usa,
     _load_usa_summary_sut,
 )
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
@@ -136,6 +138,21 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
         df = df.melt(
             id_vars=['ActivityProducedBy', 'ActivityConsumedBy'],
             value_vars=_PCE_BRIDGE_DETAIL_VALUE_COLUMNS,
+            var_name='FlowName',
+            value_name='FlowAmount',
+        )
+    elif "PEQBridge" in source:
+        df = _load_peq_bridge_detail_raw_usa()
+        df = df.rename(
+            columns={
+                'PCE Category': 'ActivityProducedBy',  # equipment category, e.g. "Autos"
+                'Commodity Code': 'ActivityConsumedBy',
+            }
+        )
+        # Same 5-column value-chain melt as PCEBridge above.
+        df = df.melt(
+            id_vars=['ActivityProducedBy', 'ActivityConsumedBy'],
+            value_vars=_PEQ_BRIDGE_DETAIL_VALUE_COLUMNS,
             var_name='FlowName',
             value_name='FlowAmount',
         )
