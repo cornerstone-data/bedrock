@@ -1,17 +1,26 @@
-"""Analyze why total-EF (N) rises for downstream sectors at the 3-way split.
+"""Analyze why total-EF (N) rises for downstream sectors at the 3-way split
+and why the mixed-units (physical generation) panel spreads further.
 
-Decomposes ``N_j = sum_i D_i * L_ij`` for the v0.2 footing and the 3-way
-electricity split, isolating the electricity-supply-chain contribution so we
-can test whether the per-sector N change is driven by each sector's
-electricity share of N (user hypothesis) and why the change is always positive.
+Decomposes ``N_j = sum_i D_i * L_ij`` for the v0.2 footing, the 3-way
+electricity split, and mixed units, isolating the electricity-supply-chain
+contribution so we can test whether the per-sector N change is driven by each
+sector's electricity share of N (user hypothesis), why the 3-way change is
+almost always positive, and why unit conversion raises N further for many
+sectors (via rewritten A/L and purchaser-specific ``c_row``).
 
 Run:
     python -m bedrock.analysis.electricity_disagg_diagnostics.analyze_n_variance
+
+Outputs (under ``output/ef/panel/``):
+    - n_variance_analysis.csv          footing ↔ 3-way
+    - n_variance_mixed_analysis.csv    footing / 3-way / mixed + end-use class
+    - n_variance_explained.md          updates the mixed-units section in place
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import cast
 
 import numpy as np
@@ -22,7 +31,12 @@ from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
 )
 from bedrock.analysis.electricity_disagg_diagnostics.paths import OUT_DIR
 from bedrock.publish.model_objects import get_D, get_L, get_N
+from bedrock.transform.eeio.electricity_end_use_mapping import (
+    build_end_use_map,
+    classify_industry_end_use,
+)
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
@@ -30,15 +44,28 @@ from bedrock.utils.schemas.cornerstone_schemas import (
 
 FOOTING_CONFIG = "2025_usa_cornerstone_v0_2"
 SPLIT_CONFIG = "2025_usa_cornerstone_v0_2_electricity_disaggregation"
+MIXED_CONFIG = "2025_usa_cornerstone_v0_2_electricity_mixed_units"
 
 FOOTING_ELEC = [ELECTRICITY_AGGREGATE_SECTOR]
 SPLIT_ELEC = list(ELECTRICITY_DISAGG_SECTORS)
 
+PANEL_DIR = OUT_DIR / "ef" / "panel"
+EXPLAINED_MD = PANEL_DIR / "n_variance_explained.md"
+MIXED_SECTION_BEGIN = "<!-- BEGIN mixed-units-n-variance -->"
+MIXED_SECTION_END = "<!-- END mixed-units-n-variance -->"
+
+# Contrast examples used in the mixed-units write-up / slides.
+CONTRAST_SECTORS: list[tuple[str, str]] = [
+    ("33641A", "Aerospace products"),
+    ("452000", "General merchandise retail"),
+    ("1121A0", "Cattle ranching"),
+]
+
 
 @dataclass
 class ModelVectors:
-    d: pd.Series  # characterized direct EF (kg CO2e / USD), index=sector
-    n: pd.Series  # characterized total EF (kg CO2e / USD), index=sector
+    d: pd.Series  # characterized direct EF (kg CO2e / USD or kg/MWh for gen mixed)
+    n: pd.Series  # characterized total EF
     ell: pd.DataFrame  # Leontief inverse L (index=input i, cols=output j)
 
 
@@ -71,7 +98,7 @@ def elec_contribution(mv: ModelVectors, elec_sectors: list[str]) -> pd.Series:
 
 
 def elec_dollars_embodied(mv: ModelVectors, elec_sectors: list[str]) -> pd.Series:
-    """L_elec_j = sum_{i in elec} L_ij (electricity $ embodied per $ of j)."""
+    """L_elec_j = sum_{i in elec} L_ij (electricity activity embodied per $ of j)."""
     present = [s for s in elec_sectors if s in mv.ell.index]
     return mv.ell.loc[present].sum(axis=0).astype(float)
 
@@ -128,6 +155,289 @@ def build_analysis() -> tuple[pd.DataFrame, ModelVectors, ModelVectors]:
     return df, foot, split
 
 
+def build_mixed_analysis(
+    split_df: pd.DataFrame,
+    split: ModelVectors,
+    mixed: ModelVectors,
+) -> pd.DataFrame:
+    """Extend the 3-way analysis with mixed-units N/D/C_elec and EPA end-use class."""
+    end_use_map = build_end_use_map()
+    celec_mixed = elec_contribution(mixed, SPLIT_ELEC)
+    common = [s for s in split_df.index if s in mixed.n.index]
+
+    df = split_df.loc[common].copy()
+    df["N_mixed"] = mixed.n.reindex(common)
+    df["D_mixed"] = mixed.d.reindex(common)
+    df["Celec_mixed"] = celec_mixed.reindex(common)
+    df = df.dropna(subset=["N_mixed", "N_split", "N_foot"])
+    df = df[df["N_split"] > 0]
+
+    df["dN_mixed_vs_foot"] = df["N_mixed"] - df["N_foot"]
+    df["dN_pct_mixed_vs_foot"] = df["dN_mixed_vs_foot"] / df["N_foot"]
+    df["dN_mixed_vs_split"] = df["N_mixed"] - df["N_split"]
+    df["dN_pct_mixed_vs_split"] = df["dN_mixed_vs_split"] / df["N_split"]
+    df["Celec_ratio_mixed_split"] = df["Celec_mixed"] / df["Celec_split"].where(
+        df["Celec_split"] != 0, np.nan
+    )
+    df["dD_pct_mixed_vs_foot"] = (df["D_mixed"] - df["D_foot"]) / df["D_foot"].where(
+        df["D_foot"] != 0, np.nan
+    )
+
+    end_uses: list[str] = []
+    rules: list[str] = []
+    for s in df.index.astype(str):
+        eu = end_use_map.get(s)
+        _eu2, rule = classify_industry_end_use(s)
+        if eu is None:
+            eu = _eu2
+        end_uses.append(str(eu))
+        rules.append(str(rule))
+    df["end_use"] = end_uses
+    df["end_use_rule"] = rules
+    return df
+
+
+def _pct_fmt(x: float) -> str:
+    return f"{x:+.1%}"
+
+
+def _end_use_summary_table(df: pd.DataFrame) -> list[str]:
+    lines = [
+        "| End-use | n | Median `%ΔN` (3-way→mixed) | Mean | Min | Max | Share with `%ΔN` > 0 |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for eu in ("Industrial", "Commercial", "Transportation", "Residential"):
+        g = df[df["end_use"] == eu]
+        if g.empty:
+            continue
+        lines.append(
+            f"| **{eu}** | {len(g)} | {_pct_fmt(float(g['dN_pct_mixed_vs_split'].median()))} | "
+            f"{_pct_fmt(float(g['dN_pct_mixed_vs_split'].mean()))} | "
+            f"{_pct_fmt(float(g['dN_pct_mixed_vs_split'].min()))} | "
+            f"{_pct_fmt(float(g['dN_pct_mixed_vs_split'].max()))} | "
+            f"{(g['dN_pct_mixed_vs_split'] > 0).mean():.1%} |"
+        )
+    return lines
+
+
+def _contrast_table(df: pd.DataFrame) -> list[str]:
+    lines = [
+        "| Sector | Name | End-use | N footing | N 3-way | N mixed | "
+        "`%ΔN` vs footing (3-way) | `%ΔN` vs footing (mixed) | Note |",
+        "|---|---|---|---:|---:|---:|---:|---:|---|",
+    ]
+    notes = {
+        "33641A": "Industrial `c_j` amplifies gen `L` (MWh/$)",
+        "452000": "Commercial `c_j` ≲ `c_col`; little extra vs 3-way",
+        "1121A0": "Industrial but low elec share of `N`; small move either step",
+    }
+    for code, name in CONTRAST_SECTORS:
+        if code not in df.index:
+            continue
+        r = df.loc[code]
+        lines.append(
+            f"| {code} | {name} | {r['end_use']} | "
+            f"{r['N_foot']:.3f} | {r['N_split']:.3f} | {r['N_mixed']:.3f} | "
+            f"{_pct_fmt(float(r['dN_pct']))} | "
+            f"{_pct_fmt(float(r['dN_pct_mixed_vs_foot']))} | "
+            f"{notes.get(code, '')} |"
+        )
+    return lines
+
+
+def render_mixed_units_section(
+    df: pd.DataFrame,
+    split: ModelVectors,
+    mixed: ModelVectors,
+) -> str:
+    """Markdown for why the mixed-units N panel spreads more than the 3-way panel."""
+    gen = GENERATION_SECTOR
+    d_gen_split = float(split.d[gen])
+    d_gen_mixed = float(mixed.d[gen])
+    c_col = d_gen_split / d_gen_mixed if d_gen_mixed else float("nan")
+
+    med_3way = float(df["dN_pct"].median())
+    med_mixed = float(df["dN_pct_mixed_vs_foot"].median())
+    max_3way = float(df["dN_pct"].max())
+    max_mixed = float(df["dN_pct_mixed_vs_foot"].max())
+    gt10_3way = int((df["dN_pct"] > 0.10).sum())
+    gt10_mixed = int((df["dN_pct_mixed_vs_foot"] > 0.10).sum())
+    gt15_3way = int((df["dN_pct"] > 0.15).sum())
+    gt15_mixed = int((df["dN_pct_mixed_vs_foot"] > 0.15).sum())
+    n_sec = len(df)
+    celec_ratio_med = float(df["Celec_ratio_mixed_split"].median())
+
+    ind = df[df["end_use"] == "Industrial"]
+    com = df[df["end_use"] == "Commercial"]
+    trn = df[df["end_use"] == "Transportation"]
+    other = pd.concat([com, trn]) if len(trn) else com
+    min_ind = float(ind["dN_pct_mixed_vs_split"].min()) if len(ind) else float("nan")
+    max_other = (
+        float(other["dN_pct_mixed_vs_split"].max()) if len(other) else float("nan")
+    )
+    n_ind_below_com_med = (
+        int((ind["dN_pct_mixed_vs_split"] < com["dN_pct_mixed_vs_split"].median()).sum())
+        if len(ind) and len(com)
+        else 0
+    )
+
+    eff_foot = float(df["eff_int_foot"].median())
+    eff_split = float(df["eff_int_split"].median())
+
+    lines: list[str] = [
+        MIXED_SECTION_BEGIN,
+        "",
+        "## Why the mixed-units (physical generation) panel shows higher `N` than "
+        "the 3-way split",
+        "",
+        "Scope: the **right panel** (\"Conversion to physical units\") of "
+        "`ef_panels_vs_v0_2_N.png` vs the **middle panel** (\"3-way monetary split\"). "
+        "Both panels are percent differences against the **same v0.2 footing**, so the "
+        "mixed panel **stacks** the 3-way undilution and the mixed-units `A`/`L` rewrite.",
+        "",
+        "### Panel facts (non-electricity sectors vs footing)",
+        "",
+        "| Step | Median `%ΔN` | Max `%ΔN` | Sectors with `%ΔN` > 10% | "
+        "Sectors with `%ΔN` > 15% | n |",
+        "|---|---:|---:|---:|---:|---:|",
+        f"| 3-way monetary split | {_pct_fmt(med_3way)} | {_pct_fmt(max_3way)} | "
+        f"{gt10_3way} | {gt15_3way} | {n_sec} |",
+        f"| Conversion to physical units | {_pct_fmt(med_mixed)} | {_pct_fmt(max_mixed)} | "
+        f"{gt10_mixed} | {gt15_mixed} | {n_sec} |",
+        "",
+        "### Suggested slide framing",
+        "",
+        "#### What causes the extra `N` move at unit conversion",
+        "",
+        "1. **This is not another jump in direct EF.** USD-equivalent **`D` is unchanged** "
+        f"for generation under the mixed-units transform: "
+        f"`D_110` = {d_gen_split:.4f} kg/USD ↔ {d_gen_mixed:.4f} kg/MWh via "
+        f"`c_col = D_USD/D_MWh ≈ {c_col:.6f}` MWh/USD. T/D direct EFs and inventory `E` "
+        "are untouched; block USD-equiv `D` is stable.",
+        "2. **What changes is `L` (and thus `N = Σᵢ Dᵢ Lᵢⱼ`).** Mixed units rewrite "
+        "**A**: the generation **sales row** is multiplied by purchaser-specific "
+        "`c_j` (USD→MWh), and the generation **column** is divided by `c_col`. "
+        "Leontief requirements for generation become **MWh per $** of sector `j`.",
+        "3. **Physical MWh per electricity dollar is not uniform.** `c_row` varies by "
+        "EPA end-use price (`c_j = λ / p_j`). Cheaper power → **larger** `c_j` → more "
+        "MWh embodied per $ of purchases → more kg from `D_MWh`. Empirically, the "
+        "median electricity-channel contribution "
+        f"**`C_elec` rises {celec_ratio_med:.2f}×** from 3-way → mixed "
+        "(in line with typical `c_j / c_col`).",
+        "4. **The panel is vs footing, so effects stack:** 3-way undilution "
+        f"(embodied-electricity intensity median ~{eff_foot:.2f} → ~{eff_split:.2f} "
+        "kg/$ elec) **+** mixed-units physical `L` rewrite → wider / higher `%ΔN` "
+        "cloud than the middle panel alone.",
+        "",
+        "**One-liner:** The 3-way split raises the *price* of electricity emissions "
+        "(`D_gen`); mixed units often raise the *physical quantity* of generation "
+        "embodied per dollar (`L[gen→j]` in MWh).",
+        "",
+        "#### Same share logic, bigger multiplier",
+        "",
+        "| Idea | 3-way vs footing | Mixed vs footing |",
+        "|---|---|---|",
+        "| Own `%ΔD` | ~0 (non-elec) | ~0 (non-elec; gen reported USD-equiv) |",
+        "| Driver | Higher elec intensity (undiluted `D_110`) | Same + more MWh/`$` via `c_row`/`L` |",
+        f"| Median `%ΔN` | {_pct_fmt(med_3way)} | {_pct_fmt(med_mixed)} |",
+        "| Still true | Larger elec share of `N` → larger `%ΔN` | Same ordering, larger amplitudes |",
+        "",
+        "### Contrast examples",
+        "",
+        *(_contrast_table(df)),
+        "",
+        "EPA end-use classes for these examples (from `build_end_use_map()` / "
+        "`classify_industry_end_use`): **33641A Industrial**, **452000 Commercial**, "
+        "**1121A0 Industrial**. None is Residential or Transportation.",
+        "",
+        "### Does Industrial always rise more than Commercial / Transportation "
+        "(3-way → mixed)?",
+        "",
+        "**No — not always.** Industrial is higher **on average**, and every industrial "
+        "sector in this run rises; some commercial/transport sectors fall slightly. "
+        "The distributions **overlap**.",
+        "",
+        *(_end_use_summary_table(df)),
+        "",
+        f"Strict separation fails: `min(Industrial) = {_pct_fmt(min_ind)}` "
+        f"< `max(Commercial∪Transportation) = {_pct_fmt(max_other)}`. "
+        f"About **{n_ind_below_com_med}** industrial sectors sit below the commercial "
+        "median `%ΔN` (3-way→mixed). Class mapping correlates with the mixed-units bump "
+        "(via `c_j` / retail prices), but **elec share of `N`** and supply-chain "
+        "structure still matter — Industrial ≠ always larger than Commercial/"
+        "Transportation for every sector.",
+        "",
+        "### Reproduce",
+        "",
+        "```",
+        "python -m bedrock.analysis.electricity_disagg_diagnostics.analyze_n_variance",
+        "```",
+        "",
+        "This regenerates `n_variance_analysis.csv`, `n_variance_mixed_analysis.csv`, "
+        "and refreshes this section inside `n_variance_explained.md`.",
+        "",
+        MIXED_SECTION_END,
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def upsert_mixed_section(md_path: Path, section: str) -> None:
+    """Insert or replace the marked mixed-units section in the explained markdown."""
+    md_path.parent.mkdir(parents=True, exist_ok=True)
+    if md_path.exists():
+        text = md_path.read_text(encoding="utf-8")
+    else:
+        text = (
+            "# Why total-EF (N) moves under electricity disaggregation\n\n"
+            "Auto-generated shell — re-run analyze_n_variance after adding narrative.\n\n"
+        )
+
+    begin = MIXED_SECTION_BEGIN
+    end = MIXED_SECTION_END
+    if begin in text and end in text:
+        pre = text.split(begin, 1)[0].rstrip()
+        post = text.split(end, 1)[1].lstrip()
+        new_text = pre + "\n\n" + section.rstrip() + "\n"
+        if post.strip():
+            new_text = new_text + "\n" + post
+    else:
+        summary_at = text.find("\n## Summary\n")
+        if summary_at >= 0:
+            new_text = (
+                text[:summary_at].rstrip()
+                + "\n\n"
+                + section.rstrip()
+                + "\n\n"
+                + text[summary_at:].lstrip()
+            )
+        else:
+            new_text = text.rstrip() + "\n\n" + section.rstrip() + "\n"
+
+    # Summary already mentions mixed CSV if the inserted section does; only patch
+    # the trailing Summary reproduce blurb when it still lacks the mixed note.
+    summary_at = new_text.find("\n## Summary\n")
+    if summary_at >= 0:
+        summary = new_text[summary_at:]
+        if "mixed-units N panel" not in summary:
+            old = (
+                "python -m bedrock.analysis.electricity_disagg_diagnostics."
+                "analyze_n_variance\n```"
+            )
+            new = (
+                "python -m bedrock.analysis.electricity_disagg_diagnostics."
+                "analyze_n_variance\n```\n\n"
+                "That regenerates `n_variance_analysis.csv`, "
+                "`n_variance_mixed_analysis.csv`, and refreshes the "
+                "**mixed-units N panel** section (between the HTML markers) "
+                "in this file."
+            )
+            if old in summary:
+                new_text = new_text[:summary_at] + summary.replace(old, new, 1)
+
+    md_path.write_text(new_text, encoding="utf-8")
+
+
 def detail(df: pd.DataFrame, foot: ModelVectors, split: ModelVectors) -> None:
     print("\n=== Electricity-sector DIRECT EF (kg CO2e / USD) ===")
     print(f"footing 221100          D = {foot.d[ELECTRICITY_AGGREGATE_SECTOR]:.4f}")
@@ -153,7 +463,6 @@ def detail(df: pd.DataFrame, foot: ModelVectors, split: ModelVectors) -> None:
             f"  dN%={r['dN_pct']:.4f}  dCelec={r['dCelec']:.4f}  "
             f"dCrest={r['dCrest']:.4f}"
         )
-        # Raw L contributions into this column.
         lf = float(cast(float, foot.ell.at[ELECTRICITY_AGGREGATE_SECTOR, s]))
         d_agg = float(foot.d[ELECTRICITY_AGGREGATE_SECTOR])
         print(f"  L_foot[221100->{s}] = {lf:.5f}  (x D {d_agg:.4f})")
@@ -213,7 +522,6 @@ def summarize(df: pd.DataFrame) -> None:
             float, valid[["elec_share_N", "dN_pct"]].corr(method="spearman").iloc[0, 1]
         )
     )
-    # slope through origin
     x = valid["elec_share_N"].to_numpy(dtype=float)
     y = valid["dN_pct"].to_numpy(dtype=float)
     k = float((x * y).sum() / (x * x).sum())
@@ -260,12 +568,32 @@ def summarize(df: pd.DataFrame) -> None:
 
 def main() -> None:
     df, foot, split = build_analysis()
-    out_csv = OUT_DIR / "ef" / "panel" / "n_variance_analysis.csv"
-    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    PANEL_DIR.mkdir(parents=True, exist_ok=True)
+    out_csv = PANEL_DIR / "n_variance_analysis.csv"
     df.to_csv(out_csv)
     print(f"Wrote {out_csv}")
     summarize(df)
     detail(df, foot, split)
+
+    print("\n=== Mixed units (physical generation) ===")
+    mixed = load_model(MIXED_CONFIG)
+    mixed_df = build_mixed_analysis(df, split, mixed)
+    out_mixed = PANEL_DIR / "n_variance_mixed_analysis.csv"
+    mixed_df.to_csv(out_mixed)
+    print(f"Wrote {out_mixed}")
+    print(
+        f"median dN_pct vs footing: 3-way={mixed_df['dN_pct'].median():.4f} "
+        f"mixed={mixed_df['dN_pct_mixed_vs_foot'].median():.4f}"
+    )
+    print(
+        f"median C_elec mixed/split = "
+        f"{mixed_df['Celec_ratio_mixed_split'].median():.4f}"
+    )
+    print("end-use counts:\n", mixed_df["end_use"].value_counts().to_string())
+
+    section = render_mixed_units_section(mixed_df, split, mixed)
+    upsert_mixed_section(EXPLAINED_MD, section)
+    print(f"Updated mixed-units section in {EXPLAINED_MD}")
 
 
 if __name__ == "__main__":
