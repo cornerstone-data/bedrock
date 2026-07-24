@@ -81,6 +81,7 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
 
     rows = []
     q_usd_sum = 0.0
+    x_sum = 0.0
     d_num = 0.0
     n_num = 0.0
     for s in sectors:
@@ -121,8 +122,9 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
         bly_s = _scalar_float(bly_vec[s]) if s in bly_vec.index else 0.0
         bly_check = d_s * ly_s
         q_usd_sum += q_usd
-        d_num += d_usd * q_usd
-        n_num += n_usd * q_usd
+        x_sum += x_s
+        d_num += d_usd * x_s
+        n_num += n_usd * x_s
         rows.append(
             {
                 "sector": s,
@@ -157,15 +159,16 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
         "rows": rows,
         "E_total_Mt": sum(r["E_Mt"] for r in rows),
         "q_usd_total_B": q_usd_sum / 1e9,
+        "x_total_B": x_sum / 1e9,
         "y_nab_total_B": sum(r["y_nab_B"] for r in rows),
         "BLy_total_Mt": sum(r["BLy_Mt"] for r in rows),
-        "D_weighted": d_num / q_usd_sum if q_usd_sum else 0.0,
-        "N_weighted": n_num / q_usd_sum if q_usd_sum else 0.0,
+        "D_weighted": d_num / x_sum if x_sum else 0.0,
+        "N_weighted": n_num / x_sum if x_sum else 0.0,
         "D_weighted_fn": _weighted_ef(
-            D_pub, q, monetary_q, sectors, c_col=c_col, mixed=mixed
+            D_pub, x, sectors, c_col=c_col, mixed=mixed
         ),
         "N_weighted_fn": _weighted_ef(
-            N_pub, q, monetary_q, sectors, c_col=c_col, mixed=mixed
+            N_pub, x, sectors, c_col=c_col, mixed=mixed
         ),
     }
 
@@ -399,8 +402,9 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
         "| y_nab | `backcompute_y_from_A_and_q(Adom, q)` |",
         "| **BLy** | **`diag(D) @ L_dom @ y_nab`** (per sector: `BLy_j = D_j * (L_dom @ y_nab)_j`) |",
         "",
-        "Block **D** and **N** in the summary tables are q-weighted across electricity sectors:",
-        "`sum(D_s * q_s) / sum(q_s)` and the same for N.",
+        "Block **D** and **N** in the summary tables are **x-weighted** across electricity "
+        "sectors: `sum(D_s * x_s) / sum(x_s)` and the same for N "
+        "([details](#x-weighted-summary-dn)).",
         "",
         "### x and q (scaled USD) in the walkthrough tables",
         "",
@@ -440,6 +444,12 @@ def _q_weighted(rows: list[dict[str, Any]], key: str) -> float:
     return num / den if den else 0.0
 
 
+def _x_weighted(rows: list[dict[str, Any]], key: str) -> float:
+    num = sum(float(r[key]) * float(r["x_B"]) for r in rows)
+    den = sum(float(r["x_B"]) for r in rows)
+    return num / den if den else 0.0
+
+
 def _render_realloc_vs_split_table(
     realloc: dict[str, Any],
     split: dict[str, Any],
@@ -449,11 +459,11 @@ def _render_realloc_vs_split_table(
     e_star = sum(float(r["E_Mt"]) for r in s)
     x_star = sum(float(r["x_B"]) for r in s)
     q_star = sum(float(r["q_usd_B"]) for r in s)
-    # Match summary-table 221100*: q-weighted D/N (not sum(E)/sum(x)).
-    d_star = float(split["D_weighted"])
+    # Walkthrough 221100* D = sum(E)/sum(x); N = x-weighted child N.
+    d_star = e_star / x_star if x_star else 0.0
     ldom_star = _q_weighted(s, "Ldom_diag")
     ltot_star = _q_weighted(s, "L_diag")
-    n_star = float(split["N_weighted"])
+    n_star = _x_weighted(s, "N")
     y_star = sum(float(r["y_nab_B"]) for r in s)
     ly_star = sum(float(r["Ldom_y_B"]) for r in s)
     bly_star = sum(float(r["BLy_Mt"]) for r in s)
@@ -493,7 +503,7 @@ def _render_realloc_vs_split_table(
             "D (kg/USD)",
             "kg/USD",
             f"{r0['D']:.4f}",
-            fmt_star(f"{d_star:.4f}", "q̄"),
+            fmt_star(f"{d_star:.4f}", "E/x"),
             f"{s[0]['D']:.4f}",
             f"{s[1]['D']:.4f}",
             f"{s[2]['D']:.4f}",
@@ -520,7 +530,7 @@ def _render_realloc_vs_split_table(
             "N (kg/USD)",
             "kg/USD",
             f"{r0['N']:.4f}",
-            fmt_star(f"{n_star:.4f}", "q̄"),
+            fmt_star(f"{n_star:.4f}", "x̄"),
             f"{s[0]['N']:.4f}",
             f"{s[1]['N']:.4f}",
             f"{s[2]['N']:.4f}",
@@ -569,11 +579,18 @@ def _render_realloc_vs_split_table(
         "`221100*` aggregation markers:",
         "",
         "- `+` — sum of child sectors",
+        "- `E/x` — block direct intensity `sum(E_s) / sum(x_s)` (**D** in this table)",
+        "- `x̄` — x-weighted average across child sectors: "
+        "`sum(v_s * x_s) / sum(x_s)` (**N** in this table)",
         "- `q̄` — q-weighted average across child sectors: "
-        "`sum(v_s * q_s) / sum(q_s)` (same rule as summary-table `221100*` for **D** and **N**)",
+        "`sum(v_s * q_s) / sum(q_s)` (**L** diagonals in this table; q-weighted D/N "
+        "are shown for comparison in the worked calculations)",
         "",
-        "Per-sector **D** values are still `E/x` with `Vnorm=1`. The `221100*` **D**/**N** "
-        "cells use `q̄`, not `sum(E)/sum(x)`, so they match the summary tables above.",
+        "Per-sector **D** values are `E/x` with `Vnorm=1`. In this walkthrough table, "
+        "`221100*` **D** uses block `E/x` and `221100*` **N** uses the x-weighted "
+        "child average — the same **x-weighting** as the summary D/N tables above "
+        "([anchor](#x-weighted-summary-dn)). Both q- and x-weighted D/N are shown "
+        "in the worked calculations below.",
         "",
         "| Quantity | Unit | Reallocation | | 3-way split | | |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
@@ -609,41 +626,70 @@ def _render_split_worked_calcs(
     split: dict[str, Any],
 ) -> list[str]:
     s = split["rows"]
-    d_num = sum(r["D"] * r["q_usd_B"] for r in s)
-    n_num = sum(r["N"] * r["q_usd_B"] for r in s)
+    d_q_num = sum(float(r["D"]) * float(r["q_usd_B"]) for r in s)
+    d_x_num = sum(float(r["D"]) * float(r["x_B"]) for r in s)
+    n_q_num = sum(float(r["N"]) * float(r["q_usd_B"]) for r in s)
+    n_x_num = sum(float(r["N"]) * float(r["x_B"]) for r in s)
     e_star = sum(float(r["E_Mt"]) for r in s)
     x_star = sum(float(r["x_B"]) for r in s)
+    q_star = sum(float(r["q_usd_B"]) for r in s)
     d_ex_star = e_star / x_star if x_star else 0.0
+    d_x_w = d_x_num / x_star if x_star else 0.0
+    n_x_w = n_x_num / x_star if x_star else 0.0
     lines = [
         "### Worked calculations — Step: 3-way split (221110 + 221121 + 221122)",
         "",
         "These identities use the three child sectors. `221100*` in the table above "
-        "is the re-aggregation of these values (`+` / `q̄` as marked).",
+        "is the re-aggregation of these values (`+` / `E/x` / `x̄` / `q̄` as marked).",
         "",
-        "#### Block D (q-weighted) — matches `221100*` table row `q̄` and summary D",
+        "#### Block D — q-weighted vs x-weighted / `E/x`",
         "",
-        "```",
-        "D[221100*] = D_block = (D_110*q_110 + D_121*q_121 + D_122*q_122) / (q_110 + q_121 + q_122)",
-        f"           = ({s[0]['D']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['D']:.4f}*{s[1]['q_usd_B']:.2f} "
-        f"+ {s[2]['D']:.4f}*{s[2]['q_usd_B']:.2f}) / {split['q_usd_total_B']:.2f}",
-        f"           = {d_num:.2f} / {split['q_usd_total_B']:.2f} = {split['D_weighted']:.6f} kg/USD",
-        "```",
+        '<a id="x-weighted-summary-dn"></a>',
         "",
-        "Generation dominates (~99.7% of block D) because `D_110` is large and "
-        "`q_110` is a substantial share of block q.",
-        "",
-        f"Note: `sum(E)/sum(x) = {e_star:.2f}/{x_star:.2f} = {d_ex_star:.4f}` differs from "
-        "this q-weighted block D because industry `x` ≠ commodity `q` and emissions are "
-        "concentrated on generation. The summary tables and this walkthrough use the "
-        "q-weighted value.",
-        "",
-        "#### Block N (q-weighted) — matches `221100*` table row `q̄` and summary N",
+        "**Included in the side-by-side table and summary D (`221100*`):** block "
+        f"`E/x` = `sum(E)/sum(x)` = **{d_ex_star:.4f}** kg/USD (equals x-weighted "
+        "child D when `Vnorm≈1`).",
         "",
         "```",
-        "N[221100*] = N_block = (N_110*q_110 + N_121*q_121 + N_122*q_122) / sum(q)",
-        f"           = ({s[0]['N']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['N']:.4f}*{s[1]['q_usd_B']:.2f} "
-        f"+ {s[2]['N']:.4f}*{s[2]['q_usd_B']:.2f}) / {split['q_usd_total_B']:.2f}",
-        f"           = {n_num:.2f} / {split['q_usd_total_B']:.2f} = {split['N_weighted']:.6f} kg/USD",
+        "D[221100*] (E/x / x-weighted, in summary + table) = sum(E_s) / sum(x_s)",
+        f"                           = {e_star:.2f} / {x_star:.2f} = {d_ex_star:.6f} kg/USD",
+        "",
+        "D[221100*] (q-weighted; comparison only) =",
+        "  (D_110*q_110 + D_121*q_121 + D_122*q_122) / sum(q)",
+        f"  = ({s[0]['D']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['D']:.4f}*{s[1]['q_usd_B']:.2f} "
+        f"+ {s[2]['D']:.4f}*{s[2]['q_usd_B']:.2f}) / {q_star:.2f}",
+        f"  = {d_q_num:.2f} / {q_star:.2f} = "
+        f"{((d_q_num / q_star) if q_star else 0.0):.6f} kg/USD",
+        "",
+        "D[221100*] (x-weighted children) =",
+        "  (D_110*x_110 + D_121*x_121 + D_122*x_122) / sum(x)",
+        f"  = ({s[0]['D']:.4f}*{s[0]['x_B']:.2f} + {s[1]['D']:.4f}*{s[1]['x_B']:.2f} "
+        f"+ {s[2]['D']:.4f}*{s[2]['x_B']:.2f}) / {x_star:.2f}",
+        f"  = {d_x_num:.2f} / {x_star:.2f} = {d_x_w:.6f} kg/USD",
+        "```",
+        "",
+        "With diagonal Make (`Vnorm≈1`), child `D_s ≈ E_s/x_s`, so the x-weighted "
+        "child average equals block `E/x`. The q-weighted value differs because "
+        "`q ≠ x` and emissions concentrate on generation.",
+        "",
+        "#### Block N — q-weighted vs x-weighted",
+        "",
+        "**Included in the side-by-side table and summary N (`221100*`):** x-weighted "
+        f"child N = **{n_x_w:.4f}** kg/USD.",
+        "",
+        "```",
+        "N[221100*] (x-weighted, in summary + table) =",
+        "  (N_110*x_110 + N_121*x_121 + N_122*x_122) / sum(x)",
+        f"  = ({s[0]['N']:.4f}*{s[0]['x_B']:.2f} + {s[1]['N']:.4f}*{s[1]['x_B']:.2f} "
+        f"+ {s[2]['N']:.4f}*{s[2]['x_B']:.2f}) / {x_star:.2f}",
+        f"  = {n_x_num:.2f} / {x_star:.2f} = {n_x_w:.6f} kg/USD",
+        "",
+        "N[221100*] (q-weighted; comparison only) =",
+        "  (N_110*q_110 + N_121*q_121 + N_122*q_122) / sum(q)",
+        f"  = ({s[0]['N']:.4f}*{s[0]['q_usd_B']:.2f} + {s[1]['N']:.4f}*{s[1]['q_usd_B']:.2f} "
+        f"+ {s[2]['N']:.4f}*{s[2]['q_usd_B']:.2f}) / {q_star:.2f}",
+        f"  = {n_q_num:.2f} / {q_star:.2f} = "
+        f"{((n_q_num / q_star) if q_star else 0.0):.6f} kg/USD",
         "```",
         "",
         "#### Block BLy (sum over electricity sectors) — matches `221100*` table row `+`",
@@ -1156,8 +1202,8 @@ def main() -> None:
         )
     print(f"  Block E total: {realloc['E_total_Mt']:.2f} MtCO2e")
     print(f"  Block q_usd:   ${realloc['q_usd_total_B']:.2f} B")
-    print(f"  D_weighted = sum(D_s*q_s)/sum(q_s) = {realloc['D_weighted']:.6f} kg/USD")
-    print(f"  N_weighted = sum(N_s*q_s)/sum(q_s) = {realloc['N_weighted']:.6f} kg/USD")
+    print(f"  D_weighted = sum(D_s*x_s)/sum(x_s) = {realloc['D_weighted']:.6f} kg/USD")
+    print(f"  N_weighted = sum(N_s*x_s)/sum(x_s) = {realloc['N_weighted']:.6f} kg/USD")
 
     print()
     print("=" * 72)
@@ -1171,8 +1217,8 @@ def main() -> None:
         )
     print(f"  Block E total: {split['E_total_Mt']:.2f} MtCO2e")
     print(f"  Block q_usd:   ${split['q_usd_total_B']:.2f} B")
-    print(f"  D_weighted = sum(D_s*q_s)/sum(q_s) = {split['D_weighted']:.6f} kg/USD")
-    print(f"  N_weighted = sum(N_s*q_s)/sum(q_s) = {split['N_weighted']:.6f} kg/USD")
+    print(f"  D_weighted = sum(D_s*x_s)/sum(x_s) = {split['D_weighted']:.6f} kg/USD")
+    print(f"  N_weighted = sum(N_s*x_s)/sum(x_s) = {split['N_weighted']:.6f} kg/USD")
 
     print()
     print("=" * 72)

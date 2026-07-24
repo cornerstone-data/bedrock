@@ -258,8 +258,8 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
             )
     e_abs["TOTAL"] = float(sum(v for k, v in e_abs.items() if k != "TOTAL"))
 
-    d_total = _weighted_ef(get_D(), q, monetary_q, sectors, c_col=c_col, mixed=mixed)
-    n_total = _weighted_ef(get_N(), q, monetary_q, sectors, c_col=c_col, mixed=mixed)
+    d_total = _weighted_ef(get_D(), x_b, sectors, c_col=c_col, mixed=mixed)
+    n_total = _weighted_ef(get_N(), x_b, sectors, c_col=c_col, mixed=mixed)
     e_total_by_sector = {s: float(E[s].sum()) for s in sectors if s in E.columns}
     d_total_by_sector = {
         s: _ef_per_usd(get_D(), s, mixed=mixed, c_col=c_col) for s in sectors
@@ -272,6 +272,7 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
     n_by_gas: dict[str, float] = {}
     M = B @ L
     e_total = e_abs["TOTAL"]
+    x_block = sum(float(x_b[s]) for s in sectors if s in x_b.index)
     for gas in GHG_ORDER:
         if gas in e_abs and e_total:
             d_by_gas[gas] = (e_abs[gas] / e_total) * d_total
@@ -280,12 +281,12 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
             for s in sectors:
                 if s not in M.columns:
                     continue
-                q_s = _sector_q_usd(s, q, monetary_q)
+                x_s = float(x_b[s]) if s in x_b.index else 0.0
                 m_gs = _scalar_float(M.at[gas, s])
                 if mixed and s == GENERATION_SECTOR and c_col:
                     m_gs = m_gs * float(c_col)
-                num += m_gs * q_s
-            n_by_gas[gas] = num / q_usd if q_usd else 0.0
+                num += m_gs * x_s
+            n_by_gas[gas] = num / x_block if x_block else 0.0
     d_by_gas["TOTAL"] = d_total
     n_gas_sum = sum(n_by_gas.values())
     if n_gas_sum > 0:
@@ -356,20 +357,23 @@ def _ef_per_usd(
 
 def _weighted_ef(
     ef_df: pd.DataFrame,
-    q: pd.Series[float],
-    monetary_q: pd.Series[float] | None,
+    weights: pd.Series[float],
     sectors: Sequence[str],
     *,
     c_col: float | None = None,
     mixed: bool = False,
 ) -> float:
+    """Block EF as weight-average of child USD-equiv intensities.
+
+    Summary ``221100*`` D/N use industry ``x`` (B denominator) as weights.
+    """
     num = 0.0
     den = 0.0
     for s in sectors:
-        q_s = _sector_q_usd(s, q, monetary_q)
+        w = float(weights[s]) if s in weights.index else 0.0
         val = _ef_per_usd(ef_df, s, mixed=mixed, c_col=c_col)
-        num += val * q_s
-        den += q_s
+        num += val * w
+        den += w
     return num / den if den else 0.0
 
 
@@ -475,10 +479,12 @@ def _delta_note(
             "E inventory unchanged; only A/q/B units change for generation."
         ),
         ("D total", "unit conversion"): (
-            "Block D is E/q in USD-equiv; unit conversion leaves E and USD q unchanged, so D is stable."
+            "Block D is x-weighted in USD-equiv; unit conversion leaves E and industry "
+            "x unchanged, so D is stable."
         ),
         ("N total", "unit conversion"): (
-            "Block N is q-weighted in USD-equiv; mixed units change A/L for generation but national BLy is unchanged."
+            "Block N is x-weighted in USD-equiv; mixed units change A/L for generation "
+            "but national BLy is unchanged."
         ),
         ("BLy (MtCO2e)", "reallocation"): (
             "IO reshape without Y/E change shifts attributed BLy between electricity and gas distribution."
@@ -581,6 +587,12 @@ def write_full_trace_markdown(
     lines.append("")
     lines.append("## D — direct EF (kg CO₂e / USD-equiv)")
     lines.append("")
+    lines.append(
+        "Block `221100*` is an **x-weighted** average of child-sector D "
+        "(`sum(D_s · x_s) / sum(x_s)`, with `x` = industry GO used in `E/x`). "
+        "See [x-weighted D/N aggregation](#x-weighted-summary-dn) in the walkthrough."
+    )
+    lines.append("")
     lines.extend(
         _table_total_ghg_by_sector(
             traces,
@@ -599,6 +611,12 @@ def write_full_trace_markdown(
     # N absolute
     lines.append("")
     lines.append("## N — total EF (kg CO₂e / USD-equiv)")
+    lines.append("")
+    lines.append(
+        "Block `221100*` is an **x-weighted** average of child-sector N "
+        "(`sum(N_s · x_s) / sum(x_s)`). "
+        "See [x-weighted D/N aggregation](#x-weighted-summary-dn) in the walkthrough."
+    )
     lines.append("")
     lines.extend(
         _table_total_ghg_by_sector(
