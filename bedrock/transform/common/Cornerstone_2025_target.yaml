@@ -41,12 +41,13 @@ industry_spec:
             'GSLGE',   'GSLGH',   'GSLGO', 'S00102', 'S00203', 'S00500', 'S00600',
             # Housing sectors
             '531HST', '531HSO', '531ORE',
-            # BEA final-demand codes (NIPA_FD_* methods select on these exactly via
-            # BEA_Detail_Use_SUT's ActivityConsumedBy; without a NAICS_6 entry they
-            # fall through to the 'default' NAICS_3 level, which for this code family
-            # only resolves as short as 4 characters (e.g. F02R00 -> F02R) since no
-            # true 3-digit parent is registered for them in NAICS_2017_Crosswalk.csv)
-            'F02N00', 'F02R00', 'F02S00',
+            # BEA final-demand codes - NIPA_FD_* methods select on these exactly via
+            # BEA_Detail_Use_SUT's ActivityConsumedBy, and/or assign them directly to
+            # SectorConsumedBy post-attribution (issue #539); without a NAICS_6 entry
+            # they fall through to the 'default' NAICS_3 level, which for this code
+            # family only resolves as short as 4 characters (e.g. F02R00 -> F02R)
+            # since no true 3-digit parent is registered in NAICS_2017_Crosswalk.csv
+            'F02E00', 'F02N00', 'F02R00', 'F02S00',
             'F06C00', 'F06E00', 'F06N00', 'F06S00',
             'F07C00', 'F07E00', 'F07N00', 'F07S00',
             'F10C00', 'F10E00', 'F10N00', 'F10S00',
