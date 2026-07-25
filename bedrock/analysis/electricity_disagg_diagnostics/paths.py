@@ -1,4 +1,8 @@
-"""Output paths for electricity disaggregation BLy dispersion diagnostics."""
+"""Shared package paths for electricity disaggregation diagnostics.
+
+``OUT_DIR`` stays at the package-level ``output/`` so every analysis subpackage
+writes to the same stable layout.
+"""
 
 from __future__ import annotations
 

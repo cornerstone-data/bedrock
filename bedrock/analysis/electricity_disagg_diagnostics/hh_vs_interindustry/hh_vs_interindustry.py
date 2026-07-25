@@ -9,7 +9,7 @@ Compares generation MWh slices to EIA Electric Power Annual Table 2.2 (2023)
 residential / commercial / industrial sales.
 
 Run:
-    python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry
+    python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_vs_interindustry
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
+from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace import (
     _clear_model_caches,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.paths import OUT_DIR
@@ -410,7 +410,7 @@ def render_report(p: dict[str, Any]) -> str:
         "## Reproduce",
         "",
         "```",
-        "python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry",
+        "python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_vs_interindustry",
         "```",
         "",
         f"Writes `{REPORT_MD.as_posix()}` and `{REPORT_JSON.as_posix()}`.",

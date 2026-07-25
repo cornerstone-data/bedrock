@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.analysis.electricity_disagg_diagnostics.dispersion import (
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import (
     DISPERSION_TOL,
     compute_chained_dispersion,
 )

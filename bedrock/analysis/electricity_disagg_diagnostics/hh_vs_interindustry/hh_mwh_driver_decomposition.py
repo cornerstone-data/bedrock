@@ -10,7 +10,7 @@ D. sensitivity to model/EIA bucket pairings; and
 E. independent BEA/EIA definitions and a PCE-dollar sanity check.
 
 Run:
-    python -m bedrock.analysis.electricity_disagg_diagnostics.hh_mwh_driver_decomposition
+    python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_mwh_driver_decomposition
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from typing import Any, Mapping, cast
 
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry import (
+from bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_vs_interindustry import (
     HH_FD_CODE,
     MIXED_CONFIG,
     _eia_table_2_2_sales_mwh,
@@ -886,7 +886,7 @@ def render_report(payload: Mapping[str, Any]) -> str:
             '## Reproduce',
             '',
             '```',
-            'python -m bedrock.analysis.electricity_disagg_diagnostics.hh_mwh_driver_decomposition',
+            'python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_mwh_driver_decomposition',
             '```',
             '',
             f'Writes `{REPORT_MD.as_posix()}` and `{REPORT_JSON.as_posix()}`.',

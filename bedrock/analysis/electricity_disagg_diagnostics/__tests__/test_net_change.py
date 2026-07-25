@@ -10,11 +10,11 @@ matplotlib.use('Agg')
 
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.dispersion import DISPERSION_TOL
-from bedrock.analysis.electricity_disagg_diagnostics.net_change import (
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import DISPERSION_TOL
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.net_change import (
     compute_chained_net_change,
 )
-from bedrock.analysis.electricity_disagg_diagnostics.waterfall import (
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.waterfall import (
     render_net_change_waterfall,
 )
 

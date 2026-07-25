@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.bly import align_bly_pair
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.bly import align_bly_pair
 
 DISPERSION_TOL = 1e-4  # MMT CO2e
 

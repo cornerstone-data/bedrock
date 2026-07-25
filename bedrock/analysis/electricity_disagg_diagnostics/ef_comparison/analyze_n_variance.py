@@ -9,7 +9,7 @@ almost always positive, and why unit conversion raises N further for many
 sectors (via rewritten A/L and purchaser-specific ``c_row``).
 
 Run:
-    python -m bedrock.analysis.electricity_disagg_diagnostics.analyze_n_variance
+    python -m bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.analyze_n_variance
 
 Outputs (under ``output/ef/panel/``):
     - n_variance_analysis.csv          footing ↔ 3-way
@@ -26,7 +26,7 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
+from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace import (
     _clear_model_caches,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.paths import OUT_DIR
@@ -370,7 +370,7 @@ def render_mixed_units_section(
         "### Reproduce",
         "",
         "```",
-        "python -m bedrock.analysis.electricity_disagg_diagnostics.analyze_n_variance",
+        "python -m bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.analyze_n_variance",
         "```",
         "",
         "This regenerates `n_variance_analysis.csv`, `n_variance_mixed_analysis.csv`, "

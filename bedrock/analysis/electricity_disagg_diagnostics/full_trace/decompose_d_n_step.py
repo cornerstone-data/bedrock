@@ -6,7 +6,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
+from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace import (
     _clear_model_caches,
     _scalar_float,
     _sector_q_usd,

@@ -27,7 +27,10 @@ def main(local_dir: Path) -> None:
     manifest = load_manifest()
     seed_cache_from_local_dir(manifest, local_dir)
     print('Done. Run:')
-    print('  uv run python -m bedrock.analysis.electricity_disagg_diagnostics.run_all')
+    print(
+        '  uv run python -m '
+        'bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.run_all'
+    )
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ Reports:
 3. IO balance / production feasibility notes
 
 Run:
-    python -m bedrock.analysis.electricity_disagg_diagnostics.table_2_2_unit_conversion_counterfactual
+    python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.table_2_2_unit_conversion_counterfactual
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ from typing import Any, Mapping, cast
 import numpy as np
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
+from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace import (
     _clear_model_caches,
 )
-from bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry import (
+from bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_vs_interindustry import (
     MIXED_CONFIG,
     _eia_table_2_2_sales_mwh,
     _install_mixed_config,

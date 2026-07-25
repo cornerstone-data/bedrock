@@ -995,7 +995,7 @@ def main() -> None:
     traces = collect_all_traces()
     out = OUT_DIR / "electricity_full_trace.md"
     write_full_trace_markdown(traces, out)
-    from bedrock.analysis.electricity_disagg_diagnostics.decompose_d_n_step import (  # noqa: PLC0415
+    from bedrock.analysis.electricity_disagg_diagnostics.full_trace.decompose_d_n_step import (  # noqa: PLC0415
         append_walkthrough_to_report,
     )
 

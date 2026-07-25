@@ -8,7 +8,7 @@ Tasks (mixed-units model only):
 3. Outline what a 2017–2023 D/N time series would require (no implementation).
 
 Run:
-    python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment_bly_e
+    python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment.year_alignment_bly_e
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
+from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace import (
     _clear_model_caches,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.paths import OUT_DIR
@@ -593,7 +593,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "## Reproduce",
         "",
         "```",
-        "python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment_bly_e",
+        "python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment.year_alignment_bly_e",
         "```",
         "",
         f"Writes `{REPORT_MD.as_posix()}` and `{REPORT_JSON.as_posix()}`.",
@@ -601,7 +601,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "Re-render markdown only (from existing JSON):",
         "",
         "```",
-        "python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment_bly_e "
+        "python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment.year_alignment_bly_e "
         "--report-only",
         "```",
         "",

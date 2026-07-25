@@ -5,8 +5,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.analysis.electricity_disagg_diagnostics.bly import align_bly_pair
-from bedrock.analysis.electricity_disagg_diagnostics.dispersion import (
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.bly import align_bly_pair
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import (
     DISPERSION_TOL,
     pairwise_dispersion,
 )

@@ -23,7 +23,7 @@ from bedrock.analysis.electricity_disagg_diagnostics.paths import (
     OUT_DIR,
     ensure_dirs,
 )
-from bedrock.analysis.electricity_disagg_diagnostics.vs_footing_frames import (
+from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.vs_footing_frames import (
     DroppedSector,
     VsFootingFrames,
     format_drop_footnote,

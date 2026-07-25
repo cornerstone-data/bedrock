@@ -7,8 +7,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
-from bedrock.analysis.electricity_disagg_diagnostics.dispersion import ChainedDispersion
-from bedrock.analysis.electricity_disagg_diagnostics.net_change import (
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import ChainedDispersion
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.net_change import (
     ChainedNetChange,
     NetChangeBar,
 )

@@ -14,14 +14,14 @@ decomposition by producing industry, and (c) ``D``, commodity output ``q``,
 and attributed ``E = D·q`` across footing / reallocation / 3-way split.
 
 Run:
-    python -m bedrock.analysis.electricity_disagg_diagnostics.probe_221200
+    python -m bedrock.analysis.electricity_disagg_diagnostics.probes.probe_221200
 """
 
 from __future__ import annotations
 
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.full_trace import (
+from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace import (
     _clear_model_caches,
 )
 from bedrock.publish.model_objects import get_D, get_V, get_x

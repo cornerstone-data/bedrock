@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.analysis.electricity_disagg_diagnostics.hh_mwh_driver_decomposition import (
+from bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_mwh_driver_decomposition import (
     _convert_flows,
     _driver_metrics,
     _flows_by_bucket,
