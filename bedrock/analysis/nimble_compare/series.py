@@ -13,10 +13,16 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from typing import cast
 
 import pandas as pd
 
 COLUMNS = ['code', 'name', 'value', 'level']
+
+#: Group code -> the pre-aggregation codes and values behind it.  Populated by
+#: :meth:`LabeledSeries.rollup` and :meth:`LabeledSeries.merge_codes` so a
+#: comparison run at a coarse granularity can still show its detail composition.
+Members = dict[str, list[tuple[str, float]]]
 
 # BEA writes footnote references into the label text itself, in two styles:
 # NIPA xls sheets use backslash-delimited markers ("Farms\1\", "Other retail\2\")
@@ -114,6 +120,11 @@ class LabeledSeries:
     def total(self) -> float:
         return float(self.frame['value'].sum())
 
+    @property
+    def members(self) -> Members:
+        """Detail composition of each row, empty when no aggregation happened."""
+        return cast('Members', self.meta.get('members', {}))
+
     def scale(self, factor: float, unit: str | None = None) -> 'LabeledSeries':
         """Return a copy with values multiplied -- for unit reconciliation."""
         df = self.frame.copy()
@@ -201,6 +212,16 @@ class LabeledSeries:
             dict(self.meta),
         )
         out.meta['merged_groups'] = sorted(groups)
+        # Compose through any earlier rollup so a merged group still reports the
+        # original codes underneath it, not the intermediate ones it merged.
+        prior = self.members
+        composed: Members = {}
+        for code, value in zip(df['code'], df['value']):
+            new_code = member_to_target.get(normalize_code(code), code)
+            composed.setdefault(new_code, []).extend(
+                prior.get(code, [(code, float(value))])
+            )
+        out.meta['members'] = composed
         return out
 
     def rollup(self, mapping: dict[str, list[str]] | dict[str, str]) -> 'LabeledSeries':
@@ -212,10 +233,16 @@ class LabeledSeries:
         but these correspondences are near-always 1:many in the other direction,
         so the split rarely fires.  Codes absent from ``mapping`` are dropped and
         counted in ``meta['unmapped_codes']``.
+
+        The pre-aggregation codes behind each group are kept in
+        ``meta['members']`` so a comparison made at this coarser granularity can
+        still show what composed every cell -- and, importantly, which groups are
+        1:1 with a single original code and so are not really aggregated at all.
         """
         codes: list[str] = []
         values: list[float] = []
         unmapped: list[str] = []
+        members: Members = {}
         for code, value in zip(self.frame['code'], self.frame['value']):
             targets = mapping.get(code)
             if targets is None:
@@ -225,6 +252,8 @@ class LabeledSeries:
             share = 1.0 / len(targets)
             codes.extend(targets)
             values.extend([float(value) * share] * len(targets))
+            for target in targets:
+                members.setdefault(target, []).append((code, float(value) * share))
         grouped = (
             pd.DataFrame({'code': codes, 'value': values})
             .groupby('code', as_index=False)
@@ -233,6 +262,7 @@ class LabeledSeries:
         out = LabeledSeries(grouped, self.label, self.unit, dict(self.meta))
         out.meta['unmapped_codes'] = unmapped
         out.meta['rolled_up_from'] = len(self)
+        out.meta['members'] = members
         return out
 
     def with_names(self, code_to_name: dict[str, str]) -> 'LabeledSeries':

@@ -143,38 +143,47 @@ class TestAlign:
                 ('999', 'Utterly different', 4.0),
             ]
         )
-        methods = dict(
-            zip(
-                align(candidate, reference).pairs['candidate_code'],
-                align(candidate, reference).pairs['method'],
-            )
-        )
+        pairs = align(candidate, reference, on='fuzzy').pairs
+        methods = dict(zip(pairs['candidate_code'], pairs['method']))
         assert methods['42'] == 'code'
         assert methods['X1'] == 'name'
         assert methods['X2'] == 'fuzzy'
         assert 'X3' not in methods
 
+    def test_fuzzy_is_opt_in(self) -> None:
+        # the pass that mistook mining support for printing support does not run
+        # unless asked for
+        candidate = _series([('X', 'Ambulatory health care services', 1.0)])
+        reference = _series([('621', 'Ambulatory health care service', 1.0)])
+        assert len(align(candidate, reference).pairs) == 0
+        assert len(align(candidate, reference, on='fuzzy').pairs) == 1
+
     def test_fuzzy_cutoff_rejects_a_whole_vs_its_part(self) -> None:
-        # the default cutoff exists to stop this pairing: matching them would
+        # even opted in, the cutoff stops this pairing: matching them would
         # silently drop the nondefense half
         candidate = _series([('c', 'Federal general government', 1.0)])
         reference = _series([('GFGD', 'Federal general government (defense)', 1.0)])
-        assert len(align(candidate, reference).pairs) == 0
-        assert len(align(candidate, reference, fuzzy_cutoff=0.8).pairs) == 1
+        assert len(align(candidate, reference, on='fuzzy').pairs) == 0
+        assert len(align(candidate, reference, on='fuzzy', fuzzy_cutoff=0.8).pairs) == 1
 
-    def test_on_exact_skips_the_fuzzy_pass(self) -> None:
-        candidate = _series([('c', 'Publishing industries (includes software)', 1.0)])
-        reference = _series([('511', 'Publishing industries, incl. software', 1.0)])
-        assert len(align(candidate, reference, on='exact').pairs) == 0
+    def test_rejects_an_unknown_on_value(self) -> None:
+        try:
+            align(_series([('a', 'A', 1.0)]), _series([('a', 'A', 1.0)]), on='exact')
+        except ValueError as exc:
+            assert 'fuzzy' in str(exc)
+        else:
+            raise AssertionError("expected a ValueError for on='exact'")
 
     def test_duplicate_keys_are_reported_not_guessed(self) -> None:
         candidate = _series(
             [('A', 'Government enterprises', 1.0), ('B', 'Government enterprises', 2.0)]
         )
         reference = _series([('GFE', 'Government enterprises', 3.0)])
-        result = align(candidate, reference)
-        assert len(result.pairs) == 0
-        assert 'government enterprises' in result.ambiguous
+        for on in ('auto', 'fuzzy'):
+            result = align(candidate, reference, on=on)
+            # the fuzzy pass must not resolve what the exact pass refused to
+            assert len(result.pairs) == 0, on
+            assert 'government enterprises' in result.ambiguous
 
     def test_overrides_win_and_accept_either_key(self) -> None:
         candidate = _series([('N4055C', 'Publishing industries', 1.0)])
@@ -192,7 +201,60 @@ class TestAlign:
         candidate = _series([('a', 'Same name', 1.0)])
         reference = _series([('x', 'Same name', 1.0), ('y', 'Same name', 2.0)])
         # ambiguous on the reference side, so nothing is claimed
-        assert len(align(candidate, reference).pairs) == 0
+        assert len(align(candidate, reference, on='fuzzy').pairs) == 0
+
+
+class TestDetailComposition:
+    """A comparison run at a coarse granularity still reports its detail."""
+
+    #: three detail codes; D1 alone becomes group G1, D2+D3 become G2
+    MAPPING = {'D1': ['G1'], 'D2': ['G2'], 'D3': ['G2']}
+
+    def _reference(self) -> LabeledSeries:
+        return _series([('D1', 'One', 5.0), ('D2', 'Two', 3.0), ('D3', 'Three', 4.0)])
+
+    def test_rollup_records_the_codes_behind_each_group(self) -> None:
+        rolled = self._reference().rollup(self.MAPPING)
+        assert rolled.members == {
+            'G1': [('D1', 5.0)],
+            'G2': [('D2', 3.0), ('D3', 4.0)],
+        }
+
+    def test_cells_carry_n_detail_and_members(self) -> None:
+        candidate = _series([('G1', 'g one', 5.0), ('G2', 'g two', 7.0)])
+        cells = compare(
+            candidate, self._reference(), rollup=self.MAPPING, on='code'
+        ).cells.set_index('reference_code')
+        assert cells.at['G1', 'n_detail'] == 1
+        assert cells.at['G1', 'detail_members'] == 'D1=5'
+        assert cells.at['G2', 'n_detail'] == 2
+        assert cells.at['G2', 'detail_members'] == 'D2=3;D3=4'
+
+    def test_one_to_one_separates_unaggregated_cells(self) -> None:
+        candidate = _series([('G1', 'g one', 5.0), ('G2', 'g two', 7.0)])
+        result = compare(candidate, self._reference(), rollup=self.MAPPING, on='code')
+        assert result.one_to_one()['reference_code'].tolist() == ['G1']
+        assert result.aggregated()['reference_code'].tolist() == ['G2']
+        assert result.detail('G2')['code'].tolist() == ['D2', 'D3']
+
+    def test_merge_codes_composes_through_an_earlier_rollup(self) -> None:
+        # G1 and G2 are themselves rollups, so merging them must report the
+        # original detail codes rather than the intermediate group codes
+        candidate = _series([('M', 'merged', 12.0)])
+        result = compare(
+            candidate,
+            self._reference(),
+            rollup=self.MAPPING,
+            merge_reference={'M': ['G1', 'G2']},
+            merge_names={'M': 'merged'},
+        )
+        assert result.cells.at[0, 'n_detail'] == 3
+        assert result.cells.at[0, 'detail_members'] == 'D1=5;D2=3;D3=4'
+
+    def test_no_rollup_means_no_composition_claimed(self) -> None:
+        result = compare(_series([('D1', 'One', 5.0)]), self._reference(), on='code')
+        assert result.cells.at[0, 'n_detail'] == 0
+        assert result.cells.at[0, 'detail_members'] == ''
 
 
 class TestCompare:

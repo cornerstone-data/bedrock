@@ -1,10 +1,24 @@
 """NIPA table 6.2D compensation of employees vs Use SUT detail row V00100, 2017.
 
 A worked example of the whole package, and of how far a comparison gets before
-you have to say anything by hand.  Two stages:
+you have to say anything by hand.
 
-``stage 1``  nothing but ``leaves()`` + ``rollup``.  61 of 71 summary industries
-             pair on name alone and agree to BEA's rounding.
+The reference throughout is the **detail** table -- ``V00100`` across 402 detail
+industry codes.  What varies is the granularity the comparison is *made* at,
+which is the subject of stage 0:
+
+``stage 0``  the detail codes untouched.  Only 20 of 74 NIPA rows find a partner
+             and 382 detail codes go unmatched, because NIPA 6.2D has no rows at
+             detail granularity -- no "Oilseed farming", no "Offices of
+             physicians".  This is the evidence for aggregating, and it also
+             shows why the fuzzy pass is opt-in: turned on here it pairs
+             "Support activities for mining" with detail code 323120, "Support
+             activities for *printing*".
+``stage 1``  the detail table rolled up to the 71 summary groups NIPA can
+             actually address.  61 pair on name alone and agree to BEA's
+             rounding.  Cells keep their detail composition, and 17 of them turn
+             out to be 1:1 with a single detail code -- genuine detail-level
+             comparisons that the rollup does not blur.
 ``stage 2``  the ten leftovers, which are not disagreements but places where
              NIPA and the IO accounts cut industries differently: NIPA splits
              wholesale trade into durable/nondurable where summary does not, BEA
@@ -84,9 +98,33 @@ OVERRIDES = {
 
 def main() -> None:
     reference = bea_matrix_row('V00100', label='SUT Detail Use 2017 V00100')
+    print(f'reference: {reference!r}')
 
+    print()
     print('=' * 78)
-    print('STAGE 1 - name matching only, no hand-written pairs')
+    print('STAGE 0 - against the 402 detail codes as published, no rollup')
+    print('=' * 78)
+    stage0 = compare(
+        candidate=nipa_sheet(SECTION6, SHEET, YEAR).leaves(),
+        reference=reference,
+    )
+    t0 = stage0.totals
+    print(
+        f'{int(t0["n_matched"])} of 74 NIPA rows matched; '
+        f'{int(t0["n_reference_only"])} of 402 detail codes unmatched.\n'
+        f'NIPA 6.2D simply has no rows at detail granularity, so a cell-by-cell\n'
+        f'comparison here is not available -- hence the rollup in stage 1.'
+    )
+    print('\nthe matches it does find, all 1:1 detail industries:\n')
+    print(
+        stage0.cells[['candidate_name', 'reference_code', 'candidate', 'reference']]
+        .sort_values('reference_code')
+        .to_string(index=False)
+    )
+
+    print()
+    print('=' * 78)
+    print('STAGE 1 - detail table rolled up to summary, name matching only')
     print('=' * 78)
     stage1 = compare(
         candidate=nipa_sheet(SECTION6, SHEET, YEAR).leaves(),
@@ -94,6 +132,12 @@ def main() -> None:
         rollup='industry_to_summary',
     )
     print(stage1.report(n_worst=5))
+    print('\ncells that are 1:1 with a single detail code (no aggregation):\n')
+    print(
+        stage1.one_to_one()[
+            ['candidate_name', 'reference_code', 'detail_members', 'pct_diff']
+        ].to_string(index=False)
+    )
 
     print()
     print('=' * 78)

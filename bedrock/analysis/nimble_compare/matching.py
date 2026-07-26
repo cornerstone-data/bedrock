@@ -15,6 +15,14 @@ Every match carries the pass that produced it and a 0-1 score, so a report can
 be read with the weak links visible rather than buried.  Rows that never match
 are returned separately -- for BEA comparisons they are usually the interesting
 part, because they mark where two tables partition an industry differently.
+
+The fuzzy pass is **opt-in** (``on='fuzzy'``), because BEA's classifications are
+built by splitting a name into "Other X" and "All other X" variants, so a
+detail label that reads almost like a summary label is usually one *part* of it.
+Matched across granularity, "Support activities for mining" scores 0.90 against
+detail code 323120, "Support activities for **printing**" -- a different
+industry off by a factor of 20.  Rows left unmatched invite you to look; a
+plausible-looking wrong pair does not.
 """
 
 from __future__ import annotations
@@ -106,9 +114,11 @@ def align(
 ) -> Alignment:
     """Pair up candidate and reference rows.
 
-    :param on: ``'auto'`` runs every pass; ``'code'`` stops after code and
-        crosswalk; ``'name'`` skips the code passes; ``'exact'`` runs everything
-        except the fuzzy pass
+    :param on: which passes to run --
+        ``'auto'`` (default) every exact pass, no fuzzy;
+        ``'fuzzy'`` the above plus the fuzzy pass;
+        ``'code'`` code and crosswalk only;
+        ``'name'`` name only
     :param crosswalk: candidate code -> reference code(s).  Only single-target
         entries are used for pairing, since a 1:many entry means the reference
         needs :meth:`LabeledSeries.rollup` first, not a pairing.
@@ -116,9 +126,11 @@ def align(
         against normalized keys, for the handful of pairs nothing else catches
     :param fuzzy_cutoff: minimum ``difflib`` ratio to accept a fuzzy name match
     """
-    use_code = on in ('auto', 'code', 'exact')
-    use_name = on in ('auto', 'name', 'exact')
-    use_fuzzy = on in ('auto', 'name')
+    if on not in ('auto', 'fuzzy', 'code', 'name'):
+        raise ValueError(f"on={on!r} is not one of 'auto', 'fuzzy', 'code', 'name'")
+    use_code = on in ('auto', 'fuzzy', 'code')
+    use_name = on in ('auto', 'fuzzy', 'name')
+    use_fuzzy = on == 'fuzzy'
 
     c, r = _Side(candidate), _Side(reference)
     c_pool, r_pool = set(range(c.n)), set(range(r.n))

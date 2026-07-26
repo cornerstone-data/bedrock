@@ -86,18 +86,36 @@ class Comparison:
             [
                 'candidate_name',
                 'reference_code',
+                'n_detail',
                 'candidate',
                 'reference',
                 'diff',
                 'pct_diff',
                 'method',
-                'score',
             ]
         ]
 
     def close(self, tol_pct: float = 1.0) -> pd.DataFrame:
         """Cells agreeing within ``tol_pct`` percent."""
         return self.cells.loc[self.cells['abs_pct_diff'] <= tol_pct]
+
+    def one_to_one(self) -> pd.DataFrame:
+        """Cells whose reference side is a single un-aggregated code.
+
+        When the reference was rolled up, these are the rows where the coarse
+        group happens to contain exactly one original code -- so they are true
+        detail-granularity comparisons, not aggregates, and can be read as such.
+        """
+        return self.cells.loc[self.cells['n_detail'] == 1]
+
+    def aggregated(self) -> pd.DataFrame:
+        """Cells whose reference side sums two or more codes."""
+        return self.cells.loc[self.cells['n_detail'] > 1]
+
+    def detail(self, reference_code: str) -> pd.DataFrame:
+        """The codes and values composing one reference cell."""
+        rows = self.reference.members.get(reference_code, [])
+        return pd.DataFrame(rows, columns=['code', 'value'])
 
     # ------------------------------------------------------------------ output
 
@@ -142,6 +160,20 @@ class Comparison:
                 else ')'
             ),
         ]
+        # State the granularity the comparison actually ran at. A cell whose
+        # reference side is one code is a detail-level comparison; one that sums
+        # several is a claim about an aggregate, and the two should not be read
+        # as if they were the same evidence.
+        if n and self.reference.members:
+            exact = len(self.one_to_one())
+            agg = self.aggregated()
+            lines += [
+                f'  {exact} of {n} cells are 1:1 with a single reference code',
+                f'  {len(agg)} aggregate 2-{int(agg["n_detail"].max())} codes'
+                if len(agg)
+                else '  0 cells are aggregates',
+                '  (per-cell composition in the detail_members column of the csv)',
+            ]
         if n:
             lines += ['', f'WORST {min(n_worst, n)} CELLS BY ABSOLUTE DIFFERENCE', '']
             lines += [
@@ -217,8 +249,13 @@ def compare(
         a key of :data:`ROLLUPS` (e.g. ``'industry_to_summary'``) or your own
         ``{reference_code: [target_code]}`` mapping.  Needed whenever the
         reference is finer-grained than the candidate, which is the usual shape
-        when checking a NIPA-style table against a BEA detail matrix.
-    :param on: alignment strictness, see :func:`~.matching.align`
+        when checking a NIPA-style table against a BEA detail matrix: the detail
+        table is still the source, but the comparison happens at the granularity
+        the candidate can actually support.  Every cell keeps its detail
+        composition in ``n_detail``/``detail_members``, and
+        :meth:`Comparison.one_to_one` picks out the cells no aggregation touched.
+    :param on: which alignment passes to run, see :func:`~.matching.align`.
+        Fuzzy name matching is opt-in (``on='fuzzy'``).
     :param crosswalk: candidate code -> reference code, tried after exact codes
     :param overrides: hand-written pairs that win over everything
     :param merge_reference: ``{new_code: [codes]}`` summed on the reference side
@@ -263,6 +300,18 @@ def compare(
     ]
     cells['abs_diff'] = cells['diff'].abs()
     cells['abs_pct_diff'] = cells['pct_diff'].abs()
+
+    # Carry the reference's pre-aggregation composition onto each cell, so a
+    # comparison made at a coarse granularity still says what it was made of --
+    # and n_detail == 1 marks the cells that are genuinely 1:1 with a single
+    # detail code, i.e. not aggregated at all.
+    members = reference.members
+    cells['n_detail'] = [len(members.get(code, ())) for code in cells['reference_code']]
+    cells['detail_members'] = [
+        ';'.join(f'{c}={v:g}' for c, v in members.get(code, ()))
+        for code in cells['reference_code']
+    ]
+
     cells = cells.sort_values('abs_diff', ascending=False).reset_index(drop=True)
 
     return Comparison(cells, alignment, candidate, reference)
