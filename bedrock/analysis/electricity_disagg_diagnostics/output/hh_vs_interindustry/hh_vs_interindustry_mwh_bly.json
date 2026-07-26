@@ -1,0 +1,63 @@
+{
+  "config": "2025_usa_cornerstone_v0_2_electricity_mixed_units",
+  "model_base_year": 2023,
+  "usa_ghg_data_year": 2023,
+  "hh_fd_code": "F01000",
+  "hh_fd_label": "Personal consumption expenditures (households)",
+  "c_col": 0.01818869648631434,
+  "bly": {
+    "total_Mt": 4939.871452026402,
+    "household_F01000_Mt": 2851.6299237827648,
+    "other_final_demand_Mt": 2088.2415282436373,
+    "household_share": 0.577268042595114,
+    "other_fd_share": 0.422731957404886,
+    "recon_total_minus_parts_Mt": 0.0,
+    "method": "y_hh = y_nab * (Y_2017[F01000] / sum_domestic_FD Y_2017)_i; BLy_hh = 1^T diag(D) L_dom y_hh; other = y_nab - y_hh"
+  },
+  "mwh_221110": {
+    "q_generation_MWh": 4190970937.357001,
+    "intermediate_MWh": 3417736048.2704964,
+    "final_demand_total_MWh": 773234889.0865035,
+    "household_F01000_MWh": 761473815.1935773,
+    "other_final_demand_MWh": 11761073.892926216,
+    "intermediate_plus_fd_MWh": 4190970937.357,
+    "q_minus_uses_MWh": 9.5367431640625e-07,
+    "intermediate_share_of_uses": 0.8154998207708551,
+    "household_share_of_uses": 0.1816938906462077
+  },
+  "bly_generation_sector_allocated_by_mwh_uses": {
+    "bly_221110_Mt": 1644.824803347938,
+    "allocated_to_intermediate_Mt": 1341.3543323297006,
+    "allocated_to_household_F01000_Mt": 298.8546179516703,
+    "allocated_to_other_fd_Mt": 4.615853066567108,
+    "note": "Splits commodity-221110 BLy by share of 221110 MWh uses (intermediate vs F01000 vs other FD), not the full national BLy split."
+  },
+  "eia_table_2_2": {
+    "year": 2023,
+    "source": "EIA_ElectricPowerAnnual Table 2.2 (Total Electric Industry)",
+    "Residential_MWh": 1450025184.0,
+    "Commercial_MWh": 1408108755.0,
+    "Industrial_MWh": 1009255634.0,
+    "Transportation_MWh": 6863789.0,
+    "Direct_Use_MWh": 136918155.0,
+    "Total_End_Use_MWh": 4011171517.0,
+    "Commercial_plus_Industrial_plus_Transportation_MWh": 2424228178.0
+  },
+  "comparisons": {
+    "model_hh_MWh_vs_eia_residential": {
+      "model_F01000_MWh": 761473815.1935773,
+      "eia_Residential_MWh": 1450025184.0,
+      "ratio_model_over_eia": 0.5251452344386159
+    },
+    "model_intermediate_MWh_vs_eia_nonresidential_sales": {
+      "model_intermediate_MWh": 3417736048.2704964,
+      "eia_Com_Ind_Trans_MWh": 2424228178.0,
+      "ratio_model_over_eia": 1.4098244048504316
+    },
+    "model_q_gen_vs_eia_total_end_use": {
+      "model_q_221110_MWh": 4190970937.357001,
+      "eia_Total_End_Use_MWh": 4011171517.0,
+      "ratio_model_over_eia": 1.0448246652118918
+    }
+  }
+}

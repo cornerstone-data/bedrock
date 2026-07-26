@@ -1,0 +1,494 @@
+{
+  "config": "2025_usa_cornerstone_v0_2_electricity_mixed_units",
+  "model_base_year": 2023,
+  "usa_ghg_data_year": 2023,
+  "method": {
+    "monetary_intermediate": "Adom[221110, j] * q[j]",
+    "monetary_final_demand": "_model_year_y_row_221110: y_nab[221110] split by 2017 Y shares",
+    "uniform_conversion": "same MWh/USD factor for every purchaser; total fixed to eGRID MWh",
+    "production_conversion": "c_j = lambda / EIA Table 2.4 class price; class from end-use map"
+  },
+  "A_monetary_structure": {
+    "units": "USD",
+    "buckets": {
+      "intermediate": 169111408561.4537,
+      "intermediate_221110_self_use": 41026703735.86701,
+      "intermediate_other": 128084704825.5867,
+      "household_F01000": 61197009171.56864,
+      "other_final_demand": 107815805.78011322,
+      "total": 230416233538.80246,
+      "intermediate_share": 0.73393877663995,
+      "intermediate_221110_self_use_share": 0.17805474512696629,
+      "intermediate_other_share": 0.5558840315129838,
+      "household_share": 0.2655933057826977,
+      "other_final_demand_share": 0.0004679175773522783
+    },
+    "note": "This is the post-three-way-split monetary IO before mixed-unit conversion. Shares, not dollar levels, are compared with EIA."
+  },
+  "B_price_mapping_counterfactual": {
+    "target_total_MWh": 4190970937.357001,
+    "prices_cents_per_kWh": {
+      "Residential": 16.0,
+      "Commercial": 12.59,
+      "Industrial": 8.04,
+      "Transportation": 12.77,
+      "Total": 12.68
+    },
+    "uniform_factor_MWh_per_USD": 0.01818869648631434,
+    "production_factor_range_MWh_per_USD": {
+      "min": 0.012606948026681547,
+      "median": 0.025088453784440894,
+      "max": 0.025088453784440894
+    },
+    "uniform_price_buckets_MWh": {
+      "intermediate": 3075916082.697382,
+      "intermediate_221110_self_use": 746222262.0856237,
+      "intermediate_other": 2329693820.611758,
+      "household_F01000": 1113093825.691857,
+      "other_final_demand": 1961028.9677619934,
+      "total": 4190970937.3570013,
+      "intermediate_share": 0.73393877663995,
+      "intermediate_221110_self_use_share": 0.17805474512696626,
+      "intermediate_other_share": 0.5558840315129837,
+      "household_share": 0.2655933057826977,
+      "other_final_demand_share": 0.0004679175773523018
+    },
+    "production_buckets_MWh": {
+      "intermediate": 3417736048.2704964,
+      "intermediate_221110_self_use": 1029296560.6052481,
+      "intermediate_other": 2388439487.6652484,
+      "household_F01000": 771507514.0143199,
+      "other_final_demand": 1727375.0721838474,
+      "total": 4190970937.3570004,
+      "intermediate_share": 0.8154998207708551,
+      "intermediate_221110_self_use_share": 0.2455985918275933,
+      "intermediate_other_share": 0.5699012289432618,
+      "household_share": 0.18408801338547684,
+      "other_final_demand_share": 0.0004121658436680073
+    },
+    "driver_metrics": {
+      "household": {
+        "eia_residential_MWh": 1450025184.0,
+        "uniform_price_model_MWh": 1113093825.691857,
+        "production_model_MWh": 771507514.0143199,
+        "structure_and_definition_gap_at_uniform_price_MWh": 336931358.3081429,
+        "production_minus_uniform_price_effect_MWh": -341586311.6775372,
+        "total_eia_minus_production_gap_MWh": 678517669.9856801,
+        "share_of_total_shortfall_added_by_class_prices": 0.5034302373949174
+      },
+      "intermediate": {
+        "eia_nonresidential_sales_MWh": 2424228178.0,
+        "uniform_price_model_MWh": 3075916082.697382,
+        "production_model_MWh": 3417736048.2704964,
+        "uniform_price_minus_eia_excess_MWh": 651687904.697382,
+        "production_minus_uniform_price_effect_MWh": 341819965.5731144,
+        "total_production_minus_eia_excess_MWh": 993507870.2704964,
+        "share_of_total_excess_added_by_class_prices": 0.34405360621858905
+      },
+      "share_movements": {
+        "monetary_household_share": 0.2655933057826977,
+        "uniform_household_share": 0.2655933057826977,
+        "production_household_share": 0.18408801338547684,
+        "eia_residential_share_of_sales": 0.3742721625339071
+      },
+      "interpretation_rule": "Uniform-price shares equal post-three-way monetary shares. The change from uniform to production isolates purchaser-class prices plus their end-use mapping while holding monetary IO flows and total MWh fixed."
+    },
+    "legacy_report_reconciliation": {
+      "production_direct_converted_F01000_MWh": 771507514.0143199,
+      "legacy_nonnegative_domestic_share_F01000_MWh": 761473815.1935775,
+      "legacy_other_final_demand_MWh": 11761073.892926216,
+      "difference_MWh": 10033698.820742369,
+      "note": "The direct scenario converts each raw model-year Y cell with its class factor. The earlier report instead allocates total mixed y_nab using nonnegative domestic 2017 Y shares (imports excluded)."
+    },
+    "reconciliations_MWh": {
+      "uniform_minus_target": 4.76837158203125e-07,
+      "production_minus_target": -4.76837158203125e-07
+    }
+  },
+  "C_intermediate_purchasers": {
+    "production_MWh_by_assigned_end_use": {
+      "Residential": {
+        "intermediate_MWh": 0.0,
+        "final_demand_MWh": 771507514.0143199,
+        "total_MWh": 771507514.0143199
+      },
+      "Commercial": {
+        "intermediate_MWh": 1375414677.5785246,
+        "final_demand_MWh": 1727375.0721838921,
+        "total_MWh": 1377142052.6507084
+      },
+      "Industrial": {
+        "intermediate_MWh": 1963055999.830785,
+        "final_demand_MWh": 0.0,
+        "total_MWh": 1963055999.830785
+      },
+      "Transportation": {
+        "intermediate_MWh": 79265370.86118715,
+        "final_demand_MWh": 0.0,
+        "total_MWh": 79265370.86118715
+      }
+    },
+    "electricity_supply_chain": {
+      "electricity_children_MWh": {
+        "221110": 1029296560.6052481,
+        "221121": 0.0,
+        "221122": 0.0
+      },
+      "electricity_supply_chain_total_MWh": 1029296560.6052481,
+      "other_intermediate_purchasers_MWh": 2388439487.6652484,
+      "share_of_intermediate_in_electricity_supply_chain": 0.3011632689206971,
+      "interpretation": "These are generation-row purchases by electricity industries. They are intermediate in IO accounting but are not themselves ultimate EIA customer classes; their downstream destination requires supply-chain tracing and cannot be inferred from the direct 221110 row."
+    },
+    "top_25": [
+      {
+        "code": "221110",
+        "name": "Electric power generation",
+        "assigned_end_use": "Industrial",
+        "monetary_flow_USD": 41026703735.86701,
+        "production_MWh": 1029296560.6052481,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "531ORE",
+        "name": "Other real estate",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 13007115197.158602,
+        "production_MWh": 208393995.57444093,
+        "housing_adjacent_keyword_flag": true
+      },
+      {
+        "code": "211000",
+        "name": "Unrefined oil and gas",
+        "assigned_end_use": "Industrial",
+        "monetary_flow_USD": 3540707324.95925,
+        "production_MWh": 88830872.08647148,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "324110",
+        "name": "Gasoline, fuels, and by-products of petroleum refining",
+        "assigned_end_use": "Industrial",
+        "monetary_flow_USD": 3509060632.936777,
+        "production_MWh": 88036905.51623525,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "722211",
+        "name": "Limited-service restaurants",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 5386495661.747242,
+        "production_MWh": 86299947.07366876,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "445000",
+        "name": "Food and beverage stores",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 4666608829.296419,
+        "production_MWh": 74766252.54556718,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "452000",
+        "name": "General merchandise stores",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 3928202053.75223,
+        "production_MWh": 62935840.03807222,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "622000",
+        "name": "Hospitals",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 3561725477.339479,
+        "production_MWh": 57064321.497221716,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "722110",
+        "name": "Full-service restaurants",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 3501987088.5802755,
+        "production_MWh": 56107220.60790006,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "447000",
+        "name": "Gasoline stations",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 3186419329.7217627,
+        "production_MWh": 51051339.64227573,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "550000",
+        "name": "Company and enterprise management",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 2337763958.8693275,
+        "production_MWh": 37454575.03175842,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "518200",
+        "name": "Data processing and hosting",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 2106444925.3769627,
+        "production_MWh": 33748488.25454419,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "4B0000",
+        "name": "Other retail",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 2018932449.494722,
+        "production_MWh": 32346403.76192003,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "484000",
+        "name": "Truck transport",
+        "assigned_end_use": "Transportation",
+        "monetary_flow_USD": 1926875046.1110635,
+        "production_MWh": 30436352.150642805,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "721000",
+        "name": "Hotels and campgrounds",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1899098310.200664,
+        "production_MWh": 30426476.49786627,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "517110",
+        "name": "Telecommunications",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1897945439.778044,
+        "production_MWh": 30408005.740122702,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "722A00",
+        "name": "All other food and drinking places",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1875231502.489324,
+        "production_MWh": 30044093.521688778,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "441000",
+        "name": "Vehicles and parts sales",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1771180394.1181748,
+        "production_MWh": 28377034.693598308,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "331110",
+        "name": "Primary iron, steel, and ferroalloy products",
+        "assigned_end_use": "Industrial",
+        "monetary_flow_USD": 1125703006.9357665,
+        "production_MWh": 28242147.864514124,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "454000",
+        "name": "Nonstore retailers",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1685599400.5809069,
+        "production_MWh": 27005895.519528594,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "424A00",
+        "name": "Other nondurable goods merchant wholesalers",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1628979149.059738,
+        "production_MWh": 26098751.985695373,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "444000",
+        "name": "Building material and garden equipment and supplies dealers",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1394058456.7532713,
+        "production_MWh": 22334961.093495633,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "446000",
+        "name": "Health and personal care stores",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1377633614.8474896,
+        "production_MWh": 22071809.85822618,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "326190",
+        "name": "Other plastic products",
+        "assigned_end_use": "Industrial",
+        "monetary_flow_USD": 877165237.3625734,
+        "production_MWh": 22006719.51888905,
+        "housing_adjacent_keyword_flag": false
+      },
+      {
+        "code": "423A00",
+        "name": "Other durable goods merchant wholesalers",
+        "assigned_end_use": "Commercial",
+        "monetary_flow_USD": 1350191853.8954353,
+        "production_MWh": 21632150.631432638,
+        "housing_adjacent_keyword_flag": false
+      }
+    ],
+    "housing_flag_note": "Keyword flag is descriptive only; it does not reclassify an IO industry or prove that its electricity serves households."
+  },
+  "D_comparator_sensitivity": {
+    "eia_MWh": {
+      "Residential": 1450025184.0,
+      "Commercial": 1408108755.0,
+      "Industrial": 1009255634.0,
+      "Transportation": 6863789.0,
+      "Direct Use": 136918155.0,
+      "Nonresidential sales": 2424228178.0,
+      "Total sales": 3874253362.0,
+      "Total End Use": 4011171517.0
+    },
+    "pairings": [
+      {
+        "model_bucket": "F01000 only",
+        "model_MWh": 771507514.0143199,
+        "eia_bucket": "EIA Residential",
+        "eia_MWh": 1450025184.0,
+        "model_over_eia": 0.5320649065460092
+      },
+      {
+        "model_bucket": "All Residential-mapped final demand",
+        "model_MWh": 771507514.0143199,
+        "eia_bucket": "EIA Residential",
+        "eia_MWh": 1450025184.0,
+        "model_over_eia": 0.5320649065460092
+      },
+      {
+        "model_bucket": "All intermediate",
+        "model_MWh": 3417736048.2704964,
+        "eia_bucket": "EIA Com+Ind+Trans sales",
+        "eia_MWh": 2424228178.0,
+        "model_over_eia": 1.4098244048504316
+      },
+      {
+        "model_bucket": "Intermediate excluding electricity-industry purchasers",
+        "model_MWh": 2388439487.6652484,
+        "eia_bucket": "EIA Com+Ind+Trans sales",
+        "eia_MWh": 2424228178.0,
+        "model_over_eia": 0.9852370784814994
+      },
+      {
+        "model_bucket": "Intermediate + all other final demand",
+        "model_MWh": 3419463423.34268,
+        "eia_bucket": "EIA Com+Ind+Trans sales + Direct Use",
+        "eia_MWh": 2561146333.0,
+        "model_over_eia": 1.3351300467620255
+      },
+      {
+        "model_bucket": "All model uses mapped Residential",
+        "model_MWh": 771507514.0143199,
+        "eia_bucket": "EIA Residential",
+        "eia_MWh": 1450025184.0,
+        "model_over_eia": 0.5320649065460092
+      },
+      {
+        "model_bucket": "All model uses mapped Commercial",
+        "model_MWh": 1377142052.6507084,
+        "eia_bucket": "EIA Commercial",
+        "eia_MWh": 1408108755.0,
+        "model_over_eia": 0.9780083021007198
+      },
+      {
+        "model_bucket": "All model uses mapped Industrial",
+        "model_MWh": 1963055999.830785,
+        "eia_bucket": "EIA Industrial",
+        "eia_MWh": 1009255634.0,
+        "model_over_eia": 1.9450532983903908
+      },
+      {
+        "model_bucket": "All model uses mapped Transportation",
+        "model_MWh": 79265370.86118715,
+        "eia_bucket": "EIA Transportation",
+        "eia_MWh": 6863789.0,
+        "model_over_eia": 11.5483402623809
+      },
+      {
+        "model_bucket": "All model 221110 uses",
+        "model_MWh": 4190970937.3570004,
+        "eia_bucket": "EIA Total sales",
+        "eia_MWh": 3874253362.0,
+        "model_over_eia": 1.081749319356208
+      },
+      {
+        "model_bucket": "All model 221110 uses",
+        "model_MWh": 4190970937.3570004,
+        "eia_bucket": "EIA Total End Use",
+        "eia_MWh": 4011171517.0,
+        "model_over_eia": 1.0448246652118915
+      }
+    ],
+    "note": "Mapped class comparisons test the current end-use mapping; they do not make IO industries identical to utility customer classes. The electricity-excluded row is only a boundary sensitivity: it does not trace those MWh to their eventual customers."
+  },
+  "E_external_evidence": {
+    "available": true,
+    "evidence_retrieved": "2026-07-24",
+    "bea_pce_electricity_USD": 236748000000.0,
+    "eia_residential_price_cents_per_kWh": 16.0,
+    "bea_pce_divided_by_eia_price_implied_MWh": 1479675000.0,
+    "eia_residential_MWh": 1450025184.0,
+    "implied_MWh_over_eia_residential": 1.0204477938225933,
+    "model_F01000_MWh": 771507514.0143199,
+    "model_over_bea_price_implied_MWh": 0.5214033581795461,
+    "sources": [
+      {
+        "organization": "BEA",
+        "source": "NIPA Handbook, Chapter 5 \u2014 Personal Consumption Expenditures",
+        "url": "https://www.bea.gov/resources/methodologies/nipa-handbook/pdf/chapter-05.pdf",
+        "finding": "PCE electricity uses EIA residential revenue and residential kWh/price data, adjusted by BEA from a billing to a usage basis."
+      },
+      {
+        "organization": "BEA",
+        "source": "NIPA Table 2.4.5, Household utilities: Electricity (DELCRC)",
+        "url": "https://fred.stlouisfed.org/series/DELCRC1A027NBEA",
+        "finding": "Current-dollar PCE electricity was $236.748 billion in 2023."
+      },
+      {
+        "organization": "BEA",
+        "source": "FAQ 84 \u2014 detail beyond PCE Table 2.4.5U",
+        "url": "https://www.bea.gov/help/faq/84",
+        "finding": "Table 2.4.5U is the most detailed time series; benchmark IO PCE Bridge files provide the IO commodity composition of each PCE category."
+      },
+      {
+        "organization": "BEA",
+        "source": "Historical Benchmark Input-Output Tables / PCE Bridge",
+        "url": "https://www.bea.gov/industry/historical-benchmark-input-output-tables",
+        "finding": "PCE Bridge tables reconcile NIPA PCE with IO commodities at producer and purchaser prices; they are the appropriate bridge, not total F01000."
+      },
+      {
+        "organization": "EIA",
+        "source": "Electric Power Annual Table 2.2",
+        "url": "https://www.eia.gov/electricity/annual/html/epa_02_02.html",
+        "finding": "Reports sales to ultimate customers by Residential, Commercial, Industrial, and Transportation, plus Direct Use and Total End Use."
+      },
+      {
+        "organization": "EIA",
+        "source": "Form EIA-861 instructions",
+        "url": "https://www.eia.gov/survey/form/eia_861/instructions.pdf",
+        "finding": "Residential includes private households and apartment buildings where electricity is consumed for household purposes; Commercial includes nonmanufacturing businesses, institutions, government, and lighting."
+      },
+      {
+        "organization": "EIA",
+        "source": "Guide to EIA Electric Power Data",
+        "url": "https://www.eia.gov/electricity/data/guide/pdf/guide.pdf",
+        "finding": "EIA-861 is a census of utilities and other sellers; its sectors are customer/end-use classes, not IO purchaser industries."
+      }
+    ],
+    "caveat": "PCE dollars are a national-accounting purchaser-value measure and EIA price is utility revenue per kWh. Their quotient is a sanity check, not an exact BEA published physical series; BEA also adjusts billing to usage."
+  }
+}

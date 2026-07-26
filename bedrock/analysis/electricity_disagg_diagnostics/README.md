@@ -17,7 +17,7 @@ electricity_disagg_diagnostics/
   year_alignment/       # BLy vs E under A/q year handling
   hh_vs_interindustry/  # household vs intermediate generation MWh
   probes/               # one-off sector probes
-  output/               # gitignored artifacts (layout stable)
+  output/               # reports/figures (tracked; layout stable)
   __tests__/
 ```
 
