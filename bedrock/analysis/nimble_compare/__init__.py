@@ -17,6 +17,13 @@ needs to be defensible, promote the comparison to a real crosswalk instead.
 """
 
 from bedrock.analysis.nimble_compare.compare import ROLLUPS, Comparison, compare
+from bedrock.analysis.nimble_compare.hierarchy import (
+    RESIDUAL_MARKERS,
+    RESIDUAL_TOKENS,
+    markers_for,
+    split_residual,
+    token_relation,
+)
 from bedrock.analysis.nimble_compare.loaders import (
     bea_matrix_column,
     bea_matrix_row,
@@ -39,6 +46,8 @@ __all__ = [
     'Alignment',
     'Comparison',
     'LabeledSeries',
+    'RESIDUAL_MARKERS',
+    'RESIDUAL_TOKENS',
     'ROLLUPS',
     'align',
     'bea_matrix_column',
@@ -48,9 +57,12 @@ __all__ = [
     'detail_industry_to_summary',
     'fba_series',
     'frame_series',
+    'markers_for',
     'nipa_sheet',
     'normalize_code',
     'normalize_name',
+    'split_residual',
     'summary_industry_names',
     'table_series',
+    'token_relation',
 ]

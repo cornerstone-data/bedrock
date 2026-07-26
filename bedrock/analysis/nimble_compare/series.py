@@ -125,6 +125,16 @@ class LabeledSeries:
         """Detail composition of each row, empty when no aggregation happened."""
         return cast('Members', self.meta.get('members', {}))
 
+    @property
+    def dialect(self) -> str:
+        """Which source's label conventions this series follows.
+
+        Set by the loaders and consumed by :mod:`hierarchy`, because residual
+        markers are source-specific: "All other X" is a reliable residual marker
+        in the BEA detail industry list and absent from NIPA industry stubs.
+        """
+        return str(self.meta.get('dialect', 'unknown'))
+
     def scale(self, factor: float, unit: str | None = None) -> 'LabeledSeries':
         """Return a copy with values multiplied -- for unit reconciliation."""
         df = self.frame.copy()

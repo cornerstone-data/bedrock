@@ -20,12 +20,19 @@ from bedrock.analysis.nimble_compare import (
     nipa_sheet,
     normalize_code,
     normalize_name,
+    split_residual,
+    token_relation,
 )
 
 
 def _series(rows: list[tuple[str, str, float]], **kw: object) -> LabeledSeries:
     frame = pd.DataFrame(rows, columns=['code', 'name', 'value'])
     return LabeledSeries(frame, **kw)  # type: ignore[arg-type]
+
+
+def _dialect_series(rows: list[tuple[str, str, float]], dialect: str) -> LabeledSeries:
+    frame = pd.DataFrame(rows, columns=['code', 'name', 'value'])
+    return LabeledSeries(frame, meta={'dialect': dialect})
 
 
 class TestNormalize:
@@ -202,6 +209,121 @@ class TestAlign:
         reference = _series([('x', 'Same name', 1.0), ('y', 'Same name', 2.0)])
         # ambiguous on the reference side, so nothing is claimed
         assert len(align(candidate, reference, on='fuzzy').pairs) == 0
+
+
+class TestHierarchyVocabulary:
+    """Label conventions, read directly rather than inferred from similarity."""
+
+    def test_splits_residual_markers(self) -> None:
+        for label, parent in [
+            ('All other miscellaneous manufacturing', 'miscellaneous manufacturing'),
+            (
+                'Other ambulatory health care services',
+                'ambulatory health care services',
+            ),
+            ('Electrical equipment, n.e.c.', 'electrical equipment'),
+        ]:
+            split = split_residual(label, 'bea_io_detail')
+            assert split is not None, label
+            assert split[0] == normalize_name(parent)
+
+    def test_returns_none_when_no_marker_applies(self) -> None:
+        assert split_residual('Wholesale trade', 'bea_io_detail') is None
+
+    def test_nipa_dialect_does_not_treat_bare_other_as_a_marker(self) -> None:
+        # five BEA summary industries are genuinely named "Other <something>",
+        # and NIPA uses the same stubs, so stripping there would be wrong
+        assert split_residual('Other retail', 'nipa') is None
+        assert split_residual('Other transportation equipment', 'nipa') is None
+        # but a detail-list convention still applies
+        assert split_residual('All other wood products', 'nipa') is not None
+
+    def test_token_relation_reads_the_four_cases(self) -> None:
+        assert (
+            token_relation(
+                'Other transportation equipment', 'Other Transportation Equipment'
+            )
+            == 'equal'
+        )
+        assert (
+            token_relation(
+                'Ambulatory health care services',
+                'Other ambulatory health care services',
+            )
+            == 'residual'
+        )
+        assert (
+            token_relation(
+                'Publishing industries (includes software)',
+                'Publishing industries, except internet (includes software)',
+            )
+            == 'qualified'
+        )
+        assert (
+            token_relation(
+                'Support activities for mining', 'Support activities for printing'
+            )
+            == 'different'
+        )
+
+    def test_inflection_is_not_a_difference(self) -> None:
+        assert token_relation('Warehousing and storage', 'Warehousing & storage') == (
+            'equal'
+        )
+        assert token_relation('Legal service', 'Legal services') == 'equal'
+
+
+class TestHierarchyPass:
+    def test_records_a_relation_instead_of_matching_a_residual(self) -> None:
+        candidate = _dialect_series(
+            [('P', 'Ambulatory health care services', 100.0)], 'nipa'
+        )
+        reference = _dialect_series(
+            [
+                ('621900', 'Other ambulatory health care services', 20.0),
+                ('621100', 'Offices of physicians', 80.0),
+            ],
+            'bea_io_detail',
+        )
+        result = align(candidate, reference, on='fuzzy')
+        assert len(result.pairs) == 0, 'a residual is not its parent'
+        rel = result.relations
+        assert len(rel) == 1
+        assert rel.at[0, 'parent_name'] == 'Ambulatory health care services'
+        assert rel.at[0, 'child_codes'] == '621900'
+        assert rel.at[0, 'children_sum'] == 20.0
+
+    def test_groups_several_residual_children_under_one_parent(self) -> None:
+        candidate = _dialect_series([('P', 'Wood products', 30.0)], 'nipa')
+        reference = _dialect_series(
+            [
+                ('A', 'Other wood products', 10.0),
+                ('B', 'All other wood products', 20.0),
+            ],
+            'bea_io_detail',
+        )
+        rel = align(candidate, reference).relations
+        assert rel.at[0, 'n_children'] == 2
+        assert rel.at[0, 'children_sum'] == 30.0
+        assert rel.at[0, 'diff'] == 0.0
+
+    def test_fuzzy_cannot_pair_a_substituted_content_word(self) -> None:
+        # the mining/printing failure, which scored 0.90 and was 1857% wrong
+        candidate = _series([('c', 'Support activities for mining', 30000.0)])
+        reference = _series([('323120', 'Support activities for printing', 1531.0)])
+        assert len(align(candidate, reference, on='fuzzy').pairs) == 0
+
+    def test_exact_names_still_match_before_any_hierarchy_logic(self) -> None:
+        # "Other transportation equipment" is a real category name on both sides
+        candidate = _dialect_series(
+            [('N', 'Other transportation equipment', 5.0)], 'nipa'
+        )
+        reference = _dialect_series(
+            [('3364OT', 'Other transportation equipment', 5.0)], 'bea_io_summary'
+        )
+        result = align(candidate, reference)
+        assert result.pairs['method'].tolist() == ['name']
+        assert len(result.relations) == 0
 
 
 class TestDetailComposition:

@@ -38,7 +38,14 @@ from bedrock.analysis.nimble_compare.series import LabeledSeries
 #: Named rollups, applied to the *reference* before matching, for the common
 #: case of a detail BEA table against a coarser candidate.
 ROLLUPS = {
-    'industry_to_summary': (detail_industry_to_summary, summary_industry_names),
+    # mapping loader, names loader, and the label dialect the result speaks --
+    # rolling detail up to summary also swaps in summary labels, so the residual
+    # markers that apply change with it
+    'industry_to_summary': (
+        detail_industry_to_summary,
+        summary_industry_names,
+        'bea_io_summary',
+    ),
 }
 
 
@@ -197,6 +204,32 @@ class Comparison:
                 .to_string(index=False)
                 .splitlines()
             ]
+        relations = self.alignment.relations
+        if len(relations):
+            lines += [
+                '',
+                'HIERARCHY RELATIONS (label says part-of, so not matched)',
+                '',
+            ]
+            shown = relations[
+                [
+                    'parent_side',
+                    'parent_name',
+                    'parent_value',
+                    'n_children',
+                    'children_sum',
+                    'diff',
+                    'child_codes',
+                ]
+            ]
+            lines += ['  ' + ln for ln in shown.to_string(index=False).splitlines()]
+            lines += [
+                '  (a small diff means the children account for the parent; act on'
+                ' it with',
+                '   merge_reference= or leaves(keep=, drop=) rather than trusting a'
+                ' name match)',
+            ]
+
         if self.alignment.ambiguous:
             lines += [
                 '',
@@ -271,9 +304,10 @@ def compare(
 
     if rollup is not None:
         if isinstance(rollup, str):
-            mapping_fn, names_fn = ROLLUPS[rollup]
+            mapping_fn, names_fn, dialect = ROLLUPS[rollup]
             reference = reference.rollup(mapping_fn()).with_names(names_fn())
             reference.label = f'{reference.label} [{rollup}]'
+            reference.meta['dialect'] = dialect
         else:
             reference = reference.rollup(rollup)
 

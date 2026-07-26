@@ -124,7 +124,12 @@ def bea_matrix_row(
         frame,
         label or f'{matrix}:{row_code}',
         MILLION_USD,
-        {'source': matrix, 'row': row_code, 'across': across},
+        {
+            'source': matrix,
+            'row': row_code,
+            'across': across,
+            'dialect': 'bea_io_detail',
+        },
     )
 
 
@@ -149,7 +154,12 @@ def bea_matrix_column(
         frame,
         label or f'{matrix}:{column_code}',
         MILLION_USD,
-        {'source': matrix, 'column': column_code, 'across': across},
+        {
+            'source': matrix,
+            'column': column_code,
+            'across': across,
+            'dialect': 'bea_io_detail',
+        },
     )
 
 
@@ -179,7 +189,12 @@ def bea_summary_sut_row(
         frame,
         label or f'Use_SUT_summary:{row_code}@{year}',
         MILLION_USD,
-        {'source': 'Use_SUT_summary', 'row': row_code, 'year': year},
+        {
+            'source': 'Use_SUT_summary',
+            'row': row_code,
+            'year': year,
+            'dialect': 'bea_io_summary',
+        },
     )
 
 
@@ -260,7 +275,7 @@ def nipa_sheet(
         frame,
         label or f'{sheet}@{year}',
         unit,
-        {'source': path, 'sheet': sheet, 'year': year},
+        {'source': path, 'sheet': sheet, 'year': year, 'dialect': 'nipa'},
     )
 
 
