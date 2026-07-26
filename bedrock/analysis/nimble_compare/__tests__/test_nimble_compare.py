@@ -211,6 +211,98 @@ class TestAlign:
         assert len(align(candidate, reference, on='fuzzy').pairs) == 0
 
 
+class TestSelection:
+    """Picking part of a table -- the totals-only comparison shape."""
+
+    #: shaped like NIPA 3.5: two branches, one of which is a childless subtotal
+    FRAME = pd.DataFrame(
+        {
+            'code': ['TOP', 'FED', 'FTP', 'FTP1', 'FTP2', 'FOTH', 'SL', 'SOTH', 'SO1'],
+            'name': [
+                'Taxes total',
+                'Federal',
+                'Taxes on product',
+                'Excise',
+                'Customs',
+                'Other taxes on production',
+                'State and local',
+                'Other taxes on production',
+                'Property taxes',
+            ],
+            'value': [100.0, 30.0, 28.0, 20.0, 8.0, 2.0, 70.0, 70.0, 70.0],
+            'level': [0, 1, 2, 3, 3, 2, 1, 2, 3],
+        }
+    )
+
+    def _series(self) -> LabeledSeries:
+        return LabeledSeries(self.FRAME)
+
+    def test_select_picks_named_rows_by_code_or_name(self) -> None:
+        picked = self._series().select(['FOTH', 'SOTH'])
+        assert picked.total == 72.0
+        assert self._series().select(['Property taxes']).total == 70.0
+
+    def test_subtree_follows_indentation(self) -> None:
+        sub = self._series().subtree('FTP')
+        assert sorted(sub.frame['code']) == ['FTP1', 'FTP2']
+        assert sub.total == 28.0
+
+    def test_subtree_stops_at_the_next_sibling(self) -> None:
+        # must not run on into the "State and local" branch
+        assert sorted(self._series().subtree('FED').frame['code']) == [
+            'FOTH',
+            'FTP',
+            'FTP1',
+            'FTP2',
+        ]
+
+    def test_subtree_of_a_childless_row_is_empty(self) -> None:
+        assert len(self._series().subtree('FOTH')) == 0
+        # ... but with the parent kept, leaves() treats it as the leaf it is
+        kept = self._series().subtree('FOTH', include_parent=True, leaves_only=True)
+        assert kept.total == 2.0
+
+    def test_subtree_leaves_only_drops_intermediate_subtotals(self) -> None:
+        leaves = self._series().subtree('FED', include_parent=True, leaves_only=True)
+        assert sorted(leaves.frame['code']) == ['FOTH', 'FTP1', 'FTP2']
+        assert leaves.total == 30.0
+
+    def test_subtree_rejects_an_unknown_label(self) -> None:
+        try:
+            self._series().subtree('NOPE')
+        except KeyError as exc:
+            assert 'NOPE' in str(exc)
+        else:
+            raise AssertionError('expected a KeyError')
+
+
+class TestMissingValues:
+    def test_blank_values_are_counted_not_dropped(self) -> None:
+        s = _series([('a', 'A', 1.0), ('b', 'B', float('nan'))])
+        assert len(s) == 2
+        assert s.n_missing == 1
+        assert s.total == 1.0
+
+    def test_report_survives_an_all_nan_pct_column(self) -> None:
+        # a zero reference makes pct_diff undefined. The cell may legitimately
+        # print as NaN, but the summary line must not report a NaN median.
+        text = compare(
+            _series([('a', 'A', 5.0)]), _series([('a', 'A', 0.0)]), on='code'
+        ).report()
+        agreement = next(ln for ln in text.splitlines() if 'CELL AGREEMENT' in ln)
+        assert 'nan' not in agreement.lower()
+        assert 'median' not in agreement
+
+    def test_report_caps_long_unmatched_listings(self) -> None:
+        candidate = _series([(f'c{i}', f'cand {i}', float(i)) for i in range(40)])
+        reference = _series([('z', 'Zulu', 1.0)])
+        text = compare(candidate, reference).report(n_unmatched=5)
+        assert 'UNMATCHED CANDIDATE ROWS (40 total)' in text
+        assert '... and 35 more' in text
+        # largest first, so the rows that move a total are the ones shown
+        assert 'cand 39' in text and 'cand 1 ' not in text
+
+
 class TestHierarchyVocabulary:
     """Label conventions, read directly rather than inferred from similarity."""
 

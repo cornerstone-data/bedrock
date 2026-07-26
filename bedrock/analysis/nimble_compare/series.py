@@ -27,7 +27,7 @@ Members = dict[str, list[tuple[str, float]]]
 # BEA writes footnote references into the label text itself, in two styles:
 # NIPA xls sheets use backslash-delimited markers ("Farms\1\", "Other retail\2\")
 # while the flat-file SeriesLabels use trailing parentheses ("Accommodations (104)").
-_FOOTNOTE_BACKSLASH = re.compile(r'\\\d+\\')
+_FOOTNOTE_BACKSLASH = re.compile(r'\\[\d,\s]+\\')
 _FOOTNOTE_PAREN = re.compile(r'(?:\s*\(\d+\))+$')
 
 # Terms BEA spells differently between tables. Applied after casefolding.
@@ -121,6 +121,17 @@ class LabeledSeries:
         return float(self.frame['value'].sum())
 
     @property
+    def n_missing(self) -> int:
+        """Rows whose value is blank.
+
+        BEA writes an empty cell where a series does not apply in a year (the
+        crude oil windfall profits tax after 1988).  These are kept rather than
+        dropped -- they are real rows of the table -- but they contribute nothing
+        to a total, so a comparison should say how many there are.
+        """
+        return int(self.frame['value'].isna().sum())
+
+    @property
     def members(self) -> Members:
         """Detail composition of each row, empty when no aggregation happened."""
         return cast('Members', self.meta.get('members', {}))
@@ -146,6 +157,49 @@ class LabeledSeries:
         return LabeledSeries(
             self.frame.query(expr), self.label, self.unit, dict(self.meta)
         )
+
+    def select(self, labels: Iterable[str]) -> 'LabeledSeries':
+        """Return only the named rows, matched by code or name.
+
+        The blunt instrument for "compare just this part of the table", e.g.
+        picking the two ``Other taxes on production`` subtotals out of NIPA
+        table 3.5 and leaving the taxes-on-products branches behind.
+        """
+        wanted = _key_set(labels)
+        keep = [
+            bool({code, name} & wanted)
+            for code, name in zip(self.frame['code_key'], self.frame['name_key'])
+        ]
+        return LabeledSeries(
+            self.frame.loc[keep], self.label, self.unit, dict(self.meta)
+        )
+
+    def subtree(
+        self, label: str, *, include_parent: bool = False, leaves_only: bool = False
+    ) -> 'LabeledSeries':
+        """Return the rows nested under ``label`` in the source's own hierarchy.
+
+        Follows the indentation a hierarchical source (a NIPA sheet) already
+        carries, so "everything under Other taxes on production" needs no list of
+        codes that would rot when BEA revises the table.
+        """
+        df = self.frame
+        if df['level'].isna().all():
+            raise ValueError(f'{self.label!r} has no hierarchy levels to descend')
+        wanted = _key_set([label])
+        codes: list[str] = df['code_key'].tolist()
+        names: list[str] = df['name_key'].tolist()
+        levels: list[int] = df['level'].tolist()
+        start = next((i for i in range(len(df)) if {codes[i], names[i]} & wanted), None)
+        if start is None:
+            raise KeyError(f'{label!r} is not a row of {self.label!r}')
+        end = next(
+            (i for i in range(start + 1, len(df)) if levels[i] <= levels[start]),
+            len(df),
+        )
+        picked = list(range(start if include_parent else start + 1, end))
+        out = LabeledSeries(df.iloc[picked], self.label, self.unit, dict(self.meta))
+        return out.leaves() if leaves_only else out
 
     def leaves(
         self,

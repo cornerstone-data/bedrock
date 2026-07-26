@@ -126,14 +126,26 @@ class Comparison:
 
     # ------------------------------------------------------------------ output
 
-    def report(self, n_worst: int = 15, tol_pct: float = 1.0) -> str:
+    def report(
+        self, n_worst: int = 15, tol_pct: float = 1.0, n_unmatched: int = 15
+    ) -> str:
         t = self.totals
         methods = self.alignment.match_counts
         lines = [
             f'candidate : {self.candidate.label}  (n={len(self.candidate)}, '
-            f'unit={self.candidate.unit or "?"})',
+            f'unit={self.candidate.unit or "?"})'
+            + (
+                f'  [{self.candidate.n_missing} blank values]'
+                if self.candidate.n_missing
+                else ''
+            ),
             f'reference : {self.reference.label}  (n={len(self.reference)}, '
-            f'unit={self.reference.unit or "?"})',
+            f'unit={self.reference.unit or "?"})'
+            + (
+                f'  [{self.reference.n_missing} blank values]'
+                if self.reference.n_missing
+                else ''
+            ),
             '',
             'TOTALS',
             f'  candidate total     {t["candidate_total"]:>18,.0f}',
@@ -158,14 +170,11 @@ class Comparison:
 
         within = len(self.close(tol_pct))
         n = len(self.cells)
+        median = self.cells['abs_pct_diff'].dropna().median() if n else float('nan')
         lines += [
             '',
             f'CELL AGREEMENT  ({within}/{n} within {tol_pct:g}%'
-            + (
-                f', median |diff| {self.cells["abs_pct_diff"].median():.2f}%)'
-                if n
-                else ')'
-            ),
+            + (f', median |diff| {median:.2f}%)' if pd.notna(median) else ')'),
         ]
         # State the granularity the comparison actually ran at. A cell whose
         # reference side is one code is a detail-level comparison; one that sums
@@ -188,22 +197,30 @@ class Comparison:
                 for ln in self.worst(n_worst).to_string(index=False).splitlines()
             ]
 
-        if len(self.alignment.candidate_only):
-            lines += ['', 'UNMATCHED CANDIDATE ROWS', '']
+        for side, frame in (
+            ('CANDIDATE', self.alignment.candidate_only),
+            ('REFERENCE', self.alignment.reference_only),
+        ):
+            if not len(frame):
+                continue
+            # Comparing tables with no cell correspondence leaves hundreds of
+            # rows over, and dumping all of them buries the totals that are the
+            # actual answer. Largest first, since those are what move a total.
+            shown = frame.reindex(
+                frame['value'].abs().sort_values(ascending=False).index
+            ).head(n_unmatched)
+            lines += ['', f'UNMATCHED {side} ROWS ({len(frame)} total)', '']
             lines += [
                 '  ' + ln
-                for ln in self.alignment.candidate_only[['code', 'name', 'value']]
+                for ln in shown[['code', 'name', 'value']]
                 .to_string(index=False)
                 .splitlines()
             ]
-        if len(self.alignment.reference_only):
-            lines += ['', 'UNMATCHED REFERENCE ROWS', '']
-            lines += [
-                '  ' + ln
-                for ln in self.alignment.reference_only[['code', 'name', 'value']]
-                .to_string(index=False)
-                .splitlines()
-            ]
+            if len(frame) > n_unmatched:
+                rest = frame['value'].sum() - shown['value'].sum()
+                lines.append(
+                    f'  ... and {len(frame) - n_unmatched} more, totalling {rest:,.0f}'
+                )
         relations = self.alignment.relations
         if len(relations):
             lines += [

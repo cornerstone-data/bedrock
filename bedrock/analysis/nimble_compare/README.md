@@ -85,6 +85,28 @@ compare(..., merge_reference={'RE': ['HS', 'ORE']})            # sum BEA's parts
 compare(..., overrides={'N4055C': '511'})                      # just say it
 ```
 
+## When there are no cells to compare
+
+Some pairs share no correspondence at all — NIPA 3.5 is organized by level of
+government and kind of tax, the Use table's `T00OTOP` by industry. There is
+nothing to match, and the totals *are* the answer. Select the part of the
+candidate that corresponds and read the totals block:
+
+```python
+sheet = nipa_sheet(SECTION3, 'T30500-A', 2017)
+compare(sheet.select(['LA000237', 'LA000365']), bea_matrix_row('T00OTOP')).totals
+```
+
+| | |
+|---|---|
+| `select(labels)` | just these rows, by code or name |
+| `subtree(label, include_parent=, leaves_only=)` | everything nested under a row, following the sheet's indentation |
+
+Forcing this shape into cells is worse than useless: BEA's detail industry list
+has a row genuinely named `Customs duties` (`4200ID`), so a name match pairs
+NIPA's federal customs receipts with the other-taxes row of the customs-duties
+*industry*, which is zero. A `matched cells: 0` line is the honest output.
+
 ## Gotchas
 
 **Hierarchy.** NIPA sheets interleave subtotals with leaves. Summing one as
@@ -151,3 +173,16 @@ NIPA table 6.2D compensation of employees against Use SUT detail row `V00100`,
   name alone, all within BEA's rounding, and 17 are 1:1 with a single detail code.
 - **stage 2** — the ten partition mismatches reconciled, about twenty lines,
   closing to 69/69 cells and −1 million on a $10.4 trillion total.
+
+```
+uv run python -m bedrock.analysis.nimble_compare.examples.nipa_taxes_vs_sut_t00otop
+```
+
+NIPA table 3.5 against Use SUT detail rows `T00OTOP` and `T00TOP`, 2017 — the
+totals-only shape, and the selection needed to split taxes on products from
+other taxes on production:
+
+| | NIPA 3.5 | Use SUT | diff |
+|---|---|---|---|
+| other taxes on production | 608,533 | 608,542 | −9 (−0.0015%) |
+| taxes on products | 755,438 | 755,451 | −13 (−0.0017%) |
