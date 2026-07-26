@@ -25,7 +25,15 @@ from __future__ import annotations
 
 import os
 
-from bedrock.analysis.nimble_compare import bea_matrix_row, compare, nipa_sheet
+import pandas as pd
+
+from bedrock.analysis.nimble_compare import (
+    bea_matrix_column,
+    bea_matrix_row,
+    compare,
+    frame_series,
+    nipa_sheet,
+)
 
 SECTION3 = os.path.join(
     os.path.expanduser('~'),
@@ -89,6 +97,77 @@ def main() -> None:
         )
         print()
 
+    print('=' * 78)
+    print('SPLITTING THE PRODUCT TAXES: the Supply table has two columns')
+    print('=' * 78)
+    print(
+        'Use SUT carries taxes on products as one T00TOP row, but the Supply table\n'
+        'splits the same money by commodity into MDTY (import duties) and TOP\n'
+        '(everything else). NIPA 3.5 has customs duties as its own line, so the two\n'
+        'sides do decompose -- two cells rather than one total.\n'
+    )
+    customs = float(sheet.frame.loc[sheet.frame['code'] == 'B235RC', 'value'].iloc[0])
+    product_total = sheet.select(PRODUCT_TAXES_SUBTOTALS).total
+    candidate = frame_series(
+        pd.DataFrame(
+            {
+                'code': ['MDTY', 'TOP'],
+                'name': ['Customs duties', 'Other taxes on products'],
+                'value': [customs, product_total - customs],
+            }
+        ),
+        code='code',
+        name='name',
+        value='value',
+        label='NIPA 3.5 product taxes, split',
+    )
+    reference = frame_series(
+        pd.DataFrame(
+            {
+                'code': ['MDTY', 'TOP'],
+                'value': [
+                    bea_matrix_column(
+                        c, matrix='Supply_detail', across='commodity'
+                    ).total
+                    for c in ('MDTY', 'TOP')
+                ],
+            }
+        ),
+        code='code',
+        value='value',
+        label='Supply detail 2017, summed over commodities',
+    )
+    print(compare(candidate, reference, on='code').report(n_worst=2))
+
+    print()
+    print('=' * 78)
+    print('WHAT THE RESIDUAL LINES ACTUALLY HOLD')
+    print('=' * 78)
+    print(
+        'Every composition footnote in this table sits on a line named "Other" or\n'
+        '"n.i.e" -- the same pattern the hierarchy pass exploits, one level down.\n'
+        'The label cannot say what a residual contains, so BEA says it in prose,\n'
+        'and that prose is the only basis for ever mapping these onto commodities.\n'
+    )
+    notes = sheet.annotated(composition_only=True)
+    live = notes.loc[notes['value'].notna()]
+    for code, name, value, note in zip(
+        live['code'], live['name'], live['value'], live['note']
+    ):
+        print(f'  {code:10} {name:28} {float(value):>10,.0f}')
+        print(f'             {note}')
+    live_total = float(live['value'].sum())
+    table_total = sheet.select(['W056RC']).total
+    print(
+        f'\n  {len(live)} live residual lines, {live_total:,.0f} million '
+        f'({live_total / table_total * 100:.1f}% of the table) described only in prose.'
+    )
+    print(
+        f'  ({len(notes) - len(live)} more carry composition notes but are blank in '
+        f'{YEAR}.)'
+    )
+
+    print()
     print('=' * 78)
     print('WHY NOT MATCH ROW BY ROW')
     print('=' * 78)

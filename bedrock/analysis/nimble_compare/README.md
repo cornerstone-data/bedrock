@@ -182,7 +182,37 @@ NIPA table 3.5 against Use SUT detail rows `T00OTOP` and `T00TOP`, 2017 — the
 totals-only shape, and the selection needed to split taxes on products from
 other taxes on production:
 
-| | NIPA 3.5 | Use SUT | diff |
+| | NIPA 3.5 | BEA | diff |
 |---|---|---|---|
-| other taxes on production | 608,533 | 608,542 | −9 (−0.0015%) |
-| taxes on products | 755,438 | 755,451 | −13 (−0.0017%) |
+| other taxes on production | 608,533 | Use `T00OTOP` 608,542 | −9 (−0.0015%) |
+| taxes on products | 755,438 | Use `T00TOP` 755,451 | −13 (−0.0017%) |
+| ⤷ customs duties | 38,513 | Supply `MDTY` 38,507 | +6 |
+| ⤷ other product taxes | 716,925 | Supply `TOP` 716,926 | −1 |
+
+The last two are a real two-cell comparison rather than a total: Use SUT carries
+product taxes as one row, but the Supply table splits the same money into import
+duties and everything else, and NIPA reports customs duties on its own line.
+
+## Footnotes
+
+NIPA documents residual lines in prose, because the label cannot carry it —
+table 3.5's federal "Other" excise taxes is 9,338 million of nothing in
+particular until footnote 1 says it is *"largely taxes on telephone services,
+tires, coal, nuclear fuel, trucks, indoor tanning services"*. That sentence is
+the only description of the line's content, and so the only basis for ever
+mapping it onto commodities.
+
+`nipa_sheet` parses the footnote block and records which notes each row cites
+(`\7,8\` → both). The marker never reaches `name`, so it cannot disturb matching.
+
+```python
+sheet.footnotes                          # {'1': 'Consists largely of taxes on ...'}
+sheet.notes_for('B2006C')                # the texts that row cites
+sheet.annotated(composition_only=True)   # rows beside their notes
+```
+
+`composition_only` keeps notes saying what a line *contains* and drops those
+saying only when it changed ("Prior to 1988, included in line 43"). In table 3.5
+every composition note lands on a line named "Other" or "n.i.e" — the same
+pattern the hierarchy pass exploits, one level down — covering 31,268 million,
+2.3% of the table.

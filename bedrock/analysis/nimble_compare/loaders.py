@@ -201,6 +201,28 @@ def bea_summary_sut_row(
 # ------------------------------------------------------------------- candidates
 
 _INDENT = re.compile(r'^(\s*)')
+_FOOTNOTE_DEF = re.compile(r'^(\d+)\.\s+(.*)$')
+_FOOTNOTE_REF = re.compile(r'\\([\d,\s]+)\\')
+
+
+def _parse_footnotes(column: list[object]) -> dict[str, str]:
+    """Pull ``N. text`` definitions out of the block below a NIPA table."""
+    notes: dict[str, str] = {}
+    for cell in column:
+        if not isinstance(cell, str):
+            continue
+        match = _FOOTNOTE_DEF.match(cell.strip())
+        if match:
+            notes[match.group(1)] = match.group(2).strip()
+    return notes
+
+
+def _footnote_refs(label: str) -> str:
+    """The footnote numbers a label cites, e.g. ``Other\\7,8\\`` -> ``'7;8'``."""
+    refs: list[str] = []
+    for group in _FOOTNOTE_REF.findall(label):
+        refs.extend(n.strip() for n in group.split(',') if n.strip())
+    return ';'.join(refs)
 
 
 def nipa_sheet(
@@ -268,6 +290,9 @@ def nipa_sheet(
             'name': [labels[i] for i in keep],
             'value': body.iloc[keep, year_cols[year]].to_numpy(),
             'level': levels,
+            # captured from the raw label, since the marker is stripped out of
+            # `name` before it reaches anything that compares names
+            'footnote_refs': [_footnote_refs(labels[i]) for i in keep],
         }
     )
 
@@ -275,7 +300,13 @@ def nipa_sheet(
         frame,
         label or f'{sheet}@{year}',
         unit,
-        {'source': path, 'sheet': sheet, 'year': year, 'dialect': 'nipa'},
+        {
+            'source': path,
+            'sheet': sheet,
+            'year': year,
+            'dialect': 'nipa',
+            'footnotes': _parse_footnotes(raw.iloc[:, 0].tolist()),
+        },
     )
 
 

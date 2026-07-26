@@ -40,6 +40,9 @@ _SYNONYMS = [
 
 _PUNCT = re.compile(r'[^\w&]+')
 
+# A footnote that describes what a line contains, rather than when it changed.
+_COMPOSITION_NOTE = re.compile(r'\bconsists?\b|\bincludes\b|\bcomprises\b', re.I)
+
 
 def strip_footnotes(name: str) -> str:
     """Remove BEA footnote markers but keep the label otherwise intact."""
@@ -135,6 +138,61 @@ class LabeledSeries:
     def members(self) -> Members:
         """Detail composition of each row, empty when no aggregation happened."""
         return cast('Members', self.meta.get('members', {}))
+
+    @property
+    def footnotes(self) -> dict[str, str]:
+        """Footnote number -> text, as published below the table."""
+        return cast('dict[str, str]', self.meta.get('footnotes', {}))
+
+    def notes_for(self, label: str) -> list[str]:
+        """The footnote texts a row cites, by code or name."""
+        if 'footnote_refs' not in self.frame.columns:
+            return []
+        wanted = _key_set([label])
+        notes = self.footnotes
+        for code, name, refs in zip(
+            self.frame['code_key'], self.frame['name_key'], self.frame['footnote_refs']
+        ):
+            if {code, name} & wanted:
+                return [notes[r] for r in str(refs).split(';') if r in notes]
+        return []
+
+    def annotated(self, composition_only: bool = False) -> pd.DataFrame:
+        """Rows beside their footnote text, for reading rather than comparing.
+
+        Residual lines are opaque without this: NIPA 3.5's federal "Other" excise
+        taxes is 9,338 million of nothing in particular until the note says it is
+        "largely taxes on telephone services, tires, coal, nuclear fuel, trucks,
+        indoor tanning services".  That sentence is the only description of what
+        the line holds, and so the only basis for mapping it onto commodities.
+
+        ``composition_only`` keeps the notes that say what a line contains and
+        drops the ones that only say when it changed ("Prior to 1988, included in
+        line 43"), which say nothing about content.
+        """
+        if 'footnote_refs' not in self.frame.columns:
+            return self.frame.loc[[], ['code', 'name', 'value']].assign(note='')
+        notes = self.footnotes
+        rows = []
+        for code, name, value, refs in zip(
+            self.frame['code'],
+            self.frame['name'],
+            self.frame['value'],
+            self.frame['footnote_refs'],
+        ):
+            texts = [notes[r] for r in str(refs).split(';') if r in notes]
+            if composition_only:
+                texts = [t for t in texts if _COMPOSITION_NOTE.search(t)]
+            if texts:
+                rows.append(
+                    {
+                        'code': code,
+                        'name': name,
+                        'value': value,
+                        'note': ' '.join(texts),
+                    }
+                )
+        return pd.DataFrame(rows, columns=['code', 'name', 'value', 'note'])
 
     @property
     def dialect(self) -> str:

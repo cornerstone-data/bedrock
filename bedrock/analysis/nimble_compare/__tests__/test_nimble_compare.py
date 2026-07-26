@@ -303,6 +303,65 @@ class TestMissingValues:
         assert 'cand 39' in text and 'cand 1 ' not in text
 
 
+class TestFootnotes:
+    """NIPA footnotes, which are where residual lines are actually defined."""
+
+    ROWS = [
+        ['Table 9.9. Something', None, None, None],
+        ['Line', None, None, 2017],
+        [1, 'Total', 'T000RC', 100.0],
+        [2, '  Gasoline', 'G001RC', 60.0],
+        [3, '  Other\\1,3\\', 'O001RC', 40.0],
+        [4, '  Discontinued\\2\\', 'D001RC', None],
+        [None, None, None, None],
+        [
+            '1. Consists largely of taxes on tires, coal, and nuclear fuel.',
+            None,
+            None,
+            None,
+        ],
+        ['2. Prior to 1988, included in line 3', None, None, None],
+        ['3. Includes indoor tanning services.', None, None, None],
+    ]
+
+    def _sheet(self, tmp: str) -> LabeledSeries:
+        path = os.path.join(tmp, 'SectionXall_xls.xlsx')
+        pd.DataFrame(self.ROWS).to_excel(
+            path, sheet_name='T90900-A', index=False, header=False
+        )
+        return nipa_sheet(path, 'T90900-A', 2017)
+
+    def test_parses_the_footnote_block(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            notes = self._sheet(tmp).footnotes
+            assert set(notes) == {'1', '2', '3'}
+            assert notes['1'].startswith('Consists largely of taxes on tires')
+
+    def test_resolves_multi_reference_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            texts = self._sheet(tmp).notes_for('O001RC')
+            assert len(texts) == 2, 'both 1 and 3 from "Other\\1,3\\"'
+            assert any('tanning' in t for t in texts)
+
+    def test_marker_is_kept_out_of_the_comparable_name(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            names = list(self._sheet(tmp).frame['name'])
+            assert 'Other' in names, 'the footnote marker must not survive into name'
+
+    def test_composition_only_drops_vintage_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sheet = self._sheet(tmp)
+            assert set(sheet.annotated()['code']) == {'O001RC', 'D001RC'}
+            # "Prior to 1988, included in line 3" says nothing about content
+            assert set(sheet.annotated(composition_only=True)['code']) == {'O001RC'}
+
+    def test_no_footnotes_is_not_an_error(self) -> None:
+        s = _series([('a', 'A', 1.0)])
+        assert s.footnotes == {}
+        assert s.notes_for('a') == []
+        assert len(s.annotated()) == 0
+
+
 class TestHierarchyVocabulary:
     """Label conventions, read directly rather than inferred from similarity."""
 
