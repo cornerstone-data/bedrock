@@ -439,13 +439,11 @@ _TABLE_FREQUENCY_SUFFIX = re.compile(r'^(?P<table>[A-Z]\w+?)-(?P<freq>[AQM])$')
 def nipa_flat_files_path() -> str:
     """The ``FlatFiles.ZIP`` the ``BEA_NIPA`` FBA extracts from.
 
-    ``bedrock/extract/input_data/BEA_NIPA/FlatFiles.ZIP`` -- the local mirror of
-    the extract-input bucket, so a comparison reads the same archive the FBA
-    parsed rather than a separately downloaded workbook.
+    Delegates to the extractor so the two cannot drift onto different paths.
     """
-    from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
+    from bedrock.extract.bea.BEA_NIPA import flat_files_local_path
 
-    return os.path.join(local_extract_input_dir('BEA_NIPA'), 'FlatFiles.ZIP')
+    return flat_files_local_path()
 
 
 @lru_cache(maxsize=None)
