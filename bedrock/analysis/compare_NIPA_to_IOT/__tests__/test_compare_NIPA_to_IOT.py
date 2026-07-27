@@ -308,22 +308,32 @@ class TestMissingValues:
 class TestFrameworks:
     """Both BEA frameworks publish a "detail Use table"; they must not blur."""
 
-    def test_every_matrix_declares_a_framework(self) -> None:
-        assert {f for _, f in BEA_MATRICES.values()} == {'SUT', 'MUT'}
-        for name, (_, framework) in BEA_MATRICES.items():
-            # the canonical name says which framework it is, so a label built
-            # from it is never ambiguous
-            assert framework in name, name
+    def test_every_matrix_declares_all_three_axes(self) -> None:
+        for name, spec in BEA_MATRICES.items():
+            assert spec.framework in {'SUT', 'MUT'}, name
+            assert spec.valuation in {'BAS', 'PRO', 'PUR'}, name
+            assert spec.redefinition in {'', 'before', 'after'}, name
+            # the canonical name states its framework, so a label built from it
+            # is never ambiguous
+            assert spec.framework in name, name
+
+    def test_redefinition_is_declared_wherever_it_applies(self) -> None:
+        # MUT tables are published both ways, SUT is not redefined at all
+        for name, spec in BEA_MATRICES.items():
+            assert bool(spec.redefinition) == (spec.framework == 'MUT'), name
+        assert 'Use_MUT_detail_before_redef' in BEA_MATRICES
+        assert BEA_MATRICES['Use_MUT_detail'].redefinition == 'after'
 
     def test_canonical_names_resolve_to_themselves(self) -> None:
         for name in BEA_MATRICES:
-            canonical, _, _ = resolve_matrix(name)
+            canonical, _ = resolve_matrix(name)
             assert canonical == name
 
     def test_framework_silent_aliases_still_work(self) -> None:
-        assert resolve_matrix('Use_detail') == ('Use_MUT_detail', 'Use_detail', 'MUT')
+        assert resolve_matrix('Use_detail')[0] == 'Use_MUT_detail'
         assert resolve_matrix('Supply_detail')[0] == 'Supply_SUT_detail'
-        assert resolve_matrix('Make_detail')[2] == 'MUT'
+        assert resolve_matrix('Make_detail')[1].framework == 'MUT'
+        assert resolve_matrix('Import_detail')[1].redefinition == 'after'
 
     def test_unknown_matrix_lists_the_options(self) -> None:
         try:
@@ -333,8 +343,41 @@ class TestFrameworks:
         else:
             raise AssertionError('expected a KeyError')
 
-    def test_series_without_a_framework_reports_empty(self) -> None:
-        assert _series([('a', 'A', 1.0)]).framework == ''
+    def test_purchaser_use_table_explains_that_it_is_missing(self) -> None:
+        # bedrock has no PUR Use table; asking must say so and say what to do,
+        # not report an unknown matrix name
+        try:
+            resolve_matrix('Use_MUT_detail_PUR')
+        except KeyError as exc:
+            assert 'IOUse_Before_Redefinitions_PUR_2017_Detail.xlsx' in str(exc)
+            assert 'Supply_SUT_detail' in str(exc), 'point at the nearest alternative'
+        else:
+            raise AssertionError('expected a KeyError')
+
+    def test_summary_names_all_three_axes(self) -> None:
+        assert BEA_MATRICES['Use_MUT_detail'].summary == (
+            'Make-Use framework, producer value, after redefinition'
+        )
+        assert BEA_MATRICES['Use_SUT_detail'].summary == (
+            'Supply-Use framework, basic value'
+        )
+
+    def test_series_without_provenance_reports_empty(self) -> None:
+        s = _series([('a', 'A', 1.0)])
+        assert (s.framework, s.valuation, s.redefinition, s.provenance) == (
+            '',
+            '',
+            '',
+            '',
+        )
+
+    def test_series_provenance_reads_back_from_meta(self) -> None:
+        frame = pd.DataFrame([('a', 'A', 1.0)], columns=['code', 'name', 'value'])
+        s = LabeledSeries(
+            frame,
+            meta={'framework': 'MUT', 'valuation': 'PRO', 'redefinition': 'before'},
+        )
+        assert s.provenance == 'Make-Use framework, producer value, before redefinition'
 
 
 class TestFootnotes:

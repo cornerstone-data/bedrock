@@ -91,40 +91,70 @@ Both the Supply-Use (SUT) and Make-Use (MUT) frameworks publish a "detail Use
 table", so *"compare it to the detail Use table"* is ambiguous — and picking the
 wrong one is quiet, not loud.
 
-| matrix | framework | loader alias |
-|---|---|---|
-| `Use_SUT_detail` *(default)* | Supply-Use | — |
-| `Supply_SUT_detail` | Supply-Use | `Supply_detail` |
-| `Use_MUT_detail` | Make-Use, after redefinition | `Use_detail` |
-| `Make_MUT_detail` | Make-Use, after redefinition | `Make_detail` |
+Three axes decide whether two BEA tables are comparable — **framework**,
+**valuation** and **redefinition** — so the matrix names state them and
+`describe_matrices()` lists the lot.
 
-What differs, for 2017:
+| matrix | framework | valuation | redefinition | alias |
+|---|---|---|---|---|
+| `Use_SUT_detail` *(default)* | Supply-Use | basic | — | — |
+| `Supply_SUT_detail` | Supply-Use | basic → purchaser cols | — | `Supply_detail` |
+| `Use_MUT_detail` | Make-Use | producer | after | `Use_detail` |
+| `Make_MUT_detail` | Make-Use | producer | after | `Make_detail` |
+| `Import_MUT_detail` | Make-Use | producer | after | `Import_detail` |
+| `Use_MUT_detail_before_redef` | Make-Use | producer | before | — |
+| `Make_MUT_detail_before_redef` | Make-Use | producer | before | — |
+| `Import_MUT_detail_before_redef` | Make-Use | producer | before | — |
 
-- **`V00100`, `V00300`, `T005` are in both, with different values** — SUT is basic
-  value, MUT producer value. Compensation differs by 3 million, gross operating
-  surplus by 16. Nothing errors; you just silently get the other number.
-- **The tax rows do not correspond at all.** SUT splits them into `T00OTOP`
-  (608,542), `T00TOP` (755,451) and `T00SUB` (59,876); MUT carries one net
-  `V00200` (1,304,104). Checking a gross NIPA total against `V00200` is wrong by
-  the subsidies.
-- `T018`, `VABAS`, `VAPRO` are SUT-only; `T006`, `T008` MUT-only; `F05000`
-  (imports) is a MUT-only *column*.
+What differs, all checkable in the 2017 data:
 
-So the framework rides on every reference series and prints in the report header,
-and asking the wrong table for a row tells you where it actually lives:
+- **Framework.** `V00100`, `V00300` and `T005` are rows of both Use tables with
+  different values — compensation by 3 million, gross operating surplus by 16.
+  Nothing errors; you silently get the other number. The tax rows don't
+  correspond at all: SUT splits `T00OTOP` (608,542), `T00TOP` (755,451) and
+  `T00SUB` (59,876) where MUT carries one net `V00200` (1,304,104). `T018`,
+  `VABAS`, `VAPRO` are SUT-only; `T006`, `T008` MUT-only; `F05000` (imports) is a
+  MUT-only *column*.
+- **Valuation.** SUT is basic value, MUT producer, and the gap is exactly the
+  product taxes: `T018` 33,772,568 + `T00TOP` − `T00SUB` = 34,468,143 against MUT
+  `T008` 34,468,137.
+- **Redefinition** moves money *between cells while preserving every total*, so a
+  totals check cannot tell you that you picked the wrong one. Of the 161,604
+  intermediate cells, 5,740 differ, 553,635 million moves gross and the largest
+  single cell shifts 42,893 — for a net of −7. This is the axis to get right
+  before any cell-by-cell comparison.
+
+### Purchaser value
+
+There is **no purchaser-value Use table in bedrock**. BEA publishes
+`IOUse_Before_Redefinitions_PUR_2017_Detail.xlsx`, but it is in neither
+`USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING` nor the extract bucket. Asking
+for `Use_MUT_detail_PUR` says exactly that and what to do about it, rather than
+reporting an unknown name — wiring it up later is the file plus one `MatrixSpec`.
+
+Meanwhile the purchaser-value figures that *are* available are the Supply table's
+bridge columns: `T013` total supply at basic 36,398,867, plus `MDTY`/`TOP`/`SUB`,
+giving `T016` 37,094,434 at purchaser value. For a derived PUR conversion see
+`bedrock/transform/iot/derive_PRO_to_PUR_ratio.py`.
+
+All three ride on every reference series as `.framework` / `.valuation` /
+`.redefinition`, print in the report header, and asking the wrong table for a row
+tells you where it actually lives:
 
 ```
 >>> bea_matrix_row('V00200')
-KeyError: 'V00200' is not a row of Use_SUT_detail [Supply-Use framework]. It is a
-row of Use_MUT_detail [MUT] -- a different framework, whose rows do not
-correspond one-for-one.
+KeyError: 'V00200' is not a row of Use_SUT_detail [Supply-Use framework, basic
+value]. It is a row of Use_MUT_detail (Make-Use framework, producer value, after
+redefinition); ... -- whose rows do not correspond one-for-one with this table.
 
->>> where_is('V00100')
-{'Use_SUT_detail': 'SUT', 'Use_MUT_detail': 'MUT'}     # in both: check which you want
+>>> where_is('V00100')          # a row of three tables, meaning three things
+{'Use_SUT_detail':              'Supply-Use framework, basic value',
+ 'Use_MUT_detail':              'Make-Use framework, producer value, after redefinition',
+ 'Use_MUT_detail_before_redef': 'Make-Use framework, producer value, before redefinition'}
 ```
 
-`where_is` is worth calling whenever you set up a comparison against a code you
-have not used before.
+`where_is` is the only thing that catches the `V00100` case, since that one never
+raises — call it for any code you have not used before.
 
 ## When there are no cells to compare
 

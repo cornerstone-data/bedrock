@@ -19,6 +19,7 @@ unit is ``'Million USD'`` throughout and no rescaling happens implicitly --
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Any, Callable, Literal, cast
 
 import pandas as pd
@@ -54,34 +55,138 @@ def _bea_detail_make_redef() -> pd.DataFrame:
     return _load_2017_detail_make_use_usa('Make_detail')
 
 
-"""BEA publishes 2017 detail in two frameworks, and they are not interchangeable.
+def _bea_detail_import_redef() -> pd.DataFrame:
+    from bedrock.extract.iot.io_2017 import _load_2017_detail_make_use_usa
 
-The Supply-Use (SUT) framework and the Make-Use (MUT) framework both have a
-"detail Use table", so "compare it to the detail Use table" is ambiguous, and
-picking the wrong one is quiet rather than loud:
+    return _load_2017_detail_make_use_usa('Import_detail')
 
-* ``V00100``, ``V00300`` and ``T005`` exist in **both** Use tables with different
-  values (SUT is basic value, MUT producer value; compensation differs by 3
-  million, gross operating surplus by 16).  Nothing errors -- you just get the
-  other framework's number.
-* The tax rows do not correspond at all.  SUT splits them into ``T00OTOP``
-  (608,542), ``T00TOP`` (755,451) and ``T00SUB`` (59,876); MUT carries the single
-  net ``V00200`` (1,304,104).  Comparing a gross NIPA total to ``V00200`` is
-  wrong by the subsidies.
-* ``T018``/``VABAS``/``VAPRO`` are SUT-only, ``T006``/``T008`` MUT-only, and
-  ``F05000`` (imports) is a MUT-only column.
 
-So the matrix names here say which framework they belong to, the framework is
-recorded on every series, and asking for a row that lives in the other framework
-says so instead of reporting a bare KeyError.
-"""
+def _bea_detail_before_redef(key: str) -> Callable[[], pd.DataFrame]:
+    """Raw before-redefinition workbook, read the same way as the after ones.
 
-#: user-facing name -> (bedrock's loader key, framework tag)
-BEA_MATRICES: dict[str, tuple[str, str]] = {
-    'Use_SUT_detail': ('Use_SUT_detail', 'SUT'),
-    'Supply_SUT_detail': ('Supply_detail', 'SUT'),
-    'Use_MUT_detail': ('Use_detail', 'MUT'),
-    'Make_MUT_detail': ('Make_detail', 'MUT'),
+    ``io_2017``'s before-redef loaders return a trimmed commodity x industry
+    block; comparisons here need the whole sheet, value-added rows included, so
+    the workbook is read directly.
+    """
+
+    def load() -> pd.DataFrame:
+        from bedrock.extract.iot.io_2017 import (
+            GCS_USA_MAKE_USE_DIR,
+            LOCAL_USA_MAKE_USE_DIR,
+        )
+        from bedrock.utils.io.gcp import load_from_gcs
+        from bedrock.utils.taxonomy.bea.matrix_mappings import (
+            USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING,
+        )
+
+        df = (
+            load_from_gcs(
+                name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[key],
+                sub_bucket=GCS_USA_MAKE_USE_DIR,
+                local_dir=LOCAL_USA_MAKE_USE_DIR,
+                loader=lambda pth: pd.read_excel(
+                    pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
+                ),
+            )
+            .set_index('Code')
+            .fillna(0)
+        )
+        df.columns = df.columns.astype(str)
+        return df
+
+    return load
+
+
+@dataclass(frozen=True)
+class MatrixSpec:
+    """What a reference matrix is, along the axes that make tables incomparable.
+
+    :param loader_key: key into :data:`_BEA_MATRIX_LOADERS`
+    :param framework: ``'SUT'`` (Supply-Use) or ``'MUT'`` (Make-Use)
+    :param valuation: ``'BAS'`` basic, ``'PRO'`` producer, ``'PUR'`` purchaser
+    :param redefinition: ``'after'``, ``'before'``, or ``''`` where it does not apply
+    :param note: anything a caller should know before comparing against it
+    """
+
+    loader_key: str
+    framework: str
+    valuation: str
+    redefinition: str = ''
+    note: str = ''
+
+    @property
+    def summary(self) -> str:
+        bits = [FRAMEWORK_NAMES[self.framework], VALUATION_NAMES[self.valuation]]
+        if self.redefinition:
+            bits.append(f'{self.redefinition} redefinition')
+        return ', '.join(bits)
+
+
+FRAMEWORK_NAMES = {'SUT': 'Supply-Use framework', 'MUT': 'Make-Use framework'}
+
+VALUATION_NAMES = {
+    'BAS': 'basic value',
+    'PRO': 'producer value',
+    'PUR': 'purchaser value',
+}
+
+#: The 2017 detail reference tables, keyed by names that state their framework
+#: and, where it applies, their redefinition treatment.  Three axes make two
+#: tables incomparable even when they share row codes, and all three are
+#: verifiable in the 2017 data:
+#:
+#: *framework* -- SUT and MUT both publish a "detail Use table".  ``V00100``,
+#:   ``V00300`` and ``T005`` are rows of both with different values; the tax rows
+#:   have no counterpart at all (SUT splits ``T00OTOP`` 608,542 / ``T00TOP``
+#:   755,451 / ``T00SUB`` 59,876 where MUT carries the net ``V00200`` 1,304,104).
+#:
+#: *valuation* -- SUT is basic value, MUT producer value, and the difference is
+#:   exactly the product taxes: SUT ``T018`` 33,772,568 + ``T00TOP`` - ``T00SUB``
+#:   = 34,468,143, against MUT ``T008`` 34,468,137.
+#:
+#: *redefinition* -- reallocates between cells while preserving totals, so a
+#:   totals check cannot tell you that you picked the wrong one.  Across the
+#:   161,604 intermediate cells, 5,740 differ, 553,635 million moves gross and
+#:   the largest single cell shifts 42,893 -- for a net of -7.
+BEA_MATRICES: dict[str, MatrixSpec] = {
+    'Use_SUT_detail': MatrixSpec('Use_SUT_detail', 'SUT', 'BAS'),
+    'Supply_SUT_detail': MatrixSpec(
+        'Supply_detail',
+        'SUT',
+        'BAS',
+        note=(
+            'trailing columns bridge to purchaser value: T013 total supply at '
+            'basic 36,398,867, + MDTY/TOP/SUB = T016 37,094,434 at purchaser'
+        ),
+    ),
+    'Use_MUT_detail': MatrixSpec('Use_detail', 'MUT', 'PRO', 'after'),
+    'Make_MUT_detail': MatrixSpec('Make_detail', 'MUT', 'PRO', 'after'),
+    'Import_MUT_detail': MatrixSpec('Import_detail', 'MUT', 'PRO', 'after'),
+    'Use_MUT_detail_before_redef': MatrixSpec(
+        'Use_detail_before_redef', 'MUT', 'PRO', 'before'
+    ),
+    'Make_MUT_detail_before_redef': MatrixSpec(
+        'Make_detail_before_redef', 'MUT', 'PRO', 'before'
+    ),
+    'Import_MUT_detail_before_redef': MatrixSpec(
+        'Import_detail_before_redef', 'MUT', 'PRO', 'before'
+    ),
+}
+
+#: Purchaser-value detail Use table.  BEA publishes one
+#: (``IOUse_Before_Redefinitions_PUR_2017_Detail.xlsx``) but bedrock does not
+#: carry it: it is absent from ``USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING``
+#: and from the extract input bucket.  Named here so asking for it explains the
+#: gap rather than reporting an unknown matrix, and so wiring it up later is a
+#: matter of adding the file plus one :class:`MatrixSpec`.
+UNAVAILABLE_MATRICES = {
+    'Use_MUT_detail_PUR': (
+        'BEA publishes IOUse_Before_Redefinitions_PUR_2017_Detail.xlsx, but it is '
+        'not in bedrock: add it to USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING '
+        'and upload it to the USA_AllTables_MakeUse extract bucket. The nearest '
+        'available purchaser-value figures are the Supply table bridge columns '
+        '(Supply_SUT_detail: MDTY, TOP, SUB, T016).'
+    ),
 }
 
 #: bedrock's own, framework-silent names, still accepted at call sites
@@ -89,11 +194,7 @@ MATRIX_ALIASES = {
     'Supply_detail': 'Supply_SUT_detail',
     'Use_detail': 'Use_MUT_detail',
     'Make_detail': 'Make_MUT_detail',
-}
-
-FRAMEWORK_NAMES = {
-    'SUT': 'Supply-Use framework',
-    'MUT': 'Make-Use framework (after redefinition)',
+    'Import_detail': 'Import_MUT_detail',
 }
 
 BeaMatrix = Literal[
@@ -101,10 +202,15 @@ BeaMatrix = Literal[
     'Supply_SUT_detail',
     'Use_MUT_detail',
     'Make_MUT_detail',
+    'Import_MUT_detail',
+    'Use_MUT_detail_before_redef',
+    'Make_MUT_detail_before_redef',
+    'Import_MUT_detail_before_redef',
     # framework-silent aliases
     'Supply_detail',
     'Use_detail',
     'Make_detail',
+    'Import_detail',
 ]
 
 _BEA_MATRIX_LOADERS: dict[str, Callable[[], pd.DataFrame]] = {
@@ -112,58 +218,80 @@ _BEA_MATRIX_LOADERS: dict[str, Callable[[], pd.DataFrame]] = {
     'Supply_detail': _bea_detail_supply,
     'Use_detail': _bea_detail_use_redef,
     'Make_detail': _bea_detail_make_redef,
+    'Import_detail': _bea_detail_import_redef,
+    'Use_detail_before_redef': _bea_detail_before_redef('Use_detail_before_redef'),
+    'Make_detail_before_redef': _bea_detail_before_redef('Make_detail_before_redef'),
+    'Import_detail_before_redef': _bea_detail_before_redef(
+        'Import_detail_before_redef'
+    ),
 }
 
 
-def resolve_matrix(matrix: str) -> tuple[str, str, str]:
-    """Canonical name, loader key and framework tag for a matrix name."""
+def resolve_matrix(matrix: str) -> tuple[str, MatrixSpec]:
+    """Canonical name and :class:`MatrixSpec` for a matrix name or alias."""
     canonical = MATRIX_ALIASES.get(matrix, matrix)
+    if canonical in UNAVAILABLE_MATRICES:
+        raise KeyError(
+            f'{canonical!r} is not available. {UNAVAILABLE_MATRICES[canonical]}'
+        )
     if canonical not in BEA_MATRICES:
         raise KeyError(
             f'{matrix!r} is not a known BEA matrix; '
             f'choose from {sorted(BEA_MATRICES)} '
             f'(aliases: {sorted(MATRIX_ALIASES)})'
         )
-    loader_key, framework = BEA_MATRICES[canonical]
-    return canonical, loader_key, framework
+    return canonical, BEA_MATRICES[canonical]
 
 
-def _load_matrix(matrix: str) -> tuple[pd.DataFrame, str, str]:
-    canonical, loader_key, framework = resolve_matrix(matrix)
-    return _BEA_MATRIX_LOADERS[loader_key](), canonical, framework
+def describe_matrices() -> pd.DataFrame:
+    """Every reference matrix beside its framework, valuation and redefinition."""
+    return pd.DataFrame(
+        [
+            {
+                'matrix': name,
+                'framework': spec.framework,
+                'valuation': spec.valuation,
+                'redefinition': spec.redefinition or '-',
+                'note': spec.note,
+            }
+            for name, spec in BEA_MATRICES.items()
+        ]
+    )
+
+
+def _load_matrix(matrix: str) -> tuple[pd.DataFrame, str, MatrixSpec]:
+    canonical, spec = resolve_matrix(matrix)
+    return _BEA_MATRIX_LOADERS[spec.loader_key](), canonical, spec
 
 
 def where_is(code: str, axis: Literal['row', 'column'] = 'row') -> dict[str, str]:
-    """Which matrices contain ``code``, mapped to their framework.
+    """Which matrices contain ``code``, mapped to a description of each.
 
     The direct answer to "is this the SUT table's row or the MUT table's?", and
-    worth calling whenever a comparison is being set up against a code you have
-    not used before -- ``V00100`` is in both and means something slightly
-    different in each.
+    worth calling for any code not used before -- ``V00100`` is a row of four of
+    these tables and means something slightly different in each.
     """
     found = {}
-    for canonical, (loader_key, framework) in BEA_MATRICES.items():
-        df = _BEA_MATRIX_LOADERS[loader_key]()
+    for canonical, spec in BEA_MATRICES.items():
+        df = _BEA_MATRIX_LOADERS[spec.loader_key]()
         labels = df.index if axis == 'row' else df.columns
         if code in labels:
-            found[canonical] = framework
+            found[canonical] = spec.summary
     return found
 
 
 def _missing_label_error(
-    code: str, matrix: str, framework: str, axis: Literal['row', 'column']
+    code: str, matrix: str, spec: MatrixSpec, axis: Literal['row', 'column']
 ) -> KeyError:
-    """A KeyError that names the framework the code actually lives in."""
+    """A KeyError that names the table the code actually lives in."""
     elsewhere = {k: v for k, v in where_is(code, axis).items() if k != matrix}
     hint = (
-        f' It is a {axis} of {", ".join(f"{k} [{v}]" for k, v in elsewhere.items())}'
-        f' -- a different framework, whose {axis}s do not correspond one-for-one.'
+        f' It is a {axis} of {"; ".join(f"{k} ({v})" for k, v in elsewhere.items())}'
+        f' -- whose {axis}s do not correspond one-for-one with this table.'
         if elsewhere
         else ''
     )
-    return KeyError(
-        f'{code!r} is not a {axis} of {matrix} [{FRAMEWORK_NAMES[framework]}].{hint}'
-    )
+    return KeyError(f'{code!r} is not a {axis} of {matrix} [{spec.summary}].{hint}')
 
 
 def _industry_names() -> dict[str, str]:
@@ -214,9 +342,9 @@ def bea_matrix_row(
     ``'Use_MUT_detail'`` for the Make-Use one; see the note above on why the two
     are not interchangeable.
     """
-    df, canonical, framework = _load_matrix(matrix)
+    df, canonical, spec = _load_matrix(matrix)
     if row_code not in df.index:
-        raise _missing_label_error(row_code, canonical, framework, 'row')
+        raise _missing_label_error(row_code, canonical, spec, 'row')
     names = _industry_names() if across == 'industry' else _commodity_names()
     codes = [c for c in df.columns if c in names]
     row = df.loc[row_code].reindex(codes)
@@ -229,7 +357,9 @@ def bea_matrix_row(
         MILLION_USD,
         {
             'source': canonical,
-            'framework': framework,
+            'framework': spec.framework,
+            'valuation': spec.valuation,
+            'redefinition': spec.redefinition,
             'row': row_code,
             'across': across,
             'dialect': 'bea_io_detail',
@@ -249,9 +379,9 @@ def bea_matrix_column(
     ``matrix`` defaults to the **SUT** framework's Use table; note ``F05000``
     (imports) is a column of the Make-Use table only.
     """
-    df, canonical, framework = _load_matrix(matrix)
+    df, canonical, spec = _load_matrix(matrix)
     if column_code not in df.columns:
-        raise _missing_label_error(column_code, canonical, framework, 'column')
+        raise _missing_label_error(column_code, canonical, spec, 'column')
     names = _industry_names() if across == 'industry' else _commodity_names()
     codes = [c for c in df.index if c in names]
     col = df[column_code].reindex(codes)
@@ -264,7 +394,9 @@ def bea_matrix_column(
         MILLION_USD,
         {
             'source': canonical,
-            'framework': framework,
+            'framework': spec.framework,
+            'valuation': spec.valuation,
+            'redefinition': spec.redefinition,
             'column': column_code,
             'across': across,
             'dialect': 'bea_io_detail',

@@ -196,13 +196,40 @@ class LabeledSeries:
 
     @property
     def framework(self) -> str:
-        """``'SUT'``, ``'MUT'`` or ``''`` -- which BEA framework a reference came from.
-
-        Reported rather than assumed, because both frameworks publish a "detail
-        Use table" and they disagree: ``V00100`` exists in each with a different
-        value, and the SUT tax rows have no MUT counterpart.
-        """
+        """``'SUT'``, ``'MUT'`` or ``''`` -- which BEA framework a reference came from."""
         return str(self.meta.get('framework', ''))
+
+    @property
+    def valuation(self) -> str:
+        """``'BAS'``, ``'PRO'``, ``'PUR'`` or ``''`` -- the price basis."""
+        return str(self.meta.get('valuation', ''))
+
+    @property
+    def redefinition(self) -> str:
+        """``'before'``, ``'after'`` or ``''`` -- redefinition treatment."""
+        return str(self.meta.get('redefinition', ''))
+
+    @property
+    def provenance(self) -> str:
+        """The three axes that decide whether two BEA tables are comparable.
+
+        Reported rather than assumed, because BEA publishes several "detail Use
+        tables" that share row codes and disagree: ``V00100`` is a row of four of
+        them, the SUT tax rows have no MUT counterpart, and redefinition moves
+        money between cells while leaving every total intact.
+        """
+        parts = [
+            {'SUT': 'Supply-Use framework', 'MUT': 'Make-Use framework'}.get(
+                self.framework, ''
+            ),
+            {
+                'BAS': 'basic value',
+                'PRO': 'producer value',
+                'PUR': 'purchaser value',
+            }.get(self.valuation, ''),
+            f'{self.redefinition} redefinition' if self.redefinition else '',
+        ]
+        return ', '.join(p for p in parts if p)
 
     @property
     def dialect(self) -> str:
