@@ -23,12 +23,7 @@ FLAT_FILES_ZIP = 'FlatFiles.ZIP'
 
 
 def flat_files_local_path(source: str = 'BEA_NIPA') -> str:
-    """Where the flat-file archive is cached: ``extract/input_data/BEA_NIPA/``.
-
-    Also the archive :mod:`bedrock.analysis.compare_NIPA_to_IOT` reads, which is
-    the point of having a path both sides agree on -- a comparison against a NIPA
-    table and the FBA built from it stay on one BEA vintage.
-    """
+    """Where the flat-file archive is cached: ``extract/input_data/BEA_NIPA/``."""
     return os.path.join(local_extract_input_dir(source, year=None), FLAT_FILES_ZIP)
 
 
@@ -158,8 +153,9 @@ def bea_nipa_parse(
             # number, e.g. "Accommodations (104)". That number is unrelated to Table/Line
             # (which are already tracked separately via Description) and has no counterpart
             # in other BEA tables (e.g. PCE Bridge category names), so it is dropped here.
-            ActivityProducedBy=lambda x: x['ActivityProducedBy']
-            .str.replace(r'(?:\s*\(\d+\))+$', '', regex=True)
+            ActivityProducedBy=lambda x: x['ActivityProducedBy'].str.replace(
+                r'(?:\s*\(\d+\))+$', '', regex=True
+            )
             # BEA sometimes pads slash-separated terms with spaces (e.g. "Cosmetic /
             # perfumes / bath / nail preparations"), while other BEA tables (e.g. PCE
             # Bridge category names) write the same term slash-tight. Normalize so
