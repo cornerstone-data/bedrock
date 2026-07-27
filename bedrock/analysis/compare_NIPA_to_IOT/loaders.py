@@ -54,7 +54,58 @@ def _bea_detail_make_redef() -> pd.DataFrame:
     return _load_2017_detail_make_use_usa('Make_detail')
 
 
-BeaMatrix = Literal['Use_SUT_detail', 'Supply_detail', 'Use_detail', 'Make_detail']
+"""BEA publishes 2017 detail in two frameworks, and they are not interchangeable.
+
+The Supply-Use (SUT) framework and the Make-Use (MUT) framework both have a
+"detail Use table", so "compare it to the detail Use table" is ambiguous, and
+picking the wrong one is quiet rather than loud:
+
+* ``V00100``, ``V00300`` and ``T005`` exist in **both** Use tables with different
+  values (SUT is basic value, MUT producer value; compensation differs by 3
+  million, gross operating surplus by 16).  Nothing errors -- you just get the
+  other framework's number.
+* The tax rows do not correspond at all.  SUT splits them into ``T00OTOP``
+  (608,542), ``T00TOP`` (755,451) and ``T00SUB`` (59,876); MUT carries the single
+  net ``V00200`` (1,304,104).  Comparing a gross NIPA total to ``V00200`` is
+  wrong by the subsidies.
+* ``T018``/``VABAS``/``VAPRO`` are SUT-only, ``T006``/``T008`` MUT-only, and
+  ``F05000`` (imports) is a MUT-only column.
+
+So the matrix names here say which framework they belong to, the framework is
+recorded on every series, and asking for a row that lives in the other framework
+says so instead of reporting a bare KeyError.
+"""
+
+#: user-facing name -> (bedrock's loader key, framework tag)
+BEA_MATRICES: dict[str, tuple[str, str]] = {
+    'Use_SUT_detail': ('Use_SUT_detail', 'SUT'),
+    'Supply_SUT_detail': ('Supply_detail', 'SUT'),
+    'Use_MUT_detail': ('Use_detail', 'MUT'),
+    'Make_MUT_detail': ('Make_detail', 'MUT'),
+}
+
+#: bedrock's own, framework-silent names, still accepted at call sites
+MATRIX_ALIASES = {
+    'Supply_detail': 'Supply_SUT_detail',
+    'Use_detail': 'Use_MUT_detail',
+    'Make_detail': 'Make_MUT_detail',
+}
+
+FRAMEWORK_NAMES = {
+    'SUT': 'Supply-Use framework',
+    'MUT': 'Make-Use framework (after redefinition)',
+}
+
+BeaMatrix = Literal[
+    'Use_SUT_detail',
+    'Supply_SUT_detail',
+    'Use_MUT_detail',
+    'Make_MUT_detail',
+    # framework-silent aliases
+    'Supply_detail',
+    'Use_detail',
+    'Make_detail',
+]
 
 _BEA_MATRIX_LOADERS: dict[str, Callable[[], pd.DataFrame]] = {
     'Use_SUT_detail': _bea_detail_use_sut,
@@ -62,6 +113,57 @@ _BEA_MATRIX_LOADERS: dict[str, Callable[[], pd.DataFrame]] = {
     'Use_detail': _bea_detail_use_redef,
     'Make_detail': _bea_detail_make_redef,
 }
+
+
+def resolve_matrix(matrix: str) -> tuple[str, str, str]:
+    """Canonical name, loader key and framework tag for a matrix name."""
+    canonical = MATRIX_ALIASES.get(matrix, matrix)
+    if canonical not in BEA_MATRICES:
+        raise KeyError(
+            f'{matrix!r} is not a known BEA matrix; '
+            f'choose from {sorted(BEA_MATRICES)} '
+            f'(aliases: {sorted(MATRIX_ALIASES)})'
+        )
+    loader_key, framework = BEA_MATRICES[canonical]
+    return canonical, loader_key, framework
+
+
+def _load_matrix(matrix: str) -> tuple[pd.DataFrame, str, str]:
+    canonical, loader_key, framework = resolve_matrix(matrix)
+    return _BEA_MATRIX_LOADERS[loader_key](), canonical, framework
+
+
+def where_is(code: str, axis: Literal['row', 'column'] = 'row') -> dict[str, str]:
+    """Which matrices contain ``code``, mapped to their framework.
+
+    The direct answer to "is this the SUT table's row or the MUT table's?", and
+    worth calling whenever a comparison is being set up against a code you have
+    not used before -- ``V00100`` is in both and means something slightly
+    different in each.
+    """
+    found = {}
+    for canonical, (loader_key, framework) in BEA_MATRICES.items():
+        df = _BEA_MATRIX_LOADERS[loader_key]()
+        labels = df.index if axis == 'row' else df.columns
+        if code in labels:
+            found[canonical] = framework
+    return found
+
+
+def _missing_label_error(
+    code: str, matrix: str, framework: str, axis: Literal['row', 'column']
+) -> KeyError:
+    """A KeyError that names the framework the code actually lives in."""
+    elsewhere = {k: v for k, v in where_is(code, axis).items() if k != matrix}
+    hint = (
+        f' It is a {axis} of {", ".join(f"{k} [{v}]" for k, v in elsewhere.items())}'
+        f' -- a different framework, whose {axis}s do not correspond one-for-one.'
+        if elsewhere
+        else ''
+    )
+    return KeyError(
+        f'{code!r} is not a {axis} of {matrix} [{FRAMEWORK_NAMES[framework]}].{hint}'
+    )
 
 
 def _industry_names() -> dict[str, str]:
@@ -107,13 +209,14 @@ def bea_matrix_row(
     is compensation of employees by detail industry out of the Use SUT table.
     Columns are restricted to the canonical code list for ``across``, which
     drops the totals and final-demand columns that would otherwise double count.
+
+    ``matrix`` defaults to the **SUT** framework's Use table.  Pass
+    ``'Use_MUT_detail'`` for the Make-Use one; see the note above on why the two
+    are not interchangeable.
     """
-    df = _BEA_MATRIX_LOADERS[matrix]()
+    df, canonical, framework = _load_matrix(matrix)
     if row_code not in df.index:
-        raise KeyError(
-            f'{row_code!r} is not a row of {matrix}; '
-            f'e.g. {list(df.index[:5])} ... {list(df.index[-5:])}'
-        )
+        raise _missing_label_error(row_code, canonical, framework, 'row')
     names = _industry_names() if across == 'industry' else _commodity_names()
     codes = [c for c in df.columns if c in names]
     row = df.loc[row_code].reindex(codes)
@@ -122,10 +225,11 @@ def bea_matrix_row(
     )
     return LabeledSeries(
         frame,
-        label or f'{matrix}:{row_code}',
+        label or f'{canonical}:{row_code}',
         MILLION_USD,
         {
-            'source': matrix,
+            'source': canonical,
+            'framework': framework,
             'row': row_code,
             'across': across,
             'dialect': 'bea_io_detail',
@@ -140,10 +244,14 @@ def bea_matrix_column(
     across: Literal['industry', 'commodity'] = 'commodity',
     label: str | None = None,
 ) -> LabeledSeries:
-    """One column of a 2017 BEA detail matrix, as a series down its rows."""
-    df = _BEA_MATRIX_LOADERS[matrix]()
+    """One column of a 2017 BEA detail matrix, as a series down its rows.
+
+    ``matrix`` defaults to the **SUT** framework's Use table; note ``F05000``
+    (imports) is a column of the Make-Use table only.
+    """
+    df, canonical, framework = _load_matrix(matrix)
     if column_code not in df.columns:
-        raise KeyError(f'{column_code!r} is not a column of {matrix}')
+        raise _missing_label_error(column_code, canonical, framework, 'column')
     names = _industry_names() if across == 'industry' else _commodity_names()
     codes = [c for c in df.index if c in names]
     col = df[column_code].reindex(codes)
@@ -152,10 +260,11 @@ def bea_matrix_column(
     )
     return LabeledSeries(
         frame,
-        label or f'{matrix}:{column_code}',
+        label or f'{canonical}:{column_code}',
         MILLION_USD,
         {
-            'source': matrix,
+            'source': canonical,
+            'framework': framework,
             'column': column_code,
             'across': across,
             'dialect': 'bea_io_detail',

@@ -25,6 +25,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
+    FRAMEWORK_NAMES,
     detail_industry_to_summary,
     summary_industry_names,
 )
@@ -141,6 +142,14 @@ class Comparison:
             ),
             f'reference : {self.reference.label}  (n={len(self.reference)}, '
             f'unit={self.reference.unit or "?"})'
+            # BEA publishes a detail Use table in each of two frameworks, so a
+            # report that does not name the framework is ambiguous about what it
+            # just compared against.
+            + (
+                f'  [{FRAMEWORK_NAMES[self.reference.framework]}]'
+                if self.reference.framework in FRAMEWORK_NAMES
+                else ''
+            )
             + (
                 f'  [{self.reference.n_missing} blank values]'
                 if self.reference.n_missing

@@ -25,6 +25,9 @@ from bedrock.analysis.compare_NIPA_to_IOT.hierarchy import (
     token_relation,
 )
 from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
+    BEA_MATRICES,
+    FRAMEWORK_NAMES,
+    MATRIX_ALIASES,
     bea_matrix_column,
     bea_matrix_row,
     bea_summary_sut_row,
@@ -32,8 +35,10 @@ from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
     fba_series,
     frame_series,
     nipa_sheet,
+    resolve_matrix,
     summary_industry_names,
     table_series,
+    where_is,
 )
 from bedrock.analysis.compare_NIPA_to_IOT.matching import Alignment, align
 from bedrock.analysis.compare_NIPA_to_IOT.series import (
@@ -45,7 +50,10 @@ from bedrock.analysis.compare_NIPA_to_IOT.series import (
 __all__ = [
     'Alignment',
     'Comparison',
+    'BEA_MATRICES',
+    'FRAMEWORK_NAMES',
     'LabeledSeries',
+    'MATRIX_ALIASES',
     'RESIDUAL_MARKERS',
     'RESIDUAL_TOKENS',
     'ROLLUPS',
@@ -62,7 +70,9 @@ __all__ = [
     'normalize_code',
     'normalize_name',
     'split_residual',
+    'resolve_matrix',
     'summary_industry_names',
     'table_series',
     'token_relation',
+    'where_is',
 ]

@@ -127,7 +127,7 @@ def main() -> None:
                 'code': ['MDTY', 'TOP'],
                 'value': [
                     bea_matrix_column(
-                        c, matrix='Supply_detail', across='commodity'
+                        c, matrix='Supply_SUT_detail', across='commodity'
                     ).total
                     for c in ('MDTY', 'TOP')
                 ],

@@ -13,6 +13,7 @@ import tempfile
 import pandas as pd
 
 from bedrock.analysis.compare_NIPA_to_IOT import (
+    BEA_MATRICES,
     LabeledSeries,
     align,
     compare,
@@ -20,6 +21,7 @@ from bedrock.analysis.compare_NIPA_to_IOT import (
     nipa_sheet,
     normalize_code,
     normalize_name,
+    resolve_matrix,
     split_residual,
     token_relation,
 )
@@ -301,6 +303,38 @@ class TestMissingValues:
         assert '... and 35 more' in text
         # largest first, so the rows that move a total are the ones shown
         assert 'cand 39' in text and 'cand 1 ' not in text
+
+
+class TestFrameworks:
+    """Both BEA frameworks publish a "detail Use table"; they must not blur."""
+
+    def test_every_matrix_declares_a_framework(self) -> None:
+        assert {f for _, f in BEA_MATRICES.values()} == {'SUT', 'MUT'}
+        for name, (_, framework) in BEA_MATRICES.items():
+            # the canonical name says which framework it is, so a label built
+            # from it is never ambiguous
+            assert framework in name, name
+
+    def test_canonical_names_resolve_to_themselves(self) -> None:
+        for name in BEA_MATRICES:
+            canonical, _, _ = resolve_matrix(name)
+            assert canonical == name
+
+    def test_framework_silent_aliases_still_work(self) -> None:
+        assert resolve_matrix('Use_detail') == ('Use_MUT_detail', 'Use_detail', 'MUT')
+        assert resolve_matrix('Supply_detail')[0] == 'Supply_SUT_detail'
+        assert resolve_matrix('Make_detail')[2] == 'MUT'
+
+    def test_unknown_matrix_lists_the_options(self) -> None:
+        try:
+            resolve_matrix('Use_detail_2017')
+        except KeyError as exc:
+            assert 'Use_SUT_detail' in str(exc)
+        else:
+            raise AssertionError('expected a KeyError')
+
+    def test_series_without_a_framework_reports_empty(self) -> None:
+        assert _series([('a', 'A', 1.0)]).framework == ''
 
 
 class TestFootnotes:

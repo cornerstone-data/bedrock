@@ -195,6 +195,16 @@ class LabeledSeries:
         return pd.DataFrame(rows, columns=['code', 'name', 'value', 'note'])
 
     @property
+    def framework(self) -> str:
+        """``'SUT'``, ``'MUT'`` or ``''`` -- which BEA framework a reference came from.
+
+        Reported rather than assumed, because both frameworks publish a "detail
+        Use table" and they disagree: ``V00100`` exists in each with a different
+        value, and the SUT tax rows have no MUT counterpart.
+        """
+        return str(self.meta.get('framework', ''))
+
+    @property
     def dialect(self) -> str:
         """Which source's label conventions this series follows.
 

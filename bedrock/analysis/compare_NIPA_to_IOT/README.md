@@ -61,7 +61,7 @@ result.detail('111CA')   # the codes behind one cell
 
 The distinction matters when reading results: a cell with `n_detail == 1` is
 evidence about one detail industry, while `n_detail == 29` is evidence about an
-aggregate and says nothing about its parts. Don't let the two read alike.
+aggregate and says nothing about its parts. 
 
 ## Reading the report
 
@@ -84,6 +84,47 @@ candidate.leaves(keep=['N4037C'], drop=['N4038C', 'N4039C'])   # use NIPA's pare
 compare(..., merge_reference={'RE': ['HS', 'ORE']})            # sum BEA's parts
 compare(..., overrides={'N4055C': '511'})                      # just say it
 ```
+
+## Which framework? BEA publishes two
+
+Both the Supply-Use (SUT) and Make-Use (MUT) frameworks publish a "detail Use
+table", so *"compare it to the detail Use table"* is ambiguous — and picking the
+wrong one is quiet, not loud.
+
+| matrix | framework | loader alias |
+|---|---|---|
+| `Use_SUT_detail` *(default)* | Supply-Use | — |
+| `Supply_SUT_detail` | Supply-Use | `Supply_detail` |
+| `Use_MUT_detail` | Make-Use, after redefinition | `Use_detail` |
+| `Make_MUT_detail` | Make-Use, after redefinition | `Make_detail` |
+
+What differs, for 2017:
+
+- **`V00100`, `V00300`, `T005` are in both, with different values** — SUT is basic
+  value, MUT producer value. Compensation differs by 3 million, gross operating
+  surplus by 16. Nothing errors; you just silently get the other number.
+- **The tax rows do not correspond at all.** SUT splits them into `T00OTOP`
+  (608,542), `T00TOP` (755,451) and `T00SUB` (59,876); MUT carries one net
+  `V00200` (1,304,104). Checking a gross NIPA total against `V00200` is wrong by
+  the subsidies.
+- `T018`, `VABAS`, `VAPRO` are SUT-only; `T006`, `T008` MUT-only; `F05000`
+  (imports) is a MUT-only *column*.
+
+So the framework rides on every reference series and prints in the report header,
+and asking the wrong table for a row tells you where it actually lives:
+
+```
+>>> bea_matrix_row('V00200')
+KeyError: 'V00200' is not a row of Use_SUT_detail [Supply-Use framework]. It is a
+row of Use_MUT_detail [MUT] -- a different framework, whose rows do not
+correspond one-for-one.
+
+>>> where_is('V00100')
+{'Use_SUT_detail': 'SUT', 'Use_MUT_detail': 'MUT'}     # in both: check which you want
+```
+
+`where_is` is worth calling whenever you set up a comparison against a code you
+have not used before.
 
 ## When there are no cells to compare
 
@@ -195,8 +236,8 @@ duties and everything else, and NIPA reports customs duties on its own line.
 
 ## Footnotes
 
-NIPA documents residual lines in prose, because the label cannot carry it —
-table 3.5's federal "Other" excise taxes is 9,338 million of nothing in
+NIPA documents residual lines in footnotes, because the label cannot carry it.
+For example, Table 3.5's federal "Other" excise taxes is 9,338 million of nothing in
 particular until footnote 1 says it is *"largely taxes on telephone services,
 tires, coal, nuclear fuel, trucks, indoor tanning services"*. That sentence is
 the only description of the line's content, and so the only basis for ever
