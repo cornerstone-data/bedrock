@@ -6,7 +6,9 @@ Two families:
   :func:`bea_matrix_row`, :func:`bea_matrix_column`, :func:`bea_summary_sut_row`
 
 *candidate* -- whatever you are checking against them
-  :func:`nipa_sheet` (a NIPA "SectionNall_xls.xlsx" sheet), :func:`fba_series`
+  :func:`nipa_flat_table` (a NIPA table out of BEA's ``FlatFiles.ZIP``, the same
+  archive the ``BEA_NIPA`` FBA extracts from), :func:`nipa_sheet` (the same table
+  out of a published "SectionNall_xls.xlsx" workbook), :func:`fba_series`
   (anything already generated as a FlowByActivity), :func:`table_series`
   (an arbitrary csv/xlsx you hand over), :func:`frame_series` (an in-memory frame)
 
@@ -18,8 +20,11 @@ unit is ``'Million USD'`` throughout and no rescaling happens implicitly --
 
 from __future__ import annotations
 
+import os
 import re
+import zipfile
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Callable, Literal, cast
 
 import pandas as pd
@@ -440,6 +445,209 @@ def bea_summary_sut_row(
 
 
 # ------------------------------------------------------------------- candidates
+
+#: The data file in ``FlatFiles.ZIP`` for each publication frequency.
+NIPA_FLAT_FILES = {'A': 'nipadataA.txt', 'Q': 'nipadataQ.txt', 'M': 'nipadataM.txt'}
+
+_TABLE_FREQUENCY_SUFFIX = re.compile(r'^(?P<table>[A-Z]\w+?)-(?P<freq>[AQM])$')
+
+
+def nipa_flat_files_path() -> str:
+    """The ``FlatFiles.ZIP`` the ``BEA_NIPA`` FBA extracts from.
+
+    ``bedrock/extract/input_data/BEA_NIPA/FlatFiles.ZIP`` -- the local mirror of
+    the extract-input bucket, so a comparison reads the same archive the FBA
+    parsed rather than a separately downloaded workbook.
+    """
+    from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
+
+    return os.path.join(local_extract_input_dir('BEA_NIPA'), 'FlatFiles.ZIP')
+
+
+@lru_cache(maxsize=None)
+def _flat_file(path: str, member: str) -> pd.DataFrame:
+    """One member of ``FlatFiles.ZIP``, read once per process."""
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f"{path} not found. It is BEA's national accounts flat-file archive "
+            f'(https://apps.bea.gov/national/Release/TXT/FlatFiles.ZIP), the same '
+            f'one bedrock/extract/bea/BEA_NIPA.py parses -- download it there, or '
+            f'pass path= to read a copy from somewhere else.'
+        )
+    with zipfile.ZipFile(path) as archive:
+        if member not in archive.namelist():
+            raise KeyError(
+                f'{member!r} is not in {path}; it holds {sorted(archive.namelist())}'
+            )
+        with archive.open(member) as handle:
+            return pd.read_csv(handle, dtype=str)
+
+
+def _flat_table_title(path: str, table: str) -> str:
+    """``'Table 6.2D. Compensation of Employees by Industry'``, or ``''``."""
+    tables = _flat_file(path, 'TablesRegister.txt')
+    titles = dict(zip(tables['TableId'], tables['TableTitle']))
+    return str(titles.get(table, ''))
+
+
+def _flat_levels(codes: list[str], lines: list[int], parents: list[str]) -> list[int]:
+    """Hierarchy depth per row, from ``SeriesCodeParents`` narrowed to this table.
+
+    The flat files carry the hierarchy the published sheets encode as leading
+    spaces, but as explicit parent links.  ``SeriesCodeParents`` is per *series*
+    rather than per table -- ``B568RC`` lists three, one for each table it
+    appears in -- so a link only counts when the parent is a line of this table
+    too, and, where several are, the nearest line above wins.
+    """
+    line_of = {code: line for code, line in zip(codes, lines)}
+    parent_of: dict[str, str | None] = {}
+    for code, line, raw in zip(codes, lines, parents):
+        candidates = [
+            p for p in str(raw).split('|') if p != code and p in line_of and p != 'NONE'
+        ]
+        above = [p for p in candidates if line_of[p] < line]
+        parent_of[code] = (
+            max(above, key=lambda p: line_of[p])
+            if above
+            else (candidates[0] if candidates else None)
+        )
+
+    depth: dict[str, int] = {}
+
+    def level(code: str, seen: frozenset[str] = frozenset()) -> int:
+        if code in depth:
+            return depth[code]
+        parent = parent_of.get(code)
+        # `seen` guards against a parent cycle rather than expecting one; a cycle
+        # would otherwise recurse until the stack gives out
+        if parent is None or parent in seen:
+            depth[code] = 0
+        else:
+            depth[code] = level(parent, seen | {code}) + 1
+        return depth[code]
+
+    return [level(code) for code in codes]
+
+
+def nipa_flat_table(
+    table: str,
+    year: int | str,
+    *,
+    frequency: Literal['A', 'Q', 'M'] = 'A',
+    path: str | None = None,
+    label: str | None = None,
+    unit: str = MILLION_USD,
+) -> LabeledSeries:
+    """One period of a NIPA table, straight out of BEA's ``FlatFiles.ZIP``.
+
+    The flat-file counterpart to :func:`nipa_sheet`, and the one to prefer: it
+    reads the archive the ``BEA_NIPA`` FBA already extracts from, so a comparison
+    and the FBA it is checking cannot drift onto different BEA vintages.
+
+    ``table`` is BEA's table id (``'T60200D'``); the sheet-name spelling
+    ``'T60200D-A'`` is accepted too, and sets ``frequency`` from the suffix.
+    ``year`` is matched against the flat file's ``Period`` column as published,
+    so annual data takes ``2017`` and quarterly ``'2017Q3'``.
+
+    Rows come back in published line order with a ``level`` computed from
+    ``SeriesCodeParents``, which is what :meth:`~.LabeledSeries.leaves` and
+    :meth:`~.LabeledSeries.subtree` need -- the flat files state the hierarchy
+    the workbooks only imply through indentation.
+
+    Two differences from :func:`nipa_sheet` are worth knowing before switching a
+    comparison over:
+
+    *labels* -- ``SeriesLabel`` is the series' own name, not its stub in this
+      table, so it reads standalone where the sheet reads in context: table 3.5's
+      "Federal" line is ``Taxes on production and imports`` here, and 6.2D's
+      "General government" is ``Compensation of general government employees``.
+      Codes are identical, so anything selected by code is unaffected, but a
+      name-matched comparison will pair differently.
+
+    *footnotes* -- the archive has none.  It publishes ``nipadata{A,Q,M}.txt``,
+      ``SeriesRegister.txt`` and ``TablesRegister.txt``, and the footnote block
+      lives in neither register, so :meth:`~.LabeledSeries.annotated` comes back
+      empty.  For the prose that describes a residual line, read the same table
+      with :func:`nipa_sheet`.
+    """
+    match = _TABLE_FREQUENCY_SUFFIX.match(table)
+    if match:
+        table, frequency = match['table'], cast('Any', match['freq'])
+    if frequency not in NIPA_FLAT_FILES:
+        raise ValueError(
+            f'frequency must be one of {sorted(NIPA_FLAT_FILES)}, not {frequency!r}'
+        )
+    path = path or nipa_flat_files_path()
+
+    series = _flat_file(path, 'SeriesRegister.txt').rename(
+        columns={'%SeriesCode': 'code'}
+    )
+    exploded = series.assign(pair=series['TableId:LineNo'].str.split('|')).explode(
+        'pair'
+    )
+    exploded[['table', 'line']] = exploded['pair'].str.split(':', expand=True)
+    rows = exploded.loc[exploded['table'] == table].copy()
+    if rows.empty:
+        raise KeyError(
+            f'{table!r} is not a table of {os.path.basename(path)}. Table ids look '
+            f'like T60200D (published) or U20405 (underlying); '
+            f'TablesRegister.txt lists all {len(_flat_file(path, "TablesRegister.txt"))}.'
+        )
+    rows['line'] = rows['line'].astype(int)
+    rows = rows.sort_values('line').reset_index(drop=True)
+
+    data = _flat_file(path, NIPA_FLAT_FILES[frequency]).rename(
+        columns={'%SeriesCode': 'code'}
+    )
+    period = data.loc[data['Period'] == str(year)]
+    if period.empty:
+        available = sorted(data['Period'].unique())
+        raise KeyError(
+            f'{NIPA_FLAT_FILES[frequency]} has no {year} period; '
+            f'it runs {available[0]} to {available[-1]}'
+        )
+    values = dict(
+        zip(
+            period['code'],
+            pd.to_numeric(period['Value'].str.replace(',', ''), errors='coerce'),
+        )
+    )
+
+    frame = pd.DataFrame(
+        {
+            'code': rows['code'],
+            'name': rows['SeriesLabel'],
+            # BEA leaves a series out of the data file for a period it does not
+            # apply to, where the workbook prints a blank cell. Reindexing rather
+            # than dropping keeps those rows, and `n_missing` counts them.
+            'value': rows['code'].map(values),
+            'level': _flat_levels(
+                rows['code'].tolist(),
+                rows['line'].tolist(),
+                rows['SeriesCodeParents'].tolist(),
+            ),
+            'line': rows['line'],
+            # no `footnote_refs`: the archive publishes no footnote text, so the
+            # column would resolve to nothing and `annotated()` says so by
+            # returning empty rather than by listing rows with blank notes
+        }
+    )
+
+    return LabeledSeries(
+        frame,
+        label or f'{table}@{year}',
+        unit,
+        {
+            'source': path,
+            'table': table,
+            'table_title': _flat_table_title(path, table),
+            'year': year,
+            'frequency': frequency,
+            'dialect': 'nipa',
+            'footnotes': {},
+        },
+    )
+
 
 _INDENT = re.compile(r'^(\s*)')
 _FOOTNOTE_DEF = re.compile(r'^(\d+)\.\s+(.*)$')

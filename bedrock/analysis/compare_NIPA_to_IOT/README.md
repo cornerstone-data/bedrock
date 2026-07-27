@@ -3,7 +3,7 @@
 Check a candidate dataset against a BEA reference table — cell by cell and in
 total — without first building an exact crosswalk.
 
-Built for reconnaissance. Alignment cascades from codes to names to fuzzy names
+Built for reconnaissance. Matching cascades from codes to names to fuzzy names
 and reports which pass produced each pair, so you can see the weak links instead
 of having them buried. When a number needs to be defensible, promote the
 comparison to a real crosswalk in `bedrock/utils/taxonomy/`.
@@ -11,10 +11,10 @@ comparison to a real crosswalk in `bedrock/utils/taxonomy/`.
 ## Use
 
 ```python
-from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_sheet
+from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_flat_table
 
 result = compare(
-    candidate=nipa_sheet(SECTION6_XLSX, 'T60200D-A', 2017).leaves(),
+    candidate=nipa_flat_table('T60200D', 2017).leaves(),   # NIPA table 6.2D
     reference=bea_matrix_row('V00100'),          # Use SUT detail, compensation row
     rollup='industry_to_summary',                # 402 detail -> 71 summary industries
 )
@@ -33,10 +33,37 @@ loaders build them, `compare` consumes two of them.
 
 | Candidate (anything) | |
 |---|---|
-| `nipa_sheet(path, sheet, year)` | a year column of a NIPA `SectionNall_xls.xlsx` sheet |
+| `nipa_flat_table('T60200D', 2017)` | a NIPA table out of BEA's `FlatFiles.ZIP` |
+| `nipa_sheet(path, sheet, year)` | the same table out of a `SectionNall_xls.xlsx` workbook |
 | `fba_series(source, year, ...)` | anything already generated as a FlowByActivity |
 | `table_series(path, value=..., name=...)` | an arbitrary csv/xlsx |
 | `frame_series(df, value=..., name=...)` | an in-memory frame |
+
+## Two ways in to a NIPA table
+
+`nipa_flat_table` is the one to reach for. It reads
+`bedrock/extract/input_data/BEA_NIPA/FlatFiles.ZIP` — the same archive
+[`BEA_NIPA.py`](../../extract/bea/BEA_NIPA.py) parses — so a comparison and the
+FBA it is checking cannot end up on different BEA vintages. Pass `path=` to read
+a copy from elsewhere.
+
+Values, codes, line order and hierarchy are identical between the two loaders;
+both worked examples produce the same figures either way. Two things do differ:
+
+- **labels.** `SeriesLabel` is the series' own name, not its stub in this table.
+  Table 3.5's "Federal" line is `Taxes on production and imports` in the archive,
+  and 6.2D's "General government" is `Compensation of general government
+  employees`. Codes are the same, so a code-matched or `overrides`-driven
+  comparison is unaffected — a name-matched one pairs differently.
+- **footnotes.** The archive has none. It ships `nipadata{A,Q,M}.txt`,
+  `SeriesRegister.txt` and `TablesRegister.txt`, and the footnote block is in no
+  register, so `annotated()` comes back empty. Read the workbook with
+  `nipa_sheet` when you need the prose (see [Footnotes](#footnotes) below).
+
+Hierarchy survives the switch because the flat files state it outright:
+`SeriesCodeParents` gives each series its parents, narrowed to the ones that are
+also lines of this table, which is the same `level` the workbooks encode as
+leading spaces.
 
 ## Granularity: the reference stays the detail table
 
@@ -164,25 +191,29 @@ nothing to match, and the totals *are* the answer. Select the part of the
 candidate that corresponds and read the totals block:
 
 ```python
-sheet = nipa_sheet(SECTION3, 'T30500-A', 2017)
-compare(sheet.select(['LA000237', 'LA000365']), bea_matrix_row('T00OTOP')).totals
+table = nipa_flat_table('T30500', 2017)
+compare(table.select(['LA000237', 'LA000365']), bea_matrix_row('T00OTOP')).totals
 ```
 
 | | |
 |---|---|
 | `select(labels)` | just these rows, by code or name |
-| `subtree(label, include_parent=, leaves_only=)` | everything nested under a row, following the sheet's indentation |
+| `subtree(label, include_parent=, leaves_only=)` | everything nested under a row, following the table's own hierarchy |
 
-Forcing this shape into cells is worse than useless: BEA's detail industry list
-has a row genuinely named `Customs duties` (`4200ID`), so a name match pairs
-NIPA's federal customs receipts with the other-taxes row of the customs-duties
-*industry*, which is zero. A `matched cells: 0` line is the honest output.
+Forcing this shape into cells is worse than useless, and it is one label away
+from looking like a result. BEA's detail industry list has a row genuinely named
+`Customs duties` (`4200ID`), zero in `T00OTOP`. The workbook calls NIPA's line
+`Customs duties` too, so a name match pairs 38,513 million of federal customs
+receipts with that empty industry row; the flat file calls the same line `Customs
+and other import duties (G1151)` and so happens to miss. A `matched cells: 0`
+line is the honest output — not something to trust to a naming accident.
 
 ## Gotchas
 
-**Hierarchy.** NIPA sheets interleave subtotals with leaves. Summing one as
-published double counts, so call `.leaves()` — it uses the sheet's own
-indentation, and reports how many rows it dropped.
+**Hierarchy.** NIPA tables interleave subtotals with leaves. Summing one as
+published double counts, so call `.leaves()` — it uses the table's own hierarchy
+(`SeriesCodeParents` from the flat files, indentation from a workbook) and
+reports how many rows it dropped.
 
 **Hierarchy is read from labels, before any similarity is computed.** BEA carves
 a residual out of a parent and names it after the parent, so the label declares
@@ -275,6 +306,10 @@ mapping it onto commodities.
 
 `nipa_sheet` parses the footnote block and records which notes each row cites
 (`\7,8\` → both). The marker never reaches `name`, so it cannot disturb matching.
+**This is the one thing `nipa_flat_table` cannot give you** — BEA's flat files
+publish no note block, so on a series loaded from them these three all come back
+empty. It is the reason to keep a workbook around even once everything else
+reads from the archive.
 
 ```python
 sheet.footnotes                          # {'1': 'Consists largely of taxes on ...'}

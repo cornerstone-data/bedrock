@@ -7,8 +7,8 @@ The reference throughout is the **detail** table -- ``V00100`` across 402 detail
 industry codes.  What varies is the granularity the comparison is *made* at,
 which is the subject of stage 0:
 
-``stage 0``  the detail codes untouched.  Only 20 of 74 NIPA rows find a partner
-             and 382 detail codes go unmatched, because NIPA 6.2D has no rows at
+``stage 0``  the detail codes untouched.  Only 17 of 74 NIPA rows find a partner
+             and 385 detail codes go unmatched, because NIPA 6.2D has no rows at
              detail granularity -- no "Oilseed farming", no "Offices of
              physicians".  This is the evidence for aggregating, and it also
              shows why the fuzzy pass is opt-in: turned on here it pairs
@@ -26,6 +26,13 @@ which is the subject of stage 0:
              two carve federal government along different seams (civilian and
              military vs defense and nondefense).
 
+The table is read from BEA's ``FlatFiles.ZIP``, the archive the ``BEA_NIPA`` FBA
+extracts from, rather than from a published ``SectionNall_xls.xlsx`` workbook.
+Every figure below is identical either way; what differs is that the flat file
+gives each series its standalone label, so the two government lines read
+"Compensation of general government employees" where the workbook's stub reads
+"General government".  Both are matched by code in stage 2, so nothing moves.
+
 Usage::
 
     uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_compensation_vs_sut_v00100
@@ -35,18 +42,15 @@ from __future__ import annotations
 
 import os
 
-from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_sheet
-
-SECTION6 = os.path.join(
-    os.path.expanduser('~'),
-    'Dropbox',
-    'professional',
-    'resources',
-    'BEA',
-    'NIPA Survey ALL download 2026-05-18',
-    'Section6all_xls.xlsx',
+from bedrock.analysis.compare_NIPA_to_IOT import (
+    bea_matrix_row,
+    compare,
+    nipa_flat_table,
 )
-SHEET = 'T60200D-A'
+
+#: Table 6.2D, read out of the FlatFiles.ZIP the BEA_NIPA FBA extracts from, so
+#: this comparison and that FBA cannot drift onto different BEA vintages.
+TABLE = 'T60200D'
 YEAR = 2017
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
@@ -105,7 +109,7 @@ def main() -> None:
     print('STAGE 0 - against the 402 detail codes as published, no rollup')
     print('=' * 78)
     stage0 = compare(
-        candidate=nipa_sheet(SECTION6, SHEET, YEAR).leaves(),
+        candidate=nipa_flat_table(TABLE, YEAR).leaves(),
         reference=reference,
     )
     t0 = stage0.totals
@@ -127,7 +131,7 @@ def main() -> None:
     print('STAGE 1 - detail table rolled up to summary, name matching only')
     print('=' * 78)
     stage1 = compare(
-        candidate=nipa_sheet(SECTION6, SHEET, YEAR).leaves(),
+        candidate=nipa_flat_table(TABLE, YEAR).leaves(),
         reference=reference,
         rollup='industry_to_summary',
     )
@@ -143,7 +147,7 @@ def main() -> None:
     print('=' * 78)
     print('STAGE 2 - partition mismatches reconciled')
     print('=' * 78)
-    candidate = nipa_sheet(SECTION6, SHEET, YEAR).leaves(
+    candidate = nipa_flat_table(TABLE, YEAR).leaves(
         keep=KEEP_PARENTS + KEEP_FEDERAL_PARENTS,
         drop=DROP_CHILDREN,
     )

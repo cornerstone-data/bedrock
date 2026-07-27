@@ -5,11 +5,13 @@ matching and reports the weak links rather than demanding an exact crosswalk, so
 a new dataset can be sanity-checked against BEA in a few lines.  When a number
 needs to be defensible, promote the comparison to a real crosswalk instead.
 
-    from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_sheet
+    from bedrock.analysis.compare_NIPA_to_IOT import (
+        bea_matrix_row, compare, nipa_flat_table
+    )
 
     print(
         compare(
-            candidate=nipa_sheet(path, 'T60200D-A', 2017).leaves(),
+            candidate=nipa_flat_table('T60200D', 2017).leaves(),
             reference=bea_matrix_row('V00100'),
             rollup='industry_to_summary',
         ).report()
@@ -37,6 +39,8 @@ from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
     detail_industry_to_summary,
     fba_series,
     frame_series,
+    nipa_flat_files_path,
+    nipa_flat_table,
     nipa_sheet,
     resolve_matrix,
     summary_industry_names,
@@ -72,6 +76,8 @@ __all__ = [
     'fba_series',
     'frame_series',
     'markers_for',
+    'nipa_flat_files_path',
+    'nipa_flat_table',
     'nipa_sheet',
     'normalize_code',
     'normalize_name',

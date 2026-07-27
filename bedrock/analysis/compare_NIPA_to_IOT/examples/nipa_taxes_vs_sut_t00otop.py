@@ -14,7 +14,12 @@ row of the customs-duties *industry*, which is zero.
 The other half of the job is the selection.  NIPA 3.5 covers all taxes on
 production and imports, while ``T00OTOP`` is only the non-product part, so the
 taxes-on-products branches have to come out first -- ``subtree()`` takes them by
-following the sheet's own indentation.
+following the table's own hierarchy.
+
+The table is read from BEA's ``FlatFiles.ZIP``, the archive the ``BEA_NIPA`` FBA
+extracts from, rather than from a published ``SectionNall_xls.xlsx`` workbook.
+Values, codes and hierarchy are identical; footnotes are the one thing the
+archive does not carry, which the last section says out loud.
 
 Usage::
 
@@ -32,19 +37,12 @@ from bedrock.analysis.compare_NIPA_to_IOT import (
     bea_matrix_row,
     compare,
     frame_series,
-    nipa_sheet,
+    nipa_flat_table,
 )
 
-SECTION3 = os.path.join(
-    os.path.expanduser('~'),
-    'Dropbox',
-    'professional',
-    'resources',
-    'BEA',
-    'NIPA Survey ALL download 2026-05-18',
-    'Section3all_xls.xlsx',
-)
-SHEET = 'T30500-A'
+#: Table 3.5, read out of the FlatFiles.ZIP the BEA_NIPA FBA extracts from, so
+#: this comparison and that FBA cannot drift onto different BEA vintages.
+TABLE = 'T30500'
 YEAR = 2017
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
@@ -57,7 +55,7 @@ PRODUCT_TAXES_SUBTOTALS = ['LA000236', 'LA000238']
 
 
 def main() -> None:
-    sheet = nipa_sheet(SECTION3, SHEET, YEAR, label='NIPA 3.5')
+    sheet = nipa_flat_table(TABLE, YEAR, label='NIPA 3.5')
     print(f'{sheet!r}  ({sheet.n_missing} blank values)\n')
 
     for label, codes, row in (
@@ -150,36 +148,54 @@ def main() -> None:
         'and that prose is the only basis for ever mapping these onto commodities.\n'
     )
     notes = sheet.annotated(composition_only=True)
-    live = notes.loc[notes['value'].notna()]
-    for code, name, value, note in zip(
-        live['code'], live['name'], live['value'], live['note']
-    ):
-        print(f'  {code:10} {name:28} {float(value):>10,.0f}')
-        print(f'             {note}')
-    live_total = float(live['value'].sum())
-    table_total = sheet.select(['W056RC']).total
-    print(
-        f'\n  {len(live)} live residual lines, {live_total:,.0f} million '
-        f'({live_total / table_total * 100:.1f}% of the table) described only in prose.'
-    )
-    print(
-        f'  ({len(notes) - len(live)} more carry composition notes but are blank in '
-        f'{YEAR}.)'
-    )
+    if notes.empty:
+        # The price of reading the same archive the FBA reads: FlatFiles.ZIP holds
+        # nipadata{A,Q,M}.txt plus the two registers, and the footnote block is in
+        # none of them. The residual lines are all still here and still opaque --
+        # what is gone is the only text that says what they hold.
+        print(
+            f'  ...and this table is read from {os.path.basename(str(sheet.meta["source"]))},'
+            f' which does not carry that\n'
+            f'  prose. The archive publishes values, labels and hierarchy; the footnote\n'
+            f'  block belongs to the published workbooks alone. The residual lines are\n'
+            f'  all still here and still opaque -- what is missing is the only text\n'
+            f'  that describes them, which\n'
+            f'  nipa_sheet(Section3all_xls.xlsx, "{TABLE}-A", {YEAR}) still has.'
+        )
+    else:
+        live = notes.loc[notes['value'].notna()]
+        for code, name, value, note in zip(
+            live['code'], live['name'], live['value'], live['note']
+        ):
+            print(f'  {code:10} {name:28} {float(value):>10,.0f}')
+            print(f'             {note}')
+        live_total = float(live['value'].sum())
+        table_total = sheet.select(['W056RC']).total
+        print(
+            f'\n  {len(live)} live residual lines, {live_total:,.0f} million '
+            f'({live_total / table_total * 100:.1f}% of the table) '
+            f'described only in prose.'
+        )
+        print(
+            f'  ({len(notes) - len(live)} more carry composition notes but are blank '
+            f'in {YEAR}.)'
+        )
 
     print()
     print('=' * 78)
     print('WHY NOT MATCH ROW BY ROW')
     print('=' * 78)
     junk = compare(sheet.leaves(), bea_matrix_row('T00OTOP'))
+    cells = junk.cells[['candidate_name', 'reference_code', 'candidate', 'reference']]
+    print(cells.to_string(index=False) if len(cells) else '  no cells matched')
     print(
-        junk.cells[
-            ['candidate_name', 'reference_code', 'candidate', 'reference']
-        ].to_string(index=False)
-    )
-    print(
-        '\n4200ID is a BEA detail industry genuinely named "Customs duties", so the\n'
-        'name match is real and the comparison it produces is meaningless. This is\n'
+        '\nNothing pairs, which is the honest output -- but it is one label away from\n'
+        "looking like a result. BEA's detail industry list has a row genuinely named\n"
+        '"Customs duties" (4200ID), zero in T00OTOP. The flat file labels NIPA\'s line\n'
+        '"Customs and other import duties (G1151)" and so misses it; the published\n'
+        'workbook labels the same line "Customs duties", and there the match does fire,\n'
+        'pairing 38,513 million of federal customs receipts with an industry row of\n'
+        'zero. The pairing would be real and the comparison meaningless -- which is\n'
         'what totals-only reconciliation looks like when forced into cells.'
     )
 

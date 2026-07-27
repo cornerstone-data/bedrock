@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import zipfile
 
 import pandas as pd
 
@@ -18,6 +19,7 @@ from bedrock.analysis.compare_NIPA_to_IOT import (
     align,
     compare,
     frame_series,
+    nipa_flat_table,
     nipa_sheet,
     normalize_code,
     normalize_name,
@@ -728,6 +730,157 @@ class TestNipaSheet:
                 assert '2016' in str(exc) and '2017' in str(exc)
             else:
                 raise AssertionError('expected a KeyError for the missing year')
+
+
+class TestNipaFlatTable:
+    """The flat-file reader, against an archive shaped like BEA's, written here.
+
+    The hierarchy is the part worth pinning: the workbooks encode it as leading
+    spaces, the flat files as ``SeriesCodeParents``, and that column is per
+    *series* rather than per table -- so the same series carries parents from
+    every table it appears in, and only the ones in this table may count.
+    """
+
+    SERIES = [
+        # code, label, TableId:LineNo, SeriesCodeParents
+        ('A000RC', 'Grand total', 'T90900D:1|T10105:3', 'NONE'),
+        ('A001C', 'Domestic industries', 'T90900D:2', 'A000RC'),
+        # parents from two tables; only N002C's in-table one may be used, and
+        # T10105's line numbering must not leak in
+        ('N002C', 'Manufacturing', 'T90900D:3|T10105:9', 'A001C|X999C'),
+        ('N003C', 'Durable goods', 'T90900D:4', 'N002C'),
+        ('N004C', 'Nondurable goods', 'T90900D:5', 'N002C'),
+        ('N005C', 'Utilities', 'T90900D:6', 'A001C'),
+        ('A006C', 'Rest of the world', 'T90900D:7', 'A000RC'),
+        ('X999C', 'Something else', 'T10105:4', 'NONE'),
+    ]
+    #: 2016 and 2017; N004C is deliberately absent from 2017, the way BEA drops
+    #: a series from the data file for a period it does not apply to
+    DATA = [
+        ('A000RC', '2016', '90'),
+        ('A000RC', '2017', '100'),
+        ('A001C', '2017', '95'),
+        ('N002C', '2017', '60'),
+        ('N003C', '2017', '25'),
+        ('N005C', '2017', '35'),
+        ('A006C', '2017', '5'),
+        # commas, as BEA writes them
+        ('X999C', '2017', '1,234'),
+    ]
+
+    def _write(self, tmp: str) -> str:
+        path = os.path.join(tmp, 'FlatFiles.ZIP')
+        with zipfile.ZipFile(path, 'w') as archive:
+            archive.writestr(
+                'SeriesRegister.txt',
+                '%SeriesCode,SeriesLabel,TableId:LineNo,SeriesCodeParents\n'
+                + ''.join(f'{c},"{n}",{t},{p}\n' for c, n, t, p in self.SERIES),
+            )
+            archive.writestr(
+                'TablesRegister.txt',
+                'TableId,TableTitle\nT90900D,"Table 9.9D. Something by Industry"\n',
+            )
+            archive.writestr(
+                'nipadataA.txt',
+                '%SeriesCode,Period,Value\n'
+                + ''.join(f'{c},{p},"{v}"\n' for c, p, v in self.DATA),
+            )
+        return path
+
+    def test_reads_one_table_in_line_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            s = nipa_flat_table('T90900D', 2017, path=self._write(tmp))
+            assert list(s.frame['code']) == [
+                'A000RC',
+                'A001C',
+                'N002C',
+                'N003C',
+                'N004C',
+                'N005C',
+                'A006C',
+            ], 'rows come back in published line order, other tables excluded'
+            assert dict(zip(s.frame['code'], s.frame['value']))['N003C'] == 25.0
+
+    def test_a_series_missing_for_the_period_is_blank_not_dropped(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            s = nipa_flat_table('T90900D', 2017, path=self._write(tmp))
+            assert len(s) == 7, 'N004C stays as a row of the table'
+            assert s.n_missing == 1
+
+    def test_levels_come_from_in_table_parents_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            s = nipa_flat_table('T90900D', 2017, path=self._write(tmp))
+            levels = dict(zip(s.frame['code'], s.frame['level']))
+            # X999C is a parent of N002C but belongs to another table, so the
+            # depth is measured through A001C
+            assert levels == {
+                'A000RC': 0,
+                'A001C': 1,
+                'N002C': 2,
+                'N003C': 3,
+                'N004C': 3,
+                'N005C': 2,
+                'A006C': 1,
+            }
+
+    def test_leaves_uses_that_hierarchy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            leaves = nipa_flat_table('T90900D', 2017, path=self._write(tmp)).leaves()
+            assert sorted(leaves.frame['code']) == ['A006C', 'N003C', 'N004C', 'N005C']
+            # 25 + 35 + 5, with N004C blank -- the published total, counted once
+            assert leaves.total == 65.0
+
+    def test_sheet_name_spelling_sets_the_frequency(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(tmp)
+            assert nipa_flat_table('T90900D-A', 2017, path=path).frame.equals(
+                nipa_flat_table('T90900D', 2017, path=path).frame
+            )
+
+    def test_carries_no_footnotes_and_says_so_by_being_empty(self) -> None:
+        # the archive publishes no note block, so the footnote API must come back
+        # empty rather than inventing blanks
+        with tempfile.TemporaryDirectory() as tmp:
+            s = nipa_flat_table('T90900D', 2017, path=self._write(tmp))
+            assert s.footnotes == {}
+            assert s.notes_for('N002C') == []
+            assert len(s.annotated()) == 0
+
+    def test_records_the_table_title_and_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(tmp)
+            meta = nipa_flat_table('T90900D', 2017, path=path).meta
+            assert meta['table_title'] == 'Table 9.9D. Something by Industry'
+            assert meta['dialect'] == 'nipa'
+            assert meta['source'] == path
+
+    def test_reports_a_missing_year_with_the_available_range(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                nipa_flat_table('T90900D', 1999, path=self._write(tmp))
+            except KeyError as exc:
+                assert '2016' in str(exc) and '2017' in str(exc)
+            else:
+                raise AssertionError('expected a KeyError for the missing year')
+
+    def test_reports_an_unknown_table(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                nipa_flat_table('T00000', 2017, path=self._write(tmp))
+            except KeyError as exc:
+                assert 'TablesRegister' in str(exc)
+            else:
+                raise AssertionError('expected a KeyError for the unknown table')
+
+    def test_missing_archive_says_where_it_comes_from(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                nipa_flat_table('T90900D', 2017, path=os.path.join(tmp, 'absent.ZIP'))
+            except FileNotFoundError as exc:
+                assert 'FlatFiles.ZIP' in str(exc), 'name the archive to fetch'
+                assert 'BEA_NIPA' in str(exc), 'and the extractor that parses it'
+            else:
+                raise AssertionError('expected a FileNotFoundError')
 
 
 class TestFrameSeries:
