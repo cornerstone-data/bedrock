@@ -23,7 +23,7 @@ from bedrock.utils.emissions.characterization import GREENHOUSE_GASES_INDICATOR
 @pytest.mark.eeio_integration
 def test_sef_applies_phi_and_dollar_year() -> None:
     """without_margins / (N_producer / cpi) equals phi per sector."""
-    setup_config('useeio_phoebe_23')
+    setup_config('2025_usa_cornerstone_v0_3')
     try:
         dollar_year = 2024
         cfg = get_usa_config()

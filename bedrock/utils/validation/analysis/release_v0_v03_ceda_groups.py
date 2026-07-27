@@ -11,10 +11,9 @@ Group definitions (cumulative):
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
 
-Dispatch: ``bedrock.analysis.v0_3.dispatch_ef_v03_waterfall --baseline ceda``.
-After dispatch, paste sheet IDs from
-``output/release_v0_v03_groups/ef_run_index_v03_waterfall_ceda.csv`` into the
-``ProgressionSheet`` entries below.
+Sheets were dispatched via the retired ``dispatch_ef_v03_waterfall --baseline
+ceda``; the resulting sheet IDs are pinned in the ``ProgressionSheet`` entries
+below.
 """
 
 from __future__ import annotations

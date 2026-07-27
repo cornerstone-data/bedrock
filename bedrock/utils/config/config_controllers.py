@@ -5,7 +5,7 @@ that run the same pipeline under multiple configurations sequentially.
 helpers bypass that guard by writing directly to the module globals, enabling
 patterns like::
 
-    for config_name in ("useeio_phoebe_23", "2025_usa_cornerstone_v0_3"):
+    for config_name in ("test_usa_config", "2025_usa_cornerstone_v0_3"):
         reset_usa_config()
         set_usa_config(config_name)
         results[config_name] = run_pipeline()
@@ -74,7 +74,7 @@ def temp_usa_config(
 
     Example::
 
-        with temp_usa_config("useeio_phoebe_23", cache_bearing_modules=(...,)):
+        with temp_usa_config("test_usa_config", cache_bearing_modules=(...,)):
             phi = derive_phi_cornerstone_usa()
     """
     _cfg_module.reset_usa_config()
