@@ -2,7 +2,6 @@
 # realignment: the target-year summary A/q is rebased into 2017 USD before the
 # cross-year ratio, then the scaled detail A/q is inflated 2017 -> model_year.
 use_cornerstone_2026_model_schema: True
-load_E_from_flowsa: True
 new_ghg_method: True
 use_E_data_year_for_x_in_B: True
 implement_waste_disaggregation: True

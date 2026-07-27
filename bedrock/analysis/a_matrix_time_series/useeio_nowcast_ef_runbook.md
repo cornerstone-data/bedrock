@@ -17,7 +17,7 @@ approach), see
 
 - [ ] Both YAMLs exist:
   - `bedrock/utils/config/configs/2025_usa_cornerstone_A_useeio_nowcast.yaml` — minimal config for the A-matrix-only analysis (Steps N1–N3).
-  - `bedrock/utils/config/configs/2025_usa_cornerstone_v0_2_A_useeio_nowcast.yaml` — **full v0.3 model** (`load_E_from_flowsa`, `new_ghg_method`, `use_E_data_year_for_x_in_B`, `implement_waste_disaggregation`, `load_useeio_nowcast_A_matrix`) — required for EF diagnostics so apples-to-apples vs the other 4 `full_model_A_*` YAMLs.
+  - `bedrock/utils/config/configs/2025_usa_cornerstone_v0_2_A_useeio_nowcast.yaml` — **full v0.3 model** (`new_ghg_method`, `use_E_data_year_for_x_in_B`, `implement_waste_disaggregation`, `load_useeio_nowcast_A_matrix`) — required for EF diagnostics so apples-to-apples vs the other 4 `full_model_A_*` YAMLs.
 
 - [ ] Flag wired per [`feature_flag.md`](../../utils/config/feature_flag.md): `load_useeio_nowcast_A_matrix` on `USAConfig` and gated in `derive_cornerstone_Aq_scaled()`.
 

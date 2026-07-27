@@ -7,7 +7,6 @@ price_type: producer
 usa_ghg_data_year: 2024
 
 use_cornerstone_2026_model_schema: true
-load_E_from_flowsa: true
 
 v0_3_umd_2024_ghgia: true
 

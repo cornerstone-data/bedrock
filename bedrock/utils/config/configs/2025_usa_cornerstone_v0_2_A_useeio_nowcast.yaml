@@ -10,7 +10,6 @@
 # A — same helper and same weights the other 4 full-model A approaches
 # use, so waste rows are comparable across approaches.
 use_cornerstone_2026_model_schema: True
-load_E_from_flowsa: True
 new_ghg_method: True
 use_E_data_year_for_x_in_B: True
 implement_waste_disaggregation: True

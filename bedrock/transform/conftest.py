@@ -16,11 +16,6 @@ def download_fba_on_api_error_for_eeio_tests(request: pytest.FixtureRequest) -> 
 
 # snapshots
 @pytest.fixture(scope="session")
-def E_usa_es_snapshot() -> pd.DataFrame:
-    return load_current_snapshot("E_USA_ES")
-
-
-@pytest.fixture(scope="session")
 def b_usa_non_finetuned_snapshot() -> pd.DataFrame:
     return load_current_snapshot("B_USA_non_finetuned")
 

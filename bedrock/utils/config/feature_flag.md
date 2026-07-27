@@ -57,8 +57,8 @@ Create `bedrock/utils/config/configs/<name>.yaml`:
 
 - Set the flag to `true`.
 - Set any hard prerequisites the validators or call site require (for
-  example `load_E_from_flowsa: true` when the gated path loads E from
-  flowsa).
+  example `implement_waste_disaggregation: true` when the gated path
+  requires waste disaggregation).
 - Set `snapshot_version_or_git_sha` to the baseline diagnostics should
   compare against — the value whose parquet EFs become `N_old` / `D_old`
   on the sheet. Pick the baseline that matches the evaluation question:
