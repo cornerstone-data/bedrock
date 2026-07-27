@@ -6,32 +6,83 @@
 Supporting functions for National Income and Product Accounts from BEA.
 """
 
-import io
+import os
 import re
 import zipfile
 from typing import Any
 
 import pandas as pd
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 
+#: BEA publishes the whole national accounts as one archive, all years and all
+#: tables, so there is one file to cache rather than one per year.
+FLAT_FILES_ZIP = 'FlatFiles.ZIP'
 
-def bea_nipa_call(*, resp: Any, config: dict[str, Any], **_: Any) -> list[pd.DataFrame]:
-    zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
-    df_list = []
-    for filename in zip_file.namelist():
-        if filename in config['files']:
-            with zip_file.open(filename) as file:
-                df_list.append(
-                    pd.read_csv(file).rename(
-                        columns={
-                            '%SeriesCode': 'SeriesCode',
-                            'TableId:LineNo': 'Table_and_Line',
-                        }
-                    )
-                )
 
-    return df_list
+def flat_files_local_path(source: str = 'BEA_NIPA') -> str:
+    """Where the flat-file archive is cached: ``extract/input_data/BEA_NIPA/``.
+
+    Also the archive :mod:`bedrock.analysis.compare_NIPA_to_IOT` reads, which is
+    the point of having a path both sides agree on -- a comparison against a NIPA
+    table and the FBA built from it stay on one BEA vintage.
+    """
+    return os.path.join(local_extract_input_dir(source, year=None), FLAT_FILES_ZIP)
+
+
+def _read_tables_from_zip(zip_path: str, config: dict[str, Any]) -> list[pd.DataFrame]:
+    """Read the ``files`` named in the yaml out of the archive."""
+    with zipfile.ZipFile(zip_path) as zip_file:
+        return [
+            pd.read_csv(zip_file.open(filename)).rename(
+                columns={
+                    '%SeriesCode': 'SeriesCode',
+                    'TableId:LineNo': 'Table_and_Line',
+                }
+            )
+            for filename in zip_file.namelist()
+            if filename in config['files']
+        ]
+
+
+def bea_nipa_call(
+    *, resp: Any, source: str, config: dict[str, Any], **_: Any
+) -> list[pd.DataFrame]:
+    """Cache the downloaded archive under extract-input, then read it.
+
+    Only reached with ``extract_data_from_raw_sources: True``; writing the
+    archive down rather than parsing it out of memory is what lets every later
+    run go through :func:`bea_nipa_load_gcs` instead of back to BEA.
+    """
+    local_path = flat_files_local_path(source)
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    with open(local_path, 'wb') as f:
+        f.write(resp.content)
+    return _read_tables_from_zip(local_path, config)
+
+
+def bea_nipa_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
+    """Load the archive from the local cache, or GCS extract-input if missing."""
+    source = str(kwargs['source'])
+    local_path = flat_files_local_path(source)
+    if not os.path.exists(local_path):
+        download_extract_input_from_gcs_if_not_exists(
+            # the archive is not year-specific, so it sits directly under
+            # extract/input-data/BEA_NIPA/ rather than in a year subfolder
+            {**kwargs, 'year': None},
+            local_dir=os.path.dirname(local_path),
+            object_name=FLAT_FILES_ZIP,
+        )
+    if not os.path.exists(local_path):
+        raise FileNotFoundError(
+            f'{FLAT_FILES_ZIP} is neither cached at {local_path} nor available '
+            f'from gs://cornerstone-default/extract/input-data/{source}/. Set '
+            f'extract_data_from_raw_sources: True in {source}.yaml to fetch it '
+            f'from BEA and cache it, then upload it so others need not.'
+        )
+    return _read_tables_from_zip(local_path, kwargs['config'])
 
 
 def bea_nipa_parse(
@@ -107,9 +158,8 @@ def bea_nipa_parse(
             # number, e.g. "Accommodations (104)". That number is unrelated to Table/Line
             # (which are already tracked separately via Description) and has no counterpart
             # in other BEA tables (e.g. PCE Bridge category names), so it is dropped here.
-            ActivityProducedBy=lambda x: x['ActivityProducedBy'].str.replace(
-                r'(?:\s*\(\d+\))+$', '', regex=True
-            )
+            ActivityProducedBy=lambda x: x['ActivityProducedBy']
+            .str.replace(r'(?:\s*\(\d+\))+$', '', regex=True)
             # BEA sometimes pads slash-separated terms with spaces (e.g. "Cosmetic /
             # perfumes / bath / nail preparations"), while other BEA tables (e.g. PCE
             # Bridge category names) write the same term slash-tight. Normalize so
