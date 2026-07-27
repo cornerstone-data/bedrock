@@ -191,9 +191,11 @@ class Comparison:
             agg = self.aggregated()
             lines += [
                 f'  {exact} of {n} cells are 1:1 with a single reference code',
-                f'  {len(agg)} aggregate 2-{int(agg["n_detail"].max())} codes'
-                if len(agg)
-                else '  0 cells are aggregates',
+                (
+                    f'  {len(agg)} aggregate 2-{int(agg["n_detail"].max())} codes'
+                    if len(agg)
+                    else '  0 cells are aggregates'
+                ),
                 '  (per-cell composition in the detail_members column of the csv)',
             ]
         if n:
