@@ -368,12 +368,22 @@ class TestFrameworks:
         else:
             raise AssertionError('expected a KeyError')
 
+    def test_sut_use_cells_are_purchaser_valued(self) -> None:
+        # the SUT Use table is not a basic-value table: its cells are at
+        # purchaser value (total use T019 == Supply T016), and its industry
+        # columns are totalled at basic AND producer over those same cells.
+        # Mislabelling it 'BAS' silently compares it against the wrong half.
+        spec = BEA_MATRICES['Use_SUT_detail']
+        assert spec.valuation == 'PUR'
+        for total in ('T018', 'VAPRO'):
+            assert total in spec.note, f'note must name the {total} total'
+
     def test_summary_names_all_three_axes(self) -> None:
         assert BEA_MATRICES['Use_MUT_detail_after_redef'].summary == (
             'Make-Use framework, producer value, after redefinition'
         )
         assert BEA_MATRICES['Use_SUT_detail'].summary == (
-            'Supply-Use framework, basic value'
+            'Supply-Use framework, purchaser value'
         )
 
     def test_series_without_provenance_reports_empty(self) -> None:

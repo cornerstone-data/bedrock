@@ -129,7 +129,7 @@ Three axes decide whether two BEA tables are comparable — **framework**,
 
 | matrix | framework | valuation | redefinition |
 |---|---|---|---|
-| `Use_SUT_detail` *(default)* | Supply-Use | basic | — |
+| `Use_SUT_detail` *(default)* | Supply-Use | purchaser cells, basic + producer totals | — |
 | `Supply_SUT_detail` | Supply-Use | basic → purchaser cols | — |
 | `Use_MUT_detail_after_redef` | Make-Use | producer | after |
 | `Make_MUT_detail_after_redef` | Make-Use | producer | after |
@@ -154,9 +154,31 @@ What differs, all checkable in the 2017 data:
   `T00SUB` (59,876) where MUT carries one net `V00200` (1,304,104). `T018`,
   `VABAS`, `VAPRO` are SUT-only; `T006`, `T008` MUT-only; `F05000` (imports) is a
   MUT-only *column*.
-- **Valuation.** SUT is basic value, MUT producer, and the gap is exactly the
-  product taxes: `T018` 33,772,568 + `T00TOP` − `T00SUB` = 34,468,143 against MUT
-  `T008` 34,468,137.
+- **Valuation.** Not one basis per table — the SUT Use table carries three, and
+  "which valuation" only has an answer once you say which slice you mean.
+
+  Its **cells**, intermediate and final demand alike, are at **purchaser** value.
+  Total use `T019` equals the Supply table's purchaser total `T016` 37,094,434
+  for all 402 commodities; basic `T013` is 36,398,867, and the 695,567 between
+  them is margins and product taxes. Only 37 commodities agree with basic, being
+  the ones that carry neither.
+
+  Its **industry columns** are then totalled twice over those same cells —
+  `T018` 33,772,568 at basic, `T005` + `VAPRO` 34,468,127 at producer — which is
+  the number comparable to MUT `T008` 34,468,137. Value added comes both ways for
+  the same reason: `VABAS` 18,916,542, `VAPRO` 19,612,109. Three identities hold
+  cell for cell across the 402 industries, to BEA's rounding:
+
+  ```
+  VABAS = V00100 + T00OTOP + V00300
+  VAPRO = VABAS  + T00TOP  - T00SUB
+  T018  = T005   + VABAS            # intermediate at purchaser + VA at basic
+  ```
+
+  So `bea_matrix_column('230301')` gives you purchaser-valued commodity inputs,
+  while `bea_matrix_row('V00100')` gives a value-added component that sits under
+  `VABAS`. The `.valuation` a series reports is the **cells'** basis; read the
+  matrix `note` before comparing a total.
 - **Redefinition** moves money *between cells while preserving every total*, so a
   totals check cannot tell you that you picked the wrong one. Of the 161,604
   intermediate cells, 5,740 differ, 553,635 million moves gross and the largest
@@ -183,13 +205,13 @@ tells you where it actually lives:
 
 ```
 >>> bea_matrix_row('V00200')
-KeyError: 'V00200' is not a row of Use_SUT_detail [Supply-Use framework, basic
-value]. It is a row of Use_MUT_detail_after_redef (Make-Use framework, producer
-value, after redefinition); ... -- whose rows do not correspond one-for-one with
-this table.
+KeyError: 'V00200' is not a row of Use_SUT_detail [Supply-Use framework,
+purchaser value]. It is a row of Use_MUT_detail_after_redef (Make-Use framework,
+producer value, after redefinition); ... -- whose rows do not correspond
+one-for-one with this table.
 
 >>> where_is('V00100')          # a row of three tables, meaning three things
-{'Use_SUT_detail':              'Supply-Use framework, basic value',
+{'Use_SUT_detail':              'Supply-Use framework, purchaser value',
  'Use_MUT_detail_after_redef':  'Make-Use framework, producer value, after redefinition',
  'Use_MUT_detail_before_redef': 'Make-Use framework, producer value, before redefinition'}
 ```

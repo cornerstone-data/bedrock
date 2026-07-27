@@ -112,7 +112,10 @@ class MatrixSpec:
     """What a reference matrix is, along the axes that make tables incomparable.
 
     :param framework: ``'SUT'`` (Supply-Use) or ``'MUT'`` (Make-Use)
-    :param valuation: ``'BAS'`` basic, ``'PRO'`` producer, ``'PUR'`` purchaser
+    :param valuation: price basis of the table's **cells** -- ``'BAS'`` basic,
+        ``'PRO'`` producer, ``'PUR'`` purchaser.  A table's totals are not
+        necessarily on the same basis as its cells; where they differ, ``note``
+        says so.
     :param redefinition: ``'after'``, ``'before'``, or ``''`` where it does not apply
     :param note: anything a caller should know before comparing against it
     """
@@ -148,16 +151,34 @@ VALUATION_NAMES = {
 #:   have no counterpart at all (SUT splits ``T00OTOP`` 608,542 / ``T00TOP``
 #:   755,451 / ``T00SUB`` 59,876 where MUT carries the net ``V00200`` 1,304,104).
 #:
-#: *valuation* -- SUT is basic value, MUT producer value, and the difference is
-#:   exactly the product taxes: SUT ``T018`` 33,772,568 + ``T00TOP`` - ``T00SUB``
-#:   = 34,468,143, against MUT ``T008`` 34,468,137.
+#: *valuation* -- the SUT Use table's cells are at **purchaser** value, not
+#:   basic: total use ``T019`` equals the Supply table's purchaser total ``T016``
+#:   (37,094,434) for all 402 commodities, against basic ``T013`` 36,398,867 --
+#:   a gap of 695,567 in margins and product taxes.  Its industry *columns* are
+#:   then totalled on two bases over those same cells, ``T018`` 33,772,568 at
+#:   basic and ``T005`` + ``VAPRO`` 34,468,127 at producer, which is what makes
+#:   it comparable to MUT ``T008`` 34,468,137.  The identities hold cell for cell
+#:   across the 402 industries: ``VABAS`` = ``V00100`` + ``T00OTOP`` + ``V00300``,
+#:   ``VAPRO`` = ``VABAS`` + ``T00TOP`` - ``T00SUB``, ``T018`` = ``T005`` +
+#:   ``VABAS``.  So "which valuation" has no single answer for this table -- ask
+#:   it of the slice you are taking.
 #:
 #: *redefinition* -- reallocates between cells while preserving totals, so a
 #:   totals check cannot tell you that you picked the wrong one.  Across the
 #:   161,604 intermediate cells, 5,740 differ, 553,635 million moves gross and
 #:   the largest single cell shifts 42,893 -- for a net of -7.
 BEA_MATRICES: dict[str, MatrixSpec] = {
-    'Use_SUT_detail': MatrixSpec('SUT', 'BAS'),
+    'Use_SUT_detail': MatrixSpec(
+        'SUT',
+        'PUR',
+        note=(
+            'cells and final demand are at purchaser value (T019 = Supply T016 '
+            '37,094,434 for all 402 commodities); the industry columns are '
+            'totalled twice over them, T018 33,772,568 at basic and T005+VAPRO '
+            '34,468,127 at producer, so value added comes both ways too, VABAS '
+            '18,916,542 and VAPRO 19,612,109'
+        ),
+    ),
     'Supply_SUT_detail': MatrixSpec(
         'SUT',
         'BAS',
