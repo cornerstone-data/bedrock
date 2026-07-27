@@ -18,7 +18,7 @@ following the sheet's own indentation.
 
 Usage::
 
-    uv run python -m bedrock.analysis.nimble_compare.examples.nipa_taxes_vs_sut_t00otop
+    uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_taxes_vs_sut_t00otop
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import os
 
 import pandas as pd
 
-from bedrock.analysis.nimble_compare import (
+from bedrock.analysis.compare_NIPA_to_IOT import (
     bea_matrix_column,
     bea_matrix_row,
     compare,

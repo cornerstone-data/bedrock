@@ -28,14 +28,14 @@ which is the subject of stage 0:
 
 Usage::
 
-    uv run python -m bedrock.analysis.nimble_compare.examples.nipa_compensation_vs_sut_v00100
+    uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_compensation_vs_sut_v00100
 """
 
 from __future__ import annotations
 
 import os
 
-from bedrock.analysis.nimble_compare import bea_matrix_row, compare, nipa_sheet
+from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_sheet
 
 SECTION6 = os.path.join(
     os.path.expanduser('~'),

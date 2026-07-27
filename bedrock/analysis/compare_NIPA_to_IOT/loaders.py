@@ -23,7 +23,7 @@ from typing import Any, Callable, Literal, cast
 
 import pandas as pd
 
-from bedrock.analysis.nimble_compare.series import LabeledSeries
+from bedrock.analysis.compare_NIPA_to_IOT.series import LabeledSeries
 
 MILLION_USD = 'Million USD'
 

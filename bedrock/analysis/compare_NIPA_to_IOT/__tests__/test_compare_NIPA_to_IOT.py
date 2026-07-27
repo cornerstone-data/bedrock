@@ -1,4 +1,4 @@
-"""Tests for nimble_compare.
+"""Tests for compare_NIPA_to_IOT.
 
 Everything here is synthetic -- no GCS, no BEA workbooks -- so the alignment
 cascade and the hierarchy handling are pinned down independently of whether the
@@ -12,7 +12,7 @@ import tempfile
 
 import pandas as pd
 
-from bedrock.analysis.nimble_compare import (
+from bedrock.analysis.compare_NIPA_to_IOT import (
     LabeledSeries,
     align,
     compare,

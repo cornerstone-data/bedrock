@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import re
 
-from bedrock.analysis.nimble_compare.series import normalize_name
+from bedrock.analysis.compare_NIPA_to_IOT.series import normalize_name
 
 #: Tokens that carry no discriminating meaning, so a difference confined to them
 #: is a wording difference rather than a different concept.

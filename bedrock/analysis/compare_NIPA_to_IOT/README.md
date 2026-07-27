@@ -1,4 +1,4 @@
-# nimble_compare
+# compare_NIPA_to_IOT
 
 Check a candidate dataset against a BEA reference table — cell by cell and in
 total — without first building an exact crosswalk.
@@ -11,7 +11,7 @@ comparison to a real crosswalk in `bedrock/utils/taxonomy/`.
 ## Use
 
 ```python
-from bedrock.analysis.nimble_compare import bea_matrix_row, compare, nipa_sheet
+from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_sheet
 
 result = compare(
     candidate=nipa_sheet(SECTION6_XLSX, 'T60200D-A', 2017).leaves(),
@@ -160,7 +160,7 @@ dollars, so pass `scale_candidate=1e-6`. A wildly wrong total is usually this.
 ## Worked example
 
 ```
-uv run python -m bedrock.analysis.nimble_compare.examples.nipa_compensation_vs_sut_v00100
+uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_compensation_vs_sut_v00100
 ```
 
 NIPA table 6.2D compensation of employees against Use SUT detail row `V00100`,
@@ -175,7 +175,7 @@ NIPA table 6.2D compensation of employees against Use SUT detail row `V00100`,
   closing to 69/69 cells and −1 million on a $10.4 trillion total.
 
 ```
-uv run python -m bedrock.analysis.nimble_compare.examples.nipa_taxes_vs_sut_t00otop
+uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_taxes_vs_sut_t00otop
 ```
 
 NIPA table 3.5 against Use SUT detail rows `T00OTOP` and `T00TOP`, 2017 — the

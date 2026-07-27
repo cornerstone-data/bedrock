@@ -2,7 +2,7 @@
 
 ::
 
-    from bedrock.analysis.nimble_compare import compare, bea_matrix_row, nipa_sheet
+    from bedrock.analysis.compare_NIPA_to_IOT import compare, bea_matrix_row, nipa_sheet
 
     result = compare(
         candidate=nipa_sheet(SECTION6, 'T60200D-A', 2017).leaves(),
@@ -24,16 +24,16 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from bedrock.analysis.nimble_compare.loaders import (
+from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
     detail_industry_to_summary,
     summary_industry_names,
 )
-from bedrock.analysis.nimble_compare.matching import (
+from bedrock.analysis.compare_NIPA_to_IOT.matching import (
     DEFAULT_FUZZY_CUTOFF,
     Alignment,
     align,
 )
-from bedrock.analysis.nimble_compare.series import LabeledSeries
+from bedrock.analysis.compare_NIPA_to_IOT.series import LabeledSeries
 
 #: Named rollups, applied to the *reference* before matching, for the common
 #: case of a detail BEA table against a coarser candidate.

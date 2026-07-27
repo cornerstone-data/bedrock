@@ -5,7 +5,7 @@ matching and reports the weak links rather than demanding an exact crosswalk, so
 a new dataset can be sanity-checked against BEA in a few lines.  When a number
 needs to be defensible, promote the comparison to a real crosswalk instead.
 
-    from bedrock.analysis.nimble_compare import bea_matrix_row, compare, nipa_sheet
+    from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_sheet
 
     print(
         compare(
@@ -16,15 +16,15 @@ needs to be defensible, promote the comparison to a real crosswalk instead.
     )
 """
 
-from bedrock.analysis.nimble_compare.compare import ROLLUPS, Comparison, compare
-from bedrock.analysis.nimble_compare.hierarchy import (
+from bedrock.analysis.compare_NIPA_to_IOT.compare import ROLLUPS, Comparison, compare
+from bedrock.analysis.compare_NIPA_to_IOT.hierarchy import (
     RESIDUAL_MARKERS,
     RESIDUAL_TOKENS,
     markers_for,
     split_residual,
     token_relation,
 )
-from bedrock.analysis.nimble_compare.loaders import (
+from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
     bea_matrix_column,
     bea_matrix_row,
     bea_summary_sut_row,
@@ -35,8 +35,8 @@ from bedrock.analysis.nimble_compare.loaders import (
     summary_industry_names,
     table_series,
 )
-from bedrock.analysis.nimble_compare.matching import Alignment, align
-from bedrock.analysis.nimble_compare.series import (
+from bedrock.analysis.compare_NIPA_to_IOT.matching import Alignment, align
+from bedrock.analysis.compare_NIPA_to_IOT.series import (
     LabeledSeries,
     normalize_code,
     normalize_name,
