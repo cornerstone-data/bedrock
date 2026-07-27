@@ -500,6 +500,38 @@ def calculate_flow_per_person(
     return fbs
 
 
+def assign_sector_consumed_by_from_clean_parameter(
+    fbs: FlowBySector, **_: Any
+) -> FlowBySector:
+    """
+    Assigns ``SectorConsumedBy`` directly from ``clean_parameter`` (issue
+    #539). Intended as a ``clean_fbs_after_aggregation`` fxn: e.g. each
+    ``NIPA_FD_<year>.yaml`` activity_set targets exactly one official BEA
+    final-demand code (e.g. ``F06S00``, passed as that activity_set's
+    ``clean_parameter``), which this assigns to every row of the fully
+    attributed/aggregated FBS.
+
+    This has to happen *after* attribution rather than via a crosswalk entry
+    for ``ActivityConsumedBy`` (as an earlier NIPA_FD attempt did): sources
+    like BEA_NIPA are ``FlowType='TECHNOSPHERE_FLOW'``, and
+    ``add_primary_secondary_columns()`` prioritizes ``...ConsumedBy`` over
+    ``...ProducedBy`` for that flow type, so populating ``SectorConsumedBy``
+    *before* attribution would make ``PrimarySector`` resolve to the
+    final-demand code instead of the real commodity (``SectorProducedBy``) -
+    silently corrupting proportional attribution against a commodity-level
+    attribution source. Assigning it only after attribution/aggregation is
+    complete (via this ``clean_fbs_after_aggregation`` hook) sidesteps that
+    entirely.
+    """
+    code = fbs.config.get('clean_parameter')
+    if code is None:
+        raise ValueError(
+            'clean_parameter (the target SectorConsumedBy value) is required '
+            'in config to use assign_sector_consumed_by_from_clean_parameter'
+        )
+    return fbs.assign(SectorConsumedBy=code)
+
+
 def define_parentincompletechild_descendants(
     fba: FlowByActivity, activity_col: str = 'ActivityConsumedBy', **_: Any
 ) -> FlowByActivity:

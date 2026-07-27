@@ -10,7 +10,13 @@ files:
 - TablesRegister.txt
 
 call_response_fxn: !script_function:BEA_NIPA bea_nipa_call
+gcs_fxn: !script_function:BEA_NIPA bea_nipa_load_gcs
 parse_response_fxn: !script_function:BEA_NIPA bea_nipa_parse
+
+# Read FlatFiles.ZIP from extract/input_data/BEA_NIPA/ (or GCS extract-input if
+# it is not cached yet) rather than re-downloading ~19MB from BEA every run.
+# Set to True to refresh the cache from the BEA url, e.g. after a NIPA release.
+extract_data_from_raw_sources: False
 
 call_all_years: True
 

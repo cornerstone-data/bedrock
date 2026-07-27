@@ -26,6 +26,14 @@ source_names:
 
       FD_PCE:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        # Issue #539: assign the official BEA final-demand code to SectorConsumedBy
+        # only after attribution/aggregation is complete - see
+        # assign_sector_consumed_by_from_clean_parameter's docstring (in
+        # bedrock/transform/flowbyclean.py) for why it can't be done any earlier
+        # (would corrupt PrimarySector resolution during attribution, since
+        # BEA_NIPA is a TECHNOSPHERE_FLOW source).
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
         exclusion_fields:
@@ -54,6 +62,8 @@ source_names:
         # NIPA "Tenant-occupied, including landlord durables" has no PCEBridge counterpart
         # by name; PCEBridge's equivalent leaf category is "Tenant landlord durables".
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
           Line: 159 # "Tenant-occupied, including landlord durables"; Line uniquely selects this row
@@ -76,6 +86,8 @@ source_names:
 
       FD_PCE_sporting_equipment:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
           Line: 52 # "Sporting equipment, supplies, guns, and ammunition (part of 80)"
@@ -90,6 +102,8 @@ source_names:
 
       FD_PCE_musical_instruments:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
           Line: 61 # "Musical instruments (part of 80)"
@@ -104,6 +118,8 @@ source_names:
 
       FD_PCE_recreational_books:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
           Line: 60 # "Recreational books (part of 90)"
@@ -118,6 +134,8 @@ source_names:
 
       FD_PCE_luggage:
         activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
           Line: 70 # "Luggage and similar personal items (part of 119)"
@@ -139,6 +157,8 @@ source_names:
         # match a PEQBridge category by name. Reconciles to within 0.22% of the
         # table's own Line-1 total ("Private fixed investment in equipment").
         activity_to_sector_mapping: BEA_NIPA_FD_Equipment
+        clean_parameter: F02E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50505 # Table 5.5.5U. Private Fixed Investment in Equipment by Type
         attribution_method: proportional
@@ -150,6 +170,8 @@ source_names:
 
       FD_IP_direct:
         activity_to_sector_mapping: BEA_NIPA_FD_IP
+        clean_parameter: F02N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
           ActivityProducedBy:
@@ -160,6 +182,8 @@ source_names:
 
       FD_IP_proportional:
         activity_to_sector_mapping: BEA_NIPA_FD_IP
+        clean_parameter: F02N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
         exclusion_fields:
@@ -176,6 +200,8 @@ source_names:
 
       FD_Gov_FedD_CE:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06C00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           Line: 18 # "Consumption expenditures"; Line uniquely selects this row (also at lines 2, 26)
@@ -191,6 +217,8 @@ source_names:
 
       FD_Gov_FedD_Equipment:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -207,6 +235,8 @@ source_names:
 
       FD_Gov_FedD_IP:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -224,6 +254,8 @@ source_names:
 
       FD_Gov_FedD_Structures:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           Line: 20 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 28, 36)
@@ -239,6 +271,8 @@ source_names:
 
       FD_Gov_FedND_CE:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07C00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           Line: 26 # "Consumption expenditures"; Line uniquely selects this row (also at lines 2, 18)
@@ -254,6 +288,8 @@ source_names:
 
       FD_Gov_FedND_Structures:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           Line: 28 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 20, 36)
@@ -269,6 +305,8 @@ source_names:
 
       FD_Gov_FedND_Equipment:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -285,6 +323,8 @@ source_names:
 
       FD_Gov_FedND_IP:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -302,6 +342,8 @@ source_names:
 
       FD_Gov_SLG_CE:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10C00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -318,6 +360,8 @@ source_names:
 
       FD_Gov_SLG_Equipment:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -334,6 +378,8 @@ source_names:
 
       FD_Gov_SLG_Structures:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           Line: 36 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 20, 28)
@@ -349,6 +395,8 @@ source_names:
 
       FD_Gov_SLG_IP:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -366,6 +414,8 @@ source_names:
 
       FD_Structures1:
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        clean_parameter: F02R00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
           ActivityProducedBy:
@@ -396,6 +446,8 @@ source_names:
 
       FD_Structures2:
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        clean_parameter: F02S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
           ActivityProducedBy:
@@ -429,6 +481,8 @@ source_names:
       FD_Structures2_used:
         # See note on FD_Structures1_used: this is the Nonresidential (line 38) occurrence.
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        clean_parameter: F02S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
           Line: 38 # "Net purchases of used structures" (Nonresidential); also occurs at line 48
