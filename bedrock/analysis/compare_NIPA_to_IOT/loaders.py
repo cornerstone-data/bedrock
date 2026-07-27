@@ -183,8 +183,14 @@ BEA_MATRICES: dict[str, MatrixSpec] = {
         'SUT',
         'BAS',
         note=(
-            'trailing columns bridge to purchaser value: T013 total supply at '
-            'basic 36,398,867, + MDTY/TOP/SUB = T016 37,094,434 at purchaser'
+            'commodity x industry cells are domestic output at basic value; the '
+            'trailing columns then bridge to the other two bases, all 402/402 '
+            'per commodity: T013 total supply at basic 36,398,867 (= T007 + MCIF '
+            '+ MADJ), + T014 margins (TRADE+TRANS, ~0 in total) + T015 taxes '
+            '(MDTY+TOP+SUB, 695,565) = T016 37,094,434 at purchaser. Producer is '
+            'not published but derives as T013 + T015 = T016 - T014 = 37,094,432 '
+            '-- taxes but not margins. Note SUB is stored negative here and so is '
+            'added, where the Use table carries T00SUB positive and subtracts it'
         ),
     ),
     'Use_MUT_detail_after_redef': MatrixSpec('MUT', 'PRO', 'after'),

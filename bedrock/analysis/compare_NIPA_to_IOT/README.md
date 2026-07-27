@@ -130,7 +130,7 @@ Three axes decide whether two BEA tables are comparable — **framework**,
 | matrix | framework | valuation | redefinition |
 |---|---|---|---|
 | `Use_SUT_detail` *(default)* | Supply-Use | purchaser cells, basic + producer totals | — |
-| `Supply_SUT_detail` | Supply-Use | basic → purchaser cols | — |
+| `Supply_SUT_detail` | Supply-Use | basic cells, basic + purchaser totals | — |
 | `Use_MUT_detail_after_redef` | Make-Use | producer | after |
 | `Make_MUT_detail_after_redef` | Make-Use | producer | after |
 | `Import_MUT_detail_after_redef` | Make-Use | producer | after |
@@ -179,6 +179,31 @@ What differs, all checkable in the 2017 data:
   while `bea_matrix_row('V00100')` gives a value-added component that sits under
   `VABAS`. The `.valuation` a series reports is the **cells'** basis; read the
   matrix `note` before comparing a total.
+
+  The **Supply** table splits the same way, in the opposite direction. Its
+  commodity × industry cells are domestic output at **basic** value, and the
+  trailing columns bridge from there — every identity below holding 402/402 per
+  commodity:
+
+  ```
+  T013 = T007 + MCIF + MADJ       total supply, BASIC        36,398,867
+  T014 = TRADE + TRANS            margins                             1
+  T015 = MDTY  + TOP   + SUB      taxes less subsidies          695,565
+  T016 = T013  + T014  + T015     total supply, PURCHASER    37,094,434
+         T013  + T015             derived PRODUCER           37,094,432
+  ```
+
+  Producer value is not published but derives cleanly: `T013 + T015`, equivalently
+  `T016 − T014` — taxes but not margins.
+
+  Two traps in those columns. `T014` sums to **1** economy-wide, not because
+  margins are negligible but because they net out: a trade margin is added to the
+  good and subtracted from the trade commodity that earned it. Any check that
+  aggregates first will therefore accept a margin error silently — which is how
+  this table's note read `T013 + MDTY/TOP/SUB = T016` for a while, an identity
+  that is right in total and wrong for all but 120 commodities. And `SUB` is
+  stored **negative** here, so it is added, where the Use table carries `T00SUB`
+  positive and subtracts it.
 - **Redefinition** moves money *between cells while preserving every total*, so a
   totals check cannot tell you that you picked the wrong one. Of the 161,604
   intermediate cells, 5,740 differ, 553,635 million moves gross and the largest

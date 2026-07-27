@@ -378,6 +378,15 @@ class TestFrameworks:
         for total in ('T018', 'VAPRO'):
             assert total in spec.note, f'note must name the {total} total'
 
+    def test_supply_note_bridges_all_three_bases(self) -> None:
+        # basic cells, published purchaser total, derivable producer -- the note
+        # is the only place that says so, and the margin column is the part a
+        # totals-only check cannot catch (T014 nets to ~0 economy-wide)
+        spec = BEA_MATRICES['Supply_SUT_detail']
+        assert spec.valuation == 'BAS'
+        for token in ('T013', 'T014', 'T015', 'T016'):
+            assert token in spec.note, f'note must name {token}'
+
     def test_summary_names_all_three_axes(self) -> None:
         assert BEA_MATRICES['Use_MUT_detail_after_redef'].summary == (
             'Make-Use framework, producer value, after redefinition'
