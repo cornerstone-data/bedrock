@@ -45,7 +45,10 @@ from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_final_demand import BEA_2017_FINAL_DEMAND_CODES
 
-_SECTOR_SWAP = {'SectorProducedBy': 'SectorConsumedBy', 'SectorConsumedBy': 'SectorProducedBy'}
+_SECTOR_SWAP = {
+    'SectorProducedBy': 'SectorConsumedBy',
+    'SectorConsumedBy': 'SectorProducedBy',
+}
 
 
 @contextmanager
