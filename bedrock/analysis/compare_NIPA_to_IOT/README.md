@@ -29,7 +29,6 @@ loaders build them, `compare` consumes two of them.
 |---|---|
 | `bea_matrix_row('V00100')` | a row of a 2017 detail matrix, across industries |
 | `bea_matrix_column('230301')` | a column, down commodities |
-| `bea_summary_sut_row('V00100', 2017)` | the summary Use SUT, no rollup needed |
 
 | Candidate (anything) | |
 |---|---|
@@ -72,6 +71,12 @@ published summary table. The detail table remains the source, and the comparison
 happens at the granularity the candidate can actually address — which for a NIPA
 industry sheet is roughly summary, since those sheets have no "Oilseed farming"
 row to compare against.
+
+Nothing is lost by not reading the published summary table: rolling the detail
+one up reproduces it. Across all 71 summary industries, published `V001` and
+detail `V00100` rolled up agree to −3 million on a 10,434,981 total, the largest
+single cell differing by 2. The rollup is the better of the two anyway, because
+it can still say what composed each cell.
 
 That choice is reported, not implied. Every cell keeps its composition:
 

@@ -3,7 +3,7 @@
 Two families:
 
 *reference* -- BEA tables bedrock already knows how to fetch
-  :func:`bea_matrix_row`, :func:`bea_matrix_column`, :func:`bea_summary_sut_row`
+  :func:`bea_matrix_row`, :func:`bea_matrix_column`
 
 *candidate* -- whatever you are checking against them
   :func:`nipa_flat_table` (a NIPA table out of BEA's ``FlatFiles.ZIP``, the same
@@ -409,39 +409,12 @@ def bea_matrix_column(
     )
 
 
-def bea_summary_sut_row(
-    row_code: str,
-    year: int = 2017,
-    *,
-    label: str | None = None,
-) -> LabeledSeries:
-    """One row of the BEA Use SUT *summary* table, across summary industries.
-
-    Useful when the candidate is itself near-summary granularity and you would
-    rather not roll the detail table up.
-    """
-    from bedrock.extract.iot.io_2017 import _load_usa_summary_sut
-
-    df = _load_usa_summary_sut('Use_SUT_summary', year)  # type: ignore[arg-type]
-    if row_code not in df.index:
-        raise KeyError(f'{row_code!r} is not a row of Use_SUT_summary {year}')
-    names = summary_industry_names()
-    codes = [c for c in df.columns if c in names]
-    row = df.loc[row_code].reindex(codes)
-    frame = pd.DataFrame(
-        {'code': codes, 'name': [names[c] for c in codes], 'value': row.to_numpy()}
-    )
-    return LabeledSeries(
-        frame,
-        label or f'Use_SUT_summary:{row_code}@{year}',
-        MILLION_USD,
-        {
-            'source': 'Use_SUT_summary',
-            'row': row_code,
-            'year': year,
-            'dialect': 'bea_io_summary',
-        },
-    )
+# There is deliberately no loader for BEA's *published* summary Use SUT table.
+# Rolling the detail table up reproduces it: across all 71 summary industries,
+# published V001 and detail V00100 rolled up agree to -3 million on a 10,434,981
+# total, the largest single cell differing by 2. The rollup is the better of the
+# two anyway -- it keeps `n_detail` and `detail_members`, so a cell still reports
+# which detail codes composed it, which a published summary row cannot say.
 
 
 # ------------------------------------------------------------------- candidates
