@@ -2,10 +2,12 @@
 
 ::
 
-    from bedrock.analysis.compare_NIPA_to_IOT import compare, bea_matrix_row, nipa_sheet
+    from bedrock.analysis.compare_NIPA_to_IOT import (
+        compare, bea_matrix_row, nipa_flat_table
+    )
 
     result = compare(
-        candidate=nipa_sheet(SECTION6, 'T60200D-A', 2017).leaves(),
+        candidate=nipa_flat_table('T60200D', 2017).leaves(),
         reference=bea_matrix_row('V00100'),
         rollup='industry_to_summary',
     )
