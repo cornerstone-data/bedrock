@@ -315,8 +315,8 @@ class TestFrameworks:
             assert spec.framework in {'SUT', 'MUT'}, name
             assert spec.valuation in {'BAS', 'PRO', 'PUR'}, name
             assert spec.redefinition in {'', 'before', 'after'}, name
-            # the canonical name states its framework, so a label built from it
-            # is never ambiguous
+            # the name states its framework, so a label built from it is never
+            # ambiguous
             assert spec.framework in name, name
 
     def test_redefinition_is_declared_wherever_it_applies(self) -> None:
@@ -324,18 +324,30 @@ class TestFrameworks:
         for name, spec in BEA_MATRICES.items():
             assert bool(spec.redefinition) == (spec.framework == 'MUT'), name
         assert 'Use_MUT_detail_before_redef' in BEA_MATRICES
-        assert BEA_MATRICES['Use_MUT_detail'].redefinition == 'after'
+        assert BEA_MATRICES['Use_MUT_detail_after_redef'].redefinition == 'after'
 
-    def test_canonical_names_resolve_to_themselves(self) -> None:
+    def test_every_mut_name_states_its_redefinition(self) -> None:
+        # the ambiguity this naming exists to remove: a bare "Use_MUT_detail"
+        # would have to be read as after-redefinition by convention alone
+        for name, spec in BEA_MATRICES.items():
+            if spec.framework == 'MUT':
+                assert name.endswith(f'_{spec.redefinition}_redef'), name
+
+    def test_names_resolve_to_themselves(self) -> None:
         for name in BEA_MATRICES:
-            canonical, _ = resolve_matrix(name)
-            assert canonical == name
+            resolved, _ = resolve_matrix(name)
+            assert resolved == name
 
-    def test_framework_silent_aliases_still_work(self) -> None:
-        assert resolve_matrix('Use_detail')[0] == 'Use_MUT_detail'
-        assert resolve_matrix('Supply_detail')[0] == 'Supply_SUT_detail'
-        assert resolve_matrix('Make_detail')[1].framework == 'MUT'
-        assert resolve_matrix('Import_detail')[1].redefinition == 'after'
+    def test_framework_silent_names_are_rejected(self) -> None:
+        # a bare "Use_detail" does not say which of BEA's two detail Use tables
+        # it means, so it must not resolve to either
+        for silent in ('Use_detail', 'Supply_detail', 'Make_detail', 'Import_detail'):
+            try:
+                resolve_matrix(silent)
+            except KeyError as exc:
+                assert 'Use_SUT_detail' in str(exc), silent
+            else:
+                raise AssertionError(f'{silent} must not resolve')
 
     def test_unknown_matrix_lists_the_options(self) -> None:
         try:
@@ -349,7 +361,7 @@ class TestFrameworks:
         # bedrock has no PUR Use table; asking must say so and say what to do,
         # not report an unknown matrix name
         try:
-            resolve_matrix('Use_MUT_detail_PUR')
+            resolve_matrix('Use_MUT_detail_before_redef_PUR')
         except KeyError as exc:
             assert 'IOUse_Before_Redefinitions_PUR_2017_Detail.xlsx' in str(exc)
             assert 'Supply_SUT_detail' in str(exc), 'point at the nearest alternative'
@@ -357,7 +369,7 @@ class TestFrameworks:
             raise AssertionError('expected a KeyError')
 
     def test_summary_names_all_three_axes(self) -> None:
-        assert BEA_MATRICES['Use_MUT_detail'].summary == (
+        assert BEA_MATRICES['Use_MUT_detail_after_redef'].summary == (
             'Make-Use framework, producer value, after redefinition'
         )
         assert BEA_MATRICES['Use_SUT_detail'].summary == (

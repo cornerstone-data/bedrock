@@ -36,37 +36,42 @@ MILLION_USD = 'Million USD'
 # ---------------------------------------------------------------- BEA reference
 
 
-def _bea_detail_use_sut() -> pd.DataFrame:
+# Loader names mirror the matrix names in `BEA_MATRICES`. The strings they pass
+# down are io_2017's own keys, which are framework-silent and stay that way --
+# `'Use_detail'` there means the Make-Use, after-redefinition table.
+
+
+def _use_sut_detail() -> pd.DataFrame:
     from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 
     return _load_2017_detail_supply_use_usa('Use_SUT_detail')
 
 
-def _bea_detail_supply() -> pd.DataFrame:
+def _supply_sut_detail() -> pd.DataFrame:
     from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 
     return _load_2017_detail_supply_use_usa('Supply_detail')
 
 
-def _bea_detail_use_redef() -> pd.DataFrame:
+def _use_mut_detail_after_redef() -> pd.DataFrame:
     from bedrock.extract.iot.io_2017 import _load_2017_detail_make_use_usa
 
     return _load_2017_detail_make_use_usa('Use_detail')
 
 
-def _bea_detail_make_redef() -> pd.DataFrame:
+def _make_mut_detail_after_redef() -> pd.DataFrame:
     from bedrock.extract.iot.io_2017 import _load_2017_detail_make_use_usa
 
     return _load_2017_detail_make_use_usa('Make_detail')
 
 
-def _bea_detail_import_redef() -> pd.DataFrame:
+def _import_mut_detail_after_redef() -> pd.DataFrame:
     from bedrock.extract.iot.io_2017 import _load_2017_detail_make_use_usa
 
     return _load_2017_detail_make_use_usa('Import_detail')
 
 
-def _bea_detail_before_redef(key: str) -> Callable[[], pd.DataFrame]:
+def _mut_detail_before_redef(key: str) -> Callable[[], pd.DataFrame]:
     """Raw before-redefinition workbook, read the same way as the after ones.
 
     ``io_2017``'s before-redef loaders return a trimmed commodity x industry
@@ -106,14 +111,12 @@ def _bea_detail_before_redef(key: str) -> Callable[[], pd.DataFrame]:
 class MatrixSpec:
     """What a reference matrix is, along the axes that make tables incomparable.
 
-    :param loader_key: key into :data:`_BEA_MATRIX_LOADERS`
     :param framework: ``'SUT'`` (Supply-Use) or ``'MUT'`` (Make-Use)
     :param valuation: ``'BAS'`` basic, ``'PRO'`` producer, ``'PUR'`` purchaser
     :param redefinition: ``'after'``, ``'before'``, or ``''`` where it does not apply
     :param note: anything a caller should know before comparing against it
     """
 
-    loader_key: str
     framework: str
     valuation: str
     redefinition: str = ''
@@ -154,9 +157,8 @@ VALUATION_NAMES = {
 #:   161,604 intermediate cells, 5,740 differ, 553,635 million moves gross and
 #:   the largest single cell shifts 42,893 -- for a net of -7.
 BEA_MATRICES: dict[str, MatrixSpec] = {
-    'Use_SUT_detail': MatrixSpec('Use_SUT_detail', 'SUT', 'BAS'),
+    'Use_SUT_detail': MatrixSpec('SUT', 'BAS'),
     'Supply_SUT_detail': MatrixSpec(
-        'Supply_detail',
         'SUT',
         'BAS',
         note=(
@@ -164,18 +166,12 @@ BEA_MATRICES: dict[str, MatrixSpec] = {
             'basic 36,398,867, + MDTY/TOP/SUB = T016 37,094,434 at purchaser'
         ),
     ),
-    'Use_MUT_detail': MatrixSpec('Use_detail', 'MUT', 'PRO', 'after'),
-    'Make_MUT_detail': MatrixSpec('Make_detail', 'MUT', 'PRO', 'after'),
-    'Import_MUT_detail': MatrixSpec('Import_detail', 'MUT', 'PRO', 'after'),
-    'Use_MUT_detail_before_redef': MatrixSpec(
-        'Use_detail_before_redef', 'MUT', 'PRO', 'before'
-    ),
-    'Make_MUT_detail_before_redef': MatrixSpec(
-        'Make_detail_before_redef', 'MUT', 'PRO', 'before'
-    ),
-    'Import_MUT_detail_before_redef': MatrixSpec(
-        'Import_detail_before_redef', 'MUT', 'PRO', 'before'
-    ),
+    'Use_MUT_detail_after_redef': MatrixSpec('MUT', 'PRO', 'after'),
+    'Make_MUT_detail_after_redef': MatrixSpec('MUT', 'PRO', 'after'),
+    'Import_MUT_detail_after_redef': MatrixSpec('MUT', 'PRO', 'after'),
+    'Use_MUT_detail_before_redef': MatrixSpec('MUT', 'PRO', 'before'),
+    'Make_MUT_detail_before_redef': MatrixSpec('MUT', 'PRO', 'before'),
+    'Import_MUT_detail_before_redef': MatrixSpec('MUT', 'PRO', 'before'),
 }
 
 #: Purchaser-value detail Use table.  BEA publishes one
@@ -185,7 +181,7 @@ BEA_MATRICES: dict[str, MatrixSpec] = {
 #: gap rather than reporting an unknown matrix, and so wiring it up later is a
 #: matter of adding the file plus one :class:`MatrixSpec`.
 UNAVAILABLE_MATRICES = {
-    'Use_MUT_detail_PUR': (
+    'Use_MUT_detail_before_redef_PUR': (
         'BEA publishes IOUse_Before_Redefinitions_PUR_2017_Detail.xlsx, but it is '
         'not in bedrock: add it to USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING '
         'and upload it to the USA_AllTables_MakeUse extract bucket. The nearest '
@@ -194,58 +190,46 @@ UNAVAILABLE_MATRICES = {
     ),
 }
 
-#: bedrock's own, framework-silent names, still accepted at call sites
-MATRIX_ALIASES = {
-    'Supply_detail': 'Supply_SUT_detail',
-    'Use_detail': 'Use_MUT_detail',
-    'Make_detail': 'Make_MUT_detail',
-    'Import_detail': 'Import_MUT_detail',
-}
-
 BeaMatrix = Literal[
     'Use_SUT_detail',
     'Supply_SUT_detail',
-    'Use_MUT_detail',
-    'Make_MUT_detail',
-    'Import_MUT_detail',
+    'Use_MUT_detail_after_redef',
+    'Make_MUT_detail_after_redef',
+    'Import_MUT_detail_after_redef',
     'Use_MUT_detail_before_redef',
     'Make_MUT_detail_before_redef',
     'Import_MUT_detail_before_redef',
-    # framework-silent aliases
-    'Supply_detail',
-    'Use_detail',
-    'Make_detail',
-    'Import_detail',
 ]
 
+#: Keyed by the same names as :data:`BEA_MATRICES`, so a matrix name is the only
+#: identifier in play. There are deliberately no framework-silent aliases: a bare
+#: "Use_detail" does not say which of BEA's two detail Use tables it means, and
+#: picking the wrong one is quiet rather than loud.
 _BEA_MATRIX_LOADERS: dict[str, Callable[[], pd.DataFrame]] = {
-    'Use_SUT_detail': _bea_detail_use_sut,
-    'Supply_detail': _bea_detail_supply,
-    'Use_detail': _bea_detail_use_redef,
-    'Make_detail': _bea_detail_make_redef,
-    'Import_detail': _bea_detail_import_redef,
-    'Use_detail_before_redef': _bea_detail_before_redef('Use_detail_before_redef'),
-    'Make_detail_before_redef': _bea_detail_before_redef('Make_detail_before_redef'),
-    'Import_detail_before_redef': _bea_detail_before_redef(
+    'Use_SUT_detail': _use_sut_detail,
+    'Supply_SUT_detail': _supply_sut_detail,
+    'Use_MUT_detail_after_redef': _use_mut_detail_after_redef,
+    'Make_MUT_detail_after_redef': _make_mut_detail_after_redef,
+    'Import_MUT_detail_after_redef': _import_mut_detail_after_redef,
+    'Use_MUT_detail_before_redef': _mut_detail_before_redef('Use_detail_before_redef'),
+    'Make_MUT_detail_before_redef': _mut_detail_before_redef(
+        'Make_detail_before_redef'
+    ),
+    'Import_MUT_detail_before_redef': _mut_detail_before_redef(
         'Import_detail_before_redef'
     ),
 }
 
 
 def resolve_matrix(matrix: str) -> tuple[str, MatrixSpec]:
-    """Canonical name and :class:`MatrixSpec` for a matrix name or alias."""
-    canonical = MATRIX_ALIASES.get(matrix, matrix)
-    if canonical in UNAVAILABLE_MATRICES:
+    """Name and :class:`MatrixSpec` for a matrix, or a :class:`KeyError` saying why not."""
+    if matrix in UNAVAILABLE_MATRICES:
+        raise KeyError(f'{matrix!r} is not available. {UNAVAILABLE_MATRICES[matrix]}')
+    if matrix not in BEA_MATRICES:
         raise KeyError(
-            f'{canonical!r} is not available. {UNAVAILABLE_MATRICES[canonical]}'
+            f'{matrix!r} is not a known BEA matrix; choose from {sorted(BEA_MATRICES)}'
         )
-    if canonical not in BEA_MATRICES:
-        raise KeyError(
-            f'{matrix!r} is not a known BEA matrix; '
-            f'choose from {sorted(BEA_MATRICES)} '
-            f'(aliases: {sorted(MATRIX_ALIASES)})'
-        )
-    return canonical, BEA_MATRICES[canonical]
+    return matrix, BEA_MATRICES[matrix]
 
 
 def describe_matrices() -> pd.DataFrame:
@@ -265,8 +249,8 @@ def describe_matrices() -> pd.DataFrame:
 
 
 def _load_matrix(matrix: str) -> tuple[pd.DataFrame, str, MatrixSpec]:
-    canonical, spec = resolve_matrix(matrix)
-    return _BEA_MATRIX_LOADERS[spec.loader_key](), canonical, spec
+    name, spec = resolve_matrix(matrix)
+    return _BEA_MATRIX_LOADERS[name](), name, spec
 
 
 def where_is(code: str, axis: Literal['row', 'column'] = 'row') -> dict[str, str]:
@@ -277,11 +261,11 @@ def where_is(code: str, axis: Literal['row', 'column'] = 'row') -> dict[str, str
     these tables and means something slightly different in each.
     """
     found = {}
-    for canonical, spec in BEA_MATRICES.items():
-        df = _BEA_MATRIX_LOADERS[spec.loader_key]()
+    for name, spec in BEA_MATRICES.items():
+        df = _BEA_MATRIX_LOADERS[name]()
         labels = df.index if axis == 'row' else df.columns
         if code in labels:
-            found[canonical] = spec.summary
+            found[name] = spec.summary
     return found
 
 
@@ -344,8 +328,8 @@ def bea_matrix_row(
     drops the totals and final-demand columns that would otherwise double count.
 
     ``matrix`` defaults to the **SUT** framework's Use table.  Pass
-    ``'Use_MUT_detail'`` for the Make-Use one; see the note above on why the two
-    are not interchangeable.
+    ``'Use_MUT_detail_after_redef'`` for the Make-Use one; see the note above on
+    why the two are not interchangeable.
     """
     df, canonical, spec = _load_matrix(matrix)
     if row_code not in df.index:

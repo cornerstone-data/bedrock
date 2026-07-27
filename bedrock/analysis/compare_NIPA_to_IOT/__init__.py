@@ -29,7 +29,6 @@ from bedrock.analysis.compare_NIPA_to_IOT.hierarchy import (
 from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
     BEA_MATRICES,
     FRAMEWORK_NAMES,
-    MATRIX_ALIASES,
     UNAVAILABLE_MATRICES,
     VALUATION_NAMES,
     bea_matrix_column,
@@ -59,7 +58,6 @@ __all__ = [
     'BEA_MATRICES',
     'FRAMEWORK_NAMES',
     'LabeledSeries',
-    'MATRIX_ALIASES',
     'UNAVAILABLE_MATRICES',
     'VALUATION_NAMES',
     'RESIDUAL_MARKERS',

@@ -127,16 +127,23 @@ Three axes decide whether two BEA tables are comparable — **framework**,
 **valuation** and **redefinition** — so the matrix names state them and
 `describe_matrices()` lists the lot.
 
-| matrix | framework | valuation | redefinition | alias |
-|---|---|---|---|---|
-| `Use_SUT_detail` *(default)* | Supply-Use | basic | — | — |
-| `Supply_SUT_detail` | Supply-Use | basic → purchaser cols | — | `Supply_detail` |
-| `Use_MUT_detail` | Make-Use | producer | after | `Use_detail` |
-| `Make_MUT_detail` | Make-Use | producer | after | `Make_detail` |
-| `Import_MUT_detail` | Make-Use | producer | after | `Import_detail` |
-| `Use_MUT_detail_before_redef` | Make-Use | producer | before | — |
-| `Make_MUT_detail_before_redef` | Make-Use | producer | before | — |
-| `Import_MUT_detail_before_redef` | Make-Use | producer | before | — |
+| matrix | framework | valuation | redefinition |
+|---|---|---|---|
+| `Use_SUT_detail` *(default)* | Supply-Use | basic | — |
+| `Supply_SUT_detail` | Supply-Use | basic → purchaser cols | — |
+| `Use_MUT_detail_after_redef` | Make-Use | producer | after |
+| `Make_MUT_detail_after_redef` | Make-Use | producer | after |
+| `Import_MUT_detail_after_redef` | Make-Use | producer | after |
+| `Use_MUT_detail_before_redef` | Make-Use | producer | before |
+| `Make_MUT_detail_before_redef` | Make-Use | producer | before |
+| `Import_MUT_detail_before_redef` | Make-Use | producer | before |
+
+Every name states all three axes, and there are **no framework-silent aliases**.
+A bare `Use_detail` does not say which of the two detail Use tables it means, and
+neither does a bare `Use_MUT_detail` say which redefinition it carries, so
+neither resolves — you get a `KeyError` listing the eight real names. (`bedrock`
+uses those short names elsewhere, in `matrix_mappings.py`; they are a different
+namespace and unaffected.)
 
 What differs, all checkable in the 2017 data:
 
@@ -161,8 +168,9 @@ What differs, all checkable in the 2017 data:
 There is **no purchaser-value Use table in bedrock**. BEA publishes
 `IOUse_Before_Redefinitions_PUR_2017_Detail.xlsx`, but it is in neither
 `USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING` nor the extract bucket. Asking
-for `Use_MUT_detail_PUR` says exactly that and what to do about it, rather than
-reporting an unknown name — wiring it up later is the file plus one `MatrixSpec`.
+for `Use_MUT_detail_before_redef_PUR` says exactly that and what to do about it,
+rather than reporting an unknown name — wiring it up later is the file plus one
+`MatrixSpec`.
 
 Meanwhile the purchaser-value figures that *are* available are the Supply table's
 bridge columns: `T013` total supply at basic 36,398,867, plus `MDTY`/`TOP`/`SUB`,
@@ -176,12 +184,13 @@ tells you where it actually lives:
 ```
 >>> bea_matrix_row('V00200')
 KeyError: 'V00200' is not a row of Use_SUT_detail [Supply-Use framework, basic
-value]. It is a row of Use_MUT_detail (Make-Use framework, producer value, after
-redefinition); ... -- whose rows do not correspond one-for-one with this table.
+value]. It is a row of Use_MUT_detail_after_redef (Make-Use framework, producer
+value, after redefinition); ... -- whose rows do not correspond one-for-one with
+this table.
 
 >>> where_is('V00100')          # a row of three tables, meaning three things
 {'Use_SUT_detail':              'Supply-Use framework, basic value',
- 'Use_MUT_detail':              'Make-Use framework, producer value, after redefinition',
+ 'Use_MUT_detail_after_redef':  'Make-Use framework, producer value, after redefinition',
  'Use_MUT_detail_before_redef': 'Make-Use framework, producer value, before redefinition'}
 ```
 
