@@ -16,6 +16,7 @@ electricity_disagg_diagnostics/
   full_trace/           # live model IO / E / D / N / BLy walkthrough
   year_alignment/       # BLy vs E under A/q year handling
   hh_vs_interindustry/  # household vs intermediate generation MWh
+  alternate_eia_anchored_split/  # EIA-anchored gen + T&D markup counterfactual
   probes/               # one-off sector probes
   output/               # reports/figures (tracked; layout stable)
   __tests__/
@@ -38,8 +39,9 @@ Run everything from the **repo root** with the project venv
    diagnostics workbooks (local Excel or live Google Sheets) — see below.
 
 3. **Live-model analyses** (`full_trace`, `year_alignment`, `hh_vs_interindustry`,
-   `probes`, `ef_comparison.analyze_n_variance`) need a working Bedrock data /
-   model environment for those configs (same as running Cornerstone transforms).
+   `alternate_eia_anchored_split`, `probes`, `ef_comparison.analyze_n_variance`)
+   need a working Bedrock data / model environment for those configs (same as
+   running Cornerstone transforms).
 
 ---
 
@@ -216,7 +218,42 @@ python -m bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.ta
 
 ---
 
-## 6. Sector probes — `probes/`
+## 6. Alternate EIA-anchored split — `alternate_eia_anchored_split/`
+
+Diagnostics-only counterfactual for a redesigned **PR3 + PR4** electricity path
+(**no production EEIO code is modified**). Contrasts with today’s mixed-units
+production on class MWh / gen $, Make weights, and expected diagnostic impacts.
+
+| Module | Role |
+|---|---|
+| `eia_anchored_td_markup_counterfactual` | Build + report the counterfactual |
+
+**Design**
+
+1. **MWh:** EIA Table 2.2 sales by class → IO purchasers ∝ post-reallocation
+   `221100` Use+Y $ (weights only; not the gen price numerator).
+2. **Generation (`221110`):** uniform
+   `p = (post–3-way 221110 Use+Y $) / eGRID net generation MWh`;
+   purchaser gen $ = allocated EIA sales MWh × `p`. Clip gen down to the
+   Table 2.4 retail bill if T&D residual would go negative.
+3. **T&D:** residual recovers class Table 2.4 retail; split T/D with UGO305
+   `T/(T+D)` and `D/(T+D)`.
+4. **Make last:** report Use+Y row-total shares (gen / T / D) vs UGO GO weights
+   (not applied in production).
+
+```bash
+python -m bedrock.analysis.electricity_disagg_diagnostics.alternate_eia_anchored_split
+```
+
+### Outputs (`output/alternate_eia_anchored_split/`)
+
+- `eia_anchored_td_markup_counterfactual.md` / `.json` — key quantities;
+  class table of alt gen / T / D $ vs EIA TWh and Table 2.4; HH `F01000`;
+  Make-last vs UGO; expected effects on `hh_vs_interindustry`, N-variance, BLy.
+
+---
+
+## 7. Sector probes — `probes/`
 
 | Module | Role |
 |---|---|
@@ -235,8 +272,9 @@ Prints to stdout (no dedicated output file).
 
 1. Sheet cache + BLy waterfalls (`bly_dispersion`) and EF plots (`ef_comparison.plot_ef`)
 2. Live full trace (`full_trace`) once models resolve
-3. Targeted follow-ups: `hh_vs_interindustry` → driver decomposition → Table 2.2 counterfactual;
-   `year_alignment`; `analyze_n_variance`; `probes` as needed
+3. Targeted follow-ups: `hh_vs_interindustry` → driver decomposition → Table 2.2
+   counterfactual; `alternate_eia_anchored_split` (redesign CF); `year_alignment`;
+   `analyze_n_variance`; `probes` as needed
 
 ---
 
