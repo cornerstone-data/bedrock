@@ -3,8 +3,8 @@
 Check a candidate dataset (currently from BEA NIPA) against a BEA reference table — cell by cell and in
 total — without first building an exact crosswalk.  Comparison to 2017 data is the default.
 
-Matching cascades from codes to names to fuzzy names, and every pair records
-which pass produced it. When a number needs to be defensible, promote the
+Matching cascades from codes to names, and optionally to fuzzy names. Every pair
+records which pass produced it. When a number needs to be defensible, promote the
 comparison to a crosswalk in `bedrock/utils/taxonomy/`.
 
 ## Example Use
@@ -233,12 +233,12 @@ rules keep that safe — the pass runs after exact name matching, and a strip
 counts only if the remainder matches the opposite side exactly. Loaders tag their
 dialect (`nipa`, `bea_io_detail`, `bea_io_summary`) automatically.
 
-**Fuzzy name matching is default as the last matching strategy unless turned off, and only high confidence matches from fuzzy matching are used** (`on='fuzzy'`), gated twice: a
-0.88 cutoff, plus `token_relation`, which rejects any pair differing by a
-substituted content word. "Support activities for mining" and "Support activities
-for printing" score 0.90 on `difflib` and are industries a factor of 20 apart;
-token-wise that is a substitution, so the pair is refused. Prefer `overrides` to
-enabling fuzzy.
+**Fuzzy name matching is off by default.** It runs only with `on='fuzzy'`, which
+adds it as a last pass after the exact ones. It is gated twice: a 0.88 `difflib`
+cutoff, plus `token_relation`, which rejects any pair differing by a substituted
+content word. "Support activities for mining" and "Support activities for
+printing" score 0.90 and are industries a factor of 20 apart; token-wise that is
+a substitution, so the pair is refused. Prefer `overrides` to enabling fuzzy.
 
 `on` values: `'auto'` (default, all exact passes + hierarchy), `'fuzzy'`,
 `'code'`, `'name'`.
