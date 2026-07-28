@@ -26,11 +26,14 @@ similarity would confidently pair them as equal.  Relations are reported, never
 silently summed: the candidate's value sits next to its children's sum for you
 to judge.
 
-The fuzzy pass is therefore **opt-in** (``on='fuzzy'``), and even then it refuses
-pairs whose labels differ by a substituted content word.  "Support activities for
-mining" and "Support activities for printing" share a long prefix and differ by
-one short word, which ``difflib`` scores at 0.90 and which is nonetheless a
-different industry off by a factor of 20.
+The fuzzy pass runs last and only on what is left.  It refuses pairs whose labels
+differ by a substituted content word: "Support activities for mining" and
+"Support activities for printing" share a long prefix and differ by one short
+word, which ``difflib`` scores at 0.90 and which is nonetheless a different
+industry off by a factor of 20.  With that guard and a 0.88 cutoff it is tight
+enough to run by default -- pass ``on='code'`` or ``on='name'`` to exclude it.
+Every fuzzy pair is labelled ``fuzzy`` in ``method``, carries its score, and is
+counted separately in the report's MATCHED BY block.
 """
 
 from __future__ import annotations
@@ -165,8 +168,8 @@ def align(
     """Pair up candidate and reference rows.
 
     :param on: which passes to run --
-        ``'auto'`` (default) every exact pass, no fuzzy;
-        ``'fuzzy'`` the above plus the fuzzy pass;
+        ``'auto'`` (default) every pass, fuzzy included;
+        ``'fuzzy'`` accepted as a synonym for ``'auto'``;
         ``'code'`` code and crosswalk only;
         ``'name'`` name only
     :param crosswalk: candidate code -> reference code(s).  Only single-target
@@ -180,7 +183,7 @@ def align(
         raise ValueError(f"on={on!r} is not one of 'auto', 'fuzzy', 'code', 'name'")
     use_code = on in ('auto', 'fuzzy', 'code')
     use_name = on in ('auto', 'fuzzy', 'name')
-    use_fuzzy = on == 'fuzzy'
+    use_fuzzy = on in ('auto', 'fuzzy')
 
     c, r = _Side(candidate), _Side(reference)
     pairs: list[dict[str, object]] = []

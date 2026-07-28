@@ -313,7 +313,8 @@ def compare(
         composition in ``n_detail``/``detail_members``, and
         :meth:`Comparison.one_to_one` picks out the cells no aggregation touched.
     :param on: which alignment passes to run, see :func:`~.matching.align`.
-        Fuzzy name matching is opt-in (``on='fuzzy'``).
+        Fuzzy name matching runs last and is included by default; pass
+        ``on='code'`` or ``on='name'`` to exclude it.
     :param crosswalk: candidate code -> reference code, tried after exact codes
     :param overrides: hand-written pairs that win over everything
     :param merge_reference: ``{new_code: [codes]}`` summed on the reference side

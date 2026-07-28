@@ -10,10 +10,11 @@ which is the subject of stage 0:
 ``stage 0``  the detail codes untouched.  Only 17 of 74 NIPA rows find a partner
              and 385 detail codes go unmatched, because NIPA 6.2D has no rows at
              detail granularity -- no "Oilseed farming", no "Offices of
-             physicians".  This is the evidence for aggregating, and it also
-             shows why the fuzzy pass is opt-in: turned on here it pairs
-             "Support activities for mining" with detail code 323120, "Support
-             activities for *printing*".
+             physicians".  This is the evidence for aggregating.  The fuzzy pass
+             adds nothing here: the one pair it would otherwise reach is
+             "Support activities for mining" against detail code 323120,
+             "Support activities for *printing*", which ``token_relation``
+             refuses as a substituted content word.
 ``stage 1``  the detail table rolled up to the 71 summary groups NIPA can
              actually address.  61 pair on name alone and agree to BEA's
              rounding.  Cells keep their detail composition, and 17 of them turn

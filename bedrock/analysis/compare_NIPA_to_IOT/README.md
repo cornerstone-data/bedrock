@@ -3,9 +3,9 @@
 Check a candidate dataset (currently from BEA NIPA) against a BEA reference table — cell by cell and in
 total — without first building an exact crosswalk.  Comparison to 2017 data is the default.
 
-Matching cascades from codes to names, and optionally to fuzzy names. Every pair
-records which pass produced it. When a number needs to be defensible, promote the
-comparison to a crosswalk in `bedrock/utils/taxonomy/`.
+Matching cascades from codes to names to fuzzy names. Every pair records which
+pass produced it. When a number needs to be defensible, promote the comparison to
+a crosswalk in `bedrock/utils/taxonomy/`.
 
 ## Example Use
 
@@ -233,14 +233,19 @@ rules keep that safe — the pass runs after exact name matching, and a strip
 counts only if the remainder matches the opposite side exactly. Loaders tag their
 dialect (`nipa`, `bea_io_detail`, `bea_io_summary`) automatically.
 
-**Fuzzy name matching is off by default.** It runs only with `on='fuzzy'`, which
-adds it as a last pass after the exact ones. It is gated twice: a 0.88 `difflib`
-cutoff, plus `token_relation`, which rejects any pair differing by a substituted
-content word. "Support activities for mining" and "Support activities for
-printing" score 0.90 and are industries a factor of 20 apart; token-wise that is
-a substitution, so the pair is refused. Prefer `overrides` to enabling fuzzy.
+**Fuzzy name matching runs by default, as the last pass.** It only sees rows the
+exact passes and the hierarchy pass left over, and it is gated twice: a 0.88
+`difflib` cutoff, plus `token_relation`, which rejects any pair differing by a
+substituted content word. "Support activities for mining" and "Support activities
+for printing" score 0.90 and are industries a factor of 20 apart; token-wise that
+is a substitution, so the pair is refused.
 
-`on` values: `'auto'` (default, all exact passes + hierarchy), `'fuzzy'`,
+Every fuzzy pair is labelled `fuzzy` in the `method` column, carries its `score`,
+and is counted separately in the report's `MATCHED BY` block. Use `overrides` for
+pairs you want stated rather than inferred, and `on='code'` or `on='name'` to
+exclude the pass entirely.
+
+`on` values: `'auto'` (default, every pass), `'fuzzy'` (synonym for `'auto'`),
 `'code'`, `'name'`.
 
 **Units.** BEA publishes every table reachable here in millions of dollars, and

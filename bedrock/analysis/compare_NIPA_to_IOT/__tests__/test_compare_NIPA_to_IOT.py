@@ -161,21 +161,33 @@ class TestAlign:
         assert methods['X2'] == 'fuzzy'
         assert 'X3' not in methods
 
-    def test_fuzzy_is_opt_in(self) -> None:
-        # the pass that mistook mining support for printing support does not run
-        # unless asked for
+    def test_fuzzy_runs_by_default(self) -> None:
         candidate = _series([('X', 'Ambulatory health care services', 1.0)])
         reference = _series([('621', 'Ambulatory health care service', 1.0)])
-        assert len(align(candidate, reference).pairs) == 0
+        pairs = align(candidate, reference).pairs
+        assert len(pairs) == 1
+        # labelled, so a report can separate it from an exact match
+        assert pairs['method'].tolist() == ['fuzzy']
+
+    def test_fuzzy_is_a_synonym_for_auto(self) -> None:
+        # on='fuzzy' predates the default and stays accepted
+        candidate = _series([('X', 'Ambulatory health care services', 1.0)])
+        reference = _series([('621', 'Ambulatory health care service', 1.0)])
         assert len(align(candidate, reference, on='fuzzy').pairs) == 1
 
+    def test_code_and_name_exclude_the_fuzzy_pass(self) -> None:
+        candidate = _series([('X', 'Ambulatory health care services', 1.0)])
+        reference = _series([('621', 'Ambulatory health care service', 1.0)])
+        assert len(align(candidate, reference, on='name').pairs) == 0
+        assert len(align(candidate, reference, on='code').pairs) == 0
+
     def test_fuzzy_cutoff_rejects_a_whole_vs_its_part(self) -> None:
-        # even opted in, the cutoff stops this pairing: matching them would
-        # silently drop the nondefense half
+        # the cutoff stops this pairing: matching them would silently drop the
+        # nondefense half
         candidate = _series([('c', 'Federal general government', 1.0)])
         reference = _series([('GFGD', 'Federal general government (defense)', 1.0)])
-        assert len(align(candidate, reference, on='fuzzy').pairs) == 0
-        assert len(align(candidate, reference, on='fuzzy', fuzzy_cutoff=0.8).pairs) == 1
+        assert len(align(candidate, reference).pairs) == 0
+        assert len(align(candidate, reference, fuzzy_cutoff=0.8).pairs) == 1
 
     def test_rejects_an_unknown_on_value(self) -> None:
         try:
