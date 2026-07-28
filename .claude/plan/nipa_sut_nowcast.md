@@ -1,284 +1,277 @@
 # Plan: `bedrock/transform/eeio/nowcast.py` — nowcasted national Supply/Use/Import tables
 
 GitHub project: [cornerstone-data/projects/26 — "Nowcast 2018-2024 IOT"](https://github.com/orgs/cornerstone-data/projects/26)
-(22 items, milestone `v0.5`). Fetched successfully this round — the plan below is now built directly off
-the board's issues/draft-issues rather than assumptions.
+(milestone `v0.5`).
 
-## Where this fits on the board
+Status reviewed 2026-07-28 against `origin/main`, issue states, and the code.
 
-**The current branch (`523_update_NIPA_FD_FBS`) *is* issue [#523](https://github.com/cornerstone-data/bedrock/issues/523)
-"Update Final Demand FBS method"** (status: In Progress, linked PR #524). Its checklist:
-- [x] with PCEBridge for allocation — done (this session's `FD_PCE` work)
-- [x] clean up the NIPA FBAs — done (footnote/suffix stripping, crosswalk fixes, this session)
-- [ ] review all activity mappings — partially covered by this session's crosswalk conflict review;
-  worth a final pass before closing #523
-- [ ] test data against the 2017 data — partially covered (PCE reconciliation to ~1.3%); the two bugs
-  fixed this session (stale crosswalk rows, dead `FD_Structures1_used`) were found *by* this testing
-- [ ] add the PEQBridge as well for use in allocation of investment in equipment — **not started; this
-  is the direct answer to "how does F02E00 get built"** (see Phase 1a below)
+**The project board itself was not re-read this round** — `gh project item-list 26` needs the
+`read:project` scope, which the current token lacks (`gh auth refresh -s read:project`). Board
+draft issues carry no issue number, so the items below that came from drafts — the `sut_ras.py`
+and `load_suts_from_r.py` refactors, the VA table extraction, the GCS storage item, the
+industry/commodity balancing option — are as of the previous revision and may have moved.
 
-So finishing #523 (the PEQ Bridge + a final mapping/data review) is the natural on-ramp into the new
-`nowcast.py` module, not a separate track.
+## Status since the last revision
 
-## Grounding: what already exists (revised with board context)
+Merged to `main`:
 
-**Module path & naming decision.** The board has an explicit open item, ["Refactor load_suts_from_r.py
-into transform/eeio"](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/load_suts_from_r.py)
-(draft issue, no number yet), whose body literally says *"Determine to integrate into
-derived_cornerstone.py, new module or elsewhere."* — `bedrock/transform/eeio/nowcast.py` is a reasonable
-answer to that open decision. Confirmed `bedrock/transform/eeio/` is the right sibling location
-(`derived_cornerstone.py`, `derived_useeio_nowcast.py`, `cornerstone_year_scaling.py`). Note there's
-*also* an established `bedrock/transform/iot/` module (`derived_gross_industry_output.py`,
-`derive_PRO_to_PUR_ratio.py`, `derived_price_index.py`) that already does before/after-redefinitions
-and PRO/PUR adjustment for gross output — several board items point at *that* directory too (issue #495
-routes `nipa_final_demand_estimates.py` → `bedrock/transform/iot`). Worth deciding up front whether
-`nowcast.py` is the top-level orchestrator that *calls into* `bedrock/transform/iot/`'s existing
-functions, or whether some of this project's new code belongs there instead — flagged in open
-questions.
+| PR | what landed |
+|---|---|
+| [#524](https://github.com/cornerstone-data/bedrock/pull/524) | `NIPA_FD_*` FBS methods, `FD_PCE`, crosswalk fixes |
+| [#540](https://github.com/cornerstone-data/bedrock/pull/540) | `assign_sector_consumed_by_from_clean_parameter`, so an activity_set sets its own `SectorConsumedBy` |
+| [#541](https://github.com/cornerstone-data/bedrock/pull/541) | `bedrock/analysis/compare_NIPA_to_IOT` — compare a NIPA table against a BEA IOT row or column |
+| [#542](https://github.com/cornerstone-data/bedrock/pull/542) | `BEA_NIPA` caches `FlatFiles.ZIP` under `extract/input_data/`, GCS fallback |
 
-**Target final-demand schema** (unchanged from before): `bedrock/utils/taxonomy/bea/v2017_final_demand.py`'s
-20 `BEA_2017_FINAL_DEMAND_CODES`. Status per column:
+Closed: [#525](https://github.com/cornerstone-data/bedrock/issues/525) (PEQ Bridge),
+[#496](https://github.com/cornerstone-data/bedrock/issues/496) (equipment table unused).
+
+Open: [#523](https://github.com/cornerstone-data/bedrock/issues/523) (2 of 5 boxes unchecked),
+[#526](https://github.com/cornerstone-data/bedrock/issues/526)/[#527](https://github.com/cornerstone-data/bedrock/issues/527)/[#528](https://github.com/cornerstone-data/bedrock/issues/528) (trade),
+[#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) (inventories),
+[#495](https://github.com/cornerstone-data/bedrock/issues/495), [#497](https://github.com/cornerstone-data/bedrock/issues/497).
+
+`bedrock/transform/eeio/nowcast.py` exists and implements `derive_initial_Y_pur(year)`:
+`generateFlowBySector('NIPA_FD_<year>')`, resolve both sector columns through
+`map_fbs_sectors_to_model_schema`, pivot to commodity × `BEA_2017_FINAL_DEMAND_CODE`,
+reindex to all 20 codes.
+
+## Final-demand column status
 
 | Code | Description | Status |
 |---|---|---|
-| F01000 | Personal consumption expenditures | ✅ `FD_PCE` (this session) |
-| F02E00 | Nonresidential private fixed investment in **equipment** | ❌ → **Phase 1a: PEQ Bridge** ([#525](https://github.com/cornerstone-data/bedrock/issues/525), [#496](https://github.com/cornerstone-data/bedrock/issues/496)) |
-| F02N00 | Nonresidential private fixed investment in IP products | ✅ `FD_IP_direct`/`FD_IP_proportional` |
-| F02R00 | Residential private fixed investment | ✅ `FD_Structures1` |
-| F02S00 | Nonresidential private fixed investment in structures | ✅ `FD_Structures2` |
-| F03000 | Change in private inventories | ❌ → **Phase 1e: [#529](https://github.com/cornerstone-data/bedrock/issues/529)** (source/method in [#530](https://github.com/cornerstone-data/bedrock/issues/530), implementation in [#531](https://github.com/cornerstone-data/bedrock/issues/531)) |
-| F04000 | Exports of goods and services | ❌ → **Phase 1d: [#526](https://github.com/cornerstone-data/bedrock/issues/526)** (source decision in [#527](https://github.com/cornerstone-data/bedrock/issues/527), implementation in [#528](https://github.com/cornerstone-data/bedrock/issues/528)) |
-| F05000 | Imports of goods and services | ❌ → same, **#526/#527/#528** |
-| F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` (⚠️ SLG Equipment/Structures/IP attribution bug still open, see memory `bedrock_nipa_fd_pce.md`) |
+| F01000 | Personal consumption expenditures | done — `FD_PCE`, all years |
+| F02E00 | Nonresidential fixed investment, equipment | done — `FD_Equipment` via `BEA_PEQBridge`, **2017 only** |
+| F02N00 | Nonresidential fixed investment, IP products | done — `FD_IP_direct` / `FD_IP_proportional` |
+| F02R00 | Residential fixed investment | done — `FD_Structures1` |
+| F02S00 | Nonresidential fixed investment, structures | done — `FD_Structures2` |
+| F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | done — `FD_Gov_*`; SLG Equipment/Structures/IP attribution bug still open |
+| F03000 | Change in private inventories | not started — #529/#530/#531 |
+| F04000 | Exports | not started — #526/#527/#528 |
+| F05000 | Imports | not started — #526/#527/#528 |
 
-**F02E00 is issue #496 + #525, not a mystery.** Issue #496 ("NIPA Private investment in equipment
-table not used in FBS method", assigned to Wes) identifies the source: **NIPA Table 5.5.5U** has an FBA
-already generated (per the flowsa `BEA_NIPA.yaml` reference in the issue body) but it was never wired
-into an FBS method. Issue #525 ("Add in PEQ Bridge", assigned to Wes, no body yet) is the equipment
-analog of the PCE Bridge work just finished — build a `BEA_PEQBridge` source (mirroring
-`BEA_PCEBridge.yaml`/`bea_parse`'s `"PCEBridge" in source` branch from this session) and a
-`FD_IP_equipment`-style activity_set in `NIPA_FD_<year>.yaml`, following the exact same pattern as
-`FD_PCE` (Table 5.5.5U in place of U20405, PEQBridge in place of PCEBridge).
+`derive_initial_Y_pur` returns the three unsourced columns as all-zero.
 
-**F04000/F05000 (exports/imports) — issue #526 "Integrate international trade data into initial tables",
-with two sub-issues:**
-- **[#527](https://github.com/cornerstone-data/bedrock/issues/527) "Determine best data source and
-  existing code for international trade data for initial estimates"** — a source decision, not yet made.
-  Requirement stated in the issue: data needs to match the 2017 detailed Use table as closely as
-  possible, be available annually, and be comparable to BACI trade data. Three candidates given:
-  1. Census Trade in Goods + BEA trade in services data — already used in
-     [`cornerstone-data/USEEIO`'s `import_emission_factors/download_imports_data.py`](https://github.com/cornerstone-data/USEEIO/blob/master/import_emission_factors/download_imports_data.py)
-     (existing code to potentially port, same pattern as `sut_ras.py`/`load_suts_from_r.py`).
-  2. BEA ITA accounts with NIPA link — ITA Table 2.1 (goods) + ITA Table 3.1 (services), joined via
-     BEA's "Linkage table from ITA to NIPA for foreign transactions."
-  3. BACI data — framed in the issue more as a comparison/validation source than a primary pick.
-- **[#528](https://github.com/cornerstone-data/bedrock/issues/528) "Implement the trade data into
-  FBA/FBS"** — no body yet; follows once #527 picks a source, same FBA→FBS pattern as everything else.
+## Blocking defect: proportional attribution ignores the PCE/PEQ line
 
-**F03000 (change in private inventories) — issue #529 "Integrate Change in Inventories data", with two
-sub-issues:**
-- **[#530](https://github.com/cornerstone-data/bedrock/issues/530) "Change in inventories: Reevaluate
-  and determine data src and method"** — has a detailed writeup already. Key facts: NIPA Table 5.7.5B
-  ("Change in Private Inventories by Industry") gives the "where held" (holding industry) view, while
-  the Use table's F03000 column is "what held" (commodity) — **the totals match exactly** (NIPA Table
-  1.1.5 line 14 = Use table F03000 total), but the by-commodity split doesn't come for free. Three
-  inventory sub-types are distinguished (finished goods, work-in-process, materials & supplies), each
-  needing different source data (Annual Survey of Manufacturers for stage-of-fabrication; Economic
-  Census "Materials Consumed by Kind of Industry" / "Products by Industry" for commodity composition).
-  **Explicit, load-bearing scoping decision already made in the issue body:** *"We need to at least use
-  the Change in Private Inventories NIPA totals as a starting place, but further work in attributing
-  those to commodity based on the level of fabrication may have to wait."* — i.e. Phase 1e can ship
-  with F03000 as an aggregate/NIPA-total-only column first, deferring correct commodity-level
-  attribution to a later pass, mirroring how Phase 1 itself accepts an all-zero placeholder for columns
-  not yet built.
-- **[#531](https://github.com/cornerstone-data/bedrock/issues/531) "Integrate change in inventory
-  related datasets"** — outcome of #530; "likely integrate the NIPA data into the NIPA BEA and then into
-  NIPA FD FBS," i.e. the same FBA→FBS pattern as PCE/PEQ, once #530 settles the method.
+`FD_PCE_*` and `FD_IP_equipment` split each NIPA line across commodities using the wrong
+weights. Line totals are preserved, cells are not.
 
-So **all 4 previously-unsourced final-demand columns now have a tracked issue** — none are pure open
-questions anymore, though #527's source pick and #530's commodity-attribution method are real decisions
-still to be made (not yet blocking, since both explicitly allow starting from a coarser/total-only
-estimate).
+Measured for 2017, `derive_initial_Y_pur` against the Use SUT column it should reproduce:
 
-**PUR→PRO conversion: don't rebuild this, it already exists.** The board's USEEIO issue #4 flags a
-known problem — *"Use complete Margins and not PCE Bridge for PUR to PRO conversion"* — because the
-external `nipa_final_demand_estimates.py` script uses PCEBridge's 5 value-chain columns for margin
-conversion, which only covers PCE, not all of final demand, and splitting a margin category (e.g.
-Transportation) across individual commodity sectors is flagged there as unresolved. **But bedrock
-already has a margins-based, `USA_2017_FINAL_DEMAND_CODES`-aware PRO↔PUR mechanism**:
-`bedrock/transform/iot/derive_PRO_to_PUR_ratio.py` — `derive_phi_cornerstone_usa_at_year(year)` /
-`derive_margins_cornerstone_usa_at_year(year)` compute per-sector, per-year PRO:PUR ratios (`phi`) from
-the full Margins data already, keyed against the same final-demand code taxonomy this project targets.
-The Phase 1 Y-PUR matrix is explicitly *staying* in PUR price per your instruction, so this doesn't
-block Phase 1 — but when a PRO conversion is eventually wanted, check whether this existing machinery
-already solves the sector-splitting problem USEEIO issue #4 called out as unresolved, before
-re-implementing anything.
+| column | FBS | Use SUT | total diff | cells within 1% |
+|---|---|---|---|---|
+| F01000 | 13,130,149 | 13,290,627 | −1.21% | 18 of 297 |
+| F02E00 | 1,177,593 | 1,159,949 | +1.52% | 9 of 297 |
 
-**No RAS implementation in bedrock — but one exists to port, not invent.** Confirmed no RAS/GRAS code
-anywhere in bedrock (comments only). The board has it as a named integration task: [`sut_ras.py`
-(USEEIO nowcasting branch)](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/sut_ras.py)
-→ **`bedrock/utils/economic/`** (per the draft issue "Integrate sut_ras.py into util/economic" — a
-specific target directory, not `bedrock/utils/math/` as I'd guessed last round). Phase 5 is a port +
-adapt, not new design.
+Per-line test (`Table`/`Code`/`Line` survive into the FBS, so this is measurable directly):
 
-**Value Added section — fully specified on the board, not an open question anymore.** Two draft issues
-give exact NIPA table numbers and formulas:
+- **A. Every line is fully allocated** — 209 of 209 attributed lines land their NIPA total to
+  0.00%. Ratios per line already sum to 1; that is not the defect.
+- **B. Shares are wrong** — 278 of 1,387 (line, commodity) pairs within one percentage point.
+- **C. Destination is wrong** — of 87 lines the bridge assigns to a single commodity, only 10
+  land on it.
 
-Use-table VA component → BEA code → NIPA table:
+Two compounding faults, the first dominant:
+
+**1. Everything is routed through NAICS, and the BEA detail schema does not survive it.**
+Both sides are crosswalked to NAICS before the merge — the NIPA line through
+`NAICS_Crosswalk_BEA_NIPA_FD_PCE.csv`, the bridge through `BEA_2017_Detail` on the `*bea`
+anchor — so in NAICS space 207 of 212 lines do overlap. The 5 that do not are housing:
+`531HSO`/`531HST` against crosswalk `531110`.
+
+The round trip itself is lossy. Of the 402 BEA 2017 detail commodities:
+
+| | |
+|---|---|
+| no entry in `NAICS_Crosswalk_BEA_2017_Detail.csv` at all | 5 — `4200ID`, `S00300`, `S00401`, `S00402`, `S00900` |
+| mapping to more than one NAICS | 199 of 402 |
+
+So a NAICS-based `industry_spec` cannot express the BEA detail schema: half of it is aggregates
+of several NAICS, and five codes have no NAICS existence. `S00402` is one of the five and is
+the worst cell in both columns above. `BEA_detail_target.yaml`'s header claims 1:1
+correspondence; that holds as BEA→NAICS-set, not as an invertible code mapping.
+
+Direction (Wes, 2026-07-28): do not map to NAICS at all during FBS creation. That needs the
+NIPA crosswalks to target BEA detail codes directly, the `*bea` anchor to stop crosswalking the
+bridge, and a target schema that enumerates BEA codes. No FBS method does this today —
+`Detail_Use_SUT.yaml` also includes `BEA_detail_target.yaml`, and gets away with it only
+because both its sides are BEA tables crosswalked identically, so the round trip is symmetric.
+
+**2. Cross-category weighting.** `proportionally_attribute`
+(`bedrock/transform/flowby.py:1214-1226`) merges the source on `PrimarySector` + `Location`
+only, and the `FD_PCE_*` sets select the bridge with nothing but `FlowName: "Purchasers'
+Value"`. So each commodity's weight is its economy-wide bridge total, not its value in the line
+being attributed. For "Musical instruments" (5,337 million) the bridge's split is 339990 91.9%,
+316000 7.1%, S00402 1.0%; the applied split is S00402 57.0%, 316000 29.6%, 339990 13.5% —
+S00402 is 222,775 million across all categories against 53 million here.
+
+Fix, on branch `nipa_fd_allocation_fix`:
+
+1. Keep the whole FBS in BEA detail commodity space. Retarget the NIPA FD crosswalks to
+   `BEA_2017_Detail_Code`, stop crosswalking the bridge, and give the method a target schema
+   that enumerates BEA codes rather than NAICS levels. This is new capability, not a config
+   change, and it is what makes `S00402`, `4200ID` and the housing codes representable.
+2. Key the attribution on the PCE line so each line's ratios come from its own bridge rows:
+   either `ActivityProducedBy: <category>` in each set's `attribution_source.selection_fields`,
+   or `attribute_on: ['PrimarySector', 'ActivityProducedBy']` per `flowby.py:1300-1327`.
+   The `attribute_on` form is preferred — it also lets the ~15 `FD_PCE_*` sets collapse into one
+   set selecting all of U20405, which is what #503's common yaml needs anyway.
+3. Review the activity mappings while retargeting them (#523's open box), including the 5
+   housing lines that have no NAICS counterpart.
+
+Related discussion: cornerstone-data/stateior#5.
+
+Test harness for this work, all measurable without a full pipeline run: per-line full
+allocation (currently 209/209 exact — this must not regress), per-line shares against the
+bridge's own split, and single-commodity lines landing 100% on their commodity. Compare the
+assembled column against the Use SUT with `compare_NIPA_to_IOT`, remembering the FBS is in
+dollars and the Use table in millions.
+
+## Refactor to a common yaml (#503, reopened)
+
+`NIPA_FD_2017.yaml`–`NIPA_FD_2024.yaml` repeat every activity_set per year. Refactor onto a
+shared `NIPA_FD_common.yaml`, following
+https://github.com/cornerstone-data/flowsa/blob/nipa/flowsa/methods/flowbysectormethods/NIPA_FD_common.yaml.
+This also closes the per-year rollout gap below — `FD_Equipment` would apply to every year by
+construction rather than by copy — and lands naturally with the attribution fix above.
+
+## Two gaps to close first
+
+**Per-year rollout.** `FD_Equipment` is in `NIPA_FD_2017.yaml` only. 2018–2024 have `FD_PCE`
+and the `FD_Gov_*`/`FD_Structures*`/`FD_IP_*` blocks but no equipment set, so
+`derive_initial_Y_pur(2018..2024)` returns F02E00 as zero. The 2017 set uses NIPA Table
+U50505 with `activity_to_sector_mapping: BEA_NIPA_FD_Equipment` and `BEA_PEQBridge`
+attribution, reconciling to 0.22%; copying it per year is mechanical.
+
+**Schema granularity.** `Cornerstone_2025_target.yaml`'s `industry_spec` (`default: NAICS_3`)
+collapses 77% of rows / 86% of dollar value to 3-digit parents that are not BEA_2017_Detail
+codes. `nowcast.py` corrects this after the fact with `map_fbs_sectors_to_model_schema`.
+The alternative is to point `NIPA_FD_<year>.yaml` at a raw `BEA_detail_2017` target schema so
+no collapse happens. Still undecided; the workaround is in place and tested.
+
+## Validation tooling now available
+
+`compare_NIPA_to_IOT` (#541) compares a NIPA table against a BEA IOT row or column, matching
+on codes then names, and reports matched cells, unmatched rows on each side, and per-cell
+composition. Its two worked examples are Phase 2's reconciliation targets already built:
+
+- `nipa_compensation_vs_sut_v00100` — NIPA 6.2D against Use SUT `V00100`, 69/69 cells,
+  −1 million on $10.4 trillion.
+- `nipa_taxes_vs_sut_t00otop` — NIPA 3.5 against `T00OTOP` and `T00TOP`, −9 and −13.
+
+That covers `V00100`, `T00OTOP`, `T00TOP` from the VA table below. The same pattern applies to
+`V00300` and `T00SUB`.
+
+It also fixes a premise. The SUT Use table's **cells are at purchaser value**, not basic: total
+use `T019` equals the Supply table's purchaser total `T016` (37,094,434) for all 402
+commodities, against basic `T013` 36,398,867. Its industry columns are then totalled at both
+basic (`T018` 33,772,568) and producer (`T005` + `VAPRO` 34,468,127). So Phase 1's decision to
+keep Y in PUR makes it directly comparable to the benchmark Use table's final-demand columns
+with no conversion. See `bedrock/analysis/compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md`.
+
+## Reference: Value Added mapping (Phase 2)
+
 | Component | Code | NIPA table |
 |---|---|---|
-| Compensation of employees | V00100 | T60200D (Table 6.2D) |
-| Other taxes on production | T00OTOP | T30500 (Table 3.5, excl. taxes on products) |
-| Gross operating surplus | V00300 | **Constructed**: T61200D + T61400D + T61500D + T61700D + T61300D + T62200D |
-| Taxes on products and imports | T00TOP | T30500 (taxes-on-products portion) |
-| Less: Subsidies | T00SUB | T31300 (Table 3.13) |
+| Compensation of employees | V00100 | T60200D |
+| Other taxes on production | T00OTOP | T30500, excl. taxes on products |
+| Gross operating surplus | V00300 | constructed: T61200D + T61400D + T61500D + T61700D + T61300D + T62200D |
+| Taxes on products and imports | T00TOP | T30500, taxes-on-products portion |
+| Less: subsidies | T00SUB | T31300 |
 
-("Extract additional NIPA tables for value added" draft issue gives the same 7 underlying Section-6/3.5
-tables individually: T60200D, T61200D, T61400D, T61500D, T61700D, T62200D, T61300D — `V00300` is their
-sum.) Model will carry `SectorProducedBy`/`SectorConsumedBy` like the FD model (orientation TBD per the
-issue itself); allocation to specific BEA industries "likely needs to use the 2017 table ratios."
+Reconciliation targets: NIPA Table 1.14 for total VA; each Section-6 table total against the
+corresponding Use-table row or group; `VABAS` = V00100 + T00OTOP + V00300 against T10305;
+`T018` against GDP via T10105. All five identities are verifiable in the 2017 data with
+`compare_NIPA_to_IOT`.
 
-**VA reconciliation targets — also specified**, not something to invent: NIPA Table 1.14 (Gross Value
-Added by Sector) as the top-level check (total VA should equal total VA in the Use table); each
-Section-6 table's total should equal the corresponding Use-table row/group total; `VABAS` (=
-V00100+T00OTOP+V00300) should reconcile to T10305; `T018` (after adding T00TOP, subtracting T00SUB)
-should reconcile to GDP via T10105.
+VA arrives before redefinitions and needs the same transform used for gross industry output:
+`compute_coproduction_ratios` / `adjust_gross_output` in
+`bedrock/transform/iot/derived_gross_industry_output.py` (lines 150–212).
 
-**VA needs a before→after-redefinitions transform, and there's a template for it.** Draft issue
-"Transform Value Added FBS into after redefinitions": *"The VA FBS will be in before redefinitions. The
-estimates should be transformed based on the same approach used to adjust the gross industry output
-estimates"* — pointing at `bedrock/transform/iot/derived_gross_industry_output.py` lines 150–212
-(confirmed present: `compute_coproduction_ratios`/`adjust_gross_output`, which derive a co-production
-movement ratio from the benchmark year's before/after Make tables and apply it going forward). Reuse
-this pattern rather than deriving a new one for VA.
+## Reference: unsourced columns
 
-**Intermediate transactions start from the actual dollar Use matrix, not the A coefficient matrix
-(confirmed by you this round).** The industry-transactions (intermediate) section originates from the
-**Use table** itself — e.g. `load_2017_Utot_after_redef_usa()` / `_load_2017_detail_supply_use_usa()`
-in `io_2017.py` for the 2017 benchmark — not backed out of `A` (`A` is a derived coefficient matrix;
-going `A → U` via `U ≈ A @ diag(x)` would discard whatever rounding/negative-clipping happened when `A`
-was built, so it's the wrong direction). Issue #497 ("Prepare initial intermediate estimates using
-commodity inflation", assigned to Wes) then describes how that seed Use table gets **nowcast forward**
-year over year: port the logic from USEEIO's `CalculateIntermediateUseAndCommodityMix.R`, but (a) use
-bedrock's own commodity-inflation approach instead of the R script's, (b) apply it *only* to
-intermediate uses by industry (not value added), and (c) apply it to the **after-redefinitions** Use
-table specifically. So the sequencing is: **start from the dollar Use table (benchmark year) → inflate
-forward by commodity per #497 → get each subsequent year's industry-transactions section** — the A
-matrix stays out of this section's derivation entirely (it's downstream of the Use table, not an input
-to reconstructing it). Check `bedrock/utils/economic/inflation_helpers_cornerstone.py` (already imported
-by `derive_PRO_to_PUR_ratio.py`) for the "internal commodity inflation approach" referenced.
+**Trade (#526/#527/#528).** Source not yet picked. Candidates in #527: Census Trade in Goods +
+BEA services (existing code in USEEIO's `import_emission_factors/download_imports_data.py`);
+BEA ITA Table 2.1 + 3.1 joined via BEA's ITA-to-NIPA linkage table; BACI, framed as
+comparison rather than primary. Requirement: match the 2017 detail Use table, annual, and
+comparable to BACI.
 
-**Other integration items on the board** (all Todo, not yet scoped into phases below in detail):
-- [`check_balances.py`](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/check_balances.py)
-  (USEEIO nowcasting branch) → integrate into bedrock's validation framework (`bedrock/utils/validation/`).
-- "Optional: Balance to industry and commodity output rather than summary tables" — implies the
-  *default* RAS control totals are summary-table totals, with industry/commodity gross output as a
-  named optional alternative.
-- "Store created Make, Use, and Import matrices on GCS" — final artifacts go through bedrock's normal
-  GCS snapshot/caching path (see memory `bedrock_data_access.md`), not just local parquet.
-- "Update bedrock pipeline to build models with nowcasted products, generate snapshots and update
-  diagnostics" — the final wire-in to the main model-build pipeline; last phase, depends on everything
-  else.
+**Inventories (#529/#530/#531).** NIPA Table 5.7.5B gives holding industry; the Use table's
+F03000 is by commodity. Totals match exactly (NIPA 1.1.5 line 14 = Use F03000 total), the
+commodity split does not come for free. #530 scopes this explicitly: start from the NIPA totals,
+defer commodity attribution by stage of fabrication.
 
-## Revised phased plan
+## Phases
 
-### Phase 0 — finish #523, scaffold `nowcast.py`
-- Close out #523's remaining checklist items (mapping review, 2017 test) as a matter of hygiene before
-  building on top of `NIPA_FD_*.yaml`.
-- Create `bedrock/transform/eeio/nowcast.py` with a docstring linking this plan + project #26, and
-  decide the `nowcast.py` vs. `bedrock/transform/iot/` boundary (open question below) before writing
-  much code, since it affects where several pieces land.
+### Phase 0 — done
+`nowcast.py` scaffolded. The `nowcast.py` vs `bedrock/transform/iot/` boundary is still
+undecided in principle, but in practice `nowcast.py` is the orchestrator and
+`bedrock/transform/iot/` holds the reusable transforms.
 
-### Phase 1 — Final demand section, PUR price, BEA_2017_Detail schema
-1a. **PEQ Bridge (#525/#496)** — build `BEA_PEQBridge` mirroring this session's `BEA_PCEBridge` work
-   exactly: new `bedrock/extract/bea/BEA_PEQBridge.yaml`, a `"PEQBridge" in source` branch in
-   `bea_parse` (BEA.py), source-catalog registration, and an `FD_IP_equipment`-style activity_set in
-   `NIPA_FD_<year>.yaml` sourcing NIPA Table 5.5.5U in place of U20405. This closes F02E00 and #523's
-   last checklist item in one piece of work.
-1b. **F0-code lookup** — small mapping from each activity_set's `assign_fields.ActivityConsumedBy`
-    label (or the yaml's `ActivityConsumedBy` selector value) to `BEA_2017_FINAL_DEMAND_CODE`, for
-    pivoting FBS output into Y-matrix columns.
-1c. **Per-year Y-PUR assembly** (`derive_nowcast_Y_pur(year)`): `generateFlowBySector`, pivot
-    `SectorProducedBy` × F0-code, reindex to all 20 `BEA_2017_FINAL_DEMAND_CODES` (F03000/F04000/F05000
-    stay all-zero until Phases 1d/1e land).
-1d. **F04000/F05000 (exports/imports, #526/#527/#528)** — resolve #527's source decision (Census
-    goods+BEA services vs. BEA ITA-with-NIPA-linkage vs. BACI), then build the FBA/FBS in #528 following
-    the established NIPA_FD pattern (or a new source module if the pick isn't NIPA-table-shaped).
-1e. **F03000 (inventories, #529/#530/#531)** — per #530's explicit scoping, ship the NIPA Table 1.1.5 /
-    5.7.5B **total** first (matches the Use table's F03000 total exactly even without a commodity
-    split), deferring the finished-goods/work-in-process/materials-and-supplies commodity attribution
-    (Annual Survey of Manufacturers + Economic Census data) to a follow-up. This keeps Phase 1e
-    unblocked by the harder commodity-attribution question.
-1f. **Validate** — same reconciliation technique as this session's PCE work; also check against the
-    VA reconciliation targets once Phase 2 exists, since Use-table row/column totals tie the sections
-    together.
+### Phase 1 — final demand, PUR price, BEA_2017_Detail schema
+- 1a. PEQ Bridge — done for 2017. **Remaining: roll `FD_Equipment` out to 2018–2024.**
+- 1b. F0-code lookup — done, superseded by #539/#540; each activity_set assigns its own
+  `SectorConsumedBy`.
+- 1c. Per-year Y-PUR assembly — done, `derive_initial_Y_pur(year)`.
+- 1d. F04000/F05000 — resolve #527's source pick, then build per #528.
+- 1e. F03000 — ship NIPA totals first per #530, defer the commodity split.
+- 1f. Validate — use `compare_NIPA_to_IOT` against the benchmark Use table's final-demand
+  columns. Y is in PUR and so are those columns, so no conversion is needed.
+- 1g. Close #523: review all activity mappings, test against 2017 data.
 
-### Phase 2 — Value Added section
-- Build FBS method(s) sourcing the 7 Section-6/3.5/3.13 NIPA tables per the mapping above (likely a new
-  `NIPA_VA_<year>.yaml` following the `NIPA_FD_<year>.yaml` pattern — reuse `extract_table_info`/
-  `drop_unassigned`/activity_sets machinery).
-- Allocate to specific BEA industries using 2017 table ratios (per the draft issue).
-- Reconcile against NIPA Table 1.14 + the VABAS/T018 formulas above.
-- Transform before→after redefinitions using the `compute_coproduction_ratios`/`adjust_gross_output`
-  pattern from `bedrock/transform/iot/derived_gross_industry_output.py`.
+### Phase 2 — value added
+- New `NIPA_VA_<year>.yaml` following the `NIPA_FD_<year>.yaml` pattern, sourcing the 9 tables
+  above.
+- Allocate to BEA industries using 2017 table ratios.
+- Reconcile with `compare_NIPA_to_IOT` against the targets listed above.
+- Transform before → after redefinitions with the `adjust_gross_output` pattern.
 
-### Phase 3 — Intermediate transactions (industry × commodity)
-- **Seed from the actual dollar Use matrix** (`load_2017_Utot_after_redef_usa()` or the equivalent
-  detail-level loader for the benchmark year) — *not* backed out of the `A` coefficient matrix.
-- Nowcast that seed forward year over year by porting/adapting
-  `CalculateIntermediateUseAndCommodityMix.R`'s logic using bedrock's own commodity-inflation approach
-  (`bedrock/utils/economic/inflation_helpers_cornerstone.py`), applied to industry intermediate uses
-  only, on the after-redefinitions Use table (per issue #497).
+### Phase 3 — intermediate transactions
+- Seed from the dollar Use matrix for the benchmark year
+  (`load_2017_Utot_after_redef_usa()` / `_load_2017_detail_supply_use_usa()`), not from `A`.
+- Nowcast forward by commodity inflation per #497, porting
+  `CalculateIntermediateUseAndCommodityMix.R`'s logic and using
+  `bedrock/utils/economic/inflation_helpers_cornerstone.py`. Intermediate uses only,
+  after-redefinitions table.
 
-### Phase 4 — Schema conversion (Cornerstone schema, after redefinitions)
-- Unchanged from last round: reuse `industry_corresp()`/`commodity_corresp()` (`cornerstone_expansion.py`)
-  and `cfg.iot_before_or_after_redefinition`.
+### Phase 4 — schema conversion
+Reuse `industry_corresp()` / `commodity_corresp()` in `cornerstone_expansion.py` and
+`cfg.iot_before_or_after_redefinition`.
 
-### Phase 5 — RAS rebalancing
-- Port `sut_ras.py` (USEEIO nowcasting branch) into `bedrock/utils/economic/`, adapting off rpy/R
-  dependencies as needed (same theme as the `load_suts_from_r.py` refactor item).
-- Default control totals: summary-table totals (with industry/commodity gross output as an optional
-  alternative per the board).
+### Phase 5 — RAS
+Port [`sut_ras.py`](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/sut_ras.py)
+into `bedrock/utils/economic/`. Default control totals are summary-table totals; industry and
+commodity gross output are the named alternative. No RAS code exists in bedrock today.
 
-### Phase 6 — Validation, storage, pipeline integration
-- Port `check_balances.py` into `bedrock/utils/validation/`.
-- Store final Make/Use/Import matrices via bedrock's normal GCS snapshot path.
-- Wire nowcasted products into the main model-build pipeline; regenerate snapshots/diagnostics.
+### Phase 6 — validation, storage, pipeline
+Port [`check_balances.py`](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/check_balances.py)
+into `bedrock/utils/validation/`. Store Make/Use/Import via the normal GCS snapshot path. Wire
+into the model build; regenerate snapshots and diagnostics.
 
-## Testing strategy (unchanged, reinforced by board)
-- Per-phase reconciliation against independent published totals — the board itself specifies most of
-  these targets now (NIPA 1.14, VABAS/T018 formulas, Section-6 row/group totals), so testing has
-  concrete numeric targets, not just "does it look plausible."
-- Unit tests for the F0-code lookup, the PEQ Bridge parse branch (mirror this session's PCEBridge
-  tests if any exist), and the ported RAS function (small hand-checkable matrices; a RAS port is exactly
-  the kind of code that can silently misbehave on edge cases like a zero control total).
-- Golden-file test per year once Phase 1 stabilizes, so later phases don't silently drift the Y-PUR
-  matrix underneath them.
+## Testing
 
-## Open questions for you (revised — several from last round are now answered by the board or by you directly)
-0. ~~Intermediate transactions starting point~~ — confirmed: the dollar **Use matrix** (benchmark year),
-   nowcast forward via commodity inflation (#497); *not* backed out of the `A` coefficient matrix.
-1. ~~Years in scope~~ — board title says "2018-2024"; confirm this still matches (2017 is the benchmark
-   year already built).
-2. ~~F03000/F04000/F05000 sources~~ — now tracked: exports/imports in #526/#527/#528 (source pick
-   still open between 3 candidates), inventories in #529/#530/#531 (method open, but scoped to start
-   from the NIPA total only).
-3. ~~Value Added NIPA tables~~ — answered above (T60200D, T61200D, T61400D, T61500D, T61700D, T62200D,
-   T61300D, T30500, T31300).
-4. **`nowcast.py` vs. `bedrock/transform/iot/` boundary** — is `nowcast.py` the top-level per-year
-   orchestrator calling into existing `bedrock/transform/iot/` functions (PRO/PUR, gross output
-   adjustment) and new VA/intermediate logic, or should some of *this* project's new code live in
-   `bedrock/transform/iot/` instead, matching where issue #495 pointed `nipa_final_demand_estimates.py`?
-5. ~~RAS control totals~~ — default is summary-table totals per the board; confirm before Phase 5.
-6. **Caching convention** — still open; "Store created Make, Use, and Import matrices on GCS" confirms
-   the *eventual* destination but not the *interim* per-year local-cache layout while developing.
-7. **Sequencing vs. #523** — do you want #523 fully closed (mapping review + 2017 test pass) before
-   starting Phase 1a (PEQ Bridge), or is it fine to start PEQ Bridge in parallel since it's really the
-   same underlying pattern?
-8. **#527's trade-data source pick** — Census Trade in Goods + BEA services, BEA ITA-with-NIPA-linkage,
-   or BACI? Affects whether Phase 1d follows the existing NIPA_FD FBS pattern or needs a new source
-   module (e.g. porting `download_imports_data.py` from the USEEIO repo).
-9. **#530's inventory-commodity-attribution timing** — confirmed OK to ship F03000 as a NIPA-total-only
-   column in Phase 1e (per the issue's own scoping), with the Annual-Survey-of-Manufacturers/Economic-
-   Census commodity split deferred — or do you want that fuller treatment before Phase 1 is considered
-   done?
+- Per-phase reconciliation against published totals, using `compare_NIPA_to_IOT` where the
+  target is a NIPA table against an IOT row or column.
+- Unit tests for the PEQ Bridge parse branch and the ported RAS function (small hand-checkable
+  matrices; zero control totals are the edge case).
+- Golden-file test per year once Phase 1 stabilises.
+
+## Open questions
+
+1. **Per-year equipment rollout** — copy `FD_Equipment` into 2018–2024 now, or wait until
+   F03000/F04000/F05000 land so the years are filled in one pass?
+2. **Schema granularity** — now answered by the defect above: point `NIPA_FD_<year>.yaml` at a
+   `BEA_Detail_2017` target schema. It takes bridge commodities reachable as candidates from
+   31% to 92% and makes 75 single-commodity lines exact, and it removes the need for
+   `map_fbs_sectors_to_model_schema` to undo a NAICS_3 collapse afterwards. Remaining question
+   is only where the Cornerstone conversion then happens — presumably Phase 4, on the assembled
+   table rather than inside the FBS method.
+3. **#527 trade source** — Census goods + BEA services, BEA ITA with NIPA linkage, or BACI?
+   Determines whether Phase 1d follows the NIPA_FD pattern or needs a new source module.
+4. **#530 inventory attribution** — confirm F03000 ships as NIPA-total-only in Phase 1e.
+5. **SLG attribution bug** — `FD_Gov_SLG_Equipment` / `_Structures` / `_IP` log "could not
+   attribute ... due to lack of flows" against `BEA_Detail_Use_SUT` while the Federal
+   equivalents work. Still unrooted; blocks trusting those three columns.
+6. **Interim caching** — per-year local cache layout for nowcast products while developing, ahead
+   of the GCS destination.
+7. **Years in scope** — board says 2018–2024, 2017 is the benchmark. Confirm.

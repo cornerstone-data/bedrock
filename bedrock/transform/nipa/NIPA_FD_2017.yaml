@@ -1,4 +1,4 @@
-!include:Cornerstone_2025_target.yaml
+!include:BEA_detail_target.yaml
 year: &nipa_year 2017
 target_naics_year: 2017
 geoscale: national
@@ -52,6 +52,10 @@ source_names:
                  # to avoid double-assigning these rows to both this and that activity_set.
                  159, 52, 61, 60, 70]
         attribution_method: proportional
+        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
+        # alone weights every commodity by its bridge total across all PCE
+        # lines, which splits each line's total on the wrong basis (issue #547).
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -70,6 +74,10 @@ source_names:
         assign_fields:
           ActivityProducedBy: Tenant landlord durables # matches PCEBridge's PCE Category name
         attribution_method: proportional
+        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
+        # alone weights every commodity by its bridge total across all PCE
+        # lines, which splits each line's total on the wrong basis (issue #547).
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -94,6 +102,10 @@ source_names:
         assign_fields:
           ActivityProducedBy: Sporting equipment, supplies, guns, and ammunition
         attribution_method: proportional
+        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
+        # alone weights every commodity by its bridge total across all PCE
+        # lines, which splits each line's total on the wrong basis (issue #547).
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -110,6 +122,10 @@ source_names:
         assign_fields:
           ActivityProducedBy: Musical instruments
         attribution_method: proportional
+        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
+        # alone weights every commodity by its bridge total across all PCE
+        # lines, which splits each line's total on the wrong basis (issue #547).
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -126,6 +142,10 @@ source_names:
         assign_fields:
           ActivityProducedBy: Recreational books
         attribution_method: proportional
+        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
+        # alone weights every commodity by its bridge total across all PCE
+        # lines, which splits each line's total on the wrong basis (issue #547).
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -142,6 +162,10 @@ source_names:
         assign_fields:
           ActivityProducedBy: Luggage and similar personal items
         attribution_method: proportional
+        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
+        # alone weights every commodity by its bridge total across all PCE
+        # lines, which splits each line's total on the wrong basis (issue #547).
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -162,6 +186,7 @@ source_names:
         selection_fields:
           Table: U50505 # Table 5.5.5U. Private Fixed Investment in Equipment by Type
         attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PEQBridge:
             <<: *bea

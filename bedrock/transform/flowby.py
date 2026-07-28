@@ -132,14 +132,14 @@ class _FlowBy(pd.DataFrame):
         string_null: float | None = np.nan,
         **kwargs: Any,
     ) -> None:
-        '''
+        """
         Extends pandas DataFrame. Attaches metadata if provided as kwargs and
         ensures that all columns described in flowby_config.yaml are present
         and of the correct datatype.
 
         All args and kwargs not specified above or in FBA/FBS metadata are
         passed to the DataFrame constructor.
-        '''
+        """
 
         # Assign values to metadata attributes, checking the following sources,
         # in order: self, data, kwargs; then defaulting to an empty version of
@@ -211,7 +211,7 @@ class _FlowBy(pd.DataFrame):
     def __finalize__(  # type: ignore[misc]
         self, other: Any, method: str | None = None, **kwargs: Any
     ) -> '_FlowBy':
-        '''
+        """
         Determines how metadata is propagated when using DataFrame methods.
         super().__finalize__() takes care of methods involving only one FlowBy
         object. Additional code below specifies how to propagate metadata under
@@ -221,7 +221,7 @@ class _FlowBy(pd.DataFrame):
         concat: for full_name or config, use the shared portion (possibly
             '' or {}); for other _metadata (if any), use values from the
             first FlowBy
-        '''
+        """
         self = super().__finalize__(other, method=method, **kwargs)
 
         # When merging, use metadata from left FlowBy
@@ -291,7 +291,6 @@ class _FlowBy(pd.DataFrame):
         config: dict[str, Any] | None = None,
         external_data_path: str | None = None,
     ) -> '_FlowBy':
-
         attempt_list = (
             ['import local', 'download', 'generate']
             if download_ok
@@ -303,7 +302,7 @@ class _FlowBy(pd.DataFrame):
                 f'Attempting to {attempt} {file_metadata.name_data} '
                 f'{file_metadata.category}'
             )
-            pth = FBA_DIR if file_metadata.category == "FlowByActivity" else FBS_DIR
+            pth = FBA_DIR if file_metadata.category == 'FlowByActivity' else FBS_DIR
             if attempt == 'download':
                 name = f'{file_metadata.name_data}.{file_metadata.ext}'
                 sub_bucket = posixpath.join(GCS_FLOWSA_DIR, file_metadata.category)
@@ -409,7 +408,7 @@ class _FlowBy(pd.DataFrame):
         return standardized
 
     def function_socket(self: FB, socket_name: str, *args: Any, **kwargs: Any) -> FB:
-        '''
+        """
         Allows us to define positions ("sockets") in method chains where a user
         defined function can be applied to the FlowBy. Such functions should
         take as their first argument a FlowBy, and return a FlowBy. Most of the
@@ -422,7 +421,7 @@ class _FlowBy(pd.DataFrame):
         :param *args, **kwargs: passed indiscriminately to the function or
             functions specified in self.config[socket_name].
         :return: transformed FlowBy dataset
-        '''
+        """
         if socket_name in self.config:
             if isinstance(self.config[socket_name], list):
                 return reduce(
@@ -438,14 +437,14 @@ class _FlowBy(pd.DataFrame):
     def conditional_method(
         self: FB, condition: bool, method: str, *args: Any, **kwargs: Any
     ) -> FB:
-        '''
+        """
         Conditionally calls the specified method of the calling FlowBy.
         Additional args and kwargs are passed to the method
         :param condition: bool, condition under which the given method should
             be called
         :param function: str, name of FlowBy or DataFrame method
         :return: self.method(*args, **kwargs) if condition is True, else self
-        '''
+        """
         if condition:
             return getattr(self, method)(*args, **kwargs)
         else:
@@ -489,7 +488,7 @@ class _FlowBy(pd.DataFrame):
         skip_select_by: bool = False,
         assign_fields: dict[str, Any] | None = None,
     ) -> FB:
-        '''
+        """
         Filter the calling FlowBy dataset according to the 'selection_fields'
         dictionary from the calling datasets config dictionary. If such a
         dictionary is not given, the calling dataset is returned unchanged.
@@ -530,7 +529,7 @@ class _FlowBy(pd.DataFrame):
         same manner.
 
         Use 'assign_fields' to assign column values
-        '''
+        """
         if skip_select_by:
             return self
         exclusion_fields = exclusion_fields or self.config.get('exclusion_fields', {})
@@ -542,7 +541,7 @@ class _FlowBy(pd.DataFrame):
             if field == 'conditional':
                 qry = ' & '.join(
                     [
-                        "({} in {})".format(
+                        '({} in {})'.format(
                             k, [v] if not isinstance(v, (list, dict)) else v
                         )
                         for k, v in exclusion_fields['conditional'].items()
@@ -551,14 +550,14 @@ class _FlowBy(pd.DataFrame):
                 self = self.query(f'~({qry})')
             else:
                 if field not in self:
-                    log.warning(f'{field} not found, can not apply ' 'exclusion_fields')
+                    log.warning(f'{field} not found, can not apply exclusion_fields')
                 else:
                     self = self.query(f'{field} not in @values')
 
         # assign column values as defined in FBS method yaml
         assign_fields = assign_fields or self.config.get('assign_fields', {})
         for field, values in assign_fields.items():
-            self = self.assign(**{f"{field}": values})
+            self = self.assign(**{f'{field}': values})
 
         # subset FBA by selection fields identified in FBS yaml
         selection_fields_resolved: dict[str, Any] | None = (
@@ -670,9 +669,9 @@ class _FlowBy(pd.DataFrame):
         # if units are rates or ratios, do not aggregate
         if (self['Unit'].str.contains('/').any()) and (aggregate_ratios is False):
             log.info(
-                f"At least one row is a rate or ratio with units "
-                f"{self['Unit'].unique().tolist()}, returning df "
-                f"without aggregating"
+                f'At least one row is a rate or ratio with units '
+                f'{self["Unit"].unique().tolist()}, returning df '
+                f'without aggregating'
             )
             return self
 
@@ -708,7 +707,7 @@ class _FlowBy(pd.DataFrame):
                 },
             )
             .groupby(columns_to_group_by, dropna=False)
-            .agg("sum")
+            .agg('sum')
             .reset_index()
         )
         aggregated = aggregated.assign(
@@ -770,7 +769,7 @@ class _FlowBy(pd.DataFrame):
         # look for the "attribute" key in the FBS yaml, which will exist if
         # there are multiple, non-recursive attribution methods applied to a
         # data source
-        if "attribute" in self.config:
+        if 'attribute' in self.config:
             attribute_config = self.config.get('attribute')
         # if there is only a single attribution source (or if attribution is
         # fully recursive), then load the config file as is
@@ -809,12 +808,12 @@ class _FlowBy(pd.DataFrame):
             elif self.config['data_format'] in ['FBS']:
                 # ensure sector year of loaded FBS matches target sector year
                 if (
-                    f"NAICS_{self.config['target_naics_year']}_Code"
+                    f'NAICS_{self.config["target_naics_year"]}_Code'
                     != grouped['SectorSourceName'][0]
                 ):
                     grouped = naics_convert_naics_year(  # type: ignore[assignment]
                         grouped,
-                        f"NAICS_{self.config['target_naics_year']}_Code",
+                        f'NAICS_{self.config["target_naics_year"]}_Code',
                         grouped['SectorSourceName'][0],
                         dfname=self.full_name,
                     )
@@ -849,8 +848,8 @@ class _FlowBy(pd.DataFrame):
             attributed_fb: _FlowBy
             if attribution_method == 'proportional':
                 log.info(
-                    f"Proportionally attributing {self.full_name} to "
-                    f"target sectors with {attribution_name}"
+                    f'Proportionally attributing {self.full_name} to '
+                    f'target sectors with {attribution_name}'
                 )
                 attribution_fbs = fb.load_prepare_attribution_source(
                     attribution_config=step_config,
@@ -859,7 +858,7 @@ class _FlowBy(pd.DataFrame):
                 attributed_fb = fb.proportionally_attribute(attribution_fbs)
 
             elif attribution_method == 'multiplication':
-                log.info(f"Multiplying {self.full_name} by {attribution_name}")
+                log.info(f'Multiplying {self.full_name} by {attribution_name}')
                 attribution_fbs = fb.load_prepare_attribution_source(
                     attribution_config=step_config,
                     download_sources_ok=download_sources_ok,
@@ -867,7 +866,7 @@ class _FlowBy(pd.DataFrame):
                 attributed_fb = fb.multiplication_attribution(attribution_fbs)
 
             elif attribution_method == 'division':
-                log.info(f"Dividing {self.full_name} by {attribution_name}")
+                log.info(f'Dividing {self.full_name} by {attribution_name}')
                 attribution_fbs = fb.load_prepare_attribution_source(
                     attribution_config=step_config,
                     download_sources_ok=download_sources_ok,
@@ -882,7 +881,7 @@ class _FlowBy(pd.DataFrame):
                 attributed_fb = fb.copy()
 
             elif attribution_method == 'equal':
-                log.info(f"Equally attributing {self.full_name} to " f"target sectors.")
+                log.info(f'Equally attributing {self.full_name} to target sectors.')
                 attributed_fb = fb.equally_attribute()
 
             elif attribution_method != 'direct':
@@ -918,9 +917,7 @@ class _FlowBy(pd.DataFrame):
                             f'Using "equal" attribution instead of '
                             f'"direct".'
                         )
-                    log.info(
-                        f"Equally allocating {self.full_name} to " f"target sectors."
-                    )
+                    log.info(f'Equally allocating {self.full_name} to target sectors.')
                     attributed_fb = fb.equally_attribute()
 
             # depending on att method, check that new df values equal
@@ -955,8 +952,7 @@ class _FlowBy(pd.DataFrame):
                         ]
                     ]
                     log.error(
-                        f'Errors in attributing flows from '
-                        f'{self.full_name}:\n{errors}'
+                        f'Errors in attributing flows from {self.full_name}:\n{errors}'
                     )
                 # calculate the percent change in df caused by attribution
                 fbsum = (fb[['group_id', 'group_total']].drop_duplicates())[
@@ -968,13 +964,12 @@ class _FlowBy(pd.DataFrame):
                 percent_change = round(((attsum - fbsum) / fbsum) * 100, 3)
                 if percent_change == 0:
                     log.info(
-                        f"No change in {self.full_name} FlowAmount after "
-                        "attribution."
+                        f'No change in {self.full_name} FlowAmount after attribution.'
                     )
                 else:
                     log.warning(
-                        f"Percent change in {self.full_name} after "
-                        f"attribution is {percent_change}%"
+                        f'Percent change in {self.full_name} after '
+                        f'attribution is {percent_change}%'
                     )
 
             # run function to clean fbs after attribution
@@ -998,7 +993,7 @@ class _FlowBy(pd.DataFrame):
         return self
 
     def activity_sets(self) -> list['_FlowBy']:
-        '''
+        """
         This function breaks up an FBA dataset into its activity sets, if its
         config dictionary specifies activity sets, and returns a list of the
         resulting FBAs. Otherwise, it returns a list containing the calling
@@ -1007,7 +1002,7 @@ class _FlowBy(pd.DataFrame):
         Activity sets are determined by the selection_field key under each
         activity set name. An error will be logged if any rows from the calling
         FBA are assigned to multiple activity sets.
-        '''
+        """
         if 'activity_sets' not in self.config:
             return [self]
 
@@ -1039,10 +1034,10 @@ class _FlowBy(pd.DataFrame):
 
             if set(child_df.row) & assigned_rows:
                 log.critical(
-                    f"Some rows from {parent_df.full_name} assigned "
-                    f"to multiple activity sets. This will lead to "
-                    f"double-counting:"
-                    f"\n{child_df.query(f'row in {list(set(child_df.row) & assigned_rows)}')}"
+                    f'Some rows from {parent_df.full_name} assigned '
+                    f'to multiple activity sets. This will lead to '
+                    f'double-counting:'
+                    f'\n{child_df.query(f"row in {list(set(child_df.row) & assigned_rows)}")}'
                 )
                 # raise ValueError('Some rows in multiple activity sets')
 
@@ -1069,7 +1064,6 @@ class _FlowBy(pd.DataFrame):
         attribution_config: dict[str, Any] | None = None,
         download_sources_ok: bool = True,
     ) -> 'FlowBySector':
-
         if attribution_config is None:
             attribution_source = self.config['attribute']['attribution_source']
         else:
@@ -1079,6 +1073,16 @@ class _FlowBy(pd.DataFrame):
             name, config = attribution_source, {}
         else:
             ((name, config),) = attribution_source.items()
+
+        # `attribute_on` may name activity columns, which prepare_fbs drops by
+        # default. Keep them when they are about to be merged on, so an
+        # attribution source can be matched per activity rather than only per
+        # sector -- e.g. splitting a NIPA PCE line by that line's own rows of
+        # the PCE bridge, instead of by the bridge summed over every line.
+        attribute_on = (attribution_config or self.config).get('attribute_on') or []
+        retain_activity_columns = any(
+            col in ('ActivityProducedBy', 'ActivityConsumedBy') for col in attribute_on
+        )
 
         if name in self.config['cache']:
             attribution_fbs = self.config['cache'][name].copy()
@@ -1097,7 +1101,8 @@ class _FlowBy(pd.DataFrame):
                 'data_format': 'FBS',
             }
             attribution_fbs = attribution_fbs.prepare_fbs(
-                download_sources_ok=download_sources_ok
+                download_sources_ok=download_sources_ok,
+                retain_activity_columns=retain_activity_columns,
             )
         else:
             attribution_fbs = get_flowby_from_config(
@@ -1114,7 +1119,8 @@ class _FlowBy(pd.DataFrame):
                 },
                 download_sources_ok=download_sources_ok,
             ).prepare_fbs(  # type: ignore[operator]
-                download_sources_ok=download_sources_ok
+                download_sources_ok=download_sources_ok,
+                retain_activity_columns=retain_activity_columns,
             )
 
         geoscale = config.get('geoscale') or self.config.get('geoscale')
@@ -1126,13 +1132,12 @@ class _FlowBy(pd.DataFrame):
     def harmonize_geoscale(
         self: 'FB', other: 'FlowBySector'
     ) -> 'tuple[Any, Any, _FlowBy, FlowBySector]':
-
         fb_geoscale = geo_scale.from_string(self.config['geoscale'])
         other_geoscale = geo_scale.from_string(other.config['geoscale'])
 
         log.info(
-            f"Harmonizing {self.full_name} {self.config['geoscale']} data "
-            f"with {other.full_name} {other.config['geoscale']} data"
+            f'Harmonizing {self.full_name} {self.config["geoscale"]} data '
+            f'with {other.full_name} {other.config["geoscale"]} data'
         )
 
         fill_cols = self.config.get('fill_columns')
@@ -1141,8 +1146,7 @@ class _FlowBy(pd.DataFrame):
             pass
         elif other_geoscale < fb_geoscale:
             log.info(
-                f'Aggregating {other.full_name} from {other_geoscale} to '
-                f'{fb_geoscale}'
+                f'Aggregating {other.full_name} from {other_geoscale} to {fb_geoscale}'
             )
             other = other.convert_fips_to_geoscale(fb_geoscale).aggregate_flowby()
         elif other_geoscale > fb_geoscale:
@@ -1180,7 +1184,8 @@ class _FlowBy(pd.DataFrame):
         return fb_geoscale, other_geoscale, fb, other_aggregated  # type: ignore[return-value]
 
     def proportionally_attribute(
-        self: 'FB', other: 'FlowBySector'  # flowbyactivity or flowbysector
+        self: 'FB',
+        other: 'FlowBySector',  # flowbyactivity or flowbysector
     ) -> '_FlowBy':
         """
         This method takes flows from the calling FBA which are mapped to
@@ -1188,7 +1193,7 @@ class _FlowBy(pd.DataFrame):
         flows from other (an FBS).
         """
 
-        log.info(f'Attributing flows in {self.full_name} using ' f'{other.full_name}.')
+        log.info(f'Attributing flows in {self.full_name} using {other.full_name}.')
 
         fb_geoscale, other_geoscale, fb, other = self.harmonize_geoscale(other)
 
@@ -1247,8 +1252,8 @@ class _FlowBy(pd.DataFrame):
                 if not unattributable.empty:
                     # implode the location data to shorten warning message
                     unatt_sub = unattributable.groupby(
-                        [f"{rank}Sector"], dropna=False, as_index=False
-                    ).agg({'Location': lambda x: ", ".join(x)})
+                        [f'{rank}Sector'], dropna=False, as_index=False
+                    ).agg({'Location': lambda x: ', '.join(x)})
                     vlog.warning(
                         f'Could not attribute activities in '
                         f'{unattributable.full_name} due to lack of flows in '
@@ -1469,7 +1474,7 @@ class _FlowBy(pd.DataFrame):
                 ['ActivityProducedBy', 'ActivityConsumedBy'],
                 dropna=False,
                 as_index=False,
-            ).agg({'Location': lambda x: ", ".join(x)})
+            ).agg({'Location': lambda x: ', '.join(x)})
             log.warning(
                 'FlowAmounts in %s are reset to 0 due to lack of '
                 'flows in attribution source %s for '
@@ -1498,12 +1503,12 @@ class _FlowBy(pd.DataFrame):
             rate = 'Unit_other'
             non_rate_col = 'Unit'
         if rate is not None and non_rate_col is not None:
-            fb['Denominator'] = fb[rate].str.split("/").str[1]
-            fb[rate] = fb[rate].str.split("/").str[0]
+            fb['Denominator'] = fb[rate].str.split('/').str[1]
+            fb[rate] = fb[rate].str.split('/').str[0]
             if fb[non_rate_col].equals(fb['Denominator']) is False:
                 log.warning('Check units being multiplied')
             else:
-                log.info(f"Units reset to" f" {fb[rate].drop_duplicates().tolist()}")
+                log.info(f'Units reset to {fb[rate].drop_duplicates().tolist()}')
                 fb['Unit'] = fb[rate]  # updates when Unit_other is rate
 
         return (
@@ -1641,7 +1646,7 @@ class _FlowBy(pd.DataFrame):
                                 (
                                     groupby_cols
                                     if i == 2
-                                    else [*groupby_cols, f'_naics_{i-1}']
+                                    else [*groupby_cols, f'_naics_{i - 1}']
                                 ),
                                 dropna=False,
                             )[[f'_naics_{i}']].transform('nunique', dropna=False)
@@ -1671,10 +1676,9 @@ class _FlowBy(pd.DataFrame):
     def assign_temporal_correlation(
         self: FB, target_year: int | None = None, **_kwargs: Any
     ) -> FB:
-
         fbs = self.copy()
         if not target_year:
-            match = re.search(r"\d{4}", fbs.full_name)
+            match = re.search(r'\d{4}', fbs.full_name)
             assert match is not None
             target_year = int(match.group())
         if 'TemporalCorrelation' not in fbs:
@@ -1691,7 +1695,6 @@ class _FlowBy(pd.DataFrame):
         fbs_method_name: str | None = None,
         **_kwargs: Any,
     ) -> FB:
-
         fbs = self.copy()
 
         # if target_geoscale not assigned, pull target from FBS name
@@ -1700,12 +1703,12 @@ class _FlowBy(pd.DataFrame):
                 # function to extract target geoscale from fbs name
                 def extract_target_geoscale(text: str) -> str | None:
                     # Match "national," "state," or "county" (case-insensitive)
-                    if re.search(r"_national_", text, re.IGNORECASE):
-                        return "national"
-                    elif re.search(r"_state_", text, re.IGNORECASE):
-                        return "state"
-                    elif re.search(r"_county_", text, re.IGNORECASE):
-                        return "county"
+                    if re.search(r'_national_', text, re.IGNORECASE):
+                        return 'national'
+                    elif re.search(r'_state_', text, re.IGNORECASE):
+                        return 'state'
+                    elif re.search(r'_county_', text, re.IGNORECASE):
+                        return 'county'
                     return None
 
                 # if target geoscale not defined, first try pulling from config, else pull from method name
@@ -1721,7 +1724,7 @@ class _FlowBy(pd.DataFrame):
                 return self
 
         log.info(
-            f"Assigning geographical correlation data quality score for {self.full_name}"
+            f'Assigning geographical correlation data quality score for {self.full_name}'
         )
 
         # if all Geo Corr scores in the FBS are 0, drop the column and reassign values
@@ -1740,7 +1743,7 @@ class _FlowBy(pd.DataFrame):
             else:
                 # assign geo corr score by FIPS year
                 try:
-                    loc_match = re.search(r"\d{4}", fbs['LocationSystem'][0])
+                    loc_match = re.search(r'\d{4}', fbs['LocationSystem'][0])
                     assert loc_match is not None
                     fips = geo_get_all_fips(int(loc_match.group())).rename(  # type: ignore[arg-type]
                         columns={
@@ -1769,7 +1772,7 @@ class _FlowBy(pd.DataFrame):
     def add_primary_secondary_columns(
         self: FB, col_type: Literal['Activity', 'Sector']
     ) -> FB:
-        '''
+        """
         This function adds to the calling dataframe 'Primary...' and
         'Secondary...' columns (where ... is specified by col_type, as either
         'Activity' or 'Sector') based on the '...ProducedBy' and
@@ -1793,7 +1796,7 @@ class _FlowBy(pd.DataFrame):
         :return: FlowBy dataset, with 'Primary...' and 'Secondary...'
             columns added, if possible; otherwise, the unmodified caling FlowBy
             dataset.
-        '''
+        """
 
         if f'{col_type}ProducedBy' not in self or f'{col_type}ConsumedBy' not in self:
             log.error(
@@ -1877,7 +1880,7 @@ class _FlowBy(pd.DataFrame):
         #     casts the data back to plain DataFrame to write to a parquet.
 
     def astype(self: FB, *args: Any, **kwargs: Any) -> FB:  # type: ignore[misc]
-        '''
+        """
         Overrides DataFrame.astype(). Necessary only for pandas >= 1.5.0.
         With this update, DataFrame.astype() calls the constructor method
         of the calling dataframe. The FlowBy constructor 1) calls .astype() and
@@ -1890,13 +1893,16 @@ class _FlowBy(pd.DataFrame):
         column names back properly). This function fixes the problem by making
         it so DataFrame.astype() is not called by a FlowBy dataframe, but
         instead by a plain pd.DataFrame.
-        '''
+        """
         metadata = {
             attribute: self.__getattr__(attribute) for attribute in self._metadata
         }
         df = pd.DataFrame(self).astype(*args, **kwargs)
         fb = type(self)(
-            df, convert_df_to_flowby=True, add_missing_columns=False, **metadata  # type: ignore[arg-type]
+            df,
+            convert_df_to_flowby=True,
+            add_missing_columns=False,
+            **metadata,  # type: ignore[arg-type]
         )
 
         return fb
