@@ -14,7 +14,8 @@ Run:
 Outputs (under ``output/ef/panel/``):
     - n_variance_analysis.csv          footing ↔ 3-way
     - n_variance_mixed_analysis.csv    footing / 3-way / mixed + end-use class
-    - n_variance_explained.md          updates the mixed-units section in place
+    - n_variance_explained.md          refreshes marked sections in place
+      (high/low ``N`` walkthrough + mixed-units panel write-up)
 """
 
 from __future__ import annotations
@@ -53,6 +54,8 @@ PANEL_DIR = OUT_DIR / "ef" / "panel"
 EXPLAINED_MD = PANEL_DIR / "n_variance_explained.md"
 MIXED_SECTION_BEGIN = "<!-- BEGIN mixed-units-n-variance -->"
 MIXED_SECTION_END = "<!-- END mixed-units-n-variance -->"
+WALKTHROUGH_SECTION_BEGIN = "<!-- BEGIN high-low-n-walkthrough -->"
+WALKTHROUGH_SECTION_END = "<!-- END high-low-n-walkthrough -->"
 
 # Contrast examples used in the mixed-units write-up / slides.
 CONTRAST_SECTORS: list[tuple[str, str]] = [
@@ -60,6 +63,14 @@ CONTRAST_SECTORS: list[tuple[str, str]] = [
     ("452000", "General merchandise retail"),
     ("1121A0", "Cattle ranching"),
 ]
+
+# High vs low electricity-share walkthrough (3-way vs footing).
+WALKTHROUGH_SECTORS: list[tuple[str, str]] = [
+    ("517110", "Wired telecom carriers"),
+    ("562212", "Solid-waste landfill"),
+]
+# Closed-form slope from ``%ΔN ≈ elec_share × k`` (Point 1 fit).
+WALKTHROUGH_SHARE_SLOPE = 0.28
 
 
 @dataclass
@@ -199,6 +210,231 @@ def build_mixed_analysis(
 
 def _pct_fmt(x: float) -> str:
     return f"{x:+.1%}"
+
+
+def _fmt_kg(x: float) -> str:
+    """Format kg CO2e / USD intensities used in worked examples."""
+    if abs(x) >= 1.0:
+        return f"{x:.3f}"
+    if abs(x) >= 0.01:
+        return f"{x:.4f}"
+    return f"{x:.6f}"
+
+
+def _walkthrough_sector_block(
+    code: str,
+    name: str,
+    foot: ModelVectors,
+    split: ModelVectors,
+    row: pd.Series,
+) -> list[str]:
+    """Markdown lines for one high/low walkthrough sector."""
+    agg = ELECTRICITY_AGGREGATE_SECTOR
+    n_foot = float(row["N_foot"])
+    n_split = float(row["N_split"])
+    d_foot = float(row["D_foot"])
+    d_split = float(row["D_split"])
+    celec_foot = float(row["Celec_foot"])
+    celec_split = float(row["Celec_split"])
+    crest_foot = float(row["Crest_foot"])
+    crest_split = float(row["Crest_split"])
+    lelec_foot = float(row["Lelec_foot"])
+    lelec_split = float(row["Lelec_split"])
+    d_n = float(row["dN"])
+    d_celec = float(row["dCelec"])
+    d_crest = float(row["dCrest"])
+    d_n_pct = float(row["dN_pct"])
+    share = float(row["elec_share_N"])
+    d_agg = float(foot.d[agg])
+    l_agg = float(cast(float, foot.ell.at[agg, code]))
+
+    approx_pct = share * WALKTHROUGH_SHARE_SLOPE
+    lelec_pct = (lelec_split / lelec_foot - 1.0) if lelec_foot else float("nan")
+    celec_pct = (celec_split / celec_foot - 1.0) if celec_foot else float("nan")
+    celec_frac_of_dn = (d_celec / d_n) if d_n else float("nan")
+
+    lines: list[str] = [
+        f"### {code} — {name}",
+        "",
+        "| | Footing | 3-way split | Δ |",
+        "|---|---:|---:|---:|",
+        f"| Own `D` | {_fmt_kg(d_foot)} | {_fmt_kg(d_split)} | "
+        f"**{_pct_fmt(float(row['dD_pct']))}** |",
+        f"| `N` | {_fmt_kg(n_foot)} | {_fmt_kg(n_split)} | "
+        f"**{_pct_fmt(d_n_pct)}** |",
+        f"| Electricity share of `N` (footing) | **{share:.1%}** | — | — |",
+        "",
+        "#### Footing — one blended electricity commodity",
+        "",
+        "```",
+        f"C_elec = L[{agg}→{code}] · D_{agg}",
+        f"       = {l_agg:.6f} · {d_agg:.4f}",
+        f"       = {celec_foot:.5f}",
+        "",
+        f"C_rest = N − C_elec = {n_foot:.5f} − {celec_foot:.5f} = {crest_foot:.5f}",
+        f"N      = {celec_foot:.5f} + {crest_foot:.5f} = {n_foot:.5f}",
+        "```",
+        "",
+        "#### After 3-way — generation / transmission / distribution",
+        "",
+        f"Electricity **dollars** embodied (`L_elec`): "
+        f"{lelec_foot:.6f} → {lelec_split:.6f} ({_pct_fmt(lelec_pct)}). "
+        "Emissions change because generation carries undiluted intensity:",
+        "",
+        "```",
+        f"C_elec = L[221110→{code}]·D_110",
+        f"       + L[221121→{code}]·D_121",
+        f"       + L[221122→{code}]·D_122",
+    ]
+
+    for kid in SPLIT_ELEC:
+        lk = (
+            float(cast(float, split.ell.at[kid, code]))
+            if kid in split.ell.index
+            else 0.0
+        )
+        dk = float(split.d[kid]) if kid in split.d.index else 0.0
+        contrib = lk * dk
+        lines.append(f"  {kid}: {lk:.6f} · {dk:.4f} = {contrib:.5f}")
+
+    lines.extend(
+        [
+            f"       = {celec_split:.5f}",
+            "",
+            f"C_rest ≈ {crest_split:.5f}",
+            f"N      = {celec_split:.5f} + {crest_split:.5f} = {n_split:.5f}",
+            "```",
+            "",
+            "| Piece | Footing | Split |",
+            "|---|---:|---:|",
+        ]
+    )
+    for kid in SPLIT_ELEC:
+        lk = (
+            float(cast(float, split.ell.at[kid, code]))
+            if kid in split.ell.index
+            else 0.0
+        )
+        dk = float(split.d[kid]) if kid in split.d.index else 0.0
+        lines.append(f"| `{kid}` contribution | — | {lk * dk:.5f} |")
+    lines.extend(
+        [
+            f"| Non-electricity (`C_rest`) | {crest_foot:.5f} | {crest_split:.5f} |",
+            f"| **Total `N`** | **{n_foot:.5f}** | **{n_split:.5f}** |",
+            "",
+            "```",
+            f"dN      = {d_n:.5f}",
+            f"dC_elec = {d_celec:.5f}   ← {celec_frac_of_dn:.0%} of the move",
+            f"dC_rest = {d_crest:.5f}",
+            f"%ΔN     = {_pct_fmt(d_n_pct)}",
+            f"C_elec change = {_pct_fmt(celec_pct)} on electricity channel",
+            "```",
+            "",
+            "Closed-form check from Point 1: "
+            f"`%ΔN ≈ elec_share × {WALKTHROUGH_SHARE_SLOPE:.2f}` "
+            f"= {share:.3f} × {WALKTHROUGH_SHARE_SLOPE:.2f} "
+            f"= {_pct_fmt(approx_pct)} "
+            f"(observed {_pct_fmt(d_n_pct)}).",
+            "",
+        ]
+    )
+    return lines
+
+
+def render_high_low_walkthrough_section(
+    df: pd.DataFrame,
+    foot: ModelVectors,
+    split: ModelVectors,
+) -> str:
+    """Markdown: high vs low electricity-share ``N`` walkthrough (3-way vs footing)."""
+    high_code, high_name = WALKTHROUGH_SECTORS[0]
+    low_code, low_name = WALKTHROUGH_SECTORS[1]
+    missing = [c for c, _ in WALKTHROUGH_SECTORS if c not in df.index]
+    if missing:
+        raise KeyError(
+            f"Walkthrough sectors missing from analysis frame: {missing}"
+        )
+
+    high = df.loc[high_code]
+    low = df.loc[low_code]
+    d_agg = float(foot.d[ELECTRICITY_AGGREGATE_SECTOR])
+    d_gen = float(split.d[GENERATION_SECTOR])
+
+    lines: list[str] = [
+        WALKTHROUGH_SECTION_BEGIN,
+        "",
+        "## Worked examples — high vs low electricity share "
+        f"({high_code} vs {low_code})",
+        "",
+        "Scope: **3-way monetary split vs v0.2 footing** for two non-electricity "
+        "sectors — one electricity-dominated footprint and one process-emissions "
+        "dominated footprint. Own `D` is unchanged; `y` is not used "
+        "(`N_j = Σ_i D_i L_ij`).",
+        "",
+        "Identity:",
+        "",
+        "```",
+        "N_j = C_elec_j + C_rest_j",
+        "C_elec_j = Σ_{i ∈ electricity} D_i · L_ij",
+        "C_rest_j = N_j − C_elec_j",
+        "```",
+        "",
+        f"Undilution reference intensities: footing `D_{ELECTRICITY_AGGREGATE_SECTOR}` "
+        f"= {d_agg:.4f} kg/USD; split `D_{GENERATION_SECTOR}` = {d_gen:.4f} kg/USD "
+        f"(~{d_gen / d_agg:.1f}×).",
+        "",
+        *(_walkthrough_sector_block(high_code, high_name, foot, split, high)),
+        f"**Why `{high_code}` moves a lot:** electricity is **{float(high['elec_share_N']):.0%}** "
+        "of footing `N`. Effective embodied-electricity intensity rises from "
+        f"{float(high['eff_int_foot']):.2f} → {float(high['eff_int_split']):.2f} kg per "
+        "electricity $; that ~25% intensity bump on a large share of `N` produces a "
+        f"double-digit `%ΔN`.",
+        "",
+        *(_walkthrough_sector_block(low_code, low_name, foot, split, low)),
+        f"**Why `{low_code}` barely moves:** the same undilution physics raises "
+        f"`C_elec` by ~{float(low['dCelec']):.3f} kg/$, but footing `N` is dominated by "
+        f"`C_rest ≈ {float(low['Crest_foot']):.2f}`. Electricity is only "
+        f"**{float(low['elec_share_N']):.2%}** of `N`, so `%ΔN` is tiny.",
+        "",
+        "### Side-by-side",
+        "",
+        f"| | {high_code} ({high_name}) | {low_code} ({low_name}) |",
+        "|---|---:|---:|",
+        f"| `L_elec` (footing) | {float(high['Lelec_foot']):.4f} | "
+        f"{float(low['Lelec_foot']):.4f} |",
+        f"| `C_elec` footing → split | "
+        f"{float(high['Celec_foot']):.4f} → {float(high['Celec_split']):.4f} | "
+        f"{float(low['Celec_foot']):.4f} → {float(low['Celec_split']):.4f} |",
+        f"| `dC_elec` | {float(high['dCelec']):+.4f} | {float(low['dCelec']):+.4f} |",
+        f"| `C_rest` (footing) | {float(high['Crest_foot']):.4f} | "
+        f"{float(low['Crest_foot']):.4f} |",
+        f"| Elec share of `N` | **{float(high['elec_share_N']):.1%}** | "
+        f"**{float(low['elec_share_N']):.2%}** |",
+        f"| `%ΔN` | **{_pct_fmt(float(high['dN_pct']))}** | "
+        f"**{_pct_fmt(float(low['dN_pct']))}** |",
+        f"| Own `%ΔD` | {_pct_fmt(float(high['dD_pct']))} | "
+        f"{_pct_fmt(float(low['dD_pct']))} |",
+        "",
+        "**One-liner:** same electricity-channel undilution in both sectors; "
+        "`%ΔN` scales with electricity's share of that sector's total EF.",
+        "",
+        "### Reproduce",
+        "",
+        "```",
+        "python -m bedrock.analysis.electricity_disagg_diagnostics."
+        "ef_comparison.analyze_n_variance",
+        "```",
+        "",
+        "That regenerates `n_variance_analysis.csv` and refreshes this section "
+        "(between the HTML markers) from live footing / 3-way models. "
+        f"Sectors are configured as `WALKTHROUGH_SECTORS` in "
+        "`ef_comparison/analyze_n_variance.py` "
+        f"(currently `{high_code}`, `{low_code}`).",
+        "",
+        WALKTHROUGH_SECTION_END,
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def _end_use_summary_table(df: pd.DataFrame) -> list[str]:
@@ -382,8 +618,15 @@ def render_mixed_units_section(
     return "\n".join(lines)
 
 
-def upsert_mixed_section(md_path: Path, section: str) -> None:
-    """Insert or replace the marked mixed-units section in the explained markdown."""
+def upsert_marked_section(
+    md_path: Path,
+    section: str,
+    begin: str,
+    end: str,
+    *,
+    insert_before: str | None = None,
+) -> None:
+    """Insert or replace a marked section in the explained markdown."""
     md_path.parent.mkdir(parents=True, exist_ok=True)
     if md_path.exists():
         text = md_path.read_text(encoding="utf-8")
@@ -393,14 +636,21 @@ def upsert_mixed_section(md_path: Path, section: str) -> None:
             "Auto-generated shell — re-run analyze_n_variance after adding narrative.\n\n"
         )
 
-    begin = MIXED_SECTION_BEGIN
-    end = MIXED_SECTION_END
     if begin in text and end in text:
         pre = text.split(begin, 1)[0].rstrip()
         post = text.split(end, 1)[1].lstrip()
         new_text = pre + "\n\n" + section.rstrip() + "\n"
         if post.strip():
             new_text = new_text + "\n" + post
+    elif insert_before and insert_before in text:
+        idx = text.find(insert_before)
+        new_text = (
+            text[:idx].rstrip()
+            + "\n\n"
+            + section.rstrip()
+            + "\n\n"
+            + text[idx:].lstrip()
+        )
     else:
         summary_at = text.find("\n## Summary\n")
         if summary_at >= 0:
@@ -414,11 +664,24 @@ def upsert_mixed_section(md_path: Path, section: str) -> None:
         else:
             new_text = text.rstrip() + "\n\n" + section.rstrip() + "\n"
 
+    md_path.write_text(new_text, encoding="utf-8")
+
+
+def upsert_mixed_section(md_path: Path, section: str) -> None:
+    """Insert or replace the marked mixed-units section in the explained markdown."""
+    upsert_marked_section(
+        md_path,
+        section,
+        MIXED_SECTION_BEGIN,
+        MIXED_SECTION_END,
+    )
+
+    text = md_path.read_text(encoding="utf-8")
     # Summary already mentions mixed CSV if the inserted section does; only patch
     # the trailing Summary reproduce blurb when it still lacks the mixed note.
-    summary_at = new_text.find("\n## Summary\n")
+    summary_at = text.find("\n## Summary\n")
     if summary_at >= 0:
-        summary = new_text[summary_at:]
+        summary = text[summary_at:]
         if "mixed-units N panel" not in summary:
             old = (
                 "python -m bedrock.analysis.electricity_disagg_diagnostics."
@@ -426,16 +689,25 @@ def upsert_mixed_section(md_path: Path, section: str) -> None:
             )
             new = (
                 "python -m bedrock.analysis.electricity_disagg_diagnostics."
-                "analyze_n_variance\n```\n\n"
+                "ef_comparison.analyze_n_variance\n```\n\n"
                 "That regenerates `n_variance_analysis.csv`, "
-                "`n_variance_mixed_analysis.csv`, and refreshes the "
-                "**mixed-units N panel** section (between the HTML markers) "
-                "in this file."
+                "`n_variance_mixed_analysis.csv`, and refreshes marked sections "
+                "(high/low walkthrough + **mixed-units N panel**) in this file."
             )
             if old in summary:
-                new_text = new_text[:summary_at] + summary.replace(old, new, 1)
+                text = text[:summary_at] + summary.replace(old, new, 1)
+                md_path.write_text(text, encoding="utf-8")
 
-    md_path.write_text(new_text, encoding="utf-8")
+
+def upsert_walkthrough_section(md_path: Path, section: str) -> None:
+    """Insert or replace the high/low electricity-share walkthrough section."""
+    upsert_marked_section(
+        md_path,
+        section,
+        WALKTHROUGH_SECTION_BEGIN,
+        WALKTHROUGH_SECTION_END,
+        insert_before=MIXED_SECTION_BEGIN,
+    )
 
 
 def detail(df: pd.DataFrame, foot: ModelVectors, split: ModelVectors) -> None:
@@ -445,7 +717,7 @@ def detail(df: pd.DataFrame, foot: ModelVectors, split: ModelVectors) -> None:
         print(f"split   {code}          D = {split.d[code]:.4f}")
 
     print("\n=== Worked examples: N = Celec + Crest ===")
-    examples = ["452000", "447000", "1121A0", "562212"]
+    examples = ["517110", "452000", "447000", "1121A0", "562212"]
     for s in examples:
         if s not in df.index:
             continue
@@ -574,6 +846,10 @@ def main() -> None:
     print(f"Wrote {out_csv}")
     summarize(df)
     detail(df, foot, split)
+
+    walkthrough = render_high_low_walkthrough_section(df, foot, split)
+    upsert_walkthrough_section(EXPLAINED_MD, walkthrough)
+    print(f"Updated high/low walkthrough section in {EXPLAINED_MD}")
 
     print("\n=== Mixed units (physical generation) ===")
     mixed = load_model(MIXED_CONFIG)

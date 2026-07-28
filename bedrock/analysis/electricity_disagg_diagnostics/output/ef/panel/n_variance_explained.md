@@ -277,6 +277,158 @@ python -m bedrock.analysis.electricity_disagg_diagnostics.probe_221200
 
 ---
 
+<!-- BEGIN high-low-n-walkthrough -->
+
+## Worked examples — high vs low electricity share (517110 vs 562212)
+
+Scope: **3-way monetary split vs v0.2 footing** for two non-electricity sectors — one electricity-dominated footprint and one process-emissions dominated footprint. Own `D` is unchanged; `y` is not used (`N_j = Σ_i D_i L_ij`).
+
+Identity:
+
+```
+N_j = C_elec_j + C_rest_j
+C_elec_j = Σ_{i ∈ electricity} D_i · L_ij
+C_rest_j = N_j − C_elec_j
+```
+
+Undilution reference intensities: footing `D_221100` = 2.3859 kg/USD; split `D_221110` = 7.1385 kg/USD (~3.0×).
+
+### 517110 — Wired telecom carriers
+
+| | Footing | 3-way split | Δ |
+|---|---:|---:|---:|
+| Own `D` | 0.001570 | 0.001570 | **+0.0%** |
+| `N` | 0.0775 | 0.0904 | **+16.5%** |
+| Electricity share of `N` (footing) | **58.1%** | — | — |
+
+#### Footing — one blended electricity commodity
+
+```
+C_elec = L[221100→517110] · D_221100
+       = 0.018892 · 2.3859
+       = 0.04508
+
+C_rest = N − C_elec = 0.07753 − 0.04508 = 0.03246
+N      = 0.04508 + 0.03246 = 0.07753
+```
+
+#### After 3-way — generation / transmission / distribution
+
+Electricity **dollars** embodied (`L_elec`): 0.018892 → 0.019230 (+1.8%). Emissions change because generation carries undiluted intensity:
+
+```
+C_elec = L[221110→517110]·D_110
+       + L[221121→517110]·D_121
+       + L[221122→517110]·D_122
+  221110: 0.008032 · 7.1385 = 0.05734
+  221121: 0.000782 · 0.2250 = 0.00018
+  221122: 0.010416 · 0.0000 = 0.00000
+       = 0.05751
+
+C_rest ≈ 0.03285
+N      = 0.05751 + 0.03285 = 0.09036
+```
+
+| Piece | Footing | Split |
+|---|---:|---:|
+| `221110` contribution | — | 0.05734 |
+| `221121` contribution | — | 0.00018 |
+| `221122` contribution | — | 0.00000 |
+| Non-electricity (`C_rest`) | 0.03246 | 0.03285 |
+| **Total `N`** | **0.07753** | **0.09036** |
+
+```
+dN      = 0.01283
+dC_elec = 0.01244   ← 97% of the move
+dC_rest = 0.00039
+%ΔN     = +16.5%
+C_elec change = +27.6% on electricity channel
+```
+
+Closed-form check from Point 1: `%ΔN ≈ elec_share × 0.28` = 0.581 × 0.28 = +16.3% (observed +16.5%).
+
+**Why `517110` moves a lot:** electricity is **58%** of footing `N`. Effective embodied-electricity intensity rises from 2.39 → 2.99 kg per electricity $; that ~25% intensity bump on a large share of `N` produces a double-digit `%ΔN`.
+
+### 562212 — Solid-waste landfill
+
+| | Footing | 3-way split | Δ |
+|---|---:|---:|---:|
+| Own `D` | 7.334 | 7.334 | **+0.0%** |
+| `N` | 7.537 | 7.547 | **+0.1%** |
+| Electricity share of `N` (footing) | **0.5%** | — | — |
+
+#### Footing — one blended electricity commodity
+
+```
+C_elec = L[221100→562212] · D_221100
+       = 0.014982 · 2.3859
+       = 0.03575
+
+C_rest = N − C_elec = 7.53708 − 0.03575 = 7.50134
+N      = 0.03575 + 7.50134 = 7.53708
+```
+
+#### After 3-way — generation / transmission / distribution
+
+Electricity **dollars** embodied (`L_elec`): 0.014982 → 0.015250 (+1.8%). Emissions change because generation carries undiluted intensity:
+
+```
+C_elec = L[221110→562212]·D_110
+       + L[221121→562212]·D_121
+       + L[221122→562212]·D_122
+  221110: 0.006370 · 7.1385 = 0.04547
+  221121: 0.000620 · 0.2250 = 0.00014
+  221122: 0.008261 · 0.0000 = 0.00000
+       = 0.04561
+
+C_rest ≈ 7.50114
+N      = 0.04561 + 7.50114 = 7.54675
+```
+
+| Piece | Footing | Split |
+|---|---:|---:|
+| `221110` contribution | — | 0.04547 |
+| `221121` contribution | — | 0.00014 |
+| `221122` contribution | — | 0.00000 |
+| Non-electricity (`C_rest`) | 7.50134 | 7.50114 |
+| **Total `N`** | **7.53708** | **7.54675** |
+
+```
+dN      = 0.00967
+dC_elec = 0.00986   ← 102% of the move
+dC_rest = -0.00019
+%ΔN     = +0.1%
+C_elec change = +27.6% on electricity channel
+```
+
+Closed-form check from Point 1: `%ΔN ≈ elec_share × 0.28` = 0.005 × 0.28 = +0.1% (observed +0.1%).
+
+**Why `562212` barely moves:** the same undilution physics raises `C_elec` by ~0.010 kg/$, but footing `N` is dominated by `C_rest ≈ 7.50`. Electricity is only **0.47%** of `N`, so `%ΔN` is tiny.
+
+### Side-by-side
+
+| | 517110 (Wired telecom carriers) | 562212 (Solid-waste landfill) |
+|---|---:|---:|
+| `L_elec` (footing) | 0.0189 | 0.0150 |
+| `C_elec` footing → split | 0.0451 → 0.0575 | 0.0357 → 0.0456 |
+| `dC_elec` | +0.0124 | +0.0099 |
+| `C_rest` (footing) | 0.0325 | 7.5013 |
+| Elec share of `N` | **58.1%** | **0.47%** |
+| `%ΔN` | **+16.5%** | **+0.1%** |
+| Own `%ΔD` | +0.0% | +0.0% |
+
+**One-liner:** same electricity-channel undilution in both sectors; `%ΔN` scales with electricity's share of that sector's total EF.
+
+### Reproduce
+
+```
+python -m bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.analyze_n_variance
+```
+
+That regenerates `n_variance_analysis.csv` and refreshes this section (between the HTML markers) from live footing / 3-way models. Sectors are configured as `WALKTHROUGH_SECTORS` in `ef_comparison/analyze_n_variance.py` (currently `517110`, `562212`).
+
+<!-- END high-low-n-walkthrough -->
+
 <!-- BEGIN mixed-units-n-variance -->
 
 ## Why the mixed-units (physical generation) panel shows higher `N` than the 3-way split
@@ -354,13 +506,16 @@ This regenerates `n_variance_analysis.csv`, `n_variance_mixed_analysis.csv`, and
   embodied-electricity intensity ~25% for every pathway; with the rest of the
   supply chain unchanged, `dN` is positive for all real consumers. The sole
   exception (221200) is driven by its own `D`, not by electricity.
+- **High vs low walkthrough:** wired telecom (`517110`) rises ~+16.5% because
+  electricity is ~58% of its `N`; solid-waste landfill (`562212`) rises only
+  ~+0.13% because electricity is ~0.5% of its `N` — same undilution, different
+  share (see the marked walkthrough section).
 
 Reproduce with:
 
 ```
-python -m bedrock.analysis.electricity_disagg_diagnostics.analyze_n_variance
+python -m bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.analyze_n_variance
 ```
 
-That regenerates `n_variance_analysis.csv`, `n_variance_mixed_analysis.csv`, and refreshes the **mixed-units N panel** section (between the HTML markers) in this file.
-
-That regenerates `n_variance_analysis.csv`, `n_variance_mixed_analysis.csv`, and refreshes the **mixed-units N panel** section (between the HTML markers) in this file.
+That regenerates `n_variance_analysis.csv`, `n_variance_mixed_analysis.csv`, and
+refreshes marked sections in this file (high/low walkthrough + mixed-units N panel).
