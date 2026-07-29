@@ -1,4 +1,4 @@
-!include:BEA_detail_target.yaml
+!include:Cornerstone_2025_target.yaml
 year: &nipa_year 2017
 target_naics_year: 2017
 geoscale: national
@@ -52,10 +52,6 @@ source_names:
                  # to avoid double-assigning these rows to both this and that activity_set.
                  159, 52, 61, 60, 70]
         attribution_method: proportional
-        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
-        # alone weights every commodity by its bridge total across all PCE
-        # lines, which splits each line's total on the wrong basis (issue #547).
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -74,10 +70,6 @@ source_names:
         assign_fields:
           ActivityProducedBy: Tenant landlord durables # matches PCEBridge's PCE Category name
         attribution_method: proportional
-        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
-        # alone weights every commodity by its bridge total across all PCE
-        # lines, which splits each line's total on the wrong basis (issue #547).
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -102,10 +94,6 @@ source_names:
         assign_fields:
           ActivityProducedBy: Sporting equipment, supplies, guns, and ammunition
         attribution_method: proportional
-        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
-        # alone weights every commodity by its bridge total across all PCE
-        # lines, which splits each line's total on the wrong basis (issue #547).
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -122,10 +110,6 @@ source_names:
         assign_fields:
           ActivityProducedBy: Musical instruments
         attribution_method: proportional
-        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
-        # alone weights every commodity by its bridge total across all PCE
-        # lines, which splits each line's total on the wrong basis (issue #547).
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -142,10 +126,6 @@ source_names:
         assign_fields:
           ActivityProducedBy: Recreational books
         attribution_method: proportional
-        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
-        # alone weights every commodity by its bridge total across all PCE
-        # lines, which splits each line's total on the wrong basis (issue #547).
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -162,10 +142,6 @@ source_names:
         assign_fields:
           ActivityProducedBy: Luggage and similar personal items
         attribution_method: proportional
-        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
-        # alone weights every commodity by its bridge total across all PCE
-        # lines, which splits each line's total on the wrong basis (issue #547).
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
@@ -173,65 +149,19 @@ source_names:
               FlowName: "Purchasers' Value"
 
       FD_IP_equipment:
-        # Table 5.5.5U (issue #496), attributed via BEA_PEQBridge.
-        #
-        # The line list is the table's rows AT THE BRIDGE'S OWN GRANULARITY, and
-        # has to be explicit: U50505 interleaves three levels, so selecting the
-        # whole table takes parents and their children together and double
-        # counts. Read off the hierarchy in SeriesCodeParents (see
-        # bedrock/analysis/compare_NIPA_to_IOT.nipa_flat_table), the excluded
-        # rows are
-        #   - aggregates above the bridge: lines 1-3 ("Private fixed investment
-        #     in equipment", "Equipment", "Information processing equipment")
-        #     and the other level-2 subtotals 12, 21, 32
-        #   - detail below the bridge: 7/8 under "Medical equipment and
-        #     instruments", 15/16 under "Engines and turbines", 34/35 under
-        #     "Furniture and fixtures", 37/38 under "Agricultural machinery",
-        #     41/42 under "Construction machinery", 43 under "Trucks, buses,
-        #     and truck trailers"
-        # The bridge's granularity is not one level: "Light trucks" (29) and
-        # "Other trucks, buses, and truck trailers" (31) are level 4 while their
-        # parent (line 22) is not a bridge category, so the rule is "the rows
-        # the bridge names", not "level 3".
-        #
-        # Not selected, and unresolved: lines 18 "Special industry machinery,
-        # n.e.c." (43,450) and 41 "Electrical equipment, n.e.c." (7,474) are at
-        # the bridge's level but have no bridge category, so there is nothing to
-        # attribute them with. Together 50,924, 4.3% of the column. See #547.
-        #
-        # 24 lines here + line 46 (below) + those two = 1,174,978, the table's
-        # own line-1 total, so the partition is complete and non-overlapping.
+        # Table 5.5.5U had an FBA generated for it but wasn't used in any FBS method
+        # (issue #496). Attributed via BEA_PEQBridge, mirroring FD_PCE's pattern
+        # exactly: activity_to_sector_mapping (BEA_NIPA_FD_Equipment) supplies the
+        # candidate sectors per category, drop_unassigned naturally excludes the
+        # table's subtotal/too-fine rows and "Equipment" (lines 2/46) that don't
+        # match a PEQBridge category by name. Reconciles to within 0.22% of the
+        # table's own Line-1 total ("Private fixed investment in equipment").
         activity_to_sector_mapping: BEA_NIPA_FD_Equipment
         clean_parameter: F02E00
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50505 # Table 5.5.5U. Private Fixed Investment in Equipment by Type
-          Line: [4, 5, 6, 9, 10, 11, 13, 14, 17, 19, 20, 23, 24, 25, 26, 27, 28,
-                 30, 33, 36, 39, 40, 44, 45]
         attribution_method: proportional
-        # Match each line to its OWN rows of the bridge - see FD_PCE (issue #547)
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
-        attribution_source:
-          BEA_PEQBridge:
-            <<: *bea
-            selection_fields:
-              FlowName: "Purchasers' Value"
-
-      FD_IP_equipment_residential:
-        # Line 46 is a second row named "Equipment", 15,025, sitting under the
-        # residential branch rather than under line 2. The bridge calls the same
-        # 15,025 "Residential equipment", so it is renamed here to match - the
-        # bare name cannot be matched on, since it occurs twice in the table.
-        activity_to_sector_mapping: BEA_NIPA_FD_Equipment
-        clean_parameter: F02E00
-        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
-        selection_fields:
-          Table: U50505
-          Line: 46
-        assign_fields:
-          ActivityProducedBy: Residential equipment
-        attribution_method: proportional
-        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PEQBridge:
             <<: *bea

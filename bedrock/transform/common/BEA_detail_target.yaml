@@ -31,11 +31,6 @@ industry_spec:
             '23', '92', 'F010' #, 'S00401', 'S00402'
             ]
 
-  # Codes with no NAICS at all, so they cannot be reached through the
-  # NAICS_* keys above (those filter the NAICS crosswalk). `non_naics`
-  # adds them as identity mappings - see naics.industry_spec_key.
-  non_naics: ['S00401', 'S00402']
-
 target_naics_year: 2017
 # This schema was created for 2017 NAICS but should also work for the schema
 # for the 2012 tables using 2012 NAICS
