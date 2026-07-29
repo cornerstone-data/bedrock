@@ -50,8 +50,32 @@ source_names:
                  # Also exclude lines handled by their own dedicated activity_set below
                  # (aliased to a different ActivityProducedBy before matching PCEBridge),
                  # to avoid double-assigning these rows to both this and that activity_set.
-                 159, 52, 61, 60, 70]
+                 159, 52, 61, 60, 70,
+                 # "Less:" lines, negated in their own activity_set below
+                 149, 338]
         attribution_method: proportional
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_PCE_less_nonresident:
+        # U20405 lines 149 and 338 are "Less:" lines: NIPA states them as positive
+        # magnitudes that the table subtracts, while PCEBridge already carries them
+        # as negative (-1,562 and -199,435, both to S00900). Attributed as-is they
+        # reach S00900 with the right magnitude and the wrong sign, so negate first.
+        # Both names match PCEBridge's PCE Category exactly, so no assign_fields.
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        clean_fba: !clean_function:flowbyclean negate_flows
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: [149, # "Less: Personal remittances in kind to nonresidents"
+                 338] # "Less: Expenditures in the United States by nonresidents"
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
         attribution_source:
           BEA_PCEBridge:
             <<: *bea
