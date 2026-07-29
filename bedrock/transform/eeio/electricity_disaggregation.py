@@ -18,6 +18,7 @@ from bedrock.extract.iot.gdp import SECTOR_NAME_COL, load_go_detail
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_V,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import compute_x
 from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_COMMODITIES_ELEC,
@@ -31,7 +32,6 @@ logger = logging.getLogger(__name__)
 ELECTRICITY_AGGREGATE = "221100"
 BALANCE_TOLERANCE = 1e6
 DISAGG_BALANCE_ATOL = 1.0
-IO_ACCOUNT_YEAR = 2017
 
 GENERATION_GO_SECTOR_NAMES: tuple[str, ...] = (
     "Hydroelectric   power generation",
@@ -276,7 +276,7 @@ def build_electricity_disagg_go_weights() -> pd.Series[float]:
     """Return GO shares w_221110, w_221121, w_221122 (sum to 1)."""
     go = load_go_detail()
     _assert_go_sector_names_present(go)
-    year_col = _resolve_go_year_column(go, IO_ACCOUNT_YEAR)
+    year_col = _resolve_go_year_column(go, get_usa_config().usa_base_io_data_year)
     name_to_value: dict[str, float] = {}
     for raw_name in go[SECTOR_NAME_COL]:
         norm = _normalize_sector_name(raw_name)
@@ -304,7 +304,11 @@ def build_electricity_disagg_go_weights() -> pd.Series[float]:
 
 
 def _diagonal_intersection_weights(w: pd.Series[float]) -> pd.DataFrame:
-    """3×3 diagonal-only intersection weight tables."""
+    """3×3 diagonal-only intersection weight tables.
+
+    ``w`` is the G/T/D GO share series from ``build_electricity_disagg_go_weights()``
+    (index ``221110`` / ``221121`` / ``221122``, non-negative, sums to 1).
+    """
     data = np.diag([float(w[s]) for s in ELECTRICITY_DISAGG_SECTORS])
     return pd.DataFrame(
         data,
@@ -315,7 +319,11 @@ def _diagonal_intersection_weights(w: pd.Series[float]) -> pd.DataFrame:
 
 
 def build_electricity_disagg_weights(w: pd.Series[float]) -> DisaggWeights:
-    """Build programmatic DisaggWeights for steps 1–2 (intersection only)."""
+    """Build programmatic DisaggWeights for steps 1–2 (intersection only).
+
+    ``w`` is the G/T/D GO share series from ``build_electricity_disagg_go_weights()``
+    (index ``221110`` / ``221121`` / ``221122``, non-negative, sums to 1).
+    """
     intersection = _diagonal_intersection_weights(w)
     empty = pd.DataFrame(dtype=float)
     default_row = pd.DataFrame(
@@ -335,7 +343,7 @@ def build_electricity_disagg_weights(w: pd.Series[float]) -> DisaggWeights:
         make_disagg_commodity_columns_all_rows=default_row.copy(),
         make_disagg_commodity_columns_specific_rows=empty,
         make_disagg_industry_rows_specific_columns=empty,
-        year=IO_ACCOUNT_YEAR,
+        year=get_usa_config().usa_base_io_data_year,
         source_name="BEA_UGO305_A_electricity_go",
     )
 

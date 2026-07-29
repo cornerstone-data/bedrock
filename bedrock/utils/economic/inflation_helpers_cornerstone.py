@@ -211,7 +211,6 @@ def inflate_cornerstone_A_matrix_with_industry_pi(
     A: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
     price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
-    price_ratio = price_ratio.reindex(A.index, fill_value=1.0)
     return pd.DataFrame(
         (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
         index=A.index,

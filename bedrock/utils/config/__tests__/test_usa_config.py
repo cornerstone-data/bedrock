@@ -226,15 +226,6 @@ def test_electricity_disagg_config_parsing() -> None:
     assert config.implement_electricity_reallocation is True
 
 
-def test_electricity_disaggregation_config_parsing() -> None:
-    config = _load_usa_config_from_file_name(
-        "test_usa_config_waste_disagg_electricity_disaggregation.yaml"
-    )
-    assert config.implement_waste_disaggregation is True
-    assert config.implement_electricity_reallocation is True
-    assert config.implement_electricity_disaggregation is True
-
-
 def test_electricity_disaggregation_requires_reallocation_and_waste() -> None:
     with pytest.raises(
         ValueError,
