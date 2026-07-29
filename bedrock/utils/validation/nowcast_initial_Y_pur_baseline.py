@@ -23,6 +23,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.eeio.nowcast import derive_initial_Y_pur
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = Path(__file__).parent / 'output'
 CELLWISE_CSV_PATH = OUTPUT_DIR / 'nowcast_initial_Y_pur_vs_use_sut_framework_2017.csv'
+BRIDGE_CSV_PATH = OUTPUT_DIR / 'nowcast_initial_Y_pur_vs_bridges_2017.csv'
 
 
 def load_use_sut_framework_final_demand_2017() -> pd.DataFrame:
@@ -135,6 +137,100 @@ def export_cellwise_comparison(path: Path = CELLWISE_CSV_PATH) -> Path:
     return path
 
 
+def load_bridge_totals_by_commodity_2017(source: str, year: int = 2017) -> pd.Series:
+    """
+    A bridge's purchaser-value total per commodity, in USD.
+
+    The bridges are the attribution sources the corresponding final-demand
+    column is built from, so they are the intermediate step between the NIPA
+    line totals and the Use table: ``ActivityProducedBy`` is the PCE/PEQ
+    category, ``ActivityConsumedBy`` the BEA commodity it resolves to.
+
+    :param source: ``'BEA_PCEBridge'`` or ``'BEA_PEQBridge'``
+    :param year: source year
+    :return: Series indexed by commodity, USD
+    """
+    fba = getFlowByActivity(source, year)
+    purchaser = fba[fba['FlowName'] == "Purchasers' Value"]
+    units = set(purchaser['Unit'].dropna().unique())
+    if units != {'Million USD'}:
+        raise ValueError(f'{source} purchaser rows have unexpected units {units}')
+    return (
+        purchaser.groupby('ActivityConsumedBy')['FlowAmount'].sum()
+        * MILLION_CURRENCY_TO_CURRENCY
+    ).rename('bridge_PUR')
+
+
+#: Final-demand column -> the bridge it is attributed against.
+FINAL_DEMAND_BRIDGES = {'F01000': 'BEA_PCEBridge', 'F02E00': 'BEA_PEQBridge'}
+
+
+def compare_initial_Y_pur_to_bridges_2017() -> pd.DataFrame:
+    """
+    Three-way per-commodity comparison of ``derive_initial_Y_pur(2017)``, the
+    bridge it is attributed against, and the published Use table.
+
+    Splitting the difference this way separates two failures that the
+    ours-vs-Use comparison alone conflates:
+
+    - ``ours_minus_bridge`` non-zero means our attribution did not reproduce
+      the bridge's own split of a category across commodities.
+    - ``bridge_minus_baseline`` non-zero means the bridge and the Use table
+      disagree at source, which no amount of attribution work will close.
+
+    Covers only the columns that are built from a bridge
+    (``FINAL_DEMAND_BRIDGES``); the government and structures columns are
+    attributed against the Use table itself and have no bridge to check.
+
+    Columns: ``final_demand_code``, ``commodity``, ``ours_PUR``,
+    ``bridge_PUR``, ``baseline_PUR_after_redef``, the three pairwise
+    differences, and percent differences for each.
+    """
+    ours = derive_initial_Y_pur(2017)
+    baseline = load_use_sut_framework_final_demand_2017()
+
+    frames = []
+    for code, source in FINAL_DEMAND_BRIDGES.items():
+        bridge = load_bridge_totals_by_commodity_2017(source)
+        commodities = ours.index.union(baseline.index).union(bridge.index)
+        frame = pd.DataFrame(
+            {
+                'ours_PUR': ours.reindex(commodities).get(code, pd.Series(dtype=float)),
+                'bridge_PUR': bridge.reindex(commodities),
+                'baseline_PUR_after_redef': baseline.reindex(commodities).get(
+                    code, pd.Series(dtype=float)
+                ),
+            },
+            index=commodities,
+        ).fillna(0.0)
+        frame.index.name = 'commodity'
+        frame.insert(0, 'bridge_source', source)
+        frame.insert(0, 'final_demand_code', code)
+        frames.append(frame.reset_index())
+
+    out = pd.concat(frames, ignore_index=True)
+    for left, right in (
+        ('ours', 'bridge'),
+        ('bridge', 'baseline'),
+        ('ours', 'baseline'),
+    ):
+        lcol = 'baseline_PUR_after_redef' if left == 'baseline' else f'{left}_PUR'
+        rcol = 'baseline_PUR_after_redef' if right == 'baseline' else f'{right}_PUR'
+        out[f'{left}_minus_{right}'] = out[lcol] - out[rcol]
+        out[f'{left}_minus_{right}_pct'] = (
+            out[f'{left}_minus_{right}'] / out[rcol].replace(0, np.nan)
+        ) * 100
+    return out
+
+
+def export_bridge_comparison(path: Path = BRIDGE_CSV_PATH) -> Path:
+    """Write the three-way bridge comparison to CSV."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    compare_initial_Y_pur_to_bridges_2017().to_csv(path, index=False)
+    logger.info('Wrote bridge comparison to %s', path)
+    return path
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     summary = compare_initial_Y_pur_to_use_sut_framework_2017()
@@ -149,6 +245,20 @@ def main() -> None:
 
     out_path = export_cellwise_comparison()
     print(f'\nCell-wise comparison written to {out_path}')
+
+    bridges = compare_initial_Y_pur_to_bridges_2017()
+    print('\nAgainst the bridges, by final-demand code (millions):')
+    with pd.option_context(
+        'display.width', 140, 'display.float_format', '{:,.0f}'.format
+    ):
+        print(
+            bridges.groupby(['final_demand_code', 'bridge_source'])[
+                ['ours_PUR', 'bridge_PUR', 'baseline_PUR_after_redef']
+            ].sum()
+            / MILLION_CURRENCY_TO_CURRENCY
+        )
+    bridge_path = export_bridge_comparison()
+    print(f'\nBridge comparison written to {bridge_path}')
 
 
 if __name__ == '__main__':
