@@ -21,9 +21,9 @@ For the **A-matrix time-series epic**, the driver is `bedrock/analysis/a_matrix_
 | Workflow registered | `gh workflow list \| grep -i diagnostic` → expect `generate_diagnostics active` |
 | Configs exist **on the ref** | `git fetch origin <ref>` then `git cat-file -e origin/<ref>:bedrock/utils/config/configs/<cfg>.yaml`. Don't trust a spec sheet's "on main?" column — confirm. |
 | Google ADC + Drive | `gcloud auth application-default login` (Drive scope). Confirm read access + see what's already in the folder via `_drive_client().files().list(...)`. |
-| USEEIO baseline pin | `bedrock/utils/snapshots/useeio_baseline_pin.json` (currently `USEEIOv2.6.0-phoebe-23`, a GCS Excel). With `use_useeio_baseline=true` the workflow benchmarks against this pin **in addition to** the always-on CEDA-v0 comparison. |
+| USEEIO baseline pin | `bedrock/utils/snapshots/useeio_baseline_pin.json` (currently `USEEIOv2.6.0-phoebe-23`, a GCS Excel). Use workflow `baseline=useeio` (or `--baseline useeio` on the dispatcher). |
 
-Workflow inputs (`generate_diagnostics.yml`): `config_name, sheet_id, use_useeio_baseline (bool), model_base_year, usa_ghg_data_year, pr_url`. The **git-ref is `gh workflow run --ref`, not an input** — it selects the model code the run executes against.
+Workflow inputs (`generate_diagnostics.yml`): `config_name, sheet_id, baseline (ceda-v0|useeio|v0.3|snapshot SHA), model_base_year, usa_ghg_data_year, pr_url`. The **git-ref is `gh workflow run --ref`, not an input** — it selects the model code the run executes against.
 
 ## Clarify first — ask before acting
 
@@ -35,7 +35,7 @@ Do **not** create any sheet or dispatch until these are confirmed. Ask via `AskU
 | Scenarios | `bundle_v0_3` (or `isolate_a_matrix`, or both) |
 | Approaches | all in the scenario (e.g. restrict to `useeio_nowcast`) |
 | Years | `2019,2020,2021,2022,2023` — sets `model_base_year` + `usa_ghg_data_year` |
-| Baseline | CEDA-only (ask whether to also tick USEEIO via `--use-useeio-baseline`) |
+| Baseline | CEDA-only (`ceda-v0`); ask whether to use `useeio` or `v0.3` instead |
 | git-ref | `main` |
 | Throttle | `poll` (or `sleep:N` / `none`) |
 | Sheet title | `[{date}, {year}, {baseline} based, {approach label}, {scenario}] EFs diagnostics` |
@@ -67,12 +67,12 @@ Or for a simple feature-config list use the validation CLI:
 uv run python -m bedrock.utils.validation.dispatch_diagnostics \
     --git-ref main \
     --configs <cfg1>,<cfg2> \
-    --baseline-label "Bedrock v0.3 snapshot based" \
+    --baseline v0.3 \
     --dry-run
 ```
 
 A spec sheet's observed layout has two baseline-grouped tables:
-- **"compare to USEEIO Phoebe"** → run with `use_useeio_baseline=true`.
+- **"compare to USEEIO Phoebe"** → run with `baseline=useeio`.
 - **"compare to v0 ceda"** → CEDA-only (default).
 - A config in **both** is the user's call: one run with the box on already includes CEDA-v0 columns (so a separate CEDA-only sheet is partly redundant) vs. two distinct sheets. Surface it; let them choose.
 - These are **release snapshots → one run per config**, not the multi-year sweep. **Match each config's year to its YAML**: configs that set `v0_3_umd_2024_ghgia: true` or hard-code `model_base_year: 2024` (e.g. `…_2024_io_ghg`, `…_umd_2024_ghgia`, **and FINAL `…_v0_3`**) must run at 2024. When a config hard-codes its years, pass **no** `model_base_year`/`usa_ghg_data_year` override so the YAML wins.
@@ -125,7 +125,7 @@ These surface as a **failed GH run after a successful dispatch** — the sheet i
 | `--scenarios` | Comma list: `isolate_a_matrix`, `bundle_v0_3` (default `bundle_v0_3`). |
 | `--years` | Comma list (default `2019,2020,2021,2022,2023`). Sets `model_base_year` and `usa_ghg_data_year`. |
 | `--approaches` | Optional filter, e.g. `useeio_nowcast`. Default = all approaches in the scenario. |
-| `--use-useeio-baseline` | Add USEEIO baseline columns. Default = CEDA-only. |
+| `--use-useeio-baseline` | Epic dispatcher alias for `--baseline useeio`. |
 | `--throttle` | `poll` (default; blocks until prior runs clear), `sleep:N`, or `none`. |
 | `--dry-run` | Print the plan only. |
 | `--re-dispatch-from-csv` | Re-trigger cells already in `ef_run_index.csv` (recovery; **reuses** existing sheets). |
@@ -151,7 +151,7 @@ For a one-off cell by hand: create a sheet in the Drive folder named per the tem
 ```bash
 gh workflow run generate_diagnostics.yml --ref main \
   -f config_name=<config> -f sheet_id=<id> \
-  -f model_base_year=<year> -f usa_ghg_data_year=<year> -f use_useeio_baseline=false
+  -f model_base_year=<year> -f usa_ghg_data_year=<year> -f baseline=ceda-v0
 ```
 
 ## Reference

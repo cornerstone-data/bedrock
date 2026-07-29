@@ -9,7 +9,7 @@ Usage (feature configs)::
     uv run python -m bedrock.utils.validation.dispatch_diagnostics \\
         --git-ref main \\
         --configs my_atomic_config \\
-        --baseline-label "Bedrock v0.3 snapshot based" \\
+        --baseline v0.3 \\
         --dry-run
 """
 
@@ -81,15 +81,22 @@ def trigger_workflow(
     git_ref: str,
     config_name: str,
     sheet_id: str,
-    use_useeio_baseline: bool,
+    use_useeio_baseline: bool = False,
+    baseline: str | None = None,
     model_base_year: int | None = None,
     usa_ghg_data_year: int | None = None,
 ) -> None:
     """Trigger ``generate_diagnostics.yml`` via ``gh workflow run``.
 
+    ``baseline`` is the comparison target (``ceda-v0``, ``useeio``, ``v0.3``,
+    or a snapshot SHA). When omitted, ``use_useeio_baseline`` selects
+    ``useeio`` vs ``ceda-v0`` for back-compat with epic dispatchers.
+
     Omit ``model_base_year`` / ``usa_ghg_data_year`` to leave the config YAML's
     years unchanged (recommended for configs that hard-code years).
     """
+    if baseline is None:
+        baseline = "useeio" if use_useeio_baseline else "ceda-v0"
     cmd = [
         "gh",
         "workflow",
@@ -102,7 +109,7 @@ def trigger_workflow(
         "-f",
         f"sheet_id={sheet_id}",
         "-f",
-        f"use_useeio_baseline={'true' if use_useeio_baseline else 'false'}",
+        f"baseline={baseline}",
     ]
     if model_base_year is not None:
         cmd += ["-f", f"model_base_year={model_base_year}"]
@@ -255,7 +262,7 @@ def dispatch_feature_configs(
     *,
     git_ref: str,
     configs: tuple[str, ...],
-    baseline_label: str,
+    baseline: str = "ceda-v0",
     use_useeio_baseline: bool = False,
     drive_folder_id: str = V04_DIAGNOSTICS_DRIVE_FOLDER_ID,
     feature_label: str | None = None,
@@ -269,15 +276,20 @@ def dispatch_feature_configs(
 
     Default folder is v0.4 Diagnostics. Titles follow
     ``feature_sheet_title``. Skips titles already present in the index CSV.
+
+    ``baseline`` selects the comparison target (``ceda-v0``, ``useeio``,
+    ``v0.3``, …) and is written into the sheet title. ``use_useeio_baseline``
+    forces ``baseline='useeio'`` for back-compat.
     """
     if not configs:
         raise ValueError("At least one --configs stem is required")
-    if not baseline_label.strip():
-        raise ValueError("--baseline-label is required")
+    if use_useeio_baseline:
+        baseline = "useeio"
 
     today = title_date or dt.datetime.utcnow().strftime("%Y-%m-%d")
     index = index_path or _DEFAULT_FEATURE_INDEX
     n_dispatched = 0
+    use_useeio = baseline.strip().lower() == "useeio"
 
     for config_name in configs:
         model_base_year, usa_ghg_data_year = _years_for_config(config_name)
@@ -285,7 +297,7 @@ def dispatch_feature_configs(
         title = feature_sheet_title(
             today=today,
             model_year=model_base_year,
-            baseline_label=baseline_label,
+            baseline_label=baseline,
             feature_label=label,
         )
         if _already_recorded_title(index, title):
@@ -294,12 +306,14 @@ def dispatch_feature_configs(
 
         if dry_run:
             logger.info(
-                "DRY-RUN would create: %s | folder=%s config=%s use_useeio=%s "
-                "model_base_year=%d usa_ghg_data_year=%d pass_years=%s",
+                "DRY-RUN would create: %s | folder=%s config=%s baseline=%s "
+                "use_useeio=%s model_base_year=%d usa_ghg_data_year=%d "
+                "pass_years=%s",
                 title,
                 drive_folder_id,
                 config_name,
-                use_useeio_baseline,
+                baseline,
+                use_useeio,
                 model_base_year,
                 usa_ghg_data_year,
                 pass_year_overrides,
@@ -316,7 +330,7 @@ def dispatch_feature_configs(
             git_ref=git_ref,
             config_name=config_name,
             sheet_id=sheet_id,
-            use_useeio_baseline=use_useeio_baseline,
+            baseline=baseline,
             model_base_year=model_base_year if pass_year_overrides else None,
             usa_ghg_data_year=usa_ghg_data_year if pass_year_overrides else None,
         )
@@ -324,10 +338,10 @@ def dispatch_feature_configs(
             index,
             {
                 "config_name": config_name,
-                "baseline_label": baseline_label,
+                "baseline_label": baseline,
                 "sheet_id": sheet_id,
                 "sheet_title": title,
-                "useeio_box_ticked": str(use_useeio_baseline).lower(),
+                "useeio_box_ticked": str(use_useeio).lower(),
                 "model_base_year": model_base_year,
                 "usa_ghg_data_year": usa_ghg_data_year,
                 "git_ref": git_ref,
@@ -353,18 +367,14 @@ def main() -> None:
         help="Comma-separated USA config stems (filename without .yaml).",
     )
     parser.add_argument(
-        "--baseline-label",
-        required=True,
-        help=(
-            'Title baseline text, e.g. "CEDA-US v0 based", '
-            '"Bedrock v0.3 snapshot based", '
-            '"USEEIO USEEIOv2.6.0-phoebe-23 based".'
-        ),
+        "--baseline",
+        default="ceda-v0",
+        help="Comparison target: ceda-v0 | useeio | v0.3 (or a snapshot SHA). Default: ceda-v0.",
     )
     parser.add_argument(
         "--use-useeio-baseline",
         action="store_true",
-        help="Tick the USEEIO Excel baseline pin on the workflow.",
+        help="Alias for --baseline useeio.",
     )
     parser.add_argument(
         "--drive-folder-id",
@@ -409,7 +419,7 @@ def main() -> None:
     dispatch_feature_configs(
         git_ref=args.git_ref,
         configs=configs,
-        baseline_label=args.baseline_label,
+        baseline=args.baseline,
         use_useeio_baseline=args.use_useeio_baseline,
         drive_folder_id=args.drive_folder_id,
         feature_label=args.feature_label or None,

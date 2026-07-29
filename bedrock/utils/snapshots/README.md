@@ -25,7 +25,7 @@ These are **independent** concepts and frequently point at different commits:
 | Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The 10 parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
 | Snapshot key | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The single SHA that integration tests load via `load_current_snapshot(...)`. Bumping this is what "uses the new snapshot" means. |
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
-| Named release | [`releases.py`](releases.py) | Reference-only map of release labels → snapshot SHAs. Not imported by runtime code; update in Phase A alongside `.SNAPSHOT_KEY`. |
+| Named release | [`releases.py`](releases.py) | Release label → snapshot SHA map. Imported by `diagnostics_baseline` so `--baseline v0.2` (etc.) resolves; update in Phase A alongside `.SNAPSHOT_KEY`. |
 | Diagnostic baseline pin | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs that any config may point at as its diagnostic baseline. Every released snapshot SHA must be added here. |
 | Canonical config | [`2025_usa_cornerstone_v0_3.yaml`](../config/configs/2025_usa_cornerstone_v0_3.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
 | Cornerstone GHG FBS pin | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pins one `GHG_national_Cornerstone_2024` parquet in `transform/output_data` (filename + SHA256). Guards FBS regeneration in [`test_fbs.py`](../../transform/__tests__/test_fbs.py). See "Cornerstone GHG FBS pin" below. |

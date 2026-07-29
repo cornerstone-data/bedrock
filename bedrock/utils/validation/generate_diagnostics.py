@@ -20,6 +20,10 @@ from bedrock.utils.config.usa_config import (
 )
 from bedrock.utils.io.gcp import delete_default_sheet1, update_sheet_tab
 from bedrock.utils.snapshots.loader import resolve_snapshot_key
+from bedrock.utils.validation.diagnostics_baseline import (
+    DEFAULT_USEEIO_BASELINE_PIN_JSON,
+    baseline_cli_overrides,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +41,25 @@ logger = logging.getLogger(__name__)
 @click.option('--git_branch', default=None, type=str, help='Override git branch name')
 @click.option('--pr_url', default=None, type=str, help='Override PR URL')
 @click.option(
+    '--baseline',
+    default=None,
+    type=str,
+    help=(
+        'Comparison target for this run (does not edit the config YAML). '
+        'ceda-v0 | useeio | v0.3, or any allowed snapshot SHA.'
+    ),
+)
+@click.option(
     '--diagnostics_baseline_source',
     default=None,
     type=click.Choice(['gcs_snapshot', 'gcs_useeio_xlsx']),
     help='Override diagnostics baseline source (merged onto config YAML)',
+)
+@click.option(
+    '--snapshot_version_or_git_sha',
+    default=None,
+    type=str,
+    help='Low-level snapshot key override; prefer --baseline.',
 )
 @click.option(
     '--useeio_baseline_pin_json',
@@ -50,7 +69,8 @@ logger = logging.getLogger(__name__)
         'JSON with gs_uri, sha256, model_version_label (see '
         'bedrock/utils/snapshots/useeio_baseline_pin.json). Selects '
         "diagnostics_baseline_source='gcs_useeio_xlsx' unless overridden by "
-        '--diagnostics_baseline_source.'
+        '--diagnostics_baseline_source. Implied by --baseline useeio '
+        f'(default pin: {DEFAULT_USEEIO_BASELINE_PIN_JSON}).'
     ),
 )
 @click.option(
@@ -77,13 +97,20 @@ def generate_diagnostics(
     config_name: str,
     git_branch: str | None,
     pr_url: str | None,
+    baseline: str | None,
     diagnostics_baseline_source: str | None,
+    snapshot_version_or_git_sha: str | None,
     useeio_baseline_pin_json: str | None,
     model_base_year: int | None,
     usa_ghg_data_year: int | None,
 ) -> None:
     total_start = time.time()
     overrides: dict[str, object] = {}
+
+    # Precedence: explicit USEEIO pin > --baseline > lower-level snapshot
+    # source/SHA flags > YAML defaults. Pin and --baseline useeio both select
+    # Excel mode; --snapshot_version_or_git_sha / --diagnostics_baseline_source
+    # can still force snapshot mode afterward (tests rely on that).
     if useeio_baseline_pin_json is not None:
         from bedrock.utils.validation.useeio_excel_baseline import (
             load_useeio_baseline_pin_overrides,
@@ -92,6 +119,17 @@ def generate_diagnostics(
         pin_fragment = load_useeio_baseline_pin_overrides(useeio_baseline_pin_json)
         overrides.update(pin_fragment)
         overrides['diagnostics_baseline_source'] = 'gcs_useeio_xlsx'
+    elif baseline is not None:
+        overrides.update(
+            baseline_cli_overrides(
+                baseline,
+                useeio_pin_json=None,
+            )
+        )
+
+    if snapshot_version_or_git_sha is not None:
+        overrides['snapshot_version_or_git_sha'] = snapshot_version_or_git_sha
+        overrides.setdefault('diagnostics_baseline_source', 'gcs_snapshot')
     if diagnostics_baseline_source is not None:
         overrides['diagnostics_baseline_source'] = diagnostics_baseline_source
     if model_base_year is not None:
