@@ -13,6 +13,7 @@ Run:
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 from dataclasses import asdict, dataclass
@@ -85,7 +86,7 @@ def _mt(kg: float) -> float:
 
 def _install_usa_config(overrides: dict[str, Any]) -> USAConfig:
     """Install a USAConfig, allowing usa_ghg_data_year=2017 via model_construct."""
-    import bedrock.utils.config.usa_config as uc
+    import bedrock.utils.config.usa_config as uc  # noqa: PLC0415
 
     reset_usa_config()
     with open(Path(CONFIG_DIR) / f"{MIXED_CONFIG}.yaml", encoding="utf-8") as f:
@@ -99,7 +100,7 @@ def _install_usa_config(overrides: dict[str, Any]) -> USAConfig:
 
 
 def _patch_egrid_mwh_for_missing_2017() -> Any:
-    from bedrock.extract.disaggregation import egrid_generation as eg
+    from bedrock.extract.disaggregation import egrid_generation as eg  # noqa: PLC0415
 
     real = eg.us_total_net_generation_mwh
 
@@ -134,7 +135,7 @@ def _patch_load_e_use_year_fbs_not_egrid() -> Any:
             "Bypassing hardcoded 2023 eGRID FBS; loading GHG_national_Cornerstone_2017 "
             "then splitting 221100→G/T/D"
         )
-        import bedrock.utils.config.usa_config as uc
+        import bedrock.utils.config.usa_config as uc  # noqa: PLC0415
 
         dumped = usa.model_dump(mode="python")
         dumped["implement_electricity_disaggregation"] = False
@@ -290,9 +291,11 @@ def run_scenario(
             "q_gen": float(q.get(GENERATION_SECTOR, np.nan)),
             "x_gen": float(x.get(GENERATION_SECTOR, np.nan)),
             "D_gen": float(D.get(GENERATION_SECTOR, np.nan)),
-            "E_gen_Mt": _mt(float(E[GENERATION_SECTOR].sum()))
-            if GENERATION_SECTOR in E.columns
-            else float("nan"),
+            "E_gen_Mt": (
+                _mt(float(E[GENERATION_SECTOR].sum()))
+                if GENERATION_SECTOR in E.columns
+                else float("nan")
+            ),
             "aq_scaled_q_sum": float(aq_scaled.scaled_q.sum()),
             "national": asdict(national),
             "electricity_block": asdict(elec),
@@ -306,9 +309,7 @@ def run_scenario(
 
 def _fmt_scope(s: dict[str, Any]) -> str:
     ratio = s["BLy_Mt"] / s["E_Mt"] if s["E_Mt"] else float("nan")
-    bly_over_dq = (
-        s["BLy_Mt"] / s["D_dot_q_Mt"] if s["D_dot_q_Mt"] else float("nan")
-    )
+    bly_over_dq = s["BLy_Mt"] / s["D_dot_q_Mt"] if s["D_dot_q_Mt"] else float("nan")
     return (
         f"| {s['label']} | {s['E_Mt']:.2f} | {s['BLy_Mt']:.2f} | "
         f"{s['BLy_Mt'] - s['E_Mt']:+.2f} | {ratio:.4f} | "
@@ -610,8 +611,6 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Probe BLy vs E year alignment under mixed units."
     )
@@ -646,8 +645,7 @@ def main(argv: list[str] | None = None) -> None:
         "national BLy/E=",
         baseline["national"]["BLy_Mt"] / baseline["national"]["E_Mt"],
         "elec BLy/E=",
-        baseline["electricity_block"]["BLy_Mt"]
-        / baseline["electricity_block"]["E_Mt"],
+        baseline["electricity_block"]["BLy_Mt"] / baseline["electricity_block"]["E_Mt"],
     )
 
     print("=== 2017 single-year attempt ===")

@@ -164,12 +164,8 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
         "BLy_total_Mt": sum(r["BLy_Mt"] for r in rows),
         "D_weighted": d_num / x_sum if x_sum else 0.0,
         "N_weighted": n_num / x_sum if x_sum else 0.0,
-        "D_weighted_fn": _weighted_ef(
-            D_pub, x, sectors, c_col=c_col, mixed=mixed
-        ),
-        "N_weighted_fn": _weighted_ef(
-            N_pub, x, sectors, c_col=c_col, mixed=mixed
-        ),
+        "D_weighted_fn": _weighted_ef(D_pub, x, sectors, c_col=c_col, mixed=mixed),
+        "N_weighted_fn": _weighted_ef(N_pub, x, sectors, c_col=c_col, mixed=mixed),
     }
 
 

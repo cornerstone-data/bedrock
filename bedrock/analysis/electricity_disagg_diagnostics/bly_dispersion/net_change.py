@@ -7,8 +7,12 @@ from typing import Literal
 
 import pandas as pd
 
-from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.bly import align_bly_pair
-from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import DISPERSION_TOL
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.bly import (
+    align_bly_pair,
+)
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import (
+    DISPERSION_TOL,
+)
 
 BarKind = Literal['level', 'delta']
 

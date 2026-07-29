@@ -8,7 +8,9 @@ import matplotlib
 
 matplotlib.use('Agg')
 
-from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import ChainedDispersion
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import (
+    ChainedDispersion,
+)
 from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.waterfall import (
     render_dispersion_waterfall,
 )

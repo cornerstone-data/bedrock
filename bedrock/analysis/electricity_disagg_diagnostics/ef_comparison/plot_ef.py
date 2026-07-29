@@ -12,6 +12,12 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.vs_footing_frames import (
+    DroppedSector,
+    VsFootingFrames,
+    format_drop_footnote,
+    vs_footing_ef_frames,
+)
 from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
     EF_TABS,
     REQUIRED_TABS,
@@ -22,12 +28,6 @@ from bedrock.analysis.electricity_disagg_diagnostics.paths import (
     LOCAL_DATA_DIR,
     OUT_DIR,
     ensure_dirs,
-)
-from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.vs_footing_frames import (
-    DroppedSector,
-    VsFootingFrames,
-    format_drop_footnote,
-    vs_footing_ef_frames,
 )
 from bedrock.utils.validation.analysis.diagnostics_plots import (
     _beyond_20_text,

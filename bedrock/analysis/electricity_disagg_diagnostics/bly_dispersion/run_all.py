@@ -6,10 +6,20 @@ from pathlib import Path
 
 import click
 
-from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.bly import sector_bly_new
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.bly import (
+    sector_bly_new,
+)
 from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.dispersion import (
     ChainedDispersion,
     compute_chained_dispersion,
+)
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.net_change import (
+    ChainedNetChange,
+    compute_chained_net_change,
+)
+from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.waterfall import (
+    write_net_change_waterfall_pngs,
+    write_waterfall_pngs,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
     seed_cache_from_local_dir,
@@ -18,17 +28,9 @@ from bedrock.analysis.electricity_disagg_diagnostics.manifest import (
     load_manifest,
     validate_manifest,
 )
-from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.net_change import (
-    ChainedNetChange,
-    compute_chained_net_change,
-)
 from bedrock.analysis.electricity_disagg_diagnostics.paths import (
     LOCAL_DATA_DIR,
     ensure_dirs,
-)
-from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.waterfall import (
-    write_net_change_waterfall_pngs,
-    write_waterfall_pngs,
 )
 from bedrock.utils.validation.analysis.plotting import setup_mpl
 

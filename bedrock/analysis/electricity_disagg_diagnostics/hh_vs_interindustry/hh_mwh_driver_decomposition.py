@@ -270,8 +270,7 @@ def _legacy_household_allocation(
         ),
         'legacy_nonnegative_domestic_share_F01000_MWh': household,
         'legacy_other_final_demand_MWh': total - household,
-        'difference_MWh': float(production_fd_mwh.get(HH_FD_CODE, 0.0))
-        - household,
+        'difference_MWh': float(production_fd_mwh.get(HH_FD_CODE, 0.0)) - household,
         'note': (
             'The direct scenario converts each raw model-year Y cell with its class '
             'factor. The earlier report instead allocates total mixed y_nab using '
@@ -419,9 +418,7 @@ def _driver_metrics(
             'monetary_household_share': monetary['household_share'],
             'uniform_household_share': uniform['household_share'],
             'production_household_share': production['household_share'],
-            'eia_residential_share_of_sales': _safe_ratio(
-                eia_res, eia['Total sales']
-            ),
+            'eia_residential_share_of_sales': _safe_ratio(eia_res, eia['Total sales']),
         },
         'interpretation_rule': (
             'Uniform-price shares equal post-three-way monetary shares. The change '
@@ -502,9 +499,7 @@ def analyze() -> dict[str, Any]:
     uniform = _flows_by_bucket(uniform_inter_mwh, uniform_fd_mwh)
 
     end_use_map = build_end_use_map()
-    by_end_use = _by_end_use(
-        production_inter_mwh, production_fd_mwh, end_use_map
-    )
+    by_end_use = _by_end_use(production_inter_mwh, production_fd_mwh, end_use_map)
     supply_chain = _supply_chain_summary(production_inter_mwh)
     eia = _eia_values(int(cfg.model_base_year))
     prices = cast(

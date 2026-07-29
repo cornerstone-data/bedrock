@@ -5,7 +5,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison import vs_footing_frames as mod
+from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison import (
+    vs_footing_frames as mod,
+)
 from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.vs_footing_frames import (
     DroppedSector,
     collect_electricity_drops,

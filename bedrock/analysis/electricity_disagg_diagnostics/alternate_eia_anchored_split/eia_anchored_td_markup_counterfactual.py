@@ -41,6 +41,9 @@ from bedrock.analysis.electricity_disagg_diagnostics.hh_vs_interindustry.hh_vs_i
     _eia_table_2_2_sales_mwh,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.paths import OUT_DIR
+from bedrock.extract.disaggregation.egrid_generation import (
+    us_total_net_generation_mwh,
+)
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     _model_year_y_row_221110,
     derive_disagg_Ytot_with_trade,
@@ -57,9 +60,6 @@ from bedrock.transform.eeio.electricity_disaggregation import (
 from bedrock.transform.eeio.electricity_end_use_mapping import (
     build_end_use_map,
     table_2_4_prices_cents_kwh,
-)
-from bedrock.extract.disaggregation.egrid_generation import (
-    us_total_net_generation_mwh,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.schemas.cornerstone_schemas import (
@@ -148,9 +148,9 @@ def _agg_electricity_usd_flows() -> tuple[pd.Series, pd.Series, int, int]:
     Y = derive_disagg_Ytot_with_trade().copy()
     Y.index = Y.index.astype(str)
     Y.columns = Y.columns.astype(str)
-    y_row = Y.loc[agg].astype(float).clip(lower=0.0)
+    y_row = cast(pd.Series, Y.loc[agg].astype(float).clip(lower=0.0))
     return (
-        intermediate,
+        cast(pd.Series, intermediate),
         y_row,
         int(cfg.model_base_year),
         int(cfg.usa_ghg_data_year),
@@ -235,7 +235,7 @@ def build_counterfactual_rows(
     """Build per-purchaser gen / T / D USD under option A + clip rule B."""
     rows: list[dict[str, Any]] = []
     for key, usd0 in purchaser_usd.items():
-        kind, code = key
+        kind, code = cast(tuple[str, str], key)
         end_use = end_use_map.get(str(code), 'Commercial')
         mwh_j = float(mwh.get(key, 0.0))
         p_retail = float(prices_cents.get(end_use, prices_cents['Total']))
@@ -298,9 +298,9 @@ def _production_gen_by_class() -> dict[str, Any]:
 
     c_col, c_row = electricity_conversion_factors(aq_scaled)
     aq_m = derive_cornerstone_Aq_mixed_units()
-    inter_mwh = (
-        aq_m.Adom.loc[GENERATION_SECTOR].astype(float) * aq_m.scaled_q
-    ).astype(float)
+    inter_mwh = (aq_m.Adom.loc[GENERATION_SECTOR].astype(float) * aq_m.scaled_q).astype(
+        float
+    )
     # FD MWh: apply same class factors to model-year Y row.
     y_mwh = y_usd * c_row.reindex(y_usd.index).astype(float)
 
@@ -317,8 +317,14 @@ def _production_gen_by_class() -> dict[str, Any]:
         'c_col': float(c_col),
         'c_row_min': float(c_row.min()),
         'c_row_max': float(c_row.max()),
-        'usd_by_class': by_class(inter_usd.clip(lower=0.0), y_usd.clip(lower=0.0)),
-        'mwh_by_class': by_class(inter_mwh.clip(lower=0.0), y_mwh.clip(lower=0.0)),
+        'usd_by_class': by_class(
+            cast(pd.Series, inter_usd.clip(lower=0.0)),
+            cast(pd.Series, y_usd.clip(lower=0.0)),
+        ),
+        'mwh_by_class': by_class(
+            cast(pd.Series, inter_mwh.clip(lower=0.0)),
+            cast(pd.Series, y_mwh.clip(lower=0.0)),
+        ),
         'hh_fd_mwh': float(y_mwh.get(HH_FD_CODE, 0.0)),
         'q_gen_mwh': float(aq_m.scaled_q.loc[GENERATION_SECTOR]),
     }
@@ -474,17 +480,19 @@ def analyze() -> dict[str, Any]:
             'production_mixed_MWh': production['mwh_by_class'],
             'production_pre_mixed_gen_USD': production['usd_by_class'],
         },
-        'hh_f01000': None
-        if hh is None
-        else {
-            'mwh': float(hh['mwh']),
-            'gen_USD': float(hh['gen_USD']),
-            'td_USD': float(hh['td_USD']),
-            'implied_gen_USD_per_MWh': float(hh['implied_gen_USD_per_MWh']),
-            'implied_all_in_USD_per_MWh': float(hh['implied_all_in_USD_per_MWh']),
-            'clipped': bool(hh['gen_clipped_to_retail']),
-            'vs_eia_residential_mwh': _safe_div(float(hh['mwh']), eia_res),
-        },
+        'hh_f01000': (
+            None
+            if hh is None
+            else {
+                'mwh': float(hh['mwh']),
+                'gen_USD': float(hh['gen_USD']),
+                'td_USD': float(hh['td_USD']),
+                'implied_gen_USD_per_MWh': float(hh['implied_gen_USD_per_MWh']),
+                'implied_all_in_USD_per_MWh': float(hh['implied_all_in_USD_per_MWh']),
+                'clipped': bool(hh['gen_clipped_to_retail']),
+                'vs_eia_residential_mwh': _safe_div(float(hh['mwh']), eia_res),
+            }
+        ),
         'production_compare': {
             'hh_fd_mwh': production['hh_fd_mwh'],
             'hh_vs_eia_residential': _safe_div(production['hh_fd_mwh'], eia_res),

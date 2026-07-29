@@ -32,12 +32,12 @@ from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace impor
 )
 from bedrock.analysis.electricity_disagg_diagnostics.paths import OUT_DIR
 from bedrock.publish.model_objects import get_D, get_L, get_N
+from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.transform.eeio.electricity_end_use_mapping import (
     build_end_use_map,
     classify_industry_end_use,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
-from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
@@ -168,7 +168,7 @@ def build_analysis() -> tuple[pd.DataFrame, ModelVectors, ModelVectors]:
 
 def build_mixed_analysis(
     split_df: pd.DataFrame,
-    split: ModelVectors,
+    _split: ModelVectors,
     mixed: ModelVectors,
 ) -> pd.DataFrame:
     """Extend the 3-way analysis with mixed-units N/D/C_elec and EPA end-use class."""
@@ -351,12 +351,10 @@ def render_high_low_walkthrough_section(
     low_code, low_name = WALKTHROUGH_SECTORS[1]
     missing = [c for c, _ in WALKTHROUGH_SECTORS if c not in df.index]
     if missing:
-        raise KeyError(
-            f"Walkthrough sectors missing from analysis frame: {missing}"
-        )
+        raise KeyError(f"Walkthrough sectors missing from analysis frame: {missing}")
 
-    high = df.loc[high_code]
-    low = df.loc[low_code]
+    high = cast(pd.Series, df.loc[high_code])
+    low = cast(pd.Series, df.loc[low_code])
     d_agg = float(foot.d[ELECTRICITY_AGGREGATE_SECTOR])
     d_gen = float(split.d[GENERATION_SECTOR])
 
@@ -512,7 +510,9 @@ def render_mixed_units_section(
         float(other["dN_pct_mixed_vs_split"].max()) if len(other) else float("nan")
     )
     n_ind_below_com_med = (
-        int((ind["dN_pct_mixed_vs_split"] < com["dN_pct_mixed_vs_split"].median()).sum())
+        int(
+            (ind["dN_pct_mixed_vs_split"] < com["dN_pct_mixed_vs_split"].median()).sum()
+        )
         if len(ind) and len(com)
         else 0
     )

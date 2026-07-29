@@ -21,9 +21,7 @@ def test_uniform_conversion_preserves_monetary_shares() -> None:
     converted = _flows_by_bucket(inter_mwh, fd_mwh)
 
     assert converted['total'] == pytest.approx(200.0)
-    assert converted['household_share'] == pytest.approx(
-        monetary['household_share']
-    )
+    assert converted['household_share'] == pytest.approx(monetary['household_share'])
     assert converted['intermediate_share'] == pytest.approx(
         monetary['intermediate_share']
     )

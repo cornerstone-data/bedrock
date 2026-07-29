@@ -84,9 +84,7 @@ def _usd_flows_by_class(
         inter_cols = [
             c for c in intermediate_usd.index if end_use_map[str(c)] == end_use
         ]
-        fd_cols = [
-            c for c in final_demand_usd.index if end_use_map[str(c)] == end_use
-        ]
+        fd_cols = [c for c in final_demand_usd.index if end_use_map[str(c)] == end_use]
         inter = float(intermediate_usd.reindex(inter_cols).fillna(0.0).sum())
         fd = float(final_demand_usd.reindex(fd_cols).fillna(0.0).sum())
         out[end_use] = {
@@ -104,9 +102,7 @@ def _class_row_factors_from_eia(
     eia_mwh_by_class: Mapping[str, float],
 ) -> tuple[pd.Series, dict[str, dict[str, float]]]:
     """c_j = EIA_MWh[class] / USD[class] for every purchaser in the class."""
-    usd_by_class = _usd_flows_by_class(
-        intermediate_usd, final_demand_usd, end_use_map
-    )
+    usd_by_class = _usd_flows_by_class(intermediate_usd, final_demand_usd, end_use_map)
     class_factors: dict[str, float] = {}
     detail: dict[str, dict[str, float]] = {}
     for end_use in EPA_END_USES:
@@ -143,7 +139,7 @@ def _ef_summary(
     n = n.copy()
     n.index = n.index.astype(str)
 
-    def _block(series: pd.Series, sectors: list[str]) -> dict[str, float]:
+    def _block(series: pd.Series, sectors: list[str]) -> dict[str, Any]:
         vals = series.reindex(sectors).astype(float)
         return {
             'mean': float(vals.mean()),
@@ -252,9 +248,7 @@ def analyze() -> dict[str, Any]:
             weights=[class_detail[k]['eia_table_2_2_MWh'] for k in EPA_END_USES],
         )
     )
-    relative = compute_mixed_unit_ef_vectors(
-        aq, b, prices_by_class=implied_as_table24
-    )
+    relative = compute_mixed_unit_ef_vectors(aq, b, prices_by_class=implied_as_table24)
 
     q_usd_gen = float(q.loc[gen])
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
@@ -276,12 +270,8 @@ def analyze() -> dict[str, Any]:
     # Verify class MWh under strict row factors (independent of c_col for non-gen cols)
     class_mwh_check: dict[str, float] = {}
     for end_use in EPA_END_USES:
-        cols_i = [
-            c for c in intermediate_usd.index if end_use_map[str(c)] == end_use
-        ]
-        cols_f = [
-            c for c in y_row_usd.index if end_use_map[str(c)] == end_use
-        ]
+        cols_i = [c for c in intermediate_usd.index if end_use_map[str(c)] == end_use]
+        cols_f = [c for c in y_row_usd.index if end_use_map[str(c)] == end_use]
         factor = float(class_detail[end_use]['c_class_MWh_per_USD'])
         mwh = float(intermediate_usd.reindex(cols_i).fillna(0.0).sum()) * factor
         mwh += float(y_row_usd.reindex(cols_f).fillna(0.0).sum()) * factor
@@ -291,9 +281,7 @@ def analyze() -> dict[str, Any]:
     elec_codes = list(ELECTRICITY_DISAGG_SECTORS)
     industrial_usd = class_detail['Industrial']['total_USD']
     elec_inter_usd = float(
-        intermediate_usd.reindex(
-            [c for c in elec_codes if c in intermediate_usd.index]
-        )
+        intermediate_usd.reindex([c for c in elec_codes if c in intermediate_usd.index])
         .fillna(0.0)
         .sum()
     )
@@ -303,7 +291,9 @@ def analyze() -> dict[str, Any]:
     def _pct_delta(new: float, old: float) -> float:
         return _safe_div(new - old, abs(old))
 
-    def _compare(summary_new: dict[str, Any], summary_old: dict[str, Any]) -> dict[str, Any]:
+    def _compare(
+        summary_new: dict[str, Any], summary_old: dict[str, Any]
+    ) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for block in (
             'electricity_D',
@@ -664,9 +654,7 @@ def render_report(p: Mapping[str, Any]) -> str:
         ]
     )
     for issue in q3['issues']:
-        lines.append(
-            f"- **{issue['id']}** ({issue['severity']}): {issue['detail']}"
-        )
+        lines.append(f"- **{issue['id']}** ({issue['severity']}): {issue['detail']}")
     lines.extend(
         [
             '',

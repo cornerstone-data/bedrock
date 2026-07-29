@@ -67,7 +67,7 @@ def _mt(kg: float) -> float:
 
 
 def _install_mixed_config() -> USAConfig:
-    import bedrock.utils.config.usa_config as uc
+    import bedrock.utils.config.usa_config as uc  # noqa: PLC0415
 
     reset_usa_config()
     with open(Path(CONFIG_DIR) / f"{MIXED_CONFIG}.yaml", encoding="utf-8") as f:
@@ -85,7 +85,9 @@ def _series_d_total(D_df: pd.DataFrame) -> pd.Series[float]:
     return s
 
 
-def _bly_total_mt(D: pd.Series[float], Ldom: pd.DataFrame, y: pd.Series[float]) -> float:
+def _bly_total_mt(
+    D: pd.Series[float], Ldom: pd.DataFrame, y: pd.Series[float]
+) -> float:
     ly = pd.Series(
         Ldom.to_numpy() @ y.reindex(Ldom.columns).fillna(0.0).to_numpy(),
         index=Ldom.index,
@@ -165,7 +167,9 @@ def analyze() -> dict[str, Any]:
     mwh_y_total = float(y_nab.loc[gen])
     mwh_q = float(q.loc[gen])
 
-    y_gen_shares = shares.loc[gen] if gen in shares.index else shares.reindex([gen]).iloc[0]
+    y_gen_shares = (
+        shares.loc[gen] if gen in shares.index else shares.reindex([gen]).iloc[0]
+    )
     mwh_hh = mwh_y_total * float(y_gen_shares.get(HH_FD_CODE, 0.0))
     mwh_other_fd = mwh_y_total - mwh_hh
 
@@ -200,8 +204,12 @@ def analyze() -> dict[str, Any]:
             "total_Mt": bly_total_mt,
             "household_F01000_Mt": bly_hh_mt,
             "other_final_demand_Mt": bly_other_mt,
-            "household_share": bly_hh_mt / bly_total_mt if bly_total_mt else float("nan"),
-            "other_fd_share": bly_other_mt / bly_total_mt if bly_total_mt else float("nan"),
+            "household_share": (
+                bly_hh_mt / bly_total_mt if bly_total_mt else float("nan")
+            ),
+            "other_fd_share": (
+                bly_other_mt / bly_total_mt if bly_total_mt else float("nan")
+            ),
             "recon_total_minus_parts_Mt": bly_total_mt - bly_hh_mt - bly_other_mt,
             "method": (
                 "y_hh = y_nab * (Y_2017[F01000] / sum_domestic_FD Y_2017)_i; "
@@ -216,12 +224,12 @@ def analyze() -> dict[str, Any]:
             "other_final_demand_MWh": mwh_other_fd,
             "intermediate_plus_fd_MWh": mwh_use_total,
             "q_minus_uses_MWh": mwh_q - mwh_use_total,
-            "intermediate_share_of_uses": mwh_intermediate / mwh_use_total
-            if mwh_use_total
-            else float("nan"),
-            "household_share_of_uses": mwh_hh / mwh_use_total
-            if mwh_use_total
-            else float("nan"),
+            "intermediate_share_of_uses": (
+                mwh_intermediate / mwh_use_total if mwh_use_total else float("nan")
+            ),
+            "household_share_of_uses": (
+                mwh_hh / mwh_use_total if mwh_use_total else float("nan")
+            ),
         },
         "bly_generation_sector_allocated_by_mwh_uses": {
             "bly_221110_Mt": bly_gen_mt,
@@ -253,16 +261,16 @@ def analyze() -> dict[str, Any]:
             "model_intermediate_MWh_vs_eia_nonresidential_sales": {
                 "model_intermediate_MWh": mwh_intermediate,
                 "eia_Com_Ind_Trans_MWh": eia_nonres,
-                "ratio_model_over_eia": mwh_intermediate / eia_nonres
-                if eia_nonres
-                else float("nan"),
+                "ratio_model_over_eia": (
+                    mwh_intermediate / eia_nonres if eia_nonres else float("nan")
+                ),
             },
             "model_q_gen_vs_eia_total_end_use": {
                 "model_q_221110_MWh": mwh_q,
                 "eia_Total_End_Use_MWh": eia_total_end,
-                "ratio_model_over_eia": mwh_q / eia_total_end
-                if eia_total_end
-                else float("nan"),
+                "ratio_model_over_eia": (
+                    mwh_q / eia_total_end if eia_total_end else float("nan")
+                ),
             },
         },
     }
