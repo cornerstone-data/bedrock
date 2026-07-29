@@ -39,8 +39,8 @@ BRIDGE_CSV_PATH = OUTPUT_DIR / 'nowcast_initial_Y_pur_vs_bridges_2017.csv'
 def load_use_sut_framework_final_demand_2017() -> pd.DataFrame:
     """
     Final-demand section (commodity x BEA_2017_FINAL_DEMAND_CODE) of the
-    officially published 2017 detail Use table, purchaser price, after
-    redefinition. USD (source workbook is in million USD).
+    officially published 2017 SUT detail Use table, purchaser price. USD (source
+    workbook is in million USD).
 
     Row scope mirrors ``bea_parse``'s "Detail_Use_SUT" handling: only rows
     above the ``'T005'`` ("Total Intermediate") checksum row are true
@@ -72,7 +72,7 @@ def compare_initial_Y_pur_to_use_sut_framework_2017() -> pd.DataFrame:
     """
     Per-final-demand-code total comparison: ``derive_initial_Y_pur(2017)``
     (purchaser price) vs. the published Use_SUT_Framework_2017_DET.xlsx
-    (also purchaser price, but before redefinition).
+    (also purchaser price).
     """
     ours = derive_initial_Y_pur(2017)
     baseline = load_use_sut_framework_final_demand_2017()
@@ -85,7 +85,7 @@ def compare_initial_Y_pur_to_use_sut_framework_2017() -> pd.DataFrame:
     return pd.DataFrame(
         {
             'ours_PUR': ours_totals,
-            'baseline_PUR_after_redef': baseline_totals,
+            'use_sut_detail_PUR': baseline_totals,
             'abs_diff': diff,
             'pct_diff': pct_diff,
         }
@@ -100,7 +100,7 @@ def cellwise_initial_Y_pur_vs_use_sut_framework_2017() -> pd.DataFrame:
     ``compare_initial_Y_pur_to_use_sut_framework_2017``.
 
     Columns: ``commodity``, ``final_demand_code``, ``ours_PUR``,
-    ``baseline_PUR_after_redef``, ``abs_diff``, ``pct_diff``.
+    ``use_sut_detail_PUR``, ``abs_diff``, ``pct_diff``.
     """
     ours = derive_initial_Y_pur(2017)
     baseline = load_use_sut_framework_final_demand_2017()
@@ -119,12 +119,12 @@ def cellwise_initial_Y_pur_vs_use_sut_framework_2017() -> pd.DataFrame:
     baseline_long = baseline.reset_index().melt(
         id_vars='commodity',
         var_name='final_demand_code',
-        value_name='baseline_PUR_after_redef',
+        value_name='use_sut_detail_PUR',
     )
     cellwise = ours_long.merge(baseline_long, on=['commodity', 'final_demand_code'])
-    cellwise['abs_diff'] = cellwise['ours_PUR'] - cellwise['baseline_PUR_after_redef']
+    cellwise['abs_diff'] = cellwise['ours_PUR'] - cellwise['use_sut_detail_PUR']
     cellwise['pct_diff'] = (
-        cellwise['abs_diff'] / cellwise['baseline_PUR_after_redef'].replace(0, np.nan)
+        cellwise['abs_diff'] / cellwise['use_sut_detail_PUR'].replace(0, np.nan)
     ) * 100
     return cellwise
 
@@ -175,7 +175,7 @@ def compare_initial_Y_pur_to_bridges_2017() -> pd.DataFrame:
 
     - ``ours_minus_bridge`` non-zero means our attribution did not reproduce
       the bridge's own split of a category across commodities.
-    - ``bridge_minus_baseline`` non-zero means the bridge and the Use table
+    - ``bridge_minus_use_sut`` non-zero means the bridge and the Use table
       disagree at source, which no amount of attribution work will close.
 
     Covers only the columns that are built from a bridge
@@ -183,7 +183,7 @@ def compare_initial_Y_pur_to_bridges_2017() -> pd.DataFrame:
     attributed against the Use table itself and have no bridge to check.
 
     Columns: ``final_demand_code``, ``commodity``, ``ours_PUR``,
-    ``bridge_PUR``, ``baseline_PUR_after_redef``, the three pairwise
+    ``bridge_PUR``, ``use_sut_detail_PUR``, the three pairwise
     differences, and percent differences for each.
     """
     ours = derive_initial_Y_pur(2017)
@@ -197,7 +197,7 @@ def compare_initial_Y_pur_to_bridges_2017() -> pd.DataFrame:
             {
                 'ours_PUR': ours.reindex(commodities).get(code, pd.Series(dtype=float)),
                 'bridge_PUR': bridge.reindex(commodities),
-                'baseline_PUR_after_redef': baseline.reindex(commodities).get(
+                'use_sut_detail_PUR': baseline.reindex(commodities).get(
                     code, pd.Series(dtype=float)
                 ),
             },
@@ -214,8 +214,8 @@ def compare_initial_Y_pur_to_bridges_2017() -> pd.DataFrame:
         ('bridge', 'baseline'),
         ('ours', 'baseline'),
     ):
-        lcol = 'baseline_PUR_after_redef' if left == 'baseline' else f'{left}_PUR'
-        rcol = 'baseline_PUR_after_redef' if right == 'baseline' else f'{right}_PUR'
+        lcol = 'use_sut_detail_PUR' if left == 'baseline' else f'{left}_PUR'
+        rcol = 'use_sut_detail_PUR' if right == 'baseline' else f'{right}_PUR'
         out[f'{left}_minus_{right}'] = out[lcol] - out[rcol]
         out[f'{left}_minus_{right}_pct'] = (
             out[f'{left}_minus_{right}'] / out[rcol].replace(0, np.nan)
@@ -240,7 +240,7 @@ def main() -> None:
         print(summary)
     print(f'\nGrand total, ours (PUR): {summary["ours_PUR"].sum():,.0f}')
     print(
-        f'Grand total, baseline (PUR, after redef): {summary["baseline_PUR_after_redef"].sum():,.0f}'
+        f'Grand total, Use SUT detail (PUR): {summary["use_sut_detail_PUR"].sum():,.0f}'
     )
 
     out_path = export_cellwise_comparison()
@@ -253,7 +253,7 @@ def main() -> None:
     ):
         print(
             bridges.groupby(['final_demand_code', 'bridge_source'])[
-                ['ours_PUR', 'bridge_PUR', 'baseline_PUR_after_redef']
+                ['ours_PUR', 'bridge_PUR', 'use_sut_detail_PUR']
             ].sum()
             / MILLION_CURRENCY_TO_CURRENCY
         )
