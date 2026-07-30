@@ -142,7 +142,7 @@ consistently downstream of `industry_spec_key`.
 | sector levels | `flowbysector.py:287` | `Sector_Levels` covers the code | unexamined |
 | crosswalk source year | `flowbyactivity.py` ~520 | `SectorSourceName` parses as `NAICS_<year>_Code`, then rows are filtered to that literal | forces every activity-to-sector crosswalk to *declare* NAICS even when its sectors are BEA codes |
 | activity schema branch | `flowbyactivity.py` ~486 | `"NAICS" in activity_schema` selects the whole mapping path | non-NAICS sources take the crosswalk path by accident, not by design |
-| model schema mapping | `allocation/derived.py:200` | NAICS_3/4/5 expand to NAICS_6 before mapping | to be removed for `nowcast.py`, see ordering |
+| model schema mapping | `allocation/derived.py:200` | NAICS_3/4/5 expand to NAICS_6 before mapping | can break non-naics if expansion required |
 | out-of-tree | `analysis/time_series_B_matrix/derive_B_time_series.py:257` | reads the NAICS crosswalk directly | check, do not assume |
 
 The `SectorSourceName` guard is the clearest illustration of the problem. The new
