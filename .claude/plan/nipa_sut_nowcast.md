@@ -67,11 +67,12 @@ with two sub-issues:**
   Requirement stated in the issue: data needs to match the 2017 detailed Use table as closely as
   possible, be available annually, and be comparable to BACI trade data. Three candidates given:
   1. Census Trade in Goods + BEA trade in services data — already used in
-     [`cornerstone-data/USEEIO`'s `import_emission_factors/download_imports_data.py`](https://github.com/cornerstone-data/USEEIO/blob/master/import_emission_factors/download_imports_data.py)
-     (existing code to potentially port, same pattern as `sut_ras.py`/`load_suts_from_r.py`).
+     [`cornerstone-data/USEEIO`'s `import_emission_factors/download_imports_data.py`](https://github.com/cornerstone-data/USEEIO/blob/imports/import_emission_factors/download_imports_data.py)
+     on the **`imports` branch tip** (prefer over older master copies; NAICS retain + per-API country codes — see `bedrock/analysis/trade_data/trade_data_source_options_527.md`).
   2. BEA ITA accounts with NIPA link — ITA Table 2.1 (goods) + ITA Table 3.1 (services), joined via
      BEA's "Linkage table from ITA to NIPA for foreign transactions."
   3. BACI data — framed in the issue more as a comparison/validation source than a primary pick.
+  Options writeup: [`bedrock/analysis/trade_data/trade_data_source_options_527.md`](../../bedrock/analysis/trade_data/trade_data_source_options_527.md).
 - **[#528](https://github.com/cornerstone-data/bedrock/issues/528) "Implement the trade data into
   FBA/FBS"** — no body yet; follows once #527 picks a source, same FBA→FBS pattern as everything else.
 
