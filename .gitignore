@@ -34,6 +34,8 @@ __pycache__/
 !bedrock/extract/external_data/*.csv
 # Waste disaggregation weight fixtures (small; required for CI tests)
 !bedrock/extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_*.csv
+# Electricity disagg diagnostics sheet exports (BLy / EF plots)
+!bedrock/analysis/electricity_disagg_diagnostics/local_data/*.xlsx
 
 # Ignore JetBrains IDE project files
 .idea/

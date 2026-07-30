@@ -355,9 +355,16 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     drop_cols = ['sector_name']
     if use_cornerstone:
         drop_cols.append('comparison_type')
-    significant_sectors_comparison = D_comparison.loc[available_significant].join(
-        N_comparison.loc[available_significant].drop(columns=drop_cols)
+    d_sig = D_comparison.loc[available_significant]
+    n_sig = N_comparison.loc[available_significant].drop(
+        columns=drop_cols, errors='ignore'
     )
+    # Mixed-units configs add ``exemption_reason`` to both D and N tabs; drop
+    # N-side duplicates so ``join`` does not require suffixes.
+    n_sig = n_sig.drop(
+        columns=list(n_sig.columns.intersection(d_sig.columns)), errors='ignore'
+    )
+    significant_sectors_comparison = d_sig.join(n_sig)
     update_sheet_tab(
         sheet_id,
         'D_and_N_significant_sectors',
