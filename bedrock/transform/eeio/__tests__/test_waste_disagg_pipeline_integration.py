@@ -28,6 +28,8 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
+    electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
@@ -51,12 +53,17 @@ from bedrock.utils.config.usa_config import (
     reset_usa_config,
     set_global_usa_config,
 )
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    clear_cornerstone_inflation_caches,
+)
 from bedrock.utils.math.formulas import compute_q
 
 _WASTE_SET = set(_WASTE_NEW_CODES)
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     cornerstone_sector_disagg_active,
+    electricity_reallocation_enabled,
+    electricity_disaggregation_enabled,
     get_waste_disagg_weights,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
@@ -80,6 +87,7 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, "cache_clear"):
             fn.cache_clear()
+    clear_cornerstone_inflation_caches()
 
 
 def _setup_config(config_name: str) -> None:
