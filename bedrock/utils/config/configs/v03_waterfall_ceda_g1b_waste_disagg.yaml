@@ -7,7 +7,6 @@ price_type: producer
 usa_ghg_data_year: 2023
 
 use_cornerstone_2026_model_schema: true
-load_E_from_flowsa: true
 new_ghg_method: true
 use_E_data_year_for_x_in_B: false
 implement_waste_disaggregation: true
