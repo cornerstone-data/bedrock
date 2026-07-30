@@ -188,3 +188,18 @@ def scale_cornerstone_q(
         )
 
     return q_scaled
+
+
+def scale_cornerstone_B(
+    B: pd.DataFrame,
+    target_year: USA_SUMMARY_MUT_YEARS,
+    original_year: USA_SUMMARY_MUT_YEARS,
+) -> pd.DataFrame:
+    """Scale B columns using summary q ratios (legacy pre-IO-adjustments footing)."""
+    ratio = (
+        derive_summary_q_usa(original_year) / derive_summary_q_usa(target_year)
+    ).fillna(1.0)
+    return ta.cast(
+        pd.DataFrame,
+        _apply_summary_ratio_to_sectors(ratio, B, axis='columns'),
+    )

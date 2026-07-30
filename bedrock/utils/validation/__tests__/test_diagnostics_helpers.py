@@ -58,7 +58,7 @@ class TestDNNewInflatedEligibility:
         )
         ok, reason = d_n_new_inflated_eligibility(cfg)
         assert ok is False
-        assert 'no denominator inflation adjustment' in reason
+        assert 'double-apply' in reason
 
     def test_skip_legacy_non_cornerstone(self) -> None:
         cfg = USAConfig(
