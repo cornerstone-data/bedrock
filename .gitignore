@@ -51,8 +51,3 @@ scratch/
 
 # Ignore analysis output
 bedrock/analysis/**/output/
-# Electricity disagg diagnostics reports/figures (tracked for review)
-!bedrock/analysis/electricity_disagg_diagnostics/output/
-!bedrock/analysis/electricity_disagg_diagnostics/output/**
-!bedrock/analysis/electricity_disagg_diagnostics/output/**/*.png
-!bedrock/analysis/electricity_disagg_diagnostics/output/**/*.csv

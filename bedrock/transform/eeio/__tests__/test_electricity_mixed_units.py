@@ -19,7 +19,6 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_mixed_units_enabled,
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
-    table_2_4_prices_cents_kwh,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq,
@@ -72,8 +71,6 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
     get_electricity_commodity_row_weights,
-    build_end_use_map,
-    table_2_4_prices_cents_kwh,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
