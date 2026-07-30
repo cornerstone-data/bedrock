@@ -65,10 +65,7 @@ from bedrock.transform.eeio.cornerstone_expansion import (
 )
 from bedrock.transform.eeio.cornerstone_year_scaling import (
     scale_cornerstone_A,
-    scale_cornerstone_B,
     scale_cornerstone_q,
-    scale_cornerstone_V,
-    scale_cornerstone_x,
 )
 from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Yimp_usa,
@@ -85,7 +82,6 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
     inflate_cornerstone_A_matrix_with_commodity_pi,
     inflate_cornerstone_A_matrix_with_industry_pi,
-    inflate_cornerstone_B_matrix_with_industry_pi,
     inflate_cornerstone_q_or_y_with_commodity_pi,
     inflate_cornerstone_q_or_y_with_industry_pi,
     inflate_cornerstone_V_with_industry_pi,
@@ -269,16 +265,6 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
         if year == 0
         else cast('USA_GROSS_INDUSTRY_OUTPUT_YEARS', year)
     )
-    if (
-        cfg.use_scaled_x_and_scaled_Vnorm_for_B
-    ):  # does not use effective_year but rather uses cfg.model_base_year
-        x_cs = scale_cornerstone_x(
-            derive_cornerstone_x(),  # will get x from 2017 if not inflation is applied
-            target_year=cfg.model_base_year,
-            original_year=cfg.usa_detail_original_year,
-        )
-        validate_cornerstone(x_cs, "X")
-        return x_cs
     x_bea = derive_gross_output(
         target_year=effective_year,
         iot_before_or_after_redefinition=cfg.iot_before_or_after_redefinition,
@@ -323,18 +309,9 @@ def derive_cornerstone_Vnorm_scrap_corrected(
         else (cfg.model_base_year if use_inflation else 0)
     )
 
-    if cfg.use_scaled_x_and_scaled_Vnorm_for_B:
-        V = scale_cornerstone_V(
-            derive_cornerstone_V(),
-            target_year=cfg.model_base_year,
-            original_year=cfg.usa_detail_original_year,
-        )
-        q = compute_q(V=V)
-        x = derive_cornerstone_x_after_redefinition()
-    else:
-        V = derive_cornerstone_V(use_inflation, effective_year)
-        q = compute_q(V=V)
-        x = compute_x(V=V)
+    V = derive_cornerstone_V(use_inflation, effective_year)
+    q = compute_q(V=V)
+    x = compute_x(V=V)
 
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
 
@@ -358,91 +335,6 @@ def derive_cornerstone_Vnorm_scrap_corrected(
     )
     validate_cornerstone(V_scrap_corrected, 'V')
     return V_scrap_corrected
-
-
-@functools.cache
-def scale_cornerstone_V_with_authoritative_x() -> pd.DataFrame:
-    """Estimate V rescaled to match model-year gross industry output.
-
-    Derives x_new from the BEA gross-output time series at ``model_base_year``
-    (after redefinitions) via ``derive_cornerstone_x_after_redefinition``.
-    Inflates the base 2017 V to model-year dollars, computes its row sums
-    (x_model_year), then scales each row i proportionally by
-    ``x_new[i] / x_model_year[i]``.  Industries with zero model-year output
-    receive a zero row.
-
-    Returns
-    -------
-    pd.DataFrame
-        New V with ``V_new.sum(axis=1) ≈ x_new`` for all industries that have
-        non-zero model-year output.
-    """
-    cfg = get_usa_config()
-    x_new = derive_cornerstone_x_after_redefinition(year=cfg.model_base_year)
-
-    V_model_year = derive_cornerstone_V(
-        apply_inflation=True, target_year=cfg.model_base_year
-    )
-    x_model_year = V_model_year.sum(axis=1)
-    x_new_aligned = x_new.reindex(x_model_year.index).fillna(0.0)
-
-    x_model_year_np = x_model_year.to_numpy(dtype=float)
-    x_new_aligned_np = x_new_aligned.to_numpy(dtype=float)
-    scale = pd.Series(
-        np.where(
-            x_model_year_np != 0,
-            x_new_aligned_np / x_model_year_np,
-            0.0,
-        ),
-        index=x_model_year.index,
-    )
-    V_new = V_model_year.multiply(scale, axis=0)
-
-    mask = x_model_year_np != 0
-    assert np.allclose(
-        V_new.sum(axis=1).to_numpy(dtype=float)[mask], x_new_aligned_np[mask], rtol=1e-6
-    ), 'Row sums of V_new do not match x_new'
-
-    return V_new
-
-
-def derive_q_from_scaled_cornerstone_V_from_authoritative_x() -> pd.Series[float]:
-    V = scale_cornerstone_V_with_authoritative_x()
-    return compute_q(V=V)
-
-
-def derive_q_from_deflated_ghg_year_x() -> pd.Series[float]:
-    """q derived from GHG-year gross output deflated to detail IO year (2017 USD).
-
-    Mirrors the deflate_x_to_detail_io_year_for_B logic: takes nominal
-    usa_ghg_data_year industry output, divides by PI(ghg)/PI(detail) to express
-    it in usa_detail_original_year chain dollars, then scales the base 2017 V so
-    each industry row sum matches that deflated x before computing q.
-    """
-    cfg = get_usa_config()
-    x_nominal = derive_cornerstone_x_after_redefinition()
-    ratio = get_cornerstone_industry_price_ratio(
-        original_year=cfg.usa_detail_original_year,
-        target_year=cfg.usa_ghg_data_year,
-    )
-    ratio_aligned = ratio.reindex(x_nominal.index).where(
-        ratio.reindex(x_nominal.index).notna(), 1.0
-    )
-    x_deflated = x_nominal / ratio_aligned
-
-    V_base = derive_cornerstone_V()
-    x_base = V_base.sum(axis=1)
-    x_deflated_aligned = x_deflated.reindex(x_base.index).fillna(0.0)
-    scale = pd.Series(
-        np.where(
-            x_base.to_numpy(dtype=float) != 0,
-            x_deflated_aligned.to_numpy(dtype=float) / x_base.to_numpy(dtype=float),
-            0.0,
-        ),
-        index=x_base.index,
-    )
-    V_scaled = V_base.multiply(scale, axis=0)
-    return compute_q(V=V_scaled)
 
 
 # ---------------------------------------------------------------------------
@@ -620,22 +512,7 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     model_year = cfg.model_base_year
 
     # USEEIO method: return 2017 base A unchanged — no scaling, no inflation.
-    # If get_q_from_authoritative_x is also set, replace q before returning.
-    # When deflate_x_to_detail_io_year_for_B is also True (e.g. model 3a), the
-    # authoritative x is GHG-year output deflated to detail_year USD, mirroring
-    # the B matrix approach. Otherwise use the model_base_year x path.
     if cfg.scale_a_matrix_with_useeio_method:
-        if cfg.get_q_from_authoritative_x:
-            q_fn = (
-                derive_q_from_deflated_ghg_year_x
-                if cfg.deflate_x_to_detail_io_year_for_B
-                else derive_q_from_scaled_cornerstone_V_from_authoritative_x
-            )
-            return SingleRegionAqMatrixSet(
-                Adom=base.Adom,
-                Aimp=base.Aimp,
-                scaled_q=q_fn(),
-            )
         return base
 
     # USEEIO nowcast: load externally-balanced detail SUTs from GCS and
@@ -649,15 +526,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         )
 
         return derive_useeio_nowcast_Aq_cornerstone(year=model_year)
-
-    # When get_q_from_authoritative_x is set, q is derived from V rescaled to
-    # match BEA model-year gross output rather than via scale_cornerstone_q()
-    # or any inflation function. A scaling is unaffected in every branch.
-    q_auth = (
-        derive_q_from_scaled_cornerstone_V_from_authoritative_x()
-        if cfg.get_q_from_authoritative_x
-        else None
-    )
 
     # Summary tables: scale 2017 → model_year using summary A ratios.
     #
@@ -695,8 +563,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             q = inflate_cornerstone_q_or_y_with_commodity_pi(
                 q, original_year=detail_year, target_year=model_year
             )
-        if q_auth is not None:
-            q = q_auth
         return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
     # Commodity price index (V-norm-derived): like the industry-price branch,
@@ -712,8 +578,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             base.scaled_q, original_year=detail_year, target_year=model_year
         )
-        if q_auth is not None:
-            q = q_auth
         return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
     # CEDA method: our fallback option as of CY26Q2.
@@ -759,8 +623,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             q = inflate_cornerstone_q_or_y_with_commodity_pi(
                 q, original_year=detail_year, target_year=model_year
             )
-        if q_auth is not None:
-            q = q_auth
         return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
     Adom = inflate_cornerstone_A_matrix_with_industry_pi(
@@ -790,9 +652,6 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         original_year=io_year,
         target_year=model_year,
     )
-    if q_auth is not None:
-        q = q_auth
-
     return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
 
@@ -919,21 +778,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 @functools.cache
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
-    cfg = get_usa_config()
-    # When use_scaled_x_and_scaled_Vnorm_for_B is True, scale and inflate B.
-    # Otherwise keep B on vnorm only.
-    if cfg.use_scaled_x_and_scaled_Vnorm_for_B:
-        return inflate_cornerstone_B_matrix_with_industry_pi(
-            scale_cornerstone_B(
-                B=derive_cornerstone_B_via_vnorm(),
-                original_year=cfg.usa_detail_original_year,
-                target_year=cfg.usa_io_data_year,
-            ),
-            original_year=cfg.usa_io_data_year,
-            target_year=cfg.model_base_year,
-        )
-    else:
-        return derive_cornerstone_B_via_vnorm()
+    return derive_cornerstone_B_via_vnorm()
 
 
 @functools.cache

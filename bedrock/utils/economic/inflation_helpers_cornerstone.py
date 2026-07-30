@@ -327,13 +327,6 @@ def inflate_cornerstone_q_or_y_with_commodity_pi(
     return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
 
 
-def inflate_cornerstone_B_matrix_with_industry_pi(
-    B: pd.DataFrame, original_year: int, target_year: int
-) -> pd.DataFrame:
-    price_ratio = get_cornerstone_industry_price_ratio(target_year, original_year)
-    return B * price_ratio.reindex(B.columns, fill_value=1.0).values
-
-
 # ---------------------------------------------------------------------------
 # Summary-level commodity price ratio + summary A/q dollar-year adjustment
 #
@@ -396,47 +389,6 @@ def adjust_summary_q_dollar_year(
     return q_summary / p.reindex(q_summary.index, fill_value=1.0)
 
 
-def adjust_summary_x_dollar_year(
-    x_summary: pd.Series[float],
-    from_year: int,
-    to_year: int,
-) -> pd.Series[float]:
-    """Rebase a summary x (industry gross output) vector from ``from_year``
-    USD to ``to_year`` USD by elementwise division by the summary industry
-    price ratio — the industry-axis analogue of ``adjust_summary_q_dollar_year``.
-
-    Direction-agnostic: deflates when from_year > to_year, inflates when
-    from_year < to_year.
-    """
-    p = get_summary_industry_price_ratio(original_year=to_year, target_year=from_year)
-    return x_summary / p.reindex(x_summary.index, fill_value=1.0)
-
-
-def adjust_summary_V_dollar_year(
-    V_summary: pd.DataFrame,
-    from_year: int,
-    to_year: int,
-) -> pd.DataFrame:
-    """Rebase a summary V (Make) matrix from ``from_year`` USD to ``to_year``
-    USD by scaling rows (industries) by the inverse summary commodity price
-    ratio — the summary-level analogue of
-    ``inflate_cornerstone_V_with_industry_pi``.
-
-    Only the row (industry output) axis is adjusted; commodity columns are
-    left unchanged, consistent with how V inflation is handled at detail level.
-
-    Direction-agnostic: deflates when from_year > to_year, inflates when
-    from_year < to_year.
-    """
-    p = get_summary_industry_price_ratio(original_year=to_year, target_year=from_year)
-    p_row = p.reindex(V_summary.index, fill_value=1.0)
-    return pd.DataFrame(
-        V_summary.divide(p_row, axis=0).to_numpy(),
-        index=V_summary.index,
-        columns=V_summary.columns,
-    )
-
-
 @functools.cache
 def get_summary_commodity_price_ratio(
     original_year: int, target_year: int
@@ -481,8 +433,7 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
     """Cornerstone-detail industry PI aggregated to BEA summary, x-weighted.
 
     Uses 2017 base-year Cornerstone x as weights (relative within-group sizes
-    are stable across years, and this avoids a circular dependency through
-    scale_cornerstone_x → adjust_summary_x_dollar_year).
+    are stable across years).
     """
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_x,

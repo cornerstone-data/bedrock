@@ -17,7 +17,7 @@ from bedrock.extract.disaggregation.disagg_weights import (
     _empty_weight_table,
     load_disagg_weights,
 )
-from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
+from bedrock.extract.disaggregation.waste_weight_config import EEIOWasteDisaggConfig
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import typing as ta
-import warnings
 
 import pandas as pd
 import yaml
@@ -33,13 +32,6 @@ DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
         'usa_ghg_data_year',
     }
 )
-
-
-class EEIOWasteDisaggConfig(BaseModel):
-    use_weights_file: str
-    make_weights_file: str
-    year: int
-    source_name: str
 
 
 class USAConfig(BaseModel):
@@ -89,7 +81,6 @@ class USAConfig(BaseModel):
         ),
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
-    eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
@@ -102,30 +93,12 @@ class USAConfig(BaseModel):
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
-    use_scaled_x_and_scaled_Vnorm_for_B: bool = Field(
-        default=False,
-        description=(
-            'Derives x from scaled_X and Vnorm from scaled_V and scaled_q'
-            'Either scale_a_matrix_with_summary_tables or scale_a_matrix_with_ceda_method_as_fallback'
-            ' must be True'
-            'use_E_data_year_for_x_in_B must be True'
-        ),
-    )  # DRI: WesIngwersen
-    get_q_from_authoritative_x: bool = Field(
-        default=False,
-        description=(
-            'Derive q using derive_q_from_scaled_cornerstone_V_from_authoritative_x'
-            'instead of the default in derive_**_Aq'
-        ),
-    )  # DRI: WesIngwersen
     ### GHG Methodology selection
-    usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
     update_mecs_method: bool = False  # DRI: catherine.birney
     v0_3_umd_2023_ghgia: bool = False  # DRI: catherine.birney
     v0_3_umd_2024_ghgia: bool = False  # DRI: catherine.birney
     use_ghg_national_2023_m2: bool = False
-    skip_scrap_adjustment_in_vnorm: bool = False
     ### Inflation factors
     apply_inflation_to_V: bool = False  # DRI: WesIngwersen
     update_inflation_factors: bool = False
@@ -190,25 +163,6 @@ class USAConfig(BaseModel):
         return self
 
     @model_validator(mode='after')
-    def _validate_scaled_x_vnorm_for_B_prerequisites(self) -> USAConfig:
-        if self.use_scaled_x_and_scaled_Vnorm_for_B:
-            if not (
-                self.scale_a_matrix_with_summary_tables
-                or self.scale_a_matrix_with_ceda_method_as_fallback
-            ):
-                raise ValueError(
-                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
-                    'scale_a_matrix_with_summary_tables or '
-                    'scale_a_matrix_with_ceda_method_as_fallback to be true'
-                )
-            if not self.use_E_data_year_for_x_in_B:
-                raise ValueError(
-                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
-                    'use_E_data_year_for_x_in_B to be true'
-                )
-        return self
-
-    @model_validator(mode='after')
     def _validate_margins_mutual_exclusivity(self) -> USAConfig:
         active = [
             name
@@ -225,21 +179,6 @@ class USAConfig(BaseModel):
         if len(active) > 1:
             raise ValueError(
                 f'At most one margins flag may be true; got: {", ".join(active)}'
-            )
-        return self
-
-    @model_validator(mode='after')
-    def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
-        if (
-            self.iot_before_or_after_redefinition == 'before'
-            and self.eeio_waste_disaggregation is not None
-        ):
-            warnings.warn(
-                "iot_before_or_after_redefinition is 'before', so "
-                'eeio_waste_disaggregation is ignored; USEEIOR v1.8.0 waste '
-                'weights apply (USEEIO parity).',
-                UserWarning,
-                stacklevel=2,
             )
         return self
 
@@ -302,9 +241,9 @@ class USAConfig(BaseModel):
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable dictionary representation of the config.
 
-        Nested BaseModel values (such as EEIOWasteDisaggConfig) are converted
-        to plain dictionaries via model_dump(), so callers can safely pass
-        this mapping to pandas or json libraries.
+        Nested BaseModel values are converted to plain dictionaries via
+        model_dump(), so callers can safely pass this mapping to pandas or
+        json libraries.
         """
         result: dict[str, object] = {}
         for field_name in self.model_fields:
