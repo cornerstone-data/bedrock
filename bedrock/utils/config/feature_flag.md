@@ -59,25 +59,19 @@ Create `bedrock/utils/config/configs/<name>.yaml`:
 - Set any hard prerequisites the validators or call site require (for
   example `load_E_from_flowsa: true` when the gated path loads E from
   flowsa).
-- Set `snapshot_version_or_git_sha` to the baseline diagnostics should
-  compare against — the value whose parquet EFs become `N_old` / `D_old`
-  on the sheet. Pick the baseline that matches the evaluation question:
-  - **Latest accepted Bedrock / Cornerstone model** — the SHA in
-    [`../snapshots/.SNAPSHOT_KEY`](../snapshots/.SNAPSHOT_KEY) (must also
-    appear on the `USAConfig.snapshot_version_or_git_sha` Literal). Use this
-    when the question is “what does this feature change relative to the
-    model users already receive?”
-  - **A prior Bedrock / Cornerstone release** — a release SHA in that
-    Literal (`# v0.2`, `# v0.3.0`, etc.).
-  - **Legacy CEDA-US v0** — set `'v0'`, or omit the key because the field
-    default is `'v0'`. Omitting the key does **not** select
-    `.SNAPSHOT_KEY`.
+- Leave `snapshot_version_or_git_sha` at its default (`'v0'`) or omit the
+  key. Choose the diagnostics comparison at dispatch /
+  `generate_diagnostics` time via `--baseline` (`ceda-v0`, `useeio`,
+  `v0.3`, …) — see
+  [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md)
+  (§ Choose a baseline). Do not fork a config YAML only to change the
+  baseline.
 - Omit unrelated keys; `USAConfig` fills defaults for everything else.
 
-`'v0'` means the legacy CEDA-US baseline. A SHA from `.SNAPSHOT_KEY` or
-`snapshots/releases.py` represents a Bedrock / Cornerstone model snapshot.
-Both use the snapshot loader; do not label a Bedrock / Cornerstone snapshot
-as “CEDA snapshot” in diagnostics titles or findings.
+`'v0'` (and `--baseline ceda-v0`) means the legacy CEDA-US baseline.
+`--baseline v0.3` (or a raw SHA) selects a Bedrock / Cornerstone model
+snapshot. Do not label a Bedrock / Cornerstone snapshot as “CEDA snapshot”
+in diagnostics titles or findings.
 
 Config name = filename without `.yaml` (this is the `config_name` passed to
 `generate_diagnostics`).

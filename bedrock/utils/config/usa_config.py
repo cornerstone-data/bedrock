@@ -25,6 +25,7 @@ RETIRED_USA_CONFIG_STEMS: frozenset[str] = frozenset(
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         'diagnostics_baseline_source',
+        'snapshot_version_or_git_sha',
         'useeio_baseline_xlsx_gs_uri',
         'useeio_baseline_xlsx_sha256',
         'useeio_model_version_label',
@@ -374,9 +375,10 @@ def set_global_usa_config(
             appended if missing).
         diagnostics_cli_overrides: If set, merged onto the YAML-loaded dict
             before ``USAConfig`` validation. Keys must be a subset of
-            ``DIAGNOSTICS_CLI_OVERRIDE_KEYS`` (diagnostics baseline + USEEIO pin
-            fields). Used by ``generate_diagnostics`` so one run can change those
-            fields without a forked config file.
+            ``DIAGNOSTICS_CLI_OVERRIDE_KEYS`` (diagnostics baseline source,
+            snapshot key, USEEIO pin fields, model years). Used by
+            ``generate_diagnostics`` so one run can change the comparison
+            target and years without a forked config file.
     """
     global _usa_config
     config_file_env = os.environ.get(USA_CONFIG_ENV_VAR)

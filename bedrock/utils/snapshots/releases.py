@@ -1,7 +1,10 @@
-"""Reference-only map of release labels to snapshot SHAs.
+"""Release labels to snapshot SHAs.
 
-Not imported by runtime code. Integration tests use ``.SNAPSHOT_KEY``;
-diagnostics resolve baselines via ``USAConfig.snapshot_version_or_git_sha``.
+Imported by ``bedrock.utils.validation.diagnostics_baseline`` so
+``generate_diagnostics --baseline v0.2`` (etc.) can resolve labels to SHAs.
+Integration tests still prefer ``.SNAPSHOT_KEY`` for “current snapshot”
+identity; diagnostics runs select a baseline via CLI / workflow, which
+overrides ``USAConfig.snapshot_version_or_git_sha`` for that process.
 
 Each entry's ``# config:`` comment is the stem passed to
 ``generate_snapshots --config_name`` when that snapshot was built. Confirm

@@ -4,7 +4,7 @@ Snapshots are the source of truth for what the bedrock pipeline produced at a sp
 They are:
 
 - The fixtures behind the snapshot integration tests in `bedrock/transform/__tests__/test_usa.py` (run twice every weekday on `main` via `test_integration.yml`)
-- The baseline that diagnostics runs compare against (`USAConfig.snapshot_version_or_git_sha`)
+- Parquet sources for diagnostics comparison baselines — selected at dispatch via `--baseline` (see [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md)); allowed snapshot keys live on `USAConfig.snapshot_version_or_git_sha`
 - A reproducibility guarantee: every prior release remains independently reproducible because old snapshots are never deleted
 
 When the pipeline changes in a way that legitimately changes its outputs, the integration tests will diff against the previous snapshot and fail. That signal is intentional, and the fix is to regenerate the snapshot and bump `.SNAPSHOT_KEY`. Tagging a release is a separate event that may bundle the snapshot bump together with non-output-changing work (docs, polish, bug fixes). This document is the team-wide playbook for both flows.
@@ -25,8 +25,9 @@ These are **independent** concepts and frequently point at different commits:
 | Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The 10 parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
 | Snapshot key | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The single SHA that integration tests load via `load_current_snapshot(...)`. Bumping this is what "uses the new snapshot" means. |
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
-| Named release | [`releases.py`](releases.py) | Reference-only map of release labels → snapshot SHAs. Not imported by runtime code; update in Phase A alongside `.SNAPSHOT_KEY`. |
-| Diagnostic baseline pin | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs that any config may point at as its diagnostic baseline. Every released snapshot SHA must be added here. |
+| Named release | [`releases.py`](releases.py) | Release label → snapshot SHA map. Imported by [`diagnostics_baseline`](../validation/diagnostics_baseline.py) so `--baseline v0.3` (etc.) resolves; update in Phase A alongside `.SNAPSHOT_KEY`. |
+| Diagnostics baseline alias | [`diagnostics_baseline.py`](../validation/diagnostics_baseline.py) `NAMED_BASELINES` | Short operator names (`ceda-v0`, `v0.3`, …) → `releases.py` constants. Add an entry when a new release is a common comparison target. Raw SHAs skip this map if they are already on the `Literal`. |
+| Allowed snapshot keys | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs diagnostics may load as `N_old` / `D_old`. Every released snapshot SHA must appear here. YAML default is `'v0'`; dispatch `--baseline` overrides for that run only. |
 | Canonical config | [`2025_usa_cornerstone_v0_3.yaml`](../config/configs/2025_usa_cornerstone_v0_3.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
 | Cornerstone GHG FBS pin | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pins one `GHG_national_Cornerstone_2024` parquet in `transform/output_data` (filename + SHA256). Guards FBS regeneration in [`test_fbs.py`](../../transform/__tests__/test_fbs.py). See "Cornerstone GHG FBS pin" below. |
 
@@ -40,15 +41,16 @@ These are **independent** concepts and frequently point at different commits:
 
 The FBS pin and the runtime loader are independent: bumping the pin updates the regeneration test golden file; production still follows the latest GCS upload until `load_E_from_flowsa` is wired to the pin.
 
-| Store | Releases (`v0`, `v0.1`, `v0.2`) | Test-only SHAs |
+| Store | Releases (`v0`, `v0.1`, `v0.2`, `v0.3`) | Test-only SHAs |
 |---|---|---|
-| [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | `7372464249...` (v0.2) | — |
-| [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2` | `TEST_*` (intermediate bumps, not release labels) |
-| `USAConfig.snapshot_version_or_git_sha` | `'v0'`, `1bda811e...` `# v0.1`, `7372464249...` `# v0.2` | `2ebb51f7...`, `9fe22d9a...` `# test` |
+| [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | current release SHA | — |
+| [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2`, `v0_3_0`, … | `TEST_*` (intermediate bumps, not release labels) |
+| [`diagnostics_baseline.py`](../validation/diagnostics_baseline.py) `NAMED_BASELINES` | `ceda-v0`, `v0.3`, … | — |
+| `USAConfig.snapshot_version_or_git_sha` | `'v0'`, release SHAs with `# v0.x` comments | `2ebb51f7...`, `9fe22d9a...` `# test` |
 
 **Atomic config** — a YAML config that changes a single methodology flag relative to the baseline, used to measure that change in isolation. See [`../config/feature_flag.md`](../config/feature_flag.md). Diagnostics against a chosen snapshot or USEEIO baseline: [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md).
 
-`v0.2` is the current integration baseline. `v0` and `v0.1` are earlier release snapshots. The two `TEST_*` SHAs are intermediate bumps kept in the Literal so atomic configs and test fixtures can pin them for comparison.
+`v0.2` is an earlier release snapshot. `v0` and `v0.1` predate it. The two `TEST_*` SHAs are intermediate bumps kept in the Literal so atomic configs and test fixtures can pin them for comparison.
 
 ## Versioning
 
@@ -130,8 +132,9 @@ Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs
 On a new branch, make exactly these changes (and nothing else — keep the bump PR mechanical and reviewable in under a minute):
 
 - [ ] [`bedrock/utils/snapshots/.SNAPSHOT_KEY`](.SNAPSHOT_KEY) — replace the file's only line with the new SHA.
-- [ ] [`bedrock/utils/snapshots/releases.py`](releases.py) — add the new release constant (e.g. `v0_3_0 = "<sha>"`) with a trailing `# config: <stem>` comment (the `generate_snapshots --config_name` value). Leave prior release entries in place. Use underscores in the Python identifier; the git tag uses dots. Do **not** add entries for patch-only releases.
-- [ ] [`bedrock/utils/config/usa_config.py`](../config/usa_config.py) — extend the `snapshot_version_or_git_sha: Literal[...]` to include the new SHA, with a trailing comment noting the release label (e.g. `# v0.3.0`). Do **not** remove old SHAs — atomic configs and test fixtures may still reference them.
+- [ ] [`bedrock/utils/snapshots/releases.py`](releases.py) — add the new release constant (e.g. `v0_4_0 = "<sha>"`) with a trailing `# config: <stem>` comment (the `generate_snapshots --config_name` value). Leave prior release entries in place. Use underscores in the Python identifier; the git tag uses dots. Do **not** add entries for patch-only releases.
+- [ ] [`bedrock/utils/config/usa_config.py`](../config/usa_config.py) — extend the `snapshot_version_or_git_sha: Literal[...]` to include the new SHA, with a trailing comment noting the release label (e.g. `# v0.4.0`). Do **not** remove old SHAs — atomic configs and test fixtures may still reference them.
+- [ ] [`bedrock/utils/validation/diagnostics_baseline.py`](../validation/diagnostics_baseline.py) — when the release is a common diagnostics comparison target, add a short alias to `NAMED_BASELINES` (e.g. `'v0.4': releases.v0_4_0`, `'v0.4.0': releases.v0_4_0`). Operators can always pass the raw SHA via `--baseline` once the `Literal` includes it; the alias is for convenience (`--baseline v0.4`).
 - [ ] Title: `release: snapshot bump (anticipated v0.X.Y)`
 - [ ] Description: short summary of the output delta vs. the previous snapshot, plus the GCS URL `gs://cornerstone-default/snapshots/<new_sha>/`.
 
@@ -199,10 +202,10 @@ Post in `#alerts-bedrock` (and any other relevant channel):
 > Snapshot SHA: `<short_snapshot_sha>` (unchanged from previous release / new since `v0.X.<prev>`)
 > Canonical config: `2025_usa_cornerstone_v0_3`
 > Highlights: <one or two lines>
-> Downstream impact: <e.g. diagnostics baselines should bump to this SHA when ready>
+> Downstream impact: <e.g. use `--baseline v0.X` (or the new SHA) on diagnostics dispatch when comparing to this release>
 
-**B6. (Optional) Update downstream `snapshot_version_or_git_sha` defaults.**
-If you want existing configs to compare against the new baseline by default, follow up with a PR that flips their `snapshot_version_or_git_sha`. This is intentionally a separate PR so diagnostic baseline moves are explicit.
+**B6. (Optional) Announce diagnostics baseline for the release.**
+Model config YAMLs leave `snapshot_version_or_git_sha` at `'v0'`. To compare diagnostics against the new release snapshot, pass `--baseline v0.X` on `generate_diagnostics` / the workflow `baseline` input, or the raw SHA once it is on the `Literal`. See [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md) (§ Choose a baseline). Do not flip YAML defaults solely to change the comparison target.
 
 ## Anatomy of the Phase A snapshot bump PR
 
@@ -226,12 +229,21 @@ A clean bump PR diff looks roughly like this (anticipating release `v0.3.0`):
          '1bda811e0169436ae90fd356fbef512ce7518ccb',  # v0.1
          '2ebb51f7190c3a62b5d8b2420bff9b20f57282fc',  # test
          '9fe22d9afdfdb6806397b2356eb3cf4c4c346744',  # test: snapshot from 2025_usa_cornerstone_fbs_schema
-         '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2 (current .SNAPSHOT_KEY)
-+        '<new_sha>',                                  # v0.3.0
+         '7372464249c434c9bebb172c065a4d0e3702176e',  # v0.2
++        '<new_sha>',                                  # v0.4.0
      ] = 'v0'
+
+--- a/bedrock/utils/validation/diagnostics_baseline.py
++++ b/bedrock/utils/validation/diagnostics_baseline.py
+ NAMED_BASELINES: dict[str, str] = {
+     'ceda-v0': releases.v0,
+     'v0.3': releases.v0_3_0,
++    'v0.4': releases.v0_4_0,
++    'v0.4.0': releases.v0_4_0,
+ }
 ```
 
-Three files, no other code touched. If anything else needs to change, it belongs in a separate PR.
+Four mechanical files (`.SNAPSHOT_KEY`, `releases.py`, `usa_config.py`, and optionally `diagnostics_baseline.py` when adding a named alias). If anything else needs to change, it belongs in a separate PR.
 
 ## Rolling back
 
@@ -303,7 +315,8 @@ After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on t
 | [`generate_snapshots.py`](generate_snapshots.py) | CLI that builds the 10 parquet snapshots and uploads to GCS |
 | [`loader.py`](loader.py) | `load_current_snapshot`, `load_configured_snapshot`, GCS download helpers |
 | [`names.py`](names.py) | `SnapshotName` literal type and `SNAPSHOT_NAMES` list |
-| [`releases.py`](releases.py) | Reference-only release label → snapshot SHA map (not imported by code) |
+| [`releases.py`](releases.py) | Release label → snapshot SHA map; imported by `diagnostics_baseline` |
+| [`../validation/diagnostics_baseline.py`](../validation/diagnostics_baseline.py) | Maps `--baseline` labels (`ceda-v0`, `v0.3`, …) to snapshot keys |
 | [`../config/usa_config.py`](../config/usa_config.py) | `USAConfig.snapshot_version_or_git_sha` `Literal` of allowed baseline SHAs |
 | [`../../../.github/workflows/generate_snapshots.yml`](../../../.github/workflows/generate_snapshots.yml) | `workflow_dispatch` CI that runs `generate_snapshots.py` |
 | [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Scheduled CI that diffs current pipeline output against `.SNAPSHOT_KEY` |
