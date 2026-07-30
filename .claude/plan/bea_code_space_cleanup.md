@@ -10,8 +10,7 @@ For FBS creation that targets BEA schema sectors that are not NAICS, be able to 
 indexed by BEA 2017 detail commodity. Today the FBS is built in NAICS space and
 converted afterwards by `map_fbs_sectors_to_model_schema`. That conversion is lossy in
 both directions and is the common cause behind a long series of individually-diagnosed
-bugs. The goal is for the FBS to be natively BEA, end to end, after which that call can
-come out of `nowcast.py` entirely.
+bugs. The goal is for an FBS to able to be natively BEA, end to end.
 
 Three parts, all required
 together:
@@ -38,7 +37,6 @@ The scale of it: of the 406 BEA detail codes in
 `NAICS_Crosswalk_BEA_2017_Detail.csv`, **210 cannot be reached through any NAICS level**.
 BEA detail is mostly aggregates (`611A00`, `813100`, `5241XX`, `52A000`, `1111A0`) that are
 not NAICS codes at all.
-
 
 `d55e8e0` is the enabling fix for everything below. `assign_technological_correlation`
 left-merges the naics key against `Sector_Levels` and then does
