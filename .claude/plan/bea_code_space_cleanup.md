@@ -8,8 +8,8 @@ For FBS creation that targets BEA schema sectors that are not NAICS, be able to 
 ## Prime example
 `NIPA_FD_*` builds the final-demand section of the Use table, so its output has to be
 indexed by BEA 2017 detail commodity. Today the FBS is built in NAICS space and
-converted afterwards by `map_fbs_sectors_to_model_schema`. That conversion is lossy in
-both directions and is the common cause behind a long series of individually-diagnosed
+converted afterwards by `map_fbs_sectors_to_model_schema`. That conversion is lossy when input data are originally in BEA schema 
+and is the common cause behind a long series of individually-diagnosed
 bugs. The goal is for an FBS to able to be natively BEA, end to end.
 
 Three parts, all required
