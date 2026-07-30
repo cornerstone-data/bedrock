@@ -333,7 +333,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         logger.info('Skipping mixed_vs_monetary_221110 (mixed-units gate off)')
 
     # Effective x decomposition (Cornerstone method only)
-    if config.use_E_data_year_for_x_in_B:
+    if config.use_ghg_year_x_in_B:
         from bedrock.utils.validation.diagnostics_helpers import (
             compute_effective_x_comparison,
         )

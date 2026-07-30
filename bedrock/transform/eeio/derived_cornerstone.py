@@ -256,7 +256,7 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     level as the BEA gross output for *year*, split from 2017 Make structure).
 
     This is the industry ``x`` in ``derive_cornerstone_B_via_vnorm`` when
-    ``use_E_data_year_for_x_in_B`` is True; otherwise that path uses
+    ``use_ghg_year_x_in_B`` (apply_io_year_adjustments) is set; otherwise that path uses
     ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
@@ -502,19 +502,14 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # CEDA method: our fallback option as of CY26Q2.
-    # Scale to 2022 (io_year), then inflate to model_base_year.
-    # However, we are applying some subtle changes to this method:
-    # 1. scale detail A and q with dollar year adjusted summary numbers
-    # 2. inflate with commodity pi instead of industry pi
-    #
-    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
-    # rebases the target-year summary A into 2017 USD before the ratio is taken,
-    # so the structural cross-year ratio is formed entirely in 2017 USD; the
-    # scaled detail A is then inflated 2017 → io_year. When the flag is off,
-    # the ratio carries the raw target-year-vs-2017 price drift and no final
-    # inflation is applied (pre-realignment behavior).
-    if cfg.scale_a_matrix_with_ceda_method_as_fallback:
+    # IO year adjustments (v0.3): CEDA's A approach with dollar-year rebase.
+    # Scale to usa_io_data_year, then inflate to model_base_year:
+    # 1. scale detail A and q with dollar-year-adjusted summary numbers
+    #    (`scale_cornerstone_A`/`_q` rebase the target-year summary tables into
+    #    2017 USD before the ratio is taken, so the structural cross-year ratio
+    #    is formed entirely in 2017 USD),
+    # 2. inflate with commodity pi instead of industry pi.
+    if cfg.apply_io_year_adjustments:
         Adom = scale_cornerstone_A(
             base.Adom,
             target_year=io_year,
@@ -532,16 +527,15 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
             target_year=io_year,
             original_year=detail_year,
         )
-        if cfg.adjust_summary_A_and_q_dollar_year:
-            Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
-                Adom, original_year=detail_year, target_year=model_year
-            )
-            Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
-                Aimp, original_year=detail_year, target_year=model_year
-            )
-            q = inflate_cornerstone_q_or_y_with_commodity_pi(
-                q, original_year=detail_year, target_year=model_year
-            )
+        Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
+            Adom, original_year=detail_year, target_year=model_year
+        )
+        Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
+            Aimp, original_year=detail_year, target_year=model_year
+        )
+        q = inflate_cornerstone_q_or_y_with_commodity_pi(
+            q, original_year=detail_year, target_year=model_year
+        )
         return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
     Adom = inflate_cornerstone_A_matrix_with_industry_pi(
@@ -656,12 +650,12 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
       gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
       ``PI(usa_ghg_data_year)/PI(usa_detail_original_year)`` so ``E/x`` uses
       ``usa_detail_original_year`` chain dollars. ``USAConfig`` requires
-      ``use_E_data_year_for_x_in_B`` to be true whenever deflation is on; the
+      ``use_ghg_year_x_in_B`` to be true whenever deflation is on; the
       deflate branch always builds nominal ``x`` via
       ``derive_cornerstone_x_after_redefinition()`` before the PI ratio, so
-      ``use_E_data_year_for_x_in_B`` does not further branch choice here.
+      ``use_ghg_year_x_in_B`` does not further branch choice here.
     - otherwise: ``derive_cornerstone_x_after_redefinition()`` when
-      ``use_E_data_year_for_x_in_B`` is True, else ``derive_cornerstone_x()``.
+      ``use_ghg_year_x_in_B`` is True, else ``derive_cornerstone_x()``.
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
     cfg = get_usa_config()
@@ -684,7 +678,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     else:
         x = (
             derive_cornerstone_x_after_redefinition()
-            if cfg.use_E_data_year_for_x_in_B
+            if cfg.use_ghg_year_x_in_B
             else derive_cornerstone_x()
         )
     Vnorm = derive_cornerstone_Vnorm_scrap_corrected()

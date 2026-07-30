@@ -143,7 +143,7 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
                 'EF denominator adjustment for D/N is identity (no separate inflated columns)',
             )
         return (True, '')
-    if cfg.use_E_data_year_for_x_in_B:
+    if cfg.use_ghg_year_x_in_B:
         return (
             False,
             'use_E_data_year_for_x_in_B without deflate_x_to_detail_io_year_for_B: '

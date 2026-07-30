@@ -10,9 +10,6 @@ use_cornerstone_2026_model_schema: true
 
 use_cornerstone_ghg_model: true
 
-scale_a_matrix_with_ceda_method_as_fallback: true
-adjust_summary_A_and_q_dollar_year: true
-update_inflation_factors: true
 
-use_E_data_year_for_x_in_B: true
+apply_io_year_adjustments: true
 implement_waste_disaggregation: true

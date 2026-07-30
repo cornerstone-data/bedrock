@@ -70,7 +70,7 @@ class TestCalculateEfDiagnostics:
 
         mock_config = MagicMock()
         mock_config.use_cornerstone_2026_model_schema = False
-        mock_config.use_E_data_year_for_x_in_B = False
+        mock_config.use_ghg_year_x_in_B = False
         mock_config.diagnostics_baseline_source = "gcs_snapshot"
 
         with (
