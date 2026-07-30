@@ -15,10 +15,6 @@ from bedrock.utils.config.usa_config import USAConfig
 
 
 class TestMarginsPhiActive:
-    def test_active_when_useeio_margins(self) -> None:
-        cfg = USAConfig(useeio_margins=True, cornerstone_industry_avg_margins=False)
-        assert margins_phi_active(cfg) is True
-
     def test_active_when_cornerstone_margins(self) -> None:
         cfg = USAConfig(cornerstone_industry_avg_margins=True)
         assert margins_phi_active(cfg) is True

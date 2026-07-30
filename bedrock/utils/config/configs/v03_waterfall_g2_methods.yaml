@@ -12,5 +12,4 @@ apply_io_year_adjustments: true
 implement_waste_disaggregation: true
 
 scale_a_matrix_with_useeio_method: false
-useeio_margins: false
 cornerstone_industry_avg_margins: true

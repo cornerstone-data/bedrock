@@ -118,49 +118,6 @@ def test_config_via_environment_variable() -> None:
     assert usa_config.usa_ghg_data_year == 2023
 
 
-def test_phoebe_year_vector_accepts_2017_io_fields() -> None:
-    cfg = USAConfig.model_validate(
-        {'model_base_year': 2017, 'usa_io_data_year': 2017},
-        strict=True,
-    )
-    assert cfg.model_base_year == 2017
-    assert cfg.usa_io_data_year == 2017
-
-
-def test_disallow_cornerstone_ghg_model_with_m2_flag() -> None:
-    with pytest.raises(
-        ValueError,
-        match='use_cornerstone_ghg_model and use_ghg_national_2023_m2 ',
-    ):
-        USAConfig.model_validate(
-            {'use_cornerstone_ghg_model': True, 'use_ghg_national_2023_m2': True},
-            strict=True,
-        )
-
-
-def test_allow_m2_flag_when_cornerstone_ghg_model_is_false() -> None:
-    cfg = USAConfig.model_validate(
-        {
-            'use_cornerstone_ghg_model': False,
-            'use_ghg_national_2023_m2': True,
-            'use_useeio_schema': True,
-        },
-        strict=True,
-    )
-    assert cfg.use_ghg_national_2023_m2 is True
-
-
-def test_disallow_m2_without_useeio_schema() -> None:
-    with pytest.raises(
-        ValueError,
-        match='use_ghg_national_2023_m2 requires use_useeio_schema to be true',
-    ):
-        USAConfig.model_validate(
-            {'use_ghg_national_2023_m2': True, 'use_useeio_schema': False},
-            strict=True,
-        )
-
-
 def test_disallow_deflate_x_without_use_e_for_x_in_b() -> None:
     with pytest.raises(
         ValueError,
@@ -173,19 +130,6 @@ def test_disallow_deflate_x_without_use_e_for_x_in_b() -> None:
             },
             strict=True,
         )
-
-
-@pytest.mark.parametrize(
-    'flags',
-    [
-        {'useeio_margins': True, 'ceda_margins': True},
-        {'useeio_margins': True, 'cornerstone_industry_avg_margins': True},
-        {'ceda_margins': True, 'cornerstone_industry_avg_margins': True},
-    ],
-)
-def test_disallow_multiple_margins_flags(flags: dict[str, bool]) -> None:
-    with pytest.raises(ValueError, match='At most one margins flag may be true'):
-        USAConfig.model_validate(flags, strict=True)
 
 
 def test_electricity_disagg_config_parsing() -> None:

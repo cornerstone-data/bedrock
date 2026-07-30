@@ -19,7 +19,6 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
-from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
 from bedrock.transform.iot.derived_gross_industry_output import (
     available_gross_output_years,
 )
@@ -32,7 +31,6 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 from bedrock.utils.taxonomy.bea.v2017_final_demand import USA_2017_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
-    load_usa_2017_commodity__ceda_v7_correspondence,
     load_usa_2017_commodity__cornerstone_commodity_correspondence,
 )
 
@@ -56,10 +54,6 @@ class MarginsFilters:
 
 # Exclude all final demand destinations — the CEDA pipeline only wants
 # industry-to-industry margin flows.
-_ceda_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_industry_codes=frozenset(USA_2017_FINAL_DEMAND_CODES)
-)
-
 # All BEA 2017 detailed commodity codes whose code begins with "4"
 # (wholesale trade, retail trade, transportation, and warehousing sectors).
 _COMMODITY_CODES_STARTING_WITH_4: frozenset[str] = frozenset(
@@ -105,11 +99,6 @@ _COMMODITY_CODES_STARTING_WITH_4: frozenset[str] = frozenset(
 # # Matches exported ``useeior`` ``model$Margins``: keep Import ``F05000`` rows because
 # R ``purchaser_removal`` uses ``%in%`` on a length-3 vector; drop only Export and
 # change-in-inventories industries; scrap/RoW commodities only (no ``4*``).
-_useeio_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_commodity_codes=frozenset({'S00401', 'S00402', 'S00300', 'S00900'}),
-    exclude_industry_codes=frozenset({'F04000', 'F03000'}),
-)
-
 # Cornerstone filters
 # Exclude BEA bookkeeping commodities that are removed from model as well as scrap
 #   S00300 Noncomparable imports, S00900 Rest of the world adjustment, S00401 Scrap
@@ -131,19 +120,13 @@ _cornerstone_industry_avg_margins_filters: MarginsFilters = MarginsFilters(
 
 
 def _get_active_margins_filters() -> MarginsFilters:
-    """Return the active filter set based on config flags.
+    """Margins filters for the active config.
 
-    ``useeio_margins`` takes precedence; otherwise ``cornerstone_industry_avg_margins``
-    controls the Cornerstone path, then ``ceda_margins`` the
-    CEDA path. Returns an empty ``MarginsFilters`` (no-op) when no flag is set.
+    ``cornerstone_industry_avg_margins`` selects the Cornerstone filter set;
+    otherwise no filtering applies.
     """
-    cfg = get_usa_config()
-    if cfg.useeio_margins:
-        return _useeio_margins_filters
-    if cfg.cornerstone_industry_avg_margins:
+    if get_usa_config().cornerstone_industry_avg_margins:
         return _cornerstone_industry_avg_margins_filters
-    if cfg.ceda_margins:
-        return _ceda_margins_filters
     return MarginsFilters()
 
 
@@ -168,35 +151,28 @@ _MARGIN_VALUE_COLUMNS = ("Producers' Value", 'Transportation', 'Wholesale', 'Ret
 
 def _margin_negatives_treatment(
     df: pd.DataFrame,
-    abs_negative_producers_value: bool = False,
     abs_negative_margin_columns: bool = False,
 ) -> pd.DataFrame:
     """Flip negative margin values to positive in-place.
 
     ``abs_negative_margin_columns`` (triggered by ``cornerstone_industry_avg_margins`` config
-    flag) flips negatives across all four margin columns and takes precedence.
-    ``abs_negative_producers_value`` flips only ``Producers' Value``.
+    flag) flips negatives across all four margin columns.
     """
     if abs_negative_margin_columns:
         for col in _MARGIN_VALUE_COLUMNS:
             mask = df[col] < 0
             df.loc[mask, col] = df.loc[mask, col].abs()
-    elif abs_negative_producers_value:
-        mask = df["Producers' Value"] < 0
-        df.loc[mask, "Producers' Value"] = df.loc[mask, "Producers' Value"].abs()
     return df
 
 
 def _margins_by_commodity(
     filters: MarginsFilters,
-    abs_negative_producers_value: bool = False,
     abs_negative_margin_columns: bool = False,
 ) -> pd.DataFrame:
     """Load raw margins, apply ``filters``, and sum to per-commodity totals."""
     df = _apply_margins_filter(load_2017_margins_usa(), filters)
     df = _margin_negatives_treatment(
         df,
-        abs_negative_producers_value=abs_negative_producers_value,
         abs_negative_margin_columns=abs_negative_margin_columns,
     )
     result = (
@@ -216,44 +192,6 @@ def _margins_by_commodity(
     return result
 
 
-def derive_2017_margins_ceda_usa() -> pd.DataFrame:
-    """
-    Margins aggregated to CEDA v7 sector taxonomy, summed over all industries.
-    Applies ``_ceda_margins_filters`` when ``USAConfig.ceda_margins`` is set.
-
-    Returns a DataFrame indexed by CEDA v7 sectors with columns:
-    ``Producers' Value``, ``Transportation``, ``Wholesale``, ``Retail``,
-    ``Purchasers' Value``. Unit is USD.
-    """
-    corresp = load_usa_2017_commodity__ceda_v7_correspondence()
-    corresp.columns.names = ['commodity']
-    filters = (
-        _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
-    )
-    margin = corresp @ _margins_by_commodity(filters)
-    # Expanded sectors share value equally from the aggregated 2012 sector.
-    margin.loc[EXPANDED_SECTORS_2012_TO_2017, :] *= 1 / len(
-        EXPANDED_SECTORS_2012_TO_2017
-    )
-    return margin
-
-
-def derive_phi_ceda_usa() -> pd.Series[float]:
-    """
-    Derive the Phi ratio to convert EF from producer to purchaser price for each CEDA v7 sector.
-    Formula: purchaser price = producer price + margin
-    Since original EF is in kgCO2e/USD_producer, Phi here is calculated as
-    (output_producer / (output_producer + margin)).
-    """
-    margin = derive_2017_margins_ceda_usa()
-    phi = margin["Producers' Value"] / margin["Purchasers' Value"]
-    avg_mask = (phi > 0) & (phi <= 1)
-    avg = phi[avg_mask].mean()
-    in_range_mask = (phi > 0) & (phi < 1)
-    phi[~in_range_mask] = avg
-    return phi
-
-
 def _inflate_margin_trade_components(
     df: pd.DataFrame, *, original_year: int, target_year: int
 ) -> pd.DataFrame:
@@ -269,7 +207,7 @@ def _inflate_margin_trade_components(
 def _inflate_margins_to_year(df: pd.DataFrame, *, target_year: int) -> pd.DataFrame:
     """Inflate margin components from ``usa_base_io_data_year`` to *target_year*."""
     cfg = get_usa_config()
-    if not (cfg.useeio_margins or cfg.cornerstone_industry_avg_margins):
+    if not cfg.cornerstone_industry_avg_margins:
         return df
     original_year = cfg.usa_base_io_data_year
     if original_year == target_year:
@@ -288,9 +226,7 @@ def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
     Margins aggregated to Cornerstone commodity taxonomy, summed over all industries.
 
     Margin components inflate from ``usa_base_io_data_year`` to *target_year* when
-    a margins methodology flag is active. PRO inflation follows the useeior ``Rho``
-    path when ``useeio_margins`` is set; otherwise the V-norm commodity PI path
-    (``cornerstone_industry_avg_margins``).
+    ``cornerstone_industry_avg_margins`` is active (V-norm commodity PI path).
 
     Returns a DataFrame indexed by Cornerstone ``COMMODITIES`` with columns:
     ``Producers' Value``, ``Transportation``, ``Wholesale``, ``Retail``,
@@ -300,7 +236,6 @@ def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
     corresp = load_usa_2017_commodity__cornerstone_commodity_correspondence()
     df = corresp @ _margins_by_commodity(
         _get_active_margins_filters(),
-        abs_negative_producers_value=cfg.useeio_margins,
         abs_negative_margin_columns=cfg.cornerstone_industry_avg_margins,
     )
     df = _inflate_margins_to_year(df, target_year=target_year)
@@ -369,7 +304,7 @@ def derive_phi_cornerstone_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
 def margins_phi_active(cfg: USAConfig | None = None) -> bool:
     """Return whether margins-based Phi should be applied for *cfg*."""
     c = cfg or get_usa_config()
-    return bool(c.useeio_margins or c.cornerstone_industry_avg_margins)
+    return bool(c.cornerstone_industry_avg_margins)
 
 
 def phi_for_sectors(
