@@ -44,6 +44,9 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     get_electricity_commodity_row_weights,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    clear_cornerstone_inflation_caches,
+)
 from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_COMMODITIES_ELEC,
     CORNERSTONE_INDUSTRIES_ELEC,
@@ -80,6 +83,7 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
+    clear_cornerstone_inflation_caches()
 
 
 def _setup_config(config_name: str) -> None:

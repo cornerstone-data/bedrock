@@ -12,12 +12,26 @@ import pytest
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     build_end_use_map,
     compute_mixed_unit_ef_vectors,
+    cornerstone_sector_disagg_active,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
-    table_2_4_prices_cents_kwh,
+    electricity_reallocation_enabled,
+    get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_Aq,
     derive_cornerstone_Aq_mixed_units,
     derive_cornerstone_Aq_scaled,
+    derive_cornerstone_B_non_finetuned,
+    derive_cornerstone_U_set,
+    derive_cornerstone_U_with_negatives,
+    derive_cornerstone_V,
+    derive_cornerstone_VA,
+    derive_cornerstone_Vnorm_scrap_corrected,
+    derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_y_nab,
     derive_cornerstone_y_nab_mixed_units,
 )
@@ -25,10 +39,16 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
     apply_electricity_unit_conversion_to_A,
     apply_electricity_unit_conversion_to_B,
+    build_electricity_disagg_go_weights,
+    build_electricity_disagg_use_intersection_weights,
     electricity_class_row_factors,
     electricity_output_factor,
+    get_electricity_commodity_row_weights,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    clear_cornerstone_inflation_caches,
+)
 from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_d
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
 from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
@@ -38,14 +58,32 @@ from bedrock.utils.validation.diagnostics_helpers import (
     pull_efs_for_diagnostics,
 )
 
+# Include disagg-gate caches so mixed-units setup/teardown cannot leave
+# electricity_disaggregation_enabled() sticky True for later 405-sector tests.
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
+    get_waste_disagg_weights,
+    electricity_reallocation_enabled,
+    electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
+    derive_disagg_io_bundle,
+    cornerstone_sector_disagg_active,
+    derive_disagg_Ytot_with_trade,
+    build_electricity_disagg_go_weights,
+    build_electricity_disagg_use_intersection_weights,
+    get_electricity_commodity_row_weights,
+    derive_cornerstone_V,
+    derive_cornerstone_Vnorm_scrap_corrected,
+    derive_cornerstone_U_with_negatives,
+    derive_cornerstone_U_set,
+    derive_cornerstone_VA,
+    derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
+    derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_Aq_mixed_units,
+    derive_cornerstone_B_non_finetuned,
     derive_cornerstone_y_nab,
     derive_cornerstone_y_nab_mixed_units,
-    build_end_use_map,
-    table_2_4_prices_cents_kwh,
 ]
 
 
@@ -53,6 +91,7 @@ def _clear_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
+    clear_cornerstone_inflation_caches()
 
 
 def _setup(config_name: str) -> None:

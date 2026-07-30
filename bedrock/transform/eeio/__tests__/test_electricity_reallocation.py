@@ -39,6 +39,9 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_coproduction_transfer_schedule,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    clear_cornerstone_inflation_caches,
+)
 from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
@@ -63,6 +66,7 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, "cache_clear"):
             fn.cache_clear()
+    clear_cornerstone_inflation_caches()
 
 
 def _setup_config(config_name: str) -> None:
