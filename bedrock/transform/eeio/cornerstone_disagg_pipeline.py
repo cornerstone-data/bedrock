@@ -276,28 +276,27 @@ def build_end_use_map() -> dict[str, str]:
     return _impl()
 
 
-def table_2_4_prices_cents_kwh(
+def electricity_end_use_retail_prices_cents_kwh(
     year: int,
     provider: str | None = None,
     *,
     fba: pd.DataFrame | None = None,
 ) -> dict[str, float]:
-    """Lazy re-export of ``electricity_end_use_mapping.table_2_4_prices_cents_kwh``.
+    """Lazy re-export of ``electricity_end_use_mapping.electricity_end_use_retail_prices_cents_kwh``.
 
     Kept as a module-level callable so
-    ``@patch('…cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh')`` continues
+    ``@patch('…cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh')`` continues
     to intercept calls from ``electricity_conversion_factors``.
     """
-    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
-        TABLE_2_4_PROVIDER,
-        table_2_4_prices_cents_kwh as _impl,
+    from bedrock.transform.eeio import (  # noqa: PLC0415
+        electricity_end_use_mapping as eum,
     )
 
     return cast(
         dict[str, float],
-        _impl(
+        eum.electricity_end_use_retail_prices_cents_kwh(
             year,
-            TABLE_2_4_PROVIDER if provider is None else provider,
+            eum.TABLE_2_4_PROVIDER if provider is None else provider,
             fba=fba,
         ),
     )
@@ -373,15 +372,13 @@ def electricity_conversion_factors(
     )
 
     # Call module-level facade for end-use helpers so unittest patches on
-    # ``cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh`` still apply.
+    # ``cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh`` still apply.
     cfg = get_usa_config()
     q_usd = float(aq_scaled.scaled_q[GENERATION_SECTOR])
     mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
     c_col = electricity_output_factor(q_usd, mwh)
     if prices_by_class is None:
-        prices = cast(
-            dict[str, float], table_2_4_prices_cents_kwh(cfg.usa_ghg_data_year)
-        )
+        prices = electricity_end_use_retail_prices_cents_kwh(cfg.usa_ghg_data_year)
     else:
         prices = dict(prices_by_class)
     end_use_map = build_end_use_map()

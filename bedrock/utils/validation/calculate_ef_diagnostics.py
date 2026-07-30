@@ -271,8 +271,8 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
 
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         compute_mixed_unit_ef_vectors,
+        electricity_end_use_retail_prices_cents_kwh,
         electricity_mixed_units_enabled,
-        table_2_4_prices_cents_kwh,
     )
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_B_usa_non_finetuned,
@@ -301,7 +301,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         n_mon = ta.cast('pd.Series[float]', compute_n(M=m_mon).squeeze())
         d_mix = _ef_vector_as_series(efs.D_new)
         n_mix = _ef_vector_as_series(efs.N_new)
-        table_prices = table_2_4_prices_cents_kwh(config.usa_ghg_data_year)
+        table_prices = electricity_end_use_retail_prices_cents_kwh(config.usa_ghg_data_year)
         total_price = float(table_prices['Total'])
         equal_prices: dict[str, float] = {str(k): total_price for k in table_prices}
         uniform_result = compute_mixed_unit_ef_vectors(

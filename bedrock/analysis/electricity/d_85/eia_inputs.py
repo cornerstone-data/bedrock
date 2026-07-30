@@ -13,7 +13,7 @@ from bedrock.transform.eeio.electricity_end_use_mapping import (
     TABLE_2_4_DESCRIPTION,
     TABLE_2_4_PROVIDER,
     EPAEndUse,
-    table_2_4_prices_cents_kwh,
+    electricity_end_use_retail_prices_cents_kwh,
 )
 
 TABLE_8_3_DESCRIPTION = (
@@ -108,7 +108,7 @@ __all__ = [
     'TABLE_8_3_GENERATION_FLOWNAMES',
     'TABLE_8_3_PRODUCER',
     'TABLE_8_3_SHARED_FLOWNAMES',
-    'table_2_4_prices_cents_kwh',
+    'electricity_end_use_retail_prices_cents_kwh',
     'table_8_3_gtd_expenses_musd',
     'table_8_3_purchased_power_gtd_expenses_musd',
 ]

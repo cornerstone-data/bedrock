@@ -19,7 +19,7 @@ from bedrock.analysis.electricity.d_85.disagg_scenarios import (
 from bedrock.analysis.electricity.d_85.disagg_weights import (
     build_ugo_col_table83_row_intersection_matrix,
 )
-from bedrock.analysis.electricity.d_85.eia_inputs import table_2_4_prices_cents_kwh
+from bedrock.analysis.electricity.d_85.eia_inputs import electricity_end_use_retail_prices_cents_kwh
 from bedrock.transform.eeio.electricity_disaggregation import ELECTRICITY_AGGREGATE
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
 
@@ -92,7 +92,7 @@ def test_t83_production_diag_step2_uses_table83_weights(
 
 
 @mock.patch(
-    'bedrock.analysis.electricity.d_85.disagg_scenarios.table_2_4_prices_cents_kwh'
+    'bedrock.analysis.electricity.d_85.disagg_scenarios.electricity_end_use_retail_prices_cents_kwh'
 )
 @mock.patch('bedrock.analysis.electricity.d_85.disagg_scenarios.build_end_use_map')
 @mock.patch('bedrock.analysis.electricity.d_85.disagg_scenarios.ugo305_go_weights')
@@ -109,7 +109,7 @@ def test_p24_weights_sum_to_one_per_column(
     checkpoint_mock.return_value = (V, Udom, Uimp, VA, Y)
     ugo_mock.return_value = pd.Series({'221110': 0.34, '221121': 0.04, '221122': 0.62})
     map_mock.return_value = {'541000': 'Commercial', 'F01000': 'Residential'}
-    prices_mock.return_value = table_2_4_prices_cents_kwh(
+    prices_mock.return_value = electricity_end_use_retail_prices_cents_kwh(
         2017, fba=mock_fba_table83_table24()
     )
 

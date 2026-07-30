@@ -183,7 +183,7 @@ def test_mixed_units_flag_off_is_noop() -> None:
     return_value=4_000_000_000.0,
 )
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh',
+    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh',
 )
 def test_output_mwh_anchor(
     mock_prices: Mock,
@@ -269,7 +269,7 @@ def test_y_nab_stays_monetary_under_mixed_gate(mixed_units_config: str) -> None:
     return_value=4_000_000_000.0,
 )
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh',
+    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh',
 )
 def test_y_nab_mixed_differs_from_monetary_under_gate(
     mock_prices: Mock,
@@ -302,7 +302,7 @@ def test_y_nab_mixed_differs_from_monetary_under_gate(
     return_value=4_000_000_000.0,
 )
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh',
+    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh',
 )
 def test_d_scalar_bridge_under_gate(
     mock_prices: Mock,

@@ -62,7 +62,7 @@ _ELECTRICITY_DISAGG_CACHED_ATTRS: tuple[str, ...] = (
     'get_electricity_commodity_row_weights',
     '_derive_post_reallocation_checkpoint_for_disagg',
     'build_electricity_disagg_use_intersection_weights',
-    'build_electricity_ugo305_scaling_ratios',
+    'build_electricity_detail_GO_growth_ratios',
     'build_electricity_disagg_go_weights',
 )
 
@@ -107,8 +107,9 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
 def _clear_cached_attrs(mod: ModuleType, names: tuple[str, ...]) -> None:
     for name in names:
         fn = getattr(mod, name, None)
-        if hasattr(fn, 'cache_clear'):
-            fn.cache_clear()
+        cache_clear = getattr(fn, 'cache_clear', None)
+        if callable(cache_clear):
+            cache_clear()
 
 
 def _clear_electricity_caches_if_loaded() -> None:
@@ -127,7 +128,7 @@ def _clear_electricity_caches_if_loaded() -> None:
             eum,
             (
                 'build_end_use_map',
-                'table_2_4_prices_cents_kwh',
+                'electricity_end_use_retail_prices_cents_kwh',
             ),
         )
 
