@@ -19,9 +19,6 @@ from bedrock.transform.eeio.cornerstone_year_scaling import (
     scale_cornerstone_q,
 )
 from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
-from bedrock.transform.eeio.electricity_disaggregation import (
-    split_electricity_e_for_disaggregated_b,
-)
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     inflate_cornerstone_A_matrix_with_industry_pi,
@@ -197,7 +194,7 @@ def _apply_electricity_q_overrides(
 
 def derive_B_from_scenario(scenario: DisaggScenarioResult) -> pd.DataFrame:
     """B = (E/x) @ Vnorm using scenario x (2017 Make-derived)."""
-    E = split_electricity_e_for_disaggregated_b(derive_E_usa())
+    E = derive_E_usa()
     x = scenario.x.reindex(E.columns, fill_value=np.nan)
     x = x.fillna(1.0)
     Vnorm = scenario_vnorm(
@@ -212,9 +209,9 @@ def probe_e_source() -> dict[str, str]:
     if not (cfg.new_ghg_method and cfg.implement_electricity_disaggregation):
         return {'source': 'standard', 'note': 'electricity disagg flag off'}
     try:
-        from flowsa import getFlowBySector as get_flowsa_fbs  # noqa: PLC0415
+        from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415
 
-        get_flowsa_fbs(
+        getFlowBySector(
             methodname='GHG_national_Cornerstone_2023_egrid',
             download_FBS_if_missing=False,
         )
