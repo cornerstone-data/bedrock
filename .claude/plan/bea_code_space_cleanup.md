@@ -1,4 +1,4 @@
-# Plan: Revise FBS pipeline to work seamlessly for direct BEA assignment withou passing though NAICS guards
+# Plan: Revise FBS pipeline to work seamlessly for direct BEA assignment without passing though NAICS guards
 
 Written 2026-07-29 from the working state on `nipa_fd_allocation_fix`.
 
