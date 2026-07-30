@@ -3,6 +3,11 @@ or more disagg-related config flags are true.
 
 Returns uninflated 2017-chain-dollar IO matrices only. Public entry points in
 ``derived_cornerstone`` apply inflation and year-scaling after routing here.
+
+Electricity modules are loaded only when electricity flags are on (or when
+callers invoke the lazy end-use facade). Importing this module under
+waste-only / v0.3 configs does not load ``electricity_disaggregation`` or
+``electricity_end_use_mapping``.
 """
 
 from __future__ import annotations
@@ -11,7 +16,7 @@ import functools
 import pathlib
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 import pandera.typing as pt
@@ -31,26 +36,6 @@ from bedrock.extract.iot.io_2017 import (
 from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     industry_corresp,
-)
-from bedrock.transform.eeio.electricity_disaggregation import (
-    GENERATION_SECTOR,
-    apply_electricity_unit_conversion_to_A,
-    apply_electricity_unit_conversion_to_B,
-    apply_electricity_unit_conversion_to_q,
-    disaggregate_electricity_commodity_row_in_y,
-    disaggregate_electricity_make_use_va,
-    distribute_electricity_aggregate_x_using_v_row_shares,
-    electricity_class_row_factors,
-    electricity_output_factor,
-    get_electricity_commodity_row_weights,
-    reallocate_electricity_coproduction,
-)
-from bedrock.transform.eeio.electricity_end_use_mapping import (
-    END_USE_MAPPING_REVIEW_STATUS,  # noqa: F401 — re-export
-    build_end_use_map,
-    build_end_use_map_resolved,  # noqa: F401 — re-export
-    classify_industry_end_use,  # noqa: F401 — re-export
-    table_2_4_prices_cents_kwh,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
@@ -205,8 +190,16 @@ def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
     Udom, Uimp = derive_cornerstone_U_after_waste()
     VA = derive_cornerstone_VA_after_waste()
     if electricity_reallocation_enabled():
+        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+            reallocate_electricity_coproduction,
+        )
+
         V, Udom, Uimp, VA = reallocate_electricity_coproduction(V, Udom, Uimp, VA)
     if electricity_disaggregation_enabled():
+        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+            disaggregate_electricity_make_use_va,
+        )
+
         V, Udom, Uimp, VA = disaggregate_electricity_make_use_va(V, Udom, Uimp, VA)
     return CornerstoneDisaggIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
 
@@ -222,6 +215,11 @@ def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
         Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
         Ytot.index.name = 'sector'
     if electricity_disaggregation_enabled():
+        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+            disaggregate_electricity_commodity_row_in_y,
+            get_electricity_commodity_row_weights,
+        )
+
         w_row = get_electricity_commodity_row_weights()
         Ytot = disaggregate_electricity_commodity_row_in_y(Ytot, w_row)
         Ytot.index.name = 'sector'
@@ -251,6 +249,10 @@ def distribute_waste_parent_x_using_v_row_shares(
                 for code in present:
                     x.loc[code] = parent_go * float(shares.loc[code])
     if electricity_disaggregation_enabled():
+        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+            distribute_electricity_aggregate_x_using_v_row_shares,
+        )
+
         return distribute_electricity_aggregate_x_using_v_row_shares(
             x, derive_disagg_io_bundle().V
         )
@@ -262,8 +264,85 @@ def electricity_mixed_units_enabled() -> bool:
     return get_usa_config().implement_electricity_mixed_units
 
 
+# --- Lazy end-use facade (importing this module must not load elec) -------------
+
+
+def build_end_use_map() -> dict[str, str]:
+    """Lazy re-export of ``electricity_end_use_mapping.build_end_use_map``."""
+    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+        build_end_use_map as _impl,
+    )
+
+    return _impl()
+
+
+def table_2_4_prices_cents_kwh(
+    year: int,
+    provider: str | None = None,
+    *,
+    fba: pd.DataFrame | None = None,
+) -> dict[str, float]:
+    """Lazy re-export of ``electricity_end_use_mapping.table_2_4_prices_cents_kwh``.
+
+    Kept as a module-level callable so
+    ``@patch('…cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh')`` continues
+    to intercept calls from ``electricity_conversion_factors``.
+    """
+    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+        TABLE_2_4_PROVIDER,
+        table_2_4_prices_cents_kwh as _impl,
+    )
+
+    return cast(
+        dict[str, float],
+        _impl(
+            year,
+            TABLE_2_4_PROVIDER if provider is None else provider,
+            fba=fba,
+        ),
+    )
+
+
+def classify_industry_end_use(industry_code: str) -> tuple[str, str]:
+    """Lazy re-export of ``electricity_end_use_mapping.classify_industry_end_use``."""
+    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+        classify_industry_end_use as _impl,
+    )
+
+    return _impl(industry_code)
+
+
+def build_end_use_map_resolved(
+    prices_by_class: dict[str, float] | None = None,
+    *,
+    c_col: float | None = None,
+    c_row: pd.Series[float] | None = None,
+) -> pd.DataFrame:
+    """Lazy re-export of ``electricity_end_use_mapping.build_end_use_map_resolved``."""
+    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+        build_end_use_map_resolved as _impl,
+    )
+
+    return _impl(prices_by_class, c_col=c_col, c_row=c_row)
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy attribute access for end-use constants re-exported from this module."""
+    if name == 'END_USE_MAPPING_REVIEW_STATUS':
+        from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+            END_USE_MAPPING_REVIEW_STATUS,
+        )
+
+        return END_USE_MAPPING_REVIEW_STATUS
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+
+
 def _model_year_y_row_221110(aq_scaled: SingleRegionAqMatrixSet) -> pd.Series[float]:
     """Model-year 221110 FD row from backcompute total × 2017 share split."""
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        GENERATION_SECTOR,
+    )
+
     y_2017 = derive_disagg_Ytot_with_trade().loc[GENERATION_SECTOR]
     y_total = float(
         backcompute_y_from_A_and_q(A=aq_scaled.Adom, q=aq_scaled.scaled_q).loc[
@@ -287,7 +366,14 @@ def electricity_conversion_factors(
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
         us_total_net_generation_mwh,
     )
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        GENERATION_SECTOR,
+        electricity_class_row_factors,
+        electricity_output_factor,
+    )
 
+    # Call module-level facade for end-use helpers so unittest patches on
+    # ``cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh`` still apply.
     cfg = get_usa_config()
     q_usd = float(aq_scaled.scaled_q[GENERATION_SECTOR])
     mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
@@ -320,6 +406,11 @@ def build_electricity_mixed_units_aq(
     """Return mixed-unit A/q when gate is on; else pass-through."""
     if not electricity_mixed_units_enabled():
         return aq_scaled
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        apply_electricity_unit_conversion_to_A,
+        apply_electricity_unit_conversion_to_q,
+    )
+
     c_col, c_row = electricity_conversion_factors(
         aq_scaled, prices_by_class=prices_by_class
     )
@@ -344,6 +435,10 @@ def build_electricity_mixed_units_b(
     """Return mixed-unit B when gate is on; else pass-through."""
     if not electricity_mixed_units_enabled():
         return b
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        apply_electricity_unit_conversion_to_B,
+    )
+
     return apply_electricity_unit_conversion_to_B(b, c_col)
 
 
@@ -365,6 +460,10 @@ def compute_mixed_unit_ef_vectors(
     prices_by_class: Mapping[str, float] | None = None,
 ) -> MixedUnitEfResult:
     """Apply mixed conversion to monetary scaled A/q/B; never use cached mixed derives."""
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        apply_electricity_unit_conversion_to_A,
+        apply_electricity_unit_conversion_to_B,
+    )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_d,
         compute_L_matrix,
