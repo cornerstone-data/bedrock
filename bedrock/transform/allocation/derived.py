@@ -519,10 +519,3 @@ def load_E_from_flowsa() -> pd.DataFrame:
         E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
 
     return E_usa
-
-
-if __name__ == '__main__':
-    from bedrock.utils.config.usa_config import set_global_usa_config
-
-    set_global_usa_config('2025_usa_cornerstone_taxonomy_and_waste_disagg.yaml')
-    load_E_from_flowsa()

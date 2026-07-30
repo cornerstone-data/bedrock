@@ -83,8 +83,7 @@ year override). Baseline labels follow the identities above — never use bare
 `CEDA based` for a Bedrock / Cornerstone snapshot.
 
 Epic title variants keep the same bracketed shape but swap the middle label
-for approach / release-step text (see `dispatch_ef_time_series`,
-`dispatch_ef_release_v0_3`, `dispatch_ef_v03_waterfall`).
+for approach / release-step text (see `dispatch_ef_time_series`).
 
 ### Shared create / trigger helpers
 
