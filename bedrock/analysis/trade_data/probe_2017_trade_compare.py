@@ -28,10 +28,9 @@ from bedrock.analysis.compare_NIPA_to_IOT import (
     compare,
     frame_series,
 )
+from bedrock.analysis.trade_data import probe_2017_trade_detail as detail
 from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_DESC
-
-from bedrock.analysis.trade_data import probe_2017_trade_detail as detail
 
 OUT_DIR = Path(__file__).resolve().parent / "output"
 MUT = "Use_MUT_detail_after_redef"

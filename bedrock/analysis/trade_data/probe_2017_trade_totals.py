@@ -229,7 +229,9 @@ def build_comparison(extract: ExtractTotals, bench: dict[str, float]) -> pd.Data
     df = pd.DataFrame(rows)
     df["year"] = YEAR
     # Ratios vs primary Use targets
-    df["ratio_to_use_F050_abs"] = df["million_usd"] / bench["use_F05000_imports_abs_musd"]
+    df["ratio_to_use_F050_abs"] = (
+        df["million_usd"] / bench["use_F05000_imports_abs_musd"]
+    )
     df["ratio_to_use_F040"] = df["million_usd"] / bench["use_F04000_exports_musd"]
     return df
 

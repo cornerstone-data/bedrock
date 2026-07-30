@@ -44,11 +44,13 @@ OUT_DIR = Path(__file__).resolve().parent / "output"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Prefer local USEEIO clone; fall back to path next to bedrock if present.
-_USEEIO_CONC = (
-    Path(r"c:\Users\BYoung\Code\src\USEEIO\import_emission_factors\concordances")
+_USEEIO_CONC = Path(
+    r"c:\Users\BYoung\Code\src\USEEIO\import_emission_factors\concordances"
 )
 if not _USEEIO_CONC.is_dir():
-    _USEEIO_CONC = REPO_ROOT.parent / "USEEIO" / "import_emission_factors" / "concordances"
+    _USEEIO_CONC = (
+        REPO_ROOT.parent / "USEEIO" / "import_emission_factors" / "concordances"
+    )
 
 CENSUS_CONC = _USEEIO_CONC / "Census_to_useeio2_sector_concordance.csv"
 SERVICE_CONC = _USEEIO_CONC / "BEA_service_to_useeio2_sector_concordance.csv"
@@ -120,7 +122,9 @@ def _equal_split_to_detail(
     total = float(left[amount_key].sum())
     merged = left.merge(conc, how="left", left_on=left_key, right_on=conc_left)
     mapped_mask = merged[conc_detail].notna()
-    mapped_value = float(left.loc[left[left_key].isin(conc[conc_left]), amount_key].sum())
+    mapped_value = float(
+        left.loc[left[left_key].isin(conc[conc_left]), amount_key].sum()
+    )
     unmapped_keys = sorted(set(left[left_key]) - set(conc[conc_left]))
     unmapped_value = total - mapped_value
 
@@ -174,9 +178,7 @@ def _align_compare(
     if len(sub) >= 2:
         pearson = float(sub["extract_musd"].corr(sub["use_musd"]))
         # Rank correlation without scipy dependency.
-        spearman = float(
-            sub["extract_musd"].rank().corr(sub["use_musd"].rank())
-        )
+        spearman = float(sub["extract_musd"].rank().corr(sub["use_musd"].rank()))
     else:
         pearson = spearman = float("nan")
 
@@ -185,7 +187,9 @@ def _align_compare(
     # Top-20 share overlap (Jaccard on top-20 sets by value)
     top_e = set(df.nlargest(20, "extract_musd")["bea_detail"])
     top_u = set(df.nlargest(20, "use_musd")["bea_detail"])
-    jaccard = len(top_e & top_u) / len(top_e | top_u) if (top_e | top_u) else float("nan")
+    jaccard = (
+        len(top_e & top_u) / len(top_e | top_u) if (top_e | top_u) else float("nan")
+    )
 
     stats = {
         "flow": flow,
@@ -226,8 +230,12 @@ def main() -> None:
     api_codes = set(service_conc["API BEA Service"].astype(str))
     svc_imp_m = svc_imp.loc[svc_imp["TypeOfService"].isin(api_codes)]
     svc_exp_m = svc_exp.loc[svc_exp["TypeOfService"].isin(api_codes)]
-    all_imp = float(svc_imp.loc[svc_imp["TypeOfService"] == "AllTypesOfService", "musd"].sum())
-    all_exp = float(svc_exp.loc[svc_exp["TypeOfService"] == "AllTypesOfService", "musd"].sum())
+    all_imp = float(
+        svc_imp.loc[svc_imp["TypeOfService"] == "AllTypesOfService", "musd"].sum()
+    )
+    all_exp = float(
+        svc_exp.loc[svc_exp["TypeOfService"] == "AllTypesOfService", "musd"].sum()
+    )
 
     print("Mapping to BEA Detail...")
     g_imp_d, g_imp_s = _equal_split_to_detail(
