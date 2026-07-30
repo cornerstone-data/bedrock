@@ -97,7 +97,6 @@ resolved flag set for a run.
 
 | Flag | Gate | Atomic-style config |
 |---|---|---|
-| `update_mecs_method` | `bedrock/transform/allocation/derived.py` | `configs/2025_usa_cornerstone_ghg_mecs.yaml` |
 | `load_useeio_nowcast_A_matrix` | `derive_cornerstone_Aq_scaled()` in `bedrock/transform/eeio/derived_cornerstone.py` | `configs/2025_usa_cornerstone_A_useeio_nowcast.yaml` (A-only) / `configs/2025_usa_cornerstone_v0_2_A_useeio_nowcast.yaml` (full-model stack for EF runs) |
 
 ## Related

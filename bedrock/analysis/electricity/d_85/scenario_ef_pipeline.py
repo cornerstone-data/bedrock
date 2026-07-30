@@ -202,7 +202,7 @@ def derive_B_from_scenario(scenario: DisaggScenarioResult) -> pd.DataFrame:
 def probe_e_source() -> dict[str, str]:
     """Report whether eGRID FBS or GCS fallback was used for E."""
     cfg = get_usa_config()
-    if not (cfg.new_ghg_method and cfg.implement_electricity_disaggregation):
+    if not (cfg.use_cornerstone_ghg_model and cfg.implement_electricity_disaggregation):
         return {'source': 'standard', 'note': 'electricity disagg flag off'}
     try:
         from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415

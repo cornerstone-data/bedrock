@@ -1,5 +1,5 @@
 # v03_waterfall G3: G2 methods + 2024 UMD GHG / IO data @ IO@2024 producer.
-# Retains CEDA A/price and inflation from G2; adds v0_3_umd_2024_ghgia (MECS in parquet).
+# Retains CEDA A/price and inflation from G2; adds 2024 UMD GHG / IO data (MECS in parquet).
 
 model_base_year: 2024
 price_type: producer
@@ -7,7 +7,7 @@ price_type: producer
 usa_ghg_data_year: 2024
 
 use_cornerstone_2026_model_schema: true
-v0_3_umd_2024_ghgia: true
+use_cornerstone_ghg_model: true
 use_E_data_year_for_x_in_B: true
 implement_waste_disaggregation: true
 
