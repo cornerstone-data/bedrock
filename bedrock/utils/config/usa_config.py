@@ -119,7 +119,6 @@ class USAConfig(BaseModel):
         ),
     )  # DRI: WesIngwersen
     ### GHG Methodology selection
-    load_E_from_flowsa: bool = False  # if True, use load_E_from_flowsa()
     usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
     new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
     update_mecs_method: bool = False  # DRI: catherine.birney

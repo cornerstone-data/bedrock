@@ -57,8 +57,8 @@ Create `bedrock/utils/config/configs/<name>.yaml`:
 
 - Set the flag to `true`.
 - Set any hard prerequisites the validators or call site require (for
-  example `load_E_from_flowsa: true` when the gated path loads E from
-  flowsa).
+  example `implement_waste_disaggregation: true` when the gated path
+  requires waste disaggregation).
 - Leave `snapshot_version_or_git_sha` at its default (`'v0'`) or omit the
   key. Choose the diagnostics comparison at dispatch /
   `generate_diagnostics` time via `--baseline` (`ceda-v0`, `useeio`,

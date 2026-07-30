@@ -17,7 +17,6 @@ usa_ghg_data_year: 2023
 # Methodology selection
 #####
 use_cornerstone_2026_model_schema: true
-load_E_from_flowsa: true
 use_E_data_year_for_x_in_B: true
 implement_waste_disaggregation: true
 
