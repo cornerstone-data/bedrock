@@ -181,6 +181,6 @@ used by the XLSX publisher).
 | `Phi` sheet vs pinned phoebe USEEIO workbook | `test_published_phi_matches_useeio_workbook` (`eeio_integration`) | Workbook **`Phi` column `model_base_year`** only (2017 on phoebe pin) |
 | SEF CSV wiring (Phi × CPI on `N`) | `test_sef_phi_wiring` (`eeio_integration`) | Export at `--dollar_year` (test uses 2024); **Phi at `dollar_year`** after CPI |
 | Phi panel vs phoebe workbook | `test_published_phi_matches_useeio_workbook` (`eeio_integration`) | Column **2017** (1% rtol); full panel in Excel |
-| SEF vs Zenodo v1.4.0 on Reference USEEIO Code | `bedrock.analysis.margins.compare_sef_zenodo_useeio_code` (manual) | Collapses NAICS rows; not CI |
+| SEF vs Zenodo v1.4.0 on Reference USEEIO Code | `bedrock.analysis.margins.compare_sef_margins_sources` (manual) | Collapses NAICS rows; not CI |
 
 Default `uv run pytest` excludes `eeio_integration`; run `-m eeio_integration` for workbook Phi parity and SEF wiring tests.
