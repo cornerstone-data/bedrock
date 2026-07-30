@@ -3,5 +3,19 @@
 # Exit if any command fails
 set -e
 
+# If the browser shows "Access blocked" (Google blocks Drive/Sheets scopes on
+# gcloud's default OAuth client), impersonate the diagnostics service account
+# instead (requires roles/iam.serviceAccountTokenCreator on it):
+#   BEDROCK_IMPERSONATE_SA=github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com ./scripts/google-login
+
+SCOPES="openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets"
+
 gcloud config set project cornerstone-data
-gcloud auth application-default login --scopes=openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/drive
+
+if [[ -n "${BEDROCK_IMPERSONATE_SA:-}" ]]; then
+    # No --scopes here: Drive/Sheets scopes are applied at token time by the code.
+    gcloud auth application-default login \
+        --impersonate-service-account="$BEDROCK_IMPERSONATE_SA"
+else
+    gcloud auth application-default login --scopes="$SCOPES"
+fi
