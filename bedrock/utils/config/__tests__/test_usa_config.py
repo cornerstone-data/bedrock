@@ -226,6 +226,21 @@ def test_electricity_disagg_config_parsing() -> None:
     assert config.implement_electricity_reallocation is True
 
 
+def test_electricity_disaggregation_requires_reallocation_and_waste() -> None:
+    with pytest.raises(
+        ValueError,
+        match="implement_electricity_disaggregation requires",
+    ):
+        USAConfig.model_validate(
+            {
+                "implement_electricity_disaggregation": True,
+                "implement_electricity_reallocation": False,
+                "implement_waste_disaggregation": True,
+            },
+            strict=True,
+        )
+
+
 def test_electricity_disagg_requires_waste() -> None:
     with pytest.raises(
         ValueError,
