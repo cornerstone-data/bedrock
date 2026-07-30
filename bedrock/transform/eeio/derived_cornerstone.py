@@ -278,12 +278,7 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
 
 @functools.cache
 def derive_cornerstone_q() -> pd.Series[float]:
-    cfg = get_usa_config()
-    q = compute_q(
-        V=derive_cornerstone_V(
-            apply_inflation=cfg.apply_inflation_to_V, target_year=cfg.model_base_year
-        )
-    )
+    q = compute_q(V=derive_cornerstone_V())
     validate_cornerstone(q, 'Q')
     return q
 
@@ -295,18 +290,14 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 ) -> pd.DataFrame:
     """Scrap-corrected V norm. Inflation is applied via ``derive_cornerstone_V``.
 
-    When ``apply_inflation`` is omitted, uses ``USAConfig.apply_inflation_to_V``.
     When ``target_year`` is not positive and inflation is on, uses
     ``USAConfig.model_base_year``.
     """
-    cfg = get_usa_config()
-    use_inflation = (
-        cfg.apply_inflation_to_V if apply_inflation is None else apply_inflation
-    )
+    use_inflation = bool(apply_inflation)
     effective_year = (
         target_year
         if target_year > 0
-        else (cfg.model_base_year if use_inflation else 0)
+        else (get_usa_config().model_base_year if use_inflation else 0)
     )
 
     V = derive_cornerstone_V(use_inflation, effective_year)
@@ -317,7 +308,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
     scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
     scrap_fraction = industry_corresp() @ scrap_2017
-    if cfg.implement_electricity_disaggregation:
+    if get_usa_config().implement_electricity_disaggregation:
         parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
         scrap_fraction = scrap_fraction.drop(
             ELECTRICITY_AGGREGATE_SECTOR, errors='ignore'
@@ -473,10 +464,6 @@ def derive_cornerstone_Aq() -> SingleRegionAqMatrixSet:
 
 def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
     """A and q from disaggregated Cornerstone V and U (no intragroup treatment)."""
-    # When apply_inflation_to_V is True: q and x use uninflated derive_cornerstone_V()
-    # (2017 $), while Vnorm uses derive_cornerstone_Vnorm_scrap_corrected() (model-year $).
-    # derive_cornerstone_q() applies the flag but is not used here. Intentional for now;
-    # see inflation/A dollar-year design notes.
     V = derive_cornerstone_V()
     uset = derive_cornerstone_U_set()
     Udom: pd.DataFrame = uset.Udom
@@ -515,79 +502,11 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # USEEIO nowcast: load externally-balanced detail SUTs from GCS and
-    # derive Cornerstone A directly. Bypasses all internal scaling/inflation;
-    # treats the upstream USEEIO team's GRAS-balanced 2018–2023 SUTs as the
-    # source of structural change. Loaders: bedrock.extract.iot.useeio_nowcast;
-    # derivation: bedrock.transform.eeio.derived_useeio_nowcast.
-    if cfg.load_useeio_nowcast_A_matrix:
-        from bedrock.transform.eeio.derived_useeio_nowcast import (  # noqa: PLC0415
-            derive_useeio_nowcast_Aq_cornerstone,
-        )
-
-        return derive_useeio_nowcast_Aq_cornerstone(year=model_year)
-
-    # Summary tables: scale 2017 → model_year using summary A ratios.
-    #
-    # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
-    # rebases the target-year summary A into 2017 USD before thebase.scaled_q, ratio is taken,
-    # so the structural cross-year ratio is formed entirely in 2017 USD; the
-    # scaled detail A is then inflated 2017 → model_year. When the flag is off,
-    # the ratio carries the raw target-year-vs-2017 price drift and no final
-    # inflation is applied (pre-realignment behavior).
-    if cfg.scale_a_matrix_with_summary_tables:
-        Adom = scale_cornerstone_A(
-            base.Adom,
-            target_year=model_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='dom',
-        )
-        Aimp = scale_cornerstone_A(
-            base.Aimp,
-            target_year=model_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='imp',
-        )
-        q = scale_cornerstone_q(
-            base.scaled_q,
-            target_year=model_year,
-            original_year=detail_year,
-        )
-        if cfg.adjust_summary_A_and_q_dollar_year:
-            Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
-                Adom, original_year=detail_year, target_year=model_year
-            )
-            Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
-                Aimp, original_year=detail_year, target_year=model_year
-            )
-            q = inflate_cornerstone_q_or_y_with_commodity_pi(
-                q, original_year=detail_year, target_year=model_year
-            )
-        return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
-
-    # Commodity price index (V-norm-derived): like the industry-price branch,
-    # but uses V_norm to weight industry price ratios into commodity space
-    # before applying diag(p) @ A @ diag(1/p).
-    if cfg.scale_a_matrix_with_commodity_price_index:
-        Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
-            base.Adom, original_year=detail_year, target_year=model_year
-        )
-        Aimp = inflate_cornerstone_A_matrix_with_commodity_pi(
-            base.Aimp, original_year=detail_year, target_year=model_year
-        )
-        q = inflate_cornerstone_q_or_y_with_commodity_pi(
-            base.scaled_q, original_year=detail_year, target_year=model_year
-        )
-        return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
-
     # CEDA method: our fallback option as of CY26Q2.
     # Scale to 2022 (io_year), then inflate to model_base_year.
     # However, we are applying some subtle changes to this method:
     # 1. scale detail A and q with dollar year adjusted summary numbers
     # 2. inflate with commodity pi instead of industry pi
-    #
-    # Codepath of this approach is very similar to the scale_a_matrix_with_summary_tables approach,
-    # the only difference is which year to scale to.
     #
     # When `cfg.adjust_summary_A_and_q_dollar_year` is set, `scale_cornerstone_A`
     # rebases the target-year summary A into 2017 USD before the ratio is taken,
