@@ -12,7 +12,9 @@ from bedrock.analysis.electricity.d_85.disagg_weights import (
     table83_purchased_power_weights,
     ugo305_go_weights,
 )
-from bedrock.analysis.electricity.d_85.eia_inputs import electricity_end_use_retail_prices_cents_kwh
+from bedrock.analysis.electricity.d_85.eia_inputs import (
+    electricity_end_use_retail_prices_cents_kwh,
+)
 from bedrock.analysis.electricity.d_85.end_use_mapping import (
     build_end_use_map,
     build_price_tilt_weights_by_column,

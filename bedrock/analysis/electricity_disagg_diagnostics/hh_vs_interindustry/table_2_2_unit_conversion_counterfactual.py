@@ -232,7 +232,8 @@ def analyze() -> dict[str, Any]:
         intermediate_usd, y_row_usd, end_use_map, eia_classes
     )
     prices_2_4 = cast(
-        dict[str, float], electricity_end_use_retail_prices_cents_kwh(int(cfg.usa_ghg_data_year))
+        dict[str, float],
+        electricity_end_use_retail_prices_cents_kwh(int(cfg.usa_ghg_data_year)),
     )
 
     # Production path (Table 2.4 + eGRID total)

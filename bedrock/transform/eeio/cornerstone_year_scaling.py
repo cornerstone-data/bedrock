@@ -135,9 +135,9 @@ def scale_cornerstone_A(
     for col in oob_idx:
         A_scaled[col] *= 0.98 / total_industry_inputs[col]
 
-    assert (compute_total_industry_inputs(A=A_scaled) <= 1).all(), (
-        'A column sums exceed 1 after scaling.'
-    )
+    assert (
+        compute_total_industry_inputs(A=A_scaled) <= 1
+    ).all(), 'A column sums exceed 1 after scaling.'
 
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         electricity_disaggregation_enabled,

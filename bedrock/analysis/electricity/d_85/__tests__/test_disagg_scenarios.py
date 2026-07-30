@@ -19,7 +19,9 @@ from bedrock.analysis.electricity.d_85.disagg_scenarios import (
 from bedrock.analysis.electricity.d_85.disagg_weights import (
     build_ugo_col_table83_row_intersection_matrix,
 )
-from bedrock.analysis.electricity.d_85.eia_inputs import electricity_end_use_retail_prices_cents_kwh
+from bedrock.analysis.electricity.d_85.eia_inputs import (
+    electricity_end_use_retail_prices_cents_kwh,
+)
 from bedrock.transform.eeio.electricity_disaggregation import ELECTRICITY_AGGREGATE
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
 

@@ -337,7 +337,9 @@ def analyze() -> dict[str, Any]:
     egrid_mwh = float(us_total_net_generation_mwh(model_year))
 
     end_use_map = build_end_use_map()
-    prices = cast(dict[str, float], electricity_end_use_retail_prices_cents_kwh(ghg_year))
+    prices = cast(
+        dict[str, float], electricity_end_use_retail_prices_cents_kwh(ghg_year)
+    )
     eia = _eia_table_2_2_sales_mwh(model_year)
     w_go = build_electricity_disagg_go_weights()
     w_trans, w_dist = _td_national_shares()
