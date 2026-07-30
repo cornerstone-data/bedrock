@@ -19,10 +19,12 @@ Writes under ``bedrock/analysis/trade_data/output/``:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
 from bedrock.analysis.compare_NIPA_to_IOT import (
+    Comparison,
     LabeledSeries,
     bea_matrix_column,
     compare,
@@ -33,7 +35,7 @@ from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_DESC
 
 OUT_DIR = Path(__file__).resolve().parent / "output"
-MUT = "Use_MUT_detail_after_redef"
+MUT: Literal["Use_MUT_detail_after_redef"] = "Use_MUT_detail_after_redef"
 
 
 def _extract_detail_vectors() -> tuple[pd.Series, pd.Series]:
@@ -126,7 +128,9 @@ def _use_imports_abs() -> LabeledSeries:
     )
 
 
-def _run_one(flow: str, candidate: LabeledSeries, reference: LabeledSeries):
+def _run_one(
+    flow: str, candidate: LabeledSeries, reference: LabeledSeries
+) -> Comparison:
     print(f"\n{'=' * 72}\nComparing {flow}\n{'=' * 72}")
     result = compare(candidate=candidate, reference=reference)
     print(result.report(n_worst=15, tol_pct=5.0, n_unmatched=20))

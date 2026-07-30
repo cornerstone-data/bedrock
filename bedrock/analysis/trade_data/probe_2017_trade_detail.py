@@ -158,7 +158,7 @@ def _use_trade_vectors() -> tuple[pd.Series, pd.Series]:
 
 def _align_compare(
     extract: pd.Series, use: pd.Series, flow: str
-) -> tuple[pd.DataFrame, dict[str, float]]:
+) -> tuple[pd.DataFrame, dict[str, float | str | int]]:
     idx = sorted(set(extract.index) | set(use.index))
     e = extract.reindex(idx).fillna(0.0)
     u = use.reindex(idx).fillna(0.0)
@@ -191,7 +191,7 @@ def _align_compare(
         len(top_e & top_u) / len(top_e | top_u) if (top_e | top_u) else float("nan")
     )
 
-    stats = {
+    stats: dict[str, float | str | int] = {
         "flow": flow,
         "extract_total_musd": e_tot,
         "use_total_musd": u_tot,
