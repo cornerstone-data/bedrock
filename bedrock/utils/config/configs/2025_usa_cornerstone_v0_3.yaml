@@ -24,7 +24,6 @@ usa_ghg_data_year: 2024
 #####
 # Methodology selection
 #####
-use_cornerstone_2026_model_schema: True
 
 # GHG model: Cornerstone GHG FBS (2024 = UMD GHGIA inventory + 2022 MECS attribution).
 use_cornerstone_ghg_model: True

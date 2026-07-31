@@ -5,21 +5,15 @@ from collections.abc import Iterable
 
 import pandas as pd
 
-from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 
 
 def get_allocation_sectors() -> list[str]:
-    """
-    Return the sector list (taxonomy) for allocation based on model config.
+    """Return the allocation sector list: Cornerstone INDUSTRIES.
 
-    When use_cornerstone_2026_model_schema is True, returns Cornerstone INDUSTRIES;
-    otherwise returns CEDA v7 sectors.
+    The Cornerstone frame matches the pinned allocation FBA parquets on GCS.
     """
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        return list(INDUSTRIES)
-    return list(CEDA_V7_SECTORS)
+    return list(INDUSTRIES)
 
 
 def parse_index_with_aggregates(

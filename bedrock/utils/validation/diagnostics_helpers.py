@@ -129,12 +129,6 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
         ``derive_cornerstone_B_non_finetuned`` already inflates ``B`` to
         ``model_base_year``.
     """
-    if not cfg.use_cornerstone_2026_model_schema:
-        return (
-            False,
-            'use_cornerstone_2026_model_schema is false (legacy B path; no '
-            'cornerstone D_new_inflated hook)',
-        )
     if cfg.deflate_x_to_detail_io_year_for_B:
         if cfg.model_base_year == cfg.usa_detail_original_year:
             return (

@@ -90,7 +90,6 @@ from bedrock.publish.model_objects import (
     get_Udom,
     get_V,
     get_x,
-    require_cornerstone_config,
 )
 from bedrock.utils.config.settings import GIT_HASH_LONG
 from bedrock.utils.config.usa_config import get_usa_config
@@ -370,11 +369,7 @@ def write_model_to_xlsx(out_path: str, *, config_name: str) -> None:
     Sheets are produced from `_build_matrix_registry(config_name)`. Any
     registry entry whose getter returns `None` is omitted from the
     workbook (useeior-style "skip if NULL").
-
-    Raises `NotImplementedError` on legacy (non-cornerstone) configs --
-    publish is wired only for cornerstone-schema configs today.
     """
-    require_cornerstone_config()
     registry = _build_matrix_registry(config_name)
     materialized = _materialize(registry)
     os.makedirs(os.path.dirname(out_path) or '.', exist_ok=True)

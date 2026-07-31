@@ -69,7 +69,6 @@ class TestCalculateEfDiagnostics:
         ]
 
         mock_config = MagicMock()
-        mock_config.use_cornerstone_2026_model_schema = False
         mock_config.use_ghg_year_x_in_B = False
         mock_config.diagnostics_baseline_source = "gcs_snapshot"
 
@@ -98,6 +97,14 @@ class TestCalculateEfDiagnostics:
                 "bedrock.utils.validation.calculate_ef_diagnostics.SIGNIFICANT_SECTORS",
                 mock_significant_sectors,
             ),
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.align_efs_across_schemas",
+                return_value=(efs, {}),
+            ),
+            patch(
+                "bedrock.utils.validation.calculate_ef_diagnostics.get_aligned_sector_desc",
+                return_value={s: s for s in SECTORS},
+            ),
         ):
             calculate_ef_diagnostics(sheet_id="test_sheet")
 
@@ -114,6 +121,7 @@ class TestCalculateEfDiagnostics:
             "D_and_diffs",
             "D_and_N_significant_sectors",
             "N_and_D_summary_stats",
+            "sector_mapping_notes",
             "output_contrib_new_vs_old",
         ]
 
@@ -172,7 +180,6 @@ class TestCalculateEfDiagnostics:
 
         mock_significant_sectors = [{"sector": "1111A0"}, {"sector": "221110"}]
         mock_config = MagicMock()
-        mock_config.use_cornerstone_2026_model_schema = True
         mock_config.use_E_data_year_for_x_in_B = False
         mock_config.diagnostics_baseline_source = "gcs_snapshot"
         mock_config.usa_ghg_data_year = 2023
@@ -254,7 +261,7 @@ class TestCalculateEfDiagnostics:
 
     def test_output_contribution_has_expected_columns(self) -> None:
         tabs = self._run_ef_diagnostics()
-        oc = tabs[4][2]
+        oc = tabs[5][2]
 
         expected_cols = {
             "EF_sector",
