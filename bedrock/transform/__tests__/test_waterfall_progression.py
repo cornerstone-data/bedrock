@@ -9,21 +9,25 @@ vocabulary (the ``v03_waterfall_*`` configs):
       → + apply_io_year_adjustments + margins  (G2:  "IO year adjustments")
       → usa_ghg_data_year: 2023 → 2024         (G3:  "US data update")
 
-Each test derives one step's total attributed emissions ΣBLy = Σ diag(d)·L·y
-in a fresh subprocess (so ``functools.cache`` state cannot leak between
-configs) and compares against the totals of the ``BLy_new_vs_BLy_old`` tabs
-of the pinned diagnostics sheets in
-``bedrock.utils.validation.analysis.release_v0_v03_ceda_groups`` — the same
-sheets the v0.3 assessment waterfall figure was built from.
+Each test derives one step's q-weighted average total emission factor
 
-Note on the published figure: its bars (baseline 5,069; −42/+16/−254/+22)
-are the USA *portion of the global MRIO* after ingesting these bedrock
-snapshots, so they differ from the bedrock-standalone totals asserted here.
-The bedrock-side ground truth is the pinned sheets; the MRIO ingestion is
-validated in the ceda repository.
+    wavg N = Σᵢ Nᵢ qᵢ / Σᵢ qᵢ,   N = 1ᵀ B L
+
+in a fresh subprocess (so ``functools.cache`` state cannot leak between
+configs), each step weighted by its own run's gross-output vector q — the
+release waterfall convention, where every bar is a true quantity of that
+state.
+
+The per-sector N vectors are grounded in the ``N_and_diffs`` tabs of the
+pinned diagnostics sheets in
+``bedrock.utils.validation.analysis.release_v0_v03_ceda_groups`` — the
+sheets the v0.3 assessment was built from. The expected levels below were
+pinned from a run whose per-sector N matched those sheets, with the same
+weighted average recomputed from the sheet N columns agreeing to well
+within the tolerance.
 
 If the pre-built ``GHG_national_Cornerstone_{year}`` FBS parquets are
-re-uploaded with new vintages, these totals move by design — re-pin the
+re-uploaded with new vintages, these levels move by design — re-pin the
 expected values consciously, exactly like a snapshot bump.
 """
 
@@ -36,29 +40,29 @@ import sys
 
 import pytest
 
-# ΣBLy (MtCO2e) — totals of the pinned sheets' ``BLy_new (MtCO2e)`` column
-# (``BLy_old`` for the baseline). Sheets dispatched 2026-07-13 from the
-# v03_waterfall configs; see release_v0_v03_ceda_groups for sheet IDs.
-EXPECTED_BLY_TOTAL_MT = {
-    'v0_baseline': 4918.4928,
-    'v03_waterfall_ceda_g1a_schema_ghg': 5708.6328,
-    'v03_waterfall_ceda_g1b_waste_disagg': 4843.6614,
-    'v03_waterfall_g2_methods': 4643.2885,
-    'v03_waterfall_g3_data': 4655.0986,
+# q-weighted average N (kgCO2e per USD gross output, model_base_year dollars).
+# Pinned 2026-07-31 from live derivations cross-checked per sector against the
+# pinned sheets' ``N_new`` columns; see release_v0_v03_ceda_groups for sheet IDs.
+EXPECTED_WEIGHTED_AVG_N = {
+    'v0_baseline': 0.2563185,
+    'v03_waterfall_ceda_g1a_schema_ghg': 0.2655134,
+    'v03_waterfall_ceda_g1b_waste_disagg': 0.2543695,
+    'v03_waterfall_g2_methods': 0.2398356,
+    'v03_waterfall_g3_data': 0.2416736,
     # FINAL is the full v0.3 methodology; it must telescope to the last step.
-    'v03_waterfall_final': 4655.0986,
+    'v03_waterfall_final': 0.2416736,
 }
 
-# Absolute tolerance in MtCO2e. The baseline reproduces the sheet total to
-# <0.001 Mt; 0.5 Mt headroom absorbs float/order noise without masking any
-# change big enough to move a waterfall bar.
-ATOL_MT = 0.5
+# Absolute tolerance in kgCO2e/USD. Steps reproduce the pinned levels to
+# <1e-6; 1e-4 headroom absorbs float/order noise without masking any change
+# big enough to move a waterfall bar (~1e-2 between steps).
+ATOL_KG_PER_USD = 1e-4
 
 _STEP_TIMEOUT_S = 3600
 
 
-def _bly_total_mt(arg: str) -> float:
-    """Run the ΣBLy computation for one step in a fresh interpreter."""
+def _weighted_avg_n(arg: str) -> float:
+    """Run the weighted-average-N computation for one step in a fresh interpreter."""
     proc = subprocess.run(
         [sys.executable, '-m', 'bedrock.utils.validation.waterfall_progression', arg],
         capture_output=True,
@@ -70,15 +74,17 @@ def _bly_total_mt(arg: str) -> float:
         f'waterfall step {arg!r} failed (rc={proc.returncode}):\n'
         f'stdout tail: {proc.stdout[-2000:]}\nstderr tail: {proc.stderr[-2000:]}'
     )
-    match = re.search(r'\{"bly_total_mt":\s*([-0-9.eE]+)\}', proc.stdout)
+    match = re.search(r'\{"weighted_avg_n_kg_per_usd":\s*([-0-9.eE]+)\}', proc.stdout)
     assert match, f'no JSON result on stdout for {arg!r}: {proc.stdout[-2000:]}'
-    return float(json.loads(match.group(0))['bly_total_mt'])
+    return float(json.loads(match.group(0))['weighted_avg_n_kg_per_usd'])
 
 
 @pytest.mark.eeio_integration
-def test_v0_baseline_bly_matches_pinned_sheets() -> None:
-    total = _bly_total_mt('--v0-baseline')
-    assert total == pytest.approx(EXPECTED_BLY_TOTAL_MT['v0_baseline'], abs=ATOL_MT)
+def test_v0_baseline_weighted_avg_n() -> None:
+    level = _weighted_avg_n('--v0-baseline')
+    assert level == pytest.approx(
+        EXPECTED_WEIGHTED_AVG_N['v0_baseline'], abs=ATOL_KG_PER_USD
+    )
 
 
 @pytest.mark.eeio_integration
@@ -92,6 +98,8 @@ def test_v0_baseline_bly_matches_pinned_sheets() -> None:
         'v03_waterfall_final',
     ],
 )
-def test_waterfall_step_bly_matches_pinned_sheets(config_name: str) -> None:
-    total = _bly_total_mt(config_name)
-    assert total == pytest.approx(EXPECTED_BLY_TOTAL_MT[config_name], abs=ATOL_MT)
+def test_waterfall_step_weighted_avg_n(config_name: str) -> None:
+    level = _weighted_avg_n(config_name)
+    assert level == pytest.approx(
+        EXPECTED_WEIGHTED_AVG_N[config_name], abs=ATOL_KG_PER_USD
+    )
