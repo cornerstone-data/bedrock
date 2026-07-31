@@ -39,7 +39,7 @@ from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.transform.eeio.electricity_end_use_mapping import (
     EPA_END_USES,
     build_end_use_map,
-    table_2_4_prices_cents_kwh,
+    electricity_end_use_retail_prices_cents_kwh,
 )
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
@@ -504,7 +504,7 @@ def analyze() -> dict[str, Any]:
     eia = _eia_values(int(cfg.model_base_year))
     prices = cast(
         Mapping[str, float],
-        table_2_4_prices_cents_kwh(int(cfg.usa_ghg_data_year)),
+        electricity_end_use_retail_prices_cents_kwh(int(cfg.usa_ghg_data_year)),
     )
 
     return {

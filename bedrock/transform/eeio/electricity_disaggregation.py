@@ -316,7 +316,7 @@ def build_electricity_disagg_go_weights() -> pd.Series[float]:
     )
 
 
-def _table83_purchased_power_expenses(
+def _iou_utility_gtd_operating_expenses(
     year: int,
     *,
     fba: pd.DataFrame | None = None,
@@ -348,7 +348,7 @@ def _table83_purchased_power_expenses(
     return out
 
 
-def _weights_from_table83_expenses(expenses: dict[str, float]) -> pd.Series[float]:
+def _normalize_gtd_expense_weights(expenses: dict[str, float]) -> pd.Series[float]:
     keys = list(expenses.keys())
     if len(keys) != 3:
         raise ValueError(f'expected 3 expense buckets, got {keys!r}')
@@ -369,8 +369,8 @@ def _weights_from_table83_expenses(expenses: dict[str, float]) -> pd.Series[floa
 @functools.cache
 def build_electricity_disagg_use_intersection_weights() -> pd.Series[float]:
     """Return Table 8.3 Purchased Power + T/D shares for step 2 intersection."""
-    expenses = _table83_purchased_power_expenses(IO_ACCOUNT_YEAR)
-    return _weights_from_table83_expenses(expenses)
+    expenses = _iou_utility_gtd_operating_expenses(IO_ACCOUNT_YEAR)
+    return _normalize_gtd_expense_weights(expenses)
 
 
 def _diagonal_intersection_weights(w: pd.Series[float]) -> pd.DataFrame:
@@ -913,7 +913,7 @@ def _go_levels_for_year(year: int) -> pd.Series[float]:
 
 
 @functools.cache
-def build_electricity_ugo305_scaling_ratios(
+def build_electricity_detail_GO_growth_ratios(
     original_year: int,
     target_year: int,
 ) -> pd.Series[float]:
@@ -924,8 +924,11 @@ def build_electricity_ugo305_scaling_ratios(
     return ratios.fillna(1.0).reindex(ELECTRICITY_DISAGG_SECTORS)
 
 
-def utilities_summary_ratio_22(original_year: int, target_year: int) -> float:
-    """Summary Utilities sector-22 q ratio used as D7 base scaling factor."""
+def utilities_summary_q_growth_ratio(original_year: int, target_year: int) -> float:
+    """BEA summary Make-Use-Trade (MUT) Utilities sector-22 q growth ratio.
+
+    Used as the denominator when rescaling electricity children to detail GO growth.
+    """
     orig = cast(USA_SUMMARY_MUT_YEARS, original_year)
     tgt = cast(USA_SUMMARY_MUT_YEARS, target_year)
     ratio = (derive_summary_q_usa(tgt) / derive_summary_q_usa(orig)).fillna(1.0)
@@ -933,14 +936,14 @@ def utilities_summary_ratio_22(original_year: int, target_year: int) -> float:
     return val if np.isfinite(val) else 1.0
 
 
-def apply_electricity_d7_scaling_correction_to_A(
+def rescale_electricity_children_to_detail_GO_growth_A(
     a: pd.DataFrame,
     original_year: int,
     target_year: int,
 ) -> pd.DataFrame:
     """Rescale electricity child rows after summary-ratio A scaling (D7 pure)."""
-    ratios = build_electricity_ugo305_scaling_ratios(original_year, target_year)
-    base = utilities_summary_ratio_22(original_year, target_year)
+    ratios = build_electricity_detail_GO_growth_ratios(original_year, target_year)
+    base = utilities_summary_q_growth_ratio(original_year, target_year)
     out = a.copy()
     for code in ELECTRICITY_DISAGG_SECTORS:
         if code not in out.index:
@@ -950,14 +953,14 @@ def apply_electricity_d7_scaling_correction_to_A(
     return out
 
 
-def apply_electricity_d7_scaling_correction_to_q(
+def rescale_electricity_children_to_detail_GO_growth_q(
     q: pd.Series[float],
     original_year: int,
     target_year: int,
 ) -> pd.Series[float]:
     """Rescale electricity child q rows after summary-ratio q scaling (D7 pure)."""
-    ratios = build_electricity_ugo305_scaling_ratios(original_year, target_year)
-    base = utilities_summary_ratio_22(original_year, target_year)
+    ratios = build_electricity_detail_GO_growth_ratios(original_year, target_year)
+    base = utilities_summary_q_growth_ratio(original_year, target_year)
     out = q.copy()
     for code in ELECTRICITY_DISAGG_SECTORS:
         if code not in out.index:

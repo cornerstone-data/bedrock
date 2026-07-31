@@ -170,13 +170,13 @@ def _load_eia_fba(year: int) -> pd.DataFrame:
     return getFlowByActivity('EIA_ElectricPowerAnnual', year)
 
 
-def table_2_4_prices_cents_kwh(
+def electricity_end_use_retail_prices_cents_kwh(
     year: int,
     provider: str = TABLE_2_4_PROVIDER,
     *,
     fba: pd.DataFrame | None = None,
 ) -> dict[EPAEndUse, float]:
-    """Return end-use retail prices (cents/kWh) from Table 2.4."""
+    """source is EIA Electric Power Annual Table 2.4 (Average price to ultimate customers); used to build class-specific MWh/$ factors."""
     df = fba if fba is not None else _load_eia_fba(year)
     mask = (
         (df['Year'] == year)

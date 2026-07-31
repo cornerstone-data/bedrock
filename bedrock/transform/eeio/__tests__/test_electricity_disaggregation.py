@@ -35,11 +35,11 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     _compute_w_row,
     _derive_post_reallocation_checkpoint_for_disagg,
     _float_ndarray,
-    _table83_purchased_power_expenses,
-    _weights_from_table83_expenses,
+    _iou_utility_gtd_operating_expenses,
+    _normalize_gtd_expense_weights,
+    build_electricity_detail_GO_growth_ratios,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    build_electricity_ugo305_scaling_ratios,
     disaggregate_use_industry_columns,
     get_electricity_commodity_row_weights,
 )
@@ -63,7 +63,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    build_electricity_ugo305_scaling_ratios,
+    build_electricity_detail_GO_growth_ratios,
     get_electricity_commodity_row_weights,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
@@ -219,10 +219,10 @@ class TestTable83UseIntersectionWeights:
             mock_fba_table83_table24,
         )
 
-        expenses = _table83_purchased_power_expenses(
+        expenses = _iou_utility_gtd_operating_expenses(
             2017, fba=mock_fba_table83_table24()
         )
-        w = _weights_from_table83_expenses(expenses)
+        w = _normalize_gtd_expense_weights(expenses)
         assert set(w.index) == set(ELECTRICITY_DISAGG_SECTORS)
         np.testing.assert_allclose(float(w.sum()), 1.0, rtol=1e-9, atol=1e-12)
         assert w['221110'] == pytest.approx(49030.0 / (49030.0 + 10804.0 + 4358.0))
@@ -274,7 +274,7 @@ class TestD7PureScaling:
         _setup_config(electricity_disagg_config)
         try:
             aq = derive_cornerstone_Aq_scaled()
-            ratios = build_electricity_ugo305_scaling_ratios(2017, 2022)
+            ratios = build_electricity_detail_GO_growth_ratios(2017, 2022)
             q_vals = [float(aq.scaled_q[c]) for c in ELECTRICITY_DISAGG_SECTORS]
             assert len(set(round(v, 6) for v in q_vals)) == 3
             assert ratios['221110'] != pytest.approx(ratios['221121'])

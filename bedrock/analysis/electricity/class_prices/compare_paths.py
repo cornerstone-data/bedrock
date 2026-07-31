@@ -9,7 +9,7 @@ import pandas as pd
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     MixedUnitEfResult,
     compute_mixed_unit_ef_vectors,
-    table_2_4_prices_cents_kwh,
+    electricity_end_use_retail_prices_cents_kwh,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
@@ -31,7 +31,7 @@ class ClassPricesComparison:
 
 def _equal_prices_from_table() -> dict[str, float]:
     cfg = get_usa_config()
-    prices = table_2_4_prices_cents_kwh(cfg.usa_ghg_data_year)
+    prices = electricity_end_use_retail_prices_cents_kwh(cfg.usa_ghg_data_year)
     total = float(prices['Total'])
     return {k: total for k in prices}
 

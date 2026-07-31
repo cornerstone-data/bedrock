@@ -142,12 +142,13 @@ def scale_cornerstone_A(
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         electricity_disaggregation_enabled,
     )
-    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
-        apply_electricity_d7_scaling_correction_to_A,
-    )
 
     if electricity_disaggregation_enabled():
-        A_scaled = apply_electricity_d7_scaling_correction_to_A(
+        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+            rescale_electricity_children_to_detail_GO_growth_A,
+        )
+
+        A_scaled = rescale_electricity_children_to_detail_GO_growth_A(
             A_scaled, original_year, target_year
         )
 
@@ -182,12 +183,13 @@ def scale_cornerstone_q(
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         electricity_disaggregation_enabled,
     )
-    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
-        apply_electricity_d7_scaling_correction_to_q,
-    )
 
     if electricity_disaggregation_enabled():
-        q_scaled = apply_electricity_d7_scaling_correction_to_q(
+        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+            rescale_electricity_children_to_detail_GO_growth_q,
+        )
+
+        q_scaled = rescale_electricity_children_to_detail_GO_growth_q(
             q_scaled, original_year, target_year
         )
 

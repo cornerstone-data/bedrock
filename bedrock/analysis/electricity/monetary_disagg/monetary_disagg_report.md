@@ -175,8 +175,9 @@ Indirect fuel-chain emissions remain upstream (fuels assigned to generation in s
 After disaggregation, BEA summary sector `"22"` (Utilities) would apply one price index
 to all three children. Production applies the standard summary scaling, then a **D7
 correction** using UGO305 detail gross-output ratios between `original_year` and
-`target_year` per child (`build_electricity_ugo305_scaling_ratios` /
-`apply_electricity_d7_scaling_correction_to_A` and `_q` in
+`target_year` per child (`build_electricity_detail_GO_growth_ratios` /
+`rescale_electricity_children_to_detail_GO_growth_A` /
+`rescale_electricity_children_to_detail_GO_growth_q` in
 `cornerstone_year_scaling.py`).
 
 For 2017 → 2022, detail GO ratios differentiate G/T/D (generation ~1.62×, transmission
@@ -287,6 +288,6 @@ Runtime ~1–2 minutes on a typical developer machine.
 | 4 | `disaggregate_use_industry_columns`, `_enforce_go_identity_precondition` |
 | 5 | `get_electricity_commodity_row_weights`, `disaggregate_use_commodity_rows`, Y split in `cornerstone_disagg_pipeline.py` |
 | 6 | `_apply_electricity_disagg_cornerstone_mapping` in `derived.py` |
-| 7 | `build_electricity_ugo305_scaling_ratios`, `apply_electricity_d7_scaling_correction_*` in `cornerstone_year_scaling.py` |
+| 7 | `build_electricity_detail_GO_growth_ratios`, `rescale_electricity_children_to_detail_GO_growth_*` in `cornerstone_year_scaling.py` |
 
 All in `bedrock/transform/eeio/electricity_disaggregation.py` unless noted.

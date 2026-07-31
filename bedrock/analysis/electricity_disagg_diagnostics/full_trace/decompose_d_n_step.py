@@ -753,7 +753,7 @@ def _conversion_factor_detail(config: str) -> dict[str, Any]:
     )
     from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
         build_end_use_map,
-        table_2_4_prices_cents_kwh,
+        electricity_end_use_retail_prices_cents_kwh,
     )
 
     reset_usa_config()
@@ -764,7 +764,10 @@ def _conversion_factor_detail(config: str) -> dict[str, Any]:
     q_usd = float(aq.scaled_q[GENERATION_SECTOR])
     mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
     c_col = electricity_output_factor(q_usd, mwh)
-    prices = cast(dict[str, float], table_2_4_prices_cents_kwh(cfg.usa_ghg_data_year))
+    prices = cast(
+        dict[str, float],
+        electricity_end_use_retail_prices_cents_kwh(cfg.usa_ghg_data_year),
+    )
     end_use_map = build_end_use_map()
     y_row = _model_year_y_row_221110(aq)
     adom_row = cast(pd.Series, aq.Adom.loc[GENERATION_SECTOR])

@@ -215,7 +215,7 @@ class TestCalculateEfDiagnostics:
                 "bedrock.transform.eeio.cornerstone_disagg_pipeline.compute_mixed_unit_ef_vectors",
             ) as mock_uniform,
             patch(
-                "bedrock.transform.eeio.cornerstone_disagg_pipeline.table_2_4_prices_cents_kwh",
+                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh",
                 return_value={"Total": 10.0},
             ),
             patch(

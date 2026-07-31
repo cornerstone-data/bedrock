@@ -12,7 +12,9 @@ from bedrock.analysis.electricity.d_85.disagg_weights import (
     table83_purchased_power_weights,
     ugo305_go_weights,
 )
-from bedrock.analysis.electricity.d_85.eia_inputs import table_2_4_prices_cents_kwh
+from bedrock.analysis.electricity.d_85.eia_inputs import (
+    electricity_end_use_retail_prices_cents_kwh,
+)
 from bedrock.analysis.electricity.d_85.end_use_mapping import (
     build_end_use_map,
     build_price_tilt_weights_by_column,
@@ -326,7 +328,7 @@ def _weights_t83_purchased_power_diag_compensated() -> ScenarioWeights:
 
 def _weights_p24(price_year: int) -> ScenarioWeights:
     w_ugo = ugo305_go_weights()
-    raw_prices = table_2_4_prices_cents_kwh(price_year)
+    raw_prices = electricity_end_use_retail_prices_cents_kwh(price_year)
     prices: dict[str, float] = {str(k): float(v) for k, v in raw_prices.items()}
     end_use_map = build_end_use_map()
     _, Udom, Uimp, _, Y = derive_post_reallocation_checkpoint()

@@ -14,7 +14,7 @@ from bedrock.transform.eeio.electricity_end_use_mapping import (
     build_end_use_map,
     build_end_use_map_resolved,
     classify_industry_end_use,
-    table_2_4_prices_cents_kwh,
+    electricity_end_use_retail_prices_cents_kwh,
 )
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
 
@@ -26,7 +26,7 @@ __all__ = [
     'build_end_use_map_resolved',
     'build_price_tilt_weights_by_column',
     'classify_industry_end_use',
-    'table_2_4_prices_cents_kwh',
+    'electricity_end_use_retail_prices_cents_kwh',
     'write_default_overrides_csv',
 ]
 

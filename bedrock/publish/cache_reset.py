@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
+from types import ModuleType
 
 from bedrock.extract.iot.io_2017 import (
     load_2017_margins_after_redef_usa,
@@ -10,13 +12,11 @@ from bedrock.extract.iot.io_2017 import (
 )
 from bedrock.publish.model_objects import clear_publish_caches
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    build_end_use_map,
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     electricity_mixed_units_enabled,
     get_waste_disagg_weights,
-    table_2_4_prices_cents_kwh,
 )
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
@@ -44,12 +44,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_y_nab_mixed_units,
     derive_cornerstone_Ytot_matrix_set,
 )
-from bedrock.transform.eeio.electricity_disaggregation import (
-    _derive_post_reallocation_checkpoint_for_disagg,
-    build_electricity_disagg_use_intersection_weights,
-    build_electricity_ugo305_scaling_ratios,
-    get_electricity_commodity_row_weights,
-)
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_margins_cornerstone_usa_at_year,
     derive_phi_cornerstone_usa_at_year,
@@ -61,6 +55,17 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_price_index_ratio,
 )
 
+# Cached electricity helpers cleared only if their modules are already loaded.
+# Never import electricity_disaggregation / electricity_end_use_mapping here —
+# that would re-couple v0.3 / waste-only publish clears.
+_ELECTRICITY_DISAGG_CACHED_ATTRS: tuple[str, ...] = (
+    'get_electricity_commodity_row_weights',
+    '_derive_post_reallocation_checkpoint_for_disagg',
+    'build_electricity_disagg_use_intersection_weights',
+    'build_electricity_detail_GO_growth_ratios',
+    'build_electricity_disagg_go_weights',
+)
+
 UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_B_usa_non_finetuned,
     derive_C_usa,
@@ -70,14 +75,8 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     cornerstone_sector_disagg_active,
     electricity_mixed_units_enabled,
     get_waste_disagg_weights,
-    build_end_use_map,
-    table_2_4_prices_cents_kwh,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
-    get_electricity_commodity_row_weights,
-    _derive_post_reallocation_checkpoint_for_disagg,
-    build_electricity_disagg_use_intersection_weights,
-    build_electricity_ugo305_scaling_ratios,
     derive_cornerstone_V,
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,
@@ -105,9 +104,39 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
 ]
 
 
+def _clear_cached_attrs(mod: ModuleType, names: tuple[str, ...]) -> None:
+    for name in names:
+        fn = getattr(mod, name, None)
+        cache_clear = getattr(fn, 'cache_clear', None)
+        if callable(cache_clear):
+            cache_clear()
+
+
+def _clear_electricity_caches_if_loaded() -> None:
+    """Flush elec ``@cache``s only when those modules are already in ``sys.modules``.
+
+    After a flag-on run, leftover caches must still clear when switching to v0.3;
+    under a never-loaded v0.3 process, this is a no-op and never imports elec.
+    """
+    ed = sys.modules.get('bedrock.transform.eeio.electricity_disaggregation')
+    if ed is not None:
+        _clear_cached_attrs(ed, _ELECTRICITY_DISAGG_CACHED_ATTRS)
+    eum = sys.modules.get('bedrock.transform.eeio.electricity_end_use_mapping')
+    if eum is not None:
+        # No @cache today; keep for future-proofing if helpers become cached.
+        _clear_cached_attrs(
+            eum,
+            (
+                'build_end_use_map',
+                'electricity_end_use_retail_prices_cents_kwh',
+            ),
+        )
+
+
 def clear_all_publish_caches() -> None:
     clear_cornerstone_inflation_caches()
     for fn in UPSTREAM_CACHED_DERIVES:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
+    _clear_electricity_caches_if_loaded()
     clear_publish_caches()
