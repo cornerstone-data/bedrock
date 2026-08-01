@@ -14,9 +14,11 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.math.formulas import (
     backcompute_q_from_L_and_y,
     compute_commodity_mix_matrix,
+    compute_E_from_BLy,
 )
 from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVectorSet
 
@@ -55,9 +57,9 @@ class DiagnosticResult:
     def __post_init__(self) -> None:
         """Validate the diagnostic result after initialization."""
         if self.tolerance < 0:
-            raise ValueError("Tolerance must be non-negative")
+            raise ValueError('Tolerance must be non-negative')
         if self.max_rel_diff < 0:
-            raise ValueError("max_rel_diff must be non-negative")
+            raise ValueError('max_rel_diff must be non-negative')
 
 
 def format_diagnostic_result(result: DiagnosticResult) -> str:
@@ -88,31 +90,31 @@ def format_diagnostic_result(result: DiagnosticResult) -> str:
         Max normalized residual: 1.5000 (pass if <= 1.0)
         Failing sectors (2): 11, 21
     """
-    status = "PASSED" if result.passed else "FAILED"
+    status = 'PASSED' if result.passed else 'FAILED'
 
     lines = [
-        f"Diagnostic: {result.name}",
-        f"Status: {status}",
-        f"Tolerance (rtol): {result.tolerance:.4f}",
-        f"Max normalized residual: {result.max_rel_diff:.4f} (pass if <= 1.0)",
+        f'Diagnostic: {result.name}',
+        f'Status: {status}',
+        f'Tolerance (rtol): {result.tolerance:.4f}',
+        f'Max normalized residual: {result.max_rel_diff:.4f} (pass if <= 1.0)',
     ]
 
     if result.failing_sectors:
         sector_count = len(result.failing_sectors)
         # Limit display to first 10 sectors if many are failing
         if sector_count > 10:
-            displayed_sectors = ", ".join(result.failing_sectors[:10])
+            displayed_sectors = ', '.join(result.failing_sectors[:10])
             lines.append(
-                f"Failing sectors ({sector_count}): {displayed_sectors}, ... "
-                f"(+{sector_count - 10} more)"
+                f'Failing sectors ({sector_count}): {displayed_sectors}, ... '
+                f'(+{sector_count - 10} more)'
             )
         else:
-            displayed_sectors = ", ".join(result.failing_sectors)
-            lines.append(f"Failing sectors ({sector_count}): {displayed_sectors}")
+            displayed_sectors = ', '.join(result.failing_sectors)
+            lines.append(f'Failing sectors ({sector_count}): {displayed_sectors}')
     else:
-        lines.append("Failing sectors: None")
+        lines.append('Failing sectors: None')
 
-    return "\n".join(lines)
+    return '\n'.join(lines)
 
 
 DiagnosticCallable = ta.Callable[[], DiagnosticResult]
@@ -170,21 +172,21 @@ def run_all_diagnostics(
             if stop_on_failure and not result.passed:
                 raise RuntimeError(
                     f"Diagnostic '{result.name}' failed. "
-                    f"Max normalized residual: {result.max_rel_diff:.4f} "
-                    f"(pass if <= 1.0; rtol: {result.tolerance:.4f})"
+                    f'Max normalized residual: {result.max_rel_diff:.4f} '
+                    f'(pass if <= 1.0; rtol: {result.tolerance:.4f})'
                 )
 
         except Exception as e:
             if isinstance(e, RuntimeError) and stop_on_failure:
                 raise
             # Log unexpected errors but continue with other diagnostics
-            logger.error(f"Error running diagnostic: {e}")
+            logger.error(f'Error running diagnostic: {e}')
             # Create a failed result for the error case
             error_result = DiagnosticResult(
-                name=f"Error in {diagnostic.__name__ if hasattr(diagnostic, '__name__') else 'unknown'}",
+                name=f'Error in {diagnostic.__name__ if hasattr(diagnostic, "__name__") else "unknown"}',
                 passed=False,
                 tolerance=0.0,
-                max_rel_diff=float("inf"),
+                max_rel_diff=float('inf'),
                 failing_sectors=[],
                 details=None,
             )
@@ -194,7 +196,7 @@ def run_all_diagnostics(
     if log_results and results:
         passed_count = sum(1 for r in results if r.passed)
         total_count = len(results)
-        summary = f"Diagnostics complete: {passed_count}/{total_count} passed"
+        summary = f'Diagnostics complete: {passed_count}/{total_count} passed'
         if passed_count == total_count:
             logger.info(summary)
         else:
@@ -247,7 +249,7 @@ def validate_result(
     value_abs = value.abs()
     allowed = tolerance * value_abs + atol
 
-    with np.errstate(divide="ignore", invalid="ignore"):
+    with np.errstate(divide='ignore', invalid='ignore'):
         normalized = abs_diff / allowed
     normalized = normalized.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
@@ -258,10 +260,10 @@ def validate_result(
     details = None
     if include_details:
         data = {
-            "failing sectors": list(getattr(failing_sectors, "index", failing_sectors)),
-            "passing sectors": list(getattr(passing_sectors, "index", passing_sectors)),
-            "failing values": normalized.loc[failing_sectors].tolist(),
-            "max_rel_diff": max_rd,
+            'failing sectors': list(getattr(failing_sectors, 'index', failing_sectors)),
+            'passing sectors': list(getattr(passing_sectors, 'index', passing_sectors)),
+            'failing values': normalized.loc[failing_sectors].tolist(),
+            'max_rel_diff': max_rd,
         }
 
         details = pd.DataFrame({key: pd.Series(value) for key, value in data.items()})
@@ -315,16 +317,16 @@ def compare_commodity_output_to_domestics_use_plus_exports(
     sectors = q.index.intersection(U_d.index).intersection(y_d.index)
     if len(sectors) != len(q.index):
         return DiagnosticResult(
-            name="Unequal number of sectors in arguments of compare_commodity_output_to_domestics_use_plus_exports",
+            name='Unequal number of sectors in arguments of compare_commodity_output_to_domestics_use_plus_exports',
             passed=False,
             tolerance=tolerance,
-            max_rel_diff=float("inf"),
+            max_rel_diff=float('inf'),
             failing_sectors=[],
             details=None,
         )
 
     q_check = U_d.sum(axis=1) + y_d
-    name = "commodity output and domestics use plus exports"
+    name = 'commodity output and domestics use plus exports'
 
     d_result = validate_result(
         name, q, q_check, tolerance=tolerance, include_details=include_details
@@ -373,17 +375,17 @@ def compare_output_vs_leontief_x_demand(
     sectors = output.index.intersection(L.index).intersection(y.index)
     if len(sectors) != len(output.index):
         return DiagnosticResult(
-            name="Unequal number of sectors in arguments of compare_commodity_output_to_domestics_use_plus_exports",
+            name='Unequal number of sectors in arguments of compare_commodity_output_to_domestics_use_plus_exports',
             passed=False,
             tolerance=tolerance,
-            max_rel_diff=float("inf"),
+            max_rel_diff=float('inf'),
             failing_sectors=[],
             details=None,
         )
 
     # calculate scaling factor
     output_check = backcompute_q_from_L_and_y(L=L, y=y)
-    name = "compare output and L * y"
+    name = 'compare output and L * y'
 
     d_result = validate_result(
         name, output, output_check, tolerance=tolerance, include_details=include_details
@@ -413,7 +415,7 @@ def commodity_industry_output_cpi_consistency(
     q_check = q * commodity_CPI_ratio
     x_check = C_m @ (x * industry_CPI_ratio)
 
-    name = "commodity_industry_output_cpi_consistency"
+    name = 'commodity_industry_output_cpi_consistency'
 
     d_result = validate_result(
         name, q_check, x_check, tolerance=tolerance, include_details=include_details
@@ -434,13 +436,16 @@ def compare_output_from_make_and_use(
     """Check that Make-table and Use-table output agree for industry or commodity.
 
     Pass/fail and ``max_rel_diff`` are computed by ``validate_result``.
+
+    Note: not part of the default useeior ``printValidationResults`` suite;
+    Cornerstone Make/Use mismatches are tracked in GitHub issue #436.
     """
 
-    if output == "Industry":
+    if output == 'Industry':
         x_make = V.sum(axis=1)
         x_use = U.sum(axis=0) + VA.sum(axis=0)
 
-        name = "compare_industry_output_from_make_and_use"
+        name = 'compare_industry_output_from_make_and_use'
         d_result = validate_result(
             name,
             x_make,
@@ -448,11 +453,11 @@ def compare_output_from_make_and_use(
             tolerance=tolerance,
             include_details=include_details,
         )
-    elif output == "Commodity":
+    elif output == 'Commodity':
         q_make = V.sum(axis=0)
         q_use = U.sum(axis=1) + (y_set.ytot + y_set.exports - y_set.imports)
 
-        name = "compare_commodity_output_from_make_and_use"
+        name = 'compare_commodity_output_from_make_and_use'
         d_result = validate_result(
             name,
             q_make,
@@ -465,3 +470,406 @@ def compare_output_from_make_and_use(
             'invalid output parameter requested for comparison between make and use, select commodity or industry'
         )
     return d_result
+
+
+def eeio_year_alignment_precondition_ok(cfg: USAConfig) -> bool:
+    """Return True when χ=1 is a valid surrogate for useeior Chi year alignment.
+
+    Requires matching model/GHG years, ``use_E_data_year_for_x_in_B``, and no
+    scaled/deflated B paths that introduce intermediate dollar years.
+    """
+    if cfg.model_base_year != cfg.usa_ghg_data_year:
+        return False
+    if not cfg.use_E_data_year_for_x_in_B:
+        return False
+    if cfg.use_scaled_x_and_scaled_Vnorm_for_B:
+        return False
+    if cfg.deflate_x_to_detail_io_year_for_B:
+        return False
+    return True
+
+
+def assert_eeio_year_alignment_precondition(
+    cfg: ta.Optional[USAConfig] = None,
+) -> None:
+    """Raise if the active (or given) config is not aligned for χ=1 LCI≈E checks.
+
+    Replaces useeior ``generateChiMatrix``: when this passes, ``compare_E_and_LCI_result``
+    may use χ=1. Failures are loud (``ValueError``), never silent skips.
+
+    Parameters
+    ----------
+    cfg
+        Config to check; defaults to ``get_usa_config()``.
+    """
+    if cfg is None:
+        cfg = get_usa_config()
+    if eeio_year_alignment_precondition_ok(cfg):
+        return
+
+    reasons: list[str] = []
+    if cfg.model_base_year != cfg.usa_ghg_data_year:
+        reasons.append(
+            f'model_base_year ({cfg.model_base_year}) != '
+            f'usa_ghg_data_year ({cfg.usa_ghg_data_year})'
+        )
+    if not cfg.use_E_data_year_for_x_in_B:
+        reasons.append('use_E_data_year_for_x_in_B is False')
+    if cfg.use_scaled_x_and_scaled_Vnorm_for_B:
+        reasons.append(
+            'use_scaled_x_and_scaled_Vnorm_for_B is True '
+            '(intermediate dollar years break χ=1)'
+        )
+    if cfg.deflate_x_to_detail_io_year_for_B:
+        reasons.append(
+            'deflate_x_to_detail_io_year_for_B is True '
+            '(intermediate dollar years break χ=1)'
+        )
+    raise ValueError(
+        'EEIO year-alignment precondition failed for χ=1 LCI≈E validation: '
+        + '; '.join(reasons)
+    )
+
+
+def _flatten_matrix_for_validate(df: pd.DataFrame) -> pd.Series[float]:
+    """Stack a flow×sector matrix to a Series with MultiIndex labels ``flow|sector``."""
+    stacked = df.stack()
+    stacked.index = stacked.index.map(
+        lambda idx: f'{idx[0]}|{idx[1]}' if isinstance(idx, tuple) else str(idx)
+    )
+    return ta.cast('pd.Series[float]', stacked.astype(float))
+
+
+def compare_E_and_LCI_result(
+    *,
+    B: pd.DataFrame,
+    L: pd.DataFrame,
+    y: pd.Series[float],
+    E_ind: pd.DataFrame,
+    V: ta.Optional[pd.DataFrame] = None,
+    x: ta.Optional[pd.Series[float]] = None,
+    Vnorm: ta.Optional[pd.DataFrame] = None,
+    q: ta.Optional[pd.Series[float]] = None,
+    tolerance: float = 0.01,
+    include_details: bool = False,
+    check_precondition: bool = True,
+    cfg: ta.Optional[USAConfig] = None,
+) -> DiagnosticResult:
+    """Compare direct-perspective LCI to commodity-transformed satellite totals.
+
+    Port of useeior ``compareEandLCIResult`` with χ=1 (no Chi matrix). Requires
+    :func:`assert_eeio_year_alignment_precondition` unless
+    ``check_precondition=False`` (unit tests with synthetic matrices).
+
+    Commodity ``E_c`` (pick one path)::
+
+        # A) Vnorm path (Cornerstone B = (E/x) @ Vnorm_scrap): preferred when
+        #    scrap-corrected Vnorm is used — C_m(V, x_Make) will not match.
+        E_c = (E_ind / x @ Vnorm) · diag(q)
+
+        # B) useeior C_m path (no scrap adjustment on market shares):
+        E_c = (C_m @ E_ind.T).T     # C_m from Make V, x
+
+        c   = L @ y
+        LCI = B · diag(c)           # B already commodity — do not @ V_n again
+        compare LCI to E_c cell-wise
+
+    Provide either (``Vnorm``, ``x``, ``q``) or (``V``, ``x``). Distinct from
+    NAB national ``sum(diag(D) @ L @ y) ≈ sum(E)``.
+    """
+    if check_precondition:
+        assert_eeio_year_alignment_precondition(cfg)
+
+    use_vnorm_path = Vnorm is not None and q is not None and x is not None
+    use_cm_path = V is not None and x is not None and not use_vnorm_path
+    if not use_vnorm_path and not use_cm_path:
+        raise ValueError(
+            'compare_E_and_LCI_result requires either (Vnorm, x, q) or (V, x)'
+        )
+
+    flows = B.index.intersection(E_ind.index)
+    if len(flows) == 0:
+        return DiagnosticResult(
+            name='compare_E_and_LCI_result: empty flow intersection',
+            passed=False,
+            tolerance=tolerance,
+            max_rel_diff=float('inf'),
+            failing_sectors=[],
+            details=None,
+        )
+
+    if use_vnorm_path:
+        assert Vnorm is not None and q is not None and x is not None
+        industries = Vnorm.index.intersection(E_ind.columns).intersection(x.index)
+        commodities = (
+            B.columns.intersection(Vnorm.columns)
+            .intersection(q.index)
+            .intersection(L.index)
+            .intersection(y.index)
+        )
+        if len(industries) == 0 or len(commodities) == 0:
+            return DiagnosticResult(
+                name='compare_E_and_LCI_result: empty industry/commodity intersection',
+                passed=False,
+                tolerance=tolerance,
+                max_rel_diff=float('inf'),
+                failing_sectors=[],
+                details=None,
+            )
+        Bi = (
+            E_ind.loc[flows, industries]
+            .divide(x.reindex(industries).fillna(0.0), axis=1)
+            .fillna(0.0)
+        )
+        E_c = Bi @ Vnorm.loc[industries, commodities]
+        E_c = E_c.multiply(q.reindex(commodities).fillna(0.0), axis=1)
+    else:
+        assert V is not None and x is not None
+        C_m = compute_commodity_mix_matrix(V=V, x=x)
+        industries = C_m.columns.intersection(E_ind.columns)
+        if len(industries) == 0:
+            return DiagnosticResult(
+                name='compare_E_and_LCI_result: empty industry intersection',
+                passed=False,
+                tolerance=tolerance,
+                max_rel_diff=float('inf'),
+                failing_sectors=[],
+                details=None,
+            )
+        E_aligned = E_ind.loc[flows, industries]
+        E_c = (C_m.loc[:, industries] @ E_aligned.T).T
+        commodities = (
+            B.columns.intersection(E_c.columns)
+            .intersection(L.index)
+            .intersection(y.index)
+        )
+        if len(commodities) == 0:
+            return DiagnosticResult(
+                name='compare_E_and_LCI_result: empty commodity intersection',
+                passed=False,
+                tolerance=tolerance,
+                max_rel_diff=float('inf'),
+                failing_sectors=[],
+                details=None,
+            )
+        E_c = E_c.loc[flows, commodities]
+
+    B_c = B.loc[flows, commodities]
+    L_a = L.loc[commodities, commodities]
+    y_a = y.reindex(commodities).fillna(0.0)
+
+    LCI = compute_E_from_BLy(B=B_c, L=L_a, y=y_a)
+    LCI = LCI.reindex(index=E_c.index, columns=E_c.columns).fillna(0.0)
+
+    # useeior: (LCI - E) / E  →  value=E_c, value_check=LCI
+    return validate_result(
+        'compare_E_and_LCI_result',
+        _flatten_matrix_for_validate(E_c),
+        _flatten_matrix_for_validate(LCI),
+        tolerance=tolerance,
+        include_details=include_details,
+    )
+
+
+def run_model_identity_validations(
+    *,
+    cfg: ta.Optional[USAConfig] = None,
+    output_domestic: ta.Optional[pd.Series[float]] = None,
+    L_domestic: ta.Optional[pd.DataFrame] = None,
+    y_domestic: ta.Optional[pd.Series[float]] = None,
+    output_total: ta.Optional[pd.Series[float]] = None,
+    L_total: ta.Optional[pd.DataFrame] = None,
+    y_total: ta.Optional[pd.Series[float]] = None,
+    B: ta.Optional[pd.DataFrame] = None,
+    E_ind: ta.Optional[pd.DataFrame] = None,
+    V: ta.Optional[pd.DataFrame] = None,
+    x: ta.Optional[pd.Series[float]] = None,
+    Vnorm: ta.Optional[pd.DataFrame] = None,
+    q: ta.Optional[pd.Series[float]] = None,
+    industry_CPI_ratio: ta.Optional[pd.Series[float]] = None,
+    commodity_CPI_ratio: ta.Optional[pd.Series[float]] = None,
+    U_d: ta.Optional[pd.DataFrame] = None,
+    y_d: ta.Optional[pd.Series[float]] = None,
+    tolerance: float = 0.01,
+    include_details: bool = False,
+    log_results: bool = True,
+    check_precondition: bool = True,
+) -> ta.List[DiagnosticResult]:
+    """Report-style orchestrator mirroring useeior ``printValidationResults``.
+
+    Always asserts the year-alignment precondition first (unless
+    ``check_precondition=False``). Collects ``DiagnosticResult``s with
+    ``stop_on_failure=False`` — callers must not ``assert all(r.passed)`` over
+    the full suite when known xfails (total Ly, ``q≈U_d+y_d``) are included.
+
+    CPI runs only when both CPI ratio series are provided; otherwise CPI is
+    skipped with a log note. Make/Use is not included (see issue #436).
+    """
+    if check_precondition:
+        assert_eeio_year_alignment_precondition(cfg)
+
+    diagnostics: ta.List[DiagnosticCallable] = []
+
+    if (
+        output_domestic is not None
+        and L_domestic is not None
+        and y_domestic is not None
+    ):
+        out_d = output_domestic
+        L_d_m = L_domestic
+        y_d_m = y_domestic
+
+        def _ly_dom() -> DiagnosticResult:
+            r = compare_output_vs_leontief_x_demand(
+                out_d,
+                L_d_m,
+                y_d_m,
+                tolerance=tolerance,
+                include_details=include_details,
+            )
+            return dc.replace(r, name='Ly ≈ q (domestic)')
+
+        diagnostics.append(_ly_dom)
+
+    if output_total is not None and L_total is not None and y_total is not None:
+        out_t = output_total
+        L_t_m = L_total
+        y_t_m = y_total
+
+        def _ly_tot() -> DiagnosticResult:
+            r = compare_output_vs_leontief_x_demand(
+                out_t,
+                L_t_m,
+                y_t_m,
+                tolerance=tolerance,
+                include_details=include_details,
+            )
+            return dc.replace(r, name='Ly ≈ q (total)')
+
+        diagnostics.append(_ly_tot)
+
+    lci_inputs_ok = (
+        B is not None
+        and E_ind is not None
+        and (
+            (Vnorm is not None and q is not None and x is not None)
+            or (V is not None and x is not None)
+        )
+    )
+    if lci_inputs_ok and L_domestic is not None and y_domestic is not None:
+        B_lci = ta.cast(pd.DataFrame, B)
+        E_lci = ta.cast(pd.DataFrame, E_ind)
+        V_lci = V
+        x_lci = x
+        Vnorm_lci = Vnorm
+        q_lci = q
+        L_dom = L_domestic
+        y_dom = y_domestic
+
+        def _lci_dom() -> DiagnosticResult:
+            r = compare_E_and_LCI_result(
+                B=B_lci,
+                L=L_dom,
+                y=y_dom,
+                E_ind=E_lci,
+                V=V_lci,
+                x=x_lci,
+                Vnorm=Vnorm_lci,
+                q=q_lci,
+                tolerance=tolerance,
+                include_details=include_details,
+                check_precondition=False,
+                cfg=cfg,
+            )
+            return dc.replace(r, name='LCI ≈ E (domestic)')
+
+        diagnostics.append(_lci_dom)
+
+    if lci_inputs_ok and L_total is not None and y_total is not None:
+        B_lci_t = ta.cast(pd.DataFrame, B)
+        E_lci_t = ta.cast(pd.DataFrame, E_ind)
+        V_lci_t = V
+        x_lci_t = x
+        Vnorm_lci_t = Vnorm
+        q_lci_t = q
+        L_tot = L_total
+        y_tot = y_total
+
+        def _lci_tot() -> DiagnosticResult:
+            r = compare_E_and_LCI_result(
+                B=B_lci_t,
+                L=L_tot,
+                y=y_tot,
+                E_ind=E_lci_t,
+                V=V_lci_t,
+                x=x_lci_t,
+                Vnorm=Vnorm_lci_t,
+                q=q_lci_t,
+                tolerance=tolerance,
+                include_details=include_details,
+                check_precondition=False,
+                cfg=cfg,
+            )
+            return dc.replace(r, name='LCI ≈ E (total)')
+
+        diagnostics.append(_lci_tot)
+
+    if (
+        V is not None
+        and q is not None
+        and x is not None
+        and industry_CPI_ratio is not None
+        and commodity_CPI_ratio is not None
+    ):
+        V_cpi = V
+        q_cpi = q
+        x_cpi = x
+        ind_cpi = industry_CPI_ratio
+        com_cpi = commodity_CPI_ratio
+
+        def _cpi() -> DiagnosticResult:
+            return commodity_industry_output_cpi_consistency(
+                V=V_cpi,
+                q=q_cpi,
+                x=x_cpi,
+                industry_CPI_ratio=ind_cpi,
+                commodity_CPI_ratio=com_cpi,
+                tolerance=tolerance,
+                include_details=include_details,
+            )
+
+        diagnostics.append(_cpi)
+    elif industry_CPI_ratio is None or commodity_CPI_ratio is None:
+        logger.info(
+            'Skipping CPI market-share check: industry/commodity CPI ratios not provided'
+        )
+
+    if q is not None and U_d is not None and y_d is not None:
+        q_u = q
+        U_du = U_d
+        y_du = y_d
+
+        def _qu() -> DiagnosticResult:
+            r = compare_commodity_output_to_domestics_use_plus_exports(
+                q=q_u,
+                U_d=U_du,
+                y_d=y_du,
+                tolerance=tolerance,
+                include_details=include_details,
+            )
+            return dc.replace(r, name='q ≈ U_d + y_d')
+
+        diagnostics.append(_qu)
+
+    return run_all_diagnostics(
+        diagnostics, log_results=log_results, stop_on_failure=False
+    )
+
+
+def print_validation_results(
+    *,
+    cfg: ta.Optional[USAConfig] = None,
+    **kwargs: ta.Any,
+) -> ta.List[DiagnosticResult]:
+    """Alias for :func:`run_model_identity_validations` (useeior naming)."""
+    return run_model_identity_validations(cfg=cfg, **kwargs)
