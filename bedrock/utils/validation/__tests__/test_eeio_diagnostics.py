@@ -610,3 +610,51 @@ def test_v0_3_domestic_lci_equals_e() -> None:
         )
     finally:
         reset_usa_config(should_reset_env_var=True)
+
+
+@pytest.mark.eeio_integration
+@pytest.mark.xfail(
+    reason=(
+        'Cornerstone total LCI≈E uses y_trade (ytot/trade), not IO-balanced '
+        'throughput; same imbalance as total Ly≈q (~1749 cells fail).'
+    ),
+)
+def test_v0_3_total_lci_equals_e() -> None:
+    """Live total LCI≈E under aligned v0.3 (Vnorm path; L_tot / y_trade pairing)."""
+    reset_usa_config(should_reset_env_var=True)
+    set_global_usa_config('2025_usa_cornerstone_v0_3.yaml')
+    try:
+        from bedrock.transform.allocation.derived import derive_E_usa
+        from bedrock.transform.eeio.derived_cornerstone import (
+            derive_cornerstone_Aq_scaled,
+            derive_cornerstone_B_non_finetuned,
+            derive_cornerstone_Vnorm_scrap_corrected,
+            derive_cornerstone_x_after_redefinition,
+            derive_cornerstone_Y_and_trade_scaled,
+        )
+        from bedrock.utils.math.formulas import compute_L_matrix
+
+        assert_eeio_year_alignment_precondition()
+
+        Aq = derive_cornerstone_Aq_scaled()
+        L_tot = compute_L_matrix(A=Aq.Adom + Aq.Aimp)
+        y_trade = derive_cornerstone_Y_and_trade_scaled()
+        y_tot = y_trade.ytot + y_trade.exports - y_trade.imports
+        result = compare_E_and_LCI_result(
+            B=derive_cornerstone_B_non_finetuned(),
+            L=L_tot,
+            y=y_tot,
+            E_ind=derive_E_usa(),
+            x=derive_cornerstone_x_after_redefinition(),
+            Vnorm=derive_cornerstone_Vnorm_scrap_corrected(),
+            q=Aq.scaled_q,
+            tolerance=0.01,
+            include_details=True,
+            check_precondition=False,
+        )
+        assert result.passed, (
+            f'total LCI≈E failed ({len(result.failing_sectors)} cells): '
+            f'{result.failing_sectors[:20]}'
+        )
+    finally:
+        reset_usa_config(should_reset_env_var=True)
