@@ -58,14 +58,14 @@ class TestDiagnosticResult:
     def test_basic_passing_result(self) -> None:
         """Test basic instantiation with a passing result."""
         result = DiagnosticResult(
-            name='Row sum check',
+            name="Row sum check",
             passed=True,
             tolerance=0.01,
             max_rel_diff=0.005,
             failing_sectors=[],
         )
 
-        assert result.name == 'Row sum check'
+        assert result.name == "Row sum check"
         assert result.passed is True
         assert result.tolerance == 0.01
         assert result.max_rel_diff == 0.005
@@ -75,53 +75,53 @@ class TestDiagnosticResult:
     def test_failed_result_with_failing_sectors(self) -> None:
         """Test a failed result with sectors that failed the check."""
         result = DiagnosticResult(
-            name='Column sum check',
+            name="Column sum check",
             passed=False,
             tolerance=0.01,
             max_rel_diff=0.05,
-            failing_sectors=['11', '21', '31'],
+            failing_sectors=["11", "21", "31"],
         )
 
         assert result.passed is False
         assert len(result.failing_sectors) == 3
-        assert '11' in result.failing_sectors
-        assert '21' in result.failing_sectors
-        assert '31' in result.failing_sectors
+        assert "11" in result.failing_sectors
+        assert "21" in result.failing_sectors
+        assert "31" in result.failing_sectors
         assert result.max_rel_diff == 0.05
 
     def test_result_with_details_dataframe(self) -> None:
         """Test a result with a details DataFrame."""
         details_df = pd.DataFrame(
             {
-                'sector': ['11', '21'],
-                'expected': [100.0, 200.0],
-                'actual': [105.0, 195.0],
-                'rel_diff': [0.05, 0.025],
+                "sector": ["11", "21"],
+                "expected": [100.0, 200.0],
+                "actual": [105.0, 195.0],
+                "rel_diff": [0.05, 0.025],
             }
         )
 
         result = DiagnosticResult(
-            name='Detailed check',
+            name="Detailed check",
             passed=False,
             tolerance=0.01,
             max_rel_diff=0.05,
-            failing_sectors=['11'],
+            failing_sectors=["11"],
             details=details_df,
         )
 
         assert result.details is not None
         assert isinstance(result.details, pd.DataFrame)
         assert len(result.details) == 2
-        assert 'sector' in result.details.columns
-        assert 'expected' in result.details.columns
-        assert 'actual' in result.details.columns
-        assert 'rel_diff' in result.details.columns
+        assert "sector" in result.details.columns
+        assert "expected" in result.details.columns
+        assert "actual" in result.details.columns
+        assert "rel_diff" in result.details.columns
 
     def test_negative_tolerance_raises_error(self) -> None:
         """Test that negative tolerance raises ValueError."""
-        with pytest.raises(ValueError, match='Tolerance must be non-negative'):
+        with pytest.raises(ValueError, match="Tolerance must be non-negative"):
             DiagnosticResult(
-                name='Invalid check',
+                name="Invalid check",
                 passed=True,
                 tolerance=-0.01,
                 max_rel_diff=0.005,
@@ -130,9 +130,9 @@ class TestDiagnosticResult:
 
     def test_negative_max_rel_diff_raises_error(self) -> None:
         """Test that negative max_rel_diff raises ValueError."""
-        with pytest.raises(ValueError, match='max_rel_diff must be non-negative'):
+        with pytest.raises(ValueError, match="max_rel_diff must be non-negative"):
             DiagnosticResult(
-                name='Invalid check',
+                name="Invalid check",
                 passed=True,
                 tolerance=0.01,
                 max_rel_diff=-0.005,
@@ -142,7 +142,7 @@ class TestDiagnosticResult:
     def test_zero_tolerance_is_valid(self) -> None:
         """Test that zero tolerance is accepted (edge case)."""
         result = DiagnosticResult(
-            name='Exact match check',
+            name="Exact match check",
             passed=True,
             tolerance=0.0,
             max_rel_diff=0.0,
@@ -158,32 +158,32 @@ class TestValidateResult:
 
     def test_zero_value_tiny_residual_passes(self) -> None:
         """Sectors with q=0 compare absolute residual against atol, not rel_diff."""
-        value = pd.Series({'S00402': 0.0, '1111A0': 100.0})
-        value_check = pd.Series({'S00402': 7.6e-6, '1111A0': 100.5})
+        value = pd.Series({"S00402": 0.0, "1111A0": 100.0})
+        value_check = pd.Series({"S00402": 7.6e-6, "1111A0": 100.5})
 
-        result = validate_result('zero q', value, value_check, tolerance=0.01)
+        result = validate_result("zero q", value, value_check, tolerance=0.01)
 
         assert result.passed is True
         assert result.failing_sectors == []
         assert result.max_rel_diff <= 1.0
 
     def test_zero_value_large_residual_fails(self) -> None:
-        value = pd.Series({'S00402': 0.0})
-        value_check = pd.Series({'S00402': 1.0})
+        value = pd.Series({"S00402": 0.0})
+        value_check = pd.Series({"S00402": 1.0})
 
-        result = validate_result('zero q', value, value_check, tolerance=0.01)
+        result = validate_result("zero q", value, value_check, tolerance=0.01)
 
         assert result.passed is False
-        assert result.failing_sectors == ['S00402']
+        assert result.failing_sectors == ["S00402"]
 
     def test_nonzero_value_uses_relative_tolerance(self) -> None:
-        value = pd.Series({'1111A0': 100.0})
-        value_check = pd.Series({'1111A0': 102.0})
+        value = pd.Series({"1111A0": 100.0})
+        value_check = pd.Series({"1111A0": 102.0})
 
-        result = validate_result('rel', value, value_check, tolerance=0.01)
+        result = validate_result("rel", value, value_check, tolerance=0.01)
 
         assert result.passed is False
-        assert result.failing_sectors == ['1111A0']
+        assert result.failing_sectors == ["1111A0"]
 
 
 class TestFormatDiagnosticResult:
@@ -192,7 +192,7 @@ class TestFormatDiagnosticResult:
     def test_format_passing_result(self) -> None:
         """Test formatting a passing diagnostic result."""
         result = DiagnosticResult(
-            name='Row sum check',
+            name="Row sum check",
             passed=True,
             tolerance=0.01,
             max_rel_diff=0.005,
@@ -201,33 +201,33 @@ class TestFormatDiagnosticResult:
 
         formatted = format_diagnostic_result(result)
 
-        assert 'Diagnostic: Row sum check' in formatted
-        assert 'Status: PASSED' in formatted
-        assert 'Tolerance (rtol): 0.0100' in formatted
-        assert 'Max normalized residual: 0.0050 (pass if <= 1.0)' in formatted
-        assert 'Failing sectors: None' in formatted
+        assert "Diagnostic: Row sum check" in formatted
+        assert "Status: PASSED" in formatted
+        assert "Tolerance (rtol): 0.0100" in formatted
+        assert "Max normalized residual: 0.0050 (pass if <= 1.0)" in formatted
+        assert "Failing sectors: None" in formatted
 
     def test_format_failed_result_with_sectors(self) -> None:
         """Test formatting a failed result with failing sectors."""
         result = DiagnosticResult(
-            name='Column sum check',
+            name="Column sum check",
             passed=False,
             tolerance=0.01,
             max_rel_diff=0.05,
-            failing_sectors=['11', '21'],
+            failing_sectors=["11", "21"],
         )
 
         formatted = format_diagnostic_result(result)
 
-        assert 'Diagnostic: Column sum check' in formatted
-        assert 'Status: FAILED' in formatted
-        assert 'Failing sectors (2): 11, 21' in formatted
+        assert "Diagnostic: Column sum check" in formatted
+        assert "Status: FAILED" in formatted
+        assert "Failing sectors (2): 11, 21" in formatted
 
     def test_format_result_with_many_failing_sectors(self) -> None:
         """Test that formatting truncates when many sectors fail."""
         many_sectors = [str(i) for i in range(15)]
         result = DiagnosticResult(
-            name='Many failures',
+            name="Many failures",
             passed=False,
             tolerance=0.01,
             max_rel_diff=0.05,
@@ -236,8 +236,8 @@ class TestFormatDiagnosticResult:
 
         formatted = format_diagnostic_result(result)
 
-        assert 'Failing sectors (15):' in formatted
-        assert '+5 more' in formatted
+        assert "Failing sectors (15):" in formatted
+        assert "+5 more" in formatted
 
 
 class TestRunAllDiagnostics:
@@ -248,7 +248,7 @@ class TestRunAllDiagnostics:
 
         def passing_check() -> DiagnosticResult:
             return DiagnosticResult(
-                name='Passing check',
+                name="Passing check",
                 passed=True,
                 tolerance=0.01,
                 max_rel_diff=0.005,
@@ -265,7 +265,7 @@ class TestRunAllDiagnostics:
 
         def check_a() -> DiagnosticResult:
             return DiagnosticResult(
-                name='Check A',
+                name="Check A",
                 passed=True,
                 tolerance=0.01,
                 max_rel_diff=0.005,
@@ -274,11 +274,11 @@ class TestRunAllDiagnostics:
 
         def check_b() -> DiagnosticResult:
             return DiagnosticResult(
-                name='Check B',
+                name="Check B",
                 passed=False,
                 tolerance=0.01,
                 max_rel_diff=0.05,
-                failing_sectors=['11'],
+                failing_sectors=["11"],
             )
 
         results = run_all_diagnostics([check_a, check_b], log_results=False)
@@ -292,11 +292,11 @@ class TestRunAllDiagnostics:
 
         def failing_check() -> DiagnosticResult:
             return DiagnosticResult(
-                name='Failing check',
+                name="Failing check",
                 passed=False,
                 tolerance=0.01,
                 max_rel_diff=0.05,
-                failing_sectors=['11'],
+                failing_sectors=["11"],
             )
 
         with pytest.raises(RuntimeError, match="Diagnostic 'Failing check' failed"):
@@ -311,19 +311,19 @@ class TestRunAllDiagnostics:
         call_order: list[str] = []
 
         def check_a() -> DiagnosticResult:
-            call_order.append('a')
+            call_order.append("a")
             return DiagnosticResult(
-                name='Check A',
+                name="Check A",
                 passed=False,
                 tolerance=0.01,
                 max_rel_diff=0.05,
-                failing_sectors=['11'],
+                failing_sectors=["11"],
             )
 
         def check_b() -> DiagnosticResult:
-            call_order.append('b')
+            call_order.append("b")
             return DiagnosticResult(
-                name='Check B',
+                name="Check B",
                 passed=True,
                 tolerance=0.01,
                 max_rel_diff=0.005,
@@ -337,23 +337,23 @@ class TestRunAllDiagnostics:
         )
 
         assert len(results) == 2
-        assert call_order == ['a', 'b']
+        assert call_order == ["a", "b"]
 
 
 @pytest.mark.eeio_integration
 @pytest.mark.parametrize(
-    'pipeline',
+    "pipeline",
     [
         pytest.param(
-            'ceda',
+            "ceda",
             marks=pytest.mark.xfail(
-                reason='CEDA: q≠U_dom+y_d for 13 sectors after schema-alignment changes to 2017 detail trade/U.',
+                reason="CEDA: q≠U_dom+y_d for 13 sectors after schema-alignment changes to 2017 detail trade/U.",
             ),
         ),
         pytest.param(
-            'cornerstone',
+            "cornerstone",
             marks=pytest.mark.xfail(
-                reason='Cornerstone: q≠U_dom+y_d for 13 sectors; BEA→CS remap and waste disagg break NAB identity.',
+                reason="Cornerstone: q≠U_dom+y_d for 13 sectors; BEA→CS remap and waste disagg break NAB identity.",
             ),
         ),
     ],
@@ -361,7 +361,8 @@ class TestRunAllDiagnostics:
 def test_compare_Uset_y_dom_and_q_usa(
     pipeline: str,
 ) -> None:
-    if pipeline != 'cornerstone':
+
+    if pipeline != "cornerstone":
         U_set = derive_2017_U_with_negatives()
         y_set = derive_2017_Ytot_usa_matrix_set()
         # CEDA has derive_detail_y_imp_usa(); it uses derive_2017_U_set_usa().Uimp
@@ -405,23 +406,23 @@ def test_compare_Uset_y_dom_and_q_usa(
 
 @pytest.mark.eeio_integration
 @pytest.mark.parametrize(
-    'modelType, use_domestic, pipeline',
+    "modelType, use_domestic, pipeline",
     [
-        ('Commodity', True, 'cornerstone'),
+        ("Commodity", True, "cornerstone"),
         pytest.param(
-            'Commodity',
+            "Commodity",
             False,
-            'cornerstone',
+            "cornerstone",
             marks=pytest.mark.xfail(
-                reason='Cornerstone total L·y still uses ytot/trade, not y_nab.',
+                reason="Cornerstone total L·y still uses ytot/trade, not y_nab.",
             ),
         ),
         pytest.param(
-            'Commodity',
+            "Commodity",
             False,
-            'ceda',
+            "ceda",
             marks=pytest.mark.xfail(
-                reason='CEDA: scaled q≠L_total·y_total for ~298 commodity sectors (total Leontief identity).',
+                reason="CEDA: scaled q≠L_total·y_total for ~298 commodity sectors (total Leontief identity).",
             ),
         ),
     ],
@@ -431,13 +432,14 @@ def test_compare_output_and_L_y(
     use_domestic: bool,
     pipeline: str,
 ) -> None:
-    if pipeline != 'cornerstone':
+
+    if pipeline != "cornerstone":
         # CEDA: unscaled 2017-detail A and q; y built from 2017 Ytot/trade in IO year.
         Aq = derive_2017_Aq_usa()
         y_set = derive_2017_Ytot_usa_matrix_set()
         y_imp = derive_detail_y_imp_usa()
         output = (
-            derive_2017_q_usa() if modelType == 'Commodity' else derive_2017_x_usa()
+            derive_2017_q_usa() if modelType == "Commodity" else derive_2017_x_usa()
         )
         if use_domestic:
             y = y_set.ytot - y_imp + y_set.exports
@@ -449,7 +451,7 @@ def test_compare_output_and_L_y(
         # Cornerstone scales A and q to model year; CEDA branch stays in 2017 detail.
         Aq = derive_cornerstone_Aq_scaled()
         # Output must match Aq scaling (scaled_q), not derive_cornerstone_q() from V.
-        output = Aq.scaled_q if modelType == 'Commodity' else derive_cornerstone_x()
+        output = Aq.scaled_q if modelType == "Commodity" else derive_cornerstone_x()
         if use_domestic:
             # y_nab from backcompute_y_from_A_and_q(Adom, scaled_q); unclipped.
             y = derive_cornerstone_y_nab()
