@@ -135,13 +135,13 @@ ships both variants ([matrix_mappings.py:9-30](bedrock/utils/taxonomy/bea/matrix
 there is only one SUT, and redefinition is a MUT-framework step applied after conversion.
 
 Two consequences run through the whole plan:
-- **The build order is forced, not chosen.** Sourcing an SUT means working before redefinitions; the
-  redefinition therefore has to happen after the SUT→MUT conversion, which is exactly Step 6 → Step 7.
-- **Everything upstream should stay before-redefinitions for consistency**, including the Step 3
-  intermediate seed. Seeding from `Use_SUT_Framework_2017_DET` gives a before-redef, purchaser-valued
-  seed in one shot — the right basis on both axes. This also makes #497's instruction to work on the
-  after-redefinitions Use table the outlier to reconcile rather than a constraint to design around
-  (open question 3).
+- **The build order is forced, not chosen**, and is now settled as the project's ordering:
+  **SUT → MUT before redefinitions → MUT after redefinitions → MUT in Cornerstone schema** = Steps
+  6 → 7 → 8.
+- **Everything upstream of Step 7 stays before-redefinitions**, including the Step 3 intermediate seed.
+  Seeding from `Use_SUT_Framework_2017_DET` gives a before-redef, purchaser-valued seed in one shot —
+  the right basis on both axes. #497's instruction to work on the after-redefinitions Use table is
+  therefore **overridden**, not designed around (was open question 3).
 
 ## Grounding: what already exists
 
@@ -205,7 +205,7 @@ bedrock today.
 | F02S00 | Nonres. private fixed investment in structures | ✅ `FD_Structures2` |
 | F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — ⚠️ SLG Equipment/Structures/IP attribution bug still open |
 | F03000 | Change in private inventories | ❌ [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
-| F04000 | Exports | ❌ [#526](https://github.com/cornerstone-data/bedrock/issues/526)/[#527](https://github.com/cornerstone-data/bedrock/issues/527)/[#528](https://github.com/cornerstone-data/bedrock/issues/528) |
+| F04000 | Exports | ⏳ **source settled** (§Trade data below, [#557](https://github.com/cornerstone-data/bedrock/pull/557)) — Census goods + BEA services, ITA-controlled; not built. Implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528) |
 | ~~F05000~~ | ~~Imports~~ | **Not an SUT column** — belongs to Supply (`MCIF`/`MADJ`); appears only on MUT conversion |
 
 ### SUT Use — other blocks
@@ -222,9 +222,9 @@ bedrock today.
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
 | cells / `T007` | Domestic output, commodity × industry, basic value | Nowcast gross industry output (`derived_gross_industry_output.py`) × commodity mix (port from `CalculateIntermediateUseAndCommodityMix.R`, #497) | ❌ **unsourced method** |
-| `MCIF` | Imports, c.i.f. | #527 trade-data pick (same decision as F04000) | ❌ blocked on #527 |
+| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade`, ITA-controlled — §Trade data below | ⏳ **source settled** ([#557](https://github.com/cornerstone-data/bedrock/pull/557)), not built |
 | `MADJ` | Import adjustment (c.i.f./f.o.b.) | Likely 2017 ratios applied to `MCIF` — BEA-internal construct, no direct annual source | ❌ **unsourced, needs a decision** |
-| `MDTY` | Import duties | NIPA T30500 (customs duties line) or trade-source duties | ❌ **unsourced** |
+| `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **sourced**, not built. ⚠️ calculated ≠ collected duty, and the gap widens across 2018-2025 |
 | `TRADE` | Wholesale + retail margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
 | `TRANS` | Transportation margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
 | `TOP` | Taxes on products | NIPA T30500 total + commodity split (2017 shares?) | ❌ total available, **split unsourced** |
@@ -261,18 +261,21 @@ Ranked by how much they block:
 
 1. **Commodity mix for the Supply table's domestic-output block** — biggest single gap. Without it
    there is no Supply table at all.
-2. **Trade data source (#527)** — one decision unblocks four things: `F04000` exports, Supply `MCIF`,
-   `MDTY`, and the Step 6 import matrix. Candidates: (a) Census Trade in Goods + BEA services, with
-   existing code to port from USEEIO's `download_imports_data.py`; (b) BEA ITA Table 2.1 (goods) +
-   Table 3.1 (services) joined via BEA's ITA→NIPA linkage table; (c) BACI, framed in the issue more as
-   validation than primary. Requirement: match the 2017 detail Use table closely, annual, comparable to
-   BACI.
+2. ~~**Trade data source (#527)**~~ — **settled** in
+   [#557](https://github.com/cornerstone-data/bedrock/pull/557): Census goods + BEA services as the
+   primary extract, BEA ITA as the national totals control, BACI out of scope. See §Trade data below.
+   What remains is not a source question but three reconciliation questions the analysis leaves open —
+   import valuation overlap, the thin service→Detail concordance, and specials/margins policy. `MDTY`
+   turns out to ride on the same Census request (`CAL_DUT_YR`), so it is no longer a separate gap
+   either — see §`MDTY`.
 3. **Commodity split of product taxes and subsidies** (`TOP`, `SUB`, and the Use table's
    `T00TOP`/`T00SUB` rows) — NIPA gives totals (T30500, T31300); allocating to 402 commodities does
    not come for free. Default proposal: 2017 detail Supply shares, held constant, inflated with the
    commodity.
-4. **`MADJ`** — no annual published analogue; almost certainly 2017-ratio-based. Small in magnitude,
-   but it sits inside the `T013` identity, so it can't just be dropped.
+4. **`MADJ`** — no annual published analogue; likely 2017-ratio-based, though Census `GEN_CHA_YR`
+   (import charges) measures the same c.i.f./f.o.b. wedge and comes free with the `MCIF` request, so
+   try it before defaulting to a fixed ratio. Small in magnitude, but it sits inside the `T013`
+   identity, so it can't just be dropped.
 5. **Change in inventories commodity attribution (#530)** — explicitly scoped in the issue to ship
    NIPA-total-only first: *"We need to at least use the Change in Private Inventories NIPA totals as a
    starting place, but further work in attributing those to commodity based on the level of
@@ -281,6 +284,114 @@ Ranked by how much they block:
 6. ~~Import matrix allocation method~~ — **settled**: proportional to the commodity's use shares along
    its Use-matrix row (Step 6c). Not a data gap; it needs the Step 6b Use matrix as input, which makes
    6c strictly downstream of 6b.
+
+## Trade data — source settled, structure still to earn
+
+Settled in [#557](https://github.com/cornerstone-data/bedrock/pull/557) (analysis lands in
+`bedrock/analysis/trade_data/`, closing [#527](https://github.com/cornerstone-data/bedrock/issues/527);
+implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528)). This one decision
+feeds `F04000`, Supply `MCIF`, and Step 6c's import matrix.
+
+| Role | Source |
+|---|---|
+| Goods extract | Census International Trade, NAICS-6 — imports **CIF** (`GEN_CIF_YR`, to match Supply `MCIF`), exports FAS-family (`ALL_VAL_YR`) |
+| Services extract | BEA `IntlServTrade`, by type of service, imports and exports |
+| National totals control | BEA ITA Tables 2.1 (goods) / 3.1 (services) — scale or residual-constrain; a raw Census+BEA sum is **not** the final total |
+| Sector bridge | USEEIO Census→BEA Detail and service-type→Detail concordances; bedrock `NAICS_to_BEA_Crosswalk_2017` as goods backup |
+| 2017 structure/specials benchmark | Use `F04000`/`F05000` and Supply `MCIF` |
+
+### `MDTY` — rate from Census, level from NIPA
+
+The duties column was listed above as unsourced, but it does not need a separate source decision: the
+**same Census imports endpoint already chosen for `MCIF` carries duty**. From
+[`/data/timeseries/intltrade/imports/naics`](https://api.census.gov/data/timeseries/intltrade/imports/naics/variables.html),
+alongside `GEN_CIF_YR`:
+
+| Variable | Meaning |
+|---|---|
+| `CAL_DUT_YR` | Year-to-date imports for consumption, **calculated duty** |
+| `DUT_VAL_YR` | Year-to-date imports for consumption, **dutiable value** |
+| `CON_VAL_YR` / `GEN_VAL_YR` | **Customs value** — the denominator for an effective rate |
+| `GEN_CHA_YR` / `CON_CHA_YR` | Import **charges** (freight/insurance) — see below |
+
+The underlying Imports-for-Consumption / General Imports files carry all of this at **HTS line ×
+country of origin**, so the NAICS endpoint is an aggregation of something finer if we ever need it.
+[USITC DataWeb](https://dataweb.usitc.gov/) republishes the same fields and is the easier front end for
+pulling duty and customs value together by HTS line and year programmatically — worth preferring if the
+Census API proves awkward.
+
+**Recipe: use Census for the *rate*, not the level.** Compute an effective duty rate per sector —
+`CAL_DUT_YR ÷ customs value` — map it to BEA Detail with the concordance already built for `MCIF`, and
+apply it to the ITA-controlled import vector. Take the **national level** from the customs-duties line
+of NIPA T30500, the table Step 2 and §4d already hit for `T00OTOP`/`TOP`. Effective-rate-by-sector is
+the standard construction for exactly this purpose, and it keeps `MDTY` on the same national-accounts
+basis as the rest of the Supply table's `T015` block.
+
+**Why not use Census duty levels directly — `CAL_DUT_YR` is an estimate, and it errs in both
+directions.** It is the statutory rate applied to dutiable value at entry, so it:
+- is **overstated** where U.S. goods returned after processing/assembly abroad have a duty-free portion
+  of value;
+- is **understated** where articles dutiable at various or special rates show a dutiable value but no
+  calculated duty;
+- captures **no drawbacks, refunds, or exclusions**, and is not what CBP actually assessed or
+  collected.
+
+⚠️ **This is a live problem for our year range specifically, not a footnote.** The gap between
+calculated and collected duties has **widened notably** under the recent tariff actions — exclusions
+and in-transit exemptions — and our nowcast span is 2018-2025, i.e. precisely the tariff era. A
+calculated-duty *level* would drift from the national accounts over exactly the years we are
+estimating, which is the argument for anchoring to NIPA every year rather than trusting the Census
+total. If the two need reconciling, **actual duty revenue comes from CBP/Treasury collections, not
+Census** — that is the series to reach for, and a calculated-vs-collected spread by year is a cheap
+diagnostic worth producing while building this.
+
+**Services carry no duty**, so unlike `MCIF` this column is goods-only — the thin service→Detail
+concordance that wrecks export structure is irrelevant here. Net of the tariff-era caveat, `MDTY`
+should be the most tractable of the three import columns.
+
+Bonus: `GEN_CHA_YR` (import charges) is a direct measurement of the freight/insurance wedge that makes
+CIF overshoot when added to full BEA services — so it feeds the valuation-overlap question in problem 1
+above, and plausibly `MADJ` (open question 7) as well, since c.i.f./f.o.b. adjustment is the same wedge.
+Worth pulling in the same request even if only used diagnostically.
+
+**Code home:** [flowsa `imports`](https://github.com/cornerstone-data/flowsa/tree/imports) —
+`Census_USATrade` and `BEA_IEA` FBAs, which cover imports **and** exports. USEEIO's
+`download_imports_data.py` is imports-only legacy and is *not* the production extract; USEEIO stays
+useful for concordances. Neither FBA is in bedrock or on flowsa `master` today, so Step 1d/4b start
+with a vendor/merge.
+
+**What the 2017 tests say** (million USD, national): combined Census+BEA imports 2,940,917 vs Use
+`|F05000|` 2,626,305 and `MCIF` 2,649,430 (**+12%**); combined exports 2,383,547 vs Use `F04000`
+2,082,970 (**+14%**). Right ballpark, systematically high — hence the ITA control step. On commodity
+structure after Detail mapping, imports come out usable (Pearson 0.60, 0.81 excluding `S00xxx`) and
+**exports do not** (0.34, only 0.53 excluding `S00xxx`).
+
+**Three carried-forward problems, all on the reconciliation side, none of them a source problem:**
+
+1. **Import valuation overlap.** Census CIF includes freight/insurance that BOP records inside
+   services, so CIF goods + full services double-counts. Decide customs (`GEN_VAL_YR`) vs CIF *before*
+   the ITA control, and keep CIF when the target is Supply `MCIF` unless the control step sets levels.
+2. **The service→Detail concordance is thin** — 10 API types, ~70% of `AllTypesOfService`, missing
+   travel and charges for IP use. This is why exports are weak, not the goods NAICS map (which covers
+   97% of import and 92% of export value): **27.5% of Use `F04000` value has zero extract**, vs 10% on
+   imports. Biggest holes: `S00900` RoW (~204B), `533000` IP-royalties-like (~73B), wholesale (`423*`,
+   `424A00`) and truck transport (`484000`).
+3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B), `S00900`, and the
+   margin-heavy export cells need an explicit rule — held from Use, taken as a residual after mapped
+   commodities, or out of the extract's scope — rather than silent zeros. The `compare()` run makes the
+   sequencing point: matched cells overshoot (+12% imports, +30% exports) while specials soak the
+   difference, so **totals can look fine while structure is wrong — fix specials and the service map
+   before applying the ITA scale**, not after.
+
+Also still open: **exports are FAS/BOP, the Use column is PUR** — a margins bridge that doesn't exist
+yet. Provisionally accept FAS and flag it.
+
+**Acceptance bar before this is trusted for nowcast years** (from #557, not yet met): national totals
+within ~2-3% of Use/`MCIF`; import commodity vector Pearson ≳ 0.85 and export ≳ 0.75-0.85 on
+non-special codes; top-20 Jaccard ≳ 0.7 / ≳ 0.6; every known hole covered by a written rule. If the raw
+extract can't hit those bars, a documented pipeline that does (extract structure × scale to Use totals,
+or extract + Use residual on specials only) is an acceptable substitute — and *that* pipeline is what
+the nowcast years carry forward.
 
 ## Value added — fully specified on the board
 
@@ -319,7 +430,10 @@ not introduce a step 10.
 - 1c ✅ `derive_initial_Y_pur(year)`.
 - 1d ❌ **Split the column list by framework.** Add an SUT FD code list (the 20 MUT codes minus
   `F05000`) and have `derive_initial_Y_pur` target *that*; `F05000` gets created in Step 6b from the
-  Supply-side imports, not sourced as a Use column. Then land **F04000 exports** per #526/#527/#528.
+  Supply-side imports, not sourced as a Use column. Then land **F04000 exports** per the settled
+  §Trade data recipe (#528): vendor `Census_USATrade` + `BEA_IEA` from flowsa `imports`, map to BEA
+  Detail, apply the specials/margins rule, control to ITA — and prove 2017 against the acceptance bars
+  before running any nowcast year. Same vendor step serves Step 4b, so do it once.
 - 1e ❌ **F03000 inventories** — NIPA total only, per #530's own scoping.
 - 1f ❌ Validate per-column against published NIPA aggregates (the PCE reconciliation to ~1.3% is the
   template).
@@ -331,28 +445,37 @@ not introduce a step 10.
 - Reconcile against T1.14 / VABAS→T10305 / T018→T10105.
 - **Note:** the board's "transform VA into after redefinitions" item is *deferred to Step 7* here —
   VA should stay before-redefinitions through the SUT, and get redefined once, with everything else,
-  rather than in its own one-off step. (Deviation from the board item; flagged as open question 3.)
+  rather than in its own one-off step. (Deviation from the board item, now settled — the whole SUT is
+  before-redefinitions and Step 7 is the single redefinition point.)
 
 ### Step 3 — SUT Use: intermediate block
 - **Seed from the actual dollar Use matrix**, not the `A` coefficient matrix. Going `A → U` via
   `U ≈ A @ diag(x)` discards the rounding/negative-clipping baked in when `A` was built.
 - Nowcast forward per #497: port `CalculateIntermediateUseAndCommodityMix.R`'s logic but (a) use
-  bedrock's commodity inflation, (b) apply to intermediate uses only (not VA), (c) apply to the
-  after-redefinitions Use table.
-- ⚠️ **Conflict to resolve:** #497 says after-redefinitions, but this plan builds the SUT
-  before-redefinitions and redefines in Step 7. Either seed from
-  `load_2017_Utot_before_redef_usa()` to stay internally consistent, or accept a mixed-state SUT.
-  Recommend the former — see open question 3.
-- ⚠️ Valuation: the seed is a **producer-price** MUT Use table; the SUT intermediate block is
-  **purchaser**. Either seed from `Use_SUT_Framework_2017_DET` instead (native purchaser, native SUT),
-  or convert. **Recommend seeding from the detail SUT file** — it's already loadable via
-  `_load_2017_detail_sut_usa` and avoids a conversion round-trip.
+  bedrock's commodity inflation, (b) apply to intermediate uses only (not VA), and (c) — departing from
+  #497 — apply to the **before**-redefinitions table, per the settled ordering below.
+- ✅ **Redefinition state — settled** (was open question 3): seed **before redefinitions**, consistent
+  with the whole SUT; the single redefinition happens in Step 7. #497's after-redefinitions instruction
+  is overridden.
+- ✅ **Valuation — settled**: the MUT Use seed is **producer**-price where the SUT intermediate block
+  is **purchaser**. **Seed from `Use_SUT_Framework_2017_DET`** — native SUT, native purchaser, native
+  before-redef, all three right in one object, and already loadable via `_load_2017_detail_sut_usa`.
+  No conversion round-trip, and no `load_2017_Utot_before_redef_usa()` in this step.
 
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
-- 4b. **Import columns** — `MCIF`, `MADJ`, `MDTY` from the #527 source decision, with `MADJ` most
-  likely a 2017-ratio construct.
+- 4b. **Import columns** — `MCIF` from the settled §Trade data recipe: Census **CIF** goods + BEA
+  services, mapped to Detail, controlled to ITA. Keep CIF here specifically because `MCIF` is the CIF
+  target (2017: Use `|F05000|` / `MCIF` = 0.991, so the two are near-interchangeable as a check).
+  Shares the extract with Step 1d — build once, use for both columns.
+  `MDTY` comes from the **same request**: pull `CAL_DUT_YR` and customs value alongside `GEN_CIF_YR`,
+  form an effective duty rate per sector, apply it to the controlled import vector, and set the level
+  from NIPA T30500's customs-duties line (§`MDTY`). Do **not** carry Census duty levels through — the
+  calculated-vs-collected gap widens across exactly our 2018-2025 span.
+  `MADJ` most likely a 2017-ratio construct — but pull `GEN_CHA_YR` (import charges) in the same
+  request first, since it measures the c.i.f./f.o.b. wedge directly and may beat a fixed ratio
+  (open question 7).
 - 4c. **Margins dataset, then the margin columns.** Build the **transaction-level** Margins dataset
   here — `(buyer, commodity) × {Producers' Value, Transportation, Wholesale, Retail, Purchasers'
   Value}`, BEA detail granularity, buyers spanning industries *and* final-demand codes — since it is
@@ -485,16 +608,19 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
 
 ## Open questions
 
-1. **#527 trade-data pick** — Census goods + BEA services (port `download_imports_data.py`), BEA ITA
-   with NIPA linkage, or BACI? Blocks F04000, `MCIF`, `MDTY`, and informs 6c.
+1. ~~**#527 trade-data pick**~~ — **resolved** in
+   [#557](https://github.com/cornerstone-data/bedrock/pull/557): Census goods + BEA services as the
+   primary extract (from flowsa `imports`, not USEEIO's imports-only downloader), BEA ITA 2.1/3.1 as
+   the national totals control, BACI out of scope. Details and the carried-forward reconciliation work
+   in §Trade data. `MDTY` was *not* covered by the pick and stays open (§Still unsourced).
 2. **Commodity mix method for Step 4a** — port the R script's approach wholesale, or derive from
    2017 detail Supply shares moved by industry output? Nothing is built here yet.
-3. **Reconcile #497's after-redefinitions instruction.** Now that the SUT is confirmed
-   before-redefinitions, "build the SUT before-redef, redefine once in Step 7" is the only internally
-   consistent ordering, and this plan follows it. #497 says to nowcast the intermediate block on the
-   *after*-redefinitions Use table, which would mix states. Worth understanding **why** #497 says that
-   before overriding it — it may be carrying a constraint from the USEEIO R implementation that
-   doesn't apply here, or it may encode something about the inflation approach that does.
+3. ~~**Reconcile #497's after-redefinitions instruction.**~~ — **resolved**: the pipeline is
+   **SUT → MUT before redefinitions → MUT after redefinitions → MUT in Cornerstone schema**, i.e.
+   Steps 6 → 7 → 8 exactly as written. Everything upstream of Step 7 stays before-redefinitions,
+   including the Step 3 intermediate seed (seed from `Use_SUT_Framework_2017_DET` — native SUT, native
+   purchaser, native before-redef). #497's instruction to nowcast the intermediate block on the
+   *after*-redefinitions Use table is **overridden**; it would mix states inside the SUT.
 4. **RAS control totals** — summary SUT totals for all years (the default, once 2023-2024 are loaded),
    or industry/commodity gross output? The board lists the latter as an explicit option. No longer
    forced either way by Phase 2: summary SUT will exist for 2025 too, so this is a methodological
@@ -504,8 +630,9 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
    `transform/iot/` (where #495 pointed `nipa_final_demand_estimates.py`)? Steps 4-7 are a lot of new
    code; worth settling before writing it.
 6. **Interim caching layout** while developing (final destination is GCS, per the board).
-7. **`MADJ` treatment** — 2017 ratio, or drop it and absorb into `MCIF`? Affects whether `T013`
-   reconciles exactly.
+7. **`MADJ` treatment** — Census `GEN_CHA_YR` import charges (measures the wedge directly, free with
+   the `MCIF` pull), a 2017 ratio, or drop it and absorb into `MCIF`? Affects whether `T013` reconciles
+   exactly.
 
 ---
 
