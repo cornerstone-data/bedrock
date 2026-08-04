@@ -90,6 +90,9 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
+    # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
+    # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
+    useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
@@ -149,6 +152,15 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
                 'or apply_io_year_adjustments to be true'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_margins_mutual_exclusivity(self) -> USAConfig:
+        if self.useeio_margins and self.cornerstone_industry_avg_margins:
+            raise ValueError(
+                'At most one margins flag may be true; got: '
+                'useeio_margins, cornerstone_industry_avg_margins'
             )
         return self
 

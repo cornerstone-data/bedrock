@@ -1,0 +1,19 @@
+# v03_waterfall USEEIO G1: USEEIO-like A/margins + Cornerstone schema/GHG @ IO@2024 producer.
+# Cumulative wholesale USEEIO group anchor (pinned → Cornerstone GHG + schema).
+
+model_base_year: 2024
+price_type: producer
+iot_before_or_after_redefinition: before
+
+usa_ghg_data_year: 2023
+
+use_cornerstone_2026_model_schema: true
+use_E_data_year_for_x_in_B: true
+implement_waste_disaggregation: true
+
+scale_a_matrix_with_useeio_method: true
+deflate_x_to_detail_io_year_for_B: true
+use_cornerstone_ghg_model: true
+
+useeio_margins: true
+cornerstone_industry_avg_margins: false

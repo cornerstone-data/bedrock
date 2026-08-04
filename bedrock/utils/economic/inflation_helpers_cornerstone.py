@@ -21,6 +21,9 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
+from bedrock.utils.economic.inflation_helpers_useeio import (
+    obtain_useeior_detail_industry_cpi_levels,
+)
 from bedrock.utils.math.formulas import (
     compute_commodity_mix_matrix,
     compute_Vnorm_matrix,
@@ -80,10 +83,13 @@ def _cornerstone_to_ceda_v7_parent() -> dict[str, str]:
 def _industry_price_index_levels() -> pd.DataFrame:
     """Wide sector × year PI levels for cornerstone industry-ratio math.
 
+    ``useeio_margins``: USEEIOR v1.8.0 ``Detail_CPI_IO_17sch`` (GCS snapshot).
     ``apply_io_year_adjustments``: bedrock-derived industry PI.
     Otherwise: bedrock BEA parquet (``BEA_PriceIndex``).
     """
     cfg = get_usa_config()
+    if cfg.useeio_margins:
+        return obtain_useeior_detail_industry_cpi_levels()
     if cfg.apply_io_year_adjustments:
         return derive_industry_price_index()
     return obtain_inflation_factors_from_reference_data()
@@ -140,8 +146,8 @@ def get_rho_inflation_ratio(original_year: int, target_year: int) -> pd.Series[f
     (``calculateProducerbyPurchaserPriceRatio``). Implemented on the same
     1:1 sector index as ``get_cornerstone_industry_price_ratio``.
 
-    Kept for the Excel ``Rho`` panel;
-    as a named primitive for sector-level index math and tests.
+    The ``useeio_margins`` branch of ``get_price_index_ratio``; also feeds the
+    Excel ``Rho`` panel.
     """
     if original_year == target_year:
         return get_cornerstone_industry_price_ratio(original_year, target_year)
@@ -182,6 +188,7 @@ def derive_price_index_panel(years: tuple[int, ...]) -> pd.DataFrame:
 def get_price_index_ratio(original_year: int, target_year: int) -> pd.Series[float]:
     """Cross-year price-index ratio for the active config construction.
 
+    ``useeio_margins``: sector 1:1 ``PI[original] / PI[target]`` (Rho approach).
 
     ``cornerstone_industry_avg_margins``: V-norm commodity
     ``PI[target] / PI[original]``.
@@ -191,6 +198,8 @@ def get_price_index_ratio(original_year: int, target_year: int) -> pd.Series[flo
     which always uses the useeior sector 1:1 convention.
     """
     cfg = get_usa_config()
+    if cfg.useeio_margins:
+        return get_rho_inflation_ratio(original_year, target_year)
     if cfg.cornerstone_industry_avg_margins:
         return get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
     return pd.Series(
@@ -676,6 +685,7 @@ _CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
     _get_summary_industry_price_index,
     get_summary_industry_price_ratio,
     derive_cornerstone_q_and_vnorm_for_year,
+    obtain_useeior_detail_industry_cpi_levels,
 )
 
 
