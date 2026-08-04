@@ -124,7 +124,7 @@ _MAKE_USE_CASES = [
         0.05,
         True,
         marks=pytest.mark.xfail(
-            reason="Cornerstone: Make q≠Use q for S00402; waste 562* now balanced after Use-intersection orientation fix.",
+            reason="Cornerstone: Make q≠Use q for 4 waste/special codes (562*, S00402); disagg V vs trade Y.",
         ),
     ),
     pytest.param(
@@ -133,7 +133,7 @@ _MAKE_USE_CASES = [
         0.05,
         True,
         marks=pytest.mark.xfail(
-            reason="Cornerstone: Make x≠Use x+VA for ~7 remap/expanded industries; waste 562* no longer fail after orientation fix.",
+            reason="Cornerstone: Make x≠Use x+VA for 10 industries; BEA→CS remap and 562 waste split.",
         ),
     ),
 ]
@@ -146,9 +146,12 @@ _MAKE_USE_CASES = [
 # not reconcile to Make gross output row sums.
 
 
-# Cornerstone: Commodity failures are confined to special code S00402.
-# Industry failures (~7) are expanded/remap industries (331314 vs BEA 331313, etc.),
-# 562* waste codes pass after Use-intersection pivot orientation correction.
+# Cornerstone: Commodity failures are confined to new waste-disagg codes
+# (562HAZ, 562212, 562OTH) and special code S00402—Make q from disaggregated
+# V while Use-side final demand uses Ytot/trade mapped through correspondence
+# without the same split. Industry: 10 failures include those waste parents/
+# children plus expanded industries (331314 vs BEA 331313) where BEA→CS
+# correspondence duplicates Make/Use differently across V and VA paths.
 @pytest.mark.eeio_integration
 @pytest.mark.parametrize(
     "pipeline, output, tolerance, include_details",

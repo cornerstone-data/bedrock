@@ -42,9 +42,6 @@ def _empty_weight_table() -> DisaggWeightTable:
 class DisaggWeights:
     """Weights for disaggregation; all slices are DisaggWeightTable (pd.DataFrame)."""
 
-    # Standard CSV pivot is IndustryCode→index, CommodityCode→columns.
-    # Exception: use_intersection CSVs are label-swapped in the CSV, so slice should be
-    # pivoted to CommodityCode→index, IndustryCode→columns (where index=industry).
     use_intersection: DisaggWeightTable
     use_disagg_industry_columns_all_rows: DisaggWeightTable
     use_disagg_commodity_rows_all_columns: DisaggWeightTable
@@ -220,11 +217,6 @@ def load_disagg_weights(
     va_row_codes: list[str] | None = None,
     industry_subsectors: list[str] | None = None,
 ) -> DisaggWeights:
-    """Load and normalize Make/Use disaggregation weight CSVs.
-
-    Use-intersection rows are label-swapped vs CSV; their pivot uses
-    CommodityCode→index and IndustryCode→columns so ``loc[ind, com]`` is correct.
-    """
     make_df = load_weights_csv(cfg.make_weights_file, "PercentMake")
     use_df = load_weights_csv(cfg.use_weights_file, "PercentUsed")
 
@@ -260,8 +252,6 @@ def load_disagg_weights(
         ].unique()
     )
 
-    # This is just to read in the data for the use_intersection table; the swap happens
-    # when assigning use_intersection_piv, below.
     use_intersection_df = use_df[
         use_df["IndustryCode"].isin(new_codes_set)
         & use_df["CommodityCode"].isin(new_codes_set)
@@ -345,13 +335,11 @@ def load_disagg_weights(
         value_col="PercentMake",
     )
 
-    # Use-intersection CSV labels are swapped vs CSV (IndustryCode holds com,
-    # CommodityCode holds ind). Pivot axes flipped so loc[ind, com] is correct.
     use_intersection_piv = _pivot_and_align(
         use_intersection_df,
         "PercentUsed",
-        "CommodityCode",
         "IndustryCode",
+        "CommodityCode",
         disagg_sectors,
         disagg_sectors,
     )

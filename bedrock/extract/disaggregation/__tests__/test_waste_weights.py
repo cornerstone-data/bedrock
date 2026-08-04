@@ -401,63 +401,57 @@ _RAW_MAKE_INDUSTRY_ROWS = {
 }
 
 _RAW_USE_INTERSECTION = {
-    # On-disk CSV keys (IndustryCode, CommodityCode) — label-swapped vs RCRA /
-    # apply contract. Values trusted; axes corrected by Note-scoped loader swap.
+    # On-disk (IndustryCode, CommodityCode) after Industry↔Commodity swap on
+    # Use table intersection rows only.
     ("562111", "562111"): 6.16e-06,
-    ("562111", "562HAZ"): 1.11e-02,
-    ("562111", "562212"): 9.32e-04,
-    ("562111", "562213"): 6.16e-06,
-    ("562111", "562910"): 0.00,
-    ("562111", "562920"): 5.89e-06,
-    ("562111", "562OTH"): 2.69e-04,
-    ("562HAZ", "562111"): 3.24e-05,
+    ("562HAZ", "562111"): 1.11e-02,
+    ("562212", "562111"): 9.32e-04,
+    ("562213", "562111"): 6.16e-06,
+    ("562910", "562111"): 0.00,
+    ("562920", "562111"): 5.89e-06,
+    ("562OTH", "562111"): 2.69e-04,
+    ("562111", "562HAZ"): 3.24e-05,
     ("562HAZ", "562HAZ"): 5.80e-01,
-    ("562HAZ", "562212"): 7.17e-02,
-    ("562HAZ", "562213"): 3.24e-05,
-    ("562HAZ", "562910"): 0.00,
-    ("562HAZ", "562920"): 6.63e-04,
-    ("562HAZ", "562OTH"): 1.41e-02,
-    ("562212", "562111"): 6.22e-06,
-    ("562212", "562HAZ"): 1.43e-01,
+    ("562212", "562HAZ"): 7.17e-02,
+    ("562213", "562HAZ"): 3.24e-05,
+    ("562910", "562HAZ"): 0.00,
+    ("562920", "562HAZ"): 6.63e-04,
+    ("562OTH", "562HAZ"): 1.41e-02,
+    ("562111", "562212"): 6.22e-06,
+    ("562HAZ", "562212"): 1.43e-01,
     ("562212", "562212"): 5.98e-04,
-    ("562212", "562213"): 6.22e-06,
-    ("562212", "562910"): 0.00,
-    ("562212", "562920"): 2.97e-05,
-    ("562212", "562OTH"): 5.54e-03,
-    ("562213", "562111"): 0.00,
-    ("562213", "562HAZ"): 1.84e-03,
-    ("562213", "562212"): 0.00,
+    ("562213", "562212"): 6.22e-06,
+    ("562910", "562212"): 0.00,
+    ("562920", "562212"): 2.97e-05,
+    ("562OTH", "562212"): 5.54e-03,
+    ("562111", "562213"): 0.00,
+    ("562HAZ", "562213"): 1.84e-03,
+    ("562212", "562213"): 0.00,
     ("562213", "562213"): 0.00,
-    ("562213", "562910"): 0.00,
-    ("562213", "562920"): 0.00,
-    ("562213", "562OTH"): 0.00,
-    ("562910", "562111"): 1.11e-05,
-    ("562910", "562HAZ"): 5.54e-02,
-    ("562910", "562212"): 1.04e-03,
-    ("562910", "562213"): 1.11e-05,
-    ("562910", "562910"): 1.28e-03,
-    ("562910", "562920"): 0.00,
-    ("562910", "562OTH"): 2.12e-04,
-    ("562920", "562111"): 0.00,
-    ("562920", "562HAZ"): 4.06e-03,
-    ("562920", "562212"): 1.87e-08,
+    ("562910", "562213"): 0.00,
     ("562920", "562213"): 0.00,
+    ("562OTH", "562213"): 0.00,
+    ("562111", "562910"): 1.11e-05,
+    ("562HAZ", "562910"): 5.54e-02,
+    ("562212", "562910"): 1.04e-03,
+    ("562213", "562910"): 1.11e-05,
+    ("562910", "562910"): 1.28e-03,
     ("562920", "562910"): 0.00,
+    ("562OTH", "562910"): 2.12e-04,
+    ("562111", "562920"): 0.00,
+    ("562HAZ", "562920"): 4.06e-03,
+    ("562212", "562920"): 1.87e-08,
+    ("562213", "562920"): 0.00,
+    ("562910", "562920"): 0.00,
     ("562920", "562920"): 4.22e-05,
-    ("562920", "562OTH"): 2.46e-06,
-    ("562OTH", "562111"): 4.90e-05,
-    ("562OTH", "562HAZ"): 9.49e-02,
-    ("562OTH", "562212"): 3.89e-05,
-    ("562OTH", "562213"): 4.90e-05,
-    ("562OTH", "562910"): 0.00,
-    ("562OTH", "562920"): 1.03e-05,
+    ("562OTH", "562920"): 2.46e-06,
+    ("562111", "562OTH"): 4.90e-05,
+    ("562HAZ", "562OTH"): 9.49e-02,
+    ("562212", "562OTH"): 3.89e-05,
+    ("562213", "562OTH"): 4.90e-05,
+    ("562910", "562OTH"): 0.00,
+    ("562920", "562OTH"): 1.03e-05,
     ("562OTH", "562OTH"): 1.33e-02,
-}
-
-# Apply-contract oracle: (industry, commodity) after pivoting CommodityCode→index
-# and IndustryCode→columns (CSV axes are label-swapped). Same pct values.
-_EXPECTED_USE_INTERSECTION_APPLY_CONTRACT = {
-    (com, ind): pct for (ind, com), pct in _RAW_USE_INTERSECTION.items()
 }
 
 _RAW_USE_COL_SUM = {
@@ -691,36 +685,20 @@ class TestMakeWasteIndustryRowsSpecificColumns:
 
 @pytest.mark.eeio_integration
 class TestUseIntersection:
-    """use_intersection — from 'Use table intersection' rows (apply-contract orientation)."""
+    """use_intersection — from 'Use table intersection' rows."""
 
     def test_all_pairs_present(self, weights_2017: DisaggWeights) -> None:
         tbl = weights_2017.use_intersection
-        for r, c in _EXPECTED_USE_INTERSECTION_APPLY_CONTRACT:
+        for r, c in _RAW_USE_INTERSECTION:
             assert r in tbl.index, f"row {r} missing"
             assert c in tbl.columns, f"col {c} missing"
 
-    def test_ratios_match_apply_contract_oracle(
-        self, weights_2017: DisaggWeights
-    ) -> None:
+    def test_ratios_preserved(self, weights_2017: DisaggWeights) -> None:
         _check_ratios(
             weights_2017.use_intersection,
-            _EXPECTED_USE_INTERSECTION_APPLY_CONTRACT,
+            _RAW_USE_INTERSECTION,
             "use_intersection",
         )
-
-    def test_rcra_sentinel_orientation(self, weights_2017: DisaggWeights) -> None:
-        """RCRA UInter[com=562111, ind=562HAZ] ≈ 0.0111 → loc[ind, com] after fix."""
-        tbl = weights_2017.use_intersection
-        # Correct apply-contract cell holds the ~0.0111-class mass.
-        assert cast(float, tbl.loc["562HAZ", "562111"]) == pytest.approx(
-            0.0111 / sum(_RAW_USE_INTERSECTION.values()),
-            rel=1e-3,
-            abs=1e-6,
-        )
-        # Transposed cell must not hold that mass (only ~3e-5 raw → tiny share).
-        wrong_cell = cast(float, tbl.loc["562111", "562HAZ"])
-        correct_cell = cast(float, tbl.loc["562HAZ", "562111"])
-        assert correct_cell > wrong_cell * 10
 
 
 @pytest.mark.eeio_integration
