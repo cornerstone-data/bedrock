@@ -220,13 +220,17 @@ def _apply_waste_disagg_to_U_single(
     weights: DisaggWeights,
     original_code: str,
 ) -> pd.DataFrame:
-    """Disaggregate waste sector in a single Use matrix (assumes original_code in U)."""
+    """Disaggregate waste sector in a single Use matrix (assumes original_code in U).
+
+    Intersection uses ``use_intersection.loc[ind, com]`` (index=industry). That
+    orientation comes from the label-swap pivot in ``load_disagg_weights``.
+    """
     waste_codes = _waste_codes(weights)
     waste_set = set(waste_codes)
     output = U.copy()
 
     # In Use tables: index=commodities, columns=industries
-    # use_intersection: index=industry_subsectors, columns=commodity_subsectors
+    # use_intersection: index=industry, columns=commodity (CSV label-swap pivot)
 
     # --- Intersection block ---
     orig_val = cast(float, output.loc[original_code, original_code])
@@ -313,7 +317,9 @@ def apply_waste_disagg_to_U(
 
     Mirrors useeior's specifiedUseDisagg():
     - Intersection: the (original_code, original_code) cell is split into
-      a (waste_commodity x waste_industry) block using use_intersection weights.
+      a (waste_commodity x waste_industry) block via
+      ``U[com, ind] = orig * use_intersection.loc[ind, com]``. The loader pivots
+      Use-intersection CSV columns with axes flipped (label-swapped vs RCRA).
     - Columns (industry disaggregation): for each non-waste, non-VA commodity row,
       U[commodity, original_code] is split across waste industry columns.
     - Rows (commodity disaggregation): for each non-waste, non-FD industry column,

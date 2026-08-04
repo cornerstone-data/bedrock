@@ -42,6 +42,9 @@ def _empty_weight_table() -> DisaggWeightTable:
 class DisaggWeights:
     """Weights for disaggregation; all slices are DisaggWeightTable (pd.DataFrame)."""
 
+    # Standard CSV pivot is IndustryCode→index, CommodityCode→columns.
+    # Exception: use_intersection CSVs are label-swapped in the CSV, so slice should be
+    # pivoted to CommodityCode→index, IndustryCode→columns (where index=industry).
     use_intersection: DisaggWeightTable
     use_disagg_industry_columns_all_rows: DisaggWeightTable
     use_disagg_commodity_rows_all_columns: DisaggWeightTable
@@ -166,36 +169,6 @@ def _build_specific_rows_table(
     return out.astype(float)
 
 
-_USE_INTERSECTION_NOTE_MARKER = "Use table intersection"
-
-
-def _swap_label_swapped_use_intersection_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Swap IndustryCode/CommodityCode on Cornerstone Use-intersection CSV rows.
-
-    The bundled after-redefinition Use CSV stores RCRA intersection cells with
-    columns labeled IndustryCode/CommodityCode, but the first column holds the
-    Use *commodity* (row) and the second the Use *industry* (col) — swapped
-    relative to every other Use slice and relative to the apply contract
-    ``U[com, ind] = use_intersection.loc[ind, com]``.
-
-    Correction is Note-scoped only: swap iff ``Note`` contains
-    ``Use table intersection``. Missing/non-matching Note ⇒ no swap (USEEIOR
-    and correctly labeled fixtures stay unchanged). Do not also rewrite the CSV
-    (Option B) while this loader correction is active — that would double-fix.
-    """
-    if df.empty or "Note" not in df.columns:
-        return df
-    notes = df["Note"].fillna("").astype(str)
-    mask = notes.str.contains(_USE_INTERSECTION_NOTE_MARKER, regex=False)
-    if not mask.any():
-        return df
-    out = df.copy()
-    industry = out.loc[mask, "IndustryCode"].copy()
-    out.loc[mask, "IndustryCode"] = out.loc[mask, "CommodityCode"].values
-    out.loc[mask, "CommodityCode"] = industry.values
-    return out
-
-
 def _normalize_table(
     df: pd.DataFrame,
     *,
@@ -247,6 +220,11 @@ def load_disagg_weights(
     va_row_codes: list[str] | None = None,
     industry_subsectors: list[str] | None = None,
 ) -> DisaggWeights:
+    """Load and normalize Make/Use disaggregation weight CSVs.
+
+    Use-intersection rows are label-swapped vs CSV; their pivot uses
+    CommodityCode→index and IndustryCode→columns so ``loc[ind, com]`` is correct.
+    """
     make_df = load_weights_csv(cfg.make_weights_file, "PercentMake")
     use_df = load_weights_csv(cfg.use_weights_file, "PercentUsed")
 
@@ -282,14 +260,12 @@ def load_disagg_weights(
         ].unique()
     )
 
+    # This is just to read in the data for the use_intersection table; the swap happens
+    # when assigning use_intersection_piv, below.
     use_intersection_df = use_df[
         use_df["IndustryCode"].isin(new_codes_set)
         & use_df["CommodityCode"].isin(new_codes_set)
     ]
-    # Cornerstone bundled Use CSV: intersection Notes are label-swapped vs RCRA.
-    # Correct axes before pivot so use_intersection.loc[ind, com] matches
-    # UInter_RCRA[com, ind]. Note-scoped only — never an unconditional transpose.
-    use_intersection_df = _swap_label_swapped_use_intersection_rows(use_intersection_df)
     use_col_df = use_df[
         use_df["IndustryCode"].isin(new_codes_set)
         & (
@@ -369,11 +345,13 @@ def load_disagg_weights(
         value_col="PercentMake",
     )
 
+    # Use-intersection CSV labels are swapped vs CSV (IndustryCode holds com,
+    # CommodityCode holds ind). Pivot axes flipped so loc[ind, com] is correct.
     use_intersection_piv = _pivot_and_align(
         use_intersection_df,
         "PercentUsed",
-        "IndustryCode",
         "CommodityCode",
+        "IndustryCode",
         disagg_sectors,
         disagg_sectors,
     )

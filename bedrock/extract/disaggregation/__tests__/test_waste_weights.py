@@ -15,7 +15,6 @@ from bedrock.extract.disaggregation.disagg_weights import (
     DisaggWeightTable,
     _apply_correspondence_to_series,
     _empty_weight_table,
-    _swap_label_swapped_use_intersection_rows,
     load_disagg_weights,
 )
 from bedrock.extract.disaggregation.waste_weight_config import EEIOWasteDisaggConfig
@@ -455,8 +454,8 @@ _RAW_USE_INTERSECTION = {
     ("562OTH", "562OTH"): 1.33e-02,
 }
 
-# Apply-contract oracle: (industry, commodity) after Note-scoped label swap.
-# Derived by swapping each _RAW_USE_INTERSECTION key; same pct values.
+# Apply-contract oracle: (industry, commodity) after pivoting CommodityCode→index
+# and IndustryCode→columns (CSV axes are label-swapped). Same pct values.
 _EXPECTED_USE_INTERSECTION_APPLY_CONTRACT = {
     (com, ind): pct for (ind, com), pct in _RAW_USE_INTERSECTION.items()
 }
@@ -718,7 +717,7 @@ class TestUseIntersection:
             rel=1e-3,
             abs=1e-6,
         )
-        # Pre-fix wrong cell must not hold that mass (only ~3e-5 raw → tiny share).
+        # Transposed cell must not hold that mass (only ~3e-5 raw → tiny share).
         wrong_cell = cast(float, tbl.loc["562111", "562HAZ"])
         correct_cell = cast(float, tbl.loc["562HAZ", "562111"])
         assert correct_cell > wrong_cell * 10
@@ -855,54 +854,6 @@ class TestUseFDColumnsForWasteCommodityRows:
         for fd_col, raw_row in _RAW_USE_FD_DISAGG.items():
             raw_as_row = {(fd_col, com): v for com, v in raw_row.items()}
             _check_row_ratios(tbl, raw_as_row, f"use_fd_columns[{fd_col}]")
-
-
-# ---------------------------------------------------------------------------
-# Note-scoped Use-intersection axis swap
-# ---------------------------------------------------------------------------
-
-
-class TestSwapLabelSwappedUseIntersectionRows:
-    def test_swaps_when_note_matches(self) -> None:
-        df = pd.DataFrame(
-            {
-                "IndustryCode": ["562111", "562HAZ"],
-                "CommodityCode": ["562HAZ", "562111"],
-                "PercentUsed": ["0.0111", "0.0000324"],
-                "Note": [
-                    "Use table intersection",
-                    "Use table intersection (other)",
-                ],
-            }
-        )
-        out = _swap_label_swapped_use_intersection_rows(df)
-        assert list(out["IndustryCode"]) == ["562HAZ", "562111"]
-        assert list(out["CommodityCode"]) == ["562111", "562HAZ"]
-
-    def test_no_swap_without_note_column(self) -> None:
-        df = pd.DataFrame(
-            {
-                "IndustryCode": ["562111"],
-                "CommodityCode": ["562HAZ"],
-                "PercentUsed": ["0.0111"],
-            }
-        )
-        out = _swap_label_swapped_use_intersection_rows(df)
-        assert list(out["IndustryCode"]) == ["562111"]
-        assert list(out["CommodityCode"]) == ["562HAZ"]
-
-    def test_no_swap_when_note_does_not_match(self) -> None:
-        df = pd.DataFrame(
-            {
-                "IndustryCode": ["562111"],
-                "CommodityCode": ["562HAZ"],
-                "PercentUsed": ["0.0111"],
-                "Note": ["Use table column sum"],
-            }
-        )
-        out = _swap_label_swapped_use_intersection_rows(df)
-        assert list(out["IndustryCode"]) == ["562111"]
-        assert list(out["CommodityCode"]) == ["562HAZ"]
 
 
 # ---------------------------------------------------------------------------

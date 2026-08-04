@@ -146,10 +146,9 @@ _MAKE_USE_CASES = [
 # not reconcile to Make gross output row sums.
 
 
-# Cornerstone: Commodity failures after Use-intersection orientation fix are
-# confined to special code S00402 (not waste). Industry failures (~7) are
-# expanded/remap industries (331314 vs BEA 331313, etc.), not 562* waste codes.
-# Pre-fix, waste Make/Use also failed due to transposed Use intersection.
+# Cornerstone: Commodity failures are confined to special code S00402.
+# Industry failures (~7) are expanded/remap industries (331314 vs BEA 331313, etc.),
+# 562* waste codes pass after Use-intersection pivot orientation correction.
 @pytest.mark.eeio_integration
 @pytest.mark.parametrize(
     "pipeline, output, tolerance, include_details",
