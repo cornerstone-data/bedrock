@@ -9,6 +9,10 @@ vocabulary (the ``v03_waterfall_*`` configs):
       → + apply_io_year_adjustments + margins  (G2:  "IO year adjustments")
       → usa_ghg_data_year: 2023 → 2024         (G3:  "US data update")
 
+The USEEIO-baseline chain shares the G2/G3 states; its one extra state is
+``v03_waterfall_useeio_g1_schema_ghg`` (USEEIO-like A/margins + Cornerstone
+schema/GHG), pinned here so that chain stays reproducible too.
+
 Each test derives one step's q-weighted average total emission factor
 
     wavg N = Σᵢ Nᵢ qᵢ / Σᵢ qᵢ,   N = 1ᵀ B L
@@ -49,6 +53,7 @@ EXPECTED_WEIGHTED_AVG_N = {
     'v03_waterfall_ceda_g1b_waste_disagg': 0.2543695,
     'v03_waterfall_g2_methods': 0.2398356,
     'v03_waterfall_g3_data': 0.2416736,
+    'v03_waterfall_useeio_g1_schema_ghg': 0.3252524,
     # FINAL is the full v0.3 methodology; it must telescope to the last step.
     'v03_waterfall_final': 0.2416736,
 }
@@ -95,6 +100,7 @@ def test_v0_baseline_weighted_avg_n() -> None:
         'v03_waterfall_ceda_g1b_waste_disagg',
         'v03_waterfall_g2_methods',
         'v03_waterfall_g3_data',
+        'v03_waterfall_useeio_g1_schema_ghg',
         'v03_waterfall_final',
     ],
 )
