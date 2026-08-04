@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+from dataclasses import replace
 from typing import cast
 
 import numpy as np
@@ -988,3 +989,75 @@ class TestIntegrationYtot:
 
         col_sum = sum(cast(float, result.loc[c, "F99999"]) for c in _WASTE_CODES_2017)
         assert col_sum == pytest.approx(1000.0, rel=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: Use-intersection orientation isolation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.eeio_integration
+class TestUseIntersectionOrientationIsolation:
+    """Only Use waste×waste changes when intersection orientation flips."""
+
+    @staticmethod
+    def _wrong_orientation(weights: DisaggWeights) -> DisaggWeights:
+        return replace(weights, use_intersection=weights.use_intersection.T.copy())
+
+    def test_v_va_ytot_identical_when_only_intersection_flips(
+        self, weights_2017: DisaggWeights
+    ) -> None:
+        wrong = self._wrong_orientation(weights_2017)
+        V = _build_V(_WASTE_CODES_2017)
+        va = pd.DataFrame(
+            {_ORIG: [100.0, 50.0, 25.0], "111CA0": [10.0, 5.0, 2.0]},
+            index=_VA_ROWS,
+        )
+        Ytot = pd.DataFrame({"F01000": [500.0]}, index=[_ORIG])
+
+        pd.testing.assert_frame_equal(
+            apply_waste_disagg_to_V(V, weights_2017),
+            apply_waste_disagg_to_V(V, wrong),
+        )
+        pd.testing.assert_frame_equal(
+            apply_waste_disagg_to_VA(va, weights_2017),
+            apply_waste_disagg_to_VA(va, wrong),
+        )
+        pd.testing.assert_frame_equal(
+            apply_waste_disagg_to_Ytot(Ytot, weights_2017),
+            apply_waste_disagg_to_Ytot(Ytot, wrong),
+        )
+
+    def test_u_waste_block_changes_and_non_waste_unchanged(
+        self, weights_2017: DisaggWeights
+    ) -> None:
+        wrong = self._wrong_orientation(weights_2017)
+        U = _build_U(_WASTE_CODES_2017)
+        Udom_ok, _ = apply_waste_disagg_to_U(U, U.copy(), weights_2017)
+        Udom_bad, _ = apply_waste_disagg_to_U(U, U.copy(), wrong)
+
+        waste_ok = Udom_ok.loc[_WASTE_CODES_2017, _WASTE_CODES_2017]
+        waste_bad = Udom_bad.loc[_WASTE_CODES_2017, _WASTE_CODES_2017]
+        assert not np.allclose(waste_ok.values, waste_bad.values)
+
+        # Sentinel: RCRA UInter[com=562111, ind=562HAZ] mass lands at U[562111, 562HAZ].
+        assert cast(float, Udom_ok.loc["562111", "562HAZ"]) > cast(
+            float, Udom_ok.loc["562HAZ", "562111"]
+        )
+
+        waste_set = set(_WASTE_CODES_2017)
+        other_rows = [
+            r
+            for r in Udom_ok.index
+            if r not in waste_set and r != _ORIG and r not in _VA_ROWS
+        ]
+        other_cols = [
+            c
+            for c in Udom_ok.columns
+            if c not in waste_set and c != _ORIG and c != "F01000"
+        ]
+        if other_rows and other_cols:
+            pd.testing.assert_frame_equal(
+                Udom_ok.loc[other_rows, other_cols],
+                Udom_bad.loc[other_rows, other_cols],
+            )

@@ -166,6 +166,36 @@ def _build_specific_rows_table(
     return out.astype(float)
 
 
+_USE_INTERSECTION_NOTE_MARKER = "Use table intersection"
+
+
+def _swap_label_swapped_use_intersection_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Swap IndustryCode/CommodityCode on Cornerstone Use-intersection CSV rows.
+
+    The bundled after-redefinition Use CSV stores RCRA intersection cells with
+    columns labeled IndustryCode/CommodityCode, but the first column holds the
+    Use *commodity* (row) and the second the Use *industry* (col) — swapped
+    relative to every other Use slice and relative to the apply contract
+    ``U[com, ind] = use_intersection.loc[ind, com]``.
+
+    Correction is Note-scoped only: swap iff ``Note`` contains
+    ``Use table intersection``. Missing/non-matching Note ⇒ no swap (USEEIOR
+    and correctly labeled fixtures stay unchanged). Do not also rewrite the CSV
+    (Option B) while this loader correction is active — that would double-fix.
+    """
+    if df.empty or "Note" not in df.columns:
+        return df
+    notes = df["Note"].fillna("").astype(str)
+    mask = notes.str.contains(_USE_INTERSECTION_NOTE_MARKER, regex=False)
+    if not mask.any():
+        return df
+    out = df.copy()
+    industry = out.loc[mask, "IndustryCode"].copy()
+    out.loc[mask, "IndustryCode"] = out.loc[mask, "CommodityCode"].values
+    out.loc[mask, "CommodityCode"] = industry.values
+    return out
+
+
 def _normalize_table(
     df: pd.DataFrame,
     *,
@@ -256,6 +286,10 @@ def load_disagg_weights(
         use_df["IndustryCode"].isin(new_codes_set)
         & use_df["CommodityCode"].isin(new_codes_set)
     ]
+    # Cornerstone bundled Use CSV: intersection Notes are label-swapped vs RCRA.
+    # Correct axes before pivot so use_intersection.loc[ind, com] matches
+    # UInter_RCRA[com, ind]. Note-scoped only — never an unconditional transpose.
+    use_intersection_df = _swap_label_swapped_use_intersection_rows(use_intersection_df)
     use_col_df = use_df[
         use_df["IndustryCode"].isin(new_codes_set)
         & (
