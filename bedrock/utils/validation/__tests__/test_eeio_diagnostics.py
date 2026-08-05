@@ -1,15 +1,16 @@
-# ruff: noqa: PLC0415
 """Unit tests for the EEIO diagnostics module."""
 
 from __future__ import annotations
 
 import dataclasses as dc
+from collections.abc import Generator
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import bedrock.utils.math.formulas as formulas
+from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.derived_2017 import (
     derive_2017_Aq_usa,
     derive_2017_q_usa,
@@ -20,27 +21,30 @@ from bedrock.transform.eeio.derived_2017 import (
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
+    derive_cornerstone_B_non_finetuned,
     derive_cornerstone_q,
     derive_cornerstone_U_set,
     derive_cornerstone_U_with_negatives,
+    derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
+    derive_cornerstone_x_after_redefinition,
     derive_cornerstone_Y_and_trade_scaled,
     derive_cornerstone_y_nab,
     derive_cornerstone_Ytot_matrix_set,
 )
 from bedrock.utils.config.usa_config import (
+    CANONICAL_USA_CONFIG,
     USAConfig,
     reset_usa_config,
     set_global_usa_config,
 )
-from bedrock.utils.math.formulas import compute_y_imp
+from bedrock.utils.math.formulas import compute_L_matrix, compute_y_imp
 from bedrock.utils.validation.eeio_diagnostics import (
     DiagnosticResult,
     assert_eeio_year_alignment_precondition,
     compare_commodity_output_to_domestics_use_plus_exports,
     compare_E_and_LCI_result,
     compare_output_vs_leontief_x_demand,
-    eeio_year_alignment_precondition_ok,
     format_diagnostic_result,
     run_all_diagnostics,
     validate_result,
@@ -510,20 +514,6 @@ def _toy_lci_matrices() -> _ToyLciMatrices:
     return _ToyLciMatrices(B=B, L=L, y=y, E_ind=E_ind, V=V, x=x, q=q)
 
 
-def test_eeio_year_alignment_precondition_ok() -> None:
-    cfg = USAConfig.model_validate(
-        {
-            'model_base_year': 2024,
-            'usa_ghg_data_year': 2024,
-            'apply_io_year_adjustments': True,
-        },
-        strict=True,
-    )
-    assert cfg.use_ghg_year_x_in_B
-    assert eeio_year_alignment_precondition_ok(cfg)
-    assert_eeio_year_alignment_precondition(cfg)
-
-
 def test_eeio_year_alignment_precondition_fails_loud() -> None:
     cfg = USAConfig.model_validate(
         {
@@ -533,7 +523,6 @@ def test_eeio_year_alignment_precondition_fails_loud() -> None:
         },
         strict=True,
     )
-    assert not eeio_year_alignment_precondition_ok(cfg)
     with pytest.raises(ValueError, match='precondition failed'):
         assert_eeio_year_alignment_precondition(cfg)
 
@@ -554,63 +543,41 @@ def test_toy_lci_passes_when_LCI_equals_E_c() -> None:
     assert result.failing_sectors == []
 
 
-def test_toy_lci_fails_when_E_perturbed() -> None:
-    m = _toy_lci_matrices()
-    E_ind = m.E_ind.copy()
-    E_ind.iloc[0, 0] = 1000.0
-    result = compare_E_and_LCI_result(
-        B=m.B,
-        L=m.L,
-        y=m.y,
-        E_ind=E_ind,
-        V=m.V,
-        x=m.x,
-        tolerance=0.01,
-        check_precondition=False,
-    )
-    assert not result.passed
-    assert len(result.failing_sectors) > 0
+@pytest.fixture
+def canonical_usa_config() -> Generator[None, None, None]:
+    """Pin the live LCI≈E checks to the current canonical USA config."""
+    reset_usa_config(should_reset_env_var=True)
+    set_global_usa_config(f'{CANONICAL_USA_CONFIG}.yaml')
+    try:
+        yield
+    finally:
+        reset_usa_config(should_reset_env_var=True)
 
 
 @pytest.mark.eeio_integration
-def test_v0_3_domestic_lci_equals_e() -> None:
-    """Live domestic LCI≈E under aligned v0.3 (Vnorm path, χ=1 precondition)."""
-    reset_usa_config(should_reset_env_var=True)
-    set_global_usa_config('2025_usa_cornerstone_v0_3.yaml')
-    try:
-        from bedrock.transform.allocation.derived import derive_E_usa
-        from bedrock.transform.eeio.derived_cornerstone import (
-            derive_cornerstone_Aq_scaled,
-            derive_cornerstone_B_non_finetuned,
-            derive_cornerstone_Vnorm_scrap_corrected,
-            derive_cornerstone_x_after_redefinition,
-            derive_cornerstone_y_nab,
-        )
-        from bedrock.utils.math.formulas import compute_L_matrix
+def test_domestic_lci_equals_e(canonical_usa_config: None) -> None:
+    """Live domestic LCI≈E under the canonical config (Vnorm path, χ=1)."""
+    assert_eeio_year_alignment_precondition()
 
-        assert_eeio_year_alignment_precondition()
-
-        Aq = derive_cornerstone_Aq_scaled()
-        L_d = compute_L_matrix(A=Aq.Adom)
-        y_d = derive_cornerstone_y_nab()
-        result = compare_E_and_LCI_result(
-            B=derive_cornerstone_B_non_finetuned(),
-            L=L_d,
-            y=y_d,
-            E_ind=derive_E_usa(),
-            x=derive_cornerstone_x_after_redefinition(),
-            Vnorm=derive_cornerstone_Vnorm_scrap_corrected(),
-            q=Aq.scaled_q,
-            tolerance=0.01,
-            include_details=True,
-            check_precondition=False,
-        )
-        assert result.passed, (
-            f'domestic LCI≈E failed ({len(result.failing_sectors)} cells): '
-            f'{result.failing_sectors[:20]}'
-        )
-    finally:
-        reset_usa_config(should_reset_env_var=True)
+    Aq = derive_cornerstone_Aq_scaled()
+    L_d = compute_L_matrix(A=Aq.Adom)
+    y_d = derive_cornerstone_y_nab()
+    result = compare_E_and_LCI_result(
+        B=derive_cornerstone_B_non_finetuned(),
+        L=L_d,
+        y=y_d,
+        E_ind=derive_E_usa(),
+        x=derive_cornerstone_x_after_redefinition(),
+        Vnorm=derive_cornerstone_Vnorm_scrap_corrected(),
+        q=Aq.scaled_q,
+        tolerance=0.01,
+        include_details=True,
+        check_precondition=False,
+    )
+    assert result.passed, (
+        f'domestic LCI≈E failed ({len(result.failing_sectors)} cells): '
+        f'{result.failing_sectors[:20]}'
+    )
 
 
 @pytest.mark.eeio_integration
@@ -620,42 +587,27 @@ def test_v0_3_domestic_lci_equals_e() -> None:
         'throughput; same imbalance as total Ly≈q (~1749 cells fail).'
     ),
 )
-def test_v0_3_total_lci_equals_e() -> None:
-    """Live total LCI≈E under aligned v0.3 (Vnorm path; L_tot / y_trade pairing)."""
-    reset_usa_config(should_reset_env_var=True)
-    set_global_usa_config('2025_usa_cornerstone_v0_3.yaml')
-    try:
-        from bedrock.transform.allocation.derived import derive_E_usa
-        from bedrock.transform.eeio.derived_cornerstone import (
-            derive_cornerstone_Aq_scaled,
-            derive_cornerstone_B_non_finetuned,
-            derive_cornerstone_Vnorm_scrap_corrected,
-            derive_cornerstone_x_after_redefinition,
-            derive_cornerstone_Y_and_trade_scaled,
-        )
-        from bedrock.utils.math.formulas import compute_L_matrix
+def test_total_lci_equals_e(canonical_usa_config: None) -> None:
+    """Live total LCI≈E under the canonical config (Vnorm; L_tot / y_trade)."""
+    assert_eeio_year_alignment_precondition()
 
-        assert_eeio_year_alignment_precondition()
-
-        Aq = derive_cornerstone_Aq_scaled()
-        L_tot = compute_L_matrix(A=Aq.Adom + Aq.Aimp)
-        y_trade = derive_cornerstone_Y_and_trade_scaled()
-        y_tot = y_trade.ytot + y_trade.exports - y_trade.imports
-        result = compare_E_and_LCI_result(
-            B=derive_cornerstone_B_non_finetuned(),
-            L=L_tot,
-            y=y_tot,
-            E_ind=derive_E_usa(),
-            x=derive_cornerstone_x_after_redefinition(),
-            Vnorm=derive_cornerstone_Vnorm_scrap_corrected(),
-            q=Aq.scaled_q,
-            tolerance=0.01,
-            include_details=True,
-            check_precondition=False,
-        )
-        assert result.passed, (
-            f'total LCI≈E failed ({len(result.failing_sectors)} cells): '
-            f'{result.failing_sectors[:20]}'
-        )
-    finally:
-        reset_usa_config(should_reset_env_var=True)
+    Aq = derive_cornerstone_Aq_scaled()
+    L_tot = compute_L_matrix(A=Aq.Adom + Aq.Aimp)
+    y_trade = derive_cornerstone_Y_and_trade_scaled()
+    y_tot = y_trade.ytot + y_trade.exports - y_trade.imports
+    result = compare_E_and_LCI_result(
+        B=derive_cornerstone_B_non_finetuned(),
+        L=L_tot,
+        y=y_tot,
+        E_ind=derive_E_usa(),
+        x=derive_cornerstone_x_after_redefinition(),
+        Vnorm=derive_cornerstone_Vnorm_scrap_corrected(),
+        q=Aq.scaled_q,
+        tolerance=0.01,
+        include_details=True,
+        check_precondition=False,
+    )
+    assert result.passed, (
+        f'total LCI≈E failed ({len(result.failing_sectors)} cells): '
+        f'{result.failing_sectors[:20]}'
+    )

@@ -469,22 +469,6 @@ def compare_output_from_make_and_use(
     return d_result
 
 
-def eeio_year_alignment_precondition_ok(cfg: USAConfig) -> bool:
-    """Return True when χ=1 is a valid surrogate for useeior Chi year alignment.
-
-    Requires matching model/GHG years, GHG-year ``x`` in B
-    (``use_ghg_year_x_in_B``), and no deflated-B path that introduces an
-    intermediate dollar year.
-    """
-    if cfg.model_base_year != cfg.usa_ghg_data_year:
-        return False
-    if not cfg.use_ghg_year_x_in_B:
-        return False
-    if cfg.deflate_x_to_detail_io_year_for_B:
-        return False
-    return True
-
-
 def assert_eeio_year_alignment_precondition(
     cfg: ta.Optional[USAConfig] = None,
 ) -> None:
@@ -493,6 +477,10 @@ def assert_eeio_year_alignment_precondition(
     Replaces useeior ``generateChiMatrix``: when this passes, ``compare_E_and_LCI_result``
     may use χ=1. Failures are loud (``ValueError``), never silent skips.
 
+    Requires matching model/GHG years, GHG-year ``x`` in B
+    (``use_ghg_year_x_in_B``), and no deflated-B path that introduces an
+    intermediate dollar year.
+
     Parameters
     ----------
     cfg
@@ -500,8 +488,6 @@ def assert_eeio_year_alignment_precondition(
     """
     if cfg is None:
         cfg = get_usa_config()
-    if eeio_year_alignment_precondition_ok(cfg):
-        return
 
     reasons: list[str] = []
     if cfg.model_base_year != cfg.usa_ghg_data_year:
@@ -519,10 +505,11 @@ def assert_eeio_year_alignment_precondition(
             'deflate_x_to_detail_io_year_for_B is True '
             '(intermediate dollar years break χ=1)'
         )
-    raise ValueError(
-        'EEIO year-alignment precondition failed for χ=1 LCI≈E validation: '
-        + '; '.join(reasons)
-    )
+    if reasons:
+        raise ValueError(
+            'EEIO year-alignment precondition failed for χ=1 LCI≈E validation: '
+            + '; '.join(reasons)
+        )
 
 
 def _flatten_matrix_for_validate(df: pd.DataFrame) -> pd.Series[float]:
