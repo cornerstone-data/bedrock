@@ -64,11 +64,17 @@ class USAConfig(BaseModel):
     use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
     use_useeio_schema: bool = False
     ### IO Methodology selection
+    # "IO year adjustments" bucket: CEDA A/q scaling to usa_io_data_year with
+    # summary dollar-year rebase, bedrock-derived industry inflation factors,
+    # and gross output at usa_ghg_data_year as B's denominator x.
+    apply_io_year_adjustments: bool = False
     use_E_data_year_for_x_in_B: bool = Field(
         default=False,
         description=(
-            'Use an x corresponding to usa_ghg_data_year'
-            'in B. Must be true whenever deflate_x_to_detail_io_year_for_B is true.'
+            'Deprecated USEEIO-parity compatibility flag: GHG-year x in B '
+            'without the rest of the IO-year adjustments. Superseded by '
+            'apply_io_year_adjustments; kept for configs on the pre-v0.3 A '
+            'footing until the USEEIO-recreation removal.'
         ),
     )
     deflate_x_to_detail_io_year_for_B: bool = Field(
@@ -84,9 +90,7 @@ class USAConfig(BaseModel):
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
-    scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
-    adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
     ceda_margins: bool = False  # DRI: WesIngwersen
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
@@ -95,8 +99,6 @@ class USAConfig(BaseModel):
     # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
     use_cornerstone_ghg_model: bool = False
     use_ghg_national_2023_m2: bool = False
-    ### Inflation factors
-    update_inflation_factors: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -147,13 +149,10 @@ class USAConfig(BaseModel):
 
     @model_validator(mode='after')
     def _validate_deflate_x_requires_use_e_for_x_in_b(self) -> USAConfig:
-        if (
-            self.deflate_x_to_detail_io_year_for_B
-            and not self.use_E_data_year_for_x_in_B
-        ):
+        if self.deflate_x_to_detail_io_year_for_B and not self.use_ghg_year_x_in_B:
             raise ValueError(
                 'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
-                'to be true'
+                'or apply_io_year_adjustments to be true'
             )
         return self
 
@@ -233,6 +232,11 @@ class USAConfig(BaseModel):
     @property
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
         return 2017
+
+    @property
+    def use_ghg_year_x_in_B(self) -> bool:
+        """B's denominator x is gross output at ``usa_ghg_data_year``."""
+        return self.apply_io_year_adjustments or self.use_E_data_year_for_x_in_B
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable dictionary representation of the config.

@@ -78,7 +78,7 @@ def scale_cornerstone_A(
 ) -> pd.DataFrame:
     """Scale detail A element-wise using summary A ratios.
 
-    When ``cfg.adjust_summary_A_and_q_dollar_year`` is set, the target-year summary A
+    When ``cfg.apply_io_year_adjustments`` is set, the target-year summary A
     is rebased into ``original_year`` USD via the ITA-based (industry technology assumption)
     summary commodity price ratio before the ratio is derived and taken, so the structural
     cross-year ratio is formed in a consistent dollar year.
@@ -88,7 +88,7 @@ def scale_cornerstone_A(
     """
     A_summary_base = _get_summary_A(original_year, dom_or_imp_or_total)
     A_summary_target = _get_summary_A(target_year, dom_or_imp_or_total)
-    if get_usa_config().adjust_summary_A_and_q_dollar_year:
+    if get_usa_config().apply_io_year_adjustments:
         A_summary_target = adjust_summary_A_dollar_year(
             A_summary=A_summary_target,
             from_year=target_year,
@@ -158,13 +158,13 @@ def scale_cornerstone_q(
 ) -> pd.Series[float]:
     """Scale detail q element-wise using summary q ratios.
 
-    When ``cfg.adjust_summary_A_and_q_dollar_year`` is set, the target-year summary q
+    When ``cfg.apply_io_year_adjustments`` is set, the target-year summary q
     is rebased into ``original_year`` USD via the ITA-based summary commodity
     price ratio before forming the cross-year ratio. Otherwise the ratio is
     taken on the raw target-year summary q (pre-realignment behavior).
     """
     q_summary_target = derive_summary_q_usa(target_year)
-    if get_usa_config().adjust_summary_A_and_q_dollar_year:
+    if get_usa_config().apply_io_year_adjustments:
         q_summary_target = adjust_summary_q_dollar_year(
             q_summary=q_summary_target,
             from_year=target_year,

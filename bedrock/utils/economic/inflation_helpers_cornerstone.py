@@ -84,13 +84,13 @@ def _industry_price_index_levels() -> pd.DataFrame:
     """Wide sector × year PI levels for cornerstone industry-ratio math.
 
     ``useeio_margins``: USEEIOR v1.8.0 ``Detail_CPI_IO_17sch`` (GCS snapshot).
-    ``update_inflation_factors``: bedrock-derived industry PI.
+    ``apply_io_year_adjustments``: bedrock-derived industry PI.
     Otherwise: bedrock BEA parquet (``BEA_PriceIndex``).
     """
     cfg = get_usa_config()
     if cfg.useeio_margins:
         return obtain_useeior_detail_industry_cpi_levels()
-    if cfg.update_inflation_factors:
+    if cfg.apply_io_year_adjustments:
         return derive_industry_price_index()
     return obtain_inflation_factors_from_reference_data()
 
@@ -106,7 +106,7 @@ def get_cornerstone_industry_price_ratio(
     """
     cfg = get_usa_config()
     price_index = _industry_price_index_levels()
-    if cfg.update_inflation_factors:
+    if cfg.apply_io_year_adjustments:
         target_codes = CORNERSTONE_INDUSTRIES
     else:
         # Reindex to commodities so downstream `diag(p) @ A @ diag(1/p)`
@@ -648,7 +648,7 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
     ``get_cornerstone_industry_price_ratio``).
 
     Always indexed on ``CORNERSTONE_INDUSTRIES`` regardless of
-    ``update_inflation_factors`` (V_norm.T @ pi_industry in the ITA flow needs
+    ``apply_io_year_adjustments`` (V_norm.T @ pi_industry in the ITA flow needs
     industry granularity; the existing dispatch's commodity branch returns
     commodity-indexed values for the legacy ``diag(p) @ A @ diag(1/p)`` flow,
     which we don't want here).

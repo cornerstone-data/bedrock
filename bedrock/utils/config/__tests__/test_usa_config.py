@@ -164,7 +164,7 @@ def test_disallow_m2_without_useeio_schema() -> None:
 def test_disallow_deflate_x_without_use_e_for_x_in_b() -> None:
     with pytest.raises(
         ValueError,
-        match='deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B',
+        match='deflate_x_to_detail_io_year_for_B requires',
     ):
         USAConfig.model_validate(
             {
