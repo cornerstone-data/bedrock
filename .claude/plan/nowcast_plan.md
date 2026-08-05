@@ -669,9 +669,21 @@ A-vs-B question and confirms or kills the GHG hypothesis) → **#567** (treat `n
 own roots) and **#568** (`SectorSourceName` expresses a non-NAICS schema) → **#569** (the Phase 1 gate:
 GHG A/B zero delta *with the BEA codes present*, plus removing the `'531'`/`'23'`/`'92'` hacks).
 
-Work is already in flight: `fix_non_naics_sector_levels` is 13 commits ahead of main and carries the
-`Sector_Levels` swallow fix and #547's attribution fix; `nipa_fd_allocation_fix` carries `dde7da4`,
-which breaks GHG and must not be merged as-is.
+**Branch state, verified 2026-08-05.** `fix_non_naics_sector_levels` is **13 behind main and 1 ahead**,
+and that one commit is byte-identical to `d55e8e0` on the other branch (same patch-id) — effectively
+redundant, retire it. `nipa_fd_allocation_fix` is **14 behind, 7 ahead**, tip `dde7da4` breaks GHG.
+
+Main already carries `dcf7077` (S00401/S00402 via `non_naics`), `091bcc3` (U50505 granularity),
+`9668ce7` (PCE/PEQ on own bridge rows — **#547's fix**, so #547 may be closeable) and `42f7e59` (the
+revert). Only the `Sector_Levels` swallow fix is missing, as two duplicate SHAs.
+
+**Phase 1 branches fresh from main**, cherry-picking just that one patch. Not from
+`nipa_fd_allocation_fix`: #569's gate is *GHG A/B returns to zero delta*, which cannot be demonstrated
+from a base that itself breaks GHG, and that branch is Phase 2 work sitting on unmet Phase 1
+preconditions — the mistake the cleanup plan itself records. It stays as the **Phase 2 consumer
+branch**, rebased onto Phase 1 after #569 passes. Four of its commits are not Phase-2-gated and are
+worth landing separately to shrink it: `4434f7e` (three-way bridge comparison, which #576 depends on),
+`220682e`, `ea852b8`, `e4e24a7`.
 
 ### What is gated, and what is not
 
