@@ -28,7 +28,6 @@ deflate_x_to_detail_io_year_for_B: true
 use_ghg_national_2023_m2: true
 
 # Must remain false whenever use_ghg_national_2023_m2 is true.
-new_ghg_method: false
 
 useeio_margins: True
 cornerstone_industry_avg_margins: False

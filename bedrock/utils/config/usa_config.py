@@ -91,10 +91,9 @@ class USAConfig(BaseModel):
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
-    new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
-    update_mecs_method: bool = False  # DRI: catherine.birney
-    v0_3_umd_2023_ghgia: bool = False  # DRI: catherine.birney
-    v0_3_umd_2024_ghgia: bool = False  # DRI: catherine.birney
+    # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
+    # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
+    use_cornerstone_ghg_model: bool = False
     use_ghg_national_2023_m2: bool = False
     ### Inflation factors
     update_inflation_factors: bool = False
@@ -180,9 +179,10 @@ class USAConfig(BaseModel):
 
     @model_validator(mode='after')
     def _validate_ghg_flag_compatibility(self) -> USAConfig:
-        if self.new_ghg_method and self.use_ghg_national_2023_m2:
+        if self.use_cornerstone_ghg_model and self.use_ghg_national_2023_m2:
             raise ValueError(
-                'new_ghg_method and use_ghg_national_2023_m2 cannot both be true'
+                'use_cornerstone_ghg_model and use_ghg_national_2023_m2 '
+                'cannot both be true'
             )
         if self.use_ghg_national_2023_m2 and not self.use_useeio_schema:
             raise ValueError(

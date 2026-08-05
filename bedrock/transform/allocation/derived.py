@@ -29,43 +29,6 @@ logger = logging.getLogger(__name__)
 _USEEIO_WORKBOOK_CH4_GWP = 27.9
 
 
-def _select_flowsa_ghg_method() -> str:
-    """Select FBS methodname from USA config (first match wins).
-
-    The base `new_ghg_method` and CEDA fallback methods are parameterized on
-    `usa_ghg_data_year`. The 2023-only variants (`*_ghgi_mecs`, `*_umd_ghgia`)
-    raise here if set with a non-2023 year rather than failing later with an
-    opaque "FBS not found".
-    """
-    usa = get_usa_config()
-    year = usa.usa_ghg_data_year
-    needs_2023 = usa.update_mecs_method or usa.v0_3_umd_2023_ghgia
-    if needs_2023 and year != 2023:
-        raise ValueError(
-            f'usa_ghg_data_year={year} is incompatible with the active '
-            'update_*_ghg_method flag — variant FBS methods only exist '
-            'for 2023. Either set usa_ghg_data_year=2023 or disable the '
-            'update_*_ghg_method flag.'
-        )
-    if usa.v0_3_umd_2024_ghgia and year != 2024:
-        raise ValueError(
-            f'usa_ghg_data_year={year} is incompatible with v0_3_umd_2024_ghgia '
-            '— the 2024 UMD GHGIA FBS only exists for 2024. Set '
-            'usa_ghg_data_year=2024 or use v0_3_umd_2023_ghgia.'
-        )
-    if usa.new_ghg_method:
-        return f'GHG_national_Cornerstone_{year}'
-    if usa.use_ghg_national_2023_m2:
-        return 'GHG_national_2023_m2'
-    if usa.update_mecs_method:
-        return 'GHG_national_Cornerstone_2023_ghgi_mecs'
-    if usa.v0_3_umd_2023_ghgia:
-        return 'GHG_national_Cornerstone_2023_umd_ghgia'
-    if usa.v0_3_umd_2024_ghgia:
-        return 'GHG_national_Cornerstone_2024'
-    return f'GHG_national_CEDA_{year}'
-
-
 def _build_mapping_with_allocations(
     mapping: pd.DataFrame, *, use_output_weights: bool
 ) -> pd.DataFrame:
@@ -313,7 +276,7 @@ def _load_cornerstone_ghg_fbs_from_gcs(
     FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
     ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
     name such as ``GHG_national_Cornerstone_2023_egrid``) are loaded directly
-    instead (used by new_ghg_method and v0_3_umd_2024_ghgia).
+    instead (used by use_cornerstone_ghg_model).
 
     Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
     follow the FBS regeneration cadence without pinning the version/hash here.
@@ -356,39 +319,22 @@ def _load_cornerstone_ghg_fbs_from_gcs(
 
 
 def load_E_from_flowsa() -> pd.DataFrame:
-    """Load E_usa (GHG × CEDA v7 sectors) from the CEDA FBS.
+    """Load E_usa (GHG × model-schema sectors) from a flowsa FBS.
 
-    FBS method is chosen by USA config (first match wins):
-    - GHG_national_Cornerstone_{year} when new_ghg_method is True
-      (loaded from GCS parquet)
-    - GHG_national_2023_m2 when use_ghg_national_2023_m2 is True
-    - GHG_national_Cornerstone_2023_ghgi_mecs when update_mecs_method is True
-    - GHG_national_Cornerstone_2023_umd_ghgia when v0_3_umd_2023_ghgia is True
-    - GHG_national_Cornerstone_2024 when v0_3_umd_2024_ghgia is True
-      (loaded from GCS parquet)
-    - GHG_national_CEDA_{year} otherwise
+    FBS selection ("GHG model allocation" bucket + data-year knob):
+    - use_cornerstone_ghg_model → the pre-built GHG_national_Cornerstone_{year}
+      FBS parquet from GCS. Which inventory/attribution vintages that carries
+      (EPA GHGI vs UMD GHGIA, MECS survey year) is defined per year by the
+      method files in ``bedrock/transform/ghg/``.
+    - use_ghg_national_2023_m2 → GHG_national_2023_m2 via getFlowBySector
+      (USEEIO workbook parity).
+    - otherwise → GHG_national_CEDA_{year}, the flowsa implementation of the
+      legacy CEDA allocation methodology (method files exist for 2023 only).
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
-    # Only the base `new_ghg_method` and CEDA fallback FBS methods exist
-    # for years other than 2023. The 2023-only variants raise here rather
-    # than failing later with an opaque "FBS not found".
-    needs_2023 = usa.update_mecs_method or usa.v0_3_umd_2023_ghgia
-    if needs_2023 and year != 2023:
-        raise ValueError(
-            f'usa_ghg_data_year={year} is incompatible with the active '
-            'update_*_ghg_method flag — variant FBS methods only exist '
-            'for 2023. Either set usa_ghg_data_year=2023 or disable the '
-            'update_*_ghg_method flag.'
-        )
-    if usa.v0_3_umd_2024_ghgia and year != 2024:
-        raise ValueError(
-            f'usa_ghg_data_year={year} is incompatible with v0_3_umd_2024_ghgia '
-            '— the 2024 UMD GHGIA FBS only exists for 2024. Set '
-            'usa_ghg_data_year=2024 or use v0_3_umd_2023_ghgia.'
-        )
-    if usa.new_ghg_method or usa.v0_3_umd_2024_ghgia:
-        if usa.new_ghg_method and usa.implement_electricity_disaggregation:
+    if usa.use_cornerstone_ghg_model:
+        if usa.implement_electricity_disaggregation:
             fbs = _load_egrid_fbs_for_electricity_disagg()
         else:
             # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
@@ -397,13 +343,19 @@ def load_E_from_flowsa() -> pd.DataFrame:
             # `transform/output_data/` (GHG_national_Cornerstone_<year>) directly
             # so the year-Y diagnostics get year-Y GHG data.
             fbs = _load_cornerstone_ghg_fbs_from_gcs(year)
+    elif usa.use_ghg_national_2023_m2:
+        # For m2, explicitly attempt remote FBS download before generation.
+        fbs = getFlowBySector(
+            methodname='GHG_national_2023_m2', download_FBS_if_missing=True
+        )
     else:
-        methodname = _select_flowsa_ghg_method()
-        if methodname == 'GHG_national_2023_m2':
-            # For m2, explicitly attempt remote FBS download before generation.
-            fbs = getFlowBySector(methodname=methodname, download_FBS_if_missing=True)
-        else:
-            fbs = getFlowBySector(methodname=methodname)
+        if year != 2023:
+            raise ValueError(
+                f'usa_ghg_data_year={year} is incompatible with '
+                'use_cornerstone_ghg_model=False — the CEDA-methodology FBS '
+                '(GHG_national_CEDA_{year}) only exists for 2023.'
+            )
+        fbs = getFlowBySector(methodname=f'GHG_national_CEDA_{year}')
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
 

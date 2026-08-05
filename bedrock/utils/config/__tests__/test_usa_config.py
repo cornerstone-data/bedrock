@@ -127,21 +127,21 @@ def test_phoebe_year_vector_accepts_2017_io_fields() -> None:
     assert cfg.usa_io_data_year == 2017
 
 
-def test_disallow_new_ghg_method_with_m2_flag() -> None:
+def test_disallow_cornerstone_ghg_model_with_m2_flag() -> None:
     with pytest.raises(
         ValueError,
-        match='new_ghg_method and use_ghg_national_2023_m2 cannot both be true',
+        match='use_cornerstone_ghg_model and use_ghg_national_2023_m2 ',
     ):
         USAConfig.model_validate(
-            {'new_ghg_method': True, 'use_ghg_national_2023_m2': True},
+            {'use_cornerstone_ghg_model': True, 'use_ghg_national_2023_m2': True},
             strict=True,
         )
 
 
-def test_allow_m2_flag_when_new_ghg_method_is_false() -> None:
+def test_allow_m2_flag_when_cornerstone_ghg_model_is_false() -> None:
     cfg = USAConfig.model_validate(
         {
-            'new_ghg_method': False,
+            'use_cornerstone_ghg_model': False,
             'use_ghg_national_2023_m2': True,
             'use_useeio_schema': True,
         },
