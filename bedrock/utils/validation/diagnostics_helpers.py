@@ -152,8 +152,9 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
         )
     return (
         False,
-        'B is not built with deflate_x_to_detail_io_year_for_B or '
-        'use_E_data_year_for_x_in_B; no denominator inflation adjustment applies',
+        'derive_cornerstone_B_non_finetuned already applies '
+        'inflate_cornerstone_B_matrix_with_industry_pi to model_base_year; '
+        'skipping second denominator inflation pass (would double-apply)',
     )
 
 

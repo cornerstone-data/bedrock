@@ -65,6 +65,7 @@ from bedrock.transform.eeio.cornerstone_expansion import (
 )
 from bedrock.transform.eeio.cornerstone_year_scaling import (
     scale_cornerstone_A,
+    scale_cornerstone_B,
     scale_cornerstone_q,
 )
 from bedrock.transform.eeio.derived_2017 import (
@@ -82,6 +83,7 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
     inflate_cornerstone_A_matrix_with_commodity_pi,
     inflate_cornerstone_A_matrix_with_industry_pi,
+    inflate_cornerstone_B_matrix_with_industry_pi,
     inflate_cornerstone_q_or_y_with_commodity_pi,
     inflate_cornerstone_q_or_y_with_industry_pi,
     inflate_cornerstone_V_with_industry_pi,
@@ -690,8 +692,25 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 
 @functools.cache
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
-    """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone."""
-    return derive_cornerstone_B_via_vnorm()
+    """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone.
+
+    When ``use_ghg_year_x_in_B`` is true, B is already on the GHG-year footing
+    and stays on vnorm only. On the legacy footing, B is scaled 2017 →
+    ``usa_io_data_year`` with summary q ratios and then inflated to
+    ``model_base_year`` with the industry PI.
+    """
+    cfg = get_usa_config()
+    if cfg.use_ghg_year_x_in_B:
+        return derive_cornerstone_B_via_vnorm()
+    return inflate_cornerstone_B_matrix_with_industry_pi(
+        scale_cornerstone_B(
+            B=derive_cornerstone_B_via_vnorm(),
+            original_year=cfg.usa_detail_original_year,
+            target_year=cfg.usa_io_data_year,
+        ),
+        original_year=cfg.usa_io_data_year,
+        target_year=cfg.model_base_year,
+    )
 
 
 @functools.cache
