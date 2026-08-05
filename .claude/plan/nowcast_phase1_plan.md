@@ -461,6 +461,19 @@ not introduce a step 10.
   is **purchaser**. **Seed from `Use_SUT_Framework_2017_DET`** — native SUT, native purchaser, native
   before-redef, all three right in one object, and already loadable via `_load_2017_detail_sut_usa`.
   No conversion round-trip, and no `load_2017_Utot_before_redef_usa()` in this step.
+- 🔵 **Optional, not on the critical path — annual business-survey expense data.** The method above
+  freezes every industry's *input structure* at its 2017 shape and moves only the price level. The
+  Census annual surveys (Manufactures, Retail, Wholesale, Services, Transportation) collect **inputs to
+  production** annually, reported at **purchaser prices** — the SUT Use basis exactly — so they could
+  put real annual movement into that structure. Desk research is written up in
+  [`bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md`](bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md);
+  the probe is [#564](https://github.com/cornerstone-data/bedrock/issues/564). Headlines: the AIES `exp02` endpoint publishes ~35 named expense
+  categories with per-cell CVs, 1992-2023; bedrock's `Census_SAS.yaml` already pulls the SAS expense
+  table for 2013-2022; but **materials are one undifferentiated bucket annually** — the commodity
+  breakout is quinquennial (`EC1731MATFUEL`/`EC2231MATFUEL`), which caps this at the services side of
+  the column plus a **second structural anchor in 2022**. Realistic outcome is a hybrid: survey-informed
+  where coverage and depth allow, inflation-carried 2017 proportions elsewhere. **Step 3 ships without
+  it**; treat as an improvement pass.
 
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
