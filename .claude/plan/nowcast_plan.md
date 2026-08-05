@@ -682,17 +682,17 @@ rediscovers the same 210-code problem from scratch.
 
 ### Coverage by step
 
-| Step | Issues | Gap |
+| Step | Issues | Remaining gap |
 |---|---|---|
-| 0 Hygiene | #523, #539/#540 ✅ | ❌ summary SUT 2023-24 vintage · ❌ SLG Equip/Struct/IP attribution bug unissued |
-| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531, #547 | ❌ 1d SUT-vs-MUT FD code-list split (`F05000`) · ❌ 1f per-column FD validation (#537 is the VA side) |
-| 2 Value added | #535, #536, #537, #538 ✅ | retire the "VA into after redefinitions" draft — superseded by Step 7 |
-| 3 Intermediate | #497, #564 ✅ | ❌ agriculture (ERS FIWS) and government (`govslocalfin`) implementations |
-| **4 Supply table** | **#570 (4a), #571 (4c)** | ❌ 4b import cols · 4d `TOP`/`SUB` · 4e identities |
+| 0 Hygiene | #523, #539/#540, **#573** (summary SUT vintage), **#574** (SLG attribution) | — |
+| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531, #547, **#575** (1d code list), **#576** (1f reconciliation) | — |
+| 2 Value added | #535, #536, #537, #538 | — |
+| 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
+| **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
 | 5 RAS | 4 board drafts | ⚠️ drafts, not issues |
-| 6 SUT→MUT | USEEIO #4 (6b only) | ❌ 6a Make · 6c import matrix · 6d Margins · 2017 replay validation |
-| 7 Redefinitions | **#572** ✅ | replaced the VA-only draft — VA is redefined here, not on its own path |
-| 8 Cornerstone schema | none | ❌ |
+| 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b has no bedrock issue — only the USEEIO one |
+| 7 Redefinitions | **#572** | — |
+| 8 Cornerstone schema | **#586** | — |
 | 9 Storage/pipeline | 2 board drafts | ⚠️ drafts, not issues |
 
 Six board cards are **drafts with no issue number** (four for Step 5, two for Step 9) and are not
@@ -704,14 +704,16 @@ trackable until promoted. The superseded VA-redefinition draft was removed and r
 - **P0-parallel** — #570 (4a) and #571 (4c). 4c has the highest fan-out of anything unbuilt: it feeds
   the Supply margin columns, Step 6b's PUR→PRO conversion, and the Step 6d Margins deliverable.
 - **P1** — code-space Phase 2 (retarget `FD_Gov`/`FD_Structures`/`FD_IP`, drop
-  `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks Steps 1f, 2 and 3. Then
-  4b/4d/4e once the trade FBS path is safe.
-- **P2** — Step 5 (promote the four drafts), Step 6 conversion plus the 2017 benchmark replay — the
-  single highest-value test in the project — then Step 7 (#572).
-- **P3** — Step 8, then Step 9 (promote drafts).
+  `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks #576, Step 2 and Step 3.
+  #574 may fall out of this rather than needing its own attribution work — diagnose first. Then #579,
+  #580, #581 once the trade FBS path is safe. #573 any time; it is small and Step 5 needs it.
+- **P2** — Step 5 (promote the four drafts), then #582/#583/#584 and **#585**, the 2017 benchmark
+  replay — the single highest-value test in the project — then #572.
+- **P3** — #586, then Step 9 (promote drafts).
 
-Remaining to file: ~12 issues across Steps 0, 1d/1f, 3, 4b/4d/4e, 6a/6c/6d and 8, plus promoting the
-six drafts. Granularity agreed as **one issue per sub-step**.
+**Filed 2026-08-05:** #573-#586, one issue per sub-step, all on the board with milestone `v0.5`. Every
+plan step now has issue coverage except Step 6b, which is tracked only as USEEIO issue #4, and Steps 5
+and 9, which remain board drafts. Board: 33 → 54 items.
 
 ## Open questions
 
