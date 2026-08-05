@@ -14,7 +14,7 @@ Usage (PowerShell, repo root)::
     uv run python -m bedrock.analysis.margins.compare_sef_margins_sources
 
 Optional:
-  --phoebe-sef-csv PATH
+  --phoebe-sef-csv PATH (required; pinned SEF from a pre-retirement phoebe run)
   --v0-3-sef-csv PATH
   --zenodo-xlsx PATH  (defaults to cached download under
                        ``bedrock/utils/snapshots/data/zenodo_sef_v1.4.0/``)
@@ -63,7 +63,6 @@ COL_MARGINS = 'Margins of Supply Chain Emission Factors'
 COL_WITH = 'Supply Chain Emission Factors with Margins'
 SEF_VALUE_COLS: tuple[str, ...] = (COL_WITHOUT, COL_MARGINS, COL_WITH)
 
-_PHOEBE_CONFIG = 'useeio_phoebe_23'
 _V0_3_CONFIG = '2025_usa_cornerstone_v0_3'
 
 
@@ -246,10 +245,12 @@ def main() -> int:
     zenodo = load_zenodo_sef_by_reference_code(zenodo_path)
 
     if args.phoebe_sef_csv is None:
-        logger.info('publishing %s at dollar_year=%d', _PHOEBE_CONFIG, args.dollar_year)
-        phoebe_path = publish_sef(_PHOEBE_CONFIG, args.dollar_year)
-    else:
-        phoebe_path = args.phoebe_sef_csv
+        parser.error(
+            '--phoebe-sef-csv is required: the useeio_phoebe_23 config was '
+            'retired with the USEEIO-recreation flags; use a pinned phoebe SEF '
+            'CSV from a prior publish run.'
+        )
+    phoebe_path = args.phoebe_sef_csv
     logger.info('phoebe SEF: %s', phoebe_path)
     phoebe = load_bedrock_sef(phoebe_path)
 

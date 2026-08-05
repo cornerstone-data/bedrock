@@ -62,7 +62,6 @@ class USAConfig(BaseModel):
     #####
     ### Schema/Taxonomy selection
     use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
-    use_useeio_schema: bool = False
     ### IO Methodology selection
     # "IO year adjustments" bucket: CEDA A/q scaling to usa_io_data_year with
     # summary dollar-year rebase, bedrock-derived industry inflation factors,
@@ -91,14 +90,14 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
-    ceda_margins: bool = False  # DRI: WesIngwersen
+    # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
+    # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
     ### GHG Methodology selection
     # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
     # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
     use_cornerstone_ghg_model: bool = False
-    use_ghg_national_2023_m2: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -158,35 +157,15 @@ class USAConfig(BaseModel):
 
     @model_validator(mode='after')
     def _validate_margins_mutual_exclusivity(self) -> USAConfig:
-        active = [
-            name
-            for name, val in [
-                ('useeio_margins', self.useeio_margins),
-                ('ceda_margins', self.ceda_margins),
-                (
-                    'cornerstone_industry_avg_margins',
-                    self.cornerstone_industry_avg_margins,
-                ),
-            ]
-            if val
-        ]
-        if len(active) > 1:
+        if self.useeio_margins and self.cornerstone_industry_avg_margins:
             raise ValueError(
-                f'At most one margins flag may be true; got: {", ".join(active)}'
+                'At most one margins flag may be true; got: '
+                'useeio_margins, cornerstone_industry_avg_margins'
             )
         return self
 
     @model_validator(mode='after')
     def _validate_ghg_flag_compatibility(self) -> USAConfig:
-        if self.use_cornerstone_ghg_model and self.use_ghg_national_2023_m2:
-            raise ValueError(
-                'use_cornerstone_ghg_model and use_ghg_national_2023_m2 '
-                'cannot both be true'
-            )
-        if self.use_ghg_national_2023_m2 and not self.use_useeio_schema:
-            raise ValueError(
-                'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
-            )
         if (
             self.implement_electricity_reallocation
             and not self.implement_waste_disaggregation

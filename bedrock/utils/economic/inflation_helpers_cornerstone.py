@@ -146,8 +146,8 @@ def get_rho_inflation_ratio(original_year: int, target_year: int) -> pd.Series[f
     (``calculateProducerbyPurchaserPriceRatio``). Implemented on the same
     1:1 sector index as ``get_cornerstone_industry_price_ratio``.
 
-    This is the ``useeio_margins`` branch of ``get_price_index_ratio``; kept
-    as a named primitive for sector-level index math and tests.
+    The ``useeio_margins`` branch of ``get_price_index_ratio``; also feeds the
+    Excel ``Rho`` panel.
     """
     if original_year == target_year:
         return get_cornerstone_industry_price_ratio(original_year, target_year)
