@@ -698,14 +698,16 @@ rediscovers the same 210-code problem from scratch.
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
-| 5 RAS | 4 board drafts | ⚠️ drafts, not issues |
-| 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b has no bedrock issue — only the USEEIO one |
+| 5 RAS | **#588** (sut_ras), **#589** (load_suts_from_r), **#590** (check_balances), **#591** (optional controls) | — |
+| 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
-| 9 Storage/pipeline | 2 board drafts | ⚠️ drafts, not issues |
+| 9 Storage/pipeline | **#592** (GCS storage), **#593** (pipeline integration) | — |
 
-Six board cards are **drafts with no issue number** (four for Step 5, two for Step 9) and are not
-trackable until promoted. The superseded VA-redefinition draft was removed and replaced by #572.
+**No drafts remain.** The six Step 5 and Step 9 cards were converted in place to issues #588-#593,
+keeping their board position and `Todo` status, then given step-prefixed titles, bodies, the
+`nowcasting` label and milestone `v0.5`. The superseded VA-redefinition draft was removed earlier and
+replaced by #572. **Every item on the board is now a trackable issue.**
 
 ### Priority
 
@@ -720,14 +722,19 @@ trackable until promoted. The superseded VA-redefinition draft was removed and r
   replay — the single highest-value test in the project — then #572.
 - **P3** — #586, then Step 9 (promote drafts).
 
-**Filed 2026-08-05:** #573-#586 plus #587, one issue per sub-step, all on the board with milestone
-`v0.5`. Every plan step now has issue coverage; Steps 5 and 9 remain board drafts with no issue number.
-Board: 33 → 55 items.
+**Filed 2026-08-05:** #573-#587 new, #588-#593 converted from drafts. One issue per sub-step, all on
+the board with milestone `v0.5`. **Every plan step now has full issue coverage.** Board: 33 → 56 items,
+zero drafts.
 
 **Titles carry their step.** All 45 board issues were renamed to a `Step <n><letter>: ` prefix so the
 board reads against this plan — `Step 1a`, `Step 4c`, `Step 6a` and so on. Two non-step prefixes:
 `BEA code space: ` for the gating layer (#546, #566-#569), and `Diagnostics: ` for #587, which spans
 every step. USEEIO #4 is `Step 6b`. Pull requests were left alone; they inherit from their issue.
+
+**The board is sorted to match.** Item positions run gate → Step 0 → 1 → 1a-1f → 2 → 3 → 4a-4e → 5 →
+6a-6d → 6 (the whole-phase replay, after the sub-steps it validates) → 7 → 8 → 9 → Diagnostics. Pull
+requests sit with the step of the issue they close. Note this sets **manual position**, so it holds
+only while a view has no explicit sort of its own; a saved sort in the view UI overrides it.
 
 ## Open questions
 
