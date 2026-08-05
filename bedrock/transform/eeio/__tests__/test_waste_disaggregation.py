@@ -14,6 +14,7 @@ from bedrock.extract.disaggregation.disagg_weights import (
     _empty_weight_table,
     load_disagg_weights,
 )
+from bedrock.extract.disaggregation.waste_weight_config import EEIOWasteDisaggConfig
 from bedrock.extract.iot.io_2017 import load_2017_value_added_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
@@ -29,7 +30,6 @@ from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_VA,
     apply_waste_disagg_to_Ytot,
 )
-from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
 WASTE = ["562111", "562212", "562910"]
