@@ -225,6 +225,14 @@ def inflate_cornerstone_q_or_y_with_industry_pi(
     return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
 
 
+def inflate_cornerstone_B_matrix_with_industry_pi(
+    B: pd.DataFrame, original_year: int, target_year: int
+) -> pd.DataFrame:
+    """Inflate B's monetary denominators via the industry PI (legacy footing)."""
+    price_ratio = get_cornerstone_industry_price_ratio(target_year, original_year)
+    return B * price_ratio.reindex(B.columns, fill_value=1.0).values
+
+
 def inflate_cornerstone_V_with_industry_pi(
     V: pd.DataFrame,
     *,
