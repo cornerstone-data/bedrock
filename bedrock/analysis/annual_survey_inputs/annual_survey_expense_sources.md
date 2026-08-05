@@ -4,11 +4,148 @@ Desk-research notes on whether the Census annual business surveys (Manufactures,
 Services, Transportation) can supply annual information on **inputs to production**, for use in
 estimating the SUT Use table's intermediate block for nowcast years 2018-2025.
 
-**Status: desk research only.** Nothing here has been pulled through an API or reconciled against a
-BEA table. This is the input to a probe task, not the result of one.
+**Status: probed against the live Census API.** See [Probe results](#probe-results) below for the
+answer, which is largely negative. The desk-research sections that follow it record what the sources
+are; the probe section records what they actually contain.
 
 **Probe task:** [#564](https://github.com/cornerstone-data/bedrock/issues/564) — optional, not on the
 critical path for Step 3.
+
+---
+
+# Probe results
+
+Run against the live Census API (2026-08-04). **Verdict: this does not deliver a general annual
+input-structure source.** Two narrow pieces are worth keeping; the broad ambition is not supported by
+the data.
+
+## The finding, in one line
+
+**Depth and coverage never coincide.** Manufacturing is published at full 6-digit NAICS with no
+suppression — but only **8.3%** of its intermediate consumption is commodity-mappable. The service
+sectors are 16-45% mappable — but are published at **one row for the entire sector**.
+
+## Coverage vs. depth, measured
+
+Share of intermediate-ish spend (total operating expenses less payroll, fringe, depreciation, interest,
+taxes) falling in expense categories that map to a BEA commodity. AIES `exp02`, 2023, sector level:
+
+| Sector | Intermediate-ish $M | **Mappable** | Materials bucket | "All other" residual | API depth |
+|---|---:|---:|---:|---:|---|
+| 22 Utilities | 389,788 | **44.9%** | 3.4% | 24.9% | 1 row |
+| 61 Education | 36,713 | **36.1%** | 4.3% | 45.4% | 1 row |
+| 56 Admin/waste | 417,911 | **33.3%** | 9.5% | 40.7% | 2 rows (L3) |
+| 54 Professional | 992,040 | **33.1%** | 4.8% | 48.0% | 9 rows (L4) |
+| 72 Accommodation/food | 525,114 | **29.7%** | 10.0% | 45.8% | 2 rows (L3) |
+| 71 Arts/rec | 168,447 | **28.5%** | 4.7% | 52.0% | 3 rows (L3) |
+| 62 Health | 1,521,174 | **27.5%** | 4.5% | 0.0% | 11 rows (L4) |
+| 52 Finance | 1,184,102 | **25.5%** | 1.9% | 58.8% | 4 rows (L3) |
+| 51 Information | 902,896 | **24.8%** | 1.7% | 0.0% | 9 rows (L4) |
+| 53 Real estate | 416,249 | **23.9%** | 4.4% | 38.8% | 3 rows (L3) |
+| 81 Other services | 353,931 | **23.1%** | 8.2% | 0.0% | 1 row |
+| 48-49 Transportation | 754,704 | **16.3%** | 3.6% | 0.0% | 9 rows (L3) |
+| 31-33 Manufacturing | 4,536,107 | **8.3%** | **82.5%** | 4.4% | **360 rows (L6)** |
+| **All sectors** | **12,199,176** | **20.4%** | | | |
+
+Three things to read off this:
+
+1. **The inverse relationship is near-perfect.** The only sector with BEA-Detail-grade depth is the one
+   where the data says least, because `EXPS_MAT_DVAL` — a single undifferentiated cell — is 82.5% of
+   manufacturing's column.
+2. **"All other operating expenses" is 40-58% of intermediate in most service sectors** — larger than
+   the mappable share. Even at sector level, half the column is a residual.
+3. **Wholesale (42) and retail (44-45) are absent from `exp02` entirely**, as are construction (23),
+   mining (21) and agriculture (11). Sectors present: 22, 31-33, 48-49, 51, 52, 53, 54, 56, 61, 62, 71,
+   72, 81. So there is **nothing here for the Step 4c margins work**, which was one of the hoped-for
+   cross-benefits.
+
+## Year coverage is not what the catalog says
+
+The catalog titles all read "1992 - 2023". **Actual** data availability, by query:
+
+| Endpoint | Expense detail | Years returning rows |
+|---|---|---|
+| `timeseries/aies/exp02` | ~35 items, all sectors listed above | **2023 only** |
+| `timeseries/aies/exp01` | totals | none of 2015-2023 |
+| `timeseries/asm/area2017` | **21 items, manufacturing** | **2018-2021** |
+| `timeseries/asm/industry` | 21 items, manufacturing (2012 NAICS) | 2013-2016 |
+| `timeseries/asm/benchmark2017/2022` | `CSTMTOT` only | — |
+
+**There is no harmonized backfill.** The "1992-2023" span is nominal. 2017 and 2022 return nothing from
+ASM because they are **Economic Census years** — ASM does not run in census years — so the annual series
+has structural holes at exactly the two years that anchor the benchmark comparison.
+
+Assembling 2018-2025 for manufacturing therefore means: `asm/area2017` for 2018-2021, Economic Census
+for 2022, `aies/exp02` for 2023, nothing yet for 2024-2025 — four sources, three seams, in one series.
+
+## The manufacturing series is genuinely clean, and it barely moves
+
+`asm/area2017`, 2018-2021: 648 rows/year, **360 at 6-digit NAICS, every expense item populated,
+zero suppression**. That part exceeded expectations.
+
+But the mappable share of manufacturing intermediate is 8.3% (2018) → 8.5% (2021), and per industry:
+
+| Movement in mappable share, 2018→2021 | |
+|---|---|
+| Median absolute change | **0.65 pp** |
+| Mean absolute change | 1.42 pp |
+| Industries moving >2pp | 44 / 360 |
+| Industries moving >5pp | **4 / 360** |
+
+And the four large movers (`334614` 75.3%→12.7%, `334613` 61.1%→5.1%, `322121` 49.4%→4.2%,
+`322122` 28.2%→2.3%) are implausible as economics — magnetic/optical media and paper mills swinging
+50-60 points looks like industry restructuring or reclassification, not a change in input mix. They
+need to be treated as suspect, not as signal.
+
+**Against the bar set in #564 — beat inflation-carried 2017 proportions — this fails.** A category
+covering 8% of the column and moving 0.65pp at the median is not worth a new source dependency and
+three survey seams.
+
+## The services workbook, checked separately
+
+`sas-22.xlsx`, already pulled by [`Census_SAS.yaml`](../../extract/census/Census_SAS.yaml):
+
+- **Table 3 "Estimated Expense"** — 405 distinct NAICS codes including **227 at 6-digit**, **2013-2022**,
+  with per-year CVs. But the `Item` column has exactly one value: `Expenses`. It is a **total**, not a
+  breakdown.
+- **Table 5 "Estimated Selected Expenses"** — the real breakdown, 18 common items plus sector-specific
+  ones. But **63 industries, and 2020-2022 only**.
+
+So the workbook confirms the API picture from the other direction: depth without structure (Table 3),
+or structure without depth or history (Table 5).
+
+## What is actually worth taking
+
+1. **SAS Table 3 as a column control total.** Total operating expenses at 227 six-digit service NAICS,
+   2013-2022, with CVs, already wired into bedrock. It says nothing about *structure*, but it is a
+   detail-level control on the **size** of each service industry's column — which the summary SUT
+   (Step 5) only constrains at summary level. This is the most useful thing the probe found, and it is
+   not what the probe was looking for.
+2. **Manufacturing energy inputs, 2018-2021.** `CSTELEC` and `CSTFU` are 2.2-2.3% of the column but map
+   to *specific* commodities (221100, 221200/324110) at 6-digit with no suppression — and energy inputs
+   matter disproportionately for the EEIO use case downstream. Narrow, but clean and directly relevant.
+3. **The 2017 vs 2022 `MATFUEL` comparison** — unaffected by any of the above, since it is Economic
+   Census rather than annual survey. Still the highest-value item in #564, and the only one that
+   addresses the 82% of manufacturing's column that the annual data cannot see.
+
+## What to drop
+
+- The premise that AIES gives a harmonized annual series across the ASM/SAS/ARTS/AWTS seam. It does not.
+- Any expectation of annual input structure for **services** at BEA Detail — one row per sector.
+- Any expectation of margins-relevant data for **wholesale/retail** from `exp02` — not in the dataset.
+- Reconstructing intermediate *structure* for manufacturing from annual expenses — 82% is one cell.
+
+## Reproducing
+
+Needs `CENSUS_API_KEY` in `.env` (gitignored). All findings above come from
+`timeseries/aies/exp02`, `timeseries/asm/area2017`, `timeseries/asm/industry` and `sas-22.xlsx`;
+queries are of the form
+`?get=<vars>&for=us:*&time=<year>&key=$CENSUS_API_KEY`. Note `time=`, not `YEAR=` — the latter
+silently returns HTTP 204 rather than an error.
+
+---
+
+# Desk research (pre-probe)
 
 Plan context: [`.claude/plan/nowcast_phase1_plan.md`](../../../.claude/plan/nowcast_phase1_plan.md),
 Step 3 (intermediate block). Current Step 3 method is #497's — seed from the 2017 detail Use table and
@@ -152,7 +289,9 @@ greenfield — which is a large part of why this is worth probing before committ
 
 ---
 
-## The real question
+## The questions the probe set out to answer
+
+*(All four are answered in [Probe results](#probe-results) above.)*
 
 Not "does annual expense data exist" — it does, some of it is already in bedrock. The questions are:
 
@@ -172,7 +311,7 @@ Not "does annual expense data exist" — it does, some of it is already in bedro
 
 ---
 
-## Suggested probe, in order
+## Probe plan as originally drafted
 
 Benchmark-year replay is the plan's standard test and applies here directly.
 

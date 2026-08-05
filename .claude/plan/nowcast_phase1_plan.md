@@ -5,7 +5,7 @@ Nowcasted national Supply/Use tables → Make/Use/Import/Margins deliverables, 2
 GitHub project: [cornerstone-data/projects/26 — "Nowcast US IOT Phase 1"](https://github.com/orgs/cornerstone-data/projects/26)
 (33 items, milestone `v0.5`). Its description: *"Draw on and further improve code from flowsa, USEEIO
 and useeior repositories that implement a nowcasting approach to estimate US **2018-2025** Make, Use
-and Import Matrices."* Code lands on the long-lived `nowcast` integration branch, not `main`.
+and Import Matrices."* Code lands on the long-lived `nowcast` integration branch, not `main`, until a phase is complete.
 
 **Year scope is 2018-2025, split across two project phases:**
 
@@ -461,19 +461,24 @@ not introduce a step 10.
   is **purchaser**. **Seed from `Use_SUT_Framework_2017_DET`** — native SUT, native purchaser, native
   before-redef, all three right in one object, and already loadable via `_load_2017_detail_sut_usa`.
   No conversion round-trip, and no `load_2017_Utot_before_redef_usa()` in this step.
-- 🔵 **Optional, not on the critical path — annual business-survey expense data.** The method above
-  freezes every industry's *input structure* at its 2017 shape and moves only the price level. The
-  Census annual surveys (Manufactures, Retail, Wholesale, Services, Transportation) collect **inputs to
-  production** annually, reported at **purchaser prices** — the SUT Use basis exactly — so they could
-  put real annual movement into that structure. Desk research is written up in
-  [`bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md`](bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md);
-  the probe is [#564](https://github.com/cornerstone-data/bedrock/issues/564). Headlines: the AIES `exp02` endpoint publishes ~35 named expense
-  categories with per-cell CVs, 1992-2023; bedrock's `Census_SAS.yaml` already pulls the SAS expense
-  table for 2013-2022; but **materials are one undifferentiated bucket annually** — the commodity
-  breakout is quinquennial (`EC1731MATFUEL`/`EC2231MATFUEL`), which caps this at the services side of
-  the column plus a **second structural anchor in 2022**. Realistic outcome is a hybrid: survey-informed
-  where coverage and depth allow, inflation-carried 2017 proportions elsewhere. **Step 3 ships without
-  it**; treat as an improvement pass.
+- ❌ **Annual business-survey expense data — probed, does not work as a general source.** The method
+  above freezes every industry's *input structure* at its 2017 shape. The Census annual surveys collect
+  inputs to production annually at **purchaser prices** (the SUT Use basis exactly), so they looked like
+  the way to put real annual movement into that structure. Probed against the live API in
+  [#564](https://github.com/cornerstone-data/bedrock/issues/564); full results in
+  [`bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md`](bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md).
+  **Depth and coverage never coincide:** manufacturing publishes at full 6-digit NAICS with zero
+  suppression but only **8.3%** of its column is commodity-mappable (82.5% is one materials bucket);
+  the service sectors are 16-45% mappable but publish **one row per sector**. Wholesale and retail are
+  absent entirely, so there is nothing here for Step 4c either. The AIES “1992-2023” span is nominal —
+  detailed expenses return **2023 only**, and 2017/2022 have no ASM at all (Economic Census years). The
+  manufacturing mappable share moved a median **0.65pp** across 2018-2021, which does not beat
+  inflation-carried 2017 proportions. **Step 3 proceeds unchanged.**
+  Three narrow things worth keeping: SAS Table 3 gives **total** operating expenses at 227 six-digit
+  service NAICS for 2013-2022 (a detail-level *column control*, useful to Step 5 — already wired via
+  `Census_SAS.yaml`); manufacturing `CSTELEC`/`CSTFU` map to specific energy commodities at 6-digit,
+  2018-2021; and the **2017 vs 2022 `MATFUEL` comparison** stands on its own as the one thing that can
+  see the 82% the annual data cannot.
 
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
