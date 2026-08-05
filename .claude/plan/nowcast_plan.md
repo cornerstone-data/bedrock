@@ -8,10 +8,16 @@ and useeior repositories that implement a nowcasting approach to estimate US **2
 and Import Matrices."* Code lands on the long-lived `nowcast` integration branch, not `main`, until a phase is complete.
 
 **Branching policy.** Work for this project **branches off `nowcast`** and **merges back into
-`nowcast`** when ready. `nowcast` is **kept up to date with `main`**; it is not merged back into `main`
-until the project is complete. So `nowcast` is effectively `main` for everything in this plan — base
-branches on it, target PRs at it, and refresh it from `main` rather than rebasing individual feature
-branches onto `main`.
+`nowcast`** when ready. `nowcast` is **kept up to date with `main` by merge, not rebase** — a rebase
+would rewrite history that feature branches are based on — and it is not merged back into `main` until
+the project is complete. So `nowcast` is effectively `main` for everything in this plan: base branches
+on it, target PRs at it, and refresh it from `main` rather than rebasing individual feature branches
+onto `main`.
+
+This applies to the two stale branches as well. `nipa_fd_allocation_fix` (14 behind main) gets rebased
+onto `nowcast` after #569 passes, and the four commits worth salvaging from it land on `nowcast` — not
+on `main`, which would recreate the duplicate-SHA situation `fix_non_naics_sector_levels` is already
+in.
 
 **Year scope is 2018-2025, split across two project phases:**
 
