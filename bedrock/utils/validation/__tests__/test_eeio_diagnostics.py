@@ -515,10 +515,11 @@ def test_eeio_year_alignment_precondition_ok() -> None:
         {
             'model_base_year': 2024,
             'usa_ghg_data_year': 2024,
-            'use_E_data_year_for_x_in_B': True,
+            'apply_io_year_adjustments': True,
         },
         strict=True,
     )
+    assert cfg.use_ghg_year_x_in_B
     assert eeio_year_alignment_precondition_ok(cfg)
     assert_eeio_year_alignment_precondition(cfg)
 
@@ -528,7 +529,7 @@ def test_eeio_year_alignment_precondition_fails_loud() -> None:
         {
             'model_base_year': 2024,
             'usa_ghg_data_year': 2023,
-            'use_E_data_year_for_x_in_B': True,
+            'apply_io_year_adjustments': True,
         },
         strict=True,
     )

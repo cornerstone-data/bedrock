@@ -472,14 +472,13 @@ def compare_output_from_make_and_use(
 def eeio_year_alignment_precondition_ok(cfg: USAConfig) -> bool:
     """Return True when χ=1 is a valid surrogate for useeior Chi year alignment.
 
-    Requires matching model/GHG years, ``use_E_data_year_for_x_in_B``, and no
-    scaled/deflated B paths that introduce intermediate dollar years.
+    Requires matching model/GHG years, GHG-year ``x`` in B
+    (``use_ghg_year_x_in_B``), and no deflated-B path that introduces an
+    intermediate dollar year.
     """
     if cfg.model_base_year != cfg.usa_ghg_data_year:
         return False
-    if not cfg.use_E_data_year_for_x_in_B:
-        return False
-    if cfg.use_scaled_x_and_scaled_Vnorm_for_B:
+    if not cfg.use_ghg_year_x_in_B:
         return False
     if cfg.deflate_x_to_detail_io_year_for_B:
         return False
@@ -510,12 +509,10 @@ def assert_eeio_year_alignment_precondition(
             f'model_base_year ({cfg.model_base_year}) != '
             f'usa_ghg_data_year ({cfg.usa_ghg_data_year})'
         )
-    if not cfg.use_E_data_year_for_x_in_B:
-        reasons.append('use_E_data_year_for_x_in_B is False')
-    if cfg.use_scaled_x_and_scaled_Vnorm_for_B:
+    if not cfg.use_ghg_year_x_in_B:
         reasons.append(
-            'use_scaled_x_and_scaled_Vnorm_for_B is True '
-            '(intermediate dollar years break χ=1)'
+            'use_ghg_year_x_in_B is False '
+            '(need apply_io_year_adjustments or use_E_data_year_for_x_in_B)'
         )
     if cfg.deflate_x_to_detail_io_year_for_B:
         reasons.append(
