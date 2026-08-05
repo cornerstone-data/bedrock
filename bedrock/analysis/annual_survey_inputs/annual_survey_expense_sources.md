@@ -1,12 +1,14 @@
-# Annual business-survey expense data as a source for intermediate requirements
+# Annual survey data as a source for intermediate requirements
 
-Desk-research notes on whether the Census annual business surveys (Manufactures, Retail, Wholesale,
-Services, Transportation) can supply annual information on **inputs to production**, for use in
-estimating the SUT Use table's intermediate block for nowcast years 2018-2025.
+Whether annual statistical sources can supply information on **inputs to production**, for use in
+estimating the SUT Use table's intermediate block for nowcast years 2018-2025. Covers the Census annual
+business surveys (Manufactures, Retail, Wholesale, Services, Transportation), the Census survey of
+**state and local government finances**, and USDA ERS **farm income** statistics.
 
-**Status: probed against the live Census API.** See [Probe results](#probe-results) below for the
-answer, which is largely negative. The desk-research sections that follow it record what the sources
-are; the probe section records what they actually contain.
+**Status: probed against the live Census, ERS and SAS sources.** See [Probe results](#probe-results)
+below. **Mixed answer: negative for the business surveys, positive for agriculture and government.**
+The desk-research sections that follow record what the sources are; the probe sections record what they
+actually contain.
 
 **Probe task:** [#564](https://github.com/cornerstone-data/bedrock/issues/564) — optional, not on the
 critical path for Step 3.
@@ -15,9 +17,13 @@ critical path for Step 3.
 
 # Probe results
 
-Run against the live Census API (2026-08-04). **Verdict: this does not deliver a general annual
-input-structure source.** Two narrow pieces are worth keeping; the broad ambition is not supported by
-the data.
+Run against live sources (2026-08-04).
+
+**Verdict, in short:** the *business* surveys — manufacturing, services, wholesale, retail — do not
+deliver a general annual input-structure source. But **agriculture and government, which the business
+surveys don't cover at all, both do**, and were probed separately
+([below](#government-and-agriculture--probed-separately-and-these-two-work)). The sector-by-sector
+recommendation is [here](#revised-recommendation).
 
 ## The finding, in one line
 
@@ -128,7 +134,116 @@ or structure without depth or history (Table 5).
    Census rather than annual survey. Still the highest-value item in #564, and the only one that
    addresses the 82% of manufacturing's column that the annual data cannot see.
 
-## What to drop
+## Government and agriculture — probed separately, and these two work
+
+Both sectors are **absent from the business surveys entirely** (agriculture `11` is not in `exp02`;
+government is not a business sector at all), so they were probed against their own sources. Unlike the
+business-survey result above, **both are usable** — for different reasons.
+
+### Government: right object, right depth, annual
+
+Census **State and Local Government Finances**, `timeseries/govslocalfin`, **2017-2024** (2025 not yet).
+Structure is **function × object**, not commodity:
+
+- Object categories: `Current Operations`, `Capital Outlay`, `Assistance and Subsidies`,
+  `Interest on Debt`, plus an exhibit line for `Salaries and Wages`.
+- Function categories: education (elementary/secondary, higher, other), highways, health, hospitals,
+  correction, fire, police, judicial, financial administration, public buildings, parks, air/sea
+  transport, utilities (water, gas, electric, transit), and more — 234 aggregate codes in all.
+- Government types: state, county, municipal, township, special district, school district, and totals.
+
+2022, state + local combined ($ thousands):
+
+| | Amount |
+|---|---:|
+| Direct expenditure — Current Operations | 3,737,573,883 |
+| less Exhibit: Salaries and Wages | 1,133,452,594 |
+| **= non-labor intermediate consumption** | **2,604,121,289** (70% of current ops) |
+| Direct expenditure — Capital Outlay | 434,947,070 |
+| Direct expenditure — Assistance and Subsidies | 68,172,649 |
+
+**Why this one works where the business surveys didn't.** The BEA government industries (`G*`) are
+mostly **not commodity-specific** to begin with, so the absence of a commodity split is not the
+disqualifier it was for manufacturing. What Step 3 needs for those industries is a **column total**,
+and `Current Operations − Salaries and Wages` is exactly that — annual, by function, by government
+type, for every year in the Phase 1 span.
+
+Two bonuses beyond Step 3:
+
+- **`Salaries and Wages` feeds Step 2** (`V00100` for the government industries) on the same pull.
+- **`Capital Outlay` by function** is the natural check on the FD government investment columns
+  (`F06S00`/`F07S00`/`F10S00` structures, `F06E00`/`F10E00` equipment) — which is where the plan's
+  **open SLG Equipment/Structures/IP attribution bug** lives (§Step 0). Worth pointing at that bug
+  directly.
+
+Caveats: this is **state and local only** — federal needs a separate source. Row counts jump from 137
+(2017-2021) to 232 (2022-2024), so something changed in coverage or published detail at 2022; check
+before treating the series as continuous. Federal and state tax/pension/employment siblings exist
+(`govsstatefin`, `govsstatetax`, `govsemp`, `govspension`, `govsschfin`) if needed.
+
+### Agriculture: the best coverage of anything probed, and it already runs to 2025
+
+USDA **ERS Farm Income and Wealth Statistics** — **already wired into bedrock** as
+[`USDA_ERS_FIWS`](../../extract/usda/USDA_ERS_FIWS.yaml), **no API key required**, plain CSV. The yaml
+currently declares 2010-2023; the file itself carries **1910-2025**.
+
+It publishes **"Intermediate product expenses"** as an explicit named concept — the IO concept itself,
+not an accounting proxy — split into categories that map to BEA commodities almost one-for-one:
+
+| Category | 2017 | 2023 | 2025 | share of intermediate, 2023 |
+|---|---:|---:|---:|---:|
+| Feed | 54,538 | 80,043 | 62,432 | 25.2% |
+| Livestock purchases | 27,414 | 42,980 | 50,522 | 13.5% |
+| Fertilizer, lime & soil conditioner | 22,033 | 35,834 | 29,236 | 11.3% |
+| Seed | 22,516 | 27,327 | 27,718 | 8.6% |
+| Pesticide | 15,716 | 21,617 | 18,142 | 6.8% |
+| Repair & maintenance | 15,809 | 20,124 | 20,587 | 6.3% |
+| Petroleum fuel & oil | 12,761 | 17,606 | 15,204 | 5.5% |
+| Insurance premiums | 10,307 | 15,407 | 14,633 | 4.9% |
+| Marketing, storage & transportation | 9,823 | 12,659 | 13,995 | 4.0% |
+| Electricity | 5,806 | 7,073 | 7,602 | 2.2% |
+| Machine hire & custom work | 4,570 | 6,318 | 6,408 | 2.0% |
+| **Total intermediate product expenses** | **226,611** | **317,407** | **298,474** | |
+| **→ mappable share** | **89.5%** | **91.0%** | **89.3%** | |
+
+**89-91% mappable, against manufacturing's 8.3%.** There is no giant undifferentiated materials bucket
+— the "miscellaneous" residual is ~15% and is itself partly broken out (irrigation, insurance).
+
+**And it has 2024 and 2025 already**, which nothing else probed does. That is directly relevant to
+Phase 2, whose entire gate is the absence of 2025 source data. Note ERS publishes the current year as a
+**forecast**, so 2025 values are not a realized estimate — flag rather than treat as measured.
+
+Two limits to be honest about:
+
+1. **It is one farm sector, not the ~10 BEA agriculture industries.** Geography is national + 51 states;
+   there is no NAICS-6 crop/livestock split. So it constrains the **aggregate** agriculture column, and
+   splitting to BEA detail industries still needs 2017 proportions. Coverage is excellent; *depth* is
+   the same problem as everywhere else, just less severe because agriculture is a small part of the
+   BEA industry list.
+2. **The share structure is stable even though levels move hard.** Median share change 2017→2023 is
+   **0.35pp** — comparable to manufacturing's 0.65pp. But total intermediate expenses went
+   226.6 → 317.4 → 298.5 billion, a 40% rise and partial fall, with feed swinging 54.5 → 83.6 → 62.4.
+   **That is the argument for using it**: Step 3's inflation-carried approach moves cells by a commodity
+   price index, and a shock of that size and shape is not what a price index reproduces. The value here
+   is in the **levels**, not in a shifting mix.
+
+Also worth noting: `Intermediate product expenses, miscellaneous, irrigation` goes to zero for 2024-2025
+— a discontinued series, not an economic collapse. Don't propagate the zero.
+
+### Revised recommendation
+
+The negative verdict above stands for **manufacturing, services, wholesale and retail**. It does not
+extend to these two:
+
+| Sector | Verdict | What to use |
+|---|---|---|
+| Agriculture (`11`) | ✅ **Use it** | ERS FIWS intermediate product expenses; 89-91% mappable; already in bedrock; extend the yaml past 2023 to pick up 2024-2025 |
+| Government (`G*`) | ✅ **Use it** | `govslocalfin` Current Operations − Salaries and Wages as the column total; commodity split not expected for these industries anyway. Federal still needs a source |
+| Manufacturing (`31-33`) | ⚠️ Energy only | `CSTELEC`/`CSTFU` at 6-digit, 2018-2021 |
+| Services | ⚠️ Control totals only | SAS Table 3 at 227 six-digit NAICS |
+| Wholesale / retail | ❌ Nothing | absent from `exp02` |
+
+## What to drop (business surveys)
 
 - The premise that AIES gives a harmonized annual series across the ASM/SAS/ARTS/AWTS seam. It does not.
 - Any expectation of annual input structure for **services** at BEA Detail — one row per sector.
@@ -137,8 +252,9 @@ or structure without depth or history (Table 5).
 
 ## Reproducing
 
-Needs `CENSUS_API_KEY` in `.env` (gitignored). All findings above come from
-`timeseries/aies/exp02`, `timeseries/asm/area2017`, `timeseries/asm/industry` and `sas-22.xlsx`;
+Needs `CENSUS_API_KEY` in `.env` (gitignored) for the Census endpoints; ERS FIWS needs no key. Findings
+come from `timeseries/aies/exp02`, `timeseries/asm/area2017`, `timeseries/asm/industry`,
+`timeseries/govslocalfin`, `sas-22.xlsx`, and the ERS Farm Income and Wealth Statistics CSV;
 queries are of the form
 `?get=<vars>&for=us:*&time=<year>&key=$CENSUS_API_KEY`. Note `time=`, not `YEAR=` — the latter
 silently returns HTTP 204 rather than an error.

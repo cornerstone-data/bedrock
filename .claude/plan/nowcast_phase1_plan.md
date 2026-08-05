@@ -461,24 +461,42 @@ not introduce a step 10.
   is **purchaser**. **Seed from `Use_SUT_Framework_2017_DET`** — native SUT, native purchaser, native
   before-redef, all three right in one object, and already loadable via `_load_2017_detail_sut_usa`.
   No conversion round-trip, and no `load_2017_Utot_before_redef_usa()` in this step.
-- ❌ **Annual business-survey expense data — probed, does not work as a general source.** The method
-  above freezes every industry's *input structure* at its 2017 shape. The Census annual surveys collect
-  inputs to production annually at **purchaser prices** (the SUT Use basis exactly), so they looked like
-  the way to put real annual movement into that structure. Probed against the live API in
-  [#564](https://github.com/cornerstone-data/bedrock/issues/564); full results in
+- ⚠️ **Annual survey expense data — probed; works for agriculture and government, not for the rest.**
+  The method above freezes every industry's *input structure* at its 2017 shape. Annual surveys collect
+  inputs to production at **purchaser prices** (the SUT Use basis exactly), so they looked like the way
+  to put real annual movement into it. Probed in [#564](https://github.com/cornerstone-data/bedrock/issues/564);
+  full results in
   [`bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md`](bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md).
-  **Depth and coverage never coincide:** manufacturing publishes at full 6-digit NAICS with zero
-  suppression but only **8.3%** of its column is commodity-mappable (82.5% is one materials bucket);
-  the service sectors are 16-45% mappable but publish **one row per sector**. Wholesale and retail are
-  absent entirely, so there is nothing here for Step 4c either. The AIES “1992-2023” span is nominal —
-  detailed expenses return **2023 only**, and 2017/2022 have no ASM at all (Economic Census years). The
-  manufacturing mappable share moved a median **0.65pp** across 2018-2021, which does not beat
-  inflation-carried 2017 proportions. **Step 3 proceeds unchanged.**
-  Three narrow things worth keeping: SAS Table 3 gives **total** operating expenses at 227 six-digit
-  service NAICS for 2013-2022 (a detail-level *column control*, useful to Step 5 — already wired via
-  `Census_SAS.yaml`); manufacturing `CSTELEC`/`CSTFU` map to specific energy commodities at 6-digit,
-  2018-2021; and the **2017 vs 2022 `MATFUEL` comparison** stands on its own as the one thing that can
-  see the 82% the annual data cannot.
+
+  | Sector | Verdict | What to use |
+  |---|---|---|
+  | Agriculture `11` | ✅ **use** | ERS FIWS "intermediate product expenses" — **89-91% commodity-mappable**, already in bedrock (`USDA_ERS_FIWS`, no API key), and carries **2024-2025** |
+  | Government `G*` | ✅ **use** | `govslocalfin` Current Operations − Salaries and Wages as the column total, 2017-2024 |
+  | Manufacturing | ⚠️ energy only | `CSTELEC`/`CSTFU` at 6-digit, 2018-2021 |
+  | Services | ⚠️ control totals only | SAS Table 3, 227 six-digit NAICS, 2013-2022 |
+  | Wholesale / retail | ❌ nothing | absent from AIES `exp02` |
+
+  **Why the business surveys fail: depth and coverage never coincide.** Manufacturing publishes at full
+  6-digit NAICS with zero suppression but only **8.3%** of its column is commodity-mappable (82.5% is one
+  materials bucket); the service sectors are 16-45% mappable but publish **one row per sector**. The AIES
+  "1992-2023" span is nominal — detailed expenses return **2023 only**, and 2017/2022 have no ASM at all
+  (Economic Census years). Manufacturing's mappable share moved a median **0.65pp** across 2018-2021,
+  which does not beat inflation-carried 2017 proportions.
+
+  **Why agriculture and government do work.** Both are absent from the business surveys and have their
+  own sources. ERS FIWS publishes *intermediate product expenses* as an explicit concept, split into feed
+  / seed / fertilizer / pesticide / fuel / electricity / livestock / repairs / transport — 89-91%
+  mappable with no giant residual, and the **levels** move hard (total 226.6 → 317.4 → 298.5 billion
+  across 2017-2025) in a way a commodity price index will not reproduce. Its limits: one farm sector
+  rather than the ~10 BEA agriculture industries, so splitting to detail still needs 2017 proportions;
+  and the current year is an ERS **forecast**, not a realized estimate. For government, the `G*`
+  industries are mostly not commodity-specific anyway, so a column total is the right object — and the
+  same pull yields `Salaries and Wages` for **Step 2** and `Capital Outlay` by function, which bears
+  directly on the **open SLG Equipment/Structures/IP attribution bug** (§Step 0). State and local only;
+  federal still needs a source.
+
+  **Step 3's default stays #497's inflation-carried 2017 proportions**, with agriculture and government
+  as the two justified departures.
 
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
