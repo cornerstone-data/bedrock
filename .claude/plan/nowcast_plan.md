@@ -7,6 +7,12 @@ GitHub project: [cornerstone-data/projects/26 — "Nowcast US IOT Phase 1"](http
 and useeior repositories that implement a nowcasting approach to estimate US **2018-2025** Make, Use
 and Import Matrices."* Code lands on the long-lived `nowcast` integration branch, not `main`, until a phase is complete.
 
+**Branching policy.** Work for this project **branches off `nowcast`** and **merges back into
+`nowcast`** when ready. `nowcast` is **kept up to date with `main`**; it is not merged back into `main`
+until the project is complete. So `nowcast` is effectively `main` for everything in this plan — base
+branches on it, target PRs at it, and refresh it from `main` rather than rebasing individual feature
+branches onto `main`.
+
 **Year scope is 2018-2025, split across two project phases:**
 
 | | Scope | Timing | Gate |
@@ -677,7 +683,7 @@ Main already carries `dcf7077` (S00401/S00402 via `non_naics`), `091bcc3` (U5050
 `9668ce7` (PCE/PEQ on own bridge rows — **#547's fix**, so #547 may be closeable) and `42f7e59` (the
 revert). Only the `Sector_Levels` swallow fix is missing, as two duplicate SHAs.
 
-**Phase 1 branches fresh from main**, cherry-picking just that one patch. Not from
+**Phase 1 branches off `nowcast`**, cherry-picking just that one patch. Not from
 `nipa_fd_allocation_fix`: #569's gate is *GHG A/B returns to zero delta*, which cannot be demonstrated
 from a base that itself breaks GHG, and that branch is Phase 2 work sitting on unmet Phase 1
 preconditions — the mistake the cleanup plan itself records. It stays as the **Phase 2 consumer
