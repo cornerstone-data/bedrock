@@ -26,8 +26,11 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_SUMMARY_MUT_MAPPING_1997_2024,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
+    USA_SUMMARY_SUT_MAPPING_1997_2023,
+    USA_SUMMARY_SUT_MAPPING_1997_2024,
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
+    USA_SUMMARY_SUT_YEARS,
 )
 from bedrock.utils.taxonomy.bea.v2017_commodity import (
     USA_2017_COMMODITY_CODES,
@@ -764,14 +767,24 @@ def _load_usa_summary_mut(
 
 
 def _load_usa_summary_sut(
-    matrix_name: USA_SUMMARY_SUT_NAMES, year: USA_SUMMARY_MUT_YEARS
+    matrix_name: USA_SUMMARY_SUT_NAMES, year: USA_SUMMARY_SUT_YEARS
 ) -> pd.DataFrame:
     """
     Load USA Summary tables in Supply-use format
     """
+
+    # Same vintage pinning as _load_usa_summary_mut above: each year is read from the
+    # oldest published workbook containing it, so BEA's historical revisions do not
+    # move values under existing consumers as new vintages add years on the right.
+    if year > 2023:
+        mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
+    elif year > 2022:
+        mapping = USA_SUMMARY_SUT_MAPPING_1997_2023
+    else:
+        mapping = USA_SUMMARY_SUT_MAPPING_2017_2022
     df = (
         load_from_gcs(
-            name=USA_SUMMARY_SUT_MAPPING_2017_2022[matrix_name],
+            name=mapping[matrix_name],
             sub_bucket=GCS_USA_SUP_DIR,
             local_dir=LOCAL_USA_SUP_DIR,
             loader=lambda pth: pd.read_excel(

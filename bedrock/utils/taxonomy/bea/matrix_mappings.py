@@ -58,6 +58,19 @@ USA_SUMMARY_SUT_MAPPING_2017_2022 = {
     "Supply_summary": "Supply_Tables_2017-2022_Summary.xlsx",
     "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx",
 }
+# BEA extended the summary supply-use tables back to 1997 with the 2023 vintage, so
+# the newer workbooks are named 1997-YYYY rather than 2017-YYYY.
+USA_SUMMARY_SUT_MAPPING_1997_2023 = {
+    "Supply_summary": "Supply_Tables_1997-2023_Summary.xlsx",
+    "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_1997-2023_Summary.xlsx",
+}
+# The 2024 vintage ships in https://apps.bea.gov/industry/release/zip/SUPPLY-USE.zip
+# as `Supply_Summary.xlsx` / `Use_Summary.xlsx` - BEA dropped the year span from the
+# file names. Renamed on upload to keep the vintage visible, as above.
+USA_SUMMARY_SUT_MAPPING_1997_2024 = {
+    "Supply_summary": "Supply_Tables_1997-2024_Summary.xlsx",
+    "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx",
+}
 
 USA_DETAIL_MUT_YEARS = ta.Literal[2007, 2012, 2017]
 USA_SUMMARY_MUT_YEARS = ta.Literal[
@@ -81,6 +94,21 @@ USA_SUMMARY_MUT_YEARS = ta.Literal[
     2024,
 ]
 USA_GROSS_INDUSTRY_OUTPUT_YEARS = USA_SUMMARY_MUT_YEARS
+
+# Years wired up for summary SUT. It stops at 2017 on the left because that is where
+# the pinned 2017-2022 workbook starts, not because of the data: the 1997-YYYY
+# workbooks carry 1997-2016 on the same schema, so earlier years can be added here
+# once they are given a vintage to pin to in `_load_usa_summary_sut`.
+USA_SUMMARY_SUT_YEARS = ta.Literal[
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+]
 
 USA_2017_TAX_LESS_SUBSIDIES_CODE = ta.Literal["TOP", "SUB"]
 USA_2017_TAX_LESS_SUBSIDIES_CODES: ta.List[USA_2017_TAX_LESS_SUBSIDIES_CODE] = list(
