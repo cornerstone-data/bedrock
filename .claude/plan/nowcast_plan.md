@@ -641,6 +641,15 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
 - **Unit tests** for the ported RAS (small hand-checkable matrices — zero control totals are the
   classic silent failure), the SUT/MUT FD code lists, and the margin reassignment in 6b.
 - **Golden-file per year** once Step 1 stabilizes, so later phases don't silently drift the FD block.
+- **Supply/Use match visualization (#587)** — a full-table picture, cell by cell *and* on the row and
+  column totals: green where we have input data that matches the reference, a shade of yellow where the
+  match is imperfect, white where there is nothing to compare. Built as a comparison engine plus a
+  renderer, so the same logic is an assertion in CI and a picture in review. **Every step gets a
+  reference to compare against** (Step 1 the Use SUT FD columns, Step 4 the published detail Supply,
+  Step 6 the four before-redef MUT tables, and so on), which makes this the one diagnostic that spans
+  the whole build. It is also the natural answer to the totals trap: `T014` nets to ~1 and redefinition
+  preserves every total, so a green interior with yellow margins localises an error that no scalar
+  check can see.
 
 ## Issue coverage and priority
 
@@ -711,9 +720,14 @@ trackable until promoted. The superseded VA-redefinition draft was removed and r
   replay — the single highest-value test in the project — then #572.
 - **P3** — #586, then Step 9 (promote drafts).
 
-**Filed 2026-08-05:** #573-#586, one issue per sub-step, all on the board with milestone `v0.5`. Every
-plan step now has issue coverage except Step 6b, which is tracked only as USEEIO issue #4, and Steps 5
-and 9, which remain board drafts. Board: 33 → 54 items.
+**Filed 2026-08-05:** #573-#586 plus #587, one issue per sub-step, all on the board with milestone
+`v0.5`. Every plan step now has issue coverage; Steps 5 and 9 remain board drafts with no issue number.
+Board: 33 → 55 items.
+
+**Titles carry their step.** All 45 board issues were renamed to a `Step <n><letter>: ` prefix so the
+board reads against this plan — `Step 1a`, `Step 4c`, `Step 6a` and so on. Two non-step prefixes:
+`BEA code space: ` for the gating layer (#546, #566-#569), and `Diagnostics: ` for #587, which spans
+every step. USEEIO #4 is `Step 6b`. Pull requests were left alone; they inherit from their issue.
 
 ## Open questions
 
