@@ -10,7 +10,7 @@ finances, and USDA ERS farm income statistics.
 
 Probe scripts land here as they are written.
 
-Related: [`.claude/plan/nowcast_phase1_plan.md`](../../../.claude/plan/nowcast_phase1_plan.md) Step 3;
+Related: [`.claude/plan/nowcast_plan.md`](../../../.claude/plan/nowcast_plan.md) Step 3;
 existing extractors [`Census_SAS.yaml`](../../extract/census/Census_SAS.yaml),
 [`Census_ASM.yaml`](../../extract/census/Census_ASM.yaml),
 [`Census_EC.yaml`](../../extract/census/Census_EC.yaml),

@@ -691,12 +691,12 @@ rediscovers the same 210-code problem from scratch.
 | **4 Supply table** | **#570 (4a), #571 (4c)** | ❌ 4b import cols · 4d `TOP`/`SUB` · 4e identities |
 | 5 RAS | 4 board drafts | ⚠️ drafts, not issues |
 | 6 SUT→MUT | USEEIO #4 (6b only) | ❌ 6a Make · 6c import matrix · 6d Margins · 2017 replay validation |
-| 7 Redefinitions | 1 draft (VA only, superseded) | ❌ the real step, all four tables |
+| 7 Redefinitions | **#572** ✅ | replaced the VA-only draft — VA is redefined here, not on its own path |
 | 8 Cornerstone schema | none | ❌ |
 | 9 Storage/pipeline | 2 board drafts | ⚠️ drafts, not issues |
 
-Seven board cards are **drafts with no issue number** (Steps 5 and 9, plus the superseded VA
-redefinition card) and are not trackable until promoted.
+Six board cards are **drafts with no issue number** (four for Step 5, two for Step 9) and are not
+trackable until promoted. The superseded VA-redefinition draft was removed and replaced by #572.
 
 ### Priority
 
@@ -707,11 +707,11 @@ redefinition card) and are not trackable until promoted.
   `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks Steps 1f, 2 and 3. Then
   4b/4d/4e once the trade FBS path is safe.
 - **P2** — Step 5 (promote the four drafts), Step 6 conversion plus the 2017 benchmark replay — the
-  single highest-value test in the project — then Step 7.
+  single highest-value test in the project — then Step 7 (#572).
 - **P3** — Step 8, then Step 9 (promote drafts).
 
-Remaining to file: ~13 issues across Steps 0, 1d/1f, 3, 4b/4d/4e, 6a/6c/6d, 7, 8, plus promoting the
-seven drafts. Granularity agreed as **one issue per sub-step**.
+Remaining to file: ~12 issues across Steps 0, 1d/1f, 3, 4b/4d/4e, 6a/6c/6d and 8, plus promoting the
+six drafts. Granularity agreed as **one issue per sub-step**.
 
 ## Open questions
 
