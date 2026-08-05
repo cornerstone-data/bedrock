@@ -26,7 +26,6 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_SUMMARY_MUT_MAPPING_1997_2024,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
-    USA_SUMMARY_SUT_MAPPING_1997_2023,
     USA_SUMMARY_SUT_MAPPING_1997_2024,
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
@@ -773,13 +772,13 @@ def _load_usa_summary_sut(
     Load USA Summary tables in Supply-use format
     """
 
-    # Same vintage pinning as _load_usa_summary_mut above: each year is read from the
-    # oldest published workbook containing it, so BEA's historical revisions do not
-    # move values under existing consumers as new vintages add years on the right.
-    if year > 2023:
+    # Vintage pinning, as in _load_usa_summary_mut above: the workbook is chosen by
+    # year, not by recency, so BEA's historical revisions do not move values under
+    # existing consumers as new vintages add years on the right. 2017-2022 stays on
+    # the workbook its published FBAs were built from; a 2025 vintage would get its
+    # own `year > 2024` arm, leaving 2023-2024 where they are.
+    if year > 2022:
         mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
-    elif year > 2022:
-        mapping = USA_SUMMARY_SUT_MAPPING_1997_2023
     else:
         mapping = USA_SUMMARY_SUT_MAPPING_2017_2022
     df = (

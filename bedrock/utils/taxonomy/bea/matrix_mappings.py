@@ -59,14 +59,16 @@ USA_SUMMARY_SUT_MAPPING_2017_2022 = {
     "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx",
 }
 # BEA extended the summary supply-use tables back to 1997 with the 2023 vintage, so
-# the newer workbooks are named 1997-YYYY rather than 2017-YYYY.
-USA_SUMMARY_SUT_MAPPING_1997_2023 = {
-    "Supply_summary": "Supply_Tables_1997-2023_Summary.xlsx",
-    "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_1997-2023_Summary.xlsx",
-}
-# The 2024 vintage ships in https://apps.bea.gov/industry/release/zip/SUPPLY-USE.zip
-# as `Supply_Summary.xlsx` / `Use_Summary.xlsx` - BEA dropped the year span from the
-# file names. Renamed on upload to keep the vintage visible, as above.
+# the newer workbooks are named 1997-YYYY rather than 2017-YYYY. The 2024 vintage
+# ships in https://apps.bea.gov/industry/release/zip/SUPPLY-USE.zip as
+# `Supply_Summary.xlsx` / `Use_Summary.xlsx` - BEA dropped the year span from the file
+# names entirely. Renamed on upload to keep the vintage visible.
+#
+# 2023 and 2024 both read from this one workbook rather than each being pinned to the
+# vintage that first published it. Freezing 2023 at the 2023 vintage would be equally
+# stable, but it would put a vintage boundary between 2023 and 2024, so their
+# year-over-year step would carry a 0.3% revision artifact - and these are the RAS
+# control totals for exactly those years.
 USA_SUMMARY_SUT_MAPPING_1997_2024 = {
     "Supply_summary": "Supply_Tables_1997-2024_Summary.xlsx",
     "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx",
