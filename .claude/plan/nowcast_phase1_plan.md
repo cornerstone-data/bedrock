@@ -642,6 +642,77 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   classic silent failure), the SUT/MUT FD code lists, and the margin reassignment in 6b.
 - **Golden-file per year** once Step 1 stabilizes, so later phases don't silently drift the FD block.
 
+## Issue coverage and priority
+
+Reviewed 2026-08-05 against [project 26](https://github.com/orgs/cornerstone-data/projects/26) (40 items
+after this pass) and every open issue in the repo.
+
+### The gating layer sits above these steps
+
+[`bea_code_space_cleanup.md`](.claude/plan/bea_code_space_cleanup.md) is **P0 for this project**, not a
+parallel cleanup. Of the 406 BEA detail codes in `NAICS_Crosswalk_BEA_2017_Detail.csv`, **210 cannot be
+reached through any NAICS level**, so any FBS routed through a NAICS target schema drops or renormalises
+them. Every final-demand defect chased on 2026-07-29 reduced to that one cause.
+
+It had almost no issue coverage: only #546 (the round-trip symptom, and it was not even on the nowcast
+board) plus #547 for one downstream instance. Now tracked as **#566** (diagnostic — answers the open
+A-vs-B question and confirms or kills the GHG hypothesis) → **#567** (treat `non_naics` codes as their
+own roots) and **#568** (`SectorSourceName` expresses a non-NAICS schema) → **#569** (the Phase 1 gate:
+GHG A/B zero delta *with the BEA codes present*, plus removing the `'531'`/`'23'`/`'92'` hacks).
+
+Work is already in flight: `fix_non_naics_sector_levels` is 13 commits ahead of main and carries the
+`Sector_Levels` swallow fix and #547's attribution fix; `nipa_fd_allocation_fix` carries `dde7da4`,
+which breaks GHG and must not be merged as-is.
+
+### What is gated, and what is not
+
+The steps split cleanly by whether they run through the FBS attribution machinery. **This is the reason
+the project does not have to stall behind P0.**
+
+| Gated by the code-space fix | Independent of it |
+|---|---|
+| Step 1 — FD block (already bitten) | Step 4a domestic output / commodity mix |
+| Step 2 — VA; `NIPA_VA_*.yaml` is a new FBS and will hit the same wall | Step 4c transaction-level margins |
+| Step 3 — intermediate, incl. the agriculture/government departures | Step 4e Supply identities |
+| Step 4b/4d — #528 maps NAICS→BEA Detail, the exact lossy path | Steps 5, 6, 7 — transform over benchmark tables |
+
+Step 4 is both the **longest pole** and mostly **ungated**, so it starts immediately. Sequencing
+everything behind Phase 1 would idle the critical path; sequencing nothing behind it means Step 2
+rediscovers the same 210-code problem from scratch.
+
+### Coverage by step
+
+| Step | Issues | Gap |
+|---|---|---|
+| 0 Hygiene | #523, #539/#540 ✅ | ❌ summary SUT 2023-24 vintage · ❌ SLG Equip/Struct/IP attribution bug unissued |
+| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531, #547 | ❌ 1d SUT-vs-MUT FD code-list split (`F05000`) · ❌ 1f per-column FD validation (#537 is the VA side) |
+| 2 Value added | #535, #536, #537, #538 ✅ | retire the "VA into after redefinitions" draft — superseded by Step 7 |
+| 3 Intermediate | #497, #564 ✅ | ❌ agriculture (ERS FIWS) and government (`govslocalfin`) implementations |
+| **4 Supply table** | **#570 (4a), #571 (4c)** | ❌ 4b import cols · 4d `TOP`/`SUB` · 4e identities |
+| 5 RAS | 4 board drafts | ⚠️ drafts, not issues |
+| 6 SUT→MUT | USEEIO #4 (6b only) | ❌ 6a Make · 6c import matrix · 6d Margins · 2017 replay validation |
+| 7 Redefinitions | 1 draft (VA only, superseded) | ❌ the real step, all four tables |
+| 8 Cornerstone schema | none | ❌ |
+| 9 Storage/pipeline | 2 board drafts | ⚠️ drafts, not issues |
+
+Seven board cards are **drafts with no issue number** (Steps 5 and 9, plus the superseded VA
+redefinition card) and are not trackable until promoted.
+
+### Priority
+
+- **P0** — #566 → #567/#568 → #569. Land `fix_non_naics_sector_levels` first.
+- **P0-parallel** — #570 (4a) and #571 (4c). 4c has the highest fan-out of anything unbuilt: it feeds
+  the Supply margin columns, Step 6b's PUR→PRO conversion, and the Step 6d Margins deliverable.
+- **P1** — code-space Phase 2 (retarget `FD_Gov`/`FD_Structures`/`FD_IP`, drop
+  `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks Steps 1f, 2 and 3. Then
+  4b/4d/4e once the trade FBS path is safe.
+- **P2** — Step 5 (promote the four drafts), Step 6 conversion plus the 2017 benchmark replay — the
+  single highest-value test in the project — then Step 7.
+- **P3** — Step 8, then Step 9 (promote drafts).
+
+Remaining to file: ~13 issues across Steps 0, 1d/1f, 3, 4b/4d/4e, 6a/6c/6d, 7, 8, plus promoting the
+seven drafts. Granularity agreed as **one issue per sub-step**.
+
 ## Open questions
 
 1. ~~**#527 trade-data pick**~~ — **resolved** in
