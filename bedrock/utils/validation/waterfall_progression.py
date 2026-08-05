@@ -125,6 +125,8 @@ def _series_from_snapshot_frame(frame: pd.DataFrame | pd.Series) -> pd.Series[fl
     squeezed = frame.squeeze()
     if isinstance(squeezed, pd.DataFrame):
         squeezed = squeezed.iloc[:, 0]
+    if not isinstance(squeezed, pd.Series):
+        raise TypeError(f'expected Series after squeeze, got {type(squeezed).__name__}')
     return squeezed.astype(float)
 
 
