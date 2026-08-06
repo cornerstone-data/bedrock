@@ -212,6 +212,93 @@ Phase 2 ──┘
 Phases 1 and 2 are independent of each other and of the Phase 0 gate; start
 there. Phase 4 is where most of the risk sits and needs the most review.
 
+---
+
+# The rest of the value-added block
+
+`V00100` is the first target because it is the largest row and the best served.
+This section sizes the rest and sketches allocators, so the sequencing after
+Phase 5 is a decision rather than a default.
+
+## Priority by contribution to industry output
+
+Against total industry output `T018` = 33,772,568:
+
+| row | $M | share of output | priority |
+|---|---:|---:|---|
+| `T005` intermediate | 14,856,018 | 44.0% | Step 3, not here |
+| `V00100` compensation | 10,434,981 | **30.9%** | **first** — this plan |
+| `V00300` gross operating surplus | 7,873,013 | **23.3%** | **second** |
+| `T00OTOP` other taxes on production | 608,542 | 1.8% | last |
+
+`T00OTOP` is the row with *no* industry axis anywhere, and it is 1.8% of output.
+Those two facts together argue for doing it last and accepting a cruder method,
+not for doing it first because it looks hard.
+
+## `V00300` — where the work actually is
+
+Some of these lines touch a handful of sectors and some are genuinely
+economy-wide, and the **NIPA leaf names say which**. Read that way, `V00300`
+stops being one 7.9-trillion problem:
+
+| component | $M | of `V00300` | industry footprint, from the leaf names |
+|---|---:|---:|---|
+| Consumption of fixed capital | 3,148,953 | 40.0% | broad. `T62200D` has **63 leaves** at good industry grain — the best-served piece |
+| Corporate profits | 1,726,343 | 21.9% | broad, but `T61600D`'s 23 leaves mix in rest-of-world and aggregates; needs careful subtree selection |
+| Proprietors' income | 1,428,634 | 18.1% | genuinely broad across 21 sectors — construction 185,791, misc. professional 133,064, health care 121,797, other services 117,682 |
+| Net interest and misc. | 720,494 | 9.2% | **concentrated**: real estate 460,161 is 64% of it, and finance and insurance is **negative** at −156,707 |
+| Rental income of persons | 642,028 | 8.2% | **nearly single-sector**: leaves are by *type*, not industry — "Permanent site" 453,907 is 71%, plus mobile units and farm owner-occupied housing |
+| Business current transfers | 142,925 | 1.8% | small |
+| Statistical discrepancy | 67,902 | 0.9% | not allocable to any industry; spread pro rata and say so |
+| Current surplus of govt enterprises | −4,253 | −0.1% | trivial in size, but the sign is real |
+
+### The housing concentration
+
+Two sectors carry **19.6% of all `V00300`**:
+
+- `531HSO` owner-occupied housing — 1,164,524, which is **74.9% of that
+  sector's own output**
+- `531HST` tenant-occupied housing — 376,515, **75.8% of its output**
+
+And the two most concentrated NIPA sources land there: rental income of persons
+(642,028) plus the real-estate share of net interest (460,161) is 1,102,189.
+
+So **housing is the highest-value target in `V00300`**, and it is the opposite
+of a broad allocation problem — `531HSO` has zero compensation and is almost
+entirely operating surplus. Getting the housing pair right is worth more than a
+sophisticated method applied to the long tail.
+
+### Allocator sketches, per component
+
+- **Consumption of fixed capital** — the natural allocator is **capital stock by
+  industry**, not a wage or output share. BEA's Fixed Assets tables publish net
+  stock and depreciation by industry; not yet in bedrock, so this needs an
+  extractor. `T62200D`'s 63 leaves may be enough on their own for the corporate
+  part.
+- **Corporate profits** — `T61600D` at 23 leaves, then a share carried down.
+  Check whether SOI corporate data adds anything at detail before assuming it
+  does.
+- **Proprietors' income** — the broad one, and the one where a real allocator
+  would pay. Census **Nonemployer Statistics** gives receipts by NAICS and is
+  the obvious candidate; not in bedrock. `USDA_ERS_FIWS` covers the farm part
+  already.
+- **Net interest** — concentrated enough that the real-estate line deserves
+  explicit handling and the remainder can ride a coarse share. The negative
+  finance line must survive; a share method that assumes positivity will break.
+- **Rental income** — route the housing leaves straight to `531HSO`/`531HST`
+  rather than allocating. This is close to a lookup.
+- **Statistical discrepancy** — pro rata, flagged as an artefact rather than a
+  measurement.
+
+## `T00OTOP` — accept a cruder method
+
+No NIPA table has an industry axis for this. `T30500` is by level of government
+and kind of tax. Its composition — largely property taxes and motor vehicle
+licences — suggests **capital stock or property value** as the allocation basis,
+which is the same missing BEA Fixed Assets input that CFC wants. At 1.8% of
+output, that shared dependency is a better reason to build the extractor than
+`T00OTOP` is on its own.
+
 ## Open questions
 
 1. **Is there a published detail *wages* series**, or must detail wage shares be
@@ -221,5 +308,10 @@ there. Phase 4 is where most of the risk sits and needs the most review.
    for Employment.
 4. **Which year is the target**, and does the QCEW lag (~5–6 months) meet the
    nowcast schedule?
-5. **`T00OTOP` and `V00300` have no identified allocator at all.** This plan
-   covers 55% of `VABAS`; the other 45% is genuinely open.
+5. **BEA Fixed Assets is not in bedrock**, and both CFC (40% of `V00300`) and
+   `T00OTOP` want capital stock by industry. One extractor serves both — is it
+   worth building before either?
+6. **Census Nonemployer Statistics is not in bedrock**, and proprietors' income
+   (18% of `V00300`) is the component that would most benefit.
+7. **Does `T61600D`'s subtree selection cleanly exclude rest-of-world?** Its
+   leaves mix domestic industries with rest-of-world receipts and payments.
