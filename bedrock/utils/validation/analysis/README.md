@@ -26,6 +26,20 @@ dispatch, interpret). Shared dispatch helpers:
 - `_cli.py` — `common_options` (sheet id, refresh, tag, out dir) and
   output-dir resolution helpers.
 - `bly_plots.py` — BLy sector stacked-bar data prep + `bly_plot_options` CLI decorator.
+- `nowcast_to_reference_plots.py` — renders a `TableMatch` from
+  [`../nowcast_to_reference_table_match.py`](../nowcast_to_reference_table_match.py):
+  the interior as a single raster `imshow`, with the row totals as a strip down
+  the right edge and the column totals along the bottom, on the same colour
+  scale. `palette_separation()` re-runs the colour-vision check behind the
+  palette (`--check-palette`). CLI:
+
+  ```
+  uv run python -m bedrock.utils.validation.analysis.nowcast_to_reference_plots \
+      --section use_fd_detail_sut --year 2017
+  ```
+
+  Writes `output/<section>_<year>.png` and prints the match report. Sections
+  with no candidate yet are skipped with a message rather than failing.
 - `diagnostics_plots.py` — umbrella entry point. Produces five EF PNGs every run,
   and a sixth (`bly_sector_stacked_net_change.png`) when `BLy_new_vs_BLy_old` is
   present. If that tab is missing or cannot be read, the command still succeeds

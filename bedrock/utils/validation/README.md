@@ -20,3 +20,40 @@ Known issues with existing FBA and FBS methods are shown in [method_status.yaml]
 
 Post-run plots and multi-run merges:
 [`analysis/README.md`](analysis/README.md).
+
+## Nowcast vs reference table match
+
+Cell-by-cell agreement between a nowcast Supply/Use block and the published
+2017 detail SUT, on the cells and equally on the row and column totals
+([#587](https://github.com/cornerstone-data/bedrock/issues/587)).
+
+- [`nowcast_to_reference_table_match.py`](nowcast_to_reference_table_match.py) —
+  the comparison engine. `compare_tables(candidate, reference,
+  tolerance=Tolerance(...))` returns a `TableMatch`: a per-cell status matrix
+  (`MATCH` / `PARTIAL` / `MISS` / `EXTRA` / `ABSENT`), relative errors, a
+  `severity` ramp, `Margin` objects for the row and column totals classified by
+  the same rules, `counts()` / `summary()` for machine-readable output, and
+  `assert_ok(...)` for use as an assertion. One `Tolerance` governs a whole
+  comparison — it never varies by row or column. No plotting.
+- [`nowcast_to_reference_sections.py`](nowcast_to_reference_sections.py) — the
+  comparable blocks. Each `Section` fixes a row axis, a column axis, a reference
+  loader, a candidate loader and a tolerance; `SECTIONS` is the registry and
+  `Section.run(year)` returns a `TableMatch`. A section with
+  `candidate=None` is declared but not yet runnable (`Section.runnable`).
+  - `use_fd_detail_sut` — Step 1, the Use table's final-demand columns, 402 × 19.
+  - `use_va_detail_sut` — Step 2, the Use table's value-added rows, 3 × 402.
+    No candidate yet.
+  - `supply_bridge_detail_sut` — Step 4, the Supply table's right-hand block
+    (imports, margins, taxes and the basic→purchaser subtotals), 402 × 12.
+    No candidate yet.
+
+  Those three are the whole of what a published 2017 detail reference supports
+  outside the two 402 × 402 interiors.
+- [`analysis/nowcast_to_reference_plots.py`](analysis/nowcast_to_reference_plots.py)
+  — the renderer and its CLI.
+
+Candidate mass on labels outside a section's frame is not drawn and not dropped:
+`TableMatch.residual` totals it and `report()` prints it.
+
+Findings from the first run:
+[`About_nowcast_to_reference_match.md`](About_nowcast_to_reference_match.md).
