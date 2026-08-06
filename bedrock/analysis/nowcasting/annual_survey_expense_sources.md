@@ -263,7 +263,7 @@ silently returns HTTP 204 rather than an error.
 
 # Desk research (pre-probe)
 
-Plan context: [`nowcasting/plan.md`](../nowcasting/plan.md),
+Plan context: [`plan.md`](plan.md),
 Step 3 (intermediate block). Current Step 3 method is #497's — seed from the 2017 detail Use table and
 carry forward on commodity inflation, which means **the input structure of every industry is frozen at
 its 2017 shape** and only the price level moves. The question this doc opens is whether the annual

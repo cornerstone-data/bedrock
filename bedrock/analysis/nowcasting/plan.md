@@ -478,7 +478,7 @@ not introduce a step 10.
   inputs to production at **purchaser prices** (the SUT Use basis exactly), so they looked like the way
   to put real annual movement into it. Probed in [#564](https://github.com/cornerstone-data/bedrock/issues/564);
   full results in
-  [`bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md`](../../analysis/annual_survey_inputs/annual_survey_expense_sources.md).
+  [`annual_survey_expense_sources.md`](annual_survey_expense_sources.md).
 
   | Sector | Verdict | What to use |
   |---|---|---|

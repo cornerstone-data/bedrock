@@ -70,3 +70,12 @@ local run.
   thing under `images/`.
 - [`About_table_match.md`](About_table_match.md) — what the first Step 1 run
   showed.
+- [`annual_survey_expense_sources.md`](annual_survey_expense_sources.md) — Step 3
+  probe of annual survey data as a source of input structure for the Use
+  intermediate block: Census business surveys, Census state and local government
+  finances, USDA ERS farm income. Verdict is mixed — negative for the business
+  surveys, positive for agriculture and government. Existing extractors it
+  builds on: [`Census_SAS.yaml`](../../extract/census/Census_SAS.yaml),
+  [`Census_ASM.yaml`](../../extract/census/Census_ASM.yaml),
+  [`Census_EC.yaml`](../../extract/census/Census_EC.yaml),
+  [`USDA_ERS_FIWS.yaml`](../../extract/usda/USDA_ERS_FIWS.yaml).
