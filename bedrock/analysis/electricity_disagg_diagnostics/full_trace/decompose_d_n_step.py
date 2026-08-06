@@ -13,11 +13,11 @@ from bedrock.analysis.electricity_disagg_diagnostics.full_trace.full_trace impor
     _weighted_ef,
 )
 from bedrock.publish.model_objects import get_B, get_D, get_L, get_N, get_q
+from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
     electricity_mixed_units_enabled,
 )
-from bedrock.transform.eeio.derived import derive_E_usa
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_mixed_units,
     derive_cornerstone_Aq_scaled,

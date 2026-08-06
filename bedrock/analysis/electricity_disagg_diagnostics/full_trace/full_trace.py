@@ -11,12 +11,12 @@ import pandas as pd
 
 from bedrock.analysis.electricity_disagg_diagnostics.paths import OUT_DIR
 from bedrock.publish.model_objects import get_B, get_D, get_L, get_N, get_q
+from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     electricity_conversion_factors,
     electricity_mixed_units_enabled,
 )
-from bedrock.transform.eeio.derived import derive_E_usa
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_U_set,

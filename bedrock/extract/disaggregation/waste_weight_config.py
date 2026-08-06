@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
-from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, USAConfig
+from pydantic import BaseModel
 
-# Repo-relative to the bedrock package root (for EEIOWasteDisaggConfig and YAML).
+from bedrock.utils.config.usa_config import USAConfig
+
+
+class EEIOWasteDisaggConfig(BaseModel):
+    """Waste-disaggregation weight files descriptor (paths relative to bedrock/)."""
+
+    use_weights_file: str
+    make_weights_file: str
+    year: int
+    source_name: str
+
+
+# Repo-relative to the bedrock package root (for EEIOWasteDisaggConfig).
 WASTE_INPUTS_REL = "extract/disaggregation/waste_disagg_inputs"
 
 WASTE_DISAGG_USE_FILENAME = "WasteDisaggregationDetail2017_Use.csv"
@@ -29,8 +41,7 @@ def effective_waste_disagg_config(cfg: USAConfig) -> EEIOWasteDisaggConfig:
 
     Precedence:
     1. before-redefinition IO → USEEIOR v1.8.0 (USEEIO parity)
-    2. explicit ``cfg.eeio_waste_disaggregation`` → YAML
-    3. else → bundled Cornerstone CSVs (after-redefinition default)
+    2. else → bundled Cornerstone CSVs (after-redefinition default)
     """
     if cfg.iot_before_or_after_redefinition == "before":
         from bedrock.extract.disaggregation.useeior_waste_weights import (  # noqa: PLC0415
@@ -38,6 +49,4 @@ def effective_waste_disagg_config(cfg: USAConfig) -> EEIOWasteDisaggConfig:
         )
 
         return useeior_v1_8_waste_disagg_config()
-    if cfg.eeio_waste_disaggregation is not None:
-        return cfg.eeio_waste_disaggregation
     return cornerstone_bundled_waste_disagg_config()

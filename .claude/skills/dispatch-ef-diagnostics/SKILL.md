@@ -1,8 +1,7 @@
 ---
 name: dispatch-ef-diagnostics
-description: Use this skill to dispatch EF (emission-factor) diagnostics runs — create and name empty diagnostics Google Sheets, trigger generate_diagnostics, and record a run index. Covers the a_matrix_time_series epic matrix and generic feature-config lists via bedrock.utils.validation.dispatch_diagnostics. Trigger when the user says "dispatch the EF diagnostics", "kick off the diagnostics runs", "create the diagnostics sheets and run them", "trigger generate_diagnostics", "re-dispatch the failed cells", or asks to run the model under several configs and produce per-run diagnostics sheets.
+description: Use this skill to dispatch EF (emission-factor) diagnostics runs — create and name empty diagnostics Google Sheets, trigger generate_diagnostics, and record a run index. Covers feature-config lists via bedrock.utils.validation.dispatch_diagnostics. Trigger when the user says "dispatch the EF diagnostics", "kick off the diagnostics runs", "create the diagnostics sheets and run them", "trigger generate_diagnostics", "re-dispatch the failed cells", or asks to run the model under several configs and produce per-run diagnostics sheets.
 disable-model-invocation: false
-argument-hint: [scenarios] [years] [approaches] (e.g. "bundle_v0_3 2019-2023" or "isolate_a_matrix useeio_nowcast 2023")
 ---
 
 # Dispatch EF diagnostics runs
@@ -11,7 +10,6 @@ argument-hint: [scenarios] [years] [approaches] (e.g. "bundle_v0_3 2019-2023" or
 
 Fan out the `generate_diagnostics` GitHub Actions workflow to produce **one diagnostics Google Sheet per cell**. Each sheet gets the `N_and_diffs` / `D_and_diffs` / `D_and_N_significant_sectors` / `config_summary` tabs that the `plot-ef-diagnostics` skill consumes.
 
-For the **A-matrix time-series epic**, the driver is `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py` (one sheet per `(scenario, approach, year)`). Per cell it: (1) **creates** a Sheet in the epic Drive folder with a deterministic title, (2) **triggers** `gh workflow run generate_diagnostics.yml`, (3) **records** a row in `output/results/ef_run_index.csv`. It is **idempotent** — cells already in the index are skipped, so re-running only fills gaps. Default baseline for that epic is **CEDA-US (v0)**.
 
 ## Prerequisites — verify, don't assume
 
@@ -32,7 +30,6 @@ Do **not** create any sheet or dispatch until these are confirmed. Ask via `AskU
 | Detail | Default |
 |---|---|
 | Drive folder | `1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s` (`EF_TIME_SERIES_DRIVE_FOLDER_ID`) |
-| Scenarios | `bundle_v0_3` (or `isolate_a_matrix`, or both) |
 | Approaches | all in the scenario (e.g. restrict to `useeio_nowcast`) |
 | Years | `2019,2020,2021,2022,2023` — sets `model_base_year` + `usa_ghg_data_year` |
 | Baseline | CEDA-only (`ceda-v0`); ask whether to use `useeio` or `v0.3` instead |
@@ -45,7 +42,6 @@ Echo the resolved plan back (folder, cell count, baseline, git-ref) and get a go
 
 ## Bespoke config lists (the common real case)
 
-Most real requests come as a **config-spec Google Sheet**, not the two canned scenarios. `SCENARIO_YAMLS` only knows `isolate_a_matrix` / `bundle_v0_3` (4 A-matrix YAMLs each) — an arbitrary release-progression list (`useeio_phoebe_23*`, `2025_usa_cornerstone_*`, `…_v0_3_*`) **can't be expressed via `--scenarios/--approaches`**. Don't force-fit it.
 
 Instead drive the dispatcher's **helper functions** with the custom list (reuse, don't reinvent):
 
@@ -55,7 +51,6 @@ from bedrock.utils.validation.dispatch_diagnostics import (
     V04_DIAGNOSTICS_DRIVE_FOLDER_ID,
 )
 # A-matrix / release-progression folder stays on the epic dispatcher:
-# from bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series import (
 #     EF_TIME_SERIES_DRIVE_FOLDER_ID,
 # )
 # per config: wait_for_capacity(...) → create_sheet(folder, title) → trigger_workflow(...) → persist a row
@@ -99,22 +94,16 @@ These surface as a **failed GH run after a successful dispatch** — the sheet i
 
 1. **Dry-run first** — prints the plan (titles + configs), creates/triggers nothing:
    ```bash
-   python -m bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series \
-       --git-ref main --scenarios bundle_v0_3 --years 2019,2020,2021,2022,2023 --dry-run
    ```
 2. **Dispatch for real** (drop `--dry-run`):
    ```bash
-   python -m bedrock.analysis.a_matrix_time_series.dispatch_ef_time_series \
        --git-ref main \
-       --scenarios isolate_a_matrix,bundle_v0_3 \
        --years 2019,2020,2021,2022,2023 \
        [--approaches useeio_nowcast] [--use-useeio-baseline] [--throttle poll|sleep:N|none]
    ```
 3. **Wait** for GH Actions (~2–5 min per run, serial). Watch with `gh run list --workflow generate_diagnostics.yml`.
 4. **Compile + plot** (reviewer path — see the `plot-ef-diagnostics` skill):
    ```bash
-   python -m bedrock.analysis.a_matrix_time_series.compile_ef_diagnostics
-   python -m bedrock.analysis.a_matrix_time_series.plot_ef_diagnostics
    ```
 
 ## Flags
@@ -122,7 +111,6 @@ These surface as a **failed GH run after a successful dispatch** — the sheet i
 | Flag | Meaning |
 |---|---|
 | `--git-ref` | **Required.** Branch/tag the workflow runs against (usually `main`). |
-| `--scenarios` | Comma list: `isolate_a_matrix`, `bundle_v0_3` (default `bundle_v0_3`). |
 | `--years` | Comma list (default `2019,2020,2021,2022,2023`). Sets `model_base_year` and `usa_ghg_data_year`. |
 | `--approaches` | Optional filter, e.g. `useeio_nowcast`. Default = all approaches in the scenario. |
 | `--use-useeio-baseline` | Epic dispatcher alias for `--baseline useeio`. |
@@ -136,13 +124,10 @@ These surface as a **failed GH run after a successful dispatch** — the sheet i
 - **Sheet title:** `[{YYYY-MM-DD}, {year}, {baseline} based, {approach label}, {scenario}] EFs diagnostics`.
 - **Run index:** `output/results/ef_run_index.csv` — columns `scenario, approach, year, baseline, config_name, sheet_id, sheet_title, useeio_box_ticked, git_ref, triggered_at`.
 - **Scenario → YAML** (in `dispatch_ef_time_series.py`), keyed by approach:
-  - `isolate_a_matrix` (A-matrix method only, else v0 defaults): `2025_usa_cornerstone_A_{useeio,summary_tables,commodity_price_index,useeio_nowcast}`.
-  - `bundle_v0_3` (full v0.3 stack + one A-matrix alternative): `2025_usa_cornerstone_v0_2_A_{…}`.
 - **Approach labels** (title text): `useeio → "A matrix with 2017 benchmark A"`, `summary_tables → "A matrix with summary tables"`, `commodity_price_index → "A matrix with commodity price index"`, `useeio_nowcast → "A matrix from USEEIO nowcast"`.
 
 ## Recovery / utilities
 
-- **Lost the local index?** Rebuild from Drive: `python -m bedrock.analysis.a_matrix_time_series.recover_ef_run_index --folder-id 1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s`.
 - **Batch hit rate limits?** `--re-dispatch-from-csv` re-triggers without minting new sheets.
 
 ## Manual fallback (no driver)
@@ -156,9 +141,6 @@ gh workflow run generate_diagnostics.yml --ref main \
 
 ## Reference
 
-- Driver (A-matrix epic): `bedrock/analysis/a_matrix_time_series/dispatch_ef_time_series.py`
 - Shared helpers + feature CLI: `bedrock/utils/validation/dispatch_diagnostics.py`
 - Workflow: `.github/workflows/generate_diagnostics.yml` → `bedrock/utils/validation/generate_diagnostics.py` (single-run entry) → `calculate_ef_diagnostics.py` (writes the tabs).
-- Package overview + DAG: `bedrock/analysis/a_matrix_time_series/README.md`.
-- Operator checklist: `bedrock/analysis/a_matrix_time_series/useeio_nowcast_ef_runbook.md`.
 - Feature-flag playbook: `bedrock/utils/validation/evaluate_feature_impact.md`.

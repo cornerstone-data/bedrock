@@ -29,7 +29,7 @@ from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 
-# Distinct from ``BEA_PriceIndex`` (bedrock parquet) and ``update_inflation_factors``.
+# Distinct from ``BEA_PriceIndex`` (bedrock parquet) and ``apply_io_year_adjustments``.
 USEEIOR_INDUSTRY_CPI_GCS_SOURCE = 'USEEIOR_v180_IndustryCPI'
 USEEIOR_DETAIL_CPI_IO_17SCH_FILENAME = 'useeior_v1.8.0_Detail_CPI_IO_17sch.csv'
 USEEIOR_DETAIL_CPI_IO_17SCH_GCS_PATH = gcs_extract_input_path(

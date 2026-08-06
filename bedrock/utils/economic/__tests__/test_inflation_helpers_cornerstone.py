@@ -62,9 +62,9 @@ def test_v_inflation_uses_industry_row_axis(
     """
     # apply_inflation=True is the new BEA-derived industry-PI path; pin the
     # flag so the price ratio is industry-indexed (matching V's industry
-    # rows). Under update_inflation_factors=False the helper returns
+    # rows). Under apply_io_year_adjustments=False the helper returns
     # commodity-indexed values for the legacy A-matrix flow.
-    monkeypatch.setattr(get_usa_config(), 'update_inflation_factors', True)
+    monkeypatch.setattr(get_usa_config(), 'apply_io_year_adjustments', True)
 
     Vnorm_True = derive_cornerstone_Vnorm_scrap_corrected(
         apply_inflation=True, target_year=2024

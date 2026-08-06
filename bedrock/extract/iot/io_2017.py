@@ -731,7 +731,7 @@ def _load_usa_summary_mut(
 
     # BEA revises historical data in each new release. We pin older years to the
     # oldest file containing them so values stay stable across releases (e.g.
-    # scale_cornerstone_B uses years 2017 and 2022, which must not change as new
+    # scale_cornerstone_A uses years 2017 and 2022, which must not change as new
     # vintages add years on the right).
     if year > 2023:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2024

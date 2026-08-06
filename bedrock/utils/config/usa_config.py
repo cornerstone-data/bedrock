@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import typing as ta
-import warnings
 
 import pandas as pd
 import yaml
@@ -35,13 +34,6 @@ DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
 )
 
 
-class EEIOWasteDisaggConfig(BaseModel):
-    use_weights_file: str
-    make_weights_file: str
-    year: int
-    source_name: str
-
-
 class USAConfig(BaseModel):
     #####
     # Model base settings
@@ -68,15 +60,18 @@ class USAConfig(BaseModel):
     #####
     # Methodology selection
     #####
-    ### Schema/Taxonomy selection
-    use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
-    use_useeio_schema: bool = False
     ### IO Methodology selection
+    # "IO year adjustments" bucket: CEDA A/q scaling to usa_io_data_year with
+    # summary dollar-year rebase, bedrock-derived industry inflation factors,
+    # and gross output at usa_ghg_data_year as B's denominator x.
+    apply_io_year_adjustments: bool = False
     use_E_data_year_for_x_in_B: bool = Field(
         default=False,
         description=(
-            'Use an x corresponding to usa_ghg_data_year'
-            'in B. Must be true whenever deflate_x_to_detail_io_year_for_B is true.'
+            'Deprecated USEEIO-parity compatibility flag: GHG-year x in B '
+            'without the rest of the IO-year adjustments. Superseded by '
+            'apply_io_year_adjustments; kept for configs on the pre-v0.3 A '
+            'footing until the USEEIO-recreation removal.'
         ),
     )
     deflate_x_to_detail_io_year_for_B: bool = Field(
@@ -89,46 +84,18 @@ class USAConfig(BaseModel):
         ),
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
-    eeio_waste_disaggregation: ta.Optional[EEIOWasteDisaggConfig] = None
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
-    scale_a_matrix_with_ceda_method_as_fallback: bool = False  # DRI: mo.li
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
-    scale_a_matrix_with_summary_tables: bool = False  # DRI: mo.li
-    scale_a_matrix_with_commodity_price_index: bool = False  # DRI: mo.li
-    load_useeio_nowcast_A_matrix: bool = False  # DRI: mo.li
-    adjust_summary_A_and_q_dollar_year: bool = False  # DRI: mo.li
-    ceda_margins: bool = False  # DRI: WesIngwersen
+    # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
+    # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
-    use_scaled_x_and_scaled_Vnorm_for_B: bool = Field(
-        default=False,
-        description=(
-            'Derives x from scaled_X and Vnorm from scaled_V and scaled_q'
-            'Either scale_a_matrix_with_summary_tables or scale_a_matrix_with_ceda_method_as_fallback'
-            ' must be True'
-            'use_E_data_year_for_x_in_B must be True'
-        ),
-    )  # DRI: WesIngwersen
-    get_q_from_authoritative_x: bool = Field(
-        default=False,
-        description=(
-            'Derive q using derive_q_from_scaled_cornerstone_V_from_authoritative_x'
-            'instead of the default in derive_**_Aq'
-        ),
-    )  # DRI: WesIngwersen
     ### GHG Methodology selection
-    usa_ghg_methodology: ta.Literal['national', 'state'] = 'national'
-    new_ghg_method: bool = False  # if True, it is the new Cornerstone GHG FBS
-    update_mecs_method: bool = False  # DRI: catherine.birney
-    v0_3_umd_2023_ghgia: bool = False  # DRI: catherine.birney
-    v0_3_umd_2024_ghgia: bool = False  # DRI: catherine.birney
-    use_ghg_national_2023_m2: bool = False
-    skip_scrap_adjustment_in_vnorm: bool = False
-    ### Inflation factors
-    apply_inflation_to_V: bool = False  # DRI: WesIngwersen
-    update_inflation_factors: bool = False
+    # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
+    # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
+    use_cornerstone_ghg_model: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -179,80 +146,24 @@ class USAConfig(BaseModel):
 
     @model_validator(mode='after')
     def _validate_deflate_x_requires_use_e_for_x_in_b(self) -> USAConfig:
-        if (
-            self.deflate_x_to_detail_io_year_for_B
-            and not self.use_E_data_year_for_x_in_B
-        ):
+        if self.deflate_x_to_detail_io_year_for_B and not self.use_ghg_year_x_in_B:
             raise ValueError(
                 'deflate_x_to_detail_io_year_for_B requires use_E_data_year_for_x_in_B '
-                'to be true'
+                'or apply_io_year_adjustments to be true'
             )
-        return self
-
-    @model_validator(mode='after')
-    def _validate_scaled_x_vnorm_for_B_prerequisites(self) -> USAConfig:
-        if self.use_scaled_x_and_scaled_Vnorm_for_B:
-            if not (
-                self.scale_a_matrix_with_summary_tables
-                or self.scale_a_matrix_with_ceda_method_as_fallback
-            ):
-                raise ValueError(
-                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
-                    'scale_a_matrix_with_summary_tables or '
-                    'scale_a_matrix_with_ceda_method_as_fallback to be true'
-                )
-            if not self.use_E_data_year_for_x_in_B:
-                raise ValueError(
-                    'use_scaled_x_and_scaled_Vnorm_for_B requires '
-                    'use_E_data_year_for_x_in_B to be true'
-                )
         return self
 
     @model_validator(mode='after')
     def _validate_margins_mutual_exclusivity(self) -> USAConfig:
-        active = [
-            name
-            for name, val in [
-                ('useeio_margins', self.useeio_margins),
-                ('ceda_margins', self.ceda_margins),
-                (
-                    'cornerstone_industry_avg_margins',
-                    self.cornerstone_industry_avg_margins,
-                ),
-            ]
-            if val
-        ]
-        if len(active) > 1:
+        if self.useeio_margins and self.cornerstone_industry_avg_margins:
             raise ValueError(
-                f'At most one margins flag may be true; got: {", ".join(active)}'
-            )
-        return self
-
-    @model_validator(mode='after')
-    def _warn_before_io_ignores_waste_disagg_yaml(self) -> USAConfig:
-        if (
-            self.iot_before_or_after_redefinition == 'before'
-            and self.eeio_waste_disaggregation is not None
-        ):
-            warnings.warn(
-                "iot_before_or_after_redefinition is 'before', so "
-                'eeio_waste_disaggregation is ignored; USEEIOR v1.8.0 waste '
-                'weights apply (USEEIO parity).',
-                UserWarning,
-                stacklevel=2,
+                'At most one margins flag may be true; got: '
+                'useeio_margins, cornerstone_industry_avg_margins'
             )
         return self
 
     @model_validator(mode='after')
     def _validate_ghg_flag_compatibility(self) -> USAConfig:
-        if self.new_ghg_method and self.use_ghg_national_2023_m2:
-            raise ValueError(
-                'new_ghg_method and use_ghg_national_2023_m2 cannot both be true'
-            )
-        if self.use_ghg_national_2023_m2 and not self.use_useeio_schema:
-            raise ValueError(
-                'use_ghg_national_2023_m2 requires use_useeio_schema to be true'
-            )
         if (
             self.implement_electricity_reallocation
             and not self.implement_waste_disaggregation
@@ -299,12 +210,17 @@ class USAConfig(BaseModel):
     def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
         return 2017
 
+    @property
+    def use_ghg_year_x_in_B(self) -> bool:
+        """B's denominator x is gross output at ``usa_ghg_data_year``."""
+        return self.apply_io_year_adjustments or self.use_E_data_year_for_x_in_B
+
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable dictionary representation of the config.
 
-        Nested BaseModel values (such as EEIOWasteDisaggConfig) are converted
-        to plain dictionaries via model_dump(), so callers can safely pass
-        this mapping to pandas or json libraries.
+        Nested BaseModel values are converted to plain dictionaries via
+        model_dump(), so callers can safely pass this mapping to pandas or
+        json libraries.
         """
         result: dict[str, object] = {}
         for field_name in self.model_fields:
