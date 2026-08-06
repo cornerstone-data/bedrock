@@ -4,7 +4,7 @@ A Supply or Use table is not one picture.  Its blocks have different shapes,
 different row and column spaces and different reconciliation bars, so the
 diagnostic is cut into **sections** -- a fixed row axis, a fixed column axis,
 one reference loader, one candidate loader and one
-:class:`~.nowcast_to_reference_table_match.Tolerance` for the whole block.
+:class:`~.table_match.Tolerance` for the whole block.
 
 The reference is always the published **2017 detail SUT** workbooks
 (``Use_SUT_Framework_2017_DET.xlsx``, ``Supply_2017_DET.xlsx``).  That is the
@@ -66,6 +66,11 @@ from pathlib import Path
 
 import pandas as pd
 
+from bedrock.analysis.nowcasting.table_match import (
+    TableMatch,
+    Tolerance,
+    compare_tables,
+)
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
@@ -73,11 +78,6 @@ from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_DESC,
 )
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
-from bedrock.utils.validation.nowcast_to_reference_table_match import (
-    TableMatch,
-    Tolerance,
-    compare_tables,
-)
 
 #: Half of BEA's publication grain.  The detail SUT workbook is published in
 #: millions of dollars, so any difference smaller than this is below the
@@ -284,7 +284,7 @@ def initial_Y_pur_candidate(year: int) -> pd.DataFrame:
     return derive_initial_Y_pur(year)
 
 
-#: Where ``nowcast_initial_Y_pur_baseline.export_cellwise_comparison`` writes.
+#: Where ``initial_Y_pur_baseline.export_cellwise_comparison`` writes.
 INITIAL_Y_PUR_EXPORT = (
     Path(__file__).parent
     / 'output'
@@ -316,7 +316,7 @@ def initial_Y_pur_exported_candidate(year: int) -> pd.DataFrame:
     if not INITIAL_Y_PUR_EXPORT.exists():
         raise FileNotFoundError(
             f'{INITIAL_Y_PUR_EXPORT} not found; regenerate it with '
-            'bedrock.utils.validation.nowcast_initial_Y_pur_baseline'
+            'bedrock.analysis.nowcasting.initial_Y_pur_baseline'
             '.export_cellwise_comparison()'
         )
     long = pd.read_csv(INITIAL_Y_PUR_EXPORT, dtype={'commodity': str})

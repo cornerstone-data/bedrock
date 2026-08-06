@@ -1,6 +1,6 @@
 # What the 2017 final-demand match picture shows
 
-Findings from `bedrock/utils/validation/nowcast_to_reference_table_match.py` and
+Findings from `bedrock/analysis/nowcasting/table_match.py` and
 its sections. Reference docs live in [README.md](README.md); this file is what
 the first run actually said.
 

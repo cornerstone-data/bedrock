@@ -8,7 +8,7 @@ No plotting lives here.  :func:`compare_tables` returns a
 :class:`TableMatch`, which is a status matrix plus relative errors plus
 machine-readable counts, so the same comparison is an assertion in a test
 (:meth:`TableMatch.assert_ok`) and the input to the renderer in
-``bedrock.utils.validation.analysis.nowcast_to_reference_plots``.
+``bedrock.analysis.nowcasting.plots``.
 
 Five statuses, not three
 ------------------------
@@ -48,7 +48,7 @@ it rather than the renderer inventing one.
 
 ::
 
-    from bedrock.utils.validation.nowcast_to_reference_table_match import (
+    from bedrock.analysis.nowcasting.table_match import (
         Tolerance, compare_tables,
     )
 

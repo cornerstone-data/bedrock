@@ -162,7 +162,7 @@ currently implements exactly one thing: `derive_initial_Y_pur(year)` — the fin
 SUT Use table, purchaser price, BEA_2017_Detail schema, from the `NIPA_FD_<year>` FBS methods. It
 handles the Cornerstone-schema collapse problem via `map_fbs_sectors_to_model_schema` applied to both
 sector columns. A baseline validator exists at
-[`bedrock/utils/validation/nowcast_initial_Y_pur_baseline.py`](bedrock/utils/validation/nowcast_initial_Y_pur_baseline.py).
+[`bedrock/analysis/nowcasting/initial_Y_pur_baseline.py`](bedrock/analysis/nowcasting/initial_Y_pur_baseline.py).
 
 **2017 benchmark loaders — all four end-product table types already load**, before *and* after
 redefinitions, from [`io_2017.py`](bedrock/extract/iot/io_2017.py):

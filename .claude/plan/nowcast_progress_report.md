@@ -1,6 +1,6 @@
 # Nowcast progress report — blocks against the published 2017 detail SUT
 
-Generated from `bedrock.utils.validation.nowcast_to_reference_sections`
+Generated from `bedrock.analysis.nowcasting.sections`
 ([#587](https://github.com/cornerstone-data/bedrock/issues/587)). Reference is
 the published 2017 detail SUT throughout — the benchmark year's answer in the
 framework we are building in.
@@ -8,8 +8,8 @@ framework we are building in.
 Regenerate with:
 
 ```
-uv run python -m bedrock.utils.validation.analysis.nowcast_to_reference_plots
-uv run python -m bedrock.utils.validation.analysis.nowcast_to_reference_plots \
+uv run python -m bedrock.analysis.nowcasting.plots
+uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir .claude/plan/images --no-report   # the copies below
 ```
 
@@ -87,7 +87,7 @@ boundary. Column total −17.3%: the per-commodity split, not coverage.
 2.0. `7a04a71` added `negate_flows` for this; the export predates it taking
 effect.
 
-Longer form: [`About_nowcast_to_reference_match.md`](../../bedrock/utils/validation/About_nowcast_to_reference_match.md).
+Longer form: [`About_table_match.md`](../../bedrock/analysis/nowcasting/About_table_match.md).
 
 ---
 

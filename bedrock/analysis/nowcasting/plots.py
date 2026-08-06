@@ -1,4 +1,4 @@
-"""Render a :class:`~...nowcast_to_reference_table_match.TableMatch` as a picture.
+"""Render a :class:`~..table_match.TableMatch` as a picture.
 
 One figure per Use-table section: the interior as a raster, with the row totals
 as a strip down the right edge and the column totals as a strip along the
@@ -41,7 +41,7 @@ yellow" would suggest.
 
 CLI::
 
-    uv run python -m bedrock.utils.validation.analysis.nowcast_to_reference_plots \\
+    uv run python -m bedrock.analysis.nowcasting.plots \\
         --section use_fd_detail_sut --year 2017
 """
 
@@ -57,12 +57,12 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from bedrock.utils.validation.nowcast_to_reference_sections import (
+from bedrock.analysis.nowcasting.sections import (
     SECTIONS,
     Section,
     get_section,
 )
-from bedrock.utils.validation.nowcast_to_reference_table_match import (
+from bedrock.analysis.nowcasting.table_match import (
     STATUS_NAMES,
     CellStatus,
     TableMatch,
@@ -418,7 +418,7 @@ def plot_match(
 
 def _classify_scalar(match: TableMatch, gt: pd.Series) -> tuple[int, float, float]:
     """The grand total put through the same rules as every other cell."""
-    from bedrock.utils.validation.nowcast_to_reference_table_match import (  # noqa: PLC0415
+    from bedrock.analysis.nowcasting.table_match import (  # noqa: PLC0415
         classify,
     )
 
