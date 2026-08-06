@@ -1,4 +1,4 @@
-# writeNAICScrosswalk.py
+# write_sector_crosswalks.py
 # !/usr/bin/env python3
 # coding=utf-8
 # ruff: noqa
@@ -16,10 +16,10 @@ import re
 
 import pandas as pd
 
-from bedrock.utils.config.common import load_crosswalk, sector_level_key
+from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.settings import crosswalkpath, externaldatapath, mappingpath
 from bedrock.utils.mapping.naics import generate_naics_crosswalk_conversion_ratios
-
+from bedrock.utils.mapping.naics import SECTOR_HIERARCHY_ORDER
 
 def load_naics_concordance(y1, y2):
     """
@@ -75,21 +75,6 @@ def write_naics_year_concordance():
         else:
             # Merge df based on shared column
             cw_merged = pd.merge(cw_merged, cw, how='outer')
-
-    # append household, gov, and BEA custom codes
-    cw_name = (
-        'FinalDemand_SectorCodes',
-        'Government_SectorCodes',
-        'BEA_CustomCodes',
-    )
-    for n in cw_name:
-        df = load_crosswalk(n)
-        df = df.query("NAICS_Level_to_Use_For == 'NAICS_6'")
-
-        # Add rows to each column of the cw merged
-        df_extend = pd.concat([df[['Code']]] * len(cw_merged.columns), axis=1)
-        df_extend.columns = cw_merged.columns
-        cw_merged = pd.concat([cw_merged, df_extend], ignore_index=True)
 
     # save as csv
     cw_merged.to_csv(f"{mappingpath}/naics/NAICS_Year_Concordance.csv", index=False)
@@ -195,7 +180,7 @@ def write_annual_naics_crosswalk(year):
     # and add to naics list
     missing_naics_df_list = []
     # read in all the crosswalk csv files (ends in toNAICS.csv)
-    for file_name in glob.glob(f'{crosswalkpath}/NAICS_Crosswalk_*.csv'):
+    for file_name in glob.glob(f'{crosswalkpath}/Sector_Crosswalk_*.csv'):
         # skip Statistics Canada GDP and BEA because not all sectors relevant
         if not any(s in file_name for s in ('StatCan', 'BEA')):
             df = pd.read_csv(file_name, low_memory=False, dtype=str)
@@ -231,19 +216,8 @@ def write_annual_naics_crosswalk(year):
     # sort df
     cw3 = cw3.sort_values([f'NAICS_{year}_Code']).reset_index(drop=True)
 
-    # load BEA codes that will act as NAICS
-    house = load_crosswalk('FinalDemand_SectorCodes')
-    govt = load_crosswalk('Government_SectorCodes')
-    bea_custom = load_crosswalk('BEA_CustomCodes')
-    bea = pd.concat([house, govt, bea_custom], ignore_index=True).rename(
-        columns={'Code': f'NAICS_{year}_Code', 'NAICS_Level_to_Use_For': 'secLength'}
-    )
-    bea = bea[[f'NAICS_{year}_Code', 'secLength']]
-
-    # add column of sector length
     cw3['secLength'] = cw3[f'NAICS_{year}_Code'].apply(lambda x: f"NAICS_{str(len(x))}")
-    # add bea codes subbing for NAICS
-    cw4 = pd.concat([cw3, bea], ignore_index=True).drop_duplicates()
+    cw4 = cw3.drop_duplicates()
     # return max string length
     max_naics_length = cw4[f'NAICS_{year}_Code'].apply(lambda x: len(x)).max()
 
@@ -259,10 +233,6 @@ def write_annual_naics_crosswalk(year):
 
     # drop seclength column
     naics_cw = naics_cw.drop(columns='secLength')
-    # drop BEA HS/ORE parents (housing)
-    naics_cw = naics_cw[
-        ~(naics_cw['NAICS_2'].isin(['HS', 'ORE']) & naics_cw['NAICS_4'].isna())
-    ]
     # reorder
     naics_cw = naics_cw.reindex(sorted(naics_cw.columns), axis=1)
     # save as csv
@@ -338,15 +308,7 @@ def write_sector_name_crosswalk():
         )
         df = df.explode(f"NAICS_{y}_Code")
         df[f"NAICS_{y}_Code"] = df[f"NAICS_{y}_Code"].astype(str)
-        # load household and gov sectors - do this after explode because
-        # household and gov sectors contain letters
-        for s in ["Government", "FinalDemand"]:
-            cw = (
-                load_crosswalk(f"{s}_SectorCodes")[['Code', 'Name']]
-                .rename(columns={"Code": f"NAICS_{y}_Code", "Name": f"NAICS_{y}_Name"})
-                .drop_duplicates()
-            )
-            df = pd.concat([df, cw], ignore_index=True)
+
         # sort and save csv
         df = df.sort_values(f"NAICS_{y}_Code").drop_duplicates().reset_index(drop=True)
         df.to_csv(f'{mappingpath}/naics/Sector_{y}_Names.csv', index=False)
@@ -354,24 +316,53 @@ def write_sector_name_crosswalk():
 
 def write_sector_level_crosswalk():
     """
-    Write a csv that contains sector codes with their sector level
+    Write Sector_Levels.csv: SectorSourceName, LevelName, Sector, SectorLevel.
+
+    SectorLevel is the 1-based rank in SECTOR_HIERARCHY_ORDER (not string length).
+    Schema + year live only on SectorSourceName ({SCHEMA}_{year}_Code).
     """
-    df = pd.DataFrame()
-    for y in ['2002', '2007', '2012', '2017', '2022']:
-        cw = pd.read_csv(mappingpath / 'naics' / f'NAICS_{y}_Crosswalk.csv')
-        df = pd.concat([df, cw], ignore_index=True)
-    df2 = pd.melt(df, var_name='Sector_Level', value_name='Sector')
+    from bedrock.utils.mapping.naics import sector_source_name
+
+    rows = []
+    for schema, years in {
+        'naics': ['2002', '2007', '2012', '2017', '2022'],
+        'bea': ['2012', '2017', '2022'],
+    }.items():
+        order = SECTOR_HIERARCHY_ORDER[schema]
+        level_idx = {name: i + 1 for i, name in enumerate(order)}
+        for y in years:
+            path = mappingpath / 'naics' / f'{schema.upper()}_{y}_Crosswalk.csv'
+            if not path.exists():
+                continue
+            cw = pd.read_csv(path, dtype=str)
+            melted = (
+                cw.melt(var_name='LevelName', value_name='SectorCode')
+                .dropna()
+                .drop_duplicates()
+                .rename(columns={'SectorCode': 'Sector'})
+            )
+            # NAICS_7 (unofficial) → level 7 when present
+            for col in melted['LevelName'].unique():
+                if col not in level_idx and col.startswith('NAICS_'):
+                    try:
+                        level_idx[col] = int(col.split('_')[1])
+                    except ValueError:
+                        pass
+            melted['SectorSourceName'] = sector_source_name(schema, int(y))
+            melted['SectorLevel'] = melted['LevelName'].map(level_idx)
+            rows.append(melted)
+
     df2 = (
-        df2.drop_duplicates()
-        .dropna()
-        .sort_values(by=['Sector_Level', 'Sector'])
+        pd.concat(rows, ignore_index=True)
+        .dropna(subset=['Sector', 'SectorLevel'])
+        .sort_values(by=['SectorSourceName', 'LevelName', 'Sector'])
         .reset_index(drop=True)
     )
-    df2 = df2.assign(
-        SectorLength=df2['Sector_Level'].apply(lambda x: sector_level_key.get(x))
+    df2.to_csv(
+        f'{mappingpath}/naics/Sector_Levels.csv',
+        index=False,
+        columns=['SectorSourceName', 'LevelName', 'Sector', 'SectorLevel'],
     )
-    df2.SectorLength = df2.SectorLength.astype(int)
-    df2.to_csv(f'{mappingpath}/naics/Sector_Levels.csv', index=False)
 
 
 if __name__ == '__main__':
