@@ -280,6 +280,36 @@ def by_industry_coverage(year: int = YEAR) -> pd.Series:
     return totals.reindex(['full', 'partial', 'none']).fillna(0.0)
 
 
+#: Where a BEA detail code has to appear before an FBS can target it.
+DETAIL_CROSSWALK = (
+    'bedrock/utils/mapping/activitytosectormapping/NAICS_Crosswalk_BEA_2017_Detail.csv'
+)
+
+#: Final-demand codes that were added to the crosswalk as identity rows, which
+#: is the precedent the issue points at.  ``F01000`` came with the original
+#: final-demand work; ``S00300`` and ``S00900`` were added by ``7a04a71``.
+IDENTITY_ROW_PRECEDENT = ('F01000', 'S00300', 'S00900')
+
+
+def codes_in_detail_crosswalk(codes: tuple[str, ...]) -> pd.DataFrame:
+    """Whether each code appears in the BEA detail crosswalk, and on which side.
+
+    An FBS can only target a sector the crosswalk knows about, so this is the
+    gate a value-added FBS has to pass before any of the reconciliation above
+    can be reproduced per industry.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    crosswalk = pd.read_csv(Path(DETAIL_CROSSWALK), dtype=str)
+    return pd.DataFrame(
+        {
+            'code': list(codes),
+            'as_activity': [int((crosswalk['Activity'] == c).sum()) for c in codes],
+            'as_sector': [int((crosswalk['Sector'] == c).sum()) for c in codes],
+        }
+    )
+
+
 def report(year: int = YEAR) -> str:
     sut = sut_value_added_totals(year)
     checks = pd.DataFrame(c.compare(sut) for c in build_checks(year))
@@ -330,6 +360,23 @@ def report(year: int = YEAR) -> str:
         f'  short by {v00300 - proposed_total:,.0f}'
         f'  ({(v00300 - proposed_total) / v00300 * 100:.1f}%)',
         '  See the module docstring for the six reasons, largest first.',
+    ]
+
+    va_codes = tuple(SUT_VA_ROWS)
+    present = codes_in_detail_crosswalk(va_codes + IDENTITY_ROW_PRECEDENT)
+    lines += [
+        '',
+        'ARE THESE CODES IN THE BEA DETAIL CROSSWALK YET?',
+        present.to_string(index=False),
+        '',
+        '  No value-added code is there, on either side. The final-demand codes',
+        '  below the line show the precedent: an identity row, the code mapping',
+        '  to itself. Step 2 needs the same for V00100/T00OTOP/V00300 before an',
+        '  FBS can target them.',
+        '',
+        '  Note the crosswalk declares SectorSourceName NAICS_2017_Code only, so',
+        '  adding non-NAICS value-added codes as identity rows walks straight',
+        '  into the code-space problem #567/#568 exist to fix.',
     ]
     return '\n'.join(lines)
 
