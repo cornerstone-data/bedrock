@@ -290,6 +290,45 @@ sophisticated method applied to the long tail.
 - **Statistical discrepancy** — pro rata, flagged as an artefact rather than a
   measurement.
 
+## Product taxes exist on both axes — pick one and derive the other
+
+`T00TOP` and `T00SUB` are **not** industry-only. The same money appears on the
+Supply table by commodity, and the two sides reconcile:
+
+| | Use, by industry | Supply, by commodity | |
+|---|---:|---:|---|
+| Subsidies | `T00SUB` 59,876 | `SUB` −59,876 | exact; Supply stores it negative |
+| Taxes on products | `T00TOP` 755,451 | `TOP` 716,926 + `MDTY` 38,507 = 755,433 | 18 apart, rounding |
+| Other taxes on production | `T00OTOP` 608,542 | **absent** | industry-only by construction |
+
+Two things follow.
+
+**The Supply side is more decomposed, not less.** The Use table folds import
+duties into `T00TOP`; the Supply table separates them as `MDTY`. So the
+commodity axis carries a distinction the industry axis has already lost.
+
+**The commodity axis is the more natural home for a tax on a product.** Excise
+taxes concentrate on specific products — tobacco, fuel, alcohol — and that
+structure is visible on commodities and smeared across industries. 339 of 402
+commodities carry `TOP` against 348 of 402 industries carrying `T00TOP`, so
+neither is sparser; the difference is interpretability, not coverage.
+
+**`T00OTOP` has no such choice.** Taxes on *production* attach to producing
+units rather than products, which is why the Supply table has no counterpart.
+It is industry-only and stays that way.
+
+> ### Coordination risk with Step 4
+>
+> `supply_bridge_detail_sut` already covers `MDTY`, `TOP` and `SUB` as Step 4
+> work. If Step 2 builds `T00TOP`/`T00SUB` by industry *and* Step 4 builds
+> `TOP`/`SUB`/`MDTY` by commodity, the same money is estimated twice on two
+> axes and the two results will not reconcile except by luck.
+>
+> **Build once, derive the other through the Make/Supply structure.** Deciding
+> which axis is primary is a cross-step decision and should be made before
+> either step starts, not discovered when the two disagree. The reconciliation
+> above is the test that whichever direction is chosen still holds.
+
 ## `T00OTOP` — accept a cruder method
 
 No NIPA table has an industry axis for this. `T30500` is by level of government
@@ -315,3 +354,6 @@ output, that shared dependency is a better reason to build the extractor than
    (18% of `V00300`) is the component that would most benefit.
 7. **Does `T61600D`'s subtree selection cleanly exclude rest-of-world?** Its
    leaves mix domestic industries with rest-of-world receipts and payments.
+8. **Which axis is primary for product taxes and subsidies — commodity or
+   industry?** A cross-step decision between Step 2 and Step 4, and the one
+   question here that cannot be answered inside this plan alone.
