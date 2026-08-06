@@ -13,8 +13,8 @@ uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
-**Snapshot date:** 2026-08-05. Step 1's numbers come from the last CSV export of
-`derive_initial_Y_pur`, not from a live run — see [Caveats](#caveats).
+**Snapshot date:** 2026-08-06, `nowcast` refreshed from `main`. Step 1's
+numbers come from a live run of `derive_initial_Y_pur`.
 
 ---
 
@@ -22,7 +22,7 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 
 | block | step | shape | reference populates | reference total | candidate | coverage | accuracy |
 |---|---|---|---:|---:|---|---:|---:|
-| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | exported | **44.4%** | **32.6%** |
+| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **44.4%** | **32.7%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
 | `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | *none yet* | — | — |
 
@@ -45,17 +45,17 @@ corresponding step is built.
 
 | scope | absent | match | partial | miss | extra |
 |---|---:|---:|---:|---:|---:|
-| cells | 6,385 | 181 | 375 | **697** | 0 |
+| cells | 6,385 | 182 | 374 | **697** | 0 |
 | row totals | 22 | 7 | 290 | 83 | 0 |
 | column totals | 0 | 7 | 4 | 8 | 0 |
 
 | | |
 |---|---:|
 | coverage | 44.4% |
-| accuracy | 32.6% |
-| candidate grand total | $13.74T |
+| accuracy | 32.7% |
+| candidate grand total | $13.33T |
 | reference grand total | $22.24T |
-| grand total error | 38.2% |
+| grand total error | 40.0% |
 | residual outside the frame | **$6.23T** on 14 rows, not drawn |
 
 ### What the picture says that the totals do not
@@ -84,8 +84,9 @@ live on both sides and nearly all sit at the far end of the ramp, not near the
 boundary. Column total −17.3%: the per-commodity split, not coverage.
 
 **`S00900` has the right magnitude and the wrong sign** — relative error exactly
-2.0. `7a04a71` added `negate_flows` for this; the export predates it taking
-effect.
+2.0, against a reference of −200,997,000,000. `7a04a71` added `negate_flows`
+for this, and this is a live run, so the sign error is current rather than an
+artefact of a stale export.
 
 Longer form: [`About_table_match.md`](About_table_match.md).
 
@@ -164,17 +165,17 @@ T016 = T013 + T014 + T015
 
 ## Caveats
 
-**Step 1's live candidate does not run.** `derive_initial_Y_pur(2017)` raises
-`KeyError: ['ActivityProducedBy'] not in index`. `NIPA_FD_2017.yaml` sets
-`attribute_on: ['PrimarySector', 'ActivityProducedBy']`, but the
-`retain_activity_columns` plumbing in `flowby.py` that keeps that column alive
-into the attribution source landed in `9668ce7`, was reverted from main in
-`42f7e59`, and was **not** part of the `7a04a71` salvage. The section reads the
-last CSV export meanwhile; switching back is one line
-(`Section.candidate = initial_Y_pur_candidate`).
+**Only one of seven PCE activity sets attributes on its own bridge rows.**
+`9668ce7` set `attribute_on: ['PrimarySector', 'ActivityProducedBy']` on six PCE
+sets and the equipment set; the `7a04a71` salvage re-landed it on
+`FD_PCE_less_nonresident` alone. So the per-commodity split fix that commit
+reported (F01000 18/297 → 189/293 cells within 1%) is only partly in place, and
+`F01000` being amber almost everywhere above is consistent with that. Restoring
+the rest is #547 work item 2, not done here.
 
-Because that export predates the current config, Step 1's numbers here are a
-snapshot of *that run*, not of `nowcast` HEAD. Re-run once the FBS runs again.
+**F02E00's equipment names are unresolved.** `U50505` carries 45 activity names
+against `BEA_PEQBridge`'s 27, only 26 matching exactly, so NIPA rows drop rather
+than attribute. Also #547 work item 2.
 
 **Nothing here is a rollup.** Every number is BEA 2017 detail. Margins and
 redefinitions net out at summary and above, so an aggregate view of these blocks
