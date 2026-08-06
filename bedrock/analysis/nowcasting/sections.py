@@ -301,16 +301,11 @@ def initial_Y_pur_exported_candidate(year: int) -> pd.DataFrame:
     reference always comes from the published SUT workbook, so a stale
     baseline column in an older export cannot leak into the comparison.
 
-    This is the section's candidate today because ``derive_initial_Y_pur``
-    does not currently run: ``NIPA_FD_2017.yaml`` sets
-    ``attribute_on: ['PrimarySector', 'ActivityProducedBy']`` on the PCE sets,
-    and the ``retain_activity_columns`` plumbing in ``flowby.py`` that makes
-    that column survive into the attribution source landed in ``9668ce7``, was
-    reverted from main in ``42f7e59``, and was not part of the ``7a04a71``
-    salvage.  So the config asks for a column the framework no longer keeps and
-    the FBS raises ``KeyError: ['ActivityProducedBy'] not in index``.  That is
-    Step 1's bug, not this diagnostic's; reading the export keeps the picture
-    available while it is open.
+    Not what the section uses -- :func:`initial_Y_pur_candidate` runs the FBS
+    live.  Kept because reading a pinned export is the only way to put a past
+    run beside a current one, which is what says whether a change moved the
+    numbers; and because it is the fallback if the FBS breaks again, as it did
+    between ``42f7e59`` and the restoration of ``retain_activity_columns``.
     """
     _require_2017(year)
     if not INITIAL_Y_PUR_EXPORT.exists():
@@ -345,12 +340,11 @@ USE_FD_DETAIL_SUT = Section(
     tolerance=Tolerance(rtol=0.013, atol=ROUNDING_ATOL, ramp=0.25),
     column_names=USA_2017_FINAL_DEMAND_DESC,
     reference=use_sut_final_demand_reference,
-    candidate=initial_Y_pur_exported_candidate,
+    candidate=initial_Y_pur_candidate,
     note=(
-        'Candidate read from the last CSV export of derive_initial_Y_pur; the '
-        'live FBS does not currently run (see '
-        'initial_Y_pur_exported_candidate). Reference is always the published '
-        'SUT workbook.'
+        'Candidate is a live run of derive_initial_Y_pur, so this picture tracks '
+        'the current NIPA_FD_2017 config. Reference is always the published SUT '
+        'workbook.'
     ),
 )
 
