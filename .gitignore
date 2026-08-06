@@ -36,13 +36,11 @@ __pycache__/
 !bedrock/extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_*.csv
 # Electricity disagg diagnostics sheet exports (BLy / EF plots)
 !bedrock/analysis/electricity_disagg_diagnostics/local_data/*.xlsx
-# Figures embedded in the nowcast progress report. Committed at REPORT_DPI
-# (~120 KB each) and regenerated per milestone, not per commit; the working
-# copies the CLI writes under */output/ stay ignored.
-# Both paths are listed so the report can live in either place: a negation is
-# path-specific, so moving the report without moving this line would silently
-# stop tracking its figures and leave the embeds broken on GitHub.
-!.claude/plan/images/*.png
+# Figures embedded in bedrock/analysis/nowcasting/progress_report.md. Committed
+# at REPORT_DPI (~120 KB each) and regenerated per milestone, not per commit;
+# the working copies the CLI writes to output/ stay ignored. This negation is
+# path-specific — if the report ever moves again, move this line with it or its
+# figures silently stop being tracked and the embeds break on GitHub.
 !bedrock/analysis/nowcasting/images/*.png
 
 # Ignore JetBrains IDE project files

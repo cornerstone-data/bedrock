@@ -10,7 +10,7 @@ Regenerate with:
 ```
 uv run python -m bedrock.analysis.nowcasting.plots
 uv run python -m bedrock.analysis.nowcasting.plots \
-    --dpi 110 --out-dir .claude/plan/images --no-report   # the copies below
+    --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
 **Snapshot date:** 2026-08-05. Step 1's numbers come from the last CSV export of
@@ -87,7 +87,7 @@ boundary. Column total −17.3%: the per-commodity split, not coverage.
 2.0. `7a04a71` added `negate_flows` for this; the export predates it taking
 effect.
 
-Longer form: [`About_table_match.md`](../../bedrock/analysis/nowcasting/About_table_match.md).
+Longer form: [`About_table_match.md`](About_table_match.md).
 
 ---
 

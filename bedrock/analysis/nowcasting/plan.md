@@ -80,7 +80,7 @@ than trying to hold producer-price MUT consistency through every section build.
 
 ## Framework facts this plan depends on
 
-These are established in [`About_BEA_IOT_table_valuation_differences.md`](bedrock/analysis/compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md)
+These are established in [`About_BEA_IOT_table_valuation_differences.md`](../../analysis/compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md)
 (2017 detail, verified cell-for-cell there) and drive most of the design decisions below.
 
 **Supply table structure** (commodity × industry cells = domestic output at *basic* value; trailing
@@ -124,26 +124,26 @@ T018  = T005   + VABAS            # intermediate at purchaser + VA at basic
 **Summary SUT needs its 2023-2024 vintage loaded (small, do it early).** BEA publishes summary SUT for
 **2017-2024**, same span as summary MUT — but bedrock currently only has the **2017-2022** workbooks
 wired up: `USA_SUMMARY_SUT_MAPPING_2017_2022`
-([matrix_mappings.py:53-60](bedrock/utils/taxonomy/bea/matrix_mappings.py#L53-L60)) is the only SUT
-mapping, and [`_load_usa_summary_sut`](bedrock/extract/iot/io_2017.py#L766-L795) hardcodes it, so
+([matrix_mappings.py:53-60](../../utils/taxonomy/bea/matrix_mappings.py#L53-L60)) is the only SUT
+mapping, and [`_load_usa_summary_sut`](../../extract/iot/io_2017.py#L766-L795) hardcodes it, so
 asking for 2023 or 2024 will fail on a missing sheet rather than fall back.
 
 The fix mirrors what summary MUT already does: add a `USA_SUMMARY_SUT_MAPPING_2017_2024` constant for
 the newer workbooks, upload them to `GCS_USA_SUP_DIR`, and give `_load_usa_summary_sut` the same
 vintage-pinning branch `_load_usa_summary_mut` uses at
-[io_2017.py:730-739](bedrock/extract/iot/io_2017.py#L730-L739) — older years stay pinned to the oldest
+[io_2017.py:730-739](../../extract/iot/io_2017.py#L730-L739) — older years stay pinned to the oldest
 file containing them, so BEA's historical revisions don't silently move values under existing
 consumers. Worth doing in Step 0: **summary SUT totals are the natural RAS control for every nowcast
 year**, and two of the seven years can't be loaded today.
 
 Two loose ends to tidy while in there: `_load_usa_summary_sut`'s `year` parameter is typed
 `USA_SUMMARY_MUT_YEARS` (1997 onward), which admits years no SUT workbook contains — it wants its own
-`USA_SUMMARY_SUT_YEARS` literal. And [`BEA.py:106,117`](bedrock/extract/bea/BEA.py#L106-L117) casts to
+`USA_SUMMARY_SUT_YEARS` literal. And [`BEA.py:106,117`](../../extract/bea/BEA.py#L106-L117) casts to
 `USA_SUMMARY_MUT_YEARS` to satisfy that signature; the cast can go once the type is right.
 
 **The published SUT is before redefinitions** (confirmed). This is why the detail SUT files
 (`Supply_2017_DET.xlsx`, `Use_SUT_Framework_2017_DET.xlsx`) carry no before/after qualifier where MUT
-ships both variants ([matrix_mappings.py:9-30](bedrock/utils/taxonomy/bea/matrix_mappings.py#L9-L30)) —
+ships both variants ([matrix_mappings.py:9-30](../../utils/taxonomy/bea/matrix_mappings.py#L9-L30)) —
 there is only one SUT, and redefinition is a MUT-framework step applied after conversion.
 
 Two consequences run through the whole plan:
@@ -157,15 +157,15 @@ Two consequences run through the whole plan:
 
 ## Grounding: what already exists
 
-**Module.** [`bedrock/transform/eeio/nowcast.py`](bedrock/transform/eeio/nowcast.py) exists and
+**Module.** [`bedrock/transform/eeio/nowcast.py`](../../transform/eeio/nowcast.py) exists and
 currently implements exactly one thing: `derive_initial_Y_pur(year)` — the final-demand block of the
 SUT Use table, purchaser price, BEA_2017_Detail schema, from the `NIPA_FD_<year>` FBS methods. It
 handles the Cornerstone-schema collapse problem via `map_fbs_sectors_to_model_schema` applied to both
 sector columns. A baseline validator exists at
-[`bedrock/analysis/nowcasting/initial_Y_pur_baseline.py`](bedrock/analysis/nowcasting/initial_Y_pur_baseline.py).
+[`bedrock/analysis/nowcasting/initial_Y_pur_baseline.py`](../../analysis/nowcasting/initial_Y_pur_baseline.py).
 
 **2017 benchmark loaders — all four end-product table types already load**, before *and* after
-redefinitions, from [`io_2017.py`](bedrock/extract/iot/io_2017.py):
+redefinitions, from [`io_2017.py`](../../extract/iot/io_2017.py):
 
 | Deliverable | After-redef loader | Before-redef loader |
 |---|---|---|
@@ -179,20 +179,20 @@ Plus SUT loaders (`_load_2017_detail_sut_usa`, `_load_usa_summary_sut`) and summ
 conversion and redefinition steps need is already loadable** — no new extract work for the 2017 anchor.
 
 **Existing machinery to reuse, not rebuild:**
-- [`derive_PRO_to_PUR_ratio.py`](bedrock/transform/iot/derive_PRO_to_PUR_ratio.py) — margins-based
+- [`derive_PRO_to_PUR_ratio.py`](../../transform/iot/derive_PRO_to_PUR_ratio.py) — margins-based
   PRO↔PUR ratios (`phi`), with margin filters, negative-margin treatment, and
   `derive_margins_cornerstone_usa_at_year(year)` / `_inflate_margins_to_year` already inflating margin
   components to a target year. Directly relevant to both the Supply-table margin columns and the
   PUR→PRO conversion.
-- [`derived_gross_industry_output.py`](bedrock/transform/iot/derived_gross_industry_output.py) —
+- [`derived_gross_industry_output.py`](../../transform/iot/derived_gross_industry_output.py) —
   `compute_coproduction_ratios` / `adjust_gross_output` (lines ~150-212) derive a co-production
   movement ratio from the benchmark year's before/after Make tables and carry it forward. **This is
   the template for Step 7 redefinitions**, and the board already names it as the pattern for the VA
   before→after transform.
-- [`inflation_helpers_cornerstone.py`](bedrock/utils/economic/inflation_helpers_cornerstone.py) —
+- [`inflation_helpers_cornerstone.py`](../../utils/economic/inflation_helpers_cornerstone.py) —
   bedrock's own commodity-inflation approach, referenced by #497.
-- [`Detail_Supply.yaml`](bedrock/transform/detail/Detail_Supply.yaml) /
-  [`Detail_Use_SUT.yaml`](bedrock/transform/detail/Detail_Use_SUT.yaml) — existing FBS methods that
+- [`Detail_Supply.yaml`](../../transform/detail/Detail_Supply.yaml) /
+  [`Detail_Use_SUT.yaml`](../../transform/detail/Detail_Use_SUT.yaml) — existing FBS methods that
   disaggregate a **Summary SUT** to detail using 2017 detail proportions. Their own headers warn *"The
   resulting tables do not reflect valid balanced Supply/Use tables"*, so they are not the deliverable —
   but they are a ready-made **fallback seed / cross-check** for any SUT block we can't source directly,
@@ -247,7 +247,7 @@ one and aggregate.** The Margins table is per **commodity-buyer transaction**: i
 `(Industry Code, Commodity Code)` where the industry side spans both `USA_2017_INDUSTRY_CODES` and
 `USA_2017_FINAL_DEMAND_CODES` (i.e. the buyer, intermediate or final), and its columns are
 `Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value`
-([io_2017.py:333-359](bedrock/extract/iot/io_2017.py#L333-L359)). The Supply table's `TRADE`/`TRANS`
+([io_2017.py:333-359](../../extract/iot/io_2017.py#L333-L359)). The Supply table's `TRADE`/`TRANS`
 are single values per commodity. They reconcile by aggregation:
 
 ```
@@ -478,7 +478,7 @@ not introduce a step 10.
   inputs to production at **purchaser prices** (the SUT Use basis exactly), so they looked like the way
   to put real annual movement into it. Probed in [#564](https://github.com/cornerstone-data/bedrock/issues/564);
   full results in
-  [`bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md`](bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md).
+  [`bedrock/analysis/annual_survey_inputs/annual_survey_expense_sources.md`](../../analysis/annual_survey_inputs/annual_survey_expense_sources.md).
 
   | Sector | Verdict | What to use |
   |---|---|---|
@@ -670,7 +670,8 @@ after this pass) and every open issue in the repo.
 
 ### The gating layer sits above these steps
 
-[`bea_code_space_cleanup.md`](.claude/plan/bea_code_space_cleanup.md) is **P0 for this project**, not a
+[`bea_code_space_cleanup.md`](https://github.com/cornerstone-data/bedrock/blob/plan_bea_code_space/.claude/plan/bea_code_space_cleanup.md)
+is **P0 for this project**, not a
 parallel cleanup. Of the 406 BEA detail codes in `NAICS_Crosswalk_BEA_2017_Detail.csv`, **210 cannot be
 reached through any NAICS level**, so any FBS routed through a NAICS target schema drops or renormalises
 them. Every final-demand defect chased on 2026-07-29 reduced to that one cause.
@@ -833,7 +834,7 @@ This is the part that needs preparation *during* Phase 1, because it cuts agains
 loaders are deliberately built today.
 
 `_load_usa_summary_mut` pins older years to the oldest file containing them
-([io_2017.py:730-739](bedrock/extract/iot/io_2017.py#L730-L739)) — *"BEA revises historical data in
+([io_2017.py:730-739](../../extract/iot/io_2017.py#L730-L739)) — *"BEA revises historical data in
 each new release. We pin older years to the oldest file containing them so values stay stable across
 releases."* That convention exists to protect consumers like `scale_cornerstone_B`, and it is the
 right default for them. **A deliberate historical refresh is the opposite behaviour**, so Phase 2 needs
@@ -865,9 +866,9 @@ Also worth scoping ahead of time:
    vintage branch, the same mechanic as the 2023-2024 summary SUT work in Step 0, plus the
    latest-vintage selector described above.
 3. **Extend the year literals.** At minimum `USA_SUMMARY_MUT_YEARS` / `USA_GROSS_INDUSTRY_OUTPUT_YEARS`
-   ([matrix_mappings.py:63-83](bedrock/utils/taxonomy/bea/matrix_mappings.py#L63-L83)), plus
+   ([matrix_mappings.py:63-83](../../utils/taxonomy/bea/matrix_mappings.py#L63-L83)), plus
    `usa_io_data_year` and `model_base_year` in
-   [usa_config.py:49-64](bedrock/utils/config/usa_config.py#L49-L64) — all currently stop at 2024.
+   [usa_config.py:49-64](../../utils/config/usa_config.py#L49-L64) — all currently stop at 2024.
    Grep for `2024` rather than assuming that list is complete.
 4. **Add `NIPA_FD_2025.yaml`** (the series currently runs 2017-2024), plus the 2025 counterparts of
    whatever VA and trade/inventory methods Steps 1d/1e/2 produce.

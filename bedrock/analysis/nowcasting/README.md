@@ -61,6 +61,12 @@ Candidate mass on labels outside a section's frame is not drawn and not dropped:
 `output/` is untracked — CSV exports and figures are working artifacts of a
 local run.
 
-## Notes
+## Documents
 
-- `About_table_match.md` — what the first Step 1 run showed.
+- [`plan.md`](plan.md) — the nowcast build plan: the seven steps, their data
+  sources, and the open decisions.
+- [`progress_report.md`](progress_report.md) — where the build stands, with the
+  figures embedded. Regenerated per milestone; its images are the one tracked
+  thing under `images/`.
+- [`About_table_match.md`](About_table_match.md) — what the first Step 1 run
+  showed.
