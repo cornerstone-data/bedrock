@@ -21,7 +21,6 @@ from bedrock.utils.validation.diagnostics_helpers import (
 class TestDNNewInflatedEligibility:
     def test_emit_when_deflate_path(self) -> None:
         cfg = USAConfig(
-            use_cornerstone_2026_model_schema=True,
             use_E_data_year_for_x_in_B=True,
             deflate_x_to_detail_io_year_for_B=True,
         )
@@ -31,7 +30,6 @@ class TestDNNewInflatedEligibility:
 
     def test_skip_when_model_base_year_equals_detail_original_year(self) -> None:
         cfg = USAConfig(
-            use_cornerstone_2026_model_schema=True,
             use_E_data_year_for_x_in_B=True,
             deflate_x_to_detail_io_year_for_B=True,
             model_base_year=2017,
@@ -42,7 +40,6 @@ class TestDNNewInflatedEligibility:
 
     def test_skip_use_e_without_deflate(self) -> None:
         cfg = USAConfig(
-            use_cornerstone_2026_model_schema=True,
             use_E_data_year_for_x_in_B=True,
             deflate_x_to_detail_io_year_for_B=False,
         )
@@ -52,23 +49,12 @@ class TestDNNewInflatedEligibility:
 
     def test_skip_default_b_inflation_path(self) -> None:
         cfg = USAConfig(
-            use_cornerstone_2026_model_schema=True,
             deflate_x_to_detail_io_year_for_B=False,
             use_E_data_year_for_x_in_B=False,
         )
         ok, reason = d_n_new_inflated_eligibility(cfg)
         assert ok is False
         assert 'double-apply' in reason
-
-    def test_skip_legacy_non_cornerstone(self) -> None:
-        cfg = USAConfig(
-            use_cornerstone_2026_model_schema=False,
-            use_E_data_year_for_x_in_B=True,
-            deflate_x_to_detail_io_year_for_B=True,
-        )
-        ok, reason = d_n_new_inflated_eligibility(cfg)
-        assert ok is False
-        assert 'legacy' in reason.lower()
 
 
 SECTORS = ["1111A0", "1111B0", "221100"]

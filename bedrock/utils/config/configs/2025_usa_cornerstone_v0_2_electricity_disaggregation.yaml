@@ -1,5 +1,4 @@
 # v0.2 + waste + electricity reallocation + 3-way split (no mixed units, no margins).
-use_cornerstone_2026_model_schema: True
 use_cornerstone_ghg_model: true
 use_E_data_year_for_x_in_B: True
 implement_waste_disaggregation: True

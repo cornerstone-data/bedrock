@@ -60,8 +60,6 @@ class USAConfig(BaseModel):
     #####
     # Methodology selection
     #####
-    ### Schema/Taxonomy selection
-    use_cornerstone_2026_model_schema: bool = False  # DRI: mo.li
     ### IO Methodology selection
     # "IO year adjustments" bucket: CEDA A/q scaling to usa_io_data_year with
     # summary dollar-year rebase, bedrock-derived industry inflation factors,

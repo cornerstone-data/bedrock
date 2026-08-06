@@ -9,7 +9,6 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import compute_L_matrix, compute_M_matrix
 
 PUBLISH_LOCATION: str = 'US'
@@ -65,14 +64,6 @@ def assemble_extended_U(
     out.index.name = 'sector'
     out.columns.name = 'sector'
     return out
-
-
-def require_cornerstone_config() -> None:
-    if not get_usa_config().use_cornerstone_2026_model_schema:
-        raise NotImplementedError(
-            'bedrock.publish only supports cornerstone-schema configs '
-            '(use_cornerstone_2026_model_schema=True).'
-        )
 
 
 @functools.cache

@@ -14,13 +14,9 @@ from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
 from bedrock.utils.schemas.cornerstone_schemas import CORNERSTONE_INDUSTRIES_ELEC
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.cornerstone.industries import (
     INDUSTRIES,
     WASTE_DISAGG_INDUSTRIES,
-)
-from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_commodity import (
-    load_bea_v2017_industry_to_bea_v2017_commodity,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,18 +130,12 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     )
     fbs2['NAICS_6'] = fbs2['NAICS_6'].fillna(fbs2['SectorProducedBy'])
 
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        mapping = _build_mapping_with_allocations(
-            get_activitytosector_mapping('Cornerstone_2025'),
-            use_output_weights=False,
-        )
-        if get_usa_config().implement_electricity_disaggregation:
-            mapping = _apply_electricity_disagg_cornerstone_mapping(mapping)
-    else:
-        mapping = _build_mapping_with_allocations(
-            get_activitytosector_mapping('CEDA_2025'),
-            use_output_weights=False,
-        )
+    mapping = _build_mapping_with_allocations(
+        get_activitytosector_mapping('Cornerstone_2025'),
+        use_output_weights=False,
+    )
+    if get_usa_config().implement_electricity_disaggregation:
+        mapping = _apply_electricity_disagg_cornerstone_mapping(mapping)
 
     fbs2 = (
         fbs2.merge(
@@ -346,41 +336,12 @@ def load_E_from_flowsa() -> pd.DataFrame:
     new_index = E_usa.index.map(lambda x: reverse.get(x, x))
     E_usa = E_usa.groupby(new_index).agg('sum')
 
-    # Collapse across sectors (when CEDA: group BEA→CEDA; when Cornerstone: already in schema)
-    if get_usa_config().use_cornerstone_2026_model_schema:
-        if get_usa_config().implement_electricity_disaggregation:
-            target_columns = [str(sector) for sector in CORNERSTONE_INDUSTRIES_ELEC]
-        else:
-            target_columns = [str(sector) for sector in INDUSTRIES]
-        # E_usa already has Cornerstone columns from derive_E_usa_emissions_sources
-        E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
+    # Collapse across sectors (already in Cornerstone schema from
+    # map_fbs_sectors_to_model_schema).
+    if usa.implement_electricity_disaggregation:
+        target_columns = [str(sector) for sector in CORNERSTONE_INDUSTRIES_ELEC]
     else:
-        mapping = load_bea_v2017_industry_to_bea_v2017_commodity()
-        target_columns = [str(sector) for sector in CEDA_V7_SECTORS]
-        col_to_target = {k: v[0] for k, v in mapping.items()}
-        for c in E_usa.columns:
-            if c not in col_to_target and c in target_columns:
-                col_to_target[c] = c  # type: ignore
-        dropped_by_groupby = sorted(set(E_usa.columns) - set(col_to_target.keys()))
-        if dropped_by_groupby:
-            logger.warning(
-                'E_usa columns with no mapping (dropped by groupby): %s',
-                dropped_by_groupby,
-            )
-        E_usa = E_usa.groupby(col_to_target, axis=1).sum()  # type: ignore
-        target_set = set(target_columns)
-        extra = sorted(set(E_usa.columns) - target_set)
-        missing = sorted(target_set - set(E_usa.columns))
-        if extra:
-            logger.warning(
-                'E_usa columns not in target schema (will be dropped by reindex): %s',
-                extra,
-            )
-        if missing:
-            logger.debug(
-                'Target schema columns missing from E_usa (will be filled with 0): %s',
-                missing,
-            )
-        E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
+        target_columns = [str(sector) for sector in INDUSTRIES]
+    E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
 
     return E_usa
