@@ -40,30 +40,55 @@ of ``V00300``.  The statistical discrepancy is 67,902.  The IO accounts have
 nowhere else to put it, so it lands in ``V00300``, and any construction that
 omits it is short by roughly that amount.
 
-Why the proposed ``V00300`` construction falls short
------------------------------------------------------
+Assembling ``V00300``
+---------------------
 
-``T61200D + T61400D + T61500D + T61700D + T61300D + T62200D`` sums to
-6,145,875 -- 78.1% of ``V00300``.  The gaps, largest first:
+``V00300`` has no single NIPA table.  The assembly below reconciles to
+**+13 million on 7.9 trillion**, and supersedes the construction sketched on
+the issue:
 
-- **consumption of fixed capital, -839,833.**  ``T61300D`` and ``T62200D`` are
-  the *business* capital consumption allowances.  Households, nonprofits and
-  government have consumption of fixed capital too, and it is in value added.
-  ``T70500`` carries the whole 3,148,953 and supersedes both.
-- **rental income of persons, -642,028.**  No table proposed; it is ``T70900``.
-- **proprietors' income, -340,534.**  ``T61200D`` is *nonfarm* proprietors'
-  income by its title.  Farm is in ``T71500``.
-- **net interest, -212,131.**  ``T61500D`` is net interest; the value-added
-  line is net interest *and miscellaneous payments*, and is domestic industries
-  only -- the table's root includes rest of the world at -195,341.
-- **business current transfer payments, -142,925.**  No table proposed; it is
-  ``T70700``.
-- **statistical discrepancy, -67,902.**  Not an industry series at all.
-- **corporate profits, +513,949.**  ``T61700D`` is profits *before tax without*
-  IVA and CCAdj; value added wants them *with*, and domestic industries only.
-  ``T61600D`` line ``A445RC`` is the right series.  The proposed pairing
-  overshoots, which is why the net shortfall looks smaller than the individual
-  gaps.
+==========================================  ================  ===========
+Net interest and misc payments, domestic    T1.10 ``W272RC``      720,494
+Business current transfer payments (net)    T70700 ``B029RC``     142,925
+Proprietors' income with IVA and CCAdj      T61200D + T71500    1,428,634
+Rental income of persons                    T70900 ``A048RC``     642,028
+Corporate profits with IVA/CCAdj, domestic  T61600D ``A445RC``  1,726,343
+Current surplus of government enterprises   T1.10 ``A108RC``       -4,253
+Consumption of fixed capital, all sectors   T70500 ``A262RC``   3,148,953
+Statistical discrepancy                     T1.10 ``A030RC``       67,902
+==========================================  ================  ===========
+
+Three of those lines need the *right line* rather than the table's root, which
+is the usual way this goes wrong:
+
+- **Corporate profits** must be the domestic-industries line ``A445RC``.
+  ``T61600D``'s root includes rest of the world and is 498,898 larger.
+- **Net interest** must be domestic industries and include *miscellaneous
+  payments*.  ``T61500D``'s root is net interest alone and includes rest of the
+  world at -195,341.
+- **Consumption of fixed capital** must be all sectors, ``T70500``.  The
+  Section 6 capital consumption tables are business only; households,
+  nonprofits and government have CFC too, and it is in value added.
+
+Known issues with the assembly
+-------------------------------
+
+- **Two lines have no industry table at all.**  The statistical discrepancy
+  (67,902) and the current surplus of government enterprises (-4,253) cannot be
+  attributed to an industry from any source.  Spreading them is unavoidable and
+  arbitrary, and should be labelled as such rather than presented as a measure.
+- **The statistical discrepancy is an accounting residual**, not a measurement
+  of anything.  It exists because GDP and GDI are estimated independently.
+  Whatever industry pattern it is given is fiction; the only honest treatment is
+  pro rata plus a note.
+- **Two components are negative** -- the government enterprise surplus, and the
+  finance and insurance line inside net interest at -156,707.  Any share or
+  RAS-style method that assumes positivity will break on them.
+- **Proprietors' income needs both halves.**  ``T61200D`` is nonfarm by its
+  title; farm comes from ``T71500``.
+- **The source tables are coarse.**  9 to 23 leaves for most components against
+  ``T60200D``'s 74 for compensation, so ``V00300`` starts further from BEA
+  detail than ``V00100`` does and leans harder on whatever allocator is chosen.
 
 Granularity is the real constraint, and it is uneven across the block
 ---------------------------------------------------------------------
@@ -233,14 +258,19 @@ def build_checks(year: int = YEAR) -> list[Check]:
     ]
 
 
-#: The construction proposed on #537, as a list of NIPA tables to sum.
-PROPOSED_V00300_TABLES = (
-    'T61200D',
-    'T61400D',
-    'T61500D',
-    'T61700D',
-    'T61300D',
-    'T62200D',
+#: How ``V00300`` is assembled: ``(label, table, code, industry table)``.  Values
+#: are taken by code rather than from a table root, because three of these lines
+#: sit one level down from a root that includes rest of the world or covers only
+#: business.  See the module docstring.
+V00300_ASSEMBLY: tuple[tuple[str, str, str, str], ...] = (
+    ('Net interest and misc payments, domestic', 'T11000', 'W272RC', 'T61500D'),
+    ('Business current transfer payments (net)', 'T70700', 'B029RC', 'T70700'),
+    ("Proprietors' income with IVA and CCAdj", 'T11000', 'A041RC', 'T61200D+T71500'),
+    ('Rental income of persons', 'T70900', 'A048RC', 'T70900'),
+    ('Corporate profits with IVA/CCAdj, domestic', 'T61600D', 'A445RC', 'T61600D'),
+    ('Current surplus of government enterprises', 'T11000', 'A108RC', '(none)'),
+    ('Consumption of fixed capital, all sectors', 'T70500', 'A262RC', 'T70500'),
+    ('Statistical discrepancy', 'T11000', 'A030RC', '(none)'),
 )
 
 #: What ``V00300`` is actually made of, per T1.10, and where each piece has a
@@ -285,17 +315,26 @@ def v00300_components(year: int = YEAR) -> pd.DataFrame:
     return frame
 
 
-def proposed_v00300(year: int = YEAR) -> pd.DataFrame:
-    """Each proposed table's root total, and their sum."""
+def assemble_v00300(year: int = YEAR) -> pd.DataFrame:
+    """The ``V00300`` assembly, line by line, with each source resolved.
+
+    ``leaves`` is the finest industry split the component's own table
+    publishes, or ``None`` where no table has an industry axis.
+    """
     rows = []
-    for table in PROPOSED_V00300_TABLES:
-        frame = nipa_flat_table(table, year).frame
-        root = frame.loc[frame['level'] == frame['level'].min()].iloc[0]
+    for label, table, code, industry_table in V00300_ASSEMBLY:
+        leaves: int | None = None
+        if industry_table not in ('(none)', 'T61200D+T71500'):
+            leaves = len(nipa_flat_table(industry_table, year).leaves().frame)
+        elif industry_table == 'T61200D+T71500':
+            leaves = len(nipa_flat_table('T61200D', year).leaves().frame)
         rows.append(
             {
-                'table': table,
-                'root_line': str(root['name']),
-                'value': float(root['value']),
+                'component': label,
+                'source': f'{table} {code}',
+                'value': nipa_line(table, code, year),
+                'industry_table': industry_table,
+                'leaves': leaves,
             }
         )
     return pd.DataFrame(rows)
@@ -403,7 +442,7 @@ def report(year: int = YEAR) -> str:
     sut = sut_value_added_totals(year)
     checks = pd.DataFrame(c.compare(sut) for c in build_checks(year))
     comps = v00300_components(year)
-    proposed = proposed_v00300(year)
+    assembly = assemble_v00300(year)
     coverage = by_industry_coverage(year)
     total = float(coverage.sum())
 
@@ -411,7 +450,7 @@ def report(year: int = YEAR) -> str:
         'nipa': '{:,.0f}'.format,
         'use_sut': '{:,.0f}'.format,
         'diff': '{:,.0f}'.format,
-        'pct': '{:+.4f}'.format,
+        'pct': '{:+.4f}%'.format,
         'value': '{:,.0f}'.format,
         'share': '{:.1f}'.format,
     }
@@ -459,17 +498,18 @@ def report(year: int = YEAR) -> str:
             for key in ('full', 'partial', 'none')
         ),
         '',
-        'THE CONSTRUCTION PROPOSED ON #537',
-        proposed.to_string(index=False, formatters=fmt),  # type: ignore[arg-type]
+        'HOW V00300 IS ASSEMBLED',
+        assembly.to_string(index=False, formatters=fmt),  # type: ignore[arg-type]
     ]
-    proposed_total = float(proposed['value'].sum())
+    assembled = float(assembly['value'].sum())
     v00300 = float(sut['V00300'])
     lines += [
         '',
-        f'  proposed sum {proposed_total:,.0f} against V00300 {v00300:,.0f}',
-        f'  short by {v00300 - proposed_total:,.0f}'
-        f'  ({(v00300 - proposed_total) / v00300 * 100:.1f}%)',
-        '  See the module docstring for the six reasons, largest first.',
+        f'  assembled {assembled:,.0f} against V00300 {v00300:,.0f}'
+        f'   diff {assembled - v00300:,.0f}'
+        f'  ({(assembled - v00300) / v00300 * 100:+.4f}%)',
+        '  Three lines need a specific code rather than the table root, and two',
+        '  have no industry table at all. See the module docstring.',
     ]
 
     va_codes = tuple(SUT_VA_ROWS)
