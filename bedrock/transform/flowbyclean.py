@@ -703,3 +703,24 @@ def proxy_sector_data(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     fba3 = fba2.explode(col).reset_index(drop=True).reset_index(names='group_id')
 
     return fba3
+
+
+def negate_flows(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """
+    Flip the sign of every FlowAmount in an activity set.
+
+    For sources that report a quantity as a positive magnitude which the
+    surrounding table subtracts, where the data it is attributed against
+    already carries that quantity as negative.
+
+    Apply before attribution, so the attribution source's ratios distribute a
+    negative total rather than being applied and then flipped. That makes no
+    difference where a line maps to a single sector, but does where it splits.
+
+    To implement, use in an FBS method
+    clean_fba: !clean_function:flowbyclean negate_flows
+
+    :param fba: FlowByActivity whose FlowAmount should be negated
+    :return: the FlowByActivity with FlowAmount negated
+    """
+    return fba.assign(FlowAmount=-fba['FlowAmount'])
