@@ -494,7 +494,7 @@ class TestPipelineB:
 
             x = (
                 derive_cornerstone_x_after_redefinition()
-                if cfg.use_E_data_year_for_x_in_B
+                if cfg.use_ghg_year_x_in_B
                 else derive_cornerstone_x()
             )
             expected = (

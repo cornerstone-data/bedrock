@@ -10,7 +10,7 @@ from bedrock.publish.emission_factors.table import (
     build_purchaser_matrices,
     finalize_cornerstone_ef_table,
 )
-from bedrock.publish.model_objects import apply_loc_suffix, require_cornerstone_config
+from bedrock.publish.model_objects import apply_loc_suffix
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,6 @@ def write_emission_factors(
     write_matrices: bool = False,
 ) -> dict[str, str]:
     """Write CO2e SEF CSV (and optional M/N purchaser matrices) under ``output_dir``."""
-    require_cornerstone_config()
     os.makedirs(output_dir, exist_ok=True)
 
     table = finalize_cornerstone_ef_table(

@@ -6,9 +6,11 @@ from collections.abc import Sequence
 import pandas as pd
 
 from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_U_set_usa,
     derive_2017_V_usa,
-    derive_2017_Y_personal_consumption_expenditure_usa,
+)
+from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_U_set,
+    derive_cornerstone_Y_personal_consumption_expenditure,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
@@ -45,34 +47,16 @@ def load_bea_make_table() -> pd.DataFrame:
 
 
 @functools.cache
-def _load_bea_use_table_cached(use_cornerstone: bool) -> pd.DataFrame:
-    """Inner loader keyed by schema so both CEDA and Cornerstone can be cached."""
-    if use_cornerstone:
-        from bedrock.transform.eeio import derived_cornerstone  # noqa: PLC0415
-
-        uset = derived_cornerstone.derive_cornerstone_U_set()
-        U_combined = (uset.Udom + uset.Uimp).T
-        Y_cs = (
-            derived_cornerstone.derive_cornerstone_Y_personal_consumption_expenditure()
-            .to_frame()
-            .T
-        )
-        return pd.concat([U_combined, Y_cs])
-    U_set = derive_2017_U_set_usa()
-    Y_usa = derive_2017_Y_personal_consumption_expenditure_usa().to_frame()
-    return pd.concat([(U_set.Udom + U_set.Uimp).T, Y_usa.T])
-
-
 def load_bea_use_table() -> pd.DataFrame:
     """
-    Load BEA Use and Final Demand tables aligned to the model schema.
+    Load BEA Use and Final Demand tables in the Cornerstone frame.
 
-    When use_cornerstone_2026_model_schema is False, returns CEDA v7 industry rows.
-    When True, returns Cornerstone industry rows (from derive_cornerstone_U_set and Y).
-    Rows = industries + one PCE row; columns = commodities. Result is cached per schema.
+    Rows = Cornerstone industries + one PCE row; columns = commodities.
     """
-    use_cornerstone = get_usa_config().use_cornerstone_2026_model_schema
-    return _load_bea_use_table_cached(use_cornerstone)
+    uset = derive_cornerstone_U_set()
+    U_combined = (uset.Udom + uset.Uimp).T
+    Y_cs = derive_cornerstone_Y_personal_consumption_expenditure().to_frame().T
+    return pd.concat([U_combined, Y_cs])
 
 
 def _use_table_value_ceda_sector_cornerstone_aligned(
@@ -81,12 +65,11 @@ def _use_table_value_ceda_sector_cornerstone_aligned(
     ceda_sector: str,
 ) -> float:
     """
-    Value for one CEDA allocator sector from a use table (CEDA or Cornerstone shaped).
+    Value for one CEDA-vocabulary allocator sector from the Cornerstone use table.
 
-    When the table is CEDA-shaped (Cornerstone schema not active), the sector is
-    in the index and we return it directly; alignment rules are skipped. When the
-    table is Cornerstone-shaped, we apply alignment: 562* → 562000, 335220 ↔ 4
-    appliance sectors, 331313 → 331313+33131B.
+    Sectors present in the index are returned directly; otherwise alignment
+    rules apply: 562* → 562000, 335220 ↔ 4 appliance sectors,
+    331313 → 331313+33131B.
     """
     if ceda_sector in table_idx:
         return float(col.loc[ceda_sector])
@@ -120,11 +103,11 @@ def use_table_series_ceda_allocator_to_cornerstone_schema(
     commodity: str,
 ) -> pd.Series:
     """
-    Use-table series for CEDA allocator sectors, aligned to Cornerstone schema.
+    Use-table series for CEDA-vocabulary allocator sectors, aligned to the
+    Cornerstone-shaped use table.
 
-    When the use table is CEDA-shaped (Cornerstone schema not active), sectors
-    are looked up directly; alignment is skipped. When Cornerstone-shaped,
-    alignment applies: 562* → 562000, 335220 ↔ 4 appliance sectors, 331313 →
+    Sectors present in the table are looked up directly; otherwise alignment
+    applies: 562* → 562000, 335220 ↔ 4 appliance sectors, 331313 →
     331313+33131B. Missing sectors get 0. Safe to normalize (e.g. pct = s / s.sum()).
     """
     table_idx = use_table.index

@@ -85,9 +85,7 @@ def scenario_vnorm(
 
 def derive_Aq_from_scenario(scenario: DisaggScenarioResult) -> SingleRegionAqMatrixSet:
     """Unscaled 2017 A/q from scenario IO."""
-    Vnorm = scenario_vnorm(
-        scenario, apply_inflation=get_usa_config().apply_inflation_to_V
-    )
+    Vnorm = scenario_vnorm(scenario, apply_inflation=False)
     x = scenario.x
     Adom = compute_Unorm_matrix(U=scenario.Udom, x=x) @ Vnorm
     Aimp = compute_Unorm_matrix(U=scenario.Uimp, x=x) @ Vnorm
@@ -197,16 +195,14 @@ def derive_B_from_scenario(scenario: DisaggScenarioResult) -> pd.DataFrame:
     E = derive_E_usa()
     x = scenario.x.reindex(E.columns, fill_value=np.nan)
     x = x.fillna(1.0)
-    Vnorm = scenario_vnorm(
-        scenario, apply_inflation=get_usa_config().apply_inflation_to_V
-    )
+    Vnorm = scenario_vnorm(scenario, apply_inflation=False)
     return (E.div(x, axis=1)) @ Vnorm
 
 
 def probe_e_source() -> dict[str, str]:
     """Report whether eGRID FBS or GCS fallback was used for E."""
     cfg = get_usa_config()
-    if not (cfg.new_ghg_method and cfg.implement_electricity_disaggregation):
+    if not (cfg.use_cornerstone_ghg_model and cfg.implement_electricity_disaggregation):
         return {'source': 'standard', 'note': 'electricity disagg flag off'}
     try:
         from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415

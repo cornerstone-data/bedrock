@@ -14,9 +14,11 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.math.formulas import (
     backcompute_q_from_L_and_y,
     compute_commodity_mix_matrix,
+    compute_E_from_BLy,
 )
 from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVectorSet
 
@@ -465,3 +467,186 @@ def compare_output_from_make_and_use(
             'invalid output parameter requested for comparison between make and use, select commodity or industry'
         )
     return d_result
+
+
+def assert_eeio_year_alignment_precondition(
+    cfg: ta.Optional[USAConfig] = None,
+) -> None:
+    """Raise if the active (or given) config is not aligned for χ=1 LCI≈E checks.
+
+    Replaces useeior ``generateChiMatrix``: when this passes, ``compare_E_and_LCI_result``
+    may use χ=1. Failures are loud (``ValueError``), never silent skips.
+
+    Requires matching model/GHG years, GHG-year ``x`` in B
+    (``use_ghg_year_x_in_B``), and no deflated-B path that introduces an
+    intermediate dollar year.
+
+    Parameters
+    ----------
+    cfg
+        Config to check; defaults to ``get_usa_config()``.
+    """
+    if cfg is None:
+        cfg = get_usa_config()
+
+    reasons: list[str] = []
+    if cfg.model_base_year != cfg.usa_ghg_data_year:
+        reasons.append(
+            f'model_base_year ({cfg.model_base_year}) != '
+            f'usa_ghg_data_year ({cfg.usa_ghg_data_year})'
+        )
+    if not cfg.use_ghg_year_x_in_B:
+        reasons.append(
+            'use_ghg_year_x_in_B is False '
+            '(need apply_io_year_adjustments or use_E_data_year_for_x_in_B)'
+        )
+    if cfg.deflate_x_to_detail_io_year_for_B:
+        reasons.append(
+            'deflate_x_to_detail_io_year_for_B is True '
+            '(intermediate dollar years break χ=1)'
+        )
+    if reasons:
+        raise ValueError(
+            'EEIO year-alignment precondition failed for χ=1 LCI≈E validation: '
+            + '; '.join(reasons)
+        )
+
+
+def _flatten_matrix_for_validate(df: pd.DataFrame) -> pd.Series[float]:
+    """Stack a flow×sector matrix to a Series with MultiIndex labels ``flow|sector``."""
+    stacked = df.stack()
+    stacked.index = stacked.index.map(
+        lambda idx: f'{idx[0]}|{idx[1]}' if isinstance(idx, tuple) else str(idx)
+    )
+    return ta.cast('pd.Series[float]', stacked.astype(float))
+
+
+def compare_E_and_LCI_result(
+    *,
+    B: pd.DataFrame,
+    L: pd.DataFrame,
+    y: pd.Series[float],
+    E_ind: pd.DataFrame,
+    V: ta.Optional[pd.DataFrame] = None,
+    x: ta.Optional[pd.Series[float]] = None,
+    Vnorm: ta.Optional[pd.DataFrame] = None,
+    q: ta.Optional[pd.Series[float]] = None,
+    tolerance: float = 0.01,
+    include_details: bool = False,
+    check_precondition: bool = True,
+    cfg: ta.Optional[USAConfig] = None,
+) -> DiagnosticResult:
+    """Compare direct-perspective LCI to commodity-transformed satellite totals.
+
+    Port of useeior ``compareEandLCIResult`` with χ=1 (no Chi matrix). Requires
+    :func:`assert_eeio_year_alignment_precondition` unless
+    ``check_precondition=False`` (unit tests with synthetic matrices).
+
+    Commodity ``E_c`` (pick one path)::
+
+        # A) Vnorm path (Cornerstone B = (E/x) @ Vnorm_scrap): preferred when
+        #    scrap-corrected Vnorm is used — C_m(V, x_Make) will not match.
+        E_c = (E_ind / x @ Vnorm) · diag(q)
+
+        # B) useeior C_m path (no scrap adjustment on market shares):
+        E_c = (C_m @ E_ind.T).T     # C_m from Make V, x
+
+        c   = L @ y
+        LCI = B · diag(c)           # B already commodity — do not @ V_n again
+        compare LCI to E_c cell-wise
+
+    Provide either (``Vnorm``, ``x``, ``q``) or (``V``, ``x``). Distinct from
+    NAB national ``sum(diag(D) @ L @ y) ≈ sum(E)``.
+    """
+    if check_precondition:
+        assert_eeio_year_alignment_precondition(cfg)
+
+    use_vnorm_path = Vnorm is not None and q is not None and x is not None
+    use_cm_path = V is not None and x is not None and not use_vnorm_path
+    if not use_vnorm_path and not use_cm_path:
+        raise ValueError(
+            'compare_E_and_LCI_result requires either (Vnorm, x, q) or (V, x)'
+        )
+
+    flows = B.index.intersection(E_ind.index)
+    if len(flows) == 0:
+        return DiagnosticResult(
+            name='compare_E_and_LCI_result: empty flow intersection',
+            passed=False,
+            tolerance=tolerance,
+            max_rel_diff=float('inf'),
+            failing_sectors=[],
+            details=None,
+        )
+
+    if use_vnorm_path:
+        assert Vnorm is not None and q is not None and x is not None
+        industries = Vnorm.index.intersection(E_ind.columns).intersection(x.index)
+        commodities = (
+            B.columns.intersection(Vnorm.columns)
+            .intersection(q.index)
+            .intersection(L.index)
+            .intersection(y.index)
+        )
+        if len(industries) == 0 or len(commodities) == 0:
+            return DiagnosticResult(
+                name='compare_E_and_LCI_result: empty industry/commodity intersection',
+                passed=False,
+                tolerance=tolerance,
+                max_rel_diff=float('inf'),
+                failing_sectors=[],
+                details=None,
+            )
+        Bi = (
+            E_ind.loc[flows, industries]
+            .divide(x.reindex(industries).fillna(0.0), axis=1)
+            .fillna(0.0)
+        )
+        E_c = Bi @ Vnorm.loc[industries, commodities]
+        E_c = E_c.multiply(q.reindex(commodities).fillna(0.0), axis=1)
+    else:
+        assert V is not None and x is not None
+        C_m = compute_commodity_mix_matrix(V=V, x=x)
+        industries = C_m.columns.intersection(E_ind.columns)
+        if len(industries) == 0:
+            return DiagnosticResult(
+                name='compare_E_and_LCI_result: empty industry intersection',
+                passed=False,
+                tolerance=tolerance,
+                max_rel_diff=float('inf'),
+                failing_sectors=[],
+                details=None,
+            )
+        E_aligned = E_ind.loc[flows, industries]
+        E_c = (C_m.loc[:, industries] @ E_aligned.T).T
+        commodities = (
+            B.columns.intersection(E_c.columns)
+            .intersection(L.index)
+            .intersection(y.index)
+        )
+        if len(commodities) == 0:
+            return DiagnosticResult(
+                name='compare_E_and_LCI_result: empty commodity intersection',
+                passed=False,
+                tolerance=tolerance,
+                max_rel_diff=float('inf'),
+                failing_sectors=[],
+                details=None,
+            )
+        E_c = E_c.loc[flows, commodities]
+
+    B_c = B.loc[flows, commodities]
+    L_a = L.loc[commodities, commodities]
+    y_a = y.reindex(commodities).fillna(0.0)
+
+    LCI = compute_E_from_BLy(B=B_c, L=L_a, y=y_a)
+    LCI = LCI.reindex(index=E_c.index, columns=E_c.columns).fillna(0.0)
+
+    # useeior: (LCI - E) / E  →  value=E_c, value_check=LCI
+    return validate_result(
+        'compare_E_and_LCI_result',
+        _flatten_matrix_for_validate(E_c),
+        _flatten_matrix_for_validate(LCI),
+        tolerance=tolerance,
+        include_details=include_details,
+    )

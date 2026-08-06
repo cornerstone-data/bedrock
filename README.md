@@ -20,9 +20,9 @@ These flags are grouped into themes:
 
 | Theme | Example flags |
 |---|---|
-| Schema / taxonomy | `use_cornerstone_2026_model_schema`, `implement_waste_disaggregation`, `implement_electricity_reallocation` |
-| Economic IOT (input-output tables) | `use_E_data_year_for_x_in_B`, `iot_before_or_after_redefinition` |
-| GHG attribution | `new_ghg_method`, `update_mecs_method`, `v0_3_umd_2023_ghgia`, `v0_3_umd_2024_ghgia` |
+| Schema / taxonomy | `implement_waste_disaggregation`, `implement_electricity_reallocation` |
+| Economic IOT (input-output tables) | `apply_io_year_adjustments`, `iot_before_or_after_redefinition` |
+| GHG attribution | `use_cornerstone_ghg_model` |
 | Data vintage | `model_base_year`, `usa_base_io_data_year`, `ipcc_ar_version` |
 
 See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
@@ -31,7 +31,7 @@ See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
 
 All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
 - A single *full-model* config represents a full set of methodology choices made for a data release. [`2025_usa_cornerstone_v0_3.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_3.yaml) is the default config in `get_usa_config()`. [`2025_usa_cornerstone_v0_2.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_2.yaml) is the v0.2 methodology stack for historical comparison.
-- Several *atomic configs* each isolate a single methodological change from the baseline so the impact of each choice can be measured independently. For example, [`2025_usa_cornerstone_taxonomy.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_taxonomy.yaml) is the config for a specific choice to use Cornerstone taxonomy.
+- Several *atomic configs* each isolate a single methodological change from the baseline so the impact of each choice can be measured independently (e.g. the `v03_waterfall_*` release-assessment configs).
 
 A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.
 

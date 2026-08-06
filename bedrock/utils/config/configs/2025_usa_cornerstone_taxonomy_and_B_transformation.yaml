@@ -11,7 +11,6 @@
 #####
 # Methodology selection
 #####
-use_cornerstone_2026_model_schema: True
 use_E_data_year_for_x_in_B: True
 
 

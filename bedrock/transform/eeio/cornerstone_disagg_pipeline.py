@@ -24,6 +24,7 @@ import pandera.typing as pt
 from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.extract.disaggregation.waste_weight_config import (
+    EEIOWasteDisaggConfig,
     effective_waste_disagg_config,
 )
 from bedrock.extract.iot.io_2017 import (
@@ -43,7 +44,7 @@ from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_VA,
     apply_waste_disagg_to_Ytot,
 )
-from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig, get_usa_config
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_x
 from bedrock.utils.schemas.single_region_schemas import AMatrix
 from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet

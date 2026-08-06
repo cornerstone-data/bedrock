@@ -19,7 +19,6 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_2017_margins_usa
-from bedrock.transform.eeio.derived_2017_helpers import EXPANDED_SECTORS_2012_TO_2017
 from bedrock.transform.iot.derived_gross_industry_output import (
     available_gross_output_years,
 )
@@ -32,7 +31,6 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 from bedrock.utils.taxonomy.bea.v2017_final_demand import USA_2017_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
-    load_usa_2017_commodity__ceda_v7_correspondence,
     load_usa_2017_commodity__cornerstone_commodity_correspondence,
 )
 
@@ -56,10 +54,6 @@ class MarginsFilters:
 
 # Exclude all final demand destinations — the CEDA pipeline only wants
 # industry-to-industry margin flows.
-_ceda_margins_filters: MarginsFilters = MarginsFilters(
-    exclude_industry_codes=frozenset(USA_2017_FINAL_DEMAND_CODES)
-)
-
 # All BEA 2017 detailed commodity codes whose code begins with "4"
 # (wholesale trade, retail trade, transportation, and warehousing sectors).
 _COMMODITY_CODES_STARTING_WITH_4: frozenset[str] = frozenset(
@@ -131,19 +125,17 @@ _cornerstone_industry_avg_margins_filters: MarginsFilters = MarginsFilters(
 
 
 def _get_active_margins_filters() -> MarginsFilters:
-    """Return the active filter set based on config flags.
+    """Margins filters for the active config.
 
-    ``useeio_margins`` takes precedence; otherwise ``cornerstone_industry_avg_margins``
-    controls the Cornerstone path, then ``ceda_margins`` the
-    CEDA path. Returns an empty ``MarginsFilters`` (no-op) when no flag is set.
+    ``useeio_margins`` takes precedence; otherwise
+    ``cornerstone_industry_avg_margins`` selects the Cornerstone filter set;
+    otherwise no filtering applies.
     """
     cfg = get_usa_config()
     if cfg.useeio_margins:
         return _useeio_margins_filters
     if cfg.cornerstone_industry_avg_margins:
         return _cornerstone_industry_avg_margins_filters
-    if cfg.ceda_margins:
-        return _ceda_margins_filters
     return MarginsFilters()
 
 
@@ -214,44 +206,6 @@ def _margins_by_commodity(
         + result['Retail']
     )
     return result
-
-
-def derive_2017_margins_ceda_usa() -> pd.DataFrame:
-    """
-    Margins aggregated to CEDA v7 sector taxonomy, summed over all industries.
-    Applies ``_ceda_margins_filters`` when ``USAConfig.ceda_margins`` is set.
-
-    Returns a DataFrame indexed by CEDA v7 sectors with columns:
-    ``Producers' Value``, ``Transportation``, ``Wholesale``, ``Retail``,
-    ``Purchasers' Value``. Unit is USD.
-    """
-    corresp = load_usa_2017_commodity__ceda_v7_correspondence()
-    corresp.columns.names = ['commodity']
-    filters = (
-        _ceda_margins_filters if get_usa_config().ceda_margins else MarginsFilters()
-    )
-    margin = corresp @ _margins_by_commodity(filters)
-    # Expanded sectors share value equally from the aggregated 2012 sector.
-    margin.loc[EXPANDED_SECTORS_2012_TO_2017, :] *= 1 / len(
-        EXPANDED_SECTORS_2012_TO_2017
-    )
-    return margin
-
-
-def derive_phi_ceda_usa() -> pd.Series[float]:
-    """
-    Derive the Phi ratio to convert EF from producer to purchaser price for each CEDA v7 sector.
-    Formula: purchaser price = producer price + margin
-    Since original EF is in kgCO2e/USD_producer, Phi here is calculated as
-    (output_producer / (output_producer + margin)).
-    """
-    margin = derive_2017_margins_ceda_usa()
-    phi = margin["Producers' Value"] / margin["Purchasers' Value"]
-    avg_mask = (phi > 0) & (phi <= 1)
-    avg = phi[avg_mask].mean()
-    in_range_mask = (phi > 0) & (phi < 1)
-    phi[~in_range_mask] = avg
-    return phi
 
 
 def _inflate_margin_trade_components(

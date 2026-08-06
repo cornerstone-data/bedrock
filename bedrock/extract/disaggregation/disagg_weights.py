@@ -568,7 +568,7 @@ if __name__ == "__main__":
     import pathlib
     from typing import cast
 
-    from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
+    from bedrock.extract.disaggregation.waste_weight_config import EEIOWasteDisaggConfig
     from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 
     _data_dir = pathlib.Path(__file__).resolve().parent / "waste_disagg_inputs"
