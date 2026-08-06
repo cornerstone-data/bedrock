@@ -457,10 +457,18 @@ def _subtitle(match: TableMatch, section: Section | None, width: float) -> str:
     return '\n'.join(lines)
 
 
+#: Screen-quality default.  The figures are sized in inches, so dpi is purely
+#: how many pixels that becomes -- ``REPORT_DPI`` is the setting for a copy that
+#: gets committed alongside a document.
+DEFAULT_DPI = 200
+REPORT_DPI = 110
+
+
 def render_section(
     name: str,
     year: int = 2017,
     out_dir: Path = OUTPUT_DIR,
+    dpi: int = DEFAULT_DPI,
 ) -> tuple[Path, TableMatch]:
     """Run one section and write its picture.  Returns the path and the match."""
     matplotlib.use('Agg')
@@ -476,7 +484,7 @@ def render_section(
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f'{section.name}_{year}.png'
-    fig.savefig(path, dpi=200)
+    fig.savefig(path, dpi=dpi)
     fig.clf()
     return path, match
 
@@ -498,6 +506,13 @@ def render_section(
 )
 @click.option('--report/--no-report', default=True, show_default=True)
 @click.option(
+    '--dpi',
+    default=DEFAULT_DPI,
+    show_default=True,
+    type=int,
+    help=f'Output resolution. Use {REPORT_DPI} for a copy that gets committed.',
+)
+@click.option(
     '--check-palette',
     is_flag=True,
     help='Print the colour-vision separation check and exit.',
@@ -507,6 +522,7 @@ def main(
     year: int,
     out_dir: Path,
     report: bool,
+    dpi: int,
     check_palette: bool,
 ) -> None:
     """Render the Supply/Use match pictures for the sections we can compare."""
@@ -529,7 +545,7 @@ def main(
             )
             click.echo('')
             continue
-        path, match = render_section(name, year, out_dir)
+        path, match = render_section(name, year, out_dir, dpi)
         if report:
             click.echo(match.report(n_worst=10, n_margins=8))
             click.echo('')
