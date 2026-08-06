@@ -1,0 +1,16 @@
+# Binary assets. Marked so git does not attempt line-ending conversion or
+# textual diffs on them.
+#
+# Not tracked in Git LFS. As of the first committed image (the nowcast progress
+# report figures, ~120 KB at REPORT_DPI) the repo holds no other binaries and
+# packs to ~19 MB, so LFS would add a required tool for every contributor and
+# every CI job to save a fraction of a percent. Revisit if these figures start
+# churning per-commit rather than per-milestone: an LFS migration is easy going
+# forward, it is only the already-committed blobs that stay in history.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.xlsx binary
+*.parquet binary
