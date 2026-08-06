@@ -65,13 +65,47 @@ Why the proposed ``V00300`` construction falls short
   overshoots, which is why the net shortfall looks smaller than the individual
   gaps.
 
-By-industry availability is the real constraint
------------------------------------------------
+Granularity is the real constraint, and it is uneven across the block
+---------------------------------------------------------------------
 
-The control totals all reconcile, but Step 2 needs value added *by industry*,
-and NIPA does not publish it that way for most of ``V00300``.  Section 6 is
-by industry; the Section 7 tables that close the gaps above are by legal form
-or by type, not by industry.  :func:`by_industry_coverage` reports the split.
+The control totals all reconcile.  What varies is how far each row can be
+taken *by industry*, and the three rows are in very different positions --
+so a single "NIPA does not give value added by industry" would be wrong:
+
+- **``V00100``, 55% of ``VABAS``, is well served.**  ``T60200D`` is compensation
+  of employees by industry with 74 leaf rows, which is about BEA summary
+  granularity.  This is the row with real industry structure available.
+- **``V00300``, 42%, is fragmented.**  Its by-industry pieces are much coarser
+  -- corporate profits 23 leaves, net interest 20, nonfarm proprietors 21 --
+  and 10.8% of it has no industry axis at any scope.
+- **``T00OTOP``, 3%, has none.**  ``T30500`` is organised by level of government
+  and kind of tax, which shares no cell correspondence with an industry axis
+  at all.
+
+The ceiling everywhere is summary, not detail: **no NIPA table reaches the 402
+BEA detail industries**.  Every row therefore needs an allocation source to get
+the rest of the way, and *which* source is an open question per row rather than
+a settled one -- #538's note about 2017 table ratios is one option, not the
+only one, and for compensation it is probably not the best one.
+
+Candidates already in bedrock, worth exploring before defaulting to benchmark
+ratios:
+
+- **``BLS_QCEW``** carries ``total_annual_wages`` as ``Class: Money`` in USD at
+  NAICS granularity, alongside employment counts.  For ``V00100`` that is a
+  *direct dollar* allocator from an annual source, rather than a benchmark-year
+  share held fixed.  It is an allocator and not a control total: QCEW covers
+  covered employment and wages, not the whole of compensation, so it should
+  distribute the NIPA total rather than replace it.
+- **``Employment_national_<year>``** already runs QCEW to ``NAICS_6``
+  nationally, which is finer than BEA detail needs, and is the obvious fallback
+  basis where a dollar measure is not available.
+
+Nothing equivalent has been identified yet for ``V00300`` or ``T00OTOP``; that
+is open work, not a settled default.
+
+:func:`value_added_granularity` reports the per-row position and
+:func:`by_industry_coverage` the split within ``V00300``.
 
 Usage::
 
@@ -267,6 +301,61 @@ def proposed_v00300(year: int = YEAR) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+#: Per value-added row: the NIPA table with an industry axis, and what that
+#: axis actually is.  ``None`` where no table has an industry dimension.
+VA_ROW_SOURCES: tuple[tuple[str, str, str | None, str], ...] = (
+    (
+        'V00100',
+        'Compensation of employees',
+        'T60200D',
+        'by industry, ~BEA summary granularity',
+    ),
+    (
+        'T00OTOP',
+        'Other taxes on production, less subsidies',
+        None,
+        'T30500 is by level of government and kind of tax, no industry axis',
+    ),
+    (
+        'V00300',
+        'Gross operating surplus',
+        'several',
+        'fragmented; see the V00300 breakdown',
+    ),
+)
+
+
+def value_added_granularity(year: int = YEAR) -> pd.DataFrame:
+    """How far each value-added row can be taken by industry, and at what grain.
+
+    The three rows are in very different positions, so reporting one number for
+    "value added by industry" would misdescribe all of them.  ``leaves`` is the
+    count of terminal rows in the source table -- the finest industry split
+    NIPA publishes for that row.  None of them reach the 402 BEA detail
+    industries.
+    """
+    sut = sut_value_added_totals(year)
+    vabas = float(sut['VABAS'])
+    rows = []
+    for code, label, table, note in VA_ROW_SOURCES:
+        leaves: int | None = None
+        if table is not None and table != 'several':
+            leaves = len(nipa_flat_table(table, year).leaves().frame)
+        value = float(sut[code])
+        rows.append(
+            {
+                'row': code,
+                'component': label,
+                'value': value,
+                'share_of_VABAS': value / vabas * 100,
+                'industry_table': table or '(none)',
+                'leaves': leaves,
+                'granularity': note,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def by_industry_coverage(year: int = YEAR) -> pd.Series:
     """``V00300`` split by how far a by-industry NIPA table reaches.
 
@@ -338,6 +427,27 @@ def report(year: int = YEAR) -> str:
         '    on products less subsidies, which is the valuation difference.',
         '  - V00300 needs the statistical discrepancy. Net operating surplus',
         '    plus consumption of fixed capital alone is short by ~67,900.',
+        '',
+        'HOW FAR EACH ROW CAN BE TAKEN BY INDUSTRY',
+        value_added_granularity(year).to_string(
+            index=False,
+            formatters={
+                'value': '{:,.0f}'.format,
+                'share_of_VABAS': '{:.1f}'.format,
+            },
+        ),
+        '',
+        '  V00100 is the well-served row and it is 55% of VABAS. The ceiling',
+        '  everywhere is summary, not detail: no NIPA table reaches the 402 BEA',
+        '  detail industries, so every row needs an allocation source to get the',
+        '  rest of the way. Which source is open per row, not settled:',
+        '    V00100   BLS_QCEW total_annual_wages is Class Money in USD at NAICS',
+        '             granularity - a direct dollar allocator from an annual',
+        '             source. Employment_national_<year> already runs QCEW to',
+        '             NAICS_6 if a headcount basis is wanted instead.',
+        '    V00300   nothing identified yet.',
+        '    T00OTOP  nothing identified yet.',
+        '  2017 benchmark ratios are one option, not the default.',
         '',
         'WHAT V00300 IS MADE OF (T1.10), AND HOW FAR NIPA GETS IT BY INDUSTRY',
         comps.to_string(index=False, formatters=fmt),  # type: ignore[arg-type]
