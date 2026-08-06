@@ -1080,6 +1080,16 @@ class _FlowBy(pd.DataFrame):
         else:
             ((name, config),) = attribution_source.items()
 
+        # `attribute_on` may name activity columns, which prepare_fbs drops by
+        # default. Keep them when they are about to be merged on, so an
+        # attribution source can be matched per activity rather than only per
+        # sector -- e.g. splitting a NIPA PCE line by that line's own rows of
+        # the PCE bridge, instead of by the bridge summed over every line.
+        attribute_on = (attribution_config or self.config).get('attribute_on') or []
+        retain_activity_columns = any(
+            col in ('ActivityProducedBy', 'ActivityConsumedBy') for col in attribute_on
+        )
+
         if name in self.config['cache']:
             attribution_fbs = self.config['cache'][name].copy()
             attribution_fbs.config = {
@@ -1097,7 +1107,8 @@ class _FlowBy(pd.DataFrame):
                 'data_format': 'FBS',
             }
             attribution_fbs = attribution_fbs.prepare_fbs(
-                download_sources_ok=download_sources_ok
+                download_sources_ok=download_sources_ok,
+                retain_activity_columns=retain_activity_columns,
             )
         else:
             attribution_fbs = get_flowby_from_config(
@@ -1114,7 +1125,8 @@ class _FlowBy(pd.DataFrame):
                 },
                 download_sources_ok=download_sources_ok,
             ).prepare_fbs(  # type: ignore[operator]
-                download_sources_ok=download_sources_ok
+                download_sources_ok=download_sources_ok,
+                retain_activity_columns=retain_activity_columns,
             )
 
         geoscale = config.get('geoscale') or self.config.get('geoscale')
