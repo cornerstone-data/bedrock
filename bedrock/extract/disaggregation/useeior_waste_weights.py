@@ -6,8 +6,10 @@ import functools
 import pathlib
 import urllib.request
 
-from bedrock.extract.disaggregation.waste_weight_config import WASTE_INPUTS_REL
-from bedrock.utils.config.usa_config import EEIOWasteDisaggConfig
+from bedrock.extract.disaggregation.waste_weight_config import (
+    WASTE_INPUTS_REL,
+    EEIOWasteDisaggConfig,
+)
 
 _DISAGG_ROOT = pathlib.Path(__file__).resolve().parent
 
