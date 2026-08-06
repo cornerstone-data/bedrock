@@ -116,19 +116,19 @@ EPA_GHGI_Cornerstone,Industry Natural Gas to Chemical Plants,NAICS_2017_Code,33,
 EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,48,,"48, 491, 492, S00500, S00600, GSLGO, S00201, S00203, F01000",EPA_GHGI_T_3_22
 EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,491,,,EPA_GHGI_T_3_22
 EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,492,,,EPA_GHGI_T_3_22
-EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,S00500,,,EPA_GHGI_T_3_22
-EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,S00600,,,EPA_GHGI_T_3_22
-EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,GSLGO,,,EPA_GHGI_T_3_22
-EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,S00203,,,EPA_GHGI_T_3_22
-EPA_GHGI_Cornerstone,Transportation Lubricants,NAICS_2017_Code,F01000,,,EPA_GHGI_T_3_22
+EPA_GHGI_Cornerstone,Transportation Lubricants,BEA_2017_Code,S00500,,,EPA_GHGI_T_3_22
+EPA_GHGI_Cornerstone,Transportation Lubricants,BEA_2017_Code,S00600,,,EPA_GHGI_T_3_22
+EPA_GHGI_Cornerstone,Transportation Lubricants,BEA_2017_Code,GSLGO,,,EPA_GHGI_T_3_22
+EPA_GHGI_Cornerstone,Transportation Lubricants,BEA_2017_Code,S00203,,,EPA_GHGI_T_3_22
+EPA_GHGI_Cornerstone,Transportation Lubricants,BEA_2017_Code,F01000,,,EPA_GHGI_T_3_22
 EPA_GHGI_Cornerstone,Coal Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Fuel Oil Electric Power,NAICS_2017_Code,221112,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Natural Gas Electric Power,NAICS_2017_Code,221112,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Wood Electric Power,NAICS_2017_Code,221117,,"Commodity: 221100 (or I: 221100, S00101, S00202)","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Coal Residential,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Fuel Oil Residential,NAICS_2017_Code,F01000,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Natural Gas Residential,NAICS_2017_Code,F01000,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Wood Residential,NAICS_2017_Code,F01000,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Coal Residential,BEA_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Fuel Oil Residential,BEA_2017_Code,F01000,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Natural Gas Residential,BEA_2017_Code,F01000,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Wood Residential,BEA_2017_Code,F01000,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Coal Industrial,NAICS_2017_Code,11,,"11, 21, 2212, 23, 31, 32, 33","EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Coal Industrial,NAICS_2017_Code,21,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Coal Industrial,NAICS_2017_Code,2212,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
@@ -169,9 +169,9 @@ EPA_GHGI_Cornerstone,Coal Commercial,NAICS_2017_Code,62,,,"EPA_GHGI_T_3_8, EPA_G
 EPA_GHGI_Cornerstone,Coal Commercial,NAICS_2017_Code,71,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Coal Commercial,NAICS_2017_Code,72,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Coal Commercial,NAICS_2017_Code,81,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
-EPA_GHGI_Cornerstone,Coal Commercial,NAICS_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
-EPA_GHGI_Cornerstone,Coal Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
-EPA_GHGI_Cornerstone,Coal Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
+EPA_GHGI_Cornerstone,Coal Commercial,BEA_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
+EPA_GHGI_Cornerstone,Coal Commercial,BEA_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
+EPA_GHGI_Cornerstone,Coal Commercial,BEA_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,2213,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,42,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,44,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
@@ -188,9 +188,9 @@ EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,62,,,"EPA_GHGI_T_3_8, E
 EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,71,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,72,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,81,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Fuel Oil Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Fuel Oil Commercial,BEA_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Fuel Oil Commercial,BEA_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Fuel Oil Commercial,BEA_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,2213,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,42,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,44,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
@@ -207,9 +207,9 @@ EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,62,,,"EPA_GHGI_T_3_8, EPA_G
 EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,71,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,72,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,81,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
-EPA_GHGI_Cornerstone,Wood Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Wood Commercial,BEA_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Wood Commercial,BEA_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
+EPA_GHGI_Cornerstone,Wood Commercial,BEA_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9"
 EPA_GHGI_Cornerstone,Drained Organic Soils Cropland,NAICS_2017_Code,111,,"111, excl. 1114",EPA_GHGI_T_5_18
 EPA_GHGI_Cornerstone,Mineralization and Asymbiotic Fixation Cropland,NAICS_2017_Code,111,,"111, excl. 1114",EPA_GHGI_T_5_18
 EPA_GHGI_Cornerstone,Organic Amendment Cropland,NAICS_2017_Code,111,,111,EPA_GHGI_T_5_18
@@ -248,9 +248,9 @@ EPA_GHGI_Cornerstone,Natural Gas Commercial,NAICS_2017_Code,62,,,"EPA_GHGI_T_3_8
 EPA_GHGI_Cornerstone,Natural Gas Commercial,NAICS_2017_Code,71,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Natural Gas Commercial,NAICS_2017_Code,72,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Natural Gas Commercial,NAICS_2017_Code,81,,,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
-EPA_GHGI_Cornerstone,Natural Gas Commercial,NAICS_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
-EPA_GHGI_Cornerstone,Natural Gas Commercial,NAICS_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
-EPA_GHGI_Cornerstone,Natural Gas Commercial,NAICS_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
+EPA_GHGI_Cornerstone,Natural Gas Commercial,BEA_2017_Code,S00102,,S00102,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
+EPA_GHGI_Cornerstone,Natural Gas Commercial,BEA_2017_Code,GSLGE,,GSLGE,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
+EPA_GHGI_Cornerstone,Natural Gas Commercial,BEA_2017_Code,GSLGH,,GSLGH,"EPA_GHGI_T_3_8, EPA_GHGI_T_3_9, EPA_GHGI_T_A_14"
 EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,2213,,,EPA_GHGI_T_A_14
 EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,42,,,EPA_GHGI_T_A_14
 EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,44,,,EPA_GHGI_T_A_14
@@ -267,10 +267,10 @@ EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,62,,,EPA_GHGI_T_
 EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,71,,,EPA_GHGI_T_A_14
 EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,72,,,EPA_GHGI_T_A_14
 EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,81,,,EPA_GHGI_T_A_14
-EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,S00102,,S00102,EPA_GHGI_T_A_14
-EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_A_14
-EPA_GHGI_Cornerstone,Total Petroleum Commercial,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_A_14
-EPA_GHGI_Cornerstone,Total (All Fuels) Residential,NAICS_2017_Code,F01000,,F0100,EPA_GHGI_T_A_14
+EPA_GHGI_Cornerstone,Total Petroleum Commercial,BEA_2017_Code,S00102,,S00102,EPA_GHGI_T_A_14
+EPA_GHGI_Cornerstone,Total Petroleum Commercial,BEA_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_A_14
+EPA_GHGI_Cornerstone,Total Petroleum Commercial,BEA_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_A_14
+EPA_GHGI_Cornerstone,Total (All Fuels) Residential,BEA_2017_Code,F01000,,F0100,EPA_GHGI_T_A_14
 EPA_GHGI_Cornerstone,HCFC-22 Production,NAICS_2017_Code,325120,,325120,EPA_GHGI_T_4_50
 EPA_GHGI_Cornerstone,Fluorochemical Production,NAICS_2017_Code,325120,,,EPA_GHGI_T_4_61
 EPA_GHGI_Cornerstone,Electronics Production,NAICS_2017_Code,334413,,334413,EPA_GHGI_T_4_94
@@ -280,8 +280,8 @@ EPA_GHGI_Cornerstone,PV,NAICS_2017_Code,334413,,,EPA_GHGI_T_4_121
 EPA_GHGI_Cornerstone,Magnesium Production and Processing,NAICS_2017_Code,331410,,"331410, 331490, 331520",EPA_GHGI_T_4_84
 EPA_GHGI_Cornerstone,Magnesium Production and Processing,NAICS_2017_Code,33149,,,EPA_GHGI_T_4_84
 EPA_GHGI_Cornerstone,Magnesium Production and Processing,NAICS_2017_Code,33152,,,EPA_GHGI_T_4_84
-EPA_GHGI_Cornerstone,Domestic Refrigeration,NAICS_2017_Code,F01000,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Residential Stationary Air Conditioning,NAICS_2017_Code,F01000,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Domestic Refrigeration,BEA_2017_Code,F01000,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Residential Stationary Air Conditioning,BEA_2017_Code,F01000,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,2213,,Apply same mapping as Commercial elsewhere,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,42,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,44,,,EPA_GHGI_T_4_124
@@ -298,9 +298,9 @@ EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,62,,,EPA_GHGI_T_4_
 EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,71,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,72,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,81,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,S00102,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,GSLGE,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Commercial Refrigeration,NAICS_2017_Code,GSLGH,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Commercial Refrigeration,BEA_2017_Code,S00102,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Commercial Refrigeration,BEA_2017_Code,GSLGE,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Commercial Refrigeration,BEA_2017_Code,GSLGH,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Industrial Process Refrigeration,NAICS_2017_Code,11,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Industrial Process Refrigeration,NAICS_2017_Code,21,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Industrial Process Refrigeration,NAICS_2017_Code,2212,,,EPA_GHGI_T_4_124
@@ -324,9 +324,9 @@ EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,NAICS_2017_Code,62,,
 EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,NAICS_2017_Code,71,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,NAICS_2017_Code,72,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,NAICS_2017_Code,81,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,NAICS_2017_Code,S00102,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,NAICS_2017_Code,GSLGE,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,NAICS_2017_Code,GSLGH,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,BEA_2017_Code,S00102,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,BEA_2017_Code,GSLGE,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Commercial Stationary Air Conditioning,BEA_2017_Code,GSLGH,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,11,,All sectors,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,21,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,22,,,EPA_GHGI_T_4_124
@@ -350,18 +350,18 @@ EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,62,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,71,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,72,,,EPA_GHGI_T_4_124
 EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,81,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,GSLGE,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,GSLGH,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,GSLGO,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00102,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00203,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00500,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Foams,NAICS_2017_Code,S00600,,,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Aerosols,,,,excluded,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Solvents,,,,excluded,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,Fire Protection,,,,excluded,EPA_GHGI_T_4_124
-EPA_GHGI_Cornerstone,AWACs,NAICS_2017_Code,S00500,,,EPA_GHGI_T_4_132
-EPA_GHGI_Cornerstone,Other Military Applications,NAICS_2017_Code,S00500,,,EPA_GHGI_T_4_132
+EPA_GHGI_Cornerstone,Foams,BEA_2017_Code,GSLGE,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Foams,BEA_2017_Code,GSLGH,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Foams,BEA_2017_Code,GSLGO,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Foams,BEA_2017_Code,S00102,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Foams,BEA_2017_Code,S00203,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Foams,BEA_2017_Code,S00500,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Foams,BEA_2017_Code,S00600,,,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Aerosols,NAICS_2017_Code,,,excluded,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Solvents,NAICS_2017_Code,,,excluded,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,Fire Protection,NAICS_2017_Code,,,excluded,EPA_GHGI_T_4_124
+EPA_GHGI_Cornerstone,AWACs,BEA_2017_Code,S00500,,,EPA_GHGI_T_4_132
+EPA_GHGI_Cornerstone,Other Military Applications,BEA_2017_Code,S00500,,,EPA_GHGI_T_4_132
 EPA_GHGI_Cornerstone,Particle Accelerators,NAICS_2017_Code,54171,,,EPA_GHGI_T_4_132
 EPA_GHGI_Cornerstone,Other Scientific Applications,NAICS_2017_Code,54171,,,EPA_GHGI_T_4_132
 EPA_GHGI_Cornerstone,Heavy-Duty Vehicles,NAICS_2017_Code,484,,484000,EPA_GHGI_T_A_90
@@ -372,26 +372,26 @@ EPA_GHGI_Cornerstone,Buses - Distillate Fuel Oil,NAICS_2017_Code,485,,485000,EPA
 EPA_GHGI_Cornerstone,Buses - Distillate Fuel Oil,NAICS_2017_Code,487,,48A000,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Commercial Aircraft,NAICS_2017_Code,481,,481000,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,General Aviation Aircraft,NAICS_2017_Code,481,,481000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
-EPA_GHGI_Cornerstone,Military Aircraft,NAICS_2017_Code,S00500,,S00500,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,Light-Duty Trucks - Households,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
-EPA_GHGI_Cornerstone,Light-Duty Trucks,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone,Military Aircraft,BEA_2017_Code,S00500,,S00500,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone,Light-Duty Trucks - Households,BEA_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
+EPA_GHGI_Cornerstone,Light-Duty Trucks,BEA_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Light-Duty Trucks,NAICS_2017_Code,492,,492000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks,NAICS_2017_Code,484,,484000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
 EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,484,,484000,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,491,,491000,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00102,,,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,NAICS_2017_Code,S00203,,,EPA_GHGI_T_3_13
-EPA_GHGI_Cornerstone,Motorcycles,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
-EPA_GHGI_Cornerstone,Passenger Cars - Households,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
-EPA_GHGI_Cornerstone,Passenger Cars,NAICS_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
-EPA_GHGI_Cornerstone,Passenger Cars,NAICS_2017_Code,S00600,,"S00600, GSLGO","EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
-EPA_GHGI_Cornerstone,Passenger Cars,NAICS_2017_Code,GSLGO,,,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,BEA_2017_Code,GSLGO,,GSLGO,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,BEA_2017_Code,GSLGE,,GSLGE,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,BEA_2017_Code,GSLGH,,GSLGH,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,BEA_2017_Code,S00102,,,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone,Medium- and Heavy-Duty Trucks - Distillate Fuel Oil,BEA_2017_Code,S00203,,,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone,Motorcycles,BEA_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone,Passenger Cars - Households,BEA_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_A_97"
+EPA_GHGI_Cornerstone,Passenger Cars,BEA_2017_Code,F01000,,F01000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone,Passenger Cars,BEA_2017_Code,S00600,,"S00600, GSLGO","EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
+EPA_GHGI_Cornerstone,Passenger Cars,BEA_2017_Code,GSLGO,,,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Passenger Cars,NAICS_2017_Code,491,,491000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15"
 EPA_GHGI_Cornerstone,Pipeline Natural Gas,NAICS_2017_Code,486,,,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Rail,NAICS_2017_Code,482,,482000,"EPA_GHGI_T_3_13, EPA_GHGI_T_3_14, EPA_GHGI_T_3_15, EPA_GHGI_T_A_97"
-EPA_GHGI_Cornerstone,Recreational Boats,NAICS_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
+EPA_GHGI_Cornerstone,Recreational Boats,BEA_2017_Code,F01000,,F01000,EPA_GHGI_T_3_13
 EPA_GHGI_Cornerstone,Ships and Boats,NAICS_2017_Code,483,,483000,"EPA_GHGI_T_3_14, EPA_GHGI_T_3_15, EPA_GHGI_T_A_97"
 EPA_GHGI_Cornerstone,Ships and Non-Recreational Boats,NAICS_2017_Code,483,,483000,EPA_GHGI_T_3_13

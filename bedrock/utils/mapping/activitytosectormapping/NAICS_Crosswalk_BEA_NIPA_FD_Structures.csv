@@ -42,7 +42,7 @@ BEA_NIPA,Land,NAICS_2017_Code,,,
 BEA_NIPA,Farm,NAICS_2017_Code,237990,,Other nonresidential structures; 2332D0
 BEA_NIPA,Other,NAICS_2017_Code,237990,,Other nonresidential structures; 2332D0
 BEA_NIPA,Brokers' commissions on sale of structures,NAICS_2017_Code,531,,Other real estate
-BEA_NIPA,Net purchases of used structures (Nonresidential),NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Net purchases of used structures (Nonresidential),BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Permanent site,NAICS_2017_Code,,,
 BEA_NIPA,Single family,NAICS_2017_Code,236115,,Single-family residential structures; 233411
 BEA_NIPA,Multifamily,NAICS_2017_Code,236116,,Multifamily residential structures; 233412

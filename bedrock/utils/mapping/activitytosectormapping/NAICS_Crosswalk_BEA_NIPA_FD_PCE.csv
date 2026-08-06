@@ -32,8 +32,8 @@ BEA_NIPA,Accessories and parts,NAICS_2017_Code,339993,,All other miscellaneous m
 BEA_NIPA,Accessories and parts,NAICS_2017_Code,339994,,All other miscellaneous manufacturing
 BEA_NIPA,Accessories and parts,NAICS_2017_Code,339995,,All other miscellaneous manufacturing
 BEA_NIPA,Accessories and parts,NAICS_2017_Code,339999,,All other miscellaneous manufacturing
-BEA_NIPA,Accessories and parts,NAICS_2017_Code,S00401,,Scrap
-BEA_NIPA,Accessories and parts,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Accessories and parts,BEA_2017_Code,S00401,,Scrap
+BEA_NIPA,Accessories and parts,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Air transportation,NAICS_2017_Code,481111,,Air transportation
 BEA_NIPA,Air transportation,NAICS_2017_Code,481112,,Air transportation
 BEA_NIPA,Air transportation,NAICS_2017_Code,481211,,Air transportation
@@ -147,7 +147,7 @@ BEA_NIPA,Audio equipment,NAICS_2017_Code,334417,,Other electronic component manu
 BEA_NIPA,Audio equipment,NAICS_2017_Code,334419,,Other electronic component manufacturing
 BEA_NIPA,Audio equipment,NAICS_2017_Code,335912,,Primary battery manufacturing
 BEA_NIPA,Audio equipment,NAICS_2017_Code,335999,,All other miscellaneous electrical equipment and component manufacturing
-BEA_NIPA,Audio equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Audio equipment,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Auto leasing,NAICS_2017_Code,532111,,Automotive equipment rental and leasing
 BEA_NIPA,Auto leasing,NAICS_2017_Code,532112,,Automotive equipment rental and leasing
 BEA_NIPA,Auto leasing,NAICS_2017_Code,532120,,Automotive equipment rental and leasing
@@ -175,7 +175,7 @@ BEA_NIPA,Carpets and other floor coverings,NAICS_2017_Code,326191,,Other plastic
 BEA_NIPA,Carpets and other floor coverings,NAICS_2017_Code,326199,,Other plastics product manufacturing
 BEA_NIPA,Carpets and other floor coverings,NAICS_2017_Code,326291,,Other rubber product manufacturing
 BEA_NIPA,Carpets and other floor coverings,NAICS_2017_Code,326299,,Other rubber product manufacturing
-BEA_NIPA,Carpets and other floor coverings,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Carpets and other floor coverings,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Casino gambling,NAICS_2017_Code,713210,,Gambling industries (except casino hotels)
 BEA_NIPA,Casino gambling,NAICS_2017_Code,713290,,Gambling industries (except casino hotels)
 BEA_NIPA,Cellular telephone services,NAICS_2017_Code,517312,,Wireless telecommunications carriers (except satellite)
@@ -213,7 +213,7 @@ BEA_NIPA,Children's and infants' clothing,NAICS_2017_Code,315240,,Apparel manufa
 BEA_NIPA,Children's and infants' clothing,NAICS_2017_Code,315280,,Apparel manufacturing
 BEA_NIPA,Children's and infants' clothing,NAICS_2017_Code,315990,,Apparel manufacturing
 BEA_NIPA,Children's and infants' clothing,NAICS_2017_Code,322291,,Sanitary paper product manufacturing
-BEA_NIPA,Children's and infants' clothing,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Children's and infants' clothing,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",NAICS_2017_Code,316110,,Leather and allied product manufacturing
 BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",NAICS_2017_Code,316210,,Leather and allied product manufacturing
 BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",NAICS_2017_Code,316992,,Leather and allied product manufacturing
@@ -254,7 +254,7 @@ BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items
 BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",NAICS_2017_Code,339994,,All other miscellaneous manufacturing
 BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",NAICS_2017_Code,339995,,All other miscellaneous manufacturing
 BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",NAICS_2017_Code,339999,,All other miscellaneous manufacturing
-BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Clocks, lamps, lighting fixtures, and other household decorative items",BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Clothing materials,NAICS_2017_Code,313110,,"Fiber, yarn, and thread mills"
 BEA_NIPA,Clothing materials,NAICS_2017_Code,313210,,Fabric mills
 BEA_NIPA,Clothing materials,NAICS_2017_Code,313220,,Fabric mills
@@ -294,7 +294,7 @@ BEA_NIPA,"Coffee, tea, and other beverage materials",NAICS_2017_Code,311942,,Sea
 BEA_NIPA,"Coffee, tea, and other beverage materials",NAICS_2017_Code,312111,,Soft drink and ice manufacturing
 BEA_NIPA,"Coffee, tea, and other beverage materials",NAICS_2017_Code,312112,,Soft drink and ice manufacturing
 BEA_NIPA,"Coffee, tea, and other beverage materials",NAICS_2017_Code,312113,,Soft drink and ice manufacturing
-BEA_NIPA,"Coffee, tea, and other beverage materials",NAICS_2017_Code,S00401,,Scrap
+BEA_NIPA,"Coffee, tea, and other beverage materials",BEA_2017_Code,S00401,,Scrap
 BEA_NIPA,Commercial and vocational schools,NAICS_2017_Code,611210,,"Junior colleges, colleges, universities, and professional schools"
 BEA_NIPA,Commercial and vocational schools,NAICS_2017_Code,611310,,"Junior colleges, colleges, universities, and professional schools"
 BEA_NIPA,Commercial and vocational schools,NAICS_2017_Code,611410,,Other educational services
@@ -330,7 +330,7 @@ BEA_NIPA,Corrective eyeglasses and contact lenses,NAICS_2017_Code,621330,,Office
 BEA_NIPA,Corrective eyeglasses and contact lenses,NAICS_2017_Code,621340,,Offices of other health practitioners
 BEA_NIPA,Corrective eyeglasses and contact lenses,NAICS_2017_Code,621391,,Offices of other health practitioners
 BEA_NIPA,Corrective eyeglasses and contact lenses,NAICS_2017_Code,621399,,Offices of other health practitioners
-BEA_NIPA,Corrective eyeglasses and contact lenses,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Corrective eyeglasses and contact lenses,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Cosmetic/perfumes/bath/nail preparations and implements,NAICS_2017_Code,325611,,Soap and cleaning compound manufacturing
 BEA_NIPA,Cosmetic/perfumes/bath/nail preparations and implements,NAICS_2017_Code,325612,,Soap and cleaning compound manufacturing
 BEA_NIPA,Cosmetic/perfumes/bath/nail preparations and implements,NAICS_2017_Code,325613,,Soap and cleaning compound manufacturing
@@ -351,7 +351,7 @@ BEA_NIPA,Dishes and flatware,NAICS_2017_Code,332215,,Cutlery and handtool manufa
 BEA_NIPA,Dishes and flatware,NAICS_2017_Code,332216,,Cutlery and handtool manufacturing
 BEA_NIPA,Dishes and flatware,NAICS_2017_Code,332999,,Other fabricated metal manufacturing
 BEA_NIPA,Dishes and flatware,NAICS_2017_Code,339910,,Jewelry and silverware manufacturing
-BEA_NIPA,Dishes and flatware,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Dishes and flatware,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Domestic services,NAICS_2017_Code,561710,,Services to buildings and dwellings
 BEA_NIPA,Domestic services,NAICS_2017_Code,561720,,Services to buildings and dwellings
 BEA_NIPA,Domestic services,NAICS_2017_Code,561730,,Services to buildings and dwellings
@@ -360,7 +360,7 @@ BEA_NIPA,Domestic services,NAICS_2017_Code,561790,,Services to buildings and dwe
 BEA_NIPA,Domestic services,NAICS_2017_Code,814110,,Private households
 BEA_NIPA,Educational books,NAICS_2017_Code,511130,,Book publishers
 BEA_NIPA,Educational books,NAICS_2017_Code,519130,,Internet publishing and broadcasting and Web search portals
-BEA_NIPA,Educational books,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Educational books,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Eggs,NAICS_2017_Code,112310,,Poultry and egg production
 BEA_NIPA,Eggs,NAICS_2017_Code,112320,,Poultry and egg production
 BEA_NIPA,Eggs,NAICS_2017_Code,112330,,Poultry and egg production
@@ -516,7 +516,7 @@ BEA_NIPA,Financial service charges and fees,NAICS_2017_Code,522310,,Nondepositor
 BEA_NIPA,Financial service charges and fees,NAICS_2017_Code,522320,,Nondepository credit intermediation and related activities
 BEA_NIPA,Financial service charges and fees,NAICS_2017_Code,522390,,Nondepository credit intermediation and related activities
 BEA_NIPA,First-class postal service (by U.S. Postal Service),NAICS_2017_Code,491110,,Postal service
-BEA_NIPA,First-class postal service (by U.S. Postal Service),NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,First-class postal service (by U.S. Postal Service),BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Fish and seafood,NAICS_2017_Code,112210,,"Animal production, except cattle and poultry and eggs"
 BEA_NIPA,Fish and seafood,NAICS_2017_Code,112410,,"Animal production, except cattle and poultry and eggs"
 BEA_NIPA,Fish and seafood,NAICS_2017_Code,112420,,"Animal production, except cattle and poultry and eggs"
@@ -542,7 +542,7 @@ BEA_NIPA,"Flowers, seeds, and potted plants",NAICS_2017_Code,339993,,All other m
 BEA_NIPA,"Flowers, seeds, and potted plants",NAICS_2017_Code,339994,,All other miscellaneous manufacturing
 BEA_NIPA,"Flowers, seeds, and potted plants",NAICS_2017_Code,339995,,All other miscellaneous manufacturing
 BEA_NIPA,"Flowers, seeds, and potted plants",NAICS_2017_Code,339999,,All other miscellaneous manufacturing
-BEA_NIPA,"Flowers, seeds, and potted plants",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Flowers, seeds, and potted plants",BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Food furnished to employees (including military),NAICS_2017_Code,111130,,Grain farming
 BEA_NIPA,Food furnished to employees (including military),NAICS_2017_Code,111140,,Grain farming
 BEA_NIPA,Food furnished to employees (including military),NAICS_2017_Code,111150,,Grain farming
@@ -731,7 +731,7 @@ BEA_NIPA,Furniture,NAICS_2017_Code,532283,,General and consumer goods rental
 BEA_NIPA,Furniture,NAICS_2017_Code,532284,,General and consumer goods rental
 BEA_NIPA,Furniture,NAICS_2017_Code,532289,,General and consumer goods rental
 BEA_NIPA,Furniture,NAICS_2017_Code,532310,,General and consumer goods rental
-BEA_NIPA,Furniture,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Furniture,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,322299,,All other converted paper product manufacturing
 BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,323111,,Printing
 BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,323113,,Printing
@@ -743,7 +743,7 @@ BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,811211,,Electronic and preci
 BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,811212,,Electronic and precision equipment repair and maintenance
 BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,811213,,Electronic and precision equipment repair and maintenance
 BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,811219,,Electronic and precision equipment repair and maintenance
-BEA_NIPA,"Games, toys, and hobbies",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Games, toys, and hobbies",BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Garbage and trash collection,NAICS_2017_Code,562111,,Waste management and remediation services
 BEA_NIPA,Garbage and trash collection,NAICS_2017_Code,562112,,Waste management and remediation services
 BEA_NIPA,Garbage and trash collection,NAICS_2017_Code,562119,,Waste management and remediation services
@@ -756,7 +756,7 @@ BEA_NIPA,Garbage and trash collection,NAICS_2017_Code,562920,,Waste management a
 BEA_NIPA,Garbage and trash collection,NAICS_2017_Code,562991,,Waste management and remediation services
 BEA_NIPA,Garbage and trash collection,NAICS_2017_Code,562998,,Waste management and remediation services
 BEA_NIPA,Gasoline and other motor fuel,NAICS_2017_Code,324110,,Petroleum refineries
-BEA_NIPA,Government employees' expenditures abroad,NAICS_2017_Code,S00300,,Noncomparable imports
+BEA_NIPA,Government employees' expenditures abroad,BEA_2017_Code,S00300,,Noncomparable imports
 BEA_NIPA,Government hospitals,NAICS_2017_Code,622110,,Hospitals
 BEA_NIPA,Government hospitals,NAICS_2017_Code,622210,,Hospitals
 BEA_NIPA,Government hospitals,NAICS_2017_Code,622310,,Hospitals
@@ -967,8 +967,8 @@ BEA_NIPA,Intracity mass transit,NAICS_2017_Code,485510,,Transit and ground passe
 BEA_NIPA,Intracity mass transit,NAICS_2017_Code,485991,,Transit and ground passenger transportation
 BEA_NIPA,Intracity mass transit,NAICS_2017_Code,485999,,Transit and ground passenger transportation
 BEA_NIPA,Jewelry,NAICS_2017_Code,339910,,Jewelry and silverware manufacturing
-BEA_NIPA,Jewelry,NAICS_2017_Code,S00401,,Scrap
-BEA_NIPA,Jewelry,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Jewelry,BEA_2017_Code,S00401,,Scrap
+BEA_NIPA,Jewelry,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Labor organization dues,NAICS_2017_Code,813410,,"Civic, social, professional, and similar organizations"
 BEA_NIPA,Labor organization dues,NAICS_2017_Code,813910,,"Civic, social, professional, and similar organizations"
 BEA_NIPA,Labor organization dues,NAICS_2017_Code,813920,,"Civic, social, professional, and similar organizations"
@@ -1022,8 +1022,8 @@ BEA_NIPA,Legal services,NAICS_2017_Code,541110,,Legal services
 BEA_NIPA,Legal services,NAICS_2017_Code,541120,,Legal services
 BEA_NIPA,Legal services,NAICS_2017_Code,541191,,Legal services
 BEA_NIPA,Legal services,NAICS_2017_Code,541199,,Legal services
-BEA_NIPA,Less: Expenditures in the United States by nonresidents,NAICS_2017_Code,S00900,,Rest of the world adjustment
-BEA_NIPA,Less: Personal remittances in kind to nonresidents,NAICS_2017_Code,S00900,,Rest of the world adjustment
+BEA_NIPA,Less: Expenditures in the United States by nonresidents,BEA_2017_Code,S00900,,Rest of the world adjustment
+BEA_NIPA,Less: Personal remittances in kind to nonresidents,BEA_2017_Code,S00900,,Rest of the world adjustment
 BEA_NIPA,Life insurance,NAICS_2017_Code,524113,,Direct life insurance carriers
 BEA_NIPA,Life insurance,NAICS_2017_Code,524114,,"Insurance Carriers, except Direct Life Insurance"
 BEA_NIPA,Life insurance,NAICS_2017_Code,524126,,"Insurance Carriers, except Direct Life Insurance"
@@ -1089,7 +1089,7 @@ BEA_NIPA,Major household appliances,NAICS_2017_Code,335129,,Lighting fixture man
 BEA_NIPA,Major household appliances,NAICS_2017_Code,335210,,Small electrical appliance manufacturing
 BEA_NIPA,Major household appliances,NAICS_2017_Code,335220,,Major Household Appliance Manufacturing
 BEA_NIPA,Major household appliances,NAICS_2017_Code,335999,,All other miscellaneous electrical equipment and component manufacturing
-BEA_NIPA,Major household appliances,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Major household appliances,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Meals at drinking places,NAICS_2017_Code,722310,,All other food and drinking places
 BEA_NIPA,Meals at drinking places,NAICS_2017_Code,722320,,All other food and drinking places
 BEA_NIPA,Meals at drinking places,NAICS_2017_Code,722330,,All other food and drinking places
@@ -1168,7 +1168,7 @@ BEA_NIPA,Men's and boys' clothing,NAICS_2017_Code,315280,,Apparel manufacturing
 BEA_NIPA,Men's and boys' clothing,NAICS_2017_Code,315990,,Apparel manufacturing
 BEA_NIPA,Men's and boys' clothing,NAICS_2017_Code,339113,,Surgical appliance and supplies manufacturing
 BEA_NIPA,Men's and boys' clothing,NAICS_2017_Code,339920,,Sporting and athletic goods manufacturing
-BEA_NIPA,Men's and boys' clothing,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Men's and boys' clothing,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,"Mineral waters, soft drinks, and vegetable juices",NAICS_2017_Code,311411,,Frozen food manufacturing
 BEA_NIPA,"Mineral waters, soft drinks, and vegetable juices",NAICS_2017_Code,311412,,Frozen food manufacturing
 BEA_NIPA,"Mineral waters, soft drinks, and vegetable juices",NAICS_2017_Code,311421,,"Fruit and vegetable canning, pickling, and drying"
@@ -1255,7 +1255,7 @@ BEA_NIPA,Motor vehicle rental,NAICS_2017_Code,532120,,Automotive equipment renta
 BEA_NIPA,Motorcycles,NAICS_2017_Code,326211,,Tire manufacturing
 BEA_NIPA,Motorcycles,NAICS_2017_Code,326212,,Tire manufacturing
 BEA_NIPA,Motorcycles,NAICS_2017_Code,336991,,"Motorcycle, bicycle, and parts manufacturing"
-BEA_NIPA,Motorcycles,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Motorcycles,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,"Moving, storage, and freight services",NAICS_2017_Code,481111,,Air transportation
 BEA_NIPA,"Moving, storage, and freight services",NAICS_2017_Code,481112,,Air transportation
 BEA_NIPA,"Moving, storage, and freight services",NAICS_2017_Code,481211,,Air transportation
@@ -1302,7 +1302,7 @@ BEA_NIPA,Musical instruments,NAICS_2017_Code,339993,,All other miscellaneous man
 BEA_NIPA,Musical instruments,NAICS_2017_Code,339994,,All other miscellaneous manufacturing
 BEA_NIPA,Musical instruments,NAICS_2017_Code,339995,,All other miscellaneous manufacturing
 BEA_NIPA,Musical instruments,NAICS_2017_Code,339999,,All other miscellaneous manufacturing
-BEA_NIPA,Musical instruments,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Musical instruments,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Mutual fund sales charges,NAICS_2017_Code,523110,,Securities and commodity contracts intermediation and brokerage
 BEA_NIPA,Mutual fund sales charges,NAICS_2017_Code,523120,,Securities and commodity contracts intermediation and brokerage
 BEA_NIPA,Mutual fund sales charges,NAICS_2017_Code,523130,,Securities and commodity contracts intermediation and brokerage
@@ -1336,7 +1336,7 @@ BEA_NIPA,Newspapers and periodicals,NAICS_2017_Code,512240,,Sound recording indu
 BEA_NIPA,Newspapers and periodicals,NAICS_2017_Code,512250,,Sound recording industries
 BEA_NIPA,Newspapers and periodicals,NAICS_2017_Code,512290,,Sound recording industries
 BEA_NIPA,Newspapers and periodicals,NAICS_2017_Code,519130,,Internet publishing and broadcasting and Web search portals
-BEA_NIPA,Newspapers and periodicals,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Newspapers and periodicals,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,321920,,All other wood product manufacturing
 BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,321991,,All other wood product manufacturing
 BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,321992,,All other wood product manufacturing
@@ -1357,7 +1357,7 @@ BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,332216,,Cutlery and 
 BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,332431,,"Metal can, box, and other metal container (light gauge) manufacturing"
 BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,332439,,"Metal can, box, and other metal container (light gauge) manufacturing"
 BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,332999,,Other fabricated metal manufacturing
-BEA_NIPA,Nonelectric cookware and tableware,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Nonelectric cookware and tableware,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Nonprofit hospitals' services to households,NAICS_2017_Code,622110,,Hospitals
 BEA_NIPA,Nonprofit hospitals' services to households,NAICS_2017_Code,622210,,Hospitals
 BEA_NIPA,Nonprofit hospitals' services to households,NAICS_2017_Code,622310,,Hospitals
@@ -1470,7 +1470,7 @@ BEA_NIPA,Other personal business services,NAICS_2017_Code,561499,,Business suppo
 BEA_NIPA,Other recreational vehicles,NAICS_2017_Code,336213,,Motor home manufacturing
 BEA_NIPA,Other recreational vehicles,NAICS_2017_Code,336214,,Travel trailer and camper manufacturing
 BEA_NIPA,Other recreational vehicles,NAICS_2017_Code,336999,,All other transportation equipment manufacturing
-BEA_NIPA,Other recreational vehicles,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Other recreational vehicles,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Other road transportation service,NAICS_2017_Code,485111,,Transit and ground passenger transportation
 BEA_NIPA,Other road transportation service,NAICS_2017_Code,485112,,Transit and ground passenger transportation
 BEA_NIPA,Other road transportation service,NAICS_2017_Code,485113,,Transit and ground passenger transportation
@@ -1518,7 +1518,7 @@ BEA_NIPA,Outdoor equipment and supplies,NAICS_2017_Code,332216,,Cutlery and hand
 BEA_NIPA,Outdoor equipment and supplies,NAICS_2017_Code,332999,,Other fabricated metal manufacturing
 BEA_NIPA,Outdoor equipment and supplies,NAICS_2017_Code,333112,,Lawn and garden equipment manufacturing
 BEA_NIPA,Outdoor equipment and supplies,NAICS_2017_Code,334519,,"Watch, clock, and other measuring and controlling device manufacturing"
-BEA_NIPA,Outdoor equipment and supplies,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Outdoor equipment and supplies,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Over-the-counter equity securities,NAICS_2017_Code,523110,,Securities and commodity contracts intermediation and brokerage
 BEA_NIPA,Over-the-counter equity securities,NAICS_2017_Code,523120,,Securities and commodity contracts intermediation and brokerage
 BEA_NIPA,Over-the-counter equity securities,NAICS_2017_Code,523130,,Securities and commodity contracts intermediation and brokerage
@@ -1564,7 +1564,7 @@ BEA_NIPA,Personal computers/tablets and peripheral equipment,NAICS_2017_Code,334
 BEA_NIPA,Personal computers/tablets and peripheral equipment,NAICS_2017_Code,334112,,Computer storage device manufacturing
 BEA_NIPA,Personal computers/tablets and peripheral equipment,NAICS_2017_Code,334118,,Computer terminals and other computer peripheral equipment manufacturing
 BEA_NIPA,Personal computers/tablets and peripheral equipment,NAICS_2017_Code,334418,,Printed circuit assembly (electronic assembly) manufacturing
-BEA_NIPA,Personal computers/tablets and peripheral equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Personal computers/tablets and peripheral equipment,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Pets and related products,NAICS_2017_Code,111130,,Grain farming
 BEA_NIPA,Pets and related products,NAICS_2017_Code,111140,,Grain farming
 BEA_NIPA,Pets and related products,NAICS_2017_Code,111150,,Grain farming
@@ -1643,7 +1643,7 @@ BEA_NIPA,Photographic equipment,NAICS_2017_Code,316998,,Leather and allied produ
 BEA_NIPA,Photographic equipment,NAICS_2017_Code,333314,,Optical instrument and lens manufacturing
 BEA_NIPA,Photographic equipment,NAICS_2017_Code,333316,,Photographic and photocopying equipment manufacturing
 BEA_NIPA,Photographic equipment,NAICS_2017_Code,334118,,Computer terminals and other computer peripheral equipment manufacturing
-BEA_NIPA,Photographic equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Photographic equipment,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Physician services,NAICS_2017_Code,621111,,Offices of physicians
 BEA_NIPA,Physician services,NAICS_2017_Code,621112,,Offices of physicians
 BEA_NIPA,Physician services,NAICS_2017_Code,621410,,Outpatient care centers
@@ -1654,7 +1654,7 @@ BEA_NIPA,Physician services,NAICS_2017_Code,621493,,Outpatient care centers
 BEA_NIPA,Physician services,NAICS_2017_Code,621498,,Outpatient care centers
 BEA_NIPA,Pleasure aircraft,NAICS_2017_Code,335911,,Storage battery manufacturing
 BEA_NIPA,Pleasure aircraft,NAICS_2017_Code,336411,,Aircraft manufacturing
-BEA_NIPA,Pleasure aircraft,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Pleasure aircraft,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Pleasure boats,NAICS_2017_Code,326291,,Other rubber product manufacturing
 BEA_NIPA,Pleasure boats,NAICS_2017_Code,326299,,Other rubber product manufacturing
 BEA_NIPA,Pleasure boats,NAICS_2017_Code,332510,,Hardware manufacturing
@@ -1662,7 +1662,7 @@ BEA_NIPA,Pleasure boats,NAICS_2017_Code,333618,,Other engine equipment manufactu
 BEA_NIPA,Pleasure boats,NAICS_2017_Code,336214,,Travel trailer and camper manufacturing
 BEA_NIPA,Pleasure boats,NAICS_2017_Code,336612,,Boat building
 BEA_NIPA,Pleasure boats,NAICS_2017_Code,336999,,All other transportation equipment manufacturing
-BEA_NIPA,Pleasure boats,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Pleasure boats,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Pork,NAICS_2017_Code,311611,,"Animal (except poultry) slaughtering, rendering, and processing"
 BEA_NIPA,Pork,NAICS_2017_Code,311612,,"Animal (except poultry) slaughtering, rendering, and processing"
 BEA_NIPA,Pork,NAICS_2017_Code,311613,,"Animal (except poultry) slaughtering, rendering, and processing"
@@ -1677,7 +1677,7 @@ BEA_NIPA,Portfolio management and investment advice services,NAICS_2017_Code,523
 BEA_NIPA,Portfolio management and investment advice services,NAICS_2017_Code,523991,,Other financial investment activities
 BEA_NIPA,Portfolio management and investment advice services,NAICS_2017_Code,523999,,Other financial investment activities
 BEA_NIPA,Poultry,NAICS_2017_Code,311615,,Poultry processing
-BEA_NIPA,Private employees' expenditures abroad,NAICS_2017_Code,S00300,,Noncomparable imports
+BEA_NIPA,Private employees' expenditures abroad,BEA_2017_Code,S00300,,Noncomparable imports
 BEA_NIPA,Processed dairy products,NAICS_2017_Code,311511,,Fluid milk and butter manufacturing
 BEA_NIPA,Processed dairy products,NAICS_2017_Code,311512,,Fluid milk and butter manufacturing
 BEA_NIPA,Processed dairy products,NAICS_2017_Code,311513,,Cheese manufacturing
@@ -1779,15 +1779,15 @@ BEA_NIPA,Sewing items,NAICS_2017_Code,313230,,Fabric mills
 BEA_NIPA,Sewing items,NAICS_2017_Code,313240,,Fabric mills
 BEA_NIPA,Sewing items,NAICS_2017_Code,313310,,Textile and fabric finishing and fabric coating mills
 BEA_NIPA,Sewing items,NAICS_2017_Code,313320,,Textile and fabric finishing and fabric coating mills
-BEA_NIPA,Sewing items,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Sewing items,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Shoes and other footwear,NAICS_2017_Code,316110,,Leather and allied product manufacturing
 BEA_NIPA,Shoes and other footwear,NAICS_2017_Code,316210,,Leather and allied product manufacturing
 BEA_NIPA,Shoes and other footwear,NAICS_2017_Code,316992,,Leather and allied product manufacturing
 BEA_NIPA,Shoes and other footwear,NAICS_2017_Code,316998,,Leather and allied product manufacturing
-BEA_NIPA,Shoes and other footwear,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Shoes and other footwear,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Small electric household appliances,NAICS_2017_Code,333991,,Power-driven handtool manufacturing
 BEA_NIPA,Small electric household appliances,NAICS_2017_Code,335210,,Small electrical appliance manufacturing
-BEA_NIPA,Small electric household appliances,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Small electric household appliances,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Social advocacy and civic and social organizations,NAICS_2017_Code,813211,,"Grantmaking, giving, and social advocacy organizations"
 BEA_NIPA,Social advocacy and civic and social organizations,NAICS_2017_Code,813212,,"Grantmaking, giving, and social advocacy organizations"
 BEA_NIPA,Social advocacy and civic and social organizations,NAICS_2017_Code,813219,,"Grantmaking, giving, and social advocacy organizations"
@@ -1859,7 +1859,7 @@ BEA_NIPA,"Sporting equipment, supplies, guns, and ammunition",NAICS_2017_Code,33
 BEA_NIPA,"Sporting equipment, supplies, guns, and ammunition",NAICS_2017_Code,339994,,All other miscellaneous manufacturing
 BEA_NIPA,"Sporting equipment, supplies, guns, and ammunition",NAICS_2017_Code,339995,,All other miscellaneous manufacturing
 BEA_NIPA,"Sporting equipment, supplies, guns, and ammunition",NAICS_2017_Code,339999,,All other miscellaneous manufacturing
-BEA_NIPA,"Sporting equipment, supplies, guns, and ammunition",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Sporting equipment, supplies, guns, and ammunition",BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Standard clothing issued to military personnel,NAICS_2017_Code,314120,,Curtain and linen mills
 BEA_NIPA,Standard clothing issued to military personnel,NAICS_2017_Code,314910,,Other textile product mills
 BEA_NIPA,Standard clothing issued to military personnel,NAICS_2017_Code,314994,,Other textile product mills
@@ -1898,7 +1898,7 @@ BEA_NIPA,Stationery and miscellaneous printed materials,NAICS_2017_Code,339999,,
 BEA_NIPA,Stationery and miscellaneous printed materials,NAICS_2017_Code,511140,,"Directory, mailing list, and other publishers"
 BEA_NIPA,Stationery and miscellaneous printed materials,NAICS_2017_Code,511191,,"Directory, mailing list, and other publishers"
 BEA_NIPA,Stationery and miscellaneous printed materials,NAICS_2017_Code,511199,,"Directory, mailing list, and other publishers"
-BEA_NIPA,Stationery and miscellaneous printed materials,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Stationery and miscellaneous printed materials,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Sugar and sweets,NAICS_2017_Code,311221,,Wet corn milling
 BEA_NIPA,Sugar and sweets,NAICS_2017_Code,311313,,Sugar and confectionery product manufacturing
 BEA_NIPA,Sugar and sweets,NAICS_2017_Code,311314,,Sugar and confectionery product manufacturing
@@ -1947,7 +1947,7 @@ BEA_NIPA,Taxicabs and ride sharing services,NAICS_2017_Code,485999,,Transit and 
 BEA_NIPA,Telephone and related communication equipment,NAICS_2017_Code,334210,,Telephone apparatus manufacturing
 BEA_NIPA,Telephone and related communication equipment,NAICS_2017_Code,334220,,Broadcast and wireless communications equipment
 BEA_NIPA,Televisions,NAICS_2017_Code,334310,,Audio and video equipment manufacturing
-BEA_NIPA,Televisions,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Televisions,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Tenant landlord durables,NAICS_2017_Code,531110,,Tenant-occupied housing
 BEA_NIPA,Tenant-occupied mobile homes,NAICS_2017_Code,531110,,Tenant-occupied housing
 BEA_NIPA,Therapeutic medical equipment,NAICS_2017_Code,334510,,Electromedical and electrotherapeutic apparatus manufacturing
@@ -1958,10 +1958,10 @@ BEA_NIPA,Therapeutic medical equipment,NAICS_2017_Code,335210,,Small electrical 
 BEA_NIPA,Therapeutic medical equipment,NAICS_2017_Code,335912,,Primary battery manufacturing
 BEA_NIPA,Therapeutic medical equipment,NAICS_2017_Code,339112,,Surgical and medical instrument manufacturing
 BEA_NIPA,Therapeutic medical equipment,NAICS_2017_Code,339113,,Surgical appliance and supplies manufacturing
-BEA_NIPA,Therapeutic medical equipment,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Therapeutic medical equipment,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Tires,NAICS_2017_Code,326211,,Tire manufacturing
 BEA_NIPA,Tires,NAICS_2017_Code,326212,,Tire manufacturing
-BEA_NIPA,Tires,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Tires,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Tobacco,NAICS_2017_Code,312230,,Tobacco product manufacturing
 BEA_NIPA,"Tools, hardware, and supplies",NAICS_2017_Code,314910,,Other textile product mills
 BEA_NIPA,"Tools, hardware, and supplies",NAICS_2017_Code,314994,,Other textile product mills
@@ -2013,7 +2013,7 @@ BEA_NIPA,"Tools, hardware, and supplies",NAICS_2017_Code,532283,,General and con
 BEA_NIPA,"Tools, hardware, and supplies",NAICS_2017_Code,532284,,General and consumer goods rental
 BEA_NIPA,"Tools, hardware, and supplies",NAICS_2017_Code,532289,,General and consumer goods rental
 BEA_NIPA,"Tools, hardware, and supplies",NAICS_2017_Code,532310,,General and consumer goods rental
-BEA_NIPA,"Tools, hardware, and supplies",NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,"Tools, hardware, and supplies",BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Truck leasing,NAICS_2017_Code,532111,,Automotive equipment rental and leasing
 BEA_NIPA,Truck leasing,NAICS_2017_Code,532112,,Automotive equipment rental and leasing
 BEA_NIPA,Truck leasing,NAICS_2017_Code,532120,,Automotive equipment rental and leasing
@@ -2022,12 +2022,12 @@ BEA_NIPA,"Trust, fiduciary, and custody activities",NAICS_2017_Code,523920,,Othe
 BEA_NIPA,"Trust, fiduciary, and custody activities",NAICS_2017_Code,523930,,Other financial investment activities
 BEA_NIPA,"Trust, fiduciary, and custody activities",NAICS_2017_Code,523991,,Other financial investment activities
 BEA_NIPA,"Trust, fiduciary, and custody activities",NAICS_2017_Code,523999,,Other financial investment activities
-BEA_NIPA,U.S. student expenditures,NAICS_2017_Code,S00300,,Noncomparable imports
-BEA_NIPA,U.S. travel outside the United States,NAICS_2017_Code,S00300,,Noncomparable imports
-BEA_NIPA,Used autos,NAICS_2017_Code,S00401,,Scrap
-BEA_NIPA,Used autos,NAICS_2017_Code,S00402,,Used and secondhand goods
-BEA_NIPA,Used light trucks,NAICS_2017_Code,S00401,,Scrap
-BEA_NIPA,Used light trucks,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,U.S. student expenditures,BEA_2017_Code,S00300,,Noncomparable imports
+BEA_NIPA,U.S. travel outside the United States,BEA_2017_Code,S00300,,Noncomparable imports
+BEA_NIPA,Used autos,BEA_2017_Code,S00401,,Scrap
+BEA_NIPA,Used autos,BEA_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Used light trucks,BEA_2017_Code,S00401,,Scrap
+BEA_NIPA,Used light trucks,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Vegetables (fresh),NAICS_2017_Code,111211,,Vegetable and melon farming
 BEA_NIPA,Vegetables (fresh),NAICS_2017_Code,111219,,Vegetable and melon farming
 BEA_NIPA,Vegetables (fresh),NAICS_2017_Code,111411,,"Greenhouse, nursery, and floriculture production"
@@ -2114,7 +2114,7 @@ BEA_NIPA,Window coverings,NAICS_2017_Code,314994,,Other textile product mills
 BEA_NIPA,Window coverings,NAICS_2017_Code,314999,,Other textile product mills
 BEA_NIPA,Window coverings,NAICS_2017_Code,337910,,Other furniture related product manufacturing
 BEA_NIPA,Window coverings,NAICS_2017_Code,337920,,Other furniture related product manufacturing
-BEA_NIPA,Window coverings,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Window coverings,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Wine,NAICS_2017_Code,312130,,Wineries
 BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,313310,,Textile and fabric finishing and fabric coating mills
 BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,313320,,Textile and fabric finishing and fabric coating mills
@@ -2130,8 +2130,8 @@ BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,315280,,Apparel manufacturi
 BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,315990,,Apparel manufacturing
 BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,339113,,Surgical appliance and supplies manufacturing
 BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,339920,,Sporting and athletic goods manufacturing
-BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,S00401,,Scrap
-BEA_NIPA,Women's and girls' clothing,NAICS_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Women's and girls' clothing,BEA_2017_Code,S00401,,Scrap
+BEA_NIPA,Women's and girls' clothing,BEA_2017_Code,S00402,,Used and secondhand goods
 BEA_NIPA,Workers' compensation,NAICS_2017_Code,524114,,"Insurance Carriers, except Direct Life Insurance"
 BEA_NIPA,Workers' compensation,NAICS_2017_Code,524126,,"Insurance Carriers, except Direct Life Insurance"
 BEA_NIPA,Workers' compensation,NAICS_2017_Code,524127,,"Insurance Carriers, except Direct Life Insurance"
