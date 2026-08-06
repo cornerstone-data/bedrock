@@ -65,6 +65,10 @@ local run.
 
 - [`plan.md`](plan.md) — the nowcast build plan: the seven steps, their data
   sources, and the open decisions.
+- [`compensation_disaggregation_plan.md`](compensation_disaggregation_plan.md) —
+  Step 2, splitting `V00100` from NIPA's ~74 industries to BEA 2017 detail:
+  wages and supplements separately, QCEW payroll as the movement series, and
+  the sectors where QCEW does not work.
 - [`progress_report.md`](progress_report.md) — where the build stands, with the
   figures embedded. Regenerated per milestone; its images are the one tracked
   thing under `images/`.
