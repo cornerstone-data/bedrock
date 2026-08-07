@@ -248,12 +248,24 @@ one and aggregate.** The Margins table is per **commodity-buyer transaction**: i
 `USA_2017_FINAL_DEMAND_CODES` (i.e. the buyer, intermediate or final), and its columns are
 `Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value`
 ([io_2017.py:333-359](../../extract/iot/io_2017.py#L333-L359)). The Supply table's `TRADE`/`TRANS`
-are single values per commodity. They reconcile by aggregation:
+are single values per commodity. They reconcile by aggregation — **but the trade identity carries a
+tax term**, because the two tables sit in different frameworks:
 
 ```
-TRADE[c] = Σ_buyers ( Wholesale[b,c] + Retail[b,c] )
-TRANS[c] = Σ_buyers   Transportation[b,c]
+Σ_buyers ( Wholesale[b,c] + Retail[b,c] )  =  TRADE[c] + TOP[c]
+Σ_buyers   Transportation[b,c]             =  TRANS[c]
 ```
+
+Confirmed by BEA (B. Jolliff, National Economic Accounts, 2025-05-30): the Margins table is on the
+make-use framework and the Supply table on supply-use, and *"the difference is accounted for in
+wholesale and retail trade commodity tax — in the supply-use framework these taxes show up in the
+Taxes on products column; in the margins table these values are built into each of the margins
+fields."*
+
+Measured on 2017 detail: `TRANS` holds directly (320/402 commodities within 1%), and the trade
+identity **with** the `TOP` term holds for 226 of the 255 commodities that carry positive `TRADE`.
+Dropping the term overstates `TRADE` by **385,283 million, 11.8%**. See
+[#571](https://github.com/cornerstone-data/bedrock/issues/571) for the full check.
 
 So the Supply columns are a **commodity-level control on the transaction-level Margins dataset**, not
 the same object. Two consequences for sequencing:
@@ -622,16 +634,46 @@ not introduce a step 10.
   here — `(buyer, commodity) × {Producers' Value, Transportation, Wholesale, Retail, Purchasers'
   Value}`, BEA detail granularity, buyers spanning industries *and* final-demand codes — since it is
   both the Step 6d deliverable and Step 6b's conversion input. Start from 2017 detail margin **rates**
-  per (buyer, commodity, margin type), carried forward on trade/transport output and commodity
-  inflation; `derive_PRO_to_PUR_ratio.py`'s `_inflate_margins_to_year` is a working precedent but is
-  Cornerstone-schema and phi-oriented (it aggregates to per-commodity totals via `_margins_by_commodity`
-  before computing phi), so expect adaptation rather than reuse — the nowcast needs the pre-aggregation
-  detail preserved.
-  Then derive the Supply columns by aggregation: `TRADE[c] = Σ_b (Wholesale + Retail)`,
-  `TRANS[c] = Σ_b Transportation`.
-  **Validate per commodity, never in aggregate** (`T014` nets to ~1 economy-wide) — and separately
-  check that the transaction-level table reproduces the two Supply columns commodity by commodity,
-  since that identity is the only thing tying the fine and coarse objects together.
+  per (buyer, commodity, margin type); `derive_PRO_to_PUR_ratio.py`'s `_inflate_margins_to_year` is a
+  working precedent but is Cornerstone-schema and phi-oriented (it aggregates to per-commodity totals
+  via `_margins_by_commodity` before computing phi), so expect adaptation rather than reuse — the
+  nowcast needs the pre-aggregation detail preserved.
+
+  **Five method points, all from BEA correspondence (B. Jolliff, 2025-05/06) and verified against 2017
+  detail in [#571](https://github.com/cornerstone-data/bedrock/issues/571):**
+
+  1. **Apply rates to `T013`, not domestic output.** *"Total product supply (column OR) includes total
+     commodity output plus imports; margins are distributed based on the value in column OR."* Imported
+     goods carry domestic margin, so a rate carried on `T007` alone is biased. Checked: `TRADE/T007`
+     gives 39 impossible rates (>1) against 21 on `T013`, sd 1.80 vs 1.04. **This is a real sequencing
+     constraint — see below.**
+  2. **Aggregate with the tax term**: `Σ_b (Wholesale + Retail) = TRADE[c] + TOP[c]`, not without it.
+  3. **Excise and sales tax sit in different fields.** Sales tax is inside the Wholesale/Retail
+     columns; excise is inside `Producers' Value`. Both land in `TOP`, which is why the identity in (2)
+     over-corrects by the excise share — a −1.29% residual overall, concentrated on exactly the excise
+     goods (tobacco, distilleries and breweries all at ≈ −0.37 of their `TOP`). **Model this split if
+     margins are ever needed in basic prices**; ≈0.37 for alcohol and tobacco is a usable start.
+  4. **Negative margins are the change in inventories — do not clip them.** All 31 negative rows in the
+     2017 table are buyer `F03000`, −8,076 million, and nothing else in the table is negative. They are
+     a timing artefact: margin is booked when inventories build, so a drawdown shows negative.
+     ⚠️ `_margin_negatives_treatment`'s `abs_negative_margin_columns` flag would destroy exactly this
+     signal — check before reusing.
+  5. **Import `TRANS` is domestic-port-to-user only.** The foreign-port-to-domestic-port leg is already
+     inside `MCIF`, so the transport margin is not the whole freight bill and must not be built as one.
+
+  Then derive the Supply columns by aggregation, per (2) above.
+  **Validate per commodity, never in aggregate.** `T014` nets to **1** economy-wide against **7,361,003**
+  of gross mass — so a totals check here does not merely risk passing on broken data, it passes on
+  *anything*. Separately check that the transaction-level table reproduces the two Supply columns
+  commodity by commodity, since that identity is the only thing tying the fine and coarse objects
+  together.
+
+  **The negative side is nearly free; budget the effort on the positive side.** The −3.68 trillion is
+  supplied by just 24 commodities giving up almost all their own output — 19 trade commodities at
+  **96.8%** of their combined `T007` (eight retail sectors at exactly −100.0%) and 5 transport
+  commodities at **56.8%**. That side is close to a function of trade/transport output, which 4a
+  produces anyway. The work is the **positive-side allocation across the 255 receiving commodities**,
+  which is what the transaction-level rates are for.
 - 4d. **Tax/subsidy columns** (`TOP`, `SUB`) — NIPA T30500/T31300 totals split by 2017 commodity
   shares. Remember `SUB` is negative here and positive in the Use table.
 - 4e. **Verify the four Supply identities per commodity** (`T013`/`T014`/`T015`/`T016` above), 402/402,
@@ -839,6 +881,18 @@ replaced by #572. **Every item on the board is now a trackable issue.**
 - **P0** — #566 → #567/#568 → #569. Land `fix_non_naics_sector_levels` first.
 - **P0-parallel** — #570 (4a) and #571 (4c). 4c has the highest fan-out of anything unbuilt: it feeds
   the Supply margin columns, Step 6b's PUR→PRO conversion, and the Step 6d Margins deliverable.
+
+  **4c splits into two halves with different dependencies, and only the first is truly parallel.**
+  BEA distributes margins on `T013` = `T007` + `MCIF` + `MADJ` (§Step 4c point 1), so:
+
+  | half | needs | when |
+  |---|---|---|
+  | **Derive 2017 rates** per (buyer, commodity, margin type) from the published Margins table, and prove the two identities reproduce the 2017 Supply columns | nothing — the 2017 tables are already loaded | **start now, genuinely parallel** |
+  | **Apply those rates** to a nowcast year | `T007` from **4a** (#570) *and* `MCIF`/`MADJ` from **4b** (#579) | after both |
+
+  Doing the first half now is what de-risks the other three consumers, because it settles the rate
+  structure and the identities without waiting on any other step. Applying rates to `T007` alone to
+  avoid the 4b dependency is the tempting shortcut and is **wrong** — it drops the margin on imports.
 - **P1** — code-space Phase 2 (retarget `FD_Gov`/`FD_Structures`/`FD_IP`, drop
   `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks #576, Step 2 and Step 3.
   #574 may fall out of this rather than needing its own attribution work — diagnose first. Then #579,
