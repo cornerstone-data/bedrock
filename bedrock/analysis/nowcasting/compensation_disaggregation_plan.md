@@ -165,8 +165,56 @@ hired and contract labor expense is the movement series within it.
 **Private households — `814000`** (18,684). Outside QCEW scope entirely. NIPA
 carries an explicit domestic-worker compensation line; carry it down.
 
-**Government.** QCEW ownership codes do not distinguish government *enterprises*
-from general government, which BEA splits:
+**Government — and this one is nearly solved.** QCEW ownership codes do not
+distinguish government *enterprises* from general government. NIPA does, and the
+numbers tie exactly.
+
+**`T31005` (Table 3.10.5, *Government Consumption Expenditures and General
+Government Gross Output*)** carries compensation of general government
+employees, and it matches the SUT to the dollar:
+
+| NIPA line | code | $M | BEA detail | $M | diff |
+|---|---|---:|---|---:|---:|
+| Federal, national defense | `B237RC` | 246,097 | `S00500` | 246,097 | **0** |
+| Federal, nondefense | `W130RC` | 184,220 | `S00600` | 184,220 | **0** |
+| Federal, both | `B568RC` | 430,318 | `S00500`+`S00600` | 430,317 | 1 |
+| State and local | `B251RC` | 1,338,917 | `GSLGE`+`GSLGH`+`GSLGO` | 1,338,916 | 1 |
+
+**`S00500` and `S00600` are 1:1 lookups — no allocation at all.** Only the
+state-and-local trio needs splitting, inside an exact control.
+
+Government *enterprises* tie exactly too, against `T60200D`'s own lines:
+
+| NIPA line | code | $M | BEA detail | $M | diff |
+|---|---|---:|---|---:|---:|
+| Federal enterprises | `A4081C` | 59,219 | `491000`+`S00101`+`S00102` | 59,219 | **0** |
+| State and local enterprises | `B4086C` | 107,032 | `S00201`+`S00202`+`S00203` | 107,032 | **0** |
+
+Tables 3.2 and 3.3 are receipts-and-expenditures statements and do **not** carry
+compensation — 3.10.5 is the one that does.
+
+### `T30800` decomposes the government enterprise surplus by enterprise
+
+**Table 3.8, *Current Surplus of Government Enterprises*** — this corrects the
+claim above that the −4,253 surplus line has no industry axis. It does, and the
+enterprise names map onto the BEA codes almost directly:
+
+| NIPA enterprise | $M | BEA detail |
+|---|---:|---|
+| Postal Service | −1,994 | `491000` |
+| Tennessee Valley Authority | 2,774 | `S00101` federal electric utilities |
+| FHA + other federal | 2,300 | `S00102` |
+| Public transit | −48,988 | `S00201` |
+| Gas and electricity | 10,970 | `S00202` |
+| water/sewerage, toll, liquor, terminals, housing, other | 30,685 | `S00203` |
+
+Federal sums to 3,080 and state and local to −7,333, together the −4,253 in the
+`V00300` assembly — exact at every level. This is *current surplus*, a `V00300`
+component, not compensation; but it means the six government enterprise codes
+have a published source for that line rather than needing a spread.
+
+The remaining government codes, which still need a split within an exact
+control:
 
 | enterprises | general government |
 |---|---|
@@ -177,7 +225,11 @@ from general government, which BEA splits:
 | `S00202` S&L electric utilities (10,203) | `GSLGO` S&L other (467,952) |
 | `S00203` other S&L enterprises (69,979) | |
 
-Use 6.2D's own government lines plus BEA government detail, not QCEW ownership.
+So the open government question is narrow: **split `GSLGE`/`GSLGH`/`GSLGO`
+within 1,338,917, and each enterprise trio within its exact control.** Nothing
+here needs QCEW ownership codes. Whether NIPA's by-function tables (`T31505`,
+which carries education and health functions) can do the state-and-local
+three-way split is the next thing to check.
 
 ## Phase 5 — validation
 

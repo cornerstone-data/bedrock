@@ -72,10 +72,13 @@ is the usual way this goes wrong:
 Known issues with the assembly
 -------------------------------
 
-- **Two lines have no industry table at all.**  The statistical discrepancy
-  (67,902) and the current surplus of government enterprises (-4,253) cannot be
-  attributed to an industry from any source.  Spreading them is unavoidable and
-  arbitrary, and should be labelled as such rather than presented as a measure.
+- **The statistical discrepancy (67,902) has no industry table at all**, and
+  neither do the 299,529 of proprietors' income adjustments below.  Spreading
+  them is unavoidable and arbitrary, and should be labelled as such rather than
+  presented as a measure.  The current surplus of government enterprises is
+  *not* in this category: ``T30800`` decomposes it by named enterprise type --
+  Postal Service, TVA, public transit, gas and electricity -- which map onto the
+  six BEA government-enterprise detail codes directly.
 - **The statistical discrepancy is an accounting residual**, not a measurement
   of anything.  It exists because GDP and GDI are estimated independently.
   Whatever industry pattern it is given is fiction; the only honest treatment is
@@ -273,7 +276,7 @@ V00300_ASSEMBLY: tuple[tuple[str, str, str, str], ...] = (
     ("Proprietors' income with IVA and CCAdj", 'T11000', 'A041RC', 'T61200D+T70305'),
     ('Rental income of persons', 'T70900', 'A048RC', 'T70900'),
     ('Corporate profits with IVA/CCAdj, domestic', 'T61600D', 'A445RC', 'T61600D'),
-    ('Current surplus of government enterprises', 'T11000', 'A108RC', '(none)'),
+    ('Current surplus of government enterprises', 'T11000', 'A108RC', 'T30800'),
     ('Consumption of fixed capital, all sectors', 'T70500', 'A262RC', 'T70500'),
     ('Statistical discrepancy', 'T11000', 'A030RC', '(none)'),
 )
@@ -287,7 +290,7 @@ V00300_COMPONENTS: tuple[tuple[str, str, str, str], ...] = (
     ("Proprietors' income with IVA and CCAdj", 'A041RC', 'T61200D + T70305', 'partial'),
     ('Rental income of persons', 'A048RC', 'T70900', 'none'),
     ('Corporate profits with IVA and CCAdj', 'A445RC', 'T61600D A445RC', 'full'),
-    ('Current surplus of government enterprises', 'A108RC', '(none)', 'none'),
+    ('Current surplus of government enterprises', 'A108RC', 'T30800', 'full'),
     ('Consumption of fixed capital', 'A262RC', 'T70500', 'partial'),
     ('Statistical discrepancy', 'A030RC', '(none)', 'none'),
 )
@@ -496,7 +499,9 @@ def report(year: int = YEAR) -> str:
         'WHAT V00300 IS MADE OF (T1.10), AND HOW FAR NIPA GETS IT BY INDUSTRY',
         comps.to_string(index=False, formatters=fmt),  # type: ignore[arg-type]
         '',
-        '  by-industry reach, which is what Step 2 can source directly:',
+        '  by-industry reach, which is what Step 2 can source directly.',
+        '  These are signed sums, so the negative government-enterprise surplus',
+        '  makes its own bucket smaller rather than larger:',
         *(
             f'    {key:8s} {coverage[key]:>11,.0f}  {coverage[key] / total * 100:5.1f}%'
             f'   {BY_INDUSTRY_MEANING[key]}'
