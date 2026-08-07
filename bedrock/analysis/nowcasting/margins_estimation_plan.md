@@ -148,6 +148,37 @@ manufacturer-paid excise the correspondence describes.
 published data alone, with no external tax source — the input needed if margins
 are ever required in basic prices.
 
+## The ratio is not a share — margin is added, not carved out
+
+`TRADE`/`T013` exceeds 1 for **21 commodities**, carrying **21.1% of all
+positive `TRADE`**. That is not an error, and it is worth stating because it
+looks like one.
+
+Margin is **additive**: `T016` (purchaser) `= T013` (basic) `+ T014` (margins)
+`+ T015` (taxes). So a commodity's trade margin can be any multiple of its basic
+value. Checked both ways:
+
+| | commodities > 1 |
+|---|---:|
+| `TRADE` / `T013` | **21** |
+| `TRADE` / `T016` | **0** (max 0.715) |
+
+Apparel worked through: basic 96,779 + margins 182,974 + taxes 31,848 =
+purchaser 311,601. **Basic value is 31% of what the buyer pays**, so
+`TRADE`/`T013` = 1.84 while `TRADE`/`T016` = 0.57. A $20 shirt with $7 of goods
+in it is exactly this.
+
+The 21 are the high-markup consumer goods the intuition predicts — apparel,
+leather, jewellery, dolls and toys, sporting goods, carpets, curtains, breweries,
+distilleries, wineries. **`S00402` used and secondhand goods is the extreme at
+16.02**, and instructively so: `T007` is zero because used goods have no
+production, so the commodity is almost pure dealer margin.
+
+**Two consequences for the build.** `T013` remains the correct *allocation*
+base — three independent statements say so, and none of them claims the result
+is a share. But a rate expressed on `T013` is unbounded, so **do not use "rate >
+1" as a validation rule**; validate on `T016`, where the bound is real.
+
 ## The negative result that shapes the build
 
 BEA computes **one rate per item**, uniform across all transactions receiving
@@ -255,6 +286,7 @@ the wholesale method's "interim supply", and the transport method's table 8.2.
 against **7,361,003** of gross mass, so a totals check passes on *anything*. Use
 the [#587](https://github.com/cornerstone-data/bedrock/issues/587) per-cell
 picture; `supply_bridge_detail_sut` already covers `TRADE`/`TRANS`.
+Bound-check rates on `T016`, not `T013` — see "the ratio is not a share".
 
 Budget the effort on the **positive side**: the −3.68T negative side is 24
 commodities giving up nearly all their own output (19 trade at 96.8%, eight
@@ -298,16 +330,15 @@ Three consequences:
 
 ## Open questions
 
-1. **21 commodities have `TRADE`/`T013` > 1**, which should be impossible if
-   `T013` is the allocation base. Resolve before relying on the rate.
-2. **Tons or ton-miles** for the transport allocation — decide on the 2017 fit.
+1. **Tons or ton-miles** for the transport allocation — decide on the 2017 fit.
+2. **Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail** — it currently
+   carries 2012 detail and 2017 *summary* only. This is the real porting work
+   on the transport chain, not the SCTG mapping itself.
 3. **Build the NAPCS → I-O commodity concordance?** Only needed to re-run BEA's
    actual method on 2022 product lines rather than carry 2017-anchored rates.
    Everything upstream of it now exists; this is the sole missing link.
-4. **Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail** — it currently
-   carries 2012 detail and 2017 *summary* only. This is the real porting work
-   on the transport chain, not the SCTG mapping itself.
 
-Two earlier questions are now closed: the excise/sales split resolves into the
-producer-level vs trade-level decomposition above, and petroleum's near-zero
-residual is correct behaviour rather than an anomaly.
+Three earlier questions are now closed: the excise/sales split resolves into the
+producer-level vs trade-level decomposition above; petroleum's near-zero
+residual is correct behaviour rather than an anomaly; and `TRADE`/`T013` above 1
+is correct because margin is additive, not a share.

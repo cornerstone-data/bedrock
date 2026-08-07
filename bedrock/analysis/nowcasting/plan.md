@@ -644,9 +644,13 @@ not introduce a step 10.
 
   1. **Apply rates to `T013`, not domestic output.** *"Total product supply (column OR) includes total
      commodity output plus imports; margins are distributed based on the value in column OR."* Imported
-     goods carry domestic margin, so a rate carried on `T007` alone is biased. Checked: `TRADE/T007`
-     gives 39 impossible rates (>1) against 21 on `T013`, sd 1.80 vs 1.04. **This is a real sequencing
-     constraint — see below.**
+     goods carry domestic margin, so a rate carried on `T007` alone is biased — and the 2009 manual
+     says the same twice independently, using "interim supply (output + imports)" as the weight in both
+     the wholesale step (4) and the transport step (2). **This is a real sequencing constraint — see
+     below.**
+     ⚠️ Note `TRADE`/`T013` is **not** bounded by 1 and a ratio above 1 is not evidence of an error:
+     margin is *added to* basic value (`T016 = T013 + T014 + T015`), not carved out of it. 21
+     commodities exceed 1 legitimately — apparel is 1.84 — while `TRADE`/`T016` exceeds 1 for none.
   2. **Aggregate with the tax term**: `Σ_b (Wholesale + Retail) = TRADE[c] + TOP[c]`, not without it.
   3. **Excise and sales tax sit in different fields.** Sales tax is inside the Wholesale/Retail
      columns; excise is inside `Producers' Value`. Both land in `TOP`, which is why the identity in (2)
