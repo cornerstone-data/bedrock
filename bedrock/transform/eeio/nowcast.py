@@ -35,14 +35,11 @@ they're not in the NAICS/Cornerstone crosswalks it consults).
 from __future__ import annotations
 
 import functools
-from collections.abc import Generator
-from contextlib import contextmanager
 
 import pandas as pd
 
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_final_demand import BEA_2017_FINAL_DEMAND_CODES
 
 _SECTOR_SWAP = {
@@ -51,33 +48,13 @@ _SECTOR_SWAP = {
 }
 
 
-@contextmanager
-def _force_cornerstone_model_schema() -> Generator[None, None, None]:
-    """
-    ``map_fbs_sectors_to_model_schema`` branches on
-    ``get_usa_config().use_cornerstone_2026_model_schema`` (default False) to
-    pick the Cornerstone_2025 vs. CEDA_2025 crosswalk. Temporarily forces it
-    True on the live global config (rather than swapping to a whole different
-    named config via ``temp_usa_config``, which would also reset unrelated
-    fields like ``model_base_year``) and restores the prior value after.
-    """
-    cfg = get_usa_config()
-    previous = cfg.use_cornerstone_2026_model_schema
-    cfg.use_cornerstone_2026_model_schema = True
-    try:
-        yield
-    finally:
-        cfg.use_cornerstone_2026_model_schema = previous
-
-
 def _resolve_both_sector_columns(fbs: pd.DataFrame) -> pd.DataFrame:
     """Apply ``map_fbs_sectors_to_model_schema`` to both SectorProducedBy and
     SectorConsumedBy (via a temporary swap - see module docstring)."""
-    with _force_cornerstone_model_schema():
-        fbs = map_fbs_sectors_to_model_schema(fbs.rename(columns=_SECTOR_SWAP)).rename(
-            columns=_SECTOR_SWAP
-        )
-        return map_fbs_sectors_to_model_schema(fbs)
+    fbs = map_fbs_sectors_to_model_schema(fbs.rename(columns=_SECTOR_SWAP)).rename(
+        columns=_SECTOR_SWAP
+    )
+    return map_fbs_sectors_to_model_schema(fbs)
 
 
 @functools.cache

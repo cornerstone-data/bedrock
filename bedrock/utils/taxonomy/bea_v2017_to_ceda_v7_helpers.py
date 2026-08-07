@@ -3,6 +3,12 @@ from typing import cast
 
 import pandas as pd
 
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.schemas.cornerstone_schemas import (
+    CORNERSTONE_COMMODITIES_ELEC,
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.bea.v2012_summary import BEA_2012_SUMMARY_CODES
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
@@ -68,7 +74,35 @@ def load_bea_v2017_summary_to_cornerstone() -> (
         commodity_to_cornerstone, new_domain=set(COMMODITIES)
     )
     cornerstone_to_summary = traverse(cornerstone_to_commodity, commodity_to_summary)
-    return reverse(cornerstone_to_summary, new_domain=set(BEA_2012_SUMMARY_CODES))  # type: ignore[arg-type]
+    mapping_raw = reverse(
+        cornerstone_to_summary, new_domain=set(BEA_2012_SUMMARY_CODES)
+    )
+    if get_usa_config().implement_electricity_disaggregation:
+        expanded_mapping: dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]] = {
+            summary_code: (
+                _replace_sector_in_cornerstone_summary_list(
+                    list(sectors),
+                    ELECTRICITY_AGGREGATE_SECTOR,
+                    ELECTRICITY_DISAGG_SECTORS,
+                )
+                if isinstance(sectors, list)
+                else cast(list[str], sectors)
+            )
+            for summary_code, sectors in mapping_raw.items()
+        }
+        return expanded_mapping
+    return cast(dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]], mapping_raw)
+
+
+def _replace_sector_in_cornerstone_summary_list(
+    sectors: list[str],
+    aggregate: str,
+    replacements: list[str],
+) -> list[str]:
+    if aggregate not in sectors:
+        return list(sectors)
+    idx = sectors.index(aggregate)
+    return sectors[:idx] + replacements + sectors[idx + 1 :]
 
 
 def get_bea_v2017_summary_to_ceda_corresp_df() -> pd.DataFrame:
@@ -84,8 +118,13 @@ def get_bea_v2017_summary_to_ceda_corresp_df() -> pd.DataFrame:
 
 def get_bea_v2017_summary_to_cornerstone_corresp_df() -> pd.DataFrame:
     summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
+    cornerstone_index = (
+        CORNERSTONE_COMMODITIES_ELEC
+        if get_usa_config().implement_electricity_disaggregation
+        else list(COMMODITIES)
+    )
     corresp_df = create_correspondence_matrix(summary_to_cornerstone).reindex(
-        index=COMMODITIES,
+        index=cornerstone_index,
         columns=USA_2017_SUMMARY_INDUSTRY_CODES,
         fill_value=0,
     )

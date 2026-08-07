@@ -13,16 +13,129 @@ Will rename/replace single_region_schemas.py / base_schemas.py after fully merge
 
 from __future__ import annotations
 
+import typing as ta
+
 import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pt
 
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.ghg import GHG
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 
 CORNERSTONE_COMMODITIES: list[str] = list(COMMODITIES)
 CORNERSTONE_INDUSTRIES: list[str] = list(INDUSTRIES)
+
+ELECTRICITY_AGGREGATE_SECTOR = "221100"
+ELECTRICITY_DISAGG_SECTORS: list[str] = ["221110", "221121", "221122"]
+
+
+def _replace_sector_in_list(
+    sectors: list[str],
+    aggregate: str,
+    replacements: list[str],
+) -> list[str]:
+    idx = sectors.index(aggregate)
+    return sectors[:idx] + replacements + sectors[idx + 1 :]
+
+
+CORNERSTONE_COMMODITIES_ELEC: list[str] = _replace_sector_in_list(
+    CORNERSTONE_COMMODITIES,
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
+CORNERSTONE_INDUSTRIES_ELEC: list[str] = _replace_sector_in_list(
+    CORNERSTONE_INDUSTRIES,
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
+
+CornerstoneMatrixKind = ta.Literal["V", "U", "A", "B", "X", "Q"]
+
+
+def _electricity_disaggregation_active() -> bool:
+    return get_usa_config().implement_electricity_disaggregation
+
+
+def active_cornerstone_commodities() -> list[str]:
+    if _electricity_disaggregation_active():
+        return CORNERSTONE_COMMODITIES_ELEC
+    return CORNERSTONE_COMMODITIES
+
+
+def active_cornerstone_industries() -> list[str]:
+    if _electricity_disaggregation_active():
+        return CORNERSTONE_INDUSTRIES_ELEC
+    return CORNERSTONE_INDUSTRIES
+
+
+def validate_cornerstone(
+    df: pd.DataFrame | pd.Series, kind: CornerstoneMatrixKind
+) -> None:
+    """Flag-aware pandera validation for Cornerstone outputs (405 vs 407)."""
+    commodities = active_cornerstone_commodities()
+    industries = active_cornerstone_industries()
+    if kind == "V":
+        if not validate_industry_index(df.index, industries):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneVMatrix,
+                data=df,
+                message="V index does not match active Cornerstone industries",
+            )
+        if not validate_commodity_index(df.columns, commodities):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneVMatrix,
+                data=df,
+                message="V columns do not match active Cornerstone commodities",
+            )
+    elif kind == "U":
+        if not validate_commodity_index(df.index, commodities):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneUMatrix,
+                data=df,
+                message="U index does not match active Cornerstone commodities",
+            )
+        if not validate_industry_index(df.columns, industries):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneUMatrix,
+                data=df,
+                message="U columns do not match active Cornerstone industries",
+            )
+    elif kind == "A":
+        if not validate_commodity_index(df.index, commodities):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneAMatrix,
+                data=df,
+                message="A index does not match active Cornerstone commodities",
+            )
+        if not validate_commodity_index(df.columns, commodities):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneAMatrix,
+                data=df,
+                message="A columns do not match active Cornerstone commodities",
+            )
+    elif kind == "B":
+        if not validate_commodity_index(df.columns, commodities):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneBMatrix,
+                data=df,
+                message="B columns do not match active Cornerstone commodities",
+            )
+    elif kind == "X":
+        if not validate_industry_index(df.index, industries):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneXVectorSchema,
+                data=df,
+                message="x index does not match active Cornerstone industries",
+            )
+    elif kind == "Q":
+        if not validate_commodity_index(df.index, commodities):
+            raise pa.errors.SchemaError(
+                schema=CornerstoneQVectorSchema,
+                data=df,
+                message="q index does not match active Cornerstone commodities",
+            )
 
 
 def validate_commodity_index(

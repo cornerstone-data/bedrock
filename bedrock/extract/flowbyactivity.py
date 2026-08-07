@@ -736,6 +736,15 @@ class FlowByActivity(_FlowBy):
                     convert_df_to_flowby=True,
                 )
             except ValueError:
+                # This discards every activity_set, not just the one that
+                # failed, so a fault in one silently zeroes the whole method.
+                # Log it - the silence is what makes this class of bug expensive
+                # to find.
+                log.exception(
+                    'Discarding ALL activity_sets for %s: one of them raised '
+                    'while being prepared. The method will return no rows.',
+                    self.full_name,
+                )
                 return FlowBySector(pd.DataFrame(), convert_df_to_flowby=True)
         log.info(f'Processing FlowBySector for {self.full_name}')
         # Primary FlowBySector generation approach:

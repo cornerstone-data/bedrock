@@ -26,8 +26,10 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_SUMMARY_MUT_MAPPING_1997_2024,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
+    USA_SUMMARY_SUT_MAPPING_1997_2024,
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
+    USA_SUMMARY_SUT_YEARS,
 )
 from bedrock.utils.taxonomy.bea.v2017_commodity import (
     USA_2017_COMMODITY_CODES,
@@ -729,7 +731,7 @@ def _load_usa_summary_mut(
 
     # BEA revises historical data in each new release. We pin older years to the
     # oldest file containing them so values stay stable across releases (e.g.
-    # scale_cornerstone_B uses years 2017 and 2022, which must not change as new
+    # scale_cornerstone_A uses years 2017 and 2022, which must not change as new
     # vintages add years on the right).
     if year > 2023:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2024
@@ -764,14 +766,24 @@ def _load_usa_summary_mut(
 
 
 def _load_usa_summary_sut(
-    matrix_name: USA_SUMMARY_SUT_NAMES, year: USA_SUMMARY_MUT_YEARS
+    matrix_name: USA_SUMMARY_SUT_NAMES, year: USA_SUMMARY_SUT_YEARS
 ) -> pd.DataFrame:
     """
     Load USA Summary tables in Supply-use format
     """
+
+    # Vintage pinning, as in _load_usa_summary_mut above: the workbook is chosen by
+    # year, not by recency, so BEA's historical revisions do not move values under
+    # existing consumers as new vintages add years on the right. 2017-2022 stays on
+    # the workbook its published FBAs were built from; a 2025 vintage would get its
+    # own `year > 2024` arm, leaving 2023-2024 where they are.
+    if year > 2022:
+        mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
+    else:
+        mapping = USA_SUMMARY_SUT_MAPPING_2017_2022
     df = (
         load_from_gcs(
-            name=USA_SUMMARY_SUT_MAPPING_2017_2022[matrix_name],
+            name=mapping[matrix_name],
             sub_bucket=GCS_USA_SUP_DIR,
             local_dir=LOCAL_USA_SUP_DIR,
             loader=lambda pth: pd.read_excel(

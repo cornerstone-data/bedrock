@@ -152,13 +152,12 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     - N_and_D_summary_stats: Summary statistics of percent diffs.
     - output_contrib_new_vs_old: Top N contributing sectors to each EF's change,
       derived from the output contribution matrix.
-    - sector_mapping_notes (cornerstone only): Documents mapped/excluded sectors.
+    - sector_mapping_notes: Documents mapped/excluded sectors.
 
     Old EFs are inflation-adjusted to the current base year before comparison.
 
-    When ``use_cornerstone_2026_model_schema`` is active, old (CEDA v7) and new
-    (cornerstone) EF vectors are aligned before comparison so that sectors with
-    different granularity are still comparable.
+    Old (CEDA v7) and new (Cornerstone) EF vectors are aligned before comparison
+    so that sectors with different granularity are still comparable.
 
     Args:
         sheet_id: Google Sheets spreadsheet ID to write results to.
@@ -166,13 +165,15 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     # Late-binding import - depends on global config
     from bedrock.transform.eeio.derived import derive_Aq_usa
     from bedrock.utils.math.formulas import (
+        compute_d,
         compute_L_matrix,
+        compute_M_matrix,
+        compute_n,
         compute_output_contribution,
     )
     from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
     config = get_usa_config()
-    use_cornerstone = config.use_cornerstone_2026_model_schema
 
     t0 = time.time()
     efs_raw = pull_efs_for_diagnostics()
@@ -180,15 +181,10 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] pull_efs_for_diagnostics completed in {time.time() - t0:.1f}s'
     )
 
-    # When the cornerstone schema is active, align old/new sector indices
-    active_mappings: ta.Dict[str, str] = {}
-    if use_cornerstone:
-        logger.info('Aligning EF vectors across CEDA v7 / cornerstone schemas')
-        efs, active_mappings = align_efs_across_schemas(efs_raw)
-        sector_desc: ta.Optional[ta.Dict[str, str]] = get_aligned_sector_desc()
-    else:
-        efs = efs_raw
-        sector_desc = None  # use default CEDA_V7_SECTOR_DESC
+    # Align old (CEDA v7) / new (Cornerstone) sector indices before comparison.
+    logger.info('Aligning EF vectors across CEDA v7 / cornerstone schemas')
+    efs, active_mappings = align_efs_across_schemas(efs_raw)
+    sector_desc: ta.Optional[ta.Dict[str, str]] = get_aligned_sector_desc()
 
     logger.info('------ Calculating EF Diagnostics ------')
 
@@ -208,9 +204,8 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         sector_desc=sector_desc,
     )
 
-    if use_cornerstone:
-        _add_comparison_type_column(N_comparison, active_mappings)
-        _add_comparison_type_column(D_comparison, active_mappings)
+    _add_comparison_type_column(N_comparison, active_mappings)
+    _add_comparison_type_column(D_comparison, active_mappings)
 
     if efs.D_new_inflated is not None:
         assert efs.N_new_inflated is not None
@@ -266,8 +261,73 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        compute_mixed_unit_ef_vectors,
+        electricity_end_use_retail_prices_cents_kwh,
+        electricity_mixed_units_enabled,
+    )
+    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
+        derive_B_usa_non_finetuned,
+    )
+    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+        derive_cornerstone_Aq_scaled,
+        derive_cornerstone_B_non_finetuned,
+    )
+    from bedrock.utils.validation.diagnostics_helpers import (  # noqa: PLC0415
+        MIXED_VS_MONETARY_TAB_COLUMNS,
+        build_mixed_vs_monetary_comparison_df,
+        sectors_for_mixed_vs_monetary_tab,
+    )
+
+    if electricity_mixed_units_enabled():
+        t0 = time.time()
+        aq_mon = derive_cornerstone_Aq_scaled()
+        b_mon = derive_cornerstone_B_non_finetuned()
+        b_live = derive_B_usa_non_finetuned()
+        d_mon = ta.cast(
+            'pd.Series[float]',
+            compute_d(B=b_live).squeeze(),
+        )
+        l_mon = compute_L_matrix(A=aq_mon.Adom + aq_mon.Aimp)
+        m_mon = compute_M_matrix(B=b_live, L=l_mon)
+        n_mon = ta.cast('pd.Series[float]', compute_n(M=m_mon).squeeze())
+        d_mix = _ef_vector_as_series(efs.D_new)
+        n_mix = _ef_vector_as_series(efs.N_new)
+        table_prices = electricity_end_use_retail_prices_cents_kwh(
+            config.usa_ghg_data_year
+        )
+        total_price = float(table_prices['Total'])
+        equal_prices: dict[str, float] = {str(k): total_price for k in table_prices}
+        uniform_result = compute_mixed_unit_ef_vectors(
+            aq_mon, b_mon, prices_by_class=equal_prices
+        )
+        sectors = sectors_for_mixed_vs_monetary_tab(n_mix, n_mon)
+        mixed_vs_mon = build_mixed_vs_monetary_comparison_df(
+            sectors=sectors,
+            D_mon=d_mon,
+            N_mon=n_mon,
+            D_mix=d_mix,
+            N_mix=n_mix,
+            N_uniform=uniform_result.N,
+            c_col=uniform_result.c_col,
+            sector_desc_lookup=sector_desc,
+        )
+        assert list(mixed_vs_mon.columns) == list(MIXED_VS_MONETARY_TAB_COLUMNS)
+        update_sheet_tab(
+            sheet_id,
+            'mixed_vs_monetary_221110',
+            mixed_vs_mon,
+            clean_nans=True,
+        )
+        logger.info(
+            '[TIMING] Write mixed_vs_monetary_221110 tab in %.1fs',
+            time.time() - t0,
+        )
+    else:
+        logger.info('Skipping mixed_vs_monetary_221110 (mixed-units gate off)')
+
     # Effective x decomposition (Cornerstone method only)
-    if config.use_E_data_year_for_x_in_B:
+    if config.use_ghg_year_x_in_B:
         from bedrock.utils.validation.diagnostics_helpers import (
             compute_effective_x_comparison,
         )
@@ -286,12 +346,17 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     # When aligned, some significant sectors may not be in the index (e.g. if
     # they were removed).  Filter to those present.
     available_significant = [s for s in significant_sectors if s in D_comparison.index]
-    drop_cols = ['sector_name']
-    if use_cornerstone:
-        drop_cols.append('comparison_type')
-    significant_sectors_comparison = D_comparison.loc[available_significant].join(
-        N_comparison.loc[available_significant].drop(columns=drop_cols)
+    drop_cols = ['sector_name', 'comparison_type']
+    d_sig = D_comparison.loc[available_significant]
+    n_sig = N_comparison.loc[available_significant].drop(
+        columns=drop_cols, errors='ignore'
     )
+    # Mixed-units configs add ``exemption_reason`` to both D and N tabs; drop
+    # N-side duplicates so ``join`` does not require suffixes.
+    n_sig = n_sig.drop(
+        columns=list(n_sig.columns.intersection(d_sig.columns)), errors='ignore'
+    )
+    significant_sectors_comparison = d_sig.join(n_sig)
     update_sheet_tab(
         sheet_id,
         'D_and_N_significant_sectors',
@@ -335,22 +400,30 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write N_and_D_summary_stats to Google Sheets in {time.time() - t0:.1f}s'
     )
 
-    # Sector mapping notes (cornerstone only)
-    if use_cornerstone:
-        mapping_notes = _build_sector_mapping_notes(
-            active_mappings,
-            old_ef=efs_raw.D_old.raw,
-            new_ef=efs_raw.D_new,
-        )
-        update_sheet_tab(
-            sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True
-        )
-        logger.info('Wrote sector_mapping_notes tab')
+    # Sector mapping notes
+    mapping_notes = _build_sector_mapping_notes(
+        active_mappings,
+        old_ef=efs_raw.D_old.raw,
+        new_ef=efs_raw.D_new,
+    )
+    update_sheet_tab(sheet_id, 'sector_mapping_notes', mapping_notes, clean_nans=True)
+    logger.info('Wrote sector_mapping_notes tab')
 
     # Compare output contribution (parquet baseline only; omitted for gcs_useeio_xlsx)
     if config.diagnostics_baseline_source != 'gcs_useeio_xlsx':
         t0 = time.time()
-        Aq_set = derive_Aq_usa()
+        from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+            electricity_mixed_units_enabled,
+        )
+        from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_mixed_units,
+        )
+
+        if electricity_mixed_units_enabled():
+            Aq_set = derive_cornerstone_Aq_mixed_units()
+        else:
+            Aq_set = derive_Aq_usa()
         L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
 
         OC_new = compute_output_contribution(
@@ -365,11 +438,10 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
             L=L_old, D=ta.cast('pd.Series[float]', efs_raw.D_old.inflated.squeeze())
         )
 
-        if use_cornerstone:
-            full_idx = OC_new.index.union(OC_old.index).sort_values()
-            full_cols = OC_new.columns.union(OC_old.columns).sort_values()
-            OC_new = OC_new.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
-            OC_old = OC_old.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
+        full_idx = OC_new.index.union(OC_old.index).sort_values()
+        full_cols = OC_new.columns.union(OC_old.columns).sort_values()
+        OC_new = OC_new.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
+        OC_old = OC_old.reindex(index=full_idx, columns=full_cols, fill_value=0.0)
 
         OC_comparison = diff_and_perc_diff_two_output_contribution_matrices(
             OC_old,

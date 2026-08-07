@@ -14,6 +14,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_cornerstone_V_after_waste,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
@@ -24,6 +25,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_V,
     derive_cornerstone_VA,
+    derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_Ytot_matrix_set,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
@@ -37,14 +39,19 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_coproduction_transfer_schedule,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    clear_cornerstone_inflation_caches,
+)
 from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     electricity_reallocation_enabled,
+    electricity_disaggregation_enabled,
     derive_disagg_io_bundle,
     cornerstone_sector_disagg_active,
     derive_cornerstone_V,
+    derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_U_set,
     derive_cornerstone_VA,
@@ -59,6 +66,7 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, "cache_clear"):
             fn.cache_clear()
+    clear_cornerstone_inflation_caches()
 
 
 def _setup_config(config_name: str) -> None:
@@ -219,7 +227,7 @@ class TestElectricityReallocationIntegration:
         assert aq.Aimp.shape == (405, 405)
 
     def test_feature_off_regression(self) -> None:
-        _setup_config("2025_usa_cornerstone_v0_2.yaml")
+        _setup_config("2025_usa_cornerstone_v0_3.yaml")
         assert electricity_reallocation_enabled() is False
         V_full = derive_cornerstone_V()
         _setup_config("test_usa_config_waste_disagg.yaml")

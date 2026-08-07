@@ -14,11 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.extract.disaggregation import disagg_weights as disagg_weights_module
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
-from bedrock.extract.disaggregation.useeior_waste_weights import (
-    USEEIOR_V180_WASTE_SOURCE_NAME,
-)
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio import (
     cornerstone_expansion,
@@ -28,6 +24,8 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
+    electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
@@ -51,12 +49,17 @@ from bedrock.utils.config.usa_config import (
     reset_usa_config,
     set_global_usa_config,
 )
+from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    clear_cornerstone_inflation_caches,
+)
 from bedrock.utils.math.formulas import compute_q
 
 _WASTE_SET = set(_WASTE_NEW_CODES)
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     cornerstone_sector_disagg_active,
+    electricity_reallocation_enabled,
+    electricity_disaggregation_enabled,
     get_waste_disagg_weights,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
@@ -80,6 +83,7 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, "cache_clear"):
             fn.cache_clear()
+    clear_cornerstone_inflation_caches()
 
 
 def _setup_config(config_name: str) -> None:
@@ -124,52 +128,6 @@ class TestWeightProvider:
         result2 = get_waste_disagg_weights()
         assert result2 is not None
         assert isinstance(result2, DisaggWeights)
-
-    def test_before_config_uses_useeior_url_weights(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        captured: dict[str, object] = {}
-
-        def _fake_loader(*args: object, **kwargs: object) -> object:
-            captured["cfg"] = args[0]
-            captured["kwargs"] = kwargs
-            return object()
-
-        monkeypatch.setattr(disagg_weights_module, "load_disagg_weights", _fake_loader)
-
-        _setup_config("useeio_phoebe_23")
-        result = get_waste_disagg_weights()
-        assert result is not None
-
-        cfg = captured["cfg"]
-        assert hasattr(cfg, "source_name")
-        assert getattr(cfg, "source_name") == USEEIOR_V180_WASTE_SOURCE_NAME
-        assert str(getattr(cfg, "use_weights_file")).endswith(
-            "WasteDisaggregationDetail2017_Use.csv"
-        )
-        assert str(getattr(cfg, "make_weights_file")).endswith(
-            "WasteDisaggregationDetail2017_Make.csv"
-        )
-
-    def test_after_config_does_not_use_useeior_url_weights(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        captured: dict[str, object] = {}
-
-        def _fake_loader(*args: object, **kwargs: object) -> object:
-            captured["cfg"] = args[0]
-            captured["kwargs"] = kwargs
-            return object()
-
-        monkeypatch.setattr(disagg_weights_module, "load_disagg_weights", _fake_loader)
-
-        _setup_config("useeio_phoebe_23_restore_iot_redefinition")
-        result = get_waste_disagg_weights()
-        assert result is not None
-        cfg = captured["cfg"]
-        assert hasattr(cfg, "source_name")
-        assert getattr(cfg, "source_name") == "WasteDisaggregationDetail2017"
-        assert "useeior_v1.8.0" not in str(getattr(cfg, "use_weights_file"))
 
 
 # ---------------------------------------------------------------------------
@@ -507,7 +465,7 @@ class TestPipelineB:
     def test_runtime_B_path_does_not_use_bea_expansion_helpers(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _setup_config("2025_usa_cornerstone_v0_2.yaml")
+        _setup_config("2025_usa_cornerstone_v0_3.yaml")
 
         def _raise_if_called(*args: object, **kwargs: object) -> None:
             raise AssertionError(
@@ -529,14 +487,14 @@ class TestPipelineB:
 
     @pytest.mark.eeio_integration
     def test_runtime_B_formula_matches_implementation(self) -> None:
-        _setup_config("2025_usa_cornerstone_v0_2.yaml")
+        _setup_config("2025_usa_cornerstone_v0_3.yaml")
         try:
             cfg = get_usa_config()
             actual = derive_cornerstone_B_via_vnorm()
 
             x = (
                 derive_cornerstone_x_after_redefinition()
-                if cfg.use_E_data_year_for_x_in_B
+                if cfg.use_ghg_year_x_in_B
                 else derive_cornerstone_x()
             )
             expected = (

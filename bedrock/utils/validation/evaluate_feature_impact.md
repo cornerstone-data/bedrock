@@ -19,32 +19,20 @@ Post-run plotting and multi-run merges:
 
 ## Choose a baseline
 
-Three baseline identities map onto two loader modes:
+Pick the comparison at dispatch time via ``--baseline`` (or the workflow
+``baseline`` input). Do not fork a config YAML only to change it.
 
-| Baseline identity | How | What the sheet compares |
-|---|---|---|
-| **CEDA-US v0** | Leave `snapshot_version_or_git_sha` at its default, `'v0'`; leave the USEEIO box unticked | `N_old` / `D_old` are the legacy CEDA-US v0 snapshot EFs |
-| **Bedrock / Cornerstone model snapshot** | Set `snapshot_version_or_git_sha` to the desired model snapshot SHA. For the latest accepted model, use the SHA in `bedrock/utils/snapshots/.SNAPSHOT_KEY`. Leave the USEEIO box unticked | `N_old` / `D_old` are the selected Bedrock / Cornerstone snapshot EFs |
-| **USEEIO Excel baseline** | Tick `use_useeio_baseline` / pass `--useeio_baseline_pin_json` | `N_old` / `D_old` are the D/N rows from the workbook in `useeio_baseline_pin.json`. Emits `_purchaser` N columns (model-purchaser vs USEEIO-purchaser) |
+| ``--baseline`` | What the sheet compares |
+|---|---|
+| ``ceda-v0`` (default) | Legacy CEDA-US v0 snapshot EFs |
+| ``useeio`` | USEEIO Excel pin (`useeio_baseline_pin.json`); emits `_purchaser` N columns |
+| ``v0.3`` | Current Bedrock / Cornerstone v0.3 snapshot EFs |
+| a snapshot SHA | Any key allowed on `USAConfig.snapshot_version_or_git_sha` (older or future releases) |
 
-CEDA-US v0 and Bedrock / Cornerstone snapshots both use
-`diagnostics_baseline_source='gcs_snapshot'`; `snapshot_version_or_git_sha`
-selects which snapshot. The USEEIO workbook uses
-`diagnostics_baseline_source='gcs_useeio_xlsx'` and is pinned by URI, SHA-256,
-and model-version label.
+Leave `snapshot_version_or_git_sha` at its YAML default (`'v0'`). The baseline
+is **one per sheet** — run separate sheets for separate baselines.
 
-The baseline is **one per sheet**. Snapshot and USEEIO modes are mutually
-exclusive. A USEEIO run does not also carry a CEDA-US or Bedrock / Cornerstone
-snapshot comparison; run a separate sheet for each baseline. `_purchaser`
-columns appear only on USEEIO-baseline sheets.
-
-Use precise baseline labels in sheet titles and run indexes: `CEDA-US v0
-based`, `Bedrock <release-or-short-SHA> snapshot based`, or `USEEIO
-<model-version-label> based`. Do not use bare `CEDA based` for a Bedrock /
-Cornerstone snapshot.
-
-Trust `config_summary` for resolved years and baseline fields, not the
-dispatch override alone.
+Trust `config_summary` for the resolved baseline fields.
 
 ## Sheets, Drive folders, and naming
 
@@ -95,8 +83,7 @@ year override). Baseline labels follow the identities above — never use bare
 `CEDA based` for a Bedrock / Cornerstone snapshot.
 
 Epic title variants keep the same bracketed shape but swap the middle label
-for approach / release-step text (see `dispatch_ef_time_series`,
-`dispatch_ef_release_v0_3`, `dispatch_ef_v03_waterfall`).
+for approach / release-step text (see `dispatch_ef_time_series`).
 
 ### Shared create / trigger helpers
 
@@ -109,12 +96,12 @@ the module CLI (default folder = v0.4 Diagnostics):
 uv run python -m bedrock.utils.validation.dispatch_diagnostics `
   --git-ref <branch-or-main> `
   --configs <config_stem> `
-  --baseline-label "Bedrock v0.3 snapshot based" `
+  --baseline v0.3 `
   --dry-run
 ```
 
-Omit `--dry-run` once titles are reviewed. Pass `--use-useeio-baseline` when
-the baseline is the USEEIO pin. Run-index default:
+Omit `--dry-run` once titles are reviewed. Use `--baseline useeio` for the
+USEEIO pin. Run-index default:
 `bedrock/utils/validation/output/ef_run_index_feature.csv`.
 
 ## One-off diagnostics run
@@ -129,15 +116,15 @@ the baseline is the USEEIO pin. Run-index default:
 gh workflow run generate_diagnostics.yml --ref <branch-or-main> `
   -f config_name=<config_stem> `
   -f sheet_id=<google_sheet_id> `
-  -f use_useeio_baseline=false
+  -f baseline=ceda-v0
 ```
 
 Optional inputs: `pr_url`, `model_base_year`, `usa_ghg_data_year`,
-`use_useeio_baseline=true`.
+`baseline` (`ceda-v0`, `useeio`, `v0.3`, or a snapshot SHA).
 
 Leave year overrides empty when the YAML already sets the correct
 `model_base_year` / `usa_ghg_data_year`. Overriding a year a flag forbids
-fails at validation (for example `v0_3_umd_2024_ghgia` with an incompatible
+fails at validation (for example `use_cornerstone_ghg_model=False` with an incompatible
 `usa_ghg_data_year`).
 
 Watch: `gh run list --workflow generate_diagnostics.yml`.
@@ -150,17 +137,11 @@ many runs without waiting drops pending ones.
 ```powershell
 uv run python -m bedrock.utils.validation.generate_diagnostics `
   --sheet_id <google_sheet_id> `
-  --config_name <config_stem>
-```
-
-USEEIO pin:
-
-```powershell
-uv run python -m bedrock.utils.validation.generate_diagnostics `
-  --sheet_id <google_sheet_id> `
   --config_name <config_stem> `
-  --useeio_baseline_pin_json bedrock/utils/snapshots/useeio_baseline_pin.json
+  --baseline ceda-v0
 ```
+
+Other common targets: `--baseline v0.3`, `--baseline useeio`.
 
 Requires Google application-default credentials with Sheets write access.
 
@@ -221,7 +202,8 @@ guide covers the single-flag (or small list) path.
 - How large are % and absolute changes on `D_and_N_significant_sectors`
   versus the full distribution?
 - Does `config_summary` show the intended flag, years, and baseline
-  (`snapshot_version_or_git_sha` / USEEIO pin fields)?
+  (`diagnostics_baseline_source`, `baseline_snapshot_key_used` / USEEIO pin
+  fields)?
 - Are apparent agreements methodological tautologies (shared frozen structure
   with the baseline) rather than independent validation?
 
@@ -231,9 +213,11 @@ guide covers the single-flag (or small list) path.
   locks years → `ValueError` during config validation. Prefer the YAML’s
   years; align the sheet title year if it was wrong.
 - **Interim config pinned to an old snapshot.** A YAML that sets
-  `snapshot_version_or_git_sha` and flips an interim flag may fail to
-  resolve methods on current `main`. Run against the ref that matches the
-  pin, or fold the effect into a bundled config that `main` supports.
+  `snapshot_version_or_git_sha` (legacy pin) and flips an interim flag may
+  fail to resolve methods on current `main`. Prefer selecting the
+  comparison via `--baseline` / workflow `baseline`, and run against the
+  git ref that matches any *model* pin the config still needs, or fold the
+  effect into a bundled config that `main` supports.
 - **Empty sheet after a “successful” dispatch.** The workflow triggered but
   the model job failed; check the Actions log. Re-dispatch reuses the same
   `sheet_id`.

@@ -24,8 +24,16 @@ from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.economic.inflation_helpers_ceda import (
     obtain_inflation_factors_from_reference_data,
 )
-from bedrock.utils.snapshots.loader import load_configured_snapshot
+from bedrock.utils.schemas.cornerstone_schemas import (
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
+from bedrock.utils.snapshots.loader import (
+    load_configured_snapshot,
+    resolve_snapshot_key,
+)
 from bedrock.utils.snapshots.names import SnapshotName
+from bedrock.utils.snapshots.releases import ef_dollar_year_for_snapshot
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 
 logger = logging.getLogger(__name__)
@@ -34,9 +42,10 @@ logger = logging.getLogger(__name__)
 # Sector alignment constants for CEDA v7 (old) ↔ cornerstone (new)
 #
 # Sources of truth:
-#   Waste:     taxonomy/cornerstone/commodities.py  → WASTE_DISAGG_COMMODITIES
-#   Appliance: taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (335220 → 4 codes)
-#   Aluminum:  taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (33131B → 331313)
+#   Waste:       taxonomy/cornerstone/commodities.py  → WASTE_DISAGG_COMMODITIES
+#   Appliance:   taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (335220 → 4 codes)
+#   Aluminum:    taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (33131B → 331313)
+#   Electricity: schemas/cornerstone_schemas.py  (221100 → 221110/221121/221122)
 # ---------------------------------------------------------------------------
 # Appliances: old has 4 codes (see bea_v2017_commodity__bea_ceda_v7); new aggregates to 335220
 _APPLIANCE_OLD_CODES: ta.List[str] = ['335221', '335222', '335224', '335228']
@@ -44,6 +53,13 @@ _APPLIANCE_NEW_CODE = '335220'
 # Aluminum: old has 331313 only; new may split into 331313 + 33131B
 _ALUMINUM_OLD_CODE = '331313'
 _ALUMINUM_NEW_EXTRA_CODE = '33131B'
+# Diagnostics-only sector names for electricity disaggregation children (not in COMMODITY_DESC).
+# 221110: Cornerstone synthetic label — no NAICS 221110 in Sector_2017_Names.csv.
+_ELECTRICITY_DISAGG_SECTOR_DESC: ta.Dict[str, str] = {
+    '221110': 'Electric power generation',
+    '221121': 'Electric Bulk Power Transmission and Control',
+    '221122': 'Electric Power Distribution',
+}
 
 
 class OldEfSet(BaseModel):
@@ -117,12 +133,6 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
         ``derive_cornerstone_B_non_finetuned`` already inflates ``B`` to
         ``model_base_year``.
     """
-    if not cfg.use_cornerstone_2026_model_schema:
-        return (
-            False,
-            'use_cornerstone_2026_model_schema is false (legacy B path; no '
-            'cornerstone D_new_inflated hook)',
-        )
     if cfg.deflate_x_to_detail_io_year_for_B:
         if cfg.model_base_year == cfg.usa_detail_original_year:
             return (
@@ -131,7 +141,7 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
                 'EF denominator adjustment for D/N is identity (no separate inflated columns)',
             )
         return (True, '')
-    if cfg.use_E_data_year_for_x_in_B:
+    if cfg.use_ghg_year_x_in_B:
         return (
             False,
             'use_E_data_year_for_x_in_B without deflate_x_to_detail_io_year_for_B: '
@@ -175,6 +185,8 @@ def get_aligned_sector_desc() -> ta.Dict[str, str]:
     for code, name in COMMODITY_DESC.items():
         if code not in desc:
             desc[code] = name
+    if get_usa_config().implement_electricity_disaggregation:
+        desc.update(_ELECTRICITY_DISAGG_SECTOR_DESC)
     return desc
 
 
@@ -194,6 +206,8 @@ def compute_active_mapped_sectors(
       - ``old-only (appliance detail)``  – old detail codes that were aggregated
       - ``new-only (appliance aggregate)`` – new aggregate of the above
       - ``old-only (aluminum)`` / ``new-only (aluminum)`` – aluminum split
+      - ``old-only (electricity aggregate)`` – old aggregate that was disaggregated
+      - ``new-only (electricity subsector)`` – new subsectors of the above
     """
     waste_old, waste_new = _waste_disagg()
     old_idx = set(old_ef.index)
@@ -218,6 +232,19 @@ def compute_active_mapped_sectors(
     if _ALUMINUM_NEW_EXTRA_CODE in new_idx and _ALUMINUM_NEW_EXTRA_CODE not in old_idx:
         active[_ALUMINUM_NEW_EXTRA_CODE] = 'new-only (aluminum)'
 
+    # Electricity: old has aggregate 221100, new has subsectors
+    if get_usa_config().implement_electricity_disaggregation:
+        if (
+            ELECTRICITY_AGGREGATE_SECTOR in old_idx
+            and ELECTRICITY_AGGREGATE_SECTOR not in new_idx
+        ):
+            if all(c in new_idx for c in ELECTRICITY_DISAGG_SECTORS):
+                active[ELECTRICITY_AGGREGATE_SECTOR] = (
+                    'old-only (electricity aggregate)'
+                )
+                for c in ELECTRICITY_DISAGG_SECTORS:
+                    active[c] = 'new-only (electricity subsector)'
+
     return active
 
 
@@ -229,7 +256,7 @@ def _compute_full_union_index(
     return sorted(set(old_ef.index) | set(new_ef.index))
 
 
-# A fill-map entry: target_code → source (single code or list to sum).
+# A fill-map entry: target_code → source (single code or list to mean).
 FillMap = ta.Dict[str, ta.Union[str, ta.List[str]]]
 
 
@@ -243,12 +270,14 @@ def _build_fill_maps(
 
     Old-side fills (codes missing from old EF):
       - Waste subsectors (562111 …) ← old aggregate 562000
-      - Appliance aggregate (335220) ← sum of old detail codes
+      - Appliance aggregate (335220) ← mean of old detail codes
       - Aluminum new code (33131B) ← old 331313
+      - Electricity subsectors (221110 …) ← old aggregate 221100
 
     New-side fills (codes missing from new EF):
-      - Waste aggregate (562000) ← sum of new subsectors
+      - Waste aggregate (562000) ← mean of new subsectors
       - Appliance detail codes (335221 …) ← new aggregate 335220
+      - Electricity aggregate (221100) ← mean of new subsectors
     """
     waste_old, waste_new = _waste_disagg()
     old_fill: FillMap = {}
@@ -269,6 +298,12 @@ def _build_fill_maps(
     # Aluminum: disaggregated in new schema
     if _ALUMINUM_NEW_EXTRA_CODE in active_mappings:
         old_fill[_ALUMINUM_NEW_EXTRA_CODE] = _ALUMINUM_OLD_CODE
+
+    # Electricity: disaggregated in new schema (same guard pattern as waste)
+    if ELECTRICITY_AGGREGATE_SECTOR in active_mappings:
+        for c in ELECTRICITY_DISAGG_SECTORS:
+            old_fill[c] = ELECTRICITY_AGGREGATE_SECTOR
+        new_fill[ELECTRICITY_AGGREGATE_SECTOR] = ELECTRICITY_DISAGG_SECTORS
 
     return old_fill, new_fill
 
@@ -518,7 +553,7 @@ def construct_ef_diff_dataframe(
         raw_values,
     )
 
-    return ef_comparison
+    return apply_mixed_units_ef_diff_exemptions(ef_comparison, ef_name)
 
 
 def inflation_adjust_ef_denom_to_new_base_year(
@@ -553,6 +588,122 @@ def inflation_adjust_ef_denom_to_new_base_year(
     return old_ef_vector * price_ratio_aligned
 
 
+def apply_mixed_units_ef_diff_exemptions(
+    comparison: pd.DataFrame,
+    ef_name: str,
+) -> pd.DataFrame:
+    """NaN out 221110 old-vs-new percent diff when units are incommensurate."""
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
+
+    if not electricity_mixed_units_enabled():
+        return comparison
+    out = comparison.copy()
+    perc_col = f'{ef_name}_perc_diff'
+    if '221110' in out.index and perc_col in out.columns:
+        out.loc['221110', perc_col] = np.nan
+        if 'exemption_reason' not in out.columns:
+            out['exemption_reason'] = ''
+        out.loc['221110', 'exemption_reason'] = 'unit_incommensurate_mixed_units'
+    return out
+
+
+def apply_mixed_units_bly_diff_exemptions(df: pd.DataFrame) -> pd.DataFrame:
+    """NaN 221110 BLy percent diff vs monetary snapshot baseline."""
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
+
+    if not electricity_mixed_units_enabled():
+        return df
+    out = df.copy()
+    pct_col = '(BLy_new - BLy_old) / BLy_old (%)'
+    if pct_col not in out.columns or 'index' not in out.columns:
+        return out
+    if 'exemption_reason' not in out.columns:
+        out['exemption_reason'] = ''
+    mask = out['index'].astype(str) == '221110'
+    out.loc[mask, pct_col] = np.nan
+    out.loc[mask, 'exemption_reason'] = 'baseline_monetary_vs_live_mixed'
+    return out
+
+
+MIXED_VS_MONETARY_TAB_COLUMNS: tuple[str, ...] = (
+    'index',
+    'sector_desc',
+    'D_mon',
+    'D_mix',
+    'c_col',
+    'D_mon_over_c_col',
+    'D_mix_minus_D_mon_over_c_col',
+    'N_mon',
+    'N_mix',
+    'N_uniform',
+    'N_mix_minus_N_mon',
+    'N_mix_minus_N_uniform',
+    'units_note',
+)
+
+
+def sectors_for_mixed_vs_monetary_tab(
+    N_mix: pd.Series[float],
+    N_mon: pd.Series[float],
+) -> list[str]:
+    """Fixed electricity rows + top 5 |N_mix - N_mon| excluding 221110."""
+    fixed = list(ELECTRICITY_DISAGG_SECTORS)
+    spillover = (
+        (N_mix - N_mon)
+        .abs()
+        .drop(labels=['221110'], errors='ignore')
+        .nlargest(5)
+        .index.astype(str)
+        .tolist()
+    )
+    return fixed + [s for s in spillover if s not in fixed]
+
+
+def build_mixed_vs_monetary_comparison_df(
+    *,
+    sectors: ta.Sequence[str],
+    D_mon: pd.Series[float],
+    N_mon: pd.Series[float],
+    D_mix: pd.Series[float],
+    N_mix: pd.Series[float],
+    N_uniform: pd.Series[float],
+    c_col: float,
+    sector_desc_lookup: ta.Mapping[str, str] | None = None,
+) -> pd.DataFrame:
+    """Build long comparison DataFrame for mixed_vs_monetary_221110 tab."""
+    desc = sector_desc_lookup or {}
+    units_note = 'D_mon: CO2e/$; D_mix/N_*: CO2e/MWh for elec cols'
+    rows: list[dict[str, ta.Any]] = []
+    for sector in sectors:
+        d_mon = float(D_mon.get(sector, np.nan))
+        d_mix = float(D_mix.get(sector, np.nan))
+        d_mon_over_c = d_mon / c_col if c_col != 0 else np.nan
+        rows.append(
+            {
+                'index': sector,
+                'sector_desc': desc.get(sector, ''),
+                'D_mon': d_mon,
+                'D_mix': d_mix,
+                'c_col': c_col,
+                'D_mon_over_c_col': d_mon_over_c,
+                'D_mix_minus_D_mon_over_c_col': d_mix - d_mon_over_c,
+                'N_mon': float(N_mon.get(sector, np.nan)),
+                'N_mix': float(N_mix.get(sector, np.nan)),
+                'N_uniform': float(N_uniform.get(sector, np.nan)),
+                'N_mix_minus_N_mon': float(N_mix.get(sector, np.nan))
+                - float(N_mon.get(sector, np.nan)),
+                'N_mix_minus_N_uniform': float(N_mix.get(sector, np.nan))
+                - float(N_uniform.get(sector, np.nan)),
+                'units_note': units_note,
+            }
+        )
+    return pd.DataFrame(rows, columns=list(MIXED_VS_MONETARY_TAB_COLUMNS))
+
+
 def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     """Load and prepare all emission factor data for diagnostics.
 
@@ -566,9 +717,16 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         EfsForDiagnostics with new and old EF data for comparison
     """
     # Late-binding imports - these depend on global config
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
+    )
+    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+        derive_cornerstone_Aq_mixed_units,
+        derive_cornerstone_B_mixed_units,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_d,
@@ -584,14 +742,15 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     Aimp_snapshot_name: SnapshotName = 'Aimp_USA'
 
     t0 = time.time()
-    B_new = derive_B_usa_non_finetuned()
+    if electricity_mixed_units_enabled():
+        B_new = derive_cornerstone_B_mixed_units()
+        Aq_set = derive_cornerstone_Aq_mixed_units()
+    else:
+        B_new = derive_B_usa_non_finetuned()
+        Aq_set = derive_Aq_usa()
     logger.info(
-        f'[TIMING] derive_B_usa_non_finetuned completed in {time.time() - t0:.1f}s'
+        f'[TIMING] derive B/Aq for diagnostics completed in {time.time() - t0:.1f}s'
     )
-
-    t0 = time.time()
-    Aq_set = derive_Aq_usa()
-    logger.info(f'[TIMING] derive_Aq_usa completed in {time.time() - t0:.1f}s')
 
     t0 = time.time()
     L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)
@@ -615,6 +774,14 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
             new_base_year=config.model_base_year,
             old_base_year=config.usa_detail_original_year,
         )
+        if electricity_mixed_units_enabled() and '221110' in d_ser.index:
+            d_ser.loc['221110'] = float(
+                ta.cast('pd.Series[float]', D_new.squeeze()).loc['221110']
+            )
+        if electricity_mixed_units_enabled() and '221110' in n_ser.index:
+            n_ser.loc['221110'] = float(
+                ta.cast('pd.Series[float]', N_new.squeeze()).loc['221110']
+            )
         d_new_inflated = d_ser.to_frame()
         n_new_inflated = n_ser.to_frame()
         logger.info(
@@ -644,10 +811,15 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
             f'in {time.time() - t0:.1f}s'
         )
     else:
+        snap_key = resolve_snapshot_key()
+        old_base_year = ef_dollar_year_for_snapshot(snap_key)
         B_old = load_configured_snapshot(B_snapshot_name)
         Adom_old = load_configured_snapshot(Adom_snapshot_name)
         Aimp_old = load_configured_snapshot(Aimp_snapshot_name)
-        logger.info(f'[TIMING] Old snapshots loaded in {time.time() - t0:.1f}s')
+        logger.info(
+            f'[TIMING] Old snapshots loaded (key={snap_key}, '
+            f'dollar_year={old_base_year}) in {time.time() - t0:.1f}s'
+        )
 
         t0 = time.time()
         L_old = compute_L_matrix(A=Adom_old + Aimp_old)
@@ -657,7 +829,6 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         logger.info(
             f'[TIMING] Old L, M, D, N matrices computed in {time.time() - t0:.1f}s'
         )
-        old_base_year = 2023
 
     t0 = time.time()
     D_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
@@ -670,7 +841,10 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         new_base_year=new_base_year,
         old_base_year=old_base_year,
     )
-    logger.info(f'[TIMING] Inflation adjustment completed in {time.time() - t0:.1f}s')
+    logger.info(
+        f'[TIMING] Inflation adjustment ({old_base_year}→{new_base_year} $) '
+        f'completed in {time.time() - t0:.1f}s'
+    )
 
     n_new_purchaser: pd.DataFrame | None = None
     n_old_purchaser: pd.DataFrame | None = None

@@ -9,7 +9,6 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import compute_L_matrix, compute_M_matrix
 
 PUBLISH_LOCATION: str = 'US'
@@ -67,14 +66,6 @@ def assemble_extended_U(
     return out
 
 
-def require_cornerstone_config() -> None:
-    if not get_usa_config().use_cornerstone_2026_model_schema:
-        raise NotImplementedError(
-            'bedrock.publish only supports cornerstone-schema configs '
-            '(use_cornerstone_2026_model_schema=True).'
-        )
-
-
 @functools.cache
 def get_V() -> pd.DataFrame:
     from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_V
@@ -124,11 +115,26 @@ def get_x() -> pd.Series:
     return pd.Series(derive_cornerstone_x(), name='x')
 
 
+def _mixed_units_efs_active() -> bool:
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
+
+    return electricity_mixed_units_enabled()
+
+
 @functools.cache
 def get_A() -> pd.DataFrame:
-    from bedrock.transform.eeio.derived import derive_Aq_usa
+    if _mixed_units_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_mixed_units,
+        )
 
-    aq = derive_Aq_usa()
+        aq = derive_cornerstone_Aq_mixed_units()
+    else:
+        from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
+
+        aq = derive_Aq_usa()
     A = aq.Adom + aq.Aimp
     A.index.name = 'sector'
     A.columns.name = 'sector'
@@ -137,7 +143,13 @@ def get_A() -> pd.DataFrame:
 
 @functools.cache
 def get_Adom() -> pd.DataFrame:
-    from bedrock.transform.eeio.derived import derive_Aq_usa
+    if _mixed_units_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_mixed_units,
+        )
+
+        return derive_cornerstone_Aq_mixed_units().Adom
+    from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
     return derive_Aq_usa().Adom
 
@@ -154,7 +166,15 @@ def get_Ldom() -> pd.DataFrame:
 
 @functools.cache
 def get_B() -> pd.DataFrame:
-    from bedrock.transform.eeio.derived import derive_B_usa_non_finetuned
+    if _mixed_units_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_B_mixed_units,
+        )
+
+        return derive_cornerstone_B_mixed_units()
+    from bedrock.transform.eeio.derived import (
+        derive_B_usa_non_finetuned,
+    )  # noqa: PLC0415, I001
 
     return derive_B_usa_non_finetuned()
 
@@ -168,7 +188,13 @@ def get_C() -> pd.DataFrame:
 
 @functools.cache
 def get_D() -> pd.DataFrame:
-    from bedrock.transform.eeio.derived import derive_D_usa
+    if _mixed_units_efs_active():
+        from bedrock.transform.eeio.derived import derive_C_usa  # noqa: PLC0415
+
+        D = derive_C_usa() @ get_B()
+        D.columns.name = 'sector'
+        return D
+    from bedrock.transform.eeio.derived import derive_D_usa  # noqa: PLC0415
 
     return derive_D_usa()
 
@@ -227,7 +253,13 @@ def get_N_margin() -> pd.DataFrame:
 
 @functools.cache
 def get_q() -> pd.Series:
-    from bedrock.transform.eeio.derived import derive_Aq_usa
+    if _mixed_units_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_mixed_units,
+        )
+
+        return pd.Series(derive_cornerstone_Aq_mixed_units().scaled_q, name='q')
+    from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
     return pd.Series(derive_Aq_usa().scaled_q, name='q')
 

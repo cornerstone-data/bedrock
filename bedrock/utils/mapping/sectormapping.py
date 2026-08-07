@@ -110,6 +110,20 @@ def assign_technological_correlation(mapping: pd.DataFrame) -> pd.DataFrame:
             .drop(columns=['Sector'])
             .rename(columns={'SectorLength': f'{i}Length'})
         )
+    # Sector_Levels does not register every code that can legitimately be a
+    # target. `non_naics` exists so a method can name an industry that is not a
+    # NAICS code at all, and industry_spec_key's docstring asks only for an
+    # activity-to-sector crosswalk in return - nothing tells the caller the code
+    # must also appear here. Left unfilled, the left merges above produce NaN
+    # lengths and the astype(int) below raises ValueError, which prepare_fbs
+    # catches and turns into an empty FlowBySector for the *whole* method, with
+    # no indication of the cause. Fall back to the code's own length: for the
+    # identity mappings non_naics creates, source and target lengths are equal
+    # either way, so SectorDifference is 0 and the score is unaffected.
+    for i in ['source', 'target']:
+        mapping[f'{i}Length'] = mapping[f'{i}Length'].fillna(
+            mapping[f'{i}_naics'].astype(str).str.len()
+        )
     mapping = mapping.assign(
         SectorDifference=mapping['targetLength'].astype(int)
         - mapping['sourceLength'].astype(int)
