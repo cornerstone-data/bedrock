@@ -36,14 +36,14 @@ gives each series its standalone label, so the two government lines read
 
 Usage::
 
-    uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_compensation_vs_sut_v00100
+    uv run python -m bedrock.analysis.nowcasting.compare_NIPA_to_IOT.examples.nipa_compensation_vs_sut_v00100
 """
 
 from __future__ import annotations
 
 import os
 
-from bedrock.analysis.compare_NIPA_to_IOT import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT import (
     bea_matrix_row,
     compare,
     nipa_flat_table,

@@ -89,7 +89,7 @@ known-first-party = ["bedrock"]
 "bedrock/utils/validation/diagnostics_helpers.py" = ["PLC0415"]
 # Reference loaders import the IO/FBA stacks lazily so the package itself stays
 # ~0.5s to import; eager imports cost 1s (io_2017) to 3s (flowbyactivity).
-"bedrock/analysis/compare_NIPA_to_IOT/loaders.py" = ["PLC0415"]
+"bedrock/analysis/nowcasting/compare_NIPA_to_IOT/loaders.py" = ["PLC0415"]
 # Repo scripts often tweak sys.path before importing bedrock; lazy imports reduce startup cost
 "scripts/**/*.py" = ["E402", "PLC0415"]
 "**/test_*.py" = ["ARG001", "ARG002"]

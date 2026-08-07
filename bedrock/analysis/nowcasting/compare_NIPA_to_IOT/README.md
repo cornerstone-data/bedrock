@@ -10,7 +10,7 @@ a crosswalk in `bedrock/utils/taxonomy/`.
 ## Example Use
 
 ```python
-from bedrock.analysis.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_flat_table
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT import bea_matrix_row, compare, nipa_flat_table
 
 result = compare(
     candidate=nipa_flat_table('T60200D', 2017).leaves(),   # NIPA table 6.2D
@@ -42,7 +42,7 @@ loaders build them, `compare` consumes two of them.
 
 `nipa_flat_table` reads
 `bedrock/extract/input_data/BEA_NIPA/FlatFiles.ZIP` — the same archive
-[`BEA_NIPA.py`](../../extract/bea/BEA_NIPA.py) parses — so a comparison and the
+[`BEA_NIPA.py`](../../../extract/bea/BEA_NIPA.py) parses — so a comparison and the
 FBA it is checking cannot end up on different BEA vintages. Pass `path=` to read
 a copy from elsewhere.
 
@@ -257,7 +257,7 @@ dollars, so pass `scale_candidate=1e-6`.
 ## Worked examples
 
 ```
-uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_compensation_vs_sut_v00100
+uv run python -m bedrock.analysis.nowcasting.compare_NIPA_to_IOT.examples.nipa_compensation_vs_sut_v00100
 ```
 
 NIPA table 6.2D compensation of employees against Use SUT detail row `V00100`,
@@ -271,7 +271,7 @@ NIPA table 6.2D compensation of employees against Use SUT detail row `V00100`,
   giving 69/69 cells and −1 million on a $10.4 trillion total.
 
 ```
-uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_taxes_vs_sut_t00otop
+uv run python -m bedrock.analysis.nowcasting.compare_NIPA_to_IOT.examples.nipa_taxes_vs_sut_t00otop
 ```
 
 NIPA table 3.5 against Use SUT detail rows `T00OTOP` and `T00TOP`, 2017: the

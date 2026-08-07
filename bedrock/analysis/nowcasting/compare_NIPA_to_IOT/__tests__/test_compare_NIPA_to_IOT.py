@@ -13,7 +13,7 @@ import zipfile
 
 import pandas as pd
 
-from bedrock.analysis.compare_NIPA_to_IOT import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT import (
     BEA_MATRICES,
     LabeledSeries,
     align,

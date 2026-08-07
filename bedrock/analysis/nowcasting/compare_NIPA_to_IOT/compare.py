@@ -2,7 +2,7 @@
 
 ::
 
-    from bedrock.analysis.compare_NIPA_to_IOT import (
+    from bedrock.analysis.nowcasting.compare_NIPA_to_IOT import (
         compare, bea_matrix_row, nipa_flat_table
     )
 
@@ -26,16 +26,16 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from bedrock.analysis.compare_NIPA_to_IOT.loaders import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT.loaders import (
     detail_industry_to_summary,
     summary_industry_names,
 )
-from bedrock.analysis.compare_NIPA_to_IOT.matching import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT.matching import (
     DEFAULT_FUZZY_CUTOFF,
     Alignment,
     align,
 )
-from bedrock.analysis.compare_NIPA_to_IOT.series import LabeledSeries
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT.series import LabeledSeries
 
 #: Named rollups, applied to the *reference* before matching, for the common
 #: case of a detail BEA table against a coarser candidate.

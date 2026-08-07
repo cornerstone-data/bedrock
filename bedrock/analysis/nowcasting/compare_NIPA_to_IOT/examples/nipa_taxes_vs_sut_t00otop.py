@@ -23,7 +23,7 @@ archive does not carry, which the last section says out loud.
 
 Usage::
 
-    uv run python -m bedrock.analysis.compare_NIPA_to_IOT.examples.nipa_taxes_vs_sut_t00otop
+    uv run python -m bedrock.analysis.nowcasting.compare_NIPA_to_IOT.examples.nipa_taxes_vs_sut_t00otop
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ import os
 
 import pandas as pd
 
-from bedrock.analysis.compare_NIPA_to_IOT import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT import (
     bea_matrix_column,
     bea_matrix_row,
     compare,
