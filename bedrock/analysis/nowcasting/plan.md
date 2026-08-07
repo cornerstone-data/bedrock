@@ -530,23 +530,51 @@ not introduce a step 10.
   Gross Investment by Type*) goes further and breaks that 218,671 into 14 named leaves that sum to it
   exactly — so for `S00500` this is a **cell-level** source, not just a column control:
 
-  | | $M | share | mappable to commodities? |
-  |---|---:|---:|---|
-  | Aircraft, missiles, ships, vehicles, electronics, other durables; petroleum, ammunition, other nondurables | 61,526 | 28.1% | **yes**, these read as BEA commodities |
-  | Transportation of material; travel of persons | 14,556 | 6.7% | probably |
-  | Installation support; weapons support; personnel support | 142,589 | 65.2% | **no** — functional groupings, not commodities |
+  | | $M | share |
+  |---|---:|---:|
+  | Aircraft, missiles, ships, vehicles, electronics, other durables; petroleum, ammunition, other nondurables | 61,526 | 28.1% |
+  | Transportation of material; travel of persons | 14,556 | 6.7% |
+  | Installation support; weapons support; personnel support | 142,589 | 65.2% |
 
-  So a third of the defense column can be placed on commodities from NIPA directly, and the two-thirds in
-  "support" categories still needs a distribution assumption. That is a much better starting point than a
-  column total alone.
+  **Spot-checked against the actual `S00500` column, and the names map but the values do not.** Every
+  goods and transport leaf was compared to the BEA commodities it should land on:
+
+  | NIPA leaf | NIPA $M | concept-matched IO cells | IO $M | gap |
+  |---|---:|---|---:|---:|
+  | **Ammunition** | 3,654 | `33299A` | 3,646 | **−0.2%** |
+  | Aircraft | 16,979 | `336411`+`336412`+`336413` | 35,186 | +107% |
+  | Ships | 1,871 | `336611` | 5,302 | +183% |
+  | Electronics | 5,314 | `334511`+`334220`+`33441A` | 20,545 | +287% |
+  | Missiles | 3,517 | `336414` | 6,854 | +95% |
+  | Petroleum products | 7,929 | `324110` | 11,609 | +46% |
+  | Vehicles | 1,377 | `336120`/`336211`/`336992` | **0** | −100% |
+  | Transportation of material | 6,216 | `484000`+`482000`+`483000`+`492000` | 5,212 | −16% |
+  | Travel of persons | 8,340 | `481000`+`721000`+`722110` | 7,513 | −10% |
+
+  **Ammunition is the only cell-level match.** The goods lines are all far below their IO counterparts,
+  and `Vehicles` has no IO intermediate counterpart at all — every whole-vehicle commodity is zero in
+  this column, including `336992` military armored vehicle and tank; only *parts* codes carry value. The
+  two frameworks draw the intermediate/investment boundary differently for durables.
+
+  Adding NIPA's matching gross-investment leaf closes aircraft to −1.3% but leaves ships at −67%,
+  vehicles at −100% and electronics at +70%, so that is not the explanation either — one hit in five is
+  coincidence.
+
+  A warning worth carrying: matching these by *value* alone finds `Ships` → switchgear (1.4%) and
+  `Electronics` → ship building (0.2%). Both are nonsense. Value proximity in a 172-cell column is not
+  evidence.
+
+  **So the by-type table constrains the defense column without being able to populate it.** The total
+  matches exactly and the composition does not; NIPA is a control and a hint at shape, not a source of
+  cells. Only ammunition can be placed directly.
 
   **Defense is the only column with a by-type table.** Nondefense and state-and-local have no `3.11.5`
   equivalent, so `T31005`'s column total is all NIPA offers them; `T31505` (by function) is the next
   thing to check for the state-and-local split.
 
   **So #578 should use NIPA as the control and the finances data for distribution**, rather than choosing
-  between them — and should expect to do the commodity mapping itself for everything except federal
-  defense goods.
+  between them. The commodity mapping has to be done locally throughout — the spot check above shows
+  even the defense by-type table cannot supply cells, ammunition aside.
 
   **Step 3's default stays #497's inflation-carried 2017 proportions**, with agriculture and government
   as the two justified departures.
