@@ -158,8 +158,9 @@ and `531ORE` other real estate (93,508) cannot be separated from QCEW 531 wages.
 Hold benchmark shares.
 
 **Farm.** The 10 detail farm sectors under `111`/`112` have weak QCEW coverage
-(UI exemptions for small farms). Use **`USDA_ERS_FIWS`** hired and contract
-labor expense as the movement series.
+(UI exemptions for small farms). **`T70305`** gives the sector control —
+compensation 30,857, and its wages/supplements split — and **`USDA_ERS_FIWS`**
+hired and contract labor expense is the movement series within it.
 
 **Private households — `814000`** (18,684). Outside QCEW scope entirely. NIPA
 carries an explicit domestic-worker compensation line; carry it down.
@@ -334,6 +335,57 @@ either directly (`T71100` for interest) or via the gross value added shares
 residential housing, 413,554 — but it is a combined figure despite the title,
 so `T71100` is the better source for the split.
 
+### The farm sector has the same treatment
+
+**`T70305` (Table 7.3.5, *Farm Sector Output, Gross Value Added, and Net Value
+Added*)** is the exact structural parallel. (Table 7.3.**6** is the chained-dollar
+version; 7.3.**5** is current dollars and the one to use.)
+
+| | code | $M |
+|---|---|---:|
+| Gross farm value added | `B359RC` | 138,731 |
+| Compensation of employees | `A2006C` | 30,857 |
+| — wages and salaries | `B1019C` | 25,220 |
+| — supplements | `B1020C` | 5,637 |
+| Taxes on production and imports | `B1017C` | 9,408 |
+| Less: subsidies to operators | `B1018C` | 10,115 |
+| Net interest | `B1021C` | 12,739 |
+| **Farm proprietors' income** | `B042RC` | **41,005** |
+| Corporate profits | `B1023C` | 7,060 |
+| Consumption of fixed capital | `B366RC` | 46,598 |
+
+**It ties to the SUT the same way housing does.** Farm compensation is 30,857
+against the SUT's ten farm detail codes summing to **30,861** — 4 million apart.
+Two independent sector checks now agree to within a rounding error, which is
+good evidence the NIPA sector tables and the SUT detail codes describe the same
+populations.
+
+Gross farm value added is 138,731 against the SUT farm codes' `VABAS` of
+148,849, **10,118 apart**. Same class of open item as the housing 2.71%.
+
+**It also supplies `B042RC`, farm proprietors' income, which is the better
+source than `T71500`** — that table gives 48,065 for proprietors' income *and*
+corporate profits combined, mixing two components.
+
+### Proprietors' income needs three pieces, not two
+
+Worth stating because the obvious reading is wrong. `T61200D`'s root `B046RC` is
+nonfarm proprietors' income at 1,088,100, **without** the inventory valuation
+and capital consumption adjustments — `T71400` uses the same code as the
+endpoint of its IRS reconciliation, which is the tell. So:
+
+```
+nonfarm, no adjustments   T61200D B046RC   1,088,100
+farm                      T70305  B042RC      41,005
+                                          ----------
+                                           1,129,105
+wanted, with IVA/CCAdj    T1.10   A041RC   1,428,634
+remainder = adjustments                      299,529   no industry table
+```
+
+Adding farm closes only an eighth of the gap. The 299,529 of adjustments has no
+industry axis and joins the statistical discrepancy in the must-be-spread pile.
+
 ### Allocator sketches, per component
 
 - **Consumption of fixed capital** — the natural allocator is **capital stock by
@@ -346,8 +398,8 @@ so `T71100` is the better source for the split.
   does.
 - **Proprietors' income** — the broad one, and the one where a real allocator
   would pay. Census **Nonemployer Statistics** gives receipts by NAICS and is
-  the obvious candidate; not in bedrock. `USDA_ERS_FIWS` covers the farm part
-  already.
+  the obvious candidate; not in bedrock. Farm comes from `T70305` `B042RC`
+  directly. The 299,529 of adjustments has no industry axis and must be spread.
 - **Net interest** — take the housing portion from `T70405` `B1037C` (332,634)
   and split it owner/tenant with `T71100` `W318RC`, leaving 388 thousand to ride
   a coarse share across everything else. The negative finance line must survive;
@@ -425,6 +477,12 @@ output, that shared dependency is a better reason to build the extractor than
 8. **Which axis is primary for product taxes and subsidies — commodity or
    industry?** A cross-step decision between Step 2 and Step 4, and the one
    question here that cannot be answered inside this plan alone.
-9. **The 2.71% gap between `T70405`'s implied housing operating surplus and the
-   SUT's `531HSO`+`531HST`** — mostly farm dwellings, which T7.4.5 includes and
-   the SUT books to the farm sectors. Resolve before relying on the table.
+9. **The sector-table gaps against the SUT.** `T70405`'s implied housing
+   operating surplus is 2.71% below the `531HSO`+`531HST` pair, and `T70305`'s
+   gross farm value added is 10,118 below the ten farm codes. Compensation ties
+   to within 1 and 4 million respectively in the two sectors, so the populations
+   match and the gap is in the surplus components. Resolve before relying on
+   either table for levels rather than shares.
+10. **Are there sector tables like 7.3.5 and 7.4.5 for anything else?** Farm and
+    housing are the two NIPA breaks out this way. Nothing equivalent was found
+    for the other concentrated lines, but the sweep was of table *titles* only.

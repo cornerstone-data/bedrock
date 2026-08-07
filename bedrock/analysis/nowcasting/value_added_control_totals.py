@@ -6,9 +6,8 @@ the Use table they have to reproduce.  This answers both for the benchmark
 year, where the published answer exists ([#537]).
 
 Every row of the Use SUT's value-added block reconciles to NIPA within BEA's
-own rounding.  What does *not* reconcile is the construction of ``V00300``
-proposed on the issue -- it is 21.9% short, for six separately identifiable
-reasons, and this module names each one rather than reporting a single gap.
+own rounding.  ``V00300`` has no single NIPA table and has to be assembled;
+the assembly below closes to +13 million on 7.9 trillion.
 
 The reconciliation
 ------------------
@@ -50,7 +49,7 @@ the issue:
 ==========================================  ================  ===========
 Net interest and misc payments, domestic    T1.10 ``W272RC``      720,494
 Business current transfer payments (net)    T70700 ``B029RC``     142,925
-Proprietors' income with IVA and CCAdj      T61200D + T71500    1,428,634
+Proprietors' income with IVA and CCAdj      T61200D + T70305    1,428,634
 Rental income of persons                    T70900 ``A048RC``     642,028
 Corporate profits with IVA/CCAdj, domestic  T61600D ``A445RC``  1,726,343
 Current surplus of government enterprises   T1.10 ``A108RC``       -4,253
@@ -84,8 +83,14 @@ Known issues with the assembly
 - **Two components are negative** -- the government enterprise surplus, and the
   finance and insurance line inside net interest at -156,707.  Any share or
   RAS-style method that assumes positivity will break on them.
-- **Proprietors' income needs both halves.**  ``T61200D`` is nonfarm by its
-  title; farm comes from ``T71500``.
+- **Proprietors' income needs three pieces, not two.**  ``T61200D``'s root
+  ``B046RC`` is nonfarm proprietors' income at 1,088,100, *without* the
+  inventory valuation and capital consumption adjustments -- ``T71400`` uses the
+  same code as the endpoint of its IRS reconciliation, which is what gives it
+  away.  Farm is 41,005 (``T70305`` ``B042RC``).  Those two leave **299,529**
+  outstanding against the 1,428,634 that value added wants, and that remainder
+  is the adjustments, which have no industry table.  Adding farm alone closes
+  only an eighth of the gap.
 - **The source tables are coarse.**  9 to 23 leaves for most components against
   ``T60200D``'s 74 for compensation, so ``V00300`` starts further from BEA
   detail than ``V00100`` does and leans harder on whatever allocator is chosen.
@@ -265,7 +270,7 @@ def build_checks(year: int = YEAR) -> list[Check]:
 V00300_ASSEMBLY: tuple[tuple[str, str, str, str], ...] = (
     ('Net interest and misc payments, domestic', 'T11000', 'W272RC', 'T61500D'),
     ('Business current transfer payments (net)', 'T70700', 'B029RC', 'T70700'),
-    ("Proprietors' income with IVA and CCAdj", 'T11000', 'A041RC', 'T61200D+T71500'),
+    ("Proprietors' income with IVA and CCAdj", 'T11000', 'A041RC', 'T61200D+T70305'),
     ('Rental income of persons', 'T70900', 'A048RC', 'T70900'),
     ('Corporate profits with IVA/CCAdj, domestic', 'T61600D', 'A445RC', 'T61600D'),
     ('Current surplus of government enterprises', 'T11000', 'A108RC', '(none)'),
@@ -279,7 +284,7 @@ V00300_ASSEMBLY: tuple[tuple[str, str, str, str], ...] = (
 V00300_COMPONENTS: tuple[tuple[str, str, str, str], ...] = (
     ('Net interest and miscellaneous payments', 'W272RC', 'T61500D A1850C', 'partial'),
     ('Business current transfer payments (net)', 'B029RC', 'T70700', 'none'),
-    ("Proprietors' income with IVA and CCAdj", 'A041RC', 'T61200D + T71500', 'partial'),
+    ("Proprietors' income with IVA and CCAdj", 'A041RC', 'T61200D + T70305', 'partial'),
     ('Rental income of persons', 'A048RC', 'T70900', 'none'),
     ('Corporate profits with IVA and CCAdj', 'A445RC', 'T61600D A445RC', 'full'),
     ('Current surplus of government enterprises', 'A108RC', '(none)', 'none'),
@@ -324,9 +329,9 @@ def assemble_v00300(year: int = YEAR) -> pd.DataFrame:
     rows = []
     for label, table, code, industry_table in V00300_ASSEMBLY:
         leaves: int | None = None
-        if industry_table not in ('(none)', 'T61200D+T71500'):
+        if industry_table not in ('(none)', 'T61200D+T70305'):
             leaves = len(nipa_flat_table(industry_table, year).leaves().frame)
-        elif industry_table == 'T61200D+T71500':
+        elif industry_table == 'T61200D+T70305':
             leaves = len(nipa_flat_table('T61200D', year).leaves().frame)
         rows.append(
             {
