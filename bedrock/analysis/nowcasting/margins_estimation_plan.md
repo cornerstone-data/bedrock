@@ -180,8 +180,12 @@ variation, and it cannot be justified from the source method.
 | `Crosswalk_SCTGtoBEA.csv`, mode→BEA crosswalks, `FAFData.R` | `cornerstone-data/stateior` | Built, **R**, and SCTG maps to **BEA 2012 detail** — no 2017 detail column |
 | `Gross_Margins_2017.yaml` (Census AWTS + ARTS) | flowsa `margins` | Built. Annual **2012–2022**. Gives margin **by trade sector** |
 | PCE / PEQ bridges | bedrock, `BEA_PCEBridge` | Same margin columns as the Margins table, but **benchmark years only** — workbook sheets are 2007, 2012, 2017 |
-| Economic Census product lines, class of customer | — | Not extracted. Quinquennial |
-| RCC / product-line → I-O concordances | — | **BEA-internal, unpublished** |
+| `Census_EC_PxI` — Economic Census, Products by Industry | flowsa `margins` | Built, **2017**. This *is* BEA's product-line-by-KB input |
+| `write_Crosswalk_NAPCS.py` — **MAKB identification** | flowsa `margins` | Built. Takes the max-value NAICS per NAPCS line — literally BEA's "most appropriate kind of business" rule |
+| `NAICS_to_NAPCS_Crosswalk_2017.csv` | flowsa `margins` | Built, 29,098 rows |
+| 2022 product lines | Census API `ecnnapcsprd` | **Published and live.** `NAICS2022` × `NAPCS2022` × `NAPCSDOL` × `NAICSALL_PCT` |
+| Class of customer (PCE vs non-PCE split) | — | Not extracted — but the resulting rates read off the 2017 Margins file |
+| NAPCS product line → **I-O commodity** concordance | — | **The one genuinely missing piece** |
 
 **FAF covers 100% of the `TRANS` suppliers exactly** — truck `484000`, rail
 `482000`, pipeline `486000`, water `483000`, air `481000`, together the whole
@@ -190,14 +194,29 @@ variation, and it cannot be justified from the source method.
 
 ### The gap, stated precisely
 
-**AWTS/ARTS give the wholesale and retail margin *level*, not its allocation
-across commodities.** Transport is solved end-to-end by FAF; trade is not. The
-missing piece is BEA's product-line machinery, whose concordances are
-unpublished.
+AWTS/ARTS give the wholesale and retail margin *level*, not its allocation
+across commodities. Transport is solved end-to-end by FAF. For trade, **most of
+BEA's product-line machinery already exists** and only one link is missing.
 
-**The 2017 Margins file is the substitute.** It yields the receiving sets, the
-per-transaction rates, and the PCE/non-PCE structure directly — everything the
-unpublished concordances were needed to produce, for the benchmark year.
+What exists: `Census_EC_PxI` is the product-line-by-KB table BEA's steps (1)–(2)
+consume, and `write_Crosswalk_NAPCS.py` already implements the **MAKB rule** —
+it selects the maximum-value NAICS per NAPCS line, which is exactly "the margin
+rate of the primary wholesaler of the good". The 2022 vintage is live on the
+Census API as `ecnnapcsprd`, carrying `NAPCSDOL` (product-line revenue) and
+`NAICSALL_PCT` (industry contribution to that line), so extending beyond 2017 is
+a `years:` entry rather than new work.
+
+**The one genuinely missing link is NAPCS product line → I-O commodity** —
+BEA's wholesale step (4), where product-line margin is distributed to I-O
+commodities using interim supply as weights. BEA builds that concordance
+internally and does not publish it. Retail's RCC grouping (steps 3 and 5) is
+likewise internal.
+
+**The 2017 Margins file substitutes for both.** It yields the receiving sets,
+the per-(buyer, commodity) rates and the PCE/non-PCE structure directly — the
+output those concordances exist to produce, for the benchmark year. So the
+concordance is needed only if we ever want to *re-run BEA's method* on newer
+product-line data, rather than carry 2017-anchored rates forward.
 
 ## Approach
 
@@ -217,8 +236,14 @@ Decide tons vs ton-miles on the 2017 fit.
 [#601](https://github.com/cornerstone-data/bedrock/pull/601) — it will raise
 `KeyError: ['ActivityProducedBy']` without it.
 
-**Phase 3 — trade levels.** Port `Gross_Margins_2017.yaml` (AWTS/ARTS) as the
-annual wholesale and retail control totals by trade sector.
+**Phase 3 — trade levels, and optionally BEA's own allocation.** Port
+`Gross_Margins_2017.yaml` (AWTS/ARTS) as the annual wholesale and retail control
+totals by trade sector. If the 2017-anchored rates from Phase 1 prove
+insufficient, the rest of BEA's method is available: port `Census_EC_PxI` and
+`write_Crosswalk_NAPCS.py` (which already implements MAKB), extend the FBA to
+the 2022 `ecnnapcsprd` vintage, and build the one missing NAPCS → I-O commodity
+concordance. **Do Phase 1 first and see whether that is needed** — it is a large
+piece of work whose output the 2017 Margins file already approximates.
 
 **Phase 4 — apply.** Rates from Phase 1 onto nowcast `T013`, levels controlled
 to Phases 2–3. **`T013` = `T007` + `MCIF` + `MADJ`, so this needs 4a *and* 4b.**
@@ -276,8 +301,9 @@ Three consequences:
 1. **21 commodities have `TRADE`/`T013` > 1**, which should be impossible if
    `T013` is the allocation base. Resolve before relying on the rate.
 2. **Tons or ton-miles** for the transport allocation — decide on the 2017 fit.
-3. **Do Economic Census product lines survive 2022** in a usable form, if we
-   ever want BEA's actual method rather than 2017-anchored rates?
+3. **Build the NAPCS → I-O commodity concordance?** Only needed to re-run BEA's
+   actual method on 2022 product lines rather than carry 2017-anchored rates.
+   Everything upstream of it now exists; this is the sole missing link.
 4. **Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail** — it currently
    carries 2012 detail and 2017 *summary* only. This is the real porting work
    on the transport chain, not the SCTG mapping itself.
