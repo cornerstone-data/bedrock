@@ -80,7 +80,7 @@ than trying to hold producer-price MUT consistency through every section build.
 
 ## Framework facts this plan depends on
 
-These are established in [`About_BEA_IOT_table_valuation_differences.md`](../../analysis/compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md)
+These are established in [`About_BEA_IOT_table_valuation_differences.md`](compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md)
 (2017 detail, verified cell-for-cell there) and drive most of the design decisions below.
 
 **Supply table structure** (commodity × industry cells = domestic output at *basic* value; trailing

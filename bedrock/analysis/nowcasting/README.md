@@ -54,6 +54,13 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   published 2017 detail Use table and against the PCE/PEQ bridges. Writes the
   cell-wise CSV exports in `output/` that `sections.py` reads as the Step 1
   candidate.
+- [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
+  any NIPA table as a flat frame with its hierarchy intact
+  (`nipa_flat_table`), loads BEA IOT matrices (`bea_matrix_row` /
+  `bea_matrix_column`), and aligns the two while keeping **matched-cell
+  disagreement separate from unmatched mass** (`compare`) — the distinction
+  every reconciliation here depends on. `value_added_control_totals.py` is built
+  on it.
 
 Candidate mass on labels outside a section's frame is not drawn and not dropped:
 `TableMatch.residual` totals it and `report()` prints it.

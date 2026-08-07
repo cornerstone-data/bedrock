@@ -151,7 +151,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from bedrock.analysis.compare_NIPA_to_IOT import nipa_flat_table
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT import nipa_flat_table
 
 YEAR = 2017
 
