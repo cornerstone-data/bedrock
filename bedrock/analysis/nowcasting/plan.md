@@ -507,6 +507,47 @@ not introduce a step 10.
   directly on the **open SLG Equipment/Structures/IP attribution bug** (§Step 0). State and local only;
   federal still needs a source.
 
+  **NIPA Section 3 carries the government intermediate purchases, and they match the Use table
+  exactly.** Found while mapping the government sectors for Step 2. This bears directly on **#578** and
+  changes what that issue should build.
+
+  *Column totals, all general government.* `T31005` (Table 3.10.5, *Government Consumption Expenditures
+  and General Government Gross Output*) publishes `Intermediate goods and services purchased` at every
+  government level, against the SUT's `T005` column totals:
+
+  | NIPA line | code | $M | BEA detail | $M | diff |
+  |---|---|---:|---|---:|---:|
+  | Federal, national defense | `W087RC` | 218,671 | `S00500` | 218,671 | **0** |
+  | Federal, nondefense | `W131RC` | 108,827 | `S00600` | 108,827 | **0** |
+  | State and local | `W140RC` | 724,013 | `GSLGE`+`GSLGH`+`GSLGO` | 724,011 | 2 |
+
+  Its value-added lines tie the same way. This covers **federal**, which the Census state-and-local
+  finances source does not — the note above says "federal still needs a source", and this is one. It
+  should also track the IOT more closely than an external survey, because BEA builds both sides from the
+  same accounts; the zero differences are that, not luck.
+
+  *Cell level, defense only.* `T31105` (Table 3.11.5, *National Defense Consumption Expenditures and
+  Gross Investment by Type*) goes further and breaks that 218,671 into 14 named leaves that sum to it
+  exactly — so for `S00500` this is a **cell-level** source, not just a column control:
+
+  | | $M | share | mappable to commodities? |
+  |---|---:|---:|---|
+  | Aircraft, missiles, ships, vehicles, electronics, other durables; petroleum, ammunition, other nondurables | 61,526 | 28.1% | **yes**, these read as BEA commodities |
+  | Transportation of material; travel of persons | 14,556 | 6.7% | probably |
+  | Installation support; weapons support; personnel support | 142,589 | 65.2% | **no** — functional groupings, not commodities |
+
+  So a third of the defense column can be placed on commodities from NIPA directly, and the two-thirds in
+  "support" categories still needs a distribution assumption. That is a much better starting point than a
+  column total alone.
+
+  **Defense is the only column with a by-type table.** Nondefense and state-and-local have no `3.11.5`
+  equivalent, so `T31005`'s column total is all NIPA offers them; `T31505` (by function) is the next
+  thing to check for the state-and-local split.
+
+  **So #578 should use NIPA as the control and the finances data for distribution**, rather than choosing
+  between them — and should expect to do the commodity mapping itself for everything except federal
+  defense goods.
+
   **Step 3's default stays #497's inflation-carried 2017 proportions**, with agriculture and government
   as the two justified departures.
 
