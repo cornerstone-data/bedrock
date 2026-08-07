@@ -254,6 +254,15 @@ product-line data, rather than carry 2017-anchored rates forward.
 Anchor on 2017 structure, move with annual sources, control to identities —
 the same shape as [`compensation_disaggregation_plan.md`](compensation_disaggregation_plan.md).
 
+| phase | issue | depends on |
+|---|---|---|
+| 1 | [#610](https://github.com/cornerstone-data/bedrock/issues/610) 2017 rates and receiving sets | **nothing — start here** |
+| 2 | [#611](https://github.com/cornerstone-data/bedrock/issues/611) port the FAF transport chain | #601 (merged) |
+| 3 | [#612](https://github.com/cornerstone-data/bedrock/issues/612) AWTS/ARTS annual trade levels | — |
+| 4 | [#613](https://github.com/cornerstone-data/bedrock/issues/613) apply and derive `TRADE`/`TRANS` | #610–#612, **#570 (4a), #579 (4b)** |
+| 5 | [#614](https://github.com/cornerstone-data/bedrock/issues/614) validate per commodity | #613 |
+| — | [#615](https://github.com/cornerstone-data/bedrock/issues/615) re-run BEA's product-line method | **deferred, candidate for a Phase 3 of the project** |
+
 **Phase 1 — 2017 rates and the receiving sets.** Depends on nothing; start here.
 Derive per-(buyer, commodity, margin type) rates on BEA's cascading bases, and
 the three receiving sets from non-zero values. Prove both identities reproduce
@@ -337,6 +346,9 @@ Three consequences:
 3. **Build the NAPCS → I-O commodity concordance?** Only needed to re-run BEA's
    actual method on 2022 product lines rather than carry 2017-anchored rates.
    Everything upstream of it now exists; this is the sole missing link.
+   **Deferred to [#615](https://github.com/cornerstone-data/bedrock/issues/615)**,
+   out of v0.5 and a candidate for a Phase 3 of the project. Reopen only if
+   #614's validation shows the 2017-anchored allocation drifting.
 
 Three earlier questions are now closed: the excise/sales split resolves into the
 producer-level vs trade-level decomposition above; petroleum's near-zero
