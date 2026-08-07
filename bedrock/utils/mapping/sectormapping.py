@@ -29,8 +29,8 @@ def get_activitytosector_mapping(
     :return: a pandas df for a standard ActivitytoSector mapping
     """
 
-    # identify mapping file name
-    mapfn = f'NAICS_Crosswalk_{source}'
+    # identify mapping file name (mixed NAICS/BEA sector schemas)
+    mapfn = f'Sector_Crosswalk_{source}'
 
     # if FBS method file loaded from outside the flowsa directory, check if
     # there is also a crosswalk

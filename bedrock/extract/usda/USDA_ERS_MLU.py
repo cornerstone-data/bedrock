@@ -119,7 +119,7 @@ def attribute_transportation_sector_fees_to_target_sectors(
     df_fha = pd.DataFrame.from_dict(fha_dict, orient='index')
     # map to target sectors
     naics_key = industry_spec_key(
-        fba.config['industry_spec'], fba.config['target_naics_year']
+        fba.config['industry_spec'], fba.config['target_schema_year']
     )
     df_fha = (
         df_fha.merge(

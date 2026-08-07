@@ -798,7 +798,7 @@ class _FlowBy(pd.DataFrame):
             elif self.config['data_format'] in ['FBA', 'FBS_outside_flowsa']:
                 fb = (
                     grouped.map_to_sectors(  # type: ignore[operator]
-                        target_year=self.config['target_naics_year'],
+                        target_year=self.config['target_schema_year'],
                         external_config_path=external_config_path,
                     )
                     .function_socket(

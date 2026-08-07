@@ -212,7 +212,7 @@ def clean_qcew(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
 
     target_naics = set(
         industry_spec_key(
-            fba.config['industry_spec'], fba.config['target_naics_year']
+            fba.config['industry_spec'], fba.config['target_schema_year']
         ).target_naics
     )
     filtered = fixed.assign(

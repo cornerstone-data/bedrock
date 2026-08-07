@@ -224,7 +224,7 @@ class FlowBySector(_FlowBy):
 
         # append the sector names to the FBS if specified
         if append_sector_names:
-            cw = load_crosswalk(f'Sector_{fbs.config["target_naics_year"]}_Names')
+            cw = load_crosswalk(f'Sector_{fbs.config["target_schema_year"]}_Names')
             for s in ['Produced', 'Consumed']:
                 if not fbs[f'Sector{s}By'].isna().all():
                     fbs = (
@@ -233,17 +233,17 @@ class FlowBySector(_FlowBy):
                             how='left',
                             left_on=f'Sector{s}By',
                             right_on=f'NAICS_'
-                            f'{fbs.config["target_naics_year"]}'
+                            f'{fbs.config["target_schema_year"]}'
                             f'_Code',
                         )
                         .drop(
                             columns=[
-                                f'NAICS_' f'{fbs.config["target_naics_year"]}' f'_Code'
+                                f'NAICS_' f'{fbs.config["target_schema_year"]}' f'_Code'
                             ]
                         )
                         .rename(
                             columns={
-                                f'NAICS_{fbs.config["target_naics_year"]}_Name': f'Sector{s}ByName'
+                                f'NAICS_{fbs.config["target_schema_year"]}_Name': f'Sector{s}ByName'
                             }
                         )
                     )
@@ -280,7 +280,7 @@ class FlowBySector(_FlowBy):
         if industry_spec is None:
             industry_spec = self.config['industry_spec']
         naics_key = naics_industry_spec_key(
-            industry_spec, self.config['target_naics_year']
+            industry_spec, self.config['target_schema_year']
         )
         # Use Sector_Levels to compare aggregation level
         levels = (
@@ -405,7 +405,7 @@ class FlowBySector(_FlowBy):
             fb_at_target_naics = (
                 fb_at_source_naics.merge(
                     naics_industry_spec_key(
-                        industry_spec, fb_at_source_naics.config['target_naics_year']
+                        industry_spec, fb_at_source_naics.config['target_schema_year']
                     ),
                     how='left',
                     left_on='SectorProducedBy',
