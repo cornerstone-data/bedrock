@@ -106,6 +106,48 @@ structure as the real mechanism, not an illustration.
 from class-of-customer data we do not have — but the resulting rates are
 readable straight off the 2017 Margins file.
 
+## The residual decomposes `TOP` into producer-level and trade-level tax
+
+The `Σ(W+R) = TRADE + TOP` identity leaves −1.29%. That residual is not noise —
+it follows from where each tax sits:
+
+> *"The nonmargin taxes (excise taxes) are embedded in the Producers value field
+> of the Margins table. These would be captured in the 'Tax on products' field
+> in the supply table. Your distinction is correct about sales tax vs excise
+> taxes."* — B. Jolliff, BEA, 2025-06-16
+
+Sales tax is inside the margin columns; excise is inside Producers' Value. Both
+land in `TOP`. So algebraically the residual is the **producer-level** share:
+
+```
+producer_level_tax[c] = TRADE[c] + TOP[c] − Σ_buyers ( Wholesale + Retail )
+```
+
+⚠️ **Only meaningful for commodities that bear trade margin.** For a service with
+no wholesale or retail, `Σ(W+R)` and `TRADE` are both zero and the expression
+degenerates to `TOP` — which is why restaurants, electric power, insurance and
+legal services otherwise appear at a spurious 100%. Restricted to the **202
+margin-bearing commodities with `TOP` > 100**, producer-level tax is **9.9% of
+`TOP`**, and it lands exactly where the tax law puts it:
+
+| commodity | producer-level share of `TOP` | why |
+|---|---:|---|
+| Oil and gas extraction | 90.4% | severance tax, levied on the producer |
+| Coal mining | 88.1% | severance tax |
+| Tobacco manufacturing | 37.0% | federal excise, paid by the manufacturer |
+| Distilleries | 37.0% | federal excise |
+| Breweries | 35.4% | federal excise |
+| Wineries | 15.9% | federal excise |
+| **Petroleum refineries** | **0.2%** | **motor fuel tax is levied on distributors and collected at the pump — it behaves like a sales tax and sits in the margin columns** |
+
+Petroleum is the case that looks anomalous and is not: its `TOP` of 99,047 is
+almost entirely trade-level. The alcohol/tobacco cluster at 35–37% is the
+manufacturer-paid excise the correspondence describes.
+
+**Use for the build:** this gives an excise-vs-sales split per commodity from
+published data alone, with no external tax source — the input needed if margins
+are ever required in basic prices.
+
 ## The negative result that shapes the build
 
 BEA computes **one rate per item**, uniform across all transactions receiving
@@ -194,19 +236,52 @@ commodities giving up nearly all their own output (19 trade at 96.8%, eight
 retail sectors at exactly −100%; 5 transport at 56.8%), which 4a produces
 anyway. The work is allocating across the 255 receiving commodities.
 
+## Negative margins are inventory timing — never clip them
+
+All **31** negative rows in the 2017 table are buyer `F03000`, totalling
+**−8,076 million**. Nothing else anywhere in the table is negative. BEA's
+explanation of the mechanism:
+
+> *"Margins are accounted for when the change in inventories are increasing.
+> When we draw on inventories for intermediate consumption we would see
+> intermediate inputs account for the margins even though in that particular
+> case there was no trade margin for that specific item in the period. The
+> negative margin from inventories accounts for the value of the inventory that
+> was added in the previous period, but also in the reference period the
+> commodity output (margin output as well) would be unchanged as a result of a
+> draw on inventories."* — B. Jolliff, BEA, 2025-06-24
+
+So margin is booked **when inventory builds**, and a drawdown carries the
+offsetting negative because the margin was already counted in the earlier
+period while current-period output is unchanged. The negative is doing real
+accounting work: it keeps total purchasers' value consistent whether a material
+is consumed immediately or stored and drawn later.
+
+Three consequences:
+
+- **Do not clip, floor or absolute these values.** ⚠️
+  `_margin_negatives_treatment`'s `abs_negative_margin_columns` flag in
+  `derive_PRO_to_PUR_ratio.py` would silently destroy exactly this signal —
+  check it before reusing that module.
+- **Do not derive rates from `F03000` rows.** A negative margin over a
+  change-in-inventories base is not a rate; it is a timing correction. Exclude
+  `F03000` when fitting the per-(buyer, commodity) rates in Phase 1, then carry
+  its margin as a level.
+- **Expect the sign to flip by year.** In a year of inventory build the same
+  cells go positive. A nowcast that hard-codes the 2017 sign will be wrong
+  whenever the inventory cycle turns.
+
 ## Open questions
 
-1. **Does the excise/sales split need modelling?** The `TRADE + TOP` identity
-   leaves −1.29%, concentrated on excise goods — tobacco, distilleries and
-   breweries all near −0.37 of their `TOP`. Only matters if margins are needed
-   in basic prices.
-2. **Why is petroleum's residual ~0** (−206 on `TOP` 99,047) when fuel excise is
-   large? Possibly booked at `447000` gasoline stations instead.
-3. **21 commodities still have `TRADE`/`T013` > 1**, which should be impossible.
-4. **Tons or ton-miles** for the transport allocation.
-5. **Do Economic Census product lines survive 2022** in a usable form, if we
+1. **21 commodities have `TRADE`/`T013` > 1**, which should be impossible if
+   `T013` is the allocation base. Resolve before relying on the rate.
+2. **Tons or ton-miles** for the transport allocation — decide on the 2017 fit.
+3. **Do Economic Census product lines survive 2022** in a usable form, if we
    ever want BEA's actual method rather than 2017-anchored rates?
-6. **Negative margins are inventory timing** — all 31 are buyer `F03000`
-   ([BEA, 2025-06-24](https://github.com/cornerstone-data/bedrock/issues/571)).
-   ⚠️ `_margin_negatives_treatment`'s `abs_negative_margin_columns` flag in
-   `derive_PRO_to_PUR_ratio.py` would destroy that signal — check before reuse.
+4. **Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail** — it currently
+   carries 2012 detail and 2017 *summary* only. This is the real porting work
+   on the transport chain, not the SCTG mapping itself.
+
+Two earlier questions are now closed: the excise/sales split resolves into the
+producer-level vs trade-level decomposition above, and petroleum's near-zero
+residual is correct behaviour rather than an anomaly.
