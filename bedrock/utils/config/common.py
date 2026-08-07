@@ -93,20 +93,13 @@ def load_env_file_key(env_file: str, key: str) -> str:
 
 def load_crosswalk(crosswalk_name: str) -> pd.DataFrame:
     """
-    Used to load the crosswalks:
+    Load a mapping CSV from ``mapping/naics/{crosswalk_name}.csv``.
 
-    'NAICS_2012_Crosswalk', 'Sector_2012_Names', 'Sector_2017_Names',
-    'FinalDemand_SectorCodes', 'BEA_CustomCodes',
-    'Government_SectorCodes', 'NAICS_to_BEA_Crosswalk_2012',
-    'NAICS_to_BEA_Crosswalk_2017', 'NAICS_Year_Concordance'
-
-    as a dataframe
-
-    :return: df, NAICS crosswalk over the years
+    Includes hierarchy files such as ``NAICS_{year}_Crosswalk``,
+    ``BEA_{year}_Crosswalk``, ``NAICS_to_BEA_Crosswalk_{year}``,
+    ``Sector_Levels``, and sector name tables.
     """
-
     cw = pd.read_csv(mappingpath / 'naics' / f'{crosswalk_name}.csv', dtype='str')
-
     return cw
 
 
