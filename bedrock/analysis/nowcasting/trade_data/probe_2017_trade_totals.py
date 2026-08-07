@@ -9,7 +9,8 @@ Pulls national goods + services trade totals the same way the flowsa
 * BEA ``IntlServTrade`` for ``AllCountries`` — uses the ``AllTypesOfService``
   row only (summing all TypeOfService rows double-counts the hierarchy).
 
-Compares those extracts to 2017 Use F040/F050 and Supply MCIF already in
+Compares those extracts to the 2017 SUT targets - Use F04000 and Supply
+MCIF/MADJ/MDTY - already in
 bedrock, plus published ITA goods+services calendar-year totals.
 
 API keys: ``bedrock/extract/API_Keys.env`` via ``load_env_file_key``
@@ -17,9 +18,9 @@ API keys: ``bedrock/extract/API_Keys.env`` via ``load_env_file_key``
 
 Run from repo root::
 
-    uv run python -m bedrock.analysis.trade_data.probe_2017_trade_totals
+    uv run python -m bedrock.analysis.nowcasting.trade_data.probe_2017_trade_totals
 
-Writes ``bedrock/analysis/trade_data/output/probe_2017_trade_totals.csv``.
+Writes ``bedrock/analysis/nowcasting/trade_data/output/probe_2017_trade_totals.csv``.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from bedrock.analysis.compare_NIPA_to_IOT.loaders import bea_matrix_column
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT.loaders import bea_matrix_column
 from bedrock.utils.config.common import load_env_file_key
 
 YEAR = 2017
@@ -156,13 +157,24 @@ def fetch_extracts() -> ExtractTotals:
 
 
 def fetch_benchmarks() -> dict[str, float]:
-    f040 = bea_matrix_column("F04000", matrix="Use_MUT_detail_after_redef")
-    f050 = bea_matrix_column("F05000", matrix="Use_MUT_detail_after_redef")
+    """SUT targets first; the MUT column is kept only as a cross-check.
+
+    The nowcast builds an SUT, so the columns it has to reproduce are Supply
+    ``MCIF``, ``MADJ`` and ``MDTY``. ``F05000`` is a MUT-only column that the
+    later SUT->MUT conversion produces; scoring against it here would answer a
+    different question.
+    """
+    f040_sut = bea_matrix_column("F04000", matrix="Use_SUT_detail")
     mcif = bea_matrix_column("MCIF", matrix="Supply_SUT_detail")
+    madj = bea_matrix_column("MADJ", matrix="Supply_SUT_detail")
+    mdty = bea_matrix_column("MDTY", matrix="Supply_SUT_detail")
+    f050_mut = bea_matrix_column("F05000", matrix="Use_MUT_detail_after_redef")
     return {
-        "use_F04000_exports_musd": float(f040.total),
-        "use_F05000_imports_abs_musd": abs(float(f050.total)),
+        "use_F04000_exports_musd": float(f040_sut.total),
         "supply_MCIF_musd": float(mcif.total),
+        "supply_MADJ_musd": float(madj.total),
+        "supply_MDTY_musd": float(mdty.total),
+        "mut_F05000_imports_abs_musd": abs(float(f050_mut.total)),
         "ita_exports_gs_musd": ITA_2017_EXPORTS_GS_MUSD,
         "ita_imports_gs_musd": ITA_2017_IMPORTS_GS_MUSD,
     }
@@ -186,14 +198,24 @@ def build_comparison(extract: ExtractTotals, bench: dict[str, float]) -> pd.Data
             "notes": "May double-count freight/insurance vs BOP",
         },
         {
-            "series": "Use MUT F05000 imports (abs)",
-            "million_usd": bench["use_F05000_imports_abs_musd"],
-            "notes": "PRO; target column for nowcast",
+            "series": "Supply MCIF (imports, c.i.f.)",
+            "million_usd": bench["supply_MCIF_musd"],
+            "notes": "SUT TARGET; BAS / CIF-family, matches GEN_CIF_YR basis",
         },
         {
-            "series": "Supply MCIF",
-            "million_usd": bench["supply_MCIF_musd"],
-            "notes": "BAS / CIF-family",
+            "series": "Supply MADJ (c.i.f./f.o.b. adjustment)",
+            "million_usd": bench["supply_MADJ_musd"],
+            "notes": "SUT target; no direct annual source, see plan open Q7",
+        },
+        {
+            "series": "Supply MDTY (import duties)",
+            "million_usd": bench["supply_MDTY_musd"],
+            "notes": "SUT target; rate from Census CAL_DUT_YR, level from NIPA",
+        },
+        {
+            "series": "Use MUT |F05000| imports",
+            "million_usd": bench["mut_F05000_imports_abs_musd"],
+            "notes": "CROSS-CHECK ONLY; MUT-only column, PRO, after redef",
         },
         {
             "series": "ITA imports goods+services",
@@ -228,10 +250,8 @@ def build_comparison(extract: ExtractTotals, bench: dict[str, float]) -> pd.Data
     ]
     df = pd.DataFrame(rows)
     df["year"] = YEAR
-    # Ratios vs primary Use targets
-    df["ratio_to_use_F050_abs"] = (
-        df["million_usd"] / bench["use_F05000_imports_abs_musd"]
-    )
+    # Ratios against the SUT targets the nowcast has to reproduce.
+    df["ratio_to_supply_MCIF"] = df["million_usd"] / bench["supply_MCIF_musd"]
     df["ratio_to_use_F040"] = df["million_usd"] / bench["use_F04000_exports_musd"]
     return df
 
@@ -239,7 +259,7 @@ def build_comparison(extract: ExtractTotals, bench: dict[str, float]) -> pd.Data
 def main() -> None:
     print(f"Fetching Census + BEA extracts for {YEAR}...")
     extract = fetch_extracts()
-    print("Loading bedrock Use F040/F050 and Supply MCIF...")
+    print("Loading SUT benchmarks: Use F04000, Supply MCIF/MADJ/MDTY...")
     bench = fetch_benchmarks()
     df = build_comparison(extract, bench)
 
@@ -250,12 +270,14 @@ def main() -> None:
     print(df.to_string(index=False, float_format=lambda x: f"{x:,.1f}"))
     print()
     print(
-        "Import combined / Use|F050| = "
-        f"{extract.combined_imports_musd / bench['use_F05000_imports_abs_musd']:.3f}"
+        "Import combined / Supply MCIF = "
+        f"{extract.combined_imports_musd / bench['supply_MCIF_musd']:.3f}"
+        "   <- the SUT target"
     )
     print(
-        "Import combined / MCIF = "
-        f"{extract.combined_imports_musd / bench['supply_MCIF_musd']:.3f}"
+        "Import combined / MUT |F050| = "
+        f"{extract.combined_imports_musd / bench['mut_F05000_imports_abs_musd']:.3f}"
+        "   (cross-check only)"
     )
     print(
         "Export combined / Use F040 = "

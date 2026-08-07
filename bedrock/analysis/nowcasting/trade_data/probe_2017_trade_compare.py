@@ -2,14 +2,19 @@
 2017 trade Detail compare via ``compare_NIPA_to_IOT`` for bedrock#527.
 
 Same Census+BEA → BEA Detail extract as ``probe_2017_trade_detail.py``, but
-scores against Use MUT F04000 / F05000 with ``compare()`` so matched-cell
-disagreement is separated from unmatched mass (Use holes / extract-only codes).
+scores against the **SUT** -- Use ``F04000`` for exports and Supply ``MCIF``
+for imports -- with ``compare()``, so matched-cell disagreement is separated
+from unmatched mass (reference holes / extract-only codes).
+
+The SUT is the target because the nowcast builds an SUT; the MUT view is a
+later conversion step. ``F05000`` is a MUT-only column and is not a target
+here -- see ``_mut_imports_abs_crosscheck``.
 
 Run from repo root::
 
-    uv run python -m bedrock.analysis.trade_data.probe_2017_trade_compare
+    uv run python -m bedrock.analysis.nowcasting.trade_data.probe_2017_trade_compare
 
-Writes under ``bedrock/analysis/trade_data/output/``:
+Writes under ``bedrock/analysis/nowcasting/trade_data/output/``:
 
 * ``probe_2017_trade_compare_imports_cells.csv`` (+ ``*_unmatched.csv``)
 * ``probe_2017_trade_compare_exports_cells.csv`` (+ ``*_unmatched.csv``)
@@ -23,18 +28,21 @@ from typing import Literal
 
 import pandas as pd
 
-from bedrock.analysis.compare_NIPA_to_IOT import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT import (
     Comparison,
     LabeledSeries,
     bea_matrix_column,
     compare,
     frame_series,
 )
-from bedrock.analysis.trade_data import probe_2017_trade_detail as detail
+from bedrock.analysis.nowcasting.trade_data import probe_2017_trade_detail as detail
 from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_DESC
 
 OUT_DIR = Path(__file__).resolve().parent / "output"
+SUT_USE: Literal["Use_SUT_detail"] = "Use_SUT_detail"
+SUPPLY: Literal["Supply_SUT_detail"] = "Supply_SUT_detail"
+# Kept only for the cross-check; not a target. See _mut_imports_abs_crosscheck.
 MUT: Literal["Use_MUT_detail_after_redef"] = "Use_MUT_detail_after_redef"
 
 
@@ -108,15 +116,40 @@ def _candidate_from_extract(extract: pd.Series, label: str) -> LabeledSeries:
 
 
 def _use_exports() -> LabeledSeries:
+    """Exports from the SUT Use table, which is the nowcast target."""
     return bea_matrix_column(
         "F04000",
-        matrix=MUT,
-        label="Use MUT F04000 exports",
+        matrix=SUT_USE,
+        label="Use SUT F04000 exports",
     )
 
 
-def _use_imports_abs() -> LabeledSeries:
-    """F05000 is negative in MUT; compare on absolute import demand."""
+def _supply_imports() -> LabeledSeries:
+    """Imports from the SUT Supply table.
+
+    The SUT has no import *column* in Use -- ``F05000`` is MUT-only. Imports
+    enter on the Supply side as ``MCIF``, already positive, so there is no sign
+    flip to undo. ``MCIF`` is the column a nowcast has to reproduce; the MUT
+    view of imports is produced later by the SUT->MUT conversion, not here.
+    """
+    return bea_matrix_column("MCIF", matrix=SUPPLY, label="Supply SUT MCIF imports")
+
+
+def _mut_imports_abs_crosscheck() -> LabeledSeries:
+    """``|F05000|`` from the MUT, kept only as a cross-check.
+
+    Not the target -- a different framework and valuation (PRO, after
+    redefinition) -- but the two views reconcile cleanly, which is worth
+    recording because it is the whole import side of the SUT->MUT conversion::
+
+        Supply MCIF   2,649,430
+        Supply MADJ     -23,116
+        MCIF + MADJ   2,626,314
+        MUT |F05000|  2,626,305      9 apart, 0.0003%
+
+    So ``|F05000|`` is not a third number to source; it falls out of the two
+    Supply columns this probe already targets. Verified 2017.
+    """
     ref = bea_matrix_column("F05000", matrix=MUT, label="Use MUT |F05000| imports")
     frame = ref.frame.copy()
     frame["value"] = frame["value"].abs()
@@ -161,9 +194,9 @@ def main() -> None:
         extract_exp, "Census FAS goods + BEA services -> Detail (exports)"
     )
 
-    print("Loading Use MUT F040/F050 via compare_NIPA_to_IOT loaders...")
+    print("Loading SUT Use F04000 and Supply MCIF via compare_NIPA_to_IOT...")
     ref_exp = _use_exports()
-    ref_imp = _use_imports_abs()
+    ref_imp = _supply_imports()
 
     result_imp = _run_one("imports", cand_imp, ref_imp)
     result_exp = _run_one("exports", cand_exp, ref_exp)

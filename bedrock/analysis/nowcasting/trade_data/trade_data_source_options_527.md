@@ -1,12 +1,38 @@
-# International trade data options for initial F04000 / F05000 estimates
+# International trade data options for initial trade estimates
 
-Working notes for [bedrock#527](https://github.com/cornerstone-data/bedrock/issues/527). Living in `bedrock/analysis/trade_data/` until a source decision lands in #528.
+Working notes for [bedrock#527](https://github.com/cornerstone-data/bedrock/issues/527). Living in `bedrock/analysis/nowcasting/trade_data/` until a source decision lands in #528.
 
 **Parent:** [#526](https://github.com/cornerstone-data/bedrock/issues/526) → implement in [#528](https://github.com/cornerstone-data/bedrock/issues/528)
 
-**Decision (working):** **Option 1 — Census goods + BEA services** is the primary annual extract. **BEA ITA** is the national totals control. **BACI is out of scope** for F040/F050. Consolidated plan: [`plan_527_long.md`](plan_527_long.md).
+> ## ⚠️ Target changed: the SUT, not the MUT
+>
+> This document was written against the MUT's `F04000` / `F05000` pair. The
+> nowcast builds a **Supply-Use table**, so those are no longer both targets
+> ([PR #557 review](https://github.com/cornerstone-data/bedrock/pull/557)):
+>
+> | | old target | **current target** |
+> |---|---|---|
+> | Exports | `F04000`, Use MUT | **`F04000`, Use SUT** |
+> | Imports | `F05000`, Use MUT | **`MCIF` + `MADJ`**, Supply SUT |
+> | Import duties | — | **`MDTY`**, Supply SUT |
+>
+> **`F05000` is a MUT-only column — it does not exist in the SUT Use table.**
+> Imports enter on the Supply side. It is not a third number to source either:
+> verified for 2017, `MCIF` 2,649,430 + `MADJ` −23,116 = 2,626,314 against
+> `|F05000|` 2,626,305, **9 apart on 2.6 trillion**. So the MUT view falls out
+> of the two Supply columns, and producing it is the later SUT→MUT conversion's
+> job, not this work's.
+>
+> The three probes have been retargeted accordingly. **The source evaluation
+> below is unaffected** — which extract to use is the same question either way,
+> and the 2017 comparisons against `F040`/`F050` remain valid as recorded
+> history. Read references to `F050` below as "the MUT import view", and see the
+> `MCIF`/`MADJ`/`MDTY` rows in [`../plan.md`](../plan.md) §Trade data for the
+> current per-column status.
 
-**Context:** Nowcast initial Use-table final demand needs annual **exports (F04000)** and **imports (F05000)**. Target is close match to the **2017 detailed Use table (exports in PUR)** and Supply-side import valuation (**CIF / MCIF**), with national goods+services totals controlled to ITA.
+**Decision (working):** **Option 1 — Census goods + BEA services** is the primary annual extract. **BEA ITA** is the national totals control. **BACI is out of scope**. Consolidated plan: [`plan_527_long.md`](plan_527_long.md).
+
+**Context:** The nowcast needs annual **exports** (Use SUT `F04000`) and **imports** (Supply SUT `MCIF`, with `MADJ` and `MDTY` alongside). Target is a close match to the **2017 detailed SUT** — exports at purchaser value, imports at the c.i.f. basis `MCIF` is on — with national goods+services totals controlled to ITA.
 
 ---
 
@@ -384,7 +410,7 @@ If raw extract cannot hit those bars, confidence still holds if we **prove** a s
 
 ### What "keep working" would look like in practice
 
-Stay in `bedrock/analysis/trade_data/` until the acceptance table is green (or the recipe+residual path is green). Parallel tracks:
+Stay in `bedrock/analysis/nowcasting/trade_data/` until the acceptance table is green (or the recipe+residual path is green). Parallel tracks:
 
 - **Valuation / ITA track:** CIF vs customs, then scale to ITA G+S (mostly imports).
 - **Services track:** richer TypeOfService → BEA Detail (mostly exports).
@@ -432,7 +458,7 @@ Stop when a reviewer can reproduce 2017 Use trade columns from the recipe within
 
 - Issue [#527](https://github.com/cornerstone-data/bedrock/issues/527), [#526](https://github.com/cornerstone-data/bedrock/issues/526), [#528](https://github.com/cornerstone-data/bedrock/issues/528)
 - Plan context: `.claude/plan/nipa_sut_nowcast.md`
-- Valuation: `bedrock/analysis/compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md`
+- Valuation: `bedrock/analysis/nowcasting/compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md`
 - flowsa `imports`: [tree](https://github.com/cornerstone-data/flowsa/tree/imports)
 - USEEIO import-EF concordances: [concordances/](https://github.com/cornerstone-data/USEEIO/tree/master/import_emission_factors/concordances)
 - Census API: [International Trade datasets](https://www.census.gov/data/developers/data-sets/international-trade.html)

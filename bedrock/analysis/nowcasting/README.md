@@ -54,6 +54,11 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   published 2017 detail Use table and against the PCE/PEQ bridges. Writes the
   cell-wise CSV exports in `output/` that `sections.py` reads as the Step 1
   candidate.
+- [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
+  trade columns (#527): three 2017 probes scoring a Census goods + BEA services
+  extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
+  `MADJ` / `MDTY` for imports — plus the options writeup behind the source
+  decision.
 - [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
   any NIPA table as a flat frame with its hierarchy intact
   (`nipa_flat_table`), loads BEA IOT matrices (`bea_matrix_row` /

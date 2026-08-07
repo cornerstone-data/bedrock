@@ -2,7 +2,8 @@
 2017 trade *detail* probe for bedrock#527 (Step D).
 
 Maps Census NAICS-6 goods and BEA IntlServTrade service types to BEA 2017
-Detail commodities and compares vectors to Use F04000 / F05000.
+Detail commodities and compares vectors to the SUT: Use ``F04000`` for
+exports and Supply ``MCIF`` for imports.
 
 Concordances (existing resources):
 
@@ -19,9 +20,9 @@ API keys: ``bedrock/extract/API_Keys.env`` (``Census``, ``BEA``).
 
 Run from repo root::
 
-    uv run python -m bedrock.analysis.trade_data.probe_2017_trade_detail
+    uv run python -m bedrock.analysis.nowcasting.trade_data.probe_2017_trade_detail
 
-Writes under ``bedrock/analysis/trade_data/output/``:
+Writes under ``bedrock/analysis/nowcasting/trade_data/output/``:
 
 * ``probe_2017_trade_detail_vectors.csv`` — commodity-level compare
 * ``probe_2017_trade_detail_summary.csv`` — coverage / correlation stats
@@ -36,8 +37,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import load_2017_Ytot_usa
+from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.utils.config.common import load_env_file_key
+from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 
 YEAR = 2017
 OUT_DIR = Path(__file__).resolve().parent / "output"
@@ -144,15 +146,40 @@ def _equal_split_to_detail(
     return detail, stats
 
 
-def _use_trade_vectors() -> tuple[pd.Series, pd.Series]:
-    Y = load_2017_Ytot_usa()
-    # Y is in USD; convert to million USD to match extracts.
-    exports = (Y["F04000"] / 1e6).astype(float)
-    imports = (-Y["F05000"].clip(upper=0) / 1e6).astype(float)
+def _sut_trade_vectors() -> tuple[pd.Series, pd.Series]:
+    """SUT reference vectors: Use ``F04000`` exports, Supply ``MCIF`` imports.
+
+    The nowcast target is the SUT, so both sides come from it. Imports are not
+    a Use column there -- ``F05000`` is MUT-only -- they are Supply ``MCIF``,
+    already positive and already at c.i.f., which is the basis the Census
+    ``GEN_CIF_YR`` extract is on.
+
+    Both source workbooks are in million USD, matching the extracts, so there
+    is no unit conversion here (the previous MUT path used ``load_2017_Ytot_usa``,
+    which returns USD and needed a 1e6 divide).
+    """
+    use = _load_2017_detail_supply_use_usa("Use_SUT_detail")
+    supply = _load_2017_detail_supply_use_usa("Supply_detail")
+    supply.columns = supply.columns.str.strip()
+
+    # Restrict to the 402 commodities. Both workbooks carry total rows (T007,
+    # T013, T016, ...) in the same column, so summing the raw column returns
+    # exactly twice the true total.
+    commodities = list(USA_2017_COMMODITY_CODES)
+    exports = (
+        pd.to_numeric(use["F04000"].reindex(commodities), errors="coerce")
+        .fillna(0.0)
+        .astype(float)
+    )
+    imports = (
+        pd.to_numeric(supply["MCIF"].reindex(commodities), errors="coerce")
+        .fillna(0.0)
+        .astype(float)
+    )
     exports.index = exports.index.astype(str)
     imports.index = imports.index.astype(str)
-    exports.name = "use_F040_musd"
-    imports.name = "use_F050_abs_musd"
+    exports.name = "sut_F04000_musd"
+    imports.name = "supply_MCIF_musd"
     return exports, imports
 
 
@@ -263,7 +290,7 @@ def main() -> None:
     extract_exp = g_exp_d.add(s_exp_d, fill_value=0.0)
 
     print("Loading Use F040/F050...")
-    use_exp, use_imp = _use_trade_vectors()
+    use_exp, use_imp = _sut_trade_vectors()
     vec_imp, st_imp = _align_compare(extract_imp, use_imp, "imports")
     vec_exp, st_exp = _align_compare(extract_exp, use_exp, "exports")
 

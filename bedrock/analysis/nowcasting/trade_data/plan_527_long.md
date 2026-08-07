@@ -1,18 +1,27 @@
-# Trade data for F04000 / F05000 — intended plan (long)
+# Trade data for the SUT trade columns — intended plan (long)
 
 Working notes with validation detail (annual-summary IO check, `compare()` results). A shorter posting draft may live locally as `plan_527.md` (gitignored).
 
 **Issue:** [#527](https://github.com/cornerstone-data/bedrock/issues/527) (parent [#526](https://github.com/cornerstone-data/bedrock/issues/526) → implement [#528](https://github.com/cornerstone-data/bedrock/issues/528))
 
-**Decision:** Use **Option 1 — Census trade in goods + BEA trade in services** as the primary annual extract. Scale / constrain national totals to **BEA ITA** goods+services controls. **BACI is out of scope** for this F040/F050 work (no required validation or structure prior).
+**Decision:** Use **Option 1 — Census trade in goods + BEA trade in services** as the primary annual extract. Scale / constrain national totals to **BEA ITA** goods+services controls. **BACI is out of scope** (no required validation or structure prior).
 
-Background and 2017 test results: [`trade_data_source_options_527.md`](trade_data_source_options_527.md).
+Background and 2017 test results: [`trade_data_source_options_527.md`](trade_data_source_options_527.md), which carries the full retarget note.
 
 ---
 
 ## What we are building
 
-Annual initial estimates for Use-table **F04000 (exports)** and **F05000 (imports)** for nowcast years, aligned as closely as practical with the **2017 detailed SUT/MUT** (exports PUR; import valuation consistent with Supply **CIF / MCIF**), with national goods+services totals controlled to **ITA**.
+Annual initial estimates for the **SUT** trade columns for nowcast years, controlled to **ITA** national goods+services totals:
+
+| Target | Table | Basis |
+|---|---|---|
+| `F04000` exports | Use SUT | purchaser |
+| `MCIF` imports | Supply SUT | c.i.f. |
+| `MADJ` c.i.f./f.o.b. adjustment | Supply SUT | — |
+| `MDTY` import duties | Supply SUT | — |
+
+**`F05000` is not a target.** It is a MUT-only column, and it is not independent: `MCIF` + `MADJ` = `|F05000|` to 9 million on 2.6 trillion in 2017, so the MUT import view is produced by the later SUT→MUT conversion rather than sourced here. References to `F050` further down are the MUT view, kept as recorded history.
 
 ## Source roles
 
