@@ -119,21 +119,6 @@ def load_sector_length_cw_melt(year: str = '2012') -> pd.DataFrame:
     )
 
 
-def return_bea_codes_used_as_naics() -> list[Any]:
-    """
-
-    :return: list of BEA codes used as NAICS
-    """
-    cw_list: list[pd.DataFrame] = []
-    for cw_name in ['FinalDemand_SectorCodes', 'Government_SectorCodes']:
-        df = load_crosswalk(cw_name)
-        cw_list.append(df)
-    # concat data into single dataframe
-    cw = pd.concat(cw_list, sort=False)
-    code_list = cw['Code'].drop_duplicates().values.tolist()
-    return code_list
-
-
 def load_yaml_dict(
     filename: str,
     flowbytype: str | None = None,
