@@ -386,11 +386,36 @@ structure after Detail mapping, imports come out usable (Pearson 0.60, 0.81 excl
 2. **The service→Detail concordance is thin** — 10 API types, ~70% of `AllTypesOfService`, missing
    travel and charges for IP use. This is why exports are weak, not the goods NAICS map (which covers
    97% of import and 92% of export value): **27.5% of Use `F04000` value has zero extract**, vs 10% on
-   imports. Biggest holes: `S00900` RoW (~204B), `533000` IP-royalties-like (~73B), wholesale (`423*`,
-   `424A00`) and truck transport (`484000`).
-3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B), `S00900`, and the
-   margin-heavy export cells need an explicit rule — held from Use, taken as a residual after mapped
-   commodities, or out of the extract's scope — rather than silent zeros. The `compare()` run makes the
+   imports. Remaining holes after `S00900` (below): `533000` IP-royalties-like (~73B), wholesale
+   (`423*`, `424A00`) and truck transport (`484000`).
+
+   **`S00900` is off that list — it needs no extract at all.** At ~204B it was the biggest single hole,
+   9.8% of the `F04000` column, so removing it takes the zero-extract share from 27.5% to **~17.7%**.
+   It has *zero intermediate use* across all 402 industries, and only two final-demand entries, which
+   are one offsetting reclassification of nonresident expenditure:
+
+   ```
+   SUPPLY  produced by S00600 (federal nondefense)     3,468
+           imports MCIF                                  -26
+           total supply T013 / T016                    3,441
+   USE     intermediate, all 402 industries                0
+           PCE      F01000                           -200,997
+           exports  F04000                            204,439
+           total use T019                              3,441
+   ```
+
+   The PCE side is **already built**: −200,997 is exactly `DEXFRC` *Less: Expenditures in the United
+   States by nonresidents* (−199,435) plus U20405 line 149 personal remittances in kind (−1,562) — the
+   two lines `FD_PCE_less_nonresident` already handles with `negate_flows` (`7a04a71`). The export side
+   is then forced by the identity: `F04000 = −F01000 + total supply = 200,997 + 3,441 = 204,438`
+   against a published 204,439, one apart on rounding. So `S00900` also does not depend on the thin
+   service concordance — no travel or charges-for-IP mapping has to land before this cell is right.
+   Filed on #528.
+3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) and the margin-heavy export
+   cells need an explicit rule — held from Use, taken as a residual after mapped commodities, or out of
+   the extract's scope — rather than silent zeros. **`S00900`'s rule is now settled: derive it from the
+   supply identity** (item 2). `S00300` is a different case and is unaffected — it is 0 in `F04000`, so
+   its ~260B is import and intermediate presence, not an exports hole. The `compare()` run makes the
    sequencing point: matched cells overshoot (+12% imports, +30% exports) while specials soak the
    difference, so **totals can look fine while structure is wrong — fix specials and the service map
    before applying the ITA scale**, not after.
