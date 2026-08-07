@@ -132,7 +132,7 @@ Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs
 On a new branch, make exactly these changes (and nothing else — keep the bump PR mechanical and reviewable in under a minute):
 
 - [ ] [`bedrock/utils/snapshots/.SNAPSHOT_KEY`](.SNAPSHOT_KEY) — replace the file's only line with the new SHA.
-- [ ] [`bedrock/utils/snapshots/releases.py`](releases.py) — add the new release constant (e.g. `v0_4_0 = "<sha>"`) with a trailing `# config: <stem>` comment (the `generate_snapshots --config_name` value). Leave prior release entries in place. Use underscores in the Python identifier; the git tag uses dots. Do **not** add entries for patch-only releases.
+- [ ] [`bedrock/utils/snapshots/releases.py`](releases.py) — add the new release constant (e.g. `v0_4_0 = "<sha>"`) with a trailing `# config: <stem>` comment (the `generate_snapshots --config_name` value). Leave prior release entries in place. Use underscores in the Python identifier; the git tag uses dots. Do **not** add entries for patch-only releases. Register the snapshot's EF dollar year (``B`` / ``D`` / ``N`` intensity year) in ``EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY`` in the same edit.
 - [ ] [`bedrock/utils/config/usa_config.py`](../config/usa_config.py) — extend the `snapshot_version_or_git_sha: Literal[...]` to include the new SHA, with a trailing comment noting the release label (e.g. `# v0.4.0`). Do **not** remove old SHAs — atomic configs and test fixtures may still reference them.
 - [ ] [`bedrock/utils/validation/diagnostics_baseline.py`](../validation/diagnostics_baseline.py) — when the release is a common diagnostics comparison target, add a short alias to `NAMED_BASELINES` (e.g. `'v0.4': releases.v0_4_0`, `'v0.4.0': releases.v0_4_0`). Operators can always pass the raw SHA via `--baseline` once the `Literal` includes it; the alias is for convenience (`--baseline v0.4`).
 - [ ] Title: `release: snapshot bump (anticipated v0.X.Y)`
@@ -221,6 +221,11 @@ A clean bump PR diff looks roughly like this (anticipating release `v0.3.0`):
 +++ b/bedrock/utils/snapshots/releases.py
  v0_2 = "7372464249c434c9bebb172c065a4d0e3702176e"  # config: 2025_usa_cornerstone_v0_2
 +v0_3_0 = "<new_sha>"  # config: 2025_usa_cornerstone_v0_3
++
++ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
++     ...
++     v0_3_0: 2024,
++ }
 
 --- a/bedrock/utils/config/usa_config.py
 +++ b/bedrock/utils/config/usa_config.py
@@ -243,7 +248,7 @@ A clean bump PR diff looks roughly like this (anticipating release `v0.3.0`):
  }
 ```
 
-Four mechanical files (`.SNAPSHOT_KEY`, `releases.py`, `usa_config.py`, and optionally `diagnostics_baseline.py` when adding a named alias). If anything else needs to change, it belongs in a separate PR.
+Four mechanical files (`.SNAPSHOT_KEY`, `releases.py` including ``EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY``, `usa_config.py`, and optionally `diagnostics_baseline.py` when adding a named alias). If anything else needs to change, it belongs in a separate PR.
 
 ## Rolling back
 

@@ -28,8 +28,12 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
 )
-from bedrock.utils.snapshots.loader import load_configured_snapshot
+from bedrock.utils.snapshots.loader import (
+    load_configured_snapshot,
+    resolve_snapshot_key,
+)
 from bedrock.utils.snapshots.names import SnapshotName
+from bedrock.utils.snapshots.releases import ef_dollar_year_for_snapshot
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 
 logger = logging.getLogger(__name__)
@@ -807,10 +811,15 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
             f'in {time.time() - t0:.1f}s'
         )
     else:
+        snap_key = resolve_snapshot_key()
+        old_base_year = ef_dollar_year_for_snapshot(snap_key)
         B_old = load_configured_snapshot(B_snapshot_name)
         Adom_old = load_configured_snapshot(Adom_snapshot_name)
         Aimp_old = load_configured_snapshot(Aimp_snapshot_name)
-        logger.info(f'[TIMING] Old snapshots loaded in {time.time() - t0:.1f}s')
+        logger.info(
+            f'[TIMING] Old snapshots loaded (key={snap_key}, '
+            f'dollar_year={old_base_year}) in {time.time() - t0:.1f}s'
+        )
 
         t0 = time.time()
         L_old = compute_L_matrix(A=Adom_old + Aimp_old)
@@ -820,7 +829,6 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         logger.info(
             f'[TIMING] Old L, M, D, N matrices computed in {time.time() - t0:.1f}s'
         )
-        old_base_year = 2023
 
     t0 = time.time()
     D_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
@@ -833,7 +841,10 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         new_base_year=new_base_year,
         old_base_year=old_base_year,
     )
-    logger.info(f'[TIMING] Inflation adjustment completed in {time.time() - t0:.1f}s')
+    logger.info(
+        f'[TIMING] Inflation adjustment ({old_base_year}→{new_base_year} $) '
+        f'completed in {time.time() - t0:.1f}s'
+    )
 
     n_new_purchaser: pd.DataFrame | None = None
     n_old_purchaser: pd.DataFrame | None = None
