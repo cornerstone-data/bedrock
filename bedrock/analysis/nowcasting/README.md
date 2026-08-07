@@ -81,6 +81,11 @@ local run.
   Step 2, splitting `V00100` from NIPA's ~74 industries to BEA 2017 detail:
   wages and supplements separately, QCEW payroll as the movement series, and
   the sectors where QCEW does not work.
+- [`margins_estimation_plan.md`](margins_estimation_plan.md) — Step 4c, the
+  transaction-level Margins table and the Supply `TRADE`/`TRANS` columns: BEA's
+  own method from the 2009 IO manual chapter 8 checked against the 2017 tables,
+  what of it is reproducible, and where the sources already exist (flowsa
+  `margins` branch, stateior FAF).
 - [`progress_report.md`](progress_report.md) — where the build stands, with the
   figures embedded. Regenerated per milestone; its images are the one tracked
   thing under `images/`.
