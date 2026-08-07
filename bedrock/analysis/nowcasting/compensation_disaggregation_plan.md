@@ -268,6 +268,72 @@ of a broad allocation problem — `531HSO` has zero compensation and is almost
 entirely operating surplus. Getting the housing pair right is worth more than a
 sophisticated method applied to the long tail.
 
+### NIPA already publishes the housing sector's value added, decomposed
+
+**`T70405` (Table 7.4.5, *Housing Sector Output, Gross Value Added, and Net
+Value Added*)** is the table this needs. It gives the housing sector's entire
+value-added decomposition, and it splits gross value added owner vs tenant:
+
+| | code | $M |
+|---|---|---:|
+| Gross housing value added | `A2009C` | 1,734,026 |
+| — owner-occupied, nonfarm | `B1300C` | 1,322,323 |
+| — tenant-occupied, nonfarm | `B1301C` | 393,481 |
+| — farm housing | `B1302C` | 18,222 |
+| Compensation of employees | `B1033C` | 18,921 |
+| Taxes on production and imports | `B1031C` | 254,103 |
+| Less: subsidies | `W154RC` | 38,212 |
+| **Net interest** | `B1037C` | **332,634** |
+| **Rental income of persons** | `B1035C` | **612,969** |
+| Proprietors' income | `B1034C` | 72,560 |
+| Corporate profits | `B1036C` | 9,557 |
+| Current surplus of govt enterprises | `W153RC` | −21,353 |
+
+**It ties to the SUT.** Housing compensation is 18,921 against the SUT's
+`531HST` `V00100` of **18,920** — and `531HSO` is zero, so the housing sector's
+entire wage bill sits in one detail code and the two agree to a million. That
+is strong evidence T7.4.5's housing sector is the `531HSO`+`531HST` pair.
+
+Implied housing gross operating surplus — gross value added less compensation
+less taxes-net-of-subsidies — is 1,499,214 against the SUT pair's 1,541,039,
+**2.71% apart**. The residual is mostly farm dwellings, which T7.4.5 includes
+and the SUT books to the farm sectors. Worth resolving before use, but the
+right order of magnitude to trust.
+
+**It answers the two concentrated lines directly:**
+
+| | housing, T7.4.5 | economy-wide | housing share |
+|---|---:|---:|---:|
+| Net interest | 332,634 | 720,494 | **46.2%** |
+| Rental income of persons | 612,969 | 642,028 | **95.5%** |
+
+Rental income is a housing line with a rounding error attached. Net interest is
+nearly half housing — and of the 460,161 that `T61500D` puts in real estate,
+housing is 332,634, so **72% of the real-estate net interest is housing**.
+
+### And the owner/tenant split of interest is published too
+
+**`T71100` (Table 7.11, *Interest Paid and Received by Sector and Legal Form of
+Organization*)** carries owner-occupied housing as its own line:
+
+- `W318RC` owner-occupied housing — **272,372**
+- `W498RC` monetary interest paid, owner-occupied housing — 334,815
+- `W307RC` imputed, owner-occupied housing — −61,070
+
+Against T7.4.5's housing net interest of 332,634, that leaves roughly **60,000
+for tenant-occupied** — consistent with owner-occupied carrying most of the
+mortgage debt while being 77% of nonfarm housing gross value added.
+
+So the housing pair does not need an allocator at all. Both concentrated `V00300`
+lines are published for the sector, and the owner/tenant split is available
+either directly (`T71100` for interest) or via the gross value added shares
+(`B1300C`/`B1301C`) for the rest. **This turns the largest single piece of the
+`V00300` problem into a lookup.**
+
+`HzRfMortInt` also exists — mortgage interest paid on owner- and tenant-occupied
+residential housing, 413,554 — but it is a combined figure despite the title,
+so `T71100` is the better source for the split.
+
 ### Allocator sketches, per component
 
 - **Consumption of fixed capital** — the natural allocator is **capital stock by
@@ -282,11 +348,13 @@ sophisticated method applied to the long tail.
   would pay. Census **Nonemployer Statistics** gives receipts by NAICS and is
   the obvious candidate; not in bedrock. `USDA_ERS_FIWS` covers the farm part
   already.
-- **Net interest** — concentrated enough that the real-estate line deserves
-  explicit handling and the remainder can ride a coarse share. The negative
-  finance line must survive; a share method that assumes positivity will break.
-- **Rental income** — route the housing leaves straight to `531HSO`/`531HST`
-  rather than allocating. This is close to a lookup.
+- **Net interest** — take the housing portion from `T70405` `B1037C` (332,634)
+  and split it owner/tenant with `T71100` `W318RC`, leaving 388 thousand to ride
+  a coarse share across everything else. The negative finance line must survive;
+  a share method that assumes positivity will break.
+- **Rental income** — take the housing portion from `T70405` `B1035C` (612,969,
+  95.5% of the line) and route it to `531HSO`/`531HST`. A lookup, not an
+  allocation.
 - **Statistical discrepancy** — pro rata, flagged as an artefact rather than a
   measurement.
 
@@ -357,3 +425,6 @@ output, that shared dependency is a better reason to build the extractor than
 8. **Which axis is primary for product taxes and subsidies — commodity or
    industry?** A cross-step decision between Step 2 and Step 4, and the one
    question here that cannot be answered inside this plan alone.
+9. **The 2.71% gap between `T70405`'s implied housing operating surplus and the
+   SUT's `531HSO`+`531HST`** — mostly farm dwellings, which T7.4.5 includes and
+   the SUT books to the farm sectors. Resolve before relying on the table.
