@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = "==3.11.*"
 
 [[package]]
@@ -2366,8 +2366,8 @@ wheels = [
 
 [[package]]
 name = "stewi"
-version = "1.2.1"
-source = { git = "https://github.com/cornerstone-data/standardizedinventories.git#bbb8147c0de1fb5531027dce9f67d97bec755f06" }
+version = "1.2.2"
+source = { git = "https://github.com/cornerstone-data/standardizedinventories.git#eb27446893fa503961f80fdb62e2a44621421c30" }
 dependencies = [
     { name = "esupy" },
     { name = "numpy" },
