@@ -300,7 +300,7 @@ Ranked by how much they block:
 ## Trade data — source settled, structure still to earn
 
 Settled in [#557](https://github.com/cornerstone-data/bedrock/pull/557) (analysis lands in
-`bedrock/analysis/trade_data/`, closing [#527](https://github.com/cornerstone-data/bedrock/issues/527);
+`bedrock/analysis/nowcasting/trade_data/`, closing [#527](https://github.com/cornerstone-data/bedrock/issues/527);
 implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528)). This one decision
 feeds `F04000`, Supply `MCIF`, and Step 6c's import matrix.
 
