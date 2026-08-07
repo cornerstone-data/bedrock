@@ -1,0 +1,50 @@
+# Cornerstone 2024 national GHG FBS inheriting GHG_national_Cornerstone_2024.
+# electric_power emissions come from stewi eGRID (plant-level) instead of
+# UMD_GHGIA_T_2_S1 / UMD_GHGIA_T_3_7 electric_power activity sets.
+
+!include:GHG_national_Cornerstone_2024.yaml
+  industry_spec:
+    !include:Cornerstone_2025_target.yaml:industry_spec
+      NAICS_6:
+        !include:Cornerstone_2025_target.yaml:industry_spec:NAICS_6
+        - '221111'
+        - '221112'
+        - '221113'
+        - '221114'
+        - '221115'
+        - '221116'
+        - '221117'
+        - '221118'
+        - '221121'
+        - '221122'
+  source_names: !include:GHG_national_Cornerstone_2024.yaml:source_names
+    UMD_GHGIA_T_2_S1:
+      !include:GHG_national_Cornerstone_2024.yaml:source_names:UMD_GHGIA_T_2_S1
+      activity_sets:
+        !include:GHG_national_Cornerstone_2024.yaml:source_names:UMD_GHGIA_T_2_S1:activity_sets
+        electric_power:
+          selection_fields:
+            PrimaryActivity: __handled_by_EPA_eGRID__
+          attribution_method: direct
+
+    UMD_GHGIA_T_3_7:
+      !include:GHG_national_Cornerstone_2024.yaml:source_names:UMD_GHGIA_T_3_7
+      activity_sets:
+        !include:GHG_national_Cornerstone_2024.yaml:source_names:UMD_GHGIA_T_3_7:activity_sets
+        electric_power:
+          selection_fields:
+            PrimaryActivity: __handled_by_EPA_eGRID__
+          attribution_method: direct
+
+    EPA_eGRID_electric:
+      data_format: FBS_outside_flowsa
+      activity_schema: NAICS_2017_Code
+      activity_to_sector_mapping: EPA_eGRID
+      FBS_datapull_fxn: !script_function:stewiFBS egrid_to_sector
+      inventory_dict:
+        eGRID: 2024
+      year: 2024
+      include_flow_names:
+        - Carbon dioxide
+        - Methane
+        - Nitrous oxide
