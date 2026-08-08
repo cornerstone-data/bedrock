@@ -34,6 +34,14 @@ Measured on the 2017 table:
 | **Retail** | **1,933 (3.4%)** | 188 | **87.5%** | **0.364** | **0.164** |
 | Transportation | 12,252 (21.6%) | 257 | 20.4% | 0.020 | 0.039 |
 
+Two notes on reading that table, both settled by Phase 1. The rate columns are
+**margin ÷ purchasers' value** — a share of what the buyer pays, not the
+cascading rate BEA computes and the build carries. And the counts are off the
+*after*-redefinitions table; the anchor is now the **before**-redefinitions one
+(§Phase 1), where the same counts are 17,419 / 2,106 / 12,516 transactions over
+254 / 188 / 258 commodities. The structure the table describes is unchanged
+either way.
+
 Three consequences:
 
 - **The buyer dimension is essentially a retail phenomenon.** Retail's PCE rate
@@ -193,9 +201,15 @@ each commodity, on BEA's own cascading bases:
 | Wholesale / (Producers' + Transport) | 249 | **0.238** | 0 (0%) |
 | Retail / (Producers' + Transport + Wholesale) | 56 | **0.696** | 0 (0%) |
 
-Zero commodities are uniform. The reason is that BEA's "item" is **finer than
-the published commodity**, so several item rates mix inside every published
-commodity, and the item level is not recoverable from published data.
+Rebuilt in Phase 1 on the before-redefinitions anchor, over every commodity with
+more than one rate-bearing transaction: wholesale **0.218** over 253 commodities
+with **none** under 0.01, retail **0.776** over 131 with **one**, transportation
+**0.226** over 257 with **three**. Four commodities out of 641 are effectively
+uniform, which does not support a per-commodity rate anywhere else.
+
+The reason is that BEA's "item" is **finer than the published commodity**, so
+several item rates mix inside every published commodity, and the item level is
+not recoverable from published data.
 
 **Therefore: carry rates per (buyer, commodity, margin type) as
 [#571](https://github.com/cornerstone-data/bedrock/issues/571) already
@@ -256,17 +270,15 @@ the same shape as [`compensation_disaggregation_plan.md`](compensation_disaggreg
 
 | phase | issue | depends on |
 |---|---|---|
-| 1 | [#610](https://github.com/cornerstone-data/bedrock/issues/610) 2017 rates and receiving sets | **nothing — start here** |
+| 1 | ✅ [#610](https://github.com/cornerstone-data/bedrock/issues/610) 2017 rates and receiving sets — **built**, §Phase 1 below | — |
 | 2 | [#611](https://github.com/cornerstone-data/bedrock/issues/611) port the FAF transport chain | #601 (merged) |
 | 3 | [#612](https://github.com/cornerstone-data/bedrock/issues/612) AWTS/ARTS annual trade levels | — |
-| 4 | [#613](https://github.com/cornerstone-data/bedrock/issues/613) apply and derive `TRADE`/`TRANS` | #610–#612, **#570 (4a), #579 (4b)** |
+| 4 | [#613](https://github.com/cornerstone-data/bedrock/issues/613) apply and derive `TRADE`/`TRANS` | #610–#612, **#570 (4a), #579 (4b), #580 (4d)** |
 | 5 | [#614](https://github.com/cornerstone-data/bedrock/issues/614) validate per commodity | #613 |
 | — | [#615](https://github.com/cornerstone-data/bedrock/issues/615) re-run BEA's product-line method | **deferred, candidate for a Phase 3 of the project** |
 
-**Phase 1 — 2017 rates and the receiving sets.** Depends on nothing; start here.
-Derive per-(buyer, commodity, margin type) rates on BEA's cascading bases, and
-the three receiving sets from non-zero values. Prove both identities reproduce
-the published Supply columns commodity by commodity.
+**Phase 1 — 2017 rates and the receiving sets.** Built; see §Phase 1 below for
+what it produced and what it settled.
 
 **Phase 2 — port the transport chain.** flowsa `margins` `BTS_FAF` +
 `Transport_Margins_2017.yaml`. Extend `Crosswalk_SCTGtoBEA.csv` to 2017 detail.
@@ -285,11 +297,15 @@ the 2022 `ecnnapcsprd` vintage, and build the one missing NAPCS → I-O commodit
 concordance. **Do Phase 1 first and see whether that is needed** — it is a large
 piece of work whose output the 2017 Margins file already approximates.
 
-**Phase 4 — apply.** Rates from Phase 1 onto nowcast `T013`, levels controlled
-to Phases 2–3. **`T013` = `T007` + `MCIF` + `MADJ`, so this needs 4a *and* 4b.**
-Applying rates to `T007` alone is the tempting shortcut and drops the margin on
-imports — three independent statements confirm the base: Jolliff's "column OR",
-the wholesale method's "interim supply", and the transport method's table 8.2.
+**Phase 4 — apply.** Rates from Phase 1 onto the nowcast base, levels controlled
+to Phases 2–3. **The base needs 4a, 4b *and* 4d** — it is producer value less
+the trade-level tax, `T013 + MDTY + SUB + producer-level TOP`, measured in
+§Phase 1 against the published column at −0.003%. Two shortcuts to avoid, in
+opposite directions: applying rates to `T007` alone drops the margin on imports
+(three independent statements confirm imports are in the base — Jolliff's
+"column OR", the wholesale method's "interim supply", and the transport method's
+table 8.2), while applying them to full producer value double-counts the
+trade-level tax already inside the rates.
 
 **Phase 5 — validate per commodity, never in aggregate.** `T014` nets to **1**
 against **7,361,003** of gross mass, so a totals check passes on *anything*. Use
@@ -301,6 +317,211 @@ Budget the effort on the **positive side**: the −3.68T negative side is 24
 commodities giving up nearly all their own output (19 trade at 96.8%, eight
 retail sectors at exactly −100%; 5 transport at 56.8%), which 4a produces
 anyway. The work is allocating across the 255 receiving commodities.
+
+## Phase 1 — built
+
+[`bedrock/transform/iot/nowcast_margins.py`](../../transform/iot/nowcast_margins.py)
+carries the structure;
+[`margins_2017_baseline.py`](margins_2017_baseline.py) is the proof against the
+published Supply columns, commodity by commodity, and `--check` fails if a count
+regresses.
+
+**Settled: the anchor is the *before*-redefinitions Margins table.** It matches
+the MUT before-redefinitions tables and therefore the SUT — everything upstream
+of Step 7 stays before redefinitions — and the published Supply table it
+aggregates against is a before-redefinitions construct too.
+
+Measured both ways, the after-redefinitions table closes the **trade identity**
+— `Σ_buyers (Wholesale + Retail) = TRADE + TOP`, §The object — for 226 of the
+255 commodities with positive `TRADE`, against 236. **That gap is redefinition, not framework**
+— the SUT/MUT difference is what the `+ TOP` term handles, and it applies to
+both redefinition states equally. Redefinition moves 6,007 million of trade
+margin gross across 111 commodities, −5,879 net, and **`333914` pump and pumping
+equipment is 4,139 of it on its own**: it is redefined out of the
+after-redefinitions Margins table entirely, as a buyer and as a commodity, while
+the before-redefinitions Supply table still carries `TRADE` = 3,965 for it. The
+rest are small proportional shifts — the largest, `326190`, is 654 on 41,158 —
+that push commodities across the 1% line. So the two tables do not disagree
+about margins; they are indexed on different commodity content, and pairing
+either one with the Supply table of the other state asks them to reconcile
+anyway.
+
+Note `derive_PRO_to_PUR_ratio` reaches for the after-redefinitions table via
+`USAConfig`; these are different objects for different purposes.
+
+**What it produces**, all keyed on the published `(buyer, commodity)` index:
+
+| | transactions | commodities | buyers | margin, $M | carried as a rate | as a level |
+|---|---:|---:|---:|---:|---:|---:|
+| Wholesale | 17,419 (30.6%) | 254 | 413 | 1,894,329 | 17,168 | 251 |
+| Retail | 2,106 (3.7%) | 188 | 336 | 1,761,765 | 2,098 | 8 |
+| Transportation | 12,516 (22.0%) | 258 | 413 | 414,559 | 12,286 | 230 |
+
+Rates are per (buyer, commodity, margin type) on BEA's cascading bases, and the
+table carries a `base_share` and a `margin_share` alongside each — a nowcast
+base arrives per commodity (`T013`) and has to be split across that commodity's
+receiving transactions before a per-transaction rate can be applied, so keeping
+both splits is what lets #613 use this without going back to the published
+table.
+
+**Two treatments, not one.** 489 of the (transaction × margin type) entries
+carry a *level* instead of a rate: 470 `F03000` inventory entries (§Negative
+margins below), and 19 across 13 transactions whose cascading base is zero or
+negative — seven retail cells of exactly 1 million over a zero base, and six
+over a negative one, of which `F02E00` buying `S00402` is essentially all the
+value. A margin over a change-in-inventories base is a timing correction, not a
+rate, and a rate over a negative base is not a number.
+
+### Both identities, per commodity
+
+| identity | population | commodities | holds within 1% | derived, $M | published, $M | net |
+|---|---|---:|---:|---:|---:|---:|
+| trade | `TRADE` > 0 | 255 | **236** | 3,656,094 | 3,697,260 | −1.11% |
+| trade | all | 402 | 279 | | | |
+| transport | `TRANS` > 0 | 258 | **180** | 414,559 | 415,580 | −0.25% |
+| transport | all | 402 | 319 | | | |
+
+⚠️ The two rows per identity are the same check on different populations, and
+the difference is not small: 144 commodities bear no transportation margin on
+either side and hold trivially, which is what turns 180 of 258 into 319 of 402.
+Quote the positive population.
+
+### Every residual, accounted for
+
+**The 19 trade misses are the excise and severance goods, in order** — tobacco
+−18%, oil and gas −33%, distilleries −12%, motion picture −35%, breweries −6%,
+coal −57%, wineries −2%. Each misses by exactly its producer-level tax, which is
+the decomposition above seen from the other end: the identity's tax term
+corrects for *trade-level* tax, sitting inside Wholesale and Retail, while
+excise sits in `Producers' Value` and never enters the left-hand side.
+Producer-level tax is **9.6% of `TOP`** over the 203 margin-bearing commodities
+with `TOP` > 100 million.
+
+**The 78 transport misses are publication rounding, not method.** BEA publishes
+the Margins table to the million and the smallest non-zero transportation cell
+in it is exactly 1 million, so every cell that would round below half a million
+is published as zero and drops out of the commodity sum. The shortfall is
+therefore one-sided — 195 of 258 commodities short against 22 over — and scales
+with how thinly the margin is spread:
+
+| median published cell | commodities | holds | median relative difference |
+|---|---:|---:|---:|
+| ≤ 1M | 21 | 3 | −3.0% |
+| 1–2M | 60 | 23 | −1.3% |
+| 2–5M | 86 | 67 | −0.3% |
+| 5–20M | 72 | 69 | −0.1% |
+| > 20M | 19 | 18 | −0.02% |
+
+The misses carry 7.6% of `TRANS`. Nothing to fix: a nowcast built from these
+rates inherits the same rounding, and the alternative is inventing cells BEA
+suppressed.
+
+**The supplying side is in the Margins table after all** — this changes the
+Phase 4 scoping. The 24 commodities with a negative Supply margin column were
+written off above as "close to a function of trade/transport output, which 4a
+produces anyway". They do not need 4a: the published `Purchasers' Value` is
+**not** the sum of the four components on a trade or transport commodity's own
+rows. PCE buys 254 billion of `441000` motor vehicle dealers at producers' value
+and **zero** at purchasers' value, because that margin has been moved onto the
+goods. `Σ_b (Producers' + Transportation + Wholesale + Retail − Purchasers')`
+per commodity lands entirely on those 24, and:
+
+- against `−TRANS` it is a **direct read** — all five transport commodities
+  within 0.2%, 20 million out of 415,570;
+- against `−TRADE` it runs 1.0× to 2.2× high, and the excess is the trade-level
+  tax the receiving side is short by. The two sides measure that tax
+  independently to within 0.3% — 391,761 million here against 391,162 million by
+  which `Σ(Wholesale + Retail)` exceeds `TRADE` on the receiving side, 12.0% of
+  positive `TRADE`. Petroleum wholesalers are the extreme at 2.2×, exactly as
+  the motor-fuel-tax finding predicts.
+
+⚠️ The same fact is a trap for Step 6b: **do not reconstruct `Purchasers' Value`
+by summing the components** — on 14,655 rows the published table does not, and
+the difference is the whole 4.07 trillion of margin.
+
+### What the rates apply to — and why 4d comes first
+
+The cascade starts from `Producers' Value`, so "what is the nowcast base" is a
+question about *valuation*, and it has a measurable answer. Summing the Margins
+table over buyers per commodity — **excluding `F05000`**, which carries
+−2,626,305 of producers' value, no margin at all, and is a MUT-only negative
+column — gives 37,093,944 against a derived producer value (`T013` + `T015`) of
+37,094,432: **−0.0013%**. Basic `T013` is 36,398,867, off by 695,565. The
+Margins table is a **producer**-value object, not a basic-value one.
+
+Per commodity it is producer value **less the trade-level tax**, because that
+tax is booked inside the margin columns of the commodity receiving the margin
+and inside the `Producers' Value` of the trade commodity that collected it —
+`424700` petroleum wholesalers carry 161,945 of producers' value against a
+`T013` of 72,970. So the base a nowcast has to rebuild is:
+
+```
+base[c] = T013[c] + MDTY[c] + SUB[c] + producer_level_tax[c]
+```
+
+(`SUB` is stored negative in the Supply table, so it subtracts; a negative
+producer-level residual is treated as zero.) Scored against the published
+`Σ_buyers Producers' Value` over the 378 margin-receiving commodities:
+
+| candidate base | within 1% | within 0.1% | net |
+|---|---:|---:|---:|
+| `T013` basic | 293 / 378 | 164 | +0.88% |
+| full producer, `T013 + T015` | 201 / 378 | 125 | −1.19% |
+| **producer less trade-level tax** | **377 / 378** | **364** | **−0.003%** |
+
+**So the tax columns are a hard prerequisite of Phase 4, and only part of `TOP`
+belongs in the base.** Adding all of `TOP` double-counts the trade-level share,
+which is already inside the rates' numerators: 19% too high on petroleum
+refineries, 36% on tobacco. The split that says how much to add is the
+producer-level decomposition Phase 1 produced, which is the third use that
+decomposition has now earned.
+
+| the excise commodities, $M | published `Σ PV` | basic | full producer | the rule |
+|---|---:|---:|---:|---:|
+| Petroleum refineries | 530,433 | 530,094 | 629,277 | 530,435 |
+| Tobacco manufacturing | 62,153 | 48,809 | 84,820 | 62,154 |
+| Distilleries | 25,456 | 21,341 | 32,441 | 25,453 |
+| Oil and gas extraction | 359,408 | 351,108 | 360,281 | 359,410 |
+
+**What Phase 4 therefore depends on:**
+
+| input | from | why |
+|---|---|---|
+| `T007` domestic output, basic | 4a [#570](https://github.com/cornerstone-data/bedrock/issues/570) | `T013` |
+| `MCIF`, `MADJ` | 4b [#579](https://github.com/cornerstone-data/bedrock/issues/579) | `T013` — imported goods carry domestic margin |
+| `MDTY` | 4b [#579](https://github.com/cornerstone-data/bedrock/issues/579) | in the base directly |
+| `TOP`, `SUB` | **4d [#580](https://github.com/cornerstone-data/bedrock/issues/580)** | the producer-level slice of `TOP`, and `SUB` |
+| `F03000` by commodity | 1e [#529](https://github.com/cornerstone-data/bedrock/issues/529) | moves the 470 inventory **level** rows, which no rate covers |
+| buyer split | Phase 1's `base_share` | see below |
+
+**Not** dependencies, and worth stating because both look like they should be.
+Trade and transport commodity output is a *check* on the negative side, not an
+input — the give-up derives from the positive side. And the Use table is
+deliberately not one: distributing the commodity base across buyers uses the
+2017 `base_share` rather than a nowcast Use matrix, because getting producer
+value per Use cell is what Step 6b uses the margins *for*. Freezing the buyer
+structure at 2017 is the price of breaking that circle; if Step 3 lands first,
+the nowcast Use row is available to inform the split, but nothing here requires
+it.
+
+One limitation this makes explicit: the rate numerators contain trade-level
+sales tax, so carrying 2017 rates forward carries 2017's effective sales-tax
+rates with them. A statutory rate change in a nowcast year does not reach the
+margins except through the Phase 3 control totals.
+
+### The bound check, and one correction
+
+| ratio | commodities > 0 | above 1 | max | share of value above 1 |
+|---|---:|---:|---:|---:|
+| `TRADE` / `T013` | 255 | 21 | 16.02 | 21.1% |
+| `TRADE` / `T016` | 255 | **0** | 0.715 | — |
+| `TRANS` / `T013` | 258 | 1 | 3.25 | 5.7% |
+| `TRANS` / `T016` | 258 | **0** | 0.315 | — |
+
+The warning above was written for the trade margin; it applies to
+transportation too. `S00402` used and secondhand goods carries `TRANS`/`T013` of
+3.25 — the same mechanism, a commodity with almost no basic value of its own.
+Bound-check on `T016` for both.
 
 ## Negative margins are inventory timing — never clip them
 

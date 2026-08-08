@@ -13,6 +13,9 @@ uv run python -m bedrock.analysis.nowcasting.plots
 # one block, screen resolution
 uv run python -m bedrock.analysis.nowcasting.plots --section use_fd_detail_sut
 
+# the Step 4c margin anchor against the published Supply columns
+uv run python -m bedrock.analysis.nowcasting.margins_2017_baseline --check
+
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir <report images dir> --no-report
@@ -54,6 +57,12 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   published 2017 detail Use table and against the PCE/PEQ bridges. Writes the
   cell-wise CSV exports in `output/` that `sections.py` reads as the Step 1
   candidate.
+- `margins_2017_baseline.py` — the Step 4c phase-1 check ([#610](https://github.com/cornerstone-data/bedrock/issues/610)):
+  aggregates [`transform/iot/nowcast_margins.py`](../../transform/iot/nowcast_margins.py)'s
+  transaction-level rates back to the published Supply table's `TRADE`/`TRANS`
+  columns, commodity by commodity, and reports what each residual is. `--check`
+  exits non-zero if a count regresses. Writes the per-commodity comparison and
+  the rate table to `output/`.
 - [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
   trade columns (#527): three 2017 probes scoring a Census goods + BEA services
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
