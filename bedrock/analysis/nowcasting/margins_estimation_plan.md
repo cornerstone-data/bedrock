@@ -121,21 +121,41 @@ plan, and it makes the weak cross-sectional fit irrelevant rather than
 blocking:
 
 ```
-margin_2017[c,m]  biproportional fit, seeded on FAF ton-miles, to the two
-                  published margins: Σ_m = TRANS[c] per commodity, Σ_c = the
-                  mode's own negative TRANS (truck -281,589, rail -68,590,
-                  water -9,506, air -6,225, pipeline -49,660)
-rate[c,m]       = margin_2017[c,m] ÷ ton-miles_2017[c,m]
-TRANS_year[c]   = Σ_m rate[c,m] × ton-miles_year[c,m], controlled to the annual
-                  total
+rate[c]       = TRANS_2017[c] ÷ ton-miles_2017[c]
+TRANS_year[c] = rate[c] × ton-miles_year[c], controlled to the annual total
 ```
 
-The fit is exact in 2017 by construction, so BEA's own commodity allocation is
-inherited rather than approximated, and the commodity-specific cost structure a
-volume weighting discards is retained in `rate[c,m]`. FAF is then used only for
-what it is good at — annual movement. The seed is known at 42 SCTG groups
-against 258 commodities, so within an SCTG every commodity is assumed to share
-the same mode mix; that is the one assumption the construction adds.
+**And it reduces further than it looks.** Ton-miles are published per SCTG, not
+per commodity, so `ton-miles[c] = share[c] × ton-miles[sctg(c)]`. Hold `share[c]`
+constant — there is no annual source that would move it — and it cancels:
+
+```
+TRANS_year[c] = TRANS_2017[c] × ton-miles_year[sctg] ÷ ton-miles_2017[sctg]
+```
+
+So the whole construction is **each commodity's published 2017 `TRANS`, moved by
+the ton-mile growth of its SCTG group, controlled to the annual total**. Exact in
+2017 by construction, so BEA's own commodity allocation is inherited rather than
+approximated, and the commodity cost structure a volume weighting discards is
+kept — furniture stays eight times dearer per ton-mile than coal because the
+2017 table says so, not because a model inferred it.
+
+Three things that follow, all of which shrink the work:
+
+- **No balancing step.** An earlier draft fitted `margin_2017[c,m]` per commodity
+  *and mode* biproportionally, which needs a RAS. The mode dimension never
+  appears in the output — only in the derivation — so it can go. The transport
+  column is an **input to** Step 5's RAS, not a product of one, and the choice of
+  RAS implementation reverts to [#588](https://github.com/cornerstone-data/bedrock/issues/588)
+  where it belongs.
+- **No SCTG → commodity allocation, and so no 4a/4b dependency here.** Fixed
+  within-SCTG shares cancel, so the interim-supply weighting BEA uses to split a
+  product line across commodities is not needed for *this* column. It is still
+  needed for the trade margins.
+- **What is given up is modal-shift sensitivity.** A per-commodity rate cannot
+  see freight moving from rail to truck, which raises cost per ton-mile. That is
+  second order, and the mode-level form is the natural refinement to revisit once
+  a balancer exists — the derivation is recorded above for that reason.
 
 ### Wholesale
 
@@ -350,10 +370,12 @@ re-keyed on the names FAF publishes.
 ✅ **Settled.** Ton-miles over tons, FAF over CFS, and the anchor-and-move
 construction rather than direct allocation — §Transportation.
 
-❌ **Remaining.** The biproportional fit of `margin_2017[c,m]` and the
-`rate[c,m]` it yields; the annual control totals; and the FBS method itself.
-`Crosswalk_SCTGtoBEA.csv` no longer needs extending — the ported crosswalk
-covers all 258 `TRANS`-receiving commodities.
+❌ **Remaining**, and less than the issue scoped. Per-SCTG ton-mile growth
+factors from the FBA, applied to the published 2017 `TRANS` per commodity; the
+annual control total; and the FBS method that gets ton-miles from the FBA to
+commodity groups. No balancing step, no interim-supply split, no
+`Crosswalk_SCTGtoBEA.csv` extension — the ported crosswalk already covers all
+258 `TRANS`-receiving commodities.
 ⚠️ The FBS method uses `attribute_on: [Flowable, PrimarySector]`, which needs the
 `retain_activity_columns` plumbing restored in
 [#601](https://github.com/cornerstone-data/bedrock/pull/601) — it will raise
@@ -636,8 +658,9 @@ Three consequences:
    fit** (§Transportation): ton-miles, by a wide margin over tons, and FAF over
    the CFS public use file, which has zero coverage of the largest `TRANS`
    commodity. But neither measure *predicts* the margin, so ton-miles moves the
-   2017 allocation forward rather than generating it — the rate is fitted on the
-   benchmark and carried, as everywhere else in this plan.
+   2017 allocation forward rather than generating it: each commodity's published
+   2017 `TRANS` grows with its SCTG group's ton-miles, controlled to the annual
+   total. No balancing step and no interim-supply split are involved.
 2. ~~**Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail**~~ — **moot.**
    That was the stateior route; the flowsa crosswalk ported in Phase 2 already
    carried a BEA 2017 detail code on every SCTG row, and with two stale codes
