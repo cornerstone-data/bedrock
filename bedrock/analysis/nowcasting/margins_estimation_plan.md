@@ -79,9 +79,63 @@ inverting that would swap coal and pharmaceuticals.
 
 **Reproducible, and improvable.** Use **FAF** rather than CFS: it is modelled to
 annual years where CFS is quinquennial, and it publishes **ton-miles**, a better
-freight-cost proxy than tons since cost scales with distance. Test tons vs
-ton-miles against the 2017 rates and keep the better fit — the 49%-to-0.04%
-spread makes that a sharp test.
+freight-cost proxy than tons since cost scales with distance.
+
+⚠️ **But volume does not predict the margin, and the fit test settles it against
+the method rather than for it.** Measured on 2017, allocating each mode's margin
+across commodities on that mode's share of the measure — BEA's own construction
+— and scored against the published `TRANS` at SCTG level:
+
+| source | measure | pearson | total abs share error |
+|---|---|---:|---:|
+| **FAF** | **ton-miles** | **0.370** | **68.2pp** |
+| FAF | value | 0.310 | 69.3pp |
+| FAF | tons | 0.099 | 92.9pp |
+| CFS PUF | ton-miles | 0.099 | 79.9pp |
+| CFS PUF | value | 0.122 | 76.7pp |
+| CFS PUF | tons | 0.011 | 99.8pp |
+
+Three findings, in order of how much they change the build:
+
+**Ton-miles beats tons decisively, so the manual's assumption is the weaker
+one.** Constant revenue per ton is a line-haul assumption, and `TRANS` is the
+delivered margin. The residuals say so plainly: weight-based allocation
+over-pays bulk (coal 35,609 predicted against 13,432 published, cereal grains
+34,666 against 13,604) and starves light high-value goods (furniture 2,502
+against 21,035, machinery 4,810 against 19,931, electronics 4,325 against
+16,049). Furniture really does cost roughly eight times more per ton-mile to
+deliver than coal.
+
+**The CFS public use file is disqualified on scope, not on measure.** It carries
+2,979 of FAF's 5,436 billion ton-miles, and the missing 45% is not spread
+evenly: **crude petroleum, the single largest `TRANS` commodity at 47,613, has
+zero CFS coverage**, live animals 8%, cereal grains 51%. CFS excludes farms,
+fisheries, most construction and the domestic legs of imports — which is exactly
+what FAF adds back. (This rules out the PUF for *our* use. BEA works from the
+confidential CFS microdata with its own adjustments, so it says nothing about
+BEA's method.)
+
+**So do not allocate margin *by* ton-miles — use ton-miles to *move* the 2017
+allocation.** This is the same anchor-and-move shape as everything else in this
+plan, and it makes the weak cross-sectional fit irrelevant rather than
+blocking:
+
+```
+margin_2017[c,m]  biproportional fit, seeded on FAF ton-miles, to the two
+                  published margins: Σ_m = TRANS[c] per commodity, Σ_c = the
+                  mode's own negative TRANS (truck -281,589, rail -68,590,
+                  water -9,506, air -6,225, pipeline -49,660)
+rate[c,m]       = margin_2017[c,m] ÷ ton-miles_2017[c,m]
+TRANS_year[c]   = Σ_m rate[c,m] × ton-miles_year[c,m], controlled to the annual
+                  total
+```
+
+The fit is exact in 2017 by construction, so BEA's own commodity allocation is
+inherited rather than approximated, and the commodity-specific cost structure a
+volume weighting discards is retained in `rate[c,m]`. FAF is then used only for
+what it is good at — annual movement. The seed is known at 42 SCTG groups
+against 258 commodities, so within an SCTG every commodity is assumed to share
+the same mode mix; that is the one assumption the construction adds.
 
 ### Wholesale
 
@@ -220,9 +274,11 @@ variation, and it cannot be justified from the source method.
 
 | Piece | Where | State |
 |---|---|---|
-| `BTS_FAF` extractor + `Transport_Margins_2017.yaml` | flowsa **`margins`** branch | Built. Already selects `Unit: ton-miles` and redistributes the non-primary modes proportionally |
-| `NAICS_Crosswalk_FAF_Mode_and_SCTG.csv` | flowsa `margins` | Built |
-| `Crosswalk_SCTGtoBEA.csv`, mode→BEA crosswalks, `FAFData.R` | `cornerstone-data/stateior` | Built, **R**, and SCTG maps to **BEA 2012 detail** — no 2017 detail column |
+| `BTS_FAF` extractor | **bedrock** `extract/bts/` | ✅ **Ported** (FAF5.7.1, 2017-2024). Emits tons, ton-miles and value |
+| `Transport_Margins_2017.yaml` | flowsa **`margins`** branch | Not yet ported. Selects `Unit: ton-miles` and redistributes the non-primary modes proportionally |
+| `NAICS_Crosswalk_FAF_Mode_and_SCTG.csv` | **bedrock** `utils/mapping/` | ✅ **Ported**, two stale BEA codes fixed, re-keyed on FAF's published names |
+| `Crosswalk_SCTGtoBEA.csv`, mode→BEA crosswalks, `FAFData.R` | `cornerstone-data/stateior` | **Not needed** — the flowsa crosswalk already reaches 2017 detail. Its air mode code is also wrong (`48100`, five digits) |
+| CFS 2017 public use file | Census | **Ruled out** — 55% of FAF's ton-miles and *zero* coverage of crude petroleum, the largest `TRANS` commodity |
 | `Gross_Margins_2017.yaml` (Census AWTS + ARTS) | flowsa `margins` | Built. Annual **2012–2022**. Gives margin **by trade sector** |
 | PCE / PEQ bridges | bedrock, `BEA_PCEBridge` | Same margin columns as the Margins table, but **benchmark years only** — workbook sheets are 2007, 2012, 2017 |
 | `Census_EC_PxI` — Economic Census, Products by Industry | flowsa `margins` | Built, **2017**. This *is* BEA's product-line-by-KB input |
@@ -280,13 +336,29 @@ the same shape as [`compensation_disaggregation_plan.md`](compensation_disaggreg
 **Phase 1 — 2017 rates and the receiving sets.** Built; see §Phase 1 below for
 what it produced and what it settled.
 
-**Phase 2 — port the transport chain.** flowsa `margins` `BTS_FAF` +
-`Transport_Margins_2017.yaml`. Extend `Crosswalk_SCTGtoBEA.csv` to 2017 detail.
-Decide tons vs ton-miles on the 2017 fit.
-⚠️ The method uses `attribute_on: [Flowable, PrimarySector]`, which needs the
+**Phase 2 — port the transport chain.** In progress on `faf_transport_margins`.
+
+✅ **Done.** `BTS_FAF` is ported (FAF5.7.1, the 2017-base version, 2017-2024 in
+one archive) with two departures from the flowsa original: no `tabula`/PDF
+scrape, since the SCTG and mode code tables ship inside the archive as
+`FAF5_metadata.xlsx`; and **all trade types**, since FAF's `dms_*` fields already
+describe only the domestic leg, so the `trade_type == 1` filter was discarding
+20% of ton-miles concentrated in imports rather than avoiding a double count.
+The mode and SCTG crosswalk is ported with its two stale BEA codes fixed and
+re-keyed on the names FAF publishes.
+
+✅ **Settled.** Ton-miles over tons, FAF over CFS, and the anchor-and-move
+construction rather than direct allocation — §Transportation.
+
+❌ **Remaining.** The biproportional fit of `margin_2017[c,m]` and the
+`rate[c,m]` it yields; the annual control totals; and the FBS method itself.
+`Crosswalk_SCTGtoBEA.csv` no longer needs extending — the ported crosswalk
+covers all 258 `TRANS`-receiving commodities.
+⚠️ The FBS method uses `attribute_on: [Flowable, PrimarySector]`, which needs the
 `retain_activity_columns` plumbing restored in
 [#601](https://github.com/cornerstone-data/bedrock/pull/601) — it will raise
-`KeyError: ['ActivityProducedBy']` without it.
+`KeyError: ['ActivityProducedBy']` without it. #601 is merged on `nowcast` and
+present.
 
 **Phase 3 — trade levels, and optionally BEA's own allocation.** Port
 `Gross_Margins_2017.yaml` (AWTS/ARTS) as the annual wholesale and retail control
@@ -560,10 +632,20 @@ Three consequences:
 
 ## Open questions
 
-1. **Tons or ton-miles** for the transport allocation — decide on the 2017 fit.
-2. **Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail** — it currently
-   carries 2012 detail and 2017 *summary* only. This is the real porting work
-   on the transport chain, not the SCTG mapping itself.
+1. ~~**Tons or ton-miles** for the transport allocation~~ — **settled on the 2017
+   fit** (§Transportation): ton-miles, by a wide margin over tons, and FAF over
+   the CFS public use file, which has zero coverage of the largest `TRANS`
+   commodity. But neither measure *predicts* the margin, so ton-miles moves the
+   2017 allocation forward rather than generating it — the rate is fitted on the
+   benchmark and carried, as everywhere else in this plan.
+2. ~~**Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail**~~ — **moot.**
+   That was the stateior route; the flowsa crosswalk ported in Phase 2 already
+   carried a BEA 2017 detail code on every SCTG row, and with two stale codes
+   fixed it covers all 258 `TRANS`-receiving commodities and 100% of `TRANS`
+   value. Note the codes sit in a `Note` column that the mapping machinery does
+   not read — it joins on `Sector`, which is NAICS — so they become operative
+   only when [#546](https://github.com/cornerstone-data/bedrock/issues/546)
+   lands a BEA-code target schema. That is a column swap, not new work.
 3. **Build the NAPCS → I-O commodity concordance?** Only needed to re-run BEA's
    actual method on 2022 product lines rather than carry 2017-anchored rates.
    Everything upstream of it now exists; this is the sole missing link.
