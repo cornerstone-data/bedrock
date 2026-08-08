@@ -68,11 +68,23 @@ FAF_ZIP = 'FAF5.7.1_State.zip'
 _SCTG_SHEET = 'Commodity (SCTG2)'
 _MODE_SHEET = 'Mode'
 
-#: ``trade_type`` 1. Imports and exports are excluded because the margin wanted
-#: here is the domestic leg only: the foreign-port-to-domestic-port leg of an
-#: import is already inside the Supply table's ``MCIF``, so counting it again as
-#: transport margin would double it.
-_DOMESTIC_TRADE_TYPE = 1
+#: **All** trade types are kept, which is a deliberate departure from the flowsa
+#: version's ``trade_type == 1`` filter.
+#:
+#: The concern that filter answers is real - the foreign-port-to-domestic-port
+#: leg of an import is already inside the Supply table's ``MCIF``, and counting
+#: it again as transport margin would double it. But FAF does not report that
+#: leg here: on an import record the ``dms_mode``, ``dms_orig``/``dms_dest`` and
+#: ton-mile fields all describe the **domestic** portion of the move, from the
+#: entry region onward. That leg is exactly the domestic-port-to-user movement
+#: BEA counts in ``TRANS``, so dropping it discards margin-bearing freight
+#: rather than avoiding a double count.
+#:
+#: It is 20% of ton-miles, and it is not spread evenly: excluding it is what
+#: made the 2017 fit worst on precisely the import-heavy commodities. Keeping it
+#: lifts the ton-mile fit against published ``TRANS`` from 0.274 to 0.370 and
+#: cuts the share error from 75.7 to 68.2 percentage points.
+_KEEP_ALL_TRADE_TYPES = True
 
 #: Published unit -> (bedrock unit, factor). FAF reports tons in thousands, and
 #: dollars and ton-miles in millions.
@@ -170,16 +182,13 @@ def _read_faf_zip(zip_path: str, config: dict[str, Any]) -> list[pd.DataFrame]:
         with zip_file.open(data_file) as handle:
             raw = pd.read_csv(
                 handle,
-                usecols=[*keys, 'trade_type', *measures],
-                dtype={'sctg2': int, 'dms_mode': int, 'trade_type': int},
+                usecols=[*keys, *measures],
+                dtype={'sctg2': int, 'dms_mode': int},
             )
 
-    totals = (
-        raw.loc[raw['trade_type'] == _DOMESTIC_TRADE_TYPE]
-        .drop(columns='trade_type')
-        .groupby(keys, as_index=False)
-        .sum()
-    )
+    # every trade type, summed over origin-destination pairs - see
+    # _KEEP_ALL_TRADE_TYPES on why the import and export legs belong here
+    totals = raw.groupby(keys, as_index=False).sum()
 
     long = totals.melt(id_vars=keys, var_name='measure', value_name='FlowAmount')
     long['Unit'] = long['measure'].map(lambda m: measures[m][0])
