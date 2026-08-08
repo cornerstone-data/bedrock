@@ -216,7 +216,7 @@ bedrock today.
 | F02R00 | Residential private fixed investment | ✅ `FD_Structures1` |
 | F02S00 | Nonres. private fixed investment in structures | ✅ `FD_Structures2` |
 | F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — ⚠️ SLG Equipment/Structures/IP attribution bug still open |
-| F03000 | Change in private inventories | ❌ [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
+| F03000 | Change in private inventories | ⏳ **source settled, mostly already extracted** (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)) — `U50705BU1` is in the extract list and unused; not built. [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
 | F04000 | Exports | ⏳ **source settled** (§Trade data below, [#557](https://github.com/cornerstone-data/bedrock/pull/557)) — Census goods + BEA services, ITA-controlled; not built. Implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528) |
 | ~~F05000~~ | ~~Imports~~ | **Not an SUT column** — belongs to Supply (`MCIF`/`MADJ`); appears only on MUT conversion |
 
@@ -300,11 +300,14 @@ Ranked by how much they block:
    (import charges) measures the same c.i.f./f.o.b. wedge and comes free with the `MCIF` request, so
    try it before defaulting to a fixed ratio. Small in magnitude, but it sits inside the `T013`
    identity, so it can't just be dropped.
-5. **Change in inventories commodity attribution (#530)** — explicitly scoped in the issue to ship
-   NIPA-total-only first: *"We need to at least use the Change in Private Inventories NIPA totals as a
-   starting place, but further work in attributing those to commodity based on the level of
-   fabrication may have to wait."* NIPA T1.1.5 line 14 = Use `F03000` total exactly; the commodity
-   split needs ASM stage-of-fabrication + Economic Census materials-consumed data. Deferred.
+5. ~~**Change in inventories commodity attribution (#530)**~~ — **rescoped, and no longer a deferral**
+   (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)). The old text
+   here deferred it on needing "ASM stage-of-fabrication + Economic Census materials-consumed data".
+   Both statements were wrong in the same way: those sources govern **manufacturing, 2% of the
+   column**, while **wholesale + retail is 126%** of it. The stage split is already published in
+   `U50705BU1` — which bedrock already extracts and never reads — and three of BEA's four allocation
+   rules are functions of tables this project already builds. What remains is one crosswalk of ~25
+   trade industries to BEA commodities.
 6. ~~Import matrix allocation method~~ — **settled**: proportional to the commodity's use shares along
    its Use-matrix row (Step 6c). Not a data gap; it needs the Step 6b Use matrix as input, which makes
    6c strictly downstream of 6b.
@@ -442,6 +445,58 @@ extract can't hit those bars, a documented pipeline that does (extract structure
 or extract + Use residual on specials only) is an acceptable substitute — and *that* pipeline is what
 the nowcast years carry forward.
 
+## `F03000` — change in inventories, rescoped
+
+Full treatment in [`inventories_estimation_plan.md`](inventories_estimation_plan.md), from three
+emails from David Hill (BEA, National Economic Accounts, 2025-03/05), reproduced in #530's body.
+**This section replaces the previous "deferred, needs ASM and Economic Census" position.**
+
+BEA's method is four rules over three inventory types, applied to CIPI **by holding industry** — NIPA
+records *where* inventory is held, the Use column records *what* is held:
+
+| Inventory type | "What held" rule | Source |
+|---|---|---|
+| Finished goods | primary products of the reporting industry | industry commodity mix — **Step 4a** |
+| Work-in-process | same, primary to the industry | industry commodity mix — **Step 4a** |
+| M&S — merchandise trade | what the trade industry sells | trade product line — **the one gap** |
+| M&S — production materials | the industry's intermediate input mix | intermediate block — **Step 3** |
+
+**Three of the four rules are functions of tables this project already builds**, and both are
+published for 2017 — so the method is testable on the benchmark today without waiting on Step 3 or 4a.
+
+**`U50705BU1` (Table 5.7.5BU1, CIPI by Industry) is already extracted and never read.** It sits in
+[`BEA_NIPA.yaml:30`](../../extract/bea/BEA_NIPA.yaml#L30) for 2012-2024 with no consuming activity set
+in `NIPA_FD_2017.yaml`. **It also already publishes the stage-of-fabrication split** that Hill
+attributes to ASM (`C30M`/`C30W`/`C30F`, lines 29-37, each durable/nondurable) — so no ASM pull is
+needed for a first pass.
+
+**The magnitudes invert the emphasis, and this is the reason the old scoping was wrong.** 2017 nonfarm
+CIPI by holding industry: wholesale 30,329 + retail 17,930 = **48,259, i.e. 126% of the 38,353
+column**; manufacturing is **818, about 2%**. The ASM and `EC1731MATFUEL` machinery the deferral was
+waiting on governs the 2% branch. The 126% branch runs on the simplest of the four rules.
+
+**The gap is one crosswalk: ~25 `U50705BU1` trade industries → BEA detail commodities.** It is the same
+question as the NAPCS → I-O concordance in [#615](https://github.com/cornerstone-data/bedrock/issues/615)
+at coarser resolution, so ⚠️ **decide the two together** — #615 subsumes it, and if #615 stays deferred
+this is the cheap version that margins may be able to borrow. Concept-matched spot checks on the three
+largest trade lines land right: drugs wholesalers 11,287 → `325412` 7,547; petroleum wholesalers
+−5,885 → `324110` −7,387; motor vehicle dealers 14,151 → `336111`+`336112` 9,500.
+
+**Farm is a separate build, and neither half needs a new extractor.** `U50705BU1` is **nonfarm-only**
+— 2017 total 32,674 against nonfarm 38,353 implies farm ≈ −5,679, **17% of the column**, and a build
+that omits it is silently wrong. The **level** comes from NIPA (add 5.7.5B to `BEA_NIPA.yaml`; farm
+CIPI is not extracted today), never from USDA — sourcing it elsewhere breaks the exact-total identity
+that is the one free thing here. The **commodity split** comes from `USDA_ERS_FIWS`, already in
+bedrock: its `Inventory` variable splits Crops / Livestock / Purchased inputs, 1939-2025, no API key,
+and `Purchased inputs` gives farm the same M&S stage that `U50705BU1` gives manufacturing.
+⚠️ **FIWS publishes stock levels — do not difference it and call the result CIPI.** The 2016→2017
+difference is −887 against a farm CIPI of ≈ −5,679: right sign, ≈6× off, because differencing
+book-value stocks carries holding gains that CIPI excludes via the valuation adjustment. Structure
+from FIWS, level from NIPA — the same construction as §`MDTY`.
+
+⚠️ **And do not apply the M&S rule to the raw Use column**: it includes services and non-storables that
+are never held in inventory, which is why BEA cites materials-and-fuels rather than the Use column.
+
 ## Value added — fully specified on the board
 
 | Component | Code | NIPA table |
@@ -483,7 +538,12 @@ not introduce a step 10.
   §Trade data recipe (#528): vendor `Census_USATrade` + `BEA_IEA` from flowsa `imports`, map to BEA
   Detail, apply the specials/margins rule, control to ITA — and prove 2017 against the acceptance bars
   before running any nowcast year. Same vendor step serves Step 4b, so do it once.
-- 1e ❌ **F03000 inventories** — NIPA total only, per #530's own scoping.
+- 1e ❌ **F03000 inventories** — full 402-row column, per
+  [`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
+  ships one scalar where the SUT needs a column, and leaves the allocation to Step 5's RAS, which has
+  neither a seed nor a sign-safe structure for a column that runs 3× gross to net across 61 negative
+  commodities. Start by consuming `U50705BU1`, already extracted and unused, plus the farm line it
+  omits (≈ −5,679 in 2017, 17% of the total).
 - 1f ❌ Validate per-column against published NIPA aggregates (the PCE reconciliation to ~1.3% is the
   template).
 
@@ -865,7 +925,7 @@ rediscovers the same 210-code problem from scratch.
 | Step | Issues | Remaining gap |
 |---|---|---|
 | 0 Hygiene | #523, #539/#540, **#573** (summary SUT vintage), **#574** (SLG attribution) | — |
-| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531, #547, **#575** (1d code list), **#576** (1f reconciliation) | — |
+| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531 (rescoped — see §`F03000`), #547, **#575** (1d code list), **#576** (1f reconciliation) | — |
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
@@ -901,6 +961,13 @@ replaced by #572. **Every item on the board is now a trackable issue.**
   `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks #576, Step 2 and Step 3.
   #574 may fall out of this rather than needing its own attribution work — diagnose first. Then #579,
   #580, #581 once the trade FBS path is safe. #573 any time; it is small and Step 5 needs it.
+
+  **#530/#531 (`F03000`) moves up into P1 on the rescope.** Its phase 1 — consume `U50705BU1`, which
+  is already extracted, plus the farm line — needs no new extract and no crosswalk, and it closes one
+  of the eight whole columns currently reported as `miss` in
+  [`progress_report.md`](progress_report.md). It is FBS-routed, so it sits behind the code-space fix
+  like the rest of Step 1; the ~25-line trade crosswalk (phase 2) is not, and can be built in
+  parallel alongside #610.
 - **P2** — Step 5 (promote the four drafts), then #582/#583/#584 and **#585**, the 2017 benchmark
   replay — the single highest-value test in the project — then #572.
 - **P3** — #586, then Step 9 (promote drafts).

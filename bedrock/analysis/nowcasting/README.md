@@ -86,6 +86,11 @@ local run.
   own method from the 2009 IO manual chapter 8 checked against the 2017 tables,
   what of it is reproducible, and where the sources already exist (flowsa
   `margins` branch, stateior FAF).
+- [`inventories_estimation_plan.md`](inventories_estimation_plan.md) — Step 1e,
+  the `F03000` change-in-inventories column: BEA's four allocation rules from
+  the Hill correspondence, why the previous "deferred pending ASM and Economic
+  Census" scoping was wrong, and the one crosswalk that remains. Rescopes
+  [#530](https://github.com/cornerstone-data/bedrock/issues/530).
 - [`progress_report.md`](progress_report.md) — where the build stands, with the
   figures embedded. Regenerated per milestone; its images are the one tracked
   thing under `images/`.

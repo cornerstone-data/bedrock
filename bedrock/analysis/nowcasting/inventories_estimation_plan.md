@@ -1,0 +1,318 @@
+# Plan — estimating the change in private inventories column (`F03000`)
+
+Step 1e of [`plan.md`](plan.md), issues
+[#529](https://github.com/cornerstone-data/bedrock/issues/529) /
+[#530](https://github.com/cornerstone-data/bedrock/issues/530) /
+[#531](https://github.com/cornerstone-data/bedrock/issues/531).
+
+Method statements below are from **three emails from David Hill (BEA, National
+Economic Accounts, 2025-03-13, 2025-03-14 and 2025-05-09)**, reproduced in full
+in #530's body, each checked against the published 2017 detail tables and
+against what bedrock already extracts.
+
+**This document rescopes #530.** Its previous scoping — *"use the NIPA totals as
+a starting place, further work in attributing those to commodity may have to
+wait"* — was carried into the plan as a deferral justified on needing ASM
+stage-of-fabrication and Economic Census materials-consumed data. Neither is
+needed for the dominant share of the column, and one of the two sources the
+deferral was waiting on has been sitting in bedrock's extract list all along.
+
+---
+
+## The object
+
+One column of the SUT Use table: 402 commodities, purchaser value, *what* is
+held rather than *where*. Measured on the published 2017 detail SUT:
+
+| | |
+|---|---:|
+| commodities populated | **258** of 402 |
+| column total | **32,682** |
+| positive mass | 65,723 |
+| negative mass | −33,041 |
+| gross mass | **98,764** |
+| negative commodities | **61** |
+
+**The column total is the one thing that is free.** It equals NIPA CIPI exactly
+— Hill gives 2023 as 41,695 on both sides, and 2017 as 32,674 against the
+32,682 measured here (8 apart, a vintage difference). Everything else is
+allocation.
+
+⚠️ **Gross mass is 3× the net.** Not the `T014` pathology — margins net to 1
+against 7.4 million of gross — but far enough that a column-total check is
+close to uninformative. 61 commodities carry negative values against a positive
+total. **Validate per commodity.**
+
+## What BEA does
+
+Hill's method is four rules over three inventory types, applied to CIPI by
+holding industry:
+
+| Inventory type | "What held" rule | Natural source |
+|---|---|---|
+| **Finished goods** | *"we assume that finished goods inventories are primary products of the reporting industry"* | industry commodity mix |
+| **Work-in-process** | *"products in assembly are primary to the industry"* | industry commodity mix |
+| **M&S — merchandise trade** | *"Wholesale and retail industries hold products that they sell. So the 'what held' is based on the type of industry they operate in"* | trade product line |
+| **M&S — production materials** | *"reflective of intermediate inputs needed for that industry's production"* | industry intermediate input mix |
+
+For the stage split and the materials composition:
+
+> *"We use Annual Survey of Manufacturers data for the breakdown of the total
+> inventory into the three stages of fabrication. For the commodity
+> composition, we use Econ Census data on materials/fuels consumed by
+> industry."* — D. Hill, BEA, 2025-05-09
+
+**Three of the four rules are functions of tables this project already builds.**
+Commodity mix is Step 4a ([#570](https://github.com/cornerstone-data/bedrock/issues/570));
+the intermediate input mix is Step 3
+([#497](https://github.com/cornerstone-data/bedrock/issues/497)). For the
+benchmark year both are published, so the whole method is testable on 2017
+today without waiting on either step.
+
+## What is already in bedrock, and unused
+
+**`U50705BU1` — Table 5.7.5BU1, *Change in Private Inventories by Industry* — is
+already extracted**, listed at
+[`BEA_NIPA.yaml:30`](../../extract/bea/BEA_NIPA.yaml#L30) for 2012–2024. It is
+pulled on every run and **never consumed**: there is no inventories activity set
+in [`NIPA_FD_2017.yaml`](../../transform/nipa/NIPA_FD_2017.yaml), whose 22 sets
+are all PCE, IP and government.
+
+**The stage-of-fabrication split is already in that table.** Hill attributes it
+to ASM, but the published underlying-detail table carries it directly, at lines
+29–37:
+
+| line | code | | 2017 $M |
+|---|---|---|---:|
+| 29 | `C30M` | Materials and supplies | 1,894 |
+| 32 | `C30W` | Work-in-process | −3,187 |
+| 35 | `C30F` | Finished goods | 2,110 |
+
+each split durable (`C30DM`/`C30DW`/`C30DF`) and nondurable
+(`C30NM`/`C30NW`/`C30NF`). **No ASM pull is required for a first pass** — ASM
+buys finer per-industry stage shares than durable/nondurable, nothing more.
+
+**What is not in bedrock:** no extractor for Econ Census `EC1731MATFUEL`
+(Materials Consumed by Kind of Industry) or `ECNNAPCSPRD` (Products by
+Industry). `Census_ASM` exists but pulls only `RCPTOT` from
+`timeseries/asm/area2017`, **2018 only** — no inventory variables at all.
+
+## The magnitudes invert the emphasis
+
+2017 nonfarm CIPI by holding industry, from the cached extract:
+
+| line | | $M | share of nonfarm |
+|---|---|---:|---:|
+| 38 | Wholesale trade | 30,329 | 79% |
+| 67 | Retail trade | 17,930 | 47% |
+| 2 | Mining, utilities, construction | −14,261 | −37% |
+| 77 | Other industries | 3,537 | 9% |
+| 3 | **Manufacturing** | **818** | **2%** |
+| 1 | **Nonfarm total** | **38,353** | |
+
+**Wholesale + retail is 48,259 — 126% of the column. Manufacturing is 2%.**
+
+So the two sources Hill's May 9 email names, and the two the deferral was
+waiting on, govern the branch worth 818 million. The branch worth 48,259 is
+merchandise trade, whose rule is the simplest of the four: *what the industry
+sells*.
+
+⚠️ **This is the single most important fact in this document.** It is why Step
+1e is tractable now and why it was mis-scoped: BEA's answer describes the
+manufacturing machinery in the most detail because that is where BEA's method
+is most elaborate, not because that is where the money is.
+
+## The merchandise-trade rule visibly works on the largest cells
+
+`U50705BU1` publishes the trade branch at trade-industry detail — roughly 25
+lines. Matching them to BEA commodities **by concept first**, then checking the
+value:
+
+| NIPA holding industry | $M | concept-matched commodity | 2017 `F03000` $M |
+|---|---:|---|---:|
+| `C4222` Drugs and druggists' sundries wholesalers | 11,287 | `325412` pharmaceutical preparations | **7,547** |
+| `C4227` Petroleum and petroleum products wholesalers | −5,885 | `324110` petroleum refineries | **−7,387** |
+| `N631RC` Motor vehicle and parts dealers | 14,151 | `336111` autos + `336112` light trucks | **9,500** |
+
+Right sign, right order of magnitude, on the three largest trade lines, against
+a column whose largest entries are `211000` oil and gas −7,577, `325412`
++7,547, `324110` −7,387, `336411` aircraft −6,314.
+
+⚠️ **The direction of that inference matters.** The margins work records the
+counter-example: matching by *value* alone pairs `Ships` with switchgear and
+`Electronics` with ship building, both nonsense
+([`margins_estimation_plan.md`](margins_estimation_plan.md)). Here the concept
+match came first and the values then agreed, which is the admissible order.
+These are spot checks on three lines, not a fitted result.
+
+## Sources — what exists
+
+| Piece | Where | State |
+|---|---|---|
+| CIPI column total | NIPA T1.1.5 line 14 | Free, exact, already extracted |
+| CIPI by holding industry, nonfarm | `U50705BU1` | **Already extracted 2012–2024, unused** |
+| Stage-of-fabrication split, durable/nondurable | `U50705BU1` lines 29–37 | **Already extracted, unused** |
+| Farm CIPI level | NIPA 5.7.5B farm line | **Not extracted** — `U50705BU1` is nonfarm-only |
+| Farm commodity split | `USDA_ERS_FIWS` `Inventory` variable | **Already in bedrock**, unused for this — see §Farm |
+| Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Make table | Published for 2017 |
+| M&S manufacturing → commodity | Step 3 intermediate column; 2017 Use table | Published for 2017 |
+| Trade industry → commodity | ~25 `U50705BU1` trade lines | **The work.** No crosswalk exists |
+| Finer per-industry stage shares | ASM (≤2022) / AIES (2023+) | Optional refinement — see below |
+| Materials consumed by industry | Econ Census `EC1731MATFUEL` | Not extracted; proxied by the Use column |
+
+### The gap, stated precisely
+
+**One crosswalk: ~25 named trade industries → BEA 2017 detail commodities.** It
+covers 126% of the column gross, and nothing else is missing for a first
+build.
+
+This is a smaller object than the NAPCS → I-O commodity concordance that
+[#615](https://github.com/cornerstone-data/bedrock/issues/615) identifies as the
+missing link for BEA's wholesale margin method — but it is **the same problem at
+coarser resolution**, since both ask what commodities a kind-of-business deals
+in. ⚠️ **Decide the two together.** If #615 is ever built, it subsumes this
+crosswalk; if it is not, this crosswalk is the cheap version and margins may be
+able to borrow it.
+
+## Farm — level from NIPA, split from ERS
+
+`U50705BU1` is nonfarm-only, so farm is a separate build. It is ≈ **−5,679** in 2017 against a
+32,674 total — **17% of the column**, and a build that omits it is silently wrong.
+
+**The level comes from NIPA, not USDA.** The one free thing about this column is that its total ties
+to NIPA CIPI exactly; sourcing farm elsewhere would break that identity for a piece that is published.
+Farm CIPI is simply **not extracted today** — `BEA_NIPA.yaml` carries `U50705BU1` (nonfarm underlying
+detail) but not the farm/nonfarm table. Adding **5.7.5B** to the table list replaces the inferred
+−5,679 with a published figure and closes this.
+
+**The commodity split comes from ERS FIWS**, which already sits in bedrock as
+[`USDA_ERS_FIWS`](../../extract/usda/USDA_ERS_FIWS.yaml) — no API key, plain CSV. Its `Inventory`
+variable splits **`Crops` / `Livestock` / `Purchased inputs`**, national and state, **1939–2025**, and
+the existing parser already retains it (it builds `ActivityProducedBy` from the full variable list
+rather than filtering to expenses, so no parser change is needed).
+
+⚠️ **FIWS publishes stock levels, not changes — do not difference it and call the result CIPI.**
+
+| $M | 2016 | 2017 | Δ |
+|---|---:|---:|---:|
+| Crops | 55,682 | 56,796 | +1,115 |
+| Livestock | 217,993 | 214,171 | −3,822 |
+| Purchased inputs | 29,763 | 31,583 | +1,820 |
+| **sum of changes** | | | **−887** |
+| *farm CIPI (inferred)* | | | *−5,679* |
+
+Right sign, off by ≈6×. That gap is expected: a first difference of book-value stocks carries holding
+gains, which NIPA CIPI excludes via the inventory valuation adjustment. Differencing FIWS would import
+a price effect into a quantity concept.
+
+**So use FIWS the way §`MDTY` in [`plan.md`](plan.md) uses Census — structure from the source, level
+from NIPA.** FIWS supplies an annual, moving crops-vs-livestock split; the NIPA farm line sets the
+magnitude.
+
+Two things fall out for free:
+
+- **`Purchased inputs` is the farm sector's materials and supplies**, so FIWS gives farm the same
+  three-stage structure `U50705BU1` gives manufacturing — crops and livestock behave as finished
+  goods/WIP (primary products of the industry), purchased inputs as M&S. **BEA's four rules apply to
+  farm unchanged.**
+- **It covers 2024–2025**, two years past NIPA, so farm does not become the terminal-year problem.
+  ⚠️ The current year is an ERS **forecast**, not a realized estimate — the same caveat #577 records.
+
+**The limit is #577's limit.** Crops/livestock is two groups against ~10 BEA agriculture commodities,
+so splitting within them still falls back to 2017 detail shares. FIWS cash receipts *are* published by
+commodity and could refine that; worth a look, not worth blocking on.
+
+Worth doing rather than freezing 2017 shares, because farm inventories swing hard with crop years —
+livestock moved −3,822 in 2017 and +27,310 across 2023–24 — and `1111B0` −1,547 and `1121A0` +1,214
+are both in the 2017 column's twelve largest cells.
+
+### The ASM/AIES seam, if finer stage shares are ever wanted
+
+Checked live against the Census API: `timeseries/aies/inv` publishes **20
+variables and exactly one inventory measure**, `INV_E_TOT_DVAL` — total
+inventories, end of year. **There is no stage-of-fabrication split on the AIES
+endpoint**, and AIES is the 2023+ successor covering the back half of the
+nowcast span. So the ASM refinement does not extend cleanly across 2018–2025
+even if wanted. Another reason to take the durable/nondurable split that
+`U50705BU1` already publishes and stop there. (Census sometimes publishes more
+in the downloadable table releases than on the timeseries API — worth a look
+before concluding the split is unavailable, but not before Phase 1.)
+
+## Approach
+
+Anchor on the published industry detail, allocate by rule, validate per
+commodity against 2017 — the same shape as
+[`margins_estimation_plan.md`](margins_estimation_plan.md) and
+[`compensation_disaggregation_plan.md`](compensation_disaggregation_plan.md).
+
+| phase | what | depends on |
+|---|---|---|
+| 1 | Consume `U50705BU1`: industry × stage, all years, plus the farm line | **nothing — start here** |
+| 2 | Trade industry → commodity crosswalk, ~25 lines | #615 decision |
+| 3 | Apply the four rules; validate against the 2017 detail column | 2017 Make/Use published; nowcast years need #570 and #497 |
+
+**Phase 1 — consume what is already extracted.** Add the inventories activity
+set to the `NIPA_FD_<year>` methods. `U50705BU1` is nonfarm-only, so add NIPA
+**5.7.5B** to `BEA_NIPA.yaml`'s table list for the farm line, and take farm's
+commodity split from `USDA_ERS_FIWS` — both covered in §Farm. Neither needs a
+new extractor.
+
+**Phase 2 — the crosswalk.** ~25 trade lines to BEA detail commodities. Build it
+by concept, never by value proximity. Take the #615 decision first.
+
+**Phase 3 — apply and validate.** Finished goods and WIP on the industry
+commodity mix; M&S manufacturing on the industry's intermediate input column,
+**restricted to storable goods commodities** (see traps); M&S merchandise trade
+on the Phase 2 crosswalk. Validate against the 258 populated cells of the 2017
+detail `F03000` column via the
+[#587](https://github.com/cornerstone-data/bedrock/issues/587) per-cell picture;
+`use_fd_detail_sut` already carries the column.
+
+## Traps
+
+**Do not ship the NIPA total alone.** The SUT needs a 402-row column; a total is
+one scalar, and the RAS in Step 5 would then invent the allocation with no
+economic basis. Worse, the column is 3× gross to net with 61 negative
+commodities, so RAS has neither a seed nor a sign-safe structure to work from.
+
+**Do not apply the M&S rule to the raw Use column.** The intermediate input mix
+includes services and non-storables — legal services, electricity, advertising —
+which are not held in inventory. `EC1731MATFUEL` is materials *and fuels*, goods
+only, which is why BEA cites it rather than the Use column. Restrict the proxy
+to storable goods commodities or it will place inventory on services.
+
+**Composition is a level; CIPI is a change.** The stage shares and commodity
+compositions come from stocks and from materials consumed, both levels; the
+thing being allocated is signed. That is BEA's own construction and it is why
+negative commodity cells are correct — consistent with the 31 negative rows in
+the Margins table, all buyer `F03000`
+([`margins_estimation_plan.md`](margins_estimation_plan.md)). **Do not clip.**
+
+**Expect signs to flip by year.** A commodity negative in 2017 is positive in an
+inventory-build year. Nothing may hard-code the 2017 sign.
+
+⚠️ **`C4521` department stores +21,237 against `C4529` other general merchandise
+−24,518** in 2017. Two adjacent retail lines nearly cancelling at this magnitude
+looks like a classification movement rather than economics. Check before
+carrying either line into a crosswalk — and check whether the pair is stable
+across 2018–2024 before trusting the trade branch year to year.
+
+**Mining, utilities and construction is −14,261 with no sub-detail and no stage
+split** in `U50705BU1`. It is 37% of nonfarm in magnitude and needs its own
+rule; the 2017 column suggests where it lands (`211000` oil and gas −7,577), but
+that is one commodity for a three-sector block.
+
+## Open questions
+
+1. **Trade crosswalk, or wait for #615?** The ~25-line version is cheap and
+   covers the column; the NAPCS concordance is the general solution and serves
+   margins too. Sequencing decision, not a data question.
+2. **Rule for mining/utilities/construction**, which has no stage split and no
+   sub-industry detail.
+3. **Which storable-goods filter** for the M&S manufacturing branch — a
+   commodity-level goods/services flag, or port `EC1731MATFUEL` properly.
+4. **Is the department-store/other-general-merchandise pair a reclassification?**
+   Affects whether the trade branch is usable unsmoothed.
+5. **Splitting within farm crops and livestock** — 2017 detail shares, or FIWS
+   cash receipts by commodity? Same shape as #577's question, and probably wants
+   the same answer.
