@@ -202,11 +202,18 @@ conversion and redefinition steps need is already loadable** — no new extract 
   and they already encode which codes to exclude from each framework.
 
 **Not in bedrock, to be ported:** a balancing algorithm (**no longer a straight `sut_ras.py` port** —
-see Step 5, which now carries two open decisions), balance checks
-([`check_balances.py`](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/check_balances.py)
-→ `bedrock/utils/validation/`), and commodity mix / intermediate nowcasting
+see Step 5, which now carries three open decisions) and commodity mix / intermediate nowcasting
 (`CalculateIntermediateUseAndCommodityMix.R`, per #497). Confirmed: no RAS/GRAS code anywhere in
 bedrock today.
+
+**The USEEIO port list shrank to one file.** `check_balances.py` and `load_suts_from_r.py` were both
+on it and are now **dropped, #590 and #589 closed**. The SUTs come from Steps 1-4 as bedrock objects,
+so nothing R-produced needs loading; and the balance checks are a dozen lines against our own tables,
+not a port — `check_balances.py`'s own `check_row_col_balance` is domestic-only and never checks
+`T016` = `T019` at all. The checks live in Step 5 (post-balance identities), Step 4e/#581 (Supply
+identities) and #587 (per-cell match). One idea was worth keeping: its `compare_disagg_to_agg` is the
+detail-vs-published-aggregate comparison that Decision 3 gives summary SUT its new role in, and it
+shares the aggregator machinery with Decision 3's aggregate constraints.
 
 ## Section status
 
@@ -760,7 +767,14 @@ that is no longer the recommended route.
 - Balance on the SUT identity: **total supply at purchaser (`T016`) = total use (`T019`) per
   commodity**, plus industry-output consistency between Supply and Use. This is an accounting
   identity we impose, not a target we source.
-- Port `check_balances.py` into `bedrock/utils/validation/` alongside, whichever engine wins.
+- **Verify the balance in place**, in `bedrock/utils/validation/`, as tests rather than scripts:
+  `T016` = `T019` per commodity 402/402, and industry output consistent between the Supply and Use
+  sides. Written against bedrock's own tables — **this is no longer a `check_balances.py` port**
+  (#590 closed; §Grounding). The four Supply identities stay with Step 4e/#581 and the per-cell match
+  with #587; share those, don't rewrite them. ⚠️ Per commodity, never in aggregate — `T014` nets to
+  ~1 economy-wide, so an aggregate check passes while every cell is wrong. ⚠️ And label which checks
+  are **by-construction**: `T016` = `T019` is imposed by the balance and proves only that the solver
+  ran, as does anything Decision 3 promotes to a target.
 - The **seed** is not in question: it is the Steps 1-4 output, block by block. What is in question is
   what the balancer is allowed to do to it, and what it is aimed at.
 
@@ -1107,7 +1121,7 @@ rediscovers the same 210-code problem from scratch.
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
-| 5 RAS | **#588** (balancer — *rescoped: no longer a `sut_ras` port; blocked on Step 5's three decisions*), **#589** (load_suts_from_r), **#590** (check_balances), **#591** (controls — *rescoped: the target set is Decision 3, no longer an "optional" alternative control*) | — |
+| 5 RAS | **#588** (balancer, parent — *rescoped: no longer a `sut_ras` port; blocked on Step 5's three decisions*), **#591** (sub-issue — *rescoped: the target set is Decision 3, no longer an "optional" alternative control*) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
