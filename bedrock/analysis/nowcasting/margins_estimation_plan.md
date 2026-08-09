@@ -229,7 +229,9 @@ too small a slice of output for a residual to survive (a 1% error in air's
 direct uses throws its margin by 43%). Truck's `T016` of 52,658 matches the SUT
 use row, 39,330 + 11,700 + 1,629, to the dollar.
 
-⚠️ **Blocked on the final-use index.** `NIPA_FD` produces PCE for 2017 only.
+⚠️ **Blocked on the final-use index —
+[#621](https://github.com/cornerstone-data/bedrock/issues/621).** `NIPA_FD`
+produces PCE for 2017 only.
 `NIPA_FD_2018`–`2024` are an earlier generation of the method — all seven are
 identical apart from the year line, at 352 lines against 2017's 521, and **do not
 contain the PCE activity sets at all**: no `FD_PCE`, none of its six variants,
