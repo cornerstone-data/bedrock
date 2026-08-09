@@ -231,7 +231,7 @@ use row, 39,330 + 11,700 + 1,629, to the dollar.
 
 ⚠️ **Blocked on the final-use index.** `NIPA_FD` produces PCE for 2017 only.
 `NIPA_FD_2018`–`2024` are an earlier generation of the method — all seven are
-byte-identical to each other at 352 lines against 2017's 521, and they **do not
+identical apart from the year line, at 352 lines against 2017's 521, and **do not
 contain the PCE activity sets at all**: no `FD_PCE`, none of its six variants,
 no `FD_IP_equipment`. The #539 work landed on the 2017 file and was never
 carried forward. So 2018 returns 314 rows and no PCE against 2017's 1,322.
