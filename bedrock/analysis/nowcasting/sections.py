@@ -74,7 +74,7 @@ from bedrock.analysis.nowcasting.table_match import (
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
-    USA_2017_FINAL_DEMAND_CODES,
+    SUT_FINAL_DEMAND_CODES,
     USA_2017_FINAL_DEMAND_DESC,
 )
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -97,12 +97,6 @@ SUT_VALUE_ADDED_DESC = {
     'T00OTOP': 'Other taxes on production, less subsidies',
     'V00300': 'Gross operating surplus',
 }
-
-#: The SUT framework has no imports column -- imports are not a final-demand
-#: column there -- so ``F05000`` is not part of the Step 1 frame.
-SUT_FINAL_DEMAND_CODES = tuple(
-    code for code in USA_2017_FINAL_DEMAND_CODES if code != 'F05000'
-)
 
 #: The Supply table's right-hand block: everything to the right of the
 #: commodity x industry interior, which is the bridge from domestic output at
@@ -275,7 +269,7 @@ def supply_sut_bridge_reference(year: int = 2017) -> pd.DataFrame:
 def initial_Y_pur_candidate(year: int) -> pd.DataFrame:
     """Our Step 1 final-demand block, commodity x final-demand code, in USD.
 
-    Runs the ``NIPA_FD_<year>`` FBS.  This is the authoritative candidate and
+    Runs ``derive_initial_Y_pur``.  This is the authoritative candidate and
     the one the section should use once the FBS runs again; see
     :func:`initial_Y_pur_exported_candidate` for why it currently does not.
     """
@@ -342,8 +336,8 @@ USE_FD_DETAIL_SUT = Section(
     reference=use_sut_final_demand_reference,
     candidate=initial_Y_pur_candidate,
     note=(
-        'Candidate is a live run of derive_initial_Y_pur, so this picture tracks '
-        'the current NIPA_FD_2017 config. Reference is always the published SUT '
+        'Candidate is a live run of derive_initial_Y_pur (NIPA_FD plus '
+        'Trade_Exports F040 for 2017). Reference is always the published SUT '
         'workbook.'
     ),
 )
