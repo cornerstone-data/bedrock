@@ -252,11 +252,17 @@ def faf_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
 
 
 def faf_parse(
-    *, df_list: list[pd.DataFrame], source: str, year: int, **_: Any
+    *, df_list: list[pd.DataFrame], source: str, year: int | None, **_: Any
 ) -> pd.DataFrame:
-    """Select *year* out of the archive-wide frame and complete the FBA columns."""
+    """Complete the FBA columns on the archive-wide frame.
+
+    ``call_all_years: True`` means the generator parses once with ``year=None``
+    and slices each year out of the result itself, so the whole frame is
+    returned in that case rather than one year of it.
+    """
     df = pd.concat(df_list, ignore_index=True)
-    df = df.loc[df['Year'] == str(year)].copy()
+    if year is not None:
+        df = df.loc[df['Year'] == str(year)].copy()
     if df.empty:
         raise ValueError(f'{source} has no rows for {year}')
     return (
@@ -287,6 +293,10 @@ def move_flow_to_ACB(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     return fba.assign(ActivityConsumedBy=fba['FlowName'])
 
 
-def move_SCB_to_flow(fbs: pd.DataFrame, **_: Any) -> pd.DataFrame:
-    """``clean_fbs``: replace the SCTG flow name with the mapped commodity."""
-    return fbs.assign(Flowable=fbs['SectorConsumedBy'], SectorConsumedBy=None)
+# The flowsa original had a companion ``move_SCB_to_flow`` here, run as
+# ``clean_fbs``, which overwrote ``Flowable`` with the mapped sector and blanked
+# ``SectorConsumedBy``. It is deliberately not ported: the SCTG name in
+# ``Flowable`` is what ``nowcast_transport_margins`` groups ton-miles by, since
+# the sector column resolves to NAICS rather than to the BEA commodity that
+# receives the margin (#546). Overwriting it would silently coarsen the growth
+# factors to whatever NAICS group each SCTG happens to land in.
