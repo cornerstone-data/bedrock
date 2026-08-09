@@ -7,11 +7,13 @@ controls. See https://github.com/orgs/cornerstone-data/projects/26 for the track
 
 This module implements the final-demand section of the Use table, in
 purchaser (PUR) price, commodity x SUT final-demand codes (MUT list minus
-``F05000``). Source: the ``NIPA_FD_<year>`` FBS methods
+``F05000``), and the Supply bridge block (commodity x the 12 basic-to-
+purchaser codes). Y source: the ``NIPA_FD_<year>`` FBS methods
 (``bedrock/transform/nipa/NIPA_FD_<year>.yaml``) plus, for 2017,
 ``Trade_Exports_<year>`` on ``F04000``. ``F03000`` (change in private
 inventories, #529) is present but all-zero. ``F05000`` is MUT-only and is
-not a Y column.
+not a Y column. The Supply bridge fills ``MCIF`` from ``Trade_Imports_<year>``
+for 2017; other bridge columns are unsourced.
 
 Each ``NIPA_FD_<year>.yaml`` activity_set assigns its official BEA
 final-demand code directly to ``SectorConsumedBy`` via a
@@ -52,6 +54,23 @@ from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
+
+# Same 12 codes as analysis ``SUPPLY_BRIDGE_CODES``. Kept here so nowcast does
+# not import sections (sections already lazy-imports this module).
+_SUPPLY_BRIDGE_CODES = (
+    'T007',
+    'MCIF',
+    'MADJ',
+    'T013',
+    'TRADE',
+    'TRANS',
+    'T014',
+    'MDTY',
+    'TOP',
+    'SUB',
+    'T015',
+    'T016',
+)
 
 _SECTOR_SWAP = {
     'SectorProducedBy': 'SectorConsumedBy',
@@ -122,9 +141,31 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
         y['F04000'] = exports.reindex(y.index).fillna(0.0)
         if 'S00900' not in y.index:
             y.loc['S00900'] = 0.0
-        y.loc['S00900', 'F04000'] = (
-            -y.loc['S00900', 'F01000'] + _s00900_export_identity_usd()
-        )
+        pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
+        y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
 
     y.index.name = 'commodity'
     return y.sort_index()
+
+
+@functools.cache
+def derive_initial_supply_bridge(
+    year: int, download_sources_ok: bool = False
+) -> pd.DataFrame:
+    """Commodity x Supply-bridge codes, USD, BEA 2017 Detail rows.
+
+    MCIF is Trade_Imports_<year> for 2017; other years and all other columns
+    (MADJ, MDTY, T007, margins, tax, subtotals) are unsourced. Callers must
+    not mutate the cached frame.
+    """
+    bridge = pd.DataFrame(
+        index=pd.Index(USA_2017_COMMODITY_CODES, name='commodity'),
+        columns=list(_SUPPLY_BRIDGE_CODES),
+        dtype=float,
+    )
+    bridge.columns.name = 'supply_bridge_code'
+    if year == 2017:
+        bridge['MCIF'] = _trade_fbs_commodity_vector(
+            f'Trade_Imports_{year}', download_sources_ok
+        )
+    return bridge

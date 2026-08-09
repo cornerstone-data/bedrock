@@ -42,7 +42,7 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   |---|---|---|---|
   | `use_fd_detail_sut` | 1 — Use final-demand columns | 402 × 19 | exported CSV |
   | `use_va_detail_sut` | 2 — Use value-added rows | 3 × 402 | none yet |
-  | `supply_bridge_detail_sut` | 4 — Supply imports, margins, taxes and the basic→purchaser subtotals | 402 × 12 | none yet |
+  | `supply_bridge_detail_sut` | 4 — Supply imports, margins, taxes and the basic→purchaser subtotals | 402 × 12 | `derive_initial_supply_bridge` (MCIF) |
 
   Those three are the whole of what a published 2017 detail reference supports
   outside the two 402 × 402 interiors.

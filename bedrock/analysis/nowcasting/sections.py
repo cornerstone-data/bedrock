@@ -28,8 +28,8 @@ Sections defined here
                             Declared, not yet runnable -- see below.
 ``supply_bridge_detail_sut`` Step 4.  The Supply table's right-hand block --
                             imports, margins, taxes and the subtotals
-                            bridging basic to purchaser value.  Declared, not
-                            yet runnable.
+                            bridging basic to purchaser value.  Runnable;
+                            candidate fills MCIF only.
 =========================== =================================================
 
 These three are the whole of what a published 2017 detail reference supports
@@ -278,6 +278,19 @@ def initial_Y_pur_candidate(year: int) -> pd.DataFrame:
     return derive_initial_Y_pur(year)
 
 
+def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
+    """Our Step 4 supply-bridge block, commodity x bridge code, in USD.
+
+    Runs ``derive_initial_supply_bridge``. MCIF is sourced; other columns are
+    unsourced.
+    """
+    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        derive_initial_supply_bridge,
+    )
+
+    return derive_initial_supply_bridge(year)
+
+
 #: Where ``initial_Y_pur_baseline.export_cellwise_comparison`` writes.
 INITIAL_Y_PUR_EXPORT = (
     Path(__file__).parent
@@ -375,11 +388,12 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
     column_names=SUPPLY_BRIDGE_DESC,
     reference=supply_sut_bridge_reference,
-    candidate=None,
+    candidate=initial_supply_bridge_candidate,
     note=(
-        'Step 4 has not been built, so there is no candidate to compare yet. '
-        'T014 nets to ~1 economy-wide, which is exactly why this block needs a '
-        'per-commodity picture rather than a totals check.'
+        'Candidate is a live run of derive_initial_supply_bridge: MCIF from '
+        'Trade_Imports_2017; MADJ, MDTY, T007, margins, tax and subtotals '
+        'unsourced. T014 nets to ~1 economy-wide, which is why this block '
+        'needs a per-commodity picture rather than a totals check.'
     ),
 )
 
