@@ -40,16 +40,16 @@ def ita_gs_totals_usd(year: int | str) -> dict[Literal['exports', 'imports'], fl
     from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
 
     fba = getFlowByActivity(_ITA_SOURCE, int(year))
-    out: dict[Literal['exports', 'imports'], float] = {}
-    for direction, flow_name in (
-        ('exports', 'exports_gs'),
-        ('imports', 'imports_gs'),
-    ):
-        rows = fba.loc[fba['FlowName'] == flow_name]
-        if rows.empty:
-            raise ValueError(f'BEA_ITA FBA missing {flow_name} for {year}')
-        out[direction] = float(pd.to_numeric(rows['FlowAmount'], errors='coerce').sum())
-    return out
+    exports = fba.loc[fba['FlowName'] == 'exports_gs']
+    imports = fba.loc[fba['FlowName'] == 'imports_gs']
+    if exports.empty:
+        raise ValueError(f'BEA_ITA FBA missing exports_gs for {year}')
+    if imports.empty:
+        raise ValueError(f'BEA_ITA FBA missing imports_gs for {year}')
+    return {
+        'exports': float(pd.to_numeric(exports['FlowAmount'], errors='coerce').sum()),
+        'imports': float(pd.to_numeric(imports['FlowAmount'], errors='coerce').sum()),
+    }
 
 
 def bea_ita_load(**_kwargs: Any) -> pd.DataFrame:
