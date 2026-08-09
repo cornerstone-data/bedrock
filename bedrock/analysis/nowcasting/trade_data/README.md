@@ -10,9 +10,7 @@ Lives at `bedrock/analysis/nowcasting/trade_data/`. Notes and probes stay here u
 |---|---|
 | [`plan_527_long.md`](plan_527_long.md) | Intended plan (with annual-summary IO note and 2017 `compare()` results) |
 | [`trade_data_source_options_527.md`](trade_data_source_options_527.md) | Full options writeup + 2017 validation findings |
-| [`probe_2017_trade_totals.py`](probe_2017_trade_totals.py) | 2017 national Census+BEA totals vs the SUT targets and ITA |
-| [`probe_2017_trade_detail.py`](probe_2017_trade_detail.py) | 2017 BEA Detail vectors vs Use `F04000` / Supply `MCIF` (Pearson / coverage) |
-| [`probe_2017_trade_compare.py`](probe_2017_trade_compare.py) | Same Detail extract vs the SUT targets via `compare_NIPA_to_IOT.compare()` (matched vs unmatched) |
+| [`probe_2017_trade_totals.py`](probe_2017_trade_totals.py) | 2017 national Census+BEA FBA totals vs the SUT targets and ITA |
 
 ### Working decision
 
@@ -20,12 +18,10 @@ Lives at `bedrock/analysis/nowcasting/trade_data/`. Notes and probes stay here u
 
 ### Probes
 
-Requires `Census` and `BEA` in `bedrock/extract/API_Keys.env`.
+Requires local 2017 `Census_USATrade`, `BEA_IEA`, and `BEA_ITA` FBAs. Commodity-level scoring is `Trade_Exports_2017` / `Trade_Imports_2017` FBS vs Use `F04000` / Supply `MCIF`.
 
 ```powershell
 uv run python -m bedrock.analysis.nowcasting.trade_data.probe_2017_trade_totals
-uv run python -m bedrock.analysis.nowcasting.trade_data.probe_2017_trade_detail
-uv run python -m bedrock.analysis.nowcasting.trade_data.probe_2017_trade_compare
 ```
 
 Writes under `bedrock/analysis/nowcasting/trade_data/output/` (gitignored).
