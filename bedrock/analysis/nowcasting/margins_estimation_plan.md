@@ -229,11 +229,17 @@ too small a slice of output for a residual to survive (a 1% error in air's
 direct uses throws its margin by 43%). Truck's `T016` of 52,658 matches the SUT
 use row, 39,330 + 11,700 + 1,629, to the dollar.
 
-⚠️ **Blocked on the final-use index, and not by a little.** `NIPA_FD` works for
-2017 only: `NIPA_FD_2018`–`2024` are stale copies carrying 2017 NIPA **line
-numbers**, which shift by vintage, so seven activity sets come back empty and the
-method drops most of its output — 314 rows and no PCE at all against 2017's
-1,322. That is #539-area work. The fallback is the raw `U20405` PCE lines as an
+⚠️ **Blocked on the final-use index.** `NIPA_FD` produces PCE for 2017 only.
+`NIPA_FD_2018`–`2024` are an earlier generation of the method — all seven are
+byte-identical to each other at 352 lines against 2017's 521, and they **do not
+contain the PCE activity sets at all**: no `FD_PCE`, none of its six variants,
+no `FD_IP_equipment`. The #539 work landed on the 2017 file and was never
+carried forward. So 2018 returns 314 rows and no PCE against 2017's 1,322.
+(Seven `FD_Gov_*` and `FD_Structures*` sets also come back empty on 2018 for a
+separate reason, NIPA line numbers shifting by vintage.) Carrying the 2017
+activity sets forward is the fix, and it is worth doing on its own account —
+without it the nowcast's Step 1 final demand is a 2017-only object. The fallback
+here is the raw `U20405` PCE lines as an
 *index* with the level anchored on 2017, which needs no bridge; note the clean
 lines exist for air, rail and water — the three that mostly do **not** use the
 residual — while truck's 11,700 of PCE arrives through the bridge with no 1:1
