@@ -157,6 +157,22 @@ Three things that follow, all of which shrink the work:
   second order, and the mode-level form is the natural refinement to revisit once
   a balancer exists — the derivation is recorded above for that reason.
 
+📬 **Asked of BEA, 2026-08-09, reply outstanding.** Whether the weighting is
+tons or has moved to ton-miles or a commodity-varying revenue rate; whether the
+distribution runs within each mode separately; how local delivery and
+small-shipment cost are handled; and whether the commodity allocation still
+comes from CFS directly or FAF now plays a part. **Nothing is blocked on the
+answer** — the construction above anchors on the published `TRANS` rather than
+reconstructing it, so it stands whichever way the weighting question falls.
+What each answer would change: *tons confirmed* leaves ton-miles a deliberate,
+documented deviation affecting only the mode-level refinement; *a
+commodity-varying revenue rate* vindicates the anchor directly, since that
+variation is what the 2017 implied rates preserve and a volume weighting
+discards; *local delivery included in the margin* explains the 5-8x residual on
+light high-value goods and says whether modal shift is the right second-order
+correction; *FAF used as an input* would mean BEA moves with the same annual
+source we do.
+
 ### Wholesale
 
 Economic Census **product-line sales by kind of business (KB)**; the margin rate
