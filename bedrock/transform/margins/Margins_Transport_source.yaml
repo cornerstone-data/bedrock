@@ -1,0 +1,75 @@
+# Shared source block for the Margins_Transport_<year> methods.
+#
+# Not a runnable method - the per-year files include this and set the year. Kept
+# in one place because the eight years differ only in that number, and the
+# activity sets carry enough reasoning that eight copies of it would drift.
+#
+# Step 4c phase 2 of the nowcast build (#611). FAF ton-miles by mode and
+# commodity moved: the transport mode produces the freight service and so lands
+# in SectorProducedBy, while the commodity moved rides in Flowable, which is what
+# carries ton-miles to the commodities that receive the margin.
+#
+# Ton-miles rather than tons: cost scales with distance, and against the
+# published 2017 TRANS column ton-miles fit at 0.370 where tons fit at 0.099.
+# See margins_estimation_plan.md §Transportation.
+#
+# Ported from flowsa's margins branch with three departures, all forced by the
+# data rather than chosen:
+#
+# - FAF's published mode names. The flowsa file spells three of the eight
+#   differently ("Air (includes truck-air)", "Multiple Modes and Mail", "Other
+#   and Unknown"), and a misspelled name selects nothing - the activity set
+#   would come back empty rather than raise.
+# - "No domestic mode" is in neither activity set. It maps to no sector by
+#   design: it is crude petroleum transferred ship-to-refinery at the port,
+#   which uses no domestic freight and so bears no transport margin.
+# - BEA_detail_target rather than a bare industry_spec override, so the ton-mile
+#   sectors line up one-to-one with BEA detail.
+
+BTS_FAF:
+  geoscale: national
+  # the commodity moved is published as a flow, not an activity; promote it to
+  # ActivityConsumedBy so the crosswalk can map it
+  clean_fba_before_activity_sets: !script_function:BTS_FAF move_flow_to_ACB
+  selection_fields:
+    Unit: ton-miles
+  activity_sets:
+
+    direct:
+      selection_fields:
+        ActivityProducedBy:
+          - Truck
+          - Rail
+          - Water
+          - Air (include truck-air)
+          - Pipeline
+      activity_to_sector_mapping: FAF_Mode_and_SCTG
+      attribution_method: equal
+
+    # These two modes have no single mode to book against, and both map to
+    # commodities with zero TRANS - postal and courier freight is bought as a
+    # direct service rather than embedded as margin. Split them across the
+    # primary modes carrying the same commodity. This is a no-op for the
+    # per-commodity total that the growth factors use, and matters only for the
+    # mode dimension, which the plan keeps for the mode-level refinement.
+    proportional:
+      selection_fields:
+        ActivityProducedBy:
+          - Multiple modes & mail
+          - Other and unknown
+      primary_action_type: Produced
+      activity_to_sector_mapping: FAF_Mode_and_SCTG
+      attribution_method: proportional
+      attribute_on: [Flowable, PrimarySector] # to align SCTG codes
+      attribution_source:
+        BTS_FAF:
+          selection_fields:
+            Unit: ton-miles
+            ActivityProducedBy:
+              - Truck
+              - Rail
+              - Water
+              - Air (include truck-air)
+              - Pipeline
+          geoscale: national
+          activity_to_sector_mapping: FAF_Mode_and_SCTG

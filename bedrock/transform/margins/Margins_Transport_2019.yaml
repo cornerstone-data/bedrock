@@ -1,0 +1,14 @@
+# FAF ton-miles by mode and commodity moved, 2019. Nowcast Step 4c phase 2
+# (#611) - the weights that move each commodity's published 2017 transport
+# margin. See Margins_Transport_source.yaml for what the activity sets do and
+# why, and margins_estimation_plan.md section Transportation for the
+# construction.
+
+!include:BEA_detail_target.yaml
+year: &year 2019
+target_naics_year: 2017
+geoscale: national
+
+source_names:
+  BTS_FAF: !include:Margins_Transport_source.yaml:BTS_FAF
+    year: *year
