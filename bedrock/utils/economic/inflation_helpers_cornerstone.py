@@ -390,7 +390,10 @@ def adjust_summary_A_dollar_year(
     Direction-agnostic: deflates when from_year > to_year, inflates when
     from_year < to_year.
     """
-    p = get_summary_commodity_price_ratio(original_year=to_year, target_year=from_year)
+    # Positional call only: ``@functools.cache`` keys kwargs separately from
+    # positional args, so ``f(a, b)`` and ``f(original_year=a, target_year=b)``
+    # can diverge after config switches that clear only one cache entry.
+    p = get_summary_commodity_price_ratio(to_year, from_year)
     p_row = np.asarray(p.reindex(A_summary.index, fill_value=1.0).to_numpy(dtype=float))
     p_col = np.asarray(
         p.reindex(A_summary.columns, fill_value=1.0).to_numpy(dtype=float)
@@ -414,11 +417,10 @@ def adjust_summary_q_dollar_year(
     Direction-agnostic: deflates when from_year > to_year, inflates when
     from_year < to_year.
     """
-    p = get_summary_commodity_price_ratio(original_year=to_year, target_year=from_year)
+    p = get_summary_commodity_price_ratio(to_year, from_year)
     return q_summary / p.reindex(q_summary.index, fill_value=1.0)
 
 
-@functools.cache
 def get_summary_commodity_price_ratio(
     original_year: int, target_year: int
 ) -> pd.Series[float]:
@@ -428,7 +430,19 @@ def get_summary_commodity_price_ratio(
 
     Built as the ratio of two ITA-based Paasche summary commodity PIs (see
     ``get_summary_commodity_price_index``).
+
+    Thin wrapper around a positional-only cache: ``@functools.cache`` on a
+    kwargs-accepting function treats ``f(a, b)`` and ``f(original_year=a,
+    target_year=b)`` as distinct keys, which can diverge after partial cache
+    clears across config switches.
     """
+    return _get_summary_commodity_price_ratio_cached(original_year, target_year)
+
+
+@functools.cache
+def _get_summary_commodity_price_ratio_cached(
+    original_year: int, target_year: int
+) -> pd.Series[float]:
     pi_orig = get_summary_commodity_price_index(original_year)
     pi_targ = get_summary_commodity_price_index(target_year)
     ratio = pi_targ / pi_orig
@@ -719,6 +733,7 @@ _CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
     get_sector_commodity_price_index,
     _get_summary_industry_price_index,
     get_summary_industry_price_ratio,
+    _get_summary_commodity_price_ratio_cached,
     derive_cornerstone_q_and_vnorm_for_year,
     obtain_useeior_detail_industry_cpi_levels,
 )
