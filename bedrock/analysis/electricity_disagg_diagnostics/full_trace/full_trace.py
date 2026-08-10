@@ -91,7 +91,13 @@ def _clear_model_caches() -> None:
     import bedrock.transform.eeio.cornerstone_disagg_pipeline as disagg_pipeline  # noqa: PLC0415
     import bedrock.transform.eeio.derived as eeio_derived  # noqa: PLC0415
     import bedrock.transform.eeio.derived_cornerstone as derived_cornerstone  # noqa: PLC0415
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+        clear_cornerstone_inflation_caches,
+    )
 
+    # Inflation helpers are year-keyed only; must clear when switching
+    # apply_io / electricity flags (405 ↔ 407 axes).
+    clear_cornerstone_inflation_caches()
     for mod in (
         model_objects,
         allocation_derived,
