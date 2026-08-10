@@ -6,9 +6,12 @@
 # override inside a block with the same key when vintages differ, e.g.:
 #   naics:
 #     target_schema_year: 2022
-#     default: NAICS_3
+#     default_level: NAICS_3
 
-# Maintain some BEA codes in model output: construction / government / housing / final-demand
+
+# requires "default_schema" identification. and if another industry schema is
+# identified (such as BEA), must explicitly state which sectors to include
+# from that schema
 
 # To use in an FBS method add
 # !include:Cornerstone_2025_target.yaml
@@ -16,8 +19,9 @@
 
 
 industry_spec:
+  default_schema: naics
   naics:
-    default: NAICS_3
+    default_level: NAICS_3
     NAICS_4: ['111', '112', '212', '221', '311', '312', '313', '314',
               '321', '327', '331', '332', '334', '336', '337', '423',
               '424', '512', '515', '517', '518', '522', '523', '524',
@@ -39,10 +43,10 @@ industry_spec:
               '33712', '33721', '33911', '51731', '52411', '54151',
               '562', '72251',
               ]
-  # All BEA Detail codes (incl. construction 23*, government G*/S*,
-  # housing 531*, and NIPA final-demand F*).
   bea:
-    default: Detail
+    default_level: Detail
+    Detail: ['F01000', 'S00102', 'S00203', 'S00500', 'S00600',
+             'GSLGE', 'GSLGH', 'GSLGO']
 
 target_schema_year: 2017
 # This schema was created for 2017 NAICS but should also work for the schema
