@@ -35,7 +35,6 @@ ELECTRICITY_AGGREGATE = '221100'
 BALANCE_TOLERANCE = 1e6
 DISAGG_BALANCE_ATOL = 1.0
 IO_ACCOUNT_YEAR = 2017
-EGRID_FBS_METHOD_NAME = 'GHG_national_Cornerstone_2023_egrid'
 
 TABLE_8_3_DESCRIPTION = (
     'Table 8.3 Revenue and expense statistics for major U.S. '
