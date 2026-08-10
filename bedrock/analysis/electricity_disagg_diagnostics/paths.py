@@ -8,12 +8,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from bedrock.utils.snapshots import releases
+
 PACKAGE_DIR = Path(__file__).resolve().parent
 OUT_DIR = PACKAGE_DIR / 'output'
 LOCAL_DATA_DIR = PACKAGE_DIR / 'local_data'
 MANIFEST_PATH = PACKAGE_DIR / 'manifest.yaml'
 
-V02_SNAPSHOT_SHA = '7372464249c434c9bebb172c065a4d0e3702176e'
+V03_SNAPSHOT_SHA = releases.v0_3_1
 
 
 def ensure_dirs() -> None:

@@ -2,7 +2,7 @@
 
 Diagnostics for the Cornerstone electricity PR chain:
 
-**v0.2 footing → reallocation → 3-way split → mixed units**
+**v0.3.1 electricity footing → reallocation → 3-way split → mixed units**
 
 Scripts are grouped by analysis so each subpackage owns the question it answers.
 Shared cache / path helpers stay at package root. All reports and figures still
@@ -12,9 +12,9 @@ write under [`output/`](output/) (same layout as before the reorganization).
 electricity_disagg_diagnostics/
   paths.py, manifest.py, local_data.py, manifest.yaml, local_data/
   bly_dispersion/       # BLy waterfalls from diagnostics sheets
-  ef_comparison/        # N/D vs v0.2 footing + N-variance writeup
+  ef_comparison/        # N/D vs v0.3 footing + N-variance writeup
   full_trace/           # live model IO / E / D / N / BLy walkthrough
-  year_alignment/       # BLy vs E under A/q year handling
+  year_alignment/       # BLy vs E under A/q year handling (still v0.2 mixed)
   hh_vs_interindustry/  # household vs intermediate generation MWh
   alternate_eia_anchored_split/  # EIA-anchored gen + T&D markup counterfactual
   probes/               # one-off sector probes
@@ -30,25 +30,29 @@ Run everything from the **repo root** with the project venv
 ## Shared prerequisites
 
 1. **Configs** (in repo):
-   - `2025_usa_cornerstone_v0_2` — footing
-   - `2025_usa_cornerstone_v0_2_electricity_reallocation`
-   - `2025_usa_cornerstone_v0_2_electricity_disaggregation`
-   - `2025_usa_cornerstone_v0_2_electricity_mixed_units` — FINAL
+   - `2025_usa_cornerstone_v0_3_electricity_footing` — footing
+   - `2025_usa_cornerstone_v0_3_electricity_reallocation`
+   - `2025_usa_cornerstone_v0_3_electricity_disaggregation`
+   - `2025_usa_cornerstone_v0_3_electricity_mixed_units` — FINAL
 
 2. **Sheet-based analyses** (`bly_dispersion`, `ef_comparison.plot_ef`) also need
    diagnostics workbooks (local Excel or live Google Sheets) — see below.
+   [`manifest.yaml`](manifest.yaml) `sheet_id` values are placeholders until Phase D
+   sheets are created.
 
-3. **Live-model analyses** (`full_trace`, `year_alignment`, `hh_vs_interindustry`,
+3. **Live-model analyses** (`full_trace`, `hh_vs_interindustry`,
    `alternate_eia_anchored_split`, `probes`, `ef_comparison.analyze_n_variance`)
    need a working Bedrock data / model environment for those configs (same as
-   running Cornerstone transforms).
+   running Cornerstone transforms). **`year_alignment`** is a carve-out: it still
+   uses the v0.2 mixed-units config (`2025_usa_cornerstone_v0_2_electricity_mixed_units`).
 
 ---
 
 ## 1. BLy dispersion waterfalls — `bly_dispersion/`
 
 Chained incremental BLy dispersion and net-change charts for
-PR2 (reallocation) → PR3 (3-way split) → PR4 (mixed units), vs Cornerstone v0.2.
+PR2 (reallocation) → PR3 (3-way split) → PR4 (mixed units), vs Cornerstone
+v0.3.1 electricity footing.
 
 | Module | Role |
 |---|---|
@@ -60,7 +64,13 @@ PR2 (reallocation) → PR3 (3-way split) → PR4 (mixed units), vs Cornerstone v
 ### Sheet inputs
 
 Trigger [`.github/workflows/generate_diagnostics.yml`](../../../.github/workflows/generate_diagnostics.yml)
-four times (`use_useeio_baseline` unchecked), one per config above, then either:
+four times (`use_useeio_baseline` unchecked), one per config above.
+
+When generating diagnostics, pass **`--baseline v0.3.1`** (or the raw SHA
+`00524c3c…`). Do **not** use `--baseline v0.3` — that alias points at the
+retired `v0_3_0` footing, not this suite.
+
+Then either:
 
 **A — local Excel (no Google API)**
 
@@ -69,10 +79,10 @@ Download each diagnostics workbook (**File → Download → Microsoft Excel**) i
 
 | File | Config |
 |---|---|
-| `2025_usa_cornerstone_v0_2.xlsx` | footing |
-| `2025_usa_cornerstone_v0_2_electricity_reallocation.xlsx` | step 1 |
-| `2025_usa_cornerstone_v0_2_electricity_disaggregation.xlsx` | step 2 |
-| `2025_usa_cornerstone_v0_2_electricity_mixed_units.xlsx` | step 3 + FINAL |
+| `2025_usa_cornerstone_v0_3_electricity_footing.xlsx` | footing |
+| `2025_usa_cornerstone_v0_3_electricity_reallocation.xlsx` | step 1 |
+| `2025_usa_cornerstone_v0_3_electricity_disaggregation.xlsx` | step 2 |
+| `2025_usa_cornerstone_v0_3_electricity_mixed_units.xlsx` | step 3 + FINAL |
 
 ```bash
 python -m bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.run_all \
@@ -88,7 +98,8 @@ python -m bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.run_all
 
 **B — live Google Sheets**
 
-Replace placeholder `sheet_id` values in [`manifest.yaml`](manifest.yaml), then:
+Replace placeholder `sheet_id` values in [`manifest.yaml`](manifest.yaml) once
+Phase D sheets exist, then:
 
 ```bash
 python -m bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.refresh_cache
@@ -113,8 +124,8 @@ a signed “BLy change due to …” bar appears only when total U.S. BLy change
 
 ## 2. EF comparison vs footing — `ef_comparison/`
 
-Compares **each electricity step** to the **v0.2** workbook’s absolute `N_new` /
-`D_new` (not to the previous step).
+Compares **each electricity step** to the **v0.3.1 electricity footing** workbook’s
+absolute `N_new` / `D_new` (not to the previous step).
 
 | Module | Role |
 |---|---|
@@ -141,11 +152,11 @@ python -m bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.analyze_
 
 | Path | Contents |
 |---|---|
-| `electricity_reallocation/` | Suite PNGs for that step vs v0.2 |
-| `electricity_disaggregation/` | Suite PNGs for 3-way vs v0.2 |
-| `electricity_mixed_units/` | Suite PNGs for mixed units vs v0.2 |
-| `panel/ef_panels_vs_v0_2_N.png` | 3-panel N % hist |
-| `panel/ef_panels_vs_v0_2_D.png` | 3-panel D % hist |
+| `electricity_reallocation/` | Suite PNGs for that step vs v0.3 footing |
+| `electricity_disaggregation/` | Suite PNGs for 3-way vs v0.3 footing |
+| `electricity_mixed_units/` | Suite PNGs for mixed units vs v0.3 footing |
+| `panel/ef_panels_vs_v0_3_N.png` | 3-panel N % hist |
+| `panel/ef_panels_vs_v0_3_D.png` | 3-panel D % hist |
 | `panel/n_variance_*.csv`, `n_variance_explained.md` | From `analyze_n_variance` |
 
 Dropped sectors (e.g. mixed-units `221110` kg/MWh vs kg/USD) are footnoted on figures.
@@ -178,6 +189,10 @@ python -m bedrock.analysis.electricity_disagg_diagnostics.full_trace.decompose_d
 
 Documents year handling for E / B / A / q / L / D / N under mixed units, and
 probes a single-year 2017 attempt (blockers + proxies).
+
+**Carve-out:** `year_alignment_bly_e.py` still uses the v0.2 mixed-units config
+(`MIXED_CONFIG = 2025_usa_cornerstone_v0_2_electricity_mixed_units`), not the
+v0.3.1 suite chain.
 
 ```bash
 python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment.year_alignment_bly_e

@@ -1,4 +1,4 @@
-﻿"""Emission-factor (N/D) comparisons vs the Cornerstone v0.2 footing.
+﻿"""Emission-factor (N/D) comparisons vs the Cornerstone v0.3 footing.
 
 Scripts:
 - ``plot_ef`` — per-step suite + 3-panel N/D histograms

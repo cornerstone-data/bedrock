@@ -44,10 +44,10 @@ from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics 
 )
 
 CONFIG_CHAIN: list[tuple[str, str]] = [
-    ("v0.2", "2025_usa_cornerstone_v0_2"),
-    ("reallocation", "2025_usa_cornerstone_v0_2_electricity_reallocation"),
-    ("3-way split", "2025_usa_cornerstone_v0_2_electricity_disaggregation"),
-    ("unit conversion", "2025_usa_cornerstone_v0_2_electricity_mixed_units"),
+    ("v0.3 footing", "2025_usa_cornerstone_v0_3_electricity_footing"),
+    ("reallocation", "2025_usa_cornerstone_v0_3_electricity_reallocation"),
+    ("3-way split", "2025_usa_cornerstone_v0_3_electricity_disaggregation"),
+    ("unit conversion", "2025_usa_cornerstone_v0_3_electricity_mixed_units"),
 ]
 
 GHG_ORDER = ["CO2", "CH4", "N2O", "SF6", "HFCs", "PFCs", "NF3"]
@@ -501,11 +501,11 @@ def _delta_note(
         base_note = notes[key]
     elif is_intensity:
         base_note = (
-            f"Largest change at {step} ({max_rel:.1%} vs v0.2); "
+            f"Largest change at {step} ({max_rel:.1%} vs v0.3 footing); "
             "reflects IO and/or unit-basis shift."
         )
     else:
-        base_note = f"Largest change at {step} ({max_rel:.1%} vs v0.2)."
+        base_note = f"Largest change at {step} ({max_rel:.1%} vs v0.3 footing)."
 
     if row == "y_nab (USD)":
         return f"{base_note} {y_nab_mixed_caveat}"
@@ -518,13 +518,13 @@ def write_full_trace_markdown(
 ) -> None:
     labels = [t.label for t in traces]
     lines: list[str] = [
-        "# Electricity full trace across v0.2 chain",
+        "# Electricity full trace across v0.3.1 electricity chain",
         "",
         "Comparison of IO anchors, emissions inventory **E**, direct EF **D**, "
         "total EF **N**, and **BLy** for the electricity block.",
         "",
-        "Configs: **v0.2** footing → **reallocation** (PR2) → **3-way split** (PR3) "
-        "→ **unit conversion** (PR4 mixed units).",
+        "Configs: **v0.3 footing** → **reallocation** → **3-way split** "
+        "→ **unit conversion** (mixed units).",
         "",
         "Rows labeled **221100\\*** after PR3 are re-aggregated values for "
         "**221110 + 221121 + 221122**. They retain the report's existing aggregate "

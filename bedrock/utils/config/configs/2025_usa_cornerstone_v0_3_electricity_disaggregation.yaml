@@ -1,0 +1,10 @@
+# v0.3.1 electricity footing + reallocation + 3-way split (margins off; no mixed units).
+model_base_year: 2024
+usa_ghg_data_year: 2024
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: True
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: False
+implement_electricity_reallocation: True
+implement_electricity_disaggregation: True
+snapshot_version_or_git_sha: '00524c3c8ba122a7a5b7f2139ff7ea6de08947bb'  # v0.3.1
