@@ -117,17 +117,26 @@ BEA_Marine_Bunker_Fuel:
 BEA_CEDA_transport_allocation:
   data_format: FBA
   class: Other
-  activity_schema: null
+  activity_schema:
+    bea:
+      year: 2017
+      hierarchy: flat
   sector_hierarchy: flat
 BEA_CEDA_refrigeration_allocation:
   data_format: FBA
   class: Other
-  activity_schema: null
+  activity_schema:
+    bea:
+      year: 2017
+      hierarchy: flat
   sector_hierarchy: flat
 BEA_CEDA_foam_allocation:
   data_format: FBA
   class: Other
-  activity_schema: null
+  activity_schema:
+    bea:
+      year: 2017
+      hierarchy: flat
   sector_hierarchy: flat
 Blackhurst_IO:
   data_format: FBA
