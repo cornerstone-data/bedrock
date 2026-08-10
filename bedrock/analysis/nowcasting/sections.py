@@ -28,8 +28,8 @@ Sections defined here
                             Declared, not yet runnable -- see below.
 ``supply_bridge_detail_sut`` Step 4.  The Supply table's right-hand block --
                             imports, margins, taxes and the subtotals
-                            bridging basic to purchaser value.  Declared, not
-                            yet runnable.
+                            bridging basic to purchaser value.  Runnable;
+                            candidate fills MCIF only.
 =========================== =================================================
 
 These three are the whole of what a published 2017 detail reference supports
@@ -74,7 +74,7 @@ from bedrock.analysis.nowcasting.table_match import (
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
-    USA_2017_FINAL_DEMAND_CODES,
+    SUT_FINAL_DEMAND_CODES,
     USA_2017_FINAL_DEMAND_DESC,
 )
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -97,12 +97,6 @@ SUT_VALUE_ADDED_DESC = {
     'T00OTOP': 'Other taxes on production, less subsidies',
     'V00300': 'Gross operating surplus',
 }
-
-#: The SUT framework has no imports column -- imports are not a final-demand
-#: column there -- so ``F05000`` is not part of the Step 1 frame.
-SUT_FINAL_DEMAND_CODES = tuple(
-    code for code in USA_2017_FINAL_DEMAND_CODES if code != 'F05000'
-)
 
 #: The Supply table's right-hand block: everything to the right of the
 #: commodity x industry interior, which is the bridge from domestic output at
@@ -275,13 +269,26 @@ def supply_sut_bridge_reference(year: int = 2017) -> pd.DataFrame:
 def initial_Y_pur_candidate(year: int) -> pd.DataFrame:
     """Our Step 1 final-demand block, commodity x final-demand code, in USD.
 
-    Runs the ``NIPA_FD_<year>`` FBS.  This is the authoritative candidate and
+    Runs ``derive_initial_Y_pur``.  This is the authoritative candidate and
     the one the section should use once the FBS runs again; see
     :func:`initial_Y_pur_exported_candidate` for why it currently does not.
     """
     from bedrock.transform.eeio.nowcast import derive_initial_Y_pur  # noqa: PLC0415
 
     return derive_initial_Y_pur(year)
+
+
+def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
+    """Our Step 4 supply-bridge block, commodity x bridge code, in USD.
+
+    Runs ``derive_initial_supply_bridge``. MCIF is sourced; other columns are
+    unsourced.
+    """
+    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        derive_initial_supply_bridge,
+    )
+
+    return derive_initial_supply_bridge(year)
 
 
 #: Where ``initial_Y_pur_baseline.export_cellwise_comparison`` writes.
@@ -342,8 +349,8 @@ USE_FD_DETAIL_SUT = Section(
     reference=use_sut_final_demand_reference,
     candidate=initial_Y_pur_candidate,
     note=(
-        'Candidate is a live run of derive_initial_Y_pur, so this picture tracks '
-        'the current NIPA_FD_2017 config. Reference is always the published SUT '
+        'Candidate is a live run of derive_initial_Y_pur (NIPA_FD plus '
+        'Trade_Exports F040 for 2017). Reference is always the published SUT '
         'workbook.'
     ),
 )
@@ -381,11 +388,12 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
     column_names=SUPPLY_BRIDGE_DESC,
     reference=supply_sut_bridge_reference,
-    candidate=None,
+    candidate=initial_supply_bridge_candidate,
     note=(
-        'Step 4 has not been built, so there is no candidate to compare yet. '
-        'T014 nets to ~1 economy-wide, which is exactly why this block needs a '
-        'per-commodity picture rather than a totals check.'
+        'Candidate is a live run of derive_initial_supply_bridge: MCIF from '
+        'Trade_Imports_2017; MADJ, MDTY, T007, margins, tax and subtotals '
+        'unsourced. T014 nets to ~1 economy-wide, which is why this block '
+        'needs a per-commodity picture rather than a totals check.'
     ),
 )
 
