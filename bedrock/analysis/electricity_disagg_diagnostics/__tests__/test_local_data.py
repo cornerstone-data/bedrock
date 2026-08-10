@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
+from bedrock.analysis.electricity_disagg_diagnostics.local_workbooks import (
     import_workbook_to_cache,
     local_workbook_path,
     seed_cache_from_local_dir,
@@ -94,7 +94,7 @@ def _methodology_rows(config_name: str) -> dict[str, list[object]]:
         flags['implement_electricity_reallocation'] = 'True'
         flags['implement_electricity_disaggregation'] = 'True'
         flags['implement_electricity_mixed_units'] = 'True'
-    fields = [
+    fields: list[object] = [
         'config_name',
         'cornerstone_industry_avg_margins',
         'apply_io_year_adjustments',

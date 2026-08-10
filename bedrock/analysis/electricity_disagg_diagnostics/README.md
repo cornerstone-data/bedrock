@@ -10,7 +10,7 @@ write under [`output/`](output/) (same layout as before the reorganization).
 
 ```
 electricity_disagg_diagnostics/
-  paths.py, manifest.py, local_data.py, manifest.yaml, local_data/
+  paths.py, manifest.py, local_workbooks.py, manifest.yaml, local_data/
   bly_dispersion/       # BLy waterfalls from diagnostics sheets
   ef_comparison/        # N/D vs v0.3 footing + N-variance writeup
   full_trace/           # live model IO / E / D / N / BLy walkthrough

@@ -521,7 +521,9 @@ def _production_mixed_gtd_column_matrix() -> pd.DataFrame:
     data: dict[str, dict[str, float]] = {r: {} for r in HEATMAP_ROW_CODES}
     for col in HEATMAP_INDUSTRY_COLS:
         for row in HEATMAP_ROW_CODES:
-            data[row][col] = float(a_tot.loc[row, col]) * float(q.loc[col])
+            data[row][col] = float(cast(Any, a_tot.loc[row, col])) * float(
+                cast(Any, q.loc[col])
+            )
 
     y_gen = _model_year_y_row_221110(aq_s).astype(float)
     y_gen.index = y_gen.index.astype(str)

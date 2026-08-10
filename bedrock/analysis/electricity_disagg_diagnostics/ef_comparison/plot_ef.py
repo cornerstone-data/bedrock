@@ -18,7 +18,7 @@ from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.vs_footing_fr
     format_drop_footnote,
     vs_footing_ef_frames,
 )
-from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
+from bedrock.analysis.electricity_disagg_diagnostics.local_workbooks import (
     EF_TABS,
     REQUIRED_TABS,
     seed_cache_from_local_dir,
