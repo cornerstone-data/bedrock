@@ -1,9 +1,9 @@
-# This file can be used to set up target NAICS for a detail level model
+# This file can be used to set up target NAICS and BEA codes for a detail level model
 # NAICS are targeted to enable 1:1 correspondence between NAICS and BEA
 # Detail sectors
 # Maintain some BEA codes in model output.
 
-# To use in a FBS method add
+# To use in an FBS method add
 # !include:BEA_detail_target.yaml
 # to the top of the method replacing the three parameters below
 

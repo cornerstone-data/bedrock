@@ -1,4 +1,4 @@
-# This file can be used to set up target NAICS for a detail level model
+# This file can be used to set up target NAICS and BEA codes for a detail level model
 # NAICS are targeted to enable 1:1 correspondence between NAICS and BEA
 # Detail sectors. The waste sectors (562) are targeted to NAICS 6
 # to align with the waste disaggregation in cornerstone.
