@@ -725,6 +725,17 @@ anchors the level on 2017 BEA regardless. Imputing MSBO margin would add a
 component whose year-to-year movement is driven entirely by MSBO *sales*, which
 is a modelling choice dressed as data.
 
+**One place left to look, flagged rather than chased here.** An MSBO is the
+manufacturer's own outlet, so the establishment is in wholesale but the parent is
+a manufacturer — the markup may be visible from the *manufacturing* side even
+though the wholesale tables do not carry it. The annual manufacturing survey
+probe in [#564](https://github.com/cornerstone-data/bedrock/issues/564) is the
+work that will be reading those tables closely, so the lookout is recorded there:
+[`annual_survey_expense_sources.md`](annual_survey_expense_sources.md) §Watch for
+while in here. `ecnclcust` (class of customer) is the most promising candidate. A
+single credible 2017 MSBO markup rate would be enough, since only the annual
+movement is needed from elsewhere.
+
 ⚠️ **Open, and larger than anything above: the Economic Census and AWTS disagree
 by 42% about merchant wholesalers' own margin.** 1,563,667 against 1,100,925 at
 NAICS 42, for the same year and very nearly the same sales base — 5,700,967
