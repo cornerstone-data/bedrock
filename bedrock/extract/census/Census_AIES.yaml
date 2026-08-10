@@ -1,0 +1,29 @@
+author: US Census Bureau
+source_name: Annual Integrated Economic Survey (AIES)
+source_url: https://www.census.gov/programs-surveys/aies.html
+source_publication_date: 2025
+bib_id: Census_AIES
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: timeseries/aies/basic?
+  url_params:
+    # RCPT_GM_DVAL is gross margin and RCPT_TOT_VAL sales, both in $1,000.
+    # TYPOP is the type of operation, and it decides which of them is populated
+    # for a given sector - see Census_AIES.py, it is not optional.
+    get: NAICS,NAICS_LABEL,RCPT_GM_DVAL,RCPT_TOT_VAL,TYPOP,TAXSTAT
+    for: us:*
+    time: __year__
+    key: __apiKey__
+  key_param: key
+
+call_response_fxn: !script_function:Census_AIES census_aies_call
+parse_response_fxn: !script_function:Census_AIES census_aies_parse
+
+# AIES replaced AWTS and ARTS from data year 2023 and carries no back-years:
+# every earlier year returns 204 No Content. 2024 is not published yet, which
+# leaves the last year of the nowcast window without an observed trade margin.
+years:
+- 2023
