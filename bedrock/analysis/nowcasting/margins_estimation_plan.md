@@ -267,6 +267,36 @@ hopeless for air on both), but the build should move to commodity output `T013`
 so the residual is one framework throughout. That is 4a's object, so it is
 natural to take once 4a lands rather than to duplicate here.
 
+**The industry price index needs no commodity conversion — measured.** The
+price index is an *industry* series (`UGO304-A`), and converting it to a
+commodity one needs the market-share matrix, which exists annually only at
+summary level and not at all at detail. That constraint is real, and it does not
+bind here: the transport block of the 2017 Make table is near-diagonal, so the
+two indices are the same series to within a rounding error.
+
+| own-industry share of the commodity | before redef | after redef |
+|---|---:|---:|
+| air | 0.9999 | 1.0000 |
+| rail | 0.9984 | 0.9984 |
+| truck | 0.9943 | 0.9987 |
+| water | 0.9855 | 0.9921 |
+| pipeline | 0.9480 | 1.0000 |
+
+Holding the 2017 mix fixed and re-weighting the industry indices moves them by at
+most **0.696%** anywhere (pipeline, before redefinitions) and by 0.055% for
+truck, 0.000% for air and rail. After redefinitions the largest deviation
+anywhere is 0.059%. Since the price index enters only the `freight_volume`
+treatment — air and water — the effect on the built control total is **0.000%
+and 0.084%**. So the industry index is used directly, and the missing annual
+commodity mix costs nothing measurable *for these five commodities*. It would not
+generalise: this holds because freight commodities are produced almost entirely
+by their own industry, which is not true of, say, the trade commodities.
+
+⚠️ The figures above are **before redefinitions**, matching the margins anchor.
+Redefinition makes the block *more* diagonal (it moves secondary production onto
+the primary producer), so the before-redefinitions figure is the conservative one
+and the choice cannot be hiding a larger error.
+
 **Pipeline lost the residual.** The design put it on the residual at leverage
 0.01. On the build's measure its output is *less* than the margin it gives up —
 48,072 against 49,640 — so the residual is negative and it falls back to
