@@ -29,8 +29,17 @@ back empty raises.
 
 That ``1X`` is also what makes 2023 splice onto AWTS: the AWTS workbook is the
 ``nomsbo`` table, merchant wholesalers only, so the two are the same basis rather
-than merely similar. Wholesale 4-digit gross margin runs 1,043.8 $B in 2017 and
-1,358.2 $B in 2022 on AWTS, and 1,601.2 $B in 2023 here.
+than merely similar. Measured on the published NAICS 42 row, wholesale gross
+margin runs 1,618.0 $B in 2022 on AWTS against 1,601.2 $B here, a 1.0% fall on
+sales down 2.5%, and the margin *rate* moves 20.10% to 20.39% - continuous, so
+the consolidation did not move the wholesale basis.
+
+⚠️ **Compare like with like: the published total row, not the sum of the
+sub-industries.** Summing four-digit codes gives 1,358.2 $B for AWTS 2022 because
+suppression removes 16% of that year, so a 4-digit-to-total comparison across the
+splice shows a spurious +17.9% jump where the real move is -1.0%. The retail side
+splices less cleanly on the same test - its rate steps 31.3% to 34.2% - which is
+open; see the plan's "The splice is the seam that matters".
 
 **2023 only, so far.** Every other year returns 204 No Content - AIES does not
 carry the predecessor surveys' back-years, and 2024 is not yet published. The

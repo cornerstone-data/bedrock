@@ -673,15 +673,31 @@ side of the trade margin. `1X` is also exactly what the AWTS workbook is — its
 
 | 2017, $M | Census survey | BEA published column | Census / BEA |
 |---|---:|---:|---:|
-| Wholesale | 1,043,789 | 1,894,329 | **0.551** |
-| Retail | 1,458,243 | 1,761,765 | **0.828** |
+| Wholesale, NAICS 42 published row | 1,100,925 | 1,894,329 | **0.581** |
+| Retail, published `Total` row | 1,458,243 | 1,761,765 | **0.828** |
 
 **Wholesale is barely half of BEA's column**, because AWTS covers merchant
 wholesalers only while BEA's Wholesale margin also carries MSBOs and
 agents/brokers. So Phase 3 hands Phase 4 a **growth factor applied to the 2017
 BEA level**, not a replacement level — the same anchor-and-move construction
 Phase 2 used for transport, and for the same reason. Substituting the Census
-level directly would delete 45% of the wholesale margin.
+level directly would delete 42% of the wholesale margin.
+
+⚠️ **Read the published total row, never the sum of sub-industries.** The
+wholesale figure above was previously quoted as 1,043,789 (ratio 0.551), which is
+the sum of the 18 four-digit codes, not the published NAICS 42 row. The two are
+not a fixed distance apart, because suppression varies by year:
+
+| 4-digit sum ÷ NAICS 42 row | 2012–16 | 2017 | 2018 | 2019–21 | **2022** |
+|---|---:|---:|---:|---:|---:|
+| wholesale | 1.000 | 0.948 | 0.941 | 1.000 | **0.839** |
+
+That is not a rounding difference, it is a **17.8pp error in one year of the
+growth factor**: on the 4-digit sum 2021→2022 reads −6.4%, while the published
+row moves +11.4%. The retail side has the same hole in the same year, 0.940. So
+#613 must build the index off the `Total` / NAICS 42 rows the extractors already
+emit, and the "suppression subtracts from a control total" warning below is a
+specification for the consumer, not a caveat about the extract.
 
 ### The 850,540 wholesale gap, decomposed — and why it stays open
 
@@ -743,9 +759,61 @@ against an AWTS-implied 5,704,275, a 0.06% difference. So the disagreement is
 entirely in cost of goods: EC's `CSTGS` is 4,124,842 where AWTS purchases are
 4,621,765, about 497,000 apart. That is far too large to be inventory timing, and
 it means **the choice of Census source moves the wholesale level by 42%**. Not
-run down yet. It matters less than it looks for a pure growth index — both series
-are internally consistent over time — but it has to be settled before either is
-read as a level, and it decides which source Phase 4 should anchor to.
+run down yet.
+
+**Decision: anchor on the annual source — AWTS/ARTS, spliced to AIES — and not
+on the Economic Census.** The Economic Census is the more authoritative source in
+general, and that is the right reason to expect it to win a level dispute; it is
+not the relevant criterion here. Phase 3 supplies **movement only** — the level
+comes from the 2017 BEA column by construction (§These are index numbers) — and
+the Economic Census is quinquennial, so it cannot supply annual movement at all.
+Interpolating 2012/2017/2022 into a growth index would add modelled years dressed
+as observations. What a growth factor needs is a basis held constant across every
+year, and the annual surveys are that. The 42% gap therefore never enters the
+build: it cancels in each year's ratio as long as it is stable over time, which
+is the assumption now doing the work and the one to test.
+
+### The splice is the seam that matters, and only one side of it is clean
+
+With the level anchored on BEA and the movement taken from the annual series, the
+one place a basis change can still corrupt the answer is **2022→2023, where AWTS
+and ARTS hand over to AIES** — the survey consolidation re-engineered the
+questionnaire, so it is exactly where the annual basis could shift toward the
+Economic Census one. Measured on the published total rows, the margin *rate* is
+the test, because it is invariant to coverage:
+
+| gross margin ÷ sales | 2019 | 2020 | 2021 | 2022 | **2023 (AIES)** | step |
+|---|---:|---:|---:|---:|---:|---:|
+| wholesale, NAICS 42 | 19.3% | 19.7% | 20.7% | 20.1% | **20.4%** | **+0.3pp** ✅ |
+| retail, `Total` | 29.4% | 29.5% | 30.8% | 31.3% | **34.2%** | **+2.9pp** ⚠️ |
+
+**Wholesale splices cleanly.** The rate moves +0.29pp across the seam, inside its
+own year-to-year range, and the level falls 1.0% on sales down 2.5% — an ordinary
+2023 for goods wholesaling as inflation cooled. The `TYPOP 1X` = `nomsbo` basis
+match holds up in the data, not just in the documentation.
+
+**Retail does not, yet.** The rate steps 2.9pp in one year against a series that
+had moved ~0.3pp/yr for a decade, on sales up only 1.5% — so nearly all of the
+10.8% margin gain is repricing of the margin itself rather than more trade. It is
+not a NAICS vintage artifact: AIES 2023 publishes the 2017-vintage retail
+structure (`452` and `454` both present, no `455`–`459`), and its twelve 3-digit
+codes sum to the published `44-45` total exactly.
+
+⚠️ **So the EC-versus-annual question resurfaces inside the annual series.** If
+AIES adopted the Economic Census basis, retail 2023 is on a different footing
+from retail 2012–2022 and the growth factor carries a one-off 2.9pp jump that
+never happened. **The discriminating test:** 2022 is an Economic Census year, so
+compute the retail margin rate three ways — ARTS 2022, EC 2022 (`ecnmargin`), and
+AIES 2023. If EC 2022 sits near 34% while ARTS sits at 31.3%, the step is a basis
+change and 2023 must be rebased onto the ARTS rate before it enters the index. If
+EC 2022 sits near 31.3%, the step is real and stands. Wholesale gets the same
+test for free, and its answer is already predicted: the EC basis is 42% above
+AWTS, so a wholesale rate that did *not* jump is evidence AIES stayed on the
+annual basis.
+
+Neither `ecnmargin` nor `ecnbasic` is extracted yet, so this is scoped work
+rather than a lookup. It is a prerequisite of #613's control total, not of the
+extractors, which emit the published rows either way.
 
 ### Why gross margin, and not sales
 
