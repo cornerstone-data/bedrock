@@ -15,9 +15,9 @@ def adjust_dqi_reliability_collection_scores(
     Adjust the dqi scores for
     Data Reliability, Data Collection
 
-    based on source naics and target naics
+    based on source sectors and target sectors
 
-    Df must have 5 columns: DataReliability, DataCollection, source_naics, target_naics, SectorSourceName
+    Df must have 5 columns: DataReliability, DataCollection, source_sector, target_sector, SectorSourceName
 
     :param df:
     :return:
@@ -28,7 +28,7 @@ def adjust_dqi_reliability_collection_scores(
     df2 = df.copy()
     for c in ["source", "target"]:
         df2 = (
-            df2.merge(cw, how="left", left_on=f"{c}_naics", right_on="Sector")
+            df2.merge(cw, how="left", left_on=f"{c}_sector", right_on="Sector")
             .drop(columns="Sector")
             .rename(columns={"SectorLength": f"{c}Length"})
             # drop the duplicates caused by household/gov codes, assign codes as shortest sector length

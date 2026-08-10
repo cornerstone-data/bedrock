@@ -18,7 +18,7 @@ from bedrock.utils.mapping.geo import (
     filtered_fips as geo_filtered_fips,
 )
 from bedrock.utils.mapping.location import US_FIPS
-from bedrock.utils.mapping.naics import (
+from bedrock.utils.mapping.sector import (
     map_source_sectors_to_more_aggregated_sectors,
 )
 from bedrock.utils.validation.validation import (
@@ -229,7 +229,7 @@ def estimate_suppressed_sectors_equal_attribution(
     :param fba:
     :return:
     """
-    from bedrock.utils.mapping.naics import (  # noqa: PLC0415
+    from bedrock.utils.mapping.sector import (  # noqa: PLC0415
         map_source_sectors_to_less_aggregated_sectors,
     )
 
@@ -254,7 +254,7 @@ def estimate_suppressed_sectors_equal_attribution(
     )
     cw_melt = cw_melt.assign(
         count=(
-            cw_melt.groupby(['source_naics', 'SectorLength'])['source_naics'].transform(
+            cw_melt.groupby(['source_sector', 'SectorLength'])['source_sector'].transform(
                 'count'
             )
         )
@@ -262,9 +262,9 @@ def estimate_suppressed_sectors_equal_attribution(
     cw = cw_melt.query("count==1").drop(columns=['SectorLength', 'count'])
     # create new df with activity col values reassigned to their child sectors
     fba2 = (
-        fba.merge(cw, left_on=col, right_on='source_naics', how='left')
+        fba.merge(cw, left_on=col, right_on='source_sector', how='left')
         .assign(**{f"{col}": lambda x: x.Sector})
-        .drop(columns=['source_naics', 'Sector'])
+        .drop(columns=['source_sector', 'Sector'])
         .query(f"~{col}.isna()")
         .drop_duplicates()  # duplicates if multiple generations of 1:1
     )
@@ -320,7 +320,7 @@ def estimate_suppressed_sectors_equal_attribution(
     # todo: All hyphenated sectors are currently dropped, modify code so
     #  they are not
     fba_m = (
-        fba3.merge(naics_key, how='left', left_on=col, right_on='source_naics')
+        fba3.merge(naics_key, how='left', left_on=col, right_on='source_sector')
         .assign(location=fba3.Location, category=fba3.FlowName)
         # .replace({'FlowAmount': {0: np.nan}  #,
         # col: {'1125 & 1129': '112X',
@@ -334,8 +334,8 @@ def estimate_suppressed_sectors_equal_attribution(
         # 'n4': {'1125': '112X', '1129': '112X'},
         # 'n5': {'11193': '1119X', '11194': '1119X', '11199': '1119X'}
         # })
-        .dropna(subset='source_naics')
-        .drop(columns='source_naics')
+        .dropna(subset='source_sector')
+        .drop(columns='source_sector')
     )
 
     indexed = fba_m.set_index(

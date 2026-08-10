@@ -30,7 +30,7 @@ from bedrock.transform.literature_values import (
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
-from bedrock.utils.mapping.naics import industry_spec_key
+from bedrock.utils.mapping.sector import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
 
 
@@ -122,10 +122,10 @@ def attribute_transportation_sector_fees_to_target_sectors(
     )
     df_fha = (
         df_fha.merge(
-            naics_key, how='left', left_on='NAICS_2012_Code', right_on='source_naics'
+            naics_key, how='left', left_on='NAICS_2012_Code', right_on='source_sector'
         )
-        .drop(columns=['source_naics'])
-        .rename(columns={'target_naics': sector_col})
+        .drop(columns=['source_sector'])
+        .rename(columns={'target_sector': sector_col})
     )
     # equally attribute the shareoffees to all mapped sectors
     df_fha2 = (

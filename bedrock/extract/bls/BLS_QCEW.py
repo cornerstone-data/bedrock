@@ -26,7 +26,7 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
-from bedrock.utils.mapping.naics import industry_spec_key, return_max_sector_level
+from bedrock.utils.mapping.sector import industry_spec_key, return_max_sector_level
 
 
 def BLS_QCEW_URL_helper(*, build_url: str, year: str | int, **_: Any) -> list[str]:
@@ -210,17 +210,17 @@ def clean_qcew(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
         .reset_index(drop=True)
     )
 
-    target_naics = set(
+    target_sectors = set(
         industry_spec_key(
             fba.config['industry_spec'], fba.config['target_schema_year']
-        ).target_naics
+        ).target_sector
     )
     filtered = fixed.assign(
         ActivityProducedBy=fixed.ActivityProducedBy.mask(
-            (fixed.ActivityProducedBy + '0').isin(target_naics),
+            (fixed.ActivityProducedBy + '0').isin(target_sectors),
             fixed.ActivityProducedBy + '0',
         )
-    ).query('ActivityProducedBy in @target_naics')
+    ).query('ActivityProducedBy in @target_sectors')
 
     return filtered
 

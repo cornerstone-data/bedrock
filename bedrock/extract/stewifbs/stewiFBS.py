@@ -27,7 +27,7 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.settings import process_adjustmentpath
 from bedrock.utils.logging.flowsa_log import log
-from bedrock.utils.mapping import naics as naics_mapping
+from bedrock.utils.mapping import sector as naics_mapping
 from bedrock.utils.mapping.location import apply_county_FIPS, update_geoscale
 from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 
@@ -538,7 +538,7 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
         .assign(ActivityConsumedBy=np.nan)
         .pipe(
             naics_mapping.convert_naics_year,
-            f"NAICS_{config['target_naics_year']}_Code",
+            f"NAICS_{config['target_schema_year']}_Code",
             activity_schema,
             config['full_name'],
         )
