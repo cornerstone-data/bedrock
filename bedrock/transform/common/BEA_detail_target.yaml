@@ -36,11 +36,35 @@ industry_spec:
               '33712', '33721', '33911', '51731', '52411', '54151',
               '72251',
               ]
-  # All BEA Detail codes (incl. construction 23*, government G*/S*,
-  # housing 531*, and NIPA final-demand F*).
   bea:
     default_level: Detail
-    Detail: ['F01000', 'S00102', 'S00203', 'S00500', 'S00600',
-             'GSLGE', 'GSLGH', 'GSLGO']
+    Detail:
+      # Construction
+      - '230301'
+      - '230302'
+      - '233210'
+      - '233230'
+      - '233240'
+      - '233262'
+      - '2332A0'
+      - '2332C0'
+      - '2332D0'
+      - '233411'
+      - '233412'
+      - '2334A0'
+      # Housing
+      - '531HST'
+      - '531HSO'
+      - '531ORE'
+      # Government
+      - 'GSLGE'
+      - 'GSLGH'
+      - 'GSLGO'
+      - 'S00102'
+      - 'S00203'
+      - 'S00500'
+      - 'S00600'
+      # Final demand (household PCE)
+      - 'F01000'
 
 target_schema_year: 2017
