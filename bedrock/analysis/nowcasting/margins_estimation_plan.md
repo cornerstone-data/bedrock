@@ -149,27 +149,67 @@ while the nominal level reaches 1.483. Nearly all of the movement in the
 transport margin over the nowcast window is repricing, not more freight.
 
 **Built** in
-[`nowcast_transport_margins.py`](../../transform/iot/nowcast_transport_margins.py)
-as the transport industries' own gross output, held at each mode's 2017 ratio of
-margin given up to output:
+[`nowcast_transport_margins.py`](../../transform/iot/nowcast_transport_margins.py),
+and it is **not one construction but three, dispatched per mode** by
+`MODE_CONTROL`. A single treatment cannot serve all five, because the modes
+differ in how much of their output is margin at all — 0.026 for air against
+0.862 for rail:
+
+| mode | share of `TRANS` | 2017 margin ÷ output | leverage¹ | treatment |
+|---|---:|---:|---:|---|
+| truck | 67.8% | 0.767 | 0.30 | `residual` |
+| rail | 16.5% | 0.862 | 0.16 | `residual` |
+| pipeline | 11.9% | 1.033 | — | `output_ratio` |
+| water | 2.3% | 0.173 | 4.8 | `freight_volume` |
+| air | 1.5% | 0.026 | 36.9 | `freight_volume` |
+
+¹ % error in the margin per 1% error in direct uses — what decides whether a
+residual is usable.
 
 ```
-control[t]   = Σ_m GO_m[t] × (given_up_m[2017] ÷ GO_m[2017]),  rescaled so control[2017] = TRANS_2017
-TRANS[c, t]  = shape[c, t] × control[t] ÷ Σ_c shape[c, t]
+residual[m,t]        = GO_m[t] − direct_uses_m[2017] × pce_index_m[t]
+freight_volume[m,t]  = given_up_m[2017] × ton_miles_m[t] × price_m[t]     (both relative to 2017)
+output_ratio[m,t]    = GO_m[t] × (given_up_m ÷ GO_m)[2017]
+control[t]           = Σ_m …,  rescaled so control[2017] = TRANS_2017
+TRANS[c,t]           = shape[c,t] × control[t] ÷ Σ_c shape[c,t]
 ```
 
-Two reasons for that source over a freight price index. It is **the same number
-the negative side of the column carries** — `Σ_m given_up_m` *is* `−TRANS`, so
-the two sides cannot drift apart — and it is per mode, so it reprices truck
-freight with truck output rather than with an economy-wide deflator. The
-rescaling is 0.24%: the 2017 composite is 415,548 against 414,559 received, the
-gap being the negative `F03000` rows on the receiving side.
+Every treatment is an **identity in 2017**, so the choice changes movement only.
+The rescaling is 0.24%: the 2017 composite is 415,548 against 414,559 received,
+the gap being the negative `F03000` rows on the receiving side.
+
+**Why each.** The *residual* is what replaced a frozen give-up ratio for the two
+modes that are 84.3% of the column: their margin is most of their output, so
+direct uses are the small term and an error in them barely moves the answer. It
+lifts the pair 0.8% to 5.1% above the frozen ratio. *Freight volume × price* is
+forced for air and water — a residual there **goes negative** (air from 2019,
+reaching −121,719 million by 2024, because air PCE grows 1.96x against output's
+1.393x), and a frozen ratio makes air *freight* margin follow air *passenger*
+output, which would cut it 46% in 2020 when air freight ton-miles were 1.010.
+*Output ratio* is all that remains for pipeline: its output is less than the
+margin it gives up, so no residual exists, and it has no PCE to move direct uses
+by.
+
+⚠️ **The choice is the largest open uncertainty in this column.** All four
+constructions agree exactly in 2017 and spread **11.8% by 2022**:
+
+| $M | 2018 | 2020 | 2022 | 2024 |
+|---|---:|---:|---:|---:|
+| `freight_volume` (FAF ton-miles × price) | 448,449 | 435,773 | 575,587 | 568,801 |
+| `output_ratio` (gross output × frozen ratio) | 456,831 | 452,385 | 616,115 | 581,522 |
+| `residual` (all five modes — diagnostic only) | 454,310 | 493,585 | 584,554 | 446,921 |
+| **`mixed`** (per-mode, the default) | 458,567 | 465,486 | **643,443** | 594,847 |
+
+So the method is a **parameter**, not a decision baked in —
+`control_total_components(years, method=…)` and `control_total_comparison(years)`
+— and [#620](https://github.com/cornerstone-data/bedrock/issues/620) settles it
+against external sources rather than against itself.
 
 | | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | volume (ton-miles) | 1.066 | 1.052 | 0.997 | 1.025 | 1.036 | 1.029 | 1.032 |
-| level (control) | 1.099 | 1.127 | 1.089 | 1.266 | 1.483 | 1.393 | 1.399 |
-| **repricing** | 1.031 | 1.072 | 1.092 | 1.236 | **1.431** | 1.354 | 1.356 |
+| level (control, mixed) | 1.104 | 1.129 | 1.121 | 1.312 | 1.548 | 1.436 | 1.432 |
+| **repricing** | 1.036 | 1.073 | 1.124 | 1.280 | **1.494** | 1.396 | 1.388 |
 
 Truck is 68% of `TRANS` and its output runs 1.572x its 2017 level in 2022 — the
 freight-rate surge, which the volume index cannot see at all.
@@ -182,10 +222,16 @@ Three limitations, recorded rather than corrected:
   more than 25% in that one year, and the `TRANS`-weighted mean step is 1.124
   against the aggregate's 1.019. The control total absorbs the level, so what
   survives is a shape shift.
-- **Air and rail output are not freight-only.** Air's 2017 give-up ratio is
-  0.026 against rail's 0.862 — the rest of air output is passengers — so air
-  freight margin follows passenger air. Air is 1.5% of `TRANS`; truck, the mode
-  that matters, is close to freight-pure.
+- **The residual freezes the intermediate:final split at 2017.** Direct uses
+  move wholly by a *final*-use index, so intermediate direct purchases of
+  freight are assumed to move with household ones. They are 46% of truck's
+  direct uses and 62% of rail's. At those modes' leverage a 10% error in the
+  frozen part moves truck margin 1.4% and rail 1.0%. Taking them from a nowcast
+  Use matrix instead would be circular — Step 6b needs these margins to build
+  it.
+- **The air and water price index is the whole industry's**, passengers
+  included. Much less contaminated than their *level* was under a frozen ratio,
+  but not clean.
 - **Pipeline gives up 1.033 of its own gross output.** Carried as an index, but
   it means pipeline margin tracks the crude-price component of pipeline output.
   `211000` crude petroleum is on that account the largest single movement in the
@@ -196,90 +242,37 @@ which give **for-hire** output by mode, and Freight Facts and Figures — is
 [#620](https://github.com/cornerstone-data/bedrock/issues/620), medium priority.
 `BTS_TSA` is already half-built as an FBA (2012–2019, NAICS 2012).
 
-### ⚠️ Agreed refinement, designed and not yet built
+### ✅ Built — and one framework inconsistency to settle
 
-The frozen give-up ratio is the weak point above, and there is a better
-construction that removes it for most of the column. **Decided 2026-08-09; the
-code still carries the ratio version.**
+The refinement above is **implemented**; see the table of treatments. Two notes
+on how the built version differs from the design as first written.
 
-The Supply table closes the identity exactly — `T016`, all direct non-margin
-uses, equals `T013 + TRANS + TOP + SUB` — so the margin *is* a residual:
+**The leverage figures moved, because the denominator did.** The design measured
+direct uses as the Supply table's `T016` against commodity output `T013`; the
+build measures them as `BEA_Detail_GrossOutput_IO` less the published give-up.
+Those are not the same object, and for truck they differ by a third:
 
-```
-direct_uses[t] = T016[2017] × final_use_index[t]      # intermediate:final frozen at 2017
-margin[t]      = (T013 + TOP + SUB)[t] − direct_uses[t]
-```
+| truck, 2017, $M | design (`T013`, commodity) | build (`GO`, industry) |
+|---|---:|---:|
+| output | 333,879 | 367,154 |
+| direct uses | 52,658 | 85,568 |
+| leverage | 0.19 | 0.30 |
 
-Whether that residual is usable is entirely a question of conditioning, and it
-splits the modes cleanly:
+⚠️ **`BEA_Detail_GrossOutput_IO` is *industry* gross output; the margin given up
+is a *commodity* quantity.** Mixing them is a framework inconsistency, and the
+33,275 gap for truck is secondary production — trucking output produced by
+industries other than NAICS 484, and vice versa. The conclusion is unaffected
+(the residual is well conditioned for truck and rail on either measure, and
+hopeless for air on both), but the build should move to commodity output `T013`
+so the residual is one framework throughout. That is 4a's object, so it is
+natural to take once 4a lands rather than to duplicate here.
 
-| 2017, $M | `T013` | `TRANS` | `T016` direct uses | leverage¹ | share of `TRANS` |
-|---|---:|---:|---:|---:|---:|
-| truck | 333,879 | −281,589 | 52,658 | **0.19** | 67.8% |
-| rail | 79,793 | −68,590 | 9,666 | **0.14** | 16.5% |
-| pipeline | 50,119 | −49,660 | 536 | **0.01** | 11.9% |
-| water | 40,058 | −9,506 | 30,710 | 3.2 | 2.3% |
-| air | 255,374 | −6,225 | 270,780 | 43.5 | 1.5% |
-
-¹ percent error in the margin per 1% error in direct uses.
-
-So **residual for truck, rail and pipeline — 96.2% of `TRANS`** — and
-`|TRANS[2017]| × ton-miles[t] × price[t]` for air and water, where the margin is
-too small a slice of output for a residual to survive (a 1% error in air's
-direct uses throws its margin by 43%). Truck's `T016` of 52,658 matches the SUT
-use row, 39,330 + 11,700 + 1,629, to the dollar.
-
-⚠️ **Blocked on the final-use index —
-[#621](https://github.com/cornerstone-data/bedrock/issues/621).** `NIPA_FD`
-produces PCE for 2017 only.
-`NIPA_FD_2018`–`2024` are an earlier generation of the method — all seven are
-identical apart from the year line, at 352 lines against 2017's 521, and **do not
-contain the PCE activity sets at all**: no `FD_PCE`, none of its six variants,
-no `FD_IP_equipment`. The #539 work landed on the 2017 file and was never
-carried forward. So 2018 returns 314 rows and no PCE against 2017's 1,322.
-(Seven `FD_Gov_*` and `FD_Structures*` sets also come back empty on 2018 for a
-separate reason, NIPA line numbers shifting by vintage.) Carrying the 2017
-activity sets forward is the fix, and it is worth doing on its own account —
-without it the nowcast's Step 1 final demand is a 2017-only object. The fallback
-here is the raw `U20405` PCE lines as an
-*index* with the level anchored on 2017, which needs no bridge; note the clean
-lines exist for air, rail and water — the three that mostly do **not** use the
-residual — while truck's 11,700 of PCE arrives through the bridge with no 1:1
-line. At truck's leverage that is tolerable (a 10% index error moves truck margin
-1.9%, rail 1.4%, pipeline 0.01%), but the truck index will be a proxy.
-
-Three more things that follow, all of which shrink the work:
-
-- **No balancing step.** An earlier draft fitted `margin_2017[c,m]` per commodity
-  *and mode* biproportionally, which needs a RAS. The mode dimension never
-  appears in the output — only in the derivation — so it can go. The transport
-  column is an **input to** Step 5's RAS, not a product of one, and the choice of
-  RAS implementation reverts to [#588](https://github.com/cornerstone-data/bedrock/issues/588)
-  where it belongs.
-- **No SCTG → commodity allocation, and so no 4a/4b dependency here.** Fixed
-  within-SCTG shares cancel, so the interim-supply weighting BEA uses to split a
-  product line across commodities is not needed for *this* column. It is still
-  needed for the trade margins.
-- **What is given up is modal-shift sensitivity.** A per-commodity rate cannot
-  see freight moving from rail to truck, which raises cost per ton-mile. That is
-  second order, and the mode-level form is the natural refinement to revisit once
-  a balancer exists — the derivation is recorded above for that reason.
-
-📬 **Asked of BEA, 2026-08-09, reply outstanding.** Whether the weighting is
-tons or has moved to ton-miles or a commodity-varying revenue rate; whether the
-distribution runs within each mode separately; how local delivery and
-small-shipment cost are handled; and whether the commodity allocation still
-comes from CFS directly or FAF now plays a part. **Nothing is blocked on the
-answer** — the construction above anchors on the published `TRANS` rather than
-reconstructing it, so it stands whichever way the weighting question falls.
-What each answer would change: *tons confirmed* leaves ton-miles a deliberate,
-documented deviation affecting only the mode-level refinement; *a
-commodity-varying revenue rate* vindicates the anchor directly, since that
-variation is what the 2017 implied rates preserve and a volume weighting
-discards; *local delivery included in the margin* explains the 5-8x residual on
-light high-value goods and says whether modal shift is the right second-order
-correction; *FAF used as an input* would mean BEA moves with the same annual
-source we do.
+**Pipeline lost the residual.** The design put it on the residual at leverage
+0.01. On the build's measure its output is *less* than the margin it gives up —
+48,072 against 49,640 — so the residual is negative and it falls back to
+`output_ratio`. Under commodity output (50,119 against 49,660) it is positive
+but tiny, so the residual would be near-degenerate either way; this is the
+second reason to settle the framework question.
 
 ### Wholesale
 
