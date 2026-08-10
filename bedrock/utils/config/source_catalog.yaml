@@ -82,6 +82,18 @@ BEA_NIPA:
     - Money
   activity_schema: None
   sector_hierarchy: "flat"
+BEA_IEA:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: None
+  sector_hierarchy: "flat"
+BEA_ITA:
+  data_format: FBA
+  class:
+    - Money
+  activity_schema: None
+  sector_hierarchy: "flat"
 BEA_Marine_Bunker_Fuel:
   data_format: FBA
   class:
@@ -187,6 +199,12 @@ Census_QWI:
 Census_VIP:
   data_format: FBA
   class: Money
+  activity_schema: None
+  sector_hierarchy: "flat"
+Census_USATrade:
+  data_format: FBA
+  class:
+    - Money
   activity_schema: None
   sector_hierarchy: "flat"
 EIA_AEO:
