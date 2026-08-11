@@ -1,11 +1,9 @@
 # Cornerstone GHG national methods (v2025), inventory year 2018.
 # Uses UMD GHGIA FBAs. Some nested EPA GHGI tables
 # remain for soils / NEU allocation and fluorochemical MT detail.
-# Note that this FBS (along with 2017) can only be generated using the
-# Flow-By-Activity files stored on GCS - these files are labeled v2.0.3.
-# This method cannot be generated with raw GHGI data, as the latest
-# release of GHGI goes back to 2019.
-# Therefore, when running generateFlowBySector(), must set "download_sources_ok=True"
+# Nested EPA attribution FBAs for 2017/2018 are only available on GCS
+# (labeled v2.0.3); raw EPA GHGI releases do not go back before 2019.
+# When running generateFlowBySector(), set download_sources_ok=True.
 
 !include:Cornerstone_2025_target.yaml
 year: &ghgi_year 2018
@@ -683,7 +681,7 @@ source_names:
         - Methanol
     attribution_method: direct
 
-  UMD_GHGIA_T_3_14: # UMD Table 3-14 totals; allocate via EPA T_3_24b
+  UMD_GHGIA_T_3_14: # UMD Table 3-14 totals; allocate via EPA T_3_25b
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: UMD_GHGIA_AR5_100
@@ -693,7 +691,7 @@ source_names:
           PrimaryActivity: Emissions NEU Fossil Fuel Consumption
         attribution_method: proportional
         attribution_source:
-          EPA_GHGI_T_3_24b:
+          EPA_GHGI_T_3_25b:
             year: *epa_ghgi_year
             activity_to_sector_mapping: EPA_GHGI_Cornerstone
             fedefl_mapping: GHGI_AR5_100
