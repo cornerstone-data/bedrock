@@ -574,7 +574,7 @@ source_names:
      clean_parameter: # Override each year for use in allocate_industrial_combustion
         energy_fba: 'EIA_MECS_Energy'
         year: *mecs_year
-        ghg_fba: 'EPA_GHGI_T_A_10'  # aligns with 2018 MECS
+        ghg_fba: 'UMD_GHGIA_T_A5_1_S6'  # align with 2018 MECS
      fedefl_mapping: UMD_GHGIA_AR5_100
      activity_sets:
        petroleum_industrial:
