@@ -1,5 +1,5 @@
 import re
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -9,95 +9,264 @@ from bedrock.utils.config import common, settings
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.dqi import adjust_dqi_reliability_collection_scores
 
+# Level names per schema, coarsest → finest. New hierarchical schemas
+# should be added here and require a `{SCHEMA}_{year}_Crosswalk` with those columns.
+SECTOR_HIERARCHY_ORDER: dict[str, tuple[str, ...]] = {
+    # NAICS_7 = unofficial extensions (e.g. waste 5629201–3) kept in NAICS_{year}_Crosswalk
+    "naics": ("NAICS_2", "NAICS_3", "NAICS_4", "NAICS_5", "NAICS_6", "NAICS_7"),
+    "bea": ("Sector", "Summary", "Detail"),
+}
 
-def return_naics_crosswalk(year: Literal[2002, 2007, 2012, 2017]) -> pd.DataFrame:
+_SECTOR_SOURCE_NAME_RE = re.compile(r'^([A-Za-z]+)_(\d{4})_Code$')
+
+
+def parse_sector_source_name(name: str) -> tuple[str, int]:
+    """Parse `{SCHEMA}_{year}_Code` → (schema_lower, year)."""
+    m = _SECTOR_SOURCE_NAME_RE.fullmatch(str(name))
+    if not m:
+        raise ValueError(
+            f'Cannot parse SectorSourceName {name!r}; expected {{SCHEMA}}_{{year}}_Code'
+        )
+    return m.group(1).lower(), int(m.group(2))
+
+
+def sector_source_name(schema: str, year: int) -> str:
+    """Build honest SectorSourceName for a schema/year."""
+    return f'{schema.upper()}_{year}_Code'
+
+
+def _schema_block_year(block: dict[str, Any], default_year: int) -> int:
+    """Resolve classification year for one industry_spec schema block.
+
+    Top-level ``target_schema_year`` is the default; a block may override with
+    the same key name::
+
+        target_schema_year: 2017
+        industry_spec:
+          default_schema: naics
+          naics:
+            target_schema_year: 2022
+            default_level: NAICS_3
+          bea:
+            default_level: Detail
+            Detail: ['F01000']
     """
-    Load a naics crosswalk for 2012 or 2017 codes
+    if 'year' in block:
+        raise ValueError(
+            "industry_spec schema blocks use 'target_schema_year' (not 'year') "
+            "to override the method-level target_schema_year"
+        )
+    if 'target_schema_year' in block:
+        return int(block['target_schema_year'])
+    return int(default_year)
 
-    :param industry_spec:
-    :param year:
-    :return:
+
+_INDUSTRY_SPEC_TOP_META_KEYS = frozenset({'default_schema'})
+_INDUSTRY_SPEC_META_KEYS = frozenset({'default_level', 'target_schema_year', 'codes'})
+
+
+def return_schema_crosswalk(schema: str, year: int) -> pd.DataFrame:
+    """Load hierarchy columns for a registered schema.
+
+    - ``naics`` (and other file-backed schemas): ``{SCHEMA}_{year}_Crosswalk.csv``
+    - ``bea``: derived from ``NAICS_to_BEA_Crosswalk_{year}`` as
+      ``Sector`` / ``Summary`` / ``Detail`` — do **not** ship a separate
+      ``BEA_{year}_Crosswalk.csv``.
     """
+    if schema == 'bea':
+        n2b = common.load_crosswalk(f'NAICS_to_BEA_Crosswalk_{year}')
+        rename = {
+            f'BEA_{year}_Sector_Code': 'Sector',
+            f'BEA_{year}_Summary_Code': 'Summary',
+            f'BEA_{year}_Detail_Code': 'Detail',
+        }
+        missing = [c for c in rename if c not in n2b.columns]
+        if missing:
+            raise ValueError(
+                f'NAICS_to_BEA_Crosswalk_{year} missing columns {missing}'
+            )
+        return (
+            n2b[list(rename)]
+            .rename(columns=rename)
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+    return common.load_crosswalk(f'{schema.upper()}_{year}_Crosswalk')
 
-    crosswalk = f'NAICS_{year}_Crosswalk'
 
-    naics_crosswalk = common.load_crosswalk(crosswalk)
+def _industry_spec_key_hierarchical(
+    schema: str,
+    block: dict[str, Any],
+    year: int,
+    *,
+    full_tree: bool,
+) -> pd.DataFrame:
+    """Build source→target key for one hierarchical schema block.
 
-    return naics_crosswalk
+    ``default_level`` is the target hierarchy column. Other level keys refine
+    listed industries to that column (same mask semantics for every schema).
+
+    When ``full_tree`` is False (non-default schema), level lists are required
+    and the key only includes industries matching those lists.
+    """
+    block_year = _schema_block_year(block, year)
+    cw = return_schema_crosswalk(schema, block_year)
+    default_col = block['default_level']
+    assert isinstance(default_col, str), "'default_level' must be a string column name"
+    level_items = {
+        k: v for k, v in block.items() if k not in _INDUSTRY_SPEC_META_KEYS
+    }
+    if not full_tree:
+        if not level_items:
+            raise ValueError(
+                f"industry_spec[{schema!r}] is not default_schema and must list "
+                f"industries under hierarchy level keys (e.g. Detail: [...])"
+            )
+        listed: list[Any] = []
+        for industries in level_items.values():
+            if isinstance(industries, str):
+                listed.append(industries)
+            else:
+                listed.extend(industries)
+        cw = cw.loc[cw.isin(listed).any(axis=1)].copy()
+        if cw.empty:
+            raise ValueError(
+                f"industry_spec[{schema!r}] level lists matched no hierarchy rows: "
+                f"{listed}"
+            )
+    cw = cw.assign(target_sector=cw[default_col])
+    for level, industries in level_items.items():
+        if isinstance(industries, str):
+            industries = [industries]
+        cw['target_sector'] = cw['target_sector'].mask(
+            cw.drop(columns='target_sector').isin(industries).any(axis='columns'),
+            cw[level],
+        )
+    key = cw.melt(id_vars='target_sector', value_name='source_sector')
+    key = (
+        key[['source_sector', 'target_sector']]
+        .dropna()
+        .drop_duplicates()
+        .assign(SectorSourceName=sector_source_name(schema, block_year))
+    )
+    return key
 
 
 def industry_spec_key(
-    industry_spec: dict[str, str | list[str]],
-    year: Literal[2002, 2007, 2012, 2017],  # Year of NAICS code
+    industry_spec: dict[str, Any],
+    year: int,
 ) -> pd.DataFrame:
     """
-    Provides a key for mapping any set of NAICS codes to a given industry
-    breakdown, specified in industry_spec. The key is a DataFrame with columns
-    'source_naics' and 'target_naics'; it is 1-to-many for any NAICS codes
-    shorter than the relevant level given in industry-spec, and many-to-1 for
-    any NAICS codes longer than the relevant level.
+    Provides a key for mapping sector codes to a target industry breakdown.
 
-    The industry_spec is a (possibly nested) dictionary formatted as in this
-    example:
+    industry_spec must be nested by schema (hard cut — no flat legacy shape)::
 
-    industry_spec = {'default': 'NAICS_3',
-                     'NAICS_4': ['112', '113'],
-                     'NAICS_6': ['1129']
+        industry_spec = {
+            'default_schema': 'naics',
+            'naics': {
+                'default_level': 'NAICS_3',
+                'NAICS_4': ['112', '113'],
+                'NAICS_6': ['1129'],
+            },
+            'bea': {
+                'default_level': 'Detail',
+                'Detail': ['F01000', 'S00102'],
+            },
+        }
 
-    This example specification would map any set of NAICS codes to the 3-digit
-    level, except that codes in 112 and 113 would be mapped to the 4-digit
-    level, with codes in 1129 being mapped to the 6 digits level.
+    ``default_schema`` is the primary schema (full hierarchy + refinements).
+    Other schema blocks must list industries under level keys (keep set).
 
-    The top industry_spec dictionary may also include a key 'non_naics', where
-    the associated value is a non-NAICS "industry" or list of such "industries"
-    that should be included in the set of industries that can be mapped to.
-    In this case, the user will need to supply their own crosswalk which maps
-    activities to that industry.
+    Method-level ``target_schema_year`` is passed as ``year`` and applies to every
+    block unless a block sets its own ``target_schema_year`` override.
 
-    Some important points in formatting an industry specification:
-    1.  Every dictionary in the spec must have a 'default' key, whose value is
-        used for any relevant codes not specifically named in the dictionary.
-    2.  Each non-default key in a dictionary must be at the length given
-        by the default value for the dictionary (so if 'default': 'NAICS_3',
-        then any non-default keys must be NAICS codes with exactly 3 digits).
-    3.  Each dictionary is applied only to those codes matching its parent
-        key (with the root dictionary being applied to all codes).
+    Returns columns ``source_sector``, ``target_sector``, ``SectorSourceName``.
+    Flat / unversioned schemas use a ``codes`` list for identity mapping.
     """
-
-    naics = return_naics_crosswalk(year)
-    default_col = industry_spec['default']
-    assert isinstance(default_col, str), "'default' must be a string column name"
-    naics = naics.assign(target_naics=naics[default_col])
-    for level, industries in industry_spec.items():
-        if level not in ['default', 'non_naics']:
-            naics['target_naics'] = naics['target_naics'].mask(
-                naics.drop(columns='target_naics').isin(industries).any(axis='columns'),
-                naics[level],
-            )
-    # melt the dataframe to include source naics
-    naics_key = naics.melt(id_vars="target_naics", value_name="source_naics")
-    # add user-specified non-naics
-    if 'non_naics' in industry_spec:
-        non_naics = industry_spec['non_naics']
-        if isinstance(non_naics, str):
-            non_naics = [non_naics]
-        naics_key = pd.concat(
-            [
-                naics_key,
-                pd.DataFrame({'source_naics': non_naics, 'target_naics': non_naics}),
-            ]
+    if 'default' in industry_spec:
+        raise ValueError(
+            'Flat industry_spec is no longer supported; nest under schema keys '
+            '(naics:, bea:, ...) with default_level / default_schema.'
         )
 
-    # drop nans
-    naics_key = (
-        naics_key[['source_naics', 'target_naics']]
-        .dropna()
+    default_schema = industry_spec.get('default_schema')
+    schema_blocks = {
+        k: v
+        for k, v in industry_spec.items()
+        if k not in _INDUSTRY_SPEC_TOP_META_KEYS
+    }
+
+    hierarchy_schemas = [
+        s
+        for s, b in schema_blocks.items()
+        if isinstance(b, dict) and s in SECTOR_HIERARCHY_ORDER
+    ]
+    if len(hierarchy_schemas) > 1 and default_schema is None:
+        raise ValueError(
+            'industry_spec with multiple schemas requires default_schema '
+            f'(got {sorted(hierarchy_schemas)})'
+        )
+    if default_schema is not None and default_schema not in schema_blocks:
+        raise ValueError(
+            f'default_schema {default_schema!r} has no matching industry_spec block'
+        )
+
+    parts: list[pd.DataFrame] = []
+    for schema, block in schema_blocks.items():
+        if not isinstance(block, dict):
+            raise ValueError(
+                f'industry_spec[{schema!r}] must be a dict, got {type(block).__name__}'
+            )
+        if schema in SECTOR_HIERARCHY_ORDER:
+            full_tree = default_schema is None or schema == default_schema
+            parts.append(
+                _industry_spec_key_hierarchical(
+                    schema, block, year, full_tree=full_tree
+                )
+            )
+        elif 'codes' in block:
+            codes = block['codes']
+            if isinstance(codes, str):
+                codes = [codes]
+            block_year = _schema_block_year(block, year)
+            parts.append(
+                pd.DataFrame(
+                    {
+                        'source_sector': codes,
+                        'target_sector': codes,
+                        'SectorSourceName': sector_source_name(schema, block_year),
+                    }
+                )
+            )
+        else:
+            raise ValueError(
+                f'Unknown schema {schema!r}; register in SECTOR_HIERARCHY_ORDER '
+                f'or provide a flat block with a codes list'
+            )
+
+    if not parts:
+        raise ValueError('industry_spec is empty')
+
+    return (
+        pd.concat(parts, ignore_index=True)
         .drop_duplicates()
-        .sort_values(by=['source_naics', 'target_naics'])
+        .sort_values(by=['SectorSourceName', 'source_sector', 'target_sector'])
         .reset_index(drop=True)
     )
 
-    return naics_key
+
+def sector_hierarchy_from_config(config: Any) -> str | None:
+    """Resolve activity-row nesting from nested activity_schema (or legacy key)."""
+    if not isinstance(config, dict):
+        config = dict(config) if config is not None else {}
+    if config.get('sector_hierarchy') is not None:
+        return config.get('sector_hierarchy')
+    raw = config.get('activity_schema')
+    if isinstance(raw, dict):
+        for block in raw.values():
+            if isinstance(block, dict) and block.get('hierarchy') is not None:
+                return block.get('hierarchy')
+    return None
 
 
 def subset_sector_key(
@@ -122,32 +291,72 @@ def subset_sector_key(
     # if the primary sector key is the activity to sector crosswalk, which is the case for FBAs with non-sector-like
     # activities, merge with the secondary sector key (the naics industry key) to pull in target sectors and tech
     # corr scoring
-    group_cols = ["target_naics", "Class", "Flowable", "Context"]
-    merge_col = "source_naics"
+    group_cols = ["target_sector", "Class", "Flowable", "Context"]
+    merge_col = "source_sector"
     drop_col = activitycol
     if "Activity" in primary_sector_key.columns:
         group_cols = group_cols + ["Activity"]
         merge_col = "Activity"
-        drop_col = "source_naics"
+        drop_col = "source_sector"
 
         assert (
             secondary_sector_key is not None
         ), "secondary_sector_key required when Activity column present"
-        primary_sector_key = primary_sector_key.merge(
-            secondary_sector_key,
-            how='left',
-            left_on='Sector',
-            right_on='source_naics',
-        )
+        # Match activity CW to industry key on schema (naics/bea), not vintage —
+        # activity SectorSourceName year may differ from the target on the
+        # industry key.
+        if (
+            'SectorSourceName' in primary_sector_key.columns
+            and 'SectorSourceName' in secondary_sector_key.columns
+        ):
+            # Incomplete CW rows (null SectorSourceName) cannot join by schema.
+            null_sec_source_name = primary_sector_key['SectorSourceName'].isna() | (
+                primary_sector_key['SectorSourceName'].astype(str).str.strip() == ''
+            )
+            if null_sec_source_name.any():
+                dropped = primary_sector_key.loc[
+                    null_sec_source_name, ['Activity', 'Sector']
+                ].drop_duplicates()
+                log.warning(
+                    f'Dropping {len(dropped)} activity-to-sector CW rows with '
+                    f'null SectorSourceName: '
+                    f'{set(zip(dropped["Activity"], dropped["Sector"]))}'
+                )
+                primary_sector_key = primary_sector_key.loc[
+                    ~null_sec_source_name
+                ].copy()
+            primary_sector_key = primary_sector_key.assign(
+                _schema=primary_sector_key['SectorSourceName'].map(
+                    lambda s: parse_sector_source_name(s)[0]
+                )
+            ).drop(columns=['SectorSourceName'])
+            secondary_sector_key = secondary_sector_key.assign(
+                _schema=secondary_sector_key['SectorSourceName'].map(
+                    lambda s: parse_sector_source_name(s)[0]
+                )
+            )
+            primary_sector_key = primary_sector_key.merge(
+                secondary_sector_key,
+                how='left',
+                left_on=['Sector', '_schema'],
+                right_on=['source_sector', '_schema'],
+            ).drop(columns=['_schema'], errors='ignore')
+        else:
+            primary_sector_key = primary_sector_key.merge(
+                secondary_sector_key,
+                how='left',
+                left_on='Sector',
+                right_on='source_sector',
+            )
         # print where values are not mapped
-        unmapped = primary_sector_key.query('source_naics.isnull()')
+        unmapped = primary_sector_key.query('source_sector.isnull()')
         if len(unmapped) > 0:
             log.warning(
-                'Activities are unmapped for %s',
-                set(zip(unmapped['Activity'], unmapped['Sector'])),
+                f'Activities are unmapped for '
+                f'{set(zip(unmapped["Activity"], unmapped["Sector"]))}'
             )
         # drop null values and sector col
-        primary_sector_key = primary_sector_key.dropna(subset=['source_naics']).drop(
+        primary_sector_key = primary_sector_key.dropna(subset=['source_sector']).drop(
             columns=['Sector']
         )
     # else, if activities are sector-like
@@ -157,7 +366,7 @@ def subset_sector_key(
         # if activities are sector-like, drop all sectors that are not in sector crosswalk, due to datasets such as
         # BLS QCEW which often has non-traditional NAICS6, but the parent NAICS5 do map correctly to sectors
         flowbyactivity = flowbyactivity[
-            flowbyactivity[activitycol].isin(primary_sector_key["source_naics"].values)
+            flowbyactivity[activitycol].isin(primary_sector_key["source_sector"].values)
         ]
 
     # drop rows of data where activitycol value is null - no mapping required
@@ -205,17 +414,17 @@ def subset_sector_key(
     )
 
     # drop parent sectors if parent-completechild
-    if flowbyactivity.config.get('sector_hierarchy') == 'parent-completeChild':
+    if sector_hierarchy_from_config(flowbyactivity.config) == 'parent-completeChild':
 
         def drop_parent_sectors(sector_key: pd.DataFrame) -> pd.DataFrame:
-            sector_list = sector_key['source_naics'].astype(str).tolist()
+            sector_list = sector_key['source_sector'].astype(str).tolist()
 
             def is_parent(x: str) -> bool:
                 return any(
                     sector != x and sector.startswith(x) for sector in sector_list
                 )
 
-            return sector_key[~sector_key['source_naics'].astype(str).apply(is_parent)]
+            return sector_key[~sector_key['source_sector'].astype(str).apply(is_parent)]
 
         # todo: check futurewarning dataframegroupby.apply fix working as expected
         primary_sector_key_2 = primary_sector_key_2.groupby(
@@ -230,55 +439,55 @@ def subset_sector_key(
 
     # Keep rows where source = target
     df_keep = primary_sector_key_2[
-        primary_sector_key_2["source_naics"] == primary_sector_key_2["target_naics"]
+        primary_sector_key_2["source_sector"] == primary_sector_key_2["target_sector"]
     ].reset_index(drop=True)
 
     # subset df to all remaining target sectors and Activity if present by dropping the one to one matches
     df_remaining = primary_sector_key_2[
-        primary_sector_key_2["source_naics"] != primary_sector_key_2["target_naics"]
+        primary_sector_key_2["source_sector"] != primary_sector_key_2["target_sector"]
     ].reset_index(drop=True)
 
     # function to identify which source naics most closely match to the target naics
     def subset_target_sectors_by_source_sectors(group: pd.DataFrame) -> pd.DataFrame:
-        target = group["target_naics"].iloc[0]
+        target = group["target_sector"].iloc[0]
         target_length = len(target)
 
         # first check for length source > length target
-        group_filtered_greater = group[group["source_naics"].apply(len) > target_length]
+        group_filtered_greater = group[group["source_sector"].apply(len) > target_length]
         if not group_filtered_greater.empty:
             # keep rows where source length is smallest greater length
-            min_source_length = min(group_filtered_greater["source_naics"].apply(len))
+            min_source_length = min(group_filtered_greater["source_sector"].apply(len))
             result_greater = group_filtered_greater[
-                group_filtered_greater["source_naics"].apply(len) == min_source_length
+                group_filtered_greater["source_sector"].apply(len) == min_source_length
             ]
             # drop the greater data from the remainder df before looking for shorter lengths
             if "Activity" in group.columns:
                 group = group[
                     ~(
-                        (group["target_naics"].isin(result_greater["target_naics"]))
+                        (group["target_sector"].isin(result_greater["target_sector"]))
                         & (group["Activity"].isin(result_greater["Activity"]))
                     )
                 ]
             else:
                 group = group[
-                    ~group["target_naics"].isin(result_greater["target_naics"])
+                    ~group["target_sector"].isin(result_greater["target_sector"])
                 ]
         else:
             result_greater = pd.DataFrame()
 
         # if there are no source length greater than target, check for source values shorter
-        group_filtered_shorter = group[group["source_naics"].apply(len) < target_length]
+        group_filtered_shorter = group[group["source_sector"].apply(len) < target_length]
         if not group_filtered_shorter.empty:
             # keep rows where source length is smallest smaller length
-            max_source_length = max(group_filtered_shorter["source_naics"].apply(len))
+            max_source_length = max(group_filtered_shorter["source_sector"].apply(len))
             result_shorter = group_filtered_shorter[
-                group_filtered_shorter["source_naics"].apply(len) == max_source_length
+                group_filtered_shorter["source_sector"].apply(len) == max_source_length
             ]
         else:
             result_shorter = pd.DataFrame()
         return pd.concat([result_greater, result_shorter], ignore_index=True)
 
-    if flowbyactivity.config.get('sector_hierarchy') == 'parent-incompleteChild':
+    if sector_hierarchy_from_config(flowbyactivity.config) == 'parent-incompleteChild':
         df_remaining_mapped = df_remaining.copy()
     else:
         # todo: check impact of changing code to remove future warning
@@ -302,7 +511,7 @@ def subset_sector_key(
         .reset_index(drop=True)
         # rename activity column back to original name
         .rename(
-            columns={'Activity': f'{activitycol}', 'source_naics': f'{activitycol}'},
+            columns={'Activity': f'{activitycol}', 'source_sector': f'{activitycol}'},
             errors='ignore',
         )
     )
@@ -311,53 +520,112 @@ def subset_sector_key(
 
 
 def map_target_sectors_to_less_aggregated_sectors(
-    industry_spec: dict[str, str | list[str]], year: Literal[2002, 2007, 2012, 2017]
+    industry_spec: dict[str, Any],
+    year: int,
 ) -> pd.DataFrame:
     """
-    Map target NAICS to all possible other sector lengths
-    flat hierarchy
+    Map each target sector to coarser hierarchy parents for equal attribution.
+
+    Returns ``target_sector``, ``SectorSourceName``, and ``_hier_{i}`` columns where
+    ``i`` is the 0-based index into ``SECTOR_HIERARCHY_ORDER[schema]`` (coarsest
+    first). Levels finer than the target are set to NaN.
     """
-    naics = return_naics_crosswalk(year)
-    default_col = industry_spec['default']
-    assert isinstance(default_col, str), "'default' must be a string column name"
-    naics = naics.assign(target_naics=naics[default_col])
-    for level, industries in industry_spec.items():
-        if level not in ['default', 'non_naics']:
-            naics['target_naics'] = naics['target_naics'].mask(
-                naics.drop(columns='target_naics').isin(industries).any(axis='columns'),
-                naics[level],
-            )
-
-    # todo: add user-specified non-naics
-    # if 'non_naics' in industry_spec:
-    #     non_naics = industry_spec['non_naics']
-    #     if isinstance(non_naics, str):
-    #         non_naics = [non_naics]
-    #     naics_key = pd.concat([naics_key,
-    #                            pd.DataFrame({'source_naics': non_naics,
-    #                                          'target_naics': non_naics})])
-
-    # drop source_naics that are more aggregated than target_naics, reorder
-    for n in (2, 7):
-        naics[f'NAICS_{n}'] = np.where(
-            naics[f'NAICS_{n}'].str.len() > naics['target_naics'].str.len(),
-            np.nan,
-            naics[f'NAICS_{n}'],
+    if 'default' in industry_spec:
+        raise ValueError(
+            'Flat industry_spec is no longer supported; nest under schema keys '
+            '(naics:, bea:, ...) with default_level / default_schema.'
         )
 
-    # rename columns to align with previous code
-    naics = naics.rename(
-        columns={
-            'NAICS_2': '_naics_2',
-            'NAICS_3': '_naics_3',
-            'NAICS_4': '_naics_4',
-            'NAICS_5': '_naics_5',
-            'NAICS_6': '_naics_6',
-            'NAICS_7': '_naics_7',
-        }
-    )
+    default_schema = industry_spec.get('default_schema')
+    parts: list[pd.DataFrame] = []
+    max_depth = 0
+    for schema, block in industry_spec.items():
+        if schema in _INDUSTRY_SPEC_TOP_META_KEYS:
+            continue
+        if not isinstance(block, dict):
+            continue
+        if schema not in SECTOR_HIERARCHY_ORDER:
+            # Flat schemas: identity only (no hierarchical equal-attr peers)
+            if 'codes' in block:
+                codes = block['codes']
+                if isinstance(codes, str):
+                    codes = [codes]
+                block_year = _schema_block_year(block, year)
+                parts.append(
+                    pd.DataFrame(
+                        {
+                            'target_sector': codes,
+                            'SectorSourceName': sector_source_name(schema, block_year),
+                            '_hier_0': codes,
+                        }
+                    )
+                )
+                max_depth = max(max_depth, 1)
+            continue
 
-    return naics.drop_duplicates().reset_index(drop=True)
+        order = SECTOR_HIERARCHY_ORDER[schema]
+        max_depth = max(max_depth, len(order))
+        block_year = _schema_block_year(block, year)
+        cw = return_schema_crosswalk(schema, block_year)
+        default_col = block['default_level']
+        assert isinstance(
+            default_col, str
+        ), "'default_level' must be a string column name"
+        level_items = {
+            k: v for k, v in block.items() if k not in _INDUSTRY_SPEC_META_KEYS
+        }
+        full_tree = default_schema is None or schema == default_schema
+        if not full_tree:
+            if not level_items:
+                raise ValueError(
+                    f"industry_spec[{schema!r}] is not default_schema and must "
+                    f"list industries under hierarchy level keys"
+                )
+            listed: list[Any] = []
+            for industries in level_items.values():
+                if isinstance(industries, str):
+                    listed.append(industries)
+                else:
+                    listed.extend(industries)
+            cw = cw.loc[cw.isin(listed).any(axis=1)].copy()
+        cw = cw.assign(target_sector=cw[default_col])
+        for level, industries in level_items.items():
+            if isinstance(industries, str):
+                industries = [industries]
+            cw['target_sector'] = cw['target_sector'].mask(
+                cw.drop(columns='target_sector').isin(industries).any(axis='columns'),
+                cw[level],
+            )
+
+        # Index of each hierarchy column; null levels finer than the target
+        level_to_idx = {lvl: i for i, lvl in enumerate(order)}
+        # Resolve target level index per row (which hierarchy col equals target)
+        target_idx = pd.Series(np.nan, index=cw.index, dtype=float)
+        for lvl, i in level_to_idx.items():
+            if lvl in cw.columns:
+                target_idx = target_idx.mask(cw[lvl] == cw['target_sector'], float(i))
+        # Fallback: if target not found in hierarchy cols, keep finest present
+        target_idx = target_idx.fillna(float(len(order) - 1))
+
+        out = cw[['target_sector']].copy()
+        out['SectorSourceName'] = sector_source_name(schema, block_year)
+        for i, lvl in enumerate(order):
+            col = f'_hier_{i}'
+            if lvl in cw.columns:
+                out[col] = np.where(i <= target_idx, cw[lvl], np.nan)
+            else:
+                out[col] = np.nan
+        parts.append(out.drop_duplicates())
+
+    if not parts:
+        raise ValueError('industry_spec is empty')
+
+    result = pd.concat(parts, ignore_index=True)
+    for i in range(max_depth):
+        col = f'_hier_{i}'
+        if col not in result.columns:
+            result[col] = np.nan
+    return result.drop_duplicates().reset_index(drop=True)
 
 
 def map_source_sectors_to_more_aggregated_sectors(
@@ -367,21 +635,21 @@ def map_source_sectors_to_more_aggregated_sectors(
     Map source NAICS to all possible other sector lengths
     parent-childhierarchy
     """
-    naics_crosswalk = return_naics_crosswalk(year)
+    naics_crosswalk = return_schema_crosswalk('naics', year)
 
     naics = []
     for n in naics_crosswalk.columns.values.tolist():
-        naics_sub = naics_crosswalk.assign(source_naics=naics_crosswalk[n])
+        naics_sub = naics_crosswalk.assign(source_sector=naics_crosswalk[n])
         naics.append(naics_sub)
 
     # concat data into single dataframe
     naics_key = pd.concat(naics, sort=False)
-    naics_key = naics_key.dropna(subset=['source_naics'])
+    naics_key = naics_key.dropna(subset=['source_sector'])
 
-    # drop source_naics that are more aggregated than target_naics, reorder
+    # drop source_sector that are more aggregated than target_sector, reorder
     for n in range(2, 8):
         naics_key[f'NAICS_{n}'] = np.where(
-            naics_key[f'NAICS_{n}'].str.len() > naics_key['source_naics'].str.len(),
+            naics_key[f'NAICS_{n}'].str.len() > naics_key['source_sector'].str.len(),
             np.nan,
             naics_key[f'NAICS_{n}'],
         )
@@ -408,35 +676,35 @@ def map_source_sectors_to_less_aggregated_sectors(
     Map source NAICS to all possible other sector lengths
     parent-childhierarchy
     """
-    naics_crosswalk = return_naics_crosswalk(year)
+    naics_crosswalk = return_schema_crosswalk('naics', year)
 
     naics = []
     for n in naics_crosswalk.columns.values.tolist():
-        naics_sub = naics_crosswalk.assign(source_naics=naics_crosswalk[n])
+        naics_sub = naics_crosswalk.assign(source_sector=naics_crosswalk[n])
         naics.append(naics_sub)
 
     # concat data into single dataframe
     naics_key = pd.concat(naics, sort=False)
-    naics_key = naics_key.dropna(subset=['source_naics'])
+    naics_key = naics_key.dropna(subset=['source_sector'])
 
-    # drop source_naics that are more aggregated than target_naics, reorder
+    # drop source_sector that are more aggregated than target_sector, reorder
     for n in range(2, 8):
         naics_key[f'NAICS_{n}'] = np.where(
-            naics_key[f'NAICS_{n}'].str.len() < naics_key['source_naics'].str.len(),
+            naics_key[f'NAICS_{n}'].str.len() < naics_key['source_sector'].str.len(),
             np.nan,
             naics_key[f'NAICS_{n}'],
         )
 
     cw_melt = (
         naics_key.melt(
-            id_vars="source_naics", var_name="SectorLength", value_name='Sector'
+            id_vars="source_sector", var_name="SectorLength", value_name='Sector'
         )
         .drop_duplicates()
         .reset_index(drop=True)
     )
 
     cw_melt = (
-        (cw_melt.query("source_naics != Sector").query("~Sector.isna()"))
+        (cw_melt.query("source_sector != Sector").query("~Sector.isna()"))
         .drop_duplicates()
         .reset_index(drop=True)
     )
@@ -453,7 +721,7 @@ def year_crosswalk(
 
     :param source_year: int, one of 2002, 2007, 2012, or 2017.
     :param target_year: int, one of 2002, 2007, 2012, or 2017.
-    :return: pd.DataFrame with columns 'source_naics' and 'target_naics',
+    :return: pd.DataFrame with columns 'source_sector' and 'target_sector',
         corresponding to NAICS codes for the source and target specifications.
     '''
     return (
@@ -461,9 +729,9 @@ def year_crosswalk(
             settings.datapath / 'NAICS_Crosswalk_TimeSeries.csv', dtype='object'
         )
         .assign(
-            source_naics=lambda x: x[f'NAICS_{source_year}_Code'],
-            target_naics=lambda x: x[f'NAICS_{target_year}_Code'],
-        )[['source_naics', 'target_naics']]
+            source_sector=lambda x: x[f'NAICS_{source_year}_Code'],
+            target_sector=lambda x: x[f'NAICS_{target_year}_Code'],
+        )[['source_sector', 'target_sector']]
         .drop_duplicates()
         .reset_index(drop=True)
     )
@@ -652,8 +920,9 @@ def replace_sectors_with_targetsectors(
         )
         # drop columns
         df = df.drop(columns=[targetsectorsourcename, 'NAICS', 'allocation_ratio'])
-    # replace the sector year in the sectorsourcename column
-    df['SectorSourceName'] = targetsectorsourcename
+    # replace the sector year in the SectorSourceName column
+    if 'SectorSourceName' in df.columns:
+        df['SectorSourceName'] = targetsectorsourcename
 
     return df
 
@@ -689,13 +958,20 @@ def convert_naics_year(
         if df_load.config['data_format'] in ['FBS']:
             activity_schema = "NAICS"
         else:
-            activity_schema = (
-                df_load.config['activity_schema']
-                if isinstance(df_load.config['activity_schema'], str)
-                else df_load.config.get('activity_schema', {}).get(
-                    df_load.config['year']
+            raw = df_load.config.get('activity_schema')
+            if isinstance(raw, dict) and raw is not None:
+                # Nested catalog shape: convert only when naics is present
+                activity_schema = "NAICS" if 'naics' in raw else "None"
+            elif isinstance(raw, str):
+                activity_schema = raw
+            else:
+                activity_schema = (
+                    df_load.config.get('activity_schema', {}).get(
+                        df_load.config['year']
+                    )
+                    if isinstance(df_load.config.get('activity_schema'), dict)
+                    else "None"
                 )
-            )
     except AttributeError:
         # The only non FBA/FBS run via FLOWSA are data pulled from stewi, which are naics-based, however, stewi data
         # contains APB and ACB cols and does not have the group_id/group_totals and goes through separate allocation
