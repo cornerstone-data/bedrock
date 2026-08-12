@@ -42,7 +42,7 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   |---|---|---|---|
   | `use_fd_detail_sut` | 1 — Use final-demand columns | 402 × 19 | exported CSV |
   | `use_va_detail_sut` | 2 — Use value-added rows | 3 × 402 | none yet |
-  | `supply_bridge_detail_sut` | 4 — Supply imports, margins, taxes and the basic→purchaser subtotals | 402 × 12 | none yet |
+  | `supply_bridge_detail_sut` | 4 — Supply imports, margins, taxes and the basic→purchaser subtotals | 402 × 12 | `derive_initial_supply_bridge` (MCIF) |
 
   Those three are the whole of what a published 2017 detail reference supports
   outside the two 402 × 402 interiors.
@@ -54,6 +54,18 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   published 2017 detail Use table and against the PCE/PEQ bridges. Writes the
   cell-wise CSV exports in `output/` that `sections.py` reads as the Step 1
   candidate.
+- [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
+  trade columns (#527): three 2017 probes scoring a Census goods + BEA services
+  extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
+  `MADJ` / `MDTY` for imports — plus the options writeup behind the source
+  decision.
+- [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
+  any NIPA table as a flat frame with its hierarchy intact
+  (`nipa_flat_table`), loads BEA IOT matrices (`bea_matrix_row` /
+  `bea_matrix_column`), and aligns the two while keeping **matched-cell
+  disagreement separate from unmatched mass** (`compare`) — the distinction
+  every reconciliation here depends on. `value_added_control_totals.py` is built
+  on it.
 
 Candidate mass on labels outside a section's frame is not drawn and not dropped:
 `TableMatch.residual` totals it and `report()` prints it.
@@ -65,6 +77,20 @@ local run.
 
 - [`plan.md`](plan.md) — the nowcast build plan: the seven steps, their data
   sources, and the open decisions.
+- [`compensation_disaggregation_plan.md`](compensation_disaggregation_plan.md) —
+  Step 2, splitting `V00100` from NIPA's ~74 industries to BEA 2017 detail:
+  wages and supplements separately, QCEW payroll as the movement series, and
+  the sectors where QCEW does not work.
+- [`margins_estimation_plan.md`](margins_estimation_plan.md) — Step 4c, the
+  transaction-level Margins table and the Supply `TRADE`/`TRANS` columns: BEA's
+  own method from the 2009 IO manual chapter 8 checked against the 2017 tables,
+  what of it is reproducible, and where the sources already exist (flowsa
+  `margins` branch, stateior FAF).
+- [`inventories_estimation_plan.md`](inventories_estimation_plan.md) — Step 1e,
+  the `F03000` change-in-inventories column: BEA's four allocation rules from
+  the Hill correspondence, why the previous "deferred pending ASM and Economic
+  Census" scoping was wrong, and the one crosswalk that remains. Rescopes
+  [#530](https://github.com/cornerstone-data/bedrock/issues/530).
 - [`progress_report.md`](progress_report.md) — where the build stands, with the
   figures embedded. Regenerated per milestone; its images are the one tracked
   thing under `images/`.

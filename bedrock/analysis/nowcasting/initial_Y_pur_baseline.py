@@ -27,7 +27,7 @@ from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.eeio.nowcast import derive_initial_Y_pur
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.utils.taxonomy.bea.v2017_final_demand import BEA_2017_FINAL_DEMAND_CODES
+from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,9 @@ BRIDGE_CSV_PATH = OUTPUT_DIR / 'nowcast_initial_Y_pur_vs_bridges_2017.csv'
 
 def load_use_sut_framework_final_demand_2017() -> pd.DataFrame:
     """
-    Final-demand section (commodity x BEA_2017_FINAL_DEMAND_CODE) of the
+    Final-demand section (commodity x SUT final-demand codes) of the
     officially published 2017 SUT detail Use table, purchaser price. USD (source
-    workbook is in million USD).
+    workbook is in million USD). ``F05000`` is MUT-only and is not in this frame.
 
     Row scope mirrors ``bea_parse``'s "Detail_Use_SUT" handling: only rows
     above the ``'T005'`` ("Total Intermediate") checksum row are true
@@ -52,8 +52,8 @@ def load_use_sut_framework_final_demand_2017() -> pd.DataFrame:
     assert isinstance(t005_loc, int)
     commodity_rows = df.index[:t005_loc]
 
-    present = [c for c in BEA_2017_FINAL_DEMAND_CODES if c in df.columns]
-    missing = [c for c in BEA_2017_FINAL_DEMAND_CODES if c not in df.columns]
+    present = [c for c in SUT_FINAL_DEMAND_CODES if c in df.columns]
+    missing = [c for c in SUT_FINAL_DEMAND_CODES if c not in df.columns]
     if missing:
         logger.warning(
             'Use_SUT_Framework_2017_DET.xlsx has no column for final-demand '
@@ -62,7 +62,7 @@ def load_use_sut_framework_final_demand_2017() -> pd.DataFrame:
         )
 
     fd = df.loc[commodity_rows, present].astype(float) * MILLION_CURRENCY_TO_CURRENCY
-    fd = fd.reindex(columns=BEA_2017_FINAL_DEMAND_CODES, fill_value=0.0)
+    fd = fd.reindex(columns=list(SUT_FINAL_DEMAND_CODES), fill_value=0.0)
     fd.index.name = 'commodity'
     fd.columns.name = 'final_demand_code'
     return fd
@@ -107,10 +107,10 @@ def cellwise_initial_Y_pur_vs_use_sut_framework_2017() -> pd.DataFrame:
 
     all_commodities = ours.index.union(baseline.index)
     ours = ours.reindex(
-        index=all_commodities, columns=BEA_2017_FINAL_DEMAND_CODES, fill_value=0.0
+        index=all_commodities, columns=list(SUT_FINAL_DEMAND_CODES), fill_value=0.0
     )
     baseline = baseline.reindex(
-        index=all_commodities, columns=BEA_2017_FINAL_DEMAND_CODES, fill_value=0.0
+        index=all_commodities, columns=list(SUT_FINAL_DEMAND_CODES), fill_value=0.0
     )
 
     ours_long = ours.reset_index().melt(

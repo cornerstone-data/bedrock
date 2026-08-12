@@ -1,0 +1,47 @@
+author: US Census Bureau
+source_name: USA Trade Online international merchandise trade (NAICS)
+source_url: https://www.census.gov/foreign-trade/data/index.html
+bib_id: Census_USATrade
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/timeseries/intltrade/
+  api_path: __flow__/naics?
+  url_params:
+    get: __get_fields__
+    COMM_LVL: NA6
+    YEAR: __year__
+    MONTH: "12"
+    key: __apiKey__
+url_replace_fxn: !script_function:Census_USATrade census_usatrade_url_helper
+call_response_fxn: !script_function:Census_USATrade census_usatrade_call
+parse_response_fxn: !script_function:Census_USATrade census_usatrade_parse
+gcs_fxn: !script_function:Census_USATrade census_usatrade_load_gcs
+extract_data_from_raw_sources: False
+time_delay: 0.2
+years:
+  - 2017
+  - 2018
+  - 2019
+  - 2020
+  - 2021
+  - 2022
+  - 2023
+  - 2024
+# Census intltrade NAICS value fields (MONTH=12 = calendar YTD). Parse melts each
+# field to FlowName / FlowAmount in USD.
+#   GEN_CIF_YR  general imports, c.i.f. value (cost + insurance + freight)
+#   GEN_VAL_YR  general imports, customs value (landed, excluding duty)
+#   CAL_DUT_YR  calculated import duties
+#   GEN_CHA_YR  general imports, c.i.f. charges (freight/insurance wedge vs customs)
+#   ALL_VAL_YR  exports, FAS-family total value (free alongside ship)
+import_get_fields: NAICS,GEN_CIF_YR,GEN_VAL_YR,CAL_DUT_YR,GEN_CHA_YR
+export_get_fields: NAICS,ALL_VAL_YR
+import_flow_names:
+  - GEN_CIF_YR
+  - GEN_VAL_YR
+  - CAL_DUT_YR
+  - GEN_CHA_YR
+export_flow_names:
+  - ALL_VAL_YR

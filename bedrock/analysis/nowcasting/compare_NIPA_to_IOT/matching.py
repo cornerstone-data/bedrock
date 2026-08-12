@@ -43,11 +43,11 @@ from difflib import SequenceMatcher
 
 import pandas as pd
 
-from bedrock.analysis.compare_NIPA_to_IOT.hierarchy import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT.hierarchy import (
     split_residual,
     token_relation,
 )
-from bedrock.analysis.compare_NIPA_to_IOT.series import (
+from bedrock.analysis.nowcasting.compare_NIPA_to_IOT.series import (
     LabeledSeries,
     normalize_code,
     normalize_name,
