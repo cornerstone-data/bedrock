@@ -72,6 +72,12 @@ def load_env_file_key(env_file: str, key: str) -> str:
     See README for how to generate an API key:
     https://github.com/cornerstone-data/bedrock/blob/main/bedrock/extract/README.md
 
+    Two layouts are accepted, in this order: ``extract/API_Keys.env`` naming the
+    key by ``api_name`` (``Census=...``), and the project-root ``.env`` naming it
+    by the conventional ``<API_NAME>_API_KEY`` (``CENSUS_API_KEY=...``). The
+    second is where this project's keys actually live, and it saves keeping the
+    same secret in two files.
+
     :param env_file: str, name of env to load, either 'API_Key'
     or 'external_path'
     :param key: str, name of source/key defined in env file, like 'BEA' or
@@ -80,7 +86,8 @@ def load_env_file_key(env_file: str, key: str) -> str:
     """
     if env_file == 'API_Key':
         load_dotenv(f'{extractpath}/API_Keys.env', verbose=True)
-        value = os.getenv(key)
+        load_dotenv(MODULEPATH.parent / '.env', verbose=True)
+        value = os.getenv(key) or os.getenv(f'{key.upper()}_API_KEY')
         if value is None:
             raise APIError(api_source=key)
     else:
