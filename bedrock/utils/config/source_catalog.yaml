@@ -112,14 +112,14 @@ BEA_IEA:
   data_format: FBA
   class:
     - Money
-  activity_schema: None
-  sector_hierarchy: "flat"
+  activity_schema: null
+  sector_hierarchy: flat
 BEA_ITA:
   data_format: FBA
   class:
     - Money
-  activity_schema: None
-  sector_hierarchy: "flat"
+  activity_schema: null
+  sector_hierarchy: flat
 BEA_Marine_Bunker_Fuel:
   data_format: FBA
   class:
@@ -251,8 +251,8 @@ Census_USATrade:
   data_format: FBA
   class:
     - Money
-  activity_schema: None
-  sector_hierarchy: "flat"
+  activity_schema: null
+  sector_hierarchy: flat
 EIA_AEO:
   data_format: FBA
   class:
