@@ -64,7 +64,28 @@ industry_spec:
       - 'S00203'
       - 'S00500'
       - 'S00600'
-      # Final demand (household PCE)
-      - 'F01000'
+      # Special / other
+      - 'S00300'  # Noncomparable imports
+      - 'S00401'  # Scrap
+      - 'S00402'  # Used and secondhand goods
+      - 'S00900'  # Rest of the world adjustment
+      # Final demand
+      - 'F01000'  # Household PCE
+      - 'F02E00'  # Private fixed investment in equipment
+      - 'F02N00'  # Private fixed investment in IP
+      - 'F02R00'  # Private residential investment
+      - 'F02S00'  # Private nonresidential structures
+      - 'F06C00'  # Federal defense consumption
+      - 'F06E00'  # Federal defense equipment
+      - 'F06N00'  # Federal defense IP
+      - 'F06S00'  # Federal defense structures
+      - 'F07C00'  # Federal nondefense consumption
+      - 'F07E00'  # Federal nondefense equipment
+      - 'F07N00'  # Federal nondefense IP
+      - 'F07S00'  # Federal nondefense structures
+      - 'F10C00'  # State and local consumption
+      - 'F10E00'  # State and local equipment
+      - 'F10N00'  # State and local IP
+      - 'F10S00'  # State and local structures
 
 target_schema_year: 2017
