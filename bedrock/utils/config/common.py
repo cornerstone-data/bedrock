@@ -64,28 +64,21 @@ download_fba_on_api_error: bool = False
 
 def load_env_file_key(env_file: str, key: str) -> str:
     """
-    Loads an API Key from "API_Keys.env" file using the
-    'api_name' defined in the FBA source config file. The '.env' file contains
-    the users personal API keys. The user must register with this
-    API and get the key and manually add to "API_Keys.env"
+    Loads an API key from the project-root ``.env`` using the ``api_name``
+    defined in the FBA source config file. Register with the API, then add the
+    key as ``<API_NAME>_API_KEY`` (e.g. ``CENSUS_API_KEY=...``). Bare
+    ``api_name`` keys (e.g. ``Census=...``) are also accepted.
 
     See README for how to generate an API key:
     https://github.com/cornerstone-data/bedrock/blob/main/bedrock/extract/README.md
 
-    Two layouts are accepted, in this order: ``extract/API_Keys.env`` naming the
-    key by ``api_name`` (``Census=...``), and the project-root ``.env`` naming it
-    by the conventional ``<API_NAME>_API_KEY`` (``CENSUS_API_KEY=...``). The
-    second is where this project's keys actually live, and it saves keeping the
-    same secret in two files.
-
-    :param env_file: str, name of env to load, either 'API_Key'
-    or 'external_path'
+    :param env_file: str, which env source to load: ``'api_key'`` (project-root
+    ``.env``) or ``'external_path'`` (``external_paths.env``)
     :param key: str, name of source/key defined in env file, like 'BEA' or
     'Census'
     :return: str, value of the key stored in the env
     """
-    if env_file == 'API_Key':
-        load_dotenv(f'{extractpath}/API_Keys.env', verbose=True)
+    if env_file == 'api_key':
         load_dotenv(MODULEPATH.parent / '.env', verbose=True)
         value = os.getenv(key) or os.getenv(f'{key.upper()}_API_KEY')
         if value is None:
