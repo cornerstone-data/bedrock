@@ -18,8 +18,8 @@ import pandas as pd
 
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.settings import crosswalkpath, externaldatapath, mappingpath
-from bedrock.utils.mapping.naics import generate_naics_crosswalk_conversion_ratios
-from bedrock.utils.mapping.naics import SECTOR_HIERARCHY_ORDER
+from bedrock.utils.mapping.sector import generate_naics_crosswalk_conversion_ratios
+from bedrock.utils.mapping.sector import SECTOR_HIERARCHY_ORDER
 
 def load_naics_concordance(y1, y2):
     """
@@ -320,21 +320,23 @@ def write_sector_level_crosswalk():
 
     SectorLevel is the 1-based rank in SECTOR_HIERARCHY_ORDER (not string length).
     Schema + year live only on SectorSourceName ({SCHEMA}_{year}_Code).
+
+    BEA levels come from ``NAICS_to_BEA_Crosswalk_{year}``
     """
-    from bedrock.utils.mapping.naics import sector_source_name
+    from bedrock.utils.mapping.sector import (  # noqa: PLC0415
+        return_schema_crosswalk,
+        sector_source_name,
+    )
 
     rows = []
     for schema, years in {
         'naics': ['2002', '2007', '2012', '2017', '2022'],
-        'bea': ['2012', '2017', '2022'],
+        'bea': ['2012', '2017'],
     }.items():
         order = SECTOR_HIERARCHY_ORDER[schema]
         level_idx = {name: i + 1 for i, name in enumerate(order)}
         for y in years:
-            path = mappingpath / 'naics' / f'{schema.upper()}_{y}_Crosswalk.csv'
-            if not path.exists():
-                continue
-            cw = pd.read_csv(path, dtype=str)
+            cw = return_schema_crosswalk(schema, int(y))
             melted = (
                 cw.melt(var_name='LevelName', value_name='SectorCode')
                 .dropna()
