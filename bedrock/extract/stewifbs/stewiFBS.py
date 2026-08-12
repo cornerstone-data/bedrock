@@ -524,11 +524,9 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
     if 'year' not in config:
         config['year'] = df_load['Year'][0]
 
-    activity_schema_raw = config['activity_schema']
-    if isinstance(activity_schema_raw, str):
-        activity_schema: str = activity_schema_raw
-    else:
-        activity_schema = config.get('activity_schema', {}).get(config['year'])
+    activity_schema = (
+        f"NAICS_{config['activity_schema']['naics']['year']}_Code"
+    )
 
     fbs = FlowByActivity(
         df_load.pipe(update_geoscale, config['geoscale'])
