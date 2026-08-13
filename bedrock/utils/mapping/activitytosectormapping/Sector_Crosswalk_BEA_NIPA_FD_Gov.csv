@@ -1,56 +1,297 @@
 ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
-BEA_NIPA,Government,NAICS_2017_Code,,,
-BEA_NIPA,Consumption expenditures,NAICS_2017_Code,,,
-BEA_NIPA,Structures,NAICS_2017_Code,,,
-BEA_NIPA,Equipment,NAICS_2017_Code,,,
-BEA_NIPA,Intellectual property products,NAICS_2017_Code,,,
-BEA_NIPA,Software,NAICS_2017_Code,,,
-BEA_NIPA,Research and development,NAICS_2017_Code,,,
-BEA_NIPA,Federal,NAICS_2017_Code,,,
-BEA_NIPA,National defense,NAICS_2017_Code,,,
-BEA_NIPA,Consumption expenditures (Federal Defense),NAICS_2017_Code,928110,,Federal general government (defense)
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,238990,,Health care structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,238390,,Educational and vocational structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,236220,,Office and commercial structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,236116,,Multifamily residential structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,238290,,Other residential structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,236210,,Manufacturing structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,237990,,Other nonresidential structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,237110,,Power and communication structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,236115,,Single-family residential structures
-BEA_NIPA,Structures (Federal Defense),NAICS_2017_Code,237310,,Transportation structures and highways and streets
-BEA_NIPA,Equipment,NAICS_2017_Code,31,,
-BEA_NIPA,Equipment,NAICS_2017_Code,32,,
-BEA_NIPA,Equipment,NAICS_2017_Code,33,,
-BEA_NIPA,Equipment,NAICS_2017_Code,5415,,
-BEA_NIPA,Software,NAICS_2017_Code,51121,,Software publishers
-BEA_NIPA,Software,NAICS_2017_Code,5182,,"Data processing, hosting, and related services"
-BEA_NIPA,Software,NAICS_2017_Code,541511,,Custom computer programming services
-BEA_NIPA,Research and development,NAICS_2017_Code,5417,,Scientific research and development services
-BEA_NIPA,Nondefense,NAICS_2017_Code,,,
-BEA_NIPA,Consumption expenditures (Federal Nondefense),NAICS_2017_Code,928120,,Federal general government (nondefense)
-BEA_NIPA,Structures (Federal Nondefense),NAICS_2017_Code,238990,,Health care structures
-BEA_NIPA,Structures (Federal Nondefense),NAICS_2017_Code,238390,,Educational and vocational structures
-BEA_NIPA,Structures (Federal Nondefense),NAICS_2017_Code,236220,,Office and commercial structures
-BEA_NIPA,Structures (Federal Nondefense),NAICS_2017_Code,236210,,Manufacturing structures
-BEA_NIPA,Structures (Federal Nondefense),NAICS_2017_Code,237990,,Other nonresidential structures
-BEA_NIPA,Structures (Federal Nondefense),NAICS_2017_Code,237110,,Power and communication structures
-BEA_NIPA,Structures (Federal Nondefense),NAICS_2017_Code,237310,,Transportation structures and highways and streets
-BEA_NIPA,State and local,NAICS_2017_Code,,,
-BEA_NIPA,State and local,NAICS_2017_Code,923110,,State and local government (educational services); GSLGE
-BEA_NIPA,State and local,NAICS_2017_Code,923120,,State and local government (hospitals and health services); GSLGH
-BEA_NIPA,State and local,NAICS_2017_Code,923130,,State and local government (other services); GSLGO
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,238990,,Health care structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,238390,,Educational and vocational structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,236220,,Office and commercial structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,236116,,Multifamily residential structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,238290,,Other residential structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,236210,,Manufacturing structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,237990,,Other nonresidential structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,237110,,Power and communication structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,236115,,Single-family residential structures
-BEA_NIPA,Structures (State and Local),NAICS_2017_Code,237310,,Transportation structures and highways and streets
+BEA_NIPA,Consumption expenditures,BEA_2017_Code,nan,,
+BEA_NIPA,Consumption expenditures (Federal Defense),BEA_2017_Code,S00500,,Federal general government (defense)
+BEA_NIPA,Consumption expenditures (Federal Nondefense),BEA_2017_Code,S00600,,Federal general government (nondefense)
+BEA_NIPA,Equipment,BEA_2017_Code,311111,,
+BEA_NIPA,Equipment,BEA_2017_Code,311119,,
+BEA_NIPA,Equipment,BEA_2017_Code,311210,,
+BEA_NIPA,Equipment,BEA_2017_Code,311221,,
+BEA_NIPA,Equipment,BEA_2017_Code,311224,,
+BEA_NIPA,Equipment,BEA_2017_Code,311225,,
+BEA_NIPA,Equipment,BEA_2017_Code,311230,,
+BEA_NIPA,Equipment,BEA_2017_Code,311300,,
+BEA_NIPA,Equipment,BEA_2017_Code,311410,,
+BEA_NIPA,Equipment,BEA_2017_Code,311420,,
+BEA_NIPA,Equipment,BEA_2017_Code,311513,,
+BEA_NIPA,Equipment,BEA_2017_Code,311514,,
+BEA_NIPA,Equipment,BEA_2017_Code,31151A,,
+BEA_NIPA,Equipment,BEA_2017_Code,311520,,
+BEA_NIPA,Equipment,BEA_2017_Code,311615,,
+BEA_NIPA,Equipment,BEA_2017_Code,31161A,,
+BEA_NIPA,Equipment,BEA_2017_Code,311700,,
+BEA_NIPA,Equipment,BEA_2017_Code,311810,,
+BEA_NIPA,Equipment,BEA_2017_Code,3118A0,,
+BEA_NIPA,Equipment,BEA_2017_Code,311910,,
+BEA_NIPA,Equipment,BEA_2017_Code,311920,,
+BEA_NIPA,Equipment,BEA_2017_Code,311930,,
+BEA_NIPA,Equipment,BEA_2017_Code,311940,,
+BEA_NIPA,Equipment,BEA_2017_Code,311990,,
+BEA_NIPA,Equipment,BEA_2017_Code,312110,,
+BEA_NIPA,Equipment,BEA_2017_Code,312120,,
+BEA_NIPA,Equipment,BEA_2017_Code,312130,,
+BEA_NIPA,Equipment,BEA_2017_Code,312140,,
+BEA_NIPA,Equipment,BEA_2017_Code,312200,,
+BEA_NIPA,Equipment,BEA_2017_Code,313100,,
+BEA_NIPA,Equipment,BEA_2017_Code,313200,,
+BEA_NIPA,Equipment,BEA_2017_Code,313300,,
+BEA_NIPA,Equipment,BEA_2017_Code,314110,,
+BEA_NIPA,Equipment,BEA_2017_Code,314120,,
+BEA_NIPA,Equipment,BEA_2017_Code,314900,,
+BEA_NIPA,Equipment,BEA_2017_Code,315000,,
+BEA_NIPA,Equipment,BEA_2017_Code,316000,,
+BEA_NIPA,Equipment,BEA_2017_Code,321100,,
+BEA_NIPA,Equipment,BEA_2017_Code,321200,,
+BEA_NIPA,Equipment,BEA_2017_Code,321910,,
+BEA_NIPA,Equipment,BEA_2017_Code,3219A0,,
+BEA_NIPA,Equipment,BEA_2017_Code,322110,,
+BEA_NIPA,Equipment,BEA_2017_Code,322120,,
+BEA_NIPA,Equipment,BEA_2017_Code,322130,,
+BEA_NIPA,Equipment,BEA_2017_Code,322210,,
+BEA_NIPA,Equipment,BEA_2017_Code,322220,,
+BEA_NIPA,Equipment,BEA_2017_Code,322230,,
+BEA_NIPA,Equipment,BEA_2017_Code,322291,,
+BEA_NIPA,Equipment,BEA_2017_Code,322299,,
+BEA_NIPA,Equipment,BEA_2017_Code,323110,,
+BEA_NIPA,Equipment,BEA_2017_Code,323120,,
+BEA_NIPA,Equipment,BEA_2017_Code,324110,,
+BEA_NIPA,Equipment,BEA_2017_Code,324121,,
+BEA_NIPA,Equipment,BEA_2017_Code,324122,,
+BEA_NIPA,Equipment,BEA_2017_Code,324190,,
+BEA_NIPA,Equipment,BEA_2017_Code,325110,,
+BEA_NIPA,Equipment,BEA_2017_Code,325120,,
+BEA_NIPA,Equipment,BEA_2017_Code,325130,,
+BEA_NIPA,Equipment,BEA_2017_Code,325180,,
+BEA_NIPA,Equipment,BEA_2017_Code,325190,,
+BEA_NIPA,Equipment,BEA_2017_Code,325211,,
+BEA_NIPA,Equipment,BEA_2017_Code,3252A0,,
+BEA_NIPA,Equipment,BEA_2017_Code,325310,,
+BEA_NIPA,Equipment,BEA_2017_Code,325320,,
+BEA_NIPA,Equipment,BEA_2017_Code,325411,,
+BEA_NIPA,Equipment,BEA_2017_Code,325412,,
+BEA_NIPA,Equipment,BEA_2017_Code,325413,,
+BEA_NIPA,Equipment,BEA_2017_Code,325414,,
+BEA_NIPA,Equipment,BEA_2017_Code,325510,,
+BEA_NIPA,Equipment,BEA_2017_Code,325520,,
+BEA_NIPA,Equipment,BEA_2017_Code,325610,,
+BEA_NIPA,Equipment,BEA_2017_Code,325620,,
+BEA_NIPA,Equipment,BEA_2017_Code,325910,,
+BEA_NIPA,Equipment,BEA_2017_Code,3259A0,,
+BEA_NIPA,Equipment,BEA_2017_Code,326110,,
+BEA_NIPA,Equipment,BEA_2017_Code,326120,,
+BEA_NIPA,Equipment,BEA_2017_Code,326130,,
+BEA_NIPA,Equipment,BEA_2017_Code,326140,,
+BEA_NIPA,Equipment,BEA_2017_Code,326150,,
+BEA_NIPA,Equipment,BEA_2017_Code,326160,,
+BEA_NIPA,Equipment,BEA_2017_Code,326190,,
+BEA_NIPA,Equipment,BEA_2017_Code,326210,,
+BEA_NIPA,Equipment,BEA_2017_Code,326220,,
+BEA_NIPA,Equipment,BEA_2017_Code,326290,,
+BEA_NIPA,Equipment,BEA_2017_Code,327100,,
+BEA_NIPA,Equipment,BEA_2017_Code,327200,,
+BEA_NIPA,Equipment,BEA_2017_Code,327310,,
+BEA_NIPA,Equipment,BEA_2017_Code,327320,,
+BEA_NIPA,Equipment,BEA_2017_Code,327330,,
+BEA_NIPA,Equipment,BEA_2017_Code,327390,,
+BEA_NIPA,Equipment,BEA_2017_Code,327400,,
+BEA_NIPA,Equipment,BEA_2017_Code,327910,,
+BEA_NIPA,Equipment,BEA_2017_Code,327991,,
+BEA_NIPA,Equipment,BEA_2017_Code,327992,,
+BEA_NIPA,Equipment,BEA_2017_Code,327993,,
+BEA_NIPA,Equipment,BEA_2017_Code,327999,,
+BEA_NIPA,Equipment,BEA_2017_Code,331110,,
+BEA_NIPA,Equipment,BEA_2017_Code,331200,,
+BEA_NIPA,Equipment,BEA_2017_Code,331313,,
+BEA_NIPA,Equipment,BEA_2017_Code,331314,,
+BEA_NIPA,Equipment,BEA_2017_Code,33131B,,
+BEA_NIPA,Equipment,BEA_2017_Code,331410,,
+BEA_NIPA,Equipment,BEA_2017_Code,331420,,
+BEA_NIPA,Equipment,BEA_2017_Code,331490,,
+BEA_NIPA,Equipment,BEA_2017_Code,331510,,
+BEA_NIPA,Equipment,BEA_2017_Code,331520,,
+BEA_NIPA,Equipment,BEA_2017_Code,332114,,
+BEA_NIPA,Equipment,BEA_2017_Code,332119,,
+BEA_NIPA,Equipment,BEA_2017_Code,33211A,,
+BEA_NIPA,Equipment,BEA_2017_Code,332200,,
+BEA_NIPA,Equipment,BEA_2017_Code,332310,,
+BEA_NIPA,Equipment,BEA_2017_Code,332320,,
+BEA_NIPA,Equipment,BEA_2017_Code,332410,,
+BEA_NIPA,Equipment,BEA_2017_Code,332420,,
+BEA_NIPA,Equipment,BEA_2017_Code,332430,,
+BEA_NIPA,Equipment,BEA_2017_Code,332500,,
+BEA_NIPA,Equipment,BEA_2017_Code,332600,,
+BEA_NIPA,Equipment,BEA_2017_Code,332710,,
+BEA_NIPA,Equipment,BEA_2017_Code,332720,,
+BEA_NIPA,Equipment,BEA_2017_Code,332800,,
+BEA_NIPA,Equipment,BEA_2017_Code,332913,,
+BEA_NIPA,Equipment,BEA_2017_Code,33291A,,
+BEA_NIPA,Equipment,BEA_2017_Code,332991,,
+BEA_NIPA,Equipment,BEA_2017_Code,332996,,
+BEA_NIPA,Equipment,BEA_2017_Code,332999,,
+BEA_NIPA,Equipment,BEA_2017_Code,33299A,,
+BEA_NIPA,Equipment,BEA_2017_Code,333111,,
+BEA_NIPA,Equipment,BEA_2017_Code,333112,,
+BEA_NIPA,Equipment,BEA_2017_Code,333120,,
+BEA_NIPA,Equipment,BEA_2017_Code,333130,,
+BEA_NIPA,Equipment,BEA_2017_Code,333242,,
+BEA_NIPA,Equipment,BEA_2017_Code,33329A,,
+BEA_NIPA,Equipment,BEA_2017_Code,333314,,
+BEA_NIPA,Equipment,BEA_2017_Code,333316,,
+BEA_NIPA,Equipment,BEA_2017_Code,333318,,
+BEA_NIPA,Equipment,BEA_2017_Code,333413,,
+BEA_NIPA,Equipment,BEA_2017_Code,333414,,
+BEA_NIPA,Equipment,BEA_2017_Code,333415,,
+BEA_NIPA,Equipment,BEA_2017_Code,333511,,
+BEA_NIPA,Equipment,BEA_2017_Code,333514,,
+BEA_NIPA,Equipment,BEA_2017_Code,333517,,
+BEA_NIPA,Equipment,BEA_2017_Code,33351B,,
+BEA_NIPA,Equipment,BEA_2017_Code,333611,,
+BEA_NIPA,Equipment,BEA_2017_Code,333612,,
+BEA_NIPA,Equipment,BEA_2017_Code,333613,,
+BEA_NIPA,Equipment,BEA_2017_Code,333618,,
+BEA_NIPA,Equipment,BEA_2017_Code,333912,,
+BEA_NIPA,Equipment,BEA_2017_Code,333914,,
+BEA_NIPA,Equipment,BEA_2017_Code,333920,,
+BEA_NIPA,Equipment,BEA_2017_Code,333991,,
+BEA_NIPA,Equipment,BEA_2017_Code,333993,,
+BEA_NIPA,Equipment,BEA_2017_Code,333994,,
+BEA_NIPA,Equipment,BEA_2017_Code,33399A,,
+BEA_NIPA,Equipment,BEA_2017_Code,33399B,,
+BEA_NIPA,Equipment,BEA_2017_Code,334111,,
+BEA_NIPA,Equipment,BEA_2017_Code,334112,,
+BEA_NIPA,Equipment,BEA_2017_Code,334118,,
+BEA_NIPA,Equipment,BEA_2017_Code,334210,,
+BEA_NIPA,Equipment,BEA_2017_Code,334220,,
+BEA_NIPA,Equipment,BEA_2017_Code,334290,,
+BEA_NIPA,Equipment,BEA_2017_Code,334300,,
+BEA_NIPA,Equipment,BEA_2017_Code,334413,,
+BEA_NIPA,Equipment,BEA_2017_Code,334418,,
+BEA_NIPA,Equipment,BEA_2017_Code,33441A,,
+BEA_NIPA,Equipment,BEA_2017_Code,334510,,
+BEA_NIPA,Equipment,BEA_2017_Code,334511,,
+BEA_NIPA,Equipment,BEA_2017_Code,334512,,
+BEA_NIPA,Equipment,BEA_2017_Code,334513,,
+BEA_NIPA,Equipment,BEA_2017_Code,334514,,
+BEA_NIPA,Equipment,BEA_2017_Code,334515,,
+BEA_NIPA,Equipment,BEA_2017_Code,334516,,
+BEA_NIPA,Equipment,BEA_2017_Code,334517,,
+BEA_NIPA,Equipment,BEA_2017_Code,33451A,,
+BEA_NIPA,Equipment,BEA_2017_Code,334610,,
+BEA_NIPA,Equipment,BEA_2017_Code,335110,,
+BEA_NIPA,Equipment,BEA_2017_Code,335120,,
+BEA_NIPA,Equipment,BEA_2017_Code,335210,,
+BEA_NIPA,Equipment,BEA_2017_Code,335220,,
+BEA_NIPA,Equipment,BEA_2017_Code,335311,,
+BEA_NIPA,Equipment,BEA_2017_Code,335312,,
+BEA_NIPA,Equipment,BEA_2017_Code,335313,,
+BEA_NIPA,Equipment,BEA_2017_Code,335314,,
+BEA_NIPA,Equipment,BEA_2017_Code,335911,,
+BEA_NIPA,Equipment,BEA_2017_Code,335912,,
+BEA_NIPA,Equipment,BEA_2017_Code,335920,,
+BEA_NIPA,Equipment,BEA_2017_Code,335930,,
+BEA_NIPA,Equipment,BEA_2017_Code,335991,,
+BEA_NIPA,Equipment,BEA_2017_Code,335999,,
+BEA_NIPA,Equipment,BEA_2017_Code,336111,,
+BEA_NIPA,Equipment,BEA_2017_Code,336112,,
+BEA_NIPA,Equipment,BEA_2017_Code,336120,,
+BEA_NIPA,Equipment,BEA_2017_Code,336211,,
+BEA_NIPA,Equipment,BEA_2017_Code,336212,,
+BEA_NIPA,Equipment,BEA_2017_Code,336213,,
+BEA_NIPA,Equipment,BEA_2017_Code,336214,,
+BEA_NIPA,Equipment,BEA_2017_Code,336310,,
+BEA_NIPA,Equipment,BEA_2017_Code,336320,,
+BEA_NIPA,Equipment,BEA_2017_Code,336350,,
+BEA_NIPA,Equipment,BEA_2017_Code,336360,,
+BEA_NIPA,Equipment,BEA_2017_Code,336370,,
+BEA_NIPA,Equipment,BEA_2017_Code,336390,,
+BEA_NIPA,Equipment,BEA_2017_Code,3363A0,,
+BEA_NIPA,Equipment,BEA_2017_Code,336411,,
+BEA_NIPA,Equipment,BEA_2017_Code,336412,,
+BEA_NIPA,Equipment,BEA_2017_Code,336413,,
+BEA_NIPA,Equipment,BEA_2017_Code,336414,,
+BEA_NIPA,Equipment,BEA_2017_Code,33641A,,
+BEA_NIPA,Equipment,BEA_2017_Code,336500,,
+BEA_NIPA,Equipment,BEA_2017_Code,336611,,
+BEA_NIPA,Equipment,BEA_2017_Code,336612,,
+BEA_NIPA,Equipment,BEA_2017_Code,336991,,
+BEA_NIPA,Equipment,BEA_2017_Code,336992,,
+BEA_NIPA,Equipment,BEA_2017_Code,336999,,
+BEA_NIPA,Equipment,BEA_2017_Code,337110,,
+BEA_NIPA,Equipment,BEA_2017_Code,337121,,
+BEA_NIPA,Equipment,BEA_2017_Code,337122,,
+BEA_NIPA,Equipment,BEA_2017_Code,337127,,
+BEA_NIPA,Equipment,BEA_2017_Code,33712N,,
+BEA_NIPA,Equipment,BEA_2017_Code,337215,,
+BEA_NIPA,Equipment,BEA_2017_Code,33721A,,
+BEA_NIPA,Equipment,BEA_2017_Code,337900,,
+BEA_NIPA,Equipment,BEA_2017_Code,339112,,
+BEA_NIPA,Equipment,BEA_2017_Code,339113,,
+BEA_NIPA,Equipment,BEA_2017_Code,339114,,
+BEA_NIPA,Equipment,BEA_2017_Code,339115,,
+BEA_NIPA,Equipment,BEA_2017_Code,339116,,
+BEA_NIPA,Equipment,BEA_2017_Code,339910,,
+BEA_NIPA,Equipment,BEA_2017_Code,339920,,
+BEA_NIPA,Equipment,BEA_2017_Code,339930,,
+BEA_NIPA,Equipment,BEA_2017_Code,339940,,
+BEA_NIPA,Equipment,BEA_2017_Code,339950,,
+BEA_NIPA,Equipment,BEA_2017_Code,339990,,
+BEA_NIPA,Equipment,BEA_2017_Code,541511,,
+BEA_NIPA,Equipment,BEA_2017_Code,541512,,
+BEA_NIPA,Equipment,BEA_2017_Code,54151A,,
+BEA_NIPA,Equipment,BEA_2017_Code,nan,,
+BEA_NIPA,Federal,BEA_2017_Code,nan,,
+BEA_NIPA,Government,BEA_2017_Code,nan,,
+BEA_NIPA,Intellectual property products,BEA_2017_Code,nan,,
+BEA_NIPA,National defense,BEA_2017_Code,nan,,
+BEA_NIPA,Nondefense,BEA_2017_Code,nan,,
+BEA_NIPA,Research and development,BEA_2017_Code,541700,,Scientific research and development services
+BEA_NIPA,Research and development,BEA_2017_Code,nan,,
+BEA_NIPA,Software,BEA_2017_Code,511200,,Software publishers
+BEA_NIPA,Software,BEA_2017_Code,518200,,"Data processing, hosting, and related services"
+BEA_NIPA,Software,BEA_2017_Code,541511,,Custom computer programming services
+BEA_NIPA,Software,BEA_2017_Code,nan,,
 BEA_NIPA,State and Local Consumption Expenditures,BEA_2017_Code,F10C00,,
+BEA_NIPA,State and Local IP,BEA_2017_Code,F10N00,,
 BEA_NIPA,State and Local Investment in Equipment,BEA_2017_Code,F10E00,,
 BEA_NIPA,State and Local Investment in Structures,BEA_2017_Code,F10S00,,
-BEA_NIPA,State and Local IP,BEA_2017_Code,F10N00,,
+BEA_NIPA,State and local,BEA_2017_Code,GSLGE,,State and local government (educational services); GSLGE
+BEA_NIPA,State and local,BEA_2017_Code,GSLGH,,State and local government (hospitals and health services); GSLGH
+BEA_NIPA,State and local,BEA_2017_Code,GSLGO,,State and local government (other services); GSLGO
+BEA_NIPA,State and local,BEA_2017_Code,S00600,,State and local government (educational services); GSLGE
+BEA_NIPA,State and local,BEA_2017_Code,nan,,
+BEA_NIPA,Structures,BEA_2017_Code,nan,,
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,230301,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,230302,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,233210,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,233230,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,233240,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,233262,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,2332A0,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,2332C0,,Transportation structures and highways and streets
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,2332D0,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,233411,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,233412,,Health care structures
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,2334A0,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,230301,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,230302,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,233210,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,233230,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,233240,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,233262,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,2332A0,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,2332C0,,Transportation structures and highways and streets
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,2332D0,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,233411,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,233412,,Health care structures
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,2334A0,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,230301,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,230302,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,233210,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,233230,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,233240,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,233262,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,2332A0,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,2332C0,,Transportation structures and highways and streets
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,2332D0,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,233411,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,233412,,Health care structures
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,2334A0,,Health care structures
