@@ -818,7 +818,9 @@ class _FlowBy(pd.DataFrame):
                             dfname=self.full_name,
                         )
                 else:
-                    log.warning('Have not implemented year conversions for data other than NAICS')
+                    log.warning(
+                        'Have not implemented year conversions for data other than NAICS'
+                    )
                 # convert to proper industry spec.
                 fb = grouped.sector_aggregation()  # type: ignore[operator]
 
@@ -1646,12 +1648,27 @@ class _FlowBy(pd.DataFrame):
     def equally_attribute(self: 'FB') -> 'FB':
         """
         Attribute flows mapped to multiple industries equally across those
-        industries, using each schema's most aggregated sector level defined in the hierarchy
+        industries, walking each schema's hierarchy from coarsest to finest
         (see ``SECTOR_HIERARCHY_ORDER``).
 
-        Multi-schema groups share one FlowAmount total value: coarsest peers are the
-        union of per-schema parents (schema-qualified so BEA Sector ``11`` and
-        NAICS_2 ``11`` stay distinct).
+        An activity mapped to several industries starts with one FlowAmount.
+        That amount is divided equally across distinct coarsest-level parents,
+        then again across children at the next level, and so on.
+
+        Example (NAICS 2017, target NAICS_6): activity A has FlowAmount 12 and
+        maps to 111110, 111120, and 213111. NAICS_2 parents are ``11`` and
+        ``21``, so each family gets 6. Under ``11``, two 6-digit children split
+        that 6 into 3 each. Result: 111110=3, 111120=3, 213111=6.
+
+        When one group mixes schemas, coarsest peers are the union of
+        per-schema parents, qualified by SectorSourceName so BEA Sector ``11``
+        and NAICS_2 ``11`` stay distinct. Two mapped rows both coded ``11``
+        (one NAICS, one BEA), each carrying 12 before the split, become 6 and
+        6 (sum 12). Collapsing those peers would leave each row at 12 (sum 24).
+
+        Attribution uses the primary sector first (see
+        add_primary_secondary_columns). If needed, amounts are subdivided
+        again on the secondary sector.
         """
         hierarchy_key = map_target_sectors_to_less_aggregated_sectors(
             self.config['industry_spec'], self.config['target_schema_year']
@@ -1661,9 +1678,7 @@ class _FlowBy(pd.DataFrame):
 
         fba = self.add_primary_secondary_columns('Sector')
 
-        sec_source_names_present = set(
-            fba['PrimarySectorSourceName'].dropna().unique()
-        )
+        sec_source_names_present = set(fba['PrimarySectorSourceName'].dropna().unique())
         if len(sec_source_names_present) > 1:
             activities = sorted(
                 {
