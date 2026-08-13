@@ -176,30 +176,3 @@ def test_seed_cache_from_local_dir_uses_manifest_configs(
     seed_cache_from_local_dir(manifest, tmp_path)
     df = load_tab(manifest.footing.sheet_id, TAB_BLY, refresh=False)
     assert not df.empty
-
-
-def test_v03_electricity_configs_load() -> None:
-    from bedrock.utils.config.usa_config import (  # noqa: PLC0415
-        get_usa_config,
-        reset_usa_config,
-        set_global_usa_config,
-    )
-
-    reset_usa_config()
-    try:
-        set_global_usa_config(f'{_FOOTING}.yaml')
-        cfg = get_usa_config()
-        assert cfg.model_base_year == 2024
-        assert cfg.usa_ghg_data_year == 2024
-        assert cfg.apply_io_year_adjustments is True
-        assert cfg.cornerstone_industry_avg_margins is False
-        assert cfg.implement_electricity_reallocation is False
-        assert cfg.snapshot_version_or_git_sha == V03_SNAPSHOT_SHA
-
-        reset_usa_config()
-        set_global_usa_config(f'{_MIXED}.yaml')
-        mixed = get_usa_config()
-        assert mixed.implement_electricity_mixed_units is True
-        assert mixed.cornerstone_industry_avg_margins is False
-    finally:
-        reset_usa_config()

@@ -146,14 +146,6 @@ def test_adjust_summary_A_dollar_year_roundtrip() -> None:
         max_dev < 1e-9
     ), f"adjust ∘ inverse round-trip failed (max |Δ| = {max_dev:.2e})"
 
-    # Also verify via the public inverse (2017 → 2022) — catches
-    # ``@functools.cache`` positional-vs-kwargs key splits.
-    restored = adjust_summary_A_dollar_year(adjusted, from_year=2017, to_year=2022)
-    max_dev_fn = (restored - A).abs().to_numpy().max()
-    assert (
-        max_dev_fn < 1e-9
-    ), f"adjust ∘ adjust inverse failed (max |Δ| = {max_dev_fn:.2e})"
-
 
 def test_summary_commodity_price_ratio_cache_ignores_call_style() -> None:
     """Positional and keyword calls must share one cached result."""

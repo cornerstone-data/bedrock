@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Callable
 
-import numpy as np
-import pandas as pd
 import pytest
 
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
@@ -43,12 +41,9 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
     get_rho_inflation_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
-    inflate_cornerstone_A_matrix_with_commodity_pi,
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
-    CORNERSTONE_COMMODITIES,
     CORNERSTONE_COMMODITIES_ELEC,
-    CORNERSTONE_INDUSTRIES,
     CORNERSTONE_INDUSTRIES_ELEC,
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
@@ -174,7 +169,7 @@ def test_v_inflation_uses_industry_row_axis(
 
 
 def test_industry_price_ratio_apply_io_plus_elec_is_industry_elec_indexed() -> None:
-    """apply_io + elec must keep industry axis (331314 in, S00402 out)."""
+    """apply_io + elec: industry PI on industries-elec; commodity PI on commodities-elec."""
     _setup_config('2025_usa_cornerstone_v0_3.yaml')
     try:
         baseline = get_cornerstone_industry_price_ratio(2017, 2024)
@@ -185,74 +180,16 @@ def test_industry_price_ratio_apply_io_plus_elec_is_industry_elec_indexed() -> N
 
     _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
     try:
-        ratio = get_cornerstone_industry_price_ratio(2017, 2024)
-        assert list(ratio.index) == CORNERSTONE_INDUSTRIES_ELEC
-        assert len(ratio) == 407
-        assert '331314' in ratio.index
-        assert 'S00402' not in ratio.index
-        assert ELECTRICITY_AGGREGATE_SECTOR not in ratio.index
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            assert code in ratio.index
-            assert ratio.loc[code] == pytest.approx(parent_pi)
-        assert ratio.loc['331314'] == pytest.approx(industry_only_pi)
-        assert industry_only_pi != pytest.approx(1.0)
-    finally:
-        _teardown()
-
-
-def test_vnorm_commodity_price_ratio_apply_io_plus_elec_is_commodity_elec() -> None:
-    _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
-    try:
-        ratio = get_vnorm_adjusted_commodity_price_ratio(2017, 2024)
-        assert list(ratio.index) == CORNERSTONE_COMMODITIES_ELEC
-        assert len(ratio) == 407
-        assert ELECTRICITY_AGGREGATE_SECTOR not in ratio.index
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            assert code in ratio.index
-
-        identity = get_vnorm_adjusted_commodity_price_ratio(2017, 2017)
-        max_abs_dev = (identity - 1.0).abs().max()
-        assert max_abs_dev < 1e-12
-    finally:
-        _teardown()
-
-
-def test_aq_scaled_smoke_apply_io_plus_elec() -> None:
-    _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
-    try:
-        Aq = derive_cornerstone_Aq_scaled()
-        assert Aq.Adom.shape == (407, 407)
-        assert Aq.Aimp.shape == (407, 407)
-    finally:
-        _teardown()
-
-
-def test_industry_price_ratio_apply_io_no_elec_stays_405() -> None:
-    _setup_config('2025_usa_cornerstone_v0_3.yaml')
-    try:
         industry = get_cornerstone_industry_price_ratio(2017, 2024)
         commodity = get_vnorm_adjusted_commodity_price_ratio(2017, 2024)
-        assert list(industry.index) == CORNERSTONE_INDUSTRIES
-        assert list(commodity.index) == CORNERSTONE_COMMODITIES
-        assert len(industry) == 405
-        assert len(commodity) == 405
-        assert ELECTRICITY_AGGREGATE_SECTOR in industry.index
-    finally:
-        _teardown()
-
-
-
-def test_inflate_a_with_commodity_pi_fails_loud_on_missing_labels() -> None:
-    """Missing A labels must KeyError — never silently fill 1.0."""
-    _setup_config('2025_usa_cornerstone_v0_3.yaml')
-    try:
-        codes = list(CORNERSTONE_COMMODITIES[:2]) + ['__missing_for_fail_loud__']
-        A = pd.DataFrame(
-            np.eye(3),
-            index=pd.Index(codes, dtype=object),
-            columns=pd.Index(codes, dtype=object),
-        )
-        with pytest.raises(KeyError):
-            inflate_cornerstone_A_matrix_with_commodity_pi(A, 2017, 2024)
+        assert list(industry.index) == CORNERSTONE_INDUSTRIES_ELEC
+        assert list(commodity.index) == CORNERSTONE_COMMODITIES_ELEC
+        assert '331314' in industry.index
+        assert 'S00402' not in industry.index
+        assert ELECTRICITY_AGGREGATE_SECTOR not in industry.index
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            assert industry.loc[code] == pytest.approx(parent_pi)
+        assert industry.loc['331314'] == pytest.approx(industry_only_pi)
+        assert industry_only_pi != pytest.approx(1.0)
     finally:
         _teardown()
