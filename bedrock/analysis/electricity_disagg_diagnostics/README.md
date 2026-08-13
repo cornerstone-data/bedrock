@@ -14,7 +14,7 @@ electricity_disagg_diagnostics/
   bly_dispersion/       # BLy waterfalls from diagnostics sheets
   ef_comparison/        # N/D vs v0.3 footing + N-variance writeup
   full_trace/           # live model IO / E / D / N / BLy walkthrough
-  year_alignment/       # BLy vs E under A/q year handling (still v0.2 mixed)
+  year_alignment/       # BLy vs E under A/q year handling (v0.3.1 mixed)
   hh_vs_interindustry/  # household vs intermediate generation MWh
   alternate_eia_anchored_split/  # EIA-anchored gen + T&D markup counterfactual
   probes/               # one-off sector probes
@@ -41,10 +41,9 @@ Run everything from the **repo root** with the project venv
    sheets are created.
 
 3. **Live-model analyses** (`full_trace`, `hh_vs_interindustry`,
-   `alternate_eia_anchored_split`, `probes`, `ef_comparison.analyze_n_variance`)
-   need a working Bedrock data / model environment for those configs (same as
-   running Cornerstone transforms). **`year_alignment`** is a carve-out: it still
-   uses the v0.2 mixed-units config (`2025_usa_cornerstone_v0_2_electricity_mixed_units`).
+   `alternate_eia_anchored_split`, `probes`, `ef_comparison.analyze_n_variance`,
+   `year_alignment`) need a working Bedrock data / model environment for those
+   configs (same as running Cornerstone transforms).
 
 ---
 
@@ -188,11 +187,8 @@ python -m bedrock.analysis.electricity_disagg_diagnostics.full_trace.decompose_d
 ## 4. Year alignment (BLy vs E) — `year_alignment/`
 
 Documents year handling for E / B / A / q / L / D / N under mixed units, and
-probes a single-year 2017 attempt (blockers + proxies).
-
-**Carve-out:** `year_alignment_bly_e.py` still uses the v0.2 mixed-units config
-(`MIXED_CONFIG = 2025_usa_cornerstone_v0_2_electricity_mixed_units`), not the
-v0.3.1 suite chain.
+probes a single-year 2017 attempt (blockers + proxies). Uses
+`2025_usa_cornerstone_v0_3_electricity_mixed_units`.
 
 ```bash
 python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment.year_alignment_bly_e

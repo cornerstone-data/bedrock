@@ -241,19 +241,6 @@ def test_industry_price_ratio_apply_io_no_elec_stays_405() -> None:
         _teardown()
 
 
-def test_industry_price_ratio_v0_2_elec_is_commodity_elec_indexed() -> None:
-    """Legacy apply_io=False + elec path indexes commodities-elec."""
-    _setup_config('2025_usa_cornerstone_v0_2_electricity_disaggregation.yaml')
-    try:
-        ratio = get_cornerstone_industry_price_ratio(2017, 2024)
-        assert list(ratio.index) == CORNERSTONE_COMMODITIES_ELEC
-        assert len(ratio) == 407
-        assert ELECTRICITY_AGGREGATE_SECTOR not in ratio.index
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            assert code in ratio.index
-    finally:
-        _teardown()
-
 
 def test_inflate_a_with_commodity_pi_fails_loud_on_missing_labels() -> None:
     """Missing A labels must KeyError — never silently fill 1.0."""
