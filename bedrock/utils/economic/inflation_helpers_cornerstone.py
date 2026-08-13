@@ -40,6 +40,7 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
     active_cornerstone_commodities,
+    active_cornerstone_industries,
 )
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_GROSS_INDUSTRY_OUTPUT_YEARS,
@@ -477,6 +478,11 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
 
     Uses 2017 base-year Cornerstone x as weights (relative within-group sizes
     are stable across years).
+
+    When electricity is disaggregated, BEA's industry→summary concordance only
+    knows aggregate ``221100``; map G/T/D children onto the same summary
+    ``\"22\"`` membership at runtime so expand+drop-``221100`` does not orphan
+    electricity in summary industry PI.
     """
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_x,
@@ -487,13 +493,19 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
 
     pi_ind_detail = _cornerstone_indexed_industry_pi(year)
     x_y = derive_cornerstone_x()
+    bea_map: dict[str, list[str]] = {
+        str(k): [str(s) for s in v]
+        for k, v in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    if get_usa_config().implement_electricity_disaggregation:
+        parent_summaries = list(bea_map.get(ELECTRICITY_AGGREGATE_SECTOR, ['22']))
+        bea_map.pop(ELECTRICITY_AGGREGATE_SECTOR, None)
+        for child in ELECTRICITY_DISAGG_SECTORS:
+            bea_map[child] = list(parent_summaries)
     out = _aggregate_industry_pi(
         pi_ind_detail,
         x_y,
-        ta.cast(
-            ta.Mapping[str, ta.Sequence[str]],
-            load_bea_v2017_industry_to_bea_v2017_summary(),
-        ),
+        ta.cast(ta.Mapping[str, ta.Sequence[str]], bea_map),
     )
     return pd.Series(out, dtype=float).reindex(
         USA_2017_SUMMARY_INDUSTRY_CODES, fill_value=100.0
@@ -696,11 +708,9 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
     fallback for cornerstone-only codes (mirrors the per-year half of
     ``get_cornerstone_industry_price_ratio``).
 
-    Always indexed on ``CORNERSTONE_INDUSTRIES`` regardless of
-    ``apply_io_year_adjustments`` (V_norm.T @ pi_industry in the ITA flow needs
-    industry granularity; the existing dispatch's commodity branch returns
-    commodity-indexed values for the legacy ``diag(p) @ A @ diag(1/p)`` flow,
-    which we don't want here).
+    Indexed on ``active_cornerstone_industries()`` (405, or industries-elec when
+    electricity is disaggregated). V_norm.T @ pi_industry in the ITA flow needs
+    industry granularity matching the active Make/Use axis.
 
     Codes with no parent in the upstream PI fall back to 100 (BEA convention
     2017 = 100); any ratio against another year that also falls back is 1.0.
@@ -717,7 +727,14 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
             and parent_code in pi_year.index
         ):
             series.loc[child] = float(pi_year.loc[parent_code])
-    return series.fillna(100.0)
+    series = series.fillna(100.0)
+    if get_usa_config().implement_electricity_disaggregation:
+        parent_pi = float(series.get(ELECTRICITY_AGGREGATE_SECTOR, 100.0))
+        series = series.drop(labels=[ELECTRICITY_AGGREGATE_SECTOR], errors='ignore')
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            series.loc[code] = parent_pi
+        series = series.reindex(active_cornerstone_industries(), fill_value=100.0)
+    return series
 
 
 # Config-sensitive ``@functools.cache`` helpers (omit config from cache keys).

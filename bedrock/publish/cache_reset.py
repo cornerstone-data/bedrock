@@ -66,6 +66,7 @@ _ELECTRICITY_DISAGG_CACHED_ATTRS: tuple[str, ...] = (
     'build_electricity_disagg_use_intersection_weights',
     'build_electricity_detail_GO_growth_ratios',
     'build_electricity_disagg_go_weights',
+    'applied_utilities_summary_q_growth_ratio',
 )
 
 UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [

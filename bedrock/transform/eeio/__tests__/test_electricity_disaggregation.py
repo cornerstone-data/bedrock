@@ -17,6 +17,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
+from bedrock.transform.eeio.cornerstone_year_scaling import scale_cornerstone_q
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
@@ -37,6 +38,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     _float_ndarray,
     _iou_utility_gtd_operating_expenses,
     _normalize_gtd_expense_weights,
+    applied_utilities_summary_q_growth_ratio,
     build_electricity_detail_GO_growth_ratios,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
@@ -64,6 +66,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
     build_electricity_detail_GO_growth_ratios,
+    applied_utilities_summary_q_growth_ratio,
     get_electricity_commodity_row_weights,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
@@ -278,5 +281,28 @@ class TestD7PureScaling:
             q_vals = [float(aq.scaled_q[c]) for c in ELECTRICITY_DISAGG_SECTORS]
             assert len(set(round(v, 6) for v in q_vals)) == 3
             assert ratios['221110'] != pytest.approx(ratios['221121'])
+        finally:
+            _teardown()
+
+    def test_apply_io_plus_elec_child_q_matches_detail_GO_growth(self) -> None:
+        """D7 denom must use applied (ITA) \"22\" so net child growth is GO_i."""
+        _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
+        try:
+            from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+            cfg = get_usa_config()
+            assert cfg.apply_io_year_adjustments is True
+            detail_year = int(cfg.usa_detail_original_year)
+            io_year = int(cfg.usa_io_data_year)
+            q_pre = derive_cornerstone_Aq().scaled_q.astype(float)
+            q_scaled = scale_cornerstone_q(
+                q_pre,
+                target_year=io_year,  # type: ignore[arg-type]
+                original_year=detail_year,  # type: ignore[arg-type]
+            )
+            go = build_electricity_detail_GO_growth_ratios(detail_year, io_year)
+            for code in ELECTRICITY_DISAGG_SECTORS:
+                implied = float(q_scaled.loc[code]) / float(q_pre.loc[code])
+                assert implied == pytest.approx(float(go.loc[code]), rel=1e-9, abs=1e-9)
         finally:
             _teardown()
