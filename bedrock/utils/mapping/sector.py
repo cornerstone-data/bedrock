@@ -8,6 +8,7 @@ from bedrock.transform.flowbyfunctions import aggregator
 from bedrock.utils.config import common, settings
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.dqi import adjust_dqi_reliability_collection_scores
+from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 
 # Level names per schema, coarsest → finest. New hierarchical schemas
 # should be added here and require a `{SCHEMA}_{year}_Crosswalk` with those columns.
@@ -92,6 +93,129 @@ def return_schema_crosswalk(schema: str, year: int) -> pd.DataFrame:
             .reset_index(drop=True)
         )
     return common.load_crosswalk(f'{schema.upper()}_{year}_Crosswalk')
+
+
+def load_schema_conversion_crosswalk(
+    source_schema: str,
+    target_schema: str,
+    source_year: int,
+    target_year: int,
+    *,
+    fbsconfigpath: str | None = None,
+) -> pd.DataFrame:
+    """Activity to Sector rows converting ``source_schema`` codes to ``target_schema``.
+
+    Returns columns Activity, Sector, SectorType, SectorSourceName, or empty
+    if no conversion crosswalk exists. Logs a warning when returning empty. Known pairs:
+    bea to/from naics from ``NAICS_to_BEA_Crosswalk_{bea_year}`` (all source
+    levels; child target codes only, drop parents). Other pairs:
+    optional file ``Sector_Crosswalk_{SRC}_{year}_to_{TGT}.csv``.
+    """
+
+    empty = pd.DataFrame(
+        columns=['Activity', 'Sector', 'SectorType', 'SectorSourceName']
+    )
+    source_schema = source_schema.lower()
+    target_schema = target_schema.lower()
+    missing_msg = (
+        f'No convert crosswalk from {source_schema} ({source_year}) to '
+        f'{target_schema} ({target_year})'
+    )
+
+    if {source_schema, target_schema} == {'bea', 'naics'}:
+        bea_year = source_year if source_schema == 'bea' else target_year
+        naics_year = source_year if source_schema == 'naics' else target_year
+        n2b = common.load_crosswalk(f'NAICS_to_BEA_Crosswalk_{bea_year}')
+        naics_col = f'NAICS_{naics_year}_Code'
+        if naics_col not in n2b.columns:
+            naics_cols = [
+                c for c in n2b.columns if c.startswith('NAICS_') and c.endswith('_Code')
+            ]
+            if not naics_cols:
+                log.warning(missing_msg)
+                return empty
+            naics_col = naics_cols[0]
+            naics_year = int(naics_col.split('_')[1])
+        bea_cols = [
+            f'BEA_{bea_year}_{level}_Code'
+            for level in SECTOR_HIERARCHY_ORDER['bea']
+            if f'BEA_{bea_year}_{level}_Code' in n2b.columns
+        ]
+        if source_schema == 'bea':
+            if not bea_cols:
+                log.warning(missing_msg)
+                return empty
+            melted = (
+                n2b.melt(
+                    id_vars=[naics_col],
+                    value_vars=bea_cols,
+                    value_name='Activity',
+                )
+                .dropna(subset=[naics_col, 'Activity'])
+                .drop_duplicates()
+            )
+            melted[naics_col] = melted[naics_col].astype(str)
+            melted['Activity'] = melted['Activity'].astype(str)
+            pairs = melted[['Activity', naics_col]].drop_duplicates()
+            cross = pairs.rename(columns={naics_col: 'a'}).merge(
+                pairs.rename(columns={naics_col: 'b'}),
+                on='Activity',
+            )
+            a = cross['a'].to_numpy().astype(str)
+            b = cross['b'].to_numpy().astype(str)
+            parents = (
+                cross.loc[
+                    (a != b) & np.char.startswith(b, a),
+                    ['Activity', 'a'],
+                ]
+                .drop_duplicates()
+                .rename(columns={'a': naics_col})
+            )
+            melted = melted.merge(
+                parents.assign(_drop=True),
+                on=['Activity', naics_col],
+                how='left',
+            )
+            melted = melted[melted['_drop'].isna()].drop(columns='_drop')
+            out = melted.rename(columns={naics_col: 'Sector'}).assign(
+                SectorType=np.nan,
+                SectorSourceName=sector_source_name('naics', naics_year),
+            )
+        else:
+            child_level = SECTOR_HIERARCHY_ORDER['bea'][-1]
+            child_col = f'BEA_{bea_year}_{child_level}_Code'
+            if child_col not in n2b.columns:
+                log.warning(missing_msg)
+                return empty
+            out = (
+                n2b[[naics_col, child_col]]
+                .dropna()
+                .drop_duplicates()
+                .rename(columns={naics_col: 'Activity', child_col: 'Sector'})
+                .assign(
+                    SectorType=np.nan,
+                    SectorSourceName=sector_source_name('bea', bea_year),
+                )
+            )
+        out = out[['Activity', 'Sector', 'SectorType', 'SectorSourceName']]
+        if out.empty:
+            log.warning(missing_msg)
+        return out
+
+    map_name = f'{source_schema.upper()}_{source_year}_to_{target_schema.upper()}'
+    csv_path = settings.crosswalkpath / f'Sector_Crosswalk_{map_name}.csv'
+    if not csv_path.is_file():
+        log.warning(missing_msg)
+        return empty
+    cw = get_activitytosector_mapping(map_name, fbsconfigpath=fbsconfigpath).astype(
+        'object'
+    )
+    needed = ['Activity', 'Sector', 'SectorType', 'SectorSourceName']
+    cols = [c for c in needed if c in cw.columns]
+    if not cols:
+        log.warning(missing_msg)
+        return empty
+    return cw[cols].copy()
 
 
 def _industry_spec_key_hierarchical(
@@ -255,6 +379,38 @@ def industry_spec_key(
     )
 
 
+def _sector_level_table() -> pd.DataFrame:
+    """``SectorSourceName`` + ``Sector`` → finest ``SectorLevel`` in Sector_Levels."""
+    levels = common.load_crosswalk('Sector_Levels')
+    out = (
+        levels.assign(SectorLevel=pd.to_numeric(levels['SectorLevel'], errors='coerce'))
+        .groupby(['SectorSourceName', 'Sector'], as_index=False)['SectorLevel']
+        .max()
+    )
+    return pd.DataFrame(out)
+
+
+def _hierarchy_parents(schema: str, year: int) -> dict[str, set[str]]:
+    """Map each hierarchy code to coarser parent codes on the same crosswalk row."""
+    cw = return_schema_crosswalk(schema, year)
+    order = SECTOR_HIERARCHY_ORDER[schema]
+    cols = [c for c in order if c in cw.columns]
+    parents: dict[str, set[str]] = {}
+    for row in cw[cols].itertuples(index=False, name=None):
+        seen: list[str] = []
+        for val in row:
+            if pd.isna(val) or str(val).strip() == '':
+                continue
+            code = str(val)
+            parents.setdefault(code, set())
+            for parent in seen:
+                if parent != code:
+                    parents[code].add(parent)
+            if code not in seen:
+                seen.append(code)
+    return parents
+
+
 def sector_hierarchy_from_config(config: Any) -> str | None:
     """Resolve activity-row nesting from nested activity_schema (or legacy key)."""
     if not isinstance(config, dict):
@@ -272,13 +428,13 @@ def sector_hierarchy_from_config(config: Any) -> str | None:
 def subset_sector_key(
     flowbyactivity: pd.DataFrame,
     activitycol: str,
-    sector_source_year: str,
     primary_sector_key: pd.DataFrame,
     secondary_sector_key: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """
-    Subset the sector key to return an industry that most closely maps source sectors to target
-    sectors by matching on sector length, based on the sectors that are in the FBA
+    Subset the sector key to return an industry that most closely maps source
+    sectors to target sectors by Sector_Levels.SectorLevel (not string length),
+    based on the sectors that are in the FBA.
 
     @param flowbyactivity: FBA (if activities are sector like) or df of activity to sector mapping
     (if activities are text based) that contains activity data
@@ -287,6 +443,9 @@ def subset_sector_key(
     @param secondary_sector_key:
     @return:
     """
+
+    # Capture before any slice; filtering a FlowBy to a plain DataFrame drops .config
+    hierarchy = sector_hierarchy_from_config(getattr(flowbyactivity, 'config', None))
 
     # if the primary sector key is the activity to sector crosswalk, which is the case for FBAs with non-sector-like
     # activities, merge with the secondary sector key (the naics industry key) to pull in target sectors and tech
@@ -413,18 +572,50 @@ def subset_sector_key(
         .drop(columns=activitycol)
     )
 
-    # drop parent sectors if parent-completechild
-    if sector_hierarchy_from_config(flowbyactivity.config) == 'parent-completeChild':
+    # drop parent sectors if parent-completechild (hierarchy table, not prefix)
+    if hierarchy == 'parent-completeChild':
+        parent_cache: dict[tuple[str, int], dict[str, set[str]]] = {}
 
         def drop_parent_sectors(sector_key: pd.DataFrame) -> pd.DataFrame:
-            sector_list = sector_key['source_sector'].astype(str).tolist()
-
-            def is_parent(x: str) -> bool:
-                return any(
-                    sector != x and sector.startswith(x) for sector in sector_list
+            if 'SectorSourceName' not in sector_key.columns:
+                log.warning(
+                    'Cannot drop hierarchy parents without SectorSourceName; '
+                    'leaving all source sectors'
                 )
+                return sector_key
 
-            return sector_key[~sector_key['source_sector'].astype(str).apply(is_parent)]
+            def _parents(sector_source_name: str) -> dict[str, set[str]]:
+                schema, year = parse_sector_source_name(sector_source_name)
+                key = (schema, year)
+                if key not in parent_cache:
+                    parent_cache[key] = _hierarchy_parents(schema, year)
+                return parent_cache[key]
+
+            drop_idx: list[Any] = []
+            for sector_source_name, grp in sector_key.groupby(
+                'SectorSourceName', dropna=False
+            ):
+                if pd.isna(sector_source_name) or str(sector_source_name).strip() == '':
+                    continue
+                try:
+                    parents = _parents(str(sector_source_name))
+                except ValueError:
+                    log.warning(
+                        'Cannot parse SectorSourceName %r for parent drop; '
+                        'leaving those rows',
+                        sector_source_name,
+                    )
+                    continue
+                codes = grp['source_sector'].astype(str)
+                for idx, code in codes.items():
+                    if any(
+                        peer != code and code in parents.get(peer, set())
+                        for peer in codes
+                    ):
+                        drop_idx.append(idx)
+            if not drop_idx:
+                return sector_key
+            return sector_key.drop(index=drop_idx)
 
         # todo: check futurewarning dataframegroupby.apply fix working as expected
         primary_sector_key_2 = primary_sector_key_2.groupby(
@@ -434,7 +625,7 @@ def subset_sector_key(
     # modify dqi scores for data reliability and collection based on mapping
     if "DataReliability" in flowbyactivity.columns:
         primary_sector_key_2 = adjust_dqi_reliability_collection_scores(
-            primary_sector_key_2, sector_source_year
+            primary_sector_key_2
         )
 
     # Keep rows where source = target
@@ -447,55 +638,79 @@ def subset_sector_key(
         primary_sector_key_2["source_sector"] != primary_sector_key_2["target_sector"]
     ].reset_index(drop=True)
 
-    # function to identify which source naics most closely match to the target naics
+    # Closest source to/from target by Sector_Levels.SectorLevel (not string length).
     def subset_target_sectors_by_source_sectors(group: pd.DataFrame) -> pd.DataFrame:
-        target = group["target_sector"].iloc[0]
-        target_length = len(target)
+        if 'sourceLevel' not in group.columns or 'targetLevel' not in group.columns:
+            return group
+        target_level = group['targetLevel'].iloc[0]
+        if pd.isna(target_level):
+            return group
+        leveled = group[group['sourceLevel'].notna()]
+        if leveled.empty:
+            return group
 
-        # first check for length source > length target
-        group_filtered_greater = group[group["source_sector"].apply(len) > target_length]
-        if not group_filtered_greater.empty:
-            # keep rows where source length is smallest greater length
-            min_source_length = min(group_filtered_greater["source_sector"].apply(len))
-            result_greater = group_filtered_greater[
-                group_filtered_greater["source_sector"].apply(len) == min_source_length
-            ]
-            # drop the greater data from the remainder df before looking for shorter lengths
-            if "Activity" in group.columns:
+        greater = leveled[leveled['sourceLevel'] > target_level]
+        if not greater.empty:
+            min_greater = greater['sourceLevel'].min()
+            result_greater = greater[greater['sourceLevel'] == min_greater]
+            if 'Activity' in group.columns:
                 group = group[
                     ~(
-                        (group["target_sector"].isin(result_greater["target_sector"]))
-                        & (group["Activity"].isin(result_greater["Activity"]))
+                        (group['target_sector'].isin(result_greater['target_sector']))
+                        & (group['Activity'].isin(result_greater['Activity']))
                     )
                 ]
             else:
                 group = group[
-                    ~group["target_sector"].isin(result_greater["target_sector"])
+                    ~group['target_sector'].isin(result_greater['target_sector'])
                 ]
         else:
             result_greater = pd.DataFrame()
 
-        # if there are no source length greater than target, check for source values shorter
-        group_filtered_shorter = group[group["source_sector"].apply(len) < target_length]
-        if not group_filtered_shorter.empty:
-            # keep rows where source length is smallest smaller length
-            max_source_length = max(group_filtered_shorter["source_sector"].apply(len))
-            result_shorter = group_filtered_shorter[
-                group_filtered_shorter["source_sector"].apply(len) == max_source_length
-            ]
+        shorter = group[
+            group['sourceLevel'].notna() & (group['sourceLevel'] < target_level)
+        ]
+        if not shorter.empty:
+            max_shorter = shorter['sourceLevel'].max()
+            result_shorter = shorter[shorter['sourceLevel'] == max_shorter]
         else:
             result_shorter = pd.DataFrame()
         return pd.concat([result_greater, result_shorter], ignore_index=True)
 
-    if sector_hierarchy_from_config(flowbyactivity.config) == 'parent-incompleteChild':
+    if hierarchy == 'parent-incompleteChild':
+        df_remaining_mapped = df_remaining.copy()
+    elif 'SectorSourceName' not in df_remaining.columns:
+        log.warning(
+            'subset_sector_key: SectorSourceName missing; keeping all '
+            'non-identity mappings'
+        )
         df_remaining_mapped = df_remaining.copy()
     else:
+        if 'SectorSourceName' not in group_cols:
+            group_cols = [*group_cols, 'SectorSourceName']
+        levels = _sector_level_table()
+        df_remaining = df_remaining.merge(
+            levels.rename(
+                columns={'Sector': 'source_sector', 'SectorLevel': 'sourceLevel'}
+            ),
+            how='left',
+            on=['SectorSourceName', 'source_sector'],
+        ).merge(
+            levels.rename(
+                columns={'Sector': 'target_sector', 'SectorLevel': 'targetLevel'}
+            ),
+            how='left',
+            on=['SectorSourceName', 'target_sector'],
+        )
         # todo: check impact of changing code to remove future warning
         df_remaining_mapped = (
             df_remaining.groupby(group_cols, dropna=False, group_keys=False)[
                 df_remaining.columns.tolist()
             ].apply(subset_target_sectors_by_source_sectors)
             # .reset_index(drop=True)
+        )
+        df_remaining_mapped = df_remaining_mapped.drop(
+            columns=['sourceLevel', 'targetLevel'], errors='ignore'
         )
 
     mapping = pd.concat([df_keep, df_remaining_mapped], ignore_index=True)

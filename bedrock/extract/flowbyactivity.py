@@ -24,7 +24,6 @@ from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowby import _FlowBy, flowby_config
 from bedrock.transform.flowbyfunctions import filter_by_geoscale
 from bedrock.utils.config import settings
-from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.settings import (
     DEFAULT_DOWNLOAD_IF_MISSING,
     FBA_DIR,
@@ -34,8 +33,10 @@ from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import sectormapping
 from bedrock.utils.mapping.geo import filtered_fips, scale
 from bedrock.utils.mapping.sector import (
+    _schema_block_year,
     convert_naics_year,
     industry_spec_key,
+    load_schema_conversion_crosswalk,
     parse_sector_source_name,
     return_schema_crosswalk,
     sector_hierarchy_from_config,
@@ -462,7 +463,7 @@ class FlowByActivity(_FlowBy):
 
         - Text activities: CW rows map onto matching ``industry_spec`` targets.
         - Sector-like: expand onto targets in the activity's schema via that
-          schema's hierarchy; bridge to the other schema's targets when that
+          schema's hierarchy; convert to the other schema's targets when that
           schema is also in ``industry_spec`` and the activity is not already
           covered by the native keep-set.
 
@@ -518,7 +519,7 @@ class FlowByActivity(_FlowBy):
             schema_dict: dict[str, Any],
             activities: pd.Series,
         ) -> dict[str, list[str]]:
-            """Activity values not found in declared bea/naics code universes."""
+            """Activity values not found in declared schema code lists."""
             present = {
                 str(v)
                 for v in activities.dropna().unique()
@@ -528,8 +529,7 @@ class FlowByActivity(_FlowBy):
                 return {}
             years = _source_years_from_dict(schema_dict)
             missing: dict[str, list[str]] = {}
-            for schema in ('bea', 'naics'):
-                sch_dict = schema_dict.get(schema)
+            for schema, sch_dict in schema_dict.items():
                 if not isinstance(sch_dict, dict):
                     continue
                 year = int(years.get(schema, target_year))
@@ -555,7 +555,7 @@ class FlowByActivity(_FlowBy):
         )
         industry_key = sectormapping.assign_technological_correlation(industry_key)
 
-        activity_to_source_naics_crosswalk: pd.DataFrame | None = None
+        activity_to_source_sector_crosswalk: pd.DataFrame | None = None
         source_years: dict[str, int] = {}
         activity_schemas: set[str] = set()
         # Sector-like single schema: default SectorSourceName when merge left it null
@@ -605,7 +605,7 @@ class FlowByActivity(_FlowBy):
                 f'Getting crosswalk between activities in {self.full_name} '
                 f'and sectors.'
             )
-            activity_to_source_naics_crosswalk = sectormapping.get_activitytosector_mapping(
+            activity_to_source_sector_crosswalk = sectormapping.get_activitytosector_mapping(
                 self.config.get('activity_to_sector_mapping') or self.source_name,
                 fbsconfigpath=external_config_path,
             ).astype('object')[
@@ -632,7 +632,7 @@ class FlowByActivity(_FlowBy):
         def _mapping_jobs_for_dict(
             schema_dict: dict[str, Any] | None,
             *,
-            activity_to_source_naics_crosswalk: pd.DataFrame | None,
+            activity_to_source_sector_crosswalk: pd.DataFrame | None,
         ) -> list[tuple[pd.DataFrame, pd.DataFrame | None, str]]:
             """Build (primary, secondary, source_year) jobs for one schema dict."""
             jobs: list[tuple[pd.DataFrame, pd.DataFrame | None, str]] = []
@@ -641,7 +641,7 @@ class FlowByActivity(_FlowBy):
                     k for k, v in schema_dict.items() if isinstance(v, dict)
                 }
                 years = _source_years_from_dict(schema_dict)
-                keep_codes: set[str] = set()
+                keep_by_schema: dict[str, set[str]] = {}
                 # Keep: native schema identity parent→child
                 for schema in schemas:
                     if schema not in target_schemas:
@@ -652,103 +652,57 @@ class FlowByActivity(_FlowBy):
                     jobs.append(
                         (schema_key, None, str(years.get(schema, target_year)))
                     )
-                    keep_codes.update(
+                    keep_by_schema[schema] = set(
                         schema_key['source_sector'].dropna().astype(str).tolist()
                     )
 
-                # Convert: codes outside keep set → other schema via bridge
-                other = (
-                    ({'naics', 'bea'} & set(target_schemas)) - schemas
-                )
+                # Convert leftovers to default_schema only. Extra industry_spec
+                # schemas are keep-lists (identity), not convert destinations.
+                spec = self.config.get('industry_spec') or {}
+                default_schema = spec.get('default_schema')
+                if default_schema:
+                    other = {default_schema} - schemas
+                else:
+                    other = set(target_schemas) - schemas
+                method_year = int(self.config.get('target_schema_year', target_year))
                 for t_schema in sorted(other):
                     target_key = _key_for_schema(t_schema)
                     if target_key.empty:
                         continue
-                    if 'bea' in schemas and t_schema == 'naics':
-                        bea_year = int(years.get('bea', target_year))
-                        bridge = sectormapping.get_activitytosector_mapping(
-                            f'BEA_{bea_year}_Detail',
+                    t_block = spec.get(t_schema)
+                    t_year = (
+                        _schema_block_year(t_block, method_year)
+                        if isinstance(t_block, dict)
+                        else method_year
+                    )
+                    for s_schema in sorted(schemas):
+                        s_year = int(years.get(s_schema, target_year))
+                        conversion_cw = load_schema_conversion_crosswalk(
+                            s_schema,
+                            t_schema,
+                            s_year,
+                            t_year,
                             fbsconfigpath=external_config_path,
-                        ).astype('object')[
-                            ['Activity', 'Sector', 'SectorType', 'SectorSourceName']
-                        ]
-                        bridge = bridge[
-                            bridge['SectorSourceName'].map(
-                                lambda s: parse_sector_source_name(s)[0]
-                            )
-                            == 'naics'
-                        ].copy()
-                        if keep_codes:
-                            bridge = bridge[
-                                ~bridge['Activity'].astype(str).isin(keep_codes)
-                            ]
-                        if not bridge.empty:
-                            log.info(
-                                f'Mapping {self.full_name} BEA activities to '
-                                f'NAICS via Sector_Crosswalk_BEA_{bea_year}_Detail '
-                                f'(convert).'
-                            )
-                            jobs.append(
-                                (bridge, target_key, str(bea_year))
-                            )
-                    elif 'naics' in schemas and t_schema == 'bea':
-                        naics_year = int(years.get('naics', target_year))
-                        bea_year = int(
-                            self.config.get('target_schema_year', target_year)
                         )
-                        n2b = load_crosswalk(
-                            f'NAICS_to_BEA_Crosswalk_{bea_year}'
-                        )
-                        naics_col = f'NAICS_{naics_year}_Code'
-                        if naics_col not in n2b.columns:
-                            # fall back to any NAICS_* column present
-                            naics_cols = [
-                                c
-                                for c in n2b.columns
-                                if c.startswith('NAICS_') and c.endswith('_Code')
-                            ]
-                            if not naics_cols:
-                                continue
-                            naics_col = naics_cols[0]
-                        detail_col = f'BEA_{bea_year}_Detail_Code'
-                        if detail_col not in n2b.columns:
+                        if conversion_cw.empty:
                             continue
-                        bridge = (
-                            n2b[[naics_col, detail_col]]
-                            .dropna()
-                            .drop_duplicates()
-                            .rename(
-                                columns={
-                                    naics_col: 'Activity',
-                                    detail_col: 'Sector',
-                                }
-                            )
-                            .assign(
-                                SectorType=np.nan,
-                                SectorSourceName=sector_source_name(
-                                    'bea', bea_year
-                                ),
-                            )
-                        )
-                        if keep_codes:
-                            bridge = bridge[
-                                ~bridge['Activity'].astype(str).isin(keep_codes)
+                        keep = keep_by_schema.get(s_schema, set())
+                        if keep:
+                            conversion_cw = conversion_cw[
+                                ~conversion_cw['Activity'].astype(str).isin(keep)
                             ]
-                        if not bridge.empty:
+                        if not conversion_cw.empty:
                             log.info(
-                                f'Mapping {self.full_name} NAICS activities to '
-                                f'BEA via NAICS_to_BEA_Crosswalk_{bea_year} '
-                                f'(convert).'
+                                f'Mapping {self.full_name} {s_schema} '
+                                f'activities to {t_schema} (convert).'
                             )
-                            jobs.append(
-                                (bridge, target_key, str(naics_year))
-                            )
+                            jobs.append((conversion_cw, target_key, str(s_year)))
                 return jobs
 
-            # Text activities: CW to industry only (no BEA-code identity shortcut)
-            assert activity_to_source_naics_crosswalk is not None
-            if not activity_to_source_naics_crosswalk.empty and not industry_key.empty:
-                jobs.append((activity_to_source_naics_crosswalk, industry_key, str(target_year)))
+            # Text activities: CW to industry only
+            assert activity_to_source_sector_crosswalk is not None
+            if not activity_to_source_sector_crosswalk.empty and not industry_key.empty:
+                jobs.append((activity_to_source_sector_crosswalk, industry_key, str(target_year)))
             return jobs
 
         fba_w_sectors = self.copy()
@@ -769,13 +723,13 @@ class FlowByActivity(_FlowBy):
                 if sector_like:
                     assert isinstance(activity_schema, dict)
                     mapping_jobs = _mapping_jobs_for_dict(
-                        activity_schema, activity_to_source_naics_crosswalk=None
+                        activity_schema, activity_to_source_sector_crosswalk=None
                     )
                 else:
                     mapping_jobs = _mapping_jobs_for_dict(
                         None,
-                        activity_to_source_naics_crosswalk=(
-                            activity_to_source_naics_crosswalk
+                        activity_to_source_sector_crosswalk=(
+                            activity_to_source_sector_crosswalk
                         ),
                     )
 
@@ -787,21 +741,20 @@ class FlowByActivity(_FlowBy):
                         f'industry_spec schemas={target_schemas}. Text activities '
                         f'need CW rows tagged with a target schema; sector-like '
                         f'sources need a matching industry_spec block (or '
-                        f'BEA→NAICS bridge).'
+                        f'a conversion crosswalk to a target schema).'
                     )
 
                 mapping_parts: list[pd.DataFrame] = []
-                for primary_key, secondary_key, source_year in mapping_jobs:
+                for primary_key, secondary_key, _source_year in mapping_jobs:
                     mapping_parts.append(
                         subset_sector_key(
                             fba_w_sectors,
                             f'Activity{direction}',
-                            source_year,
                             primary_sector_key=primary_key,
                             secondary_sector_key=secondary_key,
                         )
                     )
-                activity_to_target_naics_crosswalk = (
+                activity_to_target_sector_crosswalk = (
                     pd.concat(mapping_parts, ignore_index=True).drop_duplicates()
                     if mapping_parts
                     else pd.DataFrame()
@@ -809,7 +762,7 @@ class FlowByActivity(_FlowBy):
 
                 fba_w_sectors = (
                     fba_w_sectors.merge(
-                        activity_to_target_naics_crosswalk,
+                        activity_to_target_sector_crosswalk,
                         how='left',
                         on=[
                             'Class',
@@ -844,12 +797,14 @@ class FlowByActivity(_FlowBy):
                         'SectorSourceName_x', fba_w_sectors.get('SectorSourceName')
                     )
                     sec_source_name_y = fba_w_sectors.get('SectorSourceName_y')
-                    if sec_source_name_y is not None:
+                    if sec_source_name_x is not None and sec_source_name_y is not None:
                         fba_w_sectors['SectorSourceName'] = sec_source_name_x.fillna(
                             sec_source_name_y
                         )
                     elif sec_source_name_x is not None:
                         fba_w_sectors['SectorSourceName'] = sec_source_name_x
+                    elif sec_source_name_y is not None:
+                        fba_w_sectors['SectorSourceName'] = sec_source_name_y
                     fba_w_sectors = fba_w_sectors.drop(
                         columns=['SectorSourceName_x', 'SectorSourceName_y'],
                         errors='ignore',
