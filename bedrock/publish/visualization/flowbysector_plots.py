@@ -21,13 +21,13 @@ from bedrock.transform.flowbyfunctions import collapse_fbs_sectors
 from bedrock.transform.flowbysector import FlowBySector, collapse_FlowBySector
 from bedrock.utils.config.common import load_crosswalk, load_yaml_dict
 from bedrock.utils.config.settings import datapath, plotoutputpath
-from bedrock.utils.mapping.sector import parse_sector_source_name
 
 # todo: need to update fxn to use new sector_aggregation - datavis not
 #  currently working
 # from bedrock.transform.flowbyfunctions import sector_aggregation
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import get_state_FIPS
+from bedrock.utils.mapping.sector import parse_sector_source_name
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes

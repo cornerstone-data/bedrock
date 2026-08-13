@@ -254,9 +254,9 @@ def estimate_suppressed_sectors_equal_attribution(
     )
     cw_melt = cw_melt.assign(
         count=(
-            cw_melt.groupby(['source_sector', 'SectorLength'])['source_sector'].transform(
-                'count'
-            )
+            cw_melt.groupby(['source_sector', 'SectorLength'])[
+                'source_sector'
+            ].transform('count')
         )
     )
     cw = cw_melt.query("count==1").drop(columns=['SectorLength', 'count'])

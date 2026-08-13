@@ -279,14 +279,12 @@ class FlowBySector(_FlowBy):
         """
         if industry_spec is None:
             industry_spec = self.config['industry_spec']
-        sector_key = industry_spec_key(
-            industry_spec, self.config['target_schema_year']
-        )
+        sector_key = industry_spec_key(industry_spec, self.config['target_schema_year'])
         # Use Sector_Levels to compare aggregation level (schema-aware)
         levels_raw = load_crosswalk('Sector_Levels')
-        levels = levels_raw.groupby(
-            ['SectorSourceName', 'Sector'], as_index=False
-        )['SectorLevel'].max()
+        levels = levels_raw.groupby(['SectorSourceName', 'Sector'], as_index=False)[
+            'SectorLevel'
+        ].max()
         sector_key = (
             sector_key.merge(
                 levels,

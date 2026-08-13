@@ -432,7 +432,8 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByAct
 
     # BEA household codes
     household = [
-        'F010', 'F01000',  # Personal consumption expenditures
+        'F010',
+        'F01000',  # Personal consumption expenditures
     ]
 
     # if it is state data, take weighted avg using land area

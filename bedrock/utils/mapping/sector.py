@@ -83,9 +83,7 @@ def return_schema_crosswalk(schema: str, year: int) -> pd.DataFrame:
         }
         missing = [c for c in rename if c not in n2b.columns]
         if missing:
-            raise ValueError(
-                f'NAICS_to_BEA_Crosswalk_{year} missing columns {missing}'
-            )
+            raise ValueError(f'NAICS_to_BEA_Crosswalk_{year} missing columns {missing}')
         return (
             n2b[list(rename)]
             .rename(columns=rename)
@@ -237,9 +235,7 @@ def _industry_spec_key_hierarchical(
     cw = return_schema_crosswalk(schema, block_year)
     default_col = block['default_level']
     assert isinstance(default_col, str), "'default_level' must be a string column name"
-    level_items = {
-        k: v for k, v in block.items() if k not in _INDUSTRY_SPEC_META_KEYS
-    }
+    level_items = {k: v for k, v in block.items() if k not in _INDUSTRY_SPEC_META_KEYS}
     if not full_tree:
         if not level_items:
             raise ValueError(
@@ -315,9 +311,7 @@ def industry_spec_key(
 
     default_schema = industry_spec.get('default_schema')
     schema_blocks = {
-        k: v
-        for k, v in industry_spec.items()
-        if k not in _INDUSTRY_SPEC_TOP_META_KEYS
+        k: v for k, v in industry_spec.items() if k not in _INDUSTRY_SPEC_TOP_META_KEYS
     }
 
     hierarchy_schemas = [

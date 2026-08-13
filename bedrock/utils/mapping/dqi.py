@@ -6,9 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-def adjust_dqi_reliability_collection_scores(
-        df: pd.DataFrame
-) -> pd.DataFrame:
+def adjust_dqi_reliability_collection_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
     Adjust the dqi scores for
     Data Reliability, Data Collection

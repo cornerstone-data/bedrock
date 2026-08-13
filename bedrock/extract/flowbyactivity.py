@@ -480,7 +480,9 @@ class FlowByActivity(_FlowBy):
         if isinstance(activity_schema, str) or (
             isinstance(activity_schema, dict)
             and activity_schema
-            and all(isinstance(k, (int, str)) and str(k).isdigit() for k in activity_schema)
+            and all(
+                isinstance(k, (int, str)) and str(k).isdigit() for k in activity_schema
+            )
             and any(
                 isinstance(v, str) and v.endswith('_Code')
                 for v in activity_schema.values()
@@ -520,11 +522,7 @@ class FlowByActivity(_FlowBy):
             activities: pd.Series,
         ) -> dict[str, list[str]]:
             """Activity values not found in declared schema code lists."""
-            present = {
-                str(v)
-                for v in activities.dropna().unique()
-                if str(v) != ''
-            }
+            present = {str(v) for v in activities.dropna().unique() if str(v) != ''}
             if not present:
                 return {}
             years = _source_years_from_dict(schema_dict)
@@ -545,9 +543,7 @@ class FlowByActivity(_FlowBy):
             return missing
 
         # null / None → text activities; mapping CW supplies SectorSourceName
-        sector_like = (
-            isinstance(activity_schema, dict) and len(activity_schema) > 0
-        )
+        sector_like = isinstance(activity_schema, dict) and len(activity_schema) > 0
         hierarchy = sector_hierarchy_from_config(self.config)
         industry_key = industry_spec_key(
             self.config['industry_spec'],
@@ -605,12 +601,14 @@ class FlowByActivity(_FlowBy):
                 f'Getting crosswalk between activities in {self.full_name} '
                 f'and sectors.'
             )
-            activity_to_source_sector_crosswalk = sectormapping.get_activitytosector_mapping(
-                self.config.get('activity_to_sector_mapping') or self.source_name,
-                fbsconfigpath=external_config_path,
-            ).astype('object')[
-                ['Activity', 'Sector', 'SectorType', 'SectorSourceName']
-            ]
+            activity_to_source_sector_crosswalk = (
+                sectormapping.get_activitytosector_mapping(
+                    self.config.get('activity_to_sector_mapping') or self.source_name,
+                    fbsconfigpath=external_config_path,
+                ).astype('object')[
+                    ['Activity', 'Sector', 'SectorType', 'SectorSourceName']
+                ]
+            )
 
         def _key_for_schema(schema: str) -> pd.DataFrame:
             return industry_key[
@@ -637,9 +635,7 @@ class FlowByActivity(_FlowBy):
             """Build (primary, secondary, source_year) jobs for one schema dict."""
             jobs: list[tuple[pd.DataFrame, pd.DataFrame | None, str]] = []
             if schema_dict is not None:
-                schemas = {
-                    k for k, v in schema_dict.items() if isinstance(v, dict)
-                }
+                schemas = {k for k, v in schema_dict.items() if isinstance(v, dict)}
                 years = _source_years_from_dict(schema_dict)
                 keep_by_schema: dict[str, set[str]] = {}
                 # Keep: native schema identity parent→child
@@ -649,9 +645,7 @@ class FlowByActivity(_FlowBy):
                     schema_key = _key_for_schema(schema)
                     if schema_key.empty:
                         continue
-                    jobs.append(
-                        (schema_key, None, str(years.get(schema, target_year)))
-                    )
+                    jobs.append((schema_key, None, str(years.get(schema, target_year))))
                     keep_by_schema[schema] = set(
                         schema_key['source_sector'].dropna().astype(str).tolist()
                     )
@@ -702,7 +696,13 @@ class FlowByActivity(_FlowBy):
             # Text activities: CW to industry only
             assert activity_to_source_sector_crosswalk is not None
             if not activity_to_source_sector_crosswalk.empty and not industry_key.empty:
-                jobs.append((activity_to_source_sector_crosswalk, industry_key, str(target_year)))
+                jobs.append(
+                    (
+                        activity_to_source_sector_crosswalk,
+                        industry_key,
+                        str(target_year),
+                    )
+                )
             return jobs
 
         fba_w_sectors = self.copy()
@@ -898,20 +898,17 @@ class FlowByActivity(_FlowBy):
             )
             fba_w_sectors = fba_w_sectors.loc[~bad_sec_source_name]
 
-        return (
-            fba_w_sectors.drop(
-                columns=[
-                    'TechnologicalCorrelation_x',
-                    'TechnologicalCorrelation_y',
-                    'DataReliability_x',
-                    'DataReliability_y',
-                    'DataCollection_x',
-                    'DataCollection_y',
-                ],
-                errors='ignore',
-            )
-            .reset_index(drop=True)
-        )
+        return fba_w_sectors.drop(
+            columns=[
+                'TechnologicalCorrelation_x',
+                'TechnologicalCorrelation_y',
+                'DataReliability_x',
+                'DataReliability_y',
+                'DataCollection_x',
+                'DataCollection_y',
+            ],
+            errors='ignore',
+        ).reset_index(drop=True)
 
     def prepare_fbs(
         self: FlowByActivity,

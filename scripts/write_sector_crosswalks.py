@@ -21,6 +21,7 @@ from bedrock.utils.config.settings import crosswalkpath, externaldatapath, mappi
 from bedrock.utils.mapping.sector import generate_naics_crosswalk_conversion_ratios
 from bedrock.utils.mapping.sector import SECTOR_HIERARCHY_ORDER
 
+
 def load_naics_concordance(y1, y2):
     """
     Load the naics concordance from US Census, which are provided in naics6 format
