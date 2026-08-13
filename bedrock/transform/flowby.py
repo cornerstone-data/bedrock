@@ -1446,6 +1446,8 @@ class _FlowBy(pd.DataFrame):
                 columns=[
                     'PrimarySector',
                     'SecondarySector',
+                    'PrimarySectorSourceName',
+                    'SecondarySectorSourceName',
                     'temp_location',
                     'denominator',
                 ],
@@ -1564,6 +1566,8 @@ class _FlowBy(pd.DataFrame):
                 columns=[
                     'PrimarySector',
                     'SecondarySector',
+                    'PrimarySectorSourceName',
+                    'SecondarySectorSourceName',
                     'temp_location',
                     'group_total',
                     'Denominator',
@@ -1641,7 +1645,13 @@ class _FlowBy(pd.DataFrame):
         fb['Unit'] = fb['Unit'] + '/' + fb['Unit_other']
 
         return fb.drop(
-            columns=['PrimarySector', 'SecondarySector', 'temp_location'],
+            columns=[
+                'PrimarySector',
+                'SecondarySector',
+                'PrimarySectorSourceName',
+                'SecondarySectorSourceName',
+                'temp_location',
+            ],
             errors='ignore',
         ).reset_index(drop=True)
 
