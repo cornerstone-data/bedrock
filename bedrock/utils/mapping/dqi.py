@@ -5,7 +5,6 @@ Functions associated with data quality scoring
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.mapping.sector import _sector_level_table
 
 def adjust_dqi_reliability_collection_scores(
         df: pd.DataFrame
@@ -24,6 +23,8 @@ def adjust_dqi_reliability_collection_scores(
 
     if 'SectorSourceName' not in df.columns:
         return df
+
+    from bedrock.utils.mapping.sector import _sector_level_table  # noqa: PLC0415
 
     levels = _sector_level_table()
     df2 = df.copy()
