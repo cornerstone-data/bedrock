@@ -10,6 +10,8 @@ Sector ``11`` share a group.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal, assert_series_equal
@@ -27,11 +29,11 @@ _NAICS_BLOCK = {
 _BEA_KEEP = ['531HSO', '531HST', '531ORE', '230301', 'F01000', 'GSLGE']
 
 
-def _naics_only_spec() -> dict:
+def _naics_only_spec() -> dict[str, Any]:
     return {'default_schema': 'naics', 'naics': dict(_NAICS_BLOCK)}
 
 
-def _mixed_spec() -> dict:
+def _mixed_spec() -> dict[str, Any]:
     return {
         'default_schema': 'naics',
         'naics': dict(_NAICS_BLOCK),
@@ -91,7 +93,7 @@ def _flow_by_schema(out: pd.DataFrame) -> pd.Series:
     return _plain_sum(out, 'SectorSourceName')
 
 
-def _mapped_fba(rows: list[dict], industry_spec: dict) -> FlowByActivity:
+def _mapped_fba(rows: list[dict[str, Any]], industry_spec: dict[str, Any]) -> FlowByActivity:
     base = {
         'Class': 'Chemicals',
         'SourceName': 'test',
