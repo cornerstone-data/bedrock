@@ -93,7 +93,9 @@ def _flow_by_schema(out: pd.DataFrame) -> pd.Series:
     return _plain_sum(out, 'SectorSourceName')
 
 
-def _mapped_fba(rows: list[dict[str, Any]], industry_spec: dict[str, Any]) -> FlowByActivity:
+def _mapped_fba(
+    rows: list[dict[str, Any]], industry_spec: dict[str, Any]
+) -> FlowByActivity:
     base = {
         'Class': 'Chemicals',
         'SourceName': 'test',
