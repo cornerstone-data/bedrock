@@ -152,7 +152,7 @@ These are spot checks on three lines, not a fitted result.
 | CIPI column total | NIPA T1.1.5 line 14 | Free, exact, already extracted |
 | CIPI by holding industry, nonfarm | `U50705BU1` | **Already extracted 2012–2024, unused** |
 | Stage-of-fabrication split, durable/nondurable | `U50705BU1` lines 29–37 | **Already extracted, unused** |
-| Farm CIPI level | NIPA 5.7.5B farm line | **Not extracted** — `U50705BU1` is nonfarm-only |
+| Farm CIPI level | NIPA 5.7.5B, table id `T50705B` | **Not extracted, but confirmed available.** Farm is `B018RC` line 2 at **−5,679** in 2017 — exactly the figure §Farm infers — and the CIPI control total `A014RC` is line 1 at 32,674. Farm plus nonfarm ties to it. Adding `T50705B` to `BEA_NIPA.yaml`'s table list is the whole job |
 | Farm commodity split | `USDA_ERS_FIWS` `Inventory` variable | **Already in bedrock**, unused for this — see §Farm |
 | Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Make table | Published for 2017 |
 | M&S manufacturing → commodity | Step 3 intermediate column; 2017 Use table | Published for 2017 |
@@ -251,14 +251,50 @@ commodity against 2017 — the same shape as
 | 2 | Trade industry → commodity crosswalk, ~25 lines | #615 decision |
 | 3 | Apply the four rules; validate against the 2017 detail column | 2017 Make/Use published; nowcast years need #570 and #497 |
 
-**Phase 1 — consume what is already extracted.** Add the inventories activity
-set to the `NIPA_final_dom_uses_<year>` methods. `U50705BU1` is nonfarm-only, so add NIPA
-**5.7.5B** to `BEA_NIPA.yaml`'s table list for the farm line, and take farm's
-commodity split from `USDA_ERS_FIWS` — both covered in §Farm. Neither needs a
-new extractor.
+**Phase 1 — consume what is already extracted.**
 
-**Phase 2 — the crosswalk.** ~25 trade lines to BEA detail commodities. Build it
-by concept, never by value proximity. Take the #615 decision first.
+⚠️ **This is its own FBS method, not an activity set inside
+`NIPA_final_dom_uses_<year>`.** Step 1 was rescoped on 2026-08-14
+([#523](https://github.com/cornerstone-data/bedrock/issues/523)) into three
+independent methods — `NIPA_final_dom_uses` (1A), Trade (1B) and inventories
+(1C) — so `F03000` is built by `Inventories_<year>` and composed alongside the
+others. An earlier draft of this plan said otherwise.
+
+`U50705BU1` is nonfarm-only, so add NIPA **5.7.5B** (`T50705B`) to
+`BEA_NIPA.yaml`'s table list for the farm line, and take farm's commodity split
+from `USDA_ERS_FIWS` — both covered in §Farm. Neither needs a new extractor. The
+method's line selection must follow the verified leaf sets in §Traps.
+
+**Phase 2 — the crosswalk.** 29 trade lines to BEA detail commodities. Build it
+by concept, never by value proximity.
+
+**A working version exists on `inventories_step1c`** (not merged): 858 rows, 256
+commodities, generated from a documented concept map rather than hand-written.
+The approach that worked — NIPA's trade lines *are* NAICS wholesale (423x/424x)
+and retail (44x/45x) categories, and NAICS itself defines what each distributes,
+so each line maps to the NAICS goods ranges its own definition names and those
+expand mechanically through `NAICS_to_BEA_Crosswalk_2017.csv`. Nothing fitted to
+the 2017 column.
+
+Measured coverage of the published 2017 `F03000`: **254 of 258 populated
+commodities, 91% of gross mass**. The four misses — `211000` oil and gas,
+`212100` coal, `21311A`, `213111` — are all the mining/utilities/construction
+branch, which is open question 2 and correctly outside a trade crosswalk.
+
+Three gaps that a first pass missed, each with a named NAICS trade category
+behind it and each worth re-checking in any rebuild: forestry and fishery
+products (42459 sits inside farm product raw materials), published media
+(42492 is book, periodical and newspaper wholesalers), and used goods (45331
+used merchandise stores, which is where `S00402` belongs). Adding them moved
+gross coverage from 86% to 91%.
+
+⚠️ **The crosswalk must key on the NIPA line name, not its series code** — that
+is what the FBA carries. See §Traps for the two lines where that fails.
+
+**Still open:** the weights *within* each commodity set. The crosswalk says what
+a trade line can reach, not how its value splits across those commodities. That
+is Phase 3, and it must not be weighted on the 2017 `F03000` column itself —
+that fits to the answer.
 
 **Phase 3 — apply and validate.** Finished goods and WIP on the industry
 commodity mix; M&S manufacturing on the industry's intermediate input column,
@@ -269,6 +305,52 @@ detail `F03000` column via the
 `use_fd_detail_sut` already carries the column.
 
 ## Traps
+
+⚠️ **Both NIPA tables are hierarchical, and summing their lines double-counts
+badly.** Measured against the 2017 extract:
+
+| table | sum of all lines | true total | factor |
+|---|---:|---:|---:|
+| `U50705BU1` | 201,270 | 38,353 (nonfarm) | **5.2×** |
+| `T50705B` | — | 32,674 (CIPI) | 3 competing decompositions |
+
+This is the same trap `FD_IP_equipment` hit on U50505, where selecting the whole
+table took parents and children together
+([#547](https://github.com/cornerstone-data/bedrock/issues/547)). **The line list
+must be explicit and chosen per branch.** These leaf sets are verified — each
+sums to its published parent:
+
+| branch | lines | 2017 $M |
+|---|---|---:|
+| top level | 2, 3, 38, 67, 77 | 38,353 = line 1 |
+| manufacturing **by stage** | 29, 32, 35 | 817 ≈ line 3 |
+| manufacturing by durable/nondurable | 4, 17 | 817 ≈ line 3 |
+| wholesale, merchant leaves | 43–45, 47–53, 55–63 | 19,192 = line 41 |
+| wholesale, nonmerchant | 65, 66 | 11,137 = line 64 |
+| retail leaves | 68–76 **excluding 73** | 17,930 = line 67 |
+| general merchandise | 74, 75 | −3,281 = line 73 |
+
+All leaves plus farm sum to 32,673 against the published 32,674.
+
+⚠️ **Manufacturing carries two complete decompositions and both are in the
+table** — by industry (lines 4–28) and by stage of fabrication (29–37), each
+summing to 818. BEA's four rules need the *stage* split, so take 29/32/35 and
+exclude 4–28, never both. Wholesale likewise decomposes two ways (merchant /
+nonmerchant, or durable / nondurable); pick one. `T50705B` has three, plus the
+total repeated at lines 1 and 16 — take lines 2 and 1 only.
+
+⚠️ **Line 46 is a parent of lines 47 and 48**, which sum to exactly 2,150. It is
+the only place in the wholesale branch where a leaf sits adjacent to its parent,
+and including all three overstates wholesale by that amount. It was found by
+checking leaf sums against published branch totals, not by reading the table —
+which is the method that works on these tables.
+
+⚠️ **`C42ND` and `C42NN` cannot be matched on name.** They are published as bare
+"Durable goods industries" and "Nondurable goods industries", and those names
+recur at four levels of `U50705BU1` (lines 4/39/42/65 and 17/40/54/66). Select
+them by `Line` and rename via `assign_fields` before attribution — the same
+treatment `FD_IP_equipment_residential` gives U50505 line 46. Every other trade
+line's name is unique within the table, verified.
 
 **Do not ship the NIPA total alone.** The SUT needs a 402-row column; a total is
 one scalar, and the RAS in Step 5 would then invent the allocation with no
