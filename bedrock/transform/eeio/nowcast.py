@@ -36,7 +36,9 @@ is resolved too via a temporary column swap, so both sides go through the
 same correction consistently (a no-op for the final-demand codes there, since
 they're not in the NAICS/Cornerstone crosswalks it consults).
 
-Trade FBS ``SectorProducedBy`` is already BEA 2017 Detail. Overlay ``F04000``
+``NIPA_FD_<year>`` methods include ``BEA_detail_commodity_target.yaml``.
+Trade FBS ``SectorProducedBy`` is BEA 2017 Detail (same include on
+``Trade_Exports_<year>`` / ``Trade_Imports_<year>``). Overlay ``F04000``
 after the NIPA frame exists; do not send Trade through
 ``map_fbs_sectors_to_model_schema``. ``S00900`` / ``F04000`` is the rest-of-world
 identity ``-Y[S00900, F01000] + Supply_T016[S00900]`` (2017 only).
