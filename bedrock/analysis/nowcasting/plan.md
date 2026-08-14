@@ -231,7 +231,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | F02S00 | Nonres. private fixed investment in structures | ✅ `FD_Structures2` |
 | F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — **all twelve reproduce the Use table cell for cell**, zero cells off by >$1M ([#633](https://github.com/cornerstone-data/bedrock/issues/633)/[#634](https://github.com/cornerstone-data/bedrock/pull/634)). The former SLG Equipment/Structures/IP bug was `S00402` unreachable via two crosswalks, and was never SLG-only |
 | F03000 | Change in private inventories | ⏳ **own FBS — 1C.** Source settled, mostly already extracted (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)) — `U50705BU1` is in the extract list and unused; not built. [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
-| F04000 | Exports | ⏳ **own FBS — 1B.** 2017 overlay ([#528](https://github.com/cornerstone-data/bedrock/issues/528): [#617](https://github.com/cornerstone-data/bedrock/pull/617) [#618](https://github.com/cornerstone-data/bedrock/pull/618) [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623)) — Census FAS goods + IEA TypeOfService leaves; `S00900` from −F010 + Supply T016. ITA scale and 2018–2024 methods open. 2017 scorecard FAIL + inventory vs #557 bars. ⚠️ Also **blocked** on `target_naics_year` → `target_schema_year`: all three trade yamls still declare the old key, which the code stopped reading at [#630](https://github.com/cornerstone-data/bedrock/pull/630) |
+| F04000 | Exports | ⏳ **own FBS — 1B.** 2017 overlay ([#528](https://github.com/cornerstone-data/bedrock/issues/528): [#617](https://github.com/cornerstone-data/bedrock/pull/617) [#618](https://github.com/cornerstone-data/bedrock/pull/618) [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623)) — Census FAS goods + IEA TypeOfService leaves; `S00900` from −F010 + Supply T016. ITA scale and 2018–2024 methods open. 2017 scorecard FAIL + inventory vs #557 bars. ⏳ Schema retarget onto `BEA_detail_commodity_target.yaml` pending in [#638](https://github.com/cornerstone-data/bedrock/pull/638), which also supplies the `target_schema_year` key the methods have been missing since [#630](https://github.com/cornerstone-data/bedrock/pull/630) |
 | ~~F05000~~ | ~~Imports~~ | **Not an SUT column** — belongs to Supply (`MCIF`/`MADJ`); appears only on MUT conversion |
 
 ### SUT Use — other blocks
@@ -580,9 +580,14 @@ extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BE
 `S00900` from the identity −F010 + Supply `T016`. Built and wired for 2017 (#617, #618, #622, #623);
 the same extract serves Step 4b. Open: ITA G+S scale, FAS→PUR, and the 2018–2024 methods. The 2017
 scorecard is **FAIL + inventory** against the #557 bars (`score_2017_trade_detail`; §Trade data).
-⚠️ **Also blocked**: all three trade yamls still declare `target_naics_year` where the code has read
-`target_schema_year` since #630, so they raise `KeyError` — which takes `derive_initial_Y_pur` down
-and blocks validating the NIPA columns that have nothing to do with trade.
+⏳ **Schema fix pending in [#638](https://github.com/cornerstone-data/bedrock/pull/638).** The trade
+yamls declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
+raised `KeyError` — which took `derive_initial_Y_pur` down with them and blocked validating the NIPA
+columns that have nothing to do with trade. #638 retargets both methods onto the shared
+`BEA_detail_commodity_target.yaml` (the same include `NIPA_final_consumption` uses), which supplies
+the key, and retires `Trade_detail_passthrough.yaml` along with the
+`activity_schema: NAICS_2017_Code` weight-source override. Once it lands, the end-to-end validation
+path opens up — and 1A's columns can be checked without a working trade leg for the first time.
 
 **1C — Change in inventories** (#529, #530, #531). `F03000`, the full 402-row column, per
 [`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
