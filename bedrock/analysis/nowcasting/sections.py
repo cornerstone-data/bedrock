@@ -392,10 +392,11 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
     note=(
         'Candidate is a live run of derive_initial_supply_bridge: MCIF from '
         'ITA-scaled Trade_Imports_2017; MDTY from Census duty rate × goods '
-        'MCIF leveled to NIPA B235RC; MADJ from 2017 SUT MADJ/MCIF ratios × '
-        'scaled MCIF leveled to published Supply MADJ; T007, margins, tax '
-        'and subtotals unsourced. T014 nets to ~1 economy-wide, which is why '
-        'this block needs a per-commodity picture rather than a totals check.'
+        'MCIF leveled to NIPA B235RC; MADJ from Census GEN_CHA_YR reassigned '
+        'onto 2017 Supply MADJ destination codes and leveled to published '
+        'Supply MADJ; T007, margins, tax and subtotals unsourced. T014 nets '
+        'to ~1 economy-wide, which is why this block needs a per-commodity '
+        'picture rather than a totals check.'
     ),
 )
 

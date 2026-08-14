@@ -16,9 +16,10 @@ purchaser codes). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
 (change in private inventories, #529) is present but all-zero. ``F05000``
 is MUT-only and is not a Y column. The Supply bridge fills ``MCIF`` from
 ``Trade_Imports_<year>`` (same ITA scale), ``MDTY`` from Census duty
-rates leveled to NIPA ``B235RC``, and ``MADJ`` from 2017 SUT
-``MADJ``/``MCIF`` ratios times scaled ``MCIF`` leveled to published
-Supply ``MADJ``, for 2017; other bridge columns are unsourced.
+rates leveled to NIPA ``B235RC``, and ``MADJ`` from Census import
+charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ``
+destination codes and leveled to published Supply ``MADJ``, for 2017;
+other bridge columns are unsourced.
 
 Each ``NIPA_final_dom_uses_<year>.yaml`` activity_set assigns its official BEA
 final-demand code directly to ``SectorConsumedBy`` via a
@@ -180,10 +181,11 @@ def derive_initial_supply_bridge(
     """Commodity x Supply-bridge codes, USD, BEA 2017 Detail rows.
 
     MCIF is ITA-scaled Trade_Imports_<year> for 2017. MDTY is Census duty
-    rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is 2017 SUT
-    MADJ/MCIF ratios × scaled MCIF, leveled to published Supply MADJ.
-    Other years and remaining columns (T007, margins, tax, subtotals,
-    T013) are unsourced. Callers must not mutate the cached frame.
+    rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
+    GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
+    to published Supply MADJ. Other years and remaining columns (T007,
+    margins, tax, subtotals, T013) are unsourced. Callers must not mutate
+    the cached frame.
     """
     bridge = pd.DataFrame(
         index=pd.Index(USA_2017_COMMODITY_CODES, name='commodity'),
@@ -196,5 +198,5 @@ def derive_initial_supply_bridge(
             f'Trade_Imports_{year}', download_sources_ok
         )
         bridge['MDTY'] = mdty_detail_usd(year, download_sources_ok)
-        bridge['MADJ'] = madj_detail_usd(year, bridge['MCIF'])
+        bridge['MADJ'] = madj_detail_usd(year, download_sources_ok)
     return bridge

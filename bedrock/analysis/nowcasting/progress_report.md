@@ -129,7 +129,7 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 | reference grand total | $111.28T |
 | grand total error | 97.5% |
 
-`MCIF`, `MADJ`, and `MDTY` are sourced for 2017 (`Trade_Imports_2017` with ITA scale; SUT `MADJ`/`MCIF` ratios leveled to Supply `MADJ`; Census duty rates leveled to NIPA `B235RC`). Column totals for `MADJ` and `MDTY` match the published national (within the section tolerance). `T007`, `TRADE`/`TRANS`/`T014`, `TOP`/`SUB`/`T015`, and the `T013`/`T016` identities are unsourced.
+`MCIF`, `MADJ`, and `MDTY` are sourced for 2017 (`Trade_Imports_2017` with ITA scale; Census `GEN_CHA_YR` reassigned onto Supply `MADJ` destinations and leveled to Supply `MADJ`; Census duty rates leveled to NIPA `B235RC`). Column totals for `MADJ` and `MDTY` match the published national (within the section tolerance). `T007`, `TRADE`/`TRANS`/`T014`, `TOP`/`SUB`/`T015`, and the `T013`/`T016` identities are unsourced.
 
 The right-hand block of the Supply table: imports, margins, taxes and the
 subtotals carrying a commodity from domestic output at basic value to total
