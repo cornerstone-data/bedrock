@@ -27,6 +27,7 @@ from bedrock.utils.config.settings import datapath, plotoutputpath
 # from bedrock.transform.flowbyfunctions import sector_aggregation
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import get_state_FIPS
+from bedrock.utils.mapping.sector import parse_sector_source_name
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -141,10 +142,10 @@ def FBSscatterplot(
         )
         # agg sectors for data visualization
         df.config['industry_spec'] = industry_spec
-        # determine naics year in df
-        df.config['target_naics_year'] = (
-            df['SectorSourceName'][0].split("_", 1)[1].split("_", 1)[0]
-        )
+        # determine schema year from SectorSourceName
+        df.config['target_schema_year'] = parse_sector_source_name(
+            df['SectorSourceName'][0]
+        )[1]
 
         # Temporarily revert back to having both SPB and SCB, needed for
         # sector_aggregation()
@@ -330,10 +331,10 @@ def stackedBarChart(
     # agg sectors for data visualization
     if industry_spec is not None:
         fbs_df.config['industry_spec'] = industry_spec
-    # determine naics year in df
-    fbs_df.config['target_naics_year'] = (
-        fbs_df['SectorSourceName'][0].split("_", 1)[1].split("_", 1)[0]
-    )
+    # determine schema year from SectorSourceName
+    fbs_df.config['target_schema_year'] = parse_sector_source_name(
+        fbs_df['SectorSourceName'][0]
+    )[1]
 
     fbs_df = fbs_df.sector_aggregation()
     # collapse the df, if the df is not already collapsed

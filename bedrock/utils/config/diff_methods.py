@@ -212,7 +212,7 @@ def resolve_mapping_name_to_csv_path(mapping_name: str) -> str | None:
     Resolve mapping name to CSV path under crosswalkpath (repo-only; no external paths).
     Returns path string if file exists, else None.
     """
-    mapfn = f'NAICS_Crosswalk_{mapping_name}'
+    mapfn = f'Sector_Crosswalk_{mapping_name}'
     base_name = get_flowsa_base_name(crosswalkpath, mapfn, 'csv')
     p = crosswalkpath / f'{base_name}.csv'
     return str(p) if p.is_file() else None

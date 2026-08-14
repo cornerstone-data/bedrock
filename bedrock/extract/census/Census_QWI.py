@@ -49,7 +49,7 @@ def census_qwi_url_helper(*, build_url, year, config, **_):
         for d in county_fips:
             url = build_url
             url = url.replace('__year__', str(year))
-            userAPIKey = load_env_file_key('API_Key', config['api_name'])
+            userAPIKey = load_env_file_key('api_key', config['api_name'])
             url = url.replace("__apiKey__", userAPIKey)
             state_digit = str(d[0]) + str(d[1])
             county_digit = str(d[2]) + str(d[3]) + str(d[4])
