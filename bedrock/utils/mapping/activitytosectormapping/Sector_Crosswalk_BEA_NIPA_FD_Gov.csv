@@ -295,3 +295,7 @@ BEA_NIPA,Structures (State and Local),BEA_2017_Code,2332D0,,Health care structur
 BEA_NIPA,Structures (State and Local),BEA_2017_Code,233411,,Health care structures
 BEA_NIPA,Structures (State and Local),BEA_2017_Code,233412,,Health care structures
 BEA_NIPA,Structures (State and Local),BEA_2017_Code,2334A0,,Health care structures
+BEA_NIPA,Equipment,BEA_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Structures (Federal Defense),BEA_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Structures (Federal Nondefense),BEA_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Structures (State and Local),BEA_2017_Code,S00402,,Used and secondhand goods
