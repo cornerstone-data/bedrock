@@ -1,7 +1,7 @@
 # Target schema for methods whose output is a BEA commodity vector rather than
-# a NAICS industry vector - i.e. the nowcast's initial Use-table final-demand
-# section (NIPA_FD_<year>), which is compared and eventually bound to BEA's own
-# detail Use table and to the PCE/PEQ bridges.
+# a NAICS industry vector: NIPA_FD_<year> (nowcast initial Use-table final
+# demand, compared and bound to BEA's detail Use table and the PCE/PEQ
+# bridges) and Trade_Exports_<year> / Trade_Imports_<year> (F040 / MCIF).
 #
 # Differs from BEA_detail_target.yaml in which schema is primary. There, NAICS
 # is the default_schema and BEA codes are a keep-list of the aggregates NAICS

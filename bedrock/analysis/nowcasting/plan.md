@@ -332,7 +332,7 @@ Implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528)
 [#618](https://github.com/cornerstone-data/bedrock/pull/618), Y F040 + Supply MCIF overlay
 [#622](https://github.com/cornerstone-data/bedrock/pull/622), 2017 scorecard + IEA leaf Crosswalk
 [#623](https://github.com/cornerstone-data/bedrock/pull/623). This path feeds `F04000`, Supply `MCIF`,
-and Step 6c's import matrix. ITA G+S scale, shared BEA Detail target (#567 / #568), `MDTY` / `MADJ`,
+and Step 6c's import matrix. ITA G+S scale, `MDTY` / `MADJ`,
 `S00300` hold-from-Supply, and 2018–2024 Trade methods remain open on #528.
 
 | Role | Source |
@@ -340,7 +340,7 @@ and Step 6c's import matrix. ITA G+S scale, shared BEA Detail target (#567 / #56
 | Goods extract | Census International Trade, NAICS-6 — imports **CIF** (`GEN_CIF_YR`, to match Supply `MCIF`), exports FAS-family (`ALL_VAL_YR`) |
 | Services extract | BEA `IntlServTrade`, by type of service, imports and exports |
 | National totals control | BEA ITA Tables 2.1 (goods) / 3.1 (services) — scale or residual-constrain; a raw Census+BEA sum is **not** the final total. Loader exists; FBS methods do not apply the scale. |
-| Sector bridge | `NAICS_Crosswalk_Census_USATrade.csv` (Census NAICS-6 → Detail); `NAICS_Crosswalk_BEA_IEA.csv` (IntlServTrade TypeOfService leaves → Detail). Parents omitted when children are mapped. |
+| Sector bridge | `Sector_Crosswalk_Census_USATrade.csv` (Census NAICS-6 → Detail); `Sector_Crosswalk_BEA_IEA.csv` (IntlServTrade TypeOfService leaves → Detail). Parents omitted when children are mapped. Methods include `BEA_detail_commodity_target.yaml`. |
 | 2017 structure/specials benchmark | Use `F04000` and Supply `MCIF` (`F05000` is MUT-only) |
 
 ### `MDTY` — rate from Census, level from NIPA
