@@ -20,7 +20,6 @@ source_names:
       goods_exports:
         selection_fields:
           FlowName: ALL_VAL_YR
-        primary_action_type: Produced
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_SUT:
@@ -39,7 +38,6 @@ source_names:
           FlowName: Exports
         exclusion_fields:
           ActivityProducedBy: [AllTypesOfService]
-        primary_action_type: Produced
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Use_SUT:
