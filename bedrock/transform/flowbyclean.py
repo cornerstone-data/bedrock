@@ -506,13 +506,13 @@ def assign_sector_consumed_by_from_clean_parameter(
     """
     Assigns ``SectorConsumedBy`` directly from ``clean_parameter`` (issue
     #539). Intended as a ``clean_fbs_after_aggregation`` fxn: e.g. each
-    ``NIPA_FD_<year>.yaml`` activity_set targets exactly one official BEA
+    ``NIPA_final_dom_uses_<year>.yaml`` activity_set targets exactly one official BEA
     final-demand code (e.g. ``F06S00``, passed as that activity_set's
     ``clean_parameter``), which this assigns to every row of the fully
     attributed/aggregated FBS.
 
     This has to happen *after* attribution rather than via a crosswalk entry
-    for ``ActivityConsumedBy`` (as an earlier NIPA_FD attempt did): sources
+    for ``ActivityConsumedBy`` (as an earlier NIPA_final_dom_uses attempt did): sources
     like BEA_NIPA are ``FlowType='TECHNOSPHERE_FLOW'``, and
     ``add_primary_secondary_columns()`` prioritizes ``...ConsumedBy`` over
     ``...ProducedBy`` for that flow type, so populating ``SectorConsumedBy``

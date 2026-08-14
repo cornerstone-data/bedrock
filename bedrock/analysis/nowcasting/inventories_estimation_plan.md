@@ -75,7 +75,7 @@ today without waiting on either step.
 already extracted**, listed at
 [`BEA_NIPA.yaml:30`](../../extract/bea/BEA_NIPA.yaml#L30) for 2012–2024. It is
 pulled on every run and **never consumed**: there is no inventories activity set
-in [`NIPA_FD_2017.yaml`](../../transform/nipa/NIPA_FD_2017.yaml), whose 22 sets
+in [`NIPA_final_dom_uses_2017.yaml`](../../transform/nipa/NIPA_final_dom_uses_2017.yaml), whose 22 sets
 are all PCE, IP and government.
 
 **The stage-of-fabrication split is already in that table.** Hill attributes it
@@ -252,7 +252,7 @@ commodity against 2017 — the same shape as
 | 3 | Apply the four rules; validate against the 2017 detail column | 2017 Make/Use published; nowcast years need #570 and #497 |
 
 **Phase 1 — consume what is already extracted.** Add the inventories activity
-set to the `NIPA_FD_<year>` methods. `U50705BU1` is nonfarm-only, so add NIPA
+set to the `NIPA_final_dom_uses_<year>` methods. `U50705BU1` is nonfarm-only, so add NIPA
 **5.7.5B** to `BEA_NIPA.yaml`'s table list for the farm line, and take farm's
 commodity split from `USDA_ERS_FIWS` — both covered in §Farm. Neither needs a
 new extractor.

@@ -162,7 +162,7 @@ Two consequences run through the whole plan:
 
 **Module.** [`bedrock/transform/eeio/nowcast.py`](../../transform/eeio/nowcast.py) exists and
 currently implements exactly one thing: `derive_initial_Y_pur(year)` — the final-demand block of the
-SUT Use table, purchaser price, BEA_2017_Detail schema, from the `NIPA_FD_<year>` FBS methods. It
+SUT Use table, purchaser price, BEA_2017_Detail schema, from the `NIPA_final_dom_uses_<year>` FBS methods. It
 handles the Cornerstone-schema collapse problem via `map_fbs_sectors_to_model_schema` applied to both
 sector columns. A baseline validator exists at
 [`bedrock/analysis/nowcasting/initial_Y_pur_baseline.py`](../../analysis/nowcasting/initial_Y_pur_baseline.py).
@@ -219,7 +219,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 ### Final uses — three methods, not one (purchaser price)
 
-**1A `NIPA_final_consumption`** carries `F01000` and the `F02*`/`F06*`/`F07*`/`F10*` columns.
+**1A `NIPA_final_dom_uses`** carries `F01000` and the `F02*`/`F06*`/`F07*`/`F10*` columns.
 `F03000` is **1C** and `F04000` is **1B**, each its own FBS — see §Step 1.
 
 | Code | Description | Status |
@@ -488,7 +488,7 @@ published for 2017 — so the method is testable on the benchmark today without 
 
 **`U50705BU1` (Table 5.7.5BU1, CIPI by Industry) is already extracted and never read.** It sits in
 [`BEA_NIPA.yaml:30`](../../extract/bea/BEA_NIPA.yaml#L30) for 2012-2024 with no consuming activity set
-in `NIPA_FD_2017.yaml`. **It also already publishes the stage-of-fabrication split** that Hill
+in `NIPA_final_dom_uses_2017.yaml`. **It also already publishes the stage-of-fabrication split** that Hill
 attributes to ASM (`C30M`/`C30W`/`C30F`, lines 29-37, each durable/nondurable) — so no ASM pull is
 needed for a first pass.
 
@@ -561,9 +561,10 @@ Supply-side import columns. The old shape put trade and inventories inside a met
 contained them — `F03000` was hardcoded zero and `F04000` was bolted on inside
 `derive_initial_Y_pur` — so the split mostly ratifies what was already true.
 
-**1A — `NIPA_final_consumption`** (renamed from `NIPA_FD`; the old name promised a block it never
-delivered). `F01000`, the four `F02*` investment columns, and the twelve `F06*`/`F07*`/`F10*`
-government columns.
+**1A — `NIPA_final_dom_uses`** (renamed from `NIPA_FD`; the old name promised a whole final-demand
+block it never delivered). `F01000`, the four `F02*` investment columns, and the twelve
+`F06*`/`F07*`/`F10*` government columns — the final *domestic* uses NIPA sources directly. Exports
+are 1B because they are not domestic; inventories are 1C.
 - ✅ PEQ Bridge / `F02E00`; PCE Bridge / `F01000`.
 - ✅ F0-code assignment (`assign_sector_consumed_by_from_clean_parameter`, #539).
 - ✅ **PCE and equipment reproduce their bridges cell for cell** — 259/259 and 107/107 commodities,
@@ -572,8 +573,15 @@ government columns.
   was unreachable in them because it was missing from *two* crosswalks — one supplying the
   attribution weight, one the receiving set — and fixing either alone changed nothing. F10E00 had
   been misallocating 32.8% of its column.
-- ❌ Rename the method and yamls off `NIPA_FD`; review all activity mappings; 2018–2024 have no PCE
-  activity sets (#621); port the common yaml (#495).
+- ✅ **Renamed off `NIPA_FD`** — all eight yamls are `NIPA_final_dom_uses_<year>.yaml`. The
+  `BEA_NIPA_FD_*` activity-to-sector crosswalks keep their names: they describe the mapping from
+  `BEA_NIPA` activities to sectors, which is a different namespace from the method and is shared
+  across all eight years.
+- ✅ **Structures lines map to their own commodity** (#576) — the crosswalk had expanded ten lines
+  into an 11- or 4-sector catch-all, putting $142B on the wrong commodity inside `F02R00` while the
+  column total stayed right.
+- ❌ Review all activity mappings; 2018–2024 have no PCE activity sets (#621); port the common yaml
+  (#495).
 
 **1B — Trade** (#526, #528). ⏳ `F04000` exports plus the Supply-side import columns from one
 extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BEA Detail, with
@@ -584,7 +592,7 @@ scorecard is **FAIL + inventory** against the #557 bars (`score_2017_trade_detai
 yamls declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
 raised `KeyError` — which took `derive_initial_Y_pur` down with them and blocked validating the NIPA
 columns that have nothing to do with trade. #638 retargets both methods onto the shared
-`BEA_detail_commodity_target.yaml` (the same include `NIPA_final_consumption` uses), which supplies
+`BEA_detail_commodity_target.yaml` (the same include `NIPA_final_dom_uses` uses), which supplies
 the key, and retires `Trade_detail_passthrough.yaml` along with the
 `activity_schema: NAICS_2017_Code` weight-source override. Once it lands, the end-to-end validation
 path opens up — and 1A's columns can be checked without a working trade leg for the first time.
@@ -615,7 +623,7 @@ attribution one.
 
 ### Step 2 — SUT Use: value added block
 - New `NIPA_VA_<year>.yaml` FBS method(s) over the 7 Section-6/3.5/3.13 tables above, reusing the
-  `NIPA_FD_<year>.yaml` machinery (`extract_table_info`, `drop_unassigned`, activity_sets).
+  `NIPA_final_dom_uses_<year>.yaml` machinery (`extract_table_info`, `drop_unassigned`, activity_sets).
 - Allocate to BEA industries via 2017 table ratios.
 - Reconcile against T1.14 / VABAS→T10305 / T018→T10105.
 - **Note:** the board's "transform VA into after redefinitions" item is *deferred to Step 7* here —
@@ -1349,7 +1357,7 @@ Also worth scoping ahead of time:
    `usa_io_data_year` and `model_base_year` in
    [usa_config.py:49-64](../../utils/config/usa_config.py#L49-L64) — all currently stop at 2024.
    Grep for `2024` rather than assuming that list is complete.
-4. **Add `NIPA_FD_2025.yaml`** (the series currently runs 2017-2024), plus the 2025 counterparts of
+4. **Add `NIPA_final_dom_uses_2025.yaml`** (the series currently runs 2017-2024), plus the 2025 counterparts of
    whatever VA and trade/inventory methods Steps 1d/1e/2 produce.
 5. **Re-run Steps 1-9 for 2018-2025 as one series** on the refreshed vintage — not 2025 bolted onto
    frozen predecessors. Same per-commodity identity checks throughout.

@@ -349,7 +349,7 @@ USE_FD_DETAIL_SUT = Section(
     reference=use_sut_final_demand_reference,
     candidate=initial_Y_pur_candidate,
     note=(
-        'Candidate is a live run of derive_initial_Y_pur (NIPA_FD plus '
+        'Candidate is a live run of derive_initial_Y_pur (NIPA_final_dom_uses plus '
         'Trade_Exports F040 for 2017). Reference is always the published SUT '
         'workbook.'
     ),

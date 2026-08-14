@@ -8,14 +8,14 @@ controls. See https://github.com/orgs/cornerstone-data/projects/26 for the track
 This module implements the final-demand section of the Use table, in
 purchaser (PUR) price, commodity x SUT final-demand codes (MUT list minus
 ``F05000``), and the Supply bridge block (commodity x the 12 basic-to-
-purchaser codes). Y source: the ``NIPA_FD_<year>`` FBS methods
-(``bedrock/transform/nipa/NIPA_FD_<year>.yaml``) plus, for 2017,
+purchaser codes). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
+(``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for 2017,
 ``Trade_Exports_<year>`` on ``F04000``. ``F03000`` (change in private
 inventories, #529) is present but all-zero. ``F05000`` is MUT-only and is
 not a Y column. The Supply bridge fills ``MCIF`` from ``Trade_Imports_<year>``
 for 2017; other bridge columns are unsourced.
 
-Each ``NIPA_FD_<year>.yaml`` activity_set assigns its official BEA
+Each ``NIPA_final_dom_uses_<year>.yaml`` activity_set assigns its official BEA
 final-demand code directly to ``SectorConsumedBy`` via a
 ``clean_fbs_after_aggregation`` hook
 (``bedrock.transform.flowbyclean.assign_sector_consumed_by_from_clean_parameter``,
@@ -36,7 +36,7 @@ is resolved too via a temporary column swap, so both sides go through the
 same correction consistently (a no-op for the final-demand codes there, since
 they're not in the NAICS/Cornerstone crosswalks it consults).
 
-``NIPA_FD_<year>`` methods include ``BEA_detail_commodity_target.yaml``.
+``NIPA_final_dom_uses_<year>`` methods include ``BEA_detail_commodity_target.yaml``.
 Trade FBS ``SectorProducedBy`` is BEA 2017 Detail (same include on
 ``Trade_Exports_<year>`` / ``Trade_Imports_<year>``). Overlay ``F04000``
 after the NIPA frame exists; do not send Trade through
@@ -122,7 +122,7 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     S00900/F04000 uses the rest-of-world identity against Supply T016 (2017).
     """
     fbs = FlowBySector.generateFlowBySector(
-        f'NIPA_FD_{year}', download_sources_ok=download_sources_ok
+        f'NIPA_final_dom_uses_{year}', download_sources_ok=download_sources_ok
     )
     resolved = _resolve_both_sector_columns(pd.DataFrame(fbs))
     y = (

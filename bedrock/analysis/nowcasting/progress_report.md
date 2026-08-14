@@ -13,7 +13,7 @@ uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
-**Snapshot date:** 2026-08-14. Step 1 is a live `derive_initial_Y_pur` (`NIPA_FD_2017` plus Trade `F04000`). Step 4 is a live `derive_initial_supply_bridge` (`MCIF` from `Trade_Imports_2017`; other bridge columns unsourced).
+**Snapshot date:** 2026-08-14. Step 1 is a live `derive_initial_Y_pur` (`NIPA_final_dom_uses_2017` plus Trade `F04000`). Step 4 is a live `derive_initial_supply_bridge` (`MCIF` from `Trade_Imports_2017`; other bridge columns unsourced).
 
 ---
 
