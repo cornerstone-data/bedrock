@@ -37,6 +37,9 @@ from bedrock.utils.config.usa_config import (
     set_global_usa_config,
 )
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    _aggregate_industry_pi,
+    _cornerstone_indexed_industry_pi,
+    _get_summary_industry_price_index,
     clear_cornerstone_inflation_caches,
     get_cornerstone_industry_price_ratio,
     get_rho_inflation_ratio,
@@ -47,6 +50,7 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_INDUSTRIES_ELEC,
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
+    active_cornerstone_industries,
 )
 
 # Same cache set as test_electricity_disaggregation: flag caches are keyed only
@@ -191,5 +195,44 @@ def test_industry_price_ratio_apply_io_plus_elec_is_industry_elec_indexed() -> N
             assert industry.loc[code] == pytest.approx(parent_pi)
         assert industry.loc['331314'] == pytest.approx(industry_only_pi)
         assert industry_only_pi != pytest.approx(1.0)
+    finally:
+        _teardown()
+
+
+def test_industry_pi_under_elec_is_industries_elec_indexed() -> None:
+    """Elec must expand industry PI to 407; summary \"22\" must keep children."""
+    _setup_config('2025_usa_cornerstone_v0_3.yaml')
+    try:
+        parent_pi = float(
+            _cornerstone_indexed_industry_pi(2022).loc[ELECTRICITY_AGGREGATE_SECTOR]
+        )
+    finally:
+        _teardown()
+
+    _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
+    try:
+        pi = _cornerstone_indexed_industry_pi(2022)
+        assert list(pi.index) == active_cornerstone_industries()
+        assert ELECTRICITY_AGGREGATE_SECTOR not in pi.index
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            assert float(pi.loc[code]) == pytest.approx(parent_pi)
+
+        from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
+            load_bea_v2017_industry_to_bea_v2017_summary,
+        )
+
+        x_y = derive_cornerstone_x()
+        bea_fixed: dict[str, list[str]] = {
+            str(k): [str(s) for s in v]
+            for k, v in load_bea_v2017_industry_to_bea_v2017_summary().items()
+        }
+        parent_summaries = list(bea_fixed.get(ELECTRICITY_AGGREGATE_SECTOR, ['22']))
+        bea_fixed.pop(ELECTRICITY_AGGREGATE_SECTOR, None)
+        for child in ELECTRICITY_DISAGG_SECTORS:
+            bea_fixed[child] = list(parent_summaries)
+        expected_22 = _aggregate_industry_pi(pi, x_y, bea_fixed)['22']
+        assert float(
+            _get_summary_industry_price_index(2022).loc['22']
+        ) == pytest.approx(expected_22)
     finally:
         _teardown()

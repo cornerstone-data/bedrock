@@ -924,13 +924,43 @@ def build_electricity_detail_GO_growth_ratios(
 
 
 def utilities_summary_q_growth_ratio(original_year: int, target_year: int) -> float:
-    """BEA summary Make-Use-Trade (MUT) Utilities sector-22 q growth ratio.
+    """BEA summary Make-Use-Trade (MUT) Utilities sector-22 q growth ratio (raw).
 
-    Used as the denominator when rescaling electricity children to detail GO growth.
+    Used as the D7 denominator when ``apply_io_year_adjustments`` is off.
+    Under ``apply_io``, prefer ``applied_utilities_summary_q_growth_ratio``.
     """
     orig = cast(USA_SUMMARY_MUT_YEARS, original_year)
     tgt = cast(USA_SUMMARY_MUT_YEARS, target_year)
     ratio = (derive_summary_q_usa(tgt) / derive_summary_q_usa(orig)).fillna(1.0)
+    val = float(ratio.get('22', 1.0))
+    return val if np.isfinite(val) else 1.0
+
+
+@functools.cache
+def applied_utilities_summary_q_growth_ratio(
+    original_year: int, target_year: int
+) -> float:
+    """Summary Utilities ``\"22\"`` q growth used when painting detail under scale.
+
+    Matches ``scale_cornerstone_q``: with ``apply_io_year_adjustments``, the
+    target-year summary q is ITA-rebased into ``original_year`` USD before the
+    ratio; otherwise this is the raw MUT ratio.
+    """
+    if not get_usa_config().apply_io_year_adjustments:
+        return utilities_summary_q_growth_ratio(original_year, target_year)
+
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+        adjust_summary_q_dollar_year,
+    )
+
+    orig = cast(USA_SUMMARY_MUT_YEARS, original_year)
+    tgt = cast(USA_SUMMARY_MUT_YEARS, target_year)
+    q_target = adjust_summary_q_dollar_year(
+        q_summary=derive_summary_q_usa(tgt),
+        from_year=tgt,
+        to_year=orig,
+    )
+    ratio = (q_target / derive_summary_q_usa(orig)).fillna(1.0)
     val = float(ratio.get('22', 1.0))
     return val if np.isfinite(val) else 1.0
 
@@ -942,7 +972,7 @@ def rescale_electricity_children_to_detail_GO_growth_A(
 ) -> pd.DataFrame:
     """Rescale electricity child rows after summary-ratio A scaling (D7 pure)."""
     ratios = build_electricity_detail_GO_growth_ratios(original_year, target_year)
-    base = utilities_summary_q_growth_ratio(original_year, target_year)
+    base = applied_utilities_summary_q_growth_ratio(original_year, target_year)
     out = a.copy()
     for code in ELECTRICITY_DISAGG_SECTORS:
         if code not in out.index:
@@ -959,7 +989,7 @@ def rescale_electricity_children_to_detail_GO_growth_q(
 ) -> pd.Series[float]:
     """Rescale electricity child q rows after summary-ratio q scaling (D7 pure)."""
     ratios = build_electricity_detail_GO_growth_ratios(original_year, target_year)
-    base = utilities_summary_q_growth_ratio(original_year, target_year)
+    base = applied_utilities_summary_q_growth_ratio(original_year, target_year)
     out = q.copy()
     for code in ELECTRICITY_DISAGG_SECTORS:
         if code not in out.index:
