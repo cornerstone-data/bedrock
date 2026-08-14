@@ -21,7 +21,7 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 
 | block | step | shape | reference populates | reference total | candidate | coverage | accuracy |
 |---|---|---|---:|---:|---|---:|---:|
-| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **74.4%** | **67.4%** |
+| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **75.3%** | **69.8%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
 | `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (MCIF) | **8.5%** | **8.9%** |
 
@@ -44,14 +44,14 @@ corresponding step is built.
 
 | scope | absent | match | partial | miss | extra |
 |---|---:|---:|---:|---:|---:|
-| cells | 6,385 | 628 | 304 | 321 | 0 |
-| row totals | 22 | 116 | 257 | 7 | 0 |
-| column totals | 0 | 16 | 2 | 1 | 0 |
+| cells | 6,385 | 658 | 285 | 310 | 0 |
+| row totals | 22 | 125 | 248 | 7 | 0 |
+| column totals | 0 | 17 | 1 | 1 | 0 |
 
 | | |
 |---|---:|
-| coverage | 74.4% |
-| accuracy | 67.4% |
+| coverage | 75.3% |
+| accuracy | 69.8% |
 | candidate grand total | $22.33T |
 | reference grand total | $22.24T |
 | grand total error | 0.42% |
@@ -59,11 +59,19 @@ corresponding step is built.
 
 ### What the picture says that the totals do not
 
-**One whole column is `miss`:** `F03000` (change in private inventories, #529). `F04000` is populated from `Trade_Exports_2017` and is `partial` at the column total (+6.15% vs published). `F02R00` is the other column total outside tolerance.
+**Only two column totals are outside tolerance, and both are known.** `F03000` (change in private inventories, #529) is a whole-column `miss` — unsourced. `F04000` is populated from `Trade_Exports_2017` and is `partial` (+6.15% vs published, #528). **Every other final-demand column now reconciles at the column level**, including the twelve government columns, which land cell for cell.
 
-**The two axes disagree, which is the point.** 264 of 402 row totals are outside tolerance against 3 of 19 column totals — a column total can be right in aggregate while its commodity split is wrong, and only the row strip shows it.
+**The two axes disagree, which is the point.** 255 of 402 row totals are outside tolerance against 2 of 19 column totals — a column total can be right in aggregate while its commodity split is wrong, and only the row strip shows it. That gap is not a curiosity: all three fixes below were column totals that looked right while the value sat on the wrong commodity, and the row strip is what exposed them.
 
-**`F01000` is mostly `match`.** Personal consumption is the densest live column. Remaining amber is per-commodity split, not a missing column.
+**What moved since 2026-08-06** — coverage 74.4% → 75.3%, accuracy 67.4% → 69.8%, column totals outside tolerance 3 → 2. `F02R00` came inside tolerance on three fixes sharing that one failure mode:
+
+- **`S00402` was unreachable in the government columns** ([#633](https://github.com/cornerstone-data/bedrock/issues/633)) — missing from two crosswalks, one supplying the attribution weight and one the receiving set, so fixing either alone changed nothing. `F10E00` had been misallocating 32.8% of its column.
+- **Ten structures lines mapped to a catch-all** rather than the single commodity each names ([#576](https://github.com/cornerstone-data/bedrock/issues/576)) — $142B on the wrong commodity inside `F02R00`, netting to exactly zero.
+- **Residential equipment was routed to `F02E00`** ([#547](https://github.com/cornerstone-data/bedrock/issues/547)) — U50505 line 46 sits under the residential branch, so its 15,025 belongs in `F02R00`. `F02E00` is *nonresidential* equipment.
+
+**Row totals are now dominated by `F04000`.** The ten worst cells are all trade: `336411`, `S00402`, `336412`, `339910`. With the NIPA-sourced columns reconciled, the remaining Step 1 error is concentrated in the trade column and the unbuilt inventories column.
+
+**`F01000` is mostly `match`.** Personal consumption is the densest live column. Remaining amber is per-commodity split, not a missing column — and it is genuine bridge-vs-Use disagreement rather than attribution error: `F01000` reproduces `BEA_PCEBridge` cell for cell, with the totals agreeing to $2M.
 
 **`F04000` is mixed `partial` / `miss`.** National mass is close enough to turn the column total amber rather than purple; commodity holes (`492000`, `550000`, and the rest of the ≥1 B USD list) are in [`transform/trade/README.md`](../../transform/trade/README.md).
 
