@@ -9,7 +9,7 @@ import yaml
 
 from bedrock.analysis.electricity_disagg_diagnostics.paths import (
     MANIFEST_PATH,
-    V02_SNAPSHOT_SHA,
+    V03_SNAPSHOT_SHA,
 )
 from bedrock.utils.validation.analysis.combine_ef_diagnostics import (
     _read_config_summary_map,
@@ -55,6 +55,10 @@ class RunExpectation:
     implement_electricity_disaggregation: bool | None
     implement_electricity_mixed_units: bool | None
     snapshot_sha: str | None
+    cornerstone_industry_avg_margins: bool | None = False
+    apply_io_year_adjustments: bool | None = True
+    model_base_year: int | None = 2024
+    usa_ghg_data_year: int | None = 2024
 
 
 def _coerce_bool(value: object) -> bool:
@@ -80,7 +84,33 @@ def _expect_flag(
         raise ValueError(f'{field} expected {expected}, got {summary.get(field)!r}')
 
 
-def load_manifest(path: Path | None = None) -> Manifest:
+def _expect_int(
+    summary: dict[str, object],
+    field: str,
+    expected: int | None,
+) -> None:
+    if expected is None:
+        return
+    raw = summary.get(field)
+    try:
+        actual = int(str(raw).strip())
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{field} expected int {expected}, got {raw!r}') from exc
+    if actual != expected:
+        raise ValueError(f'{field} expected {expected}, got {actual!r}')
+
+
+def load_manifest(
+    path: Path | None = None,
+    *,
+    require_sheet_ids: bool = True,
+) -> Manifest:
+    """Load ``manifest.yaml``.
+
+    ``require_sheet_ids`` defaults True so plot/BLy entry points fail loudly when
+    Phase D sheet IDs are still placeholders. Pass False for config-name-only
+    helpers/tests while sheets are pending.
+    """
     manifest_path = path or MANIFEST_PATH
     raw = yaml.safe_load(manifest_path.read_text(encoding='utf-8'))
     footing = FootingSpec(**raw['footing'])
@@ -88,7 +118,8 @@ def load_manifest(path: Path | None = None) -> Manifest:
     final = FinalSpec(**raw['final'])
     meta = {str(k): str(v) for k, v in (raw.get('meta') or {}).items()}
     manifest = Manifest(meta=meta, footing=footing, steps=steps, final=final)
-    _validate_sheet_ids(manifest)
+    if require_sheet_ids:
+        _validate_sheet_ids(manifest)
     return manifest
 
 
@@ -133,6 +164,18 @@ def validate_run_config(
         'implement_electricity_mixed_units',
         expected.implement_electricity_mixed_units,
     )
+    _expect_flag(
+        summary,
+        'cornerstone_industry_avg_margins',
+        expected.cornerstone_industry_avg_margins,
+    )
+    _expect_flag(
+        summary,
+        'apply_io_year_adjustments',
+        expected.apply_io_year_adjustments,
+    )
+    _expect_int(summary, 'model_base_year', expected.model_base_year)
+    _expect_int(summary, 'usa_ghg_data_year', expected.usa_ghg_data_year)
     if expected.snapshot_sha is not None:
         sha = str(summary.get('snapshot_version_or_git_sha', '')).strip()
         if sha != expected.snapshot_sha:
@@ -147,16 +190,37 @@ def validate_run_config(
     load_tab(sheet_id, 'BLy_new_vs_BLy_old', refresh=refresh)
 
 
-def expectations_for_manifest(manifest: Manifest) -> list[tuple[str, RunExpectation]]:
-    footing = RunExpectation(
-        config_name=manifest.footing.config,
-        implement_electricity_reallocation=None,
-        implement_electricity_disaggregation=None,
-        implement_electricity_mixed_units=None,
-        snapshot_sha=None,
+def _methodology_expectation(
+    *,
+    config_name: str,
+    implement_electricity_reallocation: bool | None,
+    implement_electricity_disaggregation: bool | None,
+    implement_electricity_mixed_units: bool | None,
+) -> RunExpectation:
+    return RunExpectation(
+        config_name=config_name,
+        implement_electricity_reallocation=implement_electricity_reallocation,
+        implement_electricity_disaggregation=implement_electricity_disaggregation,
+        implement_electricity_mixed_units=implement_electricity_mixed_units,
+        snapshot_sha=V03_SNAPSHOT_SHA,
+        cornerstone_industry_avg_margins=False,
+        apply_io_year_adjustments=True,
+        model_base_year=2024,
+        usa_ghg_data_year=2024,
     )
+
+
+def expectations_for_manifest(manifest: Manifest) -> list[tuple[str, RunExpectation]]:
     out: list[tuple[str, RunExpectation]] = [
-        (manifest.footing.sheet_id, footing),
+        (
+            manifest.footing.sheet_id,
+            _methodology_expectation(
+                config_name=manifest.footing.config,
+                implement_electricity_reallocation=None,
+                implement_electricity_disaggregation=None,
+                implement_electricity_mixed_units=None,
+            ),
+        ),
     ]
     step_flags: list[tuple[bool, bool, bool]] = [
         (True, False, False),
@@ -167,12 +231,11 @@ def expectations_for_manifest(manifest: Manifest) -> list[tuple[str, RunExpectat
         out.append(
             (
                 step.sheet_id,
-                RunExpectation(
+                _methodology_expectation(
                     config_name=step.config,
                     implement_electricity_reallocation=flags[0],
                     implement_electricity_disaggregation=flags[1],
                     implement_electricity_mixed_units=flags[2],
-                    snapshot_sha=V02_SNAPSHOT_SHA,
                 ),
             )
         )
@@ -180,12 +243,11 @@ def expectations_for_manifest(manifest: Manifest) -> list[tuple[str, RunExpectat
         out.append(
             (
                 manifest.final.sheet_id,
-                RunExpectation(
+                _methodology_expectation(
                     config_name=manifest.final.config,
                     implement_electricity_reallocation=True,
                     implement_electricity_disaggregation=True,
                     implement_electricity_mixed_units=True,
-                    snapshot_sha=V02_SNAPSHOT_SHA,
                 ),
             )
         )

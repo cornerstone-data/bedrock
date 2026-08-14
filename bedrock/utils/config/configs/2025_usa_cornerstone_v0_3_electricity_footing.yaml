@@ -1,0 +1,34 @@
+# v0.3.1 electricity diagnostics footing: production v0.3 methods with margins OFF.
+# No electricity disaggregation flags. Used as the baseline for the electricity
+# realloc → 3-way → mixed-units chain (not production 2025_usa_cornerstone_v0_3).
+#
+# Clone of 2025_usa_cornerstone_v0_3.yaml with cornerstone_industry_avg_margins
+# forced False and an explicit v0.3.1 snapshot pin.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+
+#####
+# Data selection
+#####
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+
+# GHG model: Cornerstone GHG FBS (2024 = UMD GHGIA inventory + 2022 MECS attribution).
+use_cornerstone_ghg_model: True
+
+# IO year adjustments: CEDA's A approach with summary dollar-year rebase,
+# bedrock-derived inflation factors, and GHG-year x in B.
+apply_io_year_adjustments: True
+
+# Shared full-model flags.
+implement_waste_disaggregation: True
+# Margins off for the electricity diagnostics suite (production v0_3 has True).
+cornerstone_industry_avg_margins: False
+
+snapshot_version_or_git_sha: '00524c3c8ba122a7a5b7f2139ff7ea6de08947bb'  # v0.3.1

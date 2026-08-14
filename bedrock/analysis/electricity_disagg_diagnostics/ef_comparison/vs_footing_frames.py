@@ -1,4 +1,4 @@
-"""Build N/D percent and abs-change frames vs Cornerstone v0.2 footing."""
+"""Build N/D percent and abs-change frames vs Cornerstone v0.3 footing."""
 
 from __future__ import annotations
 

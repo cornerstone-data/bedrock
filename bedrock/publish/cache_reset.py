@@ -15,7 +15,9 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
+    electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.derived import (
@@ -73,6 +75,8 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_Aq_usa,
     derive_y_for_national_accounting_balance_usa,
     cornerstone_sector_disagg_active,
+    electricity_reallocation_enabled,
+    electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
     get_waste_disagg_weights,
     derive_disagg_io_bundle,
