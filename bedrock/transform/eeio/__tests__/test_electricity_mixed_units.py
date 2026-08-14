@@ -352,8 +352,8 @@ def test_compute_mixed_unit_ef_vectors_not_cached() -> None:
 
 
 @pytest.mark.eeio_integration
-def test_pull_efs_mixed_units_config(mixed_units_config: str) -> None:
-    _setup(mixed_units_config)
+def test_pull_efs_mixed_units_config() -> None:
+    _setup('2025_usa_cornerstone_v0_3_electricity_mixed_units.yaml')
     try:
         result = pull_efs_for_diagnostics()
         assert result.D_new is not None

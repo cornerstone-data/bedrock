@@ -205,8 +205,8 @@ class TestElectricityDisaggregationPipeline:
         finally:
             _teardown()
 
-    def test_e_attribution(self, electricity_disagg_config: str) -> None:
-        _setup_config('2025_usa_cornerstone_full_model_electricity_disaggregation.yaml')
+    def test_e_attribution(self) -> None:
+        _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
         try:
             E = derive_E_usa()
             elec_cols = [c for c in ELECTRICITY_DISAGG_SECTORS if c in E.columns]
