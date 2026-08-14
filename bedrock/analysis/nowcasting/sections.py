@@ -391,7 +391,8 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
     candidate=initial_supply_bridge_candidate,
     note=(
         'Candidate is a live run of derive_initial_supply_bridge: MCIF from '
-        'Trade_Imports_2017; MADJ, MDTY, T007, margins, tax and subtotals '
+        'ITA-scaled Trade_Imports_2017; MDTY from Census duty rate × goods '
+        'MCIF leveled to NIPA B235RC; MADJ, T007, margins, tax and subtotals '
         'unsourced. T014 nets to ~1 economy-wide, which is why this block '
         'needs a per-commodity picture rather than a totals check.'
     ),

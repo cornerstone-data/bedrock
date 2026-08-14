@@ -12,11 +12,12 @@ purchaser codes). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
 (``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for 2017,
 ``Trade_Exports_<year>`` on ``F04000``, scaled in
 ``_trade_fbs_commodity_vector`` to BEA ITA G+S
-(``bedrock.transform.trade.scale.scale_trade_fbs_to_ita``). ``F03000``
+(``bedrock.transform.trade.scale.scale_amounts_to_ita``). ``F03000``
 (change in private inventories, #529) is present but all-zero. ``F05000``
 is MUT-only and is not a Y column. The Supply bridge fills ``MCIF`` from
-``Trade_Imports_<year>`` (same ITA scale) for 2017; other bridge columns
-are unsourced.
+``Trade_Imports_<year>`` (same ITA scale) and ``MDTY`` from Census duty
+rates leveled to NIPA ``B235RC`` for 2017; other bridge columns are
+unsourced.
 
 Each ``NIPA_final_dom_uses_<year>.yaml`` activity_set assigns its official BEA
 final-demand code directly to ``SectorConsumedBy`` via a
@@ -56,6 +57,7 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.transform.trade.scale import (
     scale_amounts_to_ita,
     trade_direction_from_method,
@@ -175,8 +177,9 @@ def derive_initial_supply_bridge(
 ) -> pd.DataFrame:
     """Commodity x Supply-bridge codes, USD, BEA 2017 Detail rows.
 
-    MCIF is ITA-scaled Trade_Imports_<year> for 2017; other years and all
-    other columns (MADJ, MDTY, T007, margins, tax, subtotals) are unsourced.
+    MCIF is ITA-scaled Trade_Imports_<year> for 2017. MDTY is Census duty
+    rate × goods MCIF, leveled to NIPA B235RC, for 2017. Other years and
+    remaining columns (MADJ, T007, margins, tax, subtotals) are unsourced.
     Callers must not mutate the cached frame.
     """
     bridge = pd.DataFrame(
@@ -189,4 +192,5 @@ def derive_initial_supply_bridge(
         bridge['MCIF'] = _trade_fbs_commodity_vector(
             f'Trade_Imports_{year}', download_sources_ok
         )
+        bridge['MDTY'] = mdty_detail_usd(year, download_sources_ok)
     return bridge
