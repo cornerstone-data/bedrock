@@ -166,6 +166,15 @@ Annex:
         "emission_class": "Chemicals"
         "desc": "Table A5.1-S2: 2022 Energy Consumption Data and CO2 Emissions from Fossil Fuel Combustion by Fuel Type"
 
+      "A5-1-S6": # Separate emissions table for each year - 2018
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": "Table A5.1-S6: 2018 Energy Consumption Data and CO2 Emissions from Fossil Fuel Combustion by Fuel Type"
+
       "A5-5-2":
         "class": "Chemicals"
         "unit": "MMT CO2e"
