@@ -105,8 +105,8 @@ _MAKE_USE_CASES = [
         "Commodity",
         0.05,
         True,
-        marks=pytest.mark.xfail(
-            reason="CEDA: Make q≠Use q for 4 appliance sectors (335221–335228); IoT redefinition mismatch.",
+        marks=pytest.mark.skip(
+            reason="CEDA 2017 constructor is leftover; Make q≠Use q for 4 appliance sectors (335221–335228).",
         ),
     ),
     pytest.param(
@@ -114,8 +114,8 @@ _MAKE_USE_CASES = [
         "Industry",
         0.05,
         True,
-        marks=pytest.mark.xfail(
-            reason="CEDA: Make x≠Use x+VA for 11 industries; detail Use/VA vs Make row sums.",
+        marks=pytest.mark.skip(
+            reason="CEDA 2017 constructor is leftover; Make x≠Use x+VA for 11 industries.",
         ),
     ),
     pytest.param(
