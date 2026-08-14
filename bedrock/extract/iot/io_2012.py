@@ -46,6 +46,17 @@ USA_COMMODITY_INDEX = pd.Index(USA_2012_COMMODITY_CODES, name="commodity")
 USA_FINAL_DEMAND_INDEX = pd.Index(USA_2012_FINAL_DEMAND_CODES, name="final_demand")
 GHG_DETAILED_INDEX = pd.Index(GHG_DETAILED)
 
+# 2012 tables label pump manufacturing ``33391A``; 2017+ detail tables use ``333914``.
+_IO_2012_TO_DETAIL_CODE = {"33391A": "333914"}
+
+
+def _relabel_2012_codes(obj: pd.DataFrame) -> pd.DataFrame:
+    return obj.rename(index=_IO_2012_TO_DETAIL_CODE, columns=_IO_2012_TO_DETAIL_CODE)
+
+
+def _relabel_2012_codes_series(obj: pd.Series[float]) -> pd.Series[float]:
+    return obj.rename(index=_IO_2012_TO_DETAIL_CODE)
+
 
 @functools.cache
 def load_2012_VR_usa() -> pd.DataFrame:
@@ -56,7 +67,7 @@ def load_2012_VR_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("VR") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_INDUSTRY_INDEX
     df.columns = USA_COMMODITY_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -68,7 +79,7 @@ def load_2012_UR_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("UR") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_COMMODITY_INDEX
     df.columns = USA_INDUSTRY_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -80,7 +91,7 @@ def load_2012_URdom_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("URdom") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_COMMODITY_INDEX
     df.columns = USA_INDUSTRY_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -91,7 +102,7 @@ def load_2012_PI_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("PI")
     df.columns = USA_INDUSTRY_INDEX
     df.index = get_ceda_sector_index()
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -102,7 +113,7 @@ def load_2012_PC_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("PC")
     df.index = USA_COMMODITY_INDEX
     df.columns = get_ceda_sector_index()
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -113,7 +124,7 @@ def load_2012_gR_usa() -> pd.Series[float]:
     """
     ser = _load_usa_io_vector("gR") * MILLION_CURRENCY_TO_CURRENCY
     ser.index = USA_INDUSTRY_INDEX
-    return ser
+    return _relabel_2012_codes_series(ser)
 
 
 @functools.cache
@@ -123,7 +134,7 @@ def load_2012_pR_usa() -> pd.Series[float]:
     """
     ser = _load_usa_io_vector("pR")
     ser.index = USA_INDUSTRY_INDEX
-    return ser
+    return _relabel_2012_codes_series(ser)
 
 
 @functools.cache
@@ -134,7 +145,7 @@ def load_2012_qR_usa() -> pd.Series[float]:
     """
     ser = _load_usa_io_vector("qR") * MILLION_CURRENCY_TO_CURRENCY
     ser.index = USA_COMMODITY_INDEX
-    return ser
+    return _relabel_2012_codes_series(ser)
 
 
 def load_2012_YR_usa() -> pd.DataFrame:
@@ -145,7 +156,7 @@ def load_2012_YR_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("YR") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_COMMODITY_INDEX
     df.columns = USA_FINAL_DEMAND_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @deprecated("CEDAv7 update")

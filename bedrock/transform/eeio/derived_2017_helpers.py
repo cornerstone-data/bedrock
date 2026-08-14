@@ -12,9 +12,6 @@ import pandas as pd
 
 from bedrock.extract.iot.io_2017 import USA_2017_FINAL_DEMAND_INDEX
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import (
-    CEDA_V5_TO_CEDA_V7_CODES,
-)
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     load_usa_2017_commodity__ceda_v7_correspondence,
     load_usa_2017_industry__ceda_v7_correspondence,
@@ -49,12 +46,7 @@ def derive_2017_U_weight(U_2012: pd.DataFrame, U_2017: pd.DataFrame) -> pd.DataF
     U_weight = U_weight_base.copy()
 
     # modify a sector in U_2012 to match the sector in U_2017
-    U_2012_mod = (
-        U_2012.copy()
-        .rename(CEDA_V5_TO_CEDA_V7_CODES, axis=0)
-        .rename(CEDA_V5_TO_CEDA_V7_CODES, axis=1)
-        .loc[U_weight.index, U_weight.columns]
-    )
+    U_2012_mod = U_2012.copy().loc[U_weight.index, U_weight.columns]
 
     # find the difference between the expanded sectors and the rest
     idx_unchanged = U_2012_mod.index.difference(EXPANDED_SECTORS_2012_TO_2017)
@@ -157,10 +149,7 @@ def derive_2017_V_weight(V_2012: pd.DataFrame, V_2017: pd.DataFrame) -> pd.DataF
     # modify a sector in V_2012 to match the sector in V_2017
     V_2012_mod = (
         # transpose to make V_2012 (industry x commodity) compatible with V_2017 (commmodity x industry)
-        V_2012.T.copy()
-        .rename(CEDA_V5_TO_CEDA_V7_CODES, axis=0)
-        .rename(CEDA_V5_TO_CEDA_V7_CODES, axis=1)
-        .loc[V_weight.index, V_weight.columns]
+        V_2012.T.copy().loc[V_weight.index, V_weight.columns]
     )
 
     # find the difference between the expanded sectors and the rest
@@ -265,7 +254,7 @@ def derive_2017_scrap_weight(
     # modify a sector in scrap_2012 to match the sector in scrap_2017
     scrap_2012_mod = (
         # transpose to make scrap_2012 (industry x commodity) compatible with scrap_2017 (commmodity x industry)
-        scrap_2012.copy().rename(CEDA_V5_TO_CEDA_V7_CODES, axis=0)[scrap_weight.index]
+        scrap_2012.copy()[scrap_weight.index]
     )
 
     # find the difference between the expanded sectors and the rest
@@ -320,11 +309,7 @@ def derive_2017_Y_weight(Y_2012: pd.DataFrame, Y_2017: pd.DataFrame) -> pd.DataF
     Y_weight = Y_weight_base.copy()
 
     # modify a sector in Y_2012 to match the sector in Y_2017
-    Y_2012_mod = (
-        Y_2012.copy()
-        .rename(CEDA_V5_TO_CEDA_V7_CODES, axis=0)
-        .loc[Y_weight.index, Y_weight.columns]
-    )
+    Y_2012_mod = Y_2012.copy().loc[Y_weight.index, Y_weight.columns]
 
     # find the difference between the expanded sectors and the rest
     idx_unchanged = Y_2012_mod.index.difference(EXPANDED_SECTORS_2012_TO_2017)
