@@ -217,18 +217,21 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 ## Section status
 
-### SUT Use — final demand block (purchaser price)
+### Final uses — three methods, not one (purchaser price)
+
+**1A `NIPA_final_consumption`** carries `F01000` and the `F02*`/`F06*`/`F07*`/`F10*` columns.
+`F03000` is **1C** and `F04000` is **1B**, each its own FBS — see §Step 1.
 
 | Code | Description | Status |
 |---|---|---|
-| F01000 | Personal consumption expenditures | ✅ `FD_PCE` (+ 5 name-mismatch activity_sets) via `BEA_PCEBridge` |
-| F02E00 | Nonres. private fixed investment in equipment | ✅ **done** — `BEA_PEQBridge` built and wired into `NIPA_FD_2017`, reconciles to within 0.22%. Merged 2026-07-24 in [#524](https://github.com/cornerstone-data/bedrock/pull/524), closing [#496](https://github.com/cornerstone-data/bedrock/issues/496) ([#525](https://github.com/cornerstone-data/bedrock/issues/525) too) |
+| F01000 | Personal consumption expenditures | ✅ `FD_PCE` (+ 5 name-mismatch activity_sets) via `BEA_PCEBridge` — **reproduces the bridge cell for cell**, 259/259 commodities, zero cells off by >$1M ([#631](https://github.com/cornerstone-data/bedrock/pull/631)) |
+| F02E00 | Nonres. private fixed investment in equipment | ✅ `BEA_PEQBridge` — **reproduces the bridge cell for cell**, 107/107 commodities, zero cells off by >$1M ([#631](https://github.com/cornerstone-data/bedrock/pull/631)). Built in [#524](https://github.com/cornerstone-data/bedrock/pull/524), closing [#496](https://github.com/cornerstone-data/bedrock/issues/496)/[#525](https://github.com/cornerstone-data/bedrock/issues/525). ⚠️ But it disagrees with the **Use table** by ~$15B at the column total — [#547](https://github.com/cornerstone-data/bedrock/issues/547) |
 | F02N00 | Nonres. private fixed investment in IP products | ✅ `FD_IP_direct`/`FD_IP_proportional` |
-| F02R00 | Residential private fixed investment | ✅ `FD_Structures1` |
+| F02R00 | Residential private fixed investment | ✅ `FD_Structures1` — ⚠️ short `S00402` by 1,883, blocked behind [#635](https://github.com/cornerstone-data/bedrock/issues/635) |
 | F02S00 | Nonres. private fixed investment in structures | ✅ `FD_Structures2` |
-| F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — ⚠️ SLG Equipment/Structures/IP attribution bug still open |
-| F03000 | Change in private inventories | ⏳ **source settled, mostly already extracted** (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)) — `U50705BU1` is in the extract list and unused; not built. [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
-| F04000 | Exports | ⏳ **2017 overlay** ([#528](https://github.com/cornerstone-data/bedrock/issues/528): [#617](https://github.com/cornerstone-data/bedrock/pull/617) [#618](https://github.com/cornerstone-data/bedrock/pull/618) [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623)) — Census FAS goods + IEA TypeOfService leaves; `S00900` from −F010 + Supply T016. ITA scale and 2018–2024 methods open. 2017 scorecard FAIL + inventory vs #557 bars |
+| F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — **all twelve reproduce the Use table cell for cell**, zero cells off by >$1M ([#633](https://github.com/cornerstone-data/bedrock/issues/633)/[#634](https://github.com/cornerstone-data/bedrock/pull/634)). The former SLG Equipment/Structures/IP bug was `S00402` unreachable via two crosswalks, and was never SLG-only |
+| F03000 | Change in private inventories | ⏳ **own FBS — 1C.** Source settled, mostly already extracted (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)) — `U50705BU1` is in the extract list and unused; not built. [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
+| F04000 | Exports | ⏳ **own FBS — 1B.** 2017 overlay ([#528](https://github.com/cornerstone-data/bedrock/issues/528): [#617](https://github.com/cornerstone-data/bedrock/pull/617) [#618](https://github.com/cornerstone-data/bedrock/pull/618) [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623)) — Census FAS goods + IEA TypeOfService leaves; `S00900` from −F010 + Supply T016. ITA scale and 2018–2024 methods open. 2017 scorecard FAIL + inventory vs #557 bars. ⚠️ Also **blocked** on `target_naics_year` → `target_schema_year`: all three trade yamls still declare the old key, which the code stopped reading at [#630](https://github.com/cornerstone-data/bedrock/pull/630) |
 | ~~F05000~~ | ~~Imports~~ | **Not an SUT column** — belongs to Supply (`MCIF`/`MADJ`); appears only on MUT conversion |
 
 ### SUT Use — other blocks
@@ -549,24 +552,61 @@ not introduce a step 10.
   §Step 5 Decision 3.
   Small, and Step 5's control totals depend on it.
 
-### Step 1 — SUT Use: final demand block (PUR) — *in progress*
-- 1a ✅ PEQ Bridge / F02E00.
-- 1b ✅ F0-code assignment (via `assign_sector_consumed_by_from_clean_parameter`, #539).
-- 1c ✅ `derive_initial_Y_pur(year)`.
-- 1d ⏳ **SUT FD list + 2017 F040.** `derive_initial_Y_pur` targets `SUT_FINAL_DEMAND_CODES` (MUT FD
-  minus `F05000`); `F05000` is created in Step 6b from Supply-side imports. 2017 `F04000` is the Trade
-  Exports FBS overlay plus the `S00900` identity (−F010 + Supply T016). ITA G+S scale, FAS→PUR, and
-  2018–2024 Trade methods stay on [#528](https://github.com/cornerstone-data/bedrock/issues/528). 2017
-  scorecard is FAIL + inventory vs the #557 bars (`score_2017_trade_detail`; §Trade data). Same extract
-  serves Step 4b.
-- 1e ❌ **F03000 inventories** — full 402-row column, per
-  [`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
-  ships one scalar where the SUT needs a column, and leaves the allocation to Step 5's RAS, which has
-  neither a seed nor a sign-safe structure for a column that runs 3× gross to net across 61 negative
-  commodities. Start by consuming `U50705BU1`, already extracted and unused, plus the farm line it
-  omits (≈ −5,679 in 2017, 17% of the total).
-- 1f ❌ Validate per-column against published NIPA aggregates (the PCE reconciliation to ~1.3% is the
-  template).
+### Step 1 — Final Uses with Trade (PUR) — *in progress*
+
+⚠️ **Rescoped 2026-08-14 ([#523](https://github.com/cornerstone-data/bedrock/issues/523)): there is
+no single Final Demand FBS.** Final uses are **three separate FBS methods**, built and validated
+independently, with trade in scope because exports are a final use and the same extraction serves the
+Supply-side import columns. The old shape put trade and inventories inside a method that never
+contained them — `F03000` was hardcoded zero and `F04000` was bolted on inside
+`derive_initial_Y_pur` — so the split mostly ratifies what was already true.
+
+**1A — `NIPA_final_consumption`** (renamed from `NIPA_FD`; the old name promised a block it never
+delivered). `F01000`, the four `F02*` investment columns, and the twelve `F06*`/`F07*`/`F10*`
+government columns.
+- ✅ PEQ Bridge / `F02E00`; PCE Bridge / `F01000`.
+- ✅ F0-code assignment (`assign_sector_consumed_by_from_clean_parameter`, #539).
+- ✅ **PCE and equipment reproduce their bridges cell for cell** — 259/259 and 107/107 commodities,
+  zero cells off by >$1M (#630, #631).
+- ✅ **All twelve government columns reproduce the Use table cell for cell** (#633, #634). `S00402`
+  was unreachable in them because it was missing from *two* crosswalks — one supplying the
+  attribution weight, one the receiving set — and fixing either alone changed nothing. F10E00 had
+  been misallocating 32.8% of its column.
+- ❌ Rename the method and yamls off `NIPA_FD`; review all activity mappings; 2018–2024 have no PCE
+  activity sets (#621); port the common yaml (#495).
+
+**1B — Trade** (#526, #528). ⏳ `F04000` exports plus the Supply-side import columns from one
+extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BEA Detail, with
+`S00900` from the identity −F010 + Supply `T016`. Built and wired for 2017 (#617, #618, #622, #623);
+the same extract serves Step 4b. Open: ITA G+S scale, FAS→PUR, and the 2018–2024 methods. The 2017
+scorecard is **FAIL + inventory** against the #557 bars (`score_2017_trade_detail`; §Trade data).
+⚠️ **Also blocked**: all three trade yamls still declare `target_naics_year` where the code has read
+`target_schema_year` since #630, so they raise `KeyError` — which takes `derive_initial_Y_pur` down
+and blocks validating the NIPA columns that have nothing to do with trade.
+
+**1C — Change in inventories** (#529, #530, #531). `F03000`, the full 402-row column, per
+[`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
+ships one scalar where the SUT needs a column, and leaves the allocation to Step 5's RAS, which has
+neither a seed nor a sign-safe structure for a column that runs 3× gross to net across 61 negative
+commodities. Start by consuming `U50705BU1`, already extracted and unused, plus the farm line it
+omits (≈ −5,679 in 2017, 17% of the total).
+
+**Above the three — composition and validation.**
+- ⏳ **Split the column list by framework** (#575) — ✅ done in substance: `derive_initial_Y_pur`
+  targets `SUT_FINAL_DEMAND_CODES` (MUT FD minus `F05000`), and `F05000` is created in Step 6b from
+  Supply-side imports rather than sourced as a Use column. What remains is a *composition* concern:
+  the assembly of three methods' output still lives inside `derive_initial_Y_pur`, so a trade-side
+  failure blocks validating NIPA columns that have nothing to do with trade. Pulling assembly out
+  decouples them.
+- ❌ **Validate per-column against published NIPA aggregates** (#576). Already satisfied for the
+  government columns and for PCE/equipment against their bridges; outstanding for `F03000`
+  (unbuilt), `F04000` (blocked), and the two gaps below.
+
+**Gaps carried.** `F02R00` is short `S00402` by 1,883 (#633), blocked behind #635 — a `ValueError`
+in one activity_set discards every activity_set and returns an empty FBS as a valid result, so the
+line cannot safely be given its own set. And `F02E00` matches the PEQ bridge exactly while
+disagreeing with the Use table by ~$15B at the column total (#547) — a source-data question, not an
+attribution one.
 
 ### Step 2 — SUT Use: value added block
 - New `NIPA_VA_<year>.yaml` FBS method(s) over the 7 Section-6/3.5/3.13 tables above, reusing the
