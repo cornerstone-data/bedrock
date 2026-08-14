@@ -44,7 +44,7 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     USA_2017_SUMMARY_COMMODITY_DESC,
 )
-from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+from bedrock.utils.taxonomy.bea_v2017_to_cornerstone_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
 )
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
