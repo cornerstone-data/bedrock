@@ -15,9 +15,6 @@ from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 # BEA price index on GCS: ``extract/input-data/BEA_PriceIndex/`` (no year subfolder).
 INFLATION_FACTOR_DATA_GCS_PATH = gcs_extract_input_path("BEA_PriceIndex")
 
-# 2012 tables label pump manufacturing ``33391A``; 2017+ detail tables use ``333914``.
-_IO_2012_TO_DETAIL_CODE = {"33391A": "333914"}
-
 
 def obtain_inflation_factors_from_reference_data() -> pd.DataFrame:
     local_inflation_factor_path = os.path.join(
@@ -40,7 +37,6 @@ def obtain_inflation_factors_from_reference_data() -> pd.DataFrame:
         )
         .set_index(["sector_code", "year"])
         .unstack()
-        .rename(index=_IO_2012_TO_DETAIL_CODE)
     )
     price_index.columns = price_index.columns.droplevel()
     assert isinstance(price_index, pd.DataFrame), "price_index must be a DataFrame"
