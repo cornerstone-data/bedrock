@@ -6,20 +6,27 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import yaml
 
-from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
+from bedrock.analysis.electricity_disagg_diagnostics.local_workbooks import (
     import_workbook_to_cache,
     local_workbook_path,
     seed_cache_from_local_dir,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.manifest import load_manifest
+from bedrock.analysis.electricity_disagg_diagnostics.paths import V03_SNAPSHOT_SHA
 from bedrock.utils.validation.analysis.bly_plots import TAB_BLY
 from bedrock.utils.validation.analysis.fetch import load_tab
+
+_FOOTING = '2025_usa_cornerstone_v0_3_electricity_footing'
+_REALLOC = '2025_usa_cornerstone_v0_3_electricity_reallocation'
+_DISAGG = '2025_usa_cornerstone_v0_3_electricity_disaggregation'
+_MIXED = '2025_usa_cornerstone_v0_3_electricity_mixed_units'
 
 
 @pytest.fixture
 def sample_workbook(tmp_path: Path) -> Path:
-    path = tmp_path / '2025_usa_cornerstone_v0_2.xlsx'
+    path = tmp_path / f'{_FOOTING}.xlsx'
     bly = pd.DataFrame(
         {
             'index': ['1111A0', '221100'],
@@ -30,7 +37,7 @@ def sample_workbook(tmp_path: Path) -> Path:
     config = pd.DataFrame(
         {
             'config_field': ['config_name', 'implement_electricity_reallocation'],
-            'value': ['2025_usa_cornerstone_v0_2', 'False'],
+            'value': [_FOOTING, 'False'],
         }
     )
     with pd.ExcelWriter(path, engine='openpyxl') as writer:
@@ -42,7 +49,7 @@ def sample_workbook(tmp_path: Path) -> Path:
 def test_local_workbook_path_resolves_xlsx(
     tmp_path: Path, sample_workbook: Path
 ) -> None:
-    found = local_workbook_path(tmp_path, '2025_usa_cornerstone_v0_2')
+    found = local_workbook_path(tmp_path, _FOOTING)
     assert found == sample_workbook
 
 
@@ -53,7 +60,7 @@ def test_import_workbook_mixed_config_summary_types(
     config = pd.DataFrame(
         {
             'config_field': ['config_name', 'model_base_year'],
-            'value': ['2025_usa_cornerstone_v0_2', 2024],
+            'value': [_FOOTING, 2024],
         }
     )
     bly = pd.DataFrame({'index': ['1111A0'], 'BLy_new (MtCO2e)': [1.0]})
@@ -72,11 +79,84 @@ def test_import_workbook_to_cache(tmp_path: Path, sample_workbook: Path) -> None
     assert list(df['index'].astype(str)) == ['1111A0', '221100']
 
 
+def _methodology_rows(config_name: str) -> dict[str, list[object]]:
+    flags: dict[str, str] = {
+        'implement_electricity_reallocation': 'False',
+        'implement_electricity_disaggregation': 'False',
+        'implement_electricity_mixed_units': 'False',
+    }
+    if 'electricity_reallocation' in config_name:
+        flags['implement_electricity_reallocation'] = 'True'
+    if 'electricity_disaggregation' in config_name:
+        flags['implement_electricity_reallocation'] = 'True'
+        flags['implement_electricity_disaggregation'] = 'True'
+    if 'electricity_mixed_units' in config_name:
+        flags['implement_electricity_reallocation'] = 'True'
+        flags['implement_electricity_disaggregation'] = 'True'
+        flags['implement_electricity_mixed_units'] = 'True'
+    fields: list[object] = [
+        'config_name',
+        'cornerstone_industry_avg_margins',
+        'apply_io_year_adjustments',
+        'model_base_year',
+        'usa_ghg_data_year',
+        'snapshot_version_or_git_sha',
+        'diagnostics_baseline_source',
+        *flags.keys(),
+    ]
+    values: list[object] = [
+        config_name,
+        'False',
+        'True',
+        2024,
+        2024,
+        V03_SNAPSHOT_SHA,
+        'gcs_snapshot',
+        *flags.values(),
+    ]
+    return {'config_field': fields, 'value': values}
+
+
 def test_seed_cache_from_local_dir_uses_manifest_configs(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    manifest = load_manifest()
+    manifest_path = tmp_path / 'manifest.yaml'
+    manifest_path.write_text(
+        yaml.safe_dump(
+            {
+                'meta': {'title': 'test'},
+                'footing': {
+                    'label': 'Cornerstone v0.3.1 electricity footing',
+                    'sheet_id': 'test_footing_sheet',
+                    'config': _FOOTING,
+                },
+                'steps': [
+                    {
+                        'label': 'realloc',
+                        'sheet_id': 'test_realloc_sheet',
+                        'config': _REALLOC,
+                    },
+                    {
+                        'label': 'disagg',
+                        'sheet_id': 'test_disagg_sheet',
+                        'config': _DISAGG,
+                    },
+                    {
+                        'label': 'mixed',
+                        'sheet_id': 'test_mixed_sheet',
+                        'config': _MIXED,
+                    },
+                ],
+                'final': {
+                    'label': 'final',
+                    'sheet_id': 'test_mixed_sheet',
+                    'config': _MIXED,
+                },
+            }
+        ),
+        encoding='utf-8',
+    )
+    manifest = load_manifest(manifest_path)
     for config_name in {
         manifest.footing.config,
         *(s.config for s in manifest.steps),
@@ -88,56 +168,7 @@ def test_seed_cache_from_local_dir_uses_manifest_configs(
                 'BLy_new (MtCO2e)': [1.0],
             }
         )
-        config_rows = {
-            'config_field': ['config_name'],
-            'value': [config_name],
-        }
-        if 'electricity_reallocation' in config_name:
-            config_rows['config_field'] += [
-                'implement_electricity_reallocation',
-                'implement_electricity_disaggregation',
-                'implement_electricity_mixed_units',
-                'snapshot_version_or_git_sha',
-                'diagnostics_baseline_source',
-            ]
-            config_rows['value'] += [
-                'True',
-                'False',
-                'False',
-                '7372464249c434c9bebb172c065a4d0e3702176e',
-                'gcs_snapshot',
-            ]
-        elif 'electricity_disaggregation' in config_name:
-            config_rows['config_field'] += [
-                'implement_electricity_reallocation',
-                'implement_electricity_disaggregation',
-                'implement_electricity_mixed_units',
-                'snapshot_version_or_git_sha',
-                'diagnostics_baseline_source',
-            ]
-            config_rows['value'] += [
-                'True',
-                'True',
-                'False',
-                '7372464249c434c9bebb172c065a4d0e3702176e',
-                'gcs_snapshot',
-            ]
-        elif 'electricity_mixed_units' in config_name:
-            config_rows['config_field'] += [
-                'implement_electricity_reallocation',
-                'implement_electricity_disaggregation',
-                'implement_electricity_mixed_units',
-                'snapshot_version_or_git_sha',
-                'diagnostics_baseline_source',
-            ]
-            config_rows['value'] += [
-                'True',
-                'True',
-                'True',
-                '7372464249c434c9bebb172c065a4d0e3702176e',
-                'gcs_snapshot',
-            ]
-        config = pd.DataFrame(config_rows)
+        config = pd.DataFrame(_methodology_rows(config_name))
         with pd.ExcelWriter(path, engine='openpyxl') as writer:
             bly.to_excel(writer, sheet_name=TAB_BLY, index=False)
             config.to_excel(writer, sheet_name='config_summary', index=False)

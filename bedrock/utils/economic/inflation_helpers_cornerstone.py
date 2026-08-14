@@ -1,11 +1,16 @@
 """Cornerstone-specific inflation helpers.
 
 Mirrors inflate_to_target_year.py but reindexes the CEDA v7 price index to
-cornerstone commodity codes (405).
+cornerstone codes (405 base taxonomy; 407 when electricity is disaggregated).
 
 Codes that exist only in cornerstone and were disaggregated from a CEDA v7 parent
 (e.g. waste 562111 ← 562000) inherit the parent's price ratio.  Codes with no
 identifiable parent (e.g. S00402 used goods) receive a neutral ratio of 1.0.
+
+Under ``apply_io_year_adjustments``, industry price ratios stay on the industry
+axis; the legacy (non-apply_io) path reindexes onto commodities for positional
+``diag(p) @ A @ diag(1/p)``. Electricity expands whichever axis is active
+(``active_cornerstone_industries`` / ``active_cornerstone_commodities``).
 """
 
 from __future__ import annotations
@@ -31,8 +36,11 @@ from bedrock.utils.math.formulas import (
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_COMMODITIES_ELEC,
+    CORNERSTONE_INDUSTRIES_ELEC,
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
+    active_cornerstone_commodities,
+    active_cornerstone_industries,
 )
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_GROSS_INDUSTRY_OUTPUT_YEARS,
@@ -99,7 +107,11 @@ def _industry_price_index_levels() -> pd.DataFrame:
 def get_cornerstone_industry_price_ratio(
     original_year: int, target_year: int
 ) -> pd.Series[float]:
-    """Price ratio reindexed to cornerstone industry codes.
+    """Price ratio on the axis needed by the active inflate path.
+
+    Under ``apply_io_year_adjustments``: cornerstone **industry** codes (405,
+    or industries-elec when electricity is disaggregated). Otherwise: cornerstone
+    **commodity** codes (legacy positional ``diag(p) @ A`` alignment).
 
     Cornerstone-only child codes (e.g. waste subsectors) inherit their CEDA v7
     parent's price ratio so that inflation is applied consistently.
@@ -133,7 +145,14 @@ def get_cornerstone_industry_price_ratio(
         ratio = ratio.drop(ELECTRICITY_AGGREGATE_SECTOR, errors='ignore')
         for code in ELECTRICITY_DISAGG_SECTORS:
             ratio.loc[code] = parent_ratio
-        ratio = ratio.reindex(CORNERSTONE_COMMODITIES_ELEC, fill_value=1.0)
+        # Stay on the same axis family as target_codes: industry under
+        # apply_io_year_adjustments, commodity for the legacy diag(p)@A path.
+        elec_codes = (
+            CORNERSTONE_INDUSTRIES_ELEC
+            if cfg.apply_io_year_adjustments
+            else CORNERSTONE_COMMODITIES_ELEC
+        )
+        ratio = ratio.reindex(elec_codes, fill_value=1.0)
     return ratio
 
 
@@ -305,7 +324,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
     fallback = industry_ratio.reindex(commodity_ratio.index, fill_value=1.0)
     commodity_ratio = commodity_ratio.where(~no_coverage, fallback)
 
-    return commodity_ratio.reindex(CORNERSTONE_COMMODITIES, fill_value=1.0)
+    return commodity_ratio.reindex(active_cornerstone_commodities(), fill_value=1.0)
 
 
 def inflate_cornerstone_A_matrix_with_commodity_pi(
@@ -313,8 +332,17 @@ def inflate_cornerstone_A_matrix_with_commodity_pi(
 ) -> pd.DataFrame:
     """Same `diag(p) @ A @ diag(1/p)` form as ``inflate_cornerstone_A_matrix``,
     but with the V-norm-derived commodity price ratio.
+
+    Aligns ``p`` to ``A`` labels fail-loud (no ``fill_value=1.0``) so a 405
+    ratio cannot silently inflate a 407 electricity A.
     """
+    if list(A.index) != list(A.columns):
+        raise ValueError('A must be square with matching index and columns')
     price_ratio = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
+    # KeyError if any A label is missing from p — do not fill missing with 1.0.
+    price_ratio = price_ratio.loc[A.index]
+    if list(price_ratio.index) != list(A.index):
+        raise ValueError('commodity price ratio index does not match A.index')
     return pd.DataFrame(
         (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
         index=A.index,
@@ -363,7 +391,10 @@ def adjust_summary_A_dollar_year(
     Direction-agnostic: deflates when from_year > to_year, inflates when
     from_year < to_year.
     """
-    p = get_summary_commodity_price_ratio(original_year=to_year, target_year=from_year)
+    # Positional call only: ``@functools.cache`` keys kwargs separately from
+    # positional args, so ``f(a, b)`` and ``f(original_year=a, target_year=b)``
+    # can diverge after config switches that clear only one cache entry.
+    p = get_summary_commodity_price_ratio(to_year, from_year)
     p_row = np.asarray(p.reindex(A_summary.index, fill_value=1.0).to_numpy(dtype=float))
     p_col = np.asarray(
         p.reindex(A_summary.columns, fill_value=1.0).to_numpy(dtype=float)
@@ -387,11 +418,10 @@ def adjust_summary_q_dollar_year(
     Direction-agnostic: deflates when from_year > to_year, inflates when
     from_year < to_year.
     """
-    p = get_summary_commodity_price_ratio(original_year=to_year, target_year=from_year)
+    p = get_summary_commodity_price_ratio(to_year, from_year)
     return q_summary / p.reindex(q_summary.index, fill_value=1.0)
 
 
-@functools.cache
 def get_summary_commodity_price_ratio(
     original_year: int, target_year: int
 ) -> pd.Series[float]:
@@ -401,7 +431,19 @@ def get_summary_commodity_price_ratio(
 
     Built as the ratio of two ITA-based Paasche summary commodity PIs (see
     ``get_summary_commodity_price_index``).
+
+    Thin wrapper around a positional-only cache: ``@functools.cache`` on a
+    kwargs-accepting function treats ``f(a, b)`` and ``f(original_year=a,
+    target_year=b)`` as distinct keys, which can diverge after partial cache
+    clears across config switches.
     """
+    return _get_summary_commodity_price_ratio_cached(original_year, target_year)
+
+
+@functools.cache
+def _get_summary_commodity_price_ratio_cached(
+    original_year: int, target_year: int
+) -> pd.Series[float]:
     pi_orig = get_summary_commodity_price_index(original_year)
     pi_targ = get_summary_commodity_price_index(target_year)
     ratio = pi_targ / pi_orig
@@ -436,6 +478,11 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
 
     Uses 2017 base-year Cornerstone x as weights (relative within-group sizes
     are stable across years).
+
+    When electricity is disaggregated, BEA's industry→summary concordance only
+    knows aggregate ``221100``; map G/T/D children onto the same summary
+    ``\"22\"`` membership at runtime so expand+drop-``221100`` does not orphan
+    electricity in summary industry PI.
     """
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_x,
@@ -446,13 +493,19 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
 
     pi_ind_detail = _cornerstone_indexed_industry_pi(year)
     x_y = derive_cornerstone_x()
+    bea_map: dict[str, list[str]] = {
+        str(k): [str(s) for s in v]
+        for k, v in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    if get_usa_config().implement_electricity_disaggregation:
+        parent_summaries = list(bea_map.get(ELECTRICITY_AGGREGATE_SECTOR, ['22']))
+        bea_map.pop(ELECTRICITY_AGGREGATE_SECTOR, None)
+        for child in ELECTRICITY_DISAGG_SECTORS:
+            bea_map[child] = list(parent_summaries)
     out = _aggregate_industry_pi(
         pi_ind_detail,
         x_y,
-        ta.cast(
-            ta.Mapping[str, ta.Sequence[str]],
-            load_bea_v2017_industry_to_bea_v2017_summary(),
-        ),
+        ta.cast(ta.Mapping[str, ta.Sequence[str]], bea_map),
     )
     return pd.Series(out, dtype=float).reindex(
         USA_2017_SUMMARY_INDUSTRY_CODES, fill_value=100.0
@@ -655,11 +708,9 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
     fallback for cornerstone-only codes (mirrors the per-year half of
     ``get_cornerstone_industry_price_ratio``).
 
-    Always indexed on ``CORNERSTONE_INDUSTRIES`` regardless of
-    ``apply_io_year_adjustments`` (V_norm.T @ pi_industry in the ITA flow needs
-    industry granularity; the existing dispatch's commodity branch returns
-    commodity-indexed values for the legacy ``diag(p) @ A @ diag(1/p)`` flow,
-    which we don't want here).
+    Indexed on ``active_cornerstone_industries()`` (405, or industries-elec when
+    electricity is disaggregated). V_norm.T @ pi_industry in the ITA flow needs
+    industry granularity matching the active Make/Use axis.
 
     Codes with no parent in the upstream PI fall back to 100 (BEA convention
     2017 = 100); any ratio against another year that also falls back is 1.0.
@@ -676,7 +727,14 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
             and parent_code in pi_year.index
         ):
             series.loc[child] = float(pi_year.loc[parent_code])
-    return series.fillna(100.0)
+    series = series.fillna(100.0)
+    if get_usa_config().implement_electricity_disaggregation:
+        parent_pi = float(series.get(ELECTRICITY_AGGREGATE_SECTOR, 100.0))
+        series = series.drop(labels=[ELECTRICITY_AGGREGATE_SECTOR], errors='ignore')
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            series.loc[code] = parent_pi
+        series = series.reindex(active_cornerstone_industries(), fill_value=100.0)
+    return series
 
 
 # Config-sensitive ``@functools.cache`` helpers (omit config from cache keys).
@@ -692,6 +750,7 @@ _CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
     get_sector_commodity_price_index,
     _get_summary_industry_price_index,
     get_summary_industry_price_ratio,
+    _get_summary_commodity_price_ratio_cached,
     derive_cornerstone_q_and_vnorm_for_year,
     obtain_useeior_detail_industry_cpi_levels,
 )

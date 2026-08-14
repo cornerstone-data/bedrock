@@ -43,9 +43,9 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_DISAGG_SECTORS,
 )
 
-FOOTING_CONFIG = "2025_usa_cornerstone_v0_2"
-SPLIT_CONFIG = "2025_usa_cornerstone_v0_2_electricity_disaggregation"
-MIXED_CONFIG = "2025_usa_cornerstone_v0_2_electricity_mixed_units"
+FOOTING_CONFIG = "2025_usa_cornerstone_v0_3_electricity_footing"
+SPLIT_CONFIG = "2025_usa_cornerstone_v0_3_electricity_disaggregation"
+MIXED_CONFIG = "2025_usa_cornerstone_v0_3_electricity_mixed_units"
 
 FOOTING_ELEC = [ELECTRICITY_AGGREGATE_SECTOR]
 SPLIT_ELEC = list(ELECTRICITY_DISAGG_SECTORS)
@@ -364,7 +364,7 @@ def render_high_low_walkthrough_section(
         "## Worked examples — high vs low electricity share "
         f"({high_code} vs {low_code})",
         "",
-        "Scope: **3-way monetary split vs v0.2 footing** for two non-electricity "
+        "Scope: **3-way monetary split vs v0.3 footing** for two non-electricity "
         "sectors — one electricity-dominated footprint and one process-emissions "
         "dominated footprint. Own `D` is unchanged; `y` is not used "
         "(`N_j = Σ_i D_i L_ij`).",
@@ -527,7 +527,7 @@ def render_mixed_units_section(
         "the 3-way split",
         "",
         "Scope: the **right panel** (\"Conversion to physical units\") of "
-        "`ef_panels_vs_v0_2_N.png` vs the **middle panel** (\"3-way monetary split\"). "
+        "`ef_panels_vs_v0_3_N.png` vs the **middle panel** (\"3-way monetary split\"). "
         "Both panels are percent differences against the **same v0.2 footing**, so the "
         "mixed panel **stacks** the 3-way undilution and the mixed-units `A`/`L` rewrite.",
         "",

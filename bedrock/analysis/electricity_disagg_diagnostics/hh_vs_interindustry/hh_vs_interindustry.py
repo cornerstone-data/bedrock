@@ -53,7 +53,7 @@ from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics 
 
 logger = logging.getLogger(__name__)
 
-MIXED_CONFIG = "2025_usa_cornerstone_v0_2_electricity_mixed_units"
+MIXED_CONFIG = "2025_usa_cornerstone_v0_3_electricity_mixed_units"
 # User "F001" → BEA PCE code in this schema.
 HH_FD_CODE = USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE  # F01000
 

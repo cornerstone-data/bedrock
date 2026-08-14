@@ -1,7 +1,0 @@
-# v0.2 + waste + electricity reallocation + 3-way split (no mixed units, no margins).
-use_cornerstone_ghg_model: true
-use_E_data_year_for_x_in_B: True
-implement_waste_disaggregation: True
-implement_electricity_reallocation: True
-implement_electricity_disaggregation: True
-snapshot_version_or_git_sha: '7372464249c434c9bebb172c065a4d0e3702176e'  # v0.2
