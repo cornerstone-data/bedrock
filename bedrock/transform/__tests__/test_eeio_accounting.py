@@ -68,7 +68,10 @@ def test_commodity_industry_output_cpi_consistency(
         q = derive_2017_q_usa()  # commodity output
         x = derive_2017_x_usa()  # industry output
         market_shares = compute_Vnorm_matrix(V=V, q=q)
-        industry_CPI = obtain_inflation_factors_from_reference_data()
+        # Parquet is a BEA-detail superset of the v7 square.
+        industry_CPI = obtain_inflation_factors_from_reference_data().reindex(
+            market_shares.index
+        )
         commodity_CPI = pd.DataFrame().reindex_like(industry_CPI)
         for i in range(len(industry_CPI.columns)):
             commodity_CPI.iloc[:, i] = industry_CPI.iloc[:, i] @ market_shares
