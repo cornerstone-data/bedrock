@@ -244,13 +244,13 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 ### SUT Supply — every column
 
-**This is the least-developed part of the project.** `MCIF` has a 2017 candidate; every other column is unsourced.
+**This is the least-developed part of the project.** `MCIF`, `MADJ`, and `MDTY` have 2017 candidates; domestic output, margins, and tax/subsidy splits remain unsourced.
 
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
 | cells / `T007` | Domestic output, commodity × industry, basic value | Nowcast gross industry output (`derived_gross_industry_output.py`) × commodity mix (port from `CalculateIntermediateUseAndCommodityMix.R`, #497) | ❌ **unsourced method** |
-| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528) / [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#642](https://github.com/cornerstone-data/bedrock/pull/642)) — Trade_Imports FBS on `MCIF`; nowcast scales mapped mass to ITA G+S. `MADJ` open |
-| `MADJ` | Import adjustment (c.i.f./f.o.b.) | Likely 2017 ratios applied to `MCIF` — BEA-internal construct, no direct annual source | ❌ **unsourced, needs a decision** |
+| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528) / [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#642](https://github.com/cornerstone-data/bedrock/pull/642)) — Trade_Imports FBS on `MCIF`; nowcast scales mapped mass to ITA G+S |
+| `MADJ` | Import adjustment (c.i.f./f.o.b.) | 2017 SUT `MADJ`/`MCIF` ratios × scaled `MCIF`, leveled to published Supply `MADJ` (`madj_detail_usd`); `GEN_CHA_YR` shape later | ⏳ **2017 candidate** — M1 ratios in `derive_initial_supply_bridge` |
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge` |
 | `TRADE` | Wholesale + retail margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
 | `TRANS` | Transportation margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
@@ -1413,9 +1413,7 @@ only while a view has no explicit sort of its own; a saved sort in the view UI o
    `transform/iot/` (where #495 pointed `nipa_final_demand_estimates.py`)? Steps 4-7 are a lot of new
    code; worth settling before writing it.
 6. **Interim caching layout** while developing (final destination is GCS, per the board).
-7. **`MADJ` treatment** — Census `GEN_CHA_YR` import charges (measures the wedge directly, free with
-   the `MCIF` pull), a 2017 ratio, or drop it and absorb into `MCIF`? Affects whether `T013` reconciles
-   exactly.
+7. **`MADJ` treatment** — 2017 candidate uses SUT `MADJ`/`MCIF` ratios × scaled `MCIF`, leveled to published Supply `MADJ` (`madj_detail_usd`). Census `GEN_CHA_YR` (and reassignment onto transport/insurance) remains an open upgrade path; affects whether `T013` reconciles exactly once `T007` is sourced.
 
 ---
 

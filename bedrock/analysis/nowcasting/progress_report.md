@@ -117,19 +117,19 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 
 | scope | absent | match | partial | miss | extra |
 |---|---:|---:|---:|---:|---:|
-| cells | 1,617 | 24 | 247 | 2,931 | 5 |
+| cells | 1,599 | 77 | 382 | 2,743 | 23 |
 | row totals | 9 | 0 | 276 | 117 | 0 |
-| column totals | 0 | 0 | 1 | 11 | 0 |
+| column totals | 0 | 2 | 1 | 9 | 0 |
 
 | | |
 |---|---:|
-| coverage | 8.5% |
-| accuracy | 8.9% |
-| candidate grand total | $2.68T |
+| coverage | 14.3% |
+| accuracy | 16.8% |
+| candidate grand total | $2.78T |
 | reference grand total | $111.28T |
-| grand total error | 97.6% |
+| grand total error | 97.5% |
 
-`MCIF` is the sourced column (`Trade_Imports_2017`); its column total is `partial` (+1.29%). `T007`, `MADJ`, `TRADE`/`TRANS`/`T014`, `MDTY`, `TOP`/`SUB`/`T015`, and the `T013`/`T016` identities are unsourced, which is why the picture is purple except for that one stripe.
+`MCIF`, `MADJ`, and `MDTY` are sourced for 2017 (`Trade_Imports_2017` with ITA scale; SUT `MADJ`/`MCIF` ratios leveled to Supply `MADJ`; Census duty rates leveled to NIPA `B235RC`). Column totals for `MADJ` and `MDTY` match the published national (within the section tolerance). `T007`, `TRADE`/`TRANS`/`T014`, `TOP`/`SUB`/`T015`, and the `T013`/`T016` identities are unsourced.
 
 The right-hand block of the Supply table: imports, margins, taxes and the
 subtotals carrying a commodity from domestic output at basic value to total

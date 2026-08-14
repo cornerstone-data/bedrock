@@ -42,7 +42,7 @@ Documented rules; FBS methods do not allocate onto these codes. Holes below are 
 - **Industry-only Crosswalk sectors.** Census `331314` is a 2017 industry code, not a 2017 SUT commodity (`331313` / `33131B`).
 - **FAS vs PUR.** Census export `ALL_VAL_YR` is FAS-family; Use `F04000` is purchasers' value. These methods do not convert valuation basis commodity-by-commodity.
 - **`MDTY`.** Census effective duty rate (`CAL_DUT_YR` / `GEN_VAL_YR` mapped to Detail via `Sector_Crosswalk_Census_USATrade`, 1:m by Supply `MCIF`) times Census goods MCIF from `Trade_Imports`, leveled so the national sum matches NIPA T30500 `B235RC`. Calculated Census duty ≠ collected duty (tariff-era gap). Wired in `derive_initial_supply_bridge` via `bedrock.transform.trade.duties.mdty_detail_usd`.
-- **`MADJ`.** Census charge fields are in the FBA; Supply-bridge fill is later wiring.
+- **`MADJ`.** 2017 SUT `MADJ`/`MCIF` ratios (0 when SUT `MCIF` is 0; negatives kept) times ITA-scaled Detail `MCIF`, leveled so the national sum matches published Supply `MADJ`. Does not fill `T013`. Published 2017 `MADJ` is sparse (six Detail codes); three transport commodities (`482000`, `483000`, `484000`) carry most of the national mass with zero SUT `MCIF`, so the ratio rule drops them from the shape and the national rescale puts that mass onto commodities that have both a ratio and scaled `MCIF` (air transport `481000` and insurance `5241XX` when `492000` MCIF is missing). Census `GEN_CHA_YR` remains on the FBA for a later charge-based shape. Wired via `bedrock.transform.trade.madj.madj_detail_usd`.
 
 ## IEA Crosswalk revisions
 
