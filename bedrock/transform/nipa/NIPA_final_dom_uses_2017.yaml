@@ -278,8 +278,21 @@ source_names:
         # residential branch rather than under line 2. The bridge calls the same
         # 15,025 "Residential equipment", so it is renamed here to match - the
         # bare name cannot be matched on, since it occurs twice in the table.
+        #
+        # Issue #547: this lands in F02R00, not F02E00. F02E00 is *nonresidential*
+        # private fixed investment in equipment, and line 46 sits under the
+        # residential branch - these are landlord durables, equipment bought for
+        # residential rental property. The PEQ bridge carries them because it
+        # covers private equipment investment as a whole, but BEA's Use table
+        # books them to residential, and the Use table is the target this method
+        # is bound to. Sending them to F02E00 overstated it by the full 15,025
+        # (335220 household appliances alone was 11,265) and understated F02R00
+        # by the same commodities, cell for cell.
+        #
+        # The bridge still supplies the commodity split - only the destination
+        # column changes.
         activity_to_sector_mapping: BEA_NIPA_FD_Equipment
-        clean_parameter: F02E00
+        clean_parameter: F02R00
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50505
