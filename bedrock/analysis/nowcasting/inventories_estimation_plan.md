@@ -152,7 +152,7 @@ These are spot checks on three lines, not a fitted result.
 | CIPI column total | NIPA T1.1.5 line 14 | Free, exact, already extracted |
 | CIPI by holding industry, nonfarm | `U50705BU1` | **Already extracted 2012–2024, unused** |
 | Stage-of-fabrication split, durable/nondurable | `U50705BU1` lines 29–37 | **Already extracted, unused** |
-| Farm CIPI level | NIPA 5.7.5B farm line | **Not extracted** — `U50705BU1` is nonfarm-only |
+| Farm CIPI level | NIPA 5.7.5B farm line | ✅ **Extracted** as `T50705B`. Farm is `B018RC` line 2, **−5,679** in 2017 — the inferred figure, now published. Total CIPI `A014RC` line 1 is 32,674, and farm + nonfarm ties to it exactly |
 | Farm commodity split | `USDA_ERS_FIWS` `Inventory` variable | **Already in bedrock**, unused for this — see §Farm |
 | Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Make table | Published for 2017 |
 | M&S manufacturing → commodity | Step 3 intermediate column; 2017 Use table | Published for 2017 |
@@ -251,11 +251,24 @@ commodity against 2017 — the same shape as
 | 2 | Trade industry → commodity crosswalk, ~25 lines | #615 decision |
 | 3 | Apply the four rules; validate against the 2017 detail column | 2017 Make/Use published; nowcast years need #570 and #497 |
 
-**Phase 1 — consume what is already extracted.** Add the inventories activity
-set to the `NIPA_final_dom_uses_<year>` methods. `U50705BU1` is nonfarm-only, so add NIPA
-**5.7.5B** to `BEA_NIPA.yaml`'s table list for the farm line, and take farm's
-commodity split from `USDA_ERS_FIWS` — both covered in §Farm. Neither needs a
-new extractor.
+**Phase 1 — consume what is already extracted.**
+
+⚠️ **This is its own FBS method, not an activity set inside
+`NIPA_final_dom_uses_<year>`.** Step 1 was rescoped on 2026-08-14
+([#523](https://github.com/cornerstone-data/bedrock/issues/523)) into three
+independent methods — `NIPA_final_dom_uses` (1A), Trade (1B) and inventories
+(1C) — so `F03000` is built by `Inventories_<year>` and composed alongside the
+others, not folded into the final-consumption method. An earlier draft of this
+plan said otherwise.
+
+✅ **NIPA 5.7.5B is now in `BEA_NIPA.yaml`'s table list** as `T50705B`, which
+closes the farm level: `B018RC` line 2 is −5,679 in 2017, matching the figure
+this plan had inferred, and farm plus nonfarm ties to the 32,674 control total
+exactly. Take farm's commodity split from `USDA_ERS_FIWS` per §Farm. Neither
+needs a new extractor.
+
+The remaining Phase 1 work is the method itself, over the explicit line sets in
+§Traps — the tables double-count 5.2× if selected whole.
 
 **Phase 2 — the crosswalk.** ~25 trade lines to BEA detail commodities. Build it
 by concept, never by value proximity. Take the #615 decision first.
@@ -269,6 +282,41 @@ detail `F03000` column via the
 `use_fd_detail_sut` already carries the column.
 
 ## Traps
+
+⚠️ **Both NIPA tables are hierarchical, and summing their lines double-counts
+badly.** Measured 2017:
+
+| table | sum of all lines | true total | factor |
+|---|---:|---:|---:|
+| `U50705BU1` | 201,270 | 38,353 (nonfarm) | **5.2×** |
+| `T50705B` | — | 32,674 (CIPI) | 3 competing decompositions |
+
+This is the same trap `FD_IP_equipment` hit on U50505, where selecting the whole
+table took parents and children together
+([#547](https://github.com/cornerstone-data/bedrock/issues/547)). **The line list
+must be explicit and chosen per branch.**
+
+`U50705BU1`, verified against the extract:
+
+| branch | lines | 2017 $M |
+|---|---|---:|
+| top level | 2, 3, 38, 67, 77 | 38,353 = line 1 |
+| manufacturing **by stage** | 29, 32, 35 | 817 ≈ line 3 |
+| manufacturing by durable/nondurable | 4, 17 | 817 ≈ line 3 |
+| wholesale by merchant/nonmerchant | 41, 64 | 30,329 = line 38 |
+| wholesale by durable/nondurable | 39, 40 | 30,329 = line 38 |
+| retail leaves | 68–76 **excluding 73** | 17,930 = line 67 |
+| general merchandise | 74, 75 | −3,281 = line 73 |
+
+⚠️ **Manufacturing has two complete decompositions and they are both in the
+table** — by industry (4–28) and by stage of fabrication (29–37). Each sums to
+818. BEA's four rules need the *stage* split, so take 29/32/35 and exclude 4–28,
+never both. Wholesale likewise decomposes two ways; pick one.
+
+`T50705B` has three: farm + nonfarm (2, 19), the nonfarm industry breakdown
+(3, 4, 7, 10, 15), and durable + nondurable (17, 18) — plus the total itself
+repeated at lines 1 and 16. Take **lines 2 and 1 only**: farm, and the control
+total.
 
 **Do not ship the NIPA total alone.** The SUT needs a 402-row column; a total is
 one scalar, and the RAS in Step 5 would then invent the allocation with no
