@@ -85,15 +85,45 @@ source_names:
           Line: [29, 32, 35]
 
       # ---- Wholesale, merchant leaves ----------------------------------
-      # 30,329. Line 46 excluded as the parent of 47/48 - see the header.
-      inventories_wholesale:
+      # 19,192. Line 46 excluded as the parent of 47/48 - see the header.
+      # All 19 names are unique within U50705BU1, so the crosswalk matches on
+      # ActivityProducedBy directly.
+      inventories_wholesale_merchant:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50705BU1
           Line: [43, 44, 45, 47, 48, 49, 50, 51, 52, 53,
-                 55, 56, 57, 58, 59, 60, 61, 62, 63,
-                 65, 66]
+                 55, 56, 57, 58, 59, 60, 61, 62, 63]
+
+      # ---- Wholesale, agents and brokers -------------------------------
+      # 11,137, published as bare "Durable goods industries" / "Nondurable goods
+      # industries" - names that recur at four levels of this table (lines
+      # 4/39/42/65 and 17/40/54/66). They cannot be matched on name, so each is
+      # selected by Line and renamed to the disambiguated name the crosswalk
+      # carries. Same treatment FD_IP_equipment_residential gives U50505 line 46.
+      # Agents and brokers carry no commodity specialisation of their own, so
+      # the crosswalk spreads them over all durable / all nondurable goods.
+      inventories_wholesale_nonmerchant_durable:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: 65  # C42ND
+        assign_fields:
+          ActivityProducedBy: Nonmerchant wholesale, durable goods
+
+      inventories_wholesale_nonmerchant_nondurable:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: 66  # C42NN
+        assign_fields:
+          ActivityProducedBy: Nonmerchant wholesale, nondurable goods
 
       # ---- Retail leaves -----------------------------------------------
       # 17,930. Line 73 excluded as the parent of 74/75.
@@ -103,6 +133,7 @@ source_names:
       # whether the pair is stable across 2018-2024 before trusting this branch
       # year to year - open question 4 in the plan.
       inventories_retail:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
