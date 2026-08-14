@@ -54,7 +54,10 @@ def test_all_industrial_ceda_codes_covered_in_2_1_mapping() -> None:
     """
     assert (
         CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING == CEDA_INDUSTRIAL_SECTORS_DEFAULT
-    ), f"{CEDA_INDUSTRIAL_SECTORS_DEFAULT - CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING} are CEDA industrial codes but not in CEDA <> MECS mapping; {CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING - CEDA_INDUSTRIAL_SECTORS_DEFAULT} are CEDA codes in CEDA <> MECS mapping but not in CEDA industrial codes."
+    ), (
+        f"{CEDA_INDUSTRIAL_SECTORS_DEFAULT.difference(CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING)} are CEDA industrial codes but not in CEDA <> MECS mapping; "
+        f"{CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING.difference(CEDA_INDUSTRIAL_SECTORS_DEFAULT)} are CEDA codes in CEDA <> MECS mapping but not in CEDA industrial codes."
+    )
 
 
 def test_all_industrial_ceda_codes_covered_in_3_1_mapping() -> None:
@@ -63,7 +66,10 @@ def test_all_industrial_ceda_codes_covered_in_3_1_mapping() -> None:
     """
     assert (
         CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING == CEDA_INDUSTRIAL_SECTORS_DEFAULT
-    ), f"{CEDA_INDUSTRIAL_SECTORS_DEFAULT - CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING} are CEDA industrial codes but not in CEDA <> MECS mapping; {CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING - CEDA_INDUSTRIAL_SECTORS_DEFAULT} are CEDA codes in CEDA <> MECS mapping but not in CEDA industrial codes."
+    ), (
+        f"{CEDA_INDUSTRIAL_SECTORS_DEFAULT.difference(CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING)} are CEDA industrial codes but not in CEDA <> MECS mapping; "
+        f"{CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING.difference(CEDA_INDUSTRIAL_SECTORS_DEFAULT)} are CEDA codes in CEDA <> MECS mapping but not in CEDA industrial codes."
+    )
 
 
 @pytest.mark.eeio_integration

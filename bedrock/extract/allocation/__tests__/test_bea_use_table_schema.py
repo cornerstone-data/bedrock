@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -68,7 +70,9 @@ def test_make_table_1to1_row_sums_match_ceda_v7() -> None:
     load_bea_make_table.cache_clear()
     cs = load_bea_make_table()
     v7 = derive_2017_V_usa()
-    shared = sorted((set(INDUSTRIES) & set(CEDA_V7_SECTORS)) - _NON_1TO1_SHARED)
+    shared = sorted(
+        (set(INDUSTRIES) & set(CEDA_V7_SECTORS)).difference(_NON_1TO1_SHARED)
+    )
     cs_rows = cs.loc[shared].sum(axis=1)
     v7_rows = v7.loc[shared].sum(axis=1)
     rel = (cs_rows - v7_rows).abs() / v7_rows.replace(0.0, np.nan)
@@ -79,4 +83,6 @@ def test_make_table_1to1_row_sums_match_ceda_v7() -> None:
     ), f"1:1 Make row sums diverge; worst relative diffs:\n{worst.to_string()}"
     # Live Make lookups besides household appliances.
     for code in ("333415", "326140", "326150"):
-        assert cs.at[code, code] == pytest.approx(float(v7.at[code, code]), rel=1e-8)
+        assert cs.at[code, code] == pytest.approx(
+            cast(float, v7.at[code, code]), rel=1e-8
+        )
