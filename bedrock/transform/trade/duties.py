@@ -79,8 +79,9 @@ def map_census_import_flow_to_detail(year: int, flow_name: str) -> pd.Series:
             continue
         shares = w / w_sum
         for sector, share in shares.items():
-            if sector in out.index:
-                out.loc[sector] += float(amount) * float(share)
+            sector_code = str(sector)
+            if sector_code in out.index:
+                out.loc[sector_code] += float(amount) * float(share)
     return out
 
 

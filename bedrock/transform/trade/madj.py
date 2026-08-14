@@ -33,9 +33,7 @@ def _supply_madj_usd() -> pd.Series:
     supply.columns = supply.columns.str.strip()
     idx = pd.Index(USA_2017_COMMODITY_CODES, name='commodity')
     return (
-        pd.to_numeric(supply['MADJ'], errors='coerce')
-        .reindex(idx)
-        .fillna(0.0)
+        pd.to_numeric(supply['MADJ'], errors='coerce').reindex(idx).fillna(0.0)
         * MILLION_CURRENCY_TO_CURRENCY
     )
 
