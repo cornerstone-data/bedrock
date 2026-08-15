@@ -22,7 +22,7 @@ These are **independent** concepts and frequently point at different commits:
 
 | Thing | Where | What it is |
 |---|---|---|
-| Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The 10 parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
+| Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The 11 parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
 | Snapshot key | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The single SHA that integration tests load via `load_current_snapshot(...)`. Bumping this is what "uses the new snapshot" means. |
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
 | Named release | [`releases.py`](releases.py) | Release label → snapshot SHA map. Imported by [`diagnostics_baseline`](../validation/diagnostics_baseline.py) so `--baseline v0.3` (etc.) resolves; update in Phase A alongside `.SNAPSHOT_KEY`. |
@@ -317,7 +317,7 @@ After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on t
 | File | Role |
 |---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The pinned SHA that integration tests load |
-| [`generate_snapshots.py`](generate_snapshots.py) | CLI that builds the 10 parquet snapshots and uploads to GCS |
+| [`generate_snapshots.py`](generate_snapshots.py) | CLI that builds the 11 parquet snapshots and uploads to GCS |
 | [`loader.py`](loader.py) | `load_current_snapshot`, `load_configured_snapshot`, GCS download helpers |
 | [`names.py`](names.py) | `SnapshotName` literal type and `SNAPSHOT_NAMES` list |
 | [`releases.py`](releases.py) | Release label → snapshot SHA map; imported by `diagnostics_baseline` |
