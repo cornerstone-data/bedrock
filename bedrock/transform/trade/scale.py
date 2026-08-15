@@ -1,4 +1,8 @@
-"""Scale Trade mapped mass to BEA ITA goods+services national totals."""
+"""Scale Trade mapped mass to BEA ITA goods+services national totals.
+
+Nowcast F040/MCIF overlay does not call these helpers. Overlay mass is
+mapped Trade FBS Detail. Whether to apply this scale is #647.
+"""
 
 from __future__ import annotations
 

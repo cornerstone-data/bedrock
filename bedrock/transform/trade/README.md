@@ -11,22 +11,20 @@ Crosswalks: `Sector_Crosswalk_Census_USATrade.csv` and `Sector_Crosswalk_BEA_IEA
 
 Do not copy `Cornerstone_2025_target.yaml` / `BEA_detail_target.yaml` here — those select NAICS leaves; these Crosswalks emit Detail.
 
-### ITA G+S scale (nowcast overlay)
+### Overlay (nowcast)
 
-FBS parquet stays unscaled. `bedrock.transform.eeio.nowcast._trade_fbs_commodity_vector` aggregates to Detail, drops non-SUT commodity codes (e.g. industry-only `331314`), then multiplies by `ita_gs_totals_usd(year)[exports|imports] / sum(Detail)` via `bedrock.transform.trade.scale.scale_amounts_to_ita` before writing Use `F04000` and Supply `MCIF`. Uniform scale does not fill `MISS` holes or change Pearson/Jaccard. `S00900` / `F04000` is still the Y identity after overlay (not part of the scaled Trade vector).
+`bedrock.transform.eeio.nowcast._trade_fbs_commodity_vector` aggregates Trade FBS to Detail and drops non-SUT commodity codes (e.g. industry-only `331314`) before writing Use `F04000` and Supply `MCIF`. FBS parquet is the same mapped mass. `S00900` / `F04000` is the Y identity after overlay (not part of the Trade vector). `bedrock.transform.trade.scale.scale_amounts_to_ita` can multiply a Detail series to ITA G+S; nowcast does not call it (#647).
 
 ## 2017 nowcast scorecard
 
-Scored from `use_fd_detail_sut` `F04000` and `supply_bridge_detail_sut` `MCIF` (USD), after Trade overlay, ITA scale, and the `S00900` identity. Command: `uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail`.
+Scored from `use_fd_detail_sut` `F04000` and `supply_bridge_detail_sut` `MCIF` (USD), after Trade overlay and the `S00900` identity. Command: `uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail`.
 
-**Control (ITA):** scaled Detail export/import mass and non-`S00900` `F04000` match ITA G+S (USD, exact at float). `S00900` / `F04000` matches published within 1 M USD via the Y identity. **Benchmark vs SUT (#557 bars):** national ~2–3%; import Pearson ≳ 0.85 / export ≳ 0.75–0.85 on non-`S00*`; top-20 Jaccard ≳ 0.7 / ≳ 0.6. ITA control can move national % **away from** SUT; that does not fail the control gate.
+**Overlay mass:** mapped Trade Detail (Census goods + BEA IEA services). `S00900` / `F04000` matches published within 1 M USD via the Y identity. **Benchmark vs SUT (#557 bars):** national ~2–3%; import Pearson ≳ 0.85 / export ≳ 0.75–0.85 on non-`S00*`; top-20 Jaccard ≳ 0.7 / ≳ 0.6.
 
 | | National % vs SUT | Pearson all / non-`S00*` | Spearman all / non-`S00*` | Top-20 Jaccard all / non-`S00*` |
 |---|---|---|---|---|
-| F040 exports | +18.50% | 0.92 / 0.89 | 0.87 / 0.87 | 0.60 / 0.60 |
-| MCIF imports | +4.34% | 0.62 / 0.84 | 0.90 / 0.91 | 0.67 / 0.74 |
-
-Pearson/Jaccard match the pre-scale #623 readout within rounding (holes unchanged). National % vs SUT moved **away** from the pre-scale +6.15% / +1.29% toward ITA+identity vs SUT, as expected when the control is ITA rather than SUT F040/MCIF.
+| F040 exports | +6.15% | 0.93 / 0.89 | 0.87 / 0.87 | 0.60 / 0.60 |
+| MCIF imports | +1.29% | 0.62 / 0.84 | 0.90 / 0.91 | 0.67 / 0.74 |
 
 ## Residual / specials
 

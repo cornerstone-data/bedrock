@@ -10,16 +10,16 @@ purchaser (PUR) price, commodity x SUT final-demand codes (MUT list minus
 ``F05000``), and the Supply bridge block (commodity x the 12 basic-to-
 purchaser codes). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
 (``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for 2017,
-``Trade_Exports_<year>`` on ``F04000``, scaled in
-``_trade_fbs_commodity_vector`` to BEA ITA G+S
-(``bedrock.transform.trade.scale.scale_amounts_to_ita``). ``F03000``
-(change in private inventories, #529) is present but all-zero. ``F05000``
-is MUT-only and is not a Y column. The Supply bridge fills ``MCIF`` from
-``Trade_Imports_<year>`` (same ITA scale), ``MDTY`` from Census duty
-rates leveled to NIPA ``B235RC``, and ``MADJ`` from Census import
+``Trade_Exports_<year>`` on ``F04000`` via mapped Detail mass in
+``_trade_fbs_commodity_vector``. ``F03000`` (change in private
+inventories, #529) is present but all-zero. ``F05000`` is MUT-only and
+is not a Y column. The Supply bridge fills ``MCIF`` from
+``Trade_Imports_<year>`` (same mapped Detail mass), ``MDTY`` from Census
+duty rates leveled to NIPA ``B235RC``, and ``MADJ`` from Census import
 charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ``
 destination codes and leveled to published Supply ``MADJ``, for 2017;
-other bridge columns are unsourced.
+other bridge columns are unsourced. ITA G+S scale lives in
+``bedrock.transform.trade.scale`` and is not applied here (#647).
 
 Each ``NIPA_final_dom_uses_<year>.yaml`` activity_set assigns its official BEA
 final-demand code directly to ``SectorConsumedBy`` via a
@@ -61,10 +61,6 @@ from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.transform.trade.madj import madj_detail_usd
-from bedrock.transform.trade.scale import (
-    scale_amounts_to_ita,
-    trade_direction_from_method,
-)
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
@@ -104,27 +100,24 @@ def _resolve_both_sector_columns(fbs: pd.DataFrame) -> pd.DataFrame:
 def _trade_fbs_commodity_vector(method: str, download_sources_ok: bool) -> pd.Series:
     """Commodity totals from a Trade FBS, USD, indexed by BEA 2017 Detail.
 
-    Mapped Detail mass is scaled to BEA ITA goods+services
-    (``ita_gs_totals_usd``) after groupby and reindex onto
-    ``USA_2017_COMMODITY_CODES`` so industry-only Crosswalk rows (e.g.
-    ``331314``) are not in the ITA denominator. Year is the trailing
-    ``_YYYY`` on the method name. Callers that overwrite ``S00900`` /
-    ``F04000`` must do so after this vector is written.
+    Groupby and reindex onto ``USA_2017_COMMODITY_CODES`` so industry-only
+    Crosswalk rows (e.g. ``331314``) are dropped. Callers that overwrite
+    ``S00900`` / ``F04000`` must do so after this vector is written. Mapped
+    Detail mass only; ITA G+S scale is ``bedrock.transform.trade.scale``
+    (#647).
     """
-    year = int(method.rsplit('_', 1)[-1])
     fbs = getFlowBySector(
         method,
         download_FBAs_if_missing=download_sources_ok,
         download_FBS_if_missing=download_sources_ok,
     )
-    amounts = (
+    return (
         pd.DataFrame(fbs)
         .groupby('SectorProducedBy')['FlowAmount']
         .sum()
         .reindex(USA_2017_COMMODITY_CODES)
         .fillna(0.0)
     )
-    return scale_amounts_to_ita(amounts, year, trade_direction_from_method(method))
 
 
 def _s00900_export_identity_usd() -> float:
@@ -142,8 +135,9 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     price, commodity x SUT final-demand codes (no F05000).
 
     F03000 (change in private inventories, #529) is present but all-zero.
-    F04000 is ITA-scaled Trade_Exports_<year> for 2017; other years all-zero.
-    S00900/F04000 uses the rest-of-world identity against Supply T016 (2017).
+    F04000 is mapped Trade_Exports_<year> Detail mass for 2017; other years
+    all-zero. S00900/F04000 uses the rest-of-world identity against Supply
+    T016 (2017).
     """
     fbs = FlowBySector.generateFlowBySector(
         f'NIPA_final_dom_uses_{year}', download_sources_ok=download_sources_ok
@@ -180,8 +174,8 @@ def derive_initial_supply_bridge(
 ) -> pd.DataFrame:
     """Commodity x Supply-bridge codes, USD, BEA 2017 Detail rows.
 
-    MCIF is ITA-scaled Trade_Imports_<year> for 2017. MDTY is Census duty
-    rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
+    MCIF is mapped Trade_Imports_<year> Detail mass for 2017. MDTY is Census
+    duty rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
     GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
     to published Supply MADJ. Other years and remaining columns (T007,
     margins, tax, subtotals, T013) are unsourced. Callers must not mutate

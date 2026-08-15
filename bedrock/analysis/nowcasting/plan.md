@@ -232,7 +232,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | F02S00 | Nonres. private fixed investment in structures | ✅ `FD_Structures2` |
 | F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — **all twelve reproduce the Use table cell for cell**, zero cells off by >$1M ([#633](https://github.com/cornerstone-data/bedrock/issues/633)/[#634](https://github.com/cornerstone-data/bedrock/pull/634)). The former SLG Equipment/Structures/IP bug was `S00402` unreachable via two crosswalks, and was never SLG-only |
 | F03000 | Change in private inventories | ⏳ **own FBS — 1C.** Source settled, mostly already extracted (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)) — `U50705BU1` is in the extract list and unused; not built. [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
-| F04000 | Exports | ⏳ **own FBS — 1B.** 2017 overlay ([#528](https://github.com/cornerstone-data/bedrock/issues/528): [#617](https://github.com/cornerstone-data/bedrock/pull/617) [#618](https://github.com/cornerstone-data/bedrock/pull/618) [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#638](https://github.com/cornerstone-data/bedrock/pull/638)) — Census FAS goods + IEA TypeOfService leaves on `BEA_detail_commodity_target.yaml`; `S00900` from −F010 + Supply T016. Nowcast scales mapped Trade mass to ITA G+S before overlay. 2018–2024 methods open. 2017 scorecard FAIL + inventory vs #557 bars (SUT benchmark; ITA control is separate). |
+| F04000 | Exports | ⏳ **own FBS — 1B.** 2017 overlay ([#528](https://github.com/cornerstone-data/bedrock/issues/528): [#617](https://github.com/cornerstone-data/bedrock/pull/617) [#618](https://github.com/cornerstone-data/bedrock/pull/618) [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#638](https://github.com/cornerstone-data/bedrock/pull/638) [#642](https://github.com/cornerstone-data/bedrock/pull/642)) — Census FAS goods + IEA TypeOfService leaves on `BEA_detail_commodity_target.yaml`; `S00900` from −F010 + Supply T016. Overlay mass is mapped Trade Detail (`_trade_fbs_commodity_vector`). ITA G+S scale helper exists and is not applied (#647). 2018–2024 methods open. 2017 scorecard FAIL + inventory vs #557 bars. |
 | ~~F05000~~ | ~~Imports~~ | **Not an SUT column** — belongs to Supply (`MCIF`/`MADJ`); appears only on MUT conversion |
 
 ### SUT Use — other blocks
@@ -249,7 +249,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
 | cells / `T007` | Domestic output, commodity × industry, basic value | Nowcast gross industry output (`derived_gross_industry_output.py`) × commodity mix (port from `CalculateIntermediateUseAndCommodityMix.R`, #497) | ❌ **unsourced method** |
-| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528) / [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#642](https://github.com/cornerstone-data/bedrock/pull/642)) — Trade_Imports FBS on `MCIF`; nowcast scales mapped mass to ITA G+S |
+| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528) / [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#642](https://github.com/cornerstone-data/bedrock/pull/642)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647) |
 | `MADJ` | Import adjustment (c.i.f./f.o.b.) | Census `GEN_CHA_YR` mapped to Detail, reassigned onto 2017 Supply `MADJ` destination codes (signed shares), leveled to published Supply `MADJ` (`madj_detail_usd`) | ⏳ **2017 candidate** — charges + destination reassignment in `derive_initial_supply_bridge` |
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge` |
 | `TRADE` | Wholesale + retail margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
@@ -303,10 +303,11 @@ Ranked by how much they block:
 2. ~~**Trade data source (#527)**~~ — **settled** in
    [#557](https://github.com/cornerstone-data/bedrock/pull/557): Census goods + BEA services as the
    primary extract, BEA ITA as the national totals control, BACI out of scope. See §Trade data below.
-   What remains is not a source question but reconciliation on #528: ITA G+S scale, FAS vs PUR,
-   import valuation overlap (CIF vs customs / `MADJ`), and `S00300` specials policy. IEA TypeOfService
-   leaves are mapped; Crosswalk revisions sit in `bedrock/transform/trade/README.md`. `MDTY` rides on
-   the same Census request (`CAL_DUT_YR`) — see §`MDTY`.
+   [#647](https://github.com/cornerstone-data/bedrock/issues/647) reopens whether nowcast should apply
+   that ITA control. What remains on #528 is FAS vs PUR, import valuation overlap (CIF vs customs /
+   `MADJ`), and `S00300` specials policy. IEA TypeOfService leaves are mapped; Crosswalk revisions
+   sit in `bedrock/transform/trade/README.md`. `MDTY` rides on the same Census request (`CAL_DUT_YR`)
+   — see §`MDTY`.
 3. **Product taxes and subsidies — the split, on *both* axes** (`TOP`, `SUB`, and the Use table's
    `T00TOP`/`T00SUB` rows). NIPA gives totals (T30500, T31300); allocating them does not come for
    free.
@@ -344,14 +345,14 @@ Implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528)
 [#618](https://github.com/cornerstone-data/bedrock/pull/618), Y F040 + Supply MCIF overlay
 [#622](https://github.com/cornerstone-data/bedrock/pull/622), 2017 scorecard + IEA leaf Crosswalk
 [#623](https://github.com/cornerstone-data/bedrock/pull/623). This path feeds `F04000`, Supply `MCIF`,
-and Step 6c's import matrix. ITA G+S scale, `MDTY` / `MADJ`,
-`S00300` hold-from-Supply, and 2018–2024 Trade methods remain open on #528.
+and Step 6c's import matrix. ITA G+S scale is [#647](https://github.com/cornerstone-data/bedrock/issues/647).
+`S00300` hold-from-Supply and 2018–2024 Trade methods remain open on #528.
 
 | Role | Source |
 |---|---|
 | Goods extract | Census International Trade, NAICS-6 — imports **CIF** (`GEN_CIF_YR`, to match Supply `MCIF`), exports FAS-family (`ALL_VAL_YR`) |
 | Services extract | BEA `IntlServTrade`, by type of service, imports and exports |
-| National totals control | BEA ITA Tables 2.1 (goods) / 3.1 (services) — scale or residual-constrain; a raw Census+BEA sum is **not** the final total. Loader exists; nowcast applies G+S scale in `_trade_fbs_commodity_vector` (FBS parquet stays unscaled). |
+| National totals control | BEA ITA Tables 2.1 (goods) / 3.1 (services) — loader `ita_gs_totals_usd` and `scale_amounts_to_ita` exist. Nowcast F040/MCIF overlay uses mapped Trade FBS Detail mass. Whether to apply a national ITA (or other) control is [#647](https://github.com/cornerstone-data/bedrock/issues/647). |
 | Sector bridge | `Sector_Crosswalk_Census_USATrade.csv` (Census NAICS-6 → Detail); `Sector_Crosswalk_BEA_IEA.csv` (IntlServTrade TypeOfService leaves → Detail). Parents omitted when children are mapped. Methods include `BEA_detail_commodity_target.yaml`. |
 | 2017 structure/specials benchmark | Use `F04000` and Supply `MCIF` (`F05000` is MUT-only) |
 
@@ -414,7 +415,7 @@ Worth pulling in the same request even if only used diagnostically.
 `download_imports_data.py` is imports-only legacy and is *not* the production extract.
 
 **What the 2017 scorecard says** (`score_2017_trade_detail`, USD, after F040 overlay + `S00900`
-identity and MCIF-only bridge; inventory in `bedrock/transform/trade/README.md`):
+identity and Supply `MCIF`; inventory in `bedrock/transform/trade/README.md`):
 
 | | National % | Pearson all / non-`S00*` | Top-20 Jaccard all / non-`S00*` |
 |---|---|---|---|
@@ -425,7 +426,6 @@ F040 national miss is Census FAS goods vs SUT goods F040 (~+14%); mapped IEA lea
 service F040. Census + IEA `AllTypesOfService` tracks ITA G+S; SUT F040 is the lower frame. MCIF
 national sits inside ~2–3% because `S00300` miss (260 B) offsets CIF goods and mapped-service
 overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is just short of 0.85.
-Uniform ITA scale does not fill `MISS` holes or move Pearson.
 
 **Three carried-forward problems, all on the reconciliation side, none of them a source problem:**
 
@@ -595,7 +595,7 @@ are 1B because they are not domestic; inventories are 1C.
 **1B — Trade** (#526, #528). ⏳ `F04000` exports plus the Supply-side import columns from one
 extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BEA Detail, with
 `S00900` from the identity −F010 + Supply `T016`. Built and wired for 2017 (#617, #618, #622, #623);
-the same extract serves Step 4b. Open: ITA G+S scale, FAS→PUR, and the 2018–2024 methods. The 2017
+the same extract serves Step 4b. Open: ITA G+S scale ([#647](https://github.com/cornerstone-data/bedrock/issues/647)), FAS→PUR, and the 2018–2024 methods. The 2017
 scorecard is **FAIL + inventory** against the #557 bars (`score_2017_trade_detail`; §Trade data).
 ⏳ **Schema fix pending in [#638](https://github.com/cornerstone-data/bedrock/pull/638).** The trade
 yamls declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
@@ -801,7 +801,7 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
   four inventories rules, so the porting cost is shared three ways.
 - 4b. **Import columns** — 2017 `MCIF` is the Trade Imports FBS (Census **CIF** goods + IEA services,
   Detail Crosswalk). Keep CIF because `MCIF` is the CIF target (2017: Use `|F05000|` / `MCIF` = 0.991).
-  ITA scale, `S00300` residual, and later years stay on #528. Shares the extract with Step 1d.
+  ITA scale is [#647](https://github.com/cornerstone-data/bedrock/issues/647); `S00300` residual and later years stay on #528. Shares the extract with Step 1d.
   `MDTY` comes from the **same request**: pull `CAL_DUT_YR` and customs value alongside `GEN_CIF_YR`,
   form an effective duty rate per sector, apply it to the controlled import vector, and set the level
   from NIPA T30500's customs-duties line (§`MDTY`). Do **not** carry Census duty levels through — the
