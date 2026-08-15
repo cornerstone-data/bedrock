@@ -160,6 +160,95 @@ def census_EC_parse(*, df_list, year, **_):
     return df
 
 
+def census_EC_PxI_parse(*, df_list, year, **_):
+    """
+    Parse Economic Census *Products by Industry* (``ecnnapcsprd``) into FBA form.
+
+    This is the product-line-by-kind-of-business table: for each NAICS industry,
+    the NAPCS product lines it sells and the dollars against each. It is BEA's
+    own input for the trade-margin method (2009 IO manual ch. 8) and answers
+    "what does this kind of business sell", which is the question the change in
+    private inventories merchandise-trade rule asks - see
+    ``analysis/nowcasting/inventories_estimation_plan.md`` and #529/#615.
+
+    ``ActivityProducedBy`` is the industry and ``FlowName`` the product line.
+    ⚠️ The orientation is worth checking before this is used for attribution:
+    ``ecnnapcsprd`` is products *by* industry, while its sibling ``ecnnapcsind``
+    is industry *by* product, and the two want opposite Produced/Consumed
+    assignments. Only ``ecnnapcsprd`` is pulled here, so the assignment is
+    consistent, but a second dataset must not be added to this method without
+    revisiting it.
+
+    :param df_list: list of dataframes to concat and format
+    :param year: year
+    :return: df, parsed and partially formatted to flowbyactivity specifications
+    """
+    df = pd.concat(df_list, sort=False)
+
+    df = (
+        df.filter(
+            [
+                f'NAICS{year}',
+                'INDGROUP',
+                f'NAPCS{year}',
+                f'NAPCS{year}_LABEL',
+                'NAPCSDOL',
+                'NAPCSDOL_F',
+                'NAPCSDOL_S',
+                'GEO_ID',
+                'YEAR',
+            ]
+        )
+        .rename(
+            columns={
+                f'NAICS{year}': 'Industry',
+                f'NAPCS{year}': 'Product',
+                f'NAPCS{year}_LABEL': 'Description',
+                'NAPCSDOL': 'FlowAmount',
+                'NAPCSDOL_F': 'Note',
+                'NAPCSDOL_S': 'Spread',
+                'YEAR': 'Year',
+            }
+        )
+        .assign(Location=lambda x: x['GEO_ID'].str[-2:])
+    )
+
+    df = df.assign(
+        FlowName=df['Product'],
+        ActivityProducedBy=df['Industry'],
+        ActivityConsumedBy='',
+        MeasureofSpread='Relative standard error',
+        FlowAmount=lambda x: x['FlowAmount'].astype(float),
+    )
+
+    # Census suppression flags. D/S withhold the cell; A and s mark estimates
+    # too unreliable to publish. All are zeroed and recorded rather than
+    # dropped, so a consumer can tell a suppressed cell from a true zero.
+    suppressed = df.Note.isin(["D", "s", "A", "S"])
+    df = df.assign(
+        Suppressed=np.where(suppressed, df.Note, np.nan),
+        # NAPCSDOL is published in thousands of dollars.
+        FlowAmount=np.where(suppressed, 0, df.FlowAmount * 1000),
+    ).drop(columns='Note')
+
+    df['Location'] = np.where(
+        df['Location'] == 'US',
+        US_FIPS,
+        df['Location'].str.pad(5, side='right', fillchar='0'),
+    )
+
+    df = assign_fips_location_system(df, year)
+    df['Unit'] = 'USD'
+    df['Class'] = 'Money'
+    df['SourceName'] = 'Census_EC_PxI'
+    df['FlowType'] = "ELEMENTARY_FLOW"
+    # Add tmp DQ scores
+    df['DataReliability'] = 5
+    df['DataCollection'] = 5
+    df['Compartment'] = None
+    return df
+
+
 if __name__ == "__main__":
     import bedrock
 
