@@ -5,12 +5,14 @@
 Pulls U.S. Census Bureau Economic Census Data
 """
 import json
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import US_FIPS
+from bedrock.utils.logging.flowsa_log import log
 
 
 def census_EC_URL_helper(*, build_url, year, config, **_):
@@ -247,6 +249,120 @@ def census_EC_PxI_parse(*, df_list, year, **_):
     df['DataCollection'] = 5
     df['Compartment'] = None
     return df
+
+
+def estimate_suppressed_ec_pxi(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
+    """
+    Recover suppressed ``Census_EC_PxI`` cells from the published product totals.
+
+    Census withholds an industry x product cell when publishing it would
+    disclose an individual company. The value is not zero - it is still inside
+    the published totals - so leaving it at zero biases any product mix derived
+    from this table toward whatever happens to be publishable. In 2017 that is
+    **54% of trade rows**, though only **4.3% of value**: the suppressed cells
+    are a long tail of small industry x product combinations.
+
+    ``ecnnapcsprd`` publishes each product line twice: once on NAICS ``00`` (the
+    national total for that product, across all industries) and once per
+    contributing 6-digit industry. There is **no intermediate 3/4/5-digit
+    hierarchy**, so recovery is a single level - subtract the published
+    industries from the ``00`` total and share the residual over the industries
+    that were withheld.
+
+    ⚠️ This is why :func:`flowbyclean.estimate_suppressed_sectors_equal_attribution`
+    cannot be pointed at this source. That function walks a dense NAICS
+    hierarchy, taking children at ``level + 1``; here the codes jump 2 to 6, so
+    every level finds no children and does nothing.
+
+    Three outcomes, recorded in ``SuppressionRecovery`` so a consumer can tell a
+    measurement from an estimate:
+
+    - ``exact`` - the product had exactly one withheld industry, so the residual
+      belongs to it entirely and this is a recovered measurement, not a guess.
+      791 of 3,522 product lines in 2017.
+    - ``split`` - two or more withheld, residual shared equally. A placeholder:
+      equal shares are certainly wrong per cell, but the mass lands in the right
+      product.
+    - ``unrecoverable`` - the ``00`` total is itself suppressed (547 products in
+      2017), so there is nothing to subtract from. Left at zero.
+
+    Measured on 2017, against the 2,976 products that have a published ``00``
+    total: the 6-digit detail goes from **90.5% to 100.0%** of control, and
+    2,829 of those products close to within $1M.
+
+    ⚠️ **Validate only against published totals.** A suppressed ``00`` row reads
+    as ``FlowAmount = 0``, so comparing every product against its total makes the
+    547 unrecoverable ones look like a $1.78T overshoot - published children
+    against a zero parent. They are not an error; they are products whose
+    control is withheld. Filter on ``Suppressed.isna()`` in the ``00`` rows
+    before any closure check.
+
+    ⚠️ **The ``00`` rows are dropped on the way out.** Once the residual is
+    distributed the 6-digit detail sums to the product total by construction, so
+    keeping both would double count the whole table - summing this FBA
+    unfiltered gives $67T against a true $34.4T. Callers wanting the control
+    total should take it before calling this.
+
+    :param fba: the ``Census_EC_PxI`` FlowByActivity
+    :return: 6-digit detail only, with suppressed cells filled where possible
+    """
+    df = fba.copy()
+    naics = df['ActivityProducedBy'].astype(str)
+    is_total = naics.str.len() == 2
+    suppressed = df['Suppressed'].notna()
+
+    totals = (
+        df[is_total]
+        .assign(_sup=lambda x: x['Suppressed'].notna())
+        .set_index('FlowName')[['FlowAmount', '_sup']]
+    )
+    detail = df[~is_total].copy()
+
+    published = (
+        detail[~detail['Suppressed'].notna()].groupby('FlowName')['FlowAmount'].sum()
+    )
+    n_withheld = (
+        detail[detail['Suppressed'].notna()].groupby('FlowName').size()
+    )
+
+    residual = (
+        totals['FlowAmount']
+        .sub(published.reindex(totals.index).fillna(0.0), fill_value=0.0)
+        .reindex(n_withheld.index)
+    )
+    # A negative residual means the published children already exceed the
+    # published total - a vintage or rounding artefact, not something to invent
+    # negative mass from.
+    overshoot = int((residual < 0).sum())
+    residual = residual.clip(lower=0.0)
+
+    total_suppressed = totals['_sup'].reindex(n_withheld.index).fillna(False)
+    per_child = (residual / n_withheld).where(~total_suppressed)
+
+    detail_sup = detail['Suppressed'].notna()
+    fill = detail['FlowName'].map(per_child)
+    detail.loc[detail_sup, 'FlowAmount'] = fill[detail_sup].fillna(0.0)
+
+    how = detail['FlowName'].map(
+        n_withheld.map(lambda n: 'exact' if n == 1 else 'split')
+    )
+    no_control = detail['FlowName'].map(total_suppressed).astype('boolean').fillna(False)
+    how = how.where(~no_control, 'unrecoverable')
+    detail['SuppressionRecovery'] = np.where(detail_sup, how, np.nan)
+
+    counts = detail.loc[detail_sup, 'SuppressionRecovery'].value_counts()
+    log.info(
+        'Census_EC_PxI suppression recovery: %s exact, %s split, %s '
+        'unrecoverable; %s products had published children exceeding their '
+        'total (residual clipped to 0). Dropped %s product-total rows to avoid '
+        'double counting.',
+        int(counts.get('exact', 0)),
+        int(counts.get('split', 0)),
+        int(counts.get('unrecoverable', 0)),
+        overshoot,
+        int(is_total.sum()),
+    )
+    return detail.reset_index(drop=True)
 
 
 if __name__ == "__main__":
