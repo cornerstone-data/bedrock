@@ -50,8 +50,8 @@ holding industry:
 
 | Inventory type | "What held" rule | Natural source |
 |---|---|---|
-| **Finished goods** | *"we assume that finished goods inventories are primary products of the reporting industry"* | industry commodity mix |
-| **Work-in-process** | *"products in assembly are primary to the industry"* | industry commodity mix |
+| **Finished goods** | *"we assume that finished goods inventories are primary products of the reporting industry"* | **primary product of the industry** — see below |
+| **Work-in-process** | *"products in assembly are primary to the industry"* | **primary product of the industry** — see below |
 | **M&S — merchandise trade** | *"Wholesale and retail industries hold products that they sell. So the 'what held' is based on the type of industry they operate in"* | trade product line |
 | **M&S — production materials** | *"reflective of intermediate inputs needed for that industry's production"* | industry intermediate input mix |
 
@@ -61,6 +61,19 @@ For the stage split and the materials composition:
 > inventory into the three stages of fabrication. For the commodity
 > composition, we use Econ Census data on materials/fuels consumed by
 > industry."* — D. Hill, BEA, 2025-05-09
+
+⚠️ **Finished goods and WIP take the industry's *primary product*, not its
+commodity mix.** Hill's wording is "primary products of the reporting industry"
+and "primary to the industry" — singular in intent. Spreading an industry's
+inventory across every commodity it produces is a commodity-mix construction and
+is not what BEA describes. The correspondence is a lookup, and it is nearly
+unique: **a 6-digit NAICS maps to exactly one BEA detail commodity 95% of the
+time** (5-digit 88%, 4-digit 72%, measured on
+`NAICS_to_BEA_Crosswalk_2017.csv`). So this branch needs no product-line data at
+all — only the industry → primary commodity correspondence.
+
+This matters for correctness rather than magnitude: finished goods plus WIP is
+the manufacturing branch, 818 in 2017, 2% of nonfarm.
 
 **Three of the four rules are functions of tables this project already builds.**
 Commodity mix is Step 4a ([#570](https://github.com/cornerstone-data/bedrock/issues/570));
@@ -303,6 +316,58 @@ on the Phase 2 crosswalk. Validate against the 258 populated cells of the 2017
 detail `F03000` column via the
 [#587](https://github.com/cornerstone-data/bedrock/issues/587) per-cell picture;
 `use_fd_detail_sut` already carries the column.
+
+### The weights within each trade commodity set
+
+Phase 2 says what a trade line can *reach*. Phase 3 needs how its value splits
+across those commodities, and **that must not be weighted on the 2017 `F03000`
+column itself** — that fits to the answer.
+
+**Economic Census product-line-by-kind-of-business data is the right source.**
+Hill's merchandise-trade rule is literally *"what the industry sells"*, which is
+what product-line data measures, and it is what BEA uses for the same question in
+its margin method. ⚠️ The Supply table's commodity mix is **not** a substitute:
+wholesale and retail industries produce *trade margin*, not the goods they
+distribute, so a Supply-side mix answers a different question. That is precisely
+why BEA reaches for product-line data.
+
+`Census_EC_PxI` is **not in bedrock** — it is on flowsa's `margins` branch, built
+for 2017, alongside `write_Crosswalk_NAPCS.py` (whose output is not committed)
+and `NAICS_to_NAPCS_Crosswalk_2017.csv` (29,098 rows). The 2022 vintage is live
+on the Census API as `ecnnapcsprd`. The port is bounded work and is **shared with
+[#615](https://github.com/cornerstone-data/bedrock/issues/615)** and the margins
+wholesale allocation.
+
+**The concordance blocker has a cheap route.** #615 names NAPCS product line →
+I-O commodity as the one genuinely missing link, built internally by BEA and
+unpublished. But `NAICS_to_NAPCS_Crosswalk_2017.csv` maps each NAICS to the NAPCS
+products it *produces*, and `NAICS_to_BEA_Crosswalk_2017.csv` maps NAICS → BEA
+detail, so composing them in reverse gives NAPCS → NAICS → BEA commodity. Every
+NAICS in the NAPCS crosswalk reaches a BEA commodity — 0% unmapped.
+
+⚠️ **Compose it through the *primary* NAICS, not through every producing NAICS.**
+Spreading a product line across all its producers is a commodity-mix
+construction, and it is not what BEA does: `write_Crosswalk_NAPCS.py` already
+implements the **MAKB rule** — the max-value NAICS per NAPCS line — which is
+BEA's own. Measured unrestricted, the many-to-many composition looks poor (35% of
+NAPCS lines reach exactly one commodity, median 2), but that is the wrong test.
+Under one primary NAICS the ambiguity mostly disappears, because **a 6-digit
+NAICS maps to exactly one BEA detail commodity 95% of the time** (5-digit 88%,
+4-digit 72%).
+
+Selecting the max-value NAICS needs `NAPCSDOL` / `NAICSALL_PCT`, so it depends on
+the `Census_EC_PxI` port rather than on the crosswalks alone.
+
+⚠️ **What this does not yet give is weights.** The composition supplies
+*structure* only. Weights need `NAPCSDOL` — product-line dollars by kind of
+business — which requires the `Census_EC_PxI` port. Until then Phase 3's trade
+branch has a receiving set and no split.
+
+⚠️ **EC PxI is quinquennial.** Weights would be fixed at 2017 through 2021 and
+2022 thereafter. The trade branch's *composition* is therefore static between
+census years while its *level* moves with CIPI — the same cadence as BEA's water
+and air difficulty multipliers, and defensible, but it should be stated rather
+than discovered.
 
 ## Traps
 
