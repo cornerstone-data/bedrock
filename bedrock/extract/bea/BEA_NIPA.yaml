@@ -29,6 +29,11 @@ tables:
 - U50505      # Table 5.5.5U. Private Fixed Investment in Equipment by Type
 - T50605      # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
 - U50705BU1   # Table 5.7.5BU1. Change in Private Inventories by Industry
+# U50705BU1 is nonfarm-only. 5.7.5B carries the farm line (B018RC, line 2) and
+# the CIPI total (A014RC, line 1) that the F03000 column ties to exactly. Farm is
+# roughly -5,679 in 2017 against a 32,674 total - 17% of the column - so a build
+# without it is silently wrong. See inventories_estimation_plan.md, section Farm.
+- T50705B     # Table 5.7.5B. Change in Private Inventories by Industry (farm/nonfarm)
 
 
 years:

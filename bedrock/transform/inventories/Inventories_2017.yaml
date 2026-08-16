@@ -1,0 +1,162 @@
+# Change in private inventories - the SUT Use table's F03000 column.
+#
+# Step 1C of the nowcast (#529/#530/#531). Its own FBS method, not an activity
+# set inside NIPA_final_dom_uses: Step 1 was rescoped on 2026-08-14 (#523) into
+# three independent methods - NIPA_final_dom_uses (1A), Trade (1B) and
+# inventories (1C).
+#
+# ⚠️ PHASE 1 SCAFFOLDING - NOT YET RUNNABLE.
+# The line selection below is verified and complete. What is missing is the
+# industry -> commodity allocation, which is Phase 2/3 of
+# analysis/nowcasting/inventories_estimation_plan.md:
+#   - the ~25-line trade industry -> BEA commodity crosswalk (Phase 2, gated on
+#     the #615 sequencing decision), which covers 126% of the column gross
+#   - the four allocation rules (Phase 3): finished goods and work-in-process on
+#     the industry commodity mix, M&S manufacturing on the industry intermediate
+#     input column restricted to storable goods, M&S merchandise trade on the
+#     Phase 2 crosswalk
+# Every activity set therefore still needs activity_to_sector_mapping and
+# attribution wiring. Generating this method today will fail; that is intended
+# rather than shipping a column that silently allocates by the wrong rule.
+#
+# ⚠️ WHY THE LINE NUMBERS ARE EXPLICIT.
+# Both source tables are hierarchical and summing their lines double-counts:
+# U50705BU1's 77 lines sum to 201,270 against a true nonfarm total of 38,353,
+# a factor of 5.2. This is the same trap FD_IP_equipment hit on U50505 (#547).
+#
+# Manufacturing carries TWO complete decompositions and both are in the table -
+# by industry (lines 4-28) and by stage of fabrication (lines 29-37), each
+# summing to 818. BEA's rules need the stage split, so lines 29/32/35 are taken
+# and 4-28 excluded. Wholesale likewise decomposes two ways (merchant /
+# nonmerchant, or durable / nondurable); the merchant leaves are taken.
+#
+# ⚠️ Line 46 (C4214, professional and commercial equipment wholesalers, 2,150)
+# is a PARENT of lines 47 and 48, which sum to exactly 2,150. Including all
+# three overstates wholesale by that amount. It is the only place in the
+# wholesale branch where a leaf and its parent sit adjacent.
+#
+# Verified against the 2017 extract: the leaf sets below sum to 32,673 against
+# the published CIPI total of 32,674, one apart on rounding.
+
+!include:BEA_detail_commodity_target.yaml
+year: &inv_year 2017
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+source_names:
+  BEA_NIPA:
+    geoscale: national
+    year: *inv_year
+    data_format: FBA
+    clean_fba_before_activity_sets: !script_function:BEA_NIPA extract_table_info
+    clean_fba_w_sec: !script_function:BEA_NIPA drop_unassigned
+
+    activity_sets:
+
+      # ---- Farm, 17% of the column -------------------------------------
+      # U50705BU1 is nonfarm-only, so farm comes from 5.7.5B. B018RC line 2 is
+      # -5,679 in 2017. Level from NIPA; commodity split from USDA_ERS_FIWS's
+      # Inventory variable (Crops / Livestock / Purchased inputs), which is
+      # already extracted.
+      # ⚠️ FIWS publishes stock LEVELS. Do not difference it and call the
+      # result CIPI - a first difference carries holding gains, which NIPA
+      # excludes via the inventory valuation adjustment. Structure from FIWS,
+      # level from NIPA.
+      inventories_farm:
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: T50705B  # Table 5.7.5B. Change in Private Inventories by Industry
+          Line: 2         # B018RC "Farm"; line 1 is the CIPI control total
+
+      # ---- Manufacturing, by stage of fabrication ----------------------
+      # 818 in 2017, only 2% of nonfarm - the branch BEA describes in most
+      # detail is not where the money is. Lines 4-28 are the same 818 split by
+      # industry instead; taking both would double it.
+      #   29 C30M materials and supplies   1,894
+      #   32 C30W work-in-process         -3,187
+      #   35 C30F finished goods           2,110
+      inventories_manufacturing:
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: [29, 32, 35]
+
+      # ---- Wholesale, merchant leaves ----------------------------------
+      # 19,192. Line 46 excluded as the parent of 47/48 - see the header.
+      # All 19 names are unique within U50705BU1, so the crosswalk matches on
+      # ActivityProducedBy directly.
+      inventories_wholesale_merchant:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: [43, 44, 45, 47, 48, 49, 50, 51, 52, 53,
+                 55, 56, 57, 58, 59, 60, 61, 62, 63]
+
+      # ---- Wholesale, agents and brokers -------------------------------
+      # 11,137, published as bare "Durable goods industries" / "Nondurable goods
+      # industries" - names that recur at four levels of this table (lines
+      # 4/39/42/65 and 17/40/54/66). They cannot be matched on name, so each is
+      # selected by Line and renamed to the disambiguated name the crosswalk
+      # carries. Same treatment FD_IP_equipment_residential gives U50505 line 46.
+      # Agents and brokers carry no commodity specialisation of their own, so
+      # the crosswalk spreads them over all durable / all nondurable goods.
+      inventories_wholesale_nonmerchant_durable:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: 65  # C42ND
+        assign_fields:
+          ActivityProducedBy: Nonmerchant wholesale, durable goods
+
+      inventories_wholesale_nonmerchant_nondurable:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: 66  # C42NN
+        assign_fields:
+          ActivityProducedBy: Nonmerchant wholesale, nondurable goods
+
+      # ---- Retail leaves -----------------------------------------------
+      # 17,930. Line 73 excluded as the parent of 74/75.
+      # ⚠️ 74 department stores +21,237 against 75 other general merchandise
+      # -24,518. Two adjacent retail lines nearly cancelling at this magnitude
+      # looks like a classification movement rather than economics. Check
+      # whether the pair is stable across 2018-2024 before trusting this branch
+      # year to year - open question 4 in the plan.
+      inventories_retail:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: [68, 69, 70, 71, 72, 74, 75, 76]
+
+      # ---- Mining, utilities and construction --------------------------
+      # -14,261, which is 37% of nonfarm in magnitude, published with NO
+      # sub-industry detail and NO stage split. It needs its own rule - open
+      # question 2 in the plan. The 2017 column suggests where it lands
+      # (211000 oil and gas -7,577) but that is one commodity for three sectors.
+      inventories_mining_utilities_construction:
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: 2
+
+      # ---- Other industries --------------------------------------------
+      # 3,537, also published without sub-detail.
+      inventories_other:
+        clean_parameter: F03000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50705BU1
+          Line: 77
