@@ -753,6 +753,38 @@ attribution one.
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
+
+  ⏳ **Test `Census_EC_PxI` as the commodity-mix source before settling on a ported 2017 mix.**
+  Economic Census *Products by Industry* is an **observed** industry × product matrix — which is what
+  this block is — where a ported mix holds the benchmark year's proportions fixed. It is extracted as
+  of #529 (`census_ec_pxi_port`), 2017 today and 2022 live on the API as `ecnnapcsprd`, so a mix that
+  actually moves between benchmarks is in reach rather than hypothetical.
+
+  ⚠️ **Expect it to behave here even though it failed for the inventories trade weights**, and the
+  reason is the point of the test. That failure was specific: NAPCS *trade* lines describe resale, so
+  composing NAPCS → NAICS → BEA returns the industries that **sell** a good rather than the good
+  itself — "Wholesale sales of refined petroleum products" resolves to construction commodities. For
+  4a we want what industries **produce**, which is the manufacturing case, where the same composition
+  was 35% one-to-one. The asymmetry that disqualifies it for trade is what recommends it here.
+
+  **The test is decisive and cheap**, because the answer is published: reproduce the 2017 detail
+  Make/Supply commodity mix per industry from `Census_EC_PxI` and score it per cell, the same way
+  Step 1's columns were scored. Do this *before* porting the #497 mix, not after.
+
+  Three known limits to measure rather than assume:
+  - **Economic Census coverage.** No agriculture, no government, and parts of services are out of
+    scope, so this can at best supply the mix for the sectors it covers and the ported mix has to
+    carry the rest. Quantify the covered share of `T007` first.
+  - **Suppression.** Recoverable — `estimate_suppressed_ec_pxi` takes the published detail from 90.5%
+    to 100.0% of control on 2017 — but 12,929 cells are equal-split placeholders, and a commodity mix
+    is exactly the sort of per-cell use where that matters. Read `SuppressionRecovery` and check
+    whether the mix is stable when split cells are excluded.
+  - **NAPCS → I-O commodity.** Still the missing link (#615). The concordance being built for
+    inventories serves this too, which is an argument for building it once, properly, rather than per
+    use.
+
+  The same source and the same concordance feed **Step 3**'s intermediate input mix and two of BEA's
+  four inventories rules, so the porting cost is shared three ways.
 - 4b. **Import columns** — 2017 `MCIF` is the Trade Imports FBS (Census **CIF** goods + IEA services,
   Detail Crosswalk). Keep CIF because `MCIF` is the CIF target (2017: Use `|F05000|` / `MCIF` = 0.991).
   ITA scale, `S00300` residual, and later years stay on #528. Shares the extract with Step 1d.
