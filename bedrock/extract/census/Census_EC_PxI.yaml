@@ -3,6 +3,54 @@ source_name: Economic Census, Products by Industry
 source_url: https://www.census.gov/programs-surveys/economic-census.html
 source_publication_date: ''
 bib_id: Census_EC_PxI
+
+# ⚠️ The product identifier here is NOT the NAPCS classification, despite the
+# API calling the field NAPCS2017. Census labels it "2017 NAPCS collection
+# code", and it is a distinct code set - referred to throughout bedrock as the
+# **Census_2017_PxI_product_code** to keep the two apart.
+#
+# Measured against the published NAPCS 2017 structure and definitions
+# (census.gov/naics/napcs/structure/2017NAPCSStructure.xlsx and
+# .../2017_NAPCS_Definitions.xlsx):
+#
+#   - official NAPCS codes are hierarchical at lengths 2/3/5/7/9/11; these are
+#     uniformly 10 digits
+#   - **0 of the 620 trade product codes appear in either official file**
+#   - joining on title instead recovers only 144 of 620 lines, 12% of value -
+#     and for goods lines alone 14 of 341, 11% of value
+#
+# So the two do not join on code and mostly do not join on title. Treat the
+# official NAPCS files as reference material for the minority that do match
+# (their definitions usefully confirm a product is the *manufactured* good, not
+# the retail act), never as a source of coverage.
+#
+# The codes are also unstable across vintages: 525 codes are new in 2022 and 548
+# are gone, but the large "new" ones are recodings of products already present
+# in 2017. Anything built on this source must key on the product **description**,
+# not the code.
+#
+# How the data is made, from Census's 2017 methodology - it bears on what the
+# numbers can carry:
+#
+#   - establishments report product lines on their Economic Census form, and
+#     "the sales of each individual product reported by (or **imputed to**) an
+#     establishment are separately tabulated"
+#   - it is a **weighted sample**, not a full enumeration: "a post-stratification
+#     weighting adjustment (using industry by state strata) is subsequently
+#     performed to ensure that the weighted product data of the sampled
+#     establishments sum to the total receipts of all establishments"
+#
+# The second point is why this suits an allocation-share use - the mix is built
+# to sum to total receipts - and also why cell-level suppression is so heavy:
+# thin industry x product cells do not meet publication standards.
+#
+# ✅ **Broad vs detail lines: checked, no double count here.** Collection codes
+# come in two levels - broad lines end in "0" (3,534 of them, published across
+# sectors) and detail lines end in "1"-"9" (4,703, industry-specific). The
+# EC1700NAPCSPRDIND group is **entirely broad lines**: all 29,118 rows end in
+# "0", and no industry carries both a broad line and its own detail children. So
+# the parent/child double count that U50705BU1 has is absent. Re-run that check
+# if another group is ever added to this method.
 api_name: Census
 api_key_required: true
 format: json
@@ -43,10 +91,27 @@ datasets:
       # All Sectors: Products by Industry for the U.S. and States: 2017
       - EC1700NAPCSPRDIND
       # https://api.census.gov/data/2017/ecnnapcsprd.html
+    # 2022 is published and live as EC2200NAPCSPRDIND on the same endpoint.
+    # Deliberately not pulled yet - see the note below and issue #650.
 
-# The Economic Census is quinquennial. 2022 is published and live on the same
-# endpoint as EC2200NAPCSPRDIND, so extending is a years: entry plus the group
-# name rather than new work - but note that any weights built from this are
-# therefore fixed between census years.
+# The Economic Census is quinquennial, so any weights built from this are fixed
+# between census years. Only 2017 is pulled: it is the benchmark I-O year the
+# concordance is anchored against, and adding a second vintage is a separate
+# piece of work rather than a years: entry (#650).
+#
+# What a trial pull of 2022 showed, since it shaped the concordance design:
+#
+#   - 902 industries against 2017's 946, and the group is titled "Selected
+#     Sectors" where 2017 is "All Sectors" - so the vintages do not obviously
+#     cover the same ground
+#   - 525 product codes are new and 548 are gone, but the large "new" ones are
+#     **recodings of products already present in 2017** ("Wholesale sales of
+#     cosmetics, beauty supplies, perfumes and colognes" is a new code for an
+#     existing product)
+#   - the 2017-built concordance covers 94.4% of 2017 trade goods value but only
+#     70.5% of 2022, the gap being description drift rather than new goods
+#
+# The middle point is why anything built on this source keys on the product
+# **description** rather than the code. The third is the work #650 has to do.
 years:
 - 2017

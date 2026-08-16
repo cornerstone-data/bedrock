@@ -173,6 +173,20 @@ def census_EC_PxI_parse(*, df_list, year, **_):
     private inventories merchandise-trade rule asks - see
     ``analysis/nowcasting/inventories_estimation_plan.md`` and #529/#615.
 
+    ⚠️ **The product identifier is not NAPCS**, despite the API field being
+    called ``NAPCS2017``. Census labels it *"2017 NAPCS collection code"*, and
+    it is a separate code set - called the **Census_2017_PxI_product_code**
+    throughout bedrock so the two are not confused. Official NAPCS codes are
+    hierarchical at lengths 2/3/5/7/9/11; these are uniformly 10 digits, and
+    **none of the 620 trade product codes appear in the published NAPCS 2017
+    structure or definitions**. Joining on title instead recovers 144 of 620
+    lines (12% of value; for goods lines alone, 14 of 341 and 11%). The official
+    NAPCS files are therefore reference material, not a source of coverage.
+
+    The codes are also unstable across vintages - 525 are new in 2022, 548 gone,
+    and the large "new" ones are recodings of products already in 2017 - so
+    anything built on this source keys on the **description**, not the code.
+
     ``ActivityProducedBy`` is the industry and ``FlowName`` the product line.
     ⚠️ The orientation is worth checking before this is used for attribution:
     ``ecnnapcsprd`` is products *by* industry, while its sibling ``ecnnapcsind``
