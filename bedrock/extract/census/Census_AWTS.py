@@ -80,8 +80,7 @@ def census_awts_call(*, resp: Any, **_: Any) -> list[pd.DataFrame]:
     df = (
         pd.read_excel(io.BytesIO(resp.content), header=3)
         # row 0 of the sheet body is a spacer under the header
-        .drop(index=0)
-        .reset_index(drop=True)
+        .drop(index=0).reset_index(drop=True)
     )
     df.columns = df.columns.astype(str).str.strip()
 
