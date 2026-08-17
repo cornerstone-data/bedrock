@@ -108,7 +108,7 @@ def mdty_detail_usd(year: int, download_sources_ok: bool = True) -> pd.Series:
     """Detail ``MDTY``: Census duty rate × goods MCIF, leveled to NIPA ``B235RC``.
 
     Rate is mapped ``CAL_DUT_YR`` / mapped ``GEN_VAL_YR``. Services stay at
-    zero. Uniform ITA scale on full MCIF cancels after the national rescale.
+    zero.
     """
     if int(year) != 2017:
         raise NotImplementedError(
