@@ -208,6 +208,26 @@ CalRecycle_WasteCharacterization:
   - Other
   activity_schema: null
   sector_hierarchy: flat
+Census_AIES:
+  data_format: FBA
+  class:
+  - Money
+  # AIES 2023 publishes the pre-2022 retail structure (452, 454), so it joins
+  # the 2017-anchored margin rates without recoding
+  activity_schema:
+    naics:
+      year: 2017
+      hierarchy: parent-completeChild
+Census_ARTS:
+  data_format: FBA
+  class:
+  - Money
+  activity_schema:
+    naics:
+      year: 2017
+      # the gross margin tables publish 4411 and 4413 but not 4412, so a
+      # published parent does not always have its full set of children beneath it
+      hierarchy: parent-incompleteChild
 Census_ASM:
   data_format: FBA
   class:
@@ -217,6 +237,16 @@ Census_ASM:
       hierarchy: parent-completeChild
       by_year:
         2018: 2017
+Census_AWTS:
+  data_format: FBA
+  class:
+  - Money
+  # the table's first column is labelled "2012 NAICS Code"; at the 3- and
+  # 4-digit wholesale codes this method uses, 2012 and 2017 NAICS agree
+  activity_schema:
+    naics:
+      year: 2012
+      hierarchy: parent-completeChild
 Census_CBP:
   data_format: FBA
   class:

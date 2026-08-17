@@ -753,6 +753,38 @@ attribution one.
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
+
+  ⏳ **Test `Census_EC_PxI` as the commodity-mix source before settling on a ported 2017 mix.**
+  Economic Census *Products by Industry* is an **observed** industry × product matrix — which is what
+  this block is — where a ported mix holds the benchmark year's proportions fixed. It is extracted as
+  of #529 (`census_ec_pxi_port`), 2017 today and 2022 live on the API as `ecnnapcsprd`, so a mix that
+  actually moves between benchmarks is in reach rather than hypothetical.
+
+  ⚠️ **Expect it to behave here even though it failed for the inventories trade weights**, and the
+  reason is the point of the test. That failure was specific: NAPCS *trade* lines describe resale, so
+  composing NAPCS → NAICS → BEA returns the industries that **sell** a good rather than the good
+  itself — "Wholesale sales of refined petroleum products" resolves to construction commodities. For
+  4a we want what industries **produce**, which is the manufacturing case, where the same composition
+  was 35% one-to-one. The asymmetry that disqualifies it for trade is what recommends it here.
+
+  **The test is decisive and cheap**, because the answer is published: reproduce the 2017 detail
+  Make/Supply commodity mix per industry from `Census_EC_PxI` and score it per cell, the same way
+  Step 1's columns were scored. Do this *before* porting the #497 mix, not after.
+
+  Three known limits to measure rather than assume:
+  - **Economic Census coverage.** No agriculture, no government, and parts of services are out of
+    scope, so this can at best supply the mix for the sectors it covers and the ported mix has to
+    carry the rest. Quantify the covered share of `T007` first.
+  - **Suppression.** Recoverable — `estimate_suppressed_ec_pxi` takes the published detail from 90.5%
+    to 100.0% of control on 2017 — but 12,929 cells are equal-split placeholders, and a commodity mix
+    is exactly the sort of per-cell use where that matters. Read `SuppressionRecovery` and check
+    whether the mix is stable when split cells are excluded.
+  - **NAPCS → I-O commodity.** Still the missing link (#615). The concordance being built for
+    inventories serves this too, which is an argument for building it once, properly, rather than per
+    use.
+
+  The same source and the same concordance feed **Step 3**'s intermediate input mix and two of BEA's
+  four inventories rules, so the porting cost is shared three ways.
 - 4b. **Import columns** — 2017 `MCIF` is the Trade Imports FBS (Census **CIF** goods + IEA services,
   Detail Crosswalk). Keep CIF because `MCIF` is the CIF target (2017: Use `|F05000|` / `MCIF` = 0.991).
   ITA scale, `S00300` residual, and later years stay on #528. Shares the extract with Step 1d.
@@ -775,12 +807,21 @@ attribution one.
   **Five method points, all from BEA correspondence (B. Jolliff, 2025-05/06) and verified against 2017
   detail in [#571](https://github.com/cornerstone-data/bedrock/issues/571):**
 
-  1. **Apply rates to `T013`, not domestic output.** *"Total product supply (column OR) includes total
-     commodity output plus imports; margins are distributed based on the value in column OR."* Imported
-     goods carry domestic margin, so a rate carried on `T007` alone is biased — and the 2009 manual
-     says the same twice independently, using "interim supply (output + imports)" as the weight in both
-     the wholesale step (4) and the transport step (2). **This is a real sequencing constraint — see
-     below.**
+  1. **Apply rates to supply including imports, not to domestic output.** *"Total product supply
+     (column OR) includes total commodity output plus imports; margins are distributed based on the
+     value in column OR."* Imported goods carry domestic margin, so a rate carried on `T007` alone is
+     biased — and the 2009 manual says the same twice independently, using "interim supply (output +
+     imports)" as the weight in both the wholesale step (4) and the transport step (2). **This is a
+     real sequencing constraint — see below.**
+     ⚠️ **`T013` is the wrong base by a hair, and 4d is a prerequisite.** Measured in
+     [`margins_estimation_plan.md`](margins_estimation_plan.md) §Phase 1: the Margins table's
+     `Producers' Value` is a **producer**-value object (`Σ_buyers` = `T013` + `T015` to −0.0013%,
+     against `T013` alone at +1.9%), and per commodity it is producer value *less* the trade-level tax
+     that rides inside the margin columns. The base to rebuild is
+     `T013 + MDTY + SUB + producer-level TOP` — 377 of 378 receiving commodities within 1% against
+     293 for `T013` and 201 for full producer value. So **4c's application phase needs `TOP`/`SUB`
+     from 4d**, and only the producer-level slice of `TOP`: adding all of it double-counts the
+     trade-level share already inside the rates, by 19% on petroleum refineries and 36% on tobacco.
      ⚠️ Note `TRADE`/`T013` is **not** bounded by 1 and a ratio above 1 is not evidence of an error:
      margin is *added to* basic value (`T016 = T013 + T014 + T015`), not carved out of it. 21
      commodities exceed 1 legitimately — apparel is 1.84 — while `TRADE`/`T016` exceeds 1 for none.
@@ -813,6 +854,11 @@ attribution one.
   which is what the transaction-level rates are for.
 - 4d. **Tax/subsidy columns** (`TOP`, `SUB`) — NIPA T30500/T31300 totals split by 2017 commodity
   shares. Remember `SUB` is negative here and positive in the Use table.
+  ⚠️ **Not last, and not optional to 4c**: 4c's application phase needs `TOP` and `SUB` for its base
+  (point 1 above), so 4d runs before 4c's second half rather than after the margin columns. It also
+  needs to carry `TOP`'s **producer-level vs trade-level split**, not just the total — #610 measured
+  the 2017 split per commodity (9.6% producer-level over the 203 margin-bearing commodities with
+  `TOP` > 100 million), and only the producer-level part belongs in the margin base.
 - 4e. **Verify the four Supply identities per commodity** (`T013`/`T014`/`T015`/`T016` above), 402/402,
   before declaring the Supply table done.
 
@@ -1199,16 +1245,17 @@ replaced by #572. **Every item on the board is now a trackable issue.**
   the Supply margin columns, Step 6b's PUR→PRO conversion, and the Step 6d Margins deliverable.
 
   **4c splits into two halves with different dependencies, and only the first is truly parallel.**
-  BEA distributes margins on `T013` = `T007` + `MCIF` + `MADJ` (§Step 4c point 1), so:
+  BEA distributes margins on supply including imports (§Step 4c point 1), so:
 
   | half | needs | when |
   |---|---|---|
-  | **Derive 2017 rates** per (buyer, commodity, margin type) from the published Margins table, and prove the two identities reproduce the 2017 Supply columns | nothing — the 2017 tables are already loaded | **start now, genuinely parallel** |
-  | **Apply those rates** to a nowcast year | `T007` from **4a** (#570) *and* `MCIF`/`MADJ` from **4b** (#579) | after both |
+  | ✅ **Derive 2017 rates** per (buyer, commodity, margin type) from the published Margins table, and prove the two identities reproduce the 2017 Supply columns | nothing — the 2017 tables are already loaded | **done, #610** |
+  | **Apply those rates** to a nowcast year | `T007` from **4a** (#570), `MCIF`/`MADJ`/`MDTY` from **4b** (#579) *and* `TOP`/`SUB` from **4d** (#580) | after all three |
 
-  Doing the first half now is what de-risks the other three consumers, because it settles the rate
-  structure and the identities without waiting on any other step. Applying rates to `T007` alone to
-  avoid the 4b dependency is the tempting shortcut and is **wrong** — it drops the margin on imports.
+  Doing the first half first is what de-risked the other three consumers, and it also **settled what
+  the second half depends on**: the rate base is producer value less trade-level tax, not `T013`, so
+  4d joins 4a and 4b as a prerequisite (§Step 4c point 1). Applying rates to `T007` alone to avoid the
+  4b dependency is the tempting shortcut and is **wrong** — it drops the margin on imports.
 - **P1** — code-space Phase 2 (retarget `FD_Gov`/`FD_Structures`/`FD_IP`, drop
   `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks #576, Step 2 and Step 3.
   #574 may fall out of this rather than needing its own attribution work — diagnose first. Then #579,

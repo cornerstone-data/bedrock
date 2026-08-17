@@ -1,0 +1,41 @@
+author: US Census Bureau
+source_name: Annual Retail Trade Survey (ARTS)
+source_url: https://www.census.gov/programs-surveys/arts.html
+source_publication_date: "September 25, 2024"
+bib_id: Census_ARTS
+api_name: None
+api_key_required: false
+format: xlsx
+url:
+  # The 2022 restated vintage, which is the last standalone ARTS release. Other
+  # tables: https://www.census.gov/programs-surveys/arts/data/tables.html
+  base_url: https://www2.census.gov/programs-surveys/arts/tables/2022restated/__file__
+
+# One workbook per measure; the URL helper expands __file__ into three calls.
+files:
+  Gross margins: gm.xlsx
+  Gross margins as a percent of sales: gmper.xlsx
+  Sales: sales.xlsx
+
+url_replace_fxn: !script_function:Census_ARTS census_arts_url_helper
+call_response_fxn: !script_function:Census_ARTS census_arts_call
+parse_response_fxn: !script_function:Census_ARTS census_arts_parse
+
+# Each workbook publishes every year back to 1993 as columns, so they are read
+# once and each year selected out of the result.
+call_all_years: True
+
+# 2012 is where the nowcast's interest starts; 2022 is where ARTS itself stops.
+# Census_AIES carries 2023 onward - see Census_ARTS.py.
+years:
+- 2012
+- 2013
+- 2014
+- 2015
+- 2016
+- 2017
+- 2018
+- 2019
+- 2020
+- 2021
+- 2022
