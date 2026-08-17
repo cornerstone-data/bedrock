@@ -200,7 +200,9 @@ def joint_freedom(panel: pd.DataFrame) -> pd.DataFrame:
         supply.loc[COMMODITIES, INDUSTRIES].astype(float).to_numpy()
     ).sum(axis=1) + np.abs(
         supply.loc[COMMODITIES, SUPPLY_TRAILING].astype(float).to_numpy()
-    ).sum(axis=1)
+    ).sum(
+        axis=1
+    )
     out = pd.DataFrame(
         {
             'use_total': use_total,
@@ -266,8 +268,8 @@ def gross_output_valuation() -> pd.DataFrame:
         .reindex(INDUSTRIES)
     )
     basic = supply.loc[COMMODITIES, INDUSTRIES].astype(float).sum(axis=0)
-    top = use.loc['T00TOP', INDUSTRIES].astype(float)
-    sub = use.loc['T00SUB', INDUSTRIES].astype(float)
+    top = use.loc['T00TOP'].reindex(INDUSTRIES).astype(float)
+    sub = use.loc['T00SUB'].reindex(INDUSTRIES).astype(float)
     return pd.DataFrame(
         {
             'published_producer': published,
@@ -318,7 +320,9 @@ def report() -> str:
 
     totals = fd_column_totals()
     negative = totals[(totals < 0).any(axis=1)]
-    moves = (totals.pct_change(axis=1).abs().max(axis=1) * 100).sort_values(
+    # Transposed rather than ``pct_change(axis=1)``: same year-over-year
+    # change per FD code, but pandas-stubs does not carry the ``axis`` kwarg.
+    moves = (totals.T.pct_change().T.abs().max(axis=1) * 100).sort_values(
         ascending=False
     )
     lines += [
@@ -365,12 +369,14 @@ def _checks() -> list[tuple[str, bool, str]]:
     valuation = gross_output_valuation()
     totals = fd_column_totals()
 
-    fd_mass = table.loc['S2 + whole FD block', 'frozen_%_mass']
+    fd_mass = float(
+        pd.to_numeric(table.loc['S2 + whole FD block', 'frozen_%_mass'], errors='raise')
+    )
     hard = joint[joint.joint_free_share < 0.10].index.tolist()
     return [
         (
             'freezing the FD block freezes ~40% of the Use panel',
-            39.0 < fd_mass < 41.0,
+            bool(39.0 < fd_mass < 41.0),
             f'{fd_mass:.1f}%',
         ),
         (
