@@ -3,11 +3,11 @@
 Tasks (mixed-units model only):
 1. Compare national and electricity-block BLy vs E with a fully single-year 2017
    attempt (no A/q scale/inflate; 2017 GHG FBS). Document blockers (no 2017 eGRID
-   inventory / hardcoded 2023 eGRID FBS path) and the proxies used.
+   inventory / eGRID FBS years only 2023–2024) and the proxies used.
 2. Summarize how year changes are handled for E, B, A, q, L, D, N (+ x, y_nab, Vnorm).
 3. Outline what a 2017–2023 D/N time series would require (no implementation).
 
-Run:
+    Run:
     python -m bedrock.analysis.electricity_disagg_diagnostics.year_alignment.year_alignment_bly_e
 """
 
@@ -60,7 +60,7 @@ from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics 
 
 logger = logging.getLogger(__name__)
 
-MIXED_CONFIG = "2025_usa_cornerstone_v0_2_electricity_mixed_units"
+MIXED_CONFIG = "2025_usa_cornerstone_v0_3_electricity_mixed_units"
 # stewi eGRID inventories: 2016, 2018–2023 (no 2017). Proxy MWh for mixed units.
 EGRID_MWH_PROXY_YEAR = 2018
 
@@ -120,7 +120,7 @@ def _patch_egrid_mwh_for_missing_2017() -> Any:
 
 
 def _patch_load_e_use_year_fbs_not_egrid() -> Any:
-    """Load GHG_national_Cornerstone_2017 (not 2023 eGRID) and split 221100→children."""
+    """Load GHG_national_Cornerstone_2017 (2017 is not an eGRID FBS year) and split."""
 
     def _patched_load_E_from_flowsa() -> pd.DataFrame:
         usa = get_usa_config()
@@ -132,8 +132,8 @@ def _patch_load_e_use_year_fbs_not_egrid() -> Any:
             return load_E_from_flowsa()
 
         logger.warning(
-            "Bypassing hardcoded 2023 eGRID FBS; loading GHG_national_Cornerstone_2017 "
-            "then splitting 221100→G/T/D"
+            "Bypassing eGRID FBS branch (2017 unsupported); loading "
+            "GHG_national_Cornerstone_2017 then splitting 221100→G/T/D"
         )
         import bedrock.utils.config.usa_config as uc  # noqa: PLC0415
 
@@ -285,7 +285,9 @@ def run_scenario(
             "scale_a_matrix_with_useeio_method": bool(
                 cfg.scale_a_matrix_with_useeio_method
             ),
+            "apply_io_year_adjustments": bool(cfg.apply_io_year_adjustments),
             "use_E_data_year_for_x_in_B": bool(cfg.use_E_data_year_for_x_in_B),
+            "use_ghg_year_x_in_B": bool(cfg.use_ghg_year_x_in_B),
             "c_col": float(c_col),
             "q_sum": float(q.sum()),
             "q_gen": float(q.get(GENERATION_SECTOR, np.nan)),
@@ -363,6 +365,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
     io_year = baseline["usa_io_data_year"]
     ghg_year = baseline["usa_ghg_data_year"]
     detail_year = baseline["usa_detail_original_year"]
+    apply_io = bool(baseline.get("apply_io_year_adjustments", False))
     years_match_aq = model_year == ghg_year
     egrid_eia_lead = (
         f"Numerically yes for the current config — both are {model_year} — but "
@@ -385,6 +388,51 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
             "from `model_base_year` on this baseline."
         )
     )
+    if apply_io:
+        aq_baseline_bullets = (
+            "- A/q: `apply_io_year_adjustments` — scale detail→IO year with "
+            "dollar-year-rebased summary ratios, then inflate→model year with "
+            "**commodity** PI"
+        )
+        aq_table_cell = (
+            f"Scale detail→`usa_io_data_year` ({io_year}) with dollar-year-rebased "
+            f"summary ratios; inflate→`model_base_year` ({model_year}) via "
+            "commodity PI (`apply_io_year_adjustments`); then mixed-units rewrite "
+            "of gen row/column and `q_110`"
+        )
+        x_table_cell = (
+            "BEA GO at `usa_ghg_data_year` via `use_ghg_year_x_in_B` "
+            "(`apply_io_year_adjustments`)"
+        )
+        b_flags = (
+            "`apply_io_year_adjustments=True` → `use_ghg_year_x_in_B`, "
+            "`deflate_x_to_detail_io_year_for_B=False`, "
+            "`use_scaled_x_and_scaled_Vnorm_for_B=False` (no post-hoc B "
+            "scale/inflate)"
+        )
+        d7_inflate = (
+            f"which is not the same as pinning levels to {model_year} GO. Under "
+            "`apply_io_year_adjustments`, the inflate hop uses **commodity** PI."
+        )
+    else:
+        aq_baseline_bullets = (
+            "- A/q: default scale 2017→IO year then inflate→model year "
+            "(legacy industry-PI branch; no `apply_io_year_adjustments`)"
+        )
+        aq_table_cell = (
+            f"Scale detail→`usa_io_data_year` ({io_year}) with summary "
+            f"ratios; inflate→`model_base_year` ({model_year}) via industry PI "
+            "(default branch); then mixed-units rewrite of gen row/column and "
+            "`q_110`"
+        )
+        x_table_cell = "BEA GO at `usa_ghg_data_year` when `use_E_data_year_for_x_in_B`"
+        b_flags = (
+            "`use_E_data_year_for_x_in_B=True`, "
+            "`deflate_x_to_detail_io_year_for_B=False`, "
+            "`use_scaled_x_and_scaled_Vnorm_for_B=False` (no post-hoc B "
+            "scale/inflate)"
+        )
+        d7_inflate = f"which is not the same as pinning levels to {model_year} GO."
     lines = [
         "# BLy vs E under mixed units — year alignment probe",
         "",
@@ -394,22 +442,23 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "",
         "## Setup",
         "",
-        "### Baseline (production v0.2 mixed)",
+        "### Baseline (v0.3.1 electricity mixed units)",
         "",
         f"- Config: `{MIXED_CONFIG}`",
         f"- `model_base_year={model_year}`, "
         f"`usa_io_data_year={io_year}`, "
         f"`usa_ghg_data_year={ghg_year}`",
-        "- A/q: default scale 2017→IO year then inflate→model year "
-        "(no dedicated `scale_a_matrix_*` flag set on v0.2)",
-        f"- E: hardcoded **{model_year} eGRID FBS** whenever electricity "
-        "disaggregation is on",
-        "- `x` in B: GHG-year industry GO (`use_E_data_year_for_x_in_B=True`)",
+        aq_baseline_bullets,
+        f"- E: year-keyed **eGRID FBS** at `usa_ghg_data_year={ghg_year}` when "
+        "electricity disaggregation is on (supported: 2023, 2024)",
+        f"- `x` in B: GHG-year industry GO (`use_ghg_year_x_in_B="
+        f"{baseline.get('use_ghg_year_x_in_B', False)}`)",
         "",
         "### Single-year 2017 attempt",
         "",
         "- `model_base_year=2017`, `usa_io_data_year=2017`, `usa_ghg_data_year=2017`",
-        "- `scale_a_matrix_with_useeio_method=True` → A/q stay on 2017 detail base "
+        "- `scale_a_matrix_with_useeio_method=True` (and "
+        "`apply_io_year_adjustments=False`) → A/q stay on 2017 detail base "
         "(no summary-ratio scale / no price inflation)",
         "- E: **`GHG_national_Cornerstone_2017`** on GCS; this probe bypasses the "
         "production eGRID branch and splits aggregate `221100` → G/T/D via "
@@ -423,8 +472,8 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "",
         "1. `usa_ghg_data_year` Literal excludes 2017 (breaks "
         "`reconciling_data_years/model1.yaml`)",
-        "2. `load_E_from_flowsa` always loads `GHG_national_Cornerstone_2023_egrid` "
-        "when electricity disaggregation is on (ignores GHG year)",
+        "2. Electricity-disagg eGRID FBS is only defined for 2023/2024 "
+        "(`egrid_fbs_method_for_year`); 2017 has no eGRID-backed FBS",
         "3. No stewi eGRID 2017 inventory for physical MWh",
         "",
         "## Results",
@@ -474,9 +523,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         f"| **Detail IO (V, U, A base, q base)** | BEA {detail_year} detail "
         f"(`usa_detail_original_year={detail_year}`) | Reallocation, 3-way split | "
         "Disagg Make/Use in Cornerstone space when waste/elec disagg on |",
-        f"| **A, q (scaled)** | Scale detail→`usa_io_data_year` ({io_year}) with summary "
-        f"ratios; inflate→`model_base_year` ({model_year}) via industry PI (default branch); "
-        "then mixed-units rewrite of gen row/column and `q_110` | "
+        f"| **A, q (scaled)** | {aq_table_cell} | "
         "Reallocation, 3-way split, mixed units | "
         "`scale_a_matrix_with_useeio_method` skips scale/inflate (2017 probe) |",
         "| **y_nab** | Backcomputed from scaled/mixed `Adom` and `q` → same "
@@ -485,21 +532,17 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "| **L / L_dom** | `(I−A)^−1` from scaled/mixed A | "
         "Reallocation, 3-way split, mixed units | Year enters only through A |",
         "| **E** | `usa_ghg_data_year` FBS **unless** electricity disaggregation → "
-        f"**forced {model_year} eGRID FBS** | 3-way split | 2017 FBS exists but is unused "
-        "in production disagg path |",
-        "| **x (B denominator)** | BEA GO at `usa_ghg_data_year` when "
-        "`use_E_data_year_for_x_in_B` | 3-way split | Not the same series as scaled "
-        "commodity `q` |",
+        f"**year-keyed eGRID FBS** at `{ghg_year}` | 3-way split | 2017 FBS exists "
+        "but is unused in production disagg path |",
+        f"| **x (B denominator)** | {x_table_cell} | 3-way split | Not the same "
+        "series as scaled commodity `q` |",
         "| **Vnorm** | From uninflated V and `q =` column sums of that V | "
         "3-way split | Maps industry E/x → commodity B. Current elec-disagg "
         "flags: `apply_inflation_to_V=False`, "
         "`use_scaled_x_and_scaled_Vnorm_for_B=False` |",
         "| **B** | `(E/x) @ Vnorm`, then mixed-units `/ c_col` on gen column | "
         "3-way split, mixed units | Intensity year = E and x year. Current "
-        "elec-disagg flags: `use_E_data_year_for_x_in_B=True`, "
-        "`deflate_x_to_detail_io_year_for_B=False`, "
-        "`use_scaled_x_and_scaled_Vnorm_for_B=False` (no post-hoc B "
-        "scale/inflate) |",
+        f"elec-disagg flags: {b_flags} |",
         "| **D** | Column sums of B (gen: kg/MWh after mixed) | "
         "3-way split, mixed units | Follows B |",
         "| **N** | `D`-weighted Leontief (`B @ L` characterized) | "
@@ -519,8 +562,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         f"adjusts the {detail_year}→{io_year} **scale** step so each child's "
         "*growth ratio* matches UGO305 GO growth instead of the flat Utilities "
         '`"22"` summary ratio. After that, `q` is still **inflated '
-        f"{io_year}→{model_year} with industry PI** (shared `221100` factor), "
-        f"which is not the same as pinning levels to {model_year} GO.",
+        f"{io_year}→{model_year}**, {d7_inflate}",
         "",
         "Three mismatches remain:",
         "",
@@ -556,7 +598,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "",
         egrid_eia_trail,
         "",
-        "## What it would take to build D & N for 2017–2023 (outline only)",
+        "## What it would take to build D & N for 2017–2024 (outline only)",
         "",
         "Do **not** implement here; requirements:",
         "",
@@ -589,7 +631,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "",
         "5. **Validation**",
         "   - Track `BLy` vs `E` and `Σ D·q` each year (expect persistent gap).",
-        "   - Smoke-test 2017/2018/2022/2023 against known v0.2 mixed anchors.",
+        "   - Smoke-test 2017/2018/2022/2023/2024 against known mixed-units anchors.",
         "",
         "## Reproduce",
         "",
@@ -634,9 +676,9 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Wrote {REPORT_MD} from {REPORT_JSON}")
         return
 
-    print("=== Baseline mixed (v0.2 production years) ===")
+    print("=== Baseline mixed (v0.3.1 electricity) ===")
     baseline = run_scenario(
-        "baseline_mixed_v0_2",
+        "baseline_mixed_v0_3",
         overrides={},
         use_2017_e_patch=False,
         use_egrid_mwh_proxy=False,
@@ -655,6 +697,7 @@ def main(argv: list[str] | None = None) -> None:
             "model_base_year": 2017,
             "usa_io_data_year": 2017,
             "usa_ghg_data_year": 2017,
+            "apply_io_year_adjustments": False,
             "scale_a_matrix_with_useeio_method": True,
             "scale_a_matrix_with_ceda_method_as_fallback": False,
             "adjust_summary_A_and_q_dollar_year": False,

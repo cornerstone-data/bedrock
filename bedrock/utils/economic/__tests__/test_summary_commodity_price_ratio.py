@@ -10,12 +10,26 @@ Validates:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import numpy as np
 import pandas as pd
+import pytest
 
-from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_q
+from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    cornerstone_sector_disagg_active,
+    derive_disagg_io_bundle,
+    electricity_disaggregation_enabled,
+)
+from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_q,
+    derive_cornerstone_V,
+    derive_cornerstone_x,
+)
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     adjust_summary_A_dollar_year,
+    clear_cornerstone_inflation_caches,
     derive_cornerstone_q_and_vnorm_for_year,
     get_summary_commodity_price_index,
     get_summary_commodity_price_ratio,
@@ -23,6 +37,28 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_config_and_caches() -> Iterator[None]:
+    """Isolate from sibling tests that flip electricity / apply_io flags."""
+    for fn in (
+        electricity_disaggregation_enabled,
+        derive_disagg_io_bundle,
+        cornerstone_sector_disagg_active,
+        derive_cornerstone_V,
+        derive_cornerstone_x,
+        derive_cornerstone_q_and_vnorm_for_year,
+    ):
+        if hasattr(fn, 'cache_clear'):
+            fn.cache_clear()
+    clear_cornerstone_inflation_caches()
+    reset_usa_config(should_reset_env_var=True)
+    set_global_usa_config('2025_usa_cornerstone_v0_3.yaml')
+    clear_cornerstone_inflation_caches()
+    yield
+    clear_cornerstone_inflation_caches()
+    reset_usa_config(should_reset_env_var=True)
 
 
 def test_ita_q_at_2017_matches_derive_cornerstone_q() -> None:
@@ -109,6 +145,13 @@ def test_adjust_summary_A_dollar_year_roundtrip() -> None:
     assert (
         max_dev < 1e-9
     ), f"adjust ∘ inverse round-trip failed (max |Δ| = {max_dev:.2e})"
+
+
+def test_summary_commodity_price_ratio_cache_ignores_call_style() -> None:
+    """Positional and keyword calls must share one cached result."""
+    positional = get_summary_commodity_price_ratio(2017, 2022)
+    keyword = get_summary_commodity_price_ratio(original_year=2017, target_year=2022)
+    pd.testing.assert_series_equal(positional, keyword)
 
 
 def test_adjust_summary_A_dollar_year_is_noop_when_years_match() -> None:

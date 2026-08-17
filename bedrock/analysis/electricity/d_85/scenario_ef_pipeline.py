@@ -205,13 +205,17 @@ def probe_e_source() -> dict[str, str]:
     if not (cfg.use_cornerstone_ghg_model and cfg.implement_electricity_disaggregation):
         return {'source': 'standard', 'note': 'electricity disagg flag off'}
     try:
+        from bedrock.transform.allocation.derived import (  # noqa: PLC0415
+            egrid_fbs_method_for_year,
+        )
         from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415
 
+        method = egrid_fbs_method_for_year(cfg.usa_ghg_data_year)
         getFlowBySector(
-            methodname='GHG_national_Cornerstone_2023_egrid',
+            methodname=method,
             download_FBS_if_missing=False,
         )
-        return {'source': 'egrid_fbs', 'note': 'eGRID FBS load succeeded'}
+        return {'source': 'egrid_fbs', 'note': f'{method} load succeeded'}
     except Exception as exc:
         return {'source': 'national_gcs', 'note': str(exc)}
 

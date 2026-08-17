@@ -30,7 +30,8 @@ v0_3_0_alpha = (
 v0_3_beta = (
     "5a90baf0272fe8841e40db8cd513885b34051e86"  # config: 2025_usa_cornerstone_v0_3
 )
-v0_3_0 = "c60bdf4308cb660eee80a246214901cff9122820"  # config: 2025_usa_cornerstone_v0_3; matches .SNAPSHOT_KEY
+v0_3_0 = "c60bdf4308cb660eee80a246214901cff9122820"  # config: 2025_usa_cornerstone_v0_3
+v0_3_1 = "00524c3c8ba122a7a5b7f2139ff7ea6de08947bb"  # config: 2025_usa_cornerstone_v0_3; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -46,6 +47,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_3_0_alpha: 2023,
     v0_3_beta: 2024,
     v0_3_0: 2024,
+    v0_3_1: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
 }

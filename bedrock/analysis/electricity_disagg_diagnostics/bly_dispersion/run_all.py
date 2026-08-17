@@ -21,7 +21,7 @@ from bedrock.analysis.electricity_disagg_diagnostics.bly_dispersion.waterfall im
     write_net_change_waterfall_pngs,
     write_waterfall_pngs,
 )
-from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
+from bedrock.analysis.electricity_disagg_diagnostics.local_workbooks import (
     seed_cache_from_local_dir,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.manifest import (

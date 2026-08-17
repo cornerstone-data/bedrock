@@ -28,7 +28,7 @@ def sector_bly_new(sheet_id: str, *, refresh: bool = False) -> pd.Series[float]:
 
 
 def footing_total_bly_mmt(footing_sheet_id: str, *, refresh: bool = False) -> float:
-    """Cornerstone v0.2 total attributed BLy (MtCO2e) — % denominator."""
+    """Cornerstone v0.3.1 electricity footing total attributed BLy (MtCO2e) — % denominator."""
     return float(sector_bly_new(footing_sheet_id, refresh=refresh).sum())
 
 

@@ -110,7 +110,7 @@ def assemble_urls_for_query(
     # substitute year from arguments and users api key into the url
     build_url = build_url.replace('__year__', str(year))
     if '__apiKey__' in build_url and config.get('extract_data_from_raw_sources', True):
-        userAPIKey = load_env_file_key('API_Key', config['api_name'])
+        userAPIKey = load_env_file_key('api_key', config['api_name'])
         build_url = build_url.replace('__apiKey__', userAPIKey)
 
     fxn = config.get('url_replace_fxn')

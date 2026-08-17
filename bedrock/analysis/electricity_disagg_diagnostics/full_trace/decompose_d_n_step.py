@@ -407,19 +407,19 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
         "These tables report two different output concepts. They are not required to match.",
         "",
         "- **`q (scaled USD)`** is **commodity** output from "
-        "`derive_cornerstone_Aq_scaled()` (`scaled_q`). On the v0.2 footing used here "
-        "(`model_base_year=2023`, `usa_io_data_year=2022`, detail IO year **2017**), "
-        "detail Make-based `q` is year-scaled **2017 → 2022** with summary IO ratios, "
-        "then inflated **2022 → 2023** with industry price indexes. "
+        "`derive_cornerstone_Aq_scaled()` (`scaled_q`). On the v0.3.1 electricity footing "
+        "(`model_base_year=2024`, `usa_ghg_data_year=2024`, "
+        "`apply_io_year_adjustments=True`, detail IO year **2017**), detail Make-based "
+        "`q` is year-scaled and inflated onto the 2024 model year. "
         '"Scaled" means that A/q year-scaling/inflation pipeline — **not** the later '
-        "PR4 mixed-units (MWh) conversion.",
-        "- **`x (B denominator)`** is **industry** gross output used in `E / x` for B. "
-        "With `use_E_data_year_for_x_in_B`, it comes from "
-        "`derive_cornerstone_x_after_redefinition()` at **`usa_ghg_data_year` = 2023** "
-        "(BEA gross-output time series expanded into Cornerstone). It is **year-selected "
-        "industry GO**, not the same summary-ratio `scale_cornerstone_q` path as `q`.",
+        "mixed-units (MWh) conversion.",
+        "- **`x (B denominator)`** is **industry** gross output used in `E / x` for B, "
+        "from `derive_cornerstone_x_after_redefinition()` at **`usa_ghg_data_year` = 2024** "
+        "(BEA gross-output time series expanded into Cornerstone under "
+        "`apply_io_year_adjustments`). It is **year-selected industry GO**, not the same "
+        "summary-ratio `scale_cornerstone_q` path as `q`.",
         "",
-        "Both values are therefore on a **2023** footing, but from different sources: "
+        "Both values are therefore on a **2024** footing, but from different sources: "
         "commodity Make → scale/inflate vs industry BEA GO@GHG year. A small gap "
         "(here `q` slightly below `x`) is expected. The walkthrough identity that is "
         "forced is `(L_dom @ y_nab) ≈ q`, not `x ≈ q`. Make-derived industry "
@@ -563,7 +563,8 @@ def _render_realloc_vs_split_table(
     out = [
         "### Side-by-side: reallocation vs 3-way split",
         "",
-        "PR3 reloads **E** from `GHG_national_Cornerstone_2023_egrid` and splits IO. "
+        "The 3-way split reloads **E** from `GHG_national_Cornerstone_2024_egrid` "
+        "(year-keyed via `usa_ghg_data_year=2024`) and splits IO. "
         "Almost all inventory lands on **221110** with a much smaller **x**.",
         "",
         "Column groups:",
@@ -1139,31 +1140,31 @@ def _strip_supplemental_sections(content: str) -> str:
 
 def append_walkthrough_to_report(out_path: str) -> None:
     realloc = _analyze(
-        "2025_usa_cornerstone_v0_2_electricity_reallocation",
+        "2025_usa_cornerstone_v0_3_electricity_reallocation",
         "reallocation",
         [ELECTRICITY_AGGREGATE_SECTOR],
     )
     split = _analyze(
-        "2025_usa_cornerstone_v0_2_electricity_disaggregation",
+        "2025_usa_cornerstone_v0_3_electricity_disaggregation",
         "3-way split",
         list(ELECTRICITY_DISAGG_SECTORS),
     )
     mixed = _analyze(
-        "2025_usa_cornerstone_v0_2_electricity_mixed_units",
+        "2025_usa_cornerstone_v0_3_electricity_mixed_units",
         "unit conversion",
         list(ELECTRICITY_DISAGG_SECTORS),
     )
     split_block = _analyze_y_nab_block(
-        "2025_usa_cornerstone_v0_2_electricity_disaggregation",
+        "2025_usa_cornerstone_v0_3_electricity_disaggregation",
         list(ELECTRICITY_DISAGG_SECTORS),
     )
     mixed_block = _analyze_y_nab_block(
-        "2025_usa_cornerstone_v0_2_electricity_mixed_units",
+        "2025_usa_cornerstone_v0_3_electricity_mixed_units",
         list(ELECTRICITY_DISAGG_SECTORS),
         mixed=True,
     )
     conversion_detail = _conversion_factor_detail(
-        "2025_usa_cornerstone_v0_2_electricity_mixed_units"
+        "2025_usa_cornerstone_v0_3_electricity_mixed_units"
     )
     with open(out_path, encoding="utf-8") as f:
         base = _strip_supplemental_sections(f.read())
@@ -1180,12 +1181,12 @@ def append_walkthrough_to_report(out_path: str) -> None:
 
 def main() -> None:
     realloc = _analyze(
-        "2025_usa_cornerstone_v0_2_electricity_reallocation",
+        "2025_usa_cornerstone_v0_3_electricity_reallocation",
         "reallocation",
         [ELECTRICITY_AGGREGATE_SECTOR],
     )
     split = _analyze(
-        "2025_usa_cornerstone_v0_2_electricity_disaggregation",
+        "2025_usa_cornerstone_v0_3_electricity_disaggregation",
         "3-way split",
         list(ELECTRICITY_DISAGG_SECTORS),
     )

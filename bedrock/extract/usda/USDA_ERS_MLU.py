@@ -27,11 +27,10 @@ from bedrock.transform.literature_values import (
     get_urban_land_use_for_airports,
     get_urban_land_use_for_railroads,
 )
-from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.logging.flowsa_log import log, vlog
 from bedrock.utils.mapping.location import US_FIPS, get_all_state_FIPS_2
-from bedrock.utils.mapping.naics import industry_spec_key
+from bedrock.utils.mapping.sector import industry_spec_key
 from bedrock.utils.validation.validation import compare_df_units
 
 
@@ -119,14 +118,14 @@ def attribute_transportation_sector_fees_to_target_sectors(
     df_fha = pd.DataFrame.from_dict(fha_dict, orient='index')
     # map to target sectors
     naics_key = industry_spec_key(
-        fba.config['industry_spec'], fba.config['target_naics_year']
+        fba.config['industry_spec'], fba.config['target_schema_year']
     )
     df_fha = (
         df_fha.merge(
-            naics_key, how='left', left_on='NAICS_2012_Code', right_on='source_naics'
+            naics_key, how='left', left_on='NAICS_2012_Code', right_on='source_sector'
         )
-        .drop(columns=['source_naics'])
-        .rename(columns={'target_naics': sector_col})
+        .drop(columns=['source_sector'])
+        .rename(columns={'target_sector': sector_col})
     )
     # equally attribute the shareoffees to all mapped sectors
     df_fha2 = (
@@ -431,9 +430,11 @@ def allocate_usda_ers_mlu_other_land(fba: FlowByActivity, **_: Any) -> FlowByAct
     # land in rural residential lots
     rural_res = get_area_of_rural_land_occupied_by_houses_2013()
 
-    # household codes
-    household_df = load_crosswalk('FinalDemand_SectorCodes')
-    household = household_df['Code'].drop_duplicates().tolist()
+    # BEA household codes
+    household = [
+        'F010',
+        'F01000',  # Personal consumption expenditures
+    ]
 
     # if it is state data, take weighted avg using land area
     if fba.config['geoscale'] == 'state':

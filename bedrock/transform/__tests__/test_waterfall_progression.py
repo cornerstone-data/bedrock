@@ -15,9 +15,9 @@ Configs covered (union of USEEIO + CEDA group registries):
 
 Not rebuilt: pinned USEEIO baseline / pinned CEDA v0 baseline.
 
-Pins recomputed 2026-08-05 via::
-
-    uv run python -m bedrock.utils.validation.waterfall_progression --sheet-n-new
+Pins recomputed 2026-08-06 via sheet ``N_new`` × canonical q (public CSV
+export of the refreshed waterfall diagnostics; equivalent to
+``waterfall_progression --sheet-n-new --refresh-sheets``).
 
 Assessment plot bars (``N_old_inflated`` / ``N_new_inflated``) are checked
 separately from sheets only — see ``test_assessment_useeio_*``.
@@ -48,10 +48,10 @@ from bedrock.utils.validation.waterfall_progression import (
 EXPECTED_LIVE_N_NEW = {
     'v03_waterfall_useeio_g1_schema_ghg': 0.3135957,
     'v03_waterfall_ceda_g1a_schema_ghg': 0.2543301,
-    'v03_waterfall_ceda_g1b_waste_disagg': 0.2563729,
-    'v03_waterfall_g2_methods': 0.2398356,
-    'v03_waterfall_g3_data': 0.2416736,
-    'v03_waterfall_final': 0.2416736,
+    'v03_waterfall_ceda_g1b_waste_disagg': 0.2568942,
+    'v03_waterfall_g2_methods': 0.2403891,
+    'v03_waterfall_g3_data': 0.2422408,
+    'v03_waterfall_final': 0.2422408,
 }
 
 # Assessment USEEIO-track bars (ceda combine_ef columns × canonical q).
@@ -59,8 +59,8 @@ EXPECTED_LIVE_N_NEW = {
 EXPECTED_ASSESSMENT_USEEIO_BEDROCK_N = {
     'pinned_useeio_baseline': 0.2520542,
     'G1': 0.2462974,
-    'G2': 0.2398356,
-    'G3': 0.2416736,
+    'G2': 0.2403891,
+    'G3': 0.2422408,
 }
 
 ATOL_KG_PER_USD = 1e-4

@@ -110,9 +110,9 @@ T018  = T005   + VABAS            # intermediate at purchaser + VA at basic
 
 **SUT vs MUT differences that bite:**
 - **`F05000` (imports) is a MUT-only column.** It does not exist in the SUT Use table — imports enter
-  on the *Supply* side as `MCIF` + `MADJ`. The current `derive_initial_Y_pur` reindexes to all 20
-  `BEA_2017_FINAL_DEMAND_CODES`, which is the **MUT** column list; the SUT Use FD block is that list
-  minus `F05000`. Needs reconciling (§Step 1d).
+  on the *Supply* side as `MCIF` + `MADJ`. `derive_initial_Y_pur` reindexes to
+  `SUT_FINAL_DEMAND_CODES` (the 20 MUT FD codes minus `F05000`). `F05000` is created in Step 6b from
+  Supply-side imports, not sourced as a Use column.
 - Tax rows don't correspond: SUT splits `T00OTOP`/`T00TOP`/`T00SUB` where MUT carries one net `V00200`.
 - `T018`, `VABAS`, `VAPRO` are SUT-only; `T006`, `T008` are MUT-only.
 - `V00100`, `V00300`, `T005` exist in **both** with **different values** (compensation differs by 3
@@ -133,8 +133,11 @@ the newer workbooks, upload them to `GCS_USA_SUP_DIR`, and give `_load_usa_summa
 vintage-pinning branch `_load_usa_summary_mut` uses at
 [io_2017.py:730-739](../../extract/iot/io_2017.py#L730-L739) — older years stay pinned to the oldest
 file containing them, so BEA's historical revisions don't silently move values under existing
-consumers. Worth doing in Step 0: **summary SUT totals are the natural RAS control for every nowcast
-year**, and two of the seven years can't be loaded today.
+consumers. Still worth doing in Step 0 — two of the seven years can't be loaded today — but **note the
+changed justification**: this was written when summary SUT totals were assumed to be the RAS control.
+Under §Step 5 Decision 3 they are deliberately **not** the default target, and their most likely role
+is the opposite one, as the independent object the balanced detail SUT is *validated* against. That is
+a reason to load them, not a reason to skip it.
 
 Two loose ends to tidy while in there: `_load_usa_summary_sut`'s `year` parameter is typed
 `USA_SUMMARY_MUT_YEARS` (1997 onward), which admits years no SUT workbook contains — it wants its own
@@ -159,7 +162,7 @@ Two consequences run through the whole plan:
 
 **Module.** [`bedrock/transform/eeio/nowcast.py`](../../transform/eeio/nowcast.py) exists and
 currently implements exactly one thing: `derive_initial_Y_pur(year)` — the final-demand block of the
-SUT Use table, purchaser price, BEA_2017_Detail schema, from the `NIPA_FD_<year>` FBS methods. It
+SUT Use table, purchaser price, BEA_2017_Detail schema, from the `NIPA_final_dom_uses_<year>` FBS methods. It
 handles the Cornerstone-schema collapse problem via `map_fbs_sectors_to_model_schema` applied to both
 sector columns. A baseline validator exists at
 [`bedrock/analysis/nowcasting/initial_Y_pur_baseline.py`](../../analysis/nowcasting/initial_Y_pur_baseline.py).
@@ -198,26 +201,37 @@ conversion and redefinition steps need is already loadable** — no new extract 
   but they are a ready-made **fallback seed / cross-check** for any SUT block we can't source directly,
   and they already encode which codes to exclude from each framework.
 
-**Not in bedrock, to be ported:** RAS ([`sut_ras.py`](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/sut_ras.py)
-→ `bedrock/utils/economic/`), balance checks ([`check_balances.py`](https://github.com/cornerstone-data/USEEIO/blob/nowcasting/nowcasting/check_balances.py)
-→ `bedrock/utils/validation/`), and commodity mix / intermediate nowcasting
+**Not in bedrock, to be ported:** a balancing algorithm (**no longer a straight `sut_ras.py` port** —
+see Step 5, which now carries three open decisions) and commodity mix / intermediate nowcasting
 (`CalculateIntermediateUseAndCommodityMix.R`, per #497). Confirmed: no RAS/GRAS code anywhere in
 bedrock today.
 
+**The USEEIO port list shrank to one file.** `check_balances.py` and `load_suts_from_r.py` were both
+on it and are now **dropped, #590 and #589 closed**. The SUTs come from Steps 1-4 as bedrock objects,
+so nothing R-produced needs loading; and the balance checks are a dozen lines against our own tables,
+not a port — `check_balances.py`'s own `check_row_col_balance` is domestic-only and never checks
+`T016` = `T019` at all. The checks live in Step 5 (post-balance identities), Step 4e/#581 (Supply
+identities) and #587 (per-cell match). One idea was worth keeping: its `compare_disagg_to_agg` is the
+detail-vs-published-aggregate comparison that Decision 3 gives summary SUT its new role in, and it
+shares the aggregator machinery with Decision 3's aggregate constraints.
+
 ## Section status
 
-### SUT Use — final demand block (purchaser price)
+### Final uses — three methods, not one (purchaser price)
+
+**1A `NIPA_final_dom_uses`** carries `F01000` and the `F02*`/`F06*`/`F07*`/`F10*` columns.
+`F03000` is **1C** and `F04000` is **1B**, each its own FBS — see §Step 1.
 
 | Code | Description | Status |
 |---|---|---|
-| F01000 | Personal consumption expenditures | ✅ `FD_PCE` (+ 5 name-mismatch activity_sets) via `BEA_PCEBridge` |
-| F02E00 | Nonres. private fixed investment in equipment | ✅ **done** — `BEA_PEQBridge` built and wired into `NIPA_FD_2017`, reconciles to within 0.22%. Merged 2026-07-24 in [#524](https://github.com/cornerstone-data/bedrock/pull/524), closing [#496](https://github.com/cornerstone-data/bedrock/issues/496) ([#525](https://github.com/cornerstone-data/bedrock/issues/525) too) |
+| F01000 | Personal consumption expenditures | ✅ `FD_PCE` (+ 5 name-mismatch activity_sets) via `BEA_PCEBridge` — **reproduces the bridge cell for cell**, 259/259 commodities, zero cells off by >$1M ([#631](https://github.com/cornerstone-data/bedrock/pull/631)) |
+| F02E00 | Nonres. private fixed investment in equipment | ✅ `BEA_PEQBridge` — **reproduces the bridge cell for cell**, 107/107 commodities, zero cells off by >$1M ([#631](https://github.com/cornerstone-data/bedrock/pull/631)). Built in [#524](https://github.com/cornerstone-data/bedrock/pull/524), closing [#496](https://github.com/cornerstone-data/bedrock/issues/496)/[#525](https://github.com/cornerstone-data/bedrock/issues/525). ⚠️ But it disagrees with the **Use table** by ~$15B at the column total — [#547](https://github.com/cornerstone-data/bedrock/issues/547) |
 | F02N00 | Nonres. private fixed investment in IP products | ✅ `FD_IP_direct`/`FD_IP_proportional` |
-| F02R00 | Residential private fixed investment | ✅ `FD_Structures1` |
+| F02R00 | Residential private fixed investment | ✅ `FD_Structures1` — ⚠️ short `S00402` by 1,883, blocked behind [#635](https://github.com/cornerstone-data/bedrock/issues/635) |
 | F02S00 | Nonres. private fixed investment in structures | ✅ `FD_Structures2` |
-| F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — ⚠️ SLG Equipment/Structures/IP attribution bug still open |
-| F03000 | Change in private inventories | ⏳ **source settled, mostly already extracted** (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)) — `U50705BU1` is in the extract list and unused; not built. [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
-| F04000 | Exports | ⏳ **source settled** (§Trade data below, [#557](https://github.com/cornerstone-data/bedrock/pull/557)) — Census goods + BEA services, ITA-controlled; not built. Implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528) |
+| F06/F07/F10 (12 codes) | Federal/State/Local CE, Equip, IP, Structures | ✅ `FD_Gov_*` — **all twelve reproduce the Use table cell for cell**, zero cells off by >$1M ([#633](https://github.com/cornerstone-data/bedrock/issues/633)/[#634](https://github.com/cornerstone-data/bedrock/pull/634)). The former SLG Equipment/Structures/IP bug was `S00402` unreachable via two crosswalks, and was never SLG-only |
+| F03000 | Change in private inventories | ⏳ **own FBS — 1C.** Source settled, mostly already extracted (§`F03000` below, [`inventories_estimation_plan.md`](inventories_estimation_plan.md)) — `U50705BU1` is in the extract list and unused; not built. [#529](https://github.com/cornerstone-data/bedrock/issues/529)/[#530](https://github.com/cornerstone-data/bedrock/issues/530)/[#531](https://github.com/cornerstone-data/bedrock/issues/531) |
+| F04000 | Exports | ⏳ **own FBS — 1B.** 2017 overlay ([#528](https://github.com/cornerstone-data/bedrock/issues/528): [#617](https://github.com/cornerstone-data/bedrock/pull/617) [#618](https://github.com/cornerstone-data/bedrock/pull/618) [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623)) — Census FAS goods + IEA TypeOfService leaves; `S00900` from −F010 + Supply T016. ITA scale and 2018–2024 methods open. 2017 scorecard FAIL + inventory vs #557 bars. ⏳ Schema retarget onto `BEA_detail_commodity_target.yaml` pending in [#638](https://github.com/cornerstone-data/bedrock/pull/638), which also supplies the `target_schema_year` key the methods have been missing since [#630](https://github.com/cornerstone-data/bedrock/pull/630) |
 | ~~F05000~~ | ~~Imports~~ | **Not an SUT column** — belongs to Supply (`MCIF`/`MADJ`); appears only on MUT conversion |
 
 ### SUT Use — other blocks
@@ -229,12 +243,12 @@ bedrock today.
 
 ### SUT Supply — every column
 
-**This is the least-developed part of the project.** Nothing here is built.
+**This is the least-developed part of the project.** `MCIF` has a 2017 candidate; every other column is unsourced.
 
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
 | cells / `T007` | Domestic output, commodity × industry, basic value | Nowcast gross industry output (`derived_gross_industry_output.py`) × commodity mix (port from `CalculateIntermediateUseAndCommodityMix.R`, #497) | ❌ **unsourced method** |
-| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade`, ITA-controlled — §Trade data below | ⏳ **source settled** ([#557](https://github.com/cornerstone-data/bedrock/pull/557)), not built |
+| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528) / [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623)) — Trade_Imports FBS on `MCIF` only. ITA scale, `MDTY`, and `MADJ` open |
 | `MADJ` | Import adjustment (c.i.f./f.o.b.) | Likely 2017 ratios applied to `MCIF` — BEA-internal construct, no direct annual source | ❌ **unsourced, needs a decision** |
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **sourced**, not built. ⚠️ calculated ≠ collected duty, and the gap widens across 2018-2025 |
 | `TRADE` | Wholesale + retail margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
@@ -288,10 +302,10 @@ Ranked by how much they block:
 2. ~~**Trade data source (#527)**~~ — **settled** in
    [#557](https://github.com/cornerstone-data/bedrock/pull/557): Census goods + BEA services as the
    primary extract, BEA ITA as the national totals control, BACI out of scope. See §Trade data below.
-   What remains is not a source question but three reconciliation questions the analysis leaves open —
-   import valuation overlap, the thin service→Detail concordance, and specials/margins policy. `MDTY`
-   turns out to ride on the same Census request (`CAL_DUT_YR`), so it is no longer a separate gap
-   either — see §`MDTY`.
+   What remains is not a source question but reconciliation on #528: ITA G+S scale, FAS vs PUR,
+   import valuation overlap (CIF vs customs / `MADJ`), and `S00300` specials policy. IEA TypeOfService
+   leaves are mapped; Crosswalk revisions sit in `bedrock/transform/trade/README.md`. `MDTY` rides on
+   the same Census request (`CAL_DUT_YR`) — see §`MDTY`.
 3. **Commodity split of product taxes and subsidies** (`TOP`, `SUB`, and the Use table's
    `T00TOP`/`T00SUB` rows) — NIPA gives totals (T30500, T31300); allocating to 402 commodities does
    not come for free. Default proposal: 2017 detail Supply shares, held constant, inflated with the
@@ -312,20 +326,25 @@ Ranked by how much they block:
    its Use-matrix row (Step 6c). Not a data gap; it needs the Step 6b Use matrix as input, which makes
    6c strictly downstream of 6b.
 
-## Trade data — source settled, structure still to earn
+## Trade data — source settled, 2017 path in #528
 
-Settled in [#557](https://github.com/cornerstone-data/bedrock/pull/557) (analysis lands in
-`bedrock/analysis/nowcasting/trade_data/`, closing [#527](https://github.com/cornerstone-data/bedrock/issues/527);
-implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528)). This one decision
-feeds `F04000`, Supply `MCIF`, and Step 6c's import matrix.
+Settled in [#557](https://github.com/cornerstone-data/bedrock/pull/557) (analysis in
+`bedrock/analysis/nowcasting/trade_data/`, closing [#527](https://github.com/cornerstone-data/bedrock/issues/527)).
+Implementation is [#528](https://github.com/cornerstone-data/bedrock/issues/528): extract
+[#617](https://github.com/cornerstone-data/bedrock/pull/617), FBS
+[#618](https://github.com/cornerstone-data/bedrock/pull/618), Y F040 + Supply MCIF overlay
+[#622](https://github.com/cornerstone-data/bedrock/pull/622), 2017 scorecard + IEA leaf Crosswalk
+[#623](https://github.com/cornerstone-data/bedrock/pull/623). This path feeds `F04000`, Supply `MCIF`,
+and Step 6c's import matrix. ITA G+S scale, `MDTY` / `MADJ`,
+`S00300` hold-from-Supply, and 2018–2024 Trade methods remain open on #528.
 
 | Role | Source |
 |---|---|
 | Goods extract | Census International Trade, NAICS-6 — imports **CIF** (`GEN_CIF_YR`, to match Supply `MCIF`), exports FAS-family (`ALL_VAL_YR`) |
 | Services extract | BEA `IntlServTrade`, by type of service, imports and exports |
-| National totals control | BEA ITA Tables 2.1 (goods) / 3.1 (services) — scale or residual-constrain; a raw Census+BEA sum is **not** the final total |
-| Sector bridge | USEEIO Census→BEA Detail and service-type→Detail concordances; bedrock `NAICS_to_BEA_Crosswalk_2017` as goods backup |
-| 2017 structure/specials benchmark | Use `F04000`/`F05000` and Supply `MCIF` |
+| National totals control | BEA ITA Tables 2.1 (goods) / 3.1 (services) — scale or residual-constrain; a raw Census+BEA sum is **not** the final total. Loader exists; FBS methods do not apply the scale. |
+| Sector bridge | `Sector_Crosswalk_Census_USATrade.csv` (Census NAICS-6 → Detail); `Sector_Crosswalk_BEA_IEA.csv` (IntlServTrade TypeOfService leaves → Detail). Parents omitted when children are mapped. Methods include `BEA_detail_commodity_target.yaml`. |
+| 2017 structure/specials benchmark | Use `F04000` and Supply `MCIF` (`F05000` is MUT-only) |
 
 ### `MDTY` — rate from Census, level from NIPA
 
@@ -372,42 +391,51 @@ total. If the two need reconciling, **actual duty revenue comes from CBP/Treasur
 Census** — that is the series to reach for, and a calculated-vs-collected spread by year is a cheap
 diagnostic worth producing while building this.
 
-**Services carry no duty**, so unlike `MCIF` this column is goods-only — the thin service→Detail
-concordance that wrecks export structure is irrelevant here. Net of the tariff-era caveat, `MDTY`
-should be the most tractable of the three import columns.
+**Services carry no duty**, so unlike `MCIF` this column is goods-only — the IEA TypeOfService map
+does not apply. Net of the tariff-era caveat, `MDTY` should be the most tractable of the three import
+columns.
 
 Bonus: `GEN_CHA_YR` (import charges) is a direct measurement of the freight/insurance wedge that makes
 CIF overshoot when added to full BEA services — so it feeds the valuation-overlap question in problem 1
 above, and plausibly `MADJ` (open question 7) as well, since c.i.f./f.o.b. adjustment is the same wedge.
 Worth pulling in the same request even if only used diagnostically.
 
-**Code home:** [flowsa `imports`](https://github.com/cornerstone-data/flowsa/tree/imports) —
-`Census_USATrade` and `BEA_IEA` FBAs, which cover imports **and** exports. USEEIO's
-`download_imports_data.py` is imports-only legacy and is *not* the production extract; USEEIO stays
-useful for concordances. Neither FBA is in bedrock or on flowsa `master` today, so Step 1d/4b start
-with a vendor/merge.
+**Code home:** `bedrock/extract` `Census_USATrade`, `BEA_IEA`, and `BEA_ITA`; FBS methods
+`Trade_Exports_<year>` / `Trade_Imports_<year>` under `bedrock/transform/trade/`. USEEIO's
+`download_imports_data.py` is imports-only legacy and is *not* the production extract.
 
-**What the 2017 tests say** (million USD, national): combined Census+BEA imports 2,940,917 vs Use
-`|F05000|` 2,626,305 and `MCIF` 2,649,430 (**+12%**); combined exports 2,383,547 vs Use `F04000`
-2,082,970 (**+14%**). Right ballpark, systematically high — hence the ITA control step. On commodity
-structure after Detail mapping, imports come out usable (Pearson 0.60, 0.81 excluding `S00xxx`) and
-**exports do not** (0.34, only 0.53 excluding `S00xxx`).
+**What the 2017 scorecard says** (`score_2017_trade_detail`, USD, after F040 overlay + `S00900`
+identity and MCIF-only bridge; inventory in `bedrock/transform/trade/README.md`):
+
+| | National % | Pearson all / non-`S00*` | Top-20 Jaccard all / non-`S00*` |
+|---|---|---|---|
+| F040 exports | +6.15% | 0.93 / 0.89 | 0.60 / 0.60 |
+| MCIF imports | +1.29% | 0.62 / 0.84 | 0.67 / 0.74 |
+
+F040 national miss is Census FAS goods vs SUT goods F040 (~+14%); mapped IEA leaves sit ~2% under SUT
+service F040. Census + IEA `AllTypesOfService` tracks ITA G+S; SUT F040 is the lower frame. MCIF
+national sits inside ~2–3% because `S00300` miss (260 B) offsets CIF goods and mapped-service
+overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is just short of 0.85.
+Uniform ITA scale does not fill `MISS` holes or move Pearson.
 
 **Three carried-forward problems, all on the reconciliation side, none of them a source problem:**
 
 1. **Import valuation overlap.** Census CIF includes freight/insurance that BOP records inside
    services, so CIF goods + full services double-counts. Decide customs (`GEN_VAL_YR`) vs CIF *before*
    the ITA control, and keep CIF when the target is Supply `MCIF` unless the control step sets levels.
-2. **The service→Detail concordance is thin** — 10 API types, ~70% of `AllTypesOfService`, missing
-   travel and charges for IP use. This is why exports are weak, not the goods NAICS map (which covers
-   97% of import and 92% of export value): **27.5% of Use `F04000` value has zero extract**, vs 10% on
-   imports. Remaining holes after `S00900` (below): `533000` IP-royalties-like (~73B), wholesale
-   (`423*`, `424A00`) and truck transport (`484000`).
+2. **IEA TypeOfService → Detail** maps leaves whose labels name the commodity (or a small family the
+   type spans). Parent totals are omitted when children are mapped. Unmapped by rule: `Travel` other
+   than `TravelHealth`, transport port services (no 2017 `488000`), `GovtGoodsAndServicesNie`,
+   `OthBusinessNie`, digitally deliverable cross-cuts (`PotIctEnServ*`). IP license leaves land on
+   `533000` / `511200` / `512*`. Crosswalk revisions (EBOPS–CPC–NAICS, TTSA for Travel, 1:m weights)
+   are listed in `bedrock/transform/trade/README.md`. Goods NAICS coverage is high; remaining ≥1 B
+   `MISS` holes include couriers `492000`, `550000`, publishing `51112*`/`51113*`, bakery `311810`,
+   cattle `1121A0` (no Census `1121*` activity), restaurants, and electric `221100`.
 
-   **`S00900` is off that list — it needs no extract at all.** At ~204B it was the biggest single hole,
-   9.8% of the `F04000` column, so removing it takes the zero-extract share from 27.5% to **~17.7%**.
-   It has *zero intermediate use* across all 402 industries, and only two final-demand entries, which
-   are one offsetting reclassification of nonresident expenditure:
+   **`S00900` needs no extract.** `derive_initial_Y_pur` sets
+   `Y[S00900, F04000] = −Y[S00900, F01000] + Supply_T016[S00900] × 1e6` (2017). It has *zero
+   intermediate use* across all 402 industries, and only two final-demand entries, which are one
+   offsetting reclassification of nonresident expenditure:
 
    ```
    SUPPLY  produced by S00600 (federal nondefense)     3,468
@@ -421,29 +449,23 @@ structure after Detail mapping, imports come out usable (Pearson 0.60, 0.81 excl
 
    The PCE side is **already built**: −200,997 is exactly `DEXFRC` *Less: Expenditures in the United
    States by nonresidents* (−199,435) plus U20405 line 149 personal remittances in kind (−1,562) — the
-   two lines `FD_PCE_less_nonresident` already handles with `negate_flows` (`7a04a71`). The export side
-   is then forced by the identity: `F04000 = −F01000 + total supply = 200,997 + 3,441 = 204,438`
-   against a published 204,439, one apart on rounding. So `S00900` also does not depend on the thin
-   service concordance — no travel or charges-for-IP mapping has to land before this cell is right.
-   Filed on #528.
-3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) and the margin-heavy export
-   cells need an explicit rule — held from Use, taken as a residual after mapped commodities, or out of
-   the extract's scope — rather than silent zeros. **`S00900`'s rule is now settled: derive it from the
-   supply identity** (item 2). `S00300` is a different case and is unaffected — it is 0 in `F04000`, so
-   its ~260B is import and intermediate presence, not an exports hole. The `compare()` run makes the
-   sequencing point: matched cells overshoot (+12% imports, +30% exports) while specials soak the
-   difference, so **totals can look fine while structure is wrong — fix specials and the service map
-   before applying the ITA scale**, not after.
+   two lines `FD_PCE_less_nonresident` already handles with `negate_flows` (`7a04a71`). The export
+   identity matches published F040 within 1 M USD.
+3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
+   held from Supply, taken as a residual after mapped commodities, or out of the extract's scope —
+   rather than a silent zero. **`S00900`'s rule is the supply identity** (item 2). `S00300` is 0 in
+   `F04000`; its ~260B is import and intermediate presence. Totals can look fine while structure is
+   wrong — ITA scale after specials and the service map, not before.
 
-Also still open: **exports are FAS/BOP, the Use column is PUR** — a margins bridge that doesn't exist
-yet. Provisionally accept FAS and flag it.
+**Exports are FAS/BOP; the Use column is PUR** — a margins bridge that doesn't exist yet. Provisionally
+accept FAS and flag it.
 
-**Acceptance bar before this is trusted for nowcast years** (from #557, not yet met): national totals
+**Acceptance bar before this is trusted for nowcast years** (from #557, not met): national totals
 within ~2-3% of Use/`MCIF`; import commodity vector Pearson ≳ 0.85 and export ≳ 0.75-0.85 on
 non-special codes; top-20 Jaccard ≳ 0.7 / ≳ 0.6; every known hole covered by a written rule. If the raw
 extract can't hit those bars, a documented pipeline that does (extract structure × scale to Use totals,
 or extract + Use residual on specials only) is an acceptable substitute — and *that* pipeline is what
-the nowcast years carry forward.
+the nowcast years carry forward. The 2017 gate is `uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail`.
 
 ## `F03000` — change in inventories, rescoped
 
@@ -466,7 +488,7 @@ published for 2017 — so the method is testable on the benchmark today without 
 
 **`U50705BU1` (Table 5.7.5BU1, CIPI by Industry) is already extracted and never read.** It sits in
 [`BEA_NIPA.yaml:30`](../../extract/bea/BEA_NIPA.yaml#L30) for 2012-2024 with no consuming activity set
-in `NIPA_FD_2017.yaml`. **It also already publishes the stage-of-fabrication split** that Hill
+in `NIPA_final_dom_uses_2017.yaml`. **It also already publishes the stage-of-fabrication split** that Hill
 attributes to ASM (`C30M`/`C30W`/`C30F`, lines 29-37, each durable/nondurable) — so no ASM pull is
 needed for a first pass.
 
@@ -526,30 +548,82 @@ not introduce a step 10.
 - Remaining: final activity-mapping review; fix the open SLG Equipment/Structures/IP attribution bug.
 - **Wire up the 2023-2024 summary SUT workbooks** (§Framework facts) — new mapping constant, GCS
   upload, vintage-pinning branch in `_load_usa_summary_sut`, plus the `USA_SUMMARY_SUT_YEARS` type.
+  Still needed, but as a **validation baseline** rather than the RAS control — see §Framework facts and
+  §Step 5 Decision 3.
   Small, and Step 5's control totals depend on it.
 
-### Step 1 — SUT Use: final demand block (PUR) — *in progress*
-- 1a ✅ PEQ Bridge / F02E00.
-- 1b ✅ F0-code assignment (via `assign_sector_consumed_by_from_clean_parameter`, #539).
-- 1c ✅ `derive_initial_Y_pur(year)`.
-- 1d ❌ **Split the column list by framework.** Add an SUT FD code list (the 20 MUT codes minus
-  `F05000`) and have `derive_initial_Y_pur` target *that*; `F05000` gets created in Step 6b from the
-  Supply-side imports, not sourced as a Use column. Then land **F04000 exports** per the settled
-  §Trade data recipe (#528): vendor `Census_USATrade` + `BEA_IEA` from flowsa `imports`, map to BEA
-  Detail, apply the specials/margins rule, control to ITA — and prove 2017 against the acceptance bars
-  before running any nowcast year. Same vendor step serves Step 4b, so do it once.
-- 1e ❌ **F03000 inventories** — full 402-row column, per
-  [`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
-  ships one scalar where the SUT needs a column, and leaves the allocation to Step 5's RAS, which has
-  neither a seed nor a sign-safe structure for a column that runs 3× gross to net across 61 negative
-  commodities. Start by consuming `U50705BU1`, already extracted and unused, plus the farm line it
-  omits (≈ −5,679 in 2017, 17% of the total).
-- 1f ❌ Validate per-column against published NIPA aggregates (the PCE reconciliation to ~1.3% is the
-  template).
+### Step 1 — Final Uses with Trade (PUR) — *in progress*
+
+⚠️ **Rescoped 2026-08-14 ([#523](https://github.com/cornerstone-data/bedrock/issues/523)): there is
+no single Final Demand FBS.** Final uses are **three separate FBS methods**, built and validated
+independently, with trade in scope because exports are a final use and the same extraction serves the
+Supply-side import columns. The old shape put trade and inventories inside a method that never
+contained them — `F03000` was hardcoded zero and `F04000` was bolted on inside
+`derive_initial_Y_pur` — so the split mostly ratifies what was already true.
+
+**1A — `NIPA_final_dom_uses`** (renamed from `NIPA_FD`; the old name promised a whole final-demand
+block it never delivered). `F01000`, the four `F02*` investment columns, and the twelve
+`F06*`/`F07*`/`F10*` government columns — the final *domestic* uses NIPA sources directly. Exports
+are 1B because they are not domestic; inventories are 1C.
+- ✅ PEQ Bridge / `F02E00`; PCE Bridge / `F01000`.
+- ✅ F0-code assignment (`assign_sector_consumed_by_from_clean_parameter`, #539).
+- ✅ **PCE and equipment reproduce their bridges cell for cell** — 259/259 and 107/107 commodities,
+  zero cells off by >$1M (#630, #631).
+- ✅ **All twelve government columns reproduce the Use table cell for cell** (#633, #634). `S00402`
+  was unreachable in them because it was missing from *two* crosswalks — one supplying the
+  attribution weight, one the receiving set — and fixing either alone changed nothing. F10E00 had
+  been misallocating 32.8% of its column.
+- ✅ **Renamed off `NIPA_FD`** — all eight yamls are `NIPA_final_dom_uses_<year>.yaml`. The
+  `BEA_NIPA_FD_*` activity-to-sector crosswalks keep their names: they describe the mapping from
+  `BEA_NIPA` activities to sectors, which is a different namespace from the method and is shared
+  across all eight years.
+- ✅ **Structures lines map to their own commodity** (#576) — the crosswalk had expanded ten lines
+  into an 11- or 4-sector catch-all, putting $142B on the wrong commodity inside `F02R00` while the
+  column total stayed right.
+- ❌ Review all activity mappings; 2018–2024 have no PCE activity sets (#621); port the common yaml
+  (#495).
+
+**1B — Trade** (#526, #528). ⏳ `F04000` exports plus the Supply-side import columns from one
+extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BEA Detail, with
+`S00900` from the identity −F010 + Supply `T016`. Built and wired for 2017 (#617, #618, #622, #623);
+the same extract serves Step 4b. Open: ITA G+S scale, FAS→PUR, and the 2018–2024 methods. The 2017
+scorecard is **FAIL + inventory** against the #557 bars (`score_2017_trade_detail`; §Trade data).
+⏳ **Schema fix pending in [#638](https://github.com/cornerstone-data/bedrock/pull/638).** The trade
+yamls declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
+raised `KeyError` — which took `derive_initial_Y_pur` down with them and blocked validating the NIPA
+columns that have nothing to do with trade. #638 retargets both methods onto the shared
+`BEA_detail_commodity_target.yaml` (the same include `NIPA_final_dom_uses` uses), which supplies
+the key, and retires `Trade_detail_passthrough.yaml` along with the
+`activity_schema: NAICS_2017_Code` weight-source override. Once it lands, the end-to-end validation
+path opens up — and 1A's columns can be checked without a working trade leg for the first time.
+
+**1C — Change in inventories** (#529, #530, #531). `F03000`, the full 402-row column, per
+[`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
+ships one scalar where the SUT needs a column, and leaves the allocation to Step 5's RAS, which has
+neither a seed nor a sign-safe structure for a column that runs 3× gross to net across 61 negative
+commodities. Start by consuming `U50705BU1`, already extracted and unused, plus the farm line it
+omits (≈ −5,679 in 2017, 17% of the total).
+
+**Above the three — composition and validation.**
+- ⏳ **Split the column list by framework** (#575) — ✅ done in substance: `derive_initial_Y_pur`
+  targets `SUT_FINAL_DEMAND_CODES` (MUT FD minus `F05000`), and `F05000` is created in Step 6b from
+  Supply-side imports rather than sourced as a Use column. What remains is a *composition* concern:
+  the assembly of three methods' output still lives inside `derive_initial_Y_pur`, so a trade-side
+  failure blocks validating NIPA columns that have nothing to do with trade. Pulling assembly out
+  decouples them.
+- ❌ **Validate per-column against published NIPA aggregates** (#576). Already satisfied for the
+  government columns and for PCE/equipment against their bridges; outstanding for `F03000`
+  (unbuilt), `F04000` (blocked), and the two gaps below.
+
+**Gaps carried.** `F02R00` is short `S00402` by 1,883 (#633), blocked behind #635 — a `ValueError`
+in one activity_set discards every activity_set and returns an empty FBS as a valid result, so the
+line cannot safely be given its own set. And `F02E00` matches the PEQ bridge exactly while
+disagreeing with the Use table by ~$15B at the column total (#547) — a source-data question, not an
+attribution one.
 
 ### Step 2 — SUT Use: value added block
 - New `NIPA_VA_<year>.yaml` FBS method(s) over the 7 Section-6/3.5/3.13 tables above, reusing the
-  `NIPA_FD_<year>.yaml` machinery (`extract_table_info`, `drop_unassigned`, activity_sets).
+  `NIPA_final_dom_uses_<year>.yaml` machinery (`extract_table_info`, `drop_unassigned`, activity_sets).
 - Allocate to BEA industries via 2017 table ratios.
 - Reconcile against T1.14 / VABAS→T10305 / T018→T10105.
 - **Note:** the board's "transform VA into after redefinitions" item is *deferred to Step 7* here —
@@ -679,10 +753,41 @@ not introduce a step 10.
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
-- 4b. **Import columns** — `MCIF` from the settled §Trade data recipe: Census **CIF** goods + BEA
-  services, mapped to Detail, controlled to ITA. Keep CIF here specifically because `MCIF` is the CIF
-  target (2017: Use `|F05000|` / `MCIF` = 0.991, so the two are near-interchangeable as a check).
-  Shares the extract with Step 1d — build once, use for both columns.
+
+  ⏳ **Test `Census_EC_PxI` as the commodity-mix source before settling on a ported 2017 mix.**
+  Economic Census *Products by Industry* is an **observed** industry × product matrix — which is what
+  this block is — where a ported mix holds the benchmark year's proportions fixed. It is extracted as
+  of #529 (`census_ec_pxi_port`), 2017 today and 2022 live on the API as `ecnnapcsprd`, so a mix that
+  actually moves between benchmarks is in reach rather than hypothetical.
+
+  ⚠️ **Expect it to behave here even though it failed for the inventories trade weights**, and the
+  reason is the point of the test. That failure was specific: NAPCS *trade* lines describe resale, so
+  composing NAPCS → NAICS → BEA returns the industries that **sell** a good rather than the good
+  itself — "Wholesale sales of refined petroleum products" resolves to construction commodities. For
+  4a we want what industries **produce**, which is the manufacturing case, where the same composition
+  was 35% one-to-one. The asymmetry that disqualifies it for trade is what recommends it here.
+
+  **The test is decisive and cheap**, because the answer is published: reproduce the 2017 detail
+  Make/Supply commodity mix per industry from `Census_EC_PxI` and score it per cell, the same way
+  Step 1's columns were scored. Do this *before* porting the #497 mix, not after.
+
+  Three known limits to measure rather than assume:
+  - **Economic Census coverage.** No agriculture, no government, and parts of services are out of
+    scope, so this can at best supply the mix for the sectors it covers and the ported mix has to
+    carry the rest. Quantify the covered share of `T007` first.
+  - **Suppression.** Recoverable — `estimate_suppressed_ec_pxi` takes the published detail from 90.5%
+    to 100.0% of control on 2017 — but 12,929 cells are equal-split placeholders, and a commodity mix
+    is exactly the sort of per-cell use where that matters. Read `SuppressionRecovery` and check
+    whether the mix is stable when split cells are excluded.
+  - **NAPCS → I-O commodity.** Still the missing link (#615). The concordance being built for
+    inventories serves this too, which is an argument for building it once, properly, rather than per
+    use.
+
+  The same source and the same concordance feed **Step 3**'s intermediate input mix and two of BEA's
+  four inventories rules, so the porting cost is shared three ways.
+- 4b. **Import columns** — 2017 `MCIF` is the Trade Imports FBS (Census **CIF** goods + IEA services,
+  Detail Crosswalk). Keep CIF because `MCIF` is the CIF target (2017: Use `|F05000|` / `MCIF` = 0.991).
+  ITA scale, `S00300` residual, and later years stay on #528. Shares the extract with Step 1d.
   `MDTY` comes from the **same request**: pull `CAL_DUT_YR` and customs value alongside `GEN_CIF_YR`,
   form an effective duty rate per sector, apply it to the controlled import vector, and set the level
   from NIPA T30500's customs-duties line (§`MDTY`). Do **not** carry Census duty levels through — the
@@ -758,13 +863,184 @@ not introduce a step 10.
   before declaring the Supply table done.
 
 ### Step 5 — Balance the SUT (RAS)
-- Port `sut_ras.py` into `bedrock/utils/economic/`, adapting off the rpy/R dependency.
+
+**⚠️ Three decisions gate this step. Do not start writing code until all three are made** — the
+**starting point** (Decision 1), the **objective function** (Decision 2), and the **target set**
+(Decision 3), below. What follows replaces the earlier one-line instruction to port `sut_ras.py`;
+that is no longer the recommended route.
+
+**What stays true regardless of how the decisions land:**
 - Balance on the SUT identity: **total supply at purchaser (`T016`) = total use (`T019`) per
-  commodity**, plus industry-output consistency between Supply and Use.
-- Control totals: summary SUT totals by default (available for all of 2017-2024 once the 2023-2024
-  workbooks are wired up in Step 0), with industry/commodity gross output as the named alternative.
-- 2025's controls come from the BEA annual update, in Phase 2 — see that section.
-- Port `check_balances.py` into `bedrock/utils/validation/` alongside.
+  commodity**, plus industry-output consistency between Supply and Use. This is an accounting
+  identity we impose, not a target we source.
+- **Verify the balance in place**, in `bedrock/utils/validation/`, as tests rather than scripts:
+  `T016` = `T019` per commodity 402/402, and industry output consistent between the Supply and Use
+  sides. Written against bedrock's own tables — **this is no longer a `check_balances.py` port**
+  (#590 closed; §Grounding). The four Supply identities stay with Step 4e/#581 and the per-cell match
+  with #587; share those, don't rewrite them. ⚠️ Per commodity, never in aggregate — `T014` nets to
+  ~1 economy-wide, so an aggregate check passes while every cell is wrong. ⚠️ And label which checks
+  are **by-construction**: `T016` = `T019` is imposed by the balance and proves only that the solver
+  ran, as does anything Decision 3 promotes to a target.
+- The **seed** is not in question: it is the Steps 1-4 output, block by block. What is in question is
+  what the balancer is allowed to do to it, and what it is aimed at.
+
+**What is no longer assumed:** earlier drafts of this step said "summary SUT totals by default, with
+industry/commodity gross output as the named alternative." **Strike the default.** The targets are now
+Decision 3, to be enumerated margin by margin and sourced deliberately.
+
+#### Why the straight `sut_ras.py` port is off
+
+**Bedrock's SUT is full of negatives, and the negatives are structural, not noise.** `F03000`
+inventory change, negative `TRANS` on the trade and transport commodities, `SUB` subsidies, and the
+give-up side of every margin reassignment. A balancer that cannot carry a negative cell through a
+scaling step is not a candidate — it will either clamp real mass to zero or flip signs on accounting
+lines that have a fixed sign by construction. That single fact reorders the candidates.
+
+**The comparison (2026-08-08) found neither candidate is what Step 5 wants today:**
+
+| | `ceda/utils/ras_balancing.py` | `nowcasting/sut_ras.py` |
+|---|---|---|
+| Repo | `cornerstone-data/ceda` (**private**), usually at `~/ceda` | `cornerstone-data/USEEIO`, branch `nowcasting` |
+| Size / state | 879 lines, typed, 20 tests | 432 lines, untyped, no tests, magic epsilons |
+| Algorithm | RAS / IPFP, **non-negative only** | **GRAS** — positive and negative parts scaled separately |
+| Negatives | ⚠️ **clamps negative seed mass to zero** (`ras_balancing.py:574` dense / `:695` sparse — logged, and reported as an upstream regression — built for CEDA's non-negative U/Y) | survives them; `sign_flex` controls where a flip is permitted |
+| Scope | **one matrix**, row + column targets | **the whole SUT** — `V`, `Ui`, `Ufd`, `Uva`, plus import layers `Umi`/`Umfd` |
+| Targets | row/col vectors | vectors **and aggregate-level** targets via aggregator matrices (`Vagg_rows`, `G_va`, `G_fd`) |
+| Engineering | dense + sparse, mask-aware, elementwise convergence, stall detection with projection of locally infeasible cuts, `close_rows_exactly`, per-margin diagnostics | fixed 1000 iterations, `1e-5` tolerance, no mask, no diagnostics |
+
+Read that table as two different things rather than two versions of one thing. **ceda has the engine
+engineering; `sut_ras` has the algorithm and the SUT orchestration.** The port question is which half
+is cheaper to rebuild.
+
+#### The architecture this actually needs — two layers
+
+Keeping these separate is what makes the decision tractable:
+
+1. **Engine** — take one matrix, a seed, and margin targets; scale to the targets. This is where
+   RAS-vs-GRAS lives, and where ceda's mask/convergence/stall machinery lives. Small surface, fully
+   unit-testable on hand-checkable matrices.
+2. **SUT orchestration** — sequence the blocks (`V`, `Ui`, `Ufd`, `Uva`, imports), decide which
+   identity each pass enforces, carry aggregate-level targets, and iterate to joint convergence. Only
+   `sut_ras.py` has any of this, and it is the part with no tests.
+
+The two decisions below can land differently at each layer — e.g. ceda's engine under an
+orchestration layer written fresh against `sut_ras.py` as the reference.
+
+#### Decision 1 — the starting point
+
+| Option | What it costs | What it buys |
+|---|---|---|
+| **A. Start from ceda, add GRAS + a SUT layer** (current lean) | Add sign-split scaling to a codebase whose invariant is non-negativity — the clamp is load-bearing in places, not a one-line delete. Write the SUT layer from scratch. **Plus aggregate-level constraints, which Decision 3 shows are required and ceda's row/column-vector API cannot express.** | Typed, tested, diagnosable from day one. Mask-awareness and stall projection are exactly what a 402×402 detail balance with structural zeros needs, and rebuilding them is weeks. |
+| **B. Start from `sut_ras.py`, harden it** | Type it, test it, replace magic epsilons, add masking and real convergence reporting — i.e. rebuild ceda's engineering around it. | GRAS, the SUT sequencing, **and aggregate-level targets** are already there, and they are the parts that are conceptually hard to get right rather than merely tedious. Decision 3 raises the value of this column. |
+| **C. Fresh engine in bedrock, both as references** | Most upfront work; no inherited tests. | No inherited invariant fighting us, no private-repo or dependency-pin entanglement, and the objective function is a deliberate choice rather than an artifact. |
+
+**Practical constraints that bear on this, all verified:**
+- **bedrock has no `scipy` dependency** ([`pyproject.toml`](../../../pyproject.toml) — `pandas`,
+  `numpy`, no `scipy`), and ceda's `ras_balancing` imports `scipy.sparse`. Option A means either
+  adding scipy to bedrock or dropping the sparse path. At 402×402 dense, the sparse path may not be
+  worth carrying.
+- **ceda pins `numpy==1.26.4` / `pandas==2.2.2`; bedrock requires `numpy>=2.2.6` / `pandas>=2.3.0`.**
+  Any editable install must be `--no-deps`, or use `PYTHONPATH`. This rules out depending on ceda as a
+  package — a **vendored port** is the only sane form of Option A.
+- **ceda is a private repo.** Fine for us; worth stating, because it constrains anything published.
+- ceda's module is near free-standing (`ceda/__init__.py` and `ceda/utils/__init__.py` are 0 bytes,
+  `ceda.utils.logging` is stdlib-only) and **ceda does not import bedrock**, so there is no cycle.
+
+#### Decision 2 — the objective function
+
+RAS is not one algorithm; it is a family distinguished by what is minimized and what is treated as
+hard. Picking this **before** writing code is the point, because the engine's inner loop is a direct
+expression of the choice, and the negatives question is decided here rather than patched later.
+
+| Objective | Minimizes | Negatives | Notes |
+|---|---|---|---|
+| **RAS / IPFP** | cross-entropy (KL) to the seed | not admitted | What ceda implements. Cheapest, best-understood, wrong for our seed as-is. |
+| **GRAS** (Junius–Oosterhaven 2003, corrected Lenzen et al. 2007) | generalized cross-entropy with positive and negative parts scaled by `r` and `1/r` | preserved, signs held unless flexed | What `sut_ras` implements. The natural fit for a seed with structural negatives; note the two published variants differ in the negative-part treatment and we should be explicit about which one we implement. |
+| **KRAS** (Lenzen et al. 2009) | as GRAS, plus reliability-weighted constraint violation | preserved | Admits **inconsistent and general (e.g. aggregate, inequality) constraints** by making them soft with weights. Directly relevant once Decision 3 lands: a target set drawn from NIPA, GDP-by-industry and the trade accounts **will not be mutually consistent to the dollar**, and the seed comes from seven independent nowcast paths on top of that. |
+| **Constrained least squares / QP** | weighted squared deviation from the seed | native | Handles bounds, sign constraints, and inequalities cleanly; needs an optimizer (scipy, or a hand-rolled projected solver) and scales worse. |
+
+**The sub-questions that make this a real decision, not a label:**
+- **Which constraints are hard and which are soft?** Commodity balance (`T016` = `T019`) is an
+  accounting identity. Every *sourced* target is an estimate, from an account with its own vintage and
+  its own revision schedule. Treating both kinds as hard is what makes a balance fail to converge;
+  treating the second kind as soft, weighted by how much we trust each source, is most of what KRAS is
+  for. Decision 3 supplies the list this applies to.
+- **Where may a sign flip, and where may it not?** `sut_ras`'s `sign_flex` is the mechanism; the
+  policy is ours to set, per block. `SUB` and the margin give-up side should almost certainly be
+  sign-locked; `F03000` cells arguably should not be.
+- **What is held fixed entirely?** A mask of cells the balancer may not touch (structural zeros; any
+  block we consider directly measured rather than nowcast). ceda has this, `sut_ras` does not.
+- **What does "converged" mean?** Elementwise per-margin tolerance (ceda's, and the right answer —
+  a global `max` bound is meaningless across margins spanning six orders of magnitude), plus an
+  `atol` floor, since several commodity targets are legitimately near zero.
+
+#### Decision 3 — the target set
+
+**Do not inherit "summary SUT totals" as the control.** It reads like a default because it is a
+single, internally consistent, already-balanced object, but it is the wrong instrument for three
+reasons: it is a *derived* product (BEA's own aggregation of the detail we are trying to estimate, so
+controlling to it makes the nowcast reproduce BEA's aggregation rather than exploit the sources we
+already extract); it **aggregates away the exact dimension we are estimating**; and it is **late**,
+lagging the NIPA and GDP-by-industry releases that are the whole reason a nowcast is possible. Using
+it wholesale would throw away the timeliness that justifies the project.
+
+**Enumerate the targets margin by margin instead, and source each one deliberately.** The candidate
+set, by where it binds:
+
+| Margin | Candidate target | Source | Notes |
+|---|---|---|---|
+| Use — industry columns | total industry input = **gross industry output** | BEA **GDP-by-industry** gross output | Timely and annual. Published above detail for the nowcast years — see "at what level" below. |
+| Supply — industry columns | same gross output vector | as above | Supply/Use column agreement is itself a constraint, and it is free once the vector is chosen. |
+| Use — **FD columns** | **NIPA column totals, one per FD code** | PCE (`F01000`); fixed investment by equipment/IP/residential/nonres structures (`F02*`); `F03000` inventories per [`inventories_estimation_plan.md`](inventories_estimation_plan.md); exports `F04000` and imports `F05000` from the trade step / ITA; the twelve federal and S&L columns from the Section-3 government tables | **This is the strongest part of the target set** — the FD block is where NIPA is most current and most authoritative, and the columns map one-to-one onto SUT codes. |
+| Use — VA rows | compensation, taxes-less-subsidies, GOS row totals | NIPA T1.14, `VABAS`→T10305, `T018`→T10105, Section-6 tables | Already specified for Step 2 (§Value added — fully specified on the board) — the same aggregates, reused as constraints rather than only as checks. |
+| Supply — trailing columns | imports (`MCIF`/`MADJ`), duties (`MDTY`), `TOP`/`SUB`, margin totals | trade step, §`MDTY`, Step 4 | Each already has a sourcing decision in Step 4; Step 5 just has to say which of them binds. |
+| Both — commodity rows | total supply = total use per commodity | *not sourced* | The identity being solved, not an exogenous target. Commodity gross output is a separate, optional target if we want one. |
+
+**Three properties decide whether a candidate belongs in the set at all:**
+
+1. **Is it observed, or is it ours?** A "target" we produced ourselves is not a constraint, it is a
+   preference with extra steps. **Detail gross output for 2018-2024 is nowcast by Step 4a** — imposing
+   it on the balance is circular. Only aggregates that enter from outside the model qualify. This is
+   the sharpest edge in the whole decision, and it is why the honest answer differs between Phase 1 and
+   Phase 2 (see below).
+2. **At what level is it observed?** If gross output is published at summary and we balance at detail,
+   the truthful constraint is *"these N detail industries sum to the published summary industry"* —
+   **not** a detail vector we manufactured by applying 2017 shares. That means **aggregate-level
+   constraints via aggregator matrices**, which is precisely `sut_ras`'s `Vagg`/`G_va`/`G_fd`
+   machinery and precisely what ceda's row/column-vector engine **cannot express today**. ⚠️ **This
+   feeds straight back into Decision 1**: it is a concrete, non-trivial capability that Option A has to
+   build, and it moves the balance of that table.
+3. **Hard or soft, and how trusted?** Decision 2's question, applied per row of the table above.
+   NIPA FD totals, GDP-by-industry output and the trade accounts are three different accounts on three
+   different vintages; they will not reconcile to the dollar, so a set held entirely hard is
+   infeasible by construction.
+
+⚠️ **Targets and tests are the same aggregates — spend each one only once.** The testing strategy
+below lists T1.14, T10305, T10105, T1.1.5 line 14 and the Section-6 totals as *reconciliation tests*.
+Anything promoted to a balance target passes those tests **by construction** and stops being evidence.
+So Decision 3 must be made jointly with the testing strategy, and should **deliberately hold some
+aggregates back, unimposed, as out-of-sample checks**. Name them when the decision is recorded.
+
+**Phase 1 vs Phase 2 changes the answer, and that is fine.** For 2018-2024 the detail gross output is
+nowcast, so the industry-column target can only be honestly imposed at the level GDP-by-industry
+publishes. After the annual update, 2025 has **observed** detailed gross output (§What the annual
+update unblocks) — so 2025 can carry a genuine detail-level industry constraint that the earlier years
+cannot. The design consequence: **the target set must be per-year configuration, not a constant**, and
+the engine must accept aggregate and detail constraints in the same run.
+
+#### Recommendation to decide against
+
+**Vendor ceda's engine + GRAS + a KRAS-style soft-constraint layer, aimed at a NIPA/GDP-by-industry
+target set.** Concretely: vendor ceda's engine into `bedrock/utils/economic/`, replace its scaling
+core with GRAS, drop the sparse path (and with it the scipy dependency) unless profiling says
+otherwise, keep the mask/convergence/stall/diagnostics machinery intact, **add aggregate-level
+constraint support** (Decision 3, property 2 — this is new work Option A does not inherit), and write
+the SUT orchestration layer fresh with `sut_ras.py` as the specification. Target NIPA FD column totals
+and GDP-by-industry gross output at their published level, hold them soft with per-source weights,
+hold the commodity identity hard, and keep summary SUT **out of the target set and in the test set**.
+
+This is a recommendation, not a decision. **Record the decision here, with its reasoning, before any
+code is written**, and update the linked issues to match.
 
 ### Step 6 — SUT → MUT conversion *(new — produces the actual deliverables)*
 Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
@@ -863,9 +1139,17 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   `T016 == T019` per commodity.
 - **Reconciliation against published NIPA aggregates** per section (T1.14, T10305, T10105, T1.1.5
   line 14, Section-6 totals) — the board already specifies most targets, so these are numeric, not
-  eyeball, tests.
-- **Unit tests** for the ported RAS (small hand-checkable matrices — zero control totals are the
-  classic silent failure), the SUT/MUT FD code lists, and the margin reassignment in 6b.
+  eyeball, tests. ⚠️ **These overlap the Step 5 target set (Decision 3).** Any aggregate imposed as a
+  balance constraint passes here by construction and is no longer evidence of anything. When Decision 3
+  is recorded, name which aggregates stay **unimposed** so this section keeps some real out-of-sample
+  content — and mark the rest as identities-by-construction rather than leaving them looking like
+  passing tests.
+- **Unit tests** for the balancer — small hand-checkable matrices, with **a negative-cell case and a
+  sign-lock case in the first batch**, not added later: they are the whole reason Step 5 was rescoped.
+  Whichever starting point wins, these tests are written against the objective function chosen in
+  Decision 2, so they encode the decision rather than the implementation. Keep the classic silent
+  failure in the batch too: a zero control total.
+- **Unit tests** for the SUT/MUT FD code lists and the margin reassignment in 6b.
 - **Golden-file per year** once Step 1 stabilizes, so later phases don't silently drift the FD block.
 - **Supply/Use match visualization (#587)** — a full-table picture, cell by cell *and* on the row and
   column totals: green where we have input data that matches the reference, a shade of yellow where the
@@ -943,7 +1227,7 @@ rediscovers the same 210-code problem from scratch.
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
-| 5 RAS | **#588** (sut_ras), **#589** (load_suts_from_r), **#590** (check_balances), **#591** (optional controls) | — |
+| 5 RAS | **#588** (balancer, parent — *rescoped: no longer a `sut_ras` port; blocked on Step 5's three decisions*), **#591** (sub-issue — *rescoped: the target set is Decision 3, no longer an "optional" alternative control*) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
@@ -1016,10 +1300,23 @@ only while a view has no explicit sort of its own; a saved sort in the view UI o
    including the Step 3 intermediate seed (seed from `Use_SUT_Framework_2017_DET` — native SUT, native
    purchaser, native before-redef). #497's instruction to nowcast the intermediate block on the
    *after*-redefinitions Use table is **overridden**; it would mix states inside the SUT.
-4. **RAS control totals** — summary SUT totals for all years (the default, once 2023-2024 are loaded),
-   or industry/commodity gross output? The board lists the latter as an explicit option. No longer
-   forced either way by Phase 2: summary SUT will exist for 2025 too, so this is a methodological
-   preference rather than a data constraint.
+4. **The Step 5 balance — three coupled decisions, all open, all blocking.** Detail in §Step 5.
+   The earlier form of this question ("summary SUT totals or gross output?") **presumed a default that
+   is now struck**; see 4c.
+   - 4a. **Starting point** — vendor and adapt ceda's `ras_balancing.py`, harden `sut_ras.py`, or
+     write fresh with both as references? *Blocks all of Step 5.* Options, costs and the verified
+     dependency constraints are in Decision 1; the lean is vendor-ceda + fresh SUT layer, though 4c
+     pushes back on it.
+   - 4b. **Objective function** — RAS/IPFP, GRAS (and which published variant), KRAS, or constrained
+     least squares? With it: which constraints are hard vs soft, where signs may flip, what the mask
+     holds fixed, and what counts as converged. Decision 2. **The negatives in bedrock's SUT are
+     structural, so plain RAS is out; the rest is open.**
+   - 4c. **Target set** — **do not assume summary SUT totals.** Build the set margin by margin from
+     detailed gross industry output and NIPA column totals for the FD block, and decide at what level
+     each is honestly observed (aggregate constraints, not manufactured detail vectors). Decision 3.
+     Two consequences that reach outside Step 5: aggregate-level targets are a capability 4a's
+     leading option lacks, and **every aggregate promoted to a target stops being available as a
+     test** — so this must be settled jointly with the testing strategy.
 5. **`nowcast.py` vs. `bedrock/transform/iot/` boundary** — is `nowcast.py` the per-year orchestrator
    calling into `transform/iot/`'s existing functions, or should the new SUT/MUT code live in
    `transform/iot/` (where #495 pointed `nipa_final_demand_estimates.py`)? Steps 4-7 are a lot of new
@@ -1055,10 +1352,13 @@ Detailed gross output by sector is the missing input to the least-developed part
 - **Step 4a (Supply domestic-output block)** — gross industry output × commodity mix is exactly the
   construction Step 4a specifies. For 2018-2024 this is nowcast; for 2025 it comes straight from the
   update, which makes 2025's Supply table *better* founded than the interpolated years, not worse.
-- **Step 5 (RAS controls)** — the update carries a **2025 summary SUT/MUT** (confirmed), so 2025 is
-  controlled the same way every other year is; no special-casing, and no forced switch to the
-  gross-output path. The newly-available commodity and industry output make that alternative *usable*
-  for 2025, but it stays optional.
+- **Step 5 (RAS targets)** — ⚠️ **rewritten under Decision 3.** The earlier note here said the update
+  carries a 2025 summary SUT/MUT (it does — confirmed), so 2025 could be "controlled the same way every
+  other year is." That reasoning is retired along with the summary-SUT default. The live point is the
+  opposite one: **2025 is the first year with *observed* detailed gross output**, so it is the first
+  year that can carry a genuine detail-level industry-column constraint instead of an aggregate one
+  imposed over nowcast detail. 2025 is therefore *better* constrained than 2018-2024, and the target
+  set must be per-year configuration to express that.
 - **Steps 2 and 3** — a real 2025 industry-output anchor constrains the VA and intermediate blocks
   instead of leaving them purely inflation-carried.
 
@@ -1104,7 +1404,7 @@ Also worth scoping ahead of time:
    `usa_io_data_year` and `model_base_year` in
    [usa_config.py:49-64](../../utils/config/usa_config.py#L49-L64) — all currently stop at 2024.
    Grep for `2024` rather than assuming that list is complete.
-4. **Add `NIPA_FD_2025.yaml`** (the series currently runs 2017-2024), plus the 2025 counterparts of
+4. **Add `NIPA_final_dom_uses_2025.yaml`** (the series currently runs 2017-2024), plus the 2025 counterparts of
    whatever VA and trade/inventory methods Steps 1d/1e/2 produce.
 5. **Re-run Steps 1-9 for 2018-2025 as one series** on the refreshed vintage — not 2025 bolted onto
    frozen predecessors. Same per-commodity identity checks throughout.

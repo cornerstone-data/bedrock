@@ -61,28 +61,28 @@ class AssessmentNLevel:
 ASSESSMENT_USEEIO_BEDROCK_LEVELS: tuple[AssessmentNLevel, ...] = (
     AssessmentNLevel(
         key='pinned_useeio_baseline',
-        sheet_id='1AaMWSXaHfyTHWfdNvICQ13RDA-CXEQir5W77RcntQRE',
+        sheet_id='17-kEDZVXzlWnszK8qhFfRl46Wvfhyie8UiwkNC-MLms',
         n_column='N_old_inflated',
         config_name=None,
         note='USEEIO pin from G1 diagnostics (combine_ef pin_source=bedrock_us)',
     ),
     AssessmentNLevel(
         key='G1',
-        sheet_id='1AaMWSXaHfyTHWfdNvICQ13RDA-CXEQir5W77RcntQRE',
+        sheet_id='17-kEDZVXzlWnszK8qhFfRl46Wvfhyie8UiwkNC-MLms',
         n_column='N_new_inflated',
         config_name='v03_waterfall_useeio_g1_schema_ghg',
         note='USEEIO_TRACK[ghg]; prefer N_new_inflated (2024$)',
     ),
     AssessmentNLevel(
         key='G2',
-        sheet_id='1ooNKUDndc3mOdBVt0HBFzIk1SNA1OjGTfh-3uJq1iUc',
+        sheet_id='1mGI0TkGqMhvIKIyLm-sYwM8pCvmT2uNyFiWUuHMymZk',
         n_column='N_new',
         config_name='v03_waterfall_g2_methods',
         note='USEEIO_TRACK[io]',
     ),
     AssessmentNLevel(
         key='G3',
-        sheet_id='1LXt5cZTsXFKG6l09Hw56zkrxIhnnqwXDxMjMOERrE6c',
+        sheet_id='14Q7w0hNLt4CuTE3iQaoHiXMVaGt9hdNZaNlRRi9znzc',
         n_column='N_new',
         config_name='v03_waterfall_g3_data',
         note='USEEIO_TRACK[us_data]; bedrock endpoint before MRIO steps',

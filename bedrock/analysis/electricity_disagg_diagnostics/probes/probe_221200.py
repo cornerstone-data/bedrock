@@ -43,9 +43,9 @@ from bedrock.utils.math.formulas import compute_q
 GAS = "221200"
 ELEC = "221100"
 CONFIGS = [
-    ("footing", "2025_usa_cornerstone_v0_2"),
-    ("reallocation", "2025_usa_cornerstone_v0_2_electricity_reallocation"),
-    ("3-way split", "2025_usa_cornerstone_v0_2_electricity_disaggregation"),
+    ("footing", "2025_usa_cornerstone_v0_3_electricity_footing"),
+    ("reallocation", "2025_usa_cornerstone_v0_3_electricity_reallocation"),
+    ("3-way split", "2025_usa_cornerstone_v0_3_electricity_disaggregation"),
 ]
 
 

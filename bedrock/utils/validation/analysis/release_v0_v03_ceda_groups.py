@@ -11,9 +11,8 @@ Group definitions (cumulative):
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
 
-Sheets were dispatched via the retired ``dispatch_ef_v03_waterfall --baseline
-ceda``; the resulting sheet IDs are pinned in the ``ProgressionSheet`` entries
-below.
+Sheet IDs are the 2026-08-06 diagnostics spreadsheets in the v0.4
+Diagnostics Drive folder (refreshed after the waste Use-intersection fix).
 """
 
 from __future__ import annotations
@@ -26,51 +25,51 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 
 G1A_SCHEMA_GHG = ProgressionSheet(
     step_label="G1a: Cornerstone schema/GHG (no waste)",
-    sheet_id="1jIfLzBfAcpJqq6h4KwMOvZICCVYuQOfWjhy7gBY-VA0",
+    sheet_id="1Dz_1hNG4Vw6cRYZuEe6S_oNM7VAzSYtjcxNljEcx5aU",
     config_name="v03_waterfall_ceda_g1a_schema_ghg",
     sheet_title=(
-        "[2026-07-13, bedrock repo, 2024, CEDA based, "
-        "v0.3 / waterfall CEDA G1a schema/GHG] EFs diagnostics"
+        "[2026-08-06, bedrock repo, 2024, CEDA based, "
+        "v0.3.1 / waterfall CEDA G1a schema/GHG] EFs diagnostics"
     ),
 )
 
 G1B_WASTE_DISAGG = ProgressionSheet(
     step_label="G1b: Waste disaggregation",
-    sheet_id="1Px61a96Mq-GnMvHf09zpURbzNQI0MYmuV1ot-sfnRtU",
+    sheet_id="1hjlLOO4fEALvaHHtXeVhJ1nzRG8qYhuRqvSFAKFYCCw",
     config_name="v03_waterfall_ceda_g1b_waste_disagg",
     sheet_title=(
-        "[2026-07-13, bedrock repo, 2024, CEDA based, "
-        "v0.3 / waterfall CEDA G1b waste disagg] EFs diagnostics"
+        "[2026-08-06, bedrock repo, 2024, CEDA based, "
+        "v0.3.1 / waterfall CEDA G1b waste disagg] EFs diagnostics"
     ),
 )
 
 G2_METHODS = ProgressionSheet(
     step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
-    sheet_id="15w6-uMNxXgzhDKGZXzZeD4ihjlD9igg_tg-qizKZJgE",
+    sheet_id="1fnKvS6OPp85jyqahLXatzIUGgZunBuxVUsJlFJQHRts",
     config_name="v03_waterfall_g2_methods",
     sheet_title=(
-        "[2026-07-13, bedrock repo, 2024, CEDA based, "
-        "v0.3 / waterfall G2 methods] EFs diagnostics"
+        "[2026-08-06, bedrock repo, 2024, CEDA based, "
+        "v0.3.1 / waterfall G2 methods] EFs diagnostics"
     ),
 )
 
 G3_DATA = ProgressionSheet(
     step_label="G3: Data update (MECS, UMD, 2024 IO/GHG)",
-    sheet_id="1OcmhKNxDXgJdvGgMpP8q04a-DhWkpDIzIbKs9Rp7g-Q",
+    sheet_id="1ZDov-CCqKHqCe4O3HoWk__FKZDM-4KRy_4LL-yk1ZkE",
     config_name="v03_waterfall_g3_data",
     sheet_title=(
-        "[2026-07-13, bedrock repo, 2024, CEDA based, "
-        "v0.3 / waterfall G3 data] EFs diagnostics"
+        "[2026-08-06, bedrock repo, 2024, CEDA based, "
+        "v0.3.1 / waterfall G3 data] EFs diagnostics"
     ),
 )
 
 FINAL_V03_CEDA = ProgressionSheet(
     step_label="FINAL v0.3 (waterfall)",
-    sheet_id="17QWanjL_5wn_lCGcJ_XNWF_F5katycfPrOzECbkr8Ww",
+    sheet_id="1leB-2Mk4lTSkWvnV2R5NrbKH6GywyWkpKXrtDcWmpmE",
     config_name="v03_waterfall_final",
     sheet_title=(
-        "[2026-07-13, bedrock repo, 2024, CEDA based, "
-        "v0.3 / waterfall FINAL v0.3] EFs diagnostics"
+        "[2026-08-06, bedrock repo, 2024, CEDA based, "
+        "v0.3.1 / waterfall FINAL v0.3] EFs diagnostics"
     ),
 )
 

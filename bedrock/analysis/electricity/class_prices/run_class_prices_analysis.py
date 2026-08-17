@@ -21,7 +21,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--config_name',
-        default='2025_usa_cornerstone_v0_2_electricity_mixed_units.yaml',
+        default='2025_usa_cornerstone_v0_3_electricity_mixed_units.yaml',
         help='USA config YAML (must have mixed-units gate on)',
     )
     parser.add_argument(

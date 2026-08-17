@@ -1,4 +1,11 @@
+# Electricity-reallocation config for
+# bedrock/transform/eeio/__tests__/test_electricity_reallocation.py.
+# Pair of test_usa_config_waste_disagg (same years / GHG model; reallocation on).
+# use_cornerstone_ghg_model must match its pair: test_e_unchanged_with_
+# electricity_reallocation compares derive_E_usa() across the two, and the flag
+# picks the GHG inventory (Cornerstone FBS vs GHG_national_CEDA_2023).
 model_base_year: 2023
 usa_ghg_data_year: 2023
+use_cornerstone_ghg_model: True
 implement_waste_disaggregation: True
 implement_electricity_reallocation: True

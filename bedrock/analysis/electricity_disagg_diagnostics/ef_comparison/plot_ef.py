@@ -1,4 +1,4 @@
-"""Plot N/D EF diagnostics for electricity disagg steps vs Cornerstone v0.2."""
+"""Plot N/D EF diagnostics for electricity disagg steps vs Cornerstone v0.3 footing."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from bedrock.analysis.electricity_disagg_diagnostics.ef_comparison.vs_footing_fr
     format_drop_footnote,
     vs_footing_ef_frames,
 )
-from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
+from bedrock.analysis.electricity_disagg_diagnostics.local_workbooks import (
     EF_TABS,
     REQUIRED_TABS,
     seed_cache_from_local_dir,
@@ -47,13 +47,15 @@ from bedrock.utils.validation.analysis.plotting import (
 
 logger = logging.getLogger(__name__)
 
-SUPTITLE = 'vs Cornerstone v0.2 footing'
+SUPTITLE = 'vs Cornerstone v0.3 footing'
 EF_OUT_DIR = OUT_DIR / 'ef'
 
 
 def _slug(config_name: str) -> str:
-    return config_name.removeprefix('2025_usa_cornerstone_v0_2_').removeprefix(
-        '2025_usa_cornerstone_'
+    return (
+        config_name.removeprefix('2025_usa_cornerstone_v0_3_')
+        .removeprefix('2025_usa_cornerstone_v0_2_')
+        .removeprefix('2025_usa_cornerstone_')
     )
 
 
@@ -167,7 +169,7 @@ def write_panel_pngs(
             fontsize=16,
         )
         fig.tight_layout(rect=(0, 0.06, 1, 0.96))
-        out = out_dir / f'ef_panels_vs_v0_2_{ef_kind}.png'
+        out = out_dir / f'ef_panels_vs_v0_3_{ef_kind}.png'
         save_and_close(fig, out)
 
 
@@ -183,7 +185,7 @@ def run_plot_ef(*, local_dir: Path) -> Path:
     for step in manifest.steps:
         slug = _slug(step.config)
         label = re.sub(r'\s+', ' ', step.label).strip()
-        print(f'=== Plot {label} ({slug}) vs v0.2 ===')
+        print(f'=== Plot {label} ({slug}) vs v0.3 footing ===')
         frames = vs_footing_ef_frames(step.sheet_id, footing_id)
         if frames.drops:
             print('  drops:', format_drop_footnote(frames.drops).replace('\n', '; '))
@@ -191,7 +193,7 @@ def run_plot_ef(*, local_dir: Path) -> Path:
         step_frames.append((label, frames))
 
     panel_dir = EF_OUT_DIR / 'panel'
-    print('=== Panel N/D vs v0.2 ===')
+    print('=== Panel N/D vs v0.3 footing ===')
     write_panel_pngs(step_frames, panel_dir)
     return EF_OUT_DIR
 
