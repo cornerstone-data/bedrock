@@ -685,6 +685,207 @@ transportation too. `S00402` used and secondhand goods carries `TRANS`/`T013` of
 3.25 — the same mechanism, a commodity with almost no basic value of its own.
 Bound-check on `T016` for both.
 
+## Phase 3 — the trade levels, and what they turned out to be
+
+The three extractors are built:
+[`Census_AWTS`](../../extract/census/Census_AWTS.py),
+[`Census_ARTS`](../../extract/census/Census_ARTS.py) and
+[`Census_AIES`](../../extract/census/Census_AIES.py), giving a continuous annual
+wholesale and retail gross margin for **2012–2023**.
+
+**The annual economic surveys were consolidated.** From data year 2023 AWTS,
+ARTS, ASM and SAS became the **Annual Integrated Economic Survey**, so the two
+standalone surveys stop at 2022 and `timeseries/aies/basic` carries 2023 on the
+Census API. The issue was written against flowsa's 2012–2022 picture and did not
+know this.
+
+⚠️ **The splice only works at the right type of operation.** AIES publishes
+wholesale gross margin under `TYPOP` code `1X`, merchant wholesalers excluding
+manufacturers' sales branches and offices, and **zero** under the all-types code
+`00`; retail is the other way round, published under `00`. Reading either at the
+wrong code returns a well-formed zero rather than an error, silently deleting one
+side of the trade margin. `1X` is also exactly what the AWTS workbook is — its
+`nomsbo` table — so the two are the same basis rather than merely similar.
+
+### These are index numbers, not levels
+
+| 2017, $M | Census survey | BEA published column | Census / BEA |
+|---|---:|---:|---:|
+| Wholesale, NAICS 42 published row | 1,100,925 | 1,894,329 | **0.581** |
+| Retail, published `Total` row | 1,458,243 | 1,761,765 | **0.828** |
+
+**Wholesale is barely half of BEA's column**, because AWTS covers merchant
+wholesalers only while BEA's Wholesale margin also carries MSBOs and
+agents/brokers. So Phase 3 hands Phase 4 a **growth factor applied to the 2017
+BEA level**, not a replacement level — the same anchor-and-move construction
+Phase 2 used for transport, and for the same reason. Substituting the Census
+level directly would delete 42% of the wholesale margin.
+
+⚠️ **Read the published total row, never the sum of sub-industries.** The
+wholesale figure above was previously quoted as 1,043,789 (ratio 0.551), which is
+the sum of the 18 four-digit codes, not the published NAICS 42 row. The two are
+not a fixed distance apart, because suppression varies by year:
+
+| 4-digit sum ÷ NAICS 42 row | 2012–16 | 2017 | 2018 | 2019–21 | **2022** |
+|---|---:|---:|---:|---:|---:|
+| wholesale | 1.000 | 0.948 | 0.941 | 1.000 | **0.839** |
+
+That is not a rounding difference, it is a **17.8pp error in one year of the
+growth factor**: on the 4-digit sum 2021→2022 reads −6.4%, while the published
+row moves +11.4%. The retail side has the same hole in the same year, 0.940. So
+#613 must build the index off the `Total` / NAICS 42 rows the extractors already
+emit, and the "suppression subtracts from a control total" warning below is a
+specification for the consumer, not a caveat about the extract.
+
+### The 850,540 wholesale gap, decomposed — and why it stays open
+
+Chased to the bottom, because "add the missing types of operation" is the
+obvious move and it does not work.
+
+| 2017, $M | sales | gross margin |
+|---|---:|---:|
+| Merchant wholesalers, AWTS `nomsbo` | 5,704,275¹ | 1,043,789² |
+| Merchant wholesalers, Economic Census `ecnmargin` `TYPOP 10` | 5,700,967 | **1,563,667** |
+| Sales branches, with stock (`TYPOP 21`) | 1,330,238 | **not published** |
+| Sales offices, without stock (`TYPOP 22`) | 1,001,003 | **not published** |
+| Electronic markets, agents and brokers (`425`) | 702,599 | 30,509 (commissions) |
+
+¹ implied, `Gross margins ÷ Gross margins as a percent of sales`.
+² the 18 four-digit codes; the published NAICS 42 row is 1,100,925.
+
+**Agents and brokers close 3.6% of the gap and no more.** `ecncomm`/`ecnprofit`
+`RCPCMRD` is 30,509 against a gap of 850,540, and the 2023 AIES equivalent
+`RCPT_COMSN_EARN_VAL` is 37,866 on 856,428 of sales — a ~4.4% commission rate.
+It is small for a structural reason, not a coverage one: agents and brokers
+never take title, so they book a commission on someone else's sale rather than a
+margin on their own. Before 2023 the only source is `ecncomm`, which is
+**Economic Census — 2012, 2017 and 2022 only**, so it could contribute a level
+correction but no annual movement. Adding an interpolated quinquennial series to
+a growth index buys nothing.
+
+**MSBO margin is not published in any vintage.** `ecnmargin` and `ecnprofit`
+return a single row, `TYPOP 10`, which is merchant wholesalers — the 11–19
+subtypes aggregated. There is no 21 or 22 row. `ecntypop` *does* break MSBOs out,
+but only for sales, payroll, inventories and operating expenses; it carries no
+margin item, and neither does AIES (`RCPT_GM_DVAL` is 0 at `TYPOP 2X`). MSBOs
+have 2,331,241 of sales, enough to be most of the remaining gap at any plausible
+rate, but that margin could only ever be **imputed** — merchant rate × MSBO
+sales — never observed.
+
+**Decision: the index stays merchant-wholesaler-only.** A consistent basis across
+all years is what a growth factor needs; the scope difference cancels in the
+ratio as long as MSBO margin grows roughly like merchant wholesale, and Phase 4
+anchors the level on 2017 BEA regardless. Imputing MSBO margin would add a
+component whose year-to-year movement is driven entirely by MSBO *sales*, which
+is a modelling choice dressed as data.
+
+**One place left to look, flagged rather than chased here.** An MSBO is the
+manufacturer's own outlet, so the establishment is in wholesale but the parent is
+a manufacturer — the markup may be visible from the *manufacturing* side even
+though the wholesale tables do not carry it. The annual manufacturing survey
+probe in [#564](https://github.com/cornerstone-data/bedrock/issues/564) is the
+work that will be reading those tables closely, so the lookout is recorded there:
+[`annual_survey_expense_sources.md`](annual_survey_expense_sources.md) §Watch for
+while in here. `ecnclcust` (class of customer) is the most promising candidate. A
+single credible 2017 MSBO markup rate would be enough, since only the annual
+movement is needed from elsewhere.
+
+⚠️ **Open, and larger than anything above: the Economic Census and AWTS disagree
+by 42% about merchant wholesalers' own margin.** 1,563,667 against 1,100,925 at
+NAICS 42, for the same year and very nearly the same sales base — 5,700,967
+against an AWTS-implied 5,704,275, a 0.06% difference. So the disagreement is
+entirely in cost of goods: EC's `CSTGS` is 4,124,842 where AWTS purchases are
+4,621,765, about 497,000 apart. That is far too large to be inventory timing, and
+it means **the choice of Census source moves the wholesale level by 42%**. Not
+run down yet.
+
+**Decision: anchor on the annual source — AWTS/ARTS, spliced to AIES — and not
+on the Economic Census.** The Economic Census is the more authoritative source in
+general, and that is the right reason to expect it to win a level dispute; it is
+not the relevant criterion here. Phase 3 supplies **movement only** — the level
+comes from the 2017 BEA column by construction (§These are index numbers) — and
+the Economic Census is quinquennial, so it cannot supply annual movement at all.
+Interpolating 2012/2017/2022 into a growth index would add modelled years dressed
+as observations. What a growth factor needs is a basis held constant across every
+year, and the annual surveys are that. The 42% gap therefore never enters the
+build: it cancels in each year's ratio as long as it is stable over time, which
+is the assumption now doing the work and the one to test.
+
+### The splice is the seam that matters, and only one side of it is clean
+
+With the level anchored on BEA and the movement taken from the annual series, the
+one place a basis change can still corrupt the answer is **2022→2023, where AWTS
+and ARTS hand over to AIES** — the survey consolidation re-engineered the
+questionnaire, so it is exactly where the annual basis could shift toward the
+Economic Census one. Measured on the published total rows, the margin *rate* is
+the test, because it is invariant to coverage:
+
+| gross margin ÷ sales | 2019 | 2020 | 2021 | 2022 | **2023 (AIES)** | step |
+|---|---:|---:|---:|---:|---:|---:|
+| wholesale, NAICS 42 | 19.3% | 19.7% | 20.7% | 20.1% | **20.4%** | **+0.3pp** ✅ |
+| retail, `Total` | 29.4% | 29.5% | 30.8% | 31.3% | **34.2%** | **+2.9pp** ⚠️ |
+
+**Wholesale splices cleanly.** The rate moves +0.29pp across the seam, inside its
+own year-to-year range, and the level falls 1.0% on sales down 2.5% — an ordinary
+2023 for goods wholesaling as inflation cooled. The `TYPOP 1X` = `nomsbo` basis
+match holds up in the data, not just in the documentation.
+
+**Retail does not, yet.** The rate steps 2.9pp in one year against a series that
+had moved ~0.3pp/yr for a decade, on sales up only 1.5% — so nearly all of the
+10.8% margin gain is repricing of the margin itself rather than more trade. It is
+not a NAICS vintage artifact: AIES 2023 publishes the 2017-vintage retail
+structure (`452` and `454` both present, no `455`–`459`), and its twelve 3-digit
+codes sum to the published `44-45` total exactly.
+
+⚠️ **So the EC-versus-annual question resurfaces inside the annual series.** If
+AIES adopted the Economic Census basis, retail 2023 is on a different footing
+from retail 2012–2022 and the growth factor carries a one-off 2.9pp jump that
+never happened. **The discriminating test:** 2022 is an Economic Census year, so
+compute the retail margin rate three ways — ARTS 2022, EC 2022 (`ecnmargin`), and
+AIES 2023. If EC 2022 sits near 34% while ARTS sits at 31.3%, the step is a basis
+change and 2023 must be rebased onto the ARTS rate before it enters the index. If
+EC 2022 sits near 31.3%, the step is real and stands. Wholesale gets the same
+test for free, and its answer is already predicted: the EC basis is 42% above
+AWTS, so a wholesale rate that did *not* jump is evidence AIES stayed on the
+annual basis.
+
+Neither `ecnmargin` nor `ecnbasic` is extracted yet, so this is scoped work
+rather than a lookup. It is a prerequisite of #613's control total, not of the
+extractors, which emit the published rows either way.
+
+### Why gross margin, and not sales
+
+Gross output of wholesale and retail **excludes the cost of goods purchased for
+resale**, so trade output essentially *is* the margin — the same fact that makes
+the eight retail sectors give up exactly −100% of their output in §The negative
+result. Sales is therefore the wrong series to carry: it contains COGS, which is
+not the trade sector's revenue at all.
+
+This is also why the port does not follow flowsa's `Gross_Margins_2017.yaml` in
+relabelling AWTS's `Purchases` as `Sales`. Purchases *are* the COGS being
+excluded; sales are roughly purchases plus the margin. Measured on 2017,
+`Gross margins / Gross margins as a percent of sales` agrees with
+`Purchases + Gross margins` to within 1% for every kind of business (0.978–1.000,
+NAICS 42 at 0.997), the residual being inventory change. Relabelling understates
+sales by the margin itself and so overstates any rate built on it by about a
+fifth. The three published items are emitted under their published names and the
+derivation is left to where its basis can be stated.
+
+### Two gaps that are not bugs
+
+**2024 has no source.** AIES returns 204 No Content for every year except 2023 —
+it carries no back-years, and 2024 is not published. The nowcast window runs to
+2024, so the final year's trade control total has to be extrapolated until the
+next AIES release. Nothing upstream fixes this.
+
+**Suppression subtracts from a control total.** 2022 retail sums to 2,036,590
+against a published total of 2,167,261 — **130,671 short**, from suppressed
+gasoline stations (`447`) and `44812`. Zeroing a suppressed cell is harmless in a
+detail table and not harmless here, because the parts *are* the whole. The
+published total row is in the same workbook, so the suppressed cell is recovered
+by subtraction from it rather than by treating the zero as data; the `Suppressed`
+flag is preserved on every such cell so that step can find them.
+
 ## Negative margins are inventory timing — never clip them
 
 All **31** negative rows in the 2017 table are buyer `F03000`, totalling
