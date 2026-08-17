@@ -1,0 +1,45 @@
+!include:BEA_detail_commodity_target.yaml
+year: &trade_year 2017
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+_attribution_sources:
+  supply_mcif: &supply_mcif
+    year: 2017
+    primary_action_type: Consumed
+    selection_fields:
+      ActivityProducedBy: {'MCIF': ''}
+
+source_names:
+  Census_USATrade:
+    geoscale: national
+    year: *trade_year
+    data_format: FBA
+    activity_to_sector_mapping: Census_USATrade
+    activity_sets:
+      goods_imports_cif:
+        selection_fields:
+          FlowName: GEN_CIF_YR
+        primary_action_type: Produced
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *supply_mcif
+
+  BEA_IEA:
+    geoscale: national
+    year: *trade_year
+    data_format: FBA
+    activity_to_sector_mapping: BEA_IEA
+    activity_sets:
+      service_imports:
+        selection_fields:
+          FlowName: Imports
+        exclusion_fields:
+          ActivityProducedBy: [AllTypesOfService]
+        primary_action_type: Produced
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *supply_mcif

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from bedrock.analysis.electricity_disagg_diagnostics.local_data import (
+from bedrock.analysis.electricity_disagg_diagnostics.local_workbooks import (
     seed_cache_from_local_dir,
 )
 from bedrock.analysis.electricity_disagg_diagnostics.manifest import load_manifest

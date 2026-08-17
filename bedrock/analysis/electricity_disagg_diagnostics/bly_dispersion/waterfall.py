@@ -23,7 +23,7 @@ DARKGREY = '#616161'
 
 TITLE = (
     'U.S. attributed emissions: electricity disaggregation drivers\n'
-    'chained PR2→PR4 vs Cornerstone v0.2'
+    'chained PR2→PR4 vs Cornerstone v0.3.1 electricity footing'
 )
 FOOTNOTE_CHAINED = (
     'Each step bar = gross cross-sector reallocation (Σ|ΔBLy|) for one chained '
@@ -32,7 +32,7 @@ FOOTNOTE_CHAINED = (
 )
 NET_TITLE = (
     'U.S. total attributed BLy: electricity disaggregation net change\n'
-    'chained PR2→PR4 vs Cornerstone v0.2'
+    'chained PR2→PR4 vs Cornerstone v0.3.1 electricity footing'
 )
 FOOTNOTE_NET = (
     'Level bars = Σ BLy_new (MMT CO2e) at each model step. A delta bar appears '
@@ -172,7 +172,7 @@ def render_dispersion_waterfall(
     if use_pct:
         ylabel = (
             'Change in attributed emissions Σ|ΔBLy| '
-            '(% of Cornerstone v0.2 U.S. total BLy)'
+            '(% of Cornerstone v0.3.1 electricity footing U.S. total BLy)'
         )
     else:
         ylabel = 'Cross-sector reallocation Σ|ΔBLy| (MMT CO2e)\n[sum over USA sectors]'
@@ -315,7 +315,7 @@ def render_net_change_waterfall(
     ax.set_ylim(0, y_top)
     if use_pct:
         ylabel = (
-            'Total U.S. attributed BLy (% of Cornerstone v0.2 total)\n'
+            'Total U.S. attributed BLy (% of Cornerstone v0.3.1 electricity footing)\n'
             '[level bars]; net step change [%]'
         )
     else:

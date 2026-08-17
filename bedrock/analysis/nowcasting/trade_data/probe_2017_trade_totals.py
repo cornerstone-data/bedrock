@@ -1,20 +1,9 @@
 """
-2017 trade totals probe for bedrock#527.
+2017 trade totals probe for bedrock#528.
 
-Pulls national goods + services trade totals the same way the flowsa
-``imports`` branch FBAs do in spirit:
-
-* Census USA Trade NAICS-6, MONTH=12 YTD — imports ``GEN_CIF_YR``, exports
-  ``ALL_VAL_YR`` (no partner-country loop; national aggregate).
-* BEA ``IntlServTrade`` for ``AllCountries`` — uses the ``AllTypesOfService``
-  row only (summing all TypeOfService rows double-counts the hierarchy).
-
-Compares those extracts to the 2017 SUT targets - Use F04000 and Supply
-MCIF/MADJ/MDTY - already in
-bedrock, plus published ITA goods+services calendar-year totals.
-
-API keys: ``bedrock/extract/API_Keys.env`` via ``load_env_file_key``
-(``Census``, ``BEA``). Never prints key values.
+Loads national goods + services from Census_USATrade and BEA_IEA FBAs
+(USD) and compares to 2017 SUT targets — Use F04000 and Supply
+MCIF/MADJ/MDTY — plus ITA goods+services control totals from BEA_ITA.
 
 Run from repo root::
 
@@ -25,25 +14,18 @@ Writes ``bedrock/analysis/nowcasting/trade_data/output/probe_2017_trade_totals.c
 
 from __future__ import annotations
 
-import json
-import urllib.parse
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
 from bedrock.analysis.nowcasting.compare_NIPA_to_IOT.loaders import bea_matrix_column
-from bedrock.utils.config.common import load_env_file_key
+from bedrock.extract.bea.BEA_ITA import ita_gs_totals_usd
+from bedrock.extract.flowbyactivity import getFlowByActivity
 
 YEAR = 2017
 OUT_DIR = Path(__file__).resolve().parent / "output"
 OUT_CSV = OUT_DIR / "probe_2017_trade_totals.csv"
-
-# Published ITA Table 1.1 calendar-year goods+services (million USD).
-# Source: BEA international transactions tables (2017 release vintage).
-ITA_2017_EXPORTS_GS_MUSD = 2_263_907.0
-ITA_2017_IMPORTS_GS_MUSD = 2_764_352.0
 
 
 @dataclass(frozen=True)
@@ -64,95 +46,36 @@ class ExtractTotals:
         return self.census_goods_exports_fas_musd + self.bea_services_exports_musd
 
 
-def _census_json(flow: str, get_fields: str, api_key: str) -> list[list[str]]:
-    params = urllib.parse.urlencode(
-        {
-            "get": get_fields,
-            "COMM_LVL": "NA6",
-            "YEAR": str(YEAR),
-            "MONTH": "12",
-            "key": api_key,
-        }
-    )
-    url = f"https://api.census.gov/data/timeseries/intltrade/{flow}/naics?{params}"
-    with urllib.request.urlopen(url, timeout=180) as resp:
-        payload = resp.read().decode("utf-8")
-    if payload.lstrip().startswith("<"):
-        raise RuntimeError(
-            f"Census API returned HTML (likely missing/invalid key) for {flow}"
-        )
-    return json.loads(payload)
-
-
-def _sum_census_column(table: list[list[str]], column: str) -> tuple[float, int]:
-    header, *rows = table
-    idx = header.index(column)
-    total = sum(float(row[idx] or 0.0) for row in rows)
-    return total / 1e6, len(rows)  # API values are USD → million USD
-
-
-def fetch_census_goods(api_key: str) -> tuple[float, float, int, int]:
-    imports_tbl = _census_json("imports", "NAICS,GEN_CIF_YR", api_key)
-    exports_tbl = _census_json("exports", "NAICS,ALL_VAL_YR", api_key)
-    imp_m, n_imp = _sum_census_column(imports_tbl, "GEN_CIF_YR")
-    exp_m, n_exp = _sum_census_column(exports_tbl, "ALL_VAL_YR")
-    return imp_m, exp_m, n_imp, n_exp
-
-
-def _bea_intl_serv(direction: str, api_key: str) -> pd.DataFrame:
-    params = urllib.parse.urlencode(
-        {
-            "UserID": api_key,
-            "method": "GetData",
-            "DataSetName": "IntlServTrade",
-            "TradeDirection": direction,
-            "Affiliation": "AllAffiliations",
-            "AreaOrCountry": "AllCountries",
-            "Year": str(YEAR),
-            "ResultFormat": "json",
-        }
-    )
-    url = f"https://apps.bea.gov/api/data/?{params}"
-    with urllib.request.urlopen(url, timeout=180) as resp:
-        raw = json.loads(resp.read().decode("utf-8"))
-    results = raw.get("BEAAPI", {}).get("Results", {})
-    if isinstance(results, dict) and results.get("Error"):
-        raise RuntimeError(f"BEA API error for {direction}: {results['Error']}")
-    data = results.get("Data") if isinstance(results, dict) else None
-    if not data:
-        raise RuntimeError(f"BEA IntlServTrade returned no Data for {direction}")
-    df = pd.DataFrame(data)
-    df["DataValue"] = pd.to_numeric(df["DataValue"], errors="coerce").fillna(0.0)
-    return df
-
-
-def fetch_bea_services(api_key: str) -> tuple[float, float]:
-    """Return (imports, exports) in million USD from AllTypesOfService."""
-    out: dict[str, float] = {}
-    for direction in ("Imports", "Exports"):
-        df = _bea_intl_serv(direction, api_key)
-        row = df.loc[df["TypeOfService"] == "AllTypesOfService"]
-        if row.empty:
-            raise RuntimeError(
-                f"BEA IntlServTrade missing AllTypesOfService for {direction}"
-            )
-        # UNIT_MULT=6 → DataValue is already million USD.
-        out[direction] = float(row["DataValue"].iloc[0])
-    return out["Imports"], out["Exports"]
+def _usd_to_musd(amount: float) -> float:
+    return float(amount) / 1e6
 
 
 def fetch_extracts() -> ExtractTotals:
-    census_key = load_env_file_key("API_Key", "Census")
-    bea_key = load_env_file_key("API_Key", "BEA")
-    g_imp, g_exp, n_imp, n_exp = fetch_census_goods(census_key)
-    s_imp, s_exp = fetch_bea_services(bea_key)
+    census = getFlowByActivity("Census_USATrade", YEAR)
+    bea = getFlowByActivity("BEA_IEA", YEAR)
+
+    census_imp = census.loc[census["FlowName"] == "GEN_CIF_YR"]
+    census_exp = census.loc[census["FlowName"] == "ALL_VAL_YR"]
+    bea_imp = bea.loc[
+        (bea["FlowName"] == "Imports")
+        & (bea["ActivityProducedBy"] == "AllTypesOfService")
+    ]
+    bea_exp = bea.loc[
+        (bea["FlowName"] == "Exports")
+        & (bea["ActivityProducedBy"] == "AllTypesOfService")
+    ]
+    if census_imp.empty or census_exp.empty:
+        raise RuntimeError("Census_USATrade FBA missing GEN_CIF_YR or ALL_VAL_YR rows")
+    if bea_imp.empty or bea_exp.empty:
+        raise RuntimeError("BEA_IEA FBA missing AllTypesOfService Imports/Exports rows")
+
     return ExtractTotals(
-        census_goods_imports_cif_musd=g_imp,
-        census_goods_exports_fas_musd=g_exp,
-        bea_services_imports_musd=s_imp,
-        bea_services_exports_musd=s_exp,
-        census_import_naics_rows=n_imp,
-        census_export_naics_rows=n_exp,
+        census_goods_imports_cif_musd=_usd_to_musd(census_imp["FlowAmount"].sum()),
+        census_goods_exports_fas_musd=_usd_to_musd(census_exp["FlowAmount"].sum()),
+        bea_services_imports_musd=_usd_to_musd(bea_imp["FlowAmount"].sum()),
+        bea_services_exports_musd=_usd_to_musd(bea_exp["FlowAmount"].sum()),
+        census_import_naics_rows=int(census_imp["ActivityProducedBy"].nunique()),
+        census_export_naics_rows=int(census_exp["ActivityProducedBy"].nunique()),
     )
 
 
@@ -169,14 +92,15 @@ def fetch_benchmarks() -> dict[str, float]:
     madj = bea_matrix_column("MADJ", matrix="Supply_SUT_detail")
     mdty = bea_matrix_column("MDTY", matrix="Supply_SUT_detail")
     f050_mut = bea_matrix_column("F05000", matrix="Use_MUT_detail_after_redef")
+    ita = ita_gs_totals_usd(YEAR)
     return {
         "use_F04000_exports_musd": float(f040_sut.total),
         "supply_MCIF_musd": float(mcif.total),
         "supply_MADJ_musd": float(madj.total),
         "supply_MDTY_musd": float(mdty.total),
         "mut_F05000_imports_abs_musd": abs(float(f050_mut.total)),
-        "ita_exports_gs_musd": ITA_2017_EXPORTS_GS_MUSD,
-        "ita_imports_gs_musd": ITA_2017_IMPORTS_GS_MUSD,
+        "ita_exports_gs_musd": ita["exports"] / 1e6,
+        "ita_imports_gs_musd": ita["imports"] / 1e6,
     }
 
 
@@ -250,14 +174,13 @@ def build_comparison(extract: ExtractTotals, bench: dict[str, float]) -> pd.Data
     ]
     df = pd.DataFrame(rows)
     df["year"] = YEAR
-    # Ratios against the SUT targets the nowcast has to reproduce.
     df["ratio_to_supply_MCIF"] = df["million_usd"] / bench["supply_MCIF_musd"]
     df["ratio_to_use_F040"] = df["million_usd"] / bench["use_F04000_exports_musd"]
     return df
 
 
 def main() -> None:
-    print(f"Fetching Census + BEA extracts for {YEAR}...")
+    print(f"Loading Census_USATrade + BEA_IEA FBAs for {YEAR}...")
     extract = fetch_extracts()
     print("Loading SUT benchmarks: Use F04000, Supply MCIF/MADJ/MDTY...")
     bench = fetch_benchmarks()

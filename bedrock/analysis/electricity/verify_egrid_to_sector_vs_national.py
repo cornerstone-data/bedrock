@@ -28,23 +28,27 @@ _NAT_TOTALS_URL = (
 _EGRID_TO_SECTOR_CONFIG: dict[str, Any] = {
     'data_format': 'FBS_outside_flowsa',
     'geoscale': 'national',
-    'target_naics_year': 2017,
-    'activity_schema': 'NAICS_2017_Code',
+    'target_schema_year': 2017,
+    'activity_schema': {
+        'naics': {'year': 2017, 'hierarchy': 'flat'},
+    },
     'activity_to_sector_mapping': 'EPA_eGRID',
     'industry_spec': {
-        'default': 'NAICS_6',
-        'NAICS_6': [
-            '221111',
-            '221112',
-            '221113',
-            '221114',
-            '221115',
-            '221116',
-            '221117',
-            '221118',
-            '221121',
-            '221122',
-        ],
+        'naics': {
+            'default': 'NAICS_6',
+            'NAICS_6': [
+                '221111',
+                '221112',
+                '221113',
+                '221114',
+                '221115',
+                '221116',
+                '221117',
+                '221118',
+                '221121',
+                '221122',
+            ],
+        },
     },
     'include_flow_names': list(_GHG),
 }

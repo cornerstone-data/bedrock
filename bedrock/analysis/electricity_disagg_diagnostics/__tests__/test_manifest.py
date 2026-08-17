@@ -19,13 +19,13 @@ def test_load_manifest_rejects_placeholder_sheet_ids(tmp_path: Path) -> None:
                 'footing': {
                     'label': 'foot',
                     'sheet_id': '<SHEET_ID_FOOTING>',
-                    'config': '2025_usa_cornerstone_v0_2',
+                    'config': '2025_usa_cornerstone_v0_3_electricity_footing',
                 },
                 'steps': [],
                 'final': {
                     'label': 'final',
                     'sheet_id': '<SHEET_ID_MIXED>',
-                    'config': '2025_usa_cornerstone_v0_2_electricity_mixed_units',
+                    'config': '2025_usa_cornerstone_v0_3_electricity_mixed_units',
                 },
             }
         ),

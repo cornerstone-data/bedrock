@@ -90,7 +90,7 @@ individually much further off in both directions.
 ## The live candidate does not currently run
 
 `derive_initial_Y_pur(2017)` raises `KeyError: ['ActivityProducedBy'] not in
-index`. `NIPA_FD_2017.yaml` sets `attribute_on: ['PrimarySector',
+index`. `NIPA_final_dom_uses_2017.yaml` sets `attribute_on: ['PrimarySector',
 'ActivityProducedBy']` on the PCE activity sets, but the `retain_activity_columns`
 plumbing in `flowby.py` that keeps that column alive into the attribution source
 landed in `9668ce7`, was reverted from main in `42f7e59`, and was **not** part of

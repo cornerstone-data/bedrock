@@ -35,7 +35,7 @@ def test_build_bars_only_delta_when_total_changes() -> None:
             '3-way\nsplit',
             'Conversion to\nphysical units',
         ],
-        footing_label='Cornerstone v0.2',
+        footing_label='Cornerstone v0.3.1 electricity footing',
     )
     assert result.step_deltas_mmt[0] == 0.0
     assert result.step_deltas_mmt[1] == 0.0
@@ -43,7 +43,7 @@ def test_build_bars_only_delta_when_total_changes() -> None:
 
     bars = result.build_bars()
     labels = [b.label for b in bars]
-    assert labels[0] == 'Cornerstone v0.2'
+    assert labels[0] == 'Cornerstone v0.3.1 electricity footing'
     assert labels[1] == 'Co-production\nreallocation'
     assert labels[2] == '3-way\nsplit'
     assert labels[3] == 'Δ from\nConversion to\nphysical units'
@@ -58,7 +58,7 @@ def test_net_change_waterfall_writes_png(tmp_path: Path) -> None:
         footing,
         [mixed],
         ['Conversion to\nphysical units'],
-        footing_label='Cornerstone v0.2',
+        footing_label='Cornerstone v0.3.1 electricity footing',
     )
     out = tmp_path / 'net_change_mmt.png'
     render_net_change_waterfall(result, use_pct=False, out_path=out)

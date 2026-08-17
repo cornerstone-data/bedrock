@@ -1,0 +1,6 @@
+# Waste-disagg off baseline for
+# bedrock/transform/eeio/__tests__/test_waste_disagg_pipeline_integration.py.
+# Pair of test_usa_config_waste_disagg (same years / GHG model; waste off).
+model_base_year: 2023
+usa_ghg_data_year: 2023
+use_cornerstone_ghg_model: True

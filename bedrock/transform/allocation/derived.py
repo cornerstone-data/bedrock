@@ -158,20 +158,42 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
 
 
-_EGRID_FBS_METHOD = 'GHG_national_Cornerstone_2023_egrid'
+_EGRID_FBS_METHOD_BY_YEAR: dict[int, str] = {
+    2023: 'GHG_national_Cornerstone_2023_egrid',
+    2024: 'GHG_national_Cornerstone_2024_egrid',
+}
+
+
+def egrid_fbs_method_for_year(year: int) -> str:
+    """Return the eGRID-backed Cornerstone GHG FBS method name for *year*."""
+    try:
+        return _EGRID_FBS_METHOD_BY_YEAR[year]
+    except KeyError as exc:
+        supported = ', '.join(str(y) for y in sorted(_EGRID_FBS_METHOD_BY_YEAR))
+        raise ValueError(
+            f'usa_ghg_data_year={year} is unsupported for the electricity-'
+            f'disaggregation eGRID FBS; supported years: {supported}'
+        ) from exc
 
 
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
-    """Load the eGRID-based national GHG FBS for electricity disaggregation."""
+    """Load the eGRID-based national GHG FBS for electricity disaggregation.
+
+    Selects ``GHG_national_Cornerstone_<year>_egrid`` from
+    ``usa_ghg_data_year`` so v0.2 (2023) and v0.3 (2024) electricity configs
+    stay year-matched.
+    """
+    method = egrid_fbs_method_for_year(get_usa_config().usa_ghg_data_year)
     try:
-        return _load_cornerstone_ghg_fbs_from_gcs(base_name=_EGRID_FBS_METHOD)
+        return _load_cornerstone_ghg_fbs_from_gcs(base_name=method)
     except FileNotFoundError:
         logger.info(
             'eGRID FBS parquet not in transform/output_data; '
-            'loading via getFlowBySector'
+            'loading via getFlowBySector (%s)',
+            method,
         )
         return getFlowBySector(
-            methodname=_EGRID_FBS_METHOD,
+            methodname=method,
             download_FBS_if_missing=True,
         )
 
