@@ -77,23 +77,39 @@ basis:
 
 | mode | 2017 `TRANS` | share | BEA's basis | source | our status |
 |---|---:|---:|---|---|---|
-| Truck `484000` | −281,589 | **67.8%** | **revenue by product** | SAS Table 8 → AIES `miscsector` | found; 11 groups, one is 33% |
+| Truck `484000` | −281,589 | **67.8%** | **revenue by product**, ten groups; "other" discarded | SAS Table 8 → AIES `miscsector` | source found; concordance to build |
 | Rail `482000` | −68,590 | 16.5% | **revenue by product** | AAR Freight Commodity Statistics (purchased); STB Commodity Revenue Stratification Report | STB is the public route; not extracted |
-| Pipeline `486000` | −49,660 | 11.9% | **not stated** | — | **open — BEA's reply does not cover it** |
-| Water `483000` | −9,506 | 2.3% | ton-miles **× difficulty 1/2/3** | BTS/Census CFS | multiplier table unpublished |
-| Air `481000` | −6,225 | 1.5% | ton-miles × multiplier (animals and fish only) | BTS/Census CFS | as above |
+| Pipeline `486000` | −49,660 | 11.9% | **four Census margin items → named commodity sets, proportional** | Census margin items only — no external source | **fully specified**, §Pipeline |
+| Water `483000` | −9,506 | 2.3% | ton-miles **× difficulty 1/2/3** | BTS/Census CFS | rule known, table not needed |
+| Air `481000` | −6,225 | 1.5% | ton-miles × multiplier (animals only) | BTS/Census CFS | rule known |
+
+⚠️ **Every mode now has a stated method** (second Nicolls reply, 2026-08-17).
+What remains is sourcing, not method: the group → I-O concordance BEA will not
+publish, rail's revenue source, and the 2023 splice.
 
 The difficulty multiplier weights ton-miles rather than replacing them, so the
 water and air allocator is a weighted ton-mile share,
 `m_c · tonmiles_c ÷ Σ m_i · tonmiles_i` with `m ∈ {1,2,3}`. It encodes how hard
-cargo is to rearrange at port: cargo that sits free in the hold, such as grain or
-oil, stays at 1; palletized goods take 2; heavy machinery 3. Air carries a single
-adjustment, for animals and fish. The weights are refreshed every five years.
+cargo is to rearrange at port. **The table is unpublished but the rule is now
+specified finely enough to reproduce it** — *"I can't share the table with you,
+but I can give you a push in the right direction… That should get you pretty
+close"*:
 
-**This reorders the work.** Water and air together are 3.8% of `TRANS`, so the
-unpublished multiplier table — which looks like the hardest thing to obtain — is
-worth less than a percent of the answer. Truck alone is more than two thirds, and
-pipeline is three times water and air combined with no stated method at all.
+| | 1 | 2 | 3 |
+|---|---|---|---|
+| **air** | everything else | — | **animals** |
+| **water** | sits loose in the hold (grain, oil) | palletized or containerized | **motorized vehicles and transport**; heavy machinery |
+
+Note this **fixes air's multiplier at 3**, which the first reply left unstated,
+and adds motorized vehicles to the first reply's "heavy machinery" at the top of
+the water scale. The weights are refreshed every five years, so they are a
+constant in any annual construction.
+
+**This reorders the work.** Water and air together are 3.8% of `TRANS` and their
+multipliers no longer block anything. Pipeline, 11.9%, went from the largest
+unmethodded piece to fully reproducible with **no external source at all**. Truck
+alone is more than two thirds, and after the "other goods" answer below its only
+remaining unknown is a concordance we must build ourselves.
 
 **No separate handling of local or small shipments.** *"We do not handle local or
 small shipments separately… The specific cost of a commodity doesn't figure in to
@@ -157,16 +173,56 @@ Firms*, is the table BEA named. Measured directly:
   despite the catalogue advertising 1992–2023, exactly as for `aies/basic`. So
   **2024 has no truck source**, the same gap already noted for trade.
 
-⚠️ **Problem 1 — a third of truck revenue has no commodity identity.**
-"Other goods" runs 32–34% of the total in every year (30.6% in 2023). Against
-truck's 67.8% of `TRANS`, that is **~22% of the entire transport margin** sitting
-in an unallocatable bucket. Whatever BEA does to distribute it is a method step
-the reply does not describe, and it is the single largest unknown in the transport
-chain — larger than pipeline, and far larger than the water multipliers.
+### ✅ Problem 1 — "Other goods" — closed: BEA discards it
 
-⚠️ **Problem 2 — the shares move four times more across the AIES splice than in
-a normal year.** The level falls 17.8% (414,693 → 340,969), which does not matter
-because the level comes from the 2017 anchor. The shares do matter, and they step:
+"Other goods" runs 32–34% of the total in every year (30.6% in 2023), and against
+truck's 67.8% of `TRANS` that is ~22% of the entire transport margin. It was the
+single largest unknown in the transport chain. The answer is that there is no
+method step to reproduce, because BEA does not use the bucket at all:
+
+> *"We do not use the 'other' commodity from SAS Table 8 since we have no
+> information on what commodities it contains. Distributing it pro rata to the
+> other 10 would not change the result since we are creating weights with the
+> data to distribute our truck margins rather than explicitly using the values
+> from SAS table 8."* — W. Nicolls, BEA, 2026-08-17
+
+**The reason it is harmless is the anchor-plus-growth construction, and it is
+worth being explicit about why.** Table 8's values are never spent; only their
+*shares* are. So the allocator is
+
+```
+share[g] = revenue[g] ÷ Σ_{g ≠ other} revenue[g]      over the ten identified groups
+```
+
+and renormalising over ten groups is arithmetically identical to distributing
+"other" pro rata across them. BEA's own reply makes that equivalence explicit, so
+**dropping "other" is not an approximation of the method — it is the method.**
+The one assumption it carries is that "other goods" freight has the same
+commodity mix as identified freight; BEA accepts that assumption rather than
+avoiding it, and there is no published basis on which we could do better.
+
+⚠️ **Do not reintroduce it later as a refinement.** A future source that gave
+"other goods" a commodity identity would make our allocator *diverge* from BEA's
+rather than improve on it, and the 2017 anchor is BEA's published column.
+
+**Also confirmed: the source reading was right.** Table 8 is the table BEA means,
+the eleven published groups are what BEA uses, and there is no finer internal
+tabulation to ask for. "Basically at a sector level" in the first reply was
+aggregation-level language — BEA uses NAICS codes for commodities and industries
+alike and says sector/summary/detail for the levels — not a claim that the rows
+are industries. *"The data are commodity data in SAS Table 8 and we do use the
+published data."*
+
+### ⚠️ Problem 2 — the shares step across the AIES splice, and this one stays open
+
+**Asked, and not answered.** Question 4 of the 2026-08-14 follow-up put this
+directly to BEA — whether 2023 is continuous with the earlier series or rebased,
+and how they handle a year like 2024 before the next AIES release — and the
+2026-08-17 reply does not address it. It is now the **only unanswered method
+question** in the transport chain.
+
+The level falls 17.8% (414,693 → 340,969), which does not matter because the
+level comes from the 2017 anchor. The shares do matter, and they step:
 
 | | mean \|Δpp\| | max \|Δpp\| |
 |---|---:|---:|
@@ -180,11 +236,71 @@ plausibly the 2023 freight recession landing unevenly, but four times the normal
 volatility located exactly at the survey consolidation is the same signature as
 the retail rate step, and takes the same treatment: do not splice silently.
 
-**These groups are also a bespoke Census taxonomy** — neither SCTG nor NAICS
-("Grains, alcohol, and tobacco products", "Base metal and machinery", "Used
-household and office goods"). Mapping them to I-O commodities needs a concordance
-we do not have, structurally the same missing link as NAPCS → I-O on the trade
-side.
+### The concordance is internal, and we have to build our own
+
+**These groups are a bespoke Census taxonomy** — neither SCTG nor NAICS ("Grains,
+alcohol, and tobacco products", "Base metal and machinery", "Used household and
+office goods"). Asked whether the mapping is published:
+
+> *"The SAS group to IO items concordance is not published. It is internal to our
+> database. We remap it every 5 years and we are in that process now."*
+> — W. Nicolls, BEA, 2026-08-17
+
+So it is structurally the same missing link as NAPCS → I-O on the trade side
+([#615](https://github.com/cornerstone-data/bedrock/issues/615)), with one large
+practical difference: **this one is ten groups, not 29,098 rows.** Building it by
+hand against BEA 2017 detail is an afternoon, not a project, and unlike the NAPCS
+concordance there is no alternative — the 2017 anchor gives us the *commodity*
+allocation but not the *group* it came from, so nothing substitutes for the map.
+
+Two consequences worth recording now. The mapping is many-to-many and the groups
+are coarse, so a group's margin must be spread across its member commodities on a
+weight; interim supply is the natural one, matching what BEA's wholesale step (4)
+does. And BEA is remapping *right now* on the five-year cycle, so a 2022-vintage
+concordance built today will differ from theirs at the next benchmark — a reason
+to keep ours in a reviewable CSV rather than in code.
+
+### Pipeline — fully specified, and the only mode needing no external source
+
+11.9% of `TRANS`, more than water and air combined, and the first reply did not
+cover it. The second does, completely:
+
+> *"Pipeline is a bit different from our other transportation margins in that
+> there is no outside source that we need to tell us where to distribute the
+> pipeline margins. The margin values, like the other transportation margins,
+> come from Census and there are 4 pipeline margine items… These margins are all
+> distributed proportionally to the commodities to which they are assigned."*
+> — W. Nicolls, BEA, 2026-08-17
+
+| Census margin item | goes to | BEA's words |
+|---|---|---|
+| Natural gas pipe | natural gas | *"Natural gas pipelines margins go to natural gas commodity"* — clearest |
+| Crude oil pipe | any crude oil commodity | *"Crude pipelines margins go to any crude oil commodity"* — clearest |
+| Refined petroleum pipe | refined fuels | *"gasoline, jet fuel, kerosene and other refined oils and waxes"* |
+| Pipeline, NEC | chemicals moved by pipe | *"dyes, pigments, toners, ammonia, Urea and like products that would be transported through a pipeline"* |
+
+**Why this is the easiest mode to build, not the hardest.** There is no revenue
+survey to extract, no ton-mile file, no concordance to negotiate — the four items
+come from Census margin data we already reach, each has a named destination set,
+and within a set the split is proportional. It is a lookup table plus a
+normalisation.
+
+Two things to settle when building it, neither blocking:
+
+- **"Any crude oil commodity" and "like products" are judgement calls at BEA
+  detail.** The first three sets are tight (`211000` crude, natural gas,
+  `324110` refineries and the refined-product commodities); the NEC set is a
+  named exemplar list plus "and like products", so it needs a decision recorded
+  in the CSV rather than inferred silently.
+- **Proportional to what?** The reply says "distributed proportionally to the
+  commodities to which they are assigned" without naming the weight. Interim
+  supply is the consistent choice — it is what the wholesale method uses — and
+  the 2017 anchor lets us *test* it: pipeline's published 2017 `TRANS` by
+  commodity is the answer key, so the weight can be fitted rather than assumed.
+
+⚠️ **This supersedes the closed PR's `output_ratio` treatment for pipeline**,
+which existed only because a residual went negative — pipeline gives up 1.033 of
+its own gross output. That was a workaround for a construction BEA does not use.
 
 ### Wholesale
 
@@ -329,7 +445,9 @@ variation, and it cannot be justified from the source method.
 | **AIES `miscsector`** — truck revenue by commodity, continued | Census API `timeseries/aies/miscsector` | **Published, 2023 only.** `RCPT_MOTR_*_DVAL`, same eleven groups |
 | **STB Commodity Revenue Stratification Report** — rail revenue by commodity | Surface Transportation Board | Public; **not extracted**. AAR's equivalent is proprietary |
 | Pipeline allocation basis | — | **Nothing identified** |
-| Water/air difficulty multipliers (1/2/3) | BEA, internal | **Unpublished.** Governs 2.3% of `TRANS` |
+| Water/air difficulty multipliers (1/2/3) | BEA, internal | **Table unpublished, rule obtained** 2026-08-17 — reproducible without it. Governs 3.8% of `TRANS` |
+| Pipeline margin items (4) → commodity sets | Census margin data | **Method obtained** 2026-08-17. No external source needed; §Pipeline |
+| SAS ten-group → I-O commodity concordance | — | **Missing, and BEA's is internal.** Must be built by hand; governs truck's 67.8% |
 | `Crosswalk_SCTGtoBEA.csv`, mode→BEA crosswalks, `FAFData.R` | `cornerstone-data/stateior` | Built, **R**, and SCTG maps to **BEA 2012 detail** — no 2017 detail column |
 | `Gross_Margins_2017.yaml` (Census AWTS + ARTS) | flowsa `margins` | Built. Annual **2012–2022**. Gives margin **by trade sector** |
 | PCE / PEQ bridges | bedrock, `BEA_PCEBridge` | Same margin columns as the Margins table, but **benchmark years only** — workbook sheets are 2007, 2012, 2017 |
@@ -400,14 +518,26 @@ allocated every mode on ton-miles; BEA's reply retired it and the PR was closed
 framing, and the anchor-plus-growth construction. What replaces the allocator, in
 descending order of what it is worth:
 
-1. **Truck, 67.8%** — revenue by commodity group. Source found: SAS Table 8
+1. **Pipeline, 11.9% — build this first.** Fully specified, no external source,
+   no concordance to negotiate: four Census margin items onto named commodity
+   sets, proportional within each (§Pipeline). It was the largest unmethodded
+   piece a week ago and is now the cheapest to land, so it is the natural first
+   increment and proves the per-mode framing end to end on a mode that needs
+   nothing extracted.
+2. **Truck, 67.8%** — revenue by commodity group. Source found: SAS Table 8
    (`Census_SAS`, sheet `Table 8`) for 2015–2022, continued by AIES
-   `timeseries/aies/miscsector` (`RCPT_MOTR_*_DVAL`) for 2023. Two problems
-   below.
-2. **Rail, 16.5%** — revenue by product. AAR is proprietary; the STB Commodity
-   Revenue Stratification Report is the public substitute and is not extracted.
-3. **Pipeline, 11.9%** — no method stated by BEA and none assumed here.
-4. **Water and air, 3.8%** — weighted ton-miles, per §Transportation.
+   `timeseries/aies/miscsector` (`RCPT_MOTR_*_DVAL`) for 2023. The "other goods"
+   problem is closed — discard it and renormalise over the ten identified groups,
+   which is BEA's own method. What is left is the ten-group → I-O concordance,
+   which BEA will not publish and which we must build by hand.
+3. **Water and air, 3.8%** — weighted ton-miles, `m ∈ {1,2,3}`, and the rule is
+   now fine enough to reproduce without BEA's table (§Transportation). Promoted
+   above rail because the `BTS_FAF` extractor and its crosswalk already exist on
+   `faf_transport_margins` at `b94913f` and only need cherry-picking.
+4. **Rail, 16.5%** — revenue by product, and now the **only mode with no
+   identified public source**. AAR is proprietary; the STB Commodity Revenue
+   Stratification Report is the untested public substitute. Last not because it
+   is small but because it is the one piece that may not exist.
 
 **What the closed PR established that a rebuild must not rediscover.** The
 allocator was wrong; the plumbing under it was not, and these findings cost real
@@ -926,33 +1056,41 @@ Three consequences:
 1. ~~**Tons or ton-miles** for the transport allocation~~ — **the wrong question.**
    BEA allocates rail and truck on revenue by product and only water and air on
    ton-miles, so the 2017 fit was choosing between two measures neither of which
-   applies to 84% of `TRANS`. See §Transportation. What replaces it are five
-   questions put to BEA on 2026-08-14 and not yet answered, numbered here as they
-   were sent (see [`bea_correspondence.md`](bea_correspondence.md)) — questions 1
-   and 2 share a subject, so they were grouped rather than left in strict order of
-   value, which would put pipeline second:
-   1. **How is SAS Table 8's "Other goods" distributed?** ~22% of all transport
-      margin, and the largest single unknown in the chain.
-   2. **Is there a published Table 8 group → I-O commodity concordance,** or is it
-      internal like the NAPCS one?
-   3. **What is the pipeline (`486000`) basis?** 11.9%, and BEA's reply does not
-      cover it. Second by value.
-   4. **Does the 2022→2023 share step survive scrutiny,** or is it a basis change
-      to be rebased? 2022 is an Economic Census year, so the same three-way test
-      §The splice is the seam that matters specifies for retail applies here —
-      that section arrives with
-      [#628](https://github.com/cornerstone-data/bedrock/pull/628).
-   5. **The water difficulty multiplier table** — 1/2/3 by commodity, refreshed
-      every five years. Worth having, but it governs 2.3% of `TRANS`, so it is
-      last.
+   applies to 84% of `TRANS`. See §Transportation. Five questions replaced it, put
+   to BEA on 2026-08-14; **four came back answered on 2026-08-17** (see
+   [`bea_correspondence.md`](bea_correspondence.md)), numbered as sent:
+   1. ~~**How is SAS Table 8's "Other goods" distributed?**~~ — **closed.** It is
+      not distributed, because it is not used: BEA builds weights from the ten
+      identified groups, so discarding "other" and renormalising *is* the method,
+      and pro rata "would not change the result". The largest single unknown in
+      the chain, closed at zero cost.
+   2. ~~**Is the Table 8 group → I-O concordance published?**~~ — **closed, and
+      the answer is no.** Internal to BEA's database, remapped every five years,
+      being remapped now. We build our own; ten groups makes that tractable.
+   3. ~~**What is the pipeline (`486000`) basis?**~~ — **closed, completely.**
+      Four Census margin items onto named commodity sets, distributed
+      proportionally, with no external source needed. §Pipeline.
+   4. ⚠️ **Does the 2022→2023 share step survive scrutiny,** or is it a basis
+      change to be rebased? **Not answered — the one method question still open.**
+      2022 is an Economic Census year, so the three-way test §The splice is the
+      seam that matters specifies for retail applies here too.
+   5. ~~**The water and air difficulty multiplier table**~~ — **closed as a
+      rule**, not as a table: BEA will not share the table but gave the assignment
+      finely enough to reproduce ("should get you pretty close"). Air 1 except
+      animals at 3; water 3 for motorized vehicles and transport, 2 for
+      palletized or containerized, 1 for loose in the hold.
 
-   Answers to 1 and 3 govern truck and pipeline, ~80% of `TRANS`, and until they
-   arrive **rail is the only mode that is not blocked** — its source is public and
-   nothing pending changes how it is used. Build rail first.
+   **This inverts the build order.** Pipeline went from unmethodded to the
+   cheapest mode to land and should be built first; rail, previously the only
+   unblocked mode, is now last, because it is the only one whose public source is
+   still unidentified. See §Approach.
 2. **Extending `Crosswalk_SCTGtoBEA.csv` to BEA 2017 detail** — it currently
-   carries 2012 detail and 2017 *summary* only. This is the real porting work
-   on the transport chain, not the SCTG mapping itself.
-3. **Build the NAPCS → I-O commodity concordance?** Only needed to re-run BEA's
+   carries 2012 detail and 2017 *summary* only. Now scoped to water and air only,
+   3.8% of `TRANS`, since those are the sole modes still allocated on ton-miles.
+3. **Build the SAS ten-group → I-O commodity concordance.** Unavoidable — BEA's
+   is internal, and the 2017 anchor gives the commodity allocation but not the
+   group it came from, so nothing substitutes for it. Governs truck's 67.8%.
+4. **Build the NAPCS → I-O commodity concordance?** Only needed to re-run BEA's
    actual method on 2022 product lines rather than carry 2017-anchored rates.
    Everything upstream of it now exists; this is the sole missing link.
    **Deferred to [#615](https://github.com/cornerstone-data/bedrock/issues/615)**,
