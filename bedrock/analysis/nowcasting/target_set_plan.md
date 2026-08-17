@@ -59,7 +59,7 @@ imposed.
 | T7 | Supply `MCIF` | imports total | BEA ITA goods + services | column total | **S**`0.8` |
 | T8 | Supply `MDTY` | customs duties total | NIPA T30500 | column total | **S**`0.7` |
 | T9 | Supply `TOP`, `SUB` | product taxes / subsidies totals | T30500, T31300 | column total | **S**`0.7` |
-| T10 | Supply `MADJ`, `TRADE`, `TRANS` | — *(distribution free; but see T15/T16)* | ours (Step 4b/4c) | — | **—** |
+| T10 | Supply `MADJ`, `TRADE`, `TRANS` | — *(distribution free; `TRADE`/`TRANS` totals via T15/T16, `MADJ` free — §2b)* | ours (Step 4b/4c) | — | **—** |
 | T11 | Commodity rows | `T016 = T019` | identity | detail, 402 | **H** |
 | T12 | Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB + Σ SUB = 0` | identity (§2a) | scalar | **H** |
 | T13 | Use `T00TOP` ↔ Supply `TOP` + `MDTY` | `Σ T00TOP = Σ TOP + Σ MDTY` | identity (§2a) | scalar | **H** |
@@ -197,9 +197,15 @@ reassigns Census `GEN_CHA_YR` onto the 2017 `MADJ` destinations.
 ⚠️ **But it earns no identity of its own.** `MADJ` totals **−23,116**, not zero:
 it *reduces* total supply to move imports from a c.i.f. to an f.o.b. basis,
 rather than moving value between commodities. It belongs to the addition family
-with `MCIF` and `MDTY`, not to the zero-sum family with `TRADE` and `TRANS` —
-so T10 leaves it unconstrained, and it is the one Step 4b/4c output with no
-internal check at all.
+with `MCIF` and `MDTY`, not to the zero-sum family with `TRADE` and `TRANS`.
+
+✅ **Decided 2026-08-17: `MADJ` stays free.** It is the one Step 4b/4c output
+with neither an internal identity nor an external target, and that is accepted
+for now — it is −23,116 against a $34T table, and `T11` absorbs it. Revisit if
+the balance puts implausible mass there, or if a soft column total is wanted
+later; Census `GEN_CHA_YR` (import charges) measures the same wedge and already
+arrives with the `MCIF` request, so the option stays open at no extra
+extraction cost.
 
 ### Why these and not the obvious alternatives
 
