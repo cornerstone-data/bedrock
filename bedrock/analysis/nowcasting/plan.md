@@ -202,7 +202,8 @@ conversion and redefinition steps need is already loadable** — no new extract 
   and they already encode which codes to exclude from each framework.
 
 **Not in bedrock, to be ported:** a balancing algorithm (**no longer a straight `sut_ras.py` port** —
-see Step 5, which now carries three open decisions) and commodity mix / intermediate nowcasting
+see Step 5; Decisions 2 and 3 are recorded as of 2026-08-17, Decision 1 is still open) and commodity
+mix / intermediate nowcasting
 (`CalculateIntermediateUseAndCommodityMix.R`, per #497). Confirmed: no RAS/GRAS code anywhere in
 bedrock today.
 
@@ -306,10 +307,17 @@ Ranked by how much they block:
    import valuation overlap (CIF vs customs / `MADJ`), and `S00300` specials policy. IEA TypeOfService
    leaves are mapped; Crosswalk revisions sit in `bedrock/transform/trade/README.md`. `MDTY` rides on
    the same Census request (`CAL_DUT_YR`) — see §`MDTY`.
-3. **Commodity split of product taxes and subsidies** (`TOP`, `SUB`, and the Use table's
-   `T00TOP`/`T00SUB` rows) — NIPA gives totals (T30500, T31300); allocating to 402 commodities does
-   not come for free. Default proposal: 2017 detail Supply shares, held constant, inflated with the
-   commodity.
+3. **Product taxes and subsidies — the split, on *both* axes** (`TOP`, `SUB`, and the Use table's
+   `T00TOP`/`T00SUB` rows). NIPA gives totals (T30500, T31300); allocating them does not come for
+   free.
+   - **By commodity** (Supply `TOP`/`SUB`) — default proposal: 2017 detail Supply shares, held
+     constant, inflated with the commodity.
+   - **By industry** (Use `T00TOP`/`T00SUB` rows) — ⚠️ **newly load-bearing as of 2026-08-17.**
+     Published detail gross output is at *producer* prices and the SUT column identity is at *basic*;
+     the wedge is exactly `T00TOP − T00SUB` per industry (verified to $4M on $34T). So the industry
+     split now sits underneath Step 5's **hardest** constraint, not just inside Step 2. The preferred
+     escape is to state the gross-output target in producer prices and let the balance solve the
+     allocation — see Step 5 Decision 3 and [`target_set_plan.md`](target_set_plan.md) §4.
 4. **`MADJ`** — no annual published analogue; likely 2017-ratio-based, though Census `GEN_CHA_YR`
    (import charges) measures the same c.i.f./f.o.b. wedge and comes free with the `MCIF` request, so
    try it before defaulting to a fixed ratio. Small in magnitude, but it sits inside the `T013`
@@ -934,6 +942,29 @@ orchestration layer written fresh against `sut_ras.py` as the reference.
 | **B. Start from `sut_ras.py`, harden it** | Type it, test it, replace magic epsilons, add masking and real convergence reporting — i.e. rebuild ceda's engineering around it. | GRAS, the SUT sequencing, **and aggregate-level targets** are already there, and they are the parts that are conceptually hard to get right rather than merely tedious. Decision 3 raises the value of this column. |
 | **C. Fresh engine in bedrock, both as references** | Most upfront work; no inherited tests. | No inherited invariant fighting us, no private-repo or dependency-pin entanglement, and the objective function is a deliberate choice rather than an artifact. |
 
+⚠️ **Both capabilities Option A was buying have now failed to hold up
+(2026-08-17).** Measured in [`mask_layer_plan.md`](mask_layer_plan.md):
+
+- **ceda's mask is the wrong kind of mask.** `free_mask` is a *participation*
+  mask — `masked = np.where(mask, matrix, 0.0)` ([`ras_balancing.py:573`](../../../../ceda/ceda/utils/ras_balancing.py#L573)) zeroes non-free
+  cells, so a **fixed nonzero value cannot be expressed at all**. Two further
+  blockers in the same ten lines: `np.maximum(row/col_targets, 0.0)` at `:570-571`
+  destroys a negative column target (`F03000` is −37,568 in 2020), and
+  `np.maximum(masked, 0.0)` at `:579` clamps negative seed mass. These are
+  load-bearing invariants of a non-negative codebase, not lines to delete.
+- **Aggregate-level constraints are still required** — for the value-added rows
+  rather than for gross output (Decision 3, revised). ceda's row/column-vector
+  API still cannot express them.
+
+The good news is that the mask itself is **engine-agnostic and cheap**: the
+offset method (split `X = F + Z`, balance `Z` against residual targets `r − F·1`,
+`c − 1ᵀF`, `A − R·F·Cᵀ`, add `F` back) reduces a fixed-value mask to a
+participation mask under any engine. ~20 lines. But residual targets can change
+sign, which RAS cannot carry and GRAS can — so this lands on Decision 2 as well.
+
+**What ceda still genuinely offers** is convergence, stall projection and
+diagnostics. That is a smaller prize than the table above assumed.
+
 **Practical constraints that bear on this, all verified:**
 - **bedrock has no `scipy` dependency** ([`pyproject.toml`](../../../pyproject.toml) — `pandas`,
   `numpy`, no `scipy`), and ceda's `ras_balancing` imports `scipy.sparse`. Option A means either
@@ -968,79 +999,108 @@ expression of the choice, and the negatives question is decided here rather than
 - **Where may a sign flip, and where may it not?** `sut_ras`'s `sign_flex` is the mechanism; the
   policy is ours to set, per block. `SUB` and the margin give-up side should almost certainly be
   sign-locked; `F03000` cells arguably should not be.
-- **What is held fixed entirely?** A mask of cells the balancer may not touch (structural zeros; any
-  block we consider directly measured rather than nowcast). ceda has this, `sut_ras` does not.
+- **What is held fixed entirely?** ✅ **Settled 2026-08-17** —
+  [`mask_layer_plan.md`](mask_layer_plan.md), measured by
+  [`mask_layer_feasibility.py --check`](mask_layer_feasibility.py). Three layers,
+  kept separate because conflating them is what made the mask look free:
+  **structural zeros** (a pattern; both engines get it for free), **fixed values**
+  (the mask proper; neither engine has it, but the offset method supplies it), and
+  **sign locks** (`sign_flex`, not a mask).
+  **The rule: mask a cell only if the source reports *that cell*; if it reports
+  the margin, it is a target. Never both.** So PCE and equipment are *not* masked
+  — they reproduce their BEA bridges cell for cell, but the bridge is a 2017
+  commodity split applied to a current-year NIPA line, and that split is exactly
+  what the balance exists to correct. Only the six 1:1 NIPA-line-to-commodity
+  columns are masked: `F06C00 F07C00 F10C00 F06N00 F07N00 F10N00` — **17 cells,
+  5.1% of the Use panel's mass.**
+  ⚠️ Freezing whole blocks is not affordable, and the cell count hides it: the FD
+  block is **2.7% of the Use panel's nonzero cells and 39.9% of its dollars**;
+  FD + VA is 74.2%. Freeze FD and 27 commodity rows lose all Use-side freedom and
+  51 more exceed 10× leverage — but 26 of the 27 are absorbed 1:1 by their Supply
+  row, so the real cost is that **the balance silently relocates onto the Supply
+  table** for housing, government, health, education and construction.
+  `S00900` (0.9% joint freedom) and `4200ID` (empty everywhere) are held out of
+  the balance rather than masked.
 - **What does "converged" mean?** Elementwise per-margin tolerance (ceda's, and the right answer —
   a global `max` bound is meaningless across margins spanning six orders of magnitude), plus an
   `atol` floor, since several commodity targets are legitimately near zero.
 
 #### Decision 3 — the target set
 
-**Do not inherit "summary SUT totals" as the control.** It reads like a default because it is a
-single, internally consistent, already-balanced object, but it is the wrong instrument for three
-reasons: it is a *derived* product (BEA's own aggregation of the detail we are trying to estimate, so
-controlling to it makes the nowcast reproduce BEA's aggregation rather than exploit the sources we
-already extract); it **aggregates away the exact dimension we are estimating**; and it is **late**,
-lagging the NIPA and GDP-by-industry releases that are the whole reason a nowcast is possible. Using
-it wholesale would throw away the timeliness that justifies the project.
+✅ **Settled 2026-08-17.** Full specification, sourcing and code design in
+[`target_set_plan.md`](target_set_plan.md); the numbers are reproduced by
+[`mask_layer_feasibility.py --check`](mask_layer_feasibility.py). Summary here.
 
-**Enumerate the targets margin by margin instead, and source each one deliberately.** The candidate
-set, by where it binds:
+**Summary SUT stays struck** as the control — derived, late, and it aggregates away the dimension
+being estimated. It belongs to the test set (#573). That part of the earlier text stands.
 
-| Margin | Candidate target | Source | Notes |
-|---|---|---|---|
-| Use — industry columns | total industry input = **gross industry output** | BEA **GDP-by-industry** gross output | Timely and annual. Published above detail for the nowcast years — see "at what level" below. |
-| Supply — industry columns | same gross output vector | as above | Supply/Use column agreement is itself a constraint, and it is free once the vector is chosen. |
-| Use — **FD columns** | **NIPA column totals, one per FD code** | PCE (`F01000`); fixed investment by equipment/IP/residential/nonres structures (`F02*`); `F03000` inventories per [`inventories_estimation_plan.md`](inventories_estimation_plan.md); exports `F04000` and imports `F05000` from the trade step / ITA; the twelve federal and S&L columns from the Section-3 government tables | **This is the strongest part of the target set** — the FD block is where NIPA is most current and most authoritative, and the columns map one-to-one onto SUT codes. |
-| Use — VA rows | compensation, taxes-less-subsidies, GOS row totals | NIPA T1.14, `VABAS`→T10305, `T018`→T10105, Section-6 tables | Already specified for Step 2 (§Value added — fully specified on the board) — the same aggregates, reused as constraints rather than only as checks. |
-| Supply — trailing columns | imports (`MCIF`/`MADJ`), duties (`MDTY`), `TOP`/`SUB`, margin totals | trade step, §`MDTY`, Step 4 | Each already has a sourcing decision in Step 4; Step 5 just has to say which of them binds. |
-| Both — commodity rows | total supply = total use per commodity | *not sourced* | The identity being solved, not an exogenous target. Commodity gross output is a separate, optional target if we want one. |
+⚠️ **But the premise this issue was built on does not.** #591 property 1 said *"detail gross output
+for 2018-2024 is nowcast by Step 4a — imposing it is circular"*, and concluded the industry
+constraint could only be imposed at summary level. **Refuted on two grounds:**
 
-**Three properties decide whether a candidate belongs in the set at all:**
+- `BEA_Detail_GrossOutput_IO_<year>` is already extracted for **2017-2024, all 402 detail
+  industries**, from BEA's *Underlying* GDP-by-Industry table **UGO305-A**, and
+  [`derive_gross_output_before_redefinition`](../../transform/iot/derived_gross_industry_output.py)
+  is a **straight read** of it. No 2017 shares. Only the *after*-redefinition variant applies
+  co-production ratios, and the SUT is before redefinitions throughout.
+- It behaves like an estimate: `GO_i(t)/GO_i(2017)` takes **402 distinct values across 402
+  industries**, dispersion 0.67× to 5.25×, and the spread lives *inside* summary industries
+  (`335911` batteries 4.70× against `335110` electric lamps 0.67×). A shares-based series would show
+  one ratio per summary industry.
 
-1. **Is it observed, or is it ours?** A "target" we produced ourselves is not a constraint, it is a
-   preference with extra steps. **Detail gross output for 2018-2024 is nowcast by Step 4a** — imposing
-   it on the balance is circular. Only aggregates that enter from outside the model qualify. This is
-   the sharpest edge in the whole decision, and it is why the honest answer differs between Phase 1 and
-   Phase 2 (see below).
-2. **At what level is it observed?** If gross output is published at summary and we balance at detail,
-   the truthful constraint is *"these N detail industries sum to the published summary industry"* —
-   **not** a detail vector we manufactured by applying 2017 shares. That means **aggregate-level
-   constraints via aggregator matrices**, which is precisely `sut_ras`'s `Vagg`/`G_va`/`G_fd`
-   machinery and precisely what ceda's row/column-vector engine **cannot express today**. ⚠️ **This
-   feeds straight back into Decision 1**: it is a concrete, non-trivial capability that Option A has to
-   build, and it moves the balance of that table.
-3. **Hard or soft, and how trusted?** Decision 2's question, applied per row of the table above.
-   NIPA FD totals, GDP-by-industry output and the trade accounts are three different accounts on three
-   different vintages; they will not reconcile to the dollar, so a set held entirely hard is
-   infeasible by construction.
+**So the industry-column target is imposed at detail, for every Phase 1 year**, and the Phase 1 /
+Phase 2 asymmetry on this point dissolves — 2025 is the same, not better. The target set stays
+per-year *configuration*, but it is near-constant across 2018-2024.
 
-⚠️ **Targets and tests are the same aggregates — spend each one only once.** The testing strategy
-below lists T1.14, T10305, T10105, T1.1.5 line 14 and the Section-6 totals as *reconciliation tests*.
-Anything promoted to a balance target passes those tests **by construction** and stops being evidence.
-So Decision 3 must be made jointly with the testing strategy, and should **deliberately hold some
-aggregates back, unimposed, as out-of-sample checks**. Name them when the decision is recorded.
+**The set** (H = hard, S = soft, mask = imposed cell-wise instead, — = deliberately unimposed):
 
-**Phase 1 vs Phase 2 changes the answer, and that is fine.** For 2018-2024 the detail gross output is
-nowcast, so the industry-column target can only be honestly imposed at the level GDP-by-industry
-publishes. After the annual update, 2025 has **observed** detailed gross output (§What the annual
-update unblocks) — so 2025 can carry a genuine detail-level industry constraint that the earlier years
-cannot. The design consequence: **the target set must be per-year configuration, not a constant**, and
-the engine must accept aggregate and detail constraints in the same run.
+| Margin | Target | Source | Level | Mode |
+|---|---|---|---|---|
+| Supply + Use industry columns | gross output, **basic prices** | UGO305-A less the industry product-tax wedge | detail, 402 | **H** |
+| Use FD columns ×13 | NIPA column total per code | PCE, `F02*`, `F03000`, `F04000`, Section-3 equipment/structures | column total | **S** |
+| Use FD columns ×6 | `F06C00 F07C00 F10C00 F06N00 F07N00 F10N00` | — | — | **mask** |
+| Use VA `V00100` | compensation | T60200D | **industry group, aggregated** | **S** |
+| Use VA `T00OTOP`, `V00300` | — | — | — | **—** |
+| Use VA `T00TOP`, `T00SUB` | economy-wide totals | T30500, T31300 | scalar | **S** |
+| Supply `MCIF`, `MDTY`, `TOP`, `SUB` | column totals | ITA, T30500, T31300 | column total | **S** |
+| Supply `MADJ`, `TRADE`, `TRANS` | — | ours (Step 4b/4c) | — | **—** |
+| Commodity rows | `T016 = T019` | identity | detail, 402 | **H** |
+
+Only two constraints are hard. Every sourced target is an estimate from an account with its own
+vintage, and a set held entirely hard is infeasible by construction — the argument for the KRAS-style
+soft layer in Decision 2.
+
+⚠️ **Published gross output is at *producer* prices; the SUT column identity is at *basic*.** The
+wedge is exact per industry — `GO(producer) = T007(basic) + T00TOP − T00SUB`, max residual **$4M on
+$34T** — but it needs `T00TOP`/`T00SUB` **by industry**, which Step 2 allocates with 2017 ratios. So
+the hardest constraint in the set rests on an allocation assumption. Preferred resolution: **state
+the target in producer prices** and constrain `T005 + VABAS + T00TOP − T00SUB`, letting the balance
+solve the allocation rather than assume it. See `target_set_plan.md` §4.
+
+⚠️ **Aggregate-level constraints are still required — for `V00100`, not gross output.** T60200D
+publishes compensation by industry group, so the truthful constraint is *"these N detail industries
+sum to the published group"*. Still `sut_ras`'s `G_va` machinery, still beyond ceda's API.
+
+**Deliberately held back, so the testing strategy keeps real content: the income side.** `V00300`
+gross operating surplus, `T00OTOP`, `VAPRO`→T10105 GDP, `VABAS`→T10305, NIPA T1.14 by sector, and the
+summary SUT. GDP is the strongest of these because it has a **known, interpretable tolerance**: the
+statistical discrepancy, ~$67.9B in 2017 and 0.35% of GDP. The price is that Step 2's value added
+enters Step 5 as a *seed only* for two rows — worth paying, since with every income-side aggregate
+imposed a green reconciliation run would prove nothing beyond "the solver ran".
 
 #### Recommendation to decide against
 
-**Vendor ceda's engine + GRAS + a KRAS-style soft-constraint layer, aimed at a NIPA/GDP-by-industry
-target set.** Concretely: vendor ceda's engine into `bedrock/utils/economic/`, replace its scaling
-core with GRAS, drop the sparse path (and with it the scipy dependency) unless profiling says
-otherwise, keep the mask/convergence/stall/diagnostics machinery intact, **add aggregate-level
-constraint support** (Decision 3, property 2 — this is new work Option A does not inherit), and write
-the SUT orchestration layer fresh with `sut_ras.py` as the specification. Target NIPA FD column totals
-and GDP-by-industry gross output at their published level, hold them soft with per-source weights,
-hold the commodity identity hard, and keep summary SUT **out of the target set and in the test set**.
+**GRAS + a KRAS-style soft-constraint layer, aimed at the Decision 3 target set, with the mask
+supplied by the offset method.** The earlier form of this recommendation led with *vendor ceda's
+engine*; the two capabilities that justified it — mask-awareness and (via Decision 3) aggregate
+constraints — have both now failed to hold up, so **Option A's case is materially weaker than when
+this table was written and Decision 1 should be re-run.** What survives from ceda is convergence,
+stall projection and diagnostics; what survives from `sut_ras` is GRAS, the SUT sequencing and the
+aggregator machinery. Hold the commodity identity and gross output hard, everything sourced soft with
+per-source weights, and keep summary SUT out of the target set and in the test set.
 
-This is a recommendation, not a decision. **Record the decision here, with its reasoning, before any
-code is written**, and update the linked issues to match.
+Decisions 2 (mask) and 3 (target set) are now **recorded**. Decision 1 remains open and is the only
+thing still gating code.
 
 ### Step 6 — SUT → MUT conversion *(new — produces the actual deliverables)*
 Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
@@ -1137,13 +1197,22 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   ~nothing economy-wide, so aggregate checks pass on broken data.
 - **Identity checks as unit tests**: the four Supply identities, `VABAS`/`VAPRO`/`T018`, and
   `T016 == T019` per commodity.
-- **Reconciliation against published NIPA aggregates** per section (T1.14, T10305, T10105, T1.1.5
-  line 14, Section-6 totals) — the board already specifies most targets, so these are numeric, not
-  eyeball, tests. ⚠️ **These overlap the Step 5 target set (Decision 3).** Any aggregate imposed as a
-  balance constraint passes here by construction and is no longer evidence of anything. When Decision 3
-  is recorded, name which aggregates stay **unimposed** so this section keeps some real out-of-sample
-  content — and mark the rest as identities-by-construction rather than leaving them looking like
-  passing tests.
+- **Reconciliation against published NIPA aggregates** per section — numeric, not eyeball, tests.
+  ✅ **The split is now recorded** (Step 5 Decision 3 / [`target_set_plan.md`](target_set_plan.md) §6),
+  and the two kinds must be labelled differently in any report:
+  - **By construction, not evidence** — imposed as balance targets, so they pass whatever happens:
+    detail gross output; the thirteen FD column totals; the six masked FD columns; `T00TOP`/`T00SUB`
+    economy-wide; imports and duties; `T016 = T019`; compensation by industry group.
+  - **Genuinely out of sample** — the **income side**, deliberately unimposed: `V00300` gross
+    operating surplus and its six-table NIPA construction, `T00OTOP`, **`VAPRO` → T10105 GDP**,
+    `VABAS` → T10305, T1.14 gross value added **by sector**, and the summary SUT (#573) in every year.
+    GDP is the best of these because its expected gap is known and interpretable — the statistical
+    discrepancy, ~$67.9B in 2017, 0.35% of GDP — so the test has a real tolerance rather than an
+    arbitrary one.
+- **Mask and target feasibility, before the balance runs.** `precheck(seed, mask, targets)` reports
+  frozen mass, free mass and leverage per margin; a nonzero residual target facing zero free mass is
+  infeasible and must **raise**, not converge to something meaningless. Leverage above ~10× warns.
+  See [`mask_layer_plan.md`](mask_layer_plan.md) §3.
 - **Unit tests** for the balancer — small hand-checkable matrices, with **a negative-cell case and a
   sign-lock case in the first batch**, not added later: they are the whole reason Step 5 was rescoped.
   Whichever starting point wins, these tests are written against the objective function chosen in
@@ -1227,7 +1296,7 @@ rediscovers the same 210-code problem from scratch.
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
-| 5 RAS | **#588** (balancer, parent — *rescoped: no longer a `sut_ras` port; blocked on Step 5's three decisions*), **#591** (sub-issue — *rescoped: the target set is Decision 3, no longer an "optional" alternative control*) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
+| 5 RAS | **#588** (balancer, parent — *blocked on Decision 1 only; Decisions 2 and 3 recorded 2026-08-17*), **#653** (mask/target scaffolding — *Decision-1-independent, so it starts now*), **#654** (the fixed-value mask), **#591** (the target set — *decision settled, now the build*), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
@@ -1303,20 +1372,23 @@ only while a view has no explicit sort of its own; a saved sort in the view UI o
 4. **The Step 5 balance — three coupled decisions, all open, all blocking.** Detail in §Step 5.
    The earlier form of this question ("summary SUT totals or gross output?") **presumed a default that
    is now struck**; see 4c.
-   - 4a. **Starting point** — vendor and adapt ceda's `ras_balancing.py`, harden `sut_ras.py`, or
-     write fresh with both as references? *Blocks all of Step 5.* Options, costs and the verified
-     dependency constraints are in Decision 1; the lean is vendor-ceda + fresh SUT layer, though 4c
-     pushes back on it.
+   - 4a. **Starting point — the only one still open, and now the only thing gating Step 5 code.**
+     Vendor and adapt ceda's `ras_balancing.py`, harden `sut_ras.py`, or write fresh with both as
+     references? ⚠️ **The vendor-ceda lean is materially weaker than when it was written**: both
+     capabilities it was buying have failed to hold up — ceda's mask is a *participation* mask that
+     cannot express a fixed nonzero value, and aggregate-level constraints are still needed (for the
+     VA rows). What survives from ceda is convergence, stall projection and diagnostics. Decision 1.
+     Note #653 is deliberately independent of this, so scaffolding work starts now.
    - 4b. **Objective function** — RAS/IPFP, GRAS (and which published variant), KRAS, or constrained
-     least squares? With it: which constraints are hard vs soft, where signs may flip, what the mask
-     holds fixed, and what counts as converged. Decision 2. **The negatives in bedrock's SUT are
-     structural, so plain RAS is out; the rest is open.**
-   - 4c. **Target set** — **do not assume summary SUT totals.** Build the set margin by margin from
-     detailed gross industry output and NIPA column totals for the FD block, and decide at what level
-     each is honestly observed (aggregate constraints, not manufactured detail vectors). Decision 3.
-     Two consequences that reach outside Step 5: aggregate-level targets are a capability 4a's
-     leading option lacks, and **every aggregate promoted to a target stops being available as a
-     test** — so this must be settled jointly with the testing strategy.
+     least squares, plus hard-vs-soft and sign-flip policy. Decision 2. **Partly settled:** the mask
+     is recorded ([`mask_layer_plan.md`](mask_layer_plan.md)), and plain RAS is out on evidence rather
+     than on principle — the structural negatives, plus `F03000`'s **negative column target in 2020**.
+     The GRAS variant, the soft-constraint form and the convergence rule are still open.
+   - 4c. ✅ **Target set — settled 2026-08-17.** [`target_set_plan.md`](target_set_plan.md), #591.
+     Detail gross output (hard, and **observed at detail for every Phase 1 year** — the circularity
+     premise was wrong), thirteen NIPA FD column totals plus six masked columns, compensation by
+     industry group, the Supply trailing totals. **The income side is deliberately held back**, so
+     GDP stays a real test with the statistical discrepancy as its tolerance.
 5. **`nowcast.py` vs. `bedrock/transform/iot/` boundary** — is `nowcast.py` the per-year orchestrator
    calling into `transform/iot/`'s existing functions, or should the new SUT/MUT code live in
    `transform/iot/` (where #495 pointed `nipa_final_demand_estimates.py`)? Steps 4-7 are a lot of new
@@ -1350,15 +1422,20 @@ a design constraint on Phase 1, not just an aspiration for Phase 2 — see "What
 Detailed gross output by sector is the missing input to the least-developed part of the project:
 
 - **Step 4a (Supply domestic-output block)** — gross industry output × commodity mix is exactly the
-  construction Step 4a specifies. For 2018-2024 this is nowcast; for 2025 it comes straight from the
-  update, which makes 2025's Supply table *better* founded than the interpolated years, not worse.
-- **Step 5 (RAS targets)** — ⚠️ **rewritten under Decision 3.** The earlier note here said the update
-  carries a 2025 summary SUT/MUT (it does — confirmed), so 2025 could be "controlled the same way every
-  other year is." That reasoning is retired along with the summary-SUT default. The live point is the
-  opposite one: **2025 is the first year with *observed* detailed gross output**, so it is the first
-  year that can carry a genuine detail-level industry-column constraint instead of an aggregate one
-  imposed over nowcast detail. 2025 is therefore *better* constrained than 2018-2024, and the target
-  set must be per-year configuration to express that.
+  construction Step 4a specifies. ⚠️ **Corrected 2026-08-17:** this section previously said the
+  2018-2024 gross output was nowcast and only 2025's came "straight from the update". It does not.
+  BEA's *Underlying* GDP-by-Industry table **UGO305-A publishes gross output for all 402 detail
+  industries annually**, it is already extracted as `BEA_Detail_GrossOutput_IO_<year>` for 2017-2024,
+  and `derive_gross_output_before_redefinition` reads it directly. What 2025 adds is one more year of
+  the same series, not a new kind of input. **The commodity mix, not the output vector, is what
+  Step 4a nowcasts.**
+- **Step 5 (RAS targets)** — ⚠️ **rewritten twice.** The original note said 2025 could be "controlled
+  the same way every other year is" off the summary SUT; that went with the summary-SUT default. The
+  replacement said 2025 was the first year with observed detail gross output and would therefore be
+  *better* constrained. **That is wrong too, for the reason above** — every Phase 1 year already
+  carries a detail-level industry constraint. 2025 is the same, not better. The target set stays
+  per-year configuration because weights and hold-backs will move, not because the sources differ by
+  year. See Decision 3 and [`target_set_plan.md`](target_set_plan.md) §1.
 - **Steps 2 and 3** — a real 2025 industry-output anchor constrains the VA and intermediate blocks
   instead of leaving them purely inflation-carried.
 
