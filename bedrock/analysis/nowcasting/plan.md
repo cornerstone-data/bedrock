@@ -1077,6 +1077,8 @@ per-year *configuration*, but it is near-constant across 2018-2024.
 | Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB + Σ SUB = 0` | identity | scalar | **H** |
 | Use `T00TOP` ↔ Supply `TOP` + `MDTY` | `Σ T00TOP = Σ TOP + Σ MDTY` | identity | scalar | **H** |
 | Use `T00TOP[4200ID]` ↔ Supply `MDTY` | equal | identity | scalar | **H** |
+| Supply `TRADE` column | `Σ TRADE = 0` | identity | scalar | **H** |
+| Supply `TRANS` column | `Σ TRANS = 0` | identity | scalar | **H** |
 
 Only the identities are hard. Every sourced target is an estimate from an account with its own
 vintage, and a set held entirely hard is infeasible by construction — the argument for the KRAS-style
@@ -1095,6 +1097,19 @@ rounding.
 
 Because `MDTY` is nowcast annually from Census duty rates levelled to NIPA `B235RC`, the third
 identity doubles as a **free consistency check on that estimate**.
+
+⚠️ **And margins are a redistribution, so their columns sum to zero** ([`target_set_plan.md`](target_set_plan.md)
+§2b): `Σ TRADE = 1` and `Σ TRANS = 10` on 3,264,932 and 415,580 of margin added. A margin is value
+moved, not created — the 19 wholesale/retail and 5 transport commodities give up exactly what is
+added onto the goods they carry. This is the line between the two families of Supply column:
+`TRADE`/`TRANS` redistribute and are zero-sum; `MCIF`, `MDTY`, `TOP`, `MADJ`, `SUB` add to supply and
+are not.
+
+**These are the only constraints on Step 4c's own output.** `TRADE`/`TRANS` stay deliberately
+unimposed as *targets* — a target we produced is a preference with extra steps — but unimposed left
+them with no constraint at all, and the failure mode is silent: add 3.3T of margin onto goods while
+the trade commodities give up 3.1T and nothing reports it. T15/T16 close that while leaving the
+distribution free.
 
 ⚠️ **Published gross output is at *producer* prices; the SUT column identity is at *basic*.** The
 wedge is exact per industry — `GO(producer) = T007(basic) + T00TOP − T00SUB`, max residual **$4M on
