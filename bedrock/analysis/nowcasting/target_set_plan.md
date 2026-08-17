@@ -50,7 +50,7 @@ imposed.
 
 | # | Margin | Target | Source | Level | Mode |
 |---|---|---|---|---|---|
-| T1 | Supply + Use industry columns | gross output, **basic prices** | UGO305-A less the industry product-tax wedge (§4) | **detail, 402** | **H** |
+| T1 | Supply + Use industry columns | gross output, **producer prices** — the column margin is `T005 + VAPRO` (§4) | UGO305-A, unconverted | **detail, 402** | **H** |
 | T2 | Use FD columns ×13 | NIPA column total, one per code | §3 | column total | **S**`0.8` |
 | T3 | Use FD columns ×6 | — | — | — | **mask** |
 | T4 | Use VA row `V00100` | compensation of employees | NIPA T60200D | **industry group, aggregated** | **S**`0.6` |
@@ -108,7 +108,7 @@ Remaining after the six that moved to the mask:
 clamps targets non-negative silently produces a wrong `F03000` for 2020 — see
 `mask_layer_plan.md` §2.
 
-## 4. Gross output: producer → basic
+## 4. Gross output stays at producer prices — decided
 
 Published gross output is at producer prices. The SUT industry column total is
 at basic prices. Measured on 2017 detail, the wedge is exact per industry:
@@ -122,23 +122,47 @@ industries off by more than 1%. Skip the conversion and 86 industries are more
 than 1% wrong and the economy total is 695,632 high — which is precisely taxes
 on products less subsidies.
 
-⚠️ **This is a new data dependency, and it is the weakest link in T1.** The
-conversion needs `T00TOP` and `T00SUB` **by industry**, which Step 2 currently
-allocates with 2017 ratios. So the hardest constraint in the set rests on an
-allocation assumption. Two ways out, and they should be compared before T1 is
-held hard:
+Converting the target to basic prices would need `T00TOP` and `T00SUB` **by
+industry**, which Step 2 allocates with 2017 ratios — putting an allocation
+assumption underneath the hardest constraint in the set.
 
-- **(a) Convert the target.** Build `GO_basic = GO_producer − T00TOP + T00SUB`
-  with the Step 2 industry split. Simple, but imports the allocation error into
-  a hard constraint.
-- **(b) State the target in producer prices** and let the `T00TOP`/`T00SUB` rows
-  carry the conversion inside the balance — i.e. constrain
-  `T005 + VABAS + T00TOP − T00SUB` rather than `T005 + VABAS`. The allocation
-  then becomes something the balance solves rather than something it assumes.
+✅ **Decided 2026-08-17: do not convert. The target is producer prices, and the
+balance solves the allocation.** We cannot assume a fixed 2017 ratio for the
+conversion, so the product-tax industry split becomes an **output** of Step 5
+rather than an input to it. Concretely, the industry column margin is
 
-**Recommend (b)**, with (a) as the fallback if the extra coupling destabilises
-convergence. Either way the choice must be recorded, because it decides whether
-the product-tax industry split is an input or an output of Step 5.
+```
+T005  +  VAPRO   =   GO(producer)          verified to $1 per industry, 2017
+```
+
+i.e. intermediate inputs plus **all five** value-added rows, rather than
+`T005 + VABAS`. `T00TOP` and `T00SUB` keep their economy-wide totals as soft
+targets (T6), which anchors the level while leaving the industry distribution
+free for the balance to determine.
+
+### ⚠️ The sign trap this exposes
+
+**BEA stores subsidies with opposite signs in the two tables**, and the column
+margin is wrong by `2 × T00SUB` if that goes unnoticed:
+
+| | stored | negative cells |
+|---|---:|---:|
+| Use table `T00SUB` row | **+59,876** | 0 of 402 |
+| Supply table `SUB` column | **−59,876** | 15 of 15 |
+
+So the producer-price column margin is **not a plain sum of the column's
+cells** — `T00SUB` enters with coefficient **−1**. A plain five-row sum misses
+`VAPRO` by up to **38,943 on a single industry**.
+
+Two consequences for #653:
+
+- **The target machinery needs signed coefficients**, not just a boolean
+  aggregator matrix. `R @ X` with `R ∈ {0,1}` cannot express this margin.
+- **Or** normalise on the way in: store `T00SUB` negative internally, matching
+  the Supply side, so every margin is a plain sum. **Prefer this** — a signed
+  storage convention is checked once at load, whereas a signed aggregator is a
+  chance to get it wrong at every call site. Whichever is chosen, assert it, and
+  assert it at the boundary where BEA's tables are read.
 
 ## 5. Aggregate-level constraints are still required — for value added
 
@@ -235,18 +259,77 @@ exist, because weights and hold-backs are the things most likely to move.
 out and re-derived from `−F010 + Supply T016` afterwards; `4200ID`, empty in
 every block.
 
-## 8. Open, and what each blocks
+## 8. Weight calibration on the 2017 replay
 
-1. **Producer vs basic — (a) or (b) in §4.** Blocks T1, the hardest constraint
-   in the set.
-2. **Is the published detail GO before or after redefinitions?** The straight
+The ordering in §2 — identity > gross output > expenditure > income >
+allocation — is defensible from what each source is. The numbers are not.
+
+**What a weight actually decides.** The target set is *mutually inconsistent by
+construction*: NIPA, GDP-by-industry and the trade accounts are three accounts
+on three vintages, and they will not reconcile to the dollar. So the balance
+cannot satisfy all of them, and something has to absorb the gap. **A weight does
+not say "how accurate is this number" — it says "when the accounts disagree, who
+gives way."** High weight means the balance moves everything else first; low
+weight means this target absorbs the inconsistency. Weights are meaningful only
+*relative to each other*, so normalise before reading anything into a value.
+
+**Why 2017 and not a nowcast year.** 2017 is the only year with a published
+detail SUT. So the replay is a supervised experiment with a known answer:
+
+1. build the seed exactly as a nowcast year would — Steps 1-4 on 2017 inputs,
+   no peeking at the published SUT
+2. build the target set from the 2017 vintages of the same sources
+3. balance under a candidate weight vector
+4. diff the result against BEA's published 2017 detail SUT, cell by cell and on
+   the margins, using #587's comparison engine
+5. repeat, and keep the vector that minimises the discrepancy
+
+**Do this in two stages, not as a grid search over eight weights.** First run
+with all soft weights *equal* and read which targets the balance has to violate
+most — that names the handful that actually bind. Then tune only those. Most of
+the eight will turn out not to matter, and finding out which is cheaper than
+optimising all of them.
+
+⚠️ **Two things that make this less clean than it sounds, both worth stating
+before anyone reports a calibrated number:**
+
+- **2017 is a benchmark year, so it is unrepresentative in exactly the way that
+  matters.** BEA had the Economic Census; the sources are unusually good *and
+  unusually consistent with each other*. Weights fitted to 2017 will be too
+  tight for a year like 2020. Treat the replay as a check on the **ordering** —
+  does the ranking survive? — rather than as a numeric fit, and sanity-check the
+  implied residual distribution on a nowcast year before shipping.
+- **A weight should be defensible as a statement about the source**, so
+  calibration is a test of prior belief rather than a free parameter fit. If the
+  replay says `F03000` deserves the *highest* weight, that is a signal something
+  upstream is wrong — not a result to adopt.
+
+## 9. Open, and what each blocks
+
+1. ✅ ~~Producer vs basic~~ — **decided**: producer, and the balance solves the
+   allocation. §4.
+2. ✅ ~~`F02E00`'s target~~ — **decided**: the **Use table** is the constraint,
+   not the PEQ bridge. See below.
+3. **Is the published detail GO before or after redefinitions?** The straight
    read is used as "before" in
    [`derived_gross_industry_output.py`](../../transform/iot/derived_gross_industry_output.py),
    which is consistent with the SUT — confirm against BEA documentation rather
    than inferring it from our own function name.
-3. **Weight calibration.** The ordering in §2 is defensible; the numbers are
-   not yet. Calibrate on the 2017 replay, where the answer is published.
 4. **Does the Tier-1 mask hold for 2018-2024?** The 1:1 line→commodity mapping
    is asserted from the 2017 crosswalks.
-5. **`F02E00`'s target** — the PEQ bridge and the Use table disagree by ~$15B
-   (#547). Whichever is chosen becomes the constraint.
+
+### `F02E00` — the Use table is the constraint
+
+`F02E00` reproduces the PEQ bridge cell for cell (#631) while disagreeing with
+the Use table by ~$15B at the column total (#547). ✅ **Decided 2026-08-17: the
+Use table is the target.** The bridge is an **allocation device** — it says how a
+column distributes across commodities — not an authority on how large the column
+is. The SUT we are building has to be a SUT, so the column total has to be on the
+Use table's basis.
+
+⚠️ **This settles which, not how, and the gap does not close itself.** For 2017
+the Use-table column total is simply readable. For 2018-2024 there is no detail
+Use table — that is what we are building — so the remaining work is to establish
+**which NIPA aggregate reproduces the Use-table basis rather than the bridge
+basis**, and to explain the ~$15B. Until that is answered, `F02E00`'s nowcast
+target is on the wrong basis by roughly a percent of the column. **#547.**

@@ -312,12 +312,13 @@ Ranked by how much they block:
    free.
    - **By commodity** (Supply `TOP`/`SUB`) — default proposal: 2017 detail Supply shares, held
      constant, inflated with the commodity.
-   - **By industry** (Use `T00TOP`/`T00SUB` rows) — ⚠️ **newly load-bearing as of 2026-08-17.**
+   - **By industry** (Use `T00TOP`/`T00SUB` rows) — ✅ **no longer a data gap, as of 2026-08-17.**
      Published detail gross output is at *producer* prices and the SUT column identity is at *basic*;
-     the wedge is exactly `T00TOP − T00SUB` per industry (verified to $4M on $34T). So the industry
-     split now sits underneath Step 5's **hardest** constraint, not just inside Step 2. The preferred
-     escape is to state the gross-output target in producer prices and let the balance solve the
-     allocation — see Step 5 Decision 3 and [`target_set_plan.md`](target_set_plan.md) §4.
+     the wedge is exactly `T00TOP − T00SUB` per industry (verified to $4M on $34T). Rather than assume
+     a 2017 conversion ratio, **Step 5 targets producer prices and solves the industry split** — so
+     this allocation is now an *output* of the balance, anchored only by the economy-wide T30500 /
+     T31300 totals. Step 2 still supplies a seed. See Step 5 Decision 3 and
+     [`target_set_plan.md`](target_set_plan.md) §4.
 4. **`MADJ`** — no annual published analogue; likely 2017-ratio-based, though Census `GEN_CHA_YR`
    (import charges) measures the same c.i.f./f.o.b. wedge and comes free with the `MCIF` request, so
    try it before defaulting to a fixed ratio. Small in magnitude, but it sits inside the `T013`
@@ -627,7 +628,12 @@ omits (≈ −5,679 in 2017, 17% of the total).
 in one activity_set discards every activity_set and returns an empty FBS as a valid result, so the
 line cannot safely be given its own set. And `F02E00` matches the PEQ bridge exactly while
 disagreeing with the Use table by ~$15B at the column total (#547) — a source-data question, not an
-attribution one.
+attribution one. ✅ **Which of the two is authoritative is now decided (2026-08-17): the Use table.**
+The bridge is an *allocation device* — it says how a column distributes across commodities, not how
+large the column is — and the object we are building is a SUT, so the column total has to be on the
+Use table's basis. ⚠️ That settles *which*, not *how*: for 2018-2024 there is no detail Use table, so
+#547 still has to establish which NIPA aggregate reproduces the Use-table basis rather than the
+bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off by ~1% of the column.
 
 ### Step 2 — SUT Use: value added block
 - New `NIPA_VA_<year>.yaml` FBS method(s) over the 7 Section-6/3.5/3.13 tables above, reusing the
@@ -1056,7 +1062,7 @@ per-year *configuration*, but it is near-constant across 2018-2024.
 
 | Margin | Target | Source | Level | Mode |
 |---|---|---|---|---|
-| Supply + Use industry columns | gross output, **basic prices** | UGO305-A less the industry product-tax wedge | detail, 402 | **H** |
+| Supply + Use industry columns | gross output, **producer prices** — the margin is `T005 + VAPRO` | UGO305-A, unconverted | detail, 402 | **H** |
 | Use FD columns ×13 | NIPA column total per code | PCE, `F02*`, `F03000`, `F04000`, Section-3 equipment/structures | column total | **S** |
 | Use FD columns ×6 | `F06C00 F07C00 F10C00 F06N00 F07N00 F10N00` | — | — | **mask** |
 | Use VA `V00100` | compensation | T60200D | **industry group, aggregated** | **S** |
@@ -1072,10 +1078,23 @@ soft layer in Decision 2.
 
 ⚠️ **Published gross output is at *producer* prices; the SUT column identity is at *basic*.** The
 wedge is exact per industry — `GO(producer) = T007(basic) + T00TOP − T00SUB`, max residual **$4M on
-$34T** — but it needs `T00TOP`/`T00SUB` **by industry**, which Step 2 allocates with 2017 ratios. So
-the hardest constraint in the set rests on an allocation assumption. Preferred resolution: **state
-the target in producer prices** and constrain `T005 + VABAS + T00TOP − T00SUB`, letting the balance
-solve the allocation rather than assume it. See `target_set_plan.md` §4.
+$34T** — but converting the target would need `T00TOP`/`T00SUB` **by industry**, which Step 2
+allocates with 2017 ratios, putting an allocation assumption underneath the hardest constraint in the
+set.
+
+✅ **Decided 2026-08-17: do not convert. The target stays at producer prices and the balance solves
+the allocation** — a fixed 2017 conversion ratio is exactly what we cannot assume. So the industry
+column margin is `T005 + VAPRO` (intermediate plus **all five** VA rows, verified to **$1 per
+industry**), not `T005 + VABAS`, and **the product-tax industry split becomes an output of Step 5
+rather than an input to it.** `T00TOP`/`T00SUB` keep their economy-wide soft targets, which anchor the
+level while leaving the industry distribution free.
+
+⚠️ **Sign trap, and it is BEA's, not ours.** The Use table stores `T00SUB` **positive** (0 of 402
+cells negative) while the Supply table stores `SUB` **negative** (15 of 15). So the producer-price
+column margin is *not* a plain sum of the column — `T00SUB` carries coefficient −1, and a plain
+five-row sum misses `VAPRO` by up to **38,943 on one industry**. Either the target machinery takes
+signed coefficients or `T00SUB` is normalised negative at load; **prefer the latter**, checked once at
+the boundary rather than at every call site (#653).
 
 ⚠️ **Aggregate-level constraints are still required — for `V00100`, not gross output.** T60200D
 publishes compensation by industry group, so the truthful constraint is *"these N detail industries
