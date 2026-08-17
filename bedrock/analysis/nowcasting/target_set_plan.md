@@ -59,15 +59,153 @@ imposed.
 | T7 | Supply `MCIF` | imports total | BEA ITA goods + services | column total | **S**`0.8` |
 | T8 | Supply `MDTY` | customs duties total | NIPA T30500 | column total | **S**`0.7` |
 | T9 | Supply `TOP`, `SUB` | product taxes / subsidies totals | T30500, T31300 | column total | **S**`0.7` |
-| T10 | Supply `MADJ`, `TRADE`, `TRANS` | — | ours (Step 4b/4c) | — | **—** |
+| T10 | Supply `MADJ`, `TRADE`, `TRANS` | — *(distribution free; `TRADE`/`TRANS` totals via T15/T16, `MADJ` free — §2b)* | ours (Step 4b/4c) | — | **—** |
 | T11 | Commodity rows | `T016 = T019` | identity | detail, 402 | **H** |
+| T12 | Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB + Σ SUB = 0` | identity (§2a) | scalar | **H** |
+| T13 | Use `T00TOP` ↔ Supply `TOP` + `MDTY` | `Σ T00TOP = Σ TOP + Σ MDTY` | identity (§2a) | scalar | **H** |
+| T14 | Use `T00TOP[4200ID]` ↔ Supply `MDTY` | equal | identity (§2a) | scalar | **H** |
+| T15 | Supply `TRADE` column | `Σ TRADE = 0` | identity (§2b) | scalar | **H** |
+| T16 | Supply `TRANS` column | `Σ TRANS = 0` | identity (§2b) | scalar | **H** |
 
-**T1 and T11 are the only hard constraints.** Everything sourced is an estimate
-from an account with its own vintage; a set held entirely hard is infeasible by
-construction, which is the argument for the KRAS-style soft layer in #588
-Decision 2. The weights above are a **starting proposal to be calibrated**, not
-a result — the ordering (identity > gross output > expenditure > income >
-allocation) is the part worth defending.
+**The hard constraints are T1 and T11–T16** — all identities, none of which
+spends a source. Everything *sourced* is an estimate from an account
+with its own vintage; a set held entirely hard is infeasible by construction,
+which is the argument for the KRAS-style soft layer in #588 Decision 2. The
+weights above are a **starting proposal to be calibrated**, not a result — the
+ordering (identity > gross output > expenditure > income > allocation) is the
+part worth defending.
+
+⚠️ **T1 cannot bind the Supply column for `4200ID`.** Its Use column is 38,513
+of customs duties while its Supply column is **zero**, because duties are not
+output at basic prices. Stated at producer prices, the gross-output target
+binds the Use side only for this industry. `mask_layer_plan.md` §3.
+
+### 2a. Three cross-block identities the target set was paying for
+
+**Measured on the 2017 detail SUT.** These tie the Use table's product-tax rows
+to the Supply table's product-tax columns. Both sides are *inside* the balance,
+so — like `T016 = T019` — they cost no source at all:
+
+| Identity | Use side | Supply side | Residual |
+|---|---:|---:|---:|
+| Subsidies | `T00SUB` 59,876 | `−SUB` 59,876 | **0 — exact** |
+| Taxes, naive | `T00TOP` 755,451 | `TOP` 716,926 | **38,525** ✗ |
+| **Taxes, correct** | `T00TOP` 755,451 | `TOP + MDTY` 755,433 | 18 (0.0024%) ✓ |
+
+⚠️ **`T00TOP = TOP` is wrong; `T00TOP = TOP + MDTY` is right.** Customs duties
+are a tax on products that the Supply table books in its own column while the
+Use table folds it into `T00TOP` — and `4200ID` is exactly the hinge:
+
+```
+Use T00TOP[4200ID]      =  38,513   ≈  Supply MDTY total   38,507   (residual 6)
+Use T00TOP less 4200ID  = 716,938   ≈  Supply TOP total   716,926   (residual 12)
+```
+
+The residuals of 6, 12 and 18 are BEA's $1M publication rounding — the same
+effect that produces the transport-margin shortfall in Step 4c.
+
+**Why this changes T6, T8 and T9.** Those three spend NIPA T30500 and T31300 on
+*both* sides of the same accounting quantity. The identities make one side
+redundant: impose T12-T14 hard, and the NIPA totals become anchors on the
+**level** only, rather than doing double duty on the split. Strictly more
+constraint for strictly less source — and per §6 it leaves more of T30500
+unspent as evidence.
+
+**This is also what makes the sign normalisation load-bearing.** Stored as BEA
+publishes them, T12 is a sum-to-zero across two opposite conventions; stored
+negative on both sides (§4's ⚠️), it is a plain equality that a `{0,1}`
+aggregator can express. A signed aggregator would be needed otherwise.
+
+⚠️ **Verified on 2017 only.** These are accounting identities and should hold
+every year, but `MDTY` is nowcast annually from Census duty rates levelled to
+NIPA `B235RC`, so T14 doubles as a **free consistency check on that estimate** —
+and would be the first place a duty-rate error shows up.
+
+### 2b. Margins are a redistribution, so their columns sum to zero
+
+The single most useful constraint on our *own* Step 4c output, and it costs
+nothing. Measured on 2017:
+
+| Column | added to goods | given up | **total** |
+|---|---:|---:|---:|
+| `TRADE` | 3,264,932 | −3,264,931 | **1** |
+| `TRANS` | 415,580 | −415,570 | **10** |
+
+A margin is not value created, it is value **moved**: the wholesale, retail and
+transport commodities give up exactly what is added onto the goods they carry.
+The give-up side is the 19 wholesale/retail commodities and the 5 transport
+ones — the same negative cells Tier 3's sign locks protect.
+
+**This is the line between the two families of Supply column**, and it is why
+only these two are zero-sum:
+
+| Column | Behaviour | Column total 2017 |
+|---|---|---:|
+| `TRADE`, `TRANS` | **redistribution** — zero-sum | 1, 10 |
+| `MCIF`, `MDTY`, `TOP` | **addition** to domestic supply | 2,649,430 / 38,507 / 716,926 |
+| `MADJ`, `SUB` | addition, signed negative | −23,116 / −59,876 |
+
+**Why T15/T16 matter more than they look.** T10 leaves `TRADE` and `TRANS`
+deliberately unimposed, because they are our own Step 4b/4c output and a target
+we produced is a preference with extra steps. But *unimposed* left them with no
+constraint at all — and the failure mode is silent: if the nowcast adds 3.3T of
+margin onto goods while the trade commodities give up 3.1T, the table simply
+does not balance and nothing says so until much later. T15/T16 close that
+without touching the **distribution**, which stays free. It is a constraint on
+our own work rather than a source, which is exactly what makes it legitimate.
+
+### The trade and transport rows reconcile differently, and it is not a defect
+
+Following the give-up side through to total supply:
+
+```
+TRADE   make 3,373,416 − giveup 3,264,931 = 108,485  ≈  T016 108,478  ≈  uses 108,465
+TRANS   make   731,885 − giveup   415,570 = 316,315  ≠  T016 364,350
+```
+
+Trade closes directly because its 19 commodities carry **zero** `MCIF`, `MADJ`,
+`TOP`, `SUB` and `MDTY` — wholesale and retail services are neither imported nor
+taxed. Transport does not, because they are both:
+
+```
+316,315 + MCIF 46,393 + MADJ −19,056 + TOP 23,246 + SUB −2,548 = 364,350 = T016 ✓
+```
+
+With `MADJ` included the transport rows close to **residual 0** — exactly, not
+approximately. So there is **no separate trade/transport row identity to
+impose**: it is the ordinary Supply row identity (`mask_layer_plan.md` §8) plus
+T11. The new content is entirely in the column sums, T15 and T16.
+
+### `MADJ` is transport and insurance, but it is still a level
+
+All six nonzero `MADJ` cells are transport or insurance commodities — the
+c.i.f./f.o.b. wedge is freight plus insurance, and it lands nowhere else:
+
+| Commodity | `MADJ` | in the `TRANS` give-up set? |
+|---|---:|---|
+| `483000` water transport | −12,794 | yes |
+| `484000` truck transport | −4,900 | yes |
+| `492000` couriers | −3,361 | no |
+| `481000` air transport | −950 | yes |
+| `5241XX` insurance carriers | −699 | no |
+| `482000` rail transport | −412 | yes |
+
+That is an independent check on the destination-reassignment method built for
+`MADJ` in [#644](https://github.com/cornerstone-data/bedrock/pull/644), which
+reassigns Census `GEN_CHA_YR` onto the 2017 `MADJ` destinations.
+
+⚠️ **But it earns no identity of its own.** `MADJ` totals **−23,116**, not zero:
+it *reduces* total supply to move imports from a c.i.f. to an f.o.b. basis,
+rather than moving value between commodities. It belongs to the addition family
+with `MCIF` and `MDTY`, not to the zero-sum family with `TRADE` and `TRANS`.
+
+✅ **Decided 2026-08-17: `MADJ` stays free.** It is the one Step 4b/4c output
+with neither an internal identity nor an external target, and that is accepted
+for now — it is −23,116 against a $34T table, and `T11` absorbs it. Revisit if
+the balance puts implausible mass there, or if a soft column total is wanted
+later; Census `GEN_CHA_YR` (import charges) measures the same wedge and already
+arrives with the `MCIF` request, so the option stays open at no extra
+extraction cost.
 
 ### Why these and not the obvious alternatives
 
@@ -255,9 +393,13 @@ nowcast_mask.py      structural_zero_mask()          -> from the 2017 pattern
 that detail gross output is observed for all of them — but the structure has to
 exist, because weights and hold-backs are the things most likely to move.
 
-**Excluded from the balance entirely** (`mask_layer_plan.md` §3): `S00900`, held
-out and re-derived from `−F010 + Supply T016` afterwards; `4200ID`, empty in
-every block.
+**Excluded from the balance** (`mask_layer_plan.md` §3), ⚠️ **on the commodity
+axis only**: `S00900`, held out and re-derived from `−F010 + Supply T016`
+afterwards; `4200ID`, whose commodity row is empty. **`4200ID` stays an
+industry** — its column is customs duties, `T00TOP` = `VAPRO` = 38,513, and
+dropping it would delete a hard constraint. Implemented in
+[`nowcast_mask.py`](../../transform/iot/nowcast_mask.py) as
+`balance_commodities()` (400) against `balance_industries()` (402).
 
 ## 8. Weight calibration on the 2017 replay
 

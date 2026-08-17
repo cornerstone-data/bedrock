@@ -132,8 +132,47 @@ it must not be an accidental one.
   $3,494, a joint free share of 0.9%. It is already *derived* from an identity
   (`−F010 + Supply T016`, [`plan.md`](plan.md) §Step 1B). **Hold it out of the
   balance and re-derive it afterwards** rather than asking RAS to move it.
-- **`4200ID`** — zero in every block, on both sides. Exclude, or it shows up as
-  a spurious infeasibility.
+- **`4200ID`** — ⚠️ **corrected 2026-08-17. The earlier text here said "zero in
+  every block, on both sides", and that is wrong on the industry axis.**
+  `4200ID` is **customs duties**, and it means different things on the two axes:
+
+  | axis | content |
+  |---|---|
+  | commodity (row) | genuinely empty — it produces nothing |
+  | **industry (column)** | **live**: no intermediate purchases and no commodity output, but `T00TOP` = `VAPRO` = **38,513** |
+
+  That column total is the Supply table's `MDTY` total (38,507, residual 6 —
+  BEA's $1M publication rounding), and it is *exactly* the published detail
+  gross output for `4200ID`. So **exclude it as a commodity and keep it as an
+  industry.** Excluding it from both axes drops a $38.5B hard constraint and
+  the cleanest instance of the §7 producer-versus-basic wedge, which is
+  `GO(producer) = T007(basic) + T00TOP − T00SUB` = `0 + 38,513 − 0` here.
+
+  ⚠️ **Its Supply column is genuinely zero**, because duties are not output at
+  basic prices. A gross-output target stated at producer prices can bind the
+  Use column but **not** the Supply one — see `target_set_plan.md` §2, T1.
+
+### The two axes are not the same set
+
+The panel is **not square**, and nothing downstream may assume it is. 398 codes
+are in both lists; four are industry-only (`331314`, `S00101`, `S00201`,
+`S00202` — all live, 5,100 to 33,922 of intermediates each) and four
+commodity-only (`S00300`, `S00401`, `S00402`, `S00900`).
+
+⚠️ **Two commodities have no domestic make at all**, so a structural-zero mask
+freezes their make row completely and their entire Supply-side freedom is in
+the bridge columns:
+
+| commodity | Supply make | bridge | composition |
+|---|---:|---:|---|
+| `S00300` noncomparable imports | 0 | 260,421 | **all `MCIF`** — nothing domestic produces it |
+| `S00402` used and secondhand goods | 0 | 164,495 | 117,563 `TRADE`, 23,869 `TRANS` |
+
+Neither is infeasible — both keep ample bridge freedom — but **leverage on those
+two rows must be read on the bridge, not on the make**. `S00402` reaching
+buyers through margins rather than production is also why its margin rate on
+basic value looks impossible (§`margins_estimation_plan.md`, `TRANS/T013` of
+3.25).
 
 ## 4. The rule for what goes in the mask
 
@@ -182,7 +221,9 @@ free.
 margin give-up side, and `TOP` (non-negative). These need to move; they must not
 cross zero.
 
-**Tier 4 — held out of the balance.** `S00900`, `4200ID`.
+**Tier 4 — held out of the balance, on the commodity axis only.** `S00900` and
+`4200ID` leave the *commodity* list. `4200ID` **stays** in the industry list —
+see §3, it is customs duties and its column carries 38,513.
 
 **Deliberately unimposed, as out-of-sample evidence** (#591's requirement that
 some aggregates stay unspent): NIPA T1.14, and `VAPRO` → T1.1.5 GDP. The VA
