@@ -171,9 +171,35 @@ taxed. Transport does not, because they are both:
 316,315 + MCIF 46,393 + MADJ −19,056 + TOP 23,246 + SUB −2,548 = 364,350 = T016 ✓
 ```
 
-So there is **no separate trade/transport row identity to impose** — it is the
-ordinary Supply row identity (`mask_layer_plan.md` §8) plus T11. The new content
-is entirely in the column sums, T15 and T16.
+With `MADJ` included the transport rows close to **residual 0** — exactly, not
+approximately. So there is **no separate trade/transport row identity to
+impose**: it is the ordinary Supply row identity (`mask_layer_plan.md` §8) plus
+T11. The new content is entirely in the column sums, T15 and T16.
+
+### `MADJ` is transport and insurance, but it is still a level
+
+All six nonzero `MADJ` cells are transport or insurance commodities — the
+c.i.f./f.o.b. wedge is freight plus insurance, and it lands nowhere else:
+
+| Commodity | `MADJ` | in the `TRANS` give-up set? |
+|---|---:|---|
+| `483000` water transport | −12,794 | yes |
+| `484000` truck transport | −4,900 | yes |
+| `492000` couriers | −3,361 | no |
+| `481000` air transport | −950 | yes |
+| `5241XX` insurance carriers | −699 | no |
+| `482000` rail transport | −412 | yes |
+
+That is an independent check on the destination-reassignment method built for
+`MADJ` in [#644](https://github.com/cornerstone-data/bedrock/pull/644), which
+reassigns Census `GEN_CHA_YR` onto the 2017 `MADJ` destinations.
+
+⚠️ **But it earns no identity of its own.** `MADJ` totals **−23,116**, not zero:
+it *reduces* total supply to move imports from a c.i.f. to an f.o.b. basis,
+rather than moving value between commodities. It belongs to the addition family
+with `MCIF` and `MDTY`, not to the zero-sum family with `TRADE` and `TRANS` —
+so T10 leaves it unconstrained, and it is the one Step 4b/4c output with no
+internal check at all.
 
 ### Why these and not the obvious alternatives
 
