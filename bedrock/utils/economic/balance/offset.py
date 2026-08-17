@@ -13,6 +13,10 @@ the other (``mask_layer_plan.md`` §2)::
 Balance ``Z`` against the residual targets, then add ``F`` back. The engine only
 ever sees a participation mask.
 
+Because a target may span blocks, the offset works over a **mapping** of block
+name to frame rather than one frame at a time: the residual of
+``supply.row − use.row`` is not defined until both frozen parts are known.
+
 **Three properties, all learned the hard way.**
 
 - **A fixed cell is held at its value, not zeroed.** ceda's ``free_mask`` does
@@ -30,11 +34,16 @@ ever sees a participation mask.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import numpy as np
 import pandas as pd
 
 from bedrock.utils.economic.balance.mask import SutMask
 from bedrock.utils.economic.balance.targets import Axis, Target, TargetSet
+
+Blocks = Mapping[str, pd.DataFrame]
+Masks = Mapping[str, SutMask]
 
 
 def margin(
@@ -46,9 +55,7 @@ def margin(
 
     ``axis='row'`` sums across columns and yields one value per row;
     ``axis='column'`` sums down rows and yields one per column. ``restrict_to``
-    narrows the *summed* axis - with ``axis='column'`` it selects which rows
-    participate - which is how a single row's cells can be constrained by
-    column group.
+    narrows the *summed* axis.
     """
     if axis == 'row':
         selected = frame if restrict_to is None else frame.loc[:, list(restrict_to)]
@@ -70,8 +77,20 @@ def split_fixed(seed: pd.DataFrame, mask: SutMask) -> tuple[pd.DataFrame, pd.Dat
     mask.validate_against(seed)
     fixed = mask.fixed_value
     values = seed.astype(float)
-    frozen = values.where(fixed, 0.0)
-    free = values.where(~fixed, 0.0)
+    return values.where(fixed, 0.0), values.where(~fixed, 0.0)
+
+
+def split_fixed_blocks(
+    seeds: Blocks, masks: Masks
+) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
+    """:func:`split_fixed` over every block, keyed the same way."""
+    missing = set(seeds) ^ set(masks)
+    if missing:
+        raise KeyError(f'seeds and masks disagree on blocks: {sorted(missing)}')
+    frozen: dict[str, pd.DataFrame] = {}
+    free: dict[str, pd.DataFrame] = {}
+    for block, seed in seeds.items():
+        frozen[block], free[block] = split_fixed(seed, masks[block])
     return frozen, free
 
 
@@ -97,36 +116,22 @@ def assert_free_seed(seed: pd.DataFrame, mask: SutMask) -> None:
         )
 
 
-def offset_target(target: Target, frozen: pd.DataFrame) -> Target:
-    """One target, less the frozen mass its margin already contains.
+def offset_target(target: Target, frozen: Blocks) -> Target:
+    """One target, less the frozen mass its margins already contain.
 
-    The aggregate case is ``A - R @ F @ Cᵀ``: the frozen margin is aggregated
-    the same way the target is, so a mask sitting *inside* an aggregate is
-    accounted for rather than ignored.
+    Handles the aggregate case as ``A - R @ F @ Cᵀ`` and the cross-block case
+    by evaluating every term against its own frozen block, so a mask sitting
+    inside an aggregate - or on the other side of an identity - is accounted
+    for rather than ignored.
     """
-    frozen_margin = margin(frozen, target.axis, target.restrict_to)
-    if target.aggregator is not None:
-        frozen_margin = target.aggregator.apply(frozen_margin)
-    aligned = frozen_margin.reindex(target.values.index)
-    if aligned.isna().any():
-        missing = list(aligned.index[aligned.isna()])
-        raise KeyError(
-            f'{target.label} names margin labels the block does not have: ' f'{missing}'
-        )
-    residual = pd.to_numeric(target.values, errors='raise') - aligned
-    return target.with_values(residual, source_suffix=' (residual)')
-
-
-def offset_targets(targets: TargetSet, frozen: pd.DataFrame, block: str) -> TargetSet:
-    """Offset every target on ``block``; pass the others through untouched.
-
-    Targets on other blocks are returned as they were, so a set spanning the
-    Use and Supply panels can be offset one block at a time without the caller
-    having to partition it first.
-    """
-    return TargetSet(
-        tuple(offset_target(t, frozen) if t.block == block else t for t in targets)
+    return target.with_values(
+        target.residual_against(frozen), source_suffix=' (residual)'
     )
+
+
+def offset_targets(targets: TargetSet, frozen: Blocks) -> TargetSet:
+    """Offset every target against the frozen parts of the blocks it reads."""
+    return TargetSet(tuple(offset_target(t, frozen) for t in targets))
 
 
 def restore_fixed(balanced: pd.DataFrame, frozen: pd.DataFrame) -> pd.DataFrame:
@@ -140,3 +145,10 @@ def restore_fixed(balanced: pd.DataFrame, frozen: pd.DataFrame) -> pd.DataFrame:
     if not balanced.columns.equals(frozen.columns):
         raise ValueError('restore_fixed: column labels differ')
     return balanced.astype(float) + frozen.astype(float)
+
+
+def restore_fixed_blocks(balanced: Blocks, frozen: Blocks) -> dict[str, pd.DataFrame]:
+    """:func:`restore_fixed` over every block."""
+    return {
+        block: restore_fixed(frame, frozen[block]) for block, frame in balanced.items()
+    }

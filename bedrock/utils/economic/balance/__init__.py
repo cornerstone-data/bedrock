@@ -9,14 +9,19 @@ on that decision, and nothing in it imports a solver.
 
 The pieces fit together in one order::
 
-    frozen, free = split_fixed(seed, mask)        # X = F + Z
-    residual     = offset_targets(targets, frozen, block)
-    precheck(seed, mask, targets)                 # raises if a margin is stuck
-    balanced     = engine(free, residual, mask.frozen)     # not ours
-    result       = restore_fixed(balanced, frozen)
+    frozen, free = split_fixed_blocks(seeds, masks)   # X = F + Z, per block
+    residual     = offset_targets(targets, frozen)
+    precheck(seeds, masks, targets)                   # raises if a margin is stuck
+    balanced     = engine(free, residual, masks)      # not ours
+    result       = restore_fixed_blocks(balanced, frozen)
 
-The engine only ever sees a participation mask and residual targets, which is
-what makes a fixed-value mask expressible without touching the engine at all.
+``seeds`` and ``masks`` are mappings of block name to frame, because a target
+may relate the Use panel to the Supply panel - ``T016 = T019`` and the
+product-tax identities all do.
+
+**The engine only ever sees a participation mask and residual targets**, which
+is what makes a fixed-value mask expressible without touching the engine at
+all.
 
 Analysis behind the design: ``bedrock/analysis/nowcasting/mask_layer_plan.md``
 and ``target_set_plan.md``, with the measurements in
@@ -25,8 +30,10 @@ and ``target_set_plan.md``, with the measurements in
 
 from bedrock.utils.economic.balance.feasibility import (
     DEFAULT_LEVERAGE_WARN,
+    REPORT_COLUMNS,
     Infeasibility,
     InfeasibleBalance,
+    UnsourcedTargets,
     leverage,
     margin_report,
     precheck,
@@ -38,17 +45,23 @@ from bedrock.utils.economic.balance.offset import (
     offset_target,
     offset_targets,
     restore_fixed,
+    restore_fixed_blocks,
     split_fixed,
+    split_fixed_blocks,
 )
 from bedrock.utils.economic.balance.targets import (
+    PLACEHOLDER_PREFIX,
     Aggregator,
     Axis,
     Target,
     TargetSet,
+    TargetTerm,
 )
 
 __all__ = [
     'DEFAULT_LEVERAGE_WARN',
+    'PLACEHOLDER_PREFIX',
+    'REPORT_COLUMNS',
     'Aggregator',
     'Axis',
     'InfeasibleBalance',
@@ -56,6 +69,8 @@ __all__ = [
     'SutMask',
     'Target',
     'TargetSet',
+    'TargetTerm',
+    'UnsourcedTargets',
     'assert_free_seed',
     'assert_subsidies_negative',
     'leverage',
@@ -65,5 +80,7 @@ __all__ = [
     'offset_targets',
     'precheck',
     'restore_fixed',
+    'restore_fixed_blocks',
     'split_fixed',
+    'split_fixed_blocks',
 ]
