@@ -61,13 +61,63 @@ imposed.
 | T9 | Supply `TOP`, `SUB` | product taxes / subsidies totals | T30500, T31300 | column total | **S**`0.7` |
 | T10 | Supply `MADJ`, `TRADE`, `TRANS` | — | ours (Step 4b/4c) | — | **—** |
 | T11 | Commodity rows | `T016 = T019` | identity | detail, 402 | **H** |
+| T12 | Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB + Σ SUB = 0` | identity (§2a) | scalar | **H** |
+| T13 | Use `T00TOP` ↔ Supply `TOP` + `MDTY` | `Σ T00TOP = Σ TOP + Σ MDTY` | identity (§2a) | scalar | **H** |
+| T14 | Use `T00TOP[4200ID]` ↔ Supply `MDTY` | equal | identity (§2a) | scalar | **H** |
 
-**T1 and T11 are the only hard constraints.** Everything sourced is an estimate
-from an account with its own vintage; a set held entirely hard is infeasible by
-construction, which is the argument for the KRAS-style soft layer in #588
-Decision 2. The weights above are a **starting proposal to be calibrated**, not
-a result — the ordering (identity > gross output > expenditure > income >
-allocation) is the part worth defending.
+**The hard constraints are T1, T11, T12, T13 and T14** — all identities, none
+of which spends a source. Everything *sourced* is an estimate from an account
+with its own vintage; a set held entirely hard is infeasible by construction,
+which is the argument for the KRAS-style soft layer in #588 Decision 2. The
+weights above are a **starting proposal to be calibrated**, not a result — the
+ordering (identity > gross output > expenditure > income > allocation) is the
+part worth defending.
+
+⚠️ **T1 cannot bind the Supply column for `4200ID`.** Its Use column is 38,513
+of customs duties while its Supply column is **zero**, because duties are not
+output at basic prices. Stated at producer prices, the gross-output target
+binds the Use side only for this industry. `mask_layer_plan.md` §3.
+
+### 2a. Three cross-block identities the target set was paying for
+
+**Measured on the 2017 detail SUT.** These tie the Use table's product-tax rows
+to the Supply table's product-tax columns. Both sides are *inside* the balance,
+so — like `T016 = T019` — they cost no source at all:
+
+| Identity | Use side | Supply side | Residual |
+|---|---:|---:|---:|
+| Subsidies | `T00SUB` 59,876 | `−SUB` 59,876 | **0 — exact** |
+| Taxes, naive | `T00TOP` 755,451 | `TOP` 716,926 | **38,525** ✗ |
+| **Taxes, correct** | `T00TOP` 755,451 | `TOP + MDTY` 755,433 | 18 (0.0024%) ✓ |
+
+⚠️ **`T00TOP = TOP` is wrong; `T00TOP = TOP + MDTY` is right.** Customs duties
+are a tax on products that the Supply table books in its own column while the
+Use table folds it into `T00TOP` — and `4200ID` is exactly the hinge:
+
+```
+Use T00TOP[4200ID]      =  38,513   ≈  Supply MDTY total   38,507   (residual 6)
+Use T00TOP less 4200ID  = 716,938   ≈  Supply TOP total   716,926   (residual 12)
+```
+
+The residuals of 6, 12 and 18 are BEA's $1M publication rounding — the same
+effect that produces the transport-margin shortfall in Step 4c.
+
+**Why this changes T6, T8 and T9.** Those three spend NIPA T30500 and T31300 on
+*both* sides of the same accounting quantity. The identities make one side
+redundant: impose T12-T14 hard, and the NIPA totals become anchors on the
+**level** only, rather than doing double duty on the split. Strictly more
+constraint for strictly less source — and per §6 it leaves more of T30500
+unspent as evidence.
+
+**This is also what makes the sign normalisation load-bearing.** Stored as BEA
+publishes them, T12 is a sum-to-zero across two opposite conventions; stored
+negative on both sides (§4's ⚠️), it is a plain equality that a `{0,1}`
+aggregator can express. A signed aggregator would be needed otherwise.
+
+⚠️ **Verified on 2017 only.** These are accounting identities and should hold
+every year, but `MDTY` is nowcast annually from Census duty rates levelled to
+NIPA `B235RC`, so T14 doubles as a **free consistency check on that estimate** —
+and would be the first place a duty-rate error shows up.
 
 ### Why these and not the obvious alternatives
 
@@ -255,9 +305,13 @@ nowcast_mask.py      structural_zero_mask()          -> from the 2017 pattern
 that detail gross output is observed for all of them — but the structure has to
 exist, because weights and hold-backs are the things most likely to move.
 
-**Excluded from the balance entirely** (`mask_layer_plan.md` §3): `S00900`, held
-out and re-derived from `−F010 + Supply T016` afterwards; `4200ID`, empty in
-every block.
+**Excluded from the balance** (`mask_layer_plan.md` §3), ⚠️ **on the commodity
+axis only**: `S00900`, held out and re-derived from `−F010 + Supply T016`
+afterwards; `4200ID`, whose commodity row is empty. **`4200ID` stays an
+industry** — its column is customs duties, `T00TOP` = `VAPRO` = 38,513, and
+dropping it would delete a hard constraint. Implemented in
+[`nowcast_mask.py`](../../transform/iot/nowcast_mask.py) as
+`balance_commodities()` (400) against `balance_industries()` (402).
 
 ## 8. Weight calibration on the 2017 replay
 

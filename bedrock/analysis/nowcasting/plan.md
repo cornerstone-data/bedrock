@@ -1025,8 +1025,11 @@ expression of the choice, and the negatives question is decided here rather than
   51 more exceed 10× leverage — but 26 of the 27 are absorbed 1:1 by their Supply
   row, so the real cost is that **the balance silently relocates onto the Supply
   table** for housing, government, health, education and construction.
-  `S00900` (0.9% joint freedom) and `4200ID` (empty everywhere) are held out of
-  the balance rather than masked.
+  `S00900` (0.9% joint freedom) and `4200ID` are held out of the balance rather
+  than masked — but ⚠️ **on the commodity axis only.** `4200ID` is customs
+  duties and stays an *industry*: its column carries `T00TOP` = `VAPRO` =
+  38,513, which is the Supply `MDTY` total and its published gross output.
+  Corrected 2026-08-17; see [`mask_layer_plan.md`](mask_layer_plan.md) §3.
 - **What does "converged" mean?** Elementwise per-margin tolerance (ceda's, and the right answer —
   a global `max` bound is meaningless across margins spanning six orders of magnitude), plus an
   `atol` floor, since several commodity targets are legitimately near zero.
@@ -1071,10 +1074,27 @@ per-year *configuration*, but it is near-constant across 2018-2024.
 | Supply `MCIF`, `MDTY`, `TOP`, `SUB` | column totals | ITA, T30500, T31300 | column total | **S** |
 | Supply `MADJ`, `TRADE`, `TRANS` | — | ours (Step 4b/4c) | — | **—** |
 | Commodity rows | `T016 = T019` | identity | detail, 402 | **H** |
+| Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB + Σ SUB = 0` | identity | scalar | **H** |
+| Use `T00TOP` ↔ Supply `TOP` + `MDTY` | `Σ T00TOP = Σ TOP + Σ MDTY` | identity | scalar | **H** |
+| Use `T00TOP[4200ID]` ↔ Supply `MDTY` | equal | identity | scalar | **H** |
 
-Only two constraints are hard. Every sourced target is an estimate from an account with its own
+Only the identities are hard. Every sourced target is an estimate from an account with its own
 vintage, and a set held entirely hard is infeasible by construction — the argument for the KRAS-style
 soft layer in Decision 2.
+
+⚠️ **Three cross-block identities were added 2026-08-17** ([`target_set_plan.md`](target_set_plan.md)
+§2a). They tie the Use table's product-tax rows to the Supply table's product-tax columns, and since
+both sides sit *inside* the balance they cost no source — so the NIPA totals that T6/T8/T9 spend can
+anchor the **level** instead of doing double duty on the split.
+
+**`T00SUB = SUB` holds exactly (59,876). `T00TOP = TOP` does not — it is `T00TOP = TOP + MDTY`**,
+because customs duties are a product tax the Supply table books in its own column while the Use table
+folds it into `T00TOP`. `4200ID` is the hinge: `T00TOP[4200ID]` = 38,513 = the `MDTY` total, and
+`T00TOP` less `4200ID` = the `TOP` total. Residuals of 6 to 18 on 755,451 are BEA's $1M publication
+rounding.
+
+Because `MDTY` is nowcast annually from Census duty rates levelled to NIPA `B235RC`, the third
+identity doubles as a **free consistency check on that estimate**.
 
 ⚠️ **Published gross output is at *producer* prices; the SUT column identity is at *basic*.** The
 wedge is exact per industry — `GO(producer) = T007(basic) + T00TOP − T00SUB`, max residual **$4M on
