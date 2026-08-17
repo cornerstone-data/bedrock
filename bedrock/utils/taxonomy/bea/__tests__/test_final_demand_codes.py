@@ -12,6 +12,7 @@ problem somewhere else entirely.
 
 import inspect
 
+from bedrock.transform.eeio import nowcast
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     SUT_FINAL_DEMAND_CODES,
     USA_2017_FINAL_DEMAND_CODES,
@@ -44,7 +45,6 @@ def test_derive_initial_y_pur_targets_the_sut_list() -> None:
     for a unit test. The behavioural check that the output carries 19 columns
     and no ``F05000`` belongs with the nowcast validation runs (#576).
     """
-    from bedrock.transform.eeio import nowcast
 
     src = inspect.getsource(nowcast.derive_initial_Y_pur)
     assert 'SUT_FINAL_DEMAND_CODES' in src
