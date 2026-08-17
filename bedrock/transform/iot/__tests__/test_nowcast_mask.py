@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.iot.nowcast_mask import (
+    BLOCKS,
     EXCLUDED_COMMODITIES,
     ONE_TO_ONE_FD,
     SIGN_LOCKED_SUPPLY_COLUMNS,
@@ -136,8 +137,8 @@ def test_the_two_axes_are_not_the_same_set() -> None:
 
 def test_panel_labels_carry_no_subtotals() -> None:
     """``T007``/``T013``/``T016`` and friends are derived, not solved for."""
-    for block in ('use', 'supply'):
-        rows, columns = panel_labels(block)  # type: ignore[arg-type]
+    for block in BLOCKS:
+        rows, columns = panel_labels(block)
         for subtotal in ('T001', 'T005', 'T007', 'T013', 'T014', 'T015', 'T016'):
             assert subtotal not in rows
             assert subtotal not in columns
