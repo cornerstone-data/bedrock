@@ -134,6 +134,43 @@ or structure without depth or history (Table 5).
    Census rather than annual survey. Still the highest-value item in #564, and the only one that
    addresses the 82% of manufacturing's column that the annual data cannot see.
 
+## Watch for while in here: MSBO margin, for the trade control totals (#612)
+
+Not part of this issue's question, but this is the probe that will be looking at the annual
+manufacturing data closely, and it is the one place the answer might turn up.
+
+**The problem.** Step 4c phase 3 needs an annual wholesale margin level. Census publishes gross margin
+for **merchant wholesalers only**. The other two types of operation are missing or near-empty:
+manufacturers' sales branches and offices (`TYPOP` `21` with stock, `22` without) had **2,331,241 $M of
+sales in 2017 and no published margin at all**, and agents/brokers close only 3.6% of the gap. That is
+most of why the Census series is 0.551 of BEA's published Wholesale column. Details and the full
+decomposition are in [`margins_estimation_plan.md`](margins_estimation_plan.md) §The 850,540 wholesale
+gap.
+
+**Why the manufacturing data is the plausible home.** An MSBO is the manufacturer's own outlet, so the
+establishment sits in wholesale but the parent is a manufacturer — which means the markup may be visible
+from the manufacturing side even though the wholesale tables do not carry it. Concretely, worth checking:
+
+- **`ecnclcust`, class of customer** — already in the 2017 Economic Census dataset list. If manufacturers'
+  shipments are split by customer type, shipments routed through their own branches and offices are the
+  quantity being looked for.
+- **Any shipments-vs-sales gap in ASM/AIES manufacturing.** A manufacturer's value of shipments is
+  measured at the plant; if the same goods are also counted at the branch, the difference is the MSBO
+  markup.
+- **`ecntypop` beyond sales.** It breaks MSBOs out for sales, payroll, inventories and operating
+  expenses. Sales less cost of goods is not available, but `OPEX` against sales bounds what the markup
+  can be.
+
+**What would be enough.** Not a full series — a single credible 2017 MSBO markup rate would do, since
+Phase 4 anchors the level on 2017 BEA and only needs the annual movement from elsewhere. If nothing
+turns up, the decision on record stands: keep the index merchant-wholesaler-only, which is a consistent
+basis across all years.
+
+⚠️ Related and separate: the Economic Census and AWTS disagree by **42%** about merchant wholesalers'
+*own* margin in 2017 (1,563,667 vs 1,100,925, on sales bases agreeing to 0.06%, entirely in cost of
+goods). If this probe touches `ecnmargin` or `ecnprofit` for any reason, that is worth resolving at the
+same time — it is larger than the MSBO question.
+
 ## Government and agriculture — probed separately, and these two work
 
 Both sectors are **absent from the business surveys entirely** (agriculture `11` is not in `exp02`;
