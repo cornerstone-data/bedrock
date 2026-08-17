@@ -41,7 +41,8 @@ Documented rules; FBS methods do not allocate onto these codes. Holes below are 
 - **Import `MISS` ≥ 1 B USD besides `S00300`.** `311810` (4,710 M), `221100` (2,431 M), `511130` (1,786 M), `1121A0` beef cattle (1,659 M), `561300` employment services (1,588 M). Same rule.
 - **Industry-only Crosswalk sectors.** Census `331314` is a 2017 industry code, not a 2017 SUT commodity (`331313` / `33131B`).
 - **FAS vs PUR.** Census export `ALL_VAL_YR` is FAS-family; Use `F04000` is purchasers' value. These methods do not convert valuation basis commodity-by-commodity.
-- **`MDTY` / `MADJ`.** Census duty and charge fields are in the FBA. National duty level and c.i.f./f.o.b. adjustment wait for later Supply-bridge wiring.
+- **`MDTY`.** Census effective duty rate (`CAL_DUT_YR` / `GEN_VAL_YR` mapped to Detail via `Sector_Crosswalk_Census_USATrade`, 1:m by Supply `MCIF`) times Census goods MCIF from `Trade_Imports`, leveled so the national sum matches NIPA T30500 `B235RC`. Calculated Census duty ≠ collected duty (tariff-era gap). Wired in `derive_initial_supply_bridge` via `bedrock.transform.trade.duties.mdty_detail_usd`.
+- **`MADJ`.** Census `GEN_CHA_YR` (import charges) mapped to Detail via the goods Crosswalk, then reassigned onto Detail codes with nonzero 2017 Supply `MADJ` in proportion to those published `MADJ` values (signed shares), leveled so the national sum matches published Supply `MADJ`. That destination mix matches BEA’s transport/insurance booking of the wedge (including codes with zero SUT `MCIF`). Does not fill `T013`. Wired via `bedrock.transform.trade.madj.madj_detail_usd`.
 
 ## IEA Crosswalk revisions
 
