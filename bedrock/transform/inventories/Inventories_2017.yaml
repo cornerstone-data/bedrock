@@ -60,6 +60,14 @@ _attribution_sources:
   # happens to be publishable.
   Census_EC_PxI: &pxi_weights
     year: 2017
+    # ⚠️ Must be overridden here. Without it the source inherits the METHOD's
+    # schema - activity_schema: {'bea': ...} - and map_to_sectors then treats
+    # activity values as BEA codes and expands them through the BEA hierarchy.
+    # These activities are product descriptions like 'cementing oil and gas
+    # wells', so nothing matches, mapping returns 0 rows, and the attribution
+    # merge finds an empty right-hand side. The 27,874 rows in, 0 out was the
+    # whole failure.
+    activity_schema: null
     # ⚠️ One hook, not two. prepare_fbs runs clean_fba_before_mapping BEFORE
     # estimate_suppressed, which is the opposite of the order these need - see
     # prepare_pxi_for_attribution.
