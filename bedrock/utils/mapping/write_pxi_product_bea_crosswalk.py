@@ -108,7 +108,10 @@ def main() -> None:
     out = pd.concat(
         [
             resolved.dropna(subset=['bea'])[['product', 'bea', 'origin', 'naics_2017']],
-            corr_bea.assign(naics_2017=pd.NA),
+            # None rather than pd.NA: the direct-BEA rows have no NAICS by
+            # construction, both read as missing to the pd.notna check below,
+            # and pandas-stubs rejects NAType as an assign value.
+            corr_bea.assign(naics_2017=None),
         ],
         ignore_index=True,
     ).drop_duplicates(subset=['product', 'bea'])
