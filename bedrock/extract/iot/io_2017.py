@@ -586,6 +586,51 @@ def _load_2017_detail_make_use_usa(
     return df
 
 
+def _assert_bea_subsidy_signs(
+    df: pd.DataFrame, matrix_name: USA_2017_DETAIL_IO_SUT_MATRIX_NAMES
+) -> None:
+    """Check BEA's subsidy sign convention has not changed under us.
+
+    BEA publishes subsidies with **opposite signs on the two tables**: the Use
+    table's ``T00SUB`` row is stored positive and the Supply table's ``SUB``
+    column negative, both totalling 59,876 in 2017. Anything consuming both
+    tables has to reconcile that, and a producer-price industry column margin
+    is wrong by ``2 x T00SUB`` if it goes unnoticed - up to 38,943 on a single
+    industry.
+
+    This asserts the published convention rather than changing it, because the
+    frame this returns is also what ``bea_parse`` emits as the
+    ``BEA_Detail_Use_SUT`` / ``BEA_Detail_Supply`` FBAs, which must stay
+    faithful to the workbook. Normalisation to one convention belongs at SUT
+    panel assembly, where
+    ``bedrock.utils.economic.balance.mask.assert_subsidies_negative`` checks it
+    once for the balance.
+    """
+    if matrix_name == 'Use_SUT_detail' and 'T00SUB' in df.index:
+        row = df.loc['T00SUB']
+        if isinstance(row, pd.DataFrame):
+            raise AssertionError(
+                f'BEA Use table has {len(row)} T00SUB rows; expected exactly one'
+            )
+        values = pd.to_numeric(row, errors='coerce').dropna()
+        if (values < 0).any():
+            raise AssertionError(
+                f'BEA Use T00SUB is stored positive; found '
+                f'{int((values < 0).sum())} negative cells. The subsidy sign '
+                f'convention has changed - see the balance layer, which '
+                f'assumes the Use row needs negating and the Supply column '
+                f'does not'
+            )
+    if matrix_name == 'Supply_detail' and 'SUB' in df.columns:
+        values = pd.to_numeric(df['SUB'], errors='coerce').dropna()
+        if (values > 0).any():
+            raise AssertionError(
+                f'BEA Supply SUB is stored negative; found '
+                f'{int((values > 0).sum())} positive cells. The subsidy sign '
+                f'convention has changed - see the balance layer'
+            )
+
+
 def _load_2017_detail_supply_use_usa(
     matrix_name: USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
 ) -> pd.DataFrame:
@@ -610,6 +655,8 @@ def _load_2017_detail_supply_use_usa(
     assert (
         len(df.shape) == 2
     ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+
+    _assert_bea_subsidy_signs(df, matrix_name)
 
     return df
 
