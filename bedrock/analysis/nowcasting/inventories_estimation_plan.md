@@ -380,7 +380,7 @@ method's line selection must follow the verified leaf sets in §Traps.
 **Phase 2 — the crosswalk.** 29 trade lines to BEA detail commodities. Build it
 by concept, never by value proximity.
 
-**A working version exists on `inventories_step1c`** (not merged): 858 rows, 256
+**Built** as `Sector_Crosswalk_BEA_NIPA_Inventories.csv`: 858 rows, 256
 commodities, generated from a documented concept map rather than hand-written.
 The approach that worked — NIPA's trade lines *are* NAICS wholesale (423x/424x)
 and retail (44x/45x) categories, and NAICS itself defines what each distributes,
