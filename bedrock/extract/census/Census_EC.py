@@ -379,6 +379,32 @@ def estimate_suppressed_ec_pxi(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     return detail.reset_index(drop=True)
 
 
+def move_pxi_product_to_activity(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
+    """Put the product line into ``ActivityConsumedBy`` so it can be mapped.
+
+    ``Census_EC_PxI`` carries the industry in ``ActivityProducedBy`` and the
+    product in ``FlowName``, which is the right shape for reading the data but
+    the wrong one for attribution: ``activity_to_sector_mapping`` joins its
+    crosswalk on the *activity* columns and never on ``FlowName``. The product
+    is what maps to a BEA commodity, so it has to move into an activity column
+    before ``Sector_Crosswalk_Census_EC_PxI`` can reach it.
+
+    The industry is parked in ``FlowName`` rather than dropped, because the
+    trade attribution still needs it: a NIPA trade line is matched to its PxI
+    weights through the holding industry's NAICS.
+
+    ⚠️ Run this **before** sector mapping, as ``clean_fba``. Running it after
+    leaves the crosswalk with nothing to join on and yields an empty weight set
+    rather than an error - the same silent-empty failure the NAICS prefix guard
+    in ``write_inventories_trade_crosswalk`` exists to catch.
+    """
+    return fba.assign(
+        ActivityConsumedBy=fba['FlowName'],
+        FlowName=fba['ActivityProducedBy'],
+        ActivityProducedBy=None,
+    )
+
+
 if __name__ == "__main__":
     import bedrock
 

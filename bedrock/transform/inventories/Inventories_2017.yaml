@@ -44,6 +44,27 @@ target_schema_year: 2017
 geoscale: national
 activity_schema: null
 
+_attribution_sources:
+  # Weights WITHIN a trade line's commodity set: what that kind of business
+  # actually sells, from Economic Census product lines. Hill's merchandise-trade
+  # rule is literally "what the industry sells", and BEA reaches for the same
+  # data in its margin method.
+  #
+  # ⚠️ The product must move into an activity column before mapping.
+  # activity_to_sector_mapping joins on the activity columns and never on
+  # FlowName, and the product - not the industry - is what carries a BEA
+  # commodity. Skipping this yields an empty weight set rather than an error.
+  #
+  # ⚠️ Suppression is recovered first. 54% of trade rows are withheld, though
+  # only 4.3% of value; left at zero they would bias every share toward whatever
+  # happens to be publishable.
+  Census_EC_PxI: &pxi_weights
+    year: 2017
+    estimate_suppressed: !script_function:Census_EC estimate_suppressed_ec_pxi
+    clean_fba_before_mapping: !script_function:Census_EC move_pxi_product_to_activity
+    activity_to_sector_mapping: Census_EC_PxI
+    attribution_method: direct
+
 source_names:
   BEA_NIPA:
     geoscale: national
@@ -96,6 +117,14 @@ source_names:
           Table: U50705BU1
           Line: [43, 44, 45, 47, 48, 49, 50, 51, 52, 53,
                  55, 56, 57, 58, 59, 60, 61, 62, 63]
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
 
       # ---- Wholesale, agents and brokers -------------------------------
       # 11,137, published as bare "Durable goods industries" / "Nondurable goods
@@ -114,6 +143,14 @@ source_names:
           Line: 65  # C42ND
         assign_fields:
           ActivityProducedBy: Nonmerchant wholesale, durable goods
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
 
       inventories_wholesale_nonmerchant_nondurable:
         activity_to_sector_mapping: BEA_NIPA_Inventories
@@ -124,6 +161,14 @@ source_names:
           Line: 66  # C42NN
         assign_fields:
           ActivityProducedBy: Nonmerchant wholesale, nondurable goods
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
 
       # ---- Retail leaves -----------------------------------------------
       # 17,930. Takes line 73 and EXCLUDES its children 74/75 - the reverse of
@@ -164,6 +209,14 @@ source_names:
         selection_fields:
           Table: U50705BU1
           Line: [68, 69, 70, 71, 72, 73, 76]  # 73 not 74/75 - see above
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
 
       # ---- Motor vehicles: published split, used in place of a weight ----
       # ⚠️ These four sets do NOT add to the column. They exist to supply the

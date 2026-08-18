@@ -98,6 +98,15 @@ BEA_PEQBridge:
   data_format: FBA
   class:
   - Money
+Census_EC_PxI:
+  data_format: FBA
+  class:
+  - Money
+  # The product moves into ActivityConsumedBy via
+  # move_pxi_product_to_activity before mapping, so the activity space here
+  # is the Census_2017_PxI_product_code's description - not NAICS, and not
+  # NAPCS. See Census_EC_PxI.yaml.
+  activity_schema: None
   activity_schema:
     bea:
       year: 2017
