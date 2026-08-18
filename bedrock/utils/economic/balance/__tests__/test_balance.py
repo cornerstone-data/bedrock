@@ -512,3 +512,22 @@ def test_subsidies_must_be_stored_negative() -> None:
     normalised = use.copy()
     normalised.loc['T00SUB'] *= -1
     assert_subsidies_negative(normalised, axis='row', label='T00SUB')
+
+
+def test_an_aggregator_owns_and_freezes_its_matrix() -> None:
+    """``frozen=True`` protects the field, not the array's contents.
+
+    Aggregators are handed out of caches, so an in-place edit would reach every
+    later caller. The matrix is copied on construction - leaving the caller's
+    own array alone - and the copy is read-only.
+    """
+    caller_owned = np.ones((1, 3))
+    aggregator = Aggregator(matrix=caller_owned, groups=('g',), detail=tuple(COLS))
+
+    assert not aggregator.matrix.flags.writeable
+    with pytest.raises(ValueError):
+        aggregator.matrix[0, 0] = 99.0
+
+    # the caller's array is untouched and still writeable
+    caller_owned[0, 0] = 5.0
+    assert aggregator.matrix[0, 0] == 1.0

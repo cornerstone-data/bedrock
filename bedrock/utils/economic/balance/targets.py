@@ -90,6 +90,12 @@ class Aggregator:
 
     ``eq=False`` because the dataclass-generated ``__eq__`` would compare
     ndarrays and raise on the ambiguous truth value.
+
+    The matrix is **copied and frozen** on construction. ``frozen=True`` stops
+    the *field* being rebound and does nothing about the array's contents, so
+    an aggregator handed out of a cache - :func:`industry_group_aggregator` is
+    one - could otherwise be mutated in place for every later caller. Copying
+    also means a caller's own array is never made read-only behind their back.
     """
 
     matrix: np.ndarray
@@ -97,6 +103,9 @@ class Aggregator:
     detail: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        owned = np.array(self.matrix, dtype=float, copy=True)
+        owned.flags.writeable = False
+        object.__setattr__(self, 'matrix', owned)
         if self.matrix.shape != (len(self.groups), len(self.detail)):
             raise ValueError(
                 f'aggregator matrix is {self.matrix.shape}, expected '
