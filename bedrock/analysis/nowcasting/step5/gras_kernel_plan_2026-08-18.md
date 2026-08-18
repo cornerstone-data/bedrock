@@ -4,23 +4,25 @@ overview: Vendor ceda’s dense RAS loop into the merged nowcast `bedrock/utils/
 todos:
   - id: vendor-dense
     content: "Add gras.py beside the merged balance/ types on nowcast: copy ceda dense RAS; drop scipy/sparse, ceda logging, target/seed clamps; keep stall, diagnostics, participation, close_rows_exactly; named GrasBalanceResult"
-    status: pending
+    status: completed
   - id: gras-scale
     content: Replace IPFP with typed GRAS split (sut_ras gras_internal / gras_scale_table_totals as spec) plus post-hoc sign clamp; Temurshoev all-negative branch; cite Lenzen 2007 + Temurshoev 2013
-    status: pending
+    status: completed
   - id: tests
     content: Port ceda dense tests; negative cell; sign clamp on ~sign_flex; sign_flex=None is all-False; Temurshoev flex; free_mask=None participates all; empty free margin vs live all-zero row; close_rows_exactly+project_infeasible keep ~free_mask at 0; zero target is legal; signed residual after split_fixed; RAS≡GRAS on non-negative toy
-    status: pending
+    status: completed
   - id: package-docs
     content: "Export gras_balance / GrasBalanceResult from existing balance/__init__.py (keep engine(free, residual, masks) as the missing wrapper); README: ndarray kernel; wrapper mapping free_mask=mask.free and sign_flex=(sign_lock==0); copy inputs; no scipy; mypy-clean"
-    status: pending
+    status: completed
   - id: update-nowcast-plan
     content: "After the kernel lands, apply the must-edit list in §After this PR lands: exact second snippet, retitle engine-vs-wrapper sentences, strike stale Decision 1/4a/4b/until-that-merges/#653-starts-now/no-RAS-code banners; do not rewrite engine(free, residual, masks)"
-    status: pending
+    status: completed
 isProject: false
 ---
 
 # GRAS kernel ([plan.md](bedrock/analysis/nowcasting/plan.md) §Step 5 engine layer)
+
+**Status:** complete.
 
 **Issue:** [#588](https://github.com/cornerstone-data/bedrock/issues/588) engine layer only. **Git base: `nowcast`.** Scaffolding from [#659](https://github.com/cornerstone-data/bedrock/pull/659) is merged (`Target` / `TargetTerm` / `SutMask` / offset / `precheck`). This PR only adds `[gras.py](bedrock/utils/economic/balance/gras.py)`.
 
