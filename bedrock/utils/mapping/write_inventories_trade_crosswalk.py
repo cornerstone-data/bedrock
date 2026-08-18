@@ -149,8 +149,17 @@ CONCEPT_MAP: dict[str, tuple[str | tuple[str, ...], tuple[str, ...], str]] = {
     # Both children map to the same commodity set anyway, so the parent's set is
     # theirs unchanged and no coverage is lost. See the plan, open question 4.
     'N543RC': ('452', _GENERAL_MERCH, 'General merchandise stores'),
-    'C4521': ('4521', _GENERAL_MERCH, 'Department stores'),
-    'C4529': ('4529', _GENERAL_MERCH, 'Other general merchandise stores'),
+    # ⚠️ NIPA's C4521/C4529 are 2012 NAICS. The 2017 revision renumbered the
+    # whole 452 group: department stores are 4522 and the rest is 4523, general
+    # merchandise including warehouse clubs and supercenters. Neither 4521 nor
+    # 4529 exists in NAICS 2017 - the prefix guard below catches them.
+    #
+    # That renumbering is almost certainly why these two lines carry a
+    # reclassification in 2017 rather than inventory movement, which is the
+    # separate reason 2017 takes their parent N543RC instead. See
+    # Inventories_2017.yaml.
+    'C4521': ('4522', _GENERAL_MERCH, 'Department stores'),
+    'C4529': ('4523', _GENERAL_MERCH, 'Other general merchandise stores'),
     # "Other retail stores" spans the specialist formats: bookstores (45121),
     # video and record stores (45122) and used merchandise stores (45331).
     # ⚠️ '44X' was a pseudo-code, and nothing downstream could match it: the
@@ -283,6 +292,8 @@ def main() -> None:
     empty = [c for c in CONCEPT_MAP if NAMES[c] not in set(df.Activity)]
     print(f'  lines with no commodities: {empty or "none"}')
 
+    _assert_naics_are_real()
+
     # Spot checks from inventories_estimation_plan.md, chosen before the map was
     # written. Concept first, value second - never the other way round.
     checks = [
@@ -295,6 +306,44 @@ def main() -> None:
     for act, sector, why in checks:
         got = ((df.Activity == act) & (df.Sector == sector)).any()
         print(f'    {"OK " if got else "MISS"}  {act} -> {sector}  ({why})')
+
+
+def _assert_naics_are_real() -> None:
+    """Every NAICS this map advertises must be a real 2017 prefix.
+
+    ⚠️ This guards a failure that is silent rather than loud, and which has now
+    bitten three times. NIPA publishes some alphanumeric codes - ``44X`` for
+    other retail stores, ``336MV`` and ``336OT`` for the two halves of
+    transportation equipment - that look like NAICS but are not. Anything
+    matching holding industries with ``startswith`` then finds **nothing** and
+    carries on: the retail line silently fell back to an equal split, stranding
+    ``S00402`` at 54 against a published 3,969, and both transport-equipment
+    children contributed zero to the manufacturing allocation.
+
+    An empty match is indistinguishable from "no data" unless something checks,
+    so this checks. The ``goods`` tuples drive the crosswalk itself and are
+    already covered by the empty-line report above; what this adds is the
+    ``naics_cat`` field, which is documentation in this file but is parsed
+    downstream to derive attribution weights.
+    """
+    names = pd.read_csv(MAPPING / 'naics' / 'Sector_2017_Names.csv', dtype=str)
+    real = set(names['NAICS_2017_Code'].dropna())
+
+    def covers(prefix: str) -> bool:
+        return any(code.startswith(prefix) for code in real)
+
+    bad: list[str] = []
+    for code, (naics_cat, _goods, _label) in CONCEPT_MAP.items():
+        prefixes = naics_cat if isinstance(naics_cat, tuple) else (naics_cat,)
+        bad.extend(
+            f'{code}: {p!r} matches no 2017 NAICS' for p in prefixes if not covers(p)
+        )
+    if bad:
+        raise ValueError(
+            'CONCEPT_MAP advertises NAICS prefixes that do not exist, which '
+            'would silently yield no weights downstream: ' + '; '.join(bad)
+        )
+    print(f'  NAICS prefixes checked against the 2017 list: all {len(CONCEPT_MAP)} ok')
 
 
 if __name__ == '__main__':
