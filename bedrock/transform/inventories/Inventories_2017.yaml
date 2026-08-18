@@ -63,6 +63,15 @@ _attribution_sources:
     estimate_suppressed: !script_function:Census_EC estimate_suppressed_ec_pxi
     clean_fba_before_mapping: !script_function:Census_EC move_pxi_product_to_activity
     activity_to_sector_mapping: Census_EC_PxI
+    # ⚠️ Required, and not merely a hint. After the product moves,
+    # ActivityProducedBy is null on every row and the product sits in
+    # ActivityConsumedBy. Without this, add_primary_secondary_columns falls into
+    # its _identify_secondary branch, which calls apply(axis='columns') - and on
+    # a frame that machinery has narrowed to empty, apply returns a DataFrame
+    # rather than a Series, so pandas raises "Cannot set a DataFrame with
+    # multiple columns to the single column SecondarySector". Naming the primary
+    # column assigns Primary/Secondary directly and never reaches that apply.
+    primary_action_type: Consumed
     attribution_method: direct
 
 source_names:
@@ -104,8 +113,17 @@ source_names:
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
+          # ⚠️ The INDUSTRY leaves, not the stage lines 29/32/35. Both
+          # decompositions sum to 818, but only the industry one carries codes
+          # the crosswalk can map - C30M/C30W/C30F are stages, not industries,
+          # and map to nothing, so selecting them silently produced no rows.
+          #
+          # 13 and 14 rather than their parent 12: C336OT is -5,696 against a
+          # published 336411 of -6,314, and folding it into the parent spreads
+          # an aerospace movement across pickup trucks.
           Table: U50705BU1
-          Line: [29, 32, 35]
+          Line: [5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16,
+                 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
 
       # ---- Wholesale, merchant leaves ----------------------------------
       # 19,192. Line 46 excluded as the parent of 47/48 - see the header.
