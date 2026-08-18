@@ -102,6 +102,14 @@ GROSS_OUTPUT_GLOB = (
 #: cells and targeting their column total are the same constraint written twice.
 FD_TARGET_COLUMNS = tuple(c for c in SUT_FINAL_DEMAND_CODES if c not in ONE_TO_ONE_FD)
 
+#: The rest-of-world adjustment commodity. BEA defines it as the values for
+#: exports and imports that have offsetting adjustments to personal consumption
+#: expenditures and government, so it is an accounting bridge rather than a
+#: produced good. It leaves the balance's commodity axis under Tier 4 and is
+#: re-derived from ``-F010 + Supply T016`` afterwards - but its Supply *make*
+#: row is real production and does not go away with it.
+REST_OF_WORLD_ADJUSTMENT = 'S00900'
+
 #: ``F03000`` is -37,568 in 2020 and swings 1,248% year over year. It is the
 #: only final-demand column that legitimately goes negative.
 NEGATIVE_FD_COLUMNS = ('F03000',)
@@ -210,19 +218,38 @@ def industry_output_target(year: int) -> Target:
 # --------------------------------------------------------------------------
 
 
-def held_out_supply_make(year: int = 2017) -> pd.Series:
-    """The Supply make row of ``S00900``, by industry - held out of the balance.
+def rest_of_world_adjustment_supply_make(year: int = 2017) -> pd.Series:
+    """Domestic make of ``S00900``, the **rest-of-world adjustment**, by industry.
 
-    ``S00900`` leaves the commodity axis under Tier 4 and is re-derived from
-    ``-F010 + Supply T016`` afterwards. Its *make* row does not vanish, though:
-    it is 3,468 of domestic production spread across industries, and dropping
-    it from the panel breaks the basic-to-producer identity T17 by exactly that
-    amount. Carried here as a known constant rather than pretended to be zero.
+    This is the one row the balance drops from the Supply panel's commodity
+    axis but cannot ignore. ``S00900`` is BEA's rest-of-world adjustment - the
+    exports and imports carrying offsetting adjustments to PCE and government -
+    and it is held out under Tier 4 because its Use row is 100% final demand
+    against 0.9% joint freedom, then re-derived from ``-F010 + Supply T016``
+    after the balance (``mask_layer_plan.md`` §3).
+
+    **Holding the commodity out does not hold its production out.** The
+    ``S00900`` Supply row carries **3,468** of domestic make spread across
+    industries, so every industry column of the balance's Supply panel is short
+    by its share of it. That is the entire gap in T17: with this row restored
+    the basic-to-producer identity closes to 12 per industry on 2017, and
+    without it to 3,464.
+
+    So T17's right-hand side is **not zero** - it is minus this series. Carried
+    explicitly rather than assumed away, because a 3,468 discrepancy spread
+    over 402 industries looks exactly like ordinary rounding until it is
+    named.
     """
     del year  # 2017 make until the nowcast Supply block exists
+    if REST_OF_WORLD_ADJUSTMENT not in EXCLUDED_COMMODITIES:
+        raise ValueError(
+            f'{REST_OF_WORLD_ADJUSTMENT} is no longer held out of the commodity '
+            f'axis, so its make row is already inside the Supply panel and T17 '
+            f'must not offset for it - doing so would double-count 3,468'
+        )
     supply = _load_2017_detail_supply_use_usa('Supply_detail')
     industries = list(balance_industries())
-    row = _row(supply, EXCLUDED_COMMODITIES[0])[industries]
+    row = _row(supply, REST_OF_WORLD_ADJUSTMENT)[industries]
     values = pd.to_numeric(row, errors='coerce').fillna(0.0).astype(float)
     values.index = pd.Index(industries, name='industry')
     return values
@@ -369,8 +396,11 @@ def identity_targets() -> list[Target]:
                 TargetTerm('use', 'column', -1.0),
                 TargetTerm('use', 'column', 1.0, restrict_to=('T00TOP', 'T00SUB')),
             ),
-            values=-held_out_supply_make(),
-            source='identity BAS + TOP + SUB = PRO (S00900 make held out)',
+            values=-rest_of_world_adjustment_supply_make(),
+            source=(
+                'identity BAS + TOP + SUB = PRO, less the held-out '
+                'rest-of-world adjustment (S00900) make row'
+            ),
             name='T17',
             hard=True,
             allow_negative=True,
@@ -596,8 +626,10 @@ __all__ = [
     'fd_column_targets',
     'identity_targets',
     'industry_group_aggregator',
+    'REST_OF_WORLD_ADJUSTMENT',
     'industry_output_target',
     'published_gross_output',
+    'rest_of_world_adjustment_supply_make',
     'supply_column_targets',
     'target_set_summary',
     'va_row_targets',

@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import pytest
 
-from bedrock.transform.iot.nowcast_mask import ONE_TO_ONE_FD
+from bedrock.transform.iot.nowcast_mask import EXCLUDED_COMMODITIES, ONE_TO_ONE_FD
 from bedrock.transform.iot.nowcast_targets import (
     FD_TARGET_COLUMNS,
+    REST_OF_WORLD_ADJUSTMENT,
     WEIGHTS,
     identity_targets,
+    rest_of_world_adjustment_supply_make,
 )
 from bedrock.utils.economic.balance.targets import PLACEHOLDER_PREFIX
 
@@ -158,3 +160,18 @@ def test_t17_carries_the_held_out_s00900_make_rather_than_zero() -> None:
     t17 = _by_name()['T17']
     assert float(t17.values.sum()) != 0.0  # type: ignore[attr-defined]
     assert t17.allow_negative  # type: ignore[attr-defined]
+
+
+def test_the_t17_offset_is_named_and_tied_to_the_tier_4_decision() -> None:
+    """The offset exists only because ``S00900`` is held out.
+
+    If the rest-of-world adjustment ever rejoins the commodity axis its make
+    row is already inside the Supply panel, and offsetting for it again would
+    double-count 3,468. The guard makes that a failure rather than a drift.
+    """
+    assert REST_OF_WORLD_ADJUSTMENT == 'S00900'
+    assert REST_OF_WORLD_ADJUSTMENT in EXCLUDED_COMMODITIES
+
+    make = rest_of_world_adjustment_supply_make(2017)
+    assert make.index.name == 'industry'
+    assert float(make.sum()) == pytest.approx(3468.0, abs=1.0)
