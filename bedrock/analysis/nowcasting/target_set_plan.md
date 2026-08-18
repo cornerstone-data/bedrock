@@ -314,6 +314,36 @@ Remaining after the six that moved to the mask:
 clamps targets non-negative silently produces a wrong `F03000` for 2020 — see
 `mask_layer_plan.md` §2.
 
+### T4's grouping is close to BEA summary, but it is not BEA summary
+
+⚠️ **Measured 2026-08-17, and this is what stands between T4 being
+shape-correct and being real.** The implementation in
+[`nowcast_targets.py`](../../transform/iot/nowcast_targets.py) aggregates detail
+industries to **BEA summary** (71 groups) because that is the published
+grouping bedrock already carries. T60200D does not use it.
+
+T60200D publishes 99 rows over six levels, of which **74 are leaves**.
+**61 match a BEA summary industry name exactly. Thirteen do not**, in four
+distinct classes:
+
+| Class | T60200D | vs BEA summary |
+|---|---|---|
+| **Finer** | wholesale `Durable goods` / `Nondurable goods` | summary has one `42` |
+| **Coarser** | one `Real estate` | summary splits `HS` housing / `ORE` other |
+| **Different cut** | `Civilian`, `Military`, `Government enterprises`, `Education`, `Other` | summary has `GFGD`/`GFGN`/`GFE`/`GSLG`/`GSLE` |
+| **Not industries at all** | `Receipts from the rest of the world`, `To the rest of the world` | the domestic-to-national reconciliation — must be excluded, not mapped |
+
+So the remaining work is **not** "confirm T60200D matches summary" — it does
+not. It is to build a T60200D-line to BEA-detail-industry mapping, which is a
+sourcing job rather than a mechanical one: the two rest-of-world lines have no
+industry home, and the government cut has to be reconciled against the
+`S00101`/`S00201`/`S00202`/`GSLG*` codes the SUT actually carries.
+
+Until then T4 stays a `PLACEHOLDER:` target. Its **aggregator machinery is
+exercised and correct** — it is the `G_va` capability a row/column-vector API
+cannot express, and the thing §5 says the balance layer had to provide — so
+only the grouping and the values are outstanding, not the shape.
+
 ## 4. Gross output stays at producer prices — decided
 
 Published gross output is at producer prices. The SUT industry column total is
