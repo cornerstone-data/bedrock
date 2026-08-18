@@ -165,6 +165,49 @@ source_names:
           Table: U50705BU1
           Line: [68, 69, 70, 71, 72, 73, 76]  # 73 not 74/75 - see above
 
+      # ---- Motor vehicles: published split, used in place of a weight ----
+      # ⚠️ These four sets do NOT add to the column. They exist to supply the
+      # auto/truck and new/used SPLIT that the trade branch cannot infer, and
+      # they overlap the trade lines that already carry motor vehicle value
+      # (441 dealers, 4231 wholesalers). Wire them as an attribution source,
+      # not as additive activity sets - see the plan.
+      #
+      # Table 7.2.5U is the one place BEA publishes change in private
+      # inventories already split by commodity AND in dollars, so the inventory
+      # valuation adjustment is applied at source. Every other split we have
+      # for this branch - EIA physical stocks, FIWS book values, U70205S unit
+      # counts - needs a price and reintroduces the holding gains the IVA
+      # exists to strip.
+      #
+      # 2017: autos 7,791 (new -5,182, used 12,972); trucks 13,313 (new 6,846,
+      # used 6,467). The implied 37/63 auto-truck split is much closer to the
+      # published 336111/336112 of 46/54 than anything derived here - the
+      # concordance gave 81/3 and commodity-output weighting gave 13/87.
+      #
+      # ⚠️ Used autos plus used trucks is 19,439, against S00402 used and
+      # secondhand goods published at 3,969. Right sign and ample scale, but
+      # this is all motor vehicle inventory across every holding sector, not
+      # the net that reaches F03000. Use for shape, not level.
+      inventories_motor_vehicles_autos_new:
+        selection_fields:
+          Table: U70205
+          Line: 57  # B146RC new autos, -5,182
+
+      inventories_motor_vehicles_autos_used:
+        selection_fields:
+          Table: U70205
+          Line: 60  # B147RC used autos, 12,972
+
+      inventories_motor_vehicles_trucks_new:
+        selection_fields:
+          Table: U70205
+          Line: 62  # W244RC new trucks, 6,846
+
+      inventories_motor_vehicles_trucks_used:
+        selection_fields:
+          Table: U70205
+          Line: 65  # W245RC used trucks, 6,467
+
       # ---- Mining, utilities and construction --------------------------
       # -14,261, which is 37% of nonfarm in magnitude, published with NO
       # sub-industry detail and NO stage split. It needs its own rule - open
