@@ -50,7 +50,7 @@ imposed.
 
 | # | Margin | Target | Source | Level | Mode |
 |---|---|---|---|---|---|
-| T1 | Supply + Use industry columns | gross output, **producer prices** — the column margin is `T005 + VAPRO` (§4) | UGO305-A, unconverted | **detail, 402** | **H** |
+| T1 | **Use** industry columns | gross output, **producer prices** — the column margin is `T005 + VAPRO` (§4) | UGO305-A, unconverted | **detail, 402** | **H** |
 | T2 | Use FD columns ×13 | NIPA column total, one per code | §3 | column total | **S**`0.8` |
 | T3 | Use FD columns ×6 | — | — | — | **mask** |
 | T4 | Use VA row `V00100` | compensation of employees | NIPA T60200D | **industry group, aggregated** | **S**`0.6` |
@@ -61,13 +61,14 @@ imposed.
 | T9 | Supply `TOP`, `SUB` | product taxes / subsidies totals | T30500, T31300 | column total | **S**`0.7` |
 | T10 | Supply `MADJ`, `TRADE`, `TRANS` | — *(distribution free; `TRADE`/`TRANS` totals via T15/T16, `MADJ` free — §2b)* | ours (Step 4b/4c) | — | **—** |
 | T11 | Commodity rows | `T016 = T019` | identity | detail, 402 | **H** |
-| T12 | Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB + Σ SUB = 0` | identity (§2a) | scalar | **H** |
+| T12 | Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB = Σ SUB` (§2a ⚠️ sign) | identity (§2a) | scalar | **H** |
 | T13 | Use `T00TOP` ↔ Supply `TOP` + `MDTY` | `Σ T00TOP = Σ TOP + Σ MDTY` | identity (§2a) | scalar | **H** |
 | T14 | Use `T00TOP[4200ID]` ↔ Supply `MDTY` | equal | identity (§2a) | scalar | **H** |
 | T15 | Supply `TRADE` column | `Σ TRADE = 0` | identity (§2b) | scalar | **H** |
 | T16 | Supply `TRANS` column | `Σ TRANS = 0` | identity (§2b) | scalar | **H** |
+| T17 | Supply industry columns | `BAS + TAX − SUB = PRO`, per industry (§2c) | identity (§2c) | **detail, 402** | **H** |
 
-**The hard constraints are T1 and T11–T16** — all identities, none of which
+**The hard constraints are T1 and T11–T17** — all identities, none of which
 spends a source. Everything *sourced* is an estimate from an account
 with its own vintage; a set held entirely hard is infeasible by construction,
 which is the argument for the KRAS-style soft layer in #588 Decision 2. The
@@ -75,10 +76,22 @@ weights above are a **starting proposal to be calibrated**, not a result — the
 ordering (identity > gross output > expenditure > income > allocation) is the
 part worth defending.
 
-⚠️ **T1 cannot bind the Supply column for `4200ID`.** Its Use column is 38,513
-of customs duties while its Supply column is **zero**, because duties are not
-output at basic prices. Stated at producer prices, the gross-output target
-binds the Use side only for this industry. `mask_layer_plan.md` §3.
+⚠️ **Corrected 2026-08-17: T1 binds the Use panel only.** This table said
+"Supply + Use industry columns". Measured on the 2017 detail tables, only the
+Use column carries it:
+
+| | reproduces gross output |
+|---|---|
+| Use column sum (`T005 + VAPRO`) | to **13** per industry |
+| Supply column sum (`T007`) | misses by up to **88,363** |
+
+which is §4 restated — gross output is published at *producer* prices and the
+Supply industry column is at *basic*. **The Supply industry columns are
+constrained by T17 instead** (§2c); without it that axis carries no constraint
+at all.
+
+`4200ID` is the sharpest case: its Use column is 38,513 of customs duties and
+its Supply column is **zero**, because duties are not output at basic prices.
 
 ### 2a. Three cross-block identities the target set was paying for
 
@@ -115,6 +128,15 @@ unspent as evidence.
 publishes them, T12 is a sum-to-zero across two opposite conventions; stored
 negative on both sides (§4's ⚠️), it is a plain equality that a `{0,1}`
 aggregator can express. A signed aggregator would be needed otherwise.
+
+⚠️ **So the identity's *form* depends on which convention you are in, and this
+is the easiest sign error in the whole set to make.** On BEA's raw tables it is
+`Σ T00SUB + Σ SUB = 0`; inside the balance, where both are stored negative, it
+is `Σ T00SUB − Σ SUB = 0`. Writing the sum form in the balance is wrong by
+exactly **2 × 59,876** and still looks entirely plausible — it was written that
+way first, and only the residual check against the published tables caught it.
+The implementation and its regression test are in
+[`nowcast_targets.py`](../../transform/iot/nowcast_targets.py).
 
 ⚠️ **Verified on 2017 only.** These are accounting identities and should hold
 every year, but `MDTY` is nowcast annually from Census duty rates levelled to
@@ -153,6 +175,52 @@ margin onto goods while the trade commodities give up 3.1T, the table simply
 does not balance and nothing says so until much later. T15/T16 close that
 without touching the **distribution**, which stays free. It is a constraint on
 our own work rather than a source, which is exactly what makes it legitimate.
+
+### 2c. `BAS + TAX − SUB = PRO` — the only constraint the Supply industry columns have
+
+Until this was added, **the industry axis of the Supply panel was entirely
+free.** T11 covers its commodity rows and T7-T9/T15/T16 cover its bridge
+columns, but nothing bound the industry columns at all.
+
+The Supply industry column is industry output at **basic** prices; the Use
+industry column is the same output at **producer** prices; the wedge is the
+product-tax rows:
+
+```
+BAS + TAX − SUB = PRO                       BEA's statement, BEA's signs
+supply.col + T00TOP + T00SUB = use.col      inside the balance, subsidies negative
+```
+
+⚠️ **The wedge is reachable only on the Use table.** The Supply panel carries
+`TOP` and `SUB` by *commodity* and gives product taxes by *industry* nowhere.
+That is what makes T17 cross-block, and it is why it could not be expressed
+before a target became a linear combination of margins.
+
+⚠️ **Its right-hand side is not zero.** `S00900` leaves the commodity axis under
+Tier 4, but its Supply *make* row is **3,468** of real domestic production
+spread across industries, so every Supply industry column of the balance panel
+is short by its share. Carried explicitly rather than assumed away — with the
+row restored the identity closes to **12 per industry** on 2017, without it to
+**3,464**. A 3,468 discrepancy spread over 402 industries looks exactly like
+ordinary rounding until it is named.
+
+### Where the identities stand on 2017
+
+Every hard constraint, against the published detail tables. All residuals are
+BEA's $1M publication rounding; the worst is **21 on a $34 trillion table**.
+Reproduced by [`mask_layer_feasibility.py --check`](mask_layer_feasibility.py),
+which calls `nowcast_targets.hard_target_residuals`:
+
+| | margins | max \|residual\| | | | margins | max \|residual\| |
+|---|---:|---:|---|---|---:|---:|
+| T1 | 402 | 13 | | T14 | 1 | 6 |
+| T11 | 400 | 21 | | T15 | 1 | 1 |
+| T12 | 1 | 0 | | T16 | 1 | 10 |
+| T13 | 1 | 18 | | T17 | 402 | 12 |
+
+That check is not decoration: it is what caught T12 being written as a sum
+rather than a difference. A definition error moves one of these numbers and
+nothing else in the pipeline reports it.
 
 ### The trade and transport rows reconcile differently, and it is not a defect
 

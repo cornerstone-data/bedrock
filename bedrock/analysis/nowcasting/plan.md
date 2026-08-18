@@ -1065,7 +1065,7 @@ per-year *configuration*, but it is near-constant across 2018-2024.
 
 | Margin | Target | Source | Level | Mode |
 |---|---|---|---|---|
-| Supply + Use industry columns | gross output, **producer prices** — the margin is `T005 + VAPRO` | UGO305-A, unconverted | detail, 402 | **H** |
+| **Use** industry columns | gross output, **producer prices** — the margin is `T005 + VAPRO` | UGO305-A, unconverted | detail, 402 | **H** |
 | Use FD columns ×13 | NIPA column total per code | PCE, `F02*`, `F03000`, `F04000`, Section-3 equipment/structures | column total | **S** |
 | Use FD columns ×6 | `F06C00 F07C00 F10C00 F06N00 F07N00 F10N00` | — | — | **mask** |
 | Use VA `V00100` | compensation | T60200D | **industry group, aggregated** | **S** |
@@ -1074,11 +1074,12 @@ per-year *configuration*, but it is near-constant across 2018-2024.
 | Supply `MCIF`, `MDTY`, `TOP`, `SUB` | column totals | ITA, T30500, T31300 | column total | **S** |
 | Supply `MADJ`, `TRADE`, `TRANS` | — | ours (Step 4b/4c) | — | **—** |
 | Commodity rows | `T016 = T019` | identity | detail, 402 | **H** |
-| Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB + Σ SUB = 0` | identity | scalar | **H** |
+| Use `T00SUB` ↔ Supply `SUB` | `Σ T00SUB = Σ SUB` ⚠️ sign convention | identity | scalar | **H** |
 | Use `T00TOP` ↔ Supply `TOP` + `MDTY` | `Σ T00TOP = Σ TOP + Σ MDTY` | identity | scalar | **H** |
 | Use `T00TOP[4200ID]` ↔ Supply `MDTY` | equal | identity | scalar | **H** |
 | Supply `TRADE` column | `Σ TRADE = 0` | identity | scalar | **H** |
 | Supply `TRANS` column | `Σ TRANS = 0` | identity | scalar | **H** |
+| Supply industry columns | `BAS + TAX − SUB = PRO`, per industry | identity | detail, 402 | **H** |
 
 Only the identities are hard. Every sourced target is an estimate from an account with its own
 vintage, and a set held entirely hard is infeasible by construction — the argument for the KRAS-style
@@ -1104,6 +1105,16 @@ moved, not created — the 19 wholesale/retail and 5 transport commodities give 
 added onto the goods they carry. This is the line between the two families of Supply column:
 `TRADE`/`TRANS` redistribute and are zero-sum; `MCIF`, `MDTY`, `TOP`, `MADJ`, `SUB` add to supply and
 are not.
+
+⚠️ **Two corrections, 2026-08-17.** **T1 binds the Use panel only** — this table said "Supply + Use
+industry columns", but the Use column reproduces gross output to 13 per industry while the Supply
+column, being basic-priced, misses by up to 88,363. **The Supply industry columns are constrained by
+T17 instead**, `BAS + TAX − SUB = PRO`; before it that axis carried no constraint at all. Its wedge
+is reachable only on the Use table, since the Supply panel gives product taxes by commodity and never
+by industry. And **T12's form depends on the sign convention**: `Σ T00SUB + Σ SUB = 0` on BEA's raw
+tables, `Σ T00SUB − Σ SUB = 0` inside the balance where both are stored negative. Writing the sum
+form in the balance is wrong by exactly 2 × 59,876 and looks entirely plausible — only the residual
+check caught it. [`target_set_plan.md`](target_set_plan.md) §2a and §2c.
 
 **These are the only constraints on Step 4c's own output.** `TRADE`/`TRANS` stay deliberately
 unimposed as *targets* — a target we produced is a preference with extra steps — but unimposed left
