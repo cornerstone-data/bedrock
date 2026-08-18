@@ -44,8 +44,19 @@ OUT = (
 #: Durable and nondurable goods NAICS, for the agent/broker lines that carry no
 #: commodity specialisation of their own.
 _DURABLE = ('321', '327', '331', '332', '333', '334', '335', '336', '337', '339')
-_NONDURABLE = ('311', '312', '313', '314', '315', '316', '322', '323', '324',
-               '325', '326')
+_NONDURABLE = (
+    '311',
+    '312',
+    '313',
+    '314',
+    '315',
+    '316',
+    '322',
+    '323',
+    '324',
+    '325',
+    '326',
+)
 #: General-merchandise retail spans consumer goods without specialising.
 _GENERAL_MERCH = ('311', '312', '315', '316', '325', '334', '335', '337', '339')
 
@@ -57,12 +68,22 @@ CONCEPT_MAP: dict[str, tuple[str, tuple[str, ...], str]] = {
     'C4212': ('4232', ('337', '3141'), 'Furniture and home furnishings'),
     'C4213': ('4233', ('321', '327', '3323'), 'Lumber and construction materials'),
     'C42143': ('42343', ('3341', '5112'), 'Computers and software'),
-    'C4214X': ('4234', ('3345', '3391', '3333'),
-               'Other professional and commercial equipment'),
+    'C4214X': (
+        '4234',
+        ('3345', '3391', '3333'),
+        'Other professional and commercial equipment',
+    ),
     'C4215': ('4235', ('331', '2122', '2123'), 'Metals and minerals except petroleum'),
-    'C4216': ('4236', ('335', '3342', '3343', '3344'), 'Electrical and electronic goods'),
-    'C4217': ('4237', ('3327', '3324', '3329'),
-              'Hardware, plumbing and heating equipment'),
+    'C4216': (
+        '4236',
+        ('335', '3342', '3343', '3344'),
+        'Electrical and electronic goods',
+    ),
+    'C4217': (
+        '4237',
+        ('3327', '3324', '3329'),
+        'Hardware, plumbing and heating equipment',
+    ),
     'C4218': ('4238', ('333',), 'Machinery, equipment and supplies'),
     'C4219': ('4239', ('3399', '3149', '3169'), 'Miscellaneous durable goods'),
     # --- wholesale, merchant nondurable (NAICS 424) ------------------------
@@ -78,17 +99,26 @@ CONCEPT_MAP: dict[str, tuple[str, tuple[str, ...], str]] = {
     'C4228': ('4248', ('3121',), 'Beer, wine and distilled alcoholic beverages'),
     # 42492 is book, periodical and newspaper merchant wholesalers, so published
     # media (5111) belongs here rather than only with the printers (323).
-    'C4229': ('4249', ('3122', '3169', '3259', '5111'),
-              'Miscellaneous nondurable goods'),
+    'C4229': (
+        '4249',
+        ('3122', '3169', '3259', '5111'),
+        'Miscellaneous nondurable goods',
+    ),
     # --- wholesale, agents and brokers -------------------------------------
     'C42ND': ('4251', _DURABLE, 'Nonmerchant wholesale, durable goods'),
     'C42NN': ('4251', _NONDURABLE, 'Nonmerchant wholesale, nondurable goods'),
     # --- retail -------------------------------------------------------------
     'N631RC': ('441', ('3361', '3362', '3363'), 'Motor vehicle and parts dealers'),
-    'C4423': ('442', ('337', '3141', '3352', '3341', '3343'),
-              'Furniture, furnishings, electronics and appliance stores'),
-    'C444': ('444', ('321', '327', '3323', '1113'),
-             'Building material and garden equipment dealers'),
+    'C4423': (
+        '442',
+        ('337', '3141', '3352', '3341', '3343'),
+        'Furniture, furnishings, electronics and appliance stores',
+    ),
+    'C444': (
+        '444',
+        ('321', '327', '3323', '1113'),
+        'Building material and garden equipment dealers',
+    ),
     'N542RC': ('445', ('311', '3121'), 'Food and beverage stores'),
     'C448': ('448', ('315', '316'), 'Clothing and clothing accessories stores'),
     'C4521': ('4521', _GENERAL_MERCH, 'Department stores'),
@@ -130,8 +160,8 @@ NAMES: dict[str, str] = {
     'C4227': 'Petroleum and petroleum products wholesalers',
     'C4228': 'Beer, wine, and distilled alcoholic beverages wholesalers',
     'C4229': 'Miscellaneous nondurable goods wholesalers',
-    'C42ND': 'Nonmerchant wholesale, durable goods',      # assigned, not published
-    'C42NN': 'Nonmerchant wholesale, nondurable goods',   # assigned, not published
+    'C42ND': 'Nonmerchant wholesale, durable goods',  # assigned, not published
+    'C42NN': 'Nonmerchant wholesale, nondurable goods',  # assigned, not published
     'N631RC': 'Motor vehicle and parts dealers',
     'C4423': 'Furniture, furnishings, electronics, and appliance stores',
     'C444': 'Building material and garden equipment and supplies dealers',
@@ -196,10 +226,14 @@ def main() -> None:
 
     per = df.groupby('Activity')['Sector'].nunique().sort_values()
     print(f'wrote {OUT.relative_to(REPO)}')
-    print(f'  {len(df)} rows, {df.Activity.nunique()} trade lines, '
-          f'{df.Sector.nunique()} distinct commodities')
-    print(f'  commodities per line: min {per.min()}, median {int(per.median())}, '
-          f'max {per.max()}')
+    print(
+        f'  {len(df)} rows, {df.Activity.nunique()} trade lines, '
+        f'{df.Sector.nunique()} distinct commodities'
+    )
+    print(
+        f'  commodities per line: min {per.min()}, median {int(per.median())}, '
+        f'max {per.max()}'
+    )
     empty = [c for c in CONCEPT_MAP if NAMES[c] not in set(df.Activity)]
     print(f'  lines with no commodities: {empty or "none"}')
 
