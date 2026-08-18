@@ -13,6 +13,7 @@ would have accepted it silently.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from bedrock.transform.iot.nowcast_mask import EXCLUDED_COMMODITIES, ONE_TO_ONE_FD
@@ -21,6 +22,7 @@ from bedrock.transform.iot.nowcast_targets import (
     REST_OF_WORLD_ADJUSTMENT,
     WEIGHTS,
     identity_targets,
+    industry_output_target,
     rest_of_world_adjustment_supply_make,
 )
 from bedrock.utils.economic.balance.targets import PLACEHOLDER_PREFIX
@@ -175,3 +177,22 @@ def test_the_t17_offset_is_named_and_tied_to_the_tier_4_decision() -> None:
     make = rest_of_world_adjustment_supply_make(2017)
     assert make.index.name == 'industry'
     assert float(make.sum()) == pytest.approx(3468.0, abs=1.0)
+
+
+def test_t1_binds_the_use_panel_only() -> None:
+    """The Supply industry column is basic-priced, so T1 must not touch it.
+
+    ``target_set_plan.md`` §2 still states T1 as "Supply + Use industry
+    columns"; measured on 2017 the Use column reproduces gross output to 13 per
+    industry while the Supply column misses by up to 88,363. T17 constrains the
+    Supply side instead.
+    """
+    synthetic = pd.Series([100.0, 200.0], index=['1111A0', '1111B0'])
+    t1 = industry_output_target(2017, gross_output=synthetic)
+
+    assert t1.name == 'T1'
+    assert t1.hard
+    assert t1.blocks == ('use',)
+    assert not t1.is_cross_block
+    assert [(term.block, term.axis) for term in t1.terms] == [('use', 'column')]
+    assert not t1.is_placeholder

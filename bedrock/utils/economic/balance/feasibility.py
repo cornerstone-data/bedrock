@@ -24,9 +24,11 @@ says so without a special case.
 
 **Two outcomes, and only one of them raises.**
 
-- A nonzero residual target facing **zero free mass** is infeasible. There is
-  no assignment of the free cells that satisfies it, so this raises rather than
-  letting a solver converge to something meaningless.
+- A **hard** target with a nonzero residual facing **zero free mass** is
+  infeasible. There is no assignment of the free cells that satisfies it, so
+  this raises rather than letting a solver converge to something meaningless.
+  The same situation on a *soft* target reports as a warning instead: giving
+  way is what soft means.
 - High leverage **warns**. It is feasible but fragile, and it usually means the
   mask has quietly relocated the estimate somewhere else.
 
@@ -97,8 +99,10 @@ class Infeasibility:
 def leverage(total_mass: np.ndarray, free_mass: np.ndarray) -> np.ndarray:
     """``|total| / |free|``, with an empty margin scored 1.0 rather than ``inf``.
 
-    Matches ``mask_layer_feasibility._leverage`` so the two agree on the 2017
-    numbers.
+    Matches ``mask_layer_feasibility._leverage`` in both formula **and
+    argument order** so the two agree on the 2017 numbers. They previously took
+    the same two arrays in opposite orders, which is a silent wrong answer when
+    porting a check between them.
     """
     with np.errstate(divide='ignore', invalid='ignore'):
         lev = np.where(free_mass > 0, total_mass / free_mass, np.inf)
@@ -214,11 +218,16 @@ def precheck(
         fragile = np.isfinite(lev) and lev > leverage_warn
         if not stuck and not fragile:
             continue
+        # Only a *hard* constraint with nowhere to move is fatal. A soft target
+        # on a fully frozen margin is unsatisfiable too, but giving way is what
+        # soft means - it should report, not block. Reachable today, because
+        # every placeholder target is soft.
+        is_fatal = stuck and bool(row['hard'])
         findings.append(
             Infeasibility(
                 target=str(row['target']),
                 label=str(label),
-                severity='fatal' if stuck else 'warning',
+                severity='fatal' if is_fatal else 'warning',
                 kind='no_free_mass' if stuck else 'high_leverage',
                 source=str(row['source']),
                 residual_target=residual,

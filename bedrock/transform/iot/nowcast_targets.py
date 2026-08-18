@@ -196,17 +196,24 @@ def published_gross_output(year: int) -> pd.Series:
     return aligned
 
 
-def industry_output_target(year: int) -> Target:
+def industry_output_target(year: int, gross_output: pd.Series | None = None) -> Target:
     """T1. ``T005 + VAPRO = GO(producer)`` on the Use panel, per industry.
 
     The full Use column margin - intermediate inputs plus **all five**
     value-added rows - because the target is at producer prices and the balance
     solves the product-tax allocation rather than assuming a 2017 ratio.
+
+    ⚠️ **Use only.** There is no Supply term: the Supply industry column is at
+    basic prices and is constrained by T17 instead. Passing ``gross_output``
+    injects the series rather than reading the extracted parquet, which is what
+    makes this testable - the parquet is a pipeline artefact and is not in the
+    repository.
     """
+    values = published_gross_output(year) if gross_output is None else gross_output
     return Target.on_margin(
         'use',
         'column',
-        published_gross_output(year),
+        values,
         'BEA UGO305-A detail gross output',
         name='T1',
         hard=True,
@@ -624,6 +631,7 @@ __all__ = [
     'WEIGHTS',
     'build_target_set',
     'fd_column_targets',
+    'hard_target_residuals',
     'identity_targets',
     'industry_group_aggregator',
     'REST_OF_WORLD_ADJUSTMENT',

@@ -138,12 +138,27 @@ def restore_fixed(balanced: pd.DataFrame, frozen: pd.DataFrame) -> pd.DataFrame:
     """Add ``F`` back after the engine has balanced ``Z``.
 
     The fixed cells come out bit-identical to the seed, which is the property
-    the whole offset exists to deliver.
+    the whole offset exists to deliver - but only if the engine left ``Z``'s
+    fixed cells at exactly zero. An engine that leaks mass onto them would have
+    that leak silently *added* to ``F``, so this asserts instead of trusting.
+    Catching a leaky engine is the point of the check; overwriting with ``F``
+    would hide it.
     """
     if not balanced.index.equals(frozen.index):
         raise ValueError('restore_fixed: row labels differ')
     if not balanced.columns.equals(frozen.columns):
         raise ValueError('restore_fixed: column labels differ')
+    leaked = (frozen.to_numpy() != 0) & (balanced.to_numpy(dtype=float) != 0)
+    if leaked.any():
+        rows, cols = np.nonzero(leaked)
+        first = (balanced.index[rows[0]], balanced.columns[cols[0]])
+        raise ValueError(
+            f'{int(leaked.sum())} fixed cells are nonzero in the balanced free '
+            f'part, first at {first} = '
+            f'{balanced.to_numpy(dtype=float)[rows[0], cols[0]]}. The engine '
+            f'moved mass onto a masked cell; adding F back would bury that '
+            f'rather than hold the cell at its value'
+        )
     return balanced.astype(float) + frozen.astype(float)
 
 

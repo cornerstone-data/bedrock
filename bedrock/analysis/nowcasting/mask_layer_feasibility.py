@@ -72,6 +72,7 @@ from bedrock.extract.iot.io_2017 import (
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
 )
+from bedrock.transform.iot.nowcast_targets import hard_target_residuals
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -126,9 +127,14 @@ def _use_panel() -> tuple[pd.DataFrame, np.ndarray]:
     return panel, (panel.to_numpy() != 0)
 
 
-def _leverage(free_mass: np.ndarray, total_mass: np.ndarray) -> np.ndarray:
+def _leverage(total_mass: np.ndarray, free_mass: np.ndarray) -> np.ndarray:
     """|total| / |free|, with an empty margin scored 1.0 rather than inf --
-    a margin with nothing in it is not constrained by the mask."""
+    a margin with nothing in it is not constrained by the mask.
+
+    Argument order matches ``utils.economic.balance.feasibility.leverage`` and
+    the formula it computes -- total over free.  The two used to take the same
+    two arrays in opposite orders, which is a silent wrong answer when porting
+    a check from one to the other."""
     with np.errstate(divide='ignore', invalid='ignore'):
         lev = np.where(free_mass > 0, total_mass / free_mass, np.inf)
     return np.where(total_mass == 0, 1.0, lev)
@@ -171,8 +177,8 @@ def leverage_table(panel: pd.DataFrame, pattern: np.ndarray) -> pd.DataFrame:
     for name, frozen in mask_scenarios(pattern).items():
         free = pattern & ~frozen
         free_mass = np.where(free, values, 0.0)
-        row_lev = _leverage(free_mass.sum(axis=1), values.sum(axis=1))[:n_c]
-        col_lev = _leverage(free_mass.sum(axis=0), values.sum(axis=0))
+        row_lev = _leverage(values.sum(axis=1), free_mass.sum(axis=1))[:n_c]
+        col_lev = _leverage(values.sum(axis=0), free_mass.sum(axis=0))
         rows.append(
             {
                 'mask': name,
@@ -394,6 +400,31 @@ def _checks() -> list[tuple[str, bool, str]]:
             bool(valuation.residual.abs().max() <= 10),
             f'max residual {valuation.residual.abs().max():,.0f}',
         ),
+        *_hard_target_checks(),
+    ]
+
+
+def _hard_target_checks() -> list[tuple[str, bool, str]]:
+    """Every hard target in the production set, against the published tables.
+
+    These are the numbers that justify the identity *definitions* rather than
+    the mask, so they belong here with the rest of the 2017 evidence.  A
+    definition error moves one of them and nothing else in the pipeline would
+    say so -- this is how ``T12`` was caught being written as a sum-to-zero
+    when the balance's sign convention makes it a difference, wrong by exactly
+    ``2 x 59,876``.
+
+    Tolerance is 100 rather than 0: BEA publishes no cell below 1 million, so
+    every one of these carries publication rounding.  The worst on 2017 is 21.
+    """
+    residuals = hard_target_residuals(2017)
+    return [
+        (
+            f'{name} holds on the published 2017 tables',
+            bool(row.max_abs_residual <= 100),
+            f'{int(row.margins)} margins, max {row.max_abs_residual:,.0f}',
+        )
+        for name, row in residuals.iterrows()
     ]
 
 

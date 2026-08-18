@@ -220,14 +220,24 @@ def _numeric(frame: pd.DataFrame) -> pd.DataFrame:
     return frame.apply(pd.to_numeric, errors='coerce').fillna(0.0).astype(float)
 
 
-@functools.cache
 def published_2017_panel(block: Block) -> pd.DataFrame:
     """The published 2017 block, on the balance's labels and sign convention.
 
     Sourced for the mask, and usable as the 2017 replay seed. The value-added
     by final-demand corner of the Use panel stays zero: it is structurally
     empty and must remain so.
+
+    Returns a **copy**. The build is cached because it costs a GCS read and a
+    full re-assembly, but handing out the cached frame itself would let one
+    caller's in-place edit reach every later caller - and the seed is exactly
+    the kind of object callers modify.
     """
+    return _build_published_2017_panel(block).copy()
+
+
+@functools.cache
+def _build_published_2017_panel(block: Block) -> pd.DataFrame:
+    """Assemble the block once; :func:`published_2017_panel` hands out copies."""
     rows, columns = panel_labels(block)
     panel = pd.DataFrame(0.0, index=list(rows), columns=list(columns))
     commodities = list(balance_commodities())

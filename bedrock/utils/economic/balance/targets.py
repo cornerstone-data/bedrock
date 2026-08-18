@@ -26,13 +26,19 @@ Constraint    Terms
 ============  =====================================================
 T1            ``+1 · use.column`` = gross output, per industry
 T11           ``+1 · supply.row − 1 · use.row`` = 0, per commodity
-T12           ``+1 · use.row[T00SUB] + 1 · supply.col[SUB]`` = 0
+T12           ``+1 · use.row[T00SUB] − 1 · supply.col[SUB]`` = 0
 T13           ``+1 · use.row[T00TOP] − 1 · supply.col[TOP, MDTY]`` = 0
 T15/T16       ``+1 · supply.col[TRADE]`` = 0
 ============  =====================================================
 
 Collapsing a margin to a scalar is an :class:`Aggregator` with a single group,
 so the same machinery covers per-label and economy-wide constraints.
+
+⚠️ **T12 is a difference, not a sum.** BEA stores the Use ``T00SUB`` row
+positive and the Supply ``SUB`` column negative, so on the raw tables it is a
+sum - and ``target_set_plan.md`` §2's table still states it that way. The
+balance normalises both negative, which makes it a plain equality. See
+§2a of that document.
 
 **Hard and soft.** Only identities are hard. Everything sourced is an estimate
 from an account with its own vintage, so a target set held entirely hard is

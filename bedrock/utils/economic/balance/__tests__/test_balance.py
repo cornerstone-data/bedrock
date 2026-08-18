@@ -362,15 +362,30 @@ def test_fully_masked_margin_with_an_inconsistent_target_raises() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_empty_margin_with_a_nonzero_target_is_fatal() -> None:
-    """RAS divides by the margin; an all-zero row against a nonzero target
-    produces ``inf`` or ``nan`` and keeps going. Here it raises."""
+def _empty_margin_case() -> tuple[dict[str, pd.DataFrame], dict[str, SutMask]]:
     seed = pd.DataFrame(0.0, index=ROWS, columns=COLS)
     seed.loc['r1'] = [1.0, 2.0, 3.0]
-    seeds = {'use': seed}
-    masks = {'use': SutMask.from_pattern(seed)}
+    return {'use': seed}, {'use': SutMask.from_pattern(seed)}
+
+
+def test_empty_margin_with_a_nonzero_hard_target_is_fatal() -> None:
+    """RAS divides by the margin; an all-zero row against a nonzero target
+    produces ``inf`` or ``nan`` and keeps going. Here it raises."""
+    seeds, masks = _empty_margin_case()
     with pytest.raises(InfeasibleBalance, match='no free mass'):
-        precheck(seeds, masks, TargetSet.of(_row_target('r2', 5.0)))
+        precheck(seeds, masks, TargetSet.of(_row_target('r2', 5.0, hard=True)))
+
+
+def test_the_same_margin_with_a_soft_target_warns_instead() -> None:
+    """Giving way is what soft means, so it reports rather than blocking.
+
+    The situation is identical - no free mass, nonzero residual - and only the
+    target's mode differs. Every placeholder target is soft, so this path is
+    reachable today.
+    """
+    seeds, masks = _empty_margin_case()
+    findings = precheck(seeds, masks, TargetSet.of(_row_target('r2', 5.0)))
+    assert [(f.severity, f.kind) for f in findings] == [('warning', 'no_free_mass')]
 
 
 def test_zero_target_on_a_live_margin_is_feasible() -> None:

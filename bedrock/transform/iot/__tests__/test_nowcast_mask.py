@@ -28,6 +28,7 @@ from bedrock.transform.iot.nowcast_mask import (
     sign_lock_mask,
     structural_zero_mask,
 )
+from bedrock.utils.economic.balance.mask import assert_subsidies_negative
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
@@ -246,14 +247,35 @@ def test_a_panel_contradicting_the_mask_raises() -> None:
         mask.validate_against(moved)
 
 
-def test_a_subsidy_stored_positive_is_rejected() -> None:
-    """The balance's convention is negative; BEA publishes the Use row positive."""
+def test_an_injected_panel_locks_to_whatever_sign_it_carries() -> None:
+    """Injecting a panel bypasses normalisation, so the lock follows the cell.
+
+    ``build_sut_mask`` only reaches ``assert_subsidies_negative`` through
+    ``published_2017_panel``; given a panel directly it takes it as given. A
+    ``+1`` lock on ``T00SUB`` is therefore the signal that the panel was never
+    normalised - not a rejection. The rejection is
+    :func:`test_a_subsidy_stored_positive_is_rejected`.
+    """
     panel = _use_panel()
     panel.loc['T00SUB', '1111A0'] = 8.0
     mask = build_sut_mask('use', 2017, panel)
-    # the lock follows the panel, so it is +1 here - which is exactly the
-    # signal that the panel was not normalised on the way in
     assert mask.sign_lock.loc['T00SUB', '1111A0'] == 1
+
+
+def test_a_subsidy_stored_positive_is_rejected() -> None:
+    """The convention check itself, on the path that actually runs it.
+
+    BEA publishes the Use ``T00SUB`` row positive and the balance stores it
+    negative; unnormalised, a producer-price column margin is wrong by
+    ``2 x T00SUB``.
+    """
+    panel = _use_panel()
+    panel.loc['T00SUB', '1111A0'] = 8.0
+    with pytest.raises(ValueError, match='stores subsidies negative'):
+        assert_subsidies_negative(panel, axis='row', label='T00SUB')
+
+    # and the normalised panel passes
+    assert_subsidies_negative(_use_panel(), axis='row', label='T00SUB')
 
 
 def test_the_one_to_one_columns_are_the_six_the_plan_names() -> None:
