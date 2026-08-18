@@ -399,9 +399,38 @@ def move_pxi_product_to_activity(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     in ``write_inventories_trade_crosswalk`` exists to catch.
     """
     return fba.assign(
-        ActivityConsumedBy=fba['FlowName'],
+        ActivityConsumedBy=normalize_pxi_product(fba['Description']),
         FlowName=fba['ActivityProducedBy'],
         ActivityProducedBy=None,
+    )
+
+
+def normalize_pxi_product(description: pd.Series) -> pd.Series:
+    """Reduce a product label to the key ``Sector_Crosswalk_Census_EC_PxI`` uses.
+
+    ⚠️ The crosswalk is keyed on the **description**, not on the
+    ``Census_2017_PxI_product_code``, because the code churns across vintages -
+    525 are new in 2022 and 548 gone, with the large "new" ones being recodings
+    of products already present in 2017. Keying on it would drop roughly 15% of
+    coverage at the boundary.
+
+    The same label appears as both "Wholesale sales of X" and "Retail sales of
+    X", so the prefix comes off and the rest is lowercased: one concordance
+    entry then serves both sides of the trade.
+
+    ⚠️ This must stay in step with the normalisation in
+    ``write_pxi_product_bea_crosswalk``. They are two halves of one join, and a
+    mismatch does not raise - it silently yields **no** overlap, an empty
+    attribution source, and eventually an obscure pandas error about setting a
+    DataFrame into a single column.
+    """
+    return (
+        description.astype(str)
+        .str.strip()
+        .str.lower()
+        .str.rstrip('.')
+        .str.replace(r'^(wholesale|retail) sales of ', '', regex=True)
+        .str.strip()
     )
 
 
