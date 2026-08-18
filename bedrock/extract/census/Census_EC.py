@@ -400,9 +400,48 @@ def move_pxi_product_to_activity(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     """
     return fba.assign(
         ActivityConsumedBy=normalize_pxi_product(fba['Description']),
+        ActivityProducedBy=_nipa_line_for_industry(fba['ActivityProducedBy']),
         FlowName=fba['ActivityProducedBy'],
-        ActivityProducedBy=None,
     )
+
+
+def _nipa_line_for_industry(naics: pd.Series) -> pd.Series:
+    """Label each PxI row with the NIPA inventory line whose industry holds it.
+
+    ⚠️ This is what makes ``attribute_on: ['PrimarySector', 'ActivityProducedBy']``
+    work. Without it the source carries no ``ActivityProducedBy`` at all, the
+    join key is ``(sector, 'N/A', location)`` on one side and the trade line
+    name on the other, and **nothing matches** - every trade set then reports
+    "Could not attribute ... due to lack of flows" and drops to a 100% loss.
+
+    Matching on ``PrimarySector`` alone is not the alternative: that weights
+    each commodity by its economy-wide product total rather than by what the
+    holding industry actually sells, which is the defect #547 records for PCE.
+
+    The industry to line correspondence is read from the inventories crosswalk's
+    ``Note``, which carries the NAICS each NIPA line stands for. Longest prefix
+    wins, so ``42343`` picks the computers line over the broader ``4234``.
+    """
+    from bedrock.utils.config.settings import crosswalkpath  # noqa: PLC0415
+
+    cw = pd.read_csv(
+        crosswalkpath / 'Sector_Crosswalk_BEA_NIPA_Inventories.csv', dtype=str
+    )
+    pairs: list[tuple[str, str]] = []
+    for _, row in cw.drop_duplicates('Activity').iterrows():
+        note = str(row.get('Note', ''))
+        if 'NAICS ' not in note:
+            continue
+        advertised = note.split('NAICS ', 1)[1].split(';')[0].strip()
+        pairs.extend((prefix, row['Activity']) for prefix in advertised.split('/'))
+    # Longest prefix first so a specific line beats the broader one it sits in.
+    pairs.sort(key=lambda pair: len(pair[0]), reverse=True)
+
+    codes = naics.astype(str)
+    out = pd.Series(pd.NA, index=naics.index, dtype='object')
+    for prefix, activity in pairs:
+        out = out.mask(out.isna() & codes.str.startswith(prefix), activity)
+    return out
 
 
 def normalize_pxi_product(description: pd.Series) -> pd.Series:

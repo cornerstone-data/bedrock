@@ -72,6 +72,13 @@ _attribution_sources:
     # multiple columns to the single column SecondarySector". Naming the primary
     # column assigns Primary/Secondary directly and never reaches that apply.
     primary_action_type: Consumed
+    # ⚠️ Also declared here, not only on the activity sets. flowby reads it from
+    # `(attribution_config or self.config)`, so the SOURCE's config wins - and
+    # without it here the lookup returns [], retain_activity_columns stays False,
+    # ActivityProducedBy is dropped before the join, and every key arrives as
+    # ('<sector>', 'N/A', '00000'). That matches nothing and each trade set
+    # reports a 100% loss.
+    attribute_on: ['PrimarySector', 'ActivityProducedBy']
     attribution_method: direct
 
 source_names:
