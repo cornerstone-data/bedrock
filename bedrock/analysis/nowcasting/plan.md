@@ -940,6 +940,81 @@ Keeping these separate is what makes the decision tractable:
 The two decisions below can land differently at each layer — e.g. ceda's engine under an
 orchestration layer written fresh against `sut_ras.py` as the reference.
 
+#### The scaffolding is built — how to run it (#653, #654, #591)
+
+**For anyone starting on the engine layer.** Everything below layer 1 is built — in [#659](https://github.com/cornerstone-data/bedrock/pull/659) until that merges;
+what remains is the engine itself.
+
+| Module | What it is |
+|---|---|
+| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic, engine-agnostic: `Target`, `SutMask`, the offset method, the precheck |
+| [`transform/iot/nowcast_mask.py`](../../transform/iot/nowcast_mask.py) | the mask sourcing — Tiers 0/1/3/4, and the panel labels |
+| [`transform/iot/nowcast_targets.py`](../../transform/iot/nowcast_targets.py) | the target set — T1 through T16 |
+
+**The engine's contract is narrow.** It receives a seed carrying a *participation* mask and a set of
+*residual* targets, and returns a balanced matrix. It never handles fixed values, sign
+normalisation, aggregation, or cross-block algebra — the offset layer has already reduced all of
+that:
+
+```python
+from bedrock.transform.iot.nowcast_mask import BLOCKS, build_sut_masks, published_2017_panel
+from bedrock.transform.iot.nowcast_targets import build_target_set
+from bedrock.utils.economic.balance import (
+    offset_targets, precheck, restore_fixed_blocks, split_fixed_blocks,
+)
+
+seeds   = {block: published_2017_panel(block) for block in BLOCKS}   # the 2017 replay seed
+masks   = build_sut_masks(2017)
+targets = build_target_set(2017)
+
+frozen, free = split_fixed_blocks(seeds, masks)      # X = F + Z
+residual     = offset_targets(targets, frozen)       # r' = r - F @ 1
+precheck(seeds, masks, targets, allow_placeholders=True)
+
+balanced = engine(free, residual, masks)             # <- the part that does not exist yet
+result   = restore_fixed_blocks(balanced, frozen)    # fixed cells come back bit-identical
+```
+
+`seeds` and `masks` are **mappings of block name to frame** (`'use'`, `'supply'`), because a target
+may relate the two panels — `T016 = T019` and the product-tax identities all do.
+
+**Two things to inspect first:**
+
+```bash
+# what the target set contains, and which values are real
+uv run python -c "from bedrock.transform.iot.nowcast_targets import target_set_summary; \
+print(target_set_summary(2017).to_string())"
+
+# whether the published 2017 tables satisfy every hard constraint
+uv run python -c "from bedrock.transform.iot.nowcast_targets import hard_target_residuals; \
+print(hard_target_residuals(2017).to_string())"
+
+# what the mask freezes, in cells and in dollars
+uv run python -c "from bedrock.transform.iot.nowcast_mask import mask_summary; \
+print(mask_summary().to_string())"
+
+uv run pytest bedrock/utils/economic/balance/ bedrock/transform/iot/__tests__/ -q
+```
+
+The residual check is the useful one: on the published 2017 tables every hard constraint holds to
+BEA's $1M publication rounding, worst **21 on a $34 trillion table**. If an engine change breaks a
+constraint definition, that number moves and nothing else in the pipeline would say so.
+
+⚠️ **Values are part real, part placeholder — shapes are not.** T1 (gross output) and T11-T16 (the
+identities) carry real values. T2, T4 and T6-T9 carry `PLACEHOLDER:`-prefixed sources while the NIPA
+and ITA reads are wired, and `precheck` **refuses to certify a set containing one** unless
+`allow_placeholders=True` is passed. Their shapes, labels and aggregators are correct, so an engine
+built against this set does not change when Steps 1-4 land — **only values do.**
+
+⚠️ **Three properties the engine must not break**, all of which fail silently
+([`mask_layer_plan.md`](mask_layer_plan.md) §2):
+
+- **a fixed cell is held at its value, not zeroed** — the offset guarantees it, but an engine that
+  re-clamps will undo it;
+- **targets keep their sign** — residual targets go negative even where the published target was
+  positive, and `F03000` is −37,568 outright in 2020;
+- **`F` is excluded from the seed** — pass `free`, never `seeds`; `assert_free_seed` is the guard.
+
 #### Decision 1 — the starting point
 
 | Option | What it costs | What it buys |
