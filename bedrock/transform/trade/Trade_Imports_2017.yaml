@@ -7,7 +7,6 @@ activity_schema: null
 _attribution_sources:
   supply_mcif: &supply_mcif
     year: 2017
-    primary_action_type: Consumed
     selection_fields:
       ActivityProducedBy: {'MCIF': ''}
 
@@ -21,7 +20,6 @@ source_names:
       goods_imports_cif:
         selection_fields:
           FlowName: GEN_CIF_YR
-        primary_action_type: Produced
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Supply:
@@ -38,7 +36,6 @@ source_names:
           FlowName: Imports
         exclusion_fields:
           ActivityProducedBy: [AllTypesOfService]
-        primary_action_type: Produced
         attribution_method: proportional
         attribution_source:
           BEA_Detail_Supply:

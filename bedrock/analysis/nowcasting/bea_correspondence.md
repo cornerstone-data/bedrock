@@ -100,10 +100,18 @@ air use a weighted ton-mile share, `m_c · tonmiles_c ÷ Σ m_i · tonmiles_i` w
 
 ---
 
-## 2026-08-14 — Follow-up, sent, unanswered
+## 2026-08-17 — Follow-up answered: truck's "other goods", pipeline, the multipliers
 
-Five questions, numbered as sent. Questions 1 and 2 share a subject so they were
-grouped; strict order of value would put pipeline second.
+**Question put:** 2026-08-14, five questions, numbered as sent. Questions 1 and 2
+share a subject so they were grouped; strict order of value would put pipeline
+second.
+
+**Answered by:** William Nicolls, BEA, 2026-08-17. Cc: Harvey Davis, Edward
+Morgan, William (Billy) Jolliff.
+
+⚠️ **Four of the five are answered; question 4 is not.** Whether 2023 is
+continuous with the earlier series or rebased, and how BEA handles a year like
+2024 before the next AIES release, went unaddressed and remains the open item.
 
 1. **How is SAS Table 8's "Other goods" distributed?** It is 32–34% of Total
    Motor Carrier Revenue in every year 2015–2023, and truck is ~68% of `TRANS`,
@@ -128,6 +136,85 @@ Deliberately **not** asked: access to the AAR Freight Commodity Statistics. It
 is a commercial subscription BEA cannot grant, and the STB Commodity Revenue
 Stratification Report they named looks like a public substitute — to be tested
 before going back to them.
+
+### What BEA said
+
+On **"Other goods"** (question 1):
+
+> We do not use the "other" commodity from SAS Table 8 since we have no
+> information on what commodities it contains. Distributing it pro rata to the
+> other 10 would not change the result since we are creating weights with the
+> data to distribute our truck margins rather than explicitly using the values
+> from SAS table 8.
+
+On **which table, and the "sector" wording** (question 1, second part):
+
+> Sorry, using the term "sector" was confusing. At BEA, we use (mostly) the same
+> codes (NAICS) for both commodities and industries and refer to the level of
+> detail for each as sector, summary and detail to distinguish levels of
+> aggregation. When I used the term "sector," I was just referring to a very
+> aggregated level of detail rather than relating the data to industries. The
+> data are commodity data in SAS Table 8 and we do use the published data.
+
+On the **group → I-O concordance** (question 2):
+
+> The SAS group to IO items concordance is not published. It is internal to our
+> database. We remap it every 5 years and we are in that process now.
+
+On **pipeline** (question 3):
+
+> Pipeline is a bit different from our other transportation margins in that
+> there is no outside source that we need to tell us where to distribute the
+> pipeline margins. The margin values, like the other transportation margins,
+> come from Census and there are 4 pipeline margine items: crude oil pipe,
+> natural gas pipe, refined petroleum pipe, and pipeline, not elsewhere
+> classified (NEC). Natural gas pipelines margins go to natural gas commodity.
+> Crude pipelines margins go to any crude oil commodity. Those two are the
+> clearest. Refined petroleum margins go to refined fuels such as gasoline, jet
+> fuel, kerosene and other refined oils and waxes. Pipeline, NEC margins are
+> applied to dyes, pigments, toners, ammonia, Urea and like products that would
+> be transported through a pipeline. These margins are all distributed
+> proportionally to the commodities to which they are assigned.
+
+On the **difficulty multipliers** (question 5):
+
+> I can't share the table with you, but I can give you a push in the right
+> direction. Air is simple, everything except animal is a 1 (animals is 3). For
+> water, we see motorized vehicles and transport as the most difficult (highest
+> multiplier). For everything else, if it would be palletized or put in a
+> container, it would receive a 2 and if it sits loose on board, it receives a 1.
+> That should get you pretty close.
+
+### What it changed
+
+1. **Closed the largest unknown in the transport chain, and cheaply.** "Other
+   goods" — ~22% of all `TRANS` — is simply **not used**. BEA builds *weights*
+   from the ten identified groups rather than spending Table 8's values, so
+   dropping "other" and renormalising over the ten is not an approximation of
+   BEA's method, it **is** BEA's method. The alternative treatment we would
+   otherwise have had to choose between is confirmed equivalent: pro rata across
+   the ten "would not change the result".
+2. **Confirmed the source reading.** Table 8 is the right table, the eleven
+   published groups are what BEA uses, there is no finer internal tabulation, and
+   the data are commodity data. "Sector" was aggregation-level language, not an
+   industry/commodity distinction — so the doubt recorded on 2026-08-14 is
+   resolved in favour of what we already built.
+3. **Made pipeline fully reproducible**, from nothing. 11.9% of `TRANS` moves
+   from "no method stated" to a complete deterministic rule: four Census margin
+   items, each with a named destination set, distributed proportionally. No
+   external source is needed for it at all.
+4. **Made the multipliers reproducible without the table.** Air is 1 everywhere
+   except animals at 3. Water is 3 for motorized vehicles and transport, 2 for
+   palletized or containerized cargo, 1 for cargo loose in the hold. Note this
+   fixes air's value, which the first reply left unstated, and adds motorized
+   vehicles to the first reply's "heavy machinery" at the top of the water scale.
+5. **Left question 4 open**, which is now the only unanswered method question:
+   the 2023 AIES splice moves commodity shares ~4× a normal year, and nothing
+   here says whether that is real or a rebasing.
+
+With this, **every mode of `TRANS` has a stated method**. What remains is not
+method but sourcing: the group → I-O concordance BEA will not publish, rail's
+revenue source, and the 2023 splice.
 
 ---
 
