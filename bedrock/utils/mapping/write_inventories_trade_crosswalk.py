@@ -87,7 +87,24 @@ CONCEPT_MAP: dict[str, tuple[str | tuple[str, ...], tuple[str, ...], str]] = {
         ('3327', '3324', '3329'),
         'Hardware, plumbing and heating equipment',
     ),
-    'C4218': ('4238', ('333',), 'Machinery, equipment and supplies'),
+    # NAICS 4238 is not only machinery. It contains 42386 transportation
+    # equipment and supplies (except motor vehicle) merchant wholesalers -
+    # aircraft, ships and railroad equipment - which carried 53,543 of product
+    # lines in 2017, 38,923 of it aircraft. Without 3364/3365/3366 those
+    # commodities were reachable only through the nonmerchant agent and broker
+    # line, which spreads across 151 commodities.
+    #
+    # ⚠️ This is a reach fix, NOT the explanation for 336411. Aircraft are sold
+    # direct from manufacturer to airline, so the inventory is held by the
+    # maker, not a distributor: line 14 C336OT other transportation equipment
+    # manufacturing is -5,696 against a published 336411 of -6,314, essentially
+    # the whole cell. Adding these prefixes moved 336411 by 54. The cell is a
+    # manufacturing-branch object.
+    'C4218': (
+        '4238',
+        ('333', '3364', '3365', '3366'),
+        'Machinery, equipment and supplies',
+    ),
     'C4219': ('4239', ('3399', '3149', '3169'), 'Miscellaneous durable goods'),
     # --- wholesale, merchant nondurable (NAICS 424) ------------------------
     'C4221': ('4241', ('322',), 'Paper and paper products'),
