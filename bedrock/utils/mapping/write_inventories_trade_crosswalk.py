@@ -62,7 +62,10 @@ _GENERAL_MERCH = ('311', '312', '315', '316', '325', '334', '335', '337', '339')
 
 #: NIPA line -> (NAICS category it is, NAICS goods it distributes, note).
 #: Goods ranges are prefixes, matched against NAICS_2017_Code.
-CONCEPT_MAP: dict[str, tuple[str, tuple[str, ...], str]] = {
+#: code -> (NAICS the line covers, goods NAICS it distributes, label).
+#: The first element is usually one prefix, but a line spanning several
+#: takes a tuple - see C44X.
+CONCEPT_MAP: dict[str, tuple[str | tuple[str, ...], tuple[str, ...], str]] = {
     # --- wholesale, merchant durable (NAICS 423) ---------------------------
     'C4211': ('4231', ('3361', '3362', '3363'), 'Motor vehicles and parts'),
     'C4212': ('4232', ('337', '3141'), 'Furniture and home furnishings'),
@@ -133,7 +136,18 @@ CONCEPT_MAP: dict[str, tuple[str, tuple[str, ...], str]] = {
     'C4529': ('4529', _GENERAL_MERCH, 'Other general merchandise stores'),
     # "Other retail stores" spans the specialist formats: bookstores (45121),
     # video and record stores (45122) and used merchandise stores (45331).
-    'C44X': ('44X', _GENERAL_MERCH + ('5111', '512'), 'Other retail stores'),
+    # ⚠️ '44X' was a pseudo-code, and nothing downstream could match it: the
+    # PxI weighting matches holding industries with startswith, and no real
+    # NAICS begins '44X'. The line therefore drew no weights at all and fell
+    # back to an equal split, stranding S00402 at 54 against a published
+    # 3,969. The formats it actually spans are 451 sporting goods, hobby,
+    # book and music stores, 453 miscellaneous store retailers (which is
+    # where used merchandise sits) and 454 nonstore retailers.
+    'C44X': (
+        ('451', '453', '454'),
+        _GENERAL_MERCH + ('5111', '512'),
+        'Other retail stores',
+    ),
 }
 
 #: `C4229` "Chemical and allied products" excludes drugs, which are `C4222`.
@@ -194,6 +208,9 @@ def build() -> pd.DataFrame:
     valid = set(USA_2017_COMMODITY_CODES)
     rows = []
     for code, (naics_cat, goods, label) in CONCEPT_MAP.items():
+        # A line may span several NAICS prefixes; render them slash-joined so
+        # the Note stays parseable by anything deriving weights from it.
+        naics_note = '/'.join(naics_cat) if isinstance(naics_cat, tuple) else naics_cat
         hit = cw[cw['NAICS_2017_Code'].str.startswith(tuple(goods))]
         commodities = set(hit['BEA_2017_Detail_Code'])
         for drop in EXCLUDE.get(code, ()):
@@ -209,7 +226,7 @@ def build() -> pd.DataFrame:
                     'SectorSourceName': 'BEA_2017_Code',
                     'Sector': commodity,
                     'SectorType': '',
-                    'Note': f'{label}; NAICS {naics_cat}; {code}',
+                    'Note': f'{label}; NAICS {naics_note}; {code}',
                 }
             )
     return pd.DataFrame(rows)

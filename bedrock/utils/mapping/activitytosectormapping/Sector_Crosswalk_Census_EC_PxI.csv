@@ -11,7 +11,8 @@ Census_EC_PxI,"artificial flowers, plants, and trees",BEA_2017_Code,339990,,corr
 Census_EC_PxI,athletic uniforms,BEA_2017_Code,315000,,seed; via NAICS 31528
 Census_EC_PxI,audio and video recordings,BEA_2017_Code,334610,,seed; via NAICS 334614
 Census_EC_PxI,"audio and video recordings, including purchased downloads",BEA_2017_Code,512200,,corrected; via NAICS 512250
-Census_EC_PxI,automobiles and light-duty trucks,BEA_2017_Code,336111,,seed; via NAICS 336111
+Census_EC_PxI,automobiles and light-duty trucks,BEA_2017_Code,336111,,corrected; via NAICS 336111
+Census_EC_PxI,automobiles and light-duty trucks,BEA_2017_Code,336112,,corrected; via NAICS 336112
 Census_EC_PxI,"automotive chemicals, including polishes and cleaners, fuel and oil additives, and antifreeze",BEA_2017_Code,3259A0,,seed; via NAICS 325998
 Census_EC_PxI,automotive fuels,BEA_2017_Code,324110,,seed; via NAICS 324110
 Census_EC_PxI,automotive parts and supplies,BEA_2017_Code,336390,,seed; via NAICS 336390
