@@ -473,6 +473,23 @@ def normalize_pxi_product(description: pd.Series) -> pd.Series:
     )
 
 
+def prepare_pxi_for_attribution(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+    """Recover suppressed cells, then reshape for attribution - in that order.
+
+    ⚠️ Both steps have to happen in one hook because ``prepare_fbs`` runs
+    ``clean_fba_before_mapping`` **before** ``estimate_suppressed``, which is the
+    opposite of what these two need. Wiring them to those two sockets separately
+    moves the product into ``ActivityConsumedBy`` first, and the suppression
+    recovery then looks for its ``00`` product totals in a column that no longer
+    holds NAICS - it silently finds none, reports "Dropped 0 product-total rows"
+    instead of 3,523, and leaves every withheld cell at zero.
+
+    Recovery must come first regardless: it needs the ``00`` parent rows to
+    subtract published children from, and the reshape is what removes them.
+    """
+    return move_pxi_product_to_activity(estimate_suppressed_ec_pxi(fba, **kwargs))
+
+
 if __name__ == "__main__":
     import bedrock
 

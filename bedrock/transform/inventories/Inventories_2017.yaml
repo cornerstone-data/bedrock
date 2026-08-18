@@ -60,8 +60,10 @@ _attribution_sources:
   # happens to be publishable.
   Census_EC_PxI: &pxi_weights
     year: 2017
-    estimate_suppressed: !script_function:Census_EC estimate_suppressed_ec_pxi
-    clean_fba_before_mapping: !script_function:Census_EC move_pxi_product_to_activity
+    # ⚠️ One hook, not two. prepare_fbs runs clean_fba_before_mapping BEFORE
+    # estimate_suppressed, which is the opposite of the order these need - see
+    # prepare_pxi_for_attribution.
+    clean_fba_before_mapping: !script_function:Census_EC prepare_pxi_for_attribution
     activity_to_sector_mapping: Census_EC_PxI
     # ⚠️ Required, and not merely a hint. After the product moves,
     # ActivityProducedBy is null on every row and the product sits in
