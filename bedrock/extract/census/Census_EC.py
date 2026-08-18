@@ -335,9 +335,7 @@ def estimate_suppressed_ec_pxi(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     published = (
         detail[~detail['Suppressed'].notna()].groupby('FlowName')['FlowAmount'].sum()
     )
-    n_withheld = (
-        detail[detail['Suppressed'].notna()].groupby('FlowName').size()
-    )
+    n_withheld = detail[detail['Suppressed'].notna()].groupby('FlowName').size()
 
     residual = (
         totals['FlowAmount']
@@ -360,7 +358,9 @@ def estimate_suppressed_ec_pxi(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     how = detail['FlowName'].map(
         n_withheld.map(lambda n: 'exact' if n == 1 else 'split')
     )
-    no_control = detail['FlowName'].map(total_suppressed).astype('boolean').fillna(False)
+    no_control = (
+        detail['FlowName'].map(total_suppressed).astype('boolean').fillna(False)
+    )
     how = how.where(~no_control, 'unrecoverable')
     detail['SuppressionRecovery'] = np.where(detail_sup, how, np.nan)
 

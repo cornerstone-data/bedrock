@@ -56,69 +56,103 @@ OUT = 'bedrock/utils/mapping/census_pxi/pxi_product_naics_seed_2017_review.csv'
 #: because another row got it wrong.
 CONCEPT_FLAGS: dict[tuple[str, str], str] = {
     # --- scrap and recyclables: BEA specials, no NAICS can be right ---
-    ('recyclable ferrous metal scrap', '331110'):
-        'scrap -> BEA S00401; a steel mill consumes scrap, it is not scrap',
-    ('recyclable nonferrous metal scrap', '331420'):
-        'scrap -> BEA S00401',
-    ('recyclable paper and paperboard', '322130'):
-        'scrap -> BEA S00401; paperboard mills consume it',
-    ('recyclable plastics and rubber', '325992'):
-        'scrap -> BEA S00401; photographic film manufacturing is unrelated',
-    ('recyclable textiles, including rags and textile scraps', '313310'):
-        'scrap -> BEA S00401; finishing mills are unrelated',
-
+    (
+        'recyclable ferrous metal scrap',
+        '331110',
+    ): 'scrap -> BEA S00401; a steel mill consumes scrap, it is not scrap',
+    ('recyclable nonferrous metal scrap', '331420'): 'scrap -> BEA S00401',
+    (
+        'recyclable paper and paperboard',
+        '322130',
+    ): 'scrap -> BEA S00401; paperboard mills consume it',
+    (
+        'recyclable plastics and rubber',
+        '325992',
+    ): 'scrap -> BEA S00401; photographic film manufacturing is unrelated',
+    (
+        'recyclable textiles, including rags and textile scraps',
+        '313310',
+    ): 'scrap -> BEA S00401; finishing mills are unrelated',
     # --- fresh vs processed: the description says the opposite of the match ---
-    ('fresh fruit and vegetables', '311421'):
-        '"fresh" excludes canning; -> 1112/1113 farming',
-    ('fish and seafood, except canned and frozen fish and seafood', '3117'):
-        '"except canned and frozen" excludes packaging; -> 1141/1125',
-    ('fresh fish and seafood', '311710'):
-        '"fresh" excludes packaging; -> 1141 fishing / 1125 aquaculture',
-
+    (
+        'fresh fruit and vegetables',
+        '311421',
+    ): '"fresh" excludes canning; -> 1112/1113 farming',
+    (
+        'fish and seafood, except canned and frozen fish and seafood',
+        '3117',
+    ): '"except canned and frozen" excludes packaging; -> 1141/1125',
+    (
+        'fresh fish and seafood',
+        '311710',
+    ): '"fresh" excludes packaging; -> 1141 fishing / 1125 aquaculture',
     # --- farm output matched to processors ---
-    ('grains, beans, and seeds', '311119'):
-        'farm output -> 1111 oilseed and grain farming, not animal food mfg',
-    ('hides, skins, and pelts', '311119'):
-        'slaughter byproduct -> 311611 / 316110, not animal food mfg',
-    ('livestock', '311511'):
-        'live animals -> 1121/1122/1124, not fluid milk mfg',
-    ('eggs and dairy (except ice cream)', '311511'):
-        'eggs are 1123; only the dairy half fits 311511',
-    ('pulpwood', '321113'):
-        'standing/roundwood -> 1133 logging, not sawmills',
-    ('nonlumber forest products, including hewn posts, poles, and railroad ties',
-     '321114'):
-        '-> 1133 logging rather than wood preservation',
-
+    (
+        'grains, beans, and seeds',
+        '311119',
+    ): 'farm output -> 1111 oilseed and grain farming, not animal food mfg',
+    (
+        'hides, skins, and pelts',
+        '311119',
+    ): 'slaughter byproduct -> 311611 / 316110, not animal food mfg',
+    ('livestock', '311511'): 'live animals -> 1121/1122/1124, not fluid milk mfg',
+    (
+        'eggs and dairy (except ice cream)',
+        '311511',
+    ): 'eggs are 1123; only the dairy half fits 311511',
+    ('pulpwood', '321113'): 'standing/roundwood -> 1133 logging, not sawmills',
+    (
+        'nonlumber forest products, including hewn posts, poles, and railroad ties',
+        '321114',
+    ): '-> 1133 logging rather than wood preservation',
     # --- product matched to an input or a service ---
-    ('liquefied petroleum (lp)', '486110'):
-        'LP is a product (324110/325120); 486110 is pipeline transport',
-    ('materials and supplies for tobacco manufacturing', '312230'):
-        'inputs to tobacco mfg (leaf, 111910), not tobacco products',
-    ('materials and supplies for glass products manufacturing', '327212'):
-        'inputs to glass mfg, not pressed and blown glass',
-
+    (
+        'liquefied petroleum (lp)',
+        '486110',
+    ): 'LP is a product (324110/325120); 486110 is pipeline transport',
+    (
+        'materials and supplies for tobacco manufacturing',
+        '312230',
+    ): 'inputs to tobacco mfg (leaf, 111910), not tobacco products',
+    (
+        'materials and supplies for glass products manufacturing',
+        '327212',
+    ): 'inputs to glass mfg, not pressed and blown glass',
     # --- plainly the wrong industry ---
-    ('harness and saddlery equipment', '316992'):
-        '-> 316990/316999; 316992 is handbags and purses',
-    ('cutlery, except disposable plastics', '339910'):
-        '-> 332215 cutlery and flatware, not jewelry and silverware',
-    ('fire extinguishers and fire safety equipment', '339994'):
-        '-> 332999/339999; 339994 is brooms, brushes and mops',
-    ('religious supplies', '339994'):
-        '-> 339999; 339994 is brooms, brushes and mops',
-    ('store equipment', '333415'):
-        '-> 333318 commercial and service industry equipment, not HVAC',
-    ('stainless steel', '331210'):
-        '-> 331110/331221 mills and rolled shapes, not pipe and tube',
-    ('nonpackaging paper and plastic', '326199'):
-        'the paper half is 322xxx; 326199 is plastics only',
-
+    (
+        'harness and saddlery equipment',
+        '316992',
+    ): '-> 316990/316999; 316992 is handbags and purses',
+    (
+        'cutlery, except disposable plastics',
+        '339910',
+    ): '-> 332215 cutlery and flatware, not jewelry and silverware',
+    (
+        'fire extinguishers and fire safety equipment',
+        '339994',
+    ): '-> 332999/339999; 339994 is brooms, brushes and mops',
+    ('religious supplies', '339994'): '-> 339999; 339994 is brooms, brushes and mops',
+    (
+        'store equipment',
+        '333415',
+    ): '-> 333318 commercial and service industry equipment, not HVAC',
+    (
+        'stainless steel',
+        '331210',
+    ): '-> 331110/331221 mills and rolled shapes, not pipe and tube',
+    (
+        'nonpackaging paper and plastic',
+        '326199',
+    ): 'the paper half is 322xxx; 326199 is plastics only',
     # --- too broad for the match, or a mixed category ---
-    ('alcoholic beverages', '312140'):
-        'spans beer 312120 and wine 312130 as well as distilleries',
-    ('wine and distilled liquor, including premixed alcoholic drinks', '31213'):
-        'distilled liquor is 312140, not wineries',
+    (
+        'alcoholic beverages',
+        '312140',
+    ): 'spans beer 312120 and wine 312130 as well as distilleries',
+    (
+        'wine and distilled liquor, including premixed alcoholic drinks',
+        '31213',
+    ): 'distilled liquor is 312140, not wineries',
 }
 
 #: Products that are broad mixed-goods categories. Per the 2026-08-16 direction
@@ -133,9 +167,7 @@ MIXED_MARKERS = (
 
 def main() -> None:
     seed = pd.read_csv(SEED, dtype=str)
-    ref = pd.read_csv(
-        'bedrock/utils/mapping/naics/Sector_2017_Names.csv', dtype=str
-    )
+    ref = pd.read_csv('bedrock/utils/mapping/naics/Sector_2017_Names.csv', dtype=str)
     valid = set(ref['NAICS_2017_Code'].dropna())
 
     # The industry name is what a reviewer actually judges the match against -
@@ -171,8 +203,9 @@ def main() -> None:
         seed.loc[hit & (seed['flag'] == ''), 'flag'] = 'concept'
         seed.loc[hit & (seed['flag'] == 'concept'), 'flag_reason'] = why
 
-    mixed = seed['product'].str.contains('|'.join(MIXED_MARKERS), case=False,
-                                         regex=True, na=False)
+    mixed = seed['product'].str.contains(
+        '|'.join(MIXED_MARKERS), case=False, regex=True, na=False
+    )
     seed.loc[mixed & (seed['flag'] == ''), 'flag'] = 'mixed'
     seed.loc[seed['flag'] == 'mixed', 'flag_reason'] = (
         'broad mixed-goods category; left unmapped by decision'
@@ -208,7 +241,9 @@ def main() -> None:
         prod = seed.loc[seed['flag'] == k, 'product'].nunique()
         print(f'  {k:<9} {n:>3} rows  {prod:>3} products')
     clean = seed[(seed['flag'] == '') & matched]
-    print(f'  {"clean":<9} {len(clean):>3} rows  {clean["product"].nunique():>3} products')
+    print(
+        f'  {"clean":<9} {len(clean):>3} rows  {clean["product"].nunique():>3} products'
+    )
     print(f'wrote {OUT}')
 
 

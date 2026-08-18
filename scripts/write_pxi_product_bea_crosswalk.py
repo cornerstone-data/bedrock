@@ -71,16 +71,20 @@ def main() -> None:
     )
     review = review[~mixed]
 
-    kept = review[
-        review['flag'].isna() & review['naics_2017'].notna()
-    ][['product', 'naics_2017']].assign(origin='seed')
+    kept = review[review['flag'].isna() & review['naics_2017'].notna()][
+        ['product', 'naics_2017']
+    ].assign(origin='seed')
 
-    corr_naics = corrections[corrections['target_scheme'] == 'NAICS'].rename(
-        columns={'target': 'naics_2017'}
-    )[['product', 'naics_2017']].assign(origin='corrected')
-    corr_bea = corrections[corrections['target_scheme'] == 'BEA'].rename(
-        columns={'target': 'bea'}
-    )[['product', 'bea']].assign(origin='direct-BEA')
+    corr_naics = (
+        corrections[corrections['target_scheme'] == 'NAICS']
+        .rename(columns={'target': 'naics_2017'})[['product', 'naics_2017']]
+        .assign(origin='corrected')
+    )
+    corr_bea = (
+        corrections[corrections['target_scheme'] == 'BEA']
+        .rename(columns={'target': 'bea'})[['product', 'bea']]
+        .assign(origin='direct-BEA')
+    )
 
     # A corrected product replaces its seed rows outright rather than adding to
     # them - the seed row is the one that was wrong.
@@ -103,9 +107,7 @@ def main() -> None:
 
     out = pd.concat(
         [
-            resolved.dropna(subset=['bea'])[
-                ['product', 'bea', 'origin', 'naics_2017']
-            ],
+            resolved.dropna(subset=['bea'])[['product', 'bea', 'origin', 'naics_2017']],
             corr_bea.assign(naics_2017=pd.NA),
         ],
         ignore_index=True,
@@ -114,8 +116,11 @@ def main() -> None:
     out['Note'] = out.apply(
         lambda r: (
             f'{r["origin"]}'
-            + (f'; via NAICS {r["naics_2017"]}' if pd.notna(r['naics_2017'])
-               else '; no NAICS counterpart')
+            + (
+                f'; via NAICS {r["naics_2017"]}'
+                if pd.notna(r['naics_2017'])
+                else '; no NAICS counterpart'
+            )
         ),
         axis=1,
     )
