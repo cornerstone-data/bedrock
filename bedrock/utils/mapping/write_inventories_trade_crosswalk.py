@@ -33,13 +33,12 @@ import pandas as pd
 
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 
-REPO = Path(__file__).resolve().parents[1]
-NAICS_BEA = REPO / 'bedrock/utils/mapping/naics/NAICS_to_BEA_Crosswalk_2017.csv'
-OUT = (
-    REPO
-    / 'bedrock/utils/mapping/activitytosectormapping'
-    / 'Sector_Crosswalk_BEA_NIPA_Inventories.csv'
-)
+#: This script lives in the mapping tree it reads from and writes to, so anchor
+#: on its own directory rather than counting parents up to the repo root - that
+#: count silently breaks if the file moves, which it already did once.
+MAPPING = Path(__file__).resolve().parent
+NAICS_BEA = MAPPING / 'naics' / 'NAICS_to_BEA_Crosswalk_2017.csv'
+OUT = MAPPING / 'activitytosectormapping' / 'Sector_Crosswalk_BEA_NIPA_Inventories.csv'
 
 #: Durable and nondurable goods NAICS, for the agent/broker lines that carry no
 #: commodity specialisation of their own.
@@ -225,7 +224,7 @@ def main() -> None:
         w.writerows(df.to_dict('records'))
 
     per = df.groupby('Activity')['Sector'].nunique().sort_values()
-    print(f'wrote {OUT.relative_to(REPO)}')
+    print(f'wrote {OUT.relative_to(MAPPING.parents[2])}')
     print(
         f'  {len(df)} rows, {df.Activity.nunique()} trade lines, '
         f'{df.Sector.nunique()} distinct commodities'
