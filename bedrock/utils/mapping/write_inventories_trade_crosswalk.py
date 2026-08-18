@@ -121,6 +121,14 @@ CONCEPT_MAP: dict[str, tuple[str, tuple[str, ...], str]] = {
     ),
     'N542RC': ('445', ('311', '3121'), 'Food and beverage stores'),
     'C448': ('448', ('315', '316'), 'Clothing and clothing accessories stores'),
+    # ⚠️ 2017 takes the PARENT, N543RC, not the C4521/C4529 children. The two
+    # children carry a reclassification in 2017 rather than inventory movement:
+    # +21,237 against -24,518, gross 13.9x their own net, where in every other
+    # published year 2018-2024 they share a sign and gross equals net exactly.
+    # Their parent (-3,281) is ordinary and sits inside the other years' range.
+    # Both children map to the same commodity set anyway, so the parent's set is
+    # theirs unchanged and no coverage is lost. See the plan, open question 4.
+    'N543RC': ('452', _GENERAL_MERCH, 'General merchandise stores'),
     'C4521': ('4521', _GENERAL_MERCH, 'Department stores'),
     'C4529': ('4529', _GENERAL_MERCH, 'Other general merchandise stores'),
     # "Other retail stores" spans the specialist formats: bookstores (45121),
@@ -167,6 +175,7 @@ NAMES: dict[str, str] = {
     'C444': 'Building material and garden equipment and supplies dealers',
     'N542RC': 'Food and beverage stores',
     'C448': 'Clothing and clothing accessories stores',
+    'N543RC': 'General merchandise stores',
     'C4521': 'Department stores',
     'C4529': 'Other general merchandise stores',
     'C44X': 'Other retail stores',
