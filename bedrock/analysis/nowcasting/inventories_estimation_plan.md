@@ -186,7 +186,7 @@ These are spot checks on three lines, not a fitted result.
 | Stage-of-fabrication split, durable/nondurable | `U50705BU1` lines 29–37 | **Already extracted, unused** |
 | Farm CIPI level | NIPA 5.7.5B, table id `T50705B` | **Not extracted, but confirmed available.** Farm is `B018RC` line 2 at **−5,679** in 2017 — exactly the figure §Farm infers — and the CIPI control total `A014RC` is line 1 at 32,674. Farm plus nonfarm ties to it. Adding `T50705B` to `BEA_NIPA.yaml`'s table list is the whole job |
 | Farm commodity split | `USDA_ERS_FIWS` `Inventory` variable | **Already in bedrock**, unused for this — see §Farm |
-| Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Make table | Published for 2017 |
+| Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Supply table | Published for 2017 — ⚠️ **use the nowcast year's mix once Step 4a builds one**, see below |
 | M&S manufacturing → commodity | Step 3 intermediate column; 2017 Use table | Published for 2017 |
 | Trade industry → commodity | 29 `U50705BU1` trade lines | ✅ Built — `Sector_Crosswalk_BEA_NIPA_Inventories.csv` |
 | Weights within each trade commodity set | `Census_EC_PxI` product mix | ✅ Built — `Sector_Crosswalk_Census_EC_PxI.csv` (#652) |
@@ -196,6 +196,29 @@ These are spot checks on three lines, not a fitted result.
 | **Annual inventories, all sectors** | AIES `basic` `INV_E_*` | **All three stages, all sectors — 2023 only** |
 | Materials consumed by industry | Econ Census `ecnmatfuel` `EC1731MATFUEL` | **BEA's own source for rule 4.** Not extracted; quinquennial (2012/2017/2022); currently proxied by the Use column |
 | Mining inventories | Econ Census `ecnlifomine` | Not extracted; quinquennial. The only source found pointing at open question 2 |
+
+### ⚠️ Take the commodity mix from the nowcast year, not the 2017 benchmark
+
+The manufacturing branch splits each industry's inventory across the commodities
+that industry produces, and today that mix is read off the **2017 benchmark
+Supply table** because it is the only one published at detail.
+
+**Once Step 4a ([#570](https://github.com/cornerstone-data/bedrock/issues/570))
+builds the Supply table body — industry supply of commodities — for each nowcast
+year, this branch must switch to that year's mix.** Leaving it on 2017 would
+freeze each industry's product composition at the benchmark and quietly
+attribute every later year's inventory movement using a mix that no longer
+holds. That is the same failure the plan already rejects elsewhere: a benchmark
+proportion carried forward is an assumption, not a measurement, and it stops
+being visible once it is buried in an allocation.
+
+It matters most where composition actually moves — petroleum and coal products,
+computer and electronic products, and transportation equipment, whose auto/truck
+and aerospace balance shifts year to year.
+
+The switch is a source change, not a method change: the rule stays "an industry
+holds its own products", only the table supplying the mix moves from the 2017
+benchmark to the nowcast year's Step 4a output.
 
 ### Annual inventory sources — every major branch is covered
 

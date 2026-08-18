@@ -85,6 +85,7 @@ source_names:
       # excludes via the inventory valuation adjustment. Structure from FIWS,
       # level from NIPA.
       inventories_farm:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
@@ -99,6 +100,7 @@ source_names:
       #   32 C30W work-in-process         -3,187
       #   35 C30F finished goods           2,110
       inventories_manufacturing:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
@@ -241,25 +243,22 @@ source_names:
       # secondhand goods published at 3,969. Right sign and ample scale, but
       # this is all motor vehicle inventory across every holding sector, not
       # the net that reaches F03000. Use for shape, not level.
-      inventories_motor_vehicles_autos_new:
-        selection_fields:
-          Table: U70205
-          Line: 57  # B146RC new autos, -5,182
 
-      inventories_motor_vehicles_autos_used:
-        selection_fields:
-          Table: U70205
-          Line: 60  # B147RC used autos, 12,972
 
-      inventories_motor_vehicles_trucks_new:
-        selection_fields:
-          Table: U70205
-          Line: 62  # W244RC new trucks, 6,846
 
-      inventories_motor_vehicles_trucks_used:
-        selection_fields:
-          Table: U70205
-          Line: 65  # W245RC used trucks, 6,467
+
+      # ---- Motor vehicles: a SPLIT, deliberately not an activity set ----
+      # U70205 gives the auto/truck and new/used split in dollars with the IVA
+      # already applied - see BEA_NIPA.yaml. It is not wired here because these
+      # lines are NOT additive mass: 441 dealers and 4231 wholesalers already
+      # carry motor vehicle value through the trade sets above, so adding
+      # U70205 as its own set would double count 21,104.
+      #
+      # It belongs as a re-split applied AFTER the trade attribution, replacing
+      # the PxI-derived 336111/336112 shares with the published 37/63. Measured
+      # on the scoring probe, that cuts error across those two cells from
+      # 10,940 to 4,080. Wiring it needs a clean_fbs hook that the method does
+      # not have yet.
 
       # ---- Mining, utilities and construction --------------------------
       # -14,261, which is 37% of nonfarm in magnitude, published with NO
@@ -267,6 +266,7 @@ source_names:
       # question 2 in the plan. The 2017 column suggests where it lands
       # (211000 oil and gas -7,577) but that is one commodity for three sectors.
       inventories_mining_utilities_construction:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
@@ -276,6 +276,7 @@ source_names:
       # ---- Other industries --------------------------------------------
       # 3,537, also published without sub-detail.
       inventories_other:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:

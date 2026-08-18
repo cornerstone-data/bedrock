@@ -177,6 +177,84 @@ CONCEPT_MAP: dict[str, tuple[str | tuple[str, ...], tuple[str, ...], str]] = {
 }
 
 #: `C4229` "Chemical and allied products" excludes drugs, which are `C4222`.
+#: The non-trade branches. Manufacturing follows BEA's finished-goods and
+#: work-in-process rule - an industry holds its own products - so each line maps
+#: to the commodities its NAICS produces. Mining takes only mining commodities:
+#: the published F03000 contains **no utilities or construction commodities at
+#: all**, so the branch labelled "mining, utilities and construction" lands
+#: entirely on mining in commodity space.
+#:
+#: ⚠️ C336MV and C336OT are pseudo-codes - no NAICS begins with either, and the
+#: prefix guard below rejects them. NIPA splits transportation equipment into
+#: motor vehicles and everything else, so they are given the NAICS ranges they
+#: stand for. Keeping them apart matters: C336OT is -5,696 against a published
+#: 336411 of -6,314, and folding it into the parent spreads an aerospace
+#: movement across pickup trucks.
+NON_TRADE_MAP: dict[str, tuple[str | tuple[str, ...], tuple[str, ...], str]] = {
+    'C321': ('321', ('321',), 'Wood products'),
+    'C327': ('327', ('327',), 'Nonmetallic mineral products'),
+    'C331': ('331', ('331',), 'Primary metals'),
+    'C332': ('332', ('332',), 'Fabricated metal products'),
+    'C333': ('333', ('333',), 'Machinery'),
+    'C334': ('334', ('334',), 'Computer and electronic products'),
+    'C335': ('335', ('335',), 'Electrical equipment and appliances'),
+    'C336MV': (
+        ('3361', '3362', '3363'),
+        ('3361', '3362', '3363'),
+        'Motor vehicles and parts',
+    ),
+    'C336OT': (
+        ('3364', '3365', '3366', '3369'),
+        ('3364', '3365', '3366', '3369'),
+        'Other transportation equipment',
+    ),
+    'C337': ('337', ('337',), 'Furniture'),
+    'C339': ('339', ('339',), 'Miscellaneous durable goods'),
+    'C311': ('311', ('311',), 'Food'),
+    'C312': ('312', ('312',), 'Beverages and tobacco'),
+    'C313': ('313', ('313',), 'Textile mills'),
+    'C314': ('314', ('314',), 'Textile product mills'),
+    'C315': ('315', ('315',), 'Apparel'),
+    'C316': ('316', ('316',), 'Leather and allied products'),
+    'C322': ('322', ('322',), 'Paper'),
+    'C323': ('323', ('323',), 'Printing'),
+    'C324': ('324', ('324',), 'Petroleum and coal products'),
+    'C325': ('325', ('325',), 'Chemicals'),
+    'C326': ('326', ('326',), 'Plastics and rubber products'),
+    # ⚠️ Split unresolved, deferred to #660 - these reach the right commodity
+    # set but carry no rule for dividing within it.
+    'N541RC': ('21', ('211', '212', '213'), 'Mining, utilities and construction'),
+    'B018RC': ('111', ('111', '112'), 'Farm'),
+}
+
+#: Names as U50705BU1 and T50705B publish them, which is what the FBA carries.
+NON_TRADE_NAMES: dict[str, str] = {
+    'C321': 'Wood product manufacturing',
+    'C327': 'Nonmetallic mineral product manufacturing',
+    'C331': 'Primary metal manufacturing',
+    'C332': 'Fabricated metal product manufacturing',
+    'C333': 'Machinery manufacturing',
+    'C334': 'Computer and electronic product manufacturing',
+    'C335': 'Electrical equipment, appliance, and component manufacturing',
+    'C336MV': 'Motor vehicle and parts manufacturing',
+    'C336OT': 'Other transportation equipment manufacturing',
+    'C337': 'Furniture and related product manufacturing',
+    'C339': 'Miscellaneous durable goods manufacturing',
+    'C311': 'Food manufacturing',
+    'C312': 'Beverage and tobacco product manufacturing',
+    'C313': 'Textile mills',
+    'C314': 'Textile product mills',
+    'C315': 'Apparel manufacturing',
+    'C316': 'Leather and allied product manufacturing',
+    'C322': 'Paper manufacturing',
+    'C323': 'Printing and related support activities',
+    'C324': 'Petroleum and coal product manufacturing',
+    'C325': 'Chemical manufacturing',
+    'C326': 'Plastics and rubber product manufacturing',
+    'N541RC': 'Mining, utilities, and construction',
+    'B018RC': 'Farm',
+}
+
 EXCLUDE: dict[str, tuple[str, ...]] = {'C4226': ('3254',)}
 
 #: The crosswalk keys on ``ActivityProducedBy``, which is the NIPA line *name*,
@@ -233,7 +311,7 @@ def build() -> pd.DataFrame:
     )
     valid = set(USA_2017_COMMODITY_CODES)
     rows = []
-    for code, (naics_cat, goods, label) in CONCEPT_MAP.items():
+    for code, (naics_cat, goods, label) in {**CONCEPT_MAP, **NON_TRADE_MAP}.items():
         # A line may span several NAICS prefixes; render them slash-joined so
         # the Note stays parseable by anything deriving weights from it.
         naics_note = '/'.join(naics_cat) if isinstance(naics_cat, tuple) else naics_cat
@@ -248,7 +326,7 @@ def build() -> pd.DataFrame:
             rows.append(
                 {
                     'ActivitySourceName': 'BEA_NIPA',
-                    'Activity': NAMES[code],
+                    'Activity': {**NAMES, **NON_TRADE_NAMES}[code],
                     'SectorSourceName': 'BEA_2017_Code',
                     'Sector': commodity,
                     'SectorType': '',
@@ -289,7 +367,12 @@ def main() -> None:
         f'  commodities per line: min {per.min()}, median {int(per.median())}, '
         f'max {per.max()}'
     )
-    empty = [c for c in CONCEPT_MAP if NAMES[c] not in set(df.Activity)]
+    all_names = {**NAMES, **NON_TRADE_NAMES}
+    empty = [
+        c
+        for c in {**CONCEPT_MAP, **NON_TRADE_MAP}
+        if all_names[c] not in set(df.Activity)
+    ]
     print(f'  lines with no commodities: {empty or "none"}')
 
     _assert_naics_are_real()
@@ -333,7 +416,10 @@ def _assert_naics_are_real() -> None:
         return any(code.startswith(prefix) for code in real)
 
     bad: list[str] = []
-    for code, (naics_cat, _goods, _label) in CONCEPT_MAP.items():
+    for code, (naics_cat, _goods, _label) in {
+        **CONCEPT_MAP,
+        **NON_TRADE_MAP,
+    }.items():
         prefixes = naics_cat if isinstance(naics_cat, tuple) else (naics_cat,)
         bad.extend(
             f'{code}: {p!r} matches no 2017 NAICS' for p in prefixes if not covers(p)
@@ -343,7 +429,8 @@ def _assert_naics_are_real() -> None:
             'CONCEPT_MAP advertises NAICS prefixes that do not exist, which '
             'would silently yield no weights downstream: ' + '; '.join(bad)
         )
-    print(f'  NAICS prefixes checked against the 2017 list: all {len(CONCEPT_MAP)} ok')
+    checked = len(CONCEPT_MAP) + len(NON_TRADE_MAP)
+    print(f'  NAICS prefixes checked against the 2017 list: all {checked} ok')
 
 
 if __name__ == '__main__':
