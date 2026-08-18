@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 
@@ -221,7 +222,10 @@ def main() -> None:
             lineterminator='\r\n',
         )
         w.writeheader()
-        w.writerows(df.to_dict('records'))
+        # to_dict types its keys Hashable, since DataFrame columns can be any
+        # hashable; DictWriter wants str. They are str here by construction -
+        # the fieldnames above and the frame's columns are the same literals.
+        w.writerows(cast('list[dict[str, Any]]', df.to_dict('records')))
 
     per = df.groupby('Activity')['Sector'].nunique().sort_values()
     print(f'wrote {OUT.relative_to(MAPPING.parents[2])}')
