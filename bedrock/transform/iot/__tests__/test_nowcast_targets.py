@@ -23,7 +23,7 @@ from bedrock.transform.iot.nowcast_targets import (
 )
 from bedrock.utils.economic.balance.targets import PLACEHOLDER_PREFIX
 
-IDENTITY_NAMES = ('T11', 'T12', 'T13', 'T14', 'T15', 'T16')
+IDENTITY_NAMES = ('T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17')
 
 
 def _by_name() -> dict[str, object]:
@@ -131,3 +131,30 @@ def test_weights_order_identity_above_expenditure_above_income() -> None:
 @pytest.mark.parametrize('name', IDENTITY_NAMES)
 def test_no_identity_carries_a_placeholder(name: str) -> None:
     assert not _by_name()[name].source.startswith(PLACEHOLDER_PREFIX)  # type: ignore[attr-defined]
+
+
+def test_the_basic_to_producer_identity_is_cross_block_and_uses_the_wedge() -> None:
+    """T17 is the only constraint the Supply industry columns have.
+
+    The Supply panel is at basic prices and carries ``TOP``/``SUB`` by
+    commodity; the wedge by *industry* exists only on the Use table, which is
+    what forces this identity to span both blocks.
+    """
+    t17 = _by_name()['T17']
+    assert t17.is_cross_block  # type: ignore[attr-defined]
+    terms = t17.terms  # type: ignore[attr-defined]
+    assert [(t.block, t.coefficient) for t in terms] == [
+        ('supply', 1.0),
+        ('use', -1.0),
+        ('use', 1.0),
+    ]
+    # the wedge term reads exactly the two product-tax rows
+    assert terms[2].restrict_to == ('T00TOP', 'T00SUB')
+
+
+def test_t17_carries_the_held_out_s00900_make_rather_than_zero() -> None:
+    """Dropping ``S00900`` from the commodity axis leaves its Supply make row
+    unaccounted for; pretending the identity nets to zero is wrong by 3,468."""
+    t17 = _by_name()['T17']
+    assert float(t17.values.sum()) != 0.0  # type: ignore[attr-defined]
+    assert t17.allow_negative  # type: ignore[attr-defined]

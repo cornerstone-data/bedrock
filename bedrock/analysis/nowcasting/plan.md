@@ -949,7 +949,7 @@ what remains is the engine itself.
 |---|---|
 | [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic, engine-agnostic: `Target`, `SutMask`, the offset method, the precheck |
 | [`transform/iot/nowcast_mask.py`](../../transform/iot/nowcast_mask.py) | the mask sourcing — Tiers 0/1/3/4, and the panel labels |
-| [`transform/iot/nowcast_targets.py`](../../transform/iot/nowcast_targets.py) | the target set — T1 through T16 |
+| [`transform/iot/nowcast_targets.py`](../../transform/iot/nowcast_targets.py) | the target set — T1 through T17 |
 
 **The engine's contract is narrow.** It receives a seed carrying a *participation* mask and a set of
 *residual* targets, and returns a balanced matrix. It never handles fixed values, sign
@@ -1000,7 +1000,7 @@ The residual check is the useful one: on the published 2017 tables every hard co
 BEA's $1M publication rounding, worst **21 on a $34 trillion table**. If an engine change breaks a
 constraint definition, that number moves and nothing else in the pipeline would say so.
 
-⚠️ **Values are part real, part placeholder — shapes are not.** T1 (gross output) and T11-T16 (the
+⚠️ **Values are part real, part placeholder — shapes are not.** T1 (gross output) and T11-T17 (the
 identities) carry real values. T2, T4 and T6-T9 carry `PLACEHOLDER:`-prefixed sources while the NIPA
 and ITA reads are wired, and `precheck` **refuses to certify a set containing one** unless
 `allow_placeholders=True` is passed. Their shapes, labels and aggregators are correct, so an engine

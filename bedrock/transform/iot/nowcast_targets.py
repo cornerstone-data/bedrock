@@ -44,10 +44,19 @@ Supply column sum (``T007``)     misses GO by up to **88,363**
 ===============================  ==============================
 
 which is §4's point restated: gross output is published at *producer* prices and
-the Supply table's industry column is at *basic*. The two differ by
-``T00TOP + T00SUB`` per industry - **a plain sum**, because the balance stores
-subsidies negative. So T1 is imposed on the Use column alone, and the Supply
-column is left for the commodity identity T11 to constrain.
+the Supply table's industry column is at *basic*. So T1 is imposed on the Use
+column alone.
+
+**The Supply industry column is constrained instead by T17**, the basic-to-
+producer identity::
+
+    BAS + TAX - SUB = PRO          BEA's statement
+    supply.col + T00TOP + T00SUB = use.col      here, subsidies stored negative
+
+⚠️ **The wedge is only available on the Use table.** The Supply panel carries
+``TOP`` and ``SUB`` by *commodity*; nothing on it gives product taxes by
+*industry*. That is what makes T17 cross-block, and it is the only constraint
+the Supply industry columns have - without it that whole axis is free.
 
 ⚠️ ``4200ID`` is the sharpest case: its Use column is 38,513 of customs duties
 and its Supply column is **zero**. See ``nowcast_mask.balance_industries``.
@@ -61,8 +70,10 @@ from typing import cast
 
 import pandas as pd
 
+from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
+    EXCLUDED_COMMODITIES,
     ONE_TO_ONE_FD,
     SUPPLY_BRIDGE_COLUMNS,
     balance_commodities,
@@ -199,6 +210,24 @@ def industry_output_target(year: int) -> Target:
 # --------------------------------------------------------------------------
 
 
+def held_out_supply_make(year: int = 2017) -> pd.Series:
+    """The Supply make row of ``S00900``, by industry - held out of the balance.
+
+    ``S00900`` leaves the commodity axis under Tier 4 and is re-derived from
+    ``-F010 + Supply T016`` afterwards. Its *make* row does not vanish, though:
+    it is 3,468 of domestic production spread across industries, and dropping
+    it from the panel breaks the basic-to-producer identity T17 by exactly that
+    amount. Carried here as a known constant rather than pretended to be zero.
+    """
+    del year  # 2017 make until the nowcast Supply block exists
+    supply = _load_2017_detail_supply_use_usa('Supply_detail')
+    industries = list(balance_industries())
+    row = _row(supply, EXCLUDED_COMMODITIES[0])[industries]
+    values = pd.to_numeric(row, errors='coerce').fillna(0.0).astype(float)
+    values.index = pd.Index(industries, name='industry')
+    return values
+
+
 def identity_targets() -> list[Target]:
     """The six constraints that cost nothing because both sides are internal.
 
@@ -316,6 +345,35 @@ def identity_targets() -> list[Target]:
             source='identity sum(TRANS) = 0',
             name='T16',
             hard=True,
+        ),
+        # T17 - basic to producer, per industry. The Supply industry column
+        # is industry output at *basic* prices; the Use industry column is the
+        # same output at *producer* prices. The wedge is the product-tax rows,
+        # and it is only available on the **Use** table - the Supply panel
+        # carries TOP and SUB by commodity, never by industry. That is what
+        # makes this identity the only constraint the Supply industry columns
+        # have.
+        #
+        # BEA states it as BAS + TAX - SUB = PRO. Here it is a plain sum
+        # because the balance stores subsidies negative - the same convention
+        # flip that made T12 a difference rather than a sum.
+        #
+        # ⚠️ The right-hand side is not zero. S00900 is held out of the
+        # commodity axis (Tier 4) but its Supply make row is not zero, so the
+        # panel's column sum is short by exactly that row. Carried explicitly;
+        # with it the identity holds to 12 per industry on 2017, without it to
+        # 3,464.
+        Target(
+            terms=(
+                TargetTerm('supply', 'column', 1.0),
+                TargetTerm('use', 'column', -1.0),
+                TargetTerm('use', 'column', 1.0, restrict_to=('T00TOP', 'T00SUB')),
+            ),
+            values=-held_out_supply_make(),
+            source='identity BAS + TOP + SUB = PRO (S00900 make held out)',
+            name='T17',
+            hard=True,
+            allow_negative=True,
         ),
     ]
 
