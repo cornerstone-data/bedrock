@@ -1,0 +1,320 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+Census_EC_PxI,aircraft and aeronautical equipment,BEA_2017_Code,336411,,seed; via NAICS 336411
+Census_EC_PxI,"aircraft equipment and supplies, including engines and engine parts",BEA_2017_Code,336412,,seed; via NAICS 336412
+Census_EC_PxI,alcoholic beverages,BEA_2017_Code,312120,,corrected; via NAICS 312120
+Census_EC_PxI,alcoholic beverages,BEA_2017_Code,312130,,corrected; via NAICS 312130
+Census_EC_PxI,alcoholic beverages,BEA_2017_Code,312140,,corrected; via NAICS 312140
+Census_EC_PxI,alloy steel,BEA_2017_Code,331200,,seed; via NAICS 331221
+Census_EC_PxI,"antiques, collectibles, art works, and other used goods (except transportation and machinery goods)",BEA_2017_Code,S00402,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,art supplies,BEA_2017_Code,339940,,seed; via NAICS 339940
+Census_EC_PxI,"artificial flowers, plants, and trees",BEA_2017_Code,339990,,corrected; via NAICS 339999
+Census_EC_PxI,athletic uniforms,BEA_2017_Code,315000,,seed; via NAICS 31528
+Census_EC_PxI,audio and video recordings,BEA_2017_Code,334610,,seed; via NAICS 334614
+Census_EC_PxI,"audio and video recordings, including purchased downloads",BEA_2017_Code,512200,,corrected; via NAICS 512250
+Census_EC_PxI,automobiles and light-duty trucks,BEA_2017_Code,336111,,seed; via NAICS 336111
+Census_EC_PxI,"automotive chemicals, including polishes and cleaners, fuel and oil additives, and antifreeze",BEA_2017_Code,3259A0,,seed; via NAICS 325998
+Census_EC_PxI,automotive fuels,BEA_2017_Code,324110,,seed; via NAICS 324110
+Census_EC_PxI,automotive parts and supplies,BEA_2017_Code,336390,,seed; via NAICS 336390
+Census_EC_PxI,baked goods,BEA_2017_Code,311810,,seed; via NAICS 311812
+Census_EC_PxI,baking ingredients,BEA_2017_Code,311210,,seed; via NAICS 31121
+Census_EC_PxI,baking ingredients,BEA_2017_Code,311221,,seed; via NAICS 31122
+Census_EC_PxI,baking ingredients,BEA_2017_Code,311224,,seed; via NAICS 31122
+Census_EC_PxI,baking ingredients,BEA_2017_Code,311225,,seed; via NAICS 31122
+Census_EC_PxI,"balloons, clothes hangers, foam mats, lawn ornaments, and jewelry boxes",BEA_2017_Code,326190,,seed; via NAICS 326199
+Census_EC_PxI,"bath, facial, and hand soaps",BEA_2017_Code,325610,,seed; via NAICS 325611
+Census_EC_PxI,"batteries, except automotive",BEA_2017_Code,335999,,seed; via NAICS 335999
+Census_EC_PxI,beer and ale,BEA_2017_Code,312120,,seed; via NAICS 31212
+Census_EC_PxI,"bicycles and other cycles, all types, except children's sidewalk bikes, and parts and accessories",BEA_2017_Code,336991,,seed; via NAICS 336991
+Census_EC_PxI,"blank cds, dvds, and other recordable media",BEA_2017_Code,334610,,seed; via NAICS 334614
+Census_EC_PxI,boats and go-carts,BEA_2017_Code,336612,,seed; via NAICS 336612
+Census_EC_PxI,boats and other sports vehicles,BEA_2017_Code,336612,,seed; via NAICS 336612
+Census_EC_PxI,"bolts, nuts, rivets, and other fasteners, except nails",BEA_2017_Code,332720,,seed; via NAICS 332722
+Census_EC_PxI,books,BEA_2017_Code,323110,,seed; via NAICS 323117
+Census_EC_PxI,brewers' products,BEA_2017_Code,312120,,seed; via NAICS 312120
+Census_EC_PxI,building and construction polystyrene and polyurethane foam products,BEA_2017_Code,326140,,seed; via NAICS 326140
+Census_EC_PxI,"candy, prepackaged cookies, and snack foods",BEA_2017_Code,311300,,seed; via NAICS 311340
+Census_EC_PxI,canvas awnings,BEA_2017_Code,314900,,corrected; via NAICS 314910
+Census_EC_PxI,caskets and other funeral goods,BEA_2017_Code,339990,,seed; via NAICS 339995
+Census_EC_PxI,"caskets, monuments, grave markers, and other funeral goods",BEA_2017_Code,339990,,seed; via NAICS 339995
+Census_EC_PxI,"chemicals, except explosives and automotive, drillers, and sanitation chemicals",BEA_2017_Code,325190,,seed; via NAICS 325199
+Census_EC_PxI,"children's wear, including boys', girls', and infants' and toddlers' clothing and accessories",BEA_2017_Code,315000,,seed; via NAICS 315240
+Census_EC_PxI,cleaning chemicals,BEA_2017_Code,325610,,seed; via NAICS 325612
+Census_EC_PxI,"clocks, trophies, and works of art",BEA_2017_Code,339990,,corrected; via NAICS 339999
+Census_EC_PxI,clothing accessories,BEA_2017_Code,315000,,seed; via NAICS 3159
+Census_EC_PxI,coal,BEA_2017_Code,212100,,seed; via NAICS 212112
+Census_EC_PxI,"coffee, tea, and powdered drink mixes",BEA_2017_Code,311920,,seed; via NAICS 31192
+Census_EC_PxI,commercial and service industry equipment,BEA_2017_Code,333318,,seed; via NAICS 333318
+Census_EC_PxI,commercial furniture,BEA_2017_Code,33721A,,seed; via NAICS 337214
+Census_EC_PxI,commercial photography and motion picture equipment,BEA_2017_Code,333316,,seed; via NAICS 333316
+Census_EC_PxI,communications equipment,BEA_2017_Code,334220,,seed; via NAICS 334220
+Census_EC_PxI,computer software,BEA_2017_Code,511200,,seed; via NAICS 511210
+Census_EC_PxI,"computers and peripheral equipment, communications equipment, and related products",BEA_2017_Code,334111,,seed; via NAICS 334111
+Census_EC_PxI,"computers and peripheral equipment, except computer components",BEA_2017_Code,334118,,seed; via NAICS 334118
+Census_EC_PxI,"concrete, cement, sand, gravel, stone, brick, block, and tile",BEA_2017_Code,327310,,seed; via NAICS 327310
+Census_EC_PxI,condensing units for commercial refrigerators,BEA_2017_Code,333415,,seed; via NAICS 333415
+Census_EC_PxI,confectionery and snack foods,BEA_2017_Code,311300,,seed; via NAICS 3113
+Census_EC_PxI,"construction, forestry, and mining machinery and equipment, including attachments",BEA_2017_Code,333120,,seed; via NAICS 333120
+Census_EC_PxI,"construction, forestry, and mining machinery parts and supplies",BEA_2017_Code,333120,,seed; via NAICS 333120
+Census_EC_PxI,"cookies, bread, and baked goods",BEA_2017_Code,311810,,seed; via NAICS 31181
+Census_EC_PxI,copper plumbing pipes and tubing,BEA_2017_Code,331420,,seed; via NAICS 331420
+Census_EC_PxI,cosmetics and fragrances,BEA_2017_Code,325620,,seed; via NAICS 325620
+Census_EC_PxI,"cosmetics, beauty supplies, perfumes and colognes, including hair preparations and hair brushes",BEA_2017_Code,325620,,corrected; via NAICS 325620
+Census_EC_PxI,costume and novelty jewelry,BEA_2017_Code,339910,,seed; via NAICS 339910
+Census_EC_PxI,costume jewelry,BEA_2017_Code,339910,,seed; via NAICS 33991
+Census_EC_PxI,"costumes, vestments, and unisex clothing",BEA_2017_Code,315000,,seed; via NAICS 315280
+Census_EC_PxI,crude oil,BEA_2017_Code,211000,,seed; via NAICS 211120
+Census_EC_PxI,"cutlery, except disposable plastics",BEA_2017_Code,332200,,corrected; via NAICS 332215
+Census_EC_PxI,"dairy products, except dried, canned, condensed, and evaporated dairy products",BEA_2017_Code,112120,,seed; via NAICS 11212
+Census_EC_PxI,"dairy products, except dried, canned, condensed, and evaporated dairy products",BEA_2017_Code,311513,,seed; via NAICS 311513
+Census_EC_PxI,"dairy products, except dried, canned, condensed, and evaporated dairy products",BEA_2017_Code,31151A,,seed; via NAICS 311511
+Census_EC_PxI,disposable paper and plastic products,BEA_2017_Code,326110,,seed; via NAICS 326113
+Census_EC_PxI,domestics and other textile home furnishings (except carpet and rugs),BEA_2017_Code,314120,,seed; via NAICS 314120
+Census_EC_PxI,eggs and dairy (except ice cream),BEA_2017_Code,112300,,corrected; via NAICS 1123
+Census_EC_PxI,eggs and dairy (except ice cream),BEA_2017_Code,31151A,,corrected; via NAICS 311511
+Census_EC_PxI,"eggs and poultry, except canned and frozen poultry products",BEA_2017_Code,112300,,seed; via NAICS 1123
+Census_EC_PxI,"eggs and poultry, except canned and frozen poultry products",BEA_2017_Code,311615,,seed; via NAICS 311615
+Census_EC_PxI,electric light bulbs,BEA_2017_Code,335110,,seed; via NAICS 335110
+Census_EC_PxI,"electrical, communication, and lighting system products",BEA_2017_Code,335120,,seed; via NAICS 335121
+Census_EC_PxI,"electricity generation, control, and storage equipment",BEA_2017_Code,335999,,seed; via NAICS 335999
+Census_EC_PxI,"fabrics, yarns, and other sewing materials and supplies",BEA_2017_Code,313200,,seed; via NAICS 313210
+Census_EC_PxI,farm and agricultural supplies,BEA_2017_Code,325310,,seed; via NAICS 325314
+Census_EC_PxI,farm machinery and equipment,BEA_2017_Code,333111,,seed; via NAICS 333111
+Census_EC_PxI,farm machinery parts and supplies,BEA_2017_Code,333111,,seed; via NAICS 333111
+Census_EC_PxI,"farm supplies, including agricultural chemicals, feed, and fertilizers",BEA_2017_Code,325310,,seed; via NAICS 325312
+Census_EC_PxI,fine jewelry and watches,BEA_2017_Code,339910,,seed; via NAICS 339910
+Census_EC_PxI,fire extinguishers and fire safety equipment,BEA_2017_Code,332999,,corrected; via NAICS 332999
+Census_EC_PxI,"fish and seafood, except canned and frozen fish and seafood",BEA_2017_Code,112A00,,corrected; via NAICS 1125
+Census_EC_PxI,"fish and seafood, except canned and frozen fish and seafood",BEA_2017_Code,114000,,corrected; via NAICS 1141
+Census_EC_PxI,flat iron and steel products,BEA_2017_Code,331200,,seed; via NAICS 331221
+Census_EC_PxI,flooring and floor coverings,BEA_2017_Code,321910,,corrected; via NAICS 321918
+Census_EC_PxI,"food and beverage basic materials, including flavoring extracts, fruit peel, sausage casings, hop extract, malt, and yeast",BEA_2017_Code,311930,,seed; via NAICS 31193
+Census_EC_PxI,food dry goods and other foods purchased for future consumption,BEA_2017_Code,311420,,seed; via NAICS 311423
+Census_EC_PxI,footwear and footwear accessories,BEA_2017_Code,316000,,seed; via NAICS 3162
+Census_EC_PxI,fresh fish and seafood,BEA_2017_Code,112A00,,corrected; via NAICS 1125
+Census_EC_PxI,fresh fish and seafood,BEA_2017_Code,114000,,corrected; via NAICS 1141
+Census_EC_PxI,"fresh flowers, florists' supplies, live trees, plants, and nursery stock",BEA_2017_Code,111400,,corrected; via NAICS 1114
+Census_EC_PxI,fresh fruit and vegetables,BEA_2017_Code,111200,,corrected; via NAICS 1112
+Census_EC_PxI,fresh fruit and vegetables,BEA_2017_Code,111300,,corrected; via NAICS 1113
+Census_EC_PxI,fresh fruits and vegetables,BEA_2017_Code,111200,,seed; via NAICS 1112
+Census_EC_PxI,fresh fruits and vegetables,BEA_2017_Code,111300,,seed; via NAICS 1113
+Census_EC_PxI,"fresh meat and meat products, except canned and frozen",BEA_2017_Code,112120,,seed; via NAICS 1121
+Census_EC_PxI,"fresh meat and meat products, except canned and frozen",BEA_2017_Code,1121A0,,seed; via NAICS 1121
+Census_EC_PxI,"fresh meat and meat products, except canned and frozen",BEA_2017_Code,112A00,,seed; via NAICS 1122
+Census_EC_PxI,"fresh meat and meat products, except canned and frozen",BEA_2017_Code,31161A,,seed; via NAICS 311611
+Census_EC_PxI,fresh meat and poultry,BEA_2017_Code,31161A,,seed; via NAICS 311611
+Census_EC_PxI,frozen foods,BEA_2017_Code,311410,,seed; via NAICS 311412
+Census_EC_PxI,gift wrap,BEA_2017_Code,322230,,seed; via NAICS 322230
+Census_EC_PxI,glasses and contact lenses,BEA_2017_Code,339115,,seed; via NAICS 339115
+Census_EC_PxI,golf equipment,BEA_2017_Code,339920,,seed; via NAICS 339920
+Census_EC_PxI,"grains, beans, and seeds",BEA_2017_Code,1111A0,,corrected; via NAICS 1111
+Census_EC_PxI,"grains, beans, and seeds",BEA_2017_Code,1111B0,,corrected; via NAICS 1111
+Census_EC_PxI,grocery specialties,BEA_2017_Code,311990,,seed; via NAICS 311991
+Census_EC_PxI,"hand tools, power driven",BEA_2017_Code,333991,,seed; via NAICS 333991
+Census_EC_PxI,"hardware, nonpower hand tools, and other building materials and supplies",BEA_2017_Code,332500,,seed; via NAICS 332510
+Census_EC_PxI,harness and saddlery equipment,BEA_2017_Code,316000,,corrected; via NAICS 3169
+Census_EC_PxI,health aids and first aid supplies,BEA_2017_Code,339113,,seed; via NAICS 339113
+Census_EC_PxI,heating and hvac equipment,BEA_2017_Code,333415,,seed; via NAICS 333415
+Census_EC_PxI,"heavy trucks, trailers, and road tractors, more than 33,000 lb",BEA_2017_Code,336120,,seed; via NAICS 336120
+Census_EC_PxI,"hides, skins, and pelts",BEA_2017_Code,31161A,,corrected; via NAICS 311611
+Census_EC_PxI,"hides, skins, and pelts",BEA_2017_Code,316000,,corrected; via NAICS 316110
+Census_EC_PxI,home health care equipment and supplies,BEA_2017_Code,339113,,seed; via NAICS 339113
+Census_EC_PxI,"home lawn and garden equipment, tools, and supplies",BEA_2017_Code,333112,,corrected; via NAICS 333112
+Census_EC_PxI,"home lawn and garden equipment, tools, and supplies, except fresh flowers, florists' supplies, live trees, plants, and nursery stock",BEA_2017_Code,333112,,corrected; via NAICS 333112
+Census_EC_PxI,home lawn and garden goods,BEA_2017_Code,333112,,corrected; via NAICS 333112
+Census_EC_PxI,household and lawn furniture,BEA_2017_Code,337110,,seed; via NAICS 3371
+Census_EC_PxI,household and lawn furniture,BEA_2017_Code,337121,,seed; via NAICS 3371
+Census_EC_PxI,household and lawn furniture,BEA_2017_Code,337122,,seed; via NAICS 3371
+Census_EC_PxI,household and lawn furniture,BEA_2017_Code,337127,,seed; via NAICS 3371
+Census_EC_PxI,household and lawn furniture,BEA_2017_Code,33712N,,seed; via NAICS 3371
+Census_EC_PxI,"household appliances, including personal care appliances",BEA_2017_Code,335210,,corrected; via NAICS 335210
+Census_EC_PxI,"household appliances, including personal care appliances",BEA_2017_Code,335220,,corrected; via NAICS 335220
+Census_EC_PxI,household cleaning supplies,BEA_2017_Code,325610,,seed; via NAICS 325611
+Census_EC_PxI,"household fuels, including oil, lp gas, wood, coal",BEA_2017_Code,324190,,seed; via NAICS 324199
+Census_EC_PxI,"household furnishings, except artificial flowers, plants, and trees",BEA_2017_Code,314120,,corrected; via NAICS 314120
+Census_EC_PxI,"household pets, pet foods, and pet supplies",BEA_2017_Code,112A00,,corrected; via NAICS 112990
+Census_EC_PxI,"household pets, pet foods, and pet supplies",BEA_2017_Code,311111,,corrected; via NAICS 311111
+Census_EC_PxI,"hunting, fishing, hiking, and camping equipment",BEA_2017_Code,339920,,seed; via NAICS 339920
+Census_EC_PxI,"hydraulic and pneumatic components, accessories, and parts",BEA_2017_Code,33291A,,seed; via NAICS 332912
+Census_EC_PxI,hydraulic and pneumatic cylinders and rotary actuators,BEA_2017_Code,33399B,,seed; via NAICS 333995
+Census_EC_PxI,"hydraulic and pneumatic pumps, motors, and parts",BEA_2017_Code,33399B,,seed; via NAICS 333996
+Census_EC_PxI,hydraulic and pneumatic valves,BEA_2017_Code,33291A,,seed; via NAICS 332912
+Census_EC_PxI,ice,BEA_2017_Code,312110,,seed; via NAICS 312113
+Census_EC_PxI,indoor home furniture,BEA_2017_Code,337121,,seed; via NAICS 337121
+Census_EC_PxI,industrial containers and supplies,BEA_2017_Code,332430,,seed; via NAICS 332439
+Census_EC_PxI,industrial engines,BEA_2017_Code,333618,,seed; via NAICS 333618
+Census_EC_PxI,"industrial valves and fittings, except hydraulic valves and fittings",BEA_2017_Code,33291A,,seed; via NAICS 332911
+Census_EC_PxI,industrial water treatment equipment,BEA_2017_Code,333318,,seed; via NAICS 333318
+Census_EC_PxI,"industrial, commercial, and service industry machinery parts and supplies",BEA_2017_Code,33329A,,seed; via NAICS 333249
+Census_EC_PxI,"inedible animal or vegetable greases and oil, including linseed and cottonseed oil",BEA_2017_Code,311225,,seed; via NAICS 311225
+Census_EC_PxI,"infants' and children's clothing, to size 6x, including accessories",BEA_2017_Code,315000,,seed; via NAICS 31524
+Census_EC_PxI,"ink and printing trades supplies, except paper",BEA_2017_Code,325910,,seed; via NAICS 325910
+Census_EC_PxI,"iron and steel bars and bar-size shapes, except reinforcement bars",BEA_2017_Code,331200,,seed; via NAICS 331221
+Census_EC_PxI,iron and steel pipes and tubing,BEA_2017_Code,331200,,seed; via NAICS 331210
+Census_EC_PxI,janitorial supplies and nonpower janitorial equipment,BEA_2017_Code,339990,,seed; via NAICS 339994
+Census_EC_PxI,"jewelry, except costume",BEA_2017_Code,339910,,seed; via NAICS 33991
+Census_EC_PxI,knit and woven piece goods,BEA_2017_Code,313200,,seed; via NAICS 313210
+Census_EC_PxI,"laminates, plastic raw materials, and crude rubber",BEA_2017_Code,325211,,seed; via NAICS 325211
+Census_EC_PxI,liquefied petroleum (lp),BEA_2017_Code,324110,,corrected; via NAICS 324110
+Census_EC_PxI,livestock,BEA_2017_Code,112120,,corrected; via NAICS 1121
+Census_EC_PxI,livestock,BEA_2017_Code,1121A0,,corrected; via NAICS 1121
+Census_EC_PxI,livestock,BEA_2017_Code,112A00,,corrected; via NAICS 1122
+Census_EC_PxI,lubricating oil and greases,BEA_2017_Code,324190,,seed; via NAICS 324191
+Census_EC_PxI,"luggage, including backpacks",BEA_2017_Code,316000,,seed; via NAICS 316992
+Census_EC_PxI,"magazines and newspapers, including issue format comic books",BEA_2017_Code,511110,,seed; via NAICS 511110
+Census_EC_PxI,major household appliances and related parts and accessories,BEA_2017_Code,335220,,seed; via NAICS 335220
+Census_EC_PxI,manufactured (mobile) homes,BEA_2017_Code,3219A0,,seed; via NAICS 321991
+Census_EC_PxI,marine machinery and equipment,BEA_2017_Code,333618,,seed; via NAICS 333618
+Census_EC_PxI,marine propulsion machinery and equipment and marine supplies,BEA_2017_Code,333618,,seed; via NAICS 333618
+Census_EC_PxI,"materials and supplies for electronic and electrical equipment, appliances, and component manufacturing",BEA_2017_Code,335999,,seed; via NAICS 335999
+Census_EC_PxI,materials and supplies for glass products manufacturing,BEA_2017_Code,327993,,corrected; via NAICS 327993
+Census_EC_PxI,materials and supplies for tobacco manufacturing,BEA_2017_Code,111900,,corrected; via NAICS 111910
+Census_EC_PxI,"mattresses, box springs, and air mattresses",BEA_2017_Code,337900,,seed; via NAICS 337910
+Census_EC_PxI,mechanical power transmission supplies,BEA_2017_Code,333612,,seed; via NAICS 333612
+Census_EC_PxI,"medical, dental, and veterinary equipment",BEA_2017_Code,339112,,seed; via NAICS 339112
+Census_EC_PxI,"medical, dental, and veterinary instruments and supplies",BEA_2017_Code,339112,,seed; via NAICS 339112
+Census_EC_PxI,"medicines, vitamins, minerals, and supplements",BEA_2017_Code,325411,,seed; via NAICS 325411
+Census_EC_PxI,men's and boys' clothing,BEA_2017_Code,315000,,seed; via NAICS 31522
+Census_EC_PxI,men's and women's accessories (except costume jewelry),BEA_2017_Code,315000,,seed; via NAICS 315990
+Census_EC_PxI,men's clothing,BEA_2017_Code,315000,,seed; via NAICS 315220
+Census_EC_PxI,"metal castings, forgings, and stampings",BEA_2017_Code,331510,,corrected; via NAICS 3315
+Census_EC_PxI,"metal castings, forgings, and stampings",BEA_2017_Code,331520,,corrected; via NAICS 3315
+Census_EC_PxI,"metal castings, forgings, and stampings",BEA_2017_Code,332114,,corrected; via NAICS 3321
+Census_EC_PxI,"metal castings, forgings, and stampings",BEA_2017_Code,332119,,corrected; via NAICS 3321
+Census_EC_PxI,"metal castings, forgings, and stampings",BEA_2017_Code,33211A,,corrected; via NAICS 3321
+Census_EC_PxI,metal structural products,BEA_2017_Code,332310,,seed; via NAICS 332312
+Census_EC_PxI,"metalworking machinery and equipment, except welding equipment",BEA_2017_Code,333514,,seed; via NAICS 333514
+Census_EC_PxI,millwork,BEA_2017_Code,321910,,seed; via NAICS 321918
+Census_EC_PxI,"miscellaneous chemicals and supplies, including adhesives, dry ice and plastic materials",BEA_2017_Code,325520,,seed; via NAICS 325520
+Census_EC_PxI,"motor homes, travel trailers, and campers",BEA_2017_Code,336213,,corrected; via NAICS 336213
+Census_EC_PxI,"motor homes, travel trailers, and campers",BEA_2017_Code,336214,,corrected; via NAICS 336214
+Census_EC_PxI,motorcycles and other sports vehicles,BEA_2017_Code,336991,,seed; via NAICS 336991
+Census_EC_PxI,"motorcycles, motor scooters, motor bikes, including parts and accessories",BEA_2017_Code,336991,,seed; via NAICS 336991
+Census_EC_PxI,musical instruments,BEA_2017_Code,339990,,seed; via NAICS 339992
+Census_EC_PxI,"musical instruments, sheet music, and related items",BEA_2017_Code,339990,,seed; via NAICS 339992
+Census_EC_PxI,"nails, wire rope, strand, strapping and reinforcement mesh",BEA_2017_Code,331200,,seed; via NAICS 331222
+Census_EC_PxI,navigational and measuring equipment,BEA_2017_Code,334511,,seed; via NAICS 334511
+Census_EC_PxI,"new and rebuilt automotive parts and supplies, and trailer parts and supplies, except automotive bodies and chemicals",BEA_2017_Code,336310,,seed; via NAICS 336310
+Census_EC_PxI,"new and used aircraft, engines, and parts and accessories",BEA_2017_Code,336411,,seed; via NAICS 336411
+Census_EC_PxI,new and used automobiles,BEA_2017_Code,336111,,corrected; via NAICS 336111
+Census_EC_PxI,new and used automobiles,BEA_2017_Code,336112,,corrected; via NAICS 336112
+Census_EC_PxI,"new controlling, recording, and indicating instruments and accessories",BEA_2017_Code,334513,,seed; via NAICS 334513
+Census_EC_PxI,new food-processing machinery and equipment,BEA_2017_Code,33329A,,seed; via NAICS 333241
+Census_EC_PxI,new heavy truck bodies,BEA_2017_Code,336211,,seed; via NAICS 336211
+Census_EC_PxI,new irrigation equipment and parts,BEA_2017_Code,333111,,seed; via NAICS 333111
+Census_EC_PxI,"new light truck, van, and suv bodies",BEA_2017_Code,336211,,seed; via NAICS 336211
+Census_EC_PxI,new materials handling machinery and equipment,BEA_2017_Code,333920,,seed; via NAICS 333922
+Census_EC_PxI,new printing trades machinery and equipment,BEA_2017_Code,33329A,,seed; via NAICS 333244
+Census_EC_PxI,new textile and sewing machinery and equipment,BEA_2017_Code,33329A,,corrected; via NAICS 333249
+Census_EC_PxI,new woodworking machinery,BEA_2017_Code,33329A,,seed; via NAICS 333243
+Census_EC_PxI,"newspapers, periodicals, books and other publications, except greeting cards",BEA_2017_Code,511110,,corrected; via NAICS 511110
+Census_EC_PxI,"newspapers, periodicals, books and other publications, except greeting cards",BEA_2017_Code,511120,,corrected; via NAICS 511120
+Census_EC_PxI,"newspapers, periodicals, books and other publications, except greeting cards",BEA_2017_Code,511130,,corrected; via NAICS 511130
+Census_EC_PxI,nonagricultural insecticides,BEA_2017_Code,325320,,seed; via NAICS 325320
+Census_EC_PxI,nonelectric signs and coin-operated games,BEA_2017_Code,339950,,seed; via NAICS 339950
+Census_EC_PxI,"nonferrous metals, including magnesium, nickel, tin, lead, and zinc, except gemstones",BEA_2017_Code,331410,,corrected; via NAICS 331410
+Census_EC_PxI,"nonlumber forest products, including hewn posts, poles, and railroad ties",BEA_2017_Code,113000,,corrected; via NAICS 1133
+Census_EC_PxI,nonpackaging paper and plastic,BEA_2017_Code,322220,,corrected; via NAICS 322220
+Census_EC_PxI,nonpackaging paper and plastic,BEA_2017_Code,326190,,corrected; via NAICS 326199
+Census_EC_PxI,nonperishable (canned and packaged) food,BEA_2017_Code,311420,,seed; via NAICS 31142
+Census_EC_PxI,nonperishable (canned and packaged) food,BEA_2017_Code,311514,,seed; via NAICS 311514
+Census_EC_PxI,nonperishable (canned and packaged) food,BEA_2017_Code,311910,,seed; via NAICS 31191
+Census_EC_PxI,nonperishable (canned and packaged) food,BEA_2017_Code,311940,,seed; via NAICS 31194
+Census_EC_PxI,nonperishable (canned and packaged) food,BEA_2017_Code,311990,,seed; via NAICS 311999
+Census_EC_PxI,nonpower driven hand tools,BEA_2017_Code,332200,,seed; via NAICS 332216
+Census_EC_PxI,"nonwood roofing, siding, and insulation products",BEA_2017_Code,324122,,seed; via NAICS 324122
+Census_EC_PxI,"notions, including buttons, ribbons, lace, sewing accessories, zippers, and bindings",BEA_2017_Code,339990,,seed; via NAICS 339993
+Census_EC_PxI,"novelties and souvenirs, except novelty glassware",BEA_2017_Code,339990,,seed; via NAICS 339999
+Census_EC_PxI,"office and school supplies, packaging and packing materials and supplies, and other general industry and miscellaneous materials and supplies",BEA_2017_Code,339940,,seed; via NAICS 339940
+Census_EC_PxI,office equipment and furniture (except computers),BEA_2017_Code,33721A,,seed; via NAICS 337214
+Census_EC_PxI,"office equipment, except computers",BEA_2017_Code,333318,,corrected; via NAICS 333318
+Census_EC_PxI,office furniture,BEA_2017_Code,33721A,,seed; via NAICS 337211
+Census_EC_PxI,office supplies,BEA_2017_Code,339940,,seed; via NAICS 339940
+Census_EC_PxI,oil well and pipeline machinery and equipment,BEA_2017_Code,333130,,seed; via NAICS 333132
+Census_EC_PxI,oil well and pipeline machinery parts and supplies,BEA_2017_Code,333130,,seed; via NAICS 333132
+Census_EC_PxI,optical and ophthalmic goods and supplies,BEA_2017_Code,339115,,seed; via NAICS 339115
+Census_EC_PxI,"orthopedic and prosthetic appliances and supplies, including wheelchairs, walkers, crutches, canes, and hearing aids",BEA_2017_Code,339113,,seed; via NAICS 339113
+Census_EC_PxI,other construction materials and supplies,BEA_2017_Code,327999,,seed; via NAICS 327999
+Census_EC_PxI,other home furnishings and accessories,BEA_2017_Code,33712N,,seed; via NAICS 337125
+Census_EC_PxI,"other industrial materials and supplies, including abrasives and welding supplies",BEA_2017_Code,332800,,seed; via NAICS 332813
+Census_EC_PxI,other materials and supplies for textile mills,BEA_2017_Code,313100,,corrected; via NAICS 313110
+Census_EC_PxI,"other petroleum products, including asphalt, road oil, and wax",BEA_2017_Code,324121,,seed; via NAICS 324121
+Census_EC_PxI,"other primary, secondary and alloyed nonferrous metals in primary and mill shapes",BEA_2017_Code,331410,,seed; via NAICS 331410
+Census_EC_PxI,"other sporting goods and equipment, excluding sport vehicles",BEA_2017_Code,339920,,seed; via NAICS 339920
+Census_EC_PxI,"other textile house furnishings, except floor coverings",BEA_2017_Code,314110,,seed; via NAICS 3141
+Census_EC_PxI,"other textile house furnishings, except floor coverings",BEA_2017_Code,314120,,seed; via NAICS 3141
+Census_EC_PxI,other transportation equipment,BEA_2017_Code,336999,,corrected; via NAICS 336999
+Census_EC_PxI,outdoor/ patio furniture,BEA_2017_Code,337122,,seed; via NAICS 337122
+Census_EC_PxI,packaged frozen food,BEA_2017_Code,311410,,seed; via NAICS 31141
+Census_EC_PxI,packaged frozen food,BEA_2017_Code,311520,,seed; via NAICS 31152
+Census_EC_PxI,packing and packaging materials and supplies,BEA_2017_Code,322220,,seed; via NAICS 322220
+Census_EC_PxI,paint and sundries,BEA_2017_Code,325510,,seed; via NAICS 325510
+Census_EC_PxI,"paint, paint supplies, and wallpaper and supplies",BEA_2017_Code,325510,,seed; via NAICS 325510
+Census_EC_PxI,pallets and skids,BEA_2017_Code,3219A0,,seed; via NAICS 321920
+Census_EC_PxI,perishable prepared foods,BEA_2017_Code,311990,,seed; via NAICS 311991
+Census_EC_PxI,"personal care paper products, including disposable diapers, feminine hygiene products, and similar",BEA_2017_Code,322291,,seed; via NAICS 322291
+Census_EC_PxI,personal hygiene supplies,BEA_2017_Code,325610,,seed; via NAICS 325611
+Census_EC_PxI,pet foods and supplies,BEA_2017_Code,311119,,seed; via NAICS 311119
+Census_EC_PxI,petroleum products marketing equipment,BEA_2017_Code,333914,,seed; via NAICS 333914
+Census_EC_PxI,photographic equipment and supplies,BEA_2017_Code,333316,,seed; via NAICS 333316
+Census_EC_PxI,photographic supplies,BEA_2017_Code,3259A0,,seed; via NAICS 325992
+Census_EC_PxI,"plastic pipes, rods, tubes, and shapes, except plastic plumbing pipes",BEA_2017_Code,326190,,seed; via NAICS 326199
+Census_EC_PxI,plastic plumbing pipes and tubing,BEA_2017_Code,326120,,seed; via NAICS 326122
+Census_EC_PxI,"plumbing equipment, except pipes and tubing",BEA_2017_Code,332913,,seed; via NAICS 332913
+Census_EC_PxI,"plumbing, electrical, and hvac supplies",BEA_2017_Code,332913,,seed; via NAICS 332913
+Census_EC_PxI,"power tools and equipment, including portable electric power tools, power air tools, stationary/bench top power tools, and accessories (blades, bits, etc.)",BEA_2017_Code,333991,,seed; via NAICS 333991
+Census_EC_PxI,precious metals,BEA_2017_Code,331410,,seed; via NAICS 331410
+Census_EC_PxI,"primary, secondary and alloyed aluminum in primary and mill shapes",BEA_2017_Code,331313,,seed; via NAICS 331313
+Census_EC_PxI,"primary, secondary and alloyed copper and brass in primary and mill shapes, except pipe and tube",BEA_2017_Code,331420,,seed; via NAICS 331420
+Census_EC_PxI,printing paper,BEA_2017_Code,322120,,seed; via NAICS 322121
+Census_EC_PxI,pulpwood,BEA_2017_Code,113000,,corrected; via NAICS 1133
+Census_EC_PxI,recyclable ferrous metal scrap,BEA_2017_Code,S00401,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,recyclable nonferrous metal scrap,BEA_2017_Code,S00401,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,recyclable paper and paperboard,BEA_2017_Code,S00401,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,recyclable plastics and rubber,BEA_2017_Code,S00401,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,"recyclable textiles, including rags and textile scraps",BEA_2017_Code,S00401,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,"refined petroleum products, except liquefied petroleum (lp)",BEA_2017_Code,324110,,seed; via NAICS 324110
+Census_EC_PxI,refrigeration equipment,BEA_2017_Code,333415,,seed; via NAICS 333415
+Census_EC_PxI,religious supplies,BEA_2017_Code,339990,,corrected; via NAICS 339999
+Census_EC_PxI,"restaurant, commercial food service and hotel equipment",BEA_2017_Code,33329A,,seed; via NAICS 333241
+Census_EC_PxI,"rough, dressed, and finished dimensional lumber, plywood and panels",BEA_2017_Code,321100,,corrected; via NAICS 321113
+Census_EC_PxI,"rough, dressed, and finished dimensional lumber, plywood and panels",BEA_2017_Code,321200,,corrected; via NAICS 3212
+Census_EC_PxI,safes and vaults,BEA_2017_Code,332999,,seed; via NAICS 332999
+Census_EC_PxI,safety equipment,BEA_2017_Code,339113,,seed; via NAICS 339113
+Census_EC_PxI,school supplies,BEA_2017_Code,339940,,seed; via NAICS 339940
+Census_EC_PxI,semi-finished iron and steel products,BEA_2017_Code,331200,,seed; via NAICS 331221
+Census_EC_PxI,"small household appliances, including mixers; blenders; can openers; toasters; coffee makers; frypans; personal care appliances, such as hair dryers, curling irons, and shavers; tap water purifiers and filters; etc",BEA_2017_Code,335210,,seed; via NAICS 335210
+Census_EC_PxI,smoking accessories,BEA_2017_Code,339990,,corrected; via NAICS 339999
+Census_EC_PxI,soft drinks and nonalcoholic beverages,BEA_2017_Code,312110,,seed; via NAICS 312111
+Census_EC_PxI,"soft drinks, bottled water, juices, and nonalcoholic beverages",BEA_2017_Code,312110,,seed; via NAICS 312111
+Census_EC_PxI,"soybean, cottonseed, linseed, peanut, sunflower seed, and all other oilseed cake and meal",BEA_2017_Code,311224,,seed; via NAICS 311224
+Census_EC_PxI,"soybean, cottonseed, linseed, peanut, sunflower seed, and all other oilseed cake and meal",BEA_2017_Code,311225,,seed; via NAICS 311225
+Census_EC_PxI,"specialty pharmaceuticals, including vaccines, laboratory diagnostic reagents, and similar",BEA_2017_Code,325412,,seed; via NAICS 325412
+Census_EC_PxI,sporting and recreational equipment,BEA_2017_Code,339920,,seed; via NAICS 339920
+Census_EC_PxI,stainless steel,BEA_2017_Code,331110,,corrected; via NAICS 331110
+Census_EC_PxI,store equipment,BEA_2017_Code,333318,,corrected; via NAICS 333318
+Census_EC_PxI,strapping and tape,BEA_2017_Code,332999,,seed; via NAICS 332999
+Census_EC_PxI,swimming pools and swimming pool supplies,BEA_2017_Code,326190,,corrected; via NAICS 326199
+Census_EC_PxI,synthetic resins,BEA_2017_Code,325211,,seed; via NAICS 325211
+Census_EC_PxI,"tableware, kitchenware, cookware, and glassware, except cutlery and novelty glassware",BEA_2017_Code,327100,,corrected; via NAICS 327110
+Census_EC_PxI,"tableware, kitchenware, cookware, and glassware, except cutlery and novelty glassware",BEA_2017_Code,327200,,corrected; via NAICS 327212
+Census_EC_PxI,"tableware, kitchenware, cookware, and glassware, except cutlery and novelty glassware",BEA_2017_Code,332200,,corrected; via NAICS 332215
+Census_EC_PxI,"tableware, kitchenware, cookware, glassware",BEA_2017_Code,327100,,seed; via NAICS 327110
+Census_EC_PxI,"televisions, audio and video equipment",BEA_2017_Code,334300,,seed; via NAICS 334310
+Census_EC_PxI,"televisions, home audio and visual equipment",BEA_2017_Code,334300,,seed; via NAICS 334310
+Census_EC_PxI,"textile bags, bagging and burlap",BEA_2017_Code,314900,,seed; via NAICS 314910
+Census_EC_PxI,tires and tubes,BEA_2017_Code,326210,,seed; via NAICS 326211
+Census_EC_PxI,tobacco products and electronic cigarettes,BEA_2017_Code,312200,,seed; via NAICS 3122
+Census_EC_PxI,tobacco products and smoking accessories,BEA_2017_Code,312200,,seed; via NAICS 312230
+Census_EC_PxI,"toys, games, and hobby and craft supplies",BEA_2017_Code,339930,,seed; via NAICS 339930
+Census_EC_PxI,"toys, games, and hobby goods",BEA_2017_Code,339930,,seed; via NAICS 339930
+Census_EC_PxI,used automotive parts and accessories,BEA_2017_Code,S00402,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,used industrial machinery and equipment,BEA_2017_Code,S00402,,direct-BEA; no NAICS counterpart
+Census_EC_PxI,vitamins and nutritional and herbal supplements,BEA_2017_Code,325411,,seed; via NAICS 325411
+Census_EC_PxI,window treatments,BEA_2017_Code,337900,,seed; via NAICS 33792
+Census_EC_PxI,"window treatments, including rods, poles, and fixtures",BEA_2017_Code,337900,,seed; via NAICS 337920
+Census_EC_PxI,"wine and distilled liquor, including premixed alcoholic drinks",BEA_2017_Code,312130,,corrected; via NAICS 312130
+Census_EC_PxI,"wine and distilled liquor, including premixed alcoholic drinks",BEA_2017_Code,312140,,corrected; via NAICS 312140
+Census_EC_PxI,"wire, including plain, coated, barbed, and twisted",BEA_2017_Code,331200,,seed; via NAICS 331222
+Census_EC_PxI,women's clothing,BEA_2017_Code,315000,,seed; via NAICS 315240
+Census_EC_PxI,"women's, misses', and girls' clothing",BEA_2017_Code,315000,,seed; via NAICS 31524
+Census_EC_PxI,yarns,BEA_2017_Code,313100,,seed; via NAICS 313110

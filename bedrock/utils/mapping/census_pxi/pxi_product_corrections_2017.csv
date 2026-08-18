@@ -1,0 +1,77 @@
+product,target_scheme,target,rationale
+used automotive parts and accessories,BEA,S00402,used goods have no NAICS; BEA carries them as S00402
+used industrial machinery and equipment,BEA,S00402,used goods have no NAICS; BEA carries them as S00402
+"antiques, collectibles, art works, and other used goods (except transportation and machinery goods)",BEA,S00402,used goods have no NAICS; BEA carries them as S00402
+recyclable ferrous metal scrap,BEA,S00401,scrap has no NAICS; a steel mill consumes scrap rather than being it
+recyclable nonferrous metal scrap,BEA,S00401,scrap has no NAICS
+recyclable paper and paperboard,BEA,S00401,scrap has no NAICS; paperboard mills consume it
+recyclable plastics and rubber,BEA,S00401,scrap has no NAICS
+"recyclable textiles, including rags and textile scraps",BEA,S00401,scrap has no NAICS
+"newspapers, periodicals, books and other publications, except greeting cards",NAICS,511110,publishers make the good; newspaper half
+"newspapers, periodicals, books and other publications, except greeting cards",NAICS,511120,periodical half
+"newspapers, periodicals, books and other publications, except greeting cards",NAICS,511130,book half
+"fresh flowers, florists' supplies, live trees, plants, and nursery stock",NAICS,1114,greenhouse nursery and floriculture production grows them
+new and used automobiles,NAICS,336111,automobile manufacturing
+new and used automobiles,NAICS,336112,light truck and utility vehicle manufacturing
+"motor homes, travel trailers, and campers",NAICS,336213,motor home manufacturing
+"motor homes, travel trailers, and campers",NAICS,336214,travel trailer and camper manufacturing
+"household furnishings, except artificial flowers, plants, and trees",NAICS,314120,curtain and linen mills
+"tableware, kitchenware, cookware, and glassware, except cutlery and novelty glassware",NAICS,327110,pottery ceramics and plumbing fixture manufacturing
+"tableware, kitchenware, cookware, and glassware, except cutlery and novelty glassware",NAICS,327212,other pressed and blown glass and glassware
+"tableware, kitchenware, cookware, and glassware, except cutlery and novelty glassware",NAICS,332215,metal kitchen cookware and utensils
+"household appliances, including personal care appliances",NAICS,335210,small electrical appliance manufacturing
+"household appliances, including personal care appliances",NAICS,335220,major household appliance manufacturing
+"home lawn and garden equipment, tools, and supplies",NAICS,333112,lawn and garden tractor and home lawn and garden equipment
+home lawn and garden goods,NAICS,333112,lawn and garden tractor and home lawn and garden equipment
+"home lawn and garden equipment, tools, and supplies, except fresh flowers, florists' supplies, live trees, plants, and nursery stock",NAICS,333112,lawn and garden tractor and home lawn and garden equipment
+"cosmetics, beauty supplies, perfumes and colognes, including hair preparations and hair brushes",NAICS,325620,toilet preparation manufacturing
+"household pets, pet foods, and pet supplies",NAICS,311111,dog and cat food manufacturing carries the value
+"household pets, pet foods, and pet supplies",NAICS,112990,all other animal production for the live-pet half
+"clocks, trophies, and works of art",NAICS,339999,all other miscellaneous manufacturing
+"artificial flowers, plants, and trees",NAICS,339999,all other miscellaneous manufacturing
+swimming pools and swimming pool supplies,NAICS,326199,all other plastics product manufacturing
+canvas awnings,NAICS,314910,314912 is a 2007 code; 2017 equivalent is textile bag and canvas mills
+"rough, dressed, and finished dimensional lumber, plywood and panels",NAICS,321113,sawmills for the lumber half
+"rough, dressed, and finished dimensional lumber, plywood and panels",NAICS,3212,veneer plywood and engineered wood for the panel half
+flooring and floor coverings,NAICS,321918,other millwork including flooring; 326192 is not a 2017 code
+"nonferrous metals, including magnesium, nickel, tin, lead, and zinc, except gemstones",NAICS,331410,331419 is a 2012 code; 2017 is nonferrous smelting and refining
+"metal castings, forgings, and stampings",NAICS,3315,foundries for the casting half; 332100 is not a real code
+"metal castings, forgings, and stampings",NAICS,3321,forging and stamping for the rest
+new textile and sewing machinery and equipment,NAICS,333249,333292 is a 2012 code; absorbed into other industrial machinery
+"office equipment, except computers",NAICS,333318,333313 is a 2012 code; 2017 is other commercial and service industry machinery
+other transportation equipment,NAICS,336999,all other transportation equipment manufacturing
+"audio and video recordings, including purchased downloads",NAICS,512250,512220 is superseded; 2017 is record production and distribution
+"grains, beans, and seeds",NAICS,1111,farm output not animal food manufacturing
+"hides, skins, and pelts",NAICS,311611,slaughtering byproduct
+"hides, skins, and pelts",NAICS,316110,leather and hide tanning and finishing
+livestock,NAICS,1121,cattle ranching and farming
+livestock,NAICS,1122,hog and pig farming
+livestock,NAICS,1124,sheep and goat farming
+eggs and dairy (except ice cream),NAICS,1123,poultry and egg production for the egg half
+eggs and dairy (except ice cream),NAICS,311511,fluid milk manufacturing for the dairy half
+fresh fruit and vegetables,NAICS,1112,vegetable and melon farming
+fresh fruit and vegetables,NAICS,1113,fruit and tree nut farming
+"fish and seafood, except canned and frozen fish and seafood",NAICS,1141,fishing
+"fish and seafood, except canned and frozen fish and seafood",NAICS,1125,aquaculture
+fresh fish and seafood,NAICS,1141,fishing
+fresh fish and seafood,NAICS,1125,aquaculture
+pulpwood,NAICS,1133,logging
+"nonlumber forest products, including hewn posts, poles, and railroad ties",NAICS,1133,logging
+liquefied petroleum (lp),NAICS,324110,petroleum refineries make LP; 486110 is pipeline transport
+materials and supplies for tobacco manufacturing,NAICS,111910,tobacco farming supplies the leaf
+materials and supplies for glass products manufacturing,NAICS,327993,mineral wool and other glass inputs
+harness and saddlery equipment,NAICS,3169,other leather and allied product manufacturing
+"cutlery, except disposable plastics",NAICS,332215,metal kitchen cookware utensil cutlery and flatware
+fire extinguishers and fire safety equipment,NAICS,332999,all other miscellaneous fabricated metal product
+religious supplies,NAICS,339999,all other miscellaneous manufacturing
+store equipment,NAICS,333318,other commercial and service industry machinery
+stainless steel,NAICS,331110,iron and steel mills and ferroalloy manufacturing
+nonpackaging paper and plastic,NAICS,322220,paper bag and coated and treated paper for the paper half
+nonpackaging paper and plastic,NAICS,326199,all other plastics product for the plastic half
+alcoholic beverages,NAICS,312120,breweries
+alcoholic beverages,NAICS,312130,wineries
+alcoholic beverages,NAICS,312140,distilleries
+"wine and distilled liquor, including premixed alcoholic drinks",NAICS,312130,wineries
+"wine and distilled liquor, including premixed alcoholic drinks",NAICS,312140,distilleries
+other materials and supplies for textile mills,NAICS,313110,fiber yarn and thread mills
+smoking accessories,NAICS,339999,all other miscellaneous manufacturing
