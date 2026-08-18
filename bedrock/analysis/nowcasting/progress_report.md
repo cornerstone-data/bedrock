@@ -13,7 +13,7 @@ uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
-**Snapshot date:** 2026-08-14. Step 1 is a live `derive_initial_Y_pur` (`NIPA_final_dom_uses_2017` plus Trade `F04000`). Step 4 is a live `derive_initial_supply_bridge` (`MCIF` from `Trade_Imports_2017`; other bridge columns unsourced).
+**Snapshot date:** 2026-08-15. Step 1 is a live `derive_initial_Y_pur` (`NIPA_final_dom_uses_2017` plus Trade `F04000`). Step 4 is a live `derive_initial_supply_bridge` (`MCIF` from `Trade_Imports_2017`; `MDTY` and `MADJ` sourced for 2017; other bridge columns unsourced).
 
 ---
 
@@ -23,7 +23,7 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 |---|---|---|---:|---:|---|---:|---:|
 | `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **75.3%** | **69.8%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
-| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (MCIF) | **8.5%** | **8.9%** |
+| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (MCIF, MADJ, MDTY) | **14.5%** | **21.2%** |
 
 **coverage** = of the cells the reference populates, how many we populate.
 **accuracy** = of the cells we populate, how many land within tolerance.
@@ -117,19 +117,19 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 
 | scope | absent | match | partial | miss | extra |
 |---|---:|---:|---:|---:|---:|
-| cells | 1,617 | 24 | 247 | 2,931 | 5 |
-| row totals | 9 | 0 | 276 | 117 | 0 |
-| column totals | 0 | 0 | 1 | 11 | 0 |
+| cells | 1,599 | 98 | 365 | 2,739 | 23 |
+| row totals | 9 | 0 | 279 | 114 | 0 |
+| column totals | 0 | 2 | 1 | 9 | 0 |
 
 | | |
 |---|---:|
-| coverage | 8.5% |
-| accuracy | 8.9% |
-| candidate grand total | $2.68T |
+| coverage | 14.5% |
+| accuracy | 21.2% |
+| candidate grand total | $2.70T |
 | reference grand total | $111.28T |
 | grand total error | 97.6% |
 
-`MCIF` is the sourced column (`Trade_Imports_2017`); its column total is `partial` (+1.29%). `T007`, `MADJ`, `TRADE`/`TRANS`/`T014`, `MDTY`, `TOP`/`SUB`/`T015`, and the `T013`/`T016` identities are unsourced, which is why the picture is purple except for that one stripe.
+`MCIF`, `MADJ`, and `MDTY` are sourced for 2017 (`Trade_Imports_2017` mapped Detail mass; Census `GEN_CHA_YR` reassigned onto Supply `MADJ` destinations and leveled to Supply `MADJ`; Census duty rates leveled to NIPA `B235RC`). Column totals for `MADJ` and `MDTY` match the published national (within the section tolerance). `MCIF` is `partial` at the column total (+1.29% vs published). `T007`, `TRADE`/`TRANS`/`T014`, `TOP`/`SUB`/`T015`, and the `T013`/`T016` identities are unsourced.
 
 The right-hand block of the Supply table: imports, margins, taxes and the
 subtotals carrying a commodity from domestic output at basic value to total
@@ -170,7 +170,7 @@ T016 = T013 + T014 + T015
 
 ## Caveats
 
-**`F04000` / `MCIF` do not clear the #557 bars.** National F040 is +6.15%; import Pearson on non-specials is 0.84 vs ≳ 0.85. Hole rules and ITA G+S scale sit on #528.
+**`F04000` / `MCIF` do not clear the #557 bars.** National F040 is +6.15%; import Pearson on non-specials is 0.84 vs ≳ 0.85. Hole rules sit on #528. Whether to apply a national ITA (or other) control is #647.
 
 **`F03000` is unsourced.** Inventories are a whole-column miss (#529).
 
