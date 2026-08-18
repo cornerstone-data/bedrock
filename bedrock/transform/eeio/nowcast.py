@@ -120,6 +120,35 @@ def _trade_fbs_commodity_vector(method: str, download_sources_ok: bool) -> pd.Se
     )
 
 
+def _inventories_fbs_commodity_vector(
+    method: str, download_sources_ok: bool
+) -> pd.Series:
+    """Commodity totals from the Inventories FBS, USD, indexed by BEA 2017 Detail.
+
+    ``F03000`` is the one final-use column whose total is free: it equals NIPA
+    CIPI exactly, 32,674 against the published column's 32,682. Everything else
+    about it is allocation, and gross mass is 3x net - 98,764 against 32,682,
+    with 61 negative commodities - so a column-total check is close to
+    uninformative here. **Validate per commodity** (#529, #587).
+
+    ⚠️ Mining and farm are still equal-split placeholders pending #660, so the
+    per-commodity picture is not yet meaningful for those two branches even
+    though the column total is.
+    """
+    fbs = getFlowBySector(
+        method,
+        download_FBAs_if_missing=download_sources_ok,
+        download_FBS_if_missing=download_sources_ok,
+    )
+    return (
+        pd.DataFrame(fbs)
+        .groupby('SectorProducedBy')['FlowAmount']
+        .sum()
+        .reindex(USA_2017_COMMODITY_CODES)
+        .fillna(0.0)
+    )
+
+
 def _s00900_export_identity_usd() -> float:
     """2017 Supply T016 on S00900, scaled to USD (workbook is million USD)."""
     supply = _load_2017_detail_supply_use_usa('Supply_detail')
@@ -134,7 +163,7 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     Initial (pre-RAS-balanced) final-demand section of the Use table, purchaser
     price, commodity x SUT final-demand codes (no F05000).
 
-    F03000 (change in private inventories, #529) is present but all-zero.
+    F03000 is Inventories_<year> for 2017 (#529); other years all-zero.
     F04000 is mapped Trade_Exports_<year> Detail mass for 2017; other years
     all-zero. S00900/F04000 uses the rest-of-world identity against Supply
     T016 (2017).
@@ -157,8 +186,12 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
         exports = _trade_fbs_commodity_vector(
             f'Trade_Exports_{year}', download_sources_ok
         )
+        inventories = _inventories_fbs_commodity_vector(
+            f'Inventories_{year}', download_sources_ok
+        )
         y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
         y['F04000'] = exports.reindex(y.index).fillna(0.0)
+        y['F03000'] = inventories.reindex(y.index).fillna(0.0)
         if 'S00900' not in y.index:
             y.loc['S00900'] = 0.0
         pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
