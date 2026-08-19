@@ -817,6 +817,17 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
 
+  **Full treatment in [`output_estimation_plan.md`](output_estimation_plan.md)**, with BEA's own
+  per-industry source table at [`output_estimation_sources.csv`](output_estimation_sources.csv).
+
+  ⚠️ **The estimand is *commodity* output, not industry output.** `T007`'s column sums are commodity
+  output; industry output is an input to the construction, not the deliverable. That admits two
+  routes, and the manual says BEA uses different ones by industry: industry output × commodity mix
+  where only industry receipts are collected (most services), but for mining and manufacturing
+  *"the calculation of commodity output starts with [product] data rather than the industry data"*
+  (ch. 5 p. 79). Applying one route to both regimes imposes the services method on manufacturing,
+  where observed product data exists and is better. Score both against published 2017 per cell.
+
   ⚠️ **The target is output *before* redefinitions, and this has to be settled before anything is
   built.** The BEA IO manual's chapter 5 walks each industry from source data down to two different
   lines, and names them: the *featured* measure is **NAICS industry output before redefinitions**,
