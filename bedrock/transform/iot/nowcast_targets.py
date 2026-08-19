@@ -1,11 +1,9 @@
-"""The Step 5 target set: what constrains the balance.
+"""Nowcast Supply/Use target set: what constrains the balance.
 
-Step 5 Decision 3
-(`#591 <https://github.com/cornerstone-data/bedrock/issues/591>`_). The generic
-machinery is :mod:`bedrock.utils.economic.balance.targets`; this module is the
-*sourcing*. Paired with :mod:`bedrock.transform.iot.nowcast_mask` - the mask and
-the target set are one decision seen from two sides, because a source spent on a
-cell cannot also be spent on a margin. The analysis is ``target_set_plan.md``.
+The generic machinery is :mod:`bedrock.utils.economic.balance.targets`; this
+module is the *sourcing*. Paired with :mod:`bedrock.transform.iot.nowcast_mask`
+- the mask and the target set are one decision seen from two sides, because a
+source spent on a cell cannot also be spent on a margin.
 
 What is real today, and what is not
 -----------------------------------
@@ -24,9 +22,9 @@ T11-T16 identities            T4 compensation by industry group
 
 T1 is real because ``BEA_Detail_GrossOutput_IO_<year>`` is extracted for
 2017-2024, and T11-T16 are real because an identity needs no source at all. The
-placeholders are the ones waiting on Steps 1-4 and on NIPA reads that are not
-yet wired; their **shapes, labels and aggregators are correct**, so an engine
-built against this set does not change when the values arrive.
+placeholders are the ones waiting on upstream nowcasts and on NIPA reads that
+are not yet wired; their **shapes, labels and aggregators are correct**, so an
+engine built against this set does not change when the values arrive.
 
 ⚠️ :func:`~bedrock.utils.economic.balance.feasibility.precheck` **refuses to
 certify a set containing a placeholder** unless asked. A placeholder is
@@ -35,7 +33,7 @@ shape-correct, not an estimate, and must never be mistaken for one.
 T1 binds the Use panel, not the Supply panel
 --------------------------------------------
 
-``target_set_plan.md`` §2 states T1 as "Supply + Use industry columns". Measured
+T1 is sometimes stated as "Supply + Use industry columns". Measured
 on 2017, only the Use panel carries it:
 
 ===============================  ==============================
@@ -43,7 +41,7 @@ Use column sum (``T005+VAPRO``)  reproduces GO to **13** / industry
 Supply column sum (``T007``)     misses GO by up to **88,363**
 ===============================  ==============================
 
-which is §4's point restated: gross output is published at *producer* prices and
+which is the producer-versus-basic point restated: gross output is published at *producer* prices and
 the Supply table's industry column is at *basic*. So T1 is imposed on the Use
 column alone.
 
@@ -114,10 +112,10 @@ REST_OF_WORLD_ADJUSTMENT = 'S00900'
 #: only final-demand column that legitimately goes negative.
 NEGATIVE_FD_COLUMNS = ('F03000',)
 
-#: Starting weights from ``target_set_plan.md`` §2. A weight says *who gives way
+#: Starting weights. A weight says *who gives way
 #: when the accounts disagree*, not *which number is more accurate*, and they
 #: are meaningful only relative to each other. To be calibrated on the 2017
-#: replay (§8); the ordering is the part worth defending, not the values.
+#: replay; the ordering is the part worth defending, not the values.
 WEIGHTS = {
     'T2': 0.8,
     'T4': 0.6,
@@ -233,7 +231,7 @@ def rest_of_world_adjustment_supply_make(year: int = 2017) -> pd.Series:
     exports and imports carrying offsetting adjustments to PCE and government -
     and it is held out under Tier 4 because its Use row is 100% final demand
     against 0.9% joint freedom, then re-derived from ``-F010 + Supply T016``
-    after the balance (``mask_layer_plan.md`` §3).
+    after the balance.
 
     **Holding the commodity out does not hold its production out.** The
     ``S00900`` Supply row carries **3,468** of domestic make spread across
@@ -267,7 +265,7 @@ def identity_targets() -> list[Target]:
 
     T11 is per commodity; T12-T16 are economy-wide scalars. Each is expressed
     as a linear combination of margins, which is why they need no special
-    casing - see ``target_set_plan.md`` §2a and §2b.
+    casing.
     """
     commodities = list(balance_commodities())
     zero_per_commodity = pd.Series(0.0, index=pd.Index(commodities, name='commodity'))
@@ -425,8 +423,7 @@ def fd_column_targets(year: int) -> Target:
 
     ⚠️ Values are placeholders taken from the published 2017 columns, so the
     magnitudes are realistic and the shape is exact. The real source is one
-    NIPA line per code (``target_set_plan.md`` §3), and ``F02E00``'s basis is
-    still open on #547.
+    NIPA line per code, and ``F02E00``'s basis is still open.
 
     ``allow_negative`` is set because ``F03000`` is negative outright in 2020.
     """
@@ -475,9 +472,9 @@ def va_row_targets(year: int) -> list[Target]:
     is the capability a row/column-vector API cannot provide.
 
     T5 (``T00OTOP``, ``V00300``) is deliberately absent: the income side is the
-    hold-back that keeps GDP as out-of-sample evidence (``target_set_plan.md``
-    §6). Leaving it unimposed means Step 2 enters Step 5 as a seed only for
-    those two rows, which is the price of the test being worth running.
+    hold-back that keeps GDP as out-of-sample evidence.
+    Leaving it unimposed means those two value-added rows enter the balance
+    as seed only, which is the price of the test being worth running.
     """
     del year
     panel = published_2017_panel('use')
@@ -567,7 +564,7 @@ def supply_column_targets(year: int) -> list[Target]:
 
 
 def build_target_set(year: int, gross_output: pd.Series | None = None) -> TargetSet:
-    """The full Step 5 target set for ``year``.
+    """The full nowcast SUT target set for ``year``.
 
     Complete in shape; see the module docstring for which values are real.
     Feed it to :func:`~bedrock.utils.economic.balance.offset.offset_targets`

@@ -3,7 +3,7 @@
 Neither candidate engine can hold a cell at a nonzero value. Both can exclude a
 cell from participating. The offset method turns the first into the second, in
 about twenty lines, so the mask stops being a reason to prefer one engine over
-the other (``mask_layer_plan.md`` §2)::
+the other::
 
     X  = F + Z            F zero off the mask, Z zero on it
     r' = r - F @ 1        row targets, less the frozen row mass

@@ -1,11 +1,8 @@
-"""The Step 5 SUT mask: which cells the balance may not move.
+"""Nowcast Supply/Use mask: which cells the balance may not move.
 
-Step 5 Decision 2
-(`#654 <https://github.com/cornerstone-data/bedrock/issues/654>`_). The generic
-machinery is :mod:`bedrock.utils.economic.balance.mask`; this module is the
-*sourcing* - which cells of the US detail SUT go in each layer, and why. The
-analysis is ``mask_layer_plan.md`` and the measurements are reproduced by
-``mask_layer_feasibility.py --check``.
+The generic machinery is :mod:`bedrock.utils.economic.balance.mask`; this
+module is the *sourcing* - which cells of the US detail SUT go in each layer,
+and why.
 
 The rule
 --------
@@ -42,7 +39,7 @@ target set** when they enter the mask.
 
 **Tier 2 - not masked.** ``F01000``, ``F02E00``, ``F02N00``, ``F02R00``,
 ``F02S00``, ``F03000``, ``F04000`` and the government equipment/structures
-columns. Their totals are targets (#591); their splits stay free.
+columns. Their totals are targets; their splits stay free.
 
 **Tier 3 - sign locks, not masks.** :data:`SIGN_LOCKED_SUPPLY_COLUMNS` and
 :data:`SIGN_LOCKED_USE_ROWS`. These cells need to move; they must not cross
@@ -101,9 +98,8 @@ Sign convention
 
 The balance stores subsidies **negative**, matching the Supply table. BEA
 publishes the Use ``T00SUB`` row positive, so :func:`published_2017_panel`
-negates it on the way in and asserts the result. See
-``target_set_plan.md`` §4 - unnormalised, a producer-price column margin is
-wrong by ``2 x T00SUB``.
+negates it on the way in and asserts the result. Unnormalised, a
+producer-price column margin is wrong by ``2 x T00SUB``.
 
 Years after 2017
 ----------------
@@ -112,7 +108,7 @@ There is no published detail SUT for 2018-2024 - building it is the point - so
 every layer here is derived from the 2017 pattern regardless of ``year``. The
 ``year`` parameter records intent rather than changing the answer today.
 
-⚠️ **Open (``mask_layer_plan.md`` §9.3): does the Tier-1 mask hold for
+⚠️ **Open: does the Tier-1 mask hold for
 2018-2024?** The 1:1 line-to-commodity mapping is asserted from the 2017
 crosswalks; whether the government consumption and IP columns stay
 single-commodity across the window is unconfirmed.
@@ -136,8 +132,8 @@ Block = Literal['use', 'supply']
 
 #: Value-added rows of the Use panel. ``T00TOP`` and ``T00SUB`` are not part of
 #: the industry-output identity - they are the wedge from basic to producer
-#: prices - but the Step 5 column margin is ``T005 + VAPRO``, so all five rows
-#: participate. See ``target_set_plan.md`` §4.
+#: prices - but the industry column margin is ``T005 + VAPRO``, so all five rows
+#: participate.
 VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 
 #: Supply columns between basic (``T013``) and purchaser (``T016``) value. The
@@ -186,13 +182,13 @@ def balance_industries() -> tuple[str, ...]:
     table's ``MDTY`` column total of 38,507 to rounding.
 
     Published detail gross output carries it at exactly 38,513, so the hard
-    ``T005 + VAPRO`` target of ``target_set_plan.md`` §4 binds this column.
+    ``T005 + VAPRO`` target binds this column.
     Dropping it would delete a $38.5B constraint and, with it, the cleanest
     illustration of the producer-versus-basic wedge in the table -
     ``GO(producer) = T007(basic) + T00TOP - T00SUB`` is ``0 + 38,513 - 0``
     here.
 
-    ⚠️ **For #591:** its *Supply* column is entirely zero, because duties are
+    ⚠️ Its *Supply* column is entirely zero, because duties are
     not output at basic prices. A gross-output target stated at producer prices
     can therefore bind the Use column but **not** the Supply one. The mask
     leaves the column in place so the precheck surfaces that rather than
@@ -292,8 +288,8 @@ def fixed_value_mask(
 
     The six 1:1 final-demand columns on the Use block, and **nothing on the
     Supply block**: ``MCIF`` has a 2017 candidate and ``MDTY`` a sourced
-    method, but whether either is fixed rather than targeted is not yet decided
-    (``mask_layer_plan.md`` §9.4). An empty layer is the honest default - a
+    method, but whether either is fixed rather than targeted is not yet decided.
+    An empty layer is the honest default - a
     cell masked by accident cannot be corrected by the balance.
 
     Only *nonzero* cells are fixed, so this never collides with Tier 0.
