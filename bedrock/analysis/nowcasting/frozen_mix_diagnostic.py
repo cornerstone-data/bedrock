@@ -79,21 +79,81 @@ NON_INDUSTRY_COLUMNS = frozenset(
     }
 )
 
-#: Row labels that are not commodities: the column total, and the workbook's
-#: blank line and rounding footnote.
+#: The summary workbook labels two margin columns in title case where the detail
+#: workbook shouts them, so a set built for one table silently under-filters the
+#: other. Both spellings are carried here rather than in two places.
+NON_INDUSTRY_COLUMNS_SUMMARY = NON_INDUSTRY_COLUMNS | {
+    'Commodities/Industries',
+    'Trade',
+    'Trans',
+}
+
+#: Row labels that are not commodities.
+#: ⚠️ ``T017`` is the **column total row**. Leaving it in doubles every column
+#: sum, and the failure is quiet: shares are unaffected, because halving every
+#: cell in a column cancels in the ratio, so only a level check catches it. It
+#: was caught three times here by a computed ratio landing on exactly 0.5000.
 NON_COMMODITY_ROWS = frozenset(
-    {'T017', 'nan', 'Note.  Detail may not add to total due to rounding.'}
+    {'T017', 'nan', 'IOCode', 'Note.  Detail may not add to total due to rounding.'}
 )
+
+
+def _block(
+    supply: pd.DataFrame, non_industry: frozenset[str] | set[str]
+) -> pd.DataFrame:
+    """Commodity x industry cells only, with every label and total stripped."""
+    supply.columns = [str(c).strip() for c in supply.columns]
+    supply.index = [str(i).strip() for i in supply.index]
+    industries = [c for c in supply.columns if c not in non_industry]
+    block = supply[industries].apply(pd.to_numeric, errors='coerce').fillna(0.0)
+    keep = [
+        i
+        for i in block.index
+        if i not in NON_COMMODITY_ROWS and not i.startswith('Note')
+    ]
+    return block.loc[keep]
+
+
+def detail_block() -> pd.DataFrame:
+    """The published 2017 **detail** domestic output block, 402 industries."""
+    return _block(
+        _load_2017_detail_supply_use_usa('Supply_detail'), NON_INDUSTRY_COLUMNS
+    )
+
+
+def summary_block(year: int) -> pd.DataFrame:
+    """
+    The published **summary** domestic output block for ``year``, 2017-2024.
+
+    ⚠️ Use this rather than pulling the ``T007`` column or re-filtering the
+    workbook by hand. Three separate ad-hoc extractions of this table went wrong
+    — twice by matching label *shape* and once by leaving the ``T017`` total row
+    in — and each produced a plausible-looking result that only an identity
+    check exposed.
+    """
+    return _block(
+        _load_usa_summary_sut('Supply_summary', year), NON_INDUSTRY_COLUMNS_SUMMARY
+    )
+
+
+def check_block_identities(block: pd.DataFrame, label: str) -> None:
+    """Assert the block's own margins agree with the totals it was cut from."""
+    published = pd.to_numeric(
+        _load_2017_detail_supply_use_usa('Supply_detail')['T007'], errors='coerce'
+    )
+    published.index = [str(i).strip() for i in published.index]
+    rows = block.sum(axis=1)
+    common = [i for i in rows.index if i in published.index]
+    gap = (rows.reindex(common) - published.reindex(common)).abs().sum()
+    scale = published.reindex(common).sum()
+    print(
+        f'{label}: row sums vs T007 differ by {gap:,.0f} of {scale:,.0f} ({gap / scale:.6%})'
+    )
 
 
 def detail_mix() -> tuple[pd.DataFrame, pd.Series]:
     """The 2017 detail block's commodity mix per industry, and its column sums."""
-    supply = _load_2017_detail_supply_use_usa('Supply_detail')
-    supply.columns = [str(c).strip() for c in supply.columns]
-    supply.index = [str(i).strip() for i in supply.index]
-    industries = [c for c in supply.columns if c not in NON_INDUSTRY_COLUMNS]
-    block = supply[industries].apply(pd.to_numeric, errors='coerce').fillna(0.0)
-    block = block[~block.index.isin(NON_COMMODITY_ROWS)]
+    block = detail_block()
     column_totals = block.sum(axis=0)
     return block / column_totals.replace(0, np.nan), column_totals
 
@@ -159,8 +219,9 @@ def score_year(
     output = output.reindex(industries) * ratio  # producer -> basic
     built_detail = (mix[industries] * output.reindex(industries).values).sum(axis=1)
 
-    summary = _load_usa_summary_sut('Supply_summary', year)
-    published = pd.to_numeric(summary['T007'], errors='coerce').dropna()
+    # row sums of the block, not the T007 column: same quantity, but derived
+    # through the audited loader so a mis-cut block cannot pass unnoticed
+    published = summary_block(year).sum(axis=1)
 
     built = built_detail.groupby(built_detail.index.map(detail_to_summary())).sum()
     scored = pd.concat(
