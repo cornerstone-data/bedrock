@@ -66,6 +66,16 @@ def census_sas_parse(*, df_list, year, **_):
         .drop(columns=['Employer Status', 'Tax Status', 'NAICS Description'])
     )
 
+    # Revenue is *produced* by the industry; expense is *consumed* by it. The
+    # parse chain above lands every sheet's NAICS in ActivityConsumedBy, which
+    # is right for the expense tables and wrong for Table 2 - the pipeline
+    # margin items have to sit in ActivityProducedBy to read like every other
+    # margin source (Census_AWTS, Census_ARTS, Census_AIES all place the
+    # margin-producing sector there).
+    is_revenue = df['Description'].str.startswith('Table 2')
+    df['ActivityProducedBy'] = np.where(is_revenue, df['ActivityConsumedBy'], None)
+    df['ActivityConsumedBy'] = np.where(is_revenue, None, df['ActivityConsumedBy'])
+
     # set suppressed values to 0 but mark as suppressed
     # otherwise set non-numeric to nan
     df = df.assign(

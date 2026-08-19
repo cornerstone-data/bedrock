@@ -9,7 +9,11 @@ format: xlsx
 url:
   base_url: https://www2.census.gov/programs-surveys/sas/tables/time-series/sas-latest/sas-22.xlsx
 sheets:
-  # Table1
+  # Table 2 is revenue by *detailed* NAICS - the four pipeline margin items
+  # BEA names for the transport margin (#611) are 4861, 4862, 48691 and
+  # 48699, and they partition NAICS 486 to the dollar. Table 1 carries the
+  # same item at 3-digit NAICS only, so it cannot serve.
+  Table 2: Estimated Revenue for Employer Firms by Detailed NAICS
   Table 3: Estimated Expense for Employer Firms
 call_response_fxn: !script_function:Census_SAS census_sas_call
 parse_response_fxn: !script_function:Census_SAS census_sas_parse
