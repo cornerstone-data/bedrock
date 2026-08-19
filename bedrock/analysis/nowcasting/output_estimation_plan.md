@@ -326,6 +326,59 @@ deferring to their summary level *loses* information.
 That also says where the remaining work is: the ~80% of output sitting in
 multi-child groups, and specifically the big ones above.
 
+### Within-group detail movement, measured without the 2012 benchmark
+
+The question summary scoring cannot reach is whether detail children move
+*inside* a summary group. It does **not** need the 2012 benchmark: the published
+**detail industry gross output series runs 1997-2024**, so within-group detail
+movement is observable annually and directly.
+
+Detail industry shares within their summary group, drift from 2017:
+
+| year | wtd mean \|Δshare\| | max | children moved >1pt |
+|---|---:|---:|---:|
+| 2018 | 0.00357 | 0.083 | 33 of 402 |
+| 2020 | 0.01185 | 0.190 | 114 of 402 |
+| 2022 | 0.01470 | 0.139 | 129 of 402 |
+| 2024 | 0.01889 | 0.150 | 140 of 402 |
+
+**By 2024, 4.88% of a summary group's output has been reallocated among its
+detail children** (value-weighted), and detail within-group drift is **about
+three times** BEA's summary-level mix drift over the same window (0.0189 against
+0.0063). Biggest reshuffles: `4A0` other retail (11.7% reallocated across 6
+children), `511` publishing (11.1% across 5), `3361MV` motor vehicles (11.1%
+across 14), `561` (9.3%), `521CI` (8.7%).
+
+So within-group detail movement is real and substantial — working at summary
+alone would discard it.
+
+⚠️ **This is a proxy, and the distinction matters.** It measures movement in
+detail *industry output*, not in the commodity *mix*. It is strong evidence by
+analogy — if detail industries reshuffle three times as much as summary
+aggregates, detail mixes plausibly do too — but the mix itself remains
+unmeasured at detail after 2017, and only a second benchmark could settle that.
+
+### What this means for the construction
+
+**The design is sound, and it is not flattening.** In
+`built[c] = Σ_i mix17[c,i] × GO[i]`, the within-group distribution is driven by
+**detail industry gross output**, which demonstrably moves — 4.88% reallocated by
+2024. Anchoring a group's *level* to BEA's summary `T007` is then a single
+factor per group applied on top of a distribution that detail data already
+shaped.
+
+That is the answer to the concern about losing detail: the objection is to
+deriving a *change ratio* at summary and applying it uniformly to all children,
+which would indeed erase within-group variation. Here the change comes from
+detail GO and only the residual level correction is uniform. The two are not the
+same operation.
+
+**Remaining exposure** is the frozen `mix17` itself. Detail industry movement is
+captured; detail *mix* movement is not, and is unmeasurable until a second
+detail benchmark exists. Given summary mix drift is 0.006 and the mix accounts
+for roughly a third of our total error, this is a bounded risk rather than an
+open-ended one.
+
 ## The adjustment ladder
 
 Chapter 5's tables 5.1 (cheese, NAICS 311513) and 5.2 (telecom, NAICS 5133) give
