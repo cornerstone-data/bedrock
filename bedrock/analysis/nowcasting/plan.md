@@ -817,6 +817,41 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
 
+  ⚠️ **The target is output *before* redefinitions, and this has to be settled before anything is
+  built.** The BEA IO manual's chapter 5 walks each industry from source data down to two different
+  lines, and names them: the *featured* measure is **NAICS industry output before redefinitions**,
+  "more useful for comparisons with the economic statistics from other sources", while output after
+  redefinitions "is generally referred to as **I-O industry output**" and is "generally not as
+  comparable with other economic statistics" (p. 78). The SUT framework is aligned with the former.
+  Our own file list already says so: the tables we target are `Supply_2017_DET.xlsx` and
+  `Margins_Before_Redefinitions_2017_DET.xlsx`, and the only `After_Redefinitions` files in
+  [`matrix_mappings.py`](../../utils/taxonomy/bea/matrix_mappings.py) are the legacy summary
+  Make/Use series — a different family, not our target. **So we do not perform the redefinitions BEA
+  performs.**
+
+  **No totals check can catch this**, which is why it is stated here rather than left to validation.
+  Redefinition moves money between cells while preserving every total:
+  [`About_BEA_IOT_table_valuation_differences.md`](compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md)
+  measured **553,635 million moving gross across 5,740 cells for a net of −7**. A benchmark replay
+  that scores on totals would pass with the wrong version throughout.
+
+  **What that means for the manual's recipe.** Chapter 5's worked tables (5.1 cheese, 5.2 telecom)
+  run *through* the line we want to the line we do not. Take the industry column down to
+  `NAICS OUTPUT`, not `I-O OUTPUT`. On the commodity side, do not apply `Redefinitions out` — but
+  **do** apply `Reclassifications` and the make-table adjustment, since neither is a redefinition:
+  reclassification is BEA disagreeing with Census about what is primary, and the make-table
+  adjustment absorbs product-vs-industry source inconsistency. Both survive the choice of version.
+
+  Chapter 5 is PDF pages 69–92 of the 2009 IO manual (narrative to p. 83, then table 5.A's worked
+  per-industry source and calculation summaries) — the closest thing to a per-industry recipe for
+  what external series each industry's output is built from. ⚠️ It documents the **1997** benchmark
+  and says so in its preface, so it is authoritative on concepts and structure only; every named
+  source needs checking against current Census products, since NAPCS landed in the 2007 Economic
+  Census and changed what product data exists at all. For the between-benchmark years the current
+  list is in [BEA's 2023 comprehensive-update preview](https://apps.bea.gov/scb/issues/2023/06-june/0623-nea-preview.htm):
+  ASM, the Annual Surveys of Wholesale and of Retail Trade, SAS, Value of Construction Put in Place,
+  QCEW, IRS corporate and partnership tabulations, and USDA farm statistics.
+
   ⏳ **Test `Census_EC_PxI` as the commodity-mix source before settling on a ported 2017 mix.**
   Economic Census *Products by Industry* is an **observed** industry × product matrix — which is what
   this block is — where a ported mix holds the benchmark year's proportions fixed. It is extracted as
