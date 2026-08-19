@@ -1,5 +1,5 @@
 Economic utilities for inflation adjustments, currency conversion, target
-year scaling, and the Step 5 GRAS kernel plus SUT wrapper.
+year scaling, a GRAS kernel, and a Use-then-Supply wrapper.
 
 ``bedrock.utils.economic.balance.gras_balance`` is an ndarray-only GRAS
 scaler (Lenzen, Wood and Gallego 2007; Temurshoev, Miller and Bouwmeester
@@ -19,7 +19,7 @@ balance ``Z``, restore ``F``. Participation is ``mask.free``
 (``~(structural_zero | fixed_value)``), never ``mask.frozen`` and never
 "nonzero cells of ``Z``".
 
-The wrapper passes::
+Callers pass::
 
     free_mask = mask.free.to_numpy()
     sign_flex = (mask.sign_lock.to_numpy() == 0)

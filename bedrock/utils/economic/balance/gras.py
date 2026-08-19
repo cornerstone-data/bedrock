@@ -1,25 +1,17 @@
 """Ndarray GRAS kernel for a single signed matrix.
 
-Vendored dense loop from the local ceda checkout HEAD
-4c3221c0e5d65a38f10976a51797161e2ae17323 — 2026-08-17 20:20:52 -0400 —
-feat(publish): add Cornerstone PUR emission-factor CSVs via USA Phi (#96).
-That commit does not touch ras_balancing.py; the file is present at this
-HEAD. Last commit that modified ceda/utils/ras_balancing.py:
-84b9fea3ce7853710a8ca56c74e56e6092708812 — 2026-08-05 14:35:03 -0700 —
-refactor(packaging): nest all code under ceda/ and build with hatchling (#66).
-
-Non-negativity clamps, the sparse path, ``_neutralize_infeasible_targets``,
-and RAS ``_margin_scale_factors`` are not copied. Scale is GRAS
+Originally from the ceda repo (``ras_balancing.py``). Note that
+non-negativity clamps, the sparse path, ``_neutralize_infeasible_targets``,
+and RAS ``_margin_scale_factors`` are not copied from that repo. Scale is GRAS
 (Lenzen, Wood and Gallego 2007; Temurshoev, Miller and Bouwmeester 2013
 all-negative margins). Junius and Oosterhaven (2003) is the name only.
 
-This is not ``engine(free, residual, masks)``. That wrapper lives in
-``orchestrate.py`` and calls this kernel per block. Callers pass one
-matrix, row/col vectors, ``free_mask``, and ``sign_flex``. Wrapper
-mapping: ``free_mask = mask.free.to_numpy()``,
+Callers pass one matrix, row/col vectors, ``free_mask``, and
+``sign_flex``. Mapping from ``SutMask``: ``free_mask = mask.free.to_numpy()``,
 ``sign_flex = (mask.sign_lock.to_numpy() == 0)``. Kernel
 ``sign_flex is None`` is all-False (stricter than a default ``SutMask``).
 Nonzero holds are the caller's offset, not this kernel.
+``engine`` in ``orchestrate.py`` calls this kernel per block.
 """
 
 from __future__ import annotations

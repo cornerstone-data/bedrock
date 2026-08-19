@@ -337,7 +337,9 @@ Ranked by how much they block:
    column**, while **wholesale + retail is 126%** of it. The stage split is already published in
    `U50705BU1` — which bedrock already extracts and never reads — and three of BEA's four allocation
    rules are functions of tables this project already builds. What remains is one crosswalk of ~25
-   trade industries to BEA commodities.
+   trade industries to BEA commodities. ✅ **Built 2026-08-19 (#666)** — the crosswalk went to 54 NIPA
+   lines over 260 commodities, and the column is live at −2.28% on its total. It comes off this list
+   as a *sourcing* question; what is left is allocation accuracy (#660, #664, #665).
 6. ~~Import matrix allocation method~~ — **settled**: proportional to the commodity's use shares along
    its Use-matrix row (Step 6c). Not a data gap; it needs the Step 6b Use matrix as input, which makes
    6c strictly downstream of 6b.
@@ -488,6 +490,12 @@ Full treatment in [`inventories_estimation_plan.md`](inventories_estimation_plan
 emails from David Hill (BEA, National Economic Accounts, 2025-03/05), reproduced in #530's body.
 **This section replaces the previous "deferred, needs ASM and Economic Census" position.**
 
+✅ **Status 2026-08-19: built and wired (#666).** The scoping below held up — the trade branch is the
+126% branch and it ran on the simplest rule, the crosswalk was the one gap and it was closable, and
+farm did need its own level from NIPA. What the build added to the scoping is §Step 1C's three
+follow-ons (#660, #664, #665) and the measurement that makes them rankable. The rest of this section
+is the scoping as written, kept because it is what the follow-ons are still working from.
+
 BEA's method is four rules over three inventory types, applied to CIPI **by holding industry** — NIPA
 records *where* inventory is held, the Use column records *what* is held:
 
@@ -603,21 +611,47 @@ extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BE
 `S00900` from the identity −F010 + Supply `T016`. Built and wired for 2017 (#617, #618, #622, #623);
 the same extract serves Step 4b. Open: ITA G+S scale ([#647](https://github.com/cornerstone-data/bedrock/issues/647)), FAS→PUR, and the 2018–2024 methods. The 2017
 scorecard is **FAIL + inventory** against the #557 bars (`score_2017_trade_detail`; §Trade data).
-⏳ **Schema fix pending in [#638](https://github.com/cornerstone-data/bedrock/pull/638).** The trade
-yamls declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
+✅ **Schema fix landed ([#638](https://github.com/cornerstone-data/bedrock/pull/638)).** The trade
+yamls had declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
 raised `KeyError` — which took `derive_initial_Y_pur` down with them and blocked validating the NIPA
-columns that have nothing to do with trade. #638 retargets both methods onto the shared
+columns that have nothing to do with trade. #638 retargeted both methods onto the shared
 `BEA_detail_commodity_target.yaml` (the same include `NIPA_final_dom_uses` uses), which supplies
-the key, and retires `Trade_detail_passthrough.yaml` along with the
-`activity_schema: NAICS_2017_Code` weight-source override. Once it lands, the end-to-end validation
-path opens up — and 1A's columns can be checked without a working trade leg for the first time.
+the key, and retired `Trade_detail_passthrough.yaml` along with the
+`activity_schema: NAICS_2017_Code` weight-source override. The end-to-end validation path is open,
+and 1A's columns can be checked without a working trade leg.
 
 **1C — Change in inventories** (#529, #530, #531). `F03000`, the full 402-row column, per
 [`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
 ships one scalar where the SUT needs a column, and leaves the allocation to Step 5's RAS, which has
 neither a seed nor a sign-safe structure for a column that runs 3× gross to net across 61 negative
-commodities. Start by consuming `U50705BU1`, already extracted and unused, plus the farm line it
-omits (≈ −5,679 in 2017, 17% of the total).
+commodities. Built from `U50705BU1`, already extracted and unused, plus the farm line it omits
+(≈ −5,679 in 2017, 17% of the total).
+
+✅ **First pass landed 2026-08-19 (#666).** `Inventories_2017` generates, attributes across all five
+branches, and is wired into `derive_initial_Y_pur` — `F03000` was a hardcoded all-zero column and is
+now 256 commodities totalling 31,936 against a published 32,682 (−2.28%). Trade weights come from
+`Census_EC_PxI` product lines, the same data BEA reaches for in its margin method; manufacturing
+follows the finished-goods rule on the 22 industry leaves; mining and farm are equal-split
+placeholders.
+
+⚠️ **Read the column, not its total.** The total is the one free thing here — it equals NIPA CIPI by
+construction — while gross mass is 3× net. Per commodity the first pass is **69.7% sign agreement and
+101% absolute error against published gross**, so the column total says almost nothing. Three follow-ons
+carry the remaining error, all measured rather than suspected: **#660** (mining and farm commodity
+splits — EIA MER / USGS for mining, the FIWS crops-livestock split for farm), **#664** (manufacturing
+needs per-industry stage shares; `336411` aircraft is −288 against a published −6,314), **#665**
+(`S00402` at 380 against 3,969, because used-goods value sits in wholesale lines that route to
+`S00401`).
+
+⚠️ **The manufacturing commodity mix must move to the nowcast year's Supply table once Step 4a (#570)
+builds one.** It is on the 2017 benchmark today. Freezing each industry's product composition at the
+benchmark attributes later years with a mix that no longer holds, and it stops being visible once
+buried in an allocation. Source change, not a method change.
+
+**Five NIPA pseudo-codes were the recurring defect, and are now guarded.** `44X`, `336MV`, `336OT`,
+`4521` and `4529` look like NAICS and are not, so `startswith` matching against holding industries
+silently found nothing and the branch fell back to an equal split. `_assert_naics_are_real` fails the
+build instead. Same silent-empty family as #635.
 
 **Above the three — composition and validation.**
 - ⏳ **Split the column list by framework** (#575) — ✅ done in substance: `derive_initial_Y_pur`
@@ -627,8 +661,23 @@ omits (≈ −5,679 in 2017, 17% of the total).
   failure blocks validating NIPA columns that have nothing to do with trade. Pulling assembly out
   decouples them.
 - ❌ **Validate per-column against published NIPA aggregates** (#576). Already satisfied for the
-  government columns and for PCE/equipment against their bridges; outstanding for `F03000`
-  (unbuilt), `F04000` (blocked), and the two gaps below.
+  government columns and for PCE/equipment against their bridges; `F03000` now reconciles at the
+  column total but not per commodity; outstanding for `F04000` (blocked) and the two gaps below.
+
+⚠️ **The board-level state of Step 1, as of 2026-08-19:** all 19 final-demand columns are sourced,
+**no column is a whole-column `miss` any more**, and two are outside tolerance at the column total —
+`F04000` (+6.15%) and `F03000` (−2.28%). Coverage against the published detail SUT is 95.5% and
+accuracy 55.1%; the two moved in opposite directions because `F03000` added 256 cells that are right
+in aggregate and mostly wrong per commodity. [`progress_report.md`](progress_report.md).
+
+⚠️ **A catalog regression rode in with #666 and was caught by the diagnostic, not by a test.** The
+`Census_EC_PxI` entry was inserted *inside* `BEA_PEQBridge` in `source_catalog.yaml`, taking
+`BEA_PEQBridge`'s `activity_schema` with it; the PEQ bridge stopped being sector-like and the whole
+`F02E00` column collapsed onto `S00402` — $986B of a $978B column on used and secondhand goods, with
+every equipment commodity at zero. Fixed 2026-08-19. **Two lessons worth carrying**: a YAML entry
+inserted at the wrong indentation silently steals its neighbour's keys, and duplicate keys in the
+catalog resolve last-wins with no error — the `Census_EC_PxI` block carried `activity_schema` twice
+and neither reader complained. Nothing in the test suite covers the catalog's block structure.
 
 **Gaps carried.** `F02R00` is short `S00402` by 1,883 (#633), blocked behind #635 — a `ValueError`
 in one activity_set discards every activity_set and returns an empty FBS as a valid result, so the
@@ -1412,8 +1461,10 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
 
 ## Issue coverage and priority
 
-Reviewed 2026-08-05 against [project 26](https://github.com/orgs/cornerstone-data/projects/26) (40 items
-after this pass) and every open issue in the repo.
+Reviewed 2026-08-05 against [project 26](https://github.com/orgs/cornerstone-data/projects/26) and
+every open issue in the repo, and **re-swept 2026-08-19**: the fourteen issues filed since the first
+pass (#606, #610-#615, #635, #650, #660, #664, #665) were added to the board, and every item's `Status`
+was set from what has actually merged rather than from when the card was made.
 
 ### The gating layer sits above these steps
 
@@ -1472,10 +1523,10 @@ rediscovers the same 210-code problem from scratch.
 | Step | Issues | Remaining gap |
 |---|---|---|
 | 0 Hygiene | #523, #539/#540, **#573** (summary SUT vintage), **#574** (SLG attribution) | — |
-| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531 (rescoped — see §`F03000`), #547, **#575** (1d code list), **#576** (1f reconciliation) | — |
+| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531 (built — see §`F03000`), **#660**/**#664**/**#665** (the three `F03000` follow-ons), #547, #606 (`S00300`), **#575** (1d code list), **#576** (1f reconciliation), #621 (2018-2024 PCE), #635 (the swallowed `ValueError`) | — |
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
-| **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
+| **4 Supply table** | **#570** (4a), **#579** (4b — *done*), **#571** (4c, parent) split into **#610** (2017 rates — *done*), **#611** (FAF transport chain — *in progress*), **#612** (annual trade levels — *done*), **#613** (apply to nowcast years, derive `TRADE`/`TRANS`), **#614** (validate per commodity), **#615** (deferred NAPCS concordance), **#620** (transport trend validation), **#580** (4d), **#581** (4e) | 4c's five sub-issues were filed after the first pass and are now on the board |
 | 5 RAS | **#588** (balancer, parent — `gras_balance` and `engine` landed; KRAS later), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
@@ -1510,15 +1561,25 @@ replaced by #572. **Every item on the board is now a trackable issue.**
   #574 may fall out of this rather than needing its own attribution work — diagnose first. Then #579,
   #580, #581 once the trade FBS path is safe. #573 any time; it is small and Step 5 needs it.
 
-  **#530/#531 (`F03000`) moves up into P1 on the rescope.** Its phase 1 — consume `U50705BU1`, which
-  is already extracted, plus the farm line — needs no new extract and no crosswalk, and it closes one
-  of the eight whole columns currently reported as `miss` in
-  [`progress_report.md`](progress_report.md). It is FBS-routed, so it sits behind the code-space fix
-  like the rest of Step 1; the ~25-line trade crosswalk (phase 2) is not, and can be built in
-  parallel alongside #610.
-- **P2** — Step 5 (promote the four drafts), then #582/#583/#584 and **#585**, the 2017 benchmark
-  replay — the single highest-value test in the project — then #572.
-- **P3** — #586, then Step 9 (promote drafts).
+  ✅ **#529/#530/#531 (`F03000`) is done as a first pass (2026-08-19, #666)** — it was P1 on the
+  rescope and it closed the last whole-column `miss` in
+  [`progress_report.md`](progress_report.md). What is left of it is three ranked follow-ons rather
+  than a build: **#660** (mining and farm splits — the largest single error, `211000` at −4,754
+  against −7,577), then **#664** (manufacturing stage shares — `336411` at −288 against −6,314),
+  then **#665** (`S00402`, at 380 against 3,969). All three are *allocation* work on a column whose
+  total is already right, so they are P1 only against the per-commodity bar, not against anything
+  downstream — nothing else in the build is blocked on them.
+- **P2** — Step 5 (#588 parent, with **#653** scaffolding *landed*, **#654** mask and **#591** target
+  set built to first pass in #659; **#655** gross output at producer prices next), then #582/#583/#584
+  and **#585**, the 2017 benchmark replay — the single highest-value test in the project — then #572.
+- **P3** — #586, then Step 9 (#592, #593).
+
+**Re-ranked 2026-08-19.** The two things that moved: 4c is no longer one card — #610 and #612 are done
+and #611 is in progress, so the critical path through Step 4 now runs #570 (4a) → #613, with #580 (4d)
+alongside. And `F03000` came off the critical path entirely: the column exists, so the remaining
+inventories work competes on accuracy rather than blocking coverage. **The single highest-leverage
+unbuilt thing is still #570 (4a)** — `T007` is a whole missing Supply column, it gates #613, and Step 5
+cannot target gross output without it.
 
 **Filed 2026-08-05:** #573-#587 new, #588-#593 converted from drafts. One issue per sub-step, all on
 the board with milestone `v0.5`. **Every plan step now has full issue coverage.** Board: 33 → 56 items,
@@ -1533,6 +1594,36 @@ every step. USEEIO #4 is `Step 6b`. Pull requests were left alone; they inherit 
 6a-6d → 6 (the whole-phase replay, after the sub-steps it validates) → 7 → 8 → 9 → Diagnostics. Pull
 requests sit with the step of the issue they close. Note this sets **manual position**, so it holds
 only while a view has no explicit sort of its own; a saved sort in the view UI overrides it.
+
+**Re-sorted 2026-08-19, 66 → 78 items.** The twelve added issues were appended at the bottom on
+creation, so the whole board was re-positioned into the order above and they were slotted into their
+steps: #660/#664/#665 behind #529-#531 as the `F03000` follow-ons, #650 with them (it extends the same
+`Census_EC_PxI` source to 2022), #610-#615 and #620 behind #571 as the 4c chain, #606 and #635 into
+Step 1 validation, #621/#646/#647/#668 with 1A and 1B.
+
+**`Status` now means what has merged, not when the card was made,** and **`Done` still means closed** —
+every `Done` item on the board is a closed issue, and breaking that would make the column unreadable.
+Nine items moved off `Todo` on that basis, and six of them were then closed outright:
+
+| issue | what closed it |
+|---|---|
+| #530 (1C source and method) | #666 — the four rules, the sources behind each, and the farm level |
+| #531 (1C FBAs and crosswalks) | #651, #652, #666 — `U50705BU1`/5.7.5B/`U70205`, the `Census_EC_PxI` extractor, and a 1,218-row crosswalk over 54 NIPA lines |
+| #610 (4c-1 2017 rates) | #626 — and it settled that #580 (4d) is a prerequisite for #613 |
+| #612 (4c-3 annual trade levels) | #628 |
+| #653 (Step 5 scaffolding) | #659 — deliberately Decision-1-independent, which is why it could land first |
+| #654 (Step 5 fixed-value mask) | #659 |
+
+The three that stay open are open for a reason: **#529** has the three `F03000` follow-ons under it,
+**#611** is the transport chain in progress, and **#655** is the gross output target. #591 and #588
+were already `In Progress`.
+
+✅ **Every issue on the board now carries its step in its title.** Eleven were renamed 2026-08-19 —
+#615 and #620 into `Step 4c`, #635 and #658 into `Step 1`, #646/#647/#668 into `Step 1B`, and
+#650/#660/#664/#665 into `Step 1C`. ⚠️ An earlier count of ten here was wrong in both directions: it
+included #606, which already carried `Step 1/3` and is correct as it stands, and it missed #615 and
+#620. Only the five pull requests are unprefixed, which is the standing exception — they inherit from
+the issue they close.
 
 ## Open questions
 
