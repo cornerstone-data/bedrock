@@ -78,13 +78,13 @@ from bedrock.transform.iot.nowcast_mask import (
     build_sut_masks,
     published_2017_panel,
 )
+from bedrock.transform.iot.nowcast_sut_gras import engine
 from bedrock.transform.iot.nowcast_targets import (
     build_target_set,
     hard_target_residuals,
 )
 from bedrock.utils.economic.balance import (
     SutMask,
-    engine,
     offset_targets,
     restore_fixed_blocks,
     split_fixed_blocks,

@@ -1,12 +1,22 @@
-"""SUT orchestration: ``engine(free, residual, masks)`` around ``gras_balance``.
+"""Nowcast Supply/Use GRAS: ``engine(free, residual, masks)`` around ``gras_balance``.
 
-PR2 of Step 5. Named protocol for hard T1 and T11–T17 only. Soft targets
-(T2, T4, T6–T9) are skipped: their ``.values`` are not read; unconstrained
-slots hold at the current Z row/col sum. KRAS is a later PR.
+Hard targets this adapter knows by name:
 
-Do not import ``nowcast_targets`` or ``nowcast_mask``. Bridge / tax literals
-match ``nowcast_mask.SUPPLY_BRIDGE_COLUMNS`` and Use VA rows (BEA trailing
-space on ``TRADE ``).
+* T1  — industry gross output (Use columns)
+* T11 — commodity identity (Supply row − Use row)
+* T12 — subsidies (Use T00SUB = Supply SUB)
+* T13 — product taxes (Use T00TOP = Supply TOP + MDTY)
+* T14 — customs duties (Use T00TOP[4200ID] = Supply MDTY)
+* T15 — trade margin column sums to 0 (``TRADE ``)
+* T16 — transport margin column sums to 0 (TRANS)
+* T17 — basic-to-producer wedge (Supply industry col vs Use, via T00TOP/T00SUB)
+
+Soft targets (T2, T4, T6–T9) are skipped: their ``.values`` are not read;
+unconstrained slots hold at the current Z row/col sum.
+
+Does not import ``nowcast_targets`` or ``nowcast_mask``. Bridge / tax
+literals match ``nowcast_mask.SUPPLY_BRIDGE_COLUMNS`` and Use VA rows
+(BEA trailing space on ``TRADE ``).
 """
 
 from __future__ import annotations

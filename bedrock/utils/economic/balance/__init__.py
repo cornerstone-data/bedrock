@@ -1,18 +1,17 @@
-"""Scaffolding, ndarray GRAS kernel, and SUT orchestration.
+"""Scaffolding and ndarray GRAS kernel.
 
 ``Target``, ``SutMask``, the offset method and the feasibility precheck do
 not depend on the scaler. ``gras_balance`` is the scaler: one signed matrix,
-row/col vectors, ``free_mask``, ``sign_flex``. ``engine`` is the SUT adapter:
-hard T1 and T11–T17 only; soft T2/T4/T6–T9 are skipped (hold current Z sums).
-Nothing in this package imports scipy. KRAS is not implemented yet.
+row/col vectors, ``free_mask``, ``sign_flex``. Nothing in this package
+imports scipy.
 
 Typical call order::
 
     frozen, free = split_fixed_blocks(seeds, masks)   # X = F + Z, per block
     residual     = offset_targets(targets, frozen)
     precheck(seeds, masks, targets)                   # raises if a margin is stuck
-    out          = engine(free, residual, masks)      # Use then Supply; hard only
-    result       = restore_fixed_blocks(out.blocks, frozen)
+    # scale Z (gras_balance per block, or a SUT adapter)
+    result       = restore_fixed_blocks(balanced, frozen)
 
 Callers map ``free_mask = mask.free.to_numpy()`` and
 ``sign_flex = (mask.sign_lock.to_numpy() == 0)``. Kernel
@@ -48,7 +47,6 @@ from bedrock.utils.economic.balance.offset import (
     split_fixed,
     split_fixed_blocks,
 )
-from bedrock.utils.economic.balance.orchestrate import SutBalanceResult, engine
 from bedrock.utils.economic.balance.targets import (
     PLACEHOLDER_PREFIX,
     Aggregator,
@@ -67,7 +65,6 @@ __all__ = [
     'GrasBalanceResult',
     'InfeasibleBalance',
     'Infeasibility',
-    'SutBalanceResult',
     'SutMask',
     'Target',
     'TargetSet',
@@ -75,7 +72,6 @@ __all__ = [
     'UnsourcedTargets',
     'assert_free_seed',
     'assert_subsidies_negative',
-    'engine',
     'gras_balance',
     'leverage',
     'margin',

@@ -11,7 +11,6 @@ Callers pass one matrix, row/col vectors, ``free_mask``, and
 ``sign_flex = (mask.sign_lock.to_numpy() == 0)``. Kernel
 ``sign_flex is None`` is all-False (stricter than a default ``SutMask``).
 Nonzero holds are the caller's offset, not this kernel.
-``engine`` in ``orchestrate.py`` calls this kernel per block.
 """
 
 from __future__ import annotations

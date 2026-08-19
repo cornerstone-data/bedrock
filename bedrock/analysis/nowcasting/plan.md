@@ -206,11 +206,11 @@ conversion and redefinition steps need is already loadable** — no new extract 
 is in [`bedrock/utils/economic/balance/gras.py`](../../utils/economic/balance/gras.py)
 (`gras_balance`, GRAS: Lenzen, Wood and Gallego 2007 + Temurshoev, Miller and
 Bouwmeester 2013). The SUT wrapper is
-[`engine`](../../utils/economic/balance/orchestrate.py)
+[`engine`](../../transform/iot/nowcast_sut_gras.py)
 (`engine(free, residual, masks)` → `out.blocks`): Use then Supply, hard T1 and
 T11–T17 only. Soft T2/T4/T6–T9 are skipped until KRAS. Unit tests:
 [`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py),
-[`test_orchestrate.py`](../../utils/economic/balance/__tests__/test_orchestrate.py).
+[`test_nowcast_sut_gras.py`](../../transform/iot/__tests__/test_nowcast_sut_gras.py).
 A **zero target is legal**; a **nonzero target on an empty free margin** raises.
 
 **The USEEIO port list shrank to one file.** `check_balances.py` and `load_suts_from_r.py` were both
@@ -937,7 +937,7 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 Option A for the engine: vendored ceda dense + GRAS), the **objective function**
 (Decision 2), and the **target set** (Decision 3) are recorded below. The
 Use-then-Supply wrapper `engine` is in
-[`orchestrate.py`](../../utils/economic/balance/orchestrate.py) (hard T1,
+[`nowcast_sut_gras.py`](../../transform/iot/nowcast_sut_gras.py) (hard T1,
 T11–T17). The KRAS-style soft layer is not done — do not treat the full Step 5
 balancer as complete. What follows replaces the earlier one-line instruction to
 port `sut_ras.py`; that is no longer the recommended route.
@@ -1006,12 +1006,13 @@ orchestration layer written fresh against `sut_ras.py` as the reference.
 **For anyone calling the SUT wrapper.** Everything below the ndarray kernel
 is built — mask, targets, offset, precheck in [#659](https://github.com/cornerstone-data/bedrock/pull/659),
 `gras_balance` in [`gras.py`](../../utils/economic/balance/gras.py), and
-`engine` in [`orchestrate.py`](../../utils/economic/balance/orchestrate.py).
+`engine` in [`nowcast_sut_gras.py`](../../transform/iot/nowcast_sut_gras.py).
 What remains of Step 5 is KRAS (soft T2/T4/T6–T9).
 
 | Module | What it is |
 |---|---|
-| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic scaffolding (`Target`, `SutMask`, offset, precheck), the ndarray GRAS kernel (`gras_balance`), and `engine` (Use then Supply) |
+| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic scaffolding (`Target`, `SutMask`, offset, precheck) and the ndarray GRAS kernel (`gras_balance`) |
+| [`transform/iot/nowcast_sut_gras.py`](../../transform/iot/nowcast_sut_gras.py) | nowcast SUT adapter — Use then Supply, hard T1 and T11–T17 |
 | [`transform/iot/nowcast_mask.py`](../../transform/iot/nowcast_mask.py) | the mask sourcing — Tiers 0/1/3/4, and the panel labels |
 | [`transform/iot/nowcast_targets.py`](../../transform/iot/nowcast_targets.py) | the target set — T1 through T17 |
 
@@ -1028,9 +1029,10 @@ Supply — not `sut_ras` `V`/`Ui`/`Ufd`/`Uva`.
 
 ```python
 from bedrock.transform.iot.nowcast_mask import BLOCKS, build_sut_masks, published_2017_panel
+from bedrock.transform.iot.nowcast_sut_gras import engine
 from bedrock.transform.iot.nowcast_targets import build_target_set
 from bedrock.utils.economic.balance import (
-    engine, offset_targets, precheck, restore_fixed_blocks, split_fixed_blocks,
+    offset_targets, precheck, restore_fixed_blocks, split_fixed_blocks,
 )
 
 seeds   = {block: published_2017_panel(block) for block in BLOCKS}   # the 2017 replay seed
@@ -1324,7 +1326,7 @@ dense path, GRAS in place of RAS (Lenzen, Wood and Gallego 2007 + Temurshoev, Mi
 Bouwmeester 2013), clamps deleted, mask via offset outside the engine, no scipy.
 [`gras_balance`](../../utils/economic/balance/gras.py) is that engine. Convergence is elementwise
 `|sum - target| <= atol + rtol |target|`, reported on `GrasBalanceResult.converged`. The SUT
-orchestration layer is [`engine`](../../utils/economic/balance/orchestrate.py): Use then Supply,
+orchestration layer is [`engine`](../../transform/iot/nowcast_sut_gras.py): Use then Supply,
 hard T1 and T11–T17, joint T11 stop. T4 aggregators are **not** imposed. The KRAS-style soft layer is
 **not yet**. Hold the commodity identity and gross output hard, everything sourced soft with
 per-source weights, and keep summary SUT out of the target set and in the test set.
