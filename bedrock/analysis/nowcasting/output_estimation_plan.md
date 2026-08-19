@@ -229,6 +229,62 @@ percent of unity and a plausible-looking per-group error table.** Neither was
 found by inspection; both were found by asking whether the identity closed.
 Score the identity first.
 
+### The three divergent groups, diagnosed
+
+`525`, `483` and `213` were the worst of 2022. They turn out to share one
+mechanism: **a frozen mix converts an industry's output growth — often price
+growth — into commodity output that did not happen.**
+
+| group | published `T007` 2017→22 | same-code industry GO | gap |
+|---|---:|---:|---:|
+| `525` funds and trusts | ×0.891 | ×1.176 | −24.2% |
+| `483` water transport | ×0.997 | ×1.216 | −18.0% |
+| `213` mining support | ×0.951 | ×0.923 | +3.0% |
+
+⚠️ **`213` is the instructive one, because its own industry barely moved.** Its
+error is almost entirely **`211000` oil and gas extraction**, whose output went
+**×2.57** on the 2021-22 energy price surge and which holds a 5.3% secondary
+share of mining-support commodities in the 2017 block. That single industry
+contributes **+20,347** of a +14,593 net rise, in a commodity whose published
+output *fell* 4.9%. A price move in one industry propagated through a frozen
+secondary share into a phantom quantity move in another commodity.
+
+`483` and `525` are the simpler shape — own-industry driven, 95% and 100% shares
+— where industry output rose 22% and 18% while commodity output stayed flat and
+fell 11%. `525` is very likely the **RIC measurement change** from the 2023
+comprehensive update (RIC gross output redefined as the sum of intermediate
+expenses), which a 2017 mix cannot know about; `GSLGO` also contributes, holding
+3.1% of funds and trusts, which is government employee retirement.
+
+**Design implication.** Where an industry's output move is largely *price*, a
+frozen mix should not propagate it to secondary commodities at the same rate.
+That argues for deflating before applying the mix, or for commodity-specific
+indicators — and it predicts the frozen mix fails worst in exactly the years and
+sectors with large relative price moves, which is consistent with 2022 scoring
+worse than 2024.
+
+### Where the summary control is free, and where it costs
+
+The concern about flattening detail has a size:
+
+- **21 of 73 summary groups have a single detail child**, covering **19.8% of
+  commodity output**. For these, imposing published `T007` is **exact** — there
+  is no within-group distribution to flatten. `525` and `483` are both in this
+  set, so both can simply be corrected to observed data.
+- The value-weighted mean is **6.7 detail children per group**, so the typical
+  dollar sits in a group where a uniform ratio *would* flatten. The largest are
+  `5412OP` (10 children), `42` wholesale (11), `23` construction (12), `621` (7).
+- `213` has two children, so its correction is nearly free as well.
+
+⚠️ **This reframes the block.** Summary `T007` is *published for 2017-2024*, so
+for every year we care about, commodity output at summary is **observed, not
+modelled**. Step 4a's real job is therefore **the detail split within summary
+groups**, not the level. The level should be taken from BEA wherever it exists,
+and modelled only beyond the published window.
+
+That also says where the remaining work is: the ~80% of output sitting in
+multi-child groups, and specifically the big ones above.
+
 ## The adjustment ladder
 
 Chapter 5's tables 5.1 (cheese, NAICS 311513) and 5.2 (telecom, NAICS 5133) give
