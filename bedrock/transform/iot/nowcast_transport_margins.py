@@ -809,11 +809,20 @@ MODE_COMMODITIES = {
     'air': VOLUME_MODES['air'][1],
 }
 
-#: Modes whose annual freight revenue is observed. Water and air are absent on
-#: purpose: their industry output is mostly *passengers*, so it cannot stand in
-#: for freight revenue - the 2017 margin is 17.3% of water's output and 2.6% of
-#: air's, against 76.7% for truck and 86.2% for rail.
-FREIGHT_REVENUE_MODES = ('truck', 'rail', 'pipeline')
+#: Air and water freight NAICS in SAS Table 2. Their *industry* output is mostly
+#: passengers - the 2017 margin is 2.6% of air's output and 17.3% of water's -
+#: so the freight lines have to be taken on their own rather than the parent.
+#:
+#: ``481219`` other nonscheduled air is left out: it is air taxi and sightseeing
+#: as much as freight, and at 1,936 $M in 2017 it is not worth the ambiguity.
+AIR_FREIGHT_NAICS = ('481112', '481212')
+WATER_FREIGHT_NAICS = ('483111', '483113', '483211')
+
+#: Every mode whose annual freight revenue is observed.
+FREIGHT_REVENUE_MODES = ('truck', 'rail', 'pipeline', 'water', 'air')
+
+#: The freight NAICS per mode, for the two that need selecting out of a parent.
+_SAS_FREIGHT_NAICS = {'air': AIR_FREIGHT_NAICS, 'water': WATER_FREIGHT_NAICS}
 
 #: The row carrying rail revenue inclusive of redacted cells.
 _CRSR_ALL_DATA = 'TOTALS (All Data)'
@@ -841,36 +850,58 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
                 f'revenue, so the released total would understate the control.'
             )
         return float(rows['FlowAmount'].sum())
-    raise NotImplementedError(
-        f'{mode_name} has no observed annual freight revenue. Water and air '
-        f'industry output is mostly passenger revenue - the 2017 margin is 17.3% '
-        f'and 2.6% of output respectively - so output cannot stand in for it. '
-        f'Freight-only series from BTS are the route; together they are 3.8% of '
-        f'TRANS.'
-    )
+    if mode_name in _SAS_FREIGHT_NAICS:
+        codes = _SAS_FREIGHT_NAICS[mode_name]
+        fba = getFlowByActivity('Census_SAS', year)
+        table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
+        revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
+        found = set(revenue['ActivityProducedBy'].astype(str))
+        if found != set(codes):
+            raise ValueError(
+                f'Census_SAS Table 2 is missing freight NAICS {sorted(set(codes) - found)} '
+                f'for {mode_name} in {year}. Falling back to the parent industry '
+                f'would put passenger revenue into a freight control - air is 2.6% '
+                f'margin on its output, so that error would be an order of magnitude.'
+            )
+        return float(revenue['FlowAmount'].sum())
+
+    raise NotImplementedError(f'{mode_name} has no observed annual freight revenue.')
 
 
 def mode_coverage_ratio(mode_name: str, margins: pd.DataFrame | None = None) -> float:
     """
-    The mode's 2017 margin divided by its 2017 freight revenue.
+        The mode's 2017 margin divided by its 2017 freight revenue.
 
-    Near 1 by construction: for a freight mode essentially all revenue is margin,
-    because the transport cost of moving a good to its buyer is unbundled and
-    shifted forward onto that good - *"the treatment of trade margins parallels
-    the treatments of transportation costs... which are also unbundled and
-    shifted forward regardless of who actually pays the costs"* (BEA IO manual
-    2009, ch. 2).
+        Near 1 by construction: for a freight mode essentially all revenue is margin,
+        because the transport cost of moving a good to its buyer is unbundled and
+        shifted forward onto that good - *"the treatment of trade margins parallels
+        the treatments of transportation costs... which are also unbundled and
+        shifted forward regardless of who actually pays the costs"* (BEA IO manual
+        2009, ch. 2).
 
-    Measured on 2017 it is 1.042 for truck, 0.995 for rail and 1.052 for
-    pipeline. Rail is nearest unity because the STB waybill sample covers
-    essentially all Class I traffic; truck and pipeline run above it in the same
-    direction because SAS covers **employer firms**, leaving owner-operators and
-    private carriage outside a margin that includes them.
+    ⚠️ **The ratio means two different things across the five modes**, and only the
+        first is a small correction.
 
-    ⚠️ **Freezing this ratio at 2017 is the whole modelling content of the annual
-    control.** It assumes source coverage is stable over time, which is a much
-    smaller claim than choosing among constructions that disagreed by 11.8%, but
-    it is still an assumption and nothing here tests it.
+        For the three land modes it is near unity and is a *coverage* adjustment:
+        1.042 truck, 0.995 rail, 1.052 pipeline. Rail is nearest because the STB
+        waybill sample covers essentially all Class I traffic; truck and pipeline run
+        above it in the same direction because SAS covers **employer firms**, leaving
+        owner-operators and private carriage outside a margin that includes them.
+
+        For water and air it is roughly half - 0.478 and 0.584 - and is doing a much
+        bigger job: **their freight revenue includes international legs, while the
+        margin is the domestic leg only**, the foreign leg sitting in ``MCIF``. That
+        is a larger thing to freeze, and it would move if the domestic/international
+        mix shifted. Two things bound the risk: the modes are 3.8% of ``TRANS``
+        between them, and the split does not appear to be a distinct source of
+        movement - deep sea, domestic and all-freight water revenue have almost
+        identical year-on-year volatility (0.146, 0.147, 0.141), so dropping deep sea
+        changes the level of the ratio but barely the shape of the series.
+
+        ⚠️ **Freezing this ratio at 2017 is the whole modelling content of the annual
+        control.** It assumes source coverage is stable over time, which is a much
+        smaller claim than choosing among constructions that disagreed by 11.8%, but
+        it is still an assumption and nothing here tests it.
     """
     give_up = _mode_give_up_2017(MODE_COMMODITIES[mode_name], margins)
     revenue = mode_freight_revenue(mode_name, ANCHOR_YEAR)

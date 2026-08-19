@@ -627,22 +627,35 @@ def test_coverage_ratios_are_near_unity() -> None:
     traffic. Truck and pipeline sit above 1 in the same direction, since SAS
     covers employer firms only while the margin includes owner-operators.
     """
-    ratios = {m: tm.mode_coverage_ratio(m) for m in tm.FREIGHT_REVENUE_MODES}
+    ratios = {m: tm.mode_coverage_ratio(m) for m in ('truck', 'rail', 'pipeline')}
     for mode, ratio in ratios.items():
         assert 0.9 < ratio < 1.1, f'{mode} coverage ratio {ratio}'
     assert ratios['rail'] == pytest.approx(0.995, abs=0.01)
 
 
-def test_water_and_air_have_no_freight_revenue_source() -> None:
+def test_water_and_air_never_fall_back_to_the_parent_industry() -> None:
     """
-    Their output is mostly passengers, so it cannot stand in for freight revenue.
+    Their output is mostly passengers, so the parent must not stand in for it.
 
-    This must fail loudly rather than quietly using industry output, which would
-    make air freight margin track air *passenger* demand.
+    A missing freight NAICS has to raise rather than quietly resolving to 481 or
+    483, which would make air freight margin track air *passenger* demand - the
+    exact failure the retired ton-mile chain hit.
     """
-    for mode in ('water', 'air'):
-        with pytest.raises(NotImplementedError, match='passenger'):
-            tm.mode_freight_revenue(mode, 2017)
+    real = tm.getFlowByActivity
+
+    def without_scheduled_air_freight(source, year, **kwargs):
+        fba = real(source, year, **kwargs)
+        if source != 'Census_SAS':
+            return fba
+        return fba[fba['ActivityProducedBy'].astype(str) != '481112']
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(tm, 'getFlowByActivity', without_scheduled_air_freight)
+    try:
+        with pytest.raises(ValueError, match='missing freight NAICS'):
+            tm.mode_freight_revenue('air', 2017)
+    finally:
+        monkeypatch.undo()
 
 
 def test_a_single_suppressed_truck_group_is_recovered() -> None:
@@ -670,3 +683,42 @@ def test_control_totals_move_with_observed_revenue() -> None:
         )
         ratio = table[mode] / revenue
         assert ratio.std() == pytest.approx(0.0, abs=1e-9)
+
+
+def test_water_and_air_controls_come_from_freight_naics_only() -> None:
+    """
+    Their parent industry is mostly passengers, so the parent must never be used.
+
+    Air's margin is 2.6% of its industry output, so falling back to 481 would
+    overstate the control by more than an order of magnitude.
+    """
+    for mode in ('water', 'air'):
+        assert tm.mode_control_total(mode, 2017) == pytest.approx(
+            tm._mode_give_up_2017(tm.MODE_COMMODITIES[mode])
+        )
+    air = tm.mode_freight_revenue('air', 2017)
+    assert air == pytest.approx(10_661e6, rel=1e-6)
+    water = tm.mode_freight_revenue('water', 2017)
+    assert water == pytest.approx(19_875e6, rel=1e-6)
+
+
+def test_water_and_air_ratios_are_not_a_coverage_correction() -> None:
+    """
+    ⚠️ Unlike the land modes, these ratios are about halved, not near unity.
+
+    Their freight revenue includes international legs while the margin is the
+    domestic leg only. That is a larger thing to freeze, and this pins the
+    difference so it cannot be mistaken for the coverage story.
+    """
+    land = {m: tm.mode_coverage_ratio(m) for m in ('truck', 'rail', 'pipeline')}
+    sea_air = {m: tm.mode_coverage_ratio(m) for m in ('water', 'air')}
+    assert all(0.9 < r < 1.1 for r in land.values())
+    assert all(0.4 < r < 0.7 for r in sea_air.values())
+
+
+def test_all_five_controls_reproduce_the_anchor_year() -> None:
+    """2017 must be an identity for every mode, not just the land ones."""
+    table = tm.control_total_table([2017])
+    total = table.loc[2017].sum()
+    published = sum(tm._mode_give_up_2017(c) for c in tm.MODE_COMMODITIES.values())
+    assert total == pytest.approx(published)
