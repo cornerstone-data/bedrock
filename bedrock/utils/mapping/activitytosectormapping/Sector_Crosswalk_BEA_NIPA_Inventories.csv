@@ -968,3 +968,252 @@ BEA_NIPA,Other retail stores,BEA_2017_Code,5111A0,,Other retail stores; NAICS 45
 BEA_NIPA,Other retail stores,BEA_2017_Code,512100,,Other retail stores; NAICS 451/453/454; C44X
 BEA_NIPA,Other retail stores,BEA_2017_Code,512200,,Other retail stores; NAICS 451/453/454; C44X
 BEA_NIPA,Other retail stores,BEA_2017_Code,S00402,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Wood product manufacturing,BEA_2017_Code,321100,,Wood products; NAICS 321; C321
+BEA_NIPA,Wood product manufacturing,BEA_2017_Code,321200,,Wood products; NAICS 321; C321
+BEA_NIPA,Wood product manufacturing,BEA_2017_Code,321910,,Wood products; NAICS 321; C321
+BEA_NIPA,Wood product manufacturing,BEA_2017_Code,3219A0,,Wood products; NAICS 321; C321
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327100,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327200,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327310,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327320,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327330,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327390,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327400,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327910,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327991,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327992,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327993,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Nonmetallic mineral product manufacturing,BEA_2017_Code,327999,,Nonmetallic mineral products; NAICS 327; C327
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331110,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331200,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331313,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,33131B,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331410,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331420,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331490,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331510,,Primary metals; NAICS 331; C331
+BEA_NIPA,Primary metal manufacturing,BEA_2017_Code,331520,,Primary metals; NAICS 331; C331
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332114,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332119,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,33211A,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332200,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332310,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332320,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332410,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332420,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332430,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332500,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332600,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332710,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332720,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332800,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332913,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,33291A,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332991,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332996,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,332999,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Fabricated metal product manufacturing,BEA_2017_Code,33299A,,Fabricated metal products; NAICS 332; C332
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333111,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333112,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333120,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333130,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333242,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,33329A,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333314,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333316,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333318,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333413,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333414,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333415,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333511,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333514,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333517,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,33351B,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333611,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333612,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333613,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333618,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333912,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333914,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333920,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333991,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333993,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,333994,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,33399A,,Machinery; NAICS 333; C333
+BEA_NIPA,Machinery manufacturing,BEA_2017_Code,33399B,,Machinery; NAICS 333; C333
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334111,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334112,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334118,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334210,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334220,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334290,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334300,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334413,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334418,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,33441A,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334510,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334511,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334512,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334513,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334514,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334515,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334516,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334517,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,33451A,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,Computer and electronic product manufacturing,BEA_2017_Code,334610,,Computer and electronic products; NAICS 334; C334
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335110,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335120,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335210,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335220,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335311,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335312,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335313,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335314,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335911,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335912,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335920,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335930,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335991,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,"Electrical equipment, appliance, and component manufacturing",BEA_2017_Code,335999,,Electrical equipment and appliances; NAICS 335; C335
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336111,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336112,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336120,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336211,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336212,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336213,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336214,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336310,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336320,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336350,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336360,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336370,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,336390,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Motor vehicle and parts manufacturing,BEA_2017_Code,3363A0,,Motor vehicles and parts; NAICS 3361/3362/3363; C336MV
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336411,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336412,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336413,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336414,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,33641A,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336500,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336611,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336612,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336991,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336992,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Other transportation equipment manufacturing,BEA_2017_Code,336999,,Other transportation equipment; NAICS 3364/3365/3366/3369; C336OT
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,337110,,Furniture; NAICS 337; C337
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,337121,,Furniture; NAICS 337; C337
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,337122,,Furniture; NAICS 337; C337
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,337127,,Furniture; NAICS 337; C337
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,33712N,,Furniture; NAICS 337; C337
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,337215,,Furniture; NAICS 337; C337
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,33721A,,Furniture; NAICS 337; C337
+BEA_NIPA,Furniture and related product manufacturing,BEA_2017_Code,337900,,Furniture; NAICS 337; C337
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339112,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339113,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339114,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339115,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339116,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339910,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339920,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339930,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339940,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339950,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Miscellaneous durable goods manufacturing,BEA_2017_Code,339990,,Miscellaneous durable goods; NAICS 339; C339
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311111,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311119,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311210,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311221,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311224,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311225,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311230,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311300,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311410,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311420,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311513,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311514,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,31151A,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311520,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311615,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,31161A,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311700,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311810,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,3118A0,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311910,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311920,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311930,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311940,,Food; NAICS 311; C311
+BEA_NIPA,Food manufacturing,BEA_2017_Code,311990,,Food; NAICS 311; C311
+BEA_NIPA,Beverage and tobacco product manufacturing,BEA_2017_Code,312110,,Beverages and tobacco; NAICS 312; C312
+BEA_NIPA,Beverage and tobacco product manufacturing,BEA_2017_Code,312120,,Beverages and tobacco; NAICS 312; C312
+BEA_NIPA,Beverage and tobacco product manufacturing,BEA_2017_Code,312130,,Beverages and tobacco; NAICS 312; C312
+BEA_NIPA,Beverage and tobacco product manufacturing,BEA_2017_Code,312140,,Beverages and tobacco; NAICS 312; C312
+BEA_NIPA,Beverage and tobacco product manufacturing,BEA_2017_Code,312200,,Beverages and tobacco; NAICS 312; C312
+BEA_NIPA,Textile mills,BEA_2017_Code,313100,,Textile mills; NAICS 313; C313
+BEA_NIPA,Textile mills,BEA_2017_Code,313200,,Textile mills; NAICS 313; C313
+BEA_NIPA,Textile mills,BEA_2017_Code,313300,,Textile mills; NAICS 313; C313
+BEA_NIPA,Textile product mills,BEA_2017_Code,314110,,Textile product mills; NAICS 314; C314
+BEA_NIPA,Textile product mills,BEA_2017_Code,314120,,Textile product mills; NAICS 314; C314
+BEA_NIPA,Textile product mills,BEA_2017_Code,314900,,Textile product mills; NAICS 314; C314
+BEA_NIPA,Apparel manufacturing,BEA_2017_Code,315000,,Apparel; NAICS 315; C315
+BEA_NIPA,Leather and allied product manufacturing,BEA_2017_Code,316000,,Leather and allied products; NAICS 316; C316
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322110,,Paper; NAICS 322; C322
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322120,,Paper; NAICS 322; C322
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322130,,Paper; NAICS 322; C322
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322210,,Paper; NAICS 322; C322
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322220,,Paper; NAICS 322; C322
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322230,,Paper; NAICS 322; C322
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322291,,Paper; NAICS 322; C322
+BEA_NIPA,Paper manufacturing,BEA_2017_Code,322299,,Paper; NAICS 322; C322
+BEA_NIPA,Printing and related support activities,BEA_2017_Code,323110,,Printing; NAICS 323; C323
+BEA_NIPA,Printing and related support activities,BEA_2017_Code,323120,,Printing; NAICS 323; C323
+BEA_NIPA,Petroleum and coal product manufacturing,BEA_2017_Code,324110,,Petroleum and coal products; NAICS 324; C324
+BEA_NIPA,Petroleum and coal product manufacturing,BEA_2017_Code,324121,,Petroleum and coal products; NAICS 324; C324
+BEA_NIPA,Petroleum and coal product manufacturing,BEA_2017_Code,324122,,Petroleum and coal products; NAICS 324; C324
+BEA_NIPA,Petroleum and coal product manufacturing,BEA_2017_Code,324190,,Petroleum and coal products; NAICS 324; C324
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325110,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325120,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325130,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325180,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325190,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325211,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,3252A0,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325310,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325320,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325411,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325412,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325413,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325414,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325510,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325520,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325610,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325620,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,325910,,Chemicals; NAICS 325; C325
+BEA_NIPA,Chemical manufacturing,BEA_2017_Code,3259A0,,Chemicals; NAICS 325; C325
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326110,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326120,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326130,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326140,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326150,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326160,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326190,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326210,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326220,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,Plastics and rubber product manufacturing,BEA_2017_Code,326290,,Plastics and rubber products; NAICS 326; C326
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,211000,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,212100,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,212230,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,2122A0,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,212310,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,2123A0,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,213111,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,"Mining, utilities, and construction",BEA_2017_Code,21311A,,"Mining, utilities and construction; NAICS 21; N541RC"
+BEA_NIPA,Farm,BEA_2017_Code,1111A0,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,1111B0,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,111200,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,111300,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,111400,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,111900,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,112120,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,1121A0,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,112300,,Farm; NAICS 111; B018RC
+BEA_NIPA,Farm,BEA_2017_Code,112A00,,Farm; NAICS 111; B018RC
