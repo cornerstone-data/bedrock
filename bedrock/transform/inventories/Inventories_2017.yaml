@@ -126,19 +126,87 @@ source_names:
           ActivityProducedBy: Nonmerchant wholesale, nondurable goods
 
       # ---- Retail leaves -----------------------------------------------
-      # 17,930. Line 73 excluded as the parent of 74/75.
-      # ⚠️ 74 department stores +21,237 against 75 other general merchandise
-      # -24,518. Two adjacent retail lines nearly cancelling at this magnitude
-      # looks like a classification movement rather than economics. Check
-      # whether the pair is stable across 2018-2024 before trusting this branch
-      # year to year - open question 4 in the plan.
+      # 17,930. Takes line 73 and EXCLUDES its children 74/75 - the reverse of
+      # the leaf rule applied everywhere else in this method.
+      #
+      # ⚠️ Open question 4 is now answered, and the answer is that 74/75 carry a
+      # reclassification in 2017 rather than inventory movement. Measured across
+      # every published year:
+      #
+      #   year   74 Dept      75 Other gen   gross/|net|
+      #   2017    +21,237        -24,518        13.9
+      #   2018     +2,381         +1,001         1.0
+      #   2019     -1,898           -583         1.0
+      #   2020     -3,604            -72         1.0
+      #   2021     +2,345         +9,063         1.0
+      #   2022       +665         +3,754         1.0
+      #   2023     -1,048         -2,231         1.0
+      #   2024     +2,430         +1,754         1.0
+      #
+      # In 2018-2024 the two always share a sign and gross equals net exactly.
+      # 2017 alone has them opposed at ~7x the largest value either takes in any
+      # other year - establishments moving between NAICS 4521 and 4529 inside a
+      # NAICS revision year, not inventory behaviour.
+      #
+      # Their parent, line 73 at -3,281, is ordinary and sits inside the other
+      # years' range, and 73 = 74 + 75 by construction, so the retail total is
+      # unchanged. This removes 45,755 of spurious gross from a column whose
+      # entire published gross is 98,764. Both children map to the same
+      # commodity set, so the parent inherits it and no coverage is lost.
+      #
+      # ⚠️ This substitution is 2017-only. 2018+ have well-behaved children and
+      # should take 74/75 as leaves in the normal way - do not copy this line
+      # list forward without re-running the check above.
       inventories_retail:
         activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50705BU1
-          Line: [68, 69, 70, 71, 72, 74, 75, 76]
+          Line: [68, 69, 70, 71, 72, 73, 76]  # 73 not 74/75 - see above
+
+      # ---- Motor vehicles: published split, used in place of a weight ----
+      # ⚠️ These four sets do NOT add to the column. They exist to supply the
+      # auto/truck and new/used SPLIT that the trade branch cannot infer, and
+      # they overlap the trade lines that already carry motor vehicle value
+      # (441 dealers, 4231 wholesalers). Wire them as an attribution source,
+      # not as additive activity sets - see the plan.
+      #
+      # Table 7.2.5U is the one place BEA publishes change in private
+      # inventories already split by commodity AND in dollars, so the inventory
+      # valuation adjustment is applied at source. Every other split we have
+      # for this branch - EIA physical stocks, FIWS book values, U70205S unit
+      # counts - needs a price and reintroduces the holding gains the IVA
+      # exists to strip.
+      #
+      # 2017: autos 7,791 (new -5,182, used 12,972); trucks 13,313 (new 6,846,
+      # used 6,467). The implied 37/63 auto-truck split is much closer to the
+      # published 336111/336112 of 46/54 than anything derived here - the
+      # concordance gave 81/3 and commodity-output weighting gave 13/87.
+      #
+      # ⚠️ Used autos plus used trucks is 19,439, against S00402 used and
+      # secondhand goods published at 3,969. Right sign and ample scale, but
+      # this is all motor vehicle inventory across every holding sector, not
+      # the net that reaches F03000. Use for shape, not level.
+      inventories_motor_vehicles_autos_new:
+        selection_fields:
+          Table: U70205
+          Line: 57  # B146RC new autos, -5,182
+
+      inventories_motor_vehicles_autos_used:
+        selection_fields:
+          Table: U70205
+          Line: 60  # B147RC used autos, 12,972
+
+      inventories_motor_vehicles_trucks_new:
+        selection_fields:
+          Table: U70205
+          Line: 62  # W244RC new trucks, 6,846
+
+      inventories_motor_vehicles_trucks_used:
+        selection_fields:
+          Table: U70205
+          Line: 65  # W245RC used trucks, 6,467
 
       # ---- Mining, utilities and construction --------------------------
       # -14,261, which is 37% of nonfarm in magnitude, published with NO

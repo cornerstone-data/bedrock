@@ -135,6 +135,14 @@ BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,333993,,
 BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,333994,,"Machinery, equipment and supplies; NAICS 4238; C4218"
 BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,33399A,,"Machinery, equipment and supplies; NAICS 4238; C4218"
 BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,33399B,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,336411,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,336412,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,336413,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,336414,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,33641A,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,336500,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,336611,,"Machinery, equipment and supplies; NAICS 4238; C4218"
+BEA_NIPA,"Machinery, equipment, and supplies wholesalers",BEA_2017_Code,336612,,"Machinery, equipment and supplies; NAICS 4238; C4218"
 BEA_NIPA,Miscellaneous durable goods wholesalers,BEA_2017_Code,314900,,Miscellaneous durable goods; NAICS 4239; C4219
 BEA_NIPA,Miscellaneous durable goods wholesalers,BEA_2017_Code,316000,,Miscellaneous durable goods; NAICS 4239; C4219
 BEA_NIPA,Miscellaneous durable goods wholesalers,BEA_2017_Code,339910,,Miscellaneous durable goods; NAICS 4239; C4219
@@ -541,319 +549,422 @@ BEA_NIPA,Food and beverage stores,BEA_2017_Code,312130,,Food and beverage stores
 BEA_NIPA,Food and beverage stores,BEA_2017_Code,312140,,Food and beverage stores; NAICS 445; N542RC
 BEA_NIPA,Clothing and clothing accessories stores,BEA_2017_Code,315000,,Clothing and clothing accessories stores; NAICS 448; C448
 BEA_NIPA,Clothing and clothing accessories stores,BEA_2017_Code,316000,,Clothing and clothing accessories stores; NAICS 448; C448
-BEA_NIPA,Department stores,BEA_2017_Code,311111,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311119,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311210,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311221,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311224,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311225,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311230,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311300,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311410,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311420,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311513,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311514,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,31151A,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311520,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311615,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,31161A,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311700,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311810,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,3118A0,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311910,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311920,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311930,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311940,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,311990,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,312110,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,312120,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,312130,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,312140,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,312200,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,315000,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,316000,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325110,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325120,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325130,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325180,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325190,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325211,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,3252A0,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325310,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325320,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325411,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325412,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325413,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325414,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325510,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325520,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325610,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325620,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,325910,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,3259A0,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334111,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334112,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334118,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334210,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334220,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334290,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334300,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334413,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334418,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,33441A,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334510,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334511,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334512,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334513,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334514,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334515,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334516,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334517,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,33451A,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,334610,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335110,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335120,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335210,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335220,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335311,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335312,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335313,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335314,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335911,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335912,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335920,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335930,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335991,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,335999,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,337110,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,337121,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,337122,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,337127,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,33712N,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,337215,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,33721A,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,337900,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339112,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339113,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339114,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339115,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339116,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339910,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339920,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339930,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339940,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339950,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Department stores,BEA_2017_Code,339990,,Department stores; NAICS 4521; C4521
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311111,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311119,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311210,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311221,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311224,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311225,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311230,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311300,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311410,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311420,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311513,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311514,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,31151A,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311520,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311615,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,31161A,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311700,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311810,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,3118A0,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311910,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311920,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311930,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311940,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311990,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312110,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312120,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312130,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312140,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312200,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,315000,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,316000,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325110,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325120,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325130,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325180,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325190,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325211,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,3252A0,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325310,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325320,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325411,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325412,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325413,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325414,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325510,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325520,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325610,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325620,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325910,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,3259A0,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334111,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334112,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334118,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334210,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334220,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334290,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334300,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334413,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334418,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33441A,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334510,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334511,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334512,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334513,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334514,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334515,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334516,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334517,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33451A,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334610,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335110,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335120,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335210,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335220,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335311,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335312,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335313,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335314,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335911,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335912,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335920,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335930,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335991,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335999,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337110,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337121,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337122,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337127,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33712N,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337215,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33721A,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337900,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339112,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339113,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339114,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339115,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339116,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339910,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339920,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339930,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339940,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339950,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339990,,Other general merchandise stores; NAICS 4529; C4529
-BEA_NIPA,Other retail stores,BEA_2017_Code,311111,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311119,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311210,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311221,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311224,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311225,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311230,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311300,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311410,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311420,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311513,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311514,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,31151A,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311520,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311615,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,31161A,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311700,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311810,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,3118A0,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311910,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311920,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311930,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311940,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,311990,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,312110,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,312120,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,312130,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,312140,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,312200,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,315000,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,316000,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325110,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325120,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325130,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325180,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325190,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325211,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,3252A0,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325310,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325320,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325411,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325412,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325413,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325414,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325510,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325520,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325610,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325620,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,325910,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,3259A0,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334111,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334112,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334118,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334210,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334220,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334290,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334300,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334413,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334418,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,33441A,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334510,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334511,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334512,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334513,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334514,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334515,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334516,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334517,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,33451A,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,334610,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335110,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335120,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335210,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335220,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335311,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335312,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335313,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335314,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335911,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335912,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335920,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335930,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335991,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,335999,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,337110,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,337121,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,337122,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,337127,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,33712N,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,337215,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,33721A,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,337900,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339112,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339113,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339114,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339115,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339116,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339910,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339920,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339930,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339940,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339950,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,339990,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,511110,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,511120,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,511130,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,5111A0,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,512100,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,512200,,Other retail stores; NAICS 44X; C44X
-BEA_NIPA,Other retail stores,BEA_2017_Code,S00402,,Other retail stores; NAICS 44X; C44X
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311111,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311119,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311210,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311221,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311224,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311225,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311230,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311300,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311410,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311420,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311513,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311514,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,31151A,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311520,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311615,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,31161A,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311700,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311810,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,3118A0,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311910,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311920,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311930,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311940,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,311990,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,312110,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,312120,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,312130,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,312140,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,312200,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,315000,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,316000,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325110,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325120,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325130,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325180,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325190,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325211,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,3252A0,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325310,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325320,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325411,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325412,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325413,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325414,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325510,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325520,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325610,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325620,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,325910,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,3259A0,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334111,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334112,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334118,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334210,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334220,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334290,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334300,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334413,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334418,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,33441A,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334510,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334511,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334512,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334513,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334514,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334515,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334516,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334517,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,33451A,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,334610,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335110,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335120,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335210,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335220,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335311,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335312,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335313,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335314,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335911,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335912,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335920,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335930,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335991,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,335999,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,337110,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,337121,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,337122,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,337127,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,33712N,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,337215,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,33721A,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,337900,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339112,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339113,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339114,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339115,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339116,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339910,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339920,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339930,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339940,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339950,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,General merchandise stores,BEA_2017_Code,339990,,General merchandise stores; NAICS 452; N543RC
+BEA_NIPA,Department stores,BEA_2017_Code,311111,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311119,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311210,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311221,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311224,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311225,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311230,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311300,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311410,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311420,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311513,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311514,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,31151A,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311520,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311615,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,31161A,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311700,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311810,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,3118A0,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311910,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311920,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311930,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311940,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,311990,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,312110,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,312120,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,312130,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,312140,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,312200,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,315000,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,316000,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325110,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325120,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325130,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325180,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325190,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325211,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,3252A0,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325310,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325320,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325411,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325412,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325413,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325414,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325510,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325520,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325610,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325620,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,325910,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,3259A0,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334111,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334112,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334118,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334210,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334220,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334290,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334300,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334413,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334418,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,33441A,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334510,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334511,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334512,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334513,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334514,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334515,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334516,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334517,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,33451A,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,334610,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335110,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335120,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335210,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335220,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335311,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335312,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335313,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335314,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335911,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335912,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335920,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335930,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335991,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,335999,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,337110,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,337121,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,337122,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,337127,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,33712N,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,337215,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,33721A,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,337900,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339112,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339113,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339114,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339115,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339116,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339910,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339920,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339930,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339940,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339950,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Department stores,BEA_2017_Code,339990,,Department stores; NAICS 4522; C4521
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311111,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311119,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311210,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311221,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311224,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311225,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311230,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311300,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311410,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311420,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311513,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311514,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,31151A,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311520,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311615,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,31161A,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311700,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311810,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,3118A0,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311910,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311920,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311930,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311940,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,311990,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312110,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312120,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312130,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312140,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,312200,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,315000,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,316000,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325110,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325120,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325130,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325180,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325190,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325211,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,3252A0,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325310,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325320,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325411,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325412,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325413,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325414,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325510,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325520,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325610,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325620,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,325910,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,3259A0,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334111,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334112,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334118,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334210,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334220,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334290,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334300,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334413,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334418,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33441A,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334510,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334511,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334512,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334513,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334514,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334515,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334516,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334517,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33451A,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,334610,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335110,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335120,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335210,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335220,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335311,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335312,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335313,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335314,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335911,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335912,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335920,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335930,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335991,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,335999,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337110,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337121,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337122,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337127,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33712N,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337215,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,33721A,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,337900,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339112,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339113,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339114,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339115,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339116,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339910,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339920,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339930,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339940,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339950,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other general merchandise stores,BEA_2017_Code,339990,,Other general merchandise stores; NAICS 4523; C4529
+BEA_NIPA,Other retail stores,BEA_2017_Code,311111,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311119,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311210,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311221,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311224,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311225,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311230,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311300,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311410,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311420,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311513,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311514,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,31151A,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311520,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311615,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,31161A,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311700,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311810,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,3118A0,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311910,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311920,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311930,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311940,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,311990,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,312110,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,312120,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,312130,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,312140,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,312200,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,315000,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,316000,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325110,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325120,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325130,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325180,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325190,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325211,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,3252A0,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325310,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325320,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325411,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325412,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325413,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325414,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325510,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325520,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325610,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325620,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,325910,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,3259A0,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334111,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334112,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334118,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334210,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334220,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334290,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334300,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334413,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334418,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,33441A,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334510,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334511,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334512,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334513,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334514,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334515,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334516,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334517,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,33451A,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,334610,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335110,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335120,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335210,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335220,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335311,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335312,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335313,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335314,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335911,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335912,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335920,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335930,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335991,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,335999,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,337110,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,337121,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,337122,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,337127,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,33712N,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,337215,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,33721A,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,337900,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339112,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339113,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339114,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339115,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339116,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339910,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339920,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339930,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339940,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339950,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,339990,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,511110,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,511120,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,511130,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,5111A0,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,512100,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,512200,,Other retail stores; NAICS 451/453/454; C44X
+BEA_NIPA,Other retail stores,BEA_2017_Code,S00402,,Other retail stores; NAICS 451/453/454; C44X
