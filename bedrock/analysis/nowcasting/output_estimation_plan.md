@@ -51,13 +51,68 @@ NAPCS → I-O commodity concordance that #615 is building, and on `Census_EC_PxI
 coverage — which is exactly the test §Step 4a already schedules before porting a
 mix. Score both routes against published 2017 per cell.
 
+## How BEA itself does the nonbenchmark year
+
+This is the question Step 4a asks, and BEA answers it directly. From
+[Integrating the 2002 Benchmark I-O and Annual Industry
+Accounts](https://apps.bea.gov/scb/pdf/2007/12%20December/1207_indyaccount.pdf)
+(Dec 2007, n. 9):
+
+> Gross output in the annual industry accounts is calculated using annual survey
+> data to **extrapolate gross output from the make table** in the most recent
+> benchmark I-O accounts.
+
+⚠️ **Note what is extrapolated: the make table, not industry output.** The block
+itself is carried forward, which means the benchmark's commodity mix rides along
+unless something moves it. That is a **third route** alongside the two above, and
+it is the one #570's "port the 2017 mix" already describes — so the R-script
+approach is not a shortcut, it is BEA's own practice. The `Census_EC_PxI` test
+§Step 4a schedules is therefore a test of whether we can do *better* than BEA
+here, not of whether we can match them.
+
+**The framing to build against is best-level / best-change.** From the
+[2002 benchmark gross output
+preview](https://apps.bea.gov/scb/pdf/2005/09September/0905_I-O_Accounts.pdf)
+(Sept 2005):
+
+> The benchmark I-O accounts set "best levels" for industry and commodity output
+> levels for the annual I-O accounts, which are prepared using less detailed and
+> less comprehensive source data. […] Annual I-O and annual NIPA estimates are
+> "best-change," since they are estimated using extrapolators that are considered
+> the most reliable estimates of year-to-year growth. When the next Economic
+> Census data are completely incorporated into the accounts, the "best-change"
+> estimates are revised so as to **minimize the change from the original
+> estimates, yet pass through the best-level estimate**.
+
+That is exactly the nowcast's situation, and it names the reconciliation rule:
+minimum change subject to passing through the benchmark. It is the same objective
+Step 5's RAS optimises, which is worth knowing before choosing a balancing
+method — the two steps are solving one problem, not two.
+
 ## Before redefinitions
 
 Settled in [`plan.md`](plan.md) §Step 4a: the target is **NAICS output before
 redefinitions**, not the manual's "I-O industry output". We do not perform the
-redefinitions BEA performs. Not repeated here — but note its consequence for the
-recipe below, since chapter 5's worked tables run *through* the line we want to
-the line we do not.
+redefinitions BEA performs.
+
+**Corroborated independently**, with BEA's reason, in the [2002 benchmark I-O
+article](https://apps.bea.gov/scb/pdf/2007/10%20October/1007_benchmark_io.pdf)
+(Oct 2007):
+
+> The **standard** make and use tables are constructed **before** the
+> redefinition of selected secondary products; all of the products — primary and
+> secondary — that are produced by an industry are assigned to that industry. As
+> a result, the data in these tables are consistent with GDP-by-industry
+> accounts, the gross-domestic-product-by-state accounts, and with other industry
+> data reported by other statistical agencies.
+
+The after-redefinition versions are **supplementary** tables, published for
+traditional I-O analysis, which "requires" homogeneous industries. So the
+before/after split is not a preference: before-redefinitions is the *standard*
+presentation and the one consistent with outside source data — which is the whole
+basis on which a nowcast extrapolates. Note its consequence for the recipe below,
+since chapter 5's worked tables run *through* the line we want to the line we do
+not.
 
 ## The adjustment ladder
 
@@ -146,7 +201,51 @@ current until the next one supersedes it. Recorded here as they are found.
   built outputs, so [#665](https://github.com/cornerstone-data/bedrock/issues/665)
   stands as written.
 
-**To do: walk back through the earlier update articles.** 2018 and 2023 are
-read; the 2013 and 2004 comprehensive updates and the intervening annual updates
-are not. Each one's changes carry forward into the 2017 benchmark we are
-reproducing.
+Earlier, from the swept articles:
+
+- **The SUT framework became BEA's featured I-O presentation with the 2018
+  comprehensive update** ([2019 annual
+  update](https://apps.bea.gov/scb/issues/2019/11-november/1119-industry-update.htm)).
+  Before that the featured presentation was Make/Use. Relevant when reading any
+  pre-2018 method statement about "the make table" — it is describing the same
+  block we call `T007`, under the older presentation.
+- **R&D, and entertainment/literary/artistic originals, capitalised** (2013
+  comprehensive, [preview](https://apps.bea.gov/scb/pdf/2013/06%20June/0613_preview_comprehensive_iea_revision.pdf)
+  / [results](https://apps.bea.gov/scb/pdf/2014/02%20February/0214_industry%20economic%20accounts.pdf)).
+  Own-account production of these became output, so gross output levels for the
+  producing industries step up at that revision. Already in the 2017 benchmark,
+  but it breaks comparability with anything estimated on a pre-2013 basis.
+- **Retail trade margin PPIs from BLS, and new Census business expense data**
+  (2010 comprehensive,
+  [preview](https://apps.bea.gov/scb/pdf/2010/03%20March/0310_indy_accts.pdf)) —
+  the first improved real gross output and value added for retail trade; the
+  second "improved the commodity mix of most industries' intermediate inputs".
+  The commodity-mix half is Step 3's concern, but it is the same Census expense
+  data.
+- **NAICS re-basing between benchmarks** (2010 preview): a concordance
+  reallocates the prior benchmark's make table onto the new NAICS structure using
+  weights from a **back-extrapolation of the new benchmark make table**. Worth
+  knowing if we ever cross a NAICS vintage; we do not today, since everything is
+  2017.
+- **Banking implicit services and P&C insurance normal losses** entered via the
+  2003 NIPA comprehensive revision and were incorporated into the 2002 benchmark
+  ([2007 benchmark article](https://apps.bea.gov/scb/pdf/2007/10%20October/1007_benchmark_io.pdf)).
+  Both define gross output for their industries and both are still in force.
+
+⚠️ **ASM does not exist in Economic Census years.** The Census Bureau does not
+conduct it when the quinquennial census is conducted, so there is no 2017 ASM and
+the Economic Census takes its place ([2019 annual
+update](https://apps.bea.gov/scb/issues/2019/11-november/1119-industry-update.htm)).
+Any indicator chain built on ASM has a hole every five years that the benchmark
+fills — which is fine for us in 2017 but matters for 2022.
+
+**Swept:** 2004 (integrated annual I-O), 2005 (2002 benchmark gross output
+preview), 2007 (2002 benchmark, and its integration with the annual accounts),
+2010, 2013 and 2014 (comprehensive revision preview and results), 2018 preview,
+2019 annual update, 2023 preview and results. Local text extracts are not
+committed; regenerate from the URLs above.
+
+**Not swept:** the pre-2004 benchmark articles (1992 and 1997), and the annual
+updates between 2005 and 2018 other than those listed. The 1997 pair would be
+worth reading only if we need to reconcile the 2009 manual's own vintage against
+what changed after it.
