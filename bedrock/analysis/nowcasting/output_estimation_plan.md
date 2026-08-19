@@ -172,45 +172,62 @@ a mix and where independent product data exists to fix it.
 It also gives Step 4a a validation harness that works in every year rather than
 only at the benchmark.
 
-### First result: the row margin does not agree, and that blocks everything else
+### First result: the row margin, reconciled — and the mix is better than feared
 
-[`frozen_mix_diagnostic.py`](frozen_mix_diagnostic.py) runs it. The headline is
-not a mix finding:
+[`frozen_mix_diagnostic.py`](frozen_mix_diagnostic.py) runs it.
 
-| year | wtd mean abs err | total built/published |
-|---|---:|---:|
-| **2017 (control)** | **7.70%** | 1.075 |
-| 2018 | 7.78% | 1.075 |
-| 2022 | 9.65% | 1.087 |
-| 2024 | 7.88% | 1.074 |
+**The row margin had to be reconciled first, and it was a valuation gap.** The
+Supply block is basic value; `derive_gross_output` returns producer prices. The
+wedge is taxes on products less subsidies, so
+`GO(basic) = GO(producer) - T00TOP + T00SUB` — with `T00SUB` stored **positive**
+in the Use table and negative in the Supply table, which is BEA's convention and
+the sign trap [#655](https://github.com/cornerstone-data/bedrock/issues/655)
+documents. Applied per industry on 2017 this closes to **0.0002% in total, with
+no industry off by more than 0.1%** and a maximum single-industry difference of
+$4M. The row margin is solved.
 
-⚠️ **2017 must reproduce itself exactly and does not.** Under a frozen 2017 mix
-the benchmark year is an identity, so its 7.70% is not drift — it is the two
-inputs disagreeing. Feeding the block its *own* column totals closes to 0.0004%,
-which isolates the cause to the industry-output series rather than to the mix, the
-mapping, or the aggregation.
+With that in place the identity control closes exactly and the drift is
+measurable:
 
-**The gap is 34.468 tn published detail gross output against 32.035 tn of block
-industry totals — 7.6%, with a p95 per-industry ratio of 1.084.** That is almost
-certainly **valuation**: `derive_gross_output` returns producer prices while the
-Supply block is basic value, and the wedge between them is taxes on products less
-subsidies. Already tracked at
-[#655](https://github.com/cornerstone-data/bedrock/issues/655).
+| year | wtd mean abs err | max | worst groups |
+|---|---:|---:|---|
+| **2017 (control)** | **0.00%** | 0.0% | — identity closes |
+| 2018 | 0.37% | 8.1% | `Other`, `Used`, `113FF` |
+| 2022 | 3.15% | 34.8% | `525` +35, `483` +22, `213` +18 |
+| 2024 | 1.06% | 12.9% | `Other`, `315AL`, `Used` |
 
-**So the drift signal is about 2 points** (7.70% at 2017 to 9.65% at 2022), and it
-is swamped by a 7.7% level mismatch. No conclusion about the mix — including
-whether regime A needs independent estimation — is available until the row margin
-is reconciled. **That reconciliation is the actual first task**, and it is
-narrower than the mix question it was hiding.
+**A frozen 2017 mix is good to about 0.4% one year out and 3% at worst.** That
+vindicates BEA's own practice of carrying the make table forward, and it means
+the summary correction a nowcast needs is small — so the risk of flattening
+detail by closing it is correspondingly small. 2022 being worse than 2024 looks
+like COVID-era distortion washing out rather than accumulating drift.
 
-⚠️ **A methodological note worth keeping.** The first run of this diagnostic
-selected industry columns by code *length*, which silently swallowed `'TRADE '` —
-the label carries a trailing space, making it six characters like a BEA detail
-code. That injected the entire trade margin column into the block, inflated
-margin-heavy commodities many-fold, and still produced an economy-wide total
-within half a percent of unity and a plausible-looking 3.5% error. It was caught
-only by asking whether the identity closed. **Score the identity first; a
-plausible aggregate is not evidence.**
+⚠️ **Two things this does not measure, and both matter.**
+
+1. **It is scored at summary, 73 groups.** A summary group can be right while its
+   detail children are wrong in offsetting directions. The within-group detail
+   drift — which is exactly what a uniform ratio would flatten — is still
+   unmeasured, and there is no published detail target to measure it against.
+   This is the open question, not the aggregate.
+2. **Later years conflate mix drift with product-tax-rate drift**, because the
+   basic÷producer ratio is held at 2017. The two cannot be separated until Step
+   5's balance solves the tax split (#655) — a real coupling, and the reason 4a
+   cannot be finished in isolation from 5.
+
+The named groups are worth chasing on their own terms: `525` funds and trusts,
+`483` water transport and `213` mining support are small in value but move
+20-35%, which is a mix story rather than a level one.
+
+⚠️ **A methodological note worth keeping. Never select the block by code shape.**
+The first run picked industry columns by *length*, which silently swallowed
+`'TRADE '` — the label carries a trailing space, making it six characters like a
+BEA detail code — injecting the whole trade margin column and inflating apparel
+16x. Fixing that exposed the same mistake on the rows, where the length filter
+dropped `GSLGE`/`GSLGH`/`GSLGO`, five characters, losing 1.7tn of state and local
+government output. **Both mistakes left an economy-wide total within half a
+percent of unity and a plausible-looking per-group error table.** Neither was
+found by inspection; both were found by asking whether the identity closed.
+Score the identity first.
 
 ## The adjustment ladder
 
