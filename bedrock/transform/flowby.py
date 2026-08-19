@@ -1692,23 +1692,6 @@ class _FlowBy(pd.DataFrame):
 
         fba = self.add_primary_secondary_columns('Sector')
 
-        sec_source_names_present = set(fba['PrimarySectorSourceName'].dropna().unique())
-        if len(sec_source_names_present) > 1:
-            activities = sorted(
-                {
-                    a
-                    for col in ('ActivityProducedBy', 'ActivityConsumedBy')
-                    if col in fba.columns
-                    for a in fba[col].dropna().unique()
-                }
-            )
-            log.info(
-                'equally_attribute: multiple SectorSourceNames present (%s); '
-                'dividing across joint schema-qualified peers. Activities: %s',
-                sorted(sec_source_names_present),
-                activities,
-            )
-
         # Joint pool per flow group — do not partition by SectorSourceName.
         groupby_cols = ['group_id', 'Location']
         for rank in ['Primary', 'Secondary']:
