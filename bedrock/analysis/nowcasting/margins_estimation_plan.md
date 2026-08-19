@@ -279,24 +279,73 @@ cover it. The second does, completely:
 | Refined petroleum pipe | refined fuels | *"gasoline, jet fuel, kerosene and other refined oils and waxes"* |
 | Pipeline, NEC | chemicals moved by pipe | *"dyes, pigments, toners, ammonia, Urea and like products that would be transported through a pipeline"* |
 
-**Why this is the easiest mode to build, not the hardest.** There is no revenue
-survey to extract, no ton-mile file, no concordance to negotiate — the four items
-come from Census margin data we already reach, each has a named destination set,
-and within a set the split is proportional. It is a lookup table plus a
-normalisation.
+### ✅ Pipeline — built
 
-Two things to settle when building it, neither blocking:
+[`nowcast_transport_margins.py`](../../transform/iot/nowcast_transport_margins.py).
 
-- **"Any crude oil commodity" and "like products" are judgement calls at BEA
-  detail.** The first three sets are tight (`211000` crude, natural gas,
-  `324110` refineries and the refined-product commodities); the NEC set is a
-  named exemplar list plus "and like products", so it needs a decision recorded
-  in the CSV rather than inferred silently.
-- **Proportional to what?** The reply says "distributed proportionally to the
-  commodities to which they are assigned" without naming the weight. Interim
-  supply is the consistent choice — it is what the wholesale method uses — and
-  the 2017 anchor lets us *test* it: pipeline's published 2017 `TRANS` by
-  commodity is the answer key, so the weight can be fitted rather than assumed.
+**The four margin items are the four detailed pipeline NAICS**, and Census
+publishes them annually in **Service Annual Survey Table 2**: `4861` crude oil,
+`4862` natural gas, `48691` refined petroleum products, `48699` all other. They
+partition NAICS 486 to the dollar in every year — 10,529 + 27,393 + 8,898 + 372
+= 47,192 in 2017 — and the loader raises if they stop, since that would mean the
+published taxonomy had drifted off the items BEA named. Table 2 is a `sheets:`
+entry, the same shape truck needs from Table 8.
+
+⚠️ **Correction to the sizing above: this was not "Census margin data we already
+reach".** SAS carried only Table 3 (expenses) before this; Table 2 had to be
+added. The mode is still the cheapest — no ton-mile file and no negotiated
+concordance — but the source was one step further away than first written.
+
+**Crude and natural gas collapse onto one commodity**, and that is most of why
+this mode is cheap. BEA 2017 detail carries a single `211000` *Oil and gas
+extraction*, so the two clearest items — 80.4% of pipeline revenue — land
+together and their split never affects the allocation. Only a three-way split
+does any work. `221200` natural gas distribution is deliberately unmapped: it is
+the utility, not the commodity, and receives no `TRANS`.
+
+**✅ The two judgement calls, settled and agreed:**
+
+- **`324121` asphalt paving and `324122` asphalt shingles are excluded** from the
+  refined set. Both are refinery products and both receive `TRANS`, but neither
+  moves by pipeline; including them would divert ~1,000 million.
+- **"And like products" is not expanded** beyond BEA's three named exemplars
+  (`325130` dyes and pigments, `325910` toners, `325310` ammonia and urea). The
+  candidates left out — `325110`, `325120`, `325180`, `325190` — hold 13,917
+  million of `TRANS` between them, so adding them would thin `48699` sharply for
+  no stated reason. Worth ~391 million either way.
+
+Both are recorded per row in
+[`Crosswalk_Pipeline_Margin_Items_to_BEA_2017.csv`](../../utils/mapping/Crosswalk_Pipeline_Margin_Items_to_BEA_2017.csv),
+which carries a `basis` column a test enforces.
+
+### ⚠️ The published column is a ceiling, not an answer key
+
+An earlier draft of this section said pipeline's 2017 `TRANS` by commodity "is
+the answer key, so the weight can be fitted rather than assumed". **That is
+wrong, and it matters for every mode, not just pipeline.** The published
+`Transportation` column is summed over all five modes, so no single mode can be
+fitted to it. What it gives is a *bound*: a mode's allocation may not exceed it,
+because the remaining modes cannot contribute negative margin.
+
+`pipeline_bound_check` reports it, and the 2017 fit is comfortable everywhere —
+83.8% of `211000` (pipeline dominates crude and gas haulage), 34.3% of the
+refinery commodities, 17.7% of the NEC chemicals, positive headroom throughout.
+
+**So the five modes are one decomposition, and a mode built alone is
+provisional.** For every commodity, `Σ_modes allocation = TRANS[c]`.
+`mode_residual` makes that explicit: it reports what the unbuilt modes must
+still supply and flags an over-allocation as a hard error. Pipeline is not final
+until truck, rail, water and air are reconciled against the same column.
+
+**Proportional to what?** BEA does not name the weight. The default is the
+published column, which inherits BEA's own commodity allocation for the same
+reason the anchor-and-move construction does; it is injectable so `T013` or FAF
+pipeline-mode ton-miles can be substituted. ⚠️ The default does assume pipeline's
+mix *within* a set matches the all-mode mix — the one place this leans on other
+modes' behaviour — but it is bounded and measured: it cannot touch the 80.4%
+going to `211000`, and across the whole column the published-vs-`T013` choice
+moves at most **536 million, 1.1% of pipeline and 0.13% of `TRANS`**, all of it
+between `324110` and `324190`.
 
 ⚠️ **This supersedes the closed PR's `output_ratio` treatment for pipeline**,
 which existed only because a residual went negative — pipeline gives up 1.033 of
