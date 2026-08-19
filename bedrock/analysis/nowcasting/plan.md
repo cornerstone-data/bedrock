@@ -662,19 +662,13 @@ build instead. Same silent-empty family as #635.
 **no column is a whole-column `miss` any more**, and two are outside tolerance at the column total —
 `F04000` (+6.15%) and `F03000` (−2.28%). Coverage against the published detail SUT is 95.5% and
 accuracy 55.1%; the two moved in opposite directions because `F03000` added 256 cells that are right
-in aggregate and mostly wrong per commodity. ⚠️ Those two numbers **land with
-[#669](https://github.com/cornerstone-data/bedrock/pull/669)** — the copy of
-[`progress_report.md`](progress_report.md) on this branch is still the 2026-08-15 snapshot, where
-`F03000` is a whole-column `miss` at 75.3% / 69.8%. They only reproduce with the catalog fix below
-applied.
+in aggregate and mostly wrong per commodity. [`progress_report.md`](progress_report.md).
 
 ⚠️ **A catalog regression rode in with #666 and was caught by the diagnostic, not by a test.** The
 `Census_EC_PxI` entry was inserted *inside* `BEA_PEQBridge` in `source_catalog.yaml`, taking
 `BEA_PEQBridge`'s `activity_schema` with it; the PEQ bridge stopped being sector-like and the whole
 `F02E00` column collapsed onto `S00402` — $986B of a $978B column on used and secondhand goods, with
-every equipment commodity at zero. **Fix is in [#669](https://github.com/cornerstone-data/bedrock/pull/669),
-not yet on `nowcast`** — until it merges, `derive_initial_Y_pur` on this branch produces the broken
-`F02E00`. **Two lessons worth carrying**: a YAML entry
+every equipment commodity at zero. Fixed 2026-08-19. **Two lessons worth carrying**: a YAML entry
 inserted at the wrong indentation silently steals its neighbour's keys, and duplicate keys in the
 catalog resolve last-wins with no error — the `Census_EC_PxI` block carried `activity_schema` twice
 and neither reader complained. Nothing in the test suite covers the catalog's block structure.
