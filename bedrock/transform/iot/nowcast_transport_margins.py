@@ -125,6 +125,7 @@ no ordering makes the constraint hold in both directions at once.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import pandas as pd
@@ -536,6 +537,27 @@ def load_truck_group_revenue(year: int) -> pd.Series:
     published_total = table8.loc[
         table8['FlowName'] == TRUCK_TOTAL_ITEM, 'FlowAmount'
     ].sum()
+
+    # ⚠️ A suppressed group subtracts from a control total, which is not the
+    # usual harmless case: the groups *are* the whole. 2022 suppresses
+    # pharmaceutical and chemical products, and the shortfall against the
+    # published total is exactly that cell - 18,004 $M - so it is recovered by
+    # subtraction rather than left as a zero. Only a single suppressed group can
+    # be recovered this way; two would be one equation in two unknowns.
+    suppressed = groups.loc[groups['Suppressed'].notna(), 'FlowName'].str[
+        len(TRUCK_GROUP_PREFIX) :
+    ]
+    shortfall = published_total - revenue.sum()
+    if len(suppressed) == 1 and shortfall > 0:
+        revenue.loc[suppressed.iloc[0]] = shortfall
+    elif len(suppressed) > 1:
+        raise ValueError(
+            f'Census_SAS Table 8 suppresses {len(suppressed)} commodity groups in '
+            f'{year}: {sorted(suppressed)}. One can be recovered by subtraction '
+            f'from the published total; several cannot, and treating them as zero '
+            f'would understate every other group once the shares renormalise.'
+        )
+
     if published_total and abs(revenue.sum() / published_total - 1) > 1e-6:
         raise ValueError(
             f'The Table 8 commodity groups sum to {revenue.sum():,.0f} against a '
@@ -771,6 +793,120 @@ def air_allocation(
 ) -> pd.Series:
     """Air margin per BEA 2017 commodity. See :func:`volume_mode_allocation`."""
     return volume_mode_allocation('air', year, control_total, margins)
+
+
+# --- annual control totals -------------------------------------------------
+
+#: The margins anchor year, where every mode's give-up is published.
+ANCHOR_YEAR = 2017
+
+#: The five transport commodities, by mode name.
+MODE_COMMODITIES = {
+    'truck': TRUCK_COMMODITY,
+    'rail': RAIL_COMMODITY,
+    'pipeline': PIPELINE_COMMODITY,
+    'water': VOLUME_MODES['water'][1],
+    'air': VOLUME_MODES['air'][1],
+}
+
+#: Modes whose annual freight revenue is observed. Water and air are absent on
+#: purpose: their industry output is mostly *passengers*, so it cannot stand in
+#: for freight revenue - the 2017 margin is 17.3% of water's output and 2.6% of
+#: air's, against 76.7% for truck and 86.2% for rail.
+FREIGHT_REVENUE_MODES = ('truck', 'rail', 'pipeline')
+
+#: The row carrying rail revenue inclusive of redacted cells.
+_CRSR_ALL_DATA = 'TOTALS (All Data)'
+
+
+def mode_freight_revenue(mode_name: str, year: int) -> float:
+    """
+    Observed freight revenue for *mode_name* in *year*, USD.
+
+    This is the annual quantity that moves the control total. It comes from the
+    same source that does the mode's commodity allocation, so the level and the
+    shape cannot drift apart.
+    """
+    if mode_name == 'truck':
+        return float(load_truck_group_revenue(year).sum())
+    if mode_name == 'pipeline':
+        return float(load_pipeline_item_revenue(year).sum())
+    if mode_name == 'rail':
+        fba = getFlowByActivity('STB_CRSR', year)
+        rows = fba[fba['ActivityProducedBy'].astype(str).str.strip() == _CRSR_ALL_DATA]
+        if rows.empty:
+            raise ValueError(
+                f'STB_CRSR {year} has no {_CRSR_ALL_DATA!r} row. That is the only '
+                f'figure inclusive of the redacted cells, which are 4.7% of rail '
+                f'revenue, so the released total would understate the control.'
+            )
+        return float(rows['FlowAmount'].sum())
+    raise NotImplementedError(
+        f'{mode_name} has no observed annual freight revenue. Water and air '
+        f'industry output is mostly passenger revenue - the 2017 margin is 17.3% '
+        f'and 2.6% of output respectively - so output cannot stand in for it. '
+        f'Freight-only series from BTS are the route; together they are 3.8% of '
+        f'TRANS.'
+    )
+
+
+def mode_coverage_ratio(mode_name: str, margins: pd.DataFrame | None = None) -> float:
+    """
+    The mode's 2017 margin divided by its 2017 freight revenue.
+
+    Near 1 by construction: for a freight mode essentially all revenue is margin,
+    because the transport cost of moving a good to its buyer is unbundled and
+    shifted forward onto that good - *"the treatment of trade margins parallels
+    the treatments of transportation costs... which are also unbundled and
+    shifted forward regardless of who actually pays the costs"* (BEA IO manual
+    2009, ch. 2).
+
+    Measured on 2017 it is 1.042 for truck, 0.995 for rail and 1.052 for
+    pipeline. Rail is nearest unity because the STB waybill sample covers
+    essentially all Class I traffic; truck and pipeline run above it in the same
+    direction because SAS covers **employer firms**, leaving owner-operators and
+    private carriage outside a margin that includes them.
+
+    ⚠️ **Freezing this ratio at 2017 is the whole modelling content of the annual
+    control.** It assumes source coverage is stable over time, which is a much
+    smaller claim than choosing among constructions that disagreed by 11.8%, but
+    it is still an assumption and nothing here tests it.
+    """
+    give_up = _mode_give_up_2017(MODE_COMMODITIES[mode_name], margins)
+    revenue = mode_freight_revenue(mode_name, ANCHOR_YEAR)
+    return give_up / revenue
+
+
+def mode_control_total(
+    mode_name: str, year: int, margins: pd.DataFrame | None = None
+) -> float:
+    """
+    The margin *mode_name* gives up in *year*, USD - the level to allocate.
+
+    ``coverage ratio (frozen at 2017) x observed freight revenue in year``, so
+    *year* = 2017 reproduces the published give-up exactly.
+
+    This replaces the three constructions the retired ton-mile chain used -
+    ``residual``, ``output_ratio`` and ``freight_volume`` - which agreed in 2017
+    and spread 11.8% by 2022. It avoids all three of their problems: no Use
+    matrix, so no circularity with Step 6b; no industry-versus-commodity output
+    gap, since revenue is neither; and no passenger contamination.
+    """
+    return mode_coverage_ratio(mode_name, margins) * mode_freight_revenue(
+        mode_name, year
+    )
+
+
+def control_total_table(
+    years: Iterable[int], margins: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """Annual control totals per mode, USD, for the modes that have a source."""
+    return pd.DataFrame(
+        {
+            mode: {year: mode_control_total(mode, year, margins) for year in years}
+            for mode in FREIGHT_REVENUE_MODES
+        }
+    ).rename_axis('year')
 
 
 def mode_residual(

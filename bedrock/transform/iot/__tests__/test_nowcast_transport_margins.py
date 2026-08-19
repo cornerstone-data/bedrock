@@ -604,3 +604,69 @@ def test_adding_water_and_air_worsens_the_collision() -> None:
         return -frame.loc[frame['over_allocated'], 'residual'].sum()
 
     assert overshoot(five) > overshoot(three) > 0
+
+
+# --------------------------------------------------------------------------
+# annual control totals
+# --------------------------------------------------------------------------
+
+
+def test_the_anchor_year_reproduces_the_published_give_up() -> None:
+    """2017 must be an identity, or the anchor is not an anchor."""
+    for mode in tm.FREIGHT_REVENUE_MODES:
+        published = tm._mode_give_up_2017(tm.MODE_COMMODITIES[mode])
+        assert tm.mode_control_total(mode, 2017) == pytest.approx(published)
+
+
+def test_coverage_ratios_are_near_unity() -> None:
+    """
+    For a freight mode nearly all revenue is margin, because transport cost is
+    unbundled and shifted forward onto the good it moved.
+
+    Rail is nearest because the waybill sample covers essentially all Class I
+    traffic. Truck and pipeline sit above 1 in the same direction, since SAS
+    covers employer firms only while the margin includes owner-operators.
+    """
+    ratios = {m: tm.mode_coverage_ratio(m) for m in tm.FREIGHT_REVENUE_MODES}
+    for mode, ratio in ratios.items():
+        assert 0.9 < ratio < 1.1, f'{mode} coverage ratio {ratio}'
+    assert ratios['rail'] == pytest.approx(0.995, abs=0.01)
+
+
+def test_water_and_air_have_no_freight_revenue_source() -> None:
+    """
+    Their output is mostly passengers, so it cannot stand in for freight revenue.
+
+    This must fail loudly rather than quietly using industry output, which would
+    make air freight margin track air *passenger* demand.
+    """
+    for mode in ('water', 'air'):
+        with pytest.raises(NotImplementedError, match='passenger'):
+            tm.mode_freight_revenue(mode, 2017)
+
+
+def test_a_single_suppressed_truck_group_is_recovered() -> None:
+    """
+    2022 suppresses pharmaceutical and chemical products.
+
+    The groups are a control total, so zeroing the cell would understate the
+    total and inflate every other group once shares renormalise. The shortfall
+    against the published total is exactly the suppressed cell.
+    """
+    revenue = tm.load_truck_group_revenue(2022)
+    assert revenue.sum() == pytest.approx(414_693e6, rel=1e-6)
+    assert revenue['Pharmaceutical and chemical products'] == pytest.approx(
+        18_004e6, rel=1e-6
+    )
+
+
+def test_control_totals_move_with_observed_revenue() -> None:
+    """The control is revenue-driven, so it must track the source, not a trend."""
+    table = tm.control_total_table(range(2017, 2023))
+    assert list(table.columns) == list(tm.FREIGHT_REVENUE_MODES)
+    for mode in tm.FREIGHT_REVENUE_MODES:
+        revenue = pd.Series(
+            {y: tm.mode_freight_revenue(mode, y) for y in range(2017, 2023)}
+        )
+        ratio = table[mode] / revenue
+        assert ratio.std() == pytest.approx(0.0, abs=1e-9)
