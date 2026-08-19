@@ -83,6 +83,7 @@ from bedrock.transform.iot.nowcast_targets import (
     hard_target_residuals,
 )
 from bedrock.utils.economic.balance import (
+    SutMask,
     engine,
     offset_targets,
     restore_fixed_blocks,
@@ -452,8 +453,12 @@ def _engine_hard_residuals(
     T1 is UGO305-A when the extract parquet is present; otherwise Use
     industry column sums (weaker — not the sourced series).
     """
-    seeds = {block: published_2017_panel(block) for block in BLOCKS}
-    masks = build_sut_masks(year)
+    seeds: dict[str, pd.DataFrame] = {
+        block: published_2017_panel(block) for block in BLOCKS
+    }
+    masks: dict[str, SutMask] = {
+        str(name): mask for name, mask in build_sut_masks(year).items()
+    }
     try:
         targets = build_target_set(year)
         t1_source = 'UGO305-A extract parquet'

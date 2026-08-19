@@ -160,7 +160,9 @@ def _use_vectors(
     col_t = z_use.sum(axis=0).astype(float)
     col_t.loc[t1.values.index] = t1.values.astype(float)
     live = _t11_live(t11.values.index, use_free)
-    row_t.loc[live] = z_supply.sum(axis=1).loc[live] - t11.values.astype(float).loc[live]
+    row_t.loc[live] = (
+        z_supply.sum(axis=1).loc[live] - t11.values.astype(float).loc[live]
+    )
     t12 = _imposed(seen, 'T12')
     if t12 is not None:
         row_t.loc[T00SUB] = float(t12.values.item()) + float(z_supply[SUB].sum())

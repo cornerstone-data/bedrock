@@ -640,9 +640,7 @@ def test_t11_empty_use_row_closes_on_supply() -> None:
     use_fixed.loc['c1', 'F01000'] = True
     masks = _masks(use, supply, use_fixed=use_fixed)
     targets = TargetSet.of(_t1(use[list(INDUSTRIES)].sum()), _t11())
-    frozen, _free, _out, restored = _run(
-        use, supply, targets, masks, atol=1e-6
-    )
+    frozen, _free, _out, restored = _run(use, supply, targets, masks, atol=1e-6)
     assert not bool(masks['use'].free.loc['c1'].any())
     residual = offset_targets(targets, frozen)
     t11_residual = next(t for t in residual if t.name == 'T11')
@@ -650,9 +648,13 @@ def test_t11_empty_use_row_closes_on_supply() -> None:
     original = next(t for t in targets if t.name == 'T11')
     err = (original.evaluate(restored) - original.values).abs().max()
     assert float(err) <= 1e-6
+    got = restored['use'].loc['c1']
+    want = use.loc['c1']
+    assert isinstance(got, pd.Series)
+    assert isinstance(want, pd.Series)
     pd.testing.assert_series_equal(
-        restored['use'].loc['c1'].astype(float),
-        use.loc['c1'].astype(float),
+        got.astype(float),
+        want.astype(float),
         check_names=False,
     )
 

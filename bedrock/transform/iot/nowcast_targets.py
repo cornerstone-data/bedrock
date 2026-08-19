@@ -566,9 +566,7 @@ def supply_column_targets(year: int) -> list[Target]:
 # --------------------------------------------------------------------------
 
 
-def build_target_set(
-    year: int, gross_output: pd.Series | None = None
-) -> TargetSet:
+def build_target_set(year: int, gross_output: pd.Series | None = None) -> TargetSet:
     """The full Step 5 target set for ``year``.
 
     Complete in shape; see the module docstring for which values are real.
