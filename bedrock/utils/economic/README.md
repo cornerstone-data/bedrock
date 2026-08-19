@@ -8,11 +8,12 @@ target vectors, a participation ``free_mask``, and ``sign_flex``. It does
 not import scipy. Inputs are copied; the caller arrays are not mutated.
 
 ``engine(free, residual, masks)`` is the SUT wrapper: Use then Supply,
-hard T1 and T11–T17 only. Soft / placeholder targets (T2, T4, T6–T9) are
-skipped — their ``.values`` are not read; unconstrained slots hold at
-the current Z row/col sum. T11 is written only onto live rows of the
-panel being scaled; empty-free T11 slots hold so Supply can absorb a
-frozen or structurally empty Use commodity. KRAS is not this package yet.
+hard T1 and T11–T17 exact. Soft T2/T7 are a weighted blend from the entry
+``Z``; T4 is a column-neutral closer after each Use pass. T6/T8/T9
+whole-name defer when T12–T14 occupy a slot. ``impose_soft=False`` is the
+hard-only protocol. Starting ``WEIGHTS`` are uncalibrated. T11 is written
+only onto live rows of the panel being scaled; empty-free T11 slots hold
+so Supply can absorb a frozen or structurally empty Use commodity.
 
 Nonzero holds are the offset layer, not the kernel: split ``X = F + Z``,
 balance ``Z``, restore ``F``. Participation is ``mask.free``

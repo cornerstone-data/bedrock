@@ -208,9 +208,12 @@ is in [`bedrock/utils/economic/balance/gras.py`](../../utils/economic/balance/gr
 Bouwmeester 2013). The SUT wrapper is
 [`engine`](../../utils/economic/balance/orchestrate.py)
 (`engine(free, residual, masks)` → `out.blocks`): Use then Supply, hard T1 and
-T11–T17 only. Soft T2/T4/T6–T9 are skipped until KRAS. Unit tests:
+T11–T17 exact. Soft T2/T7 blend once from the entry ``Z``; T4 is a
+column-neutral closer. T6/T8/T9 whole-name defer when T12–T14 occupy a
+slot. ``WEIGHTS`` are uncalibrated. Unit tests:
 [`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py),
-[`test_orchestrate.py`](../../utils/economic/balance/__tests__/test_orchestrate.py).
+[`test_orchestrate.py`](../../utils/economic/balance/__tests__/test_orchestrate.py),
+[`test_full_nowcasting_sut_balance.py`](../../utils/economic/balance/__tests__/test_full_nowcasting_sut_balance.py).
 A **zero target is legal**; a **nonzero target on an empty free margin** raises.
 
 **The USEEIO port list shrank to one file.** `check_balances.py` and `load_suts_from_r.py` were both
@@ -889,9 +892,11 @@ Option A for the engine: vendored ceda dense + GRAS), the **objective function**
 (Decision 2), and the **target set** (Decision 3) are recorded below. The
 Use-then-Supply wrapper `engine` is in
 [`orchestrate.py`](../../utils/economic/balance/orchestrate.py) (hard T1,
-T11–T17). The KRAS-style soft layer is not done — do not treat the full Step 5
-balancer as complete. What follows replaces the earlier one-line instruction to
-port `sut_ras.py`; that is no longer the recommended route.
+T11–T17 exact; soft T2/T4/T7 imposed; T6/T8/T9 deferred to T12–T14). The
+soft **mechanism** has landed; **WEIGHTS are uncalibrated** — do not treat
+the full Step 5 balancer as complete. What follows replaces the earlier
+one-line instruction to port `sut_ras.py`; that is no longer the recommended
+route.
 
 **What stays true regardless of how the decisions land:**
 - Balance on the SUT identity: **total supply at purchaser (`T016`) = total use (`T019`) per
@@ -945,7 +950,8 @@ Keeping these separate is what makes the decision tractable:
    unit-testable on hand-checkable matrices.
 2. **SUT orchestration** — sequence the two panels (Use then Supply), decide which
    identity each pass enforces, and iterate to joint T11 convergence. Soft
-   aggregate-level targets (T4 and the rest) stay skipped until KRAS. Historical
+   T2/T4/T7 are imposed around the same kernel (blend-once; T4 closer). T6/T8/T9
+   whole-name defer when T12–T14 occupy a slot. Historical
    `sut_ras.py` sequenced `V`/`Ui`/`Ufd`/`Uva`; that script is the comparison
    table below, not `engine()`.
 
@@ -958,7 +964,9 @@ orchestration layer written fresh against `sut_ras.py` as the reference.
 is built — mask, targets, offset, precheck in [#659](https://github.com/cornerstone-data/bedrock/pull/659),
 `gras_balance` in [`gras.py`](../../utils/economic/balance/gras.py), and
 `engine` in [`orchestrate.py`](../../utils/economic/balance/orchestrate.py).
-What remains of Step 5 is KRAS (soft T2/T4/T6–T9).
+The soft mechanism (T2/T4/T7; T6/T8/T9 deferred) has landed.
+**What remains of Step 5 is calibrating `WEIGHTS` and wiring real NIPA/ITA
+values** — not a second scaler.
 
 | Module | What it is |
 |---|---|
@@ -973,8 +981,11 @@ ndarrays, map `free_mask = mask.free` and `sign_flex = (sign_lock == 0)`, and
 handle cross-block identities (T11–T17) by choosing which kernel vectors to
 pass. T11 is imposed only on **live** rows of the panel being scaled;
 empty-free T11 slots hold (a frozen Use commodity closes on Supply).
-It does not re-implement GRAS, hold fixed values, renormalise signs, or
-impose T4 aggregators (T4 stays skipped until KRAS). Two panels, Use then
+It does not re-implement GRAS, hold fixed values, or renormalise signs.
+Soft T2/T7 write unconstrained kernel slots from an entry-`Z` blend; T4
+runs after every Use pass as a column-neutral closer (T1 stays exact when
+`close_rows_on_last=False`). T6/T8/T9 whole-name defer when hard T12–T14
+occupy any of their slots. Two panels, Use then
 Supply — not `sut_ras` `V`/`Ui`/`Ufd`/`Uva`.
 
 ```python
@@ -1276,12 +1287,14 @@ Bouwmeester 2013), clamps deleted, mask via offset outside the engine, no scipy.
 [`gras_balance`](../../utils/economic/balance/gras.py) is that engine. Convergence is elementwise
 `|sum - target| <= atol + rtol |target|`, reported on `GrasBalanceResult.converged`. The SUT
 orchestration layer is [`engine`](../../utils/economic/balance/orchestrate.py): Use then Supply,
-hard T1 and T11–T17, joint T11 stop. T4 aggregators are **not** imposed. The KRAS-style soft layer is
-**not yet**. Hold the commodity identity and gross output hard, everything sourced soft with
+hard T1 and T11–T17, joint T11 stop. Soft T2/T4/T7 are imposed (blend-once;
+T4 closer). T6/T8/T9 defer to T12–T14. **WEIGHTS are uncalibrated.** Hold the
+commodity identity and gross output hard, everything sourced soft with
 per-source weights, and keep summary SUT out of the target set and in the test set.
 
 Decisions 2 (mask) and 3 (target set) are **recorded**. Decision 1 is **resolved for the engine**;
-the Use-then-Supply wrapper has landed. What remains of Step 5 code is KRAS.
+the Use-then-Supply wrapper and the soft mechanism have landed. What remains of Step 5
+code is WEIGHTS calibration after NIPA/ITA replace placeholders.
 
 ### Step 6 — SUT → MUT conversion *(new — produces the actual deliverables)*
 Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
@@ -1476,7 +1489,7 @@ rediscovers the same 210-code problem from scratch.
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
-| 5 RAS | **#588** (balancer, parent — `gras_balance` and `engine` landed; KRAS later), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
+| 5 RAS | **#588** (balancer, parent — `gras_balance`, `engine`, and the soft mechanism landed; WEIGHTS uncalibrated), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
@@ -1556,10 +1569,11 @@ only while a view has no explicit sort of its own; a saved sort in the view UI o
      `ras_balancing.py` + GRAS, no scipy/sparse, clamps deleted, mask via offset.
      [`gras_balance`](../../utils/economic/balance/gras.py). The SUT-orchestration half of Option A
      (wrapper `engine(free, residual, masks)`) is ✅ Use then Supply, hard T1 and T11–T17.
+     Soft T2/T4/T7 imposed; T6/T8/T9 deferred. **WEIGHTS uncalibrated.**
    - 4b. **Objective function** — ✅ inner loop is GRAS (Lenzen 2007 + Temurshoev 2013);
      `GrasBalanceResult.converged` is elementwise `atol`/`rtol`. Mask policy recorded
-     ([`mask_layer_plan.md`](mask_layer_plan.md)); plain RAS is out. **KRAS / soft weights remain
-     open.** Sign-flex *mechanism* is `sign_flex` on the kernel; *policy* (which cells) is the mask.
+     ([`mask_layer_plan.md`](mask_layer_plan.md)); plain RAS is out. **Soft mechanism
+     landed; WEIGHTS remain uncalibrated.** Sign-flex *mechanism* is `sign_flex` on the kernel; *policy* (which cells) is the mask.
    - 4c. ✅ **Target set — settled 2026-08-17.** [`target_set_plan.md`](target_set_plan.md), #591.
      Detail gross output (hard, and **observed at detail for every Phase 1 year** — the circularity
      premise was wrong), thirteen NIPA FD column totals plus six masked columns, compensation by

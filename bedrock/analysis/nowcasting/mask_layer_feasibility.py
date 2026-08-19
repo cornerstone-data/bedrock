@@ -89,6 +89,7 @@ from bedrock.utils.economic.balance import (
     restore_fixed_blocks,
     split_fixed_blocks,
 )
+from bedrock.utils.economic.balance.orchestrate import KNOWN_SOFT
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -446,12 +447,16 @@ def _hard_target_checks() -> list[tuple[str, bool, str]]:
 
 def _engine_hard_residuals(
     year: int = 2017,
-) -> tuple[pd.DataFrame, str]:
-    """Hard |evaluate(X) - pre-offset values| after engine + restore.
+    *,
+    impose_soft: bool = False,
+) -> tuple[pd.DataFrame, str, pd.DataFrame]:
+    """Hard (and soft) |evaluate(X) - pre-offset values| after engine + restore.
 
-    Optional 2017 replay for ``--check-engine``. Not a unit test.
-    T1 is UGO305-A when the extract parquet is present; otherwise Use
-    industry column sums (weaker — not the sourced series).
+    Optional 2017 replay for ``--check-engine`` / ``--check-engine-soft``.
+    Not a unit test. T1 is UGO305-A when the extract parquet is present;
+    otherwise Use industry column sums (weaker — not the sourced series).
+    ``impose_soft=False`` is exact PR2. Soft residuals are returned for
+    printing; they are not a fail gate.
     """
     seeds: dict[str, pd.DataFrame] = {
         block: published_2017_panel(block) for block in BLOCKS
@@ -467,30 +472,69 @@ def _engine_hard_residuals(
         go.index.name = 'industry'
         targets = build_target_set(year, gross_output=go)
         t1_source = 'Use industry column sums (no UGO305-A parquet)'
-    original = {t.name: t.values.copy() for t in targets if t.hard}
+    original_hard = {t.name: t.values.copy() for t in targets if t.hard}
+    original_soft = {t.name: t.values.copy() for t in targets if t.name in KNOWN_SOFT}
     frozen, free = split_fixed_blocks(seeds, masks)
     residual = offset_targets(targets, frozen)
-    out = engine(free, residual, masks)
+    out = engine(free, residual, masks, impose_soft=impose_soft)
     restored = restore_fixed_blocks(out.blocks, frozen)
-    rows = []
+    hard_rows = []
     for target in targets:
         if not target.hard:
             continue
-        err = (target.evaluate(restored) - original[target.name]).abs()
-        rows.append(
+        err = (target.evaluate(restored) - original_hard[target.name]).abs()
+        hard_rows.append(
             {
                 'target': target.name,
                 'max_abs_residual': float(err.max()),
             }
         )
-    return pd.DataFrame(rows).set_index('target'), t1_source
+    soft_rows = []
+    for target in targets:
+        if target.name not in original_soft:
+            continue
+        err = (target.evaluate(restored) - original_soft[target.name]).abs()
+        soft_rows.append(
+            {
+                'target': target.name,
+                'max_abs_residual': float(err.max()),
+            }
+        )
+    hard_table = pd.DataFrame(hard_rows).set_index('target')
+    soft_table = (
+        pd.DataFrame(soft_rows).set_index('target')
+        if soft_rows
+        else pd.DataFrame(columns=['max_abs_residual'])
+    )
+    return hard_table, t1_source, soft_table
 
 
-def main(check: bool = False, check_engine: bool = False) -> int:
-    # --check-engine is independent of --check and of the GO parquet
+def _print_engine_replay(*, impose_soft: bool, heading: str) -> bool:
+    table, t1_source, soft_table = _engine_hard_residuals(impose_soft=impose_soft)
+    print(f'\n{heading}')
+    print(f'  T1 source: {t1_source}')
+    print(table.to_string())
+    if impose_soft:
+        print('  soft residuals (print only, not a fail gate):')
+        print(soft_table.to_string())
+    worst = float(table['max_abs_residual'].max())
+    ok = worst <= 100.0
+    print(
+        f'  {"PASS" if ok else "FAIL"}  hard residuals after engine+restore  '
+        f'(max {worst:.4g}, need <= 100)'
+    )
+    return ok
+
+
+def main(
+    check: bool = False,
+    check_engine: bool = False,
+    check_engine_soft: bool = False,
+) -> int:
+    # Engine flags are independent of --check and of the GO parquet
     # report() needs. Print the leverage report on the default path and
-    # on --check; skip it when only the engine replay is requested.
-    if check or not check_engine:
+    # on --check; skip it when only an engine replay is requested.
+    if check or not (check_engine or check_engine_soft):
         print(report())
     failed = 0
     if check:
@@ -499,18 +543,12 @@ def main(check: bool = False, check_engine: bool = False) -> int:
             print(f'  {"PASS" if passed else "FAIL"}  {name}  ({detail})')
             failed += not passed
     if check_engine:
-        print('\nENGINE')
-        table, t1_source = _engine_hard_residuals()
-        print(f'  T1 source: {t1_source}')
-        print(table.to_string())
-        worst = float(table['max_abs_residual'].max())
-        ok = worst <= 100.0
-        print(
-            f'  {"PASS" if ok else "FAIL"}  hard residuals after engine+restore  '
-            f'(max {worst:.4g}, need <= 100)'
-        )
+        ok = _print_engine_replay(impose_soft=False, heading='ENGINE')
         failed += not ok
-    if check or check_engine:
+    if check_engine_soft:
+        ok = _print_engine_replay(impose_soft=True, heading='ENGINE SOFT')
+        failed += not ok
+    if check or check_engine or check_engine_soft:
         return 1 if failed else 0
     return 0
 
@@ -526,5 +564,14 @@ if __name__ == '__main__':
         '--check-engine',
         action='store_true',
         help='run engine+restore on published 2017; hard residuals must be <= 100',
+    )
+    parser.add_argument(
+        '--check-engine-soft',
+        action='store_true',
+        dest='check_engine_soft',
+        help=(
+            'run engine+restore with impose_soft=True; hard residuals must be '
+            '<= 100; print soft T2/T4/T6-T9 residuals (not a fail gate)'
+        ),
     )
     raise SystemExit(main(**vars(parser.parse_args())))

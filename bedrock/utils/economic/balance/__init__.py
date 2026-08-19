@@ -7,15 +7,17 @@ ndarray GRAS kernel and Use-then-Supply wrapper
 ``Target``, ``SutMask``, the offset method and the feasibility precheck do
 not depend on the scaler. ``gras_balance`` is the scaler: one signed matrix,
 row/col vectors, ``free_mask``, ``sign_flex``. ``engine`` is the SUT adapter:
-hard T1 and T11–T17 only; soft T2/T4/T6–T9 are skipped (hold current Z sums).
-Nothing in this package imports scipy. KRAS is not implemented yet.
+hard T1 and T11–T17 stay exact; soft T2/T4/T7 are imposed (blend-once from
+entry ``Z``; T4 is a column-neutral closer). T6/T8/T9 whole-name defer when
+T12–T14 occupy a slot. ``WEIGHTS`` are uncalibrated. Nothing in this package
+imports scipy.
 
 The pieces fit together in one order::
 
     frozen, free = split_fixed_blocks(seeds, masks)   # X = F + Z, per block
     residual     = offset_targets(targets, frozen)
     precheck(seeds, masks, targets)                   # raises if a margin is stuck
-    out          = engine(free, residual, masks)      # Use then Supply; hard only
+    out          = engine(free, residual, masks)      # Use then Supply; impose_soft=True
     result       = restore_fixed_blocks(out.blocks, frozen)
 
 Wrapper mapping: ``free_mask = mask.free.to_numpy()``,
