@@ -270,12 +270,33 @@ comprehensive update (RIC gross output redefined as the sum of intermediate
 expenses), which a 2017 mix cannot know about; `GSLGO` also contributes, holding
 3.1% of funds and trusts, which is government employee retirement.
 
-**Design implication.** Where an industry's output move is largely *price*, a
-frozen mix should not propagate it to secondary commodities at the same rate.
-That argues for deflating before applying the mix, or for commodity-specific
-indicators — and it predicts the frozen mix fails worst in exactly the years and
-sectors with large relative price moves, which is consistent with 2022 scoring
-worse than 2024.
+**Design implication — hypothesised, then tested and rejected.** The obvious
+reading of `213` is that a frozen mix propagates a *price* move into a phantom
+quantity move, and that deflating before applying the mix would fix it. **It does
+not.**
+
+Deflating column-wise by the summary **industry** price index — the non-circular
+choice, since the commodity index is itself derived from the Make table mix —
+moves the 2022 mix-only error from **1.06% to 1.01%** weighted, and `213` from
+5.6% to 4.4%. The industry deflators are large (`324` at 1.913, `211` at 1.809,
+median 1.218), so this is not a case of the correction being too small to see:
+price largely **cancels**, because the same deflator applies to our build and to
+BEA's published block alike.
+
+⚠️ So the residual mix error is **real reallocation, not a price artifact**. The
+`213` story is that oil and gas genuinely produced relatively less
+mining-support commodity, or that BEA reallocated it — not that a price surge
+leaked through a frozen share. Deflation is not the fix, and a design built
+around it would be solving the wrong problem.
+
+⚠️ **A note on deflator choice, which is why this test is trustworthy.** The
+commodity price index is derived from the Supply/Make table mix, so using it to
+test whether the mix moved would be circular. The industry index applied
+column-wise avoids that. Note also that a uniform column-wise deflator leaves
+within-column *shares* algebraically unchanged — dividing a column by `d[i]`
+cancels in `B[c,i] / sum_c B[c,i]` — so it cannot move the mix-drift measure
+itself. What it changes, and what this test exercises, is the **level** pushed
+through the mix and the level in the comparison.
 
 ### Where the summary control is free, and where it costs
 
