@@ -1,4 +1,7 @@
-"""PR1 / PR2 / PR3 stages on one toy SUT. No 2017 / GCS."""
+"""Hard kernel, hard SUT protocol, then soft protocol on one toy SUT.
+
+No 2017 / GCS.
+"""
 
 from __future__ import annotations
 
@@ -89,7 +92,7 @@ def test_full_nowcasting_sut_balance() -> None:
     original_supply = _full_supply()
     masks = _full_masks(original_use, original_supply)
 
-    # Stage 1 — PR1 kernel on Use. Re-split before each later stage.
+    # Stage 1 — ndarray kernel on Use. Re-split before each later stage.
     _frozen, free = split_fixed_blocks(
         {'use': original_use.copy(), 'supply': original_supply.copy()}, masks
     )
@@ -110,7 +113,7 @@ def test_full_nowcasting_sut_balance() -> None:
     balanced = pd.DataFrame(kernel.matrix, index=use_z.index, columns=use_z.columns)
     assert not bool((~use_mask.free & (balanced != 0)).any().any())
 
-    # Stage 2 — PR2 hard protocol; T2 skipped.
+    # Stage 2 — hard protocol; T2 skipped.
     frozen, free = split_fixed_blocks(
         {'use': original_use.copy(), 'supply': original_supply.copy()}, masks
     )
@@ -136,7 +139,7 @@ def test_full_nowcasting_sut_balance() -> None:
         float(free['use']['F01000'].sum()), rel=1e-6
     )
 
-    # Stage 3 — PR3 on a fresh split of the same original seeds.
+    # Stage 3 — soft protocol on a fresh split of the same original seeds.
     frozen, free = split_fixed_blocks(
         {'use': original_use.copy(), 'supply': original_supply.copy()}, masks
     )
