@@ -172,6 +172,46 @@ a mix and where independent product data exists to fix it.
 It also gives Step 4a a validation harness that works in every year rather than
 only at the benchmark.
 
+### First result: the row margin does not agree, and that blocks everything else
+
+[`frozen_mix_diagnostic.py`](frozen_mix_diagnostic.py) runs it. The headline is
+not a mix finding:
+
+| year | wtd mean abs err | total built/published |
+|---|---:|---:|
+| **2017 (control)** | **7.70%** | 1.075 |
+| 2018 | 7.78% | 1.075 |
+| 2022 | 9.65% | 1.087 |
+| 2024 | 7.88% | 1.074 |
+
+⚠️ **2017 must reproduce itself exactly and does not.** Under a frozen 2017 mix
+the benchmark year is an identity, so its 7.70% is not drift — it is the two
+inputs disagreeing. Feeding the block its *own* column totals closes to 0.0004%,
+which isolates the cause to the industry-output series rather than to the mix, the
+mapping, or the aggregation.
+
+**The gap is 34.468 tn published detail gross output against 32.035 tn of block
+industry totals — 7.6%, with a p95 per-industry ratio of 1.084.** That is almost
+certainly **valuation**: `derive_gross_output` returns producer prices while the
+Supply block is basic value, and the wedge between them is taxes on products less
+subsidies. Already tracked at
+[#655](https://github.com/cornerstone-data/bedrock/issues/655).
+
+**So the drift signal is about 2 points** (7.70% at 2017 to 9.65% at 2022), and it
+is swamped by a 7.7% level mismatch. No conclusion about the mix — including
+whether regime A needs independent estimation — is available until the row margin
+is reconciled. **That reconciliation is the actual first task**, and it is
+narrower than the mix question it was hiding.
+
+⚠️ **A methodological note worth keeping.** The first run of this diagnostic
+selected industry columns by code *length*, which silently swallowed `'TRADE '` —
+the label carries a trailing space, making it six characters like a BEA detail
+code. That injected the entire trade margin column into the block, inflated
+margin-heavy commodities many-fold, and still produced an economy-wide total
+within half a percent of unity and a plausible-looking 3.5% error. It was caught
+only by asking whether the identity closed. **Score the identity first; a
+plausible aggregate is not evidence.**
+
 ## The adjustment ladder
 
 Chapter 5's tables 5.1 (cheese, NAICS 311513) and 5.2 (telecom, NAICS 5133) give
