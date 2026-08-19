@@ -33,6 +33,14 @@ _attribution_sources:
   # 10.9% in 2017, essentially all of it truck. In a nowcast year there is no
   # published column to violate, so this does not block the build; whatever
   # replaces it changes how the positive side is distributed, not its total.
+  #
+  # CAUTION: It has to be replaced by an external source (#672). 2017 is the only
+  # year with a published Supply table, and it is the table the nowcast exists to
+  # produce - so this weight can only reproduce detail BEA has already published,
+  # and it freezes the 2017 within-group commodity mix. The year is pinned below,
+  # so the build runs for any target year; the debt is methodological. 67.8% of
+  # the column rides on it, 62.7% of that truck; rail is near immune because
+  # STCC5 is one-to-one with BEA detail.
   published_trans: &published_trans
     year: 2017
     selection_fields:

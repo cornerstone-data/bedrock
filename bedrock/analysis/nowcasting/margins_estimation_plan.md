@@ -449,6 +449,31 @@ off `BEA_Detail_Supply`'s `TRANS` column, published in whole millions; the modul
 sums it out of the Margins transaction table, which is finer. Same quantity,
 different publication rounding.
 
+⚠️ **The weight itself is the debt, and it is tracked at #672.** Attributing
+against the published `TRANS` column means the within-group split is a slice of
+the table the nowcast exists to produce. 2017 is the only year that has one, so
+the method cannot produce commodity detail BEA has not already published, and it
+freezes the 2017 within-group mix for every future year. The attribution year is
+pinned to 2017, so the build runs for any target year — the debt is
+methodological, not operational.
+
+The weight only bites where an allocator key maps to more than one commodity,
+which on 2017 is **67.8% of the column**:
+
+| mode | multi-target keys | share of the mode's flow | USD exposed |
+|---|---:|---:|---:|
+| truck | 9 of 10 | 92.5% | 260.6 bn |
+| air | 29 of 41 | 94.1% | 5.9 bn |
+| water | 29 of 42 | 38.0% | 3.6 bn |
+| pipeline | 2 of 4 | 19.6% | 9.8 bn |
+| rail | 1 of 356 | 2.5% | 1.7 bn |
+
+Truck alone is 62.7% of the column, and rail is effectively immune — STCC5 is
+near one-to-one with BEA detail, so revenue *is* the allocation. **A fix aimed at
+truck fixes most of the problem**, and since this is the same mode-blind weight
+behind the 10.9% collision above, a mode-specific replacement — FAF value of
+shipments by mode is the leading candidate — may settle both at once.
+
 **Water and air needed no exception after all.** The 1/2/3 multiplier is applied
 to ton-miles in the clean function, on the source side, rather than dressed up as
 an attribution source — which is the honest place for a weight the attribution

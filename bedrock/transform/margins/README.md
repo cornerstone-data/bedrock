@@ -111,6 +111,21 @@ In a nowcast year there is no published column to violate, so this does not
 block the build: whatever resolves it changes how the positive side is
 distributed, not its total, its signs, or the identity.
 
+⚠️ **The within-group weight is BEA's own published column, and has to
+stop being** (#672). The FBS splits each allocator key onto commodities by
+attributing against `BEA_Detail_Supply`'s 2017 `TRANS` — a slice of the table
+the nowcast exists to produce. 2017 is the only year that has one, so the
+method can only reproduce detail BEA has already published and it freezes the
+2017 within-group mix. The attribution year is pinned, so the build runs for any
+target year; the debt is methodological rather than operational.
+
+The weight only bites where a key maps to more than one commodity, which is
+**67.8% of the column** on 2017 — truck 92.5% of its own flow (260.6 bn), air
+94.1% (5.9 bn), water 38.0%, pipeline 19.6%, and rail just 2.5%, since STCC5 is
+near one-to-one with BEA detail. Fixing truck fixes most of it. The leading
+candidate is FAF value of shipments by mode, which would also make the weight
+mode-specific and so may resolve the collision above at the same time.
+
 ⚠️ **2023–24 are unsourced.** SAS stops at 2022, which ends truck, pipeline,
 water and air; AIES `miscsector` carries 2023 and is not wired; 2024 is
 unpublished. Rail alone reaches 2024.
