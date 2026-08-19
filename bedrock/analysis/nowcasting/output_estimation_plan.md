@@ -449,9 +449,36 @@ already shaped — not a change ratio pushed uniformly onto children — which i
 distinction that makes it non-flattening. Where no primary source exists, the
 frozen mix supplies the shape and the same rebalance supplies the level.
 
-**Open:** whether the rebalance should be proportional within group or minimise
-change subject to the margin — BEA's own best-change rule is the latter, and it
-is the same objective Step 5 solves, so the two should be chosen together.
+**Decided: minimise change subject to the margin**, which is BEA's own
+best-change rule and the same objective Step 5's balance solves.
+
+⚠️ **With one margin and an entropic metric the two candidates coincide.**
+Minimising Kullback–Leibler divergence from the seed subject to a single group
+sum gives exactly `q'[i] = q[i] × T / Σq` — proportional scaling *is* the
+minimum-change solution. The choice only acquires content in three cases:
+simultaneous row and column margins (biproportional, which is Step 5 and not
+4a), a quadratic rather than entropic metric, or **cells carrying different
+confidence**.
+
+**The third is the one that matters here, and it is the whole point of the
+construction.** A commodity whose `q` comes from primary data should barely
+move; one resting on the frozen mix should absorb the adjustment. Plain
+proportional scaling treats them identically, which would spend the primary data
+and then discard it. So "minimise change" must be **confidence-weighted**, and
+that is precisely what distinguishes it from proportional here.
+
+⚠️ **This lands on the mask layer, and on a gap.**
+[`mask_layer_plan.md`](mask_layer_plan.md) already defines the needed concept —
+a *fixed value*, "cell is nonzero, directly measured, must come out unchanged" —
+and records that **neither balancing engine has it today**
+([#588](https://github.com/cornerstone-data/bedrock/issues/588) Decision 2). So
+this construction has a real dependency on that work rather than being
+independent of it.
+
+It also inherits the mask layer's governing constraint: **a source can be spent
+on a cell or on a margin, never on both.** A SAS-derived `q` for `541700` is
+either a fixed cell or a margin target, and Step 4a has to say which before Step
+5's target set is settled.
 
 ## The adjustment ladder
 
