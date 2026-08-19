@@ -464,12 +464,39 @@ non-profit and government, which the Economic Census does not cover — consiste
 with the manual's note that BEA estimates nonprofit output from *operating
 expenses* rather than receipts. Those two need a different source.
 
-⚠️ **`Census_EC_PxI` 2022 is not wired.** `getFlowByActivity('Census_EC_PxI',
-2022)` raises. The plan records 2022 as live on the API as `ecnnapcsprd`, so this
-is extract work rather than a data gap — **and it is the single highest-value
-piece of work for Step 4a**, because a second product-by-industry benchmark is
-what lets the mix *move* on observed product data instead of being frozen at
-2017.
+✅ **`Census_EC_PxI` 2022 is now wired** (#650): 32,024 rows, 903 industries,
+3,503 products, pulled as `EC2200NAPCSPRDIND` on the same endpoint. A second
+product-by-industry benchmark is what lets the mix *move* on observed product
+data instead of being frozen at 2017.
+
+✅ **And the vintages join, for our industries.** The yaml warns that the
+2017-built concordance reaches only 70.5% of 2022 value against 94.4% of 2017 —
+but that is **trade-goods specific**. Across the twelve priority service
+industries, carrying 3.84tn of 2022 value, the join is **98.6% by code and 98.1%
+by description**:
+
+| NAICS | 2022 $bn | by code | by desc |
+|---|---:|---:|---:|
+| `5417` R&D | 298 | 100.0% | 100.0% |
+| `5418` Advertising | 126 | 99.8% | 99.0% |
+| `5415` Computer systems | 548 | 98.7% | 96.0% |
+| `622` Hospitals | 1,343 | 98.6% | 97.4% |
+| `5182` Data processing | 273 | 95.0% | 100.0% |
+| `7225` Food service | 800 | 100.0% | 99.8% |
+| **total** | **3,838** | **98.6%** | **98.1%** |
+
+⚠️ **`5151` broadcasting has no 2022 rows at all** — 2022 is titled "Selected
+Sectors" where 2017 is "All Sectors", so industries drop out. Check presence
+before differencing, rather than reading an absence as a collapse to zero.
+
+⚠️ **BEA's 2022 summary table does not incorporate the 2022 Economic Census** —
+the 2022 benchmark I-O is not published, so their annual estimate is a
+best-change extrapolation off the *2017* benchmark. That cuts two ways: our
+EC_PxI-informed mix carries information their published mix does not, which is
+the opportunity; and rebalancing detail to their summary level could discard it,
+which is the risk. The coherent division is to take the **level** from BEA's
+annual indicators, which are current, and the **mix** from EC_PxI, which they
+have not used.
 
 Still gated on the **NAPCS-collection → BEA commodity concordance**
 ([#615](https://github.com/cornerstone-data/bedrock/issues/615)). Note the
