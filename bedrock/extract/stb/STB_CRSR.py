@@ -54,7 +54,7 @@ needs for suppressed retail cells.
 
 from __future__ import annotations
 
-import io
+import os
 import re
 from typing import Any
 
@@ -63,6 +63,8 @@ import pandas as pd
 import requests
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS
 
 #: The page listing every year's workbook. URLs are irregular - 2020 onward sit
@@ -131,17 +133,70 @@ def stb_crsr_url_helper(*, year: int, **_: Any) -> list[str]:
     return [link if link.startswith('http') else f'{STB_BASE_URL}{link}']
 
 
-def stb_crsr_call(*, resp: Any, **_: Any) -> list[pd.DataFrame]:
-    """Read the single stratification sheet, past its four-row banner."""
-    workbook = pd.ExcelFile(io.BytesIO(resp.content))
+def crsr_filename(year: int | str) -> str:
+    """The cache filename for *year*, matching the STB naming."""
+    return f'CRSR5-{year}.xlsx'
+
+
+def crsr_local_path(source: str, year: int | str) -> str:
+    """Where the workbook is cached: ``extract/input_data/STB_CRSR/{year}/``."""
+    return os.path.join(local_extract_input_dir(source, year=year), crsr_filename(year))
+
+
+def _read_stratification_sheet(path: str) -> list[pd.DataFrame]:
+    """Read the single stratification sheet, past its banner rows."""
+    workbook = pd.ExcelFile(path)
     df = pd.read_excel(
-        io.BytesIO(resp.content),
+        path,
         sheet_name=workbook.sheet_names[0],
         header=None,
         skiprows=6,
     ).iloc[:, : len(_COLUMNS)]
     df.columns = _COLUMNS
     return [df[df['STCC5'].notna()]]
+
+
+def stb_crsr_call(
+    *, resp: Any, source: str, year: int | str, **_: Any
+) -> list[pd.DataFrame]:
+    """Cache the downloaded workbook under extract-input, then read it.
+
+    Only reached with ``extract_data_from_raw_sources: True``. Writing it down
+    rather than parsing out of memory is what lets every later run go through
+    :func:`stb_crsr_load_gcs` instead of back to the STB - which matters more
+    here than for most sources, because the URL is *scraped* off an index page
+    rather than constructed, and STB has already reorganised these files twice
+    (2020 onward moved to the site root, and 2015-2016 carry a random numeric
+    suffix). A pinned copy also keeps the 2017 anchor from moving when the
+    waybill sample is revised.
+    """
+    local_path = crsr_local_path(source, year)
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    with open(local_path, 'wb') as f:
+        f.write(resp.content)
+    return _read_stratification_sheet(local_path)
+
+
+def stb_crsr_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
+    """Load the workbook from the local cache, or GCS extract-input if missing."""
+    source = str(kwargs['source'])
+    year = kwargs['year']
+    local_path = crsr_local_path(source, year)
+    if not os.path.exists(local_path):
+        download_extract_input_from_gcs_if_not_exists(
+            kwargs,
+            local_dir=os.path.dirname(local_path),
+            object_name=crsr_filename(year),
+        )
+    if not os.path.exists(local_path):
+        raise FileNotFoundError(
+            f'{crsr_filename(year)} is neither cached at {local_path} nor '
+            f'available from gs://cornerstone-default/extract/input-data/{source}/'
+            f'{year}/. Set extract_data_from_raw_sources: True in {source}.yaml '
+            f'to fetch it from the STB and cache it, then upload it so others '
+            f'need not.'
+        )
+    return _read_stratification_sheet(local_path)
 
 
 def stb_crsr_parse(

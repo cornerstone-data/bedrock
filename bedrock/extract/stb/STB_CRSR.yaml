@@ -19,20 +19,34 @@ url:
   base_url: https://www.stb.gov/reports-data/economic-data/commodity-revenue-stratification-reports/
 url_replace_fxn: !script_function:STB_CRSR stb_crsr_url_helper
 call_response_fxn: !script_function:STB_CRSR stb_crsr_call
+gcs_fxn: !script_function:STB_CRSR stb_crsr_load_gcs
 parse_response_fxn: !script_function:STB_CRSR stb_crsr_parse
+
+# Read the workbook from extract/input_data/STB_CRSR/{year}/ (or GCS
+# extract-input if it is not cached yet) rather than re-scraping the STB index
+# every run. That matters more here than for most sources: the download URL is
+# resolved off an index page rather than constructed, and STB has already
+# reorganised these files twice. Caching also pins the 2017 anchor against
+# revisions to the waybill sample.
+#
+# Set to True to refresh the cache from the STB, e.g. when a new year is
+# published, then upload the new file so others need not.
+extract_data_from_raw_sources: False
 
 # One workbook per year, so each year is fetched separately.
 call_all_years: False
 
-# STB publishes 2010 onward. 2017 is the margins anchor; 2024 is published,
-# which makes rail the only transport mode with an observed final nowcast year -
-# SAS, AIES and the trade surveys all stop earlier.
+# STB publishes 2010 onward, but this starts at 2017: that is the margins
+# anchor, and nothing in the nowcast window reaches further back.
+#
+# ⚠️ 2014 and 2015 use a different sheet layout - 17 columns with an extra
+# leading column, and no banner rows - so the parser here rejects them rather
+# than misreading them. 2012, 2013 and 2016 do parse. Adding any of them means
+# a second layout branch, not just a years: entry.
+#
+# 2024 is published, which makes rail the only transport mode with an observed
+# final nowcast year: SAS, AIES and the trade surveys all stop earlier.
 years:
-- 2012
-- 2013
-- 2014
-- 2015
-- 2016
 - 2017
 - 2018
 - 2019

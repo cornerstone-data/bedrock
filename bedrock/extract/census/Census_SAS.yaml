@@ -16,7 +16,16 @@ sheets:
   Table 2: Estimated Revenue for Employer Firms by Detailed NAICS
   Table 3: Estimated Expense for Employer Firms
 call_response_fxn: !script_function:Census_SAS census_sas_call
+gcs_fxn: !script_function:Census_SAS census_sas_load_gcs
 parse_response_fxn: !script_function:Census_SAS census_sas_parse
+
+# Read the workbook from extract/input_data/Census_SAS/ (or GCS extract-input if
+# it is not cached yet) rather than re-downloading it every run. The url carries
+# a vintage - sas-22.xlsx today - so the cached copy is named for the vintage it
+# came from and a new release is a url change, not a silent substitution.
+#
+# Set to True to refresh the cache from Census, then upload the new file.
+extract_data_from_raw_sources: False
 call_all_years: True
 years:
   - 2013

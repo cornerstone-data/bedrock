@@ -5,28 +5,80 @@
 """
 U.S. Census Service Annual Survey
 """
+
+import os
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def census_sas_call(*, resp, config, **_):
-    """
-    Convert response for calling url to pandas dataframe,
-    begin parsing df into FBA format
-    :param resp: df, response from url call
-    :return: pandas dataframe of original source data
-    """
-    df_list = []
-    for sheet, name in config['sheets'].items():
-        df = pd.read_excel(resp.content, sheet_name=sheet, header=4).assign(
-            sheet=f'{sheet}: {name}'
-        )
-        df_list.append(df)
+def sas_workbook_filename(config: dict) -> str:
+    """The workbook's published filename, e.g. ``sas-22.xlsx``.
 
-    return df_list
+    Taken from the configured url so the cached copy always carries the vintage
+    it came from - when Census publishes ``sas-23``, changing the url is enough
+    to make the cache name follow.
+    """
+    return os.path.basename(str(config['url']['base_url']))
+
+
+def sas_local_path(source: str, config: dict) -> str:
+    """Where the workbook is cached: ``extract/input_data/Census_SAS/``."""
+    return os.path.join(
+        local_extract_input_dir(source, year=None), sas_workbook_filename(config)
+    )
+
+
+def _read_sheets(path: str, config: dict) -> list:
+    """Read the sheets named in the yaml out of the workbook."""
+    return [
+        pd.read_excel(path, sheet_name=sheet, header=4).assign(sheet=f'{sheet}: {name}')
+        for sheet, name in config['sheets'].items()
+    ]
+
+
+def census_sas_call(*, resp, source='Census_SAS', config=None, **_):
+    """Cache the downloaded workbook under extract-input, then read it.
+
+    Only reached with ``extract_data_from_raw_sources: True``. One workbook
+    carries every year and every table, so it is cached once rather than per
+    year - the same shape as BEA_NIPA's archive.
+    """
+    local_path = sas_local_path(source, config)
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    with open(local_path, 'wb') as f:
+        f.write(resp.content)
+    return _read_sheets(local_path, config)
+
+
+def census_sas_load_gcs(**kwargs: Any) -> list:
+    """Load the workbook from the local cache, or GCS extract-input if missing."""
+    source = str(kwargs['source'])
+    config = kwargs['config']
+    local_path = sas_local_path(source, config)
+    filename = sas_workbook_filename(config)
+    if not os.path.exists(local_path):
+        download_extract_input_from_gcs_if_not_exists(
+            # one workbook for all years, so it sits directly under
+            # extract/input-data/Census_SAS/ rather than in a year subfolder
+            {**kwargs, 'year': None},
+            local_dir=os.path.dirname(local_path),
+            object_name=filename,
+        )
+    if not os.path.exists(local_path):
+        raise FileNotFoundError(
+            f'{filename} is neither cached at {local_path} nor available from '
+            f'gs://cornerstone-default/extract/input-data/{source}/. Set '
+            f'extract_data_from_raw_sources: True in {source}.yaml to fetch it '
+            f'from Census and cache it, then upload it so others need not.'
+        )
+    return _read_sheets(local_path, config)
 
 
 def census_sas_parse(*, df_list, year, **_):
