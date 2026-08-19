@@ -160,3 +160,11 @@ If stage 3 fails, stages 1–2 must already have passed in the same function.
 ## Explicit non-goals
 
 Calibrated `WEIGHTS`; real NIPA/ITA; QP; KRAS inside `gras.py`; T5; leftover-blend for T6/T9; generic `TargetTerm` compiler; concatenating panels.
+
+## Reviewer feedback from #667 (post-implementation)
+
+This plan was written against [`orchestrate.py`](bedrock/utils/economic/balance/orchestrate.py) in `utils.economic.balance`. After review on [#667](https://github.com/cornerstone-data/bedrock/pull/667):
+
+The nowcast SUT adapter moved to [`nowcast_sut_gras.py`](bedrock/transform/iot/nowcast_sut_gras.py). Tests moved with it ([`test_nowcast_sut_gras.py`](bedrock/transform/iot/__tests__/test_nowcast_sut_gras.py), [`test_full_nowcasting_sut_balance.py`](bedrock/transform/iot/__tests__/test_full_nowcasting_sut_balance.py)). `engine` is **not** re-exported from `bedrock.utils.economic.balance`.
+
+KRAS still extends that same `engine(..., impose_soft=...)`. The locked design above is unchanged; only the module path changed. Do not import `nowcast_targets.WEIGHTS` in `nowcast_sut_gras.py`.
