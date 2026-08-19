@@ -212,7 +212,11 @@ BTS_FAF:
   data_format: FBA
   class:
     - Other
-  activity_schema: None
+  # Activities are FAF's own mode labels and SCTG commodity groups, neither of
+  # which is NAICS or BEA, so they are joined to BEA 2017 detail on
+  # Sector_Crosswalk_BTS_FAF.csv. (Was the string "None", which the legacy
+  # activity_schema guard rejects - #611.)
+  activity_schema: null
   sector_hierarchy: "flat"
 BTS_TSA:
   data_format: FBA
@@ -262,6 +266,16 @@ Census_AWTS:
     naics:
       year: 2012
       hierarchy: parent-completeChild
+Census_SAS:
+  data_format: FBA
+  class:
+  - Money
+  # Activities are a mix of NAICS (Table 2, where the four pipeline margin items
+  # live) and prose commodity-group names (Table 8, the truck allocator), so
+  # neither schema covers the source. Both are joined to BEA 2017 detail on
+  # Sector_Crosswalk_Census_SAS.csv instead - the same shape STB_CRSR uses.
+  activity_schema: null
+  sector_hierarchy: flat
 Census_CBP:
   data_format: FBA
   class:
