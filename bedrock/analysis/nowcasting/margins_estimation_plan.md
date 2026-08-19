@@ -351,6 +351,109 @@ between `324110` and `324190`.
 which existed only because a residual went negative — pipeline gives up 1.033 of
 its own gross output. That was a workaround for a construction BEA does not use.
 
+### Phase 2 — all five modes built, and the annual control solved
+
+[`nowcast_transport_margins.py`](../../transform/iot/nowcast_transport_margins.py).
+Each mode is allocated on the basis BEA uses for it, controlled to its own annual
+total, and `transport_margin_column(year)` assembles the Supply `TRANS` column —
+positive on receivers, negative on the five modes, **summing to zero**, which is
+target T16. Wired into `derive_initial_supply_bridge` for **2017–2022**.
+
+| mode | share | allocator | source |
+|---|---:|---|---|
+| truck | 67.8% | revenue by commodity group, ten used, "other" discarded | `Census_SAS` Table 8 |
+| rail | 16.5% | revenue by product, 521 STCC5 codes | `STB_CRSR` |
+| pipeline | 11.9% | four Census margin items to named commodity sets | `Census_SAS` Table 2 |
+| water | 2.3% | ton-miles times difficulty 1/2/3 | `BTS_FAF` |
+| air | 1.5% | ton-miles times difficulty 1/2/3 | `BTS_FAF` |
+
+**The annual control is observed freight revenue, not a residual.** The manual
+settles it: trade output *is* margin, but transport output is receipts and only
+the part "unbundled and shifted forward" is margin — which for a freight mode is
+essentially all of it. Measured, 2017 margin over freight revenue is 0.995 rail,
+1.042 truck, 1.052 pipeline. The control is that ratio frozen at 2017 times
+observed revenue, so 2017 is an identity and the level comes from the same source
+as the shape.
+
+This **replaces the retired chain's three treatments**, which agreed in 2017 and
+spread 11.8% by 2022. It needs no Use matrix (no circularity with Step 6b), no
+industry-versus-commodity output reconciliation, and carries no passenger
+contamination.
+
+⚠️ **Water and air ratios mean something different** — 0.478 and 0.584, because
+their freight revenue includes international legs while the margin is the
+domestic leg only. Bounded by their 3.8% share, and tested: deep sea, domestic
+and all-freight water revenue have near-identical volatility, so the split is not
+a distinct source of movement.
+
+⚠️ **2023–24 are unsourced.** SAS stops at 2022; AIES `miscsector` carries 2023
+and is not wired; 2024 is unpublished. Rail alone reaches 2024.
+
+### ⚠️ The open defect — the five modes collide per commodity
+
+Each mode's total is right and the column identity holds, but summed per
+commodity the five exceed the published 2017 column on **97 of 258 commodities by
+45,232 million, 10.9%**. Essentially all of it is truck: pipeline and rail alone
+over-allocate nothing.
+
+The cause is that truck's commodity detail comes from a *weight* — ten groups
+span 258 commodities — and the default weight is each commodity's total published
+`TRANS`, which is blind to the modes already occupying it. Where rail is heavy,
+truck stacks on top. Two failure shapes: coal is over-allocated before truck is
+added at all, while iron and steel takes 104% from truck alone.
+
+⚠️ **One group cannot hold its share on the current mapping.** "Base metal and
+machinery" demands 104% of the entire published `TRANS` of every commodity in it,
+before any other mode takes a share; four more sit at 86–90%. No within-group
+weight fixes that — either the mapping is too narrow, or a group's revenue share
+is not meant to carry that share of the whole truck margin.
+
+**A feasible allocation provably exists** — Hall's condition holds over all 32
+subsets of modes, so the constraint system is satisfiable and the collision is an
+artifact of independent construction, not of the data. Put to BEA on 2026-08-19
+(see [`bea_correspondence.md`](bea_correspondence.md)): what weights allocate
+within a SAS group, or which commodities are excluded from which modes, and
+whether they rebalance at the end.
+
+⚠️ **In a nowcast year there is no published column to violate**, so this does not
+block the build. Whatever resolves it changes how the positive side is
+distributed without changing its total, its signs, or the identity.
+
+### To build — `Margins_Transport_<year>` FBS, all five modes
+
+**Why.** The Supply column is the *sum* over modes; the FBS is to carry the
+**per-mode split**, so an expanded margins file can show the transport column
+broken out by transport commodity. `mode_allocations(year)` already returns that
+split — the FBS is what makes it a first-class, versioned, discoverable artefact
+rather than a function return.
+
+**Where.** `bedrock/transform/margins/`, which must be created:
+`return_folder_path` lowercases the method name and walks back on `_`, so
+`Margins_Transport_2017` resolves `margins_transport_2017`, then
+`margins_transport`, then `margins`. Phase 3's `Margins_Trade_<year>` belongs
+there too. Model it on
+[`Trade_Imports_2017.yaml`](../../transform/trade/Trade_Imports_2017.yaml), which
+uses `!include:BEA_detail_commodity_target.yaml` — the BEA-detail target schema
+that [#546](https://github.com/cornerstone-data/bedrock/issues/546) closing made
+available.
+
+**All five modes are in scope.** Three map onto the Trade pattern directly:
+`STB_CRSR` STCC5 near one-to-one for rail, and `Census_SAS` Table 8 groups and
+Table 2 items attributed proportionally for truck and pipeline.
+
+⚠️ **Water and air need one thing the attribution model has no slot for**: the
+1/2/3 difficulty multiplier is a per-commodity weight applied to ton-miles
+*before* attribution. This is work, not a reason to exclude them — the multiplier
+is a constant per SCTG refreshed every five years, so it can be folded into the
+crosswalk as a weight column or pre-multiplied into the `BTS_FAF` FBA. Excluding
+them would leave the expanded margins file missing two of the five modes it
+exists to show.
+
+**The control totals stay in the module.** They are the coverage ratio times
+freight revenue, with the ratio anchored on 2017, so a literal in the yaml would
+drift from the code. The FBS supplies the *shape*; the module supplies the level
+— the same division `Margins_Trade` will need.
+
 ### Wholesale
 
 Economic Census **product-line sales by kind of business (KB)**; the margin rate
