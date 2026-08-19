@@ -472,6 +472,15 @@ stateio:
     bea:
       year: 2012
       hierarchy: flat
+STB_CRSR:
+  data_format: FBA
+  class:
+  - Money
+  # Activities are 5-digit STCC (Standard Transportation Commodity Code), which
+  # is neither NAICS nor BEA, so the margin module joins to BEA 2017 detail on
+  # its own crosswalk in Python - the same shape the SCTG mapping needs.
+  activity_schema: null
+  sector_hierarchy: flat
 UNEP_IRP_GMFD:
   data_format: FBA
   class:

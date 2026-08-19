@@ -1,0 +1,43 @@
+author: Surface Transportation Board
+source_name: Commodity Revenue Stratification Report (CRSR)
+source_url: https://www.stb.gov/reports-data/economic-data/commodity-revenue-stratification-reports/
+source_publication_date: 2025
+bib_id: STB_CRSR
+api_name: None
+api_key_required: false
+format: xlsx
+
+# The 5-digit report, one row per (STCC5, car type). The 2-digit companion
+# (CRSR2) has only 37 groups - "Chemical Products" alone is 15% of rail revenue
+# - which is too coarse to reach BEA detail commodities.
+#
+# URLs are irregular across years: 2020 onward sit at the site root, earlier
+# years under econdata/, and 2015-2016 carry a random numeric suffix. The helper
+# resolves the link off the published index instead of constructing it, so a
+# newly released year needs no code change.
+url:
+  base_url: https://www.stb.gov/reports-data/economic-data/commodity-revenue-stratification-reports/
+url_replace_fxn: !script_function:STB_CRSR stb_crsr_url_helper
+call_response_fxn: !script_function:STB_CRSR stb_crsr_call
+parse_response_fxn: !script_function:STB_CRSR stb_crsr_parse
+
+# One workbook per year, so each year is fetched separately.
+call_all_years: False
+
+# STB publishes 2010 onward. 2017 is the margins anchor; 2024 is published,
+# which makes rail the only transport mode with an observed final nowcast year -
+# SAS, AIES and the trade surveys all stop earlier.
+years:
+- 2012
+- 2013
+- 2014
+- 2015
+- 2016
+- 2017
+- 2018
+- 2019
+- 2020
+- 2021
+- 2022
+- 2023
+- 2024
