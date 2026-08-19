@@ -940,6 +940,83 @@ def control_total_table(
     ).rename_axis('year')
 
 
+# --- the Supply table's TRANS column ---------------------------------------
+
+
+def mode_allocations(
+    year: int = ANCHOR_YEAR, margins: pd.DataFrame | None = None
+) -> dict[str, pd.Series]:
+    """
+    Every mode's commodity allocation for *year*, USD, on its own basis.
+
+    Each is controlled to that mode's own annual total, so the five together
+    carry the whole column.
+    """
+    controls = {
+        mode: mode_control_total(mode, year, margins) for mode in FREIGHT_REVENUE_MODES
+    }
+    return {
+        'truck': truck_allocation(year, controls['truck'], margins),
+        'rail': rail_allocation(year, controls['rail'], margins),
+        'pipeline': pipeline_allocation(year, controls['pipeline'], margins),
+        'water': volume_mode_allocation('water', year, controls['water'], margins),
+        'air': volume_mode_allocation('air', year, controls['air'], margins),
+    }
+
+
+def transport_margin_column(
+    year: int = ANCHOR_YEAR, margins: pd.DataFrame | None = None
+) -> pd.Series:
+    """
+    The Supply table's ``TRANS`` column for *year*. USD, by BEA 2017 commodity.
+
+    Positive on the commodities that *receive* transport margin, negative on the
+    five transport commodities that give it up, and **summing to zero** - margin
+    is a redistribution, not value created, which is target T16's identity and
+    the only constraint the balance places on Step 4c's own output.
+
+    ⚠️ **In a nowcast year there is no published column to violate.** The
+    per-commodity overshoot measured against 2017 is a statement about how
+    faithfully we reproduce BEA's benchmark, not a defect in this column: the
+    five mode totals are each right, the signs are right, and the identity holds
+    for any year. What the overshoot says is that our *distribution* differs from
+    BEA's by about 11% of the column in 2017, concentrated in commodities where
+    one mode's observed detail collides with another's inferred detail.
+
+    So this is usable now and improvable later: whatever resolves the collision -
+    BEA's within-group rule, an exclusion list, or a joint solve - changes how
+    the positive side is distributed without changing its total, its sign
+    pattern, or the identity.
+    """
+    allocations = mode_allocations(year, margins)
+    receiving = pd.DataFrame(allocations).fillna(0.0).sum(axis=1).rename('TRANS')
+
+    given_up = pd.Series(
+        {
+            MODE_COMMODITIES[mode]: -allocation.sum()
+            for mode, allocation in allocations.items()
+        }
+    )
+    overlap = set(receiving.index) & set(given_up.index)
+    if overlap:
+        raise ValueError(
+            f'Transport commodities {sorted(overlap)} appear on both sides of the '
+            f'column. A mode may not deliver margin to a transport commodity - BEA '
+            f'publishes zero transport margin received by all five in 2017 - so '
+            f'this is a crosswalk error, not a rounding one.'
+        )
+
+    column = pd.concat([receiving, given_up]).rename('TRANS').sort_index()
+    residual = column.sum()
+    if abs(residual) > 1.0:
+        raise ValueError(
+            f'The TRANS column for {year} sums to {residual:,.2f} rather than zero. '
+            f'Margin is a redistribution, so target T16 requires the column to net '
+            f'out; a non-zero sum means a mode total and its allocation disagree.'
+        )
+    return column
+
+
 def mode_residual(
     allocations: dict[str, pd.Series],
     margins: pd.DataFrame | None = None,

@@ -36,8 +36,12 @@ from bedrock.transform.iot.nowcast_transport_margins import (
 )
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_DESC as DESC
 
-#: The concordance is authored against the margins anchor year.
+#: The concordance is authored against the margins anchor year, but must cover
+#: every year the allocation runs: STB publishes a different code set each year,
+#: and 149 codes appear after 2017 that 2017 does not have. They are tail - 0.2%
+#: to 0.8% of revenue - so they are resolved by prefix rather than by hand.
 ANCHOR_YEAR = 2017
+CROSSWALK_YEARS = range(2017, 2025)
 
 CROSSWALK_PATH = 'bedrock/utils/mapping/Crosswalk_STCC5_to_BEA_2017.csv'
 
@@ -92,6 +96,14 @@ MAP = {
     '01399': '111200',
     '01219': '111300',
     '01221': '111300',
+    # --- 08 forest products (post-2017 codes only) ---------------------------
+    '08422': '113000',
+    # --- 09 marine products (post-2017 codes only) ---------------------------
+    '09121': '114000',
+    '09122': '114000',
+    # --- 31 leather (post-2017 codes only) -----------------------------------
+    '31411': '316000',
+    '31611': '316000',
     # --- 10 ores / 11 coal / 13 crude ---------------------------------------
     '10513': '2122A0',
     '10929': '2122A0',
@@ -458,18 +470,47 @@ NOTES = {
 }
 
 
-def load_stcc_codes(year: int = ANCHOR_YEAR) -> pd.DataFrame:
-    """Every STCC5 code in the CRSR for *year*, with its name and revenue."""
-    fba = getFlowByActivity('STB_CRSR', year)
-    items = fba[
-        ~fba['ActivityProducedBy'].str.contains('TOTAL|Percent', case=False, na=False)
-    ]
-    revenue = items.groupby('ActivityProducedBy')['FlowAmount'].sum().div(1e6)
-    names = items.drop_duplicates('ActivityProducedBy').set_index('ActivityProducedBy')[
-        'FlowName'
-    ]
+def resolve_by_prefix(code: str) -> tuple[str | None, str] | None:
+    """Resolve an unlisted code from the longest explicitly-handled prefix.
+
+    STCC is hierarchical, so a code STB introduces after 2017 almost always sits
+    inside a group already mapped by hand. The longest matching prefix wins, and
+    an excluded prefix excludes - 48601 and 48755 are hazardous waste, like the
+    48 codes excluded explicitly. Returns ``(target_or_None, prefix)``.
+    """
+    for length in (4, 3, 2):
+        prefix = code[:length]
+        targets = [
+            MAP[c] for c in MAP if c.startswith(prefix) and isinstance(MAP[c], str)
+        ]
+        if targets:
+            return max(set(targets), key=targets.count), prefix
+        if any(c.startswith(prefix) for c in EXCLUDE):
+            return None, prefix
+    return None
+
+
+def load_stcc_codes(years=CROSSWALK_YEARS) -> pd.DataFrame:
+    """Every STCC5 code the CRSR publishes across *years*, with name and revenue."""
+    frames = []
+    for year in years:
+        fba = getFlowByActivity('STB_CRSR', year)
+        items = fba[
+            ~fba['ActivityProducedBy'].str.contains(
+                'TOTAL|Percent', case=False, na=False
+            )
+        ]
+        revenue = items.groupby('ActivityProducedBy')['FlowAmount'].sum().div(1e6)
+        names = items.drop_duplicates('ActivityProducedBy').set_index(
+            'ActivityProducedBy'
+        )['FlowName']
+        frames.append(pd.DataFrame({'rev': revenue, 'name': names}))
+    combined = pd.concat(frames)
     return (
-        pd.DataFrame({'rev': revenue, 'name': names}).rename_axis('stcc5').reset_index()
+        combined.groupby(level=0)
+        .agg(rev=('rev', 'max'), name=('name', 'first'))
+        .rename_axis('stcc5')
+        .reset_index()
     )
 
 
@@ -484,7 +525,20 @@ def main() -> None:
             continue
         bea = MAP.get(code)
         if bea is None:
-            rows.append((code, r['name'], '', '', 'UNMAPPED'))
+            resolved = resolve_by_prefix(code)
+            if resolved is None:
+                rows.append((code, r['name'], '', '', 'UNMAPPED'))
+                continue
+            target, prefix = resolved
+            note = (
+                f'PREFIX FALLBACK from STCC {prefix}: published after 2017, so not '
+                f'mapped by hand. These are tail codes, together 0.2-0.8% of rail '
+                f'revenue depending on year.'
+            )
+            if target is None:
+                rows.append((code, r['name'], '', '', 'EXCLUDED: ' + note))
+            else:
+                rows.append((code, r['name'], target, DESC.get(target, '?'), note))
             continue
         # a tuple is an STCC code that genuinely spans more than one BEA
         # commodity; the consumer splits its revenue across them

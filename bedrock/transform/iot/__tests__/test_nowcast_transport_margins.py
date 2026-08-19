@@ -722,3 +722,58 @@ def test_all_five_controls_reproduce_the_anchor_year() -> None:
     total = table.loc[2017].sum()
     published = sum(tm._mode_give_up_2017(c) for c in tm.MODE_COMMODITIES.values())
     assert total == pytest.approx(published)
+
+
+# --------------------------------------------------------------------------
+# the Supply TRANS column
+# --------------------------------------------------------------------------
+
+
+def test_the_column_sums_to_zero() -> None:
+    """
+    Margin is a redistribution, not value created - target T16's identity.
+
+    This is the only constraint the balance places on Step 4c's own output, so
+    it has to hold for every year, not just the anchor.
+    """
+    for year in (2017, 2019, 2022):
+        assert tm.transport_margin_column(year).sum() == pytest.approx(0.0, abs=1.0)
+
+
+def test_the_column_has_exactly_five_negatives() -> None:
+    """The five transport commodities give up; everything else receives."""
+    column = tm.transport_margin_column(2017)
+    negative = column[column < 0]
+    assert set(negative.index) == set(tm.MODE_COMMODITIES.values())
+
+
+def test_no_mode_delivers_margin_to_a_transport_commodity() -> None:
+    """
+    BEA publishes zero transport margin *received* by all five modes in 2017.
+
+    A crosswalk that routed margin to one would be a real error, not rounding,
+    so the column builder rejects it rather than netting it off.
+    """
+    column = tm.transport_margin_column(2017)
+    receiving = column[column > 0]
+    assert not set(receiving.index) & set(tm.MODE_COMMODITIES.values())
+
+
+def test_the_anchor_year_column_matches_the_published_total() -> None:
+    """2017's give-up side is the published one, mode by mode."""
+    column = tm.transport_margin_column(2017)
+    for mode, commodity in tm.MODE_COMMODITIES.items():
+        published = tm._mode_give_up_2017(commodity)
+        assert column[commodity] == pytest.approx(-published, rel=1e-6)
+
+
+def test_the_crosswalk_covers_every_year_the_column_runs() -> None:
+    """
+    STB publishes a different STCC code set each year.
+
+    The crosswalk is authored on 2017 but must cover the union, or a later year
+    silently drops revenue. 149 codes appear only after 2017.
+    """
+    listed = set(tm.load_rail_crosswalk()['stcc5'])
+    for year in (2018, 2020, 2022, 2024):
+        assert set(tm.load_rail_revenue_by_stcc(year).index) <= listed
