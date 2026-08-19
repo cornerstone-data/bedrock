@@ -379,6 +379,80 @@ detail benchmark exists. Given summary mix drift is 0.006 and the mix accounts
 for roughly a third of our total error, this is a bounded risk rather than an
 open-ended one.
 
+## The construction: primary data for `q` where possible, rebalanced to summary
+
+**Decided.** Rather than build `q` everywhere from a frozen mix, collect primary
+data and estimate `q` **directly at detail** where the data allows, then rebalance
+the detail to BEA's published summary total. Frozen-mix `mix17 x x` is the
+fallback for commodities with no primary source, not the default.
+
+(`q` = commodity output, `x` = industry output, throughout.)
+
+### Which commodities to estimate — the priority is concentrated
+
+A commodity needs primary data only to the extent its `q` does **not** come from
+its own industry. Where `q` is essentially all diagonal, `q ≈ x`, and `x` is
+already published at detail for 1997-2024 — the mix does no work and there is
+nothing to estimate.
+
+Measured on the 2017 detail block:
+
+| | |
+|---|---:|
+| total `q` | 33.77 tn |
+| secondary-sourced, i.e. dependent on the mix | **9.5%** = 3.22 tn |
+| commodities with secondary share <5% | **231 of 399**, 60.2% of `q` |
+| top 20 commodities' share of the at-risk dollars | **61.6%** |
+| top 50 | 80.8% |
+| top 100 | 92.1% |
+
+⚠️ **90.5% of `q` needs no mix work at all**, and the exposed remainder is
+concentrated in about 50 commodities. That is the target list.
+
+**Top 15 by dollars at risk** (`q` bn, secondary share, at-risk bn):
+
+| commodity | `q` | sec | at risk |
+|---|---:|---:|---:|
+| `541700` Scientific R&D services | 617 | 0.59 | **366** |
+| `541800` Advertising and PR | 403 | 0.68 | **275** |
+| `622000` Hospitals | 1,052 | 0.21 | **225** |
+| `541511` Custom computer programming | 270 | 0.57 | 154 |
+| `518200` Data processing and hosting | 247 | 0.43 | 106 |
+| `611A00` Colleges and universities | 249 | 0.37 | 91 |
+| `221100` Electric power generation | 432 | 0.19 | 81 |
+| `722A00` All other food and drinking places | 179 | 0.45 | 80 |
+| `713200` Gambling | 109 | 0.68 | 74 |
+| `532100` Automotive equipment rental | 133 | 0.53 | 71 |
+| `221300` Water, sewage and other systems | 80 | 0.88 | 70 |
+| `523900` Other financial investment | 388 | 0.16 | 60 |
+| `811100` Automotive repair | 186 | 0.30 | 57 |
+| `515100` Radio and TV broadcasting | 81 | 0.57 | 46 |
+| `517110` Wired telecommunications | 352 | 0.13 | 45 |
+
+⚠️ **This inverts the earlier read on which primary source matters most.** The
+regime table above shows manufacturing holding 231 of 399 commodity *rows*, which
+made ASM product lines look like the priority gap. By dollars at risk the list is
+overwhelmingly **services** — R&D, advertising, programming, hospitals, data
+processing, education, gambling. Manufacturing rows are numerous but their `q` is
+nearly all diagonal, so a frozen mix costs almost nothing there.
+
+**So the primary-data programme should target `Census_SAS` product lines first,
+not `Census_ASM` product tables.** SAS is already extracted and already read at
+product-line granularity for the transport margins (Table 8), so the machinery
+exists. ASM product lines drop well down the list.
+
+### Rebalancing
+
+Detail `q` estimated from primary data is then reconciled to BEA's published
+summary `T007`. That is a level correction on a distribution primary data has
+already shaped — not a change ratio pushed uniformly onto children — which is the
+distinction that makes it non-flattening. Where no primary source exists, the
+frozen mix supplies the shape and the same rebalance supplies the level.
+
+**Open:** whether the rebalance should be proportional within group or minimise
+change subject to the margin — BEA's own best-change rule is the latter, and it
+is the same objective Step 5 solves, so the two should be chosen together.
+
 ## The adjustment ladder
 
 Chapter 5's tables 5.1 (cheese, NAICS 311513) and 5.2 (telecom, NAICS 5133) give
