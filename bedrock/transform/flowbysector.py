@@ -372,9 +372,7 @@ class FlowBySector(_FlowBy):
                 try:
                     prepared.append(fbs.prepare_fbs())  # type: ignore[operator]
                 except ValueError as exc:
-                    log.exception(
-                        f'{fbs.full_name} failed while preparing FBS: {exc}'
-                    )
+                    log.exception(f'{fbs.full_name} failed while preparing FBS: {exc}')
                     raise ValueError(
                         f'{fbs.full_name} failed while preparing FBS: {exc}'
                     ) from exc

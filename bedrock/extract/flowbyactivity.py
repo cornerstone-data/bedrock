@@ -948,9 +948,7 @@ class FlowByActivity(_FlowBy):
                         )
                     )
                 except ValueError as exc:
-                    log.exception(
-                        f'{fba.full_name} failed while preparing FBS: {exc}'
-                    )
+                    log.exception(f'{fba.full_name} failed while preparing FBS: {exc}')
                     raise ValueError(
                         f'{fba.full_name} failed while preparing FBS: {exc}'
                     ) from exc

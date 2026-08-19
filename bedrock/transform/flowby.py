@@ -1982,12 +1982,8 @@ class _FlowBy(pd.DataFrame):
                 # multiple columns to the single column SecondarySector".
                 fb = fb.assign(
                     **{
-                        f'Secondary{col_type}': fb[
-                            f'{col_type}ConsumedBy'
-                        ].where(
-                            fb[f'Primary{col_type}'].eq(
-                                fb[f'{col_type}ProducedBy']
-                            ),
+                        f'Secondary{col_type}': fb[f'{col_type}ConsumedBy'].where(
+                            fb[f'Primary{col_type}'].eq(fb[f'{col_type}ProducedBy']),
                             fb[f'{col_type}ProducedBy'],
                         )
                     }
