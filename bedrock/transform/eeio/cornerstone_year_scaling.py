@@ -24,7 +24,7 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 )
 from bedrock.utils.math.formulas import compute_total_industry_inputs
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_MUT_YEARS
-from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+from bedrock.utils.taxonomy.bea_v2017_to_cornerstone_helpers import (
     load_bea_v2017_summary_to_cornerstone,
 )
 

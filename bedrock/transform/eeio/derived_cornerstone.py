@@ -121,7 +121,7 @@ from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
     USA_2017_FINAL_DEMAND_PERSONAL_CONSUMPTION_EXPENDITURE_CODE,
 )
-from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+from bedrock.utils.taxonomy.bea_v2017_to_cornerstone_helpers import (
     get_bea_v2017_summary_to_cornerstone_corresp_df,
 )
 from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity import (

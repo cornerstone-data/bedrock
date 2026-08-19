@@ -1,3 +1,7 @@
+"""BEA 2017 summary ↔ Cornerstone (and USEEIO-detail) correspondences."""
+
+from __future__ import annotations
+
 import typing as ta
 from typing import cast
 
@@ -9,8 +13,6 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
 )
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR, CEDA_V7_SECTORS
-from bedrock.utils.taxonomy.bea.v2012_summary import BEA_2012_SUMMARY_CODES
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
     BEA_2017_COMMODITY_SUMMARY_CODE,
     BEA_2017_COMMODITY_SUMMARY_CODES,
@@ -20,9 +22,6 @@ from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
 )
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
 from bedrock.utils.taxonomy.correspondence import create_correspondence_matrix
-from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_ceda_v7 import (
-    load_bea_v2017_commodity_to_bea_ceda_v7,
-)
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
     load_bea_v2017_commodity_to_bea_v2017_summary,
 )
@@ -51,19 +50,6 @@ def _useeio_split_detail_to_parent_commodity() -> dict[str, str]:
     return out
 
 
-def load_bea_v2017_summary_to_ceda_v7() -> (
-    dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[CEDA_V7_SECTOR]]
-):
-    commodity_to_ceda_v7 = load_bea_v2017_commodity_to_bea_ceda_v7()
-    commodity_to_summary = load_bea_v2017_commodity_to_bea_v2017_summary()
-
-    ceda_v7_to_commodity = reverse(
-        commodity_to_ceda_v7, new_domain=set(CEDA_V7_SECTORS)
-    )
-    ceda_v7_to_summary = traverse(ceda_v7_to_commodity, commodity_to_summary)
-    return reverse(ceda_v7_to_summary, new_domain=set(BEA_2012_SUMMARY_CODES))
-
-
 def load_bea_v2017_summary_to_cornerstone() -> (
     dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]]
 ):
@@ -74,9 +60,11 @@ def load_bea_v2017_summary_to_cornerstone() -> (
         commodity_to_cornerstone, new_domain=set(COMMODITIES)
     )
     cornerstone_to_summary = traverse(cornerstone_to_commodity, commodity_to_summary)
-    mapping_raw = reverse(
-        cornerstone_to_summary, new_domain=set(BEA_2012_SUMMARY_CODES)
+    summary_codomain = cast(
+        ta.AbstractSet[BEA_2017_COMMODITY_SUMMARY_CODE],
+        frozenset(BEA_2017_COMMODITY_SUMMARY_CODES),
     )
+    mapping_raw = reverse(cornerstone_to_summary, new_domain=summary_codomain)
     if get_usa_config().implement_electricity_disaggregation:
         expanded_mapping: dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]] = {
             summary_code: (
@@ -103,17 +91,6 @@ def _replace_sector_in_cornerstone_summary_list(
         return list(sectors)
     idx = sectors.index(aggregate)
     return sectors[:idx] + replacements + sectors[idx + 1 :]
-
-
-def get_bea_v2017_summary_to_ceda_corresp_df() -> pd.DataFrame:
-    summary_to_ceda_v7 = load_bea_v2017_summary_to_ceda_v7()
-    summary_to_ceda_v7_corresp_df = create_correspondence_matrix(
-        summary_to_ceda_v7
-    ).loc[CEDA_V7_SECTORS, :]
-
-    summary_to_ceda_v7_corresp_df.index.name = 'sector'
-
-    return summary_to_ceda_v7_corresp_df
 
 
 def get_bea_v2017_summary_to_cornerstone_corresp_df() -> pd.DataFrame:

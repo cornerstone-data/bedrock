@@ -1,18 +1,9 @@
 from __future__ import annotations
 
 import functools
-import logging
 
 import pandas as pd
-import pandera.typing as pt
 
-from bedrock.extract.iot.io_2012 import (
-    load_2012_PC_usa,
-    load_2012_PI_usa,
-    load_2012_UR_usa,
-    load_2012_URdom_usa,
-    load_2012_YR_usa,
-)
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
@@ -23,26 +14,11 @@ from bedrock.transform.eeio.derived_cornerstone import (
 )
 from bedrock.utils.emissions.characterization import build_ghg_characterization_matrix
 from bedrock.utils.emissions.ghg import GHG
-from bedrock.utils.math.handle_negatives import handle_negative_vector_values
-from bedrock.utils.schemas.single_region_schemas import (
-    ExportsVectorSchema,
-    ImportsVectorSchema,
-    UMatrix,
-    YVectorSchema,
-)
 from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,
-    SingleRegionUMatrixSet,
     SingleRegionYtotAndTradeVectorSet,
     SingleRegionYVectorSet,
 )
-from bedrock.utils.taxonomy.bea.v2017_final_demand import (
-    USA_2017_FINAL_DEMAND_EXPORT_CODE,
-    USA_2017_FINAL_DEMAND_IMPORT_CODE,
-)
-from bedrock.utils.taxonomy.mappings.ceda_v7__ceda_v5 import CEDA_V5_TO_CEDA_V7_CODES
-
-logger = logging.getLogger(__name__)
 
 
 @functools.cache
@@ -96,64 +72,6 @@ def derive_D_usa() -> pd.DataFrame:
     D = derive_C_usa() @ derive_B_usa_non_finetuned()
     D.columns.name = 'sector'
     return D
-
-
-def derive_v5_U_usa() -> SingleRegionUMatrixSet:
-    URtot_usa = load_2012_UR_usa()
-    URdom_usa = load_2012_URdom_usa()
-
-    PI = load_2012_PI_usa()
-    PC = load_2012_PC_usa()
-
-    # squarize all matrices by using 400 commodity or industry classification
-    URimp_usa = URtot_usa - URdom_usa
-
-    URdom = PC.T @ URdom_usa @ PI.T
-    URimp = PC.T @ URimp_usa @ PI.T
-
-    URdom.rename(
-        columns=CEDA_V5_TO_CEDA_V7_CODES, index=CEDA_V5_TO_CEDA_V7_CODES, inplace=True
-    )
-    URimp.rename(
-        columns=CEDA_V5_TO_CEDA_V7_CODES, inplace=True, index=CEDA_V5_TO_CEDA_V7_CODES
-    )
-
-    return SingleRegionUMatrixSet(
-        Udom=pt.DataFrame[UMatrix](URdom), Uimp=pt.DataFrame[UMatrix](URimp)
-    )
-
-
-@functools.cache
-def derive_v5_detail_Ytot_usa_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
-    """
-    Derive US Ytot and trade vectors using v5 USA IO tables.
-
-    NOTE: Ytot_usa can't be negative, because we need to use it to ABSR Ytot of other countries.
-    """
-
-    Ytot_with_trade_usa = load_2012_PC_usa().T @ load_2012_YR_usa()
-
-    return SingleRegionYtotAndTradeVectorSet(
-        ytot=YVectorSchema.validate(
-            handle_negative_vector_values(
-                Ytot_with_trade_usa.drop(
-                    columns=[
-                        USA_2017_FINAL_DEMAND_EXPORT_CODE,
-                        USA_2017_FINAL_DEMAND_IMPORT_CODE,
-                    ]
-                ).sum(axis=1)
-            )
-        ),
-        exports=ExportsVectorSchema.validate(
-            Ytot_with_trade_usa[USA_2017_FINAL_DEMAND_EXPORT_CODE]
-        ),
-        imports=ImportsVectorSchema.validate(
-            -1
-            * Ytot_with_trade_usa[USA_2017_FINAL_DEMAND_IMPORT_CODE].apply(
-                lambda x: min(x, 0)
-            )
-        ),
-    )
 
 
 @functools.cache
