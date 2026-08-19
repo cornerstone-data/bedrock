@@ -144,13 +144,13 @@ detail Supply table" — but if the mix is carried from 2017, 2017 reproduces
 itself exactly and the test proves nothing. It only bites for a route that
 *estimates* the mix.
 
-**There is a non-circular target, and it covers every nowcast year.** BEA
+**There is a *less* circular reference, and it covers every nowcast year.** BEA
 publishes annual Supply tables at **summary** level for **2017-2024**
 (`Supply_Tables_*_Summary.xlsx`, loaded by `_load_usa_summary_sut`), whose `T007`
-column is *Total Commodity Output*. So both margins of the detail block are
-observed:
+column is *Total Commodity Output*. Both margins of the detail block are
+available from it:
 
-| margin | observed at | years |
+| margin | published at | years |
 |---|---|---|
 | industry output (columns) | **detail**, 402 industries | 1997-2024 |
 | commodity output `T007` (rows) | **summary**, 75 commodities | 2017-2024 |
@@ -161,7 +161,21 @@ convention — `derive_gross_output(year, 'before')` in
 [`derived_gross_industry_output.py`](../../transform/iot/derived_gross_industry_output.py),
 402 industries, 1997-2024. It is BEA's published series, not something we model.
 
-**First task, then:** carry the 2017 detail mix forward onto observed detail
+⚠️ **It is a reference, not ground truth, and the distinction is load-bearing.**
+Outside 2017 nothing here is observed. Summary `T007` for 2018-2024 is BEA's own
+**best-change estimate**, produced by the machinery described above — the
+benchmark make table extrapolated with annual survey indicators. Only the 2017
+benchmark is a *best-level* estimate resting on the Economic Census.
+
+So scoring against it measures **divergence from BEA's annual estimate, not from
+truth**, and it carries a weaker form of the circularity that disqualifies the
+benchmark replay: wherever BEA also carried the mix forward, we agree with them
+by construction rather than by being right. What the comparison *does* buy is
+BEA's annual indicator work, which is more than a frozen mix — so a divergence
+marks a place where an annual indicator moved something and our frozen mix did
+not. That is genuinely informative, and matching perfectly is not the goal.
+
+**First task, then:** carry the 2017 detail mix forward onto published detail
 industry output, aggregate to summary, and score the resulting commodity output
 against the published summary `T007` for 2018-2024. That is cheap, uses only
 what is already loaded, and is not circular. It answers the question that decides
@@ -270,17 +284,23 @@ The concern about flattening detail has a size:
 - **21 of 73 summary groups have a single detail child**, covering **19.8% of
   commodity output**. For these, imposing published `T007` is **exact** — there
   is no within-group distribution to flatten. `525` and `483` are both in this
-  set, so both can simply be corrected to observed data.
+  set, so both can simply be aligned to BEA's published estimate.
 - The value-weighted mean is **6.7 detail children per group**, so the typical
   dollar sits in a group where a uniform ratio *would* flatten. The largest are
   `5412OP` (10 children), `42` wholesale (11), `23` construction (12), `621` (7).
 - `213` has two children, so its correction is nearly free as well.
 
 ⚠️ **This reframes the block.** Summary `T007` is *published for 2017-2024*, so
-for every year we care about, commodity output at summary is **observed, not
-modelled**. Step 4a's real job is therefore **the detail split within summary
-groups**, not the level. The level should be taken from BEA wherever it exists,
-and modelled only beyond the published window.
+for every year we care about, commodity output at summary is already estimated by
+BEA at a level we are unlikely to beat — it embodies their annual indicator work
+across every sector. Step 4a's real job is therefore **the detail split within
+summary groups**, not the level.
+
+That is a choice to adopt BEA's summary level as our reference rather than a
+claim that it is observed. It is defensible while our own indicator coverage is
+thinner than theirs, and it should be revisited per sector as that changes — a
+sector where we have a better annual indicator than BEA is a sector where
+deferring to their summary level *loses* information.
 
 That also says where the remaining work is: the ~80% of output sitting in
 multi-child groups, and specifically the big ones above.

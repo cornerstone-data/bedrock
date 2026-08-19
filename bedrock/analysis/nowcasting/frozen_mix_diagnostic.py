@@ -2,9 +2,18 @@
 How wrong is a frozen 2017 commodity mix, and where? (Step 4a, #570)
 
 Carries the published 2017 detail Supply block's commodity mix forward onto
-*observed* detail industry output, aggregates to BEA summary, and scores the
-result against the published annual summary Supply table's ``T007`` column
-(Total Commodity Output, published 2017-2024).
+published detail industry output, aggregates to BEA summary, and scores the
+result against the annual summary Supply table's ``T007`` column (Total
+Commodity Output, published 2017-2024).
+
+⚠️ **The target is a reference, not ground truth.** Outside 2017 nothing here is
+observed: summary ``T007`` is BEA's own *best-change* estimate, the benchmark
+make table extrapolated with annual survey indicators. Only 2017 is a
+*best-level* estimate resting on the Economic Census. So a score here measures
+divergence from BEA's annual estimate, and wherever BEA also carried the mix
+forward we agree by construction rather than by being right. What it buys is
+BEA's annual indicator work: a divergence marks a place where an indicator moved
+something and a frozen mix did not.
 
 ⚠️ **This is a diagnostic, not a construction.** The point is to size the
 correction that a frozen mix leaves behind, because that correction is exactly
