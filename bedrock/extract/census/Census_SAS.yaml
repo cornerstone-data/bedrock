@@ -15,6 +15,12 @@ sheets:
   # same item at 3-digit NAICS only, so it cannot serve.
   Table 2: Estimated Revenue for Employer Firms by Detailed NAICS
   Table 3: Estimated Expense for Employer Firms
+  # Table 8 is the truck margin allocator (#611). Only NAICS 484 carries
+  # commodity rows; the other NAICS in the sheet break revenue out by media
+  # or advertising type. Its eleven commodity groups partition Total Motor
+  # Carrier Revenue to the dollar. Note the hazardous-materials row is a
+  # cross-cut of those groups, not a twelfth one - never sum it with them.
+  Table 8: Estimated Revenue by Product and Class of Customer for Employer Firms
 call_response_fxn: !script_function:Census_SAS census_sas_call
 gcs_fxn: !script_function:Census_SAS census_sas_load_gcs
 parse_response_fxn: !script_function:Census_SAS census_sas_parse

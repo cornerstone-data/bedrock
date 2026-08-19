@@ -120,11 +120,12 @@ def census_sas_parse(*, df_list, year, **_):
 
     # Revenue is *produced* by the industry; expense is *consumed* by it. The
     # parse chain above lands every sheet's NAICS in ActivityConsumedBy, which
-    # is right for the expense tables and wrong for Table 2 - the pipeline
-    # margin items have to sit in ActivityProducedBy to read like every other
-    # margin source (Census_AWTS, Census_ARTS, Census_AIES all place the
-    # margin-producing sector there).
-    is_revenue = df['Description'].str.startswith('Table 2')
+    # is right for the expense tables and wrong for the revenue ones - Table 2's
+    # pipeline margin items and Table 8's truck commodity groups both have to
+    # sit in ActivityProducedBy to read like every other margin source
+    # (Census_AWTS, Census_ARTS, Census_AIES all place the margin-producing
+    # sector there).
+    is_revenue = df['Description'].str.startswith(('Table 2', 'Table 8'))
     df['ActivityProducedBy'] = np.where(is_revenue, df['ActivityConsumedBy'], None)
     df['ActivityConsumedBy'] = np.where(is_revenue, None, df['ActivityConsumedBy'])
 

@@ -360,3 +360,138 @@ def test_unknown_stcc_code_raises(monkeypatch) -> None:
     monkeypatch.setattr(tm, 'load_rail_revenue_by_stcc', with_a_new_code)
     with pytest.raises(ValueError, match='crosswalk does not list'):
         tm.rail_revenue_by_commodity(2017)
+
+
+# --------------------------------------------------------------------------
+# truck
+# --------------------------------------------------------------------------
+
+
+def test_truck_crosswalk_targets_are_real_bea_2017_codes() -> None:
+    crosswalk = tm.load_truck_crosswalk()
+    assert set(crosswalk['bea_2017_commodity']) <= set(USA_2017_COMMODITY_CODES)
+
+
+def test_truck_crosswalk_covers_every_trans_receiving_commodity() -> None:
+    """
+    A commodity in no group gets no truck margin at all.
+
+    For a mode carrying two thirds of the column that is a strong claim, so the
+    crosswalk is required to be exhaustive over the receiving set.
+    """
+    published = tm.published_transport_by_commodity()
+    receiving = set(published[published != 0].index)
+    mapped = set(tm.load_truck_crosswalk()['bea_2017_commodity'])
+    assert receiving <= mapped
+
+
+def test_truck_groups_partition_motor_carrier_revenue() -> None:
+    """
+    The eleven groups sum to the published total, and hazmat is not one of them.
+
+    The hazardous-materials row re-slices the same revenue, so sweeping it in
+    would double-count roughly 6% of the column.
+    """
+    revenue = tm.load_truck_group_revenue(2017)
+    assert len(revenue) == 11
+    assert not any('Hazardous' in group for group in revenue.index)
+    assert revenue.sum() == pytest.approx(270_154e6, rel=1e-6)
+
+
+def test_other_goods_is_dropped_from_the_allocator() -> None:
+    """
+    BEA does not use it, and it is a third of motor carrier revenue.
+
+    Letting it through would move every share, so this pins the exclusion.
+    """
+    revenue = tm.load_truck_group_revenue(2017)
+    assert tm.TRUCK_OTHER_GOODS in revenue.index
+    assert revenue[tm.TRUCK_OTHER_GOODS] / revenue.sum() == pytest.approx(
+        0.324, abs=0.01
+    )
+
+    allocation = tm.truck_allocation(2017, control_total=1000.0)
+    assert allocation.sum() == pytest.approx(1000.0)
+
+
+def test_truck_group_shares_follow_table_8_revenue() -> None:
+    """Used household goods maps to one commodity, so its share is checkable."""
+    revenue = tm.load_truck_group_revenue(2017).drop(index=tm.TRUCK_OTHER_GOODS)
+    share = revenue['Used household and office goods'] / revenue.sum()
+    allocation = tm.truck_allocation(2017, control_total=1000.0)
+    assert allocation['S00402'] == pytest.approx(share * 1000.0)
+
+
+def test_truck_within_group_weight_can_be_supplied() -> None:
+    """The weight is injectable, which is how the residual construction is run."""
+    published = tm.published_transport_by_commodity()
+    flat = pd.Series(1.0, index=published.index)
+    default = tm.truck_allocation(2017, control_total=1000.0)
+    weighted = tm.truck_allocation(2017, control_total=1000.0, within_group_weight=flat)
+    assert weighted.sum() == pytest.approx(1000.0)
+    assert not weighted.equals(default)
+
+
+def test_independent_modes_collide_and_residual_weighting_shrinks_it() -> None:
+    """
+    ⚠️ The three built modes do **not** yet fit the published column jointly.
+
+    Each is right on its own total and none of the first two exceeds the ceiling,
+    but truck's commodity detail comes from a weight rather than from Table 8, so
+    where rail is heavy the two overlap. This pins the size of the problem and
+    the fact that residual weighting reduces but does not remove it - see the
+    module docstring. It is a real finding about the construction, not a bug in
+    any one mode, and the fix is a joint solve rather than a better weight.
+    """
+    published = tm.published_transport_by_commodity()
+    pipeline = tm.pipeline_allocation(2017)
+    rail = tm.rail_allocation(2017)
+
+    naive = tm.mode_residual(
+        {'pipeline': pipeline, 'rail': rail, 'truck': tm.truck_allocation(2017)}
+    )
+    naive_overshoot = -naive.loc[naive['over_allocated'], 'residual'].sum()
+
+    claimed = pipeline.reindex(published.index).fillna(0.0) + rail.reindex(
+        published.index
+    ).fillna(0.0)
+    room = (published - claimed).clip(lower=0)
+    fitted = tm.mode_residual(
+        {
+            'pipeline': pipeline,
+            'rail': rail,
+            'truck': tm.truck_allocation(2017, within_group_weight=room),
+        }
+    )
+    fitted_overshoot = -fitted.loc[fitted['over_allocated'], 'residual'].sum()
+
+    assert naive_overshoot > 0
+    assert fitted_overshoot < naive_overshoot / 2
+
+
+def test_three_modes_leave_room_for_water_and_air_in_aggregate() -> None:
+    """
+    The per-commodity fit is unresolved; the totals are not.
+
+    Pipeline, rail and truck together leave what water and air give up, to
+    within the give-up-versus-receiving rounding, which says the four control
+    totals are right even while their distribution collides.
+    """
+    published = tm.published_transport_by_commodity().sum()
+    built = tm.pipeline_margin_2017() + tm.rail_margin_2017() + tm.truck_margin_2017()
+    water_and_air = tm._mode_give_up_2017('483000') + tm._mode_give_up_2017('481000')
+    assert (published - built) == pytest.approx(water_and_air, rel=0.07)
+
+
+def test_unmapped_sas_group_raises(monkeypatch) -> None:
+    """A new published group must fail loudly rather than shrink the column."""
+    real = tm.load_truck_group_revenue
+
+    def with_a_new_group(year):
+        series = real(year)
+        series.loc['Antimatter'] = 5000.0
+        return series
+
+    monkeypatch.setattr(tm, 'load_truck_group_revenue', with_a_new_group)
+    with pytest.raises(ValueError, match='crosswalk does not map'):
+        tm.truck_allocation(2017)
