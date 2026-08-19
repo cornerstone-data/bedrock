@@ -205,8 +205,12 @@ conversion and redefinition steps need is already loadable** — no new extract 
 (`CalculateIntermediateUseAndCommodityMix.R`, per #497). The Step 5 **engine**
 is in [`bedrock/utils/economic/balance/gras.py`](../../utils/economic/balance/gras.py)
 (`gras_balance`, GRAS: Lenzen, Wood and Gallego 2007 + Temurshoev, Miller and
-Bouwmeester 2013). The SUT wrapper `engine(free, residual, masks)` is still
-missing. Unit tests: [`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py).
+Bouwmeester 2013). The SUT wrapper is
+[`engine`](../../utils/economic/balance/orchestrate.py)
+(`engine(free, residual, masks)` → `out.blocks`): Use then Supply, hard T1 and
+T11–T17 only. Soft T2/T4/T6–T9 are skipped until KRAS. Unit tests:
+[`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py),
+[`test_orchestrate.py`](../../utils/economic/balance/__tests__/test_orchestrate.py).
 A **zero target is legal**; a **nonzero target on an empty free margin** raises.
 
 **The USEEIO port list shrank to one file.** `check_balances.py` and `load_suts_from_r.py` were both
@@ -882,8 +886,10 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 
 **⚠️ Three decisions structured this step.** The **starting point** (Decision 1,
 Option A for the engine: vendored ceda dense + GRAS), the **objective function**
-(Decision 2), and the **target set** (Decision 3) are recorded below. The SUT
-wrapper and KRAS-style soft layer are not done — do not treat the full Step 5
+(Decision 2), and the **target set** (Decision 3) are recorded below. The
+Use-then-Supply wrapper `engine` is in
+[`orchestrate.py`](../../utils/economic/balance/orchestrate.py) (hard T1,
+T11–T17). The KRAS-style soft layer is not done — do not treat the full Step 5
 balancer as complete. What follows replaces the earlier one-line instruction to
 port `sut_ras.py`; that is no longer the recommended route.
 
@@ -937,39 +943,45 @@ Keeping these separate is what makes the decision tractable:
 1. **Engine** — take one matrix, a seed, and margin targets; scale to the targets. This is where
    RAS-vs-GRAS lives, and where ceda's mask/convergence/stall machinery lives. Small surface, fully
    unit-testable on hand-checkable matrices.
-2. **SUT orchestration** — sequence the blocks (`V`, `Ui`, `Ufd`, `Uva`, imports), decide which
-   identity each pass enforces, carry aggregate-level targets, and iterate to joint convergence. Only
-   `sut_ras.py` has any of this, and it is the part with no tests.
+2. **SUT orchestration** — sequence the two panels (Use then Supply), decide which
+   identity each pass enforces, and iterate to joint T11 convergence. Soft
+   aggregate-level targets (T4 and the rest) stay skipped until KRAS. Historical
+   `sut_ras.py` sequenced `V`/`Ui`/`Ufd`/`Uva`; that script is the comparison
+   table below, not `engine()`.
 
 The two decisions below can land differently at each layer — e.g. ceda's engine under an
 orchestration layer written fresh against `sut_ras.py` as the reference.
 
 #### The scaffolding is built — how to run it (#653, #654, #591)
 
-**For anyone starting on the SUT wrapper.** Everything below the ndarray kernel
+**For anyone calling the SUT wrapper.** Everything below the ndarray kernel
 is built — mask, targets, offset, precheck in [#659](https://github.com/cornerstone-data/bedrock/pull/659),
-and `gras_balance` in [`gras.py`](../../utils/economic/balance/gras.py).
-What remains is the SUT wrapper around `gras_balance`.
+`gras_balance` in [`gras.py`](../../utils/economic/balance/gras.py), and
+`engine` in [`orchestrate.py`](../../utils/economic/balance/orchestrate.py).
+What remains of Step 5 is KRAS (soft T2/T4/T6–T9).
 
 | Module | What it is |
 |---|---|
-| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic scaffolding (`Target`, `SutMask`, offset, precheck) plus the ndarray GRAS kernel (`gras_balance`) |
+| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic scaffolding (`Target`, `SutMask`, offset, precheck), the ndarray GRAS kernel (`gras_balance`), and `engine` (Use then Supply) |
 | [`transform/iot/nowcast_mask.py`](../../transform/iot/nowcast_mask.py) | the mask sourcing — Tiers 0/1/3/4, and the panel labels |
 | [`transform/iot/nowcast_targets.py`](../../transform/iot/nowcast_targets.py) | the target set — T1 through T17 |
 
 **The wrapper's job is SUT orchestration.** Offset has already peeled frozen
-mass (`X = F + Z`) and residualised the targets. The wrapper turns
+mass (`X = F + Z`) and residualised the targets. `engine` turns
 `free` / `residual` / `masks` into per-block `gras_balance` calls: extract
 ndarrays, map `free_mask = mask.free` and `sign_flex = (sign_lock == 0)`, and
-handle cross-block identities (T11–T17) and aggregators (T4) by choosing which
-kernel vectors to pass. It does not re-implement GRAS, hold fixed values, or
-renormalise signs. `engine(...)` is that adapter and does not exist yet:
+handle cross-block identities (T11–T17) by choosing which kernel vectors to
+pass. T11 is imposed only on **live** rows of the panel being scaled;
+empty-free T11 slots hold (a frozen Use commodity closes on Supply).
+It does not re-implement GRAS, hold fixed values, renormalise signs, or
+impose T4 aggregators (T4 stays skipped until KRAS). Two panels, Use then
+Supply — not `sut_ras` `V`/`Ui`/`Ufd`/`Uva`.
 
 ```python
 from bedrock.transform.iot.nowcast_mask import BLOCKS, build_sut_masks, published_2017_panel
 from bedrock.transform.iot.nowcast_targets import build_target_set
 from bedrock.utils.economic.balance import (
-    offset_targets, precheck, restore_fixed_blocks, split_fixed_blocks,
+    engine, offset_targets, precheck, restore_fixed_blocks, split_fixed_blocks,
 )
 
 seeds   = {block: published_2017_panel(block) for block in BLOCKS}   # the 2017 replay seed
@@ -980,8 +992,8 @@ frozen, free = split_fixed_blocks(seeds, masks)      # X = F + Z
 residual     = offset_targets(targets, frozen)       # r' = r - F @ 1
 precheck(seeds, masks, targets, allow_placeholders=True)
 
-balanced = engine(free, residual, masks)             # <- SUT adapter; does not exist yet
-result   = restore_fixed_blocks(balanced, frozen)    # fixed cells come back bit-identical
+out    = engine(free, residual, masks)
+result = restore_fixed_blocks(out.blocks, frozen)    # fixed cells come back bit-identical
 ```
 
 The **kernel** this package already has, once a wrapper (or a test) has extracted one block's vectors:
@@ -1263,12 +1275,13 @@ dense path, GRAS in place of RAS (Lenzen, Wood and Gallego 2007 + Temurshoev, Mi
 Bouwmeester 2013), clamps deleted, mask via offset outside the engine, no scipy.
 [`gras_balance`](../../utils/economic/balance/gras.py) is that engine. Convergence is elementwise
 `|sum - target| <= atol + rtol |target|`, reported on `GrasBalanceResult.converged`. The SUT
-orchestration layer (pass order, T11–T17, joint `T016 = T019`) and the KRAS-style soft layer are
+orchestration layer is [`engine`](../../utils/economic/balance/orchestrate.py): Use then Supply,
+hard T1 and T11–T17, joint T11 stop. T4 aggregators are **not** imposed. The KRAS-style soft layer is
 **not yet**. Hold the commodity identity and gross output hard, everything sourced soft with
 per-source weights, and keep summary SUT out of the target set and in the test set.
 
 Decisions 2 (mask) and 3 (target set) are **recorded**. Decision 1 is **resolved for the engine**;
-what remains of Step 5 code is the SUT wrapper, then KRAS.
+the Use-then-Supply wrapper has landed. What remains of Step 5 code is KRAS.
 
 ### Step 6 — SUT → MUT conversion *(new — produces the actual deliverables)*
 Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
@@ -1463,7 +1476,7 @@ rediscovers the same 210-code problem from scratch.
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
-| 5 RAS | **#588** (balancer, parent — engine `gras_balance` landed; SUT wrapper and KRAS later), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
+| 5 RAS | **#588** (balancer, parent — `gras_balance` and `engine` landed; KRAS later), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
@@ -1542,7 +1555,7 @@ only while a view has no explicit sort of its own; a saved sort in the view UI o
    - 4a. ✅ **Starting point — Option A for the engine, resolved.** Vendored ceda dense
      `ras_balancing.py` + GRAS, no scipy/sparse, clamps deleted, mask via offset.
      [`gras_balance`](../../utils/economic/balance/gras.py). The SUT-orchestration half of Option A
-     (wrapper `engine(free, residual, masks)`) is later.
+     (wrapper `engine(free, residual, masks)`) is ✅ Use then Supply, hard T1 and T11–T17.
    - 4b. **Objective function** — ✅ inner loop is GRAS (Lenzen 2007 + Temurshoev 2013);
      `GrasBalanceResult.converged` is elementwise `atol`/`rtol`. Mask policy recorded
      ([`mask_layer_plan.md`](mask_layer_plan.md)); plain RAS is out. **KRAS / soft weights remain

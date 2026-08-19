@@ -72,7 +72,22 @@ from bedrock.extract.iot.io_2017 import (
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
 )
-from bedrock.transform.iot.nowcast_targets import hard_target_residuals
+from bedrock.transform.iot.nowcast_mask import (
+    BLOCKS,
+    balance_industries,
+    build_sut_masks,
+    published_2017_panel,
+)
+from bedrock.transform.iot.nowcast_targets import (
+    build_target_set,
+    hard_target_residuals,
+)
+from bedrock.utils.economic.balance import (
+    engine,
+    offset_targets,
+    restore_fixed_blocks,
+    split_fixed_blocks,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -428,16 +443,71 @@ def _hard_target_checks() -> list[tuple[str, bool, str]]:
     ]
 
 
-def main(check: bool = False) -> int:
-    print(report())
-    if not check:
-        return 0
-    print('\nCHECKS')
+def _engine_hard_residuals(
+    year: int = 2017,
+) -> tuple[pd.DataFrame, str]:
+    """Hard |evaluate(X) - pre-offset values| after engine + restore.
+
+    Optional 2017 replay for ``--check-engine``. Not a unit test.
+    T1 is UGO305-A when the extract parquet is present; otherwise Use
+    industry column sums (weaker — not the sourced series).
+    """
+    seeds = {block: published_2017_panel(block) for block in BLOCKS}
+    masks = build_sut_masks(year)
+    try:
+        targets = build_target_set(year)
+        t1_source = 'UGO305-A extract parquet'
+    except FileNotFoundError:
+        go = seeds['use'][list(balance_industries())].sum()
+        go.index.name = 'industry'
+        targets = build_target_set(year, gross_output=go)
+        t1_source = 'Use industry column sums (no UGO305-A parquet)'
+    original = {t.name: t.values.copy() for t in targets if t.hard}
+    frozen, free = split_fixed_blocks(seeds, masks)
+    residual = offset_targets(targets, frozen)
+    out = engine(free, residual, masks)
+    restored = restore_fixed_blocks(out.blocks, frozen)
+    rows = []
+    for target in targets:
+        if not target.hard:
+            continue
+        err = (target.evaluate(restored) - original[target.name]).abs()
+        rows.append(
+            {
+                'target': target.name,
+                'max_abs_residual': float(err.max()),
+            }
+        )
+    return pd.DataFrame(rows).set_index('target'), t1_source
+
+
+def main(check: bool = False, check_engine: bool = False) -> int:
+    # --check-engine is independent of --check and of the GO parquet
+    # report() needs. Print the leverage report on the default path and
+    # on --check; skip it when only the engine replay is requested.
+    if check or not check_engine:
+        print(report())
     failed = 0
-    for name, passed, detail in _checks():
-        print(f'  {"PASS" if passed else "FAIL"}  {name}  ({detail})')
-        failed += not passed
-    return 1 if failed else 0
+    if check:
+        print('\nCHECKS')
+        for name, passed, detail in _checks():
+            print(f'  {"PASS" if passed else "FAIL"}  {name}  ({detail})')
+            failed += not passed
+    if check_engine:
+        print('\nENGINE')
+        table, t1_source = _engine_hard_residuals()
+        print(f'  T1 source: {t1_source}')
+        print(table.to_string())
+        worst = float(table['max_abs_residual'].max())
+        ok = worst <= 100.0
+        print(
+            f'  {"PASS" if ok else "FAIL"}  hard residuals after engine+restore  '
+            f'(max {worst:.4g}, need <= 100)'
+        )
+        failed += not ok
+    if check or check_engine:
+        return 1 if failed else 0
+    return 0
 
 
 if __name__ == '__main__':
@@ -446,5 +516,10 @@ if __name__ == '__main__':
         '--check',
         action='store_true',
         help='exit non-zero if one of the documented findings has regressed',
+    )
+    parser.add_argument(
+        '--check-engine',
+        action='store_true',
+        help='run engine+restore on published 2017; hard residuals must be <= 100',
     )
     raise SystemExit(main(**vars(parser.parse_args())))

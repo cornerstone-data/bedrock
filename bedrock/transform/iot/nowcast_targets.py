@@ -566,17 +566,22 @@ def supply_column_targets(year: int) -> list[Target]:
 # --------------------------------------------------------------------------
 
 
-def build_target_set(year: int) -> TargetSet:
+def build_target_set(
+    year: int, gross_output: pd.Series | None = None
+) -> TargetSet:
     """The full Step 5 target set for ``year``.
 
     Complete in shape; see the module docstring for which values are real.
     Feed it to :func:`~bedrock.utils.economic.balance.offset.offset_targets`
     together with the frozen blocks from
     :func:`~bedrock.utils.economic.balance.offset.split_fixed_blocks`.
+    ``gross_output`` injects T1 the same way
+    :func:`industry_output_target` does, so ``--check-engine`` can run
+    without the extract parquet.
     """
     return TargetSet(
         (
-            industry_output_target(year),
+            industry_output_target(year, gross_output=gross_output),
             *identity_targets(),
             fd_column_targets(year),
             *va_row_targets(year),

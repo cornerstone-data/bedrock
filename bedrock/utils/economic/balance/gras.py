@@ -13,9 +13,10 @@ and RAS ``_margin_scale_factors`` are not copied. Scale is GRAS
 (Lenzen, Wood and Gallego 2007; Temurshoev, Miller and Bouwmeester 2013
 all-negative margins). Junius and Oosterhaven (2003) is the name only.
 
-This is not ``engine(free, residual, masks)``. Callers (tests now, a SUT
-wrapper later) pass one matrix, row/col vectors, ``free_mask``, and
-``sign_flex``. Wrapper mapping: ``free_mask = mask.free.to_numpy()``,
+This is not ``engine(free, residual, masks)``. That wrapper lives in
+``orchestrate.py`` and calls this kernel per block. Callers pass one
+matrix, row/col vectors, ``free_mask``, and ``sign_flex``. Wrapper
+mapping: ``free_mask = mask.free.to_numpy()``,
 ``sign_flex = (mask.sign_lock.to_numpy() == 0)``. Kernel
 ``sign_flex is None`` is all-False (stricter than a default ``SutMask``).
 Nonzero holds are the caller's offset, not this kernel.
