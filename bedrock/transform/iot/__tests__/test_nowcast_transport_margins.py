@@ -777,3 +777,63 @@ def test_the_crosswalk_covers_every_year_the_column_runs() -> None:
     listed = set(tm.load_rail_crosswalk()['stcc5'])
     for year in (2018, 2020, 2022, 2024):
         assert set(tm.load_rail_revenue_by_stcc(year).index) <= listed
+
+
+# --------------------------------------------------------------------------
+# the Supply bridge TRANS column
+# --------------------------------------------------------------------------
+
+
+def test_supply_bridge_trans_satisfies_target_t16() -> None:
+    """
+    The column must net to zero in every sourced year, which is target T16.
+
+    Margin is a redistribution, not value created, so this is the only
+    constraint the balance places on Step 4c's transport output.
+    """
+    from bedrock.transform.eeio.nowcast import (
+        TRANSPORT_MARGIN_YEARS,
+        derive_initial_supply_bridge,
+    )
+
+    for year in (min(TRANSPORT_MARGIN_YEARS), max(TRANSPORT_MARGIN_YEARS)):
+        bridge = derive_initial_supply_bridge(year)
+        assert bridge['TRANS'].sum() == pytest.approx(0.0, abs=1.0)
+        assert not bridge['TRANS'].isna().any()
+
+
+def test_supply_bridge_trans_is_zero_not_nan_off_the_receiving_set() -> None:
+    """
+    A commodity bearing no transport margin has zero, which is information.
+
+    NaN would mean unsourced, and would also break the T16 sum. Only five
+    commodities may be negative - the modes that give the margin up.
+    """
+    from bedrock.transform.eeio.nowcast import derive_initial_supply_bridge
+    from bedrock.transform.iot.nowcast_transport_margins import MODE_COMMODITIES
+
+    trans = derive_initial_supply_bridge(2017)['TRANS']
+    assert (trans == 0.0).any()
+    assert set(trans[trans < 0].index) == set(MODE_COMMODITIES.values())
+
+
+def test_supply_bridge_leaves_unsourced_years_alone() -> None:
+    """
+    2023 has no truck or pipeline source, so TRANS must stay unfilled.
+
+    Filling it from a partial set of modes would break the identity silently.
+    """
+    from bedrock.transform.eeio.nowcast import derive_initial_supply_bridge
+
+    assert derive_initial_supply_bridge(2023)['TRANS'].isna().all()
+
+
+def test_supply_bridge_trade_is_still_unsourced() -> None:
+    """
+    ⚠️ TRADE is a rate on producer value, so it waits on 4a (#570) and 4d (#580).
+
+    TRANS does not, which is why the two columns land at different times.
+    """
+    from bedrock.transform.eeio.nowcast import derive_initial_supply_bridge
+
+    assert derive_initial_supply_bridge(2017)['TRADE'].isna().all()
