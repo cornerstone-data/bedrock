@@ -98,6 +98,10 @@ BEA_PEQBridge:
   data_format: FBA
   class:
   - Money
+  activity_schema:
+    bea:
+      year: 2017
+      hierarchy: flat
 Census_EC_PxI:
   data_format: FBA
   class:
@@ -107,10 +111,6 @@ Census_EC_PxI:
   # is the Census_2017_PxI_product_code's description - not NAICS, and not
   # NAPCS. See Census_EC_PxI.yaml.
   activity_schema: null
-  activity_schema:
-    bea:
-      year: 2017
-      hierarchy: flat
 BEA_NIPA:
   data_format: FBA
   class:
