@@ -31,6 +31,9 @@ judgment lives.
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
+from bedrock.transform.iot.nowcast_transport_margins import (
+    published_transport_by_commodity,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_DESC as DESC
 
 #: The concordance is authored against the margins anchor year.
@@ -55,6 +58,11 @@ EXCLUDE = {
     '20342': 'Published as "Unknown STCC Value".',
     '14922': 'Drinking water - not a BEA goods commodity. 0.4 $M.',
     '25515': 'Published with a blank commodity name.',
+    '48105': 'Waste flammable liquids. The only BEA home is 562000 waste management '
+    'services, which receives zero transportation margin in the published '
+    '2017 table - hauling waste to disposal is not a margin-bearing goods '
+    'purchase - so there is nowhere for it to go. 12.0 $M.',
+    '48756': 'Waste stream, other regulated materials. Same as 48105. 6.7 $M.',
 }
 
 MAP = {
@@ -399,7 +407,7 @@ MAP = {
     '36921': '335912',
     # --- 37 transportation equipment ----------------------------------------------
     '37111': '336111',
-    '37112': '336120',
+    '37112': ('336112', '336120'),
     '37119': '336111',
     '37142': '336111',
     '37143': '336370',
@@ -436,9 +444,6 @@ MAP = {
     '41115': 'S00402',
     '41116': 'S00402',
     '41118': 'S00402',
-    # --- 48 hazardous waste -------------------------------------------------------------
-    '48105': '562000',
-    '48756': '562000',
 }
 
 NOTES = {
@@ -447,7 +452,7 @@ NOTES = {
     '113000': 'Logs and pulpwood are forestry output, not a sawmill product.',
     '311210': 'Flour milling and malt manufacturing are one BEA commodity, so malt lands here.',
     '211000': 'Crude oil and natural gas are one BEA detail commodity.',
-    '562000': 'Waste management and remediation services.',
+    '336112': 'STCC 37112 is "motor trucks OR truck tractors", spanning BEA light trucks and heavy duty trucks, so it is split across both on published transport. Mapping it to 336120 alone allocates 1,745 $M against a 581 $M ceiling - a 3.0x over-allocation the bound check rejects.',
     '324110': 'Refinery output. Asphalt pitches and tars from petroleum are a refinery '
     'product; only shingles and coatings sit in 324122.',
 }
@@ -481,7 +486,12 @@ def main() -> None:
         if bea is None:
             rows.append((code, r['name'], '', '', 'UNMAPPED'))
             continue
-        rows.append((code, r['name'], bea, DESC.get(bea, '?'), NOTES.get(bea, '')))
+        # a tuple is an STCC code that genuinely spans more than one BEA
+        # commodity; the consumer splits its revenue across them
+        for target in (bea,) if isinstance(bea, str) else bea:
+            rows.append(
+                (code, r['name'], target, DESC.get(target, '?'), NOTES.get(target, ''))
+            )
 
     out = pd.DataFrame(
         rows,
@@ -509,6 +519,23 @@ def main() -> None:
     bad = out[(out['bea_2017_commodity'] != '') & (out['bea_2017_description'] == '?')]
     if len(bad):
         print('BAD BEA CODES:', sorted(set(bad['bea_2017_commodity'])))
+
+    # ⚠️ A target that receives no transportation margin in the published table
+    # is a mapping error, not a small one: the rail allocation would put margin
+    # on a commodity BEA gives none, which the bound check can only report as an
+    # infinite share. 562000 waste management was caught this way.
+    published = published_transport_by_commodity()
+    targets = sorted(
+        set(out.loc[out['bea_2017_commodity'] != '', 'bea_2017_commodity'])
+    )
+    dead = [c for c in targets if published.get(c, 0.0) <= 0]
+    if dead:
+        raise ValueError(
+            f'{len(dead)} mapped commodities receive no transportation margin in '
+            f'the published 2017 table, so rail margin sent there has nowhere to '
+            f'sit: {dead}. Either map the STCC code elsewhere or exclude it.'
+        )
+    print(f'all {len(targets)} target commodities receive published TRANS')
 
     out.to_csv(CROSSWALK_PATH, index=False)
     print('written')

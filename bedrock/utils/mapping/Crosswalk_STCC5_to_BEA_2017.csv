@@ -324,6 +324,7 @@ stcc5,stcc_description,bea_2017_commodity,bea_2017_description,basis
 36911,Storage Batteries or Plates,335911,Storage battery manufacturing,
 36921,Primary Batteries (Dry or Wet),335912,Primary battery manufacturing,
 37111,"Motor Passenger Cars, Assembled",336111,Automobile manufacturing,
+37112,"Motor Trucks or Truck Tractors, Assembled",336112,Light truck and utility vehicle manufacturing,"STCC 37112 is ""motor trucks OR truck tractors"", spanning BEA light trucks and heavy duty trucks, so it is split across both on published transport. Mapping it to 336120 alone allocates 1,745 $M against a 581 $M ceiling - a 3.0x over-allocation the bound check rejects."
 37112,"Motor Trucks or Truck Tractors, Assembled",336120,Heavy duty truck manufacturing,
 37119,"Motor Vehicles, Nec",336111,Automobile manufacturing,
 37142,Motor Vehicle,336111,Automobile manufacturing,
@@ -368,5 +369,5 @@ stcc5,stcc_description,bea_2017_commodity,bea_2017_description,basis
 46111,All Freight Rate Shipments Nec Or Tofc Shipments,,,EXCLUDED: All freight rate shipments NEC or TOFC. Trailer-on-flatcar and NEC rate shipments carry no commodity identity. 14.0% of rail revenue alone.
 46211,"Mixed Shipments,2 Or Moremajor Groups",,,EXCLUDED: Mixed shipments spanning two or more major STCC groups.
 47111,Small Packaged Freight Shipments,,,"EXCLUDED: Small packaged freight shipments - a service class, not a commodity."
-48105,"Waste Flammable Liquids, Misc",562000,Waste management and remediation services,Waste management and remediation services.
-48756,Waste Stream Other Regulated Materials Group E,562000,Waste management and remediation services,Waste management and remediation services.
+48105,"Waste Flammable Liquids, Misc",,,"EXCLUDED: Waste flammable liquids. The only BEA home is 562000 waste management services, which receives zero transportation margin in the published 2017 table - hauling waste to disposal is not a margin-bearing goods purchase - so there is nowhere for it to go. 12.0 $M."
+48756,Waste Stream Other Regulated Materials Group E,,,"EXCLUDED: Waste stream, other regulated materials. Same as 48105. 6.7 $M."
