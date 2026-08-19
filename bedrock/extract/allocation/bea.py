@@ -5,7 +5,7 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import load_2017_V_usa
+from bedrock.extract.iot.io_2017 import load_2017_V_after_redef_usa
 from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     industry_corresp,
@@ -35,13 +35,14 @@ _CEDA_331313_CORNERSTONE_PARTS = ("331313", "33131B")
 
 @functools.cache
 def load_bea_make_table() -> pd.DataFrame:
-    """2017 Make in the Cornerstone 405 frame.
+    """2017 after-redefinition Make in the Cornerstone 405 frame.
 
     ``industry_corresp @ V_2017 @ commodity_corresp.T`` — the same multiply as
     Cornerstone baseline V (waste children via correspondence; no electricity
-    disaggregation). Allocation sectors are ``INDUSTRIES``.
+    disaggregation). Allocation sectors are ``INDUSTRIES``. Uses after-redefinition
+    V so the cache does not depend on ``USAConfig.iot_before_or_after_redefinition``.
     """
-    V_2017 = load_2017_V_usa()
+    V_2017 = load_2017_V_after_redef_usa()
     bea_make = industry_corresp() @ V_2017 @ commodity_corresp().T
     bea_make.index.name = "sector"
     bea_make.columns.name = "sector"
