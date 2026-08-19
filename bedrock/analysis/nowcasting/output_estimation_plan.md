@@ -46,6 +46,28 @@ start from the same data source"* (p. 79). A single construction route applied
 to both regimes silently imposes the services method on manufacturing, where
 observed product data exists and is better.
 
+**So the industries have to be partitioned by regime** — which ones derive `q`
+from industry output, and which derive it independently — rather than run through
+one construction. Sized on published 2017 detail `T007`:
+
+| regime | commodities | `T007` | share |
+|---|---:|---:|---:|
+| B services, receipts only → industry output × mix | 108 | 19.8 tn | **61.8%** |
+| A manufacturing, product data → independent | 231 | 5.4 tn | 16.9% |
+| D trade (margin output, its own problem) | 19 | 3.2 tn | 9.9% |
+| C construction (VIP survey) | 12 | 1.7 tn | 5.2% |
+| E special and government | 8 | 1.1 tn | 3.4% |
+| C farm (USDA) | 13 | 0.5 tn | 1.4% |
+| A mining, product data → independent | 8 | 0.4 tn | 1.3% |
+
+⚠️ **The value and the detail point in opposite directions.** Regime A is only
+**18.2% of commodity output but 239 of 399 commodities** — manufacturing holds
+60% of the rows and a sixth of the dollars. So a value-weighted score will say
+the mix barely matters while a per-commodity score says it dominates, and both
+are right about different things. Services carry the dollars in 108 rows;
+manufacturing carries the commodity detail, and is also where product
+substitution and secondary production actually move a mix.
+
 **Open:** whether route 2 is reachable for us. It depends on the same
 NAPCS → I-O commodity concordance that #615 is building, and on `Census_EC_PxI`
 coverage — which is exactly the test §Step 4a already schedules before porting a
@@ -113,6 +135,42 @@ presentation and the one consistent with outside source data — which is the wh
 basis on which a nowcast extrapolates. Note its consequence for the recipe below,
 since chapter 5's worked tables run *through* the line we want to the line we do
 not.
+
+## Where to start
+
+⚠️ **The benchmark replay the issue specifies is circular under a ported mix.**
+#570 says to "run the construction for 2017 and compare against the published
+detail Supply table" — but if the mix is carried from 2017, 2017 reproduces
+itself exactly and the test proves nothing. It only bites for a route that
+*estimates* the mix.
+
+**There is a non-circular target, and it covers every nowcast year.** BEA
+publishes annual Supply tables at **summary** level for **2017-2024**
+(`Supply_Tables_*_Summary.xlsx`, loaded by `_load_usa_summary_sut`), whose `T007`
+column is *Total Commodity Output*. So both margins of the detail block are
+observed:
+
+| margin | observed at | years |
+|---|---|---|
+| industry output (columns) | **detail**, 402 industries | 1997-2024 |
+| commodity output `T007` (rows) | **summary**, 75 commodities | 2017-2024 |
+| interior cells | detail | 2017 only |
+
+Detail industry output is already loaded and already carries the right
+convention — `derive_gross_output(year, 'before')` in
+[`derived_gross_industry_output.py`](../../transform/iot/derived_gross_industry_output.py),
+402 industries, 1997-2024. It is BEA's published series, not something we model.
+
+**First task, then:** carry the 2017 detail mix forward onto observed detail
+industry output, aggregate to summary, and score the resulting commodity output
+against the published summary `T007` for 2018-2024. That is cheap, uses only
+what is already loaded, and is not circular. It answers the question that decides
+everything else — *how wrong is a frozen mix, and where* — and the prediction to
+test is that the error concentrates in regime A, where product substitution moves
+a mix and where independent product data exists to fix it.
+
+It also gives Step 4a a validation harness that works in every year rather than
+only at the benchmark.
 
 ## The adjustment ladder
 
