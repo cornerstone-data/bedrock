@@ -215,3 +215,17 @@ Must include:
 - `S00900` post-balance re-derive (`−F010 + Supply T016`).
 - Generic `TargetTerm` → vector compiler beyond the named protocol.
 - Giving GRAS `TargetSet` / `SutMask` in `gras_balance`.
+
+## Reviewer feedback (post-implementation)
+
+The original spec above placed `engine` in [`orchestrate.py`](bedrock/utils/economic/balance/orchestrate.py) and exported it from `utils.economic.balance`. After review on [#667](https://github.com/cornerstone-data/bedrock/pull/667):
+
+**Name and home.** `orchestrate` is a vague name for a generic balancing package, and this file is not generic: it hard-codes the nowcast T1 / T11–T17 protocol (`T00SUB`, `TRADE `, `4200ID`, …). Wes asked to rename it and move **that file only** out of `utils.economic.balance`. The ndarray kernel (`gras.py`) and `Target` / `SutMask` / offset / precheck stay there.
+
+**Where it landed.** [`nowcast_sut_gras.py`](bedrock/transform/iot/nowcast_sut_gras.py) sits next to `nowcast_mask.py` and `nowcast_targets.py` (`bedrock.transform.iot.nowcast_sut_gras`). Tests: [`test_nowcast_sut_gras.py`](bedrock/transform/iot/__tests__/test_nowcast_sut_gras.py). Callers import `engine` / `SutBalanceResult` from that module; they are **not** re-exported from `bedrock.utils.economic.balance`.
+
+**Module docstring.** The file now lists T1 and T11–T17 (gross output, commodity identity, subsidies, product taxes, customs, trade/transport margin zeros, basic-to-producer wedge) so the protocol is readable without opening `nowcast_targets`.
+
+**Generic package docs.** `utils.economic` README, `balance/__init__.py`, and `gras.py` describe the kernel and scaffolding only. The nowcast Use-then-Supply adapter is not part of that package.
+
+`--check-engine` and later KRAS work follow the new import; they do not move `gras.py`.

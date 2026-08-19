@@ -379,6 +379,117 @@ def estimate_suppressed_ec_pxi(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     return detail.reset_index(drop=True)
 
 
+def move_pxi_product_to_activity(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
+    """Put the product line into ``ActivityConsumedBy`` so it can be mapped.
+
+    ``Census_EC_PxI`` carries the industry in ``ActivityProducedBy`` and the
+    product in ``FlowName``, which is the right shape for reading the data but
+    the wrong one for attribution: ``activity_to_sector_mapping`` joins its
+    crosswalk on the *activity* columns and never on ``FlowName``. The product
+    is what maps to a BEA commodity, so it has to move into an activity column
+    before ``Sector_Crosswalk_Census_EC_PxI`` can reach it.
+
+    The industry is parked in ``FlowName`` rather than dropped, because the
+    trade attribution still needs it: a NIPA trade line is matched to its PxI
+    weights through the holding industry's NAICS.
+
+    ⚠️ Run this **before** sector mapping, as ``clean_fba``. Running it after
+    leaves the crosswalk with nothing to join on and yields an empty weight set
+    rather than an error - the same silent-empty failure the NAICS prefix guard
+    in ``write_inventories_trade_crosswalk`` exists to catch.
+    """
+    return fba.assign(
+        ActivityConsumedBy=normalize_pxi_product(fba['Description']),
+        ActivityProducedBy=_nipa_line_for_industry(fba['ActivityProducedBy']),
+        FlowName=fba['ActivityProducedBy'],
+    )
+
+
+def _nipa_line_for_industry(naics: pd.Series) -> pd.Series:
+    """Label each PxI row with the NIPA inventory line whose industry holds it.
+
+    ⚠️ This is what makes ``attribute_on: ['PrimarySector', 'ActivityProducedBy']``
+    work. Without it the source carries no ``ActivityProducedBy`` at all, the
+    join key is ``(sector, 'N/A', location)`` on one side and the trade line
+    name on the other, and **nothing matches** - every trade set then reports
+    "Could not attribute ... due to lack of flows" and drops to a 100% loss.
+
+    Matching on ``PrimarySector`` alone is not the alternative: that weights
+    each commodity by its economy-wide product total rather than by what the
+    holding industry actually sells, which is the defect #547 records for PCE.
+
+    The industry to line correspondence is read from the inventories crosswalk's
+    ``Note``, which carries the NAICS each NIPA line stands for. Longest prefix
+    wins, so ``42343`` picks the computers line over the broader ``4234``.
+    """
+    from bedrock.utils.config.settings import crosswalkpath  # noqa: PLC0415
+
+    cw = pd.read_csv(
+        crosswalkpath / 'Sector_Crosswalk_BEA_NIPA_Inventories.csv', dtype=str
+    )
+    pairs: list[tuple[str, str]] = []
+    for _, row in cw.drop_duplicates('Activity').iterrows():
+        note = str(row.get('Note', ''))
+        if 'NAICS ' not in note:
+            continue
+        advertised = note.split('NAICS ', 1)[1].split(';')[0].strip()
+        pairs.extend((prefix, row['Activity']) for prefix in advertised.split('/'))
+    # Longest prefix first so a specific line beats the broader one it sits in.
+    pairs.sort(key=lambda pair: len(pair[0]), reverse=True)
+
+    codes = naics.astype(str)
+    out = pd.Series(pd.NA, index=naics.index, dtype='object')
+    for prefix, activity in pairs:
+        out = out.mask(out.isna() & codes.str.startswith(prefix), activity)
+    return out
+
+
+def normalize_pxi_product(description: pd.Series) -> pd.Series:
+    """Reduce a product label to the key ``Sector_Crosswalk_Census_EC_PxI`` uses.
+
+    ⚠️ The crosswalk is keyed on the **description**, not on the
+    ``Census_2017_PxI_product_code``, because the code churns across vintages -
+    525 are new in 2022 and 548 gone, with the large "new" ones being recodings
+    of products already present in 2017. Keying on it would drop roughly 15% of
+    coverage at the boundary.
+
+    The same label appears as both "Wholesale sales of X" and "Retail sales of
+    X", so the prefix comes off and the rest is lowercased: one concordance
+    entry then serves both sides of the trade.
+
+    ⚠️ This must stay in step with the normalisation in
+    ``write_pxi_product_bea_crosswalk``. They are two halves of one join, and a
+    mismatch does not raise - it silently yields **no** overlap, an empty
+    attribution source, and eventually an obscure pandas error about setting a
+    DataFrame into a single column.
+    """
+    return (
+        description.astype(str)
+        .str.strip()
+        .str.lower()
+        .str.rstrip('.')
+        .str.replace(r'^(wholesale|retail) sales of ', '', regex=True)
+        .str.strip()
+    )
+
+
+def prepare_pxi_for_attribution(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+    """Recover suppressed cells, then reshape for attribution - in that order.
+
+    ⚠️ Both steps have to happen in one hook because ``prepare_fbs`` runs
+    ``clean_fba_before_mapping`` **before** ``estimate_suppressed``, which is the
+    opposite of what these two need. Wiring them to those two sockets separately
+    moves the product into ``ActivityConsumedBy`` first, and the suppression
+    recovery then looks for its ``00`` product totals in a column that no longer
+    holds NAICS - it silently finds none, reports "Dropped 0 product-total rows"
+    instead of 3,523, and leaves every withheld cell at zero.
+
+    Recovery must come first regardless: it needs the ``00`` parent rows to
+    subtract published children from, and the reshape is what removes them.
+    """
+    return move_pxi_product_to_activity(estimate_suppressed_ec_pxi(fba, **kwargs))
+
+
 if __name__ == "__main__":
     import bedrock
 

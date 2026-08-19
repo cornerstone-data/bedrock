@@ -78,18 +78,17 @@ from bedrock.transform.iot.nowcast_mask import (
     build_sut_masks,
     published_2017_panel,
 )
+from bedrock.transform.iot.nowcast_sut_gras import KNOWN_SOFT, engine
 from bedrock.transform.iot.nowcast_targets import (
     build_target_set,
     hard_target_residuals,
 )
 from bedrock.utils.economic.balance import (
     SutMask,
-    engine,
     offset_targets,
     restore_fixed_blocks,
     split_fixed_blocks,
 )
-from bedrock.utils.economic.balance.orchestrate import KNOWN_SOFT
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES

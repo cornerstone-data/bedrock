@@ -6,20 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.utils.economic.balance import (
-    Aggregator,
-    SutMask,
-    Target,
-    TargetSet,
-    TargetTerm,
-    engine,
-    gras_balance,
-    offset_targets,
-    restore_fixed_blocks,
-    split_fixed_blocks,
-)
-
-from .test_orchestrate import (
+from bedrock.transform.iot.__tests__.test_nowcast_sut_gras import (
     INDUSTRIES,
     _t1,
     _t2,
@@ -30,6 +17,18 @@ from .test_orchestrate import (
     _t15,
     _t16,
     _t17,
+)
+from bedrock.transform.iot.nowcast_sut_gras import engine
+from bedrock.utils.economic.balance import (
+    Aggregator,
+    SutMask,
+    Target,
+    TargetSet,
+    TargetTerm,
+    gras_balance,
+    offset_targets,
+    restore_fixed_blocks,
+    split_fixed_blocks,
 )
 
 

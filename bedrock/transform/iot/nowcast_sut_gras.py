@@ -1,13 +1,26 @@
-"""SUT orchestration: ``engine(free, residual, masks)`` around ``gras_balance``.
+"""Nowcast Supply/Use GRAS: ``engine(free, residual, masks)`` around ``gras_balance``.
 
-PR3 of Step 5. Hard T1 and T11–T17 stay exact. Soft T2/T4/T7 are imposed
-when ``impose_soft`` (T2/T7 weighted blend from entry Z; T4 column-neutral
-closer). T6/T8/T9 whole-name defer when T12–T14 occupy any of their slots.
-``WEIGHTS`` stay uncalibrated: the engine reads ``target.weight``.
+Hard targets this adapter knows by name:
 
-Do not import ``nowcast_targets`` or ``nowcast_mask``. Bridge / tax literals
-match ``nowcast_mask.SUPPLY_BRIDGE_COLUMNS`` and Use VA rows (BEA trailing
-space on ``TRADE ``).
+* T1  — industry gross output (Use columns)
+* T11 — commodity identity (Supply row − Use row)
+* T12 — subsidies (Use T00SUB = Supply SUB)
+* T13 — product taxes (Use T00TOP = Supply TOP + MDTY)
+* T14 — customs duties (Use T00TOP[4200ID] = Supply MDTY)
+* T15 — trade margin column sums to 0 (``TRADE ``)
+* T16 — transport margin column sums to 0 (TRANS)
+* T17 — basic-to-producer wedge (Supply industry col vs Use, via T00TOP/T00SUB)
+
+Soft targets when ``impose_soft`` (default True): T2/T7 are a weighted blend
+from the entry Z; T4 is a column-neutral closer after each Use pass.
+T6/T8/T9 whole-name defer when T12–T14 occupy any of their slots.
+``impose_soft=False`` skips soft targets: their ``.values`` are not read;
+unconstrained slots hold at the current Z row/col sum. The engine reads
+``target.weight``; it does not import ``WEIGHTS``.
+
+Does not import ``nowcast_targets`` or ``nowcast_mask``. Bridge / tax
+literals match ``nowcast_mask.SUPPLY_BRIDGE_COLUMNS`` and Use VA rows
+(BEA trailing space on ``TRADE ``).
 """
 
 from __future__ import annotations

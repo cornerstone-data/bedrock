@@ -1,4 +1,4 @@
-"""Hand-checkable tests for SUT orchestration."""
+"""Hand-checkable tests for nowcast Supply/Use GRAS."""
 
 from __future__ import annotations
 
@@ -6,15 +6,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.transform.iot.nowcast_sut_gras import SutBalanceResult, engine
 from bedrock.transform.iot.nowcast_targets import WEIGHTS
 from bedrock.utils.economic.balance import (
     Aggregator,
-    SutBalanceResult,
     SutMask,
     Target,
     TargetSet,
     TargetTerm,
-    engine,
     offset_targets,
     restore_fixed_blocks,
     split_fixed_blocks,

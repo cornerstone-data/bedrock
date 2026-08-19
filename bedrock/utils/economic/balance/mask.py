@@ -1,10 +1,5 @@
 """The mask layer: three kinds of constraint that are not one boolean.
 
-Step 5's mask (`#653 <https://github.com/cornerstone-data/bedrock/issues/653>`_,
-sourced in `#654 <https://github.com/cornerstone-data/bedrock/issues/654>`_).
-The analysis behind it is ``mask_layer_plan.md``; the measurements are
-reproduced by ``mask_layer_feasibility.py --check``.
-
 **Conflating the three layers is the mistake that made the mask look free.**
 
 ===================  ==========================================  ==============

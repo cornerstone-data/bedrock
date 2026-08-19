@@ -56,7 +56,7 @@ On **entry** to `engine` (the residual `Z` after `assert_free_seed`, before any 
 
 Store `t_used`. Write that **same** vector onto kernel slots on every later Use/Supply pair, including a finishing `close_rows_exactly` pair. Do **not** recompute `evaluate` on the post-GRAS `Z` and blend again.
 
-`w = target.weight` on the residual `Target`. Never read `nowcast_targets.WEIGHTS` in `orchestrate.py`. Never overwrite a slot the hard protocol already set. `current0` is **evaluate on entry Z**, not a raw un-aggregated sum (required for T6 if it is ever imposed without T12/T13).
+`w = target.weight` on the residual `Target`. Never read `nowcast_targets.WEIGHTS` in `nowcast_sut_gras.py`. Never overwrite a slot the hard protocol already set. `current0` is **evaluate on entry Z**, not a raw un-aggregated sum (required for T6 if it is ever imposed without T12/T13).
 
 **Why once, not every pass.** The nowcast estimates later-year Make/Use tables from 2017 structure plus year-Y sources. Those sources will not agree to the dollar, and the gap is larger off the 2017 replay than on it. `w` is how much that source is trusted **this year**; it must mean the same mix whether T11 closes in one pair or twenty. Re-blending each pass makes `w` a per-iteration rate: after two pairs (the usual 2017 path: pair 0 plus finishing closer) effective weight is `1-(1-w)^2` (0.96 at `w=0.8`); `max_outer=20` walks almost to the raw target. Later years with a worse seed would take more pairs and treat the same `w` as almost hard — the opposite of a weight you can set or calibrate year to year. Once-from-entry keeps “who gives way” as a convex mix of this year’s seed and this year’s target; identities still iterate to close.
 
@@ -108,7 +108,7 @@ If T4 absent or `impose_soft=False`, skip the closer.
 Keep `engine(free, residual, masks)` as the SUT entry. Add `impose_soft: bool = True`.
 
 - Default **True** (production).
-- `impose_soft=False` is exact PR2 behavior. **Must pass `False` at:** [`test_skip_soft_does_not_read_values`](bedrock/utils/economic/balance/__tests__/test_orchestrate.py) and [`_engine_hard_residuals`](bedrock/analysis/nowcasting/mask_layer_feasibility.py) (`--check-engine`). Other PR2 tests use `_hard_set` with no T2/T4/T6–T9; default True is a no-op there.
+- `impose_soft=False` is exact PR2 behavior. **Must pass `False` at:** [`test_skip_soft_does_not_read_values`](bedrock/transform/iot/__tests__/test_nowcast_sut_gras.py) and [`_engine_hard_residuals`](bedrock/analysis/nowcasting/mask_layer_feasibility.py) (`--check-engine`). Other PR2 tests use `_hard_set` with no T2/T4/T6–T9; default True is a no-op there.
 - `SutBalanceResult.skipped`: `hard=False` and not imposed (`impose_soft=False`, or unknown soft name). `soft_deferred` uses the same **residual-iteration order** as PR2 `skipped`. Engine is the only constructor; adding `soft_deferred: tuple[str, ...]` at the end is not a caller break.
 - Unknown **hard** names raise. Unknown **soft** names: skip, list in `skipped`. Known soft names with missing labels: `KeyError` like PR2.
 
@@ -118,8 +118,8 @@ Do not call `precheck`/`split`/`restore` inside `engine`. Kernel kwargs unchange
 
 ## Files
 
-- [`orchestrate.py`](bedrock/utils/economic/balance/orchestrate.py): blend, whole-name defer, T4 column-neutral closer, `impose_soft`, `soft_deferred`.
-- Tests: [`test_orchestrate.py`](bedrock/utils/economic/balance/__tests__/test_orchestrate.py). **Create** [`test_full_nowcasting_sut_balance.py`](bedrock/utils/economic/balance/__tests__/test_full_nowcasting_sut_balance.py) (not in the repo yet). Stage 1 builds toy Use `row_t`/`col_t` for `gras_balance`; that is test-only.
+- [`nowcast_sut_gras.py`](bedrock/transform/iot/nowcast_sut_gras.py): blend, whole-name defer, T4 column-neutral closer, `impose_soft`, `soft_deferred`.
+- Tests: [`test_nowcast_sut_gras.py`](bedrock/transform/iot/__tests__/test_nowcast_sut_gras.py), [`test_full_nowcasting_sut_balance.py`](bedrock/transform/iot/__tests__/test_full_nowcasting_sut_balance.py). Stage 1 builds toy Use `row_t`/`col_t` for `gras_balance`; that is test-only.
 - [`mask_layer_feasibility.py`](bedrock/analysis/nowcasting/mask_layer_feasibility.py): `--check-engine` / `--check-engine-soft` as locked below.
 - Docs + sequence pointer: mechanism landed; **WEIGHTS uncalibrated** (follow-up, not this PR).
 

@@ -34,6 +34,20 @@ tables:
 # roughly -5,679 in 2017 against a 32,674 total - 17% of the column - so a build
 # without it is silently wrong. See inventories_estimation_plan.md, section Farm.
 - T50705B     # Table 5.7.5B. Change in Private Inventories by Industry (farm/nonfarm)
+# Motor vehicles are the one place BEA publishes the change in private
+# inventories already split by commodity AND in dollars: line 55 AB65RC, with
+# A145RC autos and B709RC trucks beneath it, each further split new/used. 2017
+# is autos 7,791 (new -5,182, used 12,972) and trucks 13,313 (new 6,846, used
+# 6,467).
+#
+# That matters because it is a published CHANGE in dollars, so the inventory
+# valuation adjustment is already applied - unlike EIA physical stocks, FIWS
+# book values or U70205S unit counts, all of which need a price and reintroduce
+# the holding gains the IVA exists to strip.
+#
+# Used autos and used trucks (19,439 combined) are also the natural source for
+# S00402 used and secondhand goods. See inventories_estimation_plan.md.
+- U70205      # Table 7.2.5U. Motor Vehicle Output
 
 
 years:

@@ -1,4 +1,4 @@
-"""Tests for the Step 5 SUT mask sourcing (#654).
+"""Tests for nowcast Supply/Use mask sourcing.
 
 Synthetic, following ``test_nowcast_margins.py``: every layer is a rule over a
 panel, so the rules are checked against injected panels small enough to read.
@@ -177,7 +177,7 @@ def test_only_nonzero_cells_of_the_one_to_one_columns_are_fixed() -> None:
 
 
 def test_the_supply_block_has_no_fixed_values() -> None:
-    """An empty layer is the honest default while #654's §9.4 is open.
+    """An empty layer is the honest default while the Supply fixed-value layer is open.
 
     A cell masked by accident cannot be corrected by the balance, so the
     Supply side stays unmasked until ``MCIF``/``MDTY`` are actually decided.
