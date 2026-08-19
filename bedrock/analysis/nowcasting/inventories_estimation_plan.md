@@ -186,7 +186,7 @@ These are spot checks on three lines, not a fitted result.
 | Stage-of-fabrication split, durable/nondurable | `U50705BU1` lines 29–37 | **Already extracted, unused** |
 | Farm CIPI level | NIPA 5.7.5B, table id `T50705B` | **Not extracted, but confirmed available.** Farm is `B018RC` line 2 at **−5,679** in 2017 — exactly the figure §Farm infers — and the CIPI control total `A014RC` is line 1 at 32,674. Farm plus nonfarm ties to it. Adding `T50705B` to `BEA_NIPA.yaml`'s table list is the whole job |
 | Farm commodity split | `USDA_ERS_FIWS` `Inventory` variable | **Already in bedrock**, unused for this — see §Farm |
-| Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Make table | Published for 2017 |
+| Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Supply table | Published for 2017 — ⚠️ **use the nowcast year's mix once Step 4a builds one**, see below |
 | M&S manufacturing → commodity | Step 3 intermediate column; 2017 Use table | Published for 2017 |
 | Trade industry → commodity | 29 `U50705BU1` trade lines | ✅ Built — `Sector_Crosswalk_BEA_NIPA_Inventories.csv` |
 | Weights within each trade commodity set | `Census_EC_PxI` product mix | ✅ Built — `Sector_Crosswalk_Census_EC_PxI.csv` (#652) |
@@ -196,6 +196,29 @@ These are spot checks on three lines, not a fitted result.
 | **Annual inventories, all sectors** | AIES `basic` `INV_E_*` | **All three stages, all sectors — 2023 only** |
 | Materials consumed by industry | Econ Census `ecnmatfuel` `EC1731MATFUEL` | **BEA's own source for rule 4.** Not extracted; quinquennial (2012/2017/2022); currently proxied by the Use column |
 | Mining inventories | Econ Census `ecnlifomine` | Not extracted; quinquennial. The only source found pointing at open question 2 |
+
+### ⚠️ Take the commodity mix from the nowcast year, not the 2017 benchmark
+
+The manufacturing branch splits each industry's inventory across the commodities
+that industry produces, and today that mix is read off the **2017 benchmark
+Supply table** because it is the only one published at detail.
+
+**Once Step 4a ([#570](https://github.com/cornerstone-data/bedrock/issues/570))
+builds the Supply table body — industry supply of commodities — for each nowcast
+year, this branch must switch to that year's mix.** Leaving it on 2017 would
+freeze each industry's product composition at the benchmark and quietly
+attribute every later year's inventory movement using a mix that no longer
+holds. That is the same failure the plan already rejects elsewhere: a benchmark
+proportion carried forward is an assumption, not a measurement, and it stops
+being visible once it is buried in an allocation.
+
+It matters most where composition actually moves — petroleum and coal products,
+computer and electronic products, and transportation equipment, whose auto/truck
+and aerospace balance shifts year to year.
+
+The switch is a source change, not a method change: the rule stays "an industry
+holds its own products", only the table supplying the mix moves from the 2017
+benchmark to the nowcast year's Step 4a output.
 
 ### Annual inventory sources — every major branch is covered
 
@@ -548,17 +571,89 @@ split** in `U50705BU1`. It is 37% of nonfarm in magnitude and needs its own
 rule; the 2017 column suggests where it lands (`211000` oil and gas −7,577), but
 that is one commodity for a three-sector block.
 
+## The mining branch — sources found, deferred to #660
+
+⚠️ **Second priority.** The sources below are identified and probed; the build is
+deferred to [#660](https://github.com/cornerstone-data/bedrock/issues/660) —
+later in Phase 1 if there is time, otherwise Phase 2. Recorded here so the probe
+does not have to be repeated.
+
+**The branch is mining-only in commodity space, which was not obvious from its
+name.** NIPA calls it "mining, utilities, and construction" and it is −14,261.
+Measured against the published 2017 `F03000`:
+
+| commodity family | cells | net $M |
+|---|---:|---:|
+| mining (`211`/`212`/`213`) | 8 | −9,398 |
+| utilities (`221`) | **0** | 0 |
+| construction (`23*`) | **0** | 0 |
+
+There are **no utilities or construction commodities anywhere in the column**.
+That is physically sensible — a utility holds coal and gas, which are mining
+commodities, and a construction firm holds cement and steel, which the trade
+crosswalk already reaches. So a mining-shaped source is the right shape for the
+whole branch, not just a third of it.
+
+All four published cells outside the trade crosswalk's reach are mining:
+`211000` −7,577, `212100` −1,172, `21311A` −77, `213111` −10.
+
+### Sources, probed 2026-08-18
+
+| Source | Detail | Cadence | State |
+|---|---|---|---|
+| **EIA MER `T03.04`** petroleum stocks | by product | monthly from 1973 | keyless CSV; also on the v2 API |
+| **EIA MER `T06.03`** coal stocks | by holding sector | monthly from 1973 | keyless CSV |
+| **EIA `petroleum/stoc/cu`** | crude oil | **annual** from 1936 | v2 API, `EIA_API_KEY` now in `.env` |
+| **EIA `natural-gas/stor/sum`** | natural gas | **annual** | v2 API |
+| **USGS Minerals Yearbook** | metal ores and industrial minerals | annual | 52 `USGS_MYB_*` extractors already in bedrock |
+| Econ Census `ecnlifomine` | 6-digit NAICS, **beginning *and* end of year** | 2012/2017/2022 | not extracted; best 2017 cross-check |
+| AIES `basic` | — | — | ⛔ **ruled out.** Rows exist for NAICS 21/22/23 but **zero inventory values** |
+
+2016 → 2017, the movements behind `211000` and `212100`:
+
+| | 2016 | 2017 | change |
+|---|---:|---:|---:|
+| Crude oil | 387,832 MBBL | 321,901 | **−65,931** |
+| Natural gas | 6,649,840 MMCF | 7,180,958 | **+531,118** |
+| Coal | 192,990 kst | 166,956 | **−26,033** |
+
+⚠️ **Crude fell while gas rose**, so `211000` at −7,577 is the *net* of two large
+opposing physical movements. The branch cannot be split on a single commodity
+proxy. At rough 2017 prices the two net to the right sign and order of magnitude.
+
+⚠️ **These are physical units, and converting them needs a price — which
+reintroduces the holding gains the IVA exists to strip.** Same trap as §Farm,
+where differencing FIWS stocks gives −887 against a true −5,679, out by ~6×. So
+this follows the same rule as farm and `MDTY`: **structure from the source, level
+from NIPA.** EIA and USGS give the relative split across crude oil, natural gas,
+coal and metal ores; NIPA's −14,261 sets the magnitude.
+
+`ecnlifomine` is the exception worth noting — it publishes beginning *and* end of
+year directly, so it needs no differencing, but only every five years. Its 2017
+mining total is +824 against the branch's −14,261, the gap being scope (mining
+only), LIFO book valuation, and Economic Census establishment exclusions. Use it
+to check the EIA-derived 2017 shape, not to set a level.
+
 ## Open questions
 
 1. **Trade crosswalk, or wait for #615?** The ~25-line version is cheap and
    covers the column; the NAPCS concordance is the general solution and serves
    margins too. Sequencing decision, not a data question.
-2. **Rule for mining/utilities/construction**, which has no stage split and no
-   sub-industry detail.
+2. ~~**Rule for mining/utilities/construction**~~ — **sources identified,
+   deferred to [#660](https://github.com/cornerstone-data/bedrock/issues/660).**
+   The branch turns out to be mining-only in commodity space, and EIA MER plus
+   USGS Minerals Yearbook cover it annually. Second priority: return to it later
+   in Phase 1 if there is time, otherwise Phase 2. See §The mining branch.
 3. **Which storable-goods filter** for the M&S manufacturing branch — a
    commodity-level goods/services flag, or port `EC1731MATFUEL` properly.
-4. **Is the department-store/other-general-merchandise pair a reclassification?**
-   Affects whether the trade branch is usable unsmoothed.
+4. ~~**Is the department-store/other-general-merchandise pair a
+   reclassification?**~~ — **yes, answered 2026-08-18.** Measured across every
+   published year: 2018-2024 always share a sign with gross equal to net, while
+   2017 alone has them opposed at 13.9x their own net. 2017 therefore takes
+   their parent, line 73. See `Inventories_2017.yaml`.
 5. **Splitting within farm crops and livestock** — 2017 detail shares, or FIWS
    cash receipts by commodity? Same shape as #577's question, and probably wants
-   the same answer.
+   the same answer. **Also second priority, deferred to
+   [#660](https://github.com/cornerstone-data/bedrock/issues/660)**: the farm
+   level is published and settled, only the within-crops/livestock split is
+   open, and it governs -5,679.

@@ -44,6 +44,53 @@ target_schema_year: 2017
 geoscale: national
 activity_schema: null
 
+_attribution_sources:
+  # Weights WITHIN a trade line's commodity set: what that kind of business
+  # actually sells, from Economic Census product lines. Hill's merchandise-trade
+  # rule is literally "what the industry sells", and BEA reaches for the same
+  # data in its margin method.
+  #
+  # ⚠️ The product must move into an activity column before mapping.
+  # activity_to_sector_mapping joins on the activity columns and never on
+  # FlowName, and the product - not the industry - is what carries a BEA
+  # commodity. Skipping this yields an empty weight set rather than an error.
+  #
+  # ⚠️ Suppression is recovered first. 54% of trade rows are withheld, though
+  # only 4.3% of value; left at zero they would bias every share toward whatever
+  # happens to be publishable.
+  Census_EC_PxI: &pxi_weights
+    year: 2017
+    # ⚠️ Must be overridden here. Without it the source inherits the METHOD's
+    # schema - activity_schema: {'bea': ...} - and map_to_sectors then treats
+    # activity values as BEA codes and expands them through the BEA hierarchy.
+    # These activities are product descriptions like 'cementing oil and gas
+    # wells', so nothing matches, mapping returns 0 rows, and the attribution
+    # merge finds an empty right-hand side. The 27,874 rows in, 0 out was the
+    # whole failure.
+    activity_schema: null
+    # ⚠️ One hook, not two. prepare_fbs runs clean_fba_before_mapping BEFORE
+    # estimate_suppressed, which is the opposite of the order these need - see
+    # prepare_pxi_for_attribution.
+    clean_fba_before_mapping: !script_function:Census_EC prepare_pxi_for_attribution
+    activity_to_sector_mapping: Census_EC_PxI
+    # ⚠️ Required, and not merely a hint. After the product moves,
+    # ActivityProducedBy is null on every row and the product sits in
+    # ActivityConsumedBy. Without this, add_primary_secondary_columns falls into
+    # its _identify_secondary branch, which calls apply(axis='columns') - and on
+    # a frame that machinery has narrowed to empty, apply returns a DataFrame
+    # rather than a Series, so pandas raises "Cannot set a DataFrame with
+    # multiple columns to the single column SecondarySector". Naming the primary
+    # column assigns Primary/Secondary directly and never reaches that apply.
+    primary_action_type: Consumed
+    # ⚠️ Also declared here, not only on the activity sets. flowby reads it from
+    # `(attribution_config or self.config)`, so the SOURCE's config wins - and
+    # without it here the lookup returns [], retain_activity_columns stays False,
+    # ActivityProducedBy is dropped before the join, and every key arrives as
+    # ('<sector>', 'N/A', '00000'). That matches nothing and each trade set
+    # reports a 100% loss.
+    attribute_on: ['PrimarySector', 'ActivityProducedBy']
+    attribution_method: direct
+
 source_names:
   BEA_NIPA:
     geoscale: national
@@ -64,6 +111,7 @@ source_names:
       # excludes via the inventory valuation adjustment. Structure from FIWS,
       # level from NIPA.
       inventories_farm:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
@@ -78,11 +126,21 @@ source_names:
       #   32 C30W work-in-process         -3,187
       #   35 C30F finished goods           2,110
       inventories_manufacturing:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
+          # ⚠️ The INDUSTRY leaves, not the stage lines 29/32/35. Both
+          # decompositions sum to 818, but only the industry one carries codes
+          # the crosswalk can map - C30M/C30W/C30F are stages, not industries,
+          # and map to nothing, so selecting them silently produced no rows.
+          #
+          # 13 and 14 rather than their parent 12: C336OT is -5,696 against a
+          # published 336411 of -6,314, and folding it into the parent spreads
+          # an aerospace movement across pickup trucks.
           Table: U50705BU1
-          Line: [29, 32, 35]
+          Line: [5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16,
+                 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
 
       # ---- Wholesale, merchant leaves ----------------------------------
       # 19,192. Line 46 excluded as the parent of 47/48 - see the header.
@@ -96,6 +154,14 @@ source_names:
           Table: U50705BU1
           Line: [43, 44, 45, 47, 48, 49, 50, 51, 52, 53,
                  55, 56, 57, 58, 59, 60, 61, 62, 63]
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
 
       # ---- Wholesale, agents and brokers -------------------------------
       # 11,137, published as bare "Durable goods industries" / "Nondurable goods
@@ -114,6 +180,14 @@ source_names:
           Line: 65  # C42ND
         assign_fields:
           ActivityProducedBy: Nonmerchant wholesale, durable goods
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
 
       inventories_wholesale_nonmerchant_nondurable:
         activity_to_sector_mapping: BEA_NIPA_Inventories
@@ -124,21 +198,102 @@ source_names:
           Line: 66  # C42NN
         assign_fields:
           ActivityProducedBy: Nonmerchant wholesale, nondurable goods
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
 
       # ---- Retail leaves -----------------------------------------------
-      # 17,930. Line 73 excluded as the parent of 74/75.
-      # ⚠️ 74 department stores +21,237 against 75 other general merchandise
-      # -24,518. Two adjacent retail lines nearly cancelling at this magnitude
-      # looks like a classification movement rather than economics. Check
-      # whether the pair is stable across 2018-2024 before trusting this branch
-      # year to year - open question 4 in the plan.
+      # 17,930. Takes line 73 and EXCLUDES its children 74/75 - the reverse of
+      # the leaf rule applied everywhere else in this method.
+      #
+      # ⚠️ Open question 4 is now answered, and the answer is that 74/75 carry a
+      # reclassification in 2017 rather than inventory movement. Measured across
+      # every published year:
+      #
+      #   year   74 Dept      75 Other gen   gross/|net|
+      #   2017    +21,237        -24,518        13.9
+      #   2018     +2,381         +1,001         1.0
+      #   2019     -1,898           -583         1.0
+      #   2020     -3,604            -72         1.0
+      #   2021     +2,345         +9,063         1.0
+      #   2022       +665         +3,754         1.0
+      #   2023     -1,048         -2,231         1.0
+      #   2024     +2,430         +1,754         1.0
+      #
+      # In 2018-2024 the two always share a sign and gross equals net exactly.
+      # 2017 alone has them opposed at ~7x the largest value either takes in any
+      # other year - establishments moving between NAICS 4521 and 4529 inside a
+      # NAICS revision year, not inventory behaviour.
+      #
+      # Their parent, line 73 at -3,281, is ordinary and sits inside the other
+      # years' range, and 73 = 74 + 75 by construction, so the retail total is
+      # unchanged. This removes 45,755 of spurious gross from a column whose
+      # entire published gross is 98,764. Both children map to the same
+      # commodity set, so the parent inherits it and no coverage is lost.
+      #
+      # ⚠️ This substitution is 2017-only. 2018+ have well-behaved children and
+      # should take 74/75 as leaves in the normal way - do not copy this line
+      # list forward without re-running the check above.
       inventories_retail:
         activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50705BU1
-          Line: [68, 69, 70, 71, 72, 74, 75, 76]
+          Line: [68, 69, 70, 71, 72, 73, 76]  # 73 not 74/75 - see above
+        attribution_method: proportional
+        # Match each NIPA line to its OWN commodity set, not to every commodity
+        # weighted by its economy-wide product total - the defect #547 records
+        # for PCE, in the same shape.
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          Census_EC_PxI: *pxi_weights
+
+
+      # ---- Motor vehicles: published split, used in place of a weight ----
+      # ⚠️ These four sets do NOT add to the column. They exist to supply the
+      # auto/truck and new/used SPLIT that the trade branch cannot infer, and
+      # they overlap the trade lines that already carry motor vehicle value
+      # (441 dealers, 4231 wholesalers). Wire them as an attribution source,
+      # not as additive activity sets - see the plan.
+      #
+      # Table 7.2.5U is the one place BEA publishes change in private
+      # inventories already split by commodity AND in dollars, so the inventory
+      # valuation adjustment is applied at source. Every other split we have
+      # for this branch - EIA physical stocks, FIWS book values, U70205S unit
+      # counts - needs a price and reintroduces the holding gains the IVA
+      # exists to strip.
+      #
+      # 2017: autos 7,791 (new -5,182, used 12,972); trucks 13,313 (new 6,846,
+      # used 6,467). The implied 37/63 auto-truck split is much closer to the
+      # published 336111/336112 of 46/54 than anything derived here - the
+      # concordance gave 81/3 and commodity-output weighting gave 13/87.
+      #
+      # ⚠️ Used autos plus used trucks is 19,439, against S00402 used and
+      # secondhand goods published at 3,969. Right sign and ample scale, but
+      # this is all motor vehicle inventory across every holding sector, not
+      # the net that reaches F03000. Use for shape, not level.
+
+
+
+
+      # ---- Motor vehicles: a SPLIT, deliberately not an activity set ----
+      # U70205 gives the auto/truck and new/used split in dollars with the IVA
+      # already applied - see BEA_NIPA.yaml. It is not wired here because these
+      # lines are NOT additive mass: 441 dealers and 4231 wholesalers already
+      # carry motor vehicle value through the trade sets above, so adding
+      # U70205 as its own set would double count 21,104.
+      #
+      # It belongs as a re-split applied AFTER the trade attribution, replacing
+      # the PxI-derived 336111/336112 shares with the published 37/63. Measured
+      # on the scoring probe, that cuts error across those two cells from
+      # 10,940 to 4,080. Wiring it needs a clean_fbs hook that the method does
+      # not have yet.
 
       # ---- Mining, utilities and construction --------------------------
       # -14,261, which is 37% of nonfarm in magnitude, published with NO
@@ -146,6 +301,7 @@ source_names:
       # question 2 in the plan. The 2017 column suggests where it lands
       # (211000 oil and gas -7,577) but that is one commodity for three sectors.
       inventories_mining_utilities_construction:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
@@ -155,6 +311,7 @@ source_names:
       # ---- Other industries --------------------------------------------
       # 3,537, also published without sub-detail.
       inventories_other:
+        activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
