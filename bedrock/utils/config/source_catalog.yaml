@@ -208,6 +208,12 @@ BLS_QCEW:
 BTS_Airlines:
   data_format: FBA
   activity_schema: null
+BTS_FAF:
+  data_format: FBA
+  class:
+    - Other
+  activity_schema: None
+  sector_hierarchy: "flat"
 BTS_TSA:
   data_format: FBA
   activity_schema: null

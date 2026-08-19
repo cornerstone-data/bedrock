@@ -18,8 +18,8 @@ mode         share   basis                                      state
 **truck**    67.8%   revenue by commodity group, SAS Table 8    **built**
 **rail**     16.5%   revenue by product, STB CRSR by STCC5      **built**
 **pipeline** 11.9%   four Census margin items -> commodity sets **built**
-water         2.3%   ton-miles x difficulty multiplier          not built
-air           1.5%   ton-miles x difficulty multiplier          not built
+**water**     2.3%   ton-miles x difficulty multiplier          **built**
+**air**       1.5%   ton-miles x difficulty multiplier          **built**
 ===========  ======  =========================================  ==========
 
 ⚠️ **An earlier version of this module allocated every mode on FAF ton-miles.**
@@ -108,13 +108,15 @@ leave shrinks that to 15,332 $M but does not close it, because a group's share
 of truck revenue can exceed the room left anywhere in that group - grain farming
 is the worst case.
 
-**Water and air will make it worse, not better.** They are only 3.8% of the
-column but concentrate in commodities the other modes already claim, so the
-remaining collisions are not gaps waiting to be filled.
+**Water and air made it worse, as expected.** They are only 3.8% of the column
+but concentrate in commodities the other modes already claim, so all five
+together over-allocate **97 of 258 commodities by 45,232 $M**, 10.9% of the
+column - up from 37,826 with three. They filled no gaps.
 
-The aggregate is not the problem: the four control totals leave what water and
-air give up, to within the give-up-versus-receiving rounding. It is the
-distribution that collides, and the fix is a **joint solve** - a mode x commodity
+The aggregate is not the problem: the five give-ups total 415,548 $M against a
+published column of 414,559 $M, a 0.24% difference that is the known
+give-up-versus-receiving gap. It is the distribution that collides, and the fix
+is a **joint solve** - a mode x commodity
 fit whose row totals are the five give-ups and whose column totals are the
 published column, seeded with each mode's independent allocation so its own
 evidence still shapes the answer. Sequential weighting cannot get there, because
@@ -608,6 +610,167 @@ def truck_allocation(
             )
 
     return pd.Series(allocation, name='truck').sort_values(ascending=False)
+
+
+# --- water and air ---------------------------------------------------------
+
+#: SCTG -> BEA 2017 commodity, from the ported FAF crosswalk. The BEA code sits
+#: in the ``Note`` column: the sector-mapping machinery joins on ``Sector``,
+#: which is NAICS, so the BEA codes are read directly here instead (#546).
+FAF_SCTG_CROSSWALK_PATH = (
+    Path(__file__).resolve().parents[2]
+    / 'utils'
+    / 'mapping'
+    / 'activitytosectormapping'
+    / 'NAICS_Crosswalk_FAF_Mode_and_SCTG.csv'
+)
+
+#: The reconstructed 1/2/3 difficulty weights, per SCTG and mode.
+FAF_MULTIPLIER_PATH = (
+    Path(__file__).resolve().parents[2]
+    / 'utils'
+    / 'mapping'
+    / 'Crosswalk_FAF_SCTG_Difficulty_Multiplier.csv'
+)
+
+#: FAF's mode label and BEA commodity, for the two volume-allocated modes.
+VOLUME_MODES = {
+    'water': ('Water', '483000', 'water_multiplier'),
+    'air': ('Air (include truck-air)', '481000', 'air_multiplier'),
+}
+
+TON_MILES_UNIT = 'ton-miles'
+
+
+def load_faf_sctg_crosswalk() -> pd.DataFrame:
+    """SCTG -> BEA 2017 commodity pairs, deduplicated."""
+    crosswalk = pd.read_csv(FAF_SCTG_CROSSWALK_PATH, dtype=str).fillna('')
+    sctg = crosswalk[crosswalk['ActivitySourceName'] == 'FAF_SCTG']
+    return (
+        sctg[['Activity', 'Note']]
+        .rename(columns={'Activity': 'sctg', 'Note': 'bea_2017_commodity'})
+        .query("bea_2017_commodity != ''")
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+
+
+def load_difficulty_multipliers() -> pd.DataFrame:
+    """The reconstructed 1/2/3 weights per SCTG, one column per mode."""
+    return pd.read_csv(FAF_MULTIPLIER_PATH)
+
+
+def load_faf_ton_miles(mode: str, year: int) -> pd.Series:
+    """FAF ton-miles for one mode and year, per SCTG."""
+    fba = getFlowByActivity('BTS_FAF', year)
+    rows = fba[
+        (fba['ActivityProducedBy'].astype(str) == mode)
+        & (fba['Unit'] == TON_MILES_UNIT)
+    ]
+    if rows.empty:
+        raise ValueError(
+            f'BTS_FAF {year} has no {TON_MILES_UNIT} for mode {mode!r}. Water and '
+            f'air are the only modes BEA allocates on volume, so without this '
+            f'there is no allocator for them.'
+        )
+    return rows.groupby('FlowName')['FlowAmount'].sum()
+
+
+def volume_mode_margin_2017(
+    mode_name: str, margins: pd.DataFrame | None = None
+) -> float:
+    """The margin the water or air commodity gives up in 2017, USD."""
+    _, commodity, _ = VOLUME_MODES[mode_name]
+    return _mode_give_up_2017(commodity, margins)
+
+
+def volume_mode_allocation(
+    mode_name: str,
+    year: int = 2017,
+    control_total: float | None = None,
+    margins: pd.DataFrame | None = None,
+    within_sctg_weight: pd.Series | None = None,
+) -> pd.Series:
+    """
+    Water or air margin per BEA 2017 commodity for *year*. USD.
+
+    The allocator is BEA's weighted ton-mile share - ``m_c * tonmiles_c`` over
+    its sum, with ``m`` the 1/2/3 difficulty multiplier - computed per SCTG, then
+    spread across each SCTG's BEA commodities.
+
+    ⚠️ **Two weights stack here, and only the first is BEA's.** The difficulty
+    multiplier is BEA's own construction, reconstructed from the rule they gave.
+    The split *within* an SCTG is ours: FAF publishes 42 groups against 258
+    receiving commodities, so the same aggregation problem truck has appears
+    again, and it falls to the published transport column by default.
+
+    Water and air are 2.3% and 1.5% of ``TRANS``, so this compounding is bounded
+    - which is why the unpublished multiplier table was never the blocker it
+    looked like.
+    """
+    faf_mode, _, multiplier_column = VOLUME_MODES[mode_name]
+    if control_total is None:
+        control_total = volume_mode_margin_2017(mode_name, margins)
+
+    ton_miles = load_faf_ton_miles(faf_mode, year)
+    multipliers = load_difficulty_multipliers().set_index('sctg')[multiplier_column]
+
+    missing = set(ton_miles.index) - set(multipliers.index)
+    if missing:
+        raise ValueError(
+            f'FAF publishes SCTG groups with no difficulty multiplier: '
+            f'{sorted(missing)}. Defaulting them would silently weight a commodity '
+            f'BEA may treat as hard to handle the same as bulk grain.'
+        )
+
+    weighted = ton_miles * multipliers.reindex(ton_miles.index)
+    shares = weighted / weighted.sum()
+
+    basis = (
+        published_transport_by_commodity(margins)
+        if within_sctg_weight is None
+        else within_sctg_weight
+    )
+    crosswalk = load_faf_sctg_crosswalk()
+
+    allocation: dict[str, float] = {}
+    for sctg, share in shares.items():
+        commodities = list(
+            crosswalk.loc[crosswalk['sctg'] == sctg, 'bea_2017_commodity']
+        )
+        weights = basis.reindex(commodities).fillna(0.0)
+        if weights.sum() <= 0:
+            # an SCTG whose commodities bear no transport margin cannot place its
+            # share; that share is dropped and the rest renormalise below
+            continue
+        sctg_margin = float(share) * control_total
+        for commodity, weight in (weights / weights.sum()).items():
+            allocation[commodity] = (
+                allocation.get(commodity, 0.0) + sctg_margin * weight
+            )
+
+    series = pd.Series(allocation, name=mode_name)
+    if series.sum() <= 0:
+        raise ValueError(f'No {mode_name} margin could be placed for {year}.')
+    return (series / series.sum() * control_total).sort_values(ascending=False)
+
+
+def water_allocation(
+    year: int = 2017,
+    control_total: float | None = None,
+    margins: pd.DataFrame | None = None,
+) -> pd.Series:
+    """Water margin per BEA 2017 commodity. See :func:`volume_mode_allocation`."""
+    return volume_mode_allocation('water', year, control_total, margins)
+
+
+def air_allocation(
+    year: int = 2017,
+    control_total: float | None = None,
+    margins: pd.DataFrame | None = None,
+) -> pd.Series:
+    """Air margin per BEA 2017 commodity. See :func:`volume_mode_allocation`."""
+    return volume_mode_allocation('air', year, control_total, margins)
 
 
 def mode_residual(

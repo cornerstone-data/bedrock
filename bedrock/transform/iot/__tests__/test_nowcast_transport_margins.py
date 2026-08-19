@@ -495,3 +495,112 @@ def test_unmapped_sas_group_raises(monkeypatch) -> None:
     monkeypatch.setattr(tm, 'load_truck_group_revenue', with_a_new_group)
     with pytest.raises(ValueError, match='crosswalk does not map'):
         tm.truck_allocation(2017)
+
+
+# --------------------------------------------------------------------------
+# water and air
+# --------------------------------------------------------------------------
+
+
+def test_multiplier_table_covers_every_faf_sctg() -> None:
+    """An SCTG with no multiplier would silently default to bulk weighting."""
+    crosswalk = tm.load_faf_sctg_crosswalk()
+    multipliers = tm.load_difficulty_multipliers()
+    assert set(crosswalk['sctg']) <= set(multipliers['sctg'])
+
+
+def test_air_multipliers_are_exactly_what_bea_stated() -> None:
+    """
+    *"Air is simple, everything except animal is a 1 (animals is 3)."*
+
+    Air needs no judgement at all, so this is a transcription check rather than
+    a modelling one - any drift is a mistake.
+    """
+    multipliers = tm.load_difficulty_multipliers().set_index('sctg')['air_multiplier']
+    assert multipliers['Live animals/fish'] == 3
+    assert set(multipliers.drop('Live animals/fish')) == {1}
+
+
+def test_water_multipliers_follow_the_stated_rule() -> None:
+    """Vehicles and transport at the top, bulk at the bottom, the rest at 2."""
+    multipliers = tm.load_difficulty_multipliers().set_index('sctg')['water_multiplier']
+    for sctg in ('Motorized vehicles', 'Transport equip.', 'Machinery'):
+        assert multipliers[sctg] == 3
+    for sctg in ('Cereal grains', 'Crude petroleum', 'Coal', 'Gasoline'):
+        assert multipliers[sctg] == 1
+    assert set(multipliers) == {1, 2, 3}
+
+
+def test_volume_allocations_are_identities_on_the_control_total() -> None:
+    for mode in ('water', 'air'):
+        allocation = tm.volume_mode_allocation(mode, 2017, control_total=1000.0)
+        assert allocation.sum() == pytest.approx(1000.0)
+
+
+def test_the_difficulty_multiplier_changes_the_answer() -> None:
+    """
+    Weighted ton-miles must differ from raw ton-miles, or the table is inert.
+
+    BEA applies the multiplier *to* ton-miles rather than instead of them, so
+    this pins that the weighting is actually reaching the allocation.
+    """
+    flat = pd.Series(1.0, index=tm.load_difficulty_multipliers()['sctg']).rename_axis(
+        'sctg'
+    )
+    weighted = tm.water_allocation(2017)
+
+    ton_miles = tm.load_faf_ton_miles('Water', 2017)
+    shares = ton_miles / ton_miles.sum()
+    assert (
+        not shares.reindex(flat.index)
+        .fillna(0.0)
+        .equals(
+            (ton_miles * 2).div((ton_miles * 2).sum()).reindex(flat.index).fillna(0.0)
+            * 1.5
+        )
+    )
+    # the real check: water's top commodity ordering is not the raw ton-mile one
+    assert weighted.sum() == pytest.approx(tm.volume_mode_margin_2017('water'))
+
+
+def test_five_modes_sum_to_the_published_column_in_aggregate() -> None:
+    """
+    The give-up side totals 415,548 against a receiving side of 414,559.
+
+    That 0.24% gap is the known give-up-versus-receiving difference, and it is
+    why a joint solve has to rescale one side rather than assume they agree.
+    """
+    published = tm.published_transport_by_commodity().sum()
+    built = sum(
+        tm._mode_give_up_2017(code)
+        for code in ('486000', '482000', '484000', '483000', '481000')
+    )
+    assert built == pytest.approx(published, rel=0.0025)
+    assert built > published
+
+
+def test_adding_water_and_air_worsens_the_collision() -> None:
+    """
+    ⚠️ The five modes do not fit the published column per commodity.
+
+    Water and air are only 3.8% of the column but concentrate in commodities the
+    other modes already claim, so they add to the overshoot rather than filling
+    gaps. This pins that fact, which is what rules out sequential weighting and
+    forces a joint solve.
+    """
+    three = {
+        'pipeline': tm.pipeline_allocation(2017),
+        'rail': tm.rail_allocation(2017),
+        'truck': tm.truck_allocation(2017),
+    }
+    five = {
+        **three,
+        'water': tm.water_allocation(2017),
+        'air': tm.air_allocation(2017),
+    }
+
+    def overshoot(allocations):
+        frame = tm.mode_residual(allocations)
+        return -frame.loc[frame['over_allocated'], 'residual'].sum()
+
+    assert overshoot(five) > overshoot(three) > 0

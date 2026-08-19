@@ -1,0 +1,37 @@
+author: US Bureau of Transportation Statistics / Oak Ridge National Laboratory
+source_name: Freight Analysis Framework (FAF) 5.7.1
+source_url: https://faf.ornl.gov/faf5
+source_publication_date: 2025
+bib_id: BTS_FAF
+api_name: None
+api_key_required: false
+format: zip
+url:
+  base_url: https://faf.ornl.gov/faf5/data/download_files/FAF5.7.1_State.zip
+
+call_response_fxn: !script_function:BTS_FAF faf_call
+gcs_fxn: !script_function:BTS_FAF faf_load_gcs
+parse_response_fxn: !script_function:BTS_FAF faf_parse
+
+# Read FAF5.7.1_State.zip from extract/input_data/BTS_FAF/ (or GCS extract-input
+# if it is not cached yet) rather than re-downloading 145MB from ORNL every run.
+# Set to True to refresh the cache, e.g. when a new FAF version is released.
+extract_data_from_raw_sources: False
+
+# One archive carries every year, so it is read once and each year selected out
+# of it rather than fetched separately.
+call_all_years: True
+
+# FAF5.7.1 is the version whose base year is 2017 - the same Commodity Flow
+# Survey vintage BEA's own margin method rests on, and the benchmark year the
+# margin rates are anchored to. It carries 2017-2024 annually; the 2030-2050
+# forecast columns in the same file are deliberately not listed here.
+years:
+- 2017
+- 2018
+- 2019
+- 2020
+- 2021
+- 2022
+- 2023
+- 2024
