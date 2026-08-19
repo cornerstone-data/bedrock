@@ -1561,16 +1561,29 @@ steps: #660/#664/#665 behind #529-#531 as the `F03000` follow-ons, #650 with the
 `Census_EC_PxI` source to 2022), #610-#615 and #620 behind #571 as the 4c chain, #606 and #635 into
 Step 1 validation, #621/#646/#647/#668 with 1A and 1B.
 
-**`Status` now means what has merged, not when the card was made.** Nine items moved `Todo` →
-`In Progress` on that basis: #529/#530/#531 (`F03000` first pass), #610/#611/#612 (4c rates, transport
-chain, annual levels), #653/#654/#655 (Step 5 scaffolding, mask, gross output target). ⚠️ **`Done` is
-reserved for closed issues** — every `Done` item on the board is closed, and breaking that would make
-the column unreadable. Several of the nine look closeable on their own terms (#530, #531, #610, #612,
-#653, #654 in particular); closing them is a separate call.
+**`Status` now means what has merged, not when the card was made,** and **`Done` still means closed** —
+every `Done` item on the board is a closed issue, and breaking that would make the column unreadable.
+Nine items moved off `Todo` on that basis, and six of them were then closed outright:
 
-⚠️ **Ten items still do not carry a `Step <n>` prefix** — #606 (which carries `Step 1/3`), #635, #646,
-#647, #650, #658, #660, #664, #665, #668. Position places them correctly; the title convention does
-not yet reach them.
+| issue | what closed it |
+|---|---|
+| #530 (1C source and method) | #666 — the four rules, the sources behind each, and the farm level |
+| #531 (1C FBAs and crosswalks) | #651, #652, #666 — `U50705BU1`/5.7.5B/`U70205`, the `Census_EC_PxI` extractor, and a 1,218-row crosswalk over 54 NIPA lines |
+| #610 (4c-1 2017 rates) | #626 — and it settled that #580 (4d) is a prerequisite for #613 |
+| #612 (4c-3 annual trade levels) | #628 |
+| #653 (Step 5 scaffolding) | #659 — deliberately Decision-1-independent, which is why it could land first |
+| #654 (Step 5 fixed-value mask) | #659 |
+
+The three that stay open are open for a reason: **#529** has the three `F03000` follow-ons under it,
+**#611** is the transport chain in progress, and **#655** is the gross output target. #591 and #588
+were already `In Progress`.
+
+✅ **Every issue on the board now carries its step in its title.** Eleven were renamed 2026-08-19 —
+#615 and #620 into `Step 4c`, #635 and #658 into `Step 1`, #646/#647/#668 into `Step 1B`, and
+#650/#660/#664/#665 into `Step 1C`. ⚠️ An earlier count of ten here was wrong in both directions: it
+included #606, which already carried `Step 1/3` and is correct as it stands, and it missed #615 and
+#620. Only the five pull requests are unprefixed, which is the standing exception — they inherit from
+the issue they close.
 
 ## Open questions
 
