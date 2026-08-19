@@ -441,6 +441,47 @@ not `Census_ASM` product tables.** SAS is already extracted and already read at
 product-line granularity for the transport margins (Table 8), so the machinery
 exists. ASM product lines drop well down the list.
 
+### Which primary source actually reaches the priority list
+
+Checked, and the answer is not the one the priority list suggested.
+
+⚠️ **`Census_SAS` Table 8 is far narrower than assumed.** *Estimated Revenue by
+Product and Class of Customer* covers **12 NAICS** in 2022 — `484` truck, the
+`5111x` publishing group, `5112` software, `517311` telecom, `51913` search
+portals, and `5613x`/`5615x`/`561599` admin services. **None of the top priority
+commodities appear.** Table 2 carries 378 rows of revenue by detailed NAICS, but
+that is `x`, not `q`. So SAS gives industry revenue for the priority list and no
+product split — it cannot reach the 3.22 tn.
+
+**`Census_EC_PxI` is the vehicle.** Economic Census *Products by Industry*, 2017,
+carries 32,641 rows over 947 industries with the product code in `FlowName` (28
+distinct products for `5417` alone). It covers **15 of 17** priority NAICS:
+`5417`, `5418`, `5415`, `622`, `5182`, `7132`, `5321`, `2211`, `2213`, `8111`,
+`5151`, `7225` and more.
+
+**Missing: `6113` colleges and `5171` wired telecom.** Colleges are largely
+non-profit and government, which the Economic Census does not cover — consistent
+with the manual's note that BEA estimates nonprofit output from *operating
+expenses* rather than receipts. Those two need a different source.
+
+⚠️ **`Census_EC_PxI` 2022 is not wired.** `getFlowByActivity('Census_EC_PxI',
+2022)` raises. The plan records 2022 as live on the API as `ecnnapcsprd`, so this
+is extract work rather than a data gap — **and it is the single highest-value
+piece of work for Step 4a**, because a second product-by-industry benchmark is
+what lets the mix *move* on observed product data instead of being frozen at
+2017.
+
+Still gated on the **NAPCS-collection → BEA commodity concordance**
+([#615](https://github.com/cornerstone-data/bedrock/issues/615)). Note the
+wrinkle `Census_EC_PxI.yaml` already documents: the identifier is Census's *2017
+NAPCS collection* code, not the published NAPCS structure, so the concordance
+target is the collection codes.
+
+**Revised sequence:** wire EC_PxI 2022, build the concordance, move the mix
+between the two benchmarks for the ~50 exposed commodities, fall back to frozen
+2017 elsewhere, then rebalance. SAS drops to a supporting role for the dozen
+NAICS its Table 8 does cover.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
