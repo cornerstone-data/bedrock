@@ -2025,10 +2025,34 @@ and housing, worth roughly 27bn of the 182bn share-shift effect.
 
 ⚠️ **In 2020 subsidies are 698bn against taxes on products of 830bn** — the
 subsidy side nearly cancels the tax side, where in 2017 it was 8% of it. Pandemic
-support (PPP, air carrier payroll support) ran through this line. **Any treatment
-that freezes the 2017 wedge is not slightly wrong for 2020-21; it is wrong by an
-order of magnitude**, and the earlier "0.68% of within-group shares, 6 groups"
-figure is a 2017 measurement that cannot be carried to those years.
+support (PPP, air carrier payroll support) ran through this line.
+
+**Two different things could be frozen here, and only one of them matters.** The
+*totals* are never frozen — NIPA publishes them annually, which is the point of
+this section. What can be frozen is either the **rate** (used to convert producer
+to basic) or the **commodity share vector** (used to spread the total across 402
+commodities). Both break in 2020-21, and neither breaks elsewhere:
+
+| year | net rate `(TOP−SUB)/GO` | vs 2017 |
+|---|---:|---:|
+| 2018 | 1.94% | 1.02x |
+| 2019 | 1.90% | 1.00x |
+| **2020** | **0.17%** | **0.09x** |
+| **2021** | 0.61% | 0.32x |
+| 2022 | 1.81% | 0.95x |
+| 2024 | 1.82% | 0.95x |
+
+Freezing the 2017 rate is good to ±5% in 2018-19 and 2022-24, and **imposes a
+1.91% wedge on 2020 where the true one is 0.17%** — about 700bn of wedge invented
+against an actual 63bn. The earlier "0.68% of within-group shares, 6 groups"
+figure is likewise a 2017 measurement that cannot be carried to those two years.
+
+⚠️ The **share vector** fails the same two years for the same reason, which is
+[#580](https://github.com/cornerstone-data/bedrock/issues/580)'s concern rather
+than 4a's: the 2017 `SUB` column touches only 15 commodities and puts **66.2%**
+on housing (`531HST` alone is 59.8%), matching NIPA's 2017 type split. Applied to
+2020's total that lands ~462bn on housing against an actual 44bn, while the 587bn
+of PPP has no 2017 counterpart to attach to.
 
 ✅ The sales-tax *share* of `TOP` is by contrast very stable, 51.7% to 55.4%
 across eight years, so the assignable/circular split above holds throughout.

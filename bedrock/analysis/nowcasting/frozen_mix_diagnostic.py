@@ -215,9 +215,35 @@ def basic_conversion_ratio(
 
     Applied to a later year's producer-price output this holds the *tax rate*
     fixed rather than the tax level, which is the right frozen assumption when
-    output is growing. It is still an assumption, and it means a later year's
-    score mixes commodity-mix drift with product-tax-rate drift — the two cannot
-    be separated until Step 5 solves the tax split (#655).
+    output is growing.
+
+    ✅ **The rate no longer has to be frozen, and for two years it must not be.**
+    Both totals are published annually in NIPA — Supply ``TOP`` is T30500 taxes
+    on products less customs duties, ``SUB`` is T31300, each closing to $1m on
+    2017 — so the economy-wide net rate is observable every year. Measured as
+    ``(TOP - SUB) / GO``, against 1.91% in 2017:
+
+    ==== ========= ============
+    year net rate  vs 2017
+    ==== ========= ============
+    2018 1.94%     1.02x
+    2019 1.90%     1.00x
+    2020 **0.17%** **0.09x**
+    2021 **0.61%** **0.32x**
+    2022 1.81%     0.95x
+    2024 1.82%     0.95x
+    ==== ========= ============
+
+    ⚠️ **2020 and 2021 break it.** Pandemic subsidies (698bn and 626bn against
+    60bn in 2017) very nearly cancel product taxes, so basic ≈ producer in 2020
+    where the frozen rate would impose a 1.91% wedge — roughly **700bn of wedge
+    invented against an actual 63bn**. Freezing is defensible for 2018-19 and
+    2022-24, within 5%, and indefensible for the two pandemic years.
+
+    ⚠️ What Step 5 is still needed for is narrower than "the tax split": only the
+    **commodity allocation of the general sales tax**, 56.5% of ``TOP``, which is
+    levied on the purchaser price and so needs the margin structure. The other
+    43.5% is named by product in NIPA every year (#655, #580).
     """
     return column_totals.reindex(industries) / (
         derive_gross_output(2017, 'before').rename(index=str).reindex(industries)
