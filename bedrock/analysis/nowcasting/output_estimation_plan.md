@@ -1109,6 +1109,54 @@ ratio **0.08** (24 of 29 rows zero), `325211` plastics resin at 0.08 (34 of 49),
 `334510` electromedical at 0.09 (26 of 34) are far more extreme than the bin
 medians. Those three are the diagnostic targets once recovery is in.
 
+### Suppression recovery: the manufacturing route works
+
+Applying [`estimate_suppressed_ec_pxi`](../../extract/census/Census_EC.py) before
+building `q`, with the official Census NAPCS → 2012 → NAICS → BEA concordance
+unchanged:
+
+| | published (suppressed) | **recovered** |
+|---|---:|---:|
+| commodities scored | 193 | 197 |
+| built vs published | 3.41 vs 4.55 tn — **0.749** | 4.56 vs 4.78 tn — **0.954** |
+| wtd abs error | 29.9% | **14.1%** |
+| within ±25% | 114 | **165** |
+| within ±10% | 71 | **134** |
+
+**The error more than halves and the level closes to within 5%.** Manufacturing
+product value goes from 4.019tn to 5.482tn and the zero-cell rate from **53.2%
+to 4.7%**.
+
+⚠️ **This was the binding constraint all along.** Four mappings converging at
+28-30% looked like a concordance ceiling; it was the same suppression floor
+underneath all of them. The lesson is general: **when unrelated methods converge
+on the same error, suspect the input, not the method.**
+
+**What is left is genuinely a concordance problem**, and it is now small and
+legible — a handful of commodities where value lands on a neighbour:
+
+| commodity | ratio | published |
+|---|---:|---:|
+| `331200` Steel product from purchased steel | **4.70** | 9bn |
+| `336111` Automobile manufacturing | 2.89 | 33bn |
+| `326290` Other rubber product | 2.03 | 17bn |
+| `316000` Leather and allied product | **0.10** | 5bn |
+| `331520` Nonferrous metal foundries | 0.15 | 12bn |
+| `324190` Other petroleum and coal products | 0.18 | 28bn |
+
+These pair up — steel-from-purchased-steel against iron and steel mills,
+automobile against light truck — which is the signature of the **modal** NAPCS →
+BEA rule assigning a whole code to one side of a pair. Splitting those codes
+across their 2012 product codes rather than taking the mode is the next
+refinement, and it is now worth doing because it is the residual rather than a
+rounding error on a much larger one.
+
+⚠️ **Next: the same treatment for annual ASM.** `asm/value2017` carries its own
+suppression and its own aggregate rows, and it has no `'00'` all-industries
+product total to recover against — the recovery here works by subtracting
+published industries from that total. Whether an equivalent control exists in
+ASM is the open question before the annual series can be built.
+
 ### Mining has no annual product survey
 
 Checked rather than assumed:
