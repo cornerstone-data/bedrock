@@ -429,17 +429,37 @@ concentrated in about 50 commodities. That is the target list.
 | `515100` Radio and TV broadcasting | 81 | 0.57 | 46 |
 | `517110` Wired telecommunications | 352 | 0.13 | 45 |
 
-⚠️ **This inverts the earlier read on which primary source matters most.** The
-regime table above shows manufacturing holding 231 of 399 commodity *rows*, which
-made ASM product lines look like the priority gap. By dollars at risk the list is
-overwhelmingly **services** — R&D, advertising, programming, hospitals, data
-processing, education, gambling. Manufacturing rows are numerous but their `q` is
-nearly all diagonal, so a frozen mix costs almost nothing there.
+**By dollars at risk the top of the list is services** — R&D, advertising,
+programming, hospitals, data processing, gambling.
 
-**So the primary-data programme should target `Census_SAS` product lines first,
-not `Census_ASM` product tables.** SAS is already extracted and already read at
-product-line granularity for the transport margins (Table 8), so the machinery
-exists. ASM product lines drop well down the list.
+⚠️ **But "manufacturing is nearly all diagonal" is wrong, and was a bad read of
+the aggregate.** Multi-source production is the *norm* there, not the exception:
+
+| manufacturing | |
+|---|---:|
+| commodities | 231 |
+| `q` | 5.43 tn |
+| at risk | **0.38 tn** (6.9% of mfg `q`, **11.7% of all at-risk dollars**) |
+| **median industries producing each commodity** | **10** (p90 22, max 60) |
+| commodities with secondary share >10% | 49, covering 20.5% of mfg `q` |
+
+Petrochemicals is 37.6% secondary, alumina and primary aluminium 69%,
+semiconductor machinery 42%, bread and bakery 23%; other basic organic chemicals
+draws on **30** producing industries. These are not diagonal commodities.
+
+⚠️ **And feasibility runs the other way from value, which is what makes
+manufacturing worth doing.** Services hold ~88% of the at-risk dollars but have
+almost no *annual* product data — `Census_SAS` Table 8 reaches 12 NAICS and none
+of the priority list — so they are stuck with quinquennial `Census_EC_PxI` and
+interpolation between 2017 and 2022. Manufacturing holds ~12% of the at-risk
+dollars but **has annual product data**: ASM product lines and the M3 shipments
+series. It is the part of the block where the mix can be moved *year by year*
+from reported data rather than interpolated between benchmarks.
+
+**So both tracks are wanted, for different reasons.** Services for the dollars,
+on a five-year benchmark cadence; manufacturing for the annual signal, on the
+~49 multi-source commodities above. `Census_ASM` as extracted is `RCPTOT` only
+(industry receipts, 2018) — the product tables are the gap.
 
 ### Which primary source actually reaches the priority list
 
