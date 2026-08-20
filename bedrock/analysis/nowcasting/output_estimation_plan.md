@@ -844,6 +844,58 @@ here does — the first row returned is `NAICS 31-33` with NAPCS `0000000000`.
 Filter before aggregating; this class of defect has now appeared five times in
 this work.
 
+### Annual ASM: the data is there, the manufacturing concordance is not
+
+Pulled `timeseries/asm/value2017` for 2018-2022.
+
+| | |
+|---|---|
+| available | **2018, 2019, 2020, 2021** (17,269 rows in 2018; ~43,000 after) |
+| **2022** | **absent** — ASM is not conducted in an Economic Census year, so EC 2022 fills exactly that gap |
+| NAPCS codes | 2,791, of which **2,783 shared with `Census_EC_PxI`** |
+| ASM value on shared codes | **100.0%** |
+
+⚠️ **So the concordance transfers directly** — anything built on EC_PxI product
+codes applies to the annual ASM series without a second mapping. That is what
+makes annual manufacturing commodity output reachable.
+
+⚠️ **Aggregates are 90.6% of ASM value** (NAICS shorter than six digits, or the
+all-zero NAPCS code). Filtering is not optional; the detail is 13,372 rows and
+about 4.95tn in 2021.
+
+**But the dominant-industry seed does not work for manufacturing.** Summing
+EC_PxI 2017 manufacturing products by commodity and scoring against published
+`T007`:
+
+| | |
+|---|---:|
+| built | 4.01 tn |
+| published | 5.20 tn |
+| weighted mean abs error | **27.6%** |
+| within ±10% | **77 of 228** |
+
+with pathological cases — `325211` plastics resin at ratio **0.034**, `324121`
+asphalt at 0.030, `336111` automobiles at **2.89**.
+
+**The failure is structural, not a tuning problem.** Route 2's whole premise is
+that a manufactured commodity's output is *independent of who makes it* — the
+manual's "the total for the product no matter where it is made". A rule that
+assigns a product to whichever industry predominantly makes it therefore uses
+exactly the wrong instrument, and it collapses cross-industry production into
+the largest producer. It worked for services because a service is usually
+produced by its own industry; manufacturing is the case it cannot handle.
+
+**What manufacturing needs is a product → commodity map keyed on what the product
+is**, over the 1,968 manufacturing products in EC_PxI 2017 — a larger job than
+services' 202, validated the same way against published 2017 `T007`.
+
+⚠️ `timeseries/asm/product`, the older `PSCODE`/`PRODVAL` product-class series,
+would be a mechanical route because product-class codes are NAICS-based. It
+returns **empty** for every query variant tried, so it is either deprecated or
+needs parameters not documented in its variable list. Worth one more attempt
+before committing to the manual concordance, since it would replace judgement
+with a crosswalk.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
