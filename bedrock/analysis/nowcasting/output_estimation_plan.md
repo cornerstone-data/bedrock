@@ -2058,6 +2058,45 @@ of PPP has no 2017 counterpart to attach to.
 across eight years, so the assignable/circular split above holds throughout.
 
 
+### The product build is not the best estimator — the carried mix is
+
+Scored on **one basis**: 2017 detail manufacturing commodities, both routes
+rebalanced to the same summary controls.
+
+| estimator | error | on |
+|---|---:|---:|
+| **carried 2012 mix × 2017 industry output** | **1.40%** | 5,458bn |
+| `Census_EC_PxI` product build through `napcs_to_bea_2017` | 5.48% | 5,432bn |
+
+⚠️ **The carried mix wins by ~4×, using data five years older than the census
+the product build is reading.** That is the opposite of the assumption this work
+has run on since the manufacturing route was chosen.
+
+Why: the product route pays for a concordance (NAPCS → BEA, ~11% error at
+detail on its own) and for suppression recovery (53% of rows publish as zero),
+and neither cost exists on the mix route. The mix route pays only for drift, and
+drift is small — 0.94% economy-wide over five years.
+
+⚠️ Not a perfectly clean comparison: the mix figure is after redefinitions in
+producer prices, the product figure before redefinitions in basic value. The
+gap is large enough (4×) to survive that, but a like-for-like rerun belongs on
+the before-redefinitions 2012 Make if it ever becomes available.
+
+✅ **What the product data is still for.** It is the only route that carries
+*independent* information. The carried mix cannot, by construction, discover
+that a commodity composition changed for reasons industry output does not
+reveal — it can only rescale what 2017 already said. ASM and EC_PxI can. So
+they belong as a **cross-check and a candidate override on named commodities**,
+not as the primary estimator.
+
+**Consequence for the build order.** The baseline method — carry the 2017 detail
+mix onto published detail industry output, rebalance to published summary `q` —
+is both the more accurate route and the more general one: 402 commodities
+against the ASM build's 236, 2018-2024 against 2018-2021, and no new source at
+all. It should be built first, and `Commodity_output_manufacturing_*` should sit
+on top of it rather than beside it.
+
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
