@@ -135,8 +135,11 @@ def main() -> None:
     parser.add_argument(
         '--min-coverage',
         type=float,
-        default=0.0,
-        help='only report industries the concordance sees at least this much of',
+        default=0.5,
+        help='only report industries the concordance sees at least this much of. '
+        'Below about 0.5 the mix is an artifact of what happens to be mapped '
+        'rather than a measurement: 511110 and 511120 enter at 44%% carrying '
+        'only their advertising lines, so 541800 looks like their main output',
     )
     args = parser.parse_args()
 

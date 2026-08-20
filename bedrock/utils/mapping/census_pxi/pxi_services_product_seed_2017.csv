@@ -5,7 +5,7 @@ Electricity distribution and support services (except marketing and brokering),2
 Temporary staffing services,561300,0.972,,177888000000.0,6,561320:95%; 541511:2%; 561311:2%; 541519:0%; 541512:0%; 561312:0%; 722320:0%; 722410:0%
 Co-employment staffing services,561300,1.0,,176924000000.0,1,561330:100%
 Customization and integration of packaged software,5415,0.494,review-no-dominant,128260000000.0,5,541511:49%; 541512:43%; 511210:5%; 518210:1%; 541519:1%; 541513:0%; 541611:0%; 541612:0%
-Internet advertising,519130,0.951,,107595000000.0,4,519130:95%; 511120:2%; 511110:2%; 515120:0%; 515210:0%; 511140:0%; 515112:0%; 711211:0%
+Internet advertising,541800,0.951,,107595000000.0,4,519130:95%; 511120:2%; 511110:2%; 515120:0%; 515210:0%; 511140:0%; 515112:0%; 711211:0%
 Maintenance and repair services for automobiles and light-duty trucks,811100,0.635,,89619804000.0,12,441110:31%; 811111:27%; 811121:25%; 811191:4%; 811122:3%; 441320:3%; 811113:1%; 811118:1%
 Electricity generation,221100,1.0,,87578463000.0,6,221112:84%; 221115:9%; 221111:4%; 221114:2%; 221116:1%; 221118:0%
 Custom software application design and development services,541511,0.931,,84599289000.0,4,541511:93%; 541512:5%; 541519:1%; 541611:0%; 541513:0%; 423430:0%; 541370:0%; 541613:0%
@@ -15,7 +15,7 @@ Basic and applied research in medical and health sciences,541700,1.0,,4824442100
 Basic and applied research in engineering and technology,541700,0.95,,46943944000.0,4,541715:68%; 541713:27%; 551114:4%; 334511:1%; 541714:0%; 334413:0%; 334418:0%; 541720:0%
 Appropriations from general government revenues and intergovernmental transfers,622000,1.0,nonproduct,45690640000.0,3,622110:86%; 622210:12%; 622310:2%
 Business process management services,541610,0.567,,41765042000.0,5,541611:51%; 518210:37%; 541614:5%; 541512:4%; 541511:2%; 541618:1%; 541513:1%; 541519:0%
-Television air time for advertising,5151,0.493,own-commodity,41275210000.0,3,515120:49%; 515210:45%; 517311:6%; 711320:0%; 711510:0%; 515112:0%; 515111:0%
+Television air time for advertising,541800,0.493,,41275210000.0,3,515120:49%; 515210:45%; 517311:6%; 711320:0%; 711510:0%; 515112:0%; 515111:0%
 IT technical support services,541519,0.303,review-no-dominant,37904354000.0,5,511210:30%; 541519:18%; 541512:18%; 541511:15%; 518210:13%; 541513:4%; 811212:1%; 237310:0%
 Information technology (IT) technical consulting services,541512,0.526,,34597120000.0,5,541512:53%; 541519:16%; 541511:13%; 511210:9%; 541611:4%; 518210:3%; 541513:2%; 541618:1%
 Application service provisioning ,518200,0.95,,32652553000.0,2,518210:95%; 541511:4%; 561599:0%; 561510:0%
@@ -35,7 +35,7 @@ IT infrastructure and network management services,54151A,0.547,,17678691000.0,5,
 "Other health care services, not elsewhere classified ",622000,0.368,nonproduct,13973299000.0,2,622110:36%; 621999:28%; 621420:11%; 621610:9%; 621493:5%; 621498:3%; 623110:3%; 623220:2%
 Water supply and sewage treatment services,221300,1.0,,13243422000.0,3,221310:88%; 221320:11%; 221330:1%
 Data management services,518200,0.739,,12799573000.0,5,518210:74%; 541513:14%; 541511:6%; 541512:5%; 541519:1%
-Radio air time for advertising,515100,0.987,,12772560000.0,2,515112:84%; 515111:15%; 711211:1%; 711310:0%; 711320:0%; 711212:0%; 711219:0%
+Radio air time for advertising,541800,0.987,,12772560000.0,2,515112:84%; 515111:15%; 711211:1%; 711310:0%; 711320:0%; 711212:0%; 711219:0%
 "Other service revenue, not elsewhere classified",622000,0.156,nonproduct,12624226000.0,19,622110:16%; 481111:13%; 423450:5%; 621111:5%; 441110:4%; 541330:3%; 517311:2%; 523110:2%
 Media planning and/or buying services,541800,1.0,,12309105000.0,4,541830:67%; 541810:31%; 541890:1%; 541840:0%
 Permanent (direct employee) placement services,561300,1.0,,11970815000.0,3,561311:65%; 561320:27%; 561312:8%
@@ -79,7 +79,7 @@ Maintenance and repair services for computer hardware and peripheral equipment,8
 Information and document transformation services,518200,0.961,,2793106000.0,1,518210:96%; 541430:3%; 541370:1%; 541340:0%
 Published applications software ,511200,0.975,,2709313000.0,2,511210:97%; 541511:2%; 518210:1%; 541211:0%; 611710:0%
 Table wagering games,721000,0.731,,2569680000.0,1,721120:73%; 713210:23%; 711212:3%; 713950:0%
-"Other services related to advertising, not elsewhere classified",541800,1.0,nonproduct,2370132000.0,5,541890:60%; 541810:18%; 541860:12%; 541820:9%; 541850:1%
+"Other services related to advertising, not elsewhere classified",541800,1.0,,2370132000.0,5,541890:60%; 541810:18%; 541860:12%; 541820:9%; 541850:1%
 Retail sales of automotive parts and supplies,441000,0.82,trade-margin,2363716000.0,8,441310:34%; 441110:29%; 441320:18%; 452311:7%; 454110:6%; 447190:1%; 447110:1%; 811111:1%
 Temporary staffing-to-permanent placement services,561300,1.0,,2358089000.0,3,561320:90%; 561311:10%; 561312:1%
 Other information services,5191A0,0.803,,2318920000.0,4,519190:55%; 519110:25%; 518210:20%; 519120:0%
@@ -103,7 +103,7 @@ Payroll services,541200,0.72,,889485000.0,2,541214:66%; 561110:24%; 541211:3%; 5
 Letter shop services ,541800,1.0,,810364000.0,1,541860:100%
 Amusement park and arcade services,713100,0.783,,806390000.0,4,713110:64%; 713990:14%; 713120:14%; 722513:4%; 713950:1%; 721110:0%; 712130:0%; 512131:0%
 Sales promotion services,541800,1.0,,802258000.0,3,541890:50%; 541810:49%; 541830:0%
-"Direct mail advertising printing (lithographic), including circulars, letters, pamphlets, cards, etc., excluding catalogs",323110,0.846,,759135000.0,1,323111:84%; 541860:15%; 323117:0%; 323120:0%
+"Direct mail advertising printing (lithographic), including circulars, letters, pamphlets, cards, etc., excluding catalogs",541800,0.846,,759135000.0,1,323111:84%; 541860:15%; 323117:0%; 323120:0%
 Retail sales of automobiles and light-duty trucks,441000,0.996,trade-margin,749350000.0,4,441110:89%; 441120:11%; 454110:0%; 811111:0%; 811121:0%; 441310:0%; 441210:0%; 441228:0%
 "Basic and applied research in agricultural, veterinary, and environmental sciences",541700,1.0,,694217000.0,3,541715:89%; 541720:6%; 541714:5%
 Retail sales of soft drinks and nonalcoholic beverages,445000,0.366,trade-margin,685064000.0,5,445110:30%; 452311:23%; 447110:22%; 452319:6%; 445120:5%; 454210:5%; 454390:2%; 446110:2%
@@ -117,7 +117,7 @@ Media relations services,541800,1.0,,575372000.0,2,541820:100%; 541890:0%
 "Maintenance and repair and related services for motor homes, travel trailers, and campers",441000,0.726,,566519000.0,9,441210:73%; 811111:21%; 811121:5%; 811118:1%; 532120:0%; 811192:0%; 811113:0%; 811191:0%
 "Rental and leasing services for motor homes, travel trailers, campers, and utility trailers",532100,0.893,,541204000.0,1,532120:89%; 441210:7%; 532490:2%; 532412:1%; 532310:0%; 532289:0%
 Lobbying services,541800,1.0,,519596000.0,1,541820:100%
-"Advertising printing (screen), including point-of-purchase, counter, window, and floor display materials, posters, inserts, brochures, etc.",323110,0.538,,512791000.0,4,323113:37%; 541890:27%; 323111:17%; 541810:14%; 339950:2%; 541850:2%; 337212:1%; 323120:0%
+"Advertising printing (screen), including point-of-purchase, counter, window, and floor display materials, posters, inserts, brochures, etc.",541800,0.538,,512791000.0,4,323113:37%; 541890:27%; 323111:17%; 541810:14%; 339950:2%; 541850:2%; 337212:1%; 323120:0%
 Retail sales of baked goods,445000,0.63,trade-margin,499346000.0,3,445110:54%; 452311:28%; 445291:5%; 447110:4%; 445120:3%; 447190:1%; 722515:1%; 452319:1%
 Retail sales of alcoholic beverages,445000,0.663,trade-margin,473289000.0,2,445310:40%; 445110:23%; 447110:12%; 454110:8%; 452311:8%; 445120:3%; 446110:2%; 452319:1%
 "Retail sales of candy, prepackaged cookies, and snack foods",452000,0.47,trade-margin,452899000.0,5,452311:40%; 445110:28%; 447110:10%; 452319:6%; 447190:4%; 445120:2%; 454210:2%; 445292:2%
@@ -201,3 +201,14 @@ Medical examinations for employment,561300,1.0,,467000.0,1,561311:100%
 Retail sales of home lawn and garden goods,444000,0.506,trade-margin,221000.0,1,444110:23%; 454110:18%; 444220:13%; 444210:10%; 453998:7%; 452311:7%; 453110:6%; 445110:5%
 Warehousing and storage services,493000,0.805,,181000.0,1,493110:48%; 493190:19%; 493120:11%; 484121:8%; 488510:3%; 484210:3%; 493130:2%; 484110:2%
 "Services of self-service machines, not elsewhere classified",713100,0.984,nonproduct,7000.0,1,713110:98%; 812310:2%; 722511:0%
+"Advertising printing (flexographic), including direct mail, display, magazine and preprinted newspaper inserts, brochures, pamphlets, etc., excluding label and wrapper printing",541800,,,13667000.0,,
+Advertising printing (gravure),541800,,,288097000.0,,
+"Advertising printing (letterpress), including direct mail (excluding catalogs), display advertising materials, newspaper and magazine inserts, brochures, circulars, etc.",541800,,,232703000.0,,
+"Advertising printing, excluding direct mail (lithographic)",541800,,,5999491000.0,,
+Advertising space in printed publications ,541800,,,22328406000.0,,
+"Advertising space in publications on electronic and other media, except online",541800,,,314186000.0,,
+"Graphic design services, except advertising graphic design ",541800,,,6507776000.0,,
+"Magazine and periodical printing (gravure), including magazine and comic supplements for Sunday newspapers (excluding printing of newspaper advertising inserts)",541800,,,318157000.0,,
+"Manufacturing of rubber balloons (including consumer, advertising, meteorological, etc)",541800,,,213801000.0,,
+"Other advertising space, time, and similar services",541800,,,6638290000.0,,
+"Pamphlets, printing only or printing and binding (excluding advertising pamphlets)",541800,,,320286000.0,,

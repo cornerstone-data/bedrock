@@ -681,9 +681,41 @@ one global ratio to every seller, whereas resolving against the seller sends
 full-service restaurants' meals to `722110` and limited-service's to `722211`.
 That is why those two go from 0.451 and 0.538 to 0.007 and 0.014.
 
-**Still failing, and unexplained:** `519130` 0.691 (top commodity `519130` where
-the block says `541800`), `711A00` 0.523, `561900` 0.315. Seven industries remain
-over 0.30 and are the next thing to look at.
+### Second experiment: advertising belongs to `541800`
+
+The seven failures clustered in media, and the published block said why — those
+industries produce large shares of **`541800` advertising** where our build gave
+them zero. `515100` broadcasting's single largest published output *is* `541800`
+at **59.3%**; `515200` carries 35.2% and `5111A0` 21.4%.
+
+The advertising products were scattered across four different treatments:
+"Internet advertising" 112bn → `519130`, "Television air time" 84bn →
+`own-commodity`, "Radio air time" 13bn → `515100`, "Advertising space in printed
+publications" 22bn → unmapped. Routing all 26 advertising products to `541800`
+(and adding the 11 that were unmapped, 43bn):
+
+| industry | before | after |
+|---|---:|---:|
+| `519130` internet publishing | 0.691 | **0.234** |
+| `515100` broadcasting | 0.623 | **0.310** |
+| `515200` cable | 0.797 | **0.445** |
+| `5111A0` directory publishers | 0.901 | **0.687** |
+| `541800` advertising *(receiving)* | — | **0.015** |
+
+⚠️ **Coverage below about 0.5 makes the mix an artifact, not a measurement.**
+The remap appeared to *worsen* the headline because it gave `511110` newspapers
+and `511120` periodicals enough coverage to enter the run — at 44%, carrying
+only their advertising lines, so `541800` looks like their main output. That is
+the threshold's fault, not the mapping's. Scored on industries we actually see:
+
+| min coverage | industries | median L1 | under 0.05 | over 0.30 |
+|---|---:|---:|---:|---:|
+| 0.5 | 33 | **0.066** | 15 | **4** |
+| 0.6 | 31 | 0.066 | 14 | 4 |
+| 0.7 | 24 | 0.089 | 10 | 2 |
+
+The default is now 0.5. **Median L1 0.066 with four industries over 0.30**,
+against 0.285 and eighteen before `own-commodity` existed.
 
 ⚠️ **My earlier ten-industry read was unrepresentative and too favourable.** The
 priority list is drawn from industries with distinctive products, which is
