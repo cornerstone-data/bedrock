@@ -573,6 +573,42 @@ many-to-one structure of the crosswalk. The scatter above is therefore an upper
 bound on the real disagreement; redo it with proper aggregation before treating
 any individual industry's ratio as evidence.
 
+### Do service industries produce trade output? — checked in the published block
+
+Before deciding how to treat the retail and wholesale product lines that appear
+inside service industries, the first-principles question is whether the published
+**before-redefinitions** Supply table shows those industries producing trade
+commodities at all. If it does, the margin is part of their industry output until
+redefinition moves it, and cannot simply be excluded.
+
+**It does.** 49 of 93 service-sector industries carry non-zero output of a trade
+commodity in the 2017 detail block. But the amounts are small:
+
+| industry | output bn | trade bn | trade share |
+|---|---:|---:|---:|
+| `811100` Automotive repair | 131.4 | 1.59 | **1.21%** |
+| `532100` Automotive equipment rental | 64.1 | 0.45 | 0.70% |
+| `221100` Electric power | 365.8 | 2.24 | 0.61% |
+| `518200` Data processing | 175.2 | 0.51 | 0.29% |
+| `622000` Hospitals | 843.9 | 1.36 | 0.16% |
+| `541700` R&D, `541800` advertising, `713200`, `561300` | — | 0.00 | 0.00% |
+| **all service-sector industries** | **16.17 tn** | **0.022 tn** | **0.136%** |
+
+⚠️ **So it is real but negligible, and the two sources agree.** PxI's trade
+product lines are 0.4% of PxI value for these industries; the Supply block shows
+0.136% of output. Those are consistent once the valuation difference is applied —
+PxI reports trade **sales** while the Supply block reports trade **margin**, and a
+typical margin rate on 0.4% of sales lands squarely on 0.14% of output.
+
+**That corroborates the `trade-margin` flag rather than an exclusion.** These
+lines map to a real thing the Supply table also records; they simply need a
+margin rate applied before they can be compared with commodity output. Keeping
+them flagged is right, and the stakes are bounded at a few tenths of a percent.
+
+It also confirms the before-redefinitions choice is doing visible work: after
+redefinition these cells would have been moved out to the trade industries, and
+the question could not have been asked of the table at all.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
