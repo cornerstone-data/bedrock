@@ -1425,6 +1425,11 @@ benchmark noted earlier.
 
 ### The remaining sectors, triaged before building — and two of them are skips
 
+⚠️ **Superseded by the correction that follows this section.** The `q/x` metric
+used here is observed in the published summary Supply table, so it does not
+decide whether a source is needed. The structural findings below (diagonality,
+who produces what) stand; every recommendation drawn from them does not.
+
 Manufacturing is done; the queue was mining, agriculture, construction,
 government and utilities. Rather than build each in turn, all five were measured
 first against the only two questions that decide whether a source is needed:
@@ -1564,6 +1569,104 @@ piece of work rather than two.
   Finances reports utility revenue by function, which is the natural
   decomposition of `S00203`. **Not yet extracted here** — there is no government
   finance source in `extract/`, so this is a new FBA.
+
+
+### ⚠️ Correction: the triage above measured the wrong quantity
+
+The `q/x` triage was asked to decide which sectors need a data source. It cannot,
+because **`q` at summary level is published**. Phase 1 is 2018-2024 and its gate
+is "all source data already published"; 2025 is excluded from Phase 1 precisely
+*because* it has no summary SUT. So for every Phase 1 year, BEA's summary Supply
+table supplies `q` per summary group, and the user's own framing — "rebalancing
+the detailed to the observed summary total" — makes that an observed control.
+
+**A moving `q/x` is therefore not a problem to be sourced. It is data we are
+handed.** `213`'s 0.226 swing, called "the largest mover in the economy" above,
+is published in the annual summary Supply table for every year. Nothing needs to
+estimate it.
+
+What Step 4a actually owes is the **within-summary-group split of `q` across its
+detail children**, and nothing else. That reframes every question:
+
+- **21 summary groups have exactly one detail child**, carrying **6,676bn** of
+  `q` at *zero* residual. `211` crude oil and gas, `GSLE` state/local
+  enterprises, `GFGD` federal defense and `GFGN` federal nondefense are all in
+  this set — their `q` is published, full stop.
+- The second input is also published: **BEA's detail gross-output workbook
+  `UGO305-A`** gives `x` per detail industry for every year, independently of
+  the summary SUT, so using it is not circular.
+
+#### The right screen: leverage x drift
+
+Two things must both be true before an external mix source can earn anything:
+
+`leverage`
+    how far the group's **commodity** composition sits from its **industry**
+    composition — the L1 gap between detail `x` shares and detail `q` shares in
+    2017. Zero means industry output already answers the question and no mix
+    data will ever be needed.
+`drift`
+    how far the child `x` shares move across 2017-2024, the proxy for how much
+    the composition travels.
+
+`exposure = q x leverage x drift`. The queued sectors:
+
+| group | children | `q` bn | leverage | drift | **exposure** |
+|---|---:|---:|---:|---:|---:|
+| `22` utilities | 3 | 587 | 0.105 | 0.040 | **2.43bn** |
+| `23` construction | 12 | 1,668 | 0.015 | 0.064 | **1.57bn** |
+| `GSLG` state/local general | 3 | 1,737 | 0.098 | 0.007 | **1.27bn** |
+| `111CA` farms | 10 | 401 | 0.020 | 0.066 | **0.53bn** |
+| `212` minerals | 5 | 82 | 0.043 | 0.076 | **0.27bn** |
+| `213` mining support | 2 | 118 | 0.011 | 0.081 | **0.11bn** |
+| `113FF` forestry, fishing | 3 | 60 | 0.020 | 0.050 | **0.06bn** |
+| `211`, `GSLE`, `GFGD`, `GFGN` | 1 each | 1,290 | — | — | **0** |
+
+**Every sector in the queue is a skip.** All five together are about 4.7bn of
+exposure — less than a quarter of the single largest item in the economy.
+
+Economy-wide, total exposure is **91.2bn against 33,758bn of `q`, or 0.27%**, and
+it concentrates where it always did:
+
+| group | `q` bn | leverage | drift | exposure |
+|---|---:|---:|---:|---:|
+| `5412OP` legal, accounting, other professional | 1,974 | 0.236 | 0.045 | **21.0bn** |
+| `532RL` rental and leasing | 425 | 0.117 | 0.130 | 6.4bn |
+| `5415` computer systems design | 525 | 0.200 | 0.060 | 6.3bn |
+| `81` other services | 830 | 0.102 | 0.059 | 5.0bn |
+| `513` publishing, broadcasting | 705 | 0.109 | 0.063 | 4.8bn |
+| `42` wholesale trade | 1,820 | 0.052 | 0.048 | 4.5bn |
+
+#### What this does and does not overturn
+
+✅ The original priority list was **right about the shape** — services carry the
+mix work, `5412OP` above all — and the manufacturing build was worth doing
+because it is the one regime with genuinely annual product data.
+
+⚠️ It was **wrong about magnitude by roughly an order of magnitude**, because it
+scored "secondary share x commodity size" without crediting the summary control.
+`541700` R&D was listed at 366bn "at risk"; its whole summary group's exposure is
+21bn.
+
+⚠️ **Both mining recommendations in this document are void** — the original
+"USGS Mineral Yearbook quantities and EIA", and the triage's correction of it to
+`213` support activities. Mining's total exposure is 0.38bn. No mining source is
+needed for Step 4a.
+
+⚠️ **The government-enterprise and utilities recommendation is also void as
+stated.** `S00203` is alone in `GSLE`, so its `q` is published and needs nothing;
+`S00101`/`S00202` sit inside `GFE`, exposure 0.14bn. Utilities retains 2.43bn
+because `221300` water really is produced by government rather than by a water
+utility industry — that structure is real, it is just worth 2.4bn rather than
+being a headline. **Neither `EIA_ElectricPowerAnnual` nor a new Census government
+finance extract is justified by Step 4a.** They may be justified elsewhere.
+
+⚠️ **Caveats on the screen itself.** `leverage` is in-sample on 2017, the only
+year with a published detail block, so it measures the structural commodity/
+industry gap rather than a held-out error. `drift` is industry-share movement
+standing in for commodity-mix movement. `leverage x drift` is an order-of-
+magnitude screen, not an error bound — which is enough when the readings are
+0.1bn against 21bn, and would not be if they were close.
 
 
 ### Rebalancing
