@@ -2203,6 +2203,19 @@ None of them is domestic output. They have no place in this block in any year,
 they need no source, and the earlier reading — that they were zero in 2017 and
 so had "no mix to attribute with" — mistook a definitional zero for a data gap.
 
+✅ **`S00900` needs no source either, for a different reason: its `q` is
+published.** Because `S00300` is definitionally zero, the `Other` summary group
+is effectively single-child, so the published summary Supply table *is*
+`S00900`'s commodity output. The built block reproduces it to the dollar in every
+year — 3,978m in 2018, 4,222m in 2021, 6,187m in 2024, difference 0.0 throughout.
+It is one of the 21 observed-`q` groups.
+
+⚠️ The one assumption left is on the **industry** side: `S00600` is the sole
+producer in the 2017 benchmark and the carried mix keeps it so. For a
+rest-of-the-world adjustment attached to federal nondefense general government
+that is structural rather than a drifting share, but it is an assumption and a
+published source would only matter if it were doubted — not for the level.
+
 #### The coverage adjustment is close to uniform, which is what makes the signal usable
 
 `EC_PxI` ÷ published, over the 231 manufacturing commodities carrying PxI value:
