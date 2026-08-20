@@ -1755,10 +1755,123 @@ out-of-sample measurement of exactly this error, over a five-year horizon that
 matches the nowcast's. It needs the 2012→2017 code concordance
 (`Sector_Crosswalk_BEA_2012_Detail.csv` exists) and nothing else.
 
+✅ **It has now been run** - see "The held-out test, run" below. Result: 0.94%.
+The claims below held, and the ranking did not.
+
 **That test should settle the priority list before any more sources are
 scoped.** Until it runs, the defensible claims are: mining, agriculture,
 forestry and construction rank last under every metric tried, and `5412OP` ranks
 first under every metric tried.
+
+
+### The held-out test, run — carrying a stale mix costs 0.94%
+
+Every ranking above was a proxy scored in-sample on 2017. This is the
+measurement: the **2012** benchmark Make table's commodity mix carried onto
+**2017** published industry output, scored against the **2017** benchmark. The
+horizon matches — Step 4a carries 2017 forward to 2018-2024, and 2012→2017 is
+the same kind of five-year extrapolation.
+
+Run with `uv run python -m bedrock.analysis.nowcasting.mix_holdout_test`.
+
+| | L1 error | of `q` |
+|---|---:|---:|
+| **C: 2012 mix × 2017 industry output**, summary control applied | **325.3bn** | **0.94%** |
+| A: industry output alone, same control | 1,152.7bn | 3.35% |
+| C, no summary control | 348.0bn | 1.01% |
+| A, no summary control | 1,331.5bn | 3.86% |
+
+✅ **Two findings at once.** The mix does real work — 3.35% → 0.94%, a 3.6×
+improvement over allocating group totals by industry output. And the residual
+after five years of staleness is **under 1%**, which is the honest figure for
+what Step 4a carries into 2024.
+
+⚠️ The summary control is worth only 0.07pp here (1.01% → 0.94%). It pins group
+totals, and group totals were mostly right already; what it cannot fix is the
+split *inside* a group, which is where nearly all the error lives.
+
+#### Where the error actually is — and it is not where the proxies said
+
+| group | `q` bn | **stale-mix err** | no-mix err |
+|---|---:|---:|---:|
+| `521CI` banking, credit | 980 | **39.5** | 28.4 |
+| `5415` computer systems design | 529 | **35.9** | 64.0 |
+| `514` data processing, information | 316 | **30.3** | 75.1 |
+| `561` administrative services | 900 | **29.1** | 43.6 |
+| `325` chemicals | 742 | 16.9 | 15.7 |
+| `513` publishing, broadcasting | 733 | 16.1 | 79.5 |
+| `511` | 310 | 15.5 | 18.4 |
+| `5412OP` legal, accounting, other professional | 1,981 | **13.0** | 244.1 |
+| `GSLG` state/local general government | 1,737 | 9.8 | 186.9 |
+
+⚠️ **`5412OP` ranked first under all three proxies and is eighth here, at 0.65%
+of its own `q`.** Its no-mix error is 244bn, so the mix does enormous work — but
+the *2012* mix still predicts 2017 well. **The proxies were measuring leverage
+and calling it error.** High leverage means the mix matters; it says nothing
+about whether the mix *moves*, and only the second one costs anything. The true
+leaders — `521CI`, `5415`, `514`, `561` — appeared nowhere in any earlier
+ranking.
+
+#### Nine groups where a stale mix is worse than no mix at all
+
+| group | stale-mix err | no-mix err |
+|---|---:|---:|
+| `521CI` | 39.5 | **28.4** |
+| `325` | 16.9 | **15.7** |
+| `333` | 9.50 | **9.41** |
+| `487OS` | 8.2 | **4.2** |
+| `322` | 4.5 | **1.9** |
+| `23` construction | 1.99 | **0.00** |
+| `512`, `337`, `4A0` | — | smaller |
+
+✅ **`23` construction is the clean case and confirms the structural finding
+independently**: its no-mix error is *exactly zero*, because the construction
+sub-block is 100% diagonal, so industry output **is** commodity output. Carrying
+a 2012 mix forward there does not help — it actively injects 1.99bn of error.
+For these nine groups the rule is "use industry output, do not carry a mix".
+
+#### The queued sectors, measured
+
+| group | `q` bn | stale-mix err | of group |
+|---|---:|---:|---:|
+| `GSLG` | 1,737 | 9.80 | 0.6% |
+| `22` utilities | 617 | 5.46 | 0.9% |
+| `23` construction | 1,670 | 1.99 | 0.1% |
+| `212` minerals | 84 | 0.84 | 1.0% |
+| `111CA` farms | 391 | 0.51 | 0.1% |
+| `113FF` | 60 | 0.32 | 0.5% |
+| **`213` mining support** | 118 | **0.0046** | **0.004%** |
+
+**`213` lands at $4.6m on a $118bn group.** The skip conclusion holds, now on a
+measurement rather than a proxy. Mining, agriculture, forestry and construction
+are confirmed skips; utilities and `GSLG` are sub-1% and rank tenth and
+eleventh.
+
+#### What the test cannot see
+
+⚠️ **After redefinitions, producer prices.** BEA moved the 2012 benchmark off
+static download into an interactive application, so the only 2012 detail Make
+available is the redefined one in `CEDA6IO.xlsx`, paired with the 2017 redefined
+table to keep both sides in one space. Economy-wide, redefinitions cut the
+off-diagonal share from **9.54% to 5.53%**, 1.73×.
+
+✅ That bias is far smaller than it looks *for this test*, because what is scored
+is the within-group split and cross-group secondary production is absorbed by
+the summary control either way. Within-group off-diagonal barely moves — the
+largest gap is `5415` at 0.053, then `213` at 0.023, and most groups sit at
+0.000.
+
+⚠️ **`213` is the one queued sector the test cannot speak to on its own terms**:
+its interesting secondary production, oil and gas extraction doing its own
+drilling, is exactly what redefinitions reassign, so it reads 96% diagonal here
+against 80% before redefinitions. The conclusion survives for a reason the test
+*can* support — that production is **cross-group** (`211` into `213`), so
+published summary `q(213)` absorbs it and only the two-way split remains.
+
+⚠️ Other limits: the span is five years against Step 4a's seven to 2024, so this
+understates the far end; 398 of 402 commodities are covered (99.85% of `q`); and
+2012→2017 is a single draw, not a distribution — one benchmark pair cannot say
+how much of the 0.94% is period-specific.
 
 
 ### Rebalancing
