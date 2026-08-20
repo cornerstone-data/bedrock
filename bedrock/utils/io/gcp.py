@@ -256,10 +256,52 @@ def __drive_client() -> googleapiclient.discovery.Resource:
     return googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
 
 
+# The Sheets/Drive REST stack fails intermittently in CI: HTTP 503 "The service
+# is currently unavailable" and socket read timeouts (surfaced through httplib2
+# as TimeoutError / ssl.SSLError). googleapiclient only retries when a call
+# passes ``num_retries``, and never for socket timeouts, so retry at the call
+# site instead.
+_RETRYABLE_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+_RETRY_ATTEMPTS = 4
+
+
+def _is_retryable_google_api_error(exc: BaseException) -> bool:
+    """True for transport-level flakes that a fresh request may survive."""
+    if isinstance(exc, HttpError):
+        return exc.status_code in _RETRYABLE_HTTP_STATUS
+    return isinstance(exc, (TimeoutError, ssl.SSLError, ConnectionError))
+
+
+def _reset_api_clients(retry_state: tenacity.RetryCallState) -> None:
+    """Log the retry and drop cached clients so the next attempt reconnects."""
+    logger.warning(
+        "%s failed with %r; retry %d/%d",
+        getattr(retry_state.fn, "__name__", "google api call"),
+        retry_state.outcome.exception() if retry_state.outcome else None,
+        retry_state.attempt_number,
+        _RETRY_ATTEMPTS,
+    )
+    __sheets_client.cache_clear()
+    __drive_client.cache_clear()
+
+
+# Only for idempotent calls: a timeout can hide a request that actually landed,
+# so ``create_spreadsheet_in_folder`` stays unretried (a retry there would
+# create duplicate spreadsheets).
+_retry_google_api = tenacity.retry(
+    stop=tenacity.stop_after_attempt(_RETRY_ATTEMPTS),
+    wait=tenacity.wait_exponential_jitter(initial=2, max=30),
+    retry=tenacity.retry_if_exception(_is_retryable_google_api_error),
+    before_sleep=_reset_api_clients,
+    reraise=True,
+)
+
+
 DRIVE_MIME_SPREADSHEET = 'application/vnd.google-apps.spreadsheet'
 DRIVE_MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 
+@_retry_google_api
 def list_drive_folder(
     folder_id: str,
     *,
@@ -345,6 +387,7 @@ def create_spreadsheet_in_folder(title: str, folder_id: str) -> str:
     return ta.cast(str, file['id'])
 
 
+@_retry_google_api
 def list_sheet_tabs(sheet_id: str) -> list[str]:
     """Return the ordered list of tab (worksheet) titles in a Google Sheet."""
     client = __sheets_client()
@@ -356,12 +399,15 @@ def list_sheet_tabs(sheet_id: str) -> list[str]:
     return [s["properties"]["title"] for s in meta.get("sheets", [])]
 
 
+@_retry_google_api
 def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:
     """
     Read a Google Sheets tab into a DataFrame.
 
     The first row is used as column headers. All cells come back as strings —
     callers that need numeric types should coerce column-wise.
+
+    Transient Sheets failures (5xx, rate limits, socket timeouts) are retried.
 
     Args:
         sheet_id: The Google Sheets document ID
@@ -383,6 +429,7 @@ def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:
     return pd.DataFrame(normalized, columns=header)
 
 
+@_retry_google_api
 def update_sheet_tab(
     sheet_id: str,
     tab: str,
@@ -410,12 +457,10 @@ def update_sheet_tab(
         values = clean_values
 
     try:
-        sheet_metadata = client.spreadsheets().get(spreadsheetId=sheet_id).execute()
-        sheet_exists = any(
-            sheet["properties"]["title"] == tab
-            for sheet in sheet_metadata.get("sheets", [])
-        )
-    except HttpError:
+        sheet_exists = tab in list_sheet_tabs(sheet_id)
+    except HttpError as err:
+        if _is_retryable_google_api_error(err):
+            raise  # let the decorator retry rather than re-adding the tab
         sheet_exists = False
 
     # If the sheet doesn't exist, create it
@@ -438,6 +483,7 @@ def update_sheet_tab(
     ).execute()
 
 
+@_retry_google_api
 def delete_default_sheet1(sheet_id: str) -> None:
     """Delete the default ``Sheet1`` tab if other tabs exist.
 
