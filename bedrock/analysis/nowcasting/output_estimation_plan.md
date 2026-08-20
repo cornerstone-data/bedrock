@@ -959,6 +959,56 @@ descriptions** — roughly a sixth of value at a defensible threshold, a third i
 0.2 is accepted with review — but the majority still needs judgement. The trade
 concordance is not the shortcut.
 
+### The NAICS index file as a term pool — tested, and it makes accuracy worse
+
+The [2022 NAICS Index File](https://www.census.gov/naics/2022NAICS/2022_NAICS_Index_File.xlsx)
+carries **20,398 index items** mapping specific product and activity terms to
+6-digit NAICS, 10,164 of them in manufacturing across 346 industries — a far
+richer vocabulary than the 231 BEA commodity names. Composed with NAICS→BEA it
+is an obvious candidate for seeding the manufacturing concordance.
+
+**On coverage it is roughly 3x better than BEA commodity names alone:**
+
+| threshold | BEA names only | + NAICS index |
+|---|---:|---:|
+| Jaccard ≥ 0.5 | 7.5% | **20.5%** |
+| ≥ 0.4 | 11.7% | 31.1% |
+| ≥ 0.3 | 16.1% | 47.1% |
+| ≥ 0.2 | 34.9% | **75.6%** |
+
+⚠️ **But coverage is not accuracy, and on accuracy it is worse.** Scored the
+same way as everything else — commodity output summed from products against
+published 2017 `T007` — with the dominant-industry rule as the fallback so
+coverage is 100% either way:
+
+| seeding | wtd abs err | within ±25% |
+|---|---:|---:|
+| **dominant-industry only** | **28.2%** | **131 of 227** |
+| hybrid, index ≥ 0.5 | 29.2% | 123 |
+| hybrid, index ≥ 0.4 | 30.6% | 119 |
+| hybrid, index ≥ 0.3 | 34.2% | 109 |
+| hybrid, index ≥ 0.2 | 41.0% | 73 |
+
+**The degradation is monotonic in how much the index is trusted.** Even at the
+strictest threshold it loses to the simple rule. Token overlap against 10,164
+index items reliably finds a lexically similar item, and lexical similarity is
+not conceptual identity — whereas the dominant-industry rule, structurally wrong
+as it is for manufacturing, at least reads actual production data.
+
+⚠️ **Measuring the index seed alone would have flattered it.** On its own it
+scored 50.2% error at ≥0.2, against the baseline's 28.2% — but that comparison is
+confounded, because unmatched products are dropped and the level falls short
+(2.98tn against 4.91tn published). The fallback is what makes the comparison
+fair, and it is what reverses the apparent direction of the earlier coverage
+result.
+
+**Conclusion: lexical matching is not the route for manufacturing.** Three
+vocabularies have now been tried — trade good names (2.2% of value), BEA
+commodity descriptions (16.1%), and the full NAICS index (75.6% coverage but
+worse accuracy) — and none improves on a rule that is itself only 28.2% accurate.
+The manufacturing concordance needs either real judgement over the 1,796
+products or a signal other than description text.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
