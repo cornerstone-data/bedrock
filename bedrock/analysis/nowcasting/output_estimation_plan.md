@@ -766,6 +766,47 @@ override silently did not fire, and the only symptom was an unchanged score.
 Remaining: `511120` periodicals 0.416 (51.6% coverage — near the floor where the
 mix is an artifact), `541512` 0.370, `221300` water and sewage 0.322.
 
+### What the mix test does and does not establish
+
+⚠️ **The concordance was tuned against the answer.** Advertising to `541800`,
+the cable override and the `own-commodity` threshold were all chosen by
+inspecting where the published mix disagreed, then scored against that same
+published mix. The headline 0.064 is therefore partly fitted, and quoting it as
+an unbiased accuracy would be wrong.
+
+Splitting the 35 industries by whether they were inspected while choosing rules:
+
+| | n | median L1 | under 0.05 | over 0.30 |
+|---|---:|---:|---:|---:|
+| tuned on | 15 | 0.056 | 7 | 1 |
+| **held out — never inspected** | 20 | **0.150** | **9** | 2 |
+| all | 35 | 0.064 | 16 | 3 |
+
+**The held-out median is 2.7x the tuned median.** That is real overfitting and
+0.150 is the honest number.
+
+**What is nonetheless established:** nine of twenty never-inspected industries
+land under 0.05 — `621600` 0.003, `623A00` 0.007, `811100` 0.011, `811300`
+0.014, `532100` 0.017, `524113` 0.017, `561300` 0.022, `541700` 0.032, `221100`
+0.040. That cannot be an artifact of tuning, and it is far better than anything
+a frozen or mechanical mapping produced. **`Census_EC_PxI` can reproduce the
+published supply mix for services**, which is the necessary condition for using
+it to move the mix.
+
+**What is not established.** That PxI *is* BEA's source, rather than a series
+consistent with it; the levels still diverge (median ratio 0.853) and the
+adjustment ladder that would reconcile them is unverified. Coverage is partial —
+industries below 50% are excluded outright, and manufacturing, trade and
+agriculture are untested. And the concordance is demonstrably incomplete on
+industries nobody has looked at yet.
+
+**The honest work queue is the held-out failures**, not the tuned ones:
+`541512` 0.370, `221300` 0.322, `721000` 0.294, `339950` 0.285, `713100` 0.276.
+Each is a place the concordance has a gap that inspection would likely close —
+but every one closed that way moves it from held-out to tuned, so the unbiased
+estimate has to be re-established on a fresh holdout rather than recomputed on
+the same set.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
