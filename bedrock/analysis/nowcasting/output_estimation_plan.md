@@ -1157,6 +1157,65 @@ product total to recover against — the recovery here works by subtracting
 published industries from that total. Whether an equivalent control exists in
 ASM is the open question before the annual series can be built.
 
+### The split, tested — marginal, and it exposed the real gap
+
+Splitting each NAPCS code's value across every BEA commodity its 2012 product
+codes imply, weighted by how many map to each, instead of taking the mode:
+
+| rule | level | wtd abs err | ±25% | ±10% |
+|---|---:|---:|---:|---:|
+| modal | 0.954 | 14.1% | 165 | 134 |
+| **split by 2012-code count** | 0.939 | **13.8%** | 169 | 136 |
+
+**Marginal, and for a structural reason: only 2.1% of NAPCS codes are
+multi-target** — 79 map to two BEA commodities, 2 to three, and 3,694 to exactly
+one. There is almost nothing for a split to act on.
+
+⚠️ **My "modal rule picking one side of a pair" diagnosis was wrong.**
+`336111` automobile, `316000` leather and `331520` nonferrous foundries have
+**zero** multi-target codes, so no split could have moved them.
+
+**What is actually wrong: 34 manufacturing commodities have no built value at
+all — 0.654tn, 12.0% of manufacturing `q`** — and 33 of them are never the
+target of any NAPCS code. `331110` iron and steel mills gets **0.0** while its
+pair `331200` gets **4.70x**; `325110` petrochemical 63.4bn, `336390` other motor
+vehicle parts 61.2bn, `312200` tobacco 47.8bn and `336310` gasoline engines
+38.2bn are all unbuilt.
+
+**Two causes, and the larger one is ours:**
+
+1. ⚠️ **Our NAICS 2012 → BEA crosswalk is incomplete.** Of 473 distinct
+   manufacturing NAICS 2012 codes appearing in the Census concordance, **172 are
+   absent from the `NAICS_2012_Code` column** of
+   `NAICS_to_BEA_Crosswalk_2017.csv` — `311222`, `311223`, `311311`, `311312`,
+   `311320`, `311330`, `311711`, `311712` and so on. Their product value cannot
+   reach a BEA commodity at all. Only 200 distinct BEA commodities are reachable
+   through the crosswalk as it stands. **This is the next thing to fix, and it is
+   our data rather than Census's.**
+2. Some commodities genuinely have no 2012 product codes in the Census
+   concordance — `331110` and `336390` return zero rows. Those need a different
+   source rather than a crosswalk repair.
+
+### Motor vehicles need `U70205`, not the product data
+
+`336111` automobile is built at 94.6bn against 32.8bn published while `336112`
+light truck is 202.1bn against 215.4bn. The cause is visible in the codes: the
+three NAPCS codes reaching `336111` are *"Manufacturing of complete passenger
+vehicles"*, which **does not distinguish a car from an SUV or pickup**. No
+concordance refinement can split what the source does not separate.
+
+✅ **BEA publishes the split annually, and it is already extracted.**
+`U70205` — Table 7.2.5U Motor Vehicle Output — is in `BEA_NIPA.yaml` today:
+`A953RC` motor vehicle output 567.6bn, `A716RC` **truck output 466.8bn**,
+`A133RC` **auto output 100.8bn**, plus `B148RC` domestic output of new autos
+88.6bn. Autos are **17.8%** of motor vehicle output in 2017, which is why
+assigning "complete passenger vehicles" to `336111` overstates it nearly
+threefold.
+
+That is also what BEA's own Table C1 says it uses for this industry — Wards
+Intelligence unit production and J.D. Power average net cost — so an external
+split here is the documented method, not a workaround.
+
 ### Mining has no annual product survey
 
 Checked rather than assumed:
