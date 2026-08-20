@@ -1,0 +1,203 @@
+Description,bea_2017_commodity,dominance,flag,value,n_naics,naics
+"Patient care, related to ICD-10 major category, based on primary diagnosis",622000,0.58,,929417113000.0,3,"622110,622210,622310"
+"Meals, snacks, other food items, and nonalcoholic beverages, prepared and served or dispensed, for immediate consumption",722211,0.411,review-no-dominant,533185943000.0,9,"622110,622210,622310,713210"
+Electricity distribution and support services (except marketing and brokering),221100,1.0,,278857843000.0,3,"221112,221121,221122"
+Temporary staffing services,561300,0.972,,177887923000.0,6,"541511,541512,541519,561311"
+Co-employment staffing services,561300,1.0,,176923620000.0,1,561330
+Customization and integration of packaged software,541511,0.494,review-no-dominant,128259975000.0,5,"518210,541511,541512,541513"
+Internet advertising,519130,0.951,,107595276000.0,4,"515111,515112,515120,519130"
+Maintenance and repair services for automobiles and light-duty trucks,811100,0.635,,89619804000.0,12,"532111,532112,532120,811111"
+Electricity generation,221100,1.0,,87578463000.0,6,"221111,221112,221114,221115"
+Custom software application design and development services,541511,0.931,,84599289000.0,4,"541511,541512,541513,541519"
+Computer systems design services,541512,0.936,,56143810000.0,4,"518210,541511,541512,541513"
+"Alcoholic beverages, prepared and served or dispensed for immediate consumption",722110,0.573,,52494438000.0,6,"713210,713290,722511,722513"
+Basic and applied research in medical and health sciences,541700,1.0,,48244421000.0,4,"541713,541714,541715,541720"
+Basic and applied research in engineering and technology,541700,0.95,,46943944000.0,4,"541713,541714,541715,541720"
+Appropriations from general government revenues and intergovernmental transfers,622000,1.0,nonproduct,45690640000.0,3,"622110,622210,622310"
+Business process management services,541610,0.567,,41765042000.0,5,"518210,541511,541512,541513"
+Television air time for advertising,515100,0.493,review-no-dominant,41275210000.0,3,"515111,515112,515120"
+IT technical support services,511200,0.303,review-no-dominant,37904354000.0,5,"518210,541511,541512,541513"
+Information technology (IT) technical consulting services,541512,0.526,,34597120000.0,5,"518210,541511,541512,541513"
+Application service provisioning ,518200,0.95,,32652553000.0,2,"518210,541511"
+"All other products and services, not elsewhere classified",5241XX,0.166,nonproduct,31151657000.0,34,"221112,221320,515111,515120"
+Web site hosting services,518200,0.931,,29488145000.0,5,"518210,541511,541512,541513"
+Multiple advertising services,541800,0.959,,28929525000.0,3,"541810,541830,541890"
+Rental of automobiles and light-duty trucks,532100,0.983,,28414818000.0,6,"532111,532112,532120,811111"
+"Basic and applied research in natural and exact sciences, including biological sciences",541700,1.0,,25629152000.0,4,"541713,541714,541715,541720"
+Electricity (power) marketing and brokering,221100,0.948,,24263487000.0,1,221122
+Electricity transmission services,221100,1.0,,19376797000.0,2,"221121,221122"
+"Rental and leasing of heavy trucks, truck trailers and buses",532100,0.984,,18515484000.0,4,"532111,532112,532120,811111"
+Gambling machine products,721000,0.612,,18311475000.0,3,"713210,713290,722511"
+All other nonoperating or tax-exempt revenue,622000,0.484,nonproduct,17924736000.0,7,"519120,541713,541715,622110"
+Computer systems design and development services,541512,0.902,,17920035000.0,4,"541511,541512,541513,541519"
+IT infrastructure and network management services,54151A,0.547,,17678691000.0,5,"518210,541511,541512,541513"
+"Video and audio programming package, on-demand, and streaming distribution services",517110,0.816,,14801305000.0,3,"515120,518210,519130"
+"Other health care services, not elsewhere classified ",622000,0.368,nonproduct,13973299000.0,2,"622110,622310"
+Water supply and sewage treatment services,221300,1.0,,13243422000.0,3,"221310,221320,221330"
+Data management services,518200,0.739,,12799573000.0,5,"518210,541511,541512,541513"
+Radio air time for advertising,515100,0.987,,12772560000.0,2,"515111,515112"
+"Other service revenue, not elsewhere classified",622000,0.156,nonproduct,12624226000.0,19,"221310,221330,541511,541512"
+Media planning and/or buying services,541800,1.0,,12309105000.0,4,"541810,541830,541840,541890"
+Permanent (direct employee) placement services,561300,1.0,,11970815000.0,3,"561311,561312,561320"
+"Advertising creative services, including advertising graphic design services",541800,0.955,,11928381000.0,3,"541810,541830,541890"
+Maintenance and repair services for heavy trucks and buses,811100,0.788,,11515908000.0,9,"532120,811111,811112,811113"
+Web site design and development services,541511,0.798,,11224625000.0,4,"518210,541511,541512,541513"
+Full public relations services,541800,0.74,,10868182000.0,2,"541810,541820"
+"Government contributions, gifts, and grants",624100,0.249,nonproduct,10749085000.0,8,"519120,541713,541714,541715"
+Automobile and light-duty truck leasing services,522A00,0.5,,10355105000.0,3,"532111,532112,532120"
+Acute long-term care services,622000,1.0,,9959975000.0,3,"622110,622210,622310"
+Data storage services,518200,0.848,,9332445000.0,3,"518210,541511,541513"
+Published system software ,511200,0.924,,9198579000.0,2,"518210,541512"
+Databases and other collections of information,519130,0.934,,9170544000.0,1,519130
+"Private contributions, gifts, and grants",813A00,0.595,nonproduct,8735467000.0,8,"519120,541713,541714,541715"
+Washing and cleaning services for automobiles and light-duty trucks,811100,0.9,,8462565000.0,6,"811111,811118,811121,811191"
+Leased display advertising media space,541800,0.982,,7772652000.0,2,"541810,541850"
+Other data processing or IT infrastructure provisioning services,518200,0.834,,7720283000.0,3,"518210,541511,541512"
+Coordination of production and delivery of premiums (advertising specialties),541800,0.977,,7635259000.0,2,"541810,541890"
+"Direct mail advertising, full-service",541800,1.0,,7456252000.0,3,"541810,541860,541870"
+Computer systems integration services,541512,0.684,,7431924000.0,5,"518210,541511,541512,541513"
+Collocation services,518200,0.963,,7346297000.0,3,"518210,541512,541513"
+"Meals, snacks, other food items, and beverages prepared for catered events",722A00,0.373,review-no-dominant,6676665000.0,4,"722511,722513,722514,722515"
+"Retail sales of medicines, vitamins, minerals, and supplements",446000,0.517,trade-margin,6472979000.0,3,"622110,622210,622310"
+Specialty content for consumers,519130,0.584,,6281239000.0,1,519130
+"Licensing of rights to use intellectual property protected by copyright, excluding audiovisual works and musical compositions and recordings",511200,0.318,review-no-dominant,5974595000.0,9,"515111,515112,515120,519110"
+Executive/retained search services,561300,1.0,,5811131000.0,3,"561311,561312,561320"
+"Specialty content for trade, professional, and business",519130,0.977,,5655307000.0,1,519130
+Database design and development services,541511,0.658,,4963133000.0,3,"541511,541512,541519"
+Trading securities and commodity contracts on own account,52A000,0.392,review-no-dominant,4946348000.0,5,"541713,541720,622110,622210"
+Basic and applied research in social sciences and humanities,541700,1.0,,4394312000.0,2,"541713,541720"
+Licensing of rights to use intellectual property protected by patent,533000,0.686,,4229413000.0,2,"541714,541715"
+"Retail sales of other goods, not elsewhere classified",452000,0.16,nonproduct,4064172000.0,23,"518210,519130,532111,532120"
+Directories,519130,0.696,,3882101000.0,1,519130
+"Distribution of advertising materials, other than by mail",541800,1.0,,3864343000.0,4,"541810,541830,541870,541890"
+"Licensing of rights to exhibit, broadcast, or rent audiovisual works protected by copyright",515200,0.772,,3842675000.0,1,515120
+Sales agent services for advertising space and time,541800,1.0,,3586986000.0,2,"541810,541840"
+Network security design and development services,541512,0.537,,3585839000.0,5,"518210,541511,541512,541513"
+"Other manufacturing revenue, not elsewhere classified",326190,0.153,nonproduct,3566477000.0,3,"518210,541512,541713"
+Independent contractor staffing services,561300,1.0,,3063976000.0,3,"561311,561312,561320"
+Maintenance and repair services for computer hardware and peripheral equipment,811200,0.356,review-no-dominant,2968708000.0,3,"541512,541513,541519"
+Information and document transformation services,518200,0.961,,2793106000.0,1,518210
+Published applications software ,511200,0.975,,2709313000.0,2,"518210,541511"
+Table wagering games,721000,0.731,,2569680000.0,1,713210
+"Other services related to advertising, not elsewhere classified",541800,1.0,nonproduct,2370132000.0,5,"541810,541820,541850,541860"
+Retail sales of automotive parts and supplies,441000,0.82,trade-margin,2363716000.0,8,"811111,811112,811113,811118"
+Temporary staffing-to-permanent placement services,561300,1.0,,2358089000.0,3,"561311,561312,561320"
+Other information services,5191A0,0.803,,2318920000.0,4,"518210,519110,519120,519190"
+"Development services for service products, processes, systems, or methods",541700,1.0,,2262089000.0,2,"541715,541720"
+"Public and non-commercial programming services, television",515200,0.507,,1904669000.0,1,515120
+"Scientific and technical consulting services, not elsewhere classified",5416A0,0.867,nonproduct,1869262000.0,3,"541714,541715,541720"
+Rental and leasing of office and professional space,531ORE,0.919,,1785756000.0,3,"622110,622210,622310"
+"Network design and development services, except security",541512,0.488,review-no-dominant,1766220000.0,4,"541511,541512,541513,541519"
+"Retail sales of household and personal goods, not elsewhere classified",452000,0.259,nonproduct,1764971000.0,9,"622110,622210,622310,713210"
+Lotteries,713200,0.581,,1663298000.0,2,"713210,713290"
+Home health care bundled service,621600,0.958,,1595163000.0,1,622110
+"Assisted daily living (ADL) and skilled nursing services, with rehabilitation services",623A00,0.972,,1531882000.0,3,"622110,622210,622310"
+Developing and making prototypes of other goods,541700,0.575,,1403444000.0,2,"541714,541715"
+Pari-mutuel sports gambling,711200,0.535,,1290346000.0,2,"713210,713290"
+"Licensing of rights to use intellectual property protected as industrial property, not elsewhere classified",541700,1.0,nonproduct,1287167000.0,1,541714
+Television air time for programs,515100,0.923,,1055076000.0,1,515120
+Regulatory safety inspections and emissions testing services for automobiles and light-duty trucks,811100,0.958,,980655000.0,5,"811111,811113,811121,811191"
+"Assisted daily living (ADL) and skilled nursing services, without rehabilitation services",623A00,0.905,,975142000.0,3,"622110,622210,622310"
+Payroll services,541200,0.72,,889485000.0,2,"561311,561320"
+"Public and non-commercial programming services, radio",515100,1.0,,843871000.0,2,"515111,515112"
+Letter shop services ,541800,1.0,,810364000.0,1,541860
+Amusement park and arcade services,713100,0.783,,806390000.0,4,"713290,722511,722513,722514"
+Sales promotion services,541800,1.0,,802258000.0,3,"541810,541830,541890"
+"Direct mail advertising printing (lithographic), including circulars, letters, pamphlets, cards, etc., excluding catalogs",323110,0.846,,759135000.0,1,541860
+Retail sales of automobiles and light-duty trucks,441000,0.996,trade-margin,749350000.0,4,"811111,811113,811121,811192"
+"Basic and applied research in agricultural, veterinary, and environmental sciences",541700,1.0,,694217000.0,3,"541714,541715,541720"
+Retail sales of soft drinks and nonalcoholic beverages,445000,0.366,trade-margin,685064000.0,5,"722511,722513,722514,722515"
+"Direct marketing services, full-service",541800,1.0,,674761000.0,3,"541810,541860,541890"
+Manufacturing of nonelectric signs and displays,339950,0.832,,671762000.0,1,541890
+Retail sales of automotive fuels,447000,0.919,trade-margin,665780000.0,3,"532120,811111,811192"
+Long-term staffing services (Payrolling),561300,1.0,,629552000.0,1,561320
+Home hospice (end of life) care services,621600,0.931,,589990000.0,1,622110
+"Manufacturing of electric signs and displays, including counter, floor, and point-of-purchase displays, scoreboards, and custom trade show exhibits",339950,0.889,,582477000.0,1,541890
+Media relations services,541800,1.0,,575372000.0,2,"541820,541890"
+"Maintenance and repair and related services for motor homes, travel trailers, and campers",441000,0.726,,566519000.0,9,"532120,811111,811112,811113"
+"Rental and leasing services for motor homes, travel trailers, campers, and utility trailers",532100,0.893,,541204000.0,1,532120
+Lobbying services,541800,1.0,,519596000.0,1,541820
+"Advertising printing (screen), including point-of-purchase, counter, window, and floor display materials, posters, inserts, brochures, etc.",323110,0.538,,512791000.0,4,"541810,541830,541850,541890"
+Retail sales of baked goods,445000,0.63,trade-margin,499346000.0,3,"722511,722513,722515"
+Retail sales of alcoholic beverages,445000,0.663,trade-margin,473289000.0,2,"722511,722513"
+"Retail sales of candy, prepackaged cookies, and snack foods",452000,0.47,trade-margin,452899000.0,5,"622210,622310,722511,722513"
+Retail sales of food dry goods and other foods purchased for future consumption,445000,0.613,trade-margin,446469000.0,3,"722511,722513,722515"
+Licensing of rights to use intellectual property protected by trademark,533000,0.826,,395902000.0,1,519130
+Retail sales of perishable prepared foods,445000,0.747,trade-margin,355634000.0,4,"722511,722513,722514,722515"
+Local transportation and delivery of purchased or serviced items,484000,0.702,,350839000.0,3,"722511,722513,722515"
+Library and archive services,5191A0,1.0,,332683000.0,1,519120
+"Wholesale sales of new and rebuilt automotive parts and supplies, and trailer parts and supplies, except automotive bodies and chemicals",423100,0.909,trade-margin,322316000.0,6,"811111,811112,811113,811118"
+Parking services,812900,0.773,,320068000.0,3,"622110,622310,713210"
+Media monitoring and analysis services,541800,0.514,,303549000.0,3,"519110,519190,541820"
+"Other constructions or construction services, not elsewhere classified",230301,0.747,nonproduct,299057000.0,7,"221115,811111,811112,811118"
+Display lettering services,541800,1.0,,286900000.0,1,541890
+Marketing research services,5419A0,0.985,,254569000.0,2,"541810,541830"
+Public relations event management services,561900,0.923,,252514000.0,2,"541820,541890"
+Human resources management consulting and implementation services,541610,0.922,,232847000.0,1,561320
+Other direct mail advertising services,541800,1.0,,229271000.0,1,541860
+Rental and leasing of commercial space,531ORE,0.912,,223772000.0,3,"622110,622310,713210"
+Onsite management of temporary help services,561300,1.0,,204572000.0,1,561320
+Retail sales of frozen foods,445000,0.623,trade-margin,195950000.0,4,"722511,722513,722514,722515"
+"Trade, career, technical and professional development training programs ",611B00,0.711,,189435000.0,2,"541519,622110"
+Online employment services,561300,1.0,,185805000.0,1,561311
+Crisis management services,541800,1.0,,181260000.0,1,541820
+"Rental of space for weddings, banquets, parties, and similar short-term social uses",531ORE,0.632,,179823000.0,3,"722511,722513,722515"
+Fulfillment services,323110,0.616,,175653000.0,1,541860
+Other products supporting financial services,52A000,0.423,review-no-dominant,173989000.0,3,"713210,713290,722515"
+Product or merchandise demonstrations,541800,1.0,,147299000.0,1,541890
+Admissions to live performing arts performances,711A00,0.584,,139868000.0,4,"713210,713290,722511,722515"
+"Meals, snacks, other food items, and beverages for immediate consumption, prepared under long-term contract",722A00,0.997,,133822000.0,4,"722511,722513,722514,722515"
+"Internet access, always-on, business",517110,0.987,,128640000.0,3,"518210,541512,541519"
+Towing services,48A000,0.976,,120861000.0,2,"811111,811121"
+Wholesale sales of used automotive parts and accessories,423100,0.891,trade-margin,110711000.0,6,"811111,811112,811113,811118"
+"Manufacturing of fabricated flags, banners, and similar emblems, excluding banner printing",314900,0.774,,103776000.0,2,"541810,541890"
+Gains (losses) from non-financial assets sold,550000,0.616,,103383000.0,2,"532120,541715"
+"Sale of tickets of/for lotteries and other games of chance to gamblers, for a fee or commission",722110,0.542,,97642000.0,4,"713210,713290,722511,722515"
+Mailing lists,541800,1.0,,85850000.0,1,541860
+"Maintenance and repair services for recreational, sports, and fitness equipment (including boats, motorcycles, other sports vehicles, and musical instruments)",811400,0.411,review-no-dominant,67280000.0,6,"811111,811112,811113,811118"
+"Wholesale sales of other goods, not elsewhere classified",424400,0.191,nonproduct,65012000.0,4,"541511,541890,811112,811118"
+Other utilities or waste management operating revenue,531ORE,0.384,review-no-dominant,64304000.0,3,"221115,811111,811121"
+"Rental of space for meetings, conventions, and similar short-term business uses",531ORE,0.901,,64085000.0,2,"722511,722513"
+Concept development services for direct mail advertising campaigns,541800,1.0,,63794000.0,1,541860
+"Finance leasing services, except automobile and light-duty truck leasing services",522A00,0.736,,60324000.0,2,"532112,532120"
+"Project management services, except construction",541300,0.672,,58922000.0,1,541512
+Retail sales of tobacco products and smoking accessories,447000,0.508,trade-margin,48429000.0,4,"713210,713290,722511,722515"
+Strategic management consulting and implementation services,541610,0.911,,46460000.0,2,"541512,561320"
+"Retail sales of motor homes, travel trailers, and campers ",441000,0.998,trade-margin,44511000.0,3,"811111,811118,811121"
+Admissions to dance halls and clubs (including cover charges),722A00,0.87,,43685000.0,1,722511
+Hosting of coin-operated self-service gambling machines,722110,0.661,,38073000.0,2,"722511,722513"
+"Video and audio streaming infrastructure provisioning services, except content streaming distribution services",54151A,1.0,,32171000.0,1,541513
+"Wholesale sales of cookies, bread, and baked goods",424400,0.847,trade-margin,26394000.0,2,"722511,722515"
+Outplacement/career counseling services,561300,1.0,,25010000.0,1,561312
+"Rental and leasing of nonresidential space in buildings or other facilities, except hosting of coin-operated self-service gambling machines",531ORE,0.515,,24353000.0,2,"722511,722515"
+Retail sales of fresh fish and seafood,445000,0.925,trade-margin,23398000.0,2,"722511,722513"
+"Maintenance and repair services for household and personal goods, not elsewhere classified",811300,0.467,nonproduct,21840000.0,3,"811111,811121,811122"
+Wholesale sales of beer and ale,424A00,0.989,trade-margin,20775000.0,1,722511
+"Assisted daily living (ADL) services, with mental rehabilitation services",623B00,0.961,,20029000.0,1,622210
+"Retail sales of motorcycles, motor scooters, motor bikes, including parts and accessories ",441000,0.996,trade-margin,18990000.0,1,811111
+Room or unit accommodation for travelers,721000,0.996,,14897000.0,1,722511
+Rental of computers and peripheral equipment,532400,0.547,,14019000.0,1,541511
+Document payment services (except traveler's check services),522A00,0.277,review-no-dominant,12675000.0,1,713210
+Retail sales of men's clothing,448000,0.48,trade-margin,9992000.0,2,"722511,722515"
+Retail sales of women's clothing,448000,0.544,trade-margin,9860000.0,2,"722511,722515"
+Sports and other bookmaking,721000,0.939,,8823000.0,1,713210
+"Maintenance and repair services for agricultural, construction, forestry, mining, and oil and gas field machinery and equipment",811300,0.53,,8801000.0,1,811111
+"Retail sales of household fuels, including oil, LP gas, wood, coal",454000,0.894,trade-margin,8389000.0,1,221122
+Rental and leasing of social events equipment,532A00,0.929,,6534000.0,1,722513
+Short-term access to communications services,721000,0.983,,4745000.0,1,622110
+"Off-site cleaning and repair services for home furniture, furnishings, and accessories, except curtain and drape cleaning services",811400,0.615,,2974000.0,1,811121
+"Retail sales of toys, games, and hobby and craft supplies",452000,0.377,trade-margin,2600000.0,1,722513
+Maintenance and repair services for industrial machinery and equipment,811300,0.931,,2095000.0,1,811118
+Consulting services for insurance,524200,0.984,,1990000.0,1,541512
+Retail sales of major household appliances and related parts and accessories,444000,0.71,trade-margin,1884000.0,1,221122
+Copying and reproduction services,561400,0.845,,1451000.0,2,"622210,622310"
+"Wholesale sales of fish and seafood, except canned and frozen fish and seafood",424400,0.964,trade-margin,1256000.0,1,722511
+Wholesale sales of grocery specialties,424400,0.917,trade-margin,833000.0,1,722511
+"Rental of commercial and service industry machinery and equipment, without operator",532400,0.931,,817000.0,1,811121
+Key duplication services,561600,0.856,,767000.0,1,811118
+"All other recreation, sports, and fitness services",713900,0.972,,672000.0,2,"722511,722515"
+Medical examinations for employment,561300,1.0,,467000.0,1,561311
+"Other contract manufacturing services, nec.",339113,0.308,review-no-dominant,410000.0,1,811111
+Retail sales of home lawn and garden goods,444000,0.506,trade-margin,221000.0,1,722513
+Warehousing and storage services,493000,0.805,,181000.0,1,811121
+"Services of self-service machines, not elsewhere classified",713100,0.984,nonproduct,7000.0,1,722511
