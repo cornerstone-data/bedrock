@@ -889,12 +889,25 @@ produced by its own industry; manufacturing is the case it cannot handle.
 is**, over the 1,968 manufacturing products in EC_PxI 2017 — a larger job than
 services' 202, validated the same way against published 2017 `T007`.
 
-⚠️ `timeseries/asm/product`, the older `PSCODE`/`PRODVAL` product-class series,
-would be a mechanical route because product-class codes are NAICS-based. It
-returns **empty** for every query variant tried, so it is either deprecated or
-needs parameters not documented in its variable list. Worth one more attempt
-before committing to the manual concordance, since it would replace judgement
-with a crosswalk.
+❌ **The mechanical route does not exist. Checked the docs.**
+`timeseries/asm/product` works with the documented parameters (`for=us:1`, and
+`PSCODE` really is NAICS-based — `311111` "Dog and cat food manufacturing"), but
+it **stops at 2016**: 2,030 rows for 2016, empty for 2017 onward. It is the
+legacy pre-2017-NAICS series and cannot reach the 2018+ window.
+`asm/benchmark2017` and `asm/benchmark2022` are **industry-level only** — no
+product dimension at all.
+
+**So `asm/value2017` on NAPCS collection codes is the only annual manufacturing
+product source, and the manufacturing concordance is unavoidable.** 1,968
+products, validated against published 2017 `T007` the same way services were.
+
+✅ **Side finding for the inventories work.** `asm/benchmark2017` and
+`asm/benchmark2022` carry inventories **by stage** at industry level —
+`INVFINB`/`INVFINE` finished goods, `INVWIPB`/`INVWIPE` work in process,
+`INVMATB`/`INVMATE` materials, plus `CSTMTOT` and `VALADD`. That is precisely
+what [#664](https://github.com/cornerstone-data/bedrock/issues/664) asks for —
+per-industry stage shares from ASM rather than the durable/nondurable split —
+and neither dataset is currently extracted.
 
 ### Rebalancing
 
