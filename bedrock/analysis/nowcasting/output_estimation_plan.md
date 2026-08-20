@@ -807,6 +807,43 @@ but every one closed that way moves it from held-out to tuned, so the unbiased
 estimate has to be re-established on a fresh holdout rather than recomputed on
 the same set.
 
+### The cadence split: services quinquennial, manufacturing annual
+
+Checked against the Census API rather than assumed.
+
+**Services carry no annual product detail.** `Census_SAS` Table 8, *Estimated
+Revenue by Product and Class of Customer*, covers 12 NAICS — truck, publishing,
+software, telecom, search portals, admin services — and none of the priority
+list. So for services the only product-level source is `Census_EC_PxI`, which is
+**quinquennial**: 2017 and 2022, interpolated between.
+
+**Manufacturing does, and in the same code space.** The Census API carries
+`timeseries/asm/value2017`, which returns `NAICS2017` x **`NAPCS2017`** (the 2017
+NAPCS *collection* code) with `NAPCSDOL` — 17,269 rows for 2018 and 43,131 for
+2021; 2023 not yet published. There is also `timeseries/asm/product`, the older
+`PSCODE`/`PRODVAL` product-class series.
+
+⚠️ **`asm/value2017` is the annual analogue of `Census_EC_PxI`, keyed on the same
+NAPCS collection codes** — so the concordance built for EC_PxI applies to it
+directly rather than needing its own. That is what makes an *annual* moving
+manufacturing mix reachable instead of a five-year interpolation.
+
+**So the two tracks differ in cadence, not just in coverage:**
+
+| | at-risk dollars | product source | cadence |
+|---|---:|---|---|
+| services | ~88% | `Census_EC_PxI` | **quinquennial** — 2017, 2022 |
+| manufacturing | ~12% | `asm/value2017` | **annual** — 2018 onward |
+
+That sharpens the earlier point that feasibility runs opposite to value. Services
+hold the dollars but can only be interpolated between census years; manufacturing
+holds a eighth of them but can be tracked year by year from reported data.
+
+⚠️ The ASM product series carries aggregate rows the same way everything else
+here does — the first row returned is `NAICS 31-33` with NAPCS `0000000000`.
+Filter before aggregating; this class of defect has now appeared five times in
+this work.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
