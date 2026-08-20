@@ -529,6 +529,50 @@ between the two benchmarks for the ~50 exposed commodities, fall back to frozen
 2017 elsewhere, then rebalance. SAS drops to a supporting role for the dozen
 NAICS its Table 8 does cover.
 
+### Does PxI actually reproduce the supply mix? — precondition tested, and it fails
+
+The decisive test is whether `Census_EC_PxI` reproduces the published 2017 mix
+per cell. That needs the product → BEA commodity concordance, which does not
+exist for services. But a **necessary precondition** needs no concordance at all:
+does PxI account for the right *total* per industry?
+
+Mapping PxI's NAICS to BEA detail industries and comparing against the 2017
+Supply block's column totals:
+
+| | |
+|---|---:|
+| industries matched | 367 |
+| PxI total vs supply block | 32.89 tn vs 27.01 tn |
+| median ratio | **0.853** |
+| within ±10% of the supply column | **104 of 367** |
+| within ±25% | 212 of 367 |
+
+Priority industries scatter widely: `541700` R&D **0.580**, `713200` gambling
+0.717, `518200` 0.862 — against `622000` hospitals **1.267**, `541511` 1.266,
+`722A00` 1.251.
+
+⚠️ **So PxI is not the supply mix, and was never going to be.** It is the raw
+product data BEA *starts* from, before the whole adjustment ladder above —
+imputations for own-account software and construction, miscellaneous receipts,
+tax-misreporting and nonemployer coverage, removal of the cost of resales, then
+reclassifications and secondary in/out. PxI is also a **weighted sample**, not an
+enumeration (`Census_EC_PxI.yaml`). A level match was never the right
+expectation.
+
+**That does not disqualify a *share* use, which is what Step 4a needs.** Most of
+those adjustments are industry-level and scale a whole column, leaving the
+within-column shares intact. The mix could therefore be sound where the level is
+not. But that is an argument, not a measurement — **the mix itself remains
+untested until the concordance exists**, and this precondition result means the
+concordance work has to be followed by the per-cell mix test before anything is
+built on it.
+
+⚠️ **Caveat on this run.** Only 48.9% of PxI value mapped to a BEA detail
+industry, using a naive last-wins NAICS→BEA dictionary that ignores the
+many-to-one structure of the crosswalk. The scatter above is therefore an upper
+bound on the real disagreement; redo it with proper aggregation before treating
+any individual industry's ratio as evidence.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
