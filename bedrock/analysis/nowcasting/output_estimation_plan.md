@@ -1303,6 +1303,41 @@ where recovery is complete, use ASM to move the mix between them, and expect the
 intercensal years to carry a wider band. That is a weaker claim than "annual
 manufacturing commodity output", and the plan should not promise more.
 
+### Annual manufacturing `q` from ASM — built and scored
+
+Detail commodity output built from `asm/value2017` through
+`napcs_to_bea_2017.csv`, scored against BEA's **published summary** Supply
+`T007` for the same year, over the 19 manufacturing summary groups:
+
+| year | published ASM | | **suppression-recovered** | |
+|---|---:|---:|---:|---:|
+| | level | wtd err | level | wtd err |
+| 2018 | 0.949 | **6.1%** | 0.949 | 6.1% |
+| 2019 | 0.769 | 23.7% | **0.914** | **9.3%** |
+| 2020 | 0.794 | 21.1% | **0.912** | **9.3%** |
+| 2021 | 0.791 | 21.2% | **0.909** | **9.5%** |
+
+Recovery distributes each five-digit parent's residual over its zero six-digit
+children — the generic dense-hierarchy method, which ASM supports and `EC_PxI`
+does not. It **more than halves** the error in every year that needs it.
+
+⚠️ **2018 is unaffected because it is a different shape.** The 2018 file has
+17,269 rows against ~43,000 for later years and its detail is already close to
+complete, so there is no residual to distribute. Do not read its 6.1% as
+evidence the method is better in 2018; read it as 2018 needing less help.
+
+⚠️ **These are scored at summary, over 19 groups — not comparable to the
+11.5% the 2017 Economic Census build scores at detail over 231 commodities.**
+Aggregation hides offsetting errors between detail children, so the summary
+figure is the more forgiving of the two by construction. The honest statement is
+that annual ASM reaches roughly 9% at summary granularity, and its detail
+accuracy is **unmeasured** because no published detail exists for those years.
+
+**What this establishes:** manufacturing commodity output can be built annually
+from reported product data, at a level within about 9% of BEA's own estimate,
+for 2018-2021. That is the route the manual describes for manufacturing —
+product data directly, independent of industry output — and it now runs.
+
 ### Mining has no annual product survey
 
 Checked rather than assumed:
