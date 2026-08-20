@@ -2097,6 +2097,95 @@ all. It should be built first, and `Commodity_output_manufacturing_*` should sit
 on top of it rather than beside it.
 
 
+### The domestic output block, built — 2018-2024
+
+Step 4a's deliverable is the **domestic output block**: commodity × industry, basic
+value, whose row margin is commodity output `q` and whose column margin is
+industry output `x`. Not the `q` vector alone, and not the full Supply table —
+the margin and valuation columns belong to 4b/4c/4d.
+
+✅ **The method already existed.** `transform/detail/Detail_Supply.yaml`
+disaggregates the published summary Supply table proportionally to the 2017
+detail block, which *is* the carried-mix construction the held-out test scored at
+0.94%. Its `exclusion_fields` already drop every margin and total column, so what
+it emits is exactly the block. Three things were wrong with it and none was the
+method.
+
+**1. It targeted NAICS.** `Sector_Crosswalk_BEA_2017_Detail` and `..._Summary`
+both map BEA → **NAICS**, so naming them as `activity_to_sector_mapping` converted
+a BEA-coded table into NAICS and produced 483 codes where 402 commodities were
+wanted. The sources are declared `bea`/2017 in `source_catalog.yaml`, so under a
+BEA `default_schema` they are sector-like and map to themselves — **no crosswalk
+belongs in this method at all**. Switched to
+`BEA_detail_commodity_target.yaml` and both crosswalk lines removed.
+
+**2. `year` reached the loaders as a `str`** and raised in the vintage-pinning
+comparison. `typing.cast` at the call site is a no-op at runtime. Fixed at the
+call sites and in the loaders.
+
+⚠️ **3. The per-year include has a silent wrong-year trap.** `Detail_Supply.yaml`
+resolves `year: *summary_year` **inside** its source block at parse time, and
+`!include` is a shallow dict update. Overriding only the top-level `year` leaves
+the source pinned to the base file's 2018 while the method reports the new year,
+and `get_flowby_from_config` merges the source's own dict **last**, so the source
+wins. The failure is a full, plausible table for the wrong year. Every per-year
+file therefore redeclares `source_names` with the subtree include.
+
+#### Result
+
+| year | commodities | `q` | row margin vs published summary `q` |
+|---|---:|---:|---:|
+| 2018 | 397 | 35.73tn | **0.0000** |
+| 2019 | 397 | 36.87tn | **0.0000** |
+| 2020 | 397 | 35.96tn | **0.0000** |
+| 2021 | 397 | 40.79tn | **0.0000** |
+| 2022 | 397 | 45.11tn | **0.0000** |
+| 2023 | 397 | 47.55tn | **0.0000** |
+| 2024 | 397 | 49.71tn | **0.0000** |
+
+⚠️ The row margin closing exactly is **by construction**, not evidence — the
+summary total is the control. The evidence that the *detail split* is right is
+the held-out test's 0.94%, and nothing here adds to it.
+
+#### The column margin is the honest check, and it is open by design
+
+`x` is not constrained by this method, so comparing it to published detail
+industry output is independent. 2021:
+
+| | |
+|---|---:|
+| built, basic | 40.792tn |
+| published `UGO305-A`, producer | 41.744tn |
+| ratio | 0.977 |
+| industries within ±5% | **140 of 401** |
+
+The aggregate ratio is about the valuation wedge, but the per-industry spread is
+much wider than any tax could explain:
+
+| industry | ratio | gap |
+|---|---:|---:|
+| `454000` nonstore retailers | 0.747 | −136bn |
+| `424700` petroleum wholesalers | **0.391** | −118bn |
+| `233411` new residential construction | 0.783 | −89bn |
+| `533000` lessors of intangible assets | 0.746 | −76bn |
+| `541700` scientific R&D | 0.830 | −68bn |
+
+`424700` is the fuel-excise case §"`TOP` and `SUB`" identifies. But `541700` and
+`233411` carry no product tax at all — those gaps are **mix drift**, and they sit
+exactly where the leverage measurements pointed (`5412OP` had the highest leverage
+of any summary group, 0.236).
+
+✅ **This is expected rather than a defect.** Step 5 balances the block against
+published detail `x` as a target; a seed that already matched both margins would
+leave the balance nothing to do. What matters is that the gap is now *measured*
+per industry, so Step 5's work is sized rather than assumed.
+
+⚠️ **Five commodities are absent**: `S00401` scrap, `S00402`, `S00300`, `S00900`
+and `4200ID`, excluded by the method's own `exclusion_fields`. Together 14,229m
+in 2017, **0.042%** of `q` — but `S00401` scrap is 10,761m of that and is real,
+so a complete block needs them back.
+
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
