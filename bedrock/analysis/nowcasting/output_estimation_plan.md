@@ -909,6 +909,56 @@ what [#664](https://github.com/cornerstone-data/bedrock/issues/664) asks for —
 per-industry stage shares from ASM rather than the durable/nondurable split —
 and neither dataset is currently extracted.
 
+### Can the trade concordance seed the manufacturing one? — tested, no
+
+The idea is sound in principle: the NAPCS goods being *wholesaled or retailed*
+should be the same goods being *produced*, so the trade concordance's 273
+good→BEA judgements ought to transfer to manufacturing products.
+
+**They do not.** Matching on token overlap after removing the wholesale/retail
+lines that sit inside manufacturing industries:
+
+| threshold | products | share of mfg value |
+|---|---:|---:|
+| Jaccard ≥ 0.5 | 22 | 0.9% |
+| Jaccard ≥ 0.4 | 46 | **2.2%** |
+| Jaccard ≥ 0.3 | 111 | 5.9% |
+
+and the matches are unreliable at the useful end — *"Plastics and rubber
+products contract manufacturing"* pairs with *"recyclable plastics and rubber"*,
+mapping a manufactured good to `S00401` **scrap**.
+
+**Why it fails.** The trade list is 273 coarse categories describing *what a
+store sells*; manufacturing is 1,796 specific descriptions of *a manufacturing
+operation*. They are different levels and different concepts, so the vocabularies
+barely intersect even where the underlying good is the same.
+
+⚠️ **A naive exact match looks far better than it is.** Matching stripped
+descriptions returns 164 "hits" — but they are wholesale lines *inside*
+manufacturing industries matching the trade list, not manufactured goods, and
+they are 1.4% of value. Drop `sales of` lines before measuring anything here.
+
+**A better mechanical seed exists, and it is BEA's own commodity names.**
+Manufacturing product descriptions are structured "Manufacturing of X", which
+matches the Supply table's `Commodity Description` far better than it matches
+trade categories:
+
+| threshold | products | share of mfg value |
+|---|---:|---:|
+| Jaccard ≥ 0.5 | 65 | 7.5% |
+| Jaccard ≥ 0.4 | 107 | 11.7% |
+| Jaccard ≥ 0.3 | 201 | **16.1%** |
+| Jaccard ≥ 0.2 | 573 | 34.9% |
+
+and the matches read correctly — *"Manufacturing of civilian aircraft"* → `336411`
+Aircraft manufacturing, *"Manufacturing of ready-mix concrete"* → `327320` at an
+exact token match.
+
+**So the manufacturing concordance can be part-seeded from BEA commodity
+descriptions** — roughly a sixth of value at a defensible threshold, a third if
+0.2 is accepted with review — but the majority still needs judgement. The trade
+concordance is not the shortcut.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
