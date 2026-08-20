@@ -31,6 +31,7 @@ Run: ``uv run python bedrock/analysis/nowcasting/frozen_mix_diagnostic.py``
 from __future__ import annotations
 
 import argparse
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -40,6 +41,10 @@ from bedrock.extract.iot.io_2017 import (
     _load_usa_summary_sut,
 )
 from bedrock.transform.iot.derived_gross_industry_output import derive_gross_output
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+    USA_SUMMARY_SUT_YEARS,
+)
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
     load_bea_v2017_commodity_to_bea_v2017_summary,
 )
@@ -132,7 +137,8 @@ def summary_block(year: int) -> pd.DataFrame:
     check exposed.
     """
     return _block(
-        _load_usa_summary_sut('Supply_summary', year), NON_INDUSTRY_COLUMNS_SUMMARY
+        _load_usa_summary_sut('Supply_summary', cast(USA_SUMMARY_SUT_YEARS, year)),
+        NON_INDUSTRY_COLUMNS_SUMMARY,
     )
 
 
@@ -177,10 +183,19 @@ def basic_value_output(year: int, industries: list[str]) -> pd.Series:
     """
     use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
     use.index = [str(i).strip() for i in use.index]
-    producer = derive_gross_output(year, 'before') / DOLLARS_TO_MILLIONS
+    producer = (
+        derive_gross_output(cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year), 'before')
+        / DOLLARS_TO_MILLIONS
+    )
     producer.index = producer.index.astype(str)
-    taxes = pd.to_numeric(use.loc['T00TOP'], errors='coerce').reindex(industries)
-    subsidies = pd.to_numeric(use.loc['T00SUB'], errors='coerce').reindex(industries)
+    taxes_row = use.loc['T00TOP']
+    subsidies_row = use.loc['T00SUB']
+    if isinstance(taxes_row, pd.DataFrame):
+        taxes_row = taxes_row.iloc[0]
+    if isinstance(subsidies_row, pd.DataFrame):
+        subsidies_row = subsidies_row.iloc[0]
+    taxes = pd.to_numeric(taxes_row, errors='coerce').reindex(industries)
+    subsidies = pd.to_numeric(subsidies_row, errors='coerce').reindex(industries)
     return producer.reindex(industries) - taxes.fillna(0.0) + subsidies.fillna(0.0)
 
 
@@ -214,7 +229,10 @@ def score_year(
     year: int, mix: pd.DataFrame, industries: list[str], ratio: pd.Series
 ) -> pd.DataFrame:
     """Frozen-mix commodity output vs published summary ``T007``, per group."""
-    output = derive_gross_output(year, 'before') / DOLLARS_TO_MILLIONS
+    output = (
+        derive_gross_output(cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year), 'before')
+        / DOLLARS_TO_MILLIONS
+    )
     output.index = output.index.astype(str)
     output = output.reindex(industries) * ratio  # producer -> basic
     built_detail = (mix[industries] * output.reindex(industries).values).sum(axis=1)

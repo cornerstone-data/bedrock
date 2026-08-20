@@ -442,6 +442,10 @@ overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is
    are listed in `bedrock/transform/trade/README.md`. Goods NAICS coverage is high; remaining ≥1 B
    `MISS` holes include couriers `492000`, `550000`, publishing `51112*`/`51113*`, bakery `311810`,
    cattle `1121A0` (no Census `1121*` activity), restaurants, and electric `221100`.
+3. **Goods allocation surface mismatch (`#670`).** Large non-`MISS` errors remain in directly mapped
+   goods families (notably `336*`), with very large absolute gaps despite zero `MISS` holes. This points
+   to a likely mismatch between a NAICS-based Census goods Crosswalk and BEA's product-level foreign-trade
+   allocation/reconciliation workflow. Tracked in [#670](https://github.com/cornerstone-data/bedrock/issues/670).
 
    **`S00900` needs no extract.** `derive_initial_Y_pur` sets
    `Y[S00900, F04000] = −Y[S00900, F01000] + Supply_T016[S00900] × 1e6` (2017). It has *zero
@@ -462,7 +466,7 @@ overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is
    States by nonresidents* (−199,435) plus U20405 line 149 personal remittances in kind (−1,562) — the
    two lines `FD_PCE_less_nonresident` already handles with `negate_flows` (`7a04a71`). The export
    identity matches published F040 within 1 M USD.
-3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
+4. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
    held from Supply, taken as a residual after mapped commodities, or out of the extract's scope —
    rather than a silent zero. **`S00900`'s rule is the supply identity** (item 2). `S00300` is 0 in
    `F04000`; its ~260B is import and intermediate presence. Totals can look fine while structure is
@@ -477,6 +481,8 @@ non-special codes; top-20 Jaccard ≳ 0.7 / ≳ 0.6; every known hole covered by
 extract can't hit those bars, a documented pipeline that does (extract structure × scale to Use totals,
 or extract + Use residual on specials only) is an acceptable substitute — and *that* pipeline is what
 the nowcast years carry forward. The 2017 gate is `uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail`.
+Use `score_2017_trade_detail_baseline.csv` as the pinned regression baseline for this gate and update it
+only when scorecard movement is intentional.
 
 ## `F03000` — change in inventories, rescoped
 
