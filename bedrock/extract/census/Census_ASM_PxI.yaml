@@ -1,0 +1,54 @@
+author: US Census Bureau
+source_name: Annual Survey of Manufactures, Value of Product Shipments
+source_url: https://www.census.gov/programs-surveys/asm.html
+bib_id: Census_ASM_PxI
+
+# The annual counterpart to Census_EC_PxI: industry x product value of shipments
+# for manufacturing, keyed on the **same 2017 NAPCS collection codes**, so
+# napcs_to_bea_2017.csv serves both without a second concordance. This is what
+# lets the manufacturing commodity mix move year by year rather than being
+# interpolated between quinquennial censuses (#570).
+#
+# ⚠️ ASM is not conducted in an Economic Census year, so **2022 is absent** and
+# EC 2022 fills exactly that gap. 2018-2021 are live; 2023 is not yet published.
+#
+# ⚠️ 2018 is a different shape from later years - about 17,000 rows against
+# ~43,000 - and its six-digit detail is already close to complete, so it needs
+# little suppression recovery where 2019+ need a lot.
+#
+# ⚠️ **Do not filter to six-digit NAICS here.** The 3-, 4- and 5-digit rollups
+# are what make suppression recoverable: 57% of six-digit detail cells publish as
+# zero, and the residual against a five-digit parent is the only way to put the
+# value back. Dropping the parents at extract time would discard the control.
+# The dense hierarchy is also why
+# flowbyclean.estimate_suppressed_sectors_equal_attribution can serve this source
+# where it cannot serve Census_EC_PxI, which jumps from two digits to six.
+#
+# ⚠️ The all-industries rows carry NAICS '31-33' and the product total carries
+# NAPCS '0000000000'. Both are aggregates of the detail beside them - filter
+# before summing anything.
+#
+# NAPCSDOL is value of shipments, f.o.b. plant, net of discounts and **excluding
+# freight and excise taxes**, which makes it **basic value** - verified against
+# the published 2017 table on the excise-heavy commodities, where tobacco and
+# distilleries both land at 0.99 of basic against 0.56 of producer. No
+# basic/producer conversion belongs downstream.
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: timeseries/asm/value2017?
+  url_params:
+    get: NAICS2017,NAPCS2017,NAPCSDOL
+    for: "us:*&time=__year__"
+    key: __apiKey__
+  key_param: key
+url_replace_fxn: !script_function:Census_ASM asm_pxi_URL_helper
+call_response_fxn: !script_function:Census_ASM asm_call
+parse_response_fxn: !script_function:Census_ASM asm_pxi_parse
+years:
+- 2018
+- 2019
+- 2020
+- 2021

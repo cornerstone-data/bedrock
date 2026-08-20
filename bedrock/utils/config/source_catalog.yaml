@@ -246,6 +246,16 @@ Census_ASM:
       hierarchy: parent-completeChild
       by_year:
         2018: 2017
+Census_ASM_PxI:
+  data_format: FBA
+  class:
+  - Money
+  # ActivityProducedBy is NAICS at 3 to 6 digits plus the '31-33' rollup, and
+  # the rollups must survive - they are the control for suppression recovery.
+  activity_schema:
+    naics:
+      year: 2017
+      hierarchy: parent-completeChild
 Census_AWTS:
   data_format: FBA
   class:
