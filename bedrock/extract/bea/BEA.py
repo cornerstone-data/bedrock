@@ -44,7 +44,7 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
     :param year:
     :return:
     """
-    if "Detail_Use_SUT" in source:
+    if 'Detail_Use_SUT' in source:
         df = _load_2017_detail_supply_use_usa('Use_SUT_detail')
         df = df.iloc[:, 1:]  # drop first column
         loc = df.index.get_loc('VAPRO')
@@ -54,11 +54,11 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
         df = df.rename(columns={'Code': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
-            id_vars=["ActivityProducedBy"],
-            var_name="ActivityConsumedBy",
-            value_name="FlowAmount",
+            id_vars=['ActivityProducedBy'],
+            var_name='ActivityConsumedBy',
+            value_name='FlowAmount',
         )
-    elif "Detail_Supply" in source:
+    elif 'Detail_Supply' in source:
         df = _load_2017_detail_supply_use_usa('Supply_detail')
         df = df.iloc[:, 1:]  # drop first column
         loc = df.index.get_loc('T017')
@@ -68,11 +68,11 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
         df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
-            id_vars=["ActivityProducedBy"],
-            var_name="ActivityConsumedBy",
-            value_name="FlowAmount",
+            id_vars=['ActivityProducedBy'],
+            var_name='ActivityConsumedBy',
+            value_name='FlowAmount',
         )
-    elif "Detail_Use_AfterRedef" in source:
+    elif 'Detail_Use_AfterRedef' in source:
         df = _load_2017_detail_make_use_usa('Use_detail')
         df = df.iloc[:, 1:]  # drop first column
         loc = df.index.get_loc('V00300')
@@ -82,12 +82,12 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
         df = df.rename(columns={'Code': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
-            id_vars=["ActivityProducedBy"],
-            var_name="ActivityConsumedBy",
-            value_name="FlowAmount",
+            id_vars=['ActivityProducedBy'],
+            var_name='ActivityConsumedBy',
+            value_name='FlowAmount',
         )
 
-    elif "Detail_Make_AfterRedef" in source:
+    elif 'Detail_Make_AfterRedef' in source:
         df = _load_2017_detail_make_use_usa('Make_detail')
         df = df.iloc[:, 1:]  # drop first column
         loc = df.index.get_loc('T007')
@@ -97,34 +97,38 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
         df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
-            id_vars=["ActivityProducedBy"],
-            var_name="ActivityConsumedBy",
-            value_name="FlowAmount",
+            id_vars=['ActivityProducedBy'],
+            var_name='ActivityConsumedBy',
+            value_name='FlowAmount',
         )
 
-    elif "Summary_Supply" in source:
-        df = _load_usa_summary_sut('Supply_summary', cast(USA_SUMMARY_SUT_YEARS, year))
+    elif 'Summary_Supply' in source:
+        df = _load_usa_summary_sut(
+            'Supply_summary', cast(USA_SUMMARY_SUT_YEARS, int(year))
+        )
         df = df.iloc[1:, 1:]  # drop first row and column
         df = pd.DataFrame(np.transpose(df))
         df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
-            id_vars=["ActivityProducedBy"],
-            var_name="ActivityConsumedBy",
-            value_name="FlowAmount",
+            id_vars=['ActivityProducedBy'],
+            var_name='ActivityConsumedBy',
+            value_name='FlowAmount',
         )
-    elif "Summary_Use_SUT" in source:
-        df = _load_usa_summary_sut('Use_SUT_summary', cast(USA_SUMMARY_SUT_YEARS, year))
+    elif 'Summary_Use_SUT' in source:
+        df = _load_usa_summary_sut(
+            'Use_SUT_summary', cast(USA_SUMMARY_SUT_YEARS, int(year))
+        )
         df = df.iloc[1:, 1:]  # drop first row and column
         df = df.reset_index()
         df = df.rename(columns={'Unnamed: 0': 'ActivityProducedBy'})
         # use "melt" fxn to convert colummns into rows
         df = df.melt(
-            id_vars=["ActivityProducedBy"],
-            var_name="ActivityConsumedBy",
-            value_name="FlowAmount",
+            id_vars=['ActivityProducedBy'],
+            var_name='ActivityConsumedBy',
+            value_name='FlowAmount',
         )
-    elif "PCEBridge" in source:
+    elif 'PCEBridge' in source:
         df = _load_pce_bridge_detail_raw_usa()
         df = df.rename(
             columns={
@@ -141,7 +145,7 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
             var_name='FlowName',
             value_name='FlowAmount',
         )
-    elif "PEQBridge" in source:
+    elif 'PEQBridge' in source:
         df = _load_peq_bridge_detail_raw_usa()
         df = df.rename(
             columns={
@@ -156,13 +160,13 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
             var_name='FlowName',
             value_name='FlowAmount',
         )
-    elif "GrossOutput" in source:
+    elif 'GrossOutput' in source:
         df = map_detail_table(load_go_detail())
         df = df.iloc[:, 1:]  # drop first column
         df = df.rename(columns={'sector_code': 'ActivityProducedBy'})
         df = (
             df.melt(
-                id_vars=["ActivityProducedBy"], var_name="Year", value_name="FlowAmount"
+                id_vars=['ActivityProducedBy'], var_name='Year', value_name='FlowAmount'
             )
             .groupby(['ActivityProducedBy', 'Year'])['FlowAmount']
             .sum()
@@ -175,16 +179,16 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
     df = df.reset_index(drop=True)
 
     # columns relevant to all BEA data
-    df["SourceName"] = source
+    df['SourceName'] = source
     df['Year'] = str(year)
     if 'FlowName' not in df.columns:
-        df['FlowName'] = f"USD{str(year)}"
-    df["Class"] = "Money"
-    df["FlowType"] = "TECHNOSPHERE_FLOW"
-    df["Location"] = US_FIPS
+        df['FlowName'] = f'USD{str(year)}'
+    df['Class'] = 'Money'
+    df['FlowType'] = 'TECHNOSPHERE_FLOW'
+    df['Location'] = US_FIPS
     df = assign_fips_location_system(df, year)
     df['FlowAmount'] = df['FlowAmount']
-    df["Unit"] = "Million USD"
+    df['Unit'] = 'Million USD'
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 5  # tmp
     df['Description'] = (
@@ -192,7 +196,7 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
     )
 
     # Trim all string columns but avoid errors
-    obj = df.select_dtypes(include="object")
+    obj = df.select_dtypes(include='object')
     df[obj.columns] = obj.apply(
         lambda s: s.map(lambda x: x.strip() if isinstance(x, str) else x)
     )
@@ -201,8 +205,7 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
 
 
 # %%
-if __name__ == "__main__":
-
+if __name__ == '__main__':
     methods = [
         'BEA_Detail_Supply',  # Success
         'BEA_Detail_GrossOutput_IO',  # Fails due to flow amount
