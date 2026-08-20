@@ -1009,6 +1009,55 @@ worse accuracy) — and none improves on a rule that is itself only 28.2% accura
 The manufacturing concordance needs either real judgement over the 1,796
 products or a signal other than description text.
 
+### The concordance is not the binding constraint
+
+Census does publish a route from NAPCS collection codes to NAICS, via the 2012
+Economic Census product codes — which *were* NAICS-keyed (`21111131` is NAICS
+`211111` plus a product suffix):
+[2017 NAPCS-Based Collection Code to 2012 Product Code](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/2017_NAPCS-Based_Collection_Code_to_2012_Product_Code_20200312_no_highlight.xlsx),
+8,237 rows. Composed with NAICS 2012 → BEA it resolves **3,775 NAPCS codes** and
+covers **86.4% of manufacturing product value**.
+
+**It does not beat the simple rule:**
+
+| seeding | wtd abs err | ±25% | ±10% |
+|---|---:|---:|---:|
+| dominant-industry only | **28.2%** | 131/227 | 77 |
+| Census concordance only | 29.9% | 114/193 | 71 |
+| Census concordance, dominant fallback | 29.1% | 129/227 | 77 |
+
+⚠️ **Four independent mappings now land in the same place: 28-30%.**
+Dominant-industry, trade-good names, the 20,398-term NAICS index, and Census's
+own official concordance. That consistency is the finding — **the error is not in
+the mapping**. If it were, four unrelated methods would not converge on the same
+number.
+
+**What it points to instead is the adjustment ladder.** EC_PxI product value is
+not BEA commodity output: it is a weighted sample of product shipments *before*
+imputations, nonemployer and tax-misreporting coverage, removal of cost of
+resales, and secondary in/out. That is a 20-30% wedge by construction, which is
+exactly what all four methods measure. **Improving the concordance further will
+not close it**, and effort should go to the ladder rather than to more mapping.
+
+⚠️ **There is no NAPCS → NAICS concordance for 2017 or later**, and this is by
+design — NAPCS is a demand-based classification explicitly *not* industry-of-origin
+based. The 2012 product codes were the last NAICS-keyed product codes Census
+published, so any NAPCS → NAICS route must go back through 2012 and inherit that
+vintage's structure.
+
+**Two files worth having anyway**, from
+[`.../technical-documentation/napcs/`](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/):
+
+- [`2017_to_2022_NAPCS_Concordance_Final_08242022.xlsx`](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/2017_to_2022_NAPCS_Concordance_Final_08242022.xlsx)
+  — the official vintage bridge. This is what
+  [#650](https://github.com/cornerstone-data/bedrock/issues/650) needs for the
+  2017↔2022 description drift that `Census_EC_PxI.yaml` documents, in place of
+  matching on description.
+- `2017`/`2022_NAPCS-Based_Collection_Code_to_NAPCS_Trilateral_Product_Code.xlsx`
+  — resolves the complaint recorded in `Census_EC_PxI.yaml` that "0 of the 620
+  trade product codes appear in either official file". The collection codes are
+  not the trilateral codes, and this is the published bridge between them.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
