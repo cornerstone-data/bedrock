@@ -1058,6 +1058,78 @@ vintage's structure.
   trade product codes appear in either official file". The collection codes are
   not the trilateral codes, and this is the published bridge between them.
 
+### Manufacturing: the concordance is not the constraint
+
+The official Census concordance exists and works mechanically. The
+[2017 NAPCS-Based Collection Code to 2012 Product Code](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/2017_NAPCS-Based_Collection_Code_to_2012_Product_Code_20200312_no_highlight.xlsx)
+file gives 8,237 NAPCS codes against 2012 Economic Census product codes, and
+**2012 product codes are NAICS-based** (`21111131` is NAICS `211111` plus a
+product suffix). So NAPCS → NAICS 2012 → BEA is a published crosswalk, not a
+judgement: 3,775 NAPCS codes acquire a BEA target and **86.4% of manufacturing
+product value maps**.
+
+⚠️ **It scores no better than the crude rule.** Four independent approaches now
+converge:
+
+| mapping | wtd abs err |
+|---|---:|
+| dominant-industry (crude) | 28.2% |
+| **official Census NAPCS → 2012 → NAICS → BEA** | **29.9%** |
+| + NAICS index file, best threshold | 29.2% |
+| trade-concordance transfer | rejected, 2.2% coverage |
+
+**When four unrelated mappings land within two points of each other, the mapping
+is not what is binding.**
+
+**What is binding — evidence, in the order it was ruled out:**
+
+- **Not a uniform level gap.** Built is 3.41tn against 4.55tn published, but
+  rescaling by that single factor moves the error only 29.9% → **29.3%**. The
+  dispersion is commodity-specific, not a ladder constant.
+- **Not unmapped products.** Correlation between a commodity's shortfall and
+  unmapped value in its own industry is **−0.370** — the wrong sign — and the
+  worst commodities carry *less* unmapped value than the rest (0.7% against 1.0%).
+- **Partly suppression, and this is actionable.** **53.2% of manufacturing PxI
+  rows are suppressed and publish as zero.** The gradient is real: commodities
+  whose industries are under 30% suppressed have median ratio **0.96**, against
+  **0.76** at 50-70% suppression.
+
+⚠️ **Every accuracy number above was measured on data with half its cells
+zeroed.** `getFlowByActivity('Census_EC_PxI', 2017)` returns the *published*
+FBA; suppression recovery lives in
+[`estimate_suppressed_ec_pxi`](../../extract/census/Census_EC.py) and runs in the
+FBS clean-function path, so none of this work has used it.
+
+**So the next step is to apply suppression recovery and re-score, before any
+further concordance effort.** The function exists and the plan already records it
+taking published detail from 90.5% to 100.0% of control.
+
+Suppression does not explain everything — `325412` pharmaceutical preparation at
+ratio **0.08** (24 of 29 rows zero), `325211` plastics resin at 0.08 (34 of 49),
+`334510` electromedical at 0.09 (26 of 34) are far more extreme than the bin
+medians. Those three are the diagnostic targets once recovery is in.
+
+### Mining has no annual product survey
+
+Checked rather than assumed:
+
+- **ASM is manufacturing only** — NAICS 31, 32, 33 and nothing else.
+- **AIES** (`timeseries/aies/basic`, all sectors, 2023+) covers mining but has
+  **no product dimension** — receipts, expenses, inventories, value added and
+  payroll by NAICS only.
+- The Economic Census carries mining products, but quinquennially.
+
+So annual mining commodity output has to come from **USGS Mineral Yearbook
+quantities and EIA**, which is what BEA's own Table C1 says it uses. That is a
+different construction from manufacturing's — quantity times price rather than
+reported product value — and the Mineral Yearbook is already an extract here.
+
+✅ **Side finding: `aies/basic` carries inventories by stage for all sectors
+annually** — `INV_E_FIN_VAL`, `INV_E_WIP_VAL`, `INV_E_MAT_VAL` — which is a
+broader and more current source for
+[#664](https://github.com/cornerstone-data/bedrock/issues/664) than the ASM
+benchmark noted earlier.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
