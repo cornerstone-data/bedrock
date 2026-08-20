@@ -723,6 +723,49 @@ exactly the population this rule handles well. Scoring the full set is what
 exposed the failure, and the same trap is available to anyone who samples the
 easy cases first.
 
+### Third experiment: the two stubborn industries
+
+`5111A0` at 0.687 and `515200` at 0.445 needed two further mechanisms, each
+justified by what the published block says rather than by tuning.
+
+**1. The `own-commodity` trigger was too strict.** It required a product to be
+≥30% of **two** sellers mapping to different commodities. "Specialty content for
+consumers" is **99% of `5111A0`'s output** but only 4% of `519130`'s, so it
+missed — and `5111A0` got none of its own commodity. Weakening the trigger to
+≥30% of **any** seller (still requiring ≥2 distinct commodities) takes
+`own-commodity` from 8 products to 59 and `5111A0` from **0.687 to 0.077**.
+
+⚠️ **But the automatic rule must not override an explicit decision.** Weakening
+it first swept "Internet advertising" and "Television air time" back into
+`own-commodity`, undoing the advertising fix and sending `519130` from 0.234
+back to 0.691. Reviewed products are now marked `locked` and are never
+auto-flagged. **An automatic rule and a reviewed decision are not the same kind
+of statement, and the rule must lose.**
+
+**2. Some products are a different commodity depending on who makes them.**
+`515200` cable programming's *"Licensing of rights to exhibit, broadcast, or rent
+audiovisual works"* is 52% of its output, but the published block says `515200`
+produces 42.7% **`515100` broadcasting**. For `512100` motion picture the same
+product is 91% of output and *is* its own commodity. Neither a global target nor
+`own-commodity` can say that, so the corrections file now takes an optional
+`industry` column — a per-(industry, product) override. `515200` goes **0.445 to
+0.193** while `512100` stays at 0.016, unchanged.
+
+⚠️ **Read the corrections with `dtype=str`.** Without it pandas types the code
+columns as floats and `515200` becomes `515200.0`, which matches nothing — the
+override silently did not fire, and the only symptom was an unchanged score.
+
+**Where the mix test now stands:**
+
+| | after `own-commodity` | after advertising | now |
+|---|---:|---:|---:|
+| median L1 | 0.075 | 0.066 | **0.064** |
+| under 0.05 | 17 | 15 | **16** |
+| over 0.30 | 7 | 4 | **3** |
+
+Remaining: `511120` periodicals 0.416 (51.6% coverage — near the floor where the
+mix is an artifact), `541512` 0.370, `221300` water and sewage 0.322.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published

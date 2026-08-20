@@ -54,7 +54,9 @@ EXCLUDED_FLAGS = frozenset(
 NAICS_CODE_LENGTH = 6
 
 
-def concordance() -> tuple[dict[str, list[tuple[str, float]]], set[str]]:
+def concordance() -> (
+    tuple[dict[str, list[tuple[str, float]]], set[str], dict[tuple[str, str], str]]
+):
     """
     Product description → [(BEA 2017 detail commodity, weight)], plus the
     ``own-commodity`` set.
@@ -72,8 +74,24 @@ def concordance() -> tuple[dict[str, list[tuple[str, float]]], set[str]]:
     are *secondary to an industry*, not what a product is in the abstract.
     """
     seed = pd.read_csv(SEED)
-    corrections = pd.read_csv(CORRECTIONS)
+    # ⚠️ dtype=str or pandas reads the BEA and industry codes as floats and
+    # '515200' silently becomes '515200.0', which matches nothing
+    corrections = pd.read_csv(CORRECTIONS, dtype={'bea': str, 'industry': str})
     own = set(seed.loc[seed['flag'] == 'own-commodity', 'Description'])
+    # rows carrying an industry are per-(industry, product) overrides: the same
+    # product is a different commodity depending on who makes it. Cable
+    # programming's licensing revenue is the broadcasting commodity in BEA's
+    # accounts, while motion picture's licensing is its own output.
+    scoped = (
+        corrections[corrections.get('industry').notna()]
+        if 'industry' in corrections
+        else corrections.iloc[:0]
+    )
+    override = {
+        (str(r['industry']).strip(), r['product']): str(r['bea']).strip()
+        for _, r in scoped.iterrows()
+    }
+    corrections = corrections.drop(index=scoped.index)
     mapping = {
         row['Description']: [(str(row['bea_2017_commodity']).strip(), 1.0)]
         for _, row in seed.iterrows()
@@ -85,7 +103,7 @@ def concordance() -> tuple[dict[str, list[tuple[str, float]]], set[str]]:
         mapping[product] = [
             (str(b).strip(), float(w)) for b, w in zip(group['bea'], group['weight'])
         ]
-    return mapping, own
+    return mapping, own, override
 
 
 def built_mix() -> pd.Series:
@@ -100,7 +118,7 @@ def built_mix() -> pd.Series:
         .str.strip()
         .to_dict()
     )
-    mapping, own = concordance()
+    mapping, own, override = concordance()
 
     pxi = getFlowByActivity('Census_EC_PxI', 2017)
     pxi['naics'] = pxi['ActivityProducedBy'].astype(str)
@@ -117,6 +135,9 @@ def built_mix() -> pd.Series:
         for description, value in (
             group.groupby('Description')['FlowAmount'].sum().items()
         ):
+            if (industry, description) in override:
+                rows.append((industry, override[(industry, description)], value))
+                continue
             if description in own:
                 # primary to this industry: it is this industry's own commodity
                 rows.append((industry, industry, value))
