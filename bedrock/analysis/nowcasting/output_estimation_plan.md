@@ -1398,6 +1398,12 @@ single unexplained commodity left in the manufacturing build.
 
 ### Mining has no annual product survey
 
+⚠️ **The conclusion this section reaches is superseded** by the triage below,
+which measured where mining's `q` actually moves. The source review here stands;
+the inference that USGS and EIA are therefore the answer does not, because it
+aims at `212`, the most stable piece. See "Mining — yes, but not where the plan
+said".
+
 Checked rather than assumed:
 
 - **ASM is manufacturing only** — NAICS 31, 32, 33 and nothing else.
@@ -1416,6 +1422,149 @@ annually** — `INV_E_FIN_VAL`, `INV_E_WIP_VAL`, `INV_E_MAT_VAL` — which is a
 broader and more current source for
 [#664](https://github.com/cornerstone-data/bedrock/issues/664) than the ASM
 benchmark noted earlier.
+
+### The remaining sectors, triaged before building — and two of them are skips
+
+Manufacturing is done; the queue was mining, agriculture, construction,
+government and utilities. Rather than build each in turn, all five were measured
+first against the only two questions that decide whether a source is needed:
+
+1. **Is the commodity diagonal?** If a commodity comes almost entirely from its
+   own industry *and* that industry makes almost nothing else, then `q ≈ x` and
+   `x` is already published at detail for 1997-2024. No source is needed.
+2. **Does `q/x` move?** If it does not, freezing the 2017 ratio is not an
+   approximation to apologise for — it is the answer.
+
+`q/x` by summary group from the published Supply tables, 2017-2024, with the
+largest deviation from 2017 in either direction:
+
+| group | `q/x` 2017 | max dev | reading |
+|---|---:|---:|---|
+| `111CA` farms | 0.989 | **0.004** | flat |
+| `23` construction | 1.058 | **0.006** | flat |
+| `GFGD` federal defense | 0.960 | 0.007 | flat |
+| `GSLG` state/local general | 0.766 | 0.017 | flat |
+| `211` oil and gas extraction | 0.832 | 0.023 | flat |
+| `GSLE` state/local enterprises | 0.287 | 0.027 | moves ~9% relative |
+| `212` mining, ex oil and gas | 0.829 | 0.043 | moves |
+| `113FF` forestry, fishing | 1.130 | 0.045 | moves |
+| `22` utilities | 1.320 | 0.047 | moves |
+| `GFGN` federal nondefense | 0.935 | 0.059 | moves |
+| `713` amusements, gambling | 1.439 | 0.099 | moves |
+| **`213` support for mining** | 1.108 | **0.226** | **largest mover in the economy** |
+
+#### Agriculture — skip
+
+The 13 agriculture industries put **98.7%** of their output on their own
+diagonal and **99.5%** inside the sector; 0.5% leaks out. Every crop and
+livestock commodity has `row_diag = 1.000`. Combined with a `q/x` that moves
+0.4% across eight years, `q ≈ 0.989 x` is not a stopgap — it is as good as the
+published industry output it rests on. **No agricultural product source is
+needed for Step 4a.** USDA data remains wanted elsewhere; it does nothing here.
+
+The one caveat is `113FF` (forestry, fishing, support), which runs at 1.130 and
+moves 0.045 — but it is a 60bn group and the movement is worth ~2bn.
+
+#### Construction — skip
+
+The construction sub-block is **100.0% diagonal**: all 12 industries produce
+only their own commodity, and `q/x` moves 0.006 over eight years.
+
+⚠️ `q > x` for every construction commodity, which looks like missing structure
+and is not. The excess is **own-account construction by other sectors** —
+mining industries producing `233240`, government producing `2332C0`/`2332D0` —
+so it is a property of *their* columns, not of construction's. `233240` at
+`q/x = 1.211` is the extreme case and is mining's own-account drilling
+structures.
+
+**`Census_VIP` does not help commodity output.** It is a value-put-in-place
+series and the crosswalk already exists, but the construction block has no mix
+to estimate. VIP earns its keep on levels and deflators, not here.
+
+#### Mining — yes, but not where the plan said
+
+Mining is 84.0% own-diagonal with **10.7% leaking outside the sector**, and it
+splits three ways:
+
+| piece | `q` | behaviour |
+|---|---:|---|
+| `211000` crude oil and gas | 204bn | `row_diag` 0.997, `q/x` dev 0.023 — nearly free |
+| `212xxx` minerals | 82bn | `row_diag` 0.92-1.00, `q/x` dev 0.043 — nearly free |
+| `213xxx` support activities | 118bn | `q/x` dev **0.226** — the real problem |
+
+⚠️ **This overturns "annual mining commodity output has to come from USGS
+Mineral Yearbook quantities and EIA", recorded above.** That aims at `212`,
+which is the *smallest* and *second-most-stable* piece — the whole eight-year
+movement there is worth about 4bn. The volatile piece is `213`, and the Mineral
+Yearbook does not cover it at all.
+
+`213` moves because it is a **make/buy split, not a quantity times price
+problem**: oil and gas extractors and coal miners do drilling and support work
+in-house, and that in-house work is recorded as secondary production of the
+support commodity. `211000` alone contributes 12.9bn of it and `212100` a
+further 5.6bn. The ratio peaks at **1.334 in 2022**, the post-COVID drilling
+rebound. Freezing 2017 would carry a 20% error through the drilling cycle.
+
+⚠️ Whether that split is *observable* annually is a separate question and should
+not be assumed. Rig counts and well completions measure total drilling activity,
+not who performed it. This needs checking before it is promised.
+
+Also unresolved: `211000` ships 25.4bn of `324110` refined petroleum — lease
+condensate and plant liquids leaving the extraction industry as a refinery
+product.
+
+#### Government — do the enterprises, skip general government
+
+Government splits cleanly in two, and only one half is work.
+
+**General government** (`GSLGO`, `GSLGE`, `GSLGH`, `S00500`, `S00600`) has
+`row_diag = 1.000` **exactly** — nobody but government produces these
+commodities — and a flat `q/x`. There is nothing to estimate.
+
+**But `col_diag` is not 1**, and that is where the work is: government
+industries produce large amounts of *other* sectors' commodities, and those land
+squarely on the services priority list:
+
+| industry | secondary output | lands on |
+|---|---:|---|
+| `GSLGH` state/local hospitals | 221.9bn | `622000` hospitals |
+| `GSLGE` state/local education | 90.7bn / 47.1bn | `611A00` colleges / `541700` R&D |
+| `S00500`+`S00600` federal | 36.7bn | `541700` R&D |
+| `S00203` state/local enterprises | 68.0bn / 42.3bn / 50.6bn | `221300` water / `713200` gambling / `531HST`+`531ORE` housing |
+
+`GSLGH` is the sharpest illustration: 312.9bn of industry output carrying only
+68.7bn of its own commodity, `q/x = 0.220`. **Skipping government would strand
+`221300`, `713200` and most of `622000`'s at-risk dollars** — three of the
+commodities the priority list ranks highest.
+
+#### Utilities — the same problem as government enterprises
+
+| commodity | `q` | own industry | government enterprises |
+|---|---:|---:|---:|
+| `221100` electric power | 432bn | 351bn | **79bn** (`S00202` 63.4, `S00101` 15.7) |
+| `221300` water, sewage | 80bn | **10bn** | **68bn** (`S00203`), 84.7% |
+| `221200` natural gas distribution | 75bn | 60bn | 6.1bn (`S00203`) |
+
+✅ **`221300` has `row_diag = 0.125`.** The water and sewage commodity is not
+mainly produced by a water utility industry at all — it is produced by state and
+local government. Solving `S00101`/`S00202`/`S00203` solves `221100`, `221300`,
+`221200` and `713200` in one move, which is why utilities and government are one
+piece of work rather than two.
+
+**The sources follow the split:**
+
+- **Electricity, and probably natural gas — EIA.**
+  `EIA_ElectricPowerAnnual` is already extracted for 2014-2024 and carries
+  `Investor-owned electric utilities` alongside `Total Electric Industry`, so
+  the residual is the public-power share that `S00202`/`S00101` stand for.
+  ⚠️ The residual is public power **plus cooperatives**, which are private, so
+  it is an upper bound rather than the figure itself.
+- **Water, sewage, transit, housing, lotteries — Census state and local
+  government finances.** The Annual Survey of State and Local Government
+  Finances reports utility revenue by function, which is the natural
+  decomposition of `S00203`. **Not yet extracted here** — there is no government
+  finance source in `extract/`, so this is a new FBA.
+
 
 ### Rebalancing
 
