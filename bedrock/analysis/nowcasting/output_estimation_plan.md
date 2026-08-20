@@ -1874,6 +1874,75 @@ understates the far end; 398 of 402 commodities are covered (99.85% of `q`); and
 how much of the 0.94% is period-specific.
 
 
+### So where is industry output actually needed?
+
+Both margins of the block are **observed at summary** for every Phase 1 year, from
+the same published Supply table: row sums are `q`, column sums are `x`. What Step
+4a supplies is the *detail split* of each — and detail industry output is the
+carrier for both.
+
+**1. Needed wherever a summary group has more than one child.**
+
+| | groups | `q` |
+|---|---:|---:|
+| single-child — `q` published outright, no mix, no `x` | 21 | 6.68tn (20%) |
+| multi-child — needs a split, therefore needs detail `x` | 52 | 27.10tn (80%) |
+
+Both candidate methods need it. Carrying the 2017 mix forward is
+`Σ_i mix17[c,i] · x_i(y)`; the fallback for the nine groups where a stale mix is
+worse than none is to allocate the group total by `x` shares directly. There is
+no route to the detail split that does not pass through detail industry output.
+
+**2. The levels are free.** `UGO305-A` publishes detail industry output for
+**1997-2024, all 28 years**. No sourcing work, at any horizon in Phase 1.
+
+**3. The valuation coupling to Step 5 is real but far narrower than recorded.**
+
+`UGO305-A` is **producer** prices; the block is **basic**.
+`GO(basic) = GO(producer) - T00TOP + T00SUB`, and the per-industry split of
+`T00TOP`/`T00SUB` is published only for 2017 — in a nowcast year it is an
+*output* of Step 5's balance, not an input. This document previously drew the
+strong conclusion from that: "4a cannot be finished in isolation from 5".
+
+⚠️ **That overstates it, because the conversion mostly cancels.** Two things
+remove it: the group *level* is pinned by published summary `q` (and summary `x`
+for the column margin), and a wedge that is **uniform across a group's children**
+leaves the within-group shares algebraically unchanged. So the conversion only
+bites where the wedge *varies between children of the same group*.
+
+Measured on 2017 — the share shift from using producer instead of basic `x`:
+
+| | |
+|---|---:|
+| total effect | **182bn of 26,859bn = 0.68%** |
+| groups with share shift above 1% | **6 of 50** |
+
+| group | `x` bn | wedge range across children | effect |
+|---|---:|---|---:|
+| `42` wholesale trade | 1,843 | 0.001 → **1.428** | 79.2bn |
+| `311FT` food, beverage, tobacco | 930 | 0.000 → 0.339 | 18.1bn |
+| `4A0` other retail | 904 | 0.066 → 0.179 | 14.7bn |
+| `HS` housing | 2,052 | −0.033 → −0.002 | 11.9bn |
+| `524` insurance | 1,019 | 0.000 → 0.038 | 8.3bn |
+| `111CA` farms | 406 | **−0.141** → 0.000 | 8.0bn |
+| `GFE` federal enterprises | 85 | **−0.408** → 0.000 | 5.6bn |
+
+The wedge is taxes on products less subsidies, so the outliers are exactly where
+those are large relative to output: `424700` petroleum wholesalers at **+143%**
+carries fuel excise through a thin margin, distilleries and tobacco carry excise,
+and farms and federal enterprises run **negative** — subsidies exceeding taxes.
+
+✅ **So for 44 of 50 multi-child groups, producer-price industry output can be
+used for the split as-is.** The 4a↔5 coupling survives only for the six above,
+worth about 145bn of the 182bn, and it is a **share** problem confined to those
+groups rather than a blocking dependency for the whole step.
+
+⚠️ Measured on 2017 only, the one year where both valuations are published. The
+wedge's *composition* is stable — excise and subsidy structures move slowly — but
+its size tracks tax rates and commodity prices, so 2020-2022 fuel prices could
+move `42` materially. That group is worth checking directly rather than assuming.
+
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published

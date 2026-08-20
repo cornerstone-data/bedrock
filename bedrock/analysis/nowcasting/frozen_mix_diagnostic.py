@@ -172,8 +172,17 @@ def basic_value_output(year: int, industries: list[str]) -> pd.Series:
     ⚠️ Only 2017 can do this from published data. In a nowcast year the industry
     split of ``T00TOP``/``T00SUB`` is an *output* of Step 5's balance, not an
     input — so Step 4a's row margin is observable at the benchmark and solved
-    everywhere else. That coupling is real and is why 4a cannot be finished in
-    isolation from 5.
+    everywhere else. That coupling is real.
+
+    ✅ **But it is narrower than it looks**, because the conversion mostly
+    cancels: group levels are pinned by the published summary table, and a wedge
+    uniform across a group's children leaves within-group shares unchanged. Using
+    producer-price output for the split costs **0.68% overall and exceeds 1% in
+    only 6 of 50 multi-child groups** — ``42`` wholesale (``424700`` petroleum
+    wholesalers carries fuel excise at +143% of basic), ``311FT``, ``4A0``,
+    ``HS``, ``524``, ``111CA`` and ``GFE``, the last two negative because
+    subsidies exceed taxes. So 4a needs 5 for those groups, not for the step as a
+    whole. See ``output_estimation_plan.md``.
     """
     use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
     use.index = [str(i).strip() for i in use.index]
