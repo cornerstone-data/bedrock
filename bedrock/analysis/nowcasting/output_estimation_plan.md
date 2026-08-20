@@ -2180,37 +2180,28 @@ published detail `x` as a target; a seed that already matched both margins would
 leave the balance nothing to do. What matters is that the gap is now *measured*
 per industry, so Step 5's work is sized rather than assumed.
 
-#### Scrap is included; two commodities cannot be
+#### The block carries every commodity with nonzero domestic output
 
-✅ **`S00401` scrap is in the block**, at 11,739m in 2021, matching the published
-`Used` summary total exactly. It is produced as a by-product by **79 industries**
-— `GSLGO` 4,650m, `562000` waste management 1,145m, `332119` 754m — so excluding
-it dropped a real, widely-produced commodity row. The `Used` exclusion is gone
-from the summary source and `S00401`/`S00402` from the detail source. 398
-commodities now, `q` 35.74tn (2018) to 49.72tn (2024), row margin still 0.0000.
+✅ **`S00401` scrap and `S00900` rest-of-the-world adjustment are both in**, at
+11,739m and ~4,200m in 2021, matching their published `Used` and `Other` summary
+totals. Scrap is produced as a by-product by **79 industries** — `GSLGO` 4,650m,
+`562000` waste management 1,145m — and `S00900` by `S00600` alone. Excluding
+either dropped a real commodity row. 399 commodities now, and `q` lands on the
+published summary total exactly.
 
-⚠️ **`S00402` and `4200ID` remain absent and cannot be recovered by this method**:
-both are **zero in the 2017 detail block**, produced by zero industries, so there
-is no mix to attribute a later year's value with. Any value they carry in a
-nowcast year needs a different source, not a different exclusion list.
+⚠️ **The three still absent are absent by definition, not by omission**, and
+calling them a sourcing gap was wrong. The published 2017 detail Supply table
+gives all three `T007 = 0`:
 
-⚠️ **`Other` is still excluded** — `S00300` (zero) and `S00900` (3,468m, produced
-by `S00600` alone, so trivially attributable). That is the same question as scrap
-and has not been decided rather than deliberately answered.
+| code | description | `T007` | enters the Supply table through |
+|---|---|---:|---|
+| `S00300` | Noncomparable imports | **0** | `MCIF` 260,421 |
+| `S00402` | Used and secondhand goods | **0** | `MCIF` 7,340, `TRANS` 23,869, `TOP` 15,699 |
+| `4200ID` | Customs duties | **0** | `MDTY` |
 
-
-### ⚠️ Correction: the product build was scored as a level, and that is the wrong test
-
-The comparison above — carried mix 1.40% against product build 5.48% — scores
-`Census_EC_PxI` as a **level** estimator of `q`. That was never the intended use,
-and this document already knew it: `pxi_mix_test.py`'s own docstring records that
-PxI is the raw product data **before** BEA's imputations, nonemployer and
-tax-misreporting coverage, cost of resales and secondary in/out adjustments, and
-that it is a **weighted sample**.
-
-**The intended use is BEA's own best-level / best-change split**: the benchmark
-supplies the level, the annual survey supplies the *change*. Scoring a change
-signal by its level is measuring the coverage gap, not the signal.
+None of them is domestic output. They have no place in this block in any year,
+they need no source, and the earlier reading — that they were zero in 2017 and
+so had "no mix to attribute with" — mistook a definitional zero for a data gap.
 
 #### The coverage adjustment is close to uniform, which is what makes the signal usable
 

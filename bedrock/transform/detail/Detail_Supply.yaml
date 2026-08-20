@@ -34,12 +34,12 @@ source_names:
     exclusion_fields:
       ActivityProducedBy: ['MADJ', 'MCIF', 'MDTY', 'SUB', 'T007', 'T013',
                            'T014', 'T015', 'T016', 'TOP', 'Trade', 'Trans']
-      # ⚠️ 'Used' is NOT excluded: it is scrap (S00401), 10,761m in 2017 produced
-      # as a by-product by 79 industries - GSLGO 4,118m, 562000 waste management
-      # 829m - and dropping it silently loses a real commodity row from the
-      # block. 'Other' (S00300 zero, S00900 3,468m from S00600 alone) is still
-      # excluded; that is the same question and has not been decided.
-      ActivityConsumedBy: ['Other', 'T017']
+      # ⚠️ Only T017 is excluded here. 'Used' is scrap (S00401), 10,761m in 2017
+      # from 79 industries - GSLGO 4,118m, 562000 waste management 829m - and
+      # 'Other' is the rest-of-the-world adjustment (S00900), 3,468m produced by
+      # S00600. Both are real domestic output and dropping them silently loses
+      # commodity rows from the block.
+      ActivityConsumedBy: ['T017']
     attribution_method: proportional
     attribute_on: ['PrimarySector', 'SecondarySector']
     attribution_source:
@@ -49,7 +49,12 @@ source_names:
 
         # Drop unneeded codes
         exclusion_fields:
-          ActivityConsumedBy: ['T017', 'S00300', 'S00900']
+          # ⚠️ S00300 noncomparable imports, S00402 used and secondhand goods and
+          # 4200ID customs duties are all T007 = 0 in the published table - zero
+          # domestic output BY DEFINITION, entering the Supply table through
+          # MCIF (260,421 and 7,340) and MDTY instead. They are not a sourcing
+          # gap and need no exclusion; they simply carry nothing to attribute.
+          ActivityConsumedBy: ['T017', 'S00300']
           ActivityProducedBy: ['MADJ', 'MCIF', 'MDTY', 'SUB', 'T007', 'T013',
                                'T014', 'T015', 'T016', 'TOP', 'TRADE', 'TRANS']
         attribution_method: equal
