@@ -1196,6 +1196,50 @@ vehicle parts 61.2bn, `312200` tobacco 47.8bn and `336310` gasoline engines
    concordance — `331110` and `336390` return zero rows. Those need a different
    source rather than a crosswalk repair.
 
+### Closing the crosswalk gap
+
+`NAICS_Year_Concordance.csv` (in `utils/mapping/naics/`) does differentiate
+vintages — 160 of its 1,445 rows differ between 2012 and 2017 — but it **does not
+carry the codes we need**. `311222`, `311223`, `311311`, `311320`, `311330` and
+the rest of the 172 are 2012 codes that were *merged away* in 2017, and the file
+lists only the surviving 2017 code (`311224` appears twice where `311222` and
+`311223` should sit). Resolving through it recovers **0 of 172**.
+
+**A NAICS-prefix fallback does the job instead.** Try the 6-digit code against
+both vintage columns, then progressively shorter prefixes, accepting a match only
+when every crosswalk entry under that prefix agrees on one BEA commodity —
+because BEA detail commodities are frequently aggregates of several NAICS:
+
+| resolution | codes |
+|---|---:|
+| direct, 2012 column | 301 |
+| **prefix, 5-digit** | **120** |
+| prefix, 4-digit | 14 |
+| unresolved | 38 |
+
+BEA commodities reachable go **200 → 222** of 231.
+
+Scored over **all 231** manufacturing commodities, which is the honest
+denominator — the earlier 14.1% counted only the 197 that had any built value:
+
+| | direct 2012 only | **+ prefix fallback** |
+|---|---:|---:|
+| level | 0.839 | **0.928** |
+| wtd abs error | 23.0% | **13.8%** |
+| within ±25% | 169 | **189** |
+| within ±10% | 136 | **143** |
+| unbuilt commodities | 32 | **10** |
+
+⚠️ **The fallback is a heuristic, not a published mapping.** It is only applied
+where the prefix resolves unambiguously, so it never invents a choice between
+competing commodities — but a 5-digit prefix agreeing on one BEA code is an
+inference about NAICS structure rather than a Census statement. It should be
+frozen as an explicit code list once reviewed, not left as a live rule.
+
+**Still unbuilt: 10 commodities**, and 38 NAICS 2012 codes remain unresolved —
+`311222`, `311223`, `331311`, `331312`, `331316`, `331319`, `332115`, `332116`
+among them. Those need either a hand mapping or a different source.
+
 ### Motor vehicles need `U70205`, not the product data
 
 `336111` automobile is built at 94.6bn against 32.8bn published while `336112`
