@@ -100,7 +100,7 @@ def load_2017_V_after_redef_usa() -> pd.DataFrame:
     unit is USD, original unit is million USD.
     """
     df = (
-        _load_2017_detail_make_use_usa('Make_detail')
+        _load_2017_detail_make_use_usa("Make_detail")
         .loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -113,9 +113,9 @@ def load_2017_V_after_redef_usa() -> pd.DataFrame:
 def load_2017_V_usa() -> pd.DataFrame:
     """2017 USA Make (V); before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == 'before':
+    if stage == "before":
         return load_2017_V_before_redef_usa()
-    if stage == 'after':
+    if stage == "after":
         return load_2017_V_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -135,23 +135,23 @@ def load_2017_V_before_redef_usa() -> pd.DataFrame:
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
-                'Make_detail_before_redef'
+                "Make_detail_before_redef"
             ],
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index('Code')
+        .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
-    assert len(df.shape) == 2, (
-        f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
-    )
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
 
     df = (
         df.loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES].astype(float)
@@ -169,7 +169,7 @@ def load_2017_Utot_after_redef_usa() -> pd.DataFrame:
     unit is USD, original unit is million USD.
     """
     df = (
-        _load_2017_detail_make_use_usa('Use_detail')
+        _load_2017_detail_make_use_usa("Use_detail")
         .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -183,9 +183,9 @@ def load_2017_Utot_after_redef_usa() -> pd.DataFrame:
 def load_2017_Utot_usa() -> pd.DataFrame:
     """2017 USA total Use (Utot); before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == 'before':
+    if stage == "before":
         return load_2017_Utot_before_redef_usa()
-    if stage == 'after':
+    if stage == "after":
         return load_2017_Utot_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -201,15 +201,15 @@ def load_2017_Utot_before_redef_usa() -> pd.DataFrame:
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
-                'Use_detail_before_redef'
+                "Use_detail_before_redef"
             ],
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index('Code')
+        .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
@@ -229,7 +229,7 @@ def load_2017_Uimp_after_redef_usa() -> pd.DataFrame:
     unit is USD, original unit is million USD.
     """
     df = (
-        _load_2017_detail_make_use_usa('Import_detail')
+        _load_2017_detail_make_use_usa("Import_detail")
         .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -243,9 +243,9 @@ def load_2017_Uimp_after_redef_usa() -> pd.DataFrame:
 def load_2017_Uimp_usa() -> pd.DataFrame:
     """2017 USA import Use (Uimp); before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == 'before':
+    if stage == "before":
         return load_2017_Uimp_before_redef_usa()
-    if stage == 'after':
+    if stage == "after":
         return load_2017_Uimp_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -261,15 +261,15 @@ def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
-                'Import_detail_before_redef'
+                "Import_detail_before_redef"
             ],
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index('Code')
+        .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
@@ -283,21 +283,21 @@ def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
 
 
 _MARGINS_COLUMNS = [
-    'Industry Code',
-    'Industry Description',
-    'Commodity Code',
-    'Commodity Description',
+    "Industry Code",
+    "Industry Description",
+    "Commodity Code",
+    "Commodity Description",
     "Producers' Value",
-    'Transportation',
-    'Wholesale',
-    'Retail',
+    "Transportation",
+    "Wholesale",
+    "Retail",
     "Purchasers' Value",
 ]
 _MARGINS_VALUE_COLUMNS = [
     "Producers' Value",
-    'Transportation',
-    'Wholesale',
-    'Retail',
+    "Transportation",
+    "Wholesale",
+    "Retail",
     "Purchasers' Value",
 ]
 
@@ -305,9 +305,9 @@ _MARGINS_VALUE_COLUMNS = [
 def load_2017_margins_usa() -> pd.DataFrame:
     """2017 Margins before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == 'before':
+    if stage == "before":
         return load_2017_margins_before_redef_usa()
-    if stage == 'after':
+    if stage == "after":
         return load_2017_margins_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -318,17 +318,17 @@ def _load_margins_excel(pth: str) -> pd.DataFrame:
     """Read the Margins Excel file, suppressing the openpyxl header/footer warning."""
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            'ignore',
-            message='Cannot parse header or footer so it will be ignored',
+            "ignore",
+            message="Cannot parse header or footer so it will be ignored",
             category=UserWarning,
         )
         return pd.read_excel(
             pth,
-            sheet_name='2017',
+            sheet_name="2017",
             skiprows=5,
             header=None,
             names=_MARGINS_COLUMNS,
-            dtype={'Industry Code': str, 'Commodity Code': str},
+            dtype={"Industry Code": str, "Commodity Code": str},
         )
 
 
@@ -339,12 +339,12 @@ def _load_2017_margins_from_file(filename: str) -> pd.DataFrame:
         sub_bucket=GCS_USA_MAKE_USE_DIR,
         local_dir=LOCAL_USA_MAKE_USE_DIR,
         loader=_load_margins_excel,
-    ).set_index(['Industry Code', 'Commodity Code'])
+    ).set_index(["Industry Code", "Commodity Code"])
     valid_industry = set(USA_2017_INDUSTRY_CODES) | set(USA_2017_FINAL_DEMAND_CODES)
     valid_commodity = set(USA_2017_COMMODITY_CODES) | set(USA_2017_VALUE_ADDED_CODES)
-    mask = df.index.get_level_values('Industry Code').isin(
+    mask = df.index.get_level_values("Industry Code").isin(
         valid_industry
-    ) & df.index.get_level_values('Commodity Code').isin(valid_commodity)
+    ) & df.index.get_level_values("Commodity Code").isin(valid_commodity)
     return (
         df.loc[mask, _MARGINS_VALUE_COLUMNS].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -358,7 +358,7 @@ def load_2017_margins_after_redef_usa() -> pd.DataFrame:
     Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
     unit is USD, original unit is million USD.
     """
-    return _load_2017_margins_from_file(USA_2017_DETAIL_IO_MATRIX_MAPPING['Margins'])
+    return _load_2017_margins_from_file(USA_2017_DETAIL_IO_MATRIX_MAPPING["Margins"])
 
 
 @functools.cache
@@ -369,27 +369,27 @@ def load_2017_margins_before_redef_usa() -> pd.DataFrame:
     unit is USD, original unit is million USD.
     """
     return _load_2017_margins_from_file(
-        USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING['Margins']
+        USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING["Margins"]
     )
 
 
 _PCE_BRIDGE_DETAIL_COLUMNS = [
-    'NIPA Line',
-    'PCE Category',
-    'Commodity Code',
-    'Commodity Description',
+    "NIPA Line",
+    "PCE Category",
+    "Commodity Code",
+    "Commodity Description",
     "Producers' Value",
-    'Transportation',
-    'Wholesale',
-    'Retail',
+    "Transportation",
+    "Wholesale",
+    "Retail",
     "Purchasers' Value",
-    'Year',
+    "Year",
 ]
 _PCE_BRIDGE_DETAIL_VALUE_COLUMNS = [
     "Producers' Value",
-    'Transportation',
-    'Wholesale',
-    'Retail',
+    "Transportation",
+    "Wholesale",
+    "Retail",
     "Purchasers' Value",
 ]
 
@@ -398,17 +398,17 @@ def _load_pce_bridge_detail_excel(pth: str) -> pd.DataFrame:
     """Read the PCE Bridge Detail Excel file, suppressing the openpyxl header/footer warning."""
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            'ignore',
-            message='Cannot parse header or footer so it will be ignored',
+            "ignore",
+            message="Cannot parse header or footer so it will be ignored",
             category=UserWarning,
         )
         return pd.read_excel(
             pth,
-            sheet_name='2017',
+            sheet_name="2017",
             skiprows=5,
             header=None,
             names=_PCE_BRIDGE_DETAIL_COLUMNS,
-            dtype={'Commodity Code': str},
+            dtype={"Commodity Code": str},
         )
 
 
@@ -422,14 +422,14 @@ def _load_pce_bridge_detail_raw_usa() -> pd.DataFrame:
     Purchasers' Value, Year. unit is million USD, matching the source file.
     """
     df = load_from_gcs(
-        name='PCEBridge_Detail.xlsx',
+        name="PCEBridge_Detail.xlsx",
         sub_bucket=GCS_BEA_NIPA_IOT_BRIDGES_DIR,
         local_dir=LOCAL_BEA_NIPA_IOT_BRIDGES_DIR,
         loader=_load_pce_bridge_detail_excel,
     )
-    assert set(df['Commodity Code']).issubset(USA_2017_COMMODITY_CODES), (
-        'PCE Bridge Detail has commodity codes outside the 2017 taxonomy: '
-        f'{set(df["Commodity Code"]) - set(USA_2017_COMMODITY_CODES)}'
+    assert set(df["Commodity Code"]).issubset(USA_2017_COMMODITY_CODES), (
+        "PCE Bridge Detail has commodity codes outside the 2017 taxonomy: "
+        f"{set(df['Commodity Code']) - set(USA_2017_COMMODITY_CODES)}"
     )
     return df
 
@@ -459,17 +459,17 @@ def _load_peq_bridge_detail_excel(pth: str) -> pd.DataFrame:
     """Read the PEQ Bridge Detail Excel file, suppressing the openpyxl header/footer warning."""
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            'ignore',
-            message='Cannot parse header or footer so it will be ignored',
+            "ignore",
+            message="Cannot parse header or footer so it will be ignored",
             category=UserWarning,
         )
         return pd.read_excel(
             pth,
-            sheet_name='2017',
+            sheet_name="2017",
             skiprows=5,
             header=None,
             names=_PEQ_BRIDGE_DETAIL_COLUMNS,
-            dtype={'Commodity Code': str},
+            dtype={"Commodity Code": str},
         )
 
 
@@ -484,14 +484,14 @@ def _load_peq_bridge_detail_raw_usa() -> pd.DataFrame:
     unit is million USD, matching the source file.
     """
     df = load_from_gcs(
-        name='PEQBridge_Detail.xlsx',
+        name="PEQBridge_Detail.xlsx",
         sub_bucket=GCS_BEA_NIPA_IOT_BRIDGES_DIR,
         local_dir=LOCAL_BEA_NIPA_IOT_BRIDGES_DIR,
         loader=_load_peq_bridge_detail_excel,
     )
-    assert set(df['Commodity Code']).issubset(USA_2017_COMMODITY_CODES), (
-        'PEQ Bridge Detail has commodity codes outside the 2017 taxonomy: '
-        f'{set(df["Commodity Code"]) - set(USA_2017_COMMODITY_CODES)}'
+    assert set(df["Commodity Code"]).issubset(USA_2017_COMMODITY_CODES), (
+        "PEQ Bridge Detail has commodity codes outside the 2017 taxonomy: "
+        f"{set(df['Commodity Code']) - set(USA_2017_COMMODITY_CODES)}"
     )
     return df
 
@@ -515,7 +515,7 @@ def load_2017_Ytot_usa() -> pd.DataFrame:
     Final Demand (total), commodity x final demand category, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
-    df = _load_2017_detail_make_use_usa('Use_detail')
+    df = _load_2017_detail_make_use_usa("Use_detail")
     df = (
         df.loc[USA_2017_COMMODITY_CODES, USA_2017_FINAL_DEMAND_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -531,7 +531,7 @@ def load_2017_value_added_usa() -> pd.DataFrame:
     Value added (total), VA category x industry, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
-    df = _load_2017_detail_make_use_usa('Use_detail')
+    df = _load_2017_detail_make_use_usa("Use_detail")
     df = (
         df.loc[USA_2017_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -547,7 +547,7 @@ def load_2017_Yimp_usa() -> pd.DataFrame:
     Final Demand (from Import matrix), commodity x final demand category, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
-    df = _load_2017_detail_make_use_usa('Import_detail')
+    df = _load_2017_detail_make_use_usa("Import_detail")
     df = (
         df.loc[USA_2017_COMMODITY_CODES, USA_2017_FINAL_DEMAND_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -570,18 +570,18 @@ def _load_2017_detail_make_use_usa(
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index('Code')
+        .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
-    assert len(df.shape) == 2, (
-        f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
-    )
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
 
     return df
 
@@ -643,18 +643,18 @@ def _load_2017_detail_supply_use_usa(
             sub_bucket=GCS_USA_SUP_DIR,
             local_dir=LOCAL_USA_SUP_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index('Code')
+        .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
-    assert len(df.shape) == 2, (
-        f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
-    )
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
 
     _assert_bea_subsidy_signs(df, matrix_name)
 
@@ -668,7 +668,7 @@ def load_summary_V_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut('Make_summary', year)
+        _load_usa_summary_mut("Make_summary", year)
         .loc[
             USA_2017_SUMMARY_INDUSTRY_CODES,
             USA_2017_SUMMARY_COMMODITY_CODES,
@@ -688,7 +688,7 @@ def load_summary_Utot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut('Use_summary', year)
+        _load_usa_summary_mut("Use_summary", year)
         .loc[
             USA_2017_SUMMARY_COMMODITY_CODES,
             USA_2017_SUMMARY_INDUSTRY_CODES,
@@ -709,7 +709,7 @@ def load_summary_Uimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut('Import_summary', year)
+        _load_usa_summary_mut("Import_summary", year)
         .loc[
             USA_2017_SUMMARY_COMMODITY_CODES,
             USA_2017_SUMMARY_INDUSTRY_CODES,
@@ -730,7 +730,7 @@ def load_summary_Ytot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut('Use_summary', year)
+        _load_usa_summary_mut("Use_summary", year)
         .loc[
             USA_2017_SUMMARY_INDUSTRY_CODES,  # use industry index instead of commodity index as hacky way to exclude Used and Other
             USA_2017_SUMMARY_FINAL_DEMAND_CODES,
@@ -738,7 +738,9 @@ def load_summary_Ytot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
-    df.index = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()  # use industry index instead of commodity index as hacky way to exclude Used and Other
+    df.index = (
+        USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    )  # use industry index instead of commodity index as hacky way to exclude Used and Other
     df.columns = USA_2017_SUMMARY_FINAL_DEMAND_INDEX.copy()
 
     return df
@@ -751,7 +753,7 @@ def load_summary_Yimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut('Import_summary', year)
+        _load_usa_summary_mut("Import_summary", year)
         .loc[
             USA_2017_SUMMARY_INDUSTRY_CODES,  # use industry index instead of commodity index as hacky way to exclude Used and Other
             USA_2017_SUMMARY_FINAL_DEMAND_CODES,
@@ -759,7 +761,9 @@ def load_summary_Yimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
-    df.index = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()  # use industry index instead of commodity index as hacky way to exclude Used and Other
+    df.index = (
+        USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    )  # use industry index instead of commodity index as hacky way to exclude Used and Other
     df.columns = USA_2017_SUMMARY_FINAL_DEMAND_INDEX.copy()
 
     return df
@@ -776,13 +780,10 @@ def _load_usa_summary_mut(
     # oldest file containing them so values stay stable across releases (e.g.
     # scale_cornerstone_A uses years 2017 and 2022, which must not change as new
     # vintages add years on the right).
-    # ⚠️ ``year`` is coerced because the FBA generation path hands it in as a
-    # **str**: generateflowbyactivity reads it from the method's year list and
-    # never casts, and ``typing.cast`` at the call site is a no-op at runtime.
-    # The comparisons below then raise TypeError - which is the good outcome.
-    # The bad one is silent: ``sheet_name=str(year)`` accepts either type, so if
-    # these comparisons ever moved or were removed, a str year would quietly
-    # select the wrong vintage mapping and return a different release's numbers.
+    # year arrives as a str from the FBA generation path, and typing.cast at the
+    # call site is a no-op at runtime. Coerce before the vintage comparisons: they
+    # raise on a str today, but sheet_name=str(year) accepts either type, so if
+    # they ever moved a str year would silently select the wrong vintage mapping.
     year = int(year)
     if year > 2023:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2024
@@ -799,19 +800,19 @@ def _load_usa_summary_mut(
                 pth,
                 sheet_name=str(year),
                 skiprows=5,
-                dtype={'Unnamed: 0': str},
+                dtype={"Unnamed: 0": str},
             ),
         )
-        .set_index('Unnamed: 0')
-        .replace('...', 0)
+        .set_index("Unnamed: 0")
+        .replace("...", 0)
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
-    assert len(df.shape) == 2, (
-        f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
-    )
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
 
     return df
 
@@ -828,13 +829,10 @@ def _load_usa_summary_sut(
     # existing consumers as new vintages add years on the right. 2017-2022 stays on
     # the workbook its published FBAs were built from; a 2025 vintage would get its
     # own `year > 2024` arm, leaving 2023-2024 where they are.
-    # ⚠️ ``year`` is coerced because the FBA generation path hands it in as a
-    # **str**: generateflowbyactivity reads it from the method's year list and
-    # never casts, and ``typing.cast`` at the call site is a no-op at runtime.
-    # The comparisons below then raise TypeError - which is the good outcome.
-    # The bad one is silent: ``sheet_name=str(year)`` accepts either type, so if
-    # these comparisons ever moved or were removed, a str year would quietly
-    # select the wrong vintage mapping and return a different release's numbers.
+    # year arrives as a str from the FBA generation path, and typing.cast at the
+    # call site is a no-op at runtime. Coerce before the vintage comparisons: they
+    # raise on a str today, but sheet_name=str(year) accepts either type, so if
+    # they ever moved a str year would silently select the wrong vintage mapping.
     year = int(year)
     if year > 2022:
         mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
@@ -849,31 +847,31 @@ def _load_usa_summary_sut(
                 pth,
                 sheet_name=str(year),
                 skiprows=5,
-                dtype={'Unnamed: 0': str},
+                dtype={"Unnamed: 0": str},
             ),
         )
-        .set_index('Unnamed: 0')
-        .replace('...', 0)
+        .set_index("Unnamed: 0")
+        .replace("...", 0)
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
-    assert len(df.shape) == 2, (
-        f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
-    )
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
 
     return df
 
 
-@deprecated('Use load_detail_Ytot_usa instead, which reads from MUT.')
+@deprecated("Use load_detail_Ytot_usa instead, which reads from MUT.")
 def load_2017_Ytot_sut_usa() -> pd.DataFrame:
     """
     Final Demand (total), commodity x final demand, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
     df = (
-        _load_2017_detail_sut_usa('Use_detail')
+        _load_2017_detail_sut_usa("Use_detail")
         .loc[USA_2017_COMMODITY_CODES, USA_2017_FINAL_DEMAND_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -897,17 +895,17 @@ def _load_2017_detail_sut_usa(
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
+                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index('Code')
+        .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
-    assert len(df.shape) == 2, (
-        f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
-    )
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
 
     return df
