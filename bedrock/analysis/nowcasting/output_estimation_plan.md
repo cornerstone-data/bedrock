@@ -1321,10 +1321,29 @@ Recovery distributes each five-digit parent's residual over its zero six-digit
 children — the generic dense-hierarchy method, which ASM supports and `EC_PxI`
 does not. It **more than halves** the error in every year that needs it.
 
-⚠️ **2018 is unaffected because it is a different shape.** The 2018 file has
-17,269 rows against ~43,000 for later years and its detail is already close to
-complete, so there is no residual to distribute. Do not read its 6.1% as
-evidence the method is better in 2018; read it as 2018 needing less help.
+⚠️ **2018 is unaffected because it has no rollups to recover from.** It carries
+only the `31-33` sector total and six-digit detail — **no 3-, 4- or 5-digit
+levels at all** — where 2019 onward carry the full hierarchy. Published totals by
+level:
+
+| year | `31-33` | 3-digit | 4-digit | 5-digit | 6-digit |
+|---|---:|---:|---:|---:|---:|
+| 2018 | 9,543 | — | — | — | **11,585** |
+| 2019 | 9,106 | 8,854 | 10,007 | **11,108** | 10,267 |
+| 2021 | 9,889 | 9,613 | 10,661 | **11,774** | 11,033 |
+
+⚠️ **Every sector total is *below* its own six-digit sum**, so the rollup is more
+suppressed than the detail it contains and cannot act as a control the way
+`Census_EC_PxI`'s `'00'` product total does. **The five-digit level is the least
+suppressed and is the only usable parent** — which is why recovery works for
+2019-2021 and does nothing for 2018, where that level is absent. 2018 compensates
+by having more complete detail on its own (0.949 unrecovered), so it needs less
+help rather than the method working better there.
+
+⚠️ **`'31-33'` is five characters**, so it survives a `len == 5` filter alongside
+real five-digit NAICS. Match `^\d+$` before selecting a level. This is the sixth
+aggregate-row trap in this work, after `'TRADE '`, `GSLGE`, `T017`, PxI `'00'`
+and the ASM all-zero NAPCS code.
 
 ⚠️ **These are scored at summary, over 19 groups — not comparable to the
 11.5% the 2017 Economic Census build scores at detail over 231 commodities.**
