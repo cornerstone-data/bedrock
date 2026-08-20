@@ -13,20 +13,24 @@ bib_id: Census_ASM_PxI
 # EC 2022 fills exactly that gap. 2018-2021 are live; 2023 is not yet published.
 #
 # ⚠️ 2018 is a different shape from later years - about 17,000 rows against
-# ~43,000 - and its six-digit detail is already close to complete, so it needs
-# little suppression recovery where 2019+ need a lot.
+# ~43,000 - because it publishes only six-digit NAICS and the '31-33' rollup,
+# where 2019+ publish 3-, 4- and 5-digit levels too. Its six-digit detail is
+# correspondingly more complete (96.7% of control against 79.0% in 2019).
 #
-# ⚠️ **Do not filter to six-digit NAICS here.** The 3-, 4- and 5-digit rollups
-# are what make suppression recoverable: 57% of six-digit detail cells publish as
-# zero, and the residual against a five-digit parent is the only way to put the
-# value back. Dropping the parents at extract time would discard the control.
-# The dense hierarchy is also why
-# flowbyclean.estimate_suppressed_sectors_equal_attribution can serve this source
-# where it cannot serve Census_EC_PxI, which jumps from two digits to six.
+# ⚠️ **Do not filter to any single NAICS level here.** Every level covers all of
+# manufacturing, and which one is least suppressed varies: 57% of six-digit
+# cells publish as zero, so the five-digit rollup carries MORE value than the
+# six-digit detail inside it (5,695bn against 4,953bn in 2021). The industry
+# axis is summed away when building commodity output, so the level is chosen at
+# clean time by estimate_suppressed_asm_pxi. Dropping levels at extract time
+# would take that choice away.
 #
 # ⚠️ The all-industries rows carry NAICS '31-33' and the product total carries
 # NAPCS '0000000000'. Both are aggregates of the detail beside them - filter
-# before summing anything.
+# before summing anything. '0000000000' is ALSO the suppression control: it is
+# published for every industry at every level and sums to the same national
+# figure at each, which is what makes recovery reach 100% rather than the 93.7%
+# a NAICS-parent residual reaches.
 #
 # NAPCSDOL is value of shipments, f.o.b. plant, net of discounts and **excluding
 # freight and excise taxes**, which makes it **basic value** - verified against

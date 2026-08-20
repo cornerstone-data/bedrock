@@ -820,6 +820,13 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
   **Full treatment in [`output_estimation_plan.md`](output_estimation_plan.md)**, with BEA's own
   per-industry source table at [`output_estimation_sources.csv`](output_estimation_sources.csv).
 
+  ✅ **The manufacturing half now runs as a method.**
+  `transform/commodity_output/Commodity_output_manufacturing_<year>.yaml` builds 236 BEA detail
+  commodities per year for 2018-2021 from Annual Survey of Manufactures product data, at basic
+  prices, scoring 0.94-0.97 of level and 4.5-6.8% weighted error against published summary `T007`.
+  Still outstanding for 4a: mining `q` (no annual product survey exists), the services half
+  (industry output × mix), 2022-2024, and the rebalance to the summary control.
+
   ⚠️ **The estimand is *commodity* output, not industry output.** `T007`'s column sums are commodity
   output; industry output is an input to the construction, not the deliverable. That admits two
   routes, and the manual says BEA uses different ones by industry: industry output × commodity mix

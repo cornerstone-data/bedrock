@@ -251,7 +251,13 @@ Census_ASM_PxI:
   class:
   - Money
   # ActivityProducedBy is NAICS at 3 to 6 digits plus the '31-33' rollup, and
-  # the rollups must survive - they are the control for suppression recovery.
+  # the rollups must survive - the least-suppressed level is chosen from them.
+  #
+  # ⚠️ This describes the FBA only. Once move_asm_product_to_activity runs, the
+  # activity is a 10-digit NAPCS collection code and NOT NAICS, so any FBS
+  # reading this source through that hook must set `activity_schema: null` in
+  # its own source block. The catalog is merged AFTER the method config, so the
+  # method's value loses to this one and the override has to be per-source.
   activity_schema:
     naics:
       year: 2017

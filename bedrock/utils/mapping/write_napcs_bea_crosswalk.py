@@ -37,8 +37,18 @@ to each. Only 2.1% of codes are multi-target so this is a small effect (weighted
 error 14.1% to 13.8% on 2017), but taking the mode starves any commodity that is
 never a modal target, and 33 were.
 
-Validated by ``test_napcs_bea_crosswalk.py`` against the published 2017 detail
-Supply table.
+**Two outputs.** ``napcs_to_bea_2017.csv`` is the analytical form, carrying the
+split ``weight`` and how each code resolved. ``Sector_Crosswalk_Census_ASM_PxI.csv``
+is the same content in ``activity_to_sector_mapping`` shape for the FBS methods -
+without the weights, which that format cannot carry. See
+:func:`write_sector_crosswalk` for what that costs.
+
+**Validate with** ``--validate``, which builds 2017 commodity output from the
+Economic Census through this crosswalk and scores it against the published 2017
+detail Supply block - the answer. That is the check the accuracy claims above
+rest on, and it is a flag rather than a unit test because it needs the
+``Census_EC_PxI`` FBA and the BEA workbooks (see
+``analysis/nowcasting/README.md`` on why diagnostics are CLI flags here).
 
 Run: ``uv run python bedrock/utils/mapping/write_napcs_bea_crosswalk.py``
 """
@@ -59,6 +69,11 @@ NAICS_TO_BEA = 'bedrock/utils/mapping/naics/NAICS_to_BEA_Crosswalk_2017.csv'
 YEAR_CONCORDANCE = 'bedrock/utils/mapping/naics/NAICS_Year_Concordance.csv'
 OVERRIDES = 'bedrock/utils/mapping/census_pxi/pxi_naics_vintage_overrides.csv'
 OUT = 'bedrock/utils/mapping/census_pxi/napcs_to_bea_2017.csv'
+#: The same content in ``activity_to_sector_mapping`` shape, for FBS methods
+#: that read a PxI source directly rather than joining the csv by hand.
+SECTOR_CROSSWALK = (
+    'bedrock/utils/mapping/activitytosectormapping/Sector_Crosswalk_Census_ASM_PxI.csv'
+)
 
 CODE = '2017 NAPCS Based Collection Code'
 DESCRIPTION = '2017 NAPCS Based Description'
@@ -167,9 +182,129 @@ def build() -> pd.DataFrame:
     )
 
 
+def write_sector_crosswalk(crosswalk: pd.DataFrame) -> pd.DataFrame:
+    """Re-express the crosswalk as an ``activity_to_sector_mapping`` file.
+
+    ``Commodity_output_manufacturing`` reads ``Census_ASM_PxI`` through the
+    standard FBS machinery, which joins its crosswalk on the **activity**
+    columns. ``move_asm_product_to_activity`` puts the NAPCS code there, so the
+    ``Activity`` here is the 10-digit collection code and the ``Sector`` is the
+    BEA 2017 detail commodity.
+
+    ⚠️ **The ``weight`` column does not survive the trip.** The
+    activity-to-sector format carries no weight, so a code split across several
+    commodities is attributed **equally** by ``attribution_method: equal``. That
+    is exact for 138 of the 156 split codes - the splits are mostly two-way and
+    already 0.5/0.5 - and approximate for the other 18. Measured on the 2018 and
+    2021 manufacturing build, equal attribution costs **0.16-0.19 percentage
+    points** of weighted error (4.47% -> 4.63% in 2018, 6.72% -> 6.91% in 2021)
+    and changes the level not at all. That is the price of staying on the
+    standard machinery, and it is recorded here so the choice is visible rather
+    than inferred from a missing column.
+
+    ⚠️ **Also usable by ``Census_EC_PxI``** - the Economic Census is keyed on the
+    same 2017 collection codes - by pointing that source's
+    ``activity_to_sector_mapping`` at this file. It is not named for both
+    sources because ``Sector_Crosswalk_Census_EC_PxI`` already exists and is
+    keyed on the product *description* for the trade work, and because the 2022
+    vintage question (#650) is unsettled: 525 codes are new in 2022 and 548
+    gone, so a code-keyed join is only known good for 2017.
+    """
+    out = pd.DataFrame(
+        {
+            'ActivitySourceName': 'Census_ASM_PxI',
+            'Activity': crosswalk['napcs_code'],
+            'SectorSourceName': 'BEA_2017_Code',
+            'Sector': crosswalk['bea_2017_commodity'],
+            'SectorType': '',
+            'Note': crosswalk.apply(
+                lambda r: (
+                    f'{r["resolution"]}; weight {r["weight"]:.3f}; '
+                    f'{r["napcs_description"]}'
+                ),
+                axis=1,
+            ),
+        }
+    ).sort_values(['Activity', 'Sector'])
+    out.to_csv(SECTOR_CROSSWALK, index=False, encoding='utf-8')
+    return out
+
+
+def validate() -> pd.DataFrame:
+    """Score 2017 commodity output built through this crosswalk against BEA.
+
+    The Economic Census is the benchmark-year product data, and the published
+    2017 detail Supply block is what BEA made of it, so this is the one place
+    the crosswalk can be checked against a real answer rather than against a
+    total it was constructed to reproduce.
+
+    ⚠️ **Suppression is recovered first.** 53% of ``Census_EC_PxI`` rows publish
+    as zero; scored raw the crosswalk looks 2.5x worse than it is, and the
+    apparent error is the withholding rather than the mapping. That confusion is
+    what stalled the manufacturing work for four separate mapping attempts, all
+    of which converged at 28-30% because they were all measuring the same
+    suppression.
+
+    ⚠️ **Restricted to commodities the crosswalk claims.** ASM and the Economic
+    Census product files cover manufacturing and mining; scoring the whole
+    Supply block would charge this crosswalk for services it never mapped.
+    """
+    from bedrock.analysis.nowcasting.frozen_mix_diagnostic import (  # noqa: PLC0415
+        detail_block,
+    )
+    from bedrock.extract.census.Census_EC import (  # noqa: PLC0415
+        estimate_suppressed_ec_pxi,
+    )
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    crosswalk = pd.read_csv(OUT, dtype={'napcs_code': str, 'bea_2017_commodity': str})
+    pxi = estimate_suppressed_ec_pxi(getFlowByActivity('Census_EC_PxI', 2017))
+    mapped = pxi.merge(
+        crosswalk, left_on='FlowName', right_on='napcs_code', how='inner'
+    )
+    # USD -> millions, the Supply table's unit. Getting this wrong once produced
+    # a 100,000,000% error that read as a data problem rather than a unit one.
+    built = (
+        mapped.assign(value=mapped['FlowAmount'] * mapped['weight'])
+        .groupby('bea_2017_commodity')['value']
+        .sum()
+        / 1e6
+    )
+    published = detail_block().sum(axis=1)
+
+    commodities = sorted(set(built.index) & set(published.index))
+    scored = pd.DataFrame(
+        {
+            'built': built.reindex(commodities),
+            'published': published.reindex(commodities),
+        }
+    )
+    scored['ratio'] = scored['built'] / scored['published'].replace(0, pd.NA)
+    error = (scored['built'] - scored['published']).abs().sum() / scored[
+        'published'
+    ].sum()
+
+    print(f'\nvalidation: {len(scored)} commodities scored against 2017 detail')
+    print(f'  level        {scored["built"].sum() / scored["published"].sum():.3f}')
+    print(f'  weighted err {error:.1%}')
+    print(f'  within +-25% {int(scored["ratio"].between(0.75, 1.25).sum())}')
+    print(f'  unbuilt      {int((scored["built"] <= 0).sum())}')
+    worst = scored.assign(gap=(scored['built'] - scored['published']).abs()).nlargest(
+        8, 'gap'
+    )
+    print('  largest gaps:')
+    for code, row in worst.iterrows():
+        print(
+            f'    {code:<8} built {row["built"]:>12,.0f}  '
+            f'published {row["published"]:>12,.0f}  ratio {row["ratio"]:.2f}'
+        )
+    return scored
+
+
 def main() -> None:
     crosswalk = build()
     crosswalk.to_csv(OUT, index=False, encoding='utf-8')
+    sector_crosswalk = write_sector_crosswalk(crosswalk)
     codes = crosswalk['napcs_code'].nunique()
     multi = (crosswalk.groupby('napcs_code').size() > 1).sum()
     print(f'wrote {OUT}')
@@ -180,7 +315,25 @@ def main() -> None:
     print('  resolution:')
     for how, n in crosswalk['resolution'].value_counts().items():
         print(f'    {how:<18} {n}')
+    print(f'wrote {SECTOR_CROSSWALK}')
+    per = sector_crosswalk.groupby('Activity')['Sector'].nunique()
+    print(
+        f'  {len(sector_crosswalk)} rows | 1 commodity: {(per == 1).sum()} | '
+        f'2+: {(per > 1).sum()} | max {per.max()}'
+    )
 
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--validate',
+        action='store_true',
+        help='after writing, score 2017 commodity output built through the '
+        'crosswalk against the published detail Supply block',
+    )
+    args = parser.parse_args()
     main()
+    if args.validate:
+        validate()

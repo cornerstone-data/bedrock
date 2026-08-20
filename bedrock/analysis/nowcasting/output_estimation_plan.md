@@ -1260,102 +1260,108 @@ That is also what BEA's own Table C1 says it uses for this industry — Wards
 Intelligence unit production and J.D. Power average net cost — so an external
 split here is the documented method, not a workaround.
 
-### Annual ASM: suppression is recoverable, but only partly
+### Annual ASM: suppression is fully recoverable — the control was misread
 
 `asm/value2017` carries the same suppression as the Economic Census — **57.4% of
 its 13,372 six-digit detail rows are zero** in 2021, with no flag distinguishing
 a withheld cell from a true zero (`NAPCSDOL_IMP` is 0 everywhere, `NAPCSDOL_S` is
 a standard error).
 
-✅ **But ASM has a dense NAICS hierarchy where EC_PxI does not.** It publishes
-3-, 4-, 5- and 6-digit rows, all covering the same 2,792 products, and **100% of
-products in the six-digit detail have a three-digit rollup**. EC_PxI has only
-`'00'` and six digits — which is exactly why
-`estimate_suppressed_ec_pxi` had to be written as a bespoke single-level
-recovery, and why its docstring records that
-`flowbyclean.estimate_suppressed_sectors_equal_attribution` "cannot be pointed at
-this source". **ASM is the case that generic function was written for.**
+⚠️ **An earlier version of this section got the control wrong, and it is worth
+recording how.** It compared published value by NAICS level using totals that
+still contained the NAPCS `0000000000` all-products row — the very aggregate the
+detail beside it sums to. Every level therefore read as roughly double its true
+product value, and the sector rollup `31-33` read as *smaller* than its own
+children, which prompted the conclusion that ASM had no usable top control. That
+was the trap this document had already flagged for `31-33` on the NAICS axis,
+walked into on the NAPCS axis one paragraph later. Corrected — product detail
+only, `0000000000` excluded:
 
-⚠️ **The parents are themselves suppressed, so the control weakens going up.**
-Published totals by level, 2021:
+| year | `31-33` | 3-digit | 4-digit | 5-digit | 6-digit | control |
+|---|---:|---:|---:|---:|---:|---:|
+| 2018 | 3,652 | — | — | — | **5,694** | 5,891 |
+| 2019 | 3,372 | 3,120 | 4,273 | **5,374** | 4,532 | 5,734 |
+| 2020 | — | 2,945 | 3,869 | **4,868** | 4,231 | 5,204 |
+| 2021 | 3,809 | 3,534 | 4,581 | **5,695** | 4,953 | 6,080 |
 
-| level | published |
-|---|---:|
-| 6-digit children summed | 4,953bn |
-| 5-digit | **5,695bn** |
-| 4-digit | 4,581bn |
-| 3-digit | 3,534bn |
+✅ **The control is the industry's all-products row, and it is complete.** The
+`0000000000` line is published for **every industry at every NAICS level** — 360
+of 360 six-digit industries in all four years — because a total across all
+products discloses nothing about any one company. It sums to the *same* national
+figure at each level (5,734bn in 2019), which is the proof that NAICS suppression
+does not touch it. So ASM does have the same kind of control `Census_EC_PxI` has
+in its `'00'` product total — **transposed**: EC controls a product across
+industries, ASM controls an industry across products.
 
-A parent should never be smaller than its children. The three-digit total is
-**below** the six-digit sum because higher-level cells are withheld too. So there
-is **no reliable top control** the way EC_PxI's `'00'` product total is — the
-five-digit level is the best available, and only just.
+✅ **And the least-suppressed NAICS level is five-digit, not six.** Suppression
+bites hardest where the cell is smallest, so six-digit detail is more withheld
+(4,953bn in 2021) than the five-digit rollup containing it (5,695bn); going
+coarser than five loses value again because ASM tabulates a product against fewer
+industries there. **The industry axis is summed away** on the road to commodity
+output, so its granularity is free to choose — taking the least-suppressed level
+is a pure gain, not a trade against detail. 2018 publishes only six-digit rows
+and is picked accordingly, which is why it needs no rollup at all.
 
-**Recovery is therefore partial:** the residual at six-under-five is **748bn,
-13.1%** of the five-digit parent total. Against EC_PxI, where recovery lifted
-manufacturing product value 36% (4.019 → 5.482tn) and closed the level to 0.954,
-ASM would lift roughly 15% and still fall short of the ~6.3tn of 2021
-manufacturing shipments.
+⚠️ **`'31-33'` is five characters**, so it survives a `len == 5` filter alongside
+real five-digit NAICS. Match `^\d+$` before selecting a level. This is the sixth
+aggregate-row trap in this work, after `'TRADE '`, `GSLGE`, `T017`, PxI `'00'`
+and the ASM all-zero NAPCS code — and the misread above is its seventh instance.
 
-**So the annual series is reachable but will not match the benchmark year's
-quality.** The practical shape is: build 2017 and 2022 from the Economic Census
-where recovery is complete, use ASM to move the mix between them, and expect the
-intercensal years to carry a wider band. That is a weaker claim than "annual
-manufacturing commodity output", and the plan should not promise more.
+⚠️ **Recovery fixes the level and only approximates the mix.** Because the
+control runs across products within an industry, the residual's split across
+*commodities* is an equal-share guess. That is strictly weaker than the EC case,
+where the control runs across industries within a product and the recovered mass
+therefore lands in exactly the right commodity. Worth stating plainly: ASM
+recovery is near-lossless for the manufacturing total and only indicative for any
+single commodity's share of the residual.
 
-### Annual manufacturing `q` from ASM — built and scored
+### Annual manufacturing `q` from ASM — built, scored, and running as an FBS
 
 Detail commodity output built from `asm/value2017` through
 `napcs_to_bea_2017.csv`, scored against BEA's **published summary** Supply
 `T007` for the same year, over the 19 manufacturing summary groups:
 
-| year | published ASM | | **suppression-recovered** | |
-|---|---:|---:|---:|---:|
-| | level | wtd err | level | wtd err |
-| 2018 | 0.949 | **6.1%** | 0.949 | 6.1% |
-| 2019 | 0.769 | 23.7% | **0.914** | **9.3%** |
-| 2020 | 0.794 | 21.1% | **0.912** | **9.3%** |
-| 2021 | 0.791 | 21.2% | **0.909** | **9.5%** |
+| year | six-digit, raw | | least-suppressed level | | **+ industry-total recovery** | |
+|---|---:|---:|---:|---:|---:|---:|
+| | level | wtd err | level | wtd err | level | wtd err |
+| 2018 | 0.949 | 6.1% | 0.949 | 6.1% | **0.971** | **4.5%** |
+| 2019 | 0.708 | 29.7% | 0.912 | 9.4% | **0.948** | **6.1%** |
+| 2020 | 0.746 | 25.8% | 0.912 | 9.3% | **0.950** | **6.8%** |
+| 2021 | 0.728 | 27.5% | 0.908 | 9.6% | **0.943** | **6.7%** |
 
-Recovery distributes each five-digit parent's residual over its zero six-digit
-children — the generic dense-hierarchy method, which ASM supports and `EC_PxI`
-does not. It **more than halves** the error in every year that needs it.
+Both moves matter and they are independent: choosing the level recovers most of
+what six-digit suppression hides, and the industry-total residual closes the
+rest. Together they take 2019–2021 from ~28% to under 7%.
 
-⚠️ **2018 is unaffected because it has no rollups to recover from.** It carries
-only the `31-33` sector total and six-digit detail — **no 3-, 4- or 5-digit
-levels at all** — where 2019 onward carry the full hierarchy. Published totals by
-level:
-
-| year | `31-33` | 3-digit | 4-digit | 5-digit | 6-digit |
-|---|---:|---:|---:|---:|---:|
-| 2018 | 9,543 | — | — | — | **11,585** |
-| 2019 | 9,106 | 8,854 | 10,007 | **11,108** | 10,267 |
-| 2021 | 9,889 | 9,613 | 10,661 | **11,774** | 11,033 |
-
-⚠️ **Every sector total is *below* its own six-digit sum**, so the rollup is more
-suppressed than the detail it contains and cannot act as a control the way
-`Census_EC_PxI`'s `'00'` product total does. **The five-digit level is the least
-suppressed and is the only usable parent** — which is why recovery works for
-2019-2021 and does nothing for 2018, where that level is absent. 2018 compensates
-by having more complete detail on its own (0.949 unrecovered), so it needs less
-help rather than the method working better there.
-
-⚠️ **`'31-33'` is five characters**, so it survives a `len == 5` filter alongside
-real five-digit NAICS. Match `^\d+$` before selecting a level. This is the sixth
-aggregate-row trap in this work, after `'TRADE '`, `GSLGE`, `T017`, PxI `'00'`
-and the ASM all-zero NAPCS code.
+⚠️ **This supersedes the five-digit-parent recovery previously recorded here**
+(0.914/9.3% in 2019), which distributed each five-digit parent's residual over
+its zero six-digit children. That route reaches only the five-digit total by
+construction — 93.7% of control — where the industry product total reaches 100%.
+It is also strictly more work for a worse answer, since building at five-digit
+directly needs no distribution at all. Its one advantage is that it preserves the
+commodity axis exactly; that is a real property, and it is the reason the
+combined method's residual split is called a guess above rather than a
+measurement.
 
 ⚠️ **These are scored at summary, over 19 groups — not comparable to the
-11.5% the 2017 Economic Census build scores at detail over 231 commodities.**
+11.3% the 2017 Economic Census build scores at detail over 239 commodities.**
 Aggregation hides offsetting errors between detail children, so the summary
 figure is the more forgiving of the two by construction. The honest statement is
-that annual ASM reaches roughly 9% at summary granularity, and its detail
+that annual ASM reaches roughly 5–7% at summary granularity, and its detail
 accuracy is **unmeasured** because no published detail exists for those years.
 
+⚠️ **3.4% of ASM product value maps to no BEA commodity**, and the largest single
+gap is `3361MV` motor vehicles at 0.74 — the NAPCS code is "complete passenger
+vehicles" and carries no car/truck split, so no concordance can close it. It
+needs NIPA table 7.2.5U (`U70205`), already extracted (#676).
+
 **What this establishes:** manufacturing commodity output can be built annually
-from reported product data, at a level within about 9% of BEA's own estimate,
-for 2018-2021. That is the route the manual describes for manufacturing —
-product data directly, independent of industry output — and it now runs.
+from reported product data, at a level within about 5–7% of BEA's own estimate,
+for 2018–2021. That is the route the manual describes for manufacturing —
+product data directly, independent of industry output — and it **now runs as a
+method**: `transform/commodity_output/Commodity_output_manufacturing_<year>.yaml`,
+producing 236 BEA detail commodities per year.
+
 
 ### Valuation: the built `q` is at basic prices — verified, not assumed
 
