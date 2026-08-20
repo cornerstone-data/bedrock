@@ -617,6 +617,49 @@ It also confirms the before-redefinitions choice is doing visible work: after
 redefinition these cells would have been moved out to the trade industries, and
 the question could not have been asked of the table at all.
 
+### The mix test: run, and the dominant-seller rule fails systematically
+
+[`pxi_mix_test.py`](pxi_mix_test.py) builds each industry's commodity mix from
+PxI product lines through the services concordance and scores it against the
+published 2017 block. `L1` is half the sum of absolute share differences — the
+fraction of the mix that would have to move.
+
+**Across 38 industries with coverage above 30%: median L1 0.285, nine under 0.05,
+eighteen over 0.30.**
+
+It works well where the industry's products are distinctive — `621600` home
+health 0.003, `811100` auto repair 0.010, `811300` 0.014, `623A00` 0.016,
+`622000` hospitals 0.017, `561300` 0.019, `541800` advertising 0.030, `541700`
+R&D 0.035.
+
+⚠️ **But it fails completely, and systematically, on shared products.** Three
+health industries score **L1 = 1.000** — entirely disjoint from the published
+mix — because `621100` physicians, `621300` outpatient and `621400` home health
+all sell *"Patient care, related to ICD-10 major category"*, and the seed's
+dominant-seller rule assigns that product to `622000` hospitals, which is simply
+the largest seller. Every one of those industries then appears to produce
+hospital output and nothing of its own. `711100`, `713200`, `813A00` and
+`52A000` fail the same way.
+
+**This is a flaw in the rule, not in the data.** "Patient care" is the *primary*
+product of several distinct BEA commodities at once. A single global
+product → commodity map cannot express that, and collapsing it onto the biggest
+seller destroys precisely the distinction the Supply table exists to record.
+
+**The fix is to make the mapping industry-conditional.** A product that is
+primary to the selling industry maps to *that industry's own* commodity; only a
+genuinely secondary product maps elsewhere. Concretely the concordance needs a
+third class beside the current single-target and split-target rows:
+`own-commodity`, meaning "resolve against the seller". That also matches the
+manual's own framing, where the question is which products are secondary to the
+industry — not what a product is in the abstract.
+
+⚠️ **My earlier ten-industry read was unrepresentative and too favourable.** The
+priority list is drawn from industries with distinctive products, which is
+exactly the population this rule handles well. Scoring the full set is what
+exposed the failure, and the same trap is available to anyone who samples the
+easy cases first.
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
