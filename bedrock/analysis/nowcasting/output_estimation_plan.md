@@ -1338,6 +1338,39 @@ from reported product data, at a level within about 9% of BEA's own estimate,
 for 2018-2021. That is the route the manual describes for manufacturing —
 product data directly, independent of industry output — and it now runs.
 
+### Valuation: the built `q` is at basic prices — verified, not assumed
+
+`T007` is basic value, so a product-based `q` has to be too. Census
+`NAPCSDOL` is *value of shipments* — f.o.b. plant, net of discounts, **excluding
+freight and excise taxes** — which should make it basic rather than producer. That
+was worth testing rather than taking on trust, because the wedge is 7.0% of
+manufacturing basic value (383bn of `TOP` in 2017) and would sit squarely inside
+the residual we are trying to explain.
+
+**The excise-heavy commodities settle it**, since `TOP` is most of their value:
+
+| commodity | built | basic | basic + `TOP` | vs basic | vs producer |
+|---|---:|---:|---:|---:|---:|
+| `312200` Tobacco | 47.2 | 47.8 | 83.8 | **0.99** | 0.56 |
+| `312140` Distilleries | 14.9 | 15.0 | 26.1 | **0.99** | 0.57 |
+| `324110` Petroleum refineries | 496.9 | 478.0 | 577.0 | **1.04** | 0.86 |
+| `312120` Breweries | 25.8 | 29.4 | 37.2 | 0.88 | 0.70 |
+| **manufacturing total** | **5.182** | **5.432** | 5.815 | **0.954** | 0.891 |
+
+Tobacco and distilleries carry excise near 75% of basic, and the build lands on
+**0.99** against basic in both. It is basic value.
+
+✅ **So the remaining gap is coverage and method, not valuation** — which also
+means no basic↔producer conversion belongs anywhere in this construction. That
+matters for the row margin too: Step 4a's industry side needs
+`GO(basic) = GO(producer) - T00TOP + T00SUB`, but the commodity side needs no
+conversion at all. **The two margins of `T007` arrive in different valuations
+from their sources, and only one of them needs correcting.**
+
+⚠️ `325412` pharmaceutical preparation remains at **0.52** even after suppression
+recovery, against 0.99 for tobacco. That is not valuation; it is the largest
+single unexplained commodity left in the manufacturing build.
+
 ### Mining has no annual product survey
 
 Checked rather than assumed:
