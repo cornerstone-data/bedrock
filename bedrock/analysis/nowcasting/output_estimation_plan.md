@@ -1260,6 +1260,49 @@ That is also what BEA's own Table C1 says it uses for this industry — Wards
 Intelligence unit production and J.D. Power average net cost — so an external
 split here is the documented method, not a workaround.
 
+### Annual ASM: suppression is recoverable, but only partly
+
+`asm/value2017` carries the same suppression as the Economic Census — **57.4% of
+its 13,372 six-digit detail rows are zero** in 2021, with no flag distinguishing
+a withheld cell from a true zero (`NAPCSDOL_IMP` is 0 everywhere, `NAPCSDOL_S` is
+a standard error).
+
+✅ **But ASM has a dense NAICS hierarchy where EC_PxI does not.** It publishes
+3-, 4-, 5- and 6-digit rows, all covering the same 2,792 products, and **100% of
+products in the six-digit detail have a three-digit rollup**. EC_PxI has only
+`'00'` and six digits — which is exactly why
+`estimate_suppressed_ec_pxi` had to be written as a bespoke single-level
+recovery, and why its docstring records that
+`flowbyclean.estimate_suppressed_sectors_equal_attribution` "cannot be pointed at
+this source". **ASM is the case that generic function was written for.**
+
+⚠️ **The parents are themselves suppressed, so the control weakens going up.**
+Published totals by level, 2021:
+
+| level | published |
+|---|---:|
+| 6-digit children summed | 4,953bn |
+| 5-digit | **5,695bn** |
+| 4-digit | 4,581bn |
+| 3-digit | 3,534bn |
+
+A parent should never be smaller than its children. The three-digit total is
+**below** the six-digit sum because higher-level cells are withheld too. So there
+is **no reliable top control** the way EC_PxI's `'00'` product total is — the
+five-digit level is the best available, and only just.
+
+**Recovery is therefore partial:** the residual at six-under-five is **748bn,
+13.1%** of the five-digit parent total. Against EC_PxI, where recovery lifted
+manufacturing product value 36% (4.019 → 5.482tn) and closed the level to 0.954,
+ASM would lift roughly 15% and still fall short of the ~6.3tn of 2021
+manufacturing shipments.
+
+**So the annual series is reachable but will not match the benchmark year's
+quality.** The practical shape is: build 2017 and 2022 from the Economic Census
+where recovery is complete, use ASM to move the mix between them, and expect the
+intercensal years to carry a wider band. That is a weaker claim than "annual
+manufacturing commodity output", and the plan should not promise more.
+
 ### Mining has no annual product survey
 
 Checked rather than assumed:
