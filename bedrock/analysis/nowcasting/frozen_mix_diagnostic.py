@@ -169,10 +169,16 @@ def basic_value_output(year: int, industries: list[str]) -> pd.Series:
     **positive** in the Use table and negative in the Supply table, which is
     BEA's convention rather than ours (#655).
 
-    ⚠️ Only 2017 can do this from published data. In a nowcast year the industry
-    split of ``T00TOP``/``T00SUB`` is an *output* of Step 5's balance, not an
-    input — so Step 4a's row margin is observable at the benchmark and solved
-    everywhere else. That coupling is real.
+    ⚠️ Only 2017 can do this **from the Supply table**. The totals are not
+    trapped there, though: Supply ``TOP`` equals NIPA T30500 taxes on products
+    **less customs duties** (716,926 against 716,925 in 2017 — duties leave with
+    imports), and ``SUB`` equals NIPA T31300 (59,876 against 59,875). Both are
+    published annually.
+
+    ⚠️ What is *not* recoverable that way is the **general sales tax, 56.5% of
+    domestic ``TOP``**, levied on the purchaser price — basic plus margins — so
+    allocating it across commodities needs the margin structure Step 4c/5
+    produces. That share alone is the 4a-to-5 coupling.
 
     ✅ **But it is narrower than it looks**, because the conversion mostly
     cancels: group levels are pinned by the published summary table, and a wedge
