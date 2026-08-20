@@ -2199,6 +2199,80 @@ by `S00600` alone, so trivially attributable). That is the same question as scra
 and has not been decided rather than deliberately answered.
 
 
+### ⚠️ Correction: the product build was scored as a level, and that is the wrong test
+
+The comparison above — carried mix 1.40% against product build 5.48% — scores
+`Census_EC_PxI` as a **level** estimator of `q`. That was never the intended use,
+and this document already knew it: `pxi_mix_test.py`'s own docstring records that
+PxI is the raw product data **before** BEA's imputations, nonemployer and
+tax-misreporting coverage, cost of resales and secondary in/out adjustments, and
+that it is a **weighted sample**.
+
+**The intended use is BEA's own best-level / best-change split**: the benchmark
+supplies the level, the annual survey supplies the *change*. Scoring a change
+signal by its level is measuring the coverage gap, not the signal.
+
+#### The coverage adjustment is close to uniform, which is what makes the signal usable
+
+`EC_PxI` ÷ published, over the 231 manufacturing commodities carrying PxI value:
+
+| | |
+|---|---:|
+| aggregate ratio | 0.962 |
+| **median** | **0.968** |
+| IQR | 0.921 – 0.995 |
+| 10th / 90th percentile | 0.777 / 1.052 |
+| **within ±10% of the aggregate** | **171 of 231** |
+
+✅ **A roughly flat ~4% haircut cancels in a year-over-year ratio.** For three
+quarters of manufacturing commodities the adjustment is near-constant, so
+`ASM_share(year) / EC_share(2017)` carries the compositional change with the
+coverage gap divided out — and, because both legs run through the same NAPCS
+universe and the same concordance, most concordance error divides out too.
+
+⚠️ The dispersion is not uniform everywhere, and the exceptions are named:
+
+| group | within-group std of the ratio | commodities |
+|---|---:|---:|
+| `313TT` textiles | 1.182 | 6 |
+| `331` primary metals | 0.749 | 9 |
+| `3361MV` motor vehicles | 0.548 | 14 |
+| `321` wood | 0.350 | 4 |
+| `324` petroleum | 0.240 | 4 |
+
+`3361MV` is the known car/truck split problem (#676). Where the ratio varies
+*within* a group, the shares are contaminated and the change signal is not clean
+either — those groups should be excluded from any signal-based adjustment rather
+than trusted.
+
+#### ⚠️ What would actually score this, and it is not yet possible
+
+The construction to test is
+
+```
+mix_adj[c,i](y) = mix_2017[c,i] · ( ASM_share[c](y) / EC_share[c](2017) )
+```
+
+renormalised per industry, applied to published industry output, rebalanced to
+published summary `q`. Scoring it needs **published detail for a later year**,
+and none exists — 2017 is the current benchmark and 2022's is not out.
+
+✅ **The 2012→2017 held-out frame can score it**, and needs one new input: **2012
+Economic Census product data**. The 2012 leg uses 2012 product codes, and the
+bridge is already in the repo —
+`2017_NAPCS_Collection_Code_to_2012_Product_Code.xlsx`, the same file
+`write_napcs_bea_crosswalk.py` reads. With it the test is:
+
+1. 2012 EC product shares → 2017 EC product shares gives the change signal
+2. apply it to the 2012 mix, predict the 2017 mix
+3. score against published 2017 detail, against the 1.40% the unadjusted carried
+   mix scores
+
+That is the first genuine out-of-sample measurement of the change-signal method,
+and until it runs the method is a well-motivated design rather than a validated
+one.
+
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
