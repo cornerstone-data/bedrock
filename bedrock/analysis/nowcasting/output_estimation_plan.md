@@ -1609,6 +1609,11 @@ Two things must both be true before an external mix source can earn anything:
     how far the child `x` shares move across 2017-2024, the proxy for how much
     the composition travels.
 
+⚠️ **`exposure = q x leverage x drift` is wrong** - see the `213` check below.
+Multiplying two small fractions understates the real spread by roughly two
+orders of magnitude. The single-child findings and the observed-summary argument
+in this section stand; the exposure column does not.
+
 `exposure = q x leverage x drift`. The queued sectors:
 
 | group | children | `q` bn | leverage | drift | **exposure** |
@@ -1667,6 +1672,93 @@ industry gap rather than a held-out error. `drift` is industry-share movement
 standing in for commodity-mix movement. `leverage x drift` is an order-of-
 magnitude screen, not an error bound — which is enough when the readings are
 0.1bn against 21bn, and would not be if they were close.
+
+
+### `213` checked properly — and the exposure formula was wrong
+
+Asked to verify `213` before acting on it. The structural checks pass:
+
+- Summary group `213` has exactly two children, `213111` and `21311A`, both
+  present as rows *and* columns of the 2017 detail block.
+- The identity closes: detail `q` sums to 118,269 against a published summary
+  `q(213)` of 118,268 — one unit apart on rounding.
+- Both codes carry real values in `UGO305-A` for every year (2017: 27,011 and
+  79,918). ⚠️ This needed checking because the screen used
+  `.reindex(kids).fillna(0.0)`; a code absent from the workbook would have been
+  silently scored against a fabricated zero, and `21311A` is exactly the kind of
+  synthetic aggregate code that goes missing.
+
+⚠️ **`UGO305-A` is industry output, not commodity output.** It supplies `x`, and
+using it to split `q` is a *proxy* whose quality is the whole question. That is
+what `leverage` was meant to measure, and the arithmetic built on it was wrong.
+
+#### The formula was wrong
+
+`exposure = q x leverage x drift` reported **0.11bn** for `213`. Multiplying two
+small fractions produced a small number, but they do not compose that way. The
+actual disagreement between two defensible allocations of the *same* published
+`q(213)`:
+
+| year | `x`-share of `213111` | A: by `x`-share | B: frozen 2017 `q`-share | gap |
+|---|---:|---:|---:|---:|
+| 2017 | 0.253 | 29,875 | 28,579 | 1,297 |
+| 2021 | 0.174 | 15,951 | 22,111 | 6,159 |
+| 2024 | 0.171 | 22,134 | 31,233 | **9,099** |
+
+Drilling's industry share falls from 25.3% to 17.1% across the window; freezing
+2017 `q`-shares denies that move entirely. The gap **widens every year** — the
+opposite of two small independent factors multiplying to nothing.
+
+#### The right method needs no source, and `213` still does not
+
+**Method C — carry the 2017 commodity x industry mix onto published industry
+output** — is the correct construction, and it is neither A nor B:
+
+`q_c(y) = Σ_i (V17[c,i] / x17[i]) · x_i(y)`, rescaled to the published `q(g,y)`.
+
+It is exact in 2017 by construction (10m off on rounding) and it credits the
+industries **outside** the group that produce these commodities, which A and B
+both miss. That matters here: `211000` produces 4,841 of `213111` and 8,085 of
+`21311A`, and `212100` a further 5,639 — **18.6bn of in-house drilling and
+support, 15.7% of the group**, and every one of those industries has published
+annual `x`.
+
+So the answer stands but for a better reason: **no external source is needed for
+`213`.** Rig counts and EIA drilling data are not required, and the `q/x` swing
+is published. What was wrong was the claimed precision.
+
+**Residual uncertainty is single-digit billions, not 0.11bn**: method C sits
+2.7-4.1bn from A and 3.3-6.2bn from B across 2018-2024, on a group of 118bn.
+
+#### ⚠️ Every ranking in this document is a proxy, including the last one
+
+Three metrics have now been tried on the same question and all three are proxies
+with different failure modes:
+
+| metric | failure mode |
+|---|---|
+| secondary share x commodity size | ignores the summary control — **overstates** ~10x |
+| `leverage x drift` | multiplies two fractions — **understates**, badly |
+| `\|C - A\|` method spread | measures how much worse a *worse* method is — **overstates** C |
+
+None of them is the error, because **within-group commodity-mix error is not
+measurable after 2017**: no published detail `q` exists to score against. The
+rankings agree on *shape* — `5412OP` is first under all three, and mining,
+agriculture and forestry are last under all three — and disagree on magnitude by
+an order of magnitude or more. Shape is what they can be trusted for.
+
+✅ **There is a real held-out test available and it has not been run.**
+`USA_DETAIL_MUT_YEARS` is `[2007, 2012, 2017]`, so detail Make tables exist for
+2007 and 2012. Carrying the **2012** detail mix onto 2017 published industry
+output and scoring against the published 2017 detail block is a genuine
+out-of-sample measurement of exactly this error, over a five-year horizon that
+matches the nowcast's. It needs the 2012→2017 code concordance
+(`Sector_Crosswalk_BEA_2012_Detail.csv` exists) and nothing else.
+
+**That test should settle the priority list before any more sources are
+scoped.** Until it runs, the defensible claims are: mining, agriculture,
+forestry and construction rank last under every metric tried, and `5412OP` ranks
+first under every metric tried.
 
 
 ### Rebalancing
