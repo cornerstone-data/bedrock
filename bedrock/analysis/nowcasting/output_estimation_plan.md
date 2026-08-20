@@ -567,11 +567,19 @@ untested until the concordance exists**, and this precondition result means the
 concordance work has to be followed by the per-cell mix test before anything is
 built on it.
 
-⚠️ **Caveat on this run.** Only 48.9% of PxI value mapped to a BEA detail
-industry, using a naive last-wins NAICS→BEA dictionary that ignores the
-many-to-one structure of the crosswalk. The scatter above is therefore an upper
-bound on the real disagreement; redo it with proper aggregation before treating
-any individual industry's ratio as evidence.
+⚠️ **`Census_EC_PxI` carries an all-sectors total row that must be dropped.**
+`ActivityProducedBy == '00'` is a single 2-digit code holding **34.36 tn** beside
+935 six-digit industries holding 32.89 tn — **51.1% of the file**. Any groupby
+that does not filter to 6-digit codes aggregates the total alongside the detail.
+This is the same class of defect as the Supply table's `T017` row, and it is the
+fourth instance in this work.
+
+**Corrected:** the earlier "only 48.9% of value mapped" was not a mapping
+failure — 48.9% is exactly the 6-digit share, and once `'00'` is excluded the
+NAICS→BEA mapping covers **100.0% of value**. The level scatter is therefore
+**real, not an artifact**: redone on 6-digit rows only it is unchanged at median
+ratio 0.853, 104 of 365 industries within ±10%. The conclusion above stands; the
+reasoning that qualified it did not.
 
 ### Do service industries produce trade output? — checked in the published block
 
