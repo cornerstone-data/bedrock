@@ -1,203 +1,203 @@
 Description,bea_2017_commodity,dominance,flag,value,n_naics,naics
-"Patient care, related to ICD-10 major category, based on primary diagnosis",622000,0.58,,9.29417E+11,3,622110:55%; 621111:28%; 621498:3%; 621491:2%; 622310:2%; 621493:2%; 621492:2%; 621340:1%
-"Meals, snacks, other food items, and nonalcoholic beverages, prepared and served or dispensed, for immediate consumption",722,0.411,review-no-dominant,5.33186E+11,9,722513:41%; 722511:40%; 722515:6%; 447110:2%; 721110:2%; 445110:1%; 722514:1%; 721120:1%
-Electricity distribution and support services (except marketing and brokering),221100,1,,2.78858E+11,3,221122:100%; 221121:0%; 221112:0%
-Temporary staffing services,561300,0.972,,1.77888E+11,6,561320:95%; 541511:2%; 561311:2%; 541519:0%; 541512:0%; 561312:0%; 722320:0%; 722410:0%
-Co-employment staffing services,561300,1,,1.76924E+11,1,561330:100%
-Customization and integration of packaged software,5415,0.494,review-no-dominant,1.2826E+11,5,541511:49%; 541512:43%; 511210:5%; 518210:1%; 541519:1%; 541513:0%; 541611:0%; 541612:0%
-Internet advertising,519130,0.951,,1.07595E+11,4,519130:95%; 511120:2%; 511110:2%; 515120:0%; 515210:0%; 511140:0%; 515112:0%; 711211:0%
-Maintenance and repair services for automobiles and light-duty trucks,811100,0.635,,89619804000,12,441110:31%; 811111:27%; 811121:25%; 811191:4%; 811122:3%; 441320:3%; 811113:1%; 811118:1%
-Electricity generation,221100,1,,87578463000,6,221112:84%; 221115:9%; 221111:4%; 221114:2%; 221116:1%; 221118:0%
-Custom software application design and development services,541511,0.931,,84599289000,4,541511:93%; 541512:5%; 541519:1%; 541611:0%; 541513:0%; 423430:0%; 541370:0%; 541613:0%
-Computer systems design services,541512,0.936,,56143810000,4,541512:94%; 518210:5%; 541511:1%; 541513:0%; 811212:0%; 541612:0%; 517311:0%
-"Alcoholic beverages, prepared and served or dispensed for immediate consumption",722110,0.573,,52494438000,6,722511:57%; 722410:21%; 721110:6%; 721120:3%; 722513:2%; 312120:2%; 813410:2%; 713910:1%
-Basic and applied research in medical and health sciences,541700,1,,48244421000,4,541715:82%; 541713:13%; 541714:4%; 541720:1%
-Basic and applied research in engineering and technology,541700,0.95,,46943944000,4,541715:68%; 541713:27%; 551114:4%; 334511:1%; 541714:0%; 334413:0%; 334418:0%; 541720:0%
-Appropriations from general government revenues and intergovernmental transfers,622000,1,nonproduct,45690640000,3,622110:86%; 622210:12%; 622310:2%
-Business process management services,541610,0.567,,41765042000,5,541611:51%; 518210:37%; 541614:5%; 541512:4%; 541511:2%; 541618:1%; 541513:1%; 541519:0%
-Television air time for advertising,5151,0.493,review-no-dominant,41275210000,3,515120:49%; 515210:45%; 517311:6%; 711320:0%; 711510:0%; 515112:0%; 515111:0%
-IT technical support services,541519,0.303,review-no-dominant,37904354000,5,511210:30%; 541519:18%; 541512:18%; 541511:15%; 518210:13%; 541513:4%; 811212:1%; 237310:0%
-Information technology (IT) technical consulting services,541512,0.526,,34597120000,5,541512:53%; 541519:16%; 541511:13%; 511210:9%; 541611:4%; 518210:3%; 541513:2%; 541618:1%
-Application service provisioning ,518200,0.95,,32652553000,2,518210:95%; 541511:4%; 561599:0%; 561510:0%
-"All other products and services, not elsewhere classified",5241XX,0.166,nonproduct,31151657000,34,524113:14%; 517311:11%; 524114:10%; 517312:10%; 522110:6%; 524126:6%; 622110:5%; 511210:3%
-Web site hosting services,518200,0.931,,29488145000,5,518210:93%; 541519:3%; 541511:2%; 541512:1%; 541513:0%; 517311:0%; 541613:0%
-Multiple advertising services,541800,0.959,,28929525000,3,541810:92%; 541890:4%; 813910:1%; 813920:1%; 813990:1%; 813311:0%; 813410:0%; 813319:0%
-Rental of automobiles and light-duty trucks,532100,0.983,,28414818000,6,532111:97%; 532112:1%; 441110:1%; 532412:0%; 441120:0%; 532120:0%; 532490:0%; 532310:0%
-"Basic and applied research in natural and exact sciences, including biological sciences",541700,1,,25629152000,4,541714:70%; 541713:19%; 541715:10%; 541720:0%
-Electricity (power) marketing and brokering,221100,0.948,,24263487000,1,221122:95%; 221210:5%
-Electricity transmission services,221100,1,,19376797000,2,221121:69%; 221122:31%
-"Rental and leasing of heavy trucks, truck trailers and buses",532100,0.984,,18515484000,4,532120:98%; 484220:1%; 484110:0%; 484230:0%; 532490:0%; 811111:0%; 532112:0%; 484121:0%
-Gambling machine products,721000,0.612,,18311475000,3,721120:61%; 713210:20%; 713290:11%; 711212:7%; 722410:0%; 722511:0%; 447190:0%; 721110:0%
-All other nonoperating or tax-exempt revenue,622000,0.484,nonproduct,17924736000,7,622110:47%; 524126:8%; 621498:3%; 813211:3%; 813910:3%; 624190:2%; 813920:2%; 621111:2%
-Computer systems design and development services,541512,0.902,,17920035000,4,541512:90%; 541511:8%; 541513:1%; 541611:1%; 541519:0%; 541618:0%; 334111:0%
-IT infrastructure and network management services,54151A,0.547,,17678691000,5,541513:51%; 541512:18%; 541511:8%; 561110:7%; 518210:6%; 541519:4%; 423430:3%; 541611:1%
-"Video and audio programming package, on-demand, and streaming distribution services",517110,0.816,,14801305000,3,517311:82%; 519130:16%; 518210:2%; 515120:1%; 517919:0%
-"Other health care services, not elsewhere classified ",622000,0.368,nonproduct,13973299000,2,622110:36%; 621999:28%; 621420:11%; 621610:9%; 621493:5%; 621498:3%; 623110:3%; 623220:2%
-Water supply and sewage treatment services,221300,1,,13243422000,3,221310:88%; 221320:11%; 221330:1%
-Data management services,518200,0.739,,12799573000,5,518210:74%; 541513:14%; 541511:6%; 541512:5%; 541519:1%
-Radio air time for advertising,515100,0.987,,12772560000,2,515112:84%; 515111:15%; 711211:1%; 711310:0%; 711320:0%; 711212:0%; 711219:0%
-"Other service revenue, not elsewhere classified",622000,0.156,nonproduct,12624226000,19,622110:16%; 481111:13%; 423450:5%; 621111:5%; 441110:4%; 541330:3%; 517311:2%; 523110:2%
-Media planning and/or buying services,541800,1,,12309105000,4,541830:67%; 541810:31%; 541890:1%; 541840:0%
-Permanent (direct employee) placement services,561300,1,,11970815000,3,561311:65%; 561320:27%; 561312:8%
-"Advertising creative services, including advertising graphic design services",541800,0.955,,11928381000,3,541810:88%; 541890:5%; 541430:5%; 541830:2%; 323120:0%
-Maintenance and repair services for heavy trucks and buses,811100,0.788,,11515908000,9,811111:59%; 811121:9%; 811192:6%; 532120:5%; 423110:5%; 488490:4%; 423120:3%; 811118:2%
-Web site design and development services,541511,0.798,,11224625000,4,541511:80%; 541430:5%; 541512:5%; 541613:5%; 518210:3%; 541611:1%; 541513:1%; 541490:0%
-Full public relations services,541800,0.74,,10868182000,2,541820:71%; 561990:26%; 541810:3%
-"Government contributions, gifts, and grants",624100,0.249,nonproduct,10749085000,8,624190:10%; 624120:10%; 621498:6%; 622110:5%; 551114:5%; 624110:5%; 624410:4%; 813211:4%
-Automobile and light-duty truck leasing services,522A00,0.5,,10355105000,3,522220:50%; 441110:32%; 532112:16%; 522110:1%; 532120:1%; 441120:0%; 423110:0%; 522130:0%
-Acute long-term care services,622000,1,,9959975000,3,622310:82%; 622110:16%; 622210:2%
-Data storage services,518200,0.848,,9332445000,3,518210:85%; 423430:11%; 541511:3%; 541513:1%
-Published system software ,511200,0.924,,9198579000,2,511210:92%; 541512:6%; 518210:1%
-Databases and other collections of information,519130,0.934,,9170544000,1,519130:93%; 511140:7%
-"Private contributions, gifts, and grants",813A00,0.595,nonproduct,8735467000,8,813211:29%; 813212:8%; 813219:8%; 813312:6%; 624190:5%; 813319:4%; 813311:4%; 712110:4%
-Washing and cleaning services for automobiles and light-duty trucks,811100,0.9,,8462565000,6,811192:87%; 447110:9%; 447190:1%; 811191:1%; 811121:1%; 811111:1%; 811198:0%; 812310:0%
-Leased display advertising media space,541800,0.982,,7772652000,2,541850:98%; 711211:2%; 541810:0%; 711310:0%; 711212:0%; 711320:0%; 711219:0%
-Other data processing or IT infrastructure provisioning services,518200,0.834,,7720283000,3,518210:83%; 541512:12%; 541511:5%
-Coordination of production and delivery of premiums (advertising specialties),541800,0.977,,7635259000,2,541890:97%; 323111:1%; 541810:1%; 323113:1%; 425120:0%; 424110:0%; 424920:0%
-"Direct mail advertising, full-service",541800,1,,7456252000,3,541860:94%; 541810:5%; 541870:1%
-Computer systems integration services,541512,0.684,,7431924000,5,541512:68%; 541511:18%; 541513:5%; 541519:4%; 518210:2%; 541611:1%; 541618:1%; 811212:0%
-Collocation services,518200,0.963,,7346297000,3,518210:96%; 541513:2%; 541512:1%
-"Meals, snacks, other food items, and beverages prepared for catered events",722,0.373,review-no-dominant,6676665000,4,722320:33%; 721110:33%; 722511:13%; 722513:9%; 445110:3%; 722310:2%; 721120:2%; 813410:1%
-"Retail sales of medicines, vitamins, minerals, and supplements",446000,0.517,trade-margin,6472979000,3,446110:50%; 454110:27%; 452311:11%; 445110:7%; 622110:1%; 446191:1%; 454390:1%; 452319:1%
-Specialty content for consumers,519130,0.584,,6281239000,1,519130:58%; 511191:34%; 511199:7%; 444120:0%
-"Licensing of rights to use intellectual property protected by copyright, excluding audiovisual works and musical compositions and recordings",None,0.318,review-no-dominant,5974595000,9,511210:32%; 515120:18%; 511120:12%; 519190:7%; 511130:7%; 519110:5%; 711510:5%; 541511:4%
-Executive/retained search services,561300,1,,5811131000,3,561312:98%; 561320:1%; 561311:1%
-"Specialty content for trade, professional, and business",519130,0.977,,5655307000,1,519130:98%; 511199:2%; 511191:0%
-Database design and development services,541511,0.658,,4963133000,3,541511:66%; 541512:28%; 541519:3%; 541611:2%; 541613:1%; 541612:0%
-Trading securities and commodity contracts on own account,523110,0.392,review-no-dominant,4946348000,5,521110:32%; 524113:16%; 813211:9%; 551112:9%; 522110:7%; 524126:4%; 523910:4%; 523110:4%
-Basic and applied research in social sciences and humanities,541700,1,,4394312000,2,541720:98%; 541713:2%
-Licensing of rights to use intellectual property protected by patent,533000,0.686,,4229413000,2,533110:69%; 541715:19%; 541714:7%; 551114:5%
-"Retail sales of other goods, not elsewhere classified",452000,0.16,nonproduct,4064172000,23,452311:16%; 446110:11%; 441110:10%; 454110:9%; 517312:7%; 444110:6%; 447110:4%; 445110:4%
-Directories,519130,0.696,,3882101000,1,519130:70%; 813920:26%; 813910:4%; 813410:1%; 813990:0%; 813312:0%
-"Distribution of advertising materials, other than by mail",541800,1,,3864343000,4,541870:91%; 541890:5%; 541810:4%; 541830:0%
-"Licensing of rights to exhibit, broadcast, or rent audiovisual works protected by copyright",515200,0.772,,3842675000,1,515210:77%; 512110:13%; 515120:7%; 512120:2%; 711211:1%; 541922:0%; 711130:0%; 512191:0%
-Sales agent services for advertising space and time,541800,1,,3586986000,2,541840:86%; 541810:14%
-Network security design and development services,541512,0.537,,3585839000,5,541512:54%; 541511:17%; 541519:11%; 541513:9%; 518210:7%; 541611:2%; 541618:0%
-"Other manufacturing revenue, not elsewhere classified",326190,0.153,nonproduct,3566477000,3,326199:15%; 541512:15%; 321113:4%; 325411:3%; 321918:3%; 518210:2%; 323111:2%; 321911:2%
-Independent contractor staffing services,561300,1,,3063976000,3,561320:70%; 561311:28%; 561312:1%
-Maintenance and repair services for computer hardware and peripheral equipment,811200,0.356,review-no-dominant,2968708000,3,811212:32%; 541512:26%; 423430:18%; 443142:12%; 541513:3%; 811211:3%; 334118:2%; 541519:2%
-Information and document transformation services,518200,0.961,,2793106000,1,518210:96%; 541430:3%; 541370:1%; 541340:0%
-Published applications software ,511200,0.975,,2709313000,2,511210:97%; 541511:2%; 518210:1%; 541211:0%; 611710:0%
-Table wagering games,721000,0.731,,2569680000,1,721120:73%; 713210:23%; 711212:3%; 713950:0%
-"Other services related to advertising, not elsewhere classified",541800,1,nonproduct,2370132000,5,541890:60%; 541810:18%; 541860:12%; 541820:9%; 541850:1%
-Retail sales of automotive parts and supplies,441000,0.82,trade-margin,2363716000,8,441310:34%; 441110:29%; 441320:18%; 452311:7%; 454110:6%; 447190:1%; 447110:1%; 811111:1%
-Temporary staffing-to-permanent placement services,561300,1,,2358089000,3,561320:90%; 561311:10%; 561312:1%
-Other information services,5191A0,0.803,,2318920000,4,519190:55%; 519110:25%; 518210:20%; 519120:0%
-"Development services for service products, processes, systems, or methods",541700,1,,2262089000,2,541715:92%; 541720:8%
-"Public and non-commercial programming services, television",515200,0.507,,1904669000,1,515210:51%; 515120:49%
-"Scientific and technical consulting services, not elsewhere classified",5416A0,0.867,nonproduct,1869262000,3,541690:85%; 541715:5%; 541618:3%; 541611:2%; 541620:2%; 541720:2%; 541613:0%; 541714:0%
-Rental and leasing of office and professional space,531ORE,0.919,,1785756000,3,531120:91%; 622110:4%; 531110:2%; 621111:1%; 531210:0%; 531312:0%; 621498:0%; 621340:0%
-"Network design and development services, except security",541512,0.488,review-no-dominant,1766220000,4,541512:49%; 423430:16%; 541511:15%; 541513:9%; 541519:5%; 517911:3%; 541611:2%; 517312:1%
-"Retail sales of household and personal goods, not elsewhere classified",452000,0.259,nonproduct,1764971000,9,452311:22%; 453220:18%; 454110:13%; 446110:7%; 445110:7%; 447110:6%; 453998:5%; 448140:4%
-Lotteries,713200,0.581,,1663298000,2,713290:56%; 813410:40%; 713210:2%; 721120:1%; 713950:1%; 813312:0%; 813319:0%
-Home health care bundled service,621600,0.958,,1595163000,1,621610:96%; 622110:4%
-"Assisted daily living (ADL) and skilled nursing services, with rehabilitation services",623A00,0.972,,1531882000,3,623110:88%; 623311:9%; 623210:1%; 622110:1%; 622310:0%; 622210:0%; 623220:0%; 623312:0%
-Developing and making prototypes of other goods,541700,0.575,,1403444000,2,541715:55%; 333514:35%; 332710:6%; 541714:3%; 541430:1%; 333511:0%; 332313:0%; 332322:0%
-Pari-mutuel sports gambling,711200,0.535,,1290346000,2,711212:53%; 713290:41%; 721120:5%; 713210:1%
-"Licensing of rights to use intellectual property protected as industrial property, not elsewhere classified",541700,1,nonproduct,1287167000,1,541714:100%
-Television air time for programs,515100,0.923,,1055076000,1,515120:92%; 517311:8%
-Regulatory safety inspections and emissions testing services for automobiles and light-duty trucks,811100,0.958,,980655000,5,811198:67%; 811111:24%; 811191:4%; 447190:4%; 811121:1%; 811113:0%; 488410:0%; 441110:0%
-"Assisted daily living (ADL) and skilled nursing services, without rehabilitation services",623A00,0.905,,975142000,3,623110:72%; 623311:18%; 622110:5%; 623210:4%; 623312:1%; 622310:0%; 622210:0%
-Payroll services,541200,0.72,,889485000,2,541214:66%; 561110:24%; 541211:3%; 561320:3%; 541219:2%; 541612:1%; 541611:0%; 541213:0%
-"Public and non-commercial programming services, radio",515100,1,,843871000,2,515112:72%; 515111:28%
-Letter shop services ,541800,1,,810364000,1,541860:100%
-Amusement park and arcade services,713100,0.783,,806390000,4,713110:64%; 713990:14%; 713120:14%; 722513:4%; 713950:1%; 721110:0%; 712130:0%; 512131:0%
-Sales promotion services,541800,1,,802258000,3,541890:50%; 541810:49%; 541830:0%
-"Direct mail advertising printing (lithographic), including circulars, letters, pamphlets, cards, etc., excluding catalogs",323110,0.846,,759135000,1,323111:84%; 541860:15%; 323117:0%; 323120:0%
-Retail sales of automobiles and light-duty trucks,441000,0.996,trade-margin,749350000,4,441110:89%; 441120:11%; 454110:0%; 811111:0%; 811121:0%; 441310:0%; 441210:0%; 441228:0%
-"Basic and applied research in agricultural, veterinary, and environmental sciences",541700,1,,694217000,3,541715:89%; 541720:6%; 541714:5%
-Retail sales of soft drinks and nonalcoholic beverages,445000,0.366,trade-margin,685064000,5,445110:30%; 452311:23%; 447110:22%; 452319:6%; 445120:5%; 454210:5%; 454390:2%; 446110:2%
-"Direct marketing services, full-service",541800,1,,674761000,3,541810:78%; 541890:21%; 541860:0%
-Manufacturing of nonelectric signs and displays,339950,0.832,,671762000,1,339950:83%; 541890:10%; 323111:6%; 323113:1%; 339999:0%; 323120:0%; 311999:0%; 332999:0%
-Retail sales of automotive fuels,447000,0.919,trade-margin,665780000,3,447110:69%; 447190:23%; 452311:5%; 445110:2%; 454310:1%; 532120:0%; 444220:0%; 445310:0%
-Long-term staffing services (Payrolling),561300,1,,629552000,1,561320:100%
-Home hospice (end of life) care services,621600,0.931,,589990000,1,621610:93%; 623110:4%; 622110:3%; 623312:0%
-"Manufacturing of electric signs and displays, including counter, floor, and point-of-purchase displays, scoreboards, and custom trade show exhibits",339950,0.889,,582477000,1,339950:89%; 541890:10%; 323111:1%; 337212:0%; 335129:0%; 337215:0%; 423440:0%
-Media relations services,541800,1,,575372000,2,541820:100%; 541890:0%
-"Maintenance and repair and related services for motor homes, travel trailers, and campers",441000,0.726,,566519000,9,441210:73%; 811111:21%; 811121:5%; 811118:1%; 532120:0%; 811192:0%; 811113:0%; 811191:0%
-"Rental and leasing services for motor homes, travel trailers, campers, and utility trailers",532100,0.893,,541204000,1,532120:89%; 441210:7%; 532490:2%; 532412:1%; 532310:0%; 532289:0%
-Lobbying services,541800,1,,519596000,1,541820:100%
-"Advertising printing (screen), including point-of-purchase, counter, window, and floor display materials, posters, inserts, brochures, etc.",323110,0.538,,512791000,4,323113:37%; 541890:27%; 323111:17%; 541810:14%; 339950:2%; 541850:2%; 337212:1%; 323120:0%
-Retail sales of baked goods,445000,0.63,trade-margin,499346000,3,445110:54%; 452311:28%; 445291:5%; 447110:4%; 445120:3%; 447190:1%; 722515:1%; 452319:1%
-Retail sales of alcoholic beverages,445000,0.663,trade-margin,473289000,2,445310:40%; 445110:23%; 447110:12%; 454110:8%; 452311:8%; 445120:3%; 446110:2%; 452319:1%
-"Retail sales of candy, prepackaged cookies, and snack foods",452000,0.47,trade-margin,452899000,5,452311:40%; 445110:28%; 447110:10%; 452319:6%; 447190:4%; 445120:2%; 454210:2%; 445292:2%
-Retail sales of food dry goods and other foods purchased for future consumption,445000,0.613,trade-margin,446469000,3,445110:60%; 452311:20%; 454110:13%; 452319:2%; 447110:2%; 445120:1%; 445299:1%; 446110:0%
-Licensing of rights to use intellectual property protected by trademark,533000,0.826,,395902000,1,533110:83%; 512110:7%; 551114:5%; 711211:3%; 519130:2%; 711510:1%; 711130:0%; 541370:0%
-Retail sales of perishable prepared foods,445000,0.747,trade-margin,355634000,4,445110:68%; 452311:19%; 445120:3%; 452319:3%; 445299:2%; 454210:1%; 721110:1%; 445210:1%
-Local transportation and delivery of purchased or serviced items,484000,0.702,,350839000,3,484220:32%; 484110:24%; 492210:14%; 484121:7%; 484230:5%; 442110:4%; 532412:3%; 423330:2%
-Library and archive services,5191A0,1,,332683000,1,519120:100%
-"Wholesale sales of new and rebuilt automotive parts and supplies, and trailer parts and supplies, except automotive bodies and chemicals",423100,0.909,trade-margin,322316000,6,423120:83%; 423110:8%; 425120:6%; 441310:1%; 336390:1%; 336320:0%; 423710:0%; 336350:0%
-Parking services,812900,0.773,,320068000,3,812930:77%; 721110:13%; 622110:3%; 713110:2%; 711211:2%; 721120:1%; 711310:1%; 712110:0%
-Media monitoring and analysis services,541800,0.514,,303549000,3,541820:51%; 519190:41%; 519110:8%
-"Other constructions or construction services, not elsewhere classified",230301,0.747,nonproduct,299057000,7,238220:16%; 238910:14%; 238210:10%; 236118:5%; 236220:4%; 237310:3%; 238990:3%; 238160:3%
-Display lettering services,541800,1,,286900000,1,541890:100%
-Marketing research services,5419A0,0.985,,254569000,2,541910:96%; 541990:3%; 541810:1%; 531390:0%; 531210:0%; 541830:0%; 531311:0%
-Public relations event management services,561900,0.923,,252514000,2,561920:76%; 561990:16%; 561591:3%; 711320:2%; 541820:1%; 711410:1%; 337212:0%; 541613:0%
-Human resources management consulting and implementation services,541610,0.922,,232847000,1,541612:83%; 541611:9%; 541211:3%; 561320:2%; 561110:1%; 541214:1%; 541219:0%
-Other direct mail advertising services,541800,1,,229271000,1,541860:100%
-Rental and leasing of commercial space,531ORE,0.912,,223772000,3,531120:90%; 531110:2%; 721110:1%; 812112:1%; 721120:1%; 712110:1%; 531312:0%; 622110:0%
-Onsite management of temporary help services,561300,1,,204572000,1,561320:100%
-Retail sales of frozen foods,445000,0.623,trade-margin,195950000,4,445110:60%; 452311:31%; 454390:2%; 452319:2%; 445120:1%; 447110:1%; 446110:1%; 445210:0%
-"Trade, career, technical and professional development training programs ",611B00,0.711,,189435000,2,611430:22%; 611519:19%; 813910:13%; 813920:12%; 611512:10%; 611420:7%; 611511:5%; 611513:3%
-Online employment services,561300,1,,185805000,1,561311:100%
-Crisis management services,541800,1,,181260000,1,541820:100%
-"Rental of space for weddings, banquets, parties, and similar short-term social uses",531ORE,0.632,,179823000,3,531120:63%; 722320:14%; 722511:14%; 722410:5%; 721110:2%; 722513:1%; 722515:0%; 721191:0%
-Fulfillment services,323110,0.616,,175653000,1,323111:54%; 541860:22%; 493110:14%; 323117:5%; 323113:3%; 334614:1%; 323120:1%
-Other products supporting financial services,52A000,0.423,review-no-dominant,173989000,3,522110:38%; 522320:18%; 522390:6%; 522210:6%; 523120:5%; 522220:5%; 523910:4%; 523920:4%
-Product or merchandise demonstrations,541800,1,,147299000,1,541890:100%
-Admissions to live performing arts performances,711A00,0.584,,139868000,4,711320:30%; 711310:29%; 711110:19%; 711130:7%; 711190:6%; 721120:5%; 711510:2%; 711120:1%
-"Meals, snacks, other food items, and beverages for immediate consumption, prepared under long-term contract",722A00,0.997,,133822000,4,722310:99%; 722320:0%; 722513:0%; 722511:0%; 722515:0%; 722410:0%; 722514:0%
-"Internet access, always-on, business",517110,0.987,,128640000,3,517311:99%; 517911:1%; 518210:0%; 541512:0%; 541519:0%; 511210:0%
-Towing services,48A000,0.976,,120861000,2,488410:97%; 811111:1%; 811121:1%; 484230:0%; 447110:0%; 488510:0%; 447190:0%; 484220:0%
-Wholesale sales of used automotive parts and accessories,423100,0.891,trade-margin,110711000,6,423140:78%; 423120:11%; 441310:7%; 423930:2%; 811111:1%; 811121:1%; 441320:0%; 811118:0%
-"Manufacturing of fabricated flags, banners, and similar emblems, excluding banner printing",314900,0.774,,103776000,2,314999:77%; 541890:21%; 541810:2%; 315990:0%; 314910:0%
-Gains (losses) from non-financial assets sold,550000,0.616,,103383000,2,551112:40%; 551114:20%; 813211:11%; 531120:9%; 712110:6%; 531110:4%; 551111:1%; 813219:1%
-"Sale of tickets of/for lotteries and other games of chance to gamblers, for a fee or commission",722110,0.542,,97642000,4,722511:54%; 721120:40%; 713290:3%; 721110:1%; 447110:1%; 713210:1%; 722515:1%; 721211:0%
-Mailing lists,541800,1,,85850000,1,541860:100%
-"Maintenance and repair services for recreational, sports, and fitness equipment (including boats, motorcycles, other sports vehicles, and musical instruments)",811400,0.411,review-no-dominant,67280000,6,811490:41%; 441228:23%; 441222:14%; 713930:10%; 451110:5%; 423910:3%; 451140:2%; 811111:1%
-"Wholesale sales of other goods, not elsewhere classified",424400,0.191,nonproduct,65012000,4,424410:11%; 423690:9%; 424720:9%; 425120:9%; 424510:4%; 424490:4%; 441110:4%; 423830:4%
-Other utilities or waste management operating revenue,None,0.384,review-no-dominant,64304000,3,531120:25%; 221115:21%; 531110:19%; 238910:19%; 531190:13%; 444190:1%; 541310:1%; 811121:1%
-"Rental of space for meetings, conventions, and similar short-term business uses",531ORE,0.901,,64085000,2,531120:90%; 722511:2%; 611430:2%; 722320:2%; 722410:1%; 721110:1%; 611620:1%; 611610:1%
-Concept development services for direct mail advertising campaigns,541800,1,,63794000,1,541860:100%
-"Finance leasing services, except automobile and light-duty truck leasing services",522A00,0.736,,60324000,2,522220:74%; 522110:26%; 532120:0%; 522120:0%; 522130:0%; 532112:0%; 532490:0%; 532420:0%
-"Project management services, except construction",541300,0.672,,58922000,1,541330:65%; 541611:18%; 561110:7%; 541618:4%; 541613:2%; 541310:1%; 541614:1%; 541512:1%
-Retail sales of tobacco products and smoking accessories,447000,0.508,trade-margin,48429000,4,447110:49%; 452311:11%; 453991:10%; 445110:6%; 445120:6%; 446110:6%; 453998:3%; 452319:3%
-Strategic management consulting and implementation services,541610,0.911,,46460000,2,541611:74%; 541612:12%; 561110:5%; 541211:4%; 541613:3%; 541618:1%; 541614:1%; 541690:0%
-"Retail sales of motor homes, travel trailers, and campers ",441000,0.998,trade-margin,44511000,3,441210:98%; 441110:1%; 441228:0%; 441120:0%; 441222:0%; 811111:0%; 453930:0%; 811121:0%
-Admissions to dance halls and clubs (including cover charges),722A00,0.87,,43685000,1,722410:87%; 722511:10%; 721120:3%
-Hosting of coin-operated self-service gambling machines,722110,0.661,,38073000,2,722511:66%; 722513:32%; 721110:2%
-"Video and audio streaming infrastructure provisioning services, except content streaming distribution services",54151A,1,,32171000,1,541513:100%
-"Wholesale sales of cookies, bread, and baked goods",424400,0.847,trade-margin,26394000,2,424490:59%; 424410:21%; 425120:14%; 424420:2%; 424430:1%; 311812:1%; 311824:0%; 311811:0%
-Outplacement/career counseling services,561300,1,,25010000,1,561312:100%
-"Rental and leasing of nonresidential space in buildings or other facilities, except hosting of coin-operated self-service gambling machines",531ORE,0.515,,24353000,2,531120:51%; 551114:20%; 551112:18%; 721110:5%; 813211:2%; 813410:1%; 813910:1%; 813990:0%
-Retail sales of fresh fish and seafood,445000,0.925,trade-margin,23398000,2,445110:77%; 445220:15%; 452311:7%; 454390:0%; 445230:0%; 445210:0%; 445120:0%; 452319:0%
-"Maintenance and repair services for household and personal goods, not elsewhere classified",811300,0.467,nonproduct,21840000,3,811310:47%; 442110:29%; 442299:10%; 811490:5%; 443141:2%; 811420:1%; 339999:1%; 811111:1%
-Wholesale sales of beer and ale,424A00,0.989,trade-margin,20775000,1,424810:96%; 424820:3%; 425120:1%; 424490:0%; 424940:0%; 722511:0%; 722410:0%
-"Assisted daily living (ADL) services, with mental rehabilitation services",623B00,0.961,,20029000,1,623210:63%; 623220:31%; 623990:2%; 623312:1%; 623110:1%; 623311:1%; 622210:0%
-"Retail sales of motorcycles, motor scooters, motor bikes, including parts and accessories ",441000,0.996,trade-margin,18990000,1,441228:99%; 441120:0%; 811490:0%; 441222:0%; 811111:0%; 441210:0%; 453310:0%; 336991:0%
-Room or unit accommodation for travelers,721000,0.996,,14897000,1,721110:93%; 721120:6%; 721191:1%; 721199:0%; 721211:0%; 713110:0%; 813990:0%; 713910:0%
-Rental of computers and peripheral equipment,532400,0.547,,14019000,1,532420:55%; 532210:41%; 532310:2%; 532289:2%; 541511:1%; 334118:0%; 522220:0%; 334111:0%
-Document payment services (except traveler's check services),522390,0.277,review-no-dominant,12675000,1,522390:28%; 445110:22%; 522110:17%; 447110:16%; 522130:8%; 447190:6%; 445120:2%; 445310:1%
-Retail sales of men's clothing,448000,0.48,trade-margin,9992000,2,448140:31%; 452210:16%; 452311:14%; 454110:12%; 448110:9%; 451110:5%; 448190:4%; 448210:2%
-Retail sales of women's clothing,448000,0.544,trade-margin,9860000,2,448140:24%; 448120:21%; 454110:20%; 452210:13%; 452311:9%; 448190:8%; 451110:2%; 452319:1%
-Sports and other bookmaking,721000,0.939,,8823000,1,721120:94%; 713210:6%
-"Maintenance and repair services for agricultural, construction, forestry, mining, and oil and gas field machinery and equipment",811300,0.53,,8801000,1,811310:53%; 423810:22%; 423820:18%; 423830:2%; 444210:2%; 332710:1%; 333132:1%; 333120:1%
-"Retail sales of household fuels, including oil, LP gas, wood, coal",454000,0.894,trade-margin,8389000,1,454310:89%; 447190:4%; 447110:3%; 444220:2%; 445110:1%; 444130:1%; 444190:0%; 445120:0%
-Rental and leasing of social events equipment,532A00,0.929,,6534000,1,532289:90%; 722320:7%; 532310:3%; 722513:0%; 722410:0%
-Short-term access to communications services,721000,0.983,,4745000,1,721110:95%; 622110:2%; 721120:2%; 721310:1%; 721211:1%; 721191:0%; 721199:0%
-"Off-site cleaning and repair services for home furniture, furnishings, and accessories, except curtain and drape cleaning services",811400,0.615,,2974000,1,811420:61%; 561740:29%; 442110:5%; 561720:4%; 442210:1%; 811121:0%; 812320:0%; 561790:0%
-"Retail sales of toys, games, and hobby and craft supplies",452000,0.377,trade-margin,2600000,1,452311:34%; 454110:27%; 451120:22%; 443142:3%; 452319:3%; 446110:2%; 453220:2%; 451130:1%
-Maintenance and repair services for industrial machinery and equipment,811300,0.931,,2095000,1,811310:93%; 423830:2%; 811219:0%; 332710:0%; 333517:0%; 333914:0%; 333923:0%; 333993:0%
-Consulting services for insurance,524200,0.984,,1990000,1,524298:77%; 524210:22%; 541611:2%; 524291:0%; 541512:0%
-Retail sales of major household appliances and related parts and accessories,444000,0.71,trade-margin,1884000,1,444110:68%; 454110:14%; 452311:7%; 442110:4%; 444190:3%; 452319:2%; 454390:1%; 454310:1%
-Copying and reproduction services,561400,0.845,,1451000,2,561439:78%; 561990:7%; 561499:5%; 323111:4%; 561110:3%; 561431:1%; 621111:1%; 424120:0%
-"Wholesale sales of fish and seafood, except canned and frozen fish and seafood",424400,0.964,trade-margin,1256000,1,424460:64%; 424410:18%; 424420:6%; 424470:3%; 425120:3%; 424490:2%; 424480:2%; 311710:1%
-Wholesale sales of grocery specialties,424400,0.917,trade-margin,833000,1,424490:67%; 424410:20%; 425120:6%; 424430:3%; 424940:1%; 424420:1%; 424210:1%; 424470:0%
-"Rental of commercial and service industry machinery and equipment, without operator",532400,0.931,,817000,1,532490:93%; 532310:3%; 423830:3%; 532420:1%; 423810:0%; 541922:0%; 532289:0%; 811310:0%
-Key duplication services,561600,0.856,,767000,1,561622:83%; 811490:14%; 561621:2%; 811118:0%
-"All other recreation, sports, and fitness services",713900,0.972,,672000,2,713990:61%; 713940:31%; 713910:4%; 481219:1%; 713930:1%; 713920:1%; 713120:1%; 451110:0%
-Medical examinations for employment,561300,1,,467000,1,561311:100%
-"Other contract manufacturing services, nec.",None,0.308,review-no-dominant,410000,1,339113:31%; 339112:13%; 339999:9%; 311812:6%; 511110:6%; 325211:6%; 339950:4%; 321912:3%
-Retail sales of home lawn and garden goods,444000,0.506,trade-margin,221000,1,444110:23%; 454110:18%; 444220:13%; 444210:10%; 453998:7%; 452311:7%; 453110:6%; 445110:5%
-Warehousing and storage services,493000,0.805,,181000,1,493110:48%; 493190:19%; 493120:11%; 484121:8%; 488510:3%; 484210:3%; 493130:2%; 484110:2%
-"Services of self-service machines, not elsewhere classified",713100,0.984,nonproduct,7000,1,713110:98%; 812310:2%; 722511:0%
+"Patient care, related to ICD-10 major category, based on primary diagnosis",622000,0.58,own-commodity,929417000000.0,3,622110:55%; 621111:28%; 621498:3%; 621491:2%; 622310:2%; 621493:2%; 621492:2%; 621340:1%
+"Meals, snacks, other food items, and nonalcoholic beverages, prepared and served or dispensed, for immediate consumption",722,0.411,own-commodity,533186000000.0,9,722513:41%; 722511:40%; 722515:6%; 447110:2%; 721110:2%; 445110:1%; 722514:1%; 721120:1%
+Electricity distribution and support services (except marketing and brokering),221100,1.0,,278858000000.0,3,221122:100%; 221121:0%; 221112:0%
+Temporary staffing services,561300,0.972,,177888000000.0,6,561320:95%; 541511:2%; 561311:2%; 541519:0%; 541512:0%; 561312:0%; 722320:0%; 722410:0%
+Co-employment staffing services,561300,1.0,,176924000000.0,1,561330:100%
+Customization and integration of packaged software,5415,0.494,review-no-dominant,128260000000.0,5,541511:49%; 541512:43%; 511210:5%; 518210:1%; 541519:1%; 541513:0%; 541611:0%; 541612:0%
+Internet advertising,519130,0.951,,107595000000.0,4,519130:95%; 511120:2%; 511110:2%; 515120:0%; 515210:0%; 511140:0%; 515112:0%; 711211:0%
+Maintenance and repair services for automobiles and light-duty trucks,811100,0.635,,89619804000.0,12,441110:31%; 811111:27%; 811121:25%; 811191:4%; 811122:3%; 441320:3%; 811113:1%; 811118:1%
+Electricity generation,221100,1.0,,87578463000.0,6,221112:84%; 221115:9%; 221111:4%; 221114:2%; 221116:1%; 221118:0%
+Custom software application design and development services,541511,0.931,,84599289000.0,4,541511:93%; 541512:5%; 541519:1%; 541611:0%; 541513:0%; 423430:0%; 541370:0%; 541613:0%
+Computer systems design services,541512,0.936,,56143810000.0,4,541512:94%; 518210:5%; 541511:1%; 541513:0%; 811212:0%; 541612:0%; 517311:0%
+"Alcoholic beverages, prepared and served or dispensed for immediate consumption",722110,0.573,,52494438000.0,6,722511:57%; 722410:21%; 721110:6%; 721120:3%; 722513:2%; 312120:2%; 813410:2%; 713910:1%
+Basic and applied research in medical and health sciences,541700,1.0,,48244421000.0,4,541715:82%; 541713:13%; 541714:4%; 541720:1%
+Basic and applied research in engineering and technology,541700,0.95,,46943944000.0,4,541715:68%; 541713:27%; 551114:4%; 334511:1%; 541714:0%; 334413:0%; 334418:0%; 541720:0%
+Appropriations from general government revenues and intergovernmental transfers,622000,1.0,nonproduct,45690640000.0,3,622110:86%; 622210:12%; 622310:2%
+Business process management services,541610,0.567,,41765042000.0,5,541611:51%; 518210:37%; 541614:5%; 541512:4%; 541511:2%; 541618:1%; 541513:1%; 541519:0%
+Television air time for advertising,5151,0.493,own-commodity,41275210000.0,3,515120:49%; 515210:45%; 517311:6%; 711320:0%; 711510:0%; 515112:0%; 515111:0%
+IT technical support services,541519,0.303,review-no-dominant,37904354000.0,5,511210:30%; 541519:18%; 541512:18%; 541511:15%; 518210:13%; 541513:4%; 811212:1%; 237310:0%
+Information technology (IT) technical consulting services,541512,0.526,,34597120000.0,5,541512:53%; 541519:16%; 541511:13%; 511210:9%; 541611:4%; 518210:3%; 541513:2%; 541618:1%
+Application service provisioning ,518200,0.95,,32652553000.0,2,518210:95%; 541511:4%; 561599:0%; 561510:0%
+"All other products and services, not elsewhere classified",5241XX,0.166,nonproduct,31151657000.0,34,524113:14%; 517311:11%; 524114:10%; 517312:10%; 522110:6%; 524126:6%; 622110:5%; 511210:3%
+Web site hosting services,518200,0.931,,29488145000.0,5,518210:93%; 541519:3%; 541511:2%; 541512:1%; 541513:0%; 517311:0%; 541613:0%
+Multiple advertising services,541800,0.959,,28929525000.0,3,541810:92%; 541890:4%; 813910:1%; 813920:1%; 813990:1%; 813311:0%; 813410:0%; 813319:0%
+Rental of automobiles and light-duty trucks,532100,0.983,,28414818000.0,6,532111:97%; 532112:1%; 441110:1%; 532412:0%; 441120:0%; 532120:0%; 532490:0%; 532310:0%
+"Basic and applied research in natural and exact sciences, including biological sciences",541700,1.0,,25629152000.0,4,541714:70%; 541713:19%; 541715:10%; 541720:0%
+Electricity (power) marketing and brokering,221100,0.948,,24263487000.0,1,221122:95%; 221210:5%
+Electricity transmission services,221100,1.0,,19376797000.0,2,221121:69%; 221122:31%
+"Rental and leasing of heavy trucks, truck trailers and buses",532100,0.984,,18515484000.0,4,532120:98%; 484220:1%; 484110:0%; 484230:0%; 532490:0%; 811111:0%; 532112:0%; 484121:0%
+Gambling machine products,721000,0.612,own-commodity,18311475000.0,3,721120:61%; 713210:20%; 713290:11%; 711212:7%; 722410:0%; 722511:0%; 447190:0%; 721110:0%
+All other nonoperating or tax-exempt revenue,622000,0.484,nonproduct,17924736000.0,7,622110:47%; 524126:8%; 621498:3%; 813211:3%; 813910:3%; 624190:2%; 813920:2%; 621111:2%
+Computer systems design and development services,541512,0.902,,17920035000.0,4,541512:90%; 541511:8%; 541513:1%; 541611:1%; 541519:0%; 541618:0%; 334111:0%
+IT infrastructure and network management services,54151A,0.547,,17678691000.0,5,541513:51%; 541512:18%; 541511:8%; 561110:7%; 518210:6%; 541519:4%; 423430:3%; 541611:1%
+"Video and audio programming package, on-demand, and streaming distribution services",517110,0.816,,14801305000.0,3,517311:82%; 519130:16%; 518210:2%; 515120:1%; 517919:0%
+"Other health care services, not elsewhere classified ",622000,0.368,nonproduct,13973299000.0,2,622110:36%; 621999:28%; 621420:11%; 621610:9%; 621493:5%; 621498:3%; 623110:3%; 623220:2%
+Water supply and sewage treatment services,221300,1.0,,13243422000.0,3,221310:88%; 221320:11%; 221330:1%
+Data management services,518200,0.739,,12799573000.0,5,518210:74%; 541513:14%; 541511:6%; 541512:5%; 541519:1%
+Radio air time for advertising,515100,0.987,,12772560000.0,2,515112:84%; 515111:15%; 711211:1%; 711310:0%; 711320:0%; 711212:0%; 711219:0%
+"Other service revenue, not elsewhere classified",622000,0.156,nonproduct,12624226000.0,19,622110:16%; 481111:13%; 423450:5%; 621111:5%; 441110:4%; 541330:3%; 517311:2%; 523110:2%
+Media planning and/or buying services,541800,1.0,,12309105000.0,4,541830:67%; 541810:31%; 541890:1%; 541840:0%
+Permanent (direct employee) placement services,561300,1.0,,11970815000.0,3,561311:65%; 561320:27%; 561312:8%
+"Advertising creative services, including advertising graphic design services",541800,0.955,,11928381000.0,3,541810:88%; 541890:5%; 541430:5%; 541830:2%; 323120:0%
+Maintenance and repair services for heavy trucks and buses,811100,0.788,,11515908000.0,9,811111:59%; 811121:9%; 811192:6%; 532120:5%; 423110:5%; 488490:4%; 423120:3%; 811118:2%
+Web site design and development services,541511,0.798,,11224625000.0,4,541511:80%; 541430:5%; 541512:5%; 541613:5%; 518210:3%; 541611:1%; 541513:1%; 541490:0%
+Full public relations services,541800,0.74,,10868182000.0,2,541820:71%; 561990:26%; 541810:3%
+"Government contributions, gifts, and grants",624100,0.249,nonproduct,10749085000.0,8,624190:10%; 624120:10%; 621498:6%; 622110:5%; 551114:5%; 624110:5%; 624410:4%; 813211:4%
+Automobile and light-duty truck leasing services,522A00,0.5,own-commodity,10355105000.0,3,522220:50%; 441110:32%; 532112:16%; 522110:1%; 532120:1%; 441120:0%; 423110:0%; 522130:0%
+Acute long-term care services,622000,1.0,,9959975000.0,3,622310:82%; 622110:16%; 622210:2%
+Data storage services,518200,0.848,,9332445000.0,3,518210:85%; 423430:11%; 541511:3%; 541513:1%
+Published system software ,511200,0.924,,9198579000.0,2,511210:92%; 541512:6%; 518210:1%
+Databases and other collections of information,519130,0.934,,9170544000.0,1,519130:93%; 511140:7%
+"Private contributions, gifts, and grants",813A00,0.595,nonproduct,8735467000.0,8,813211:29%; 813212:8%; 813219:8%; 813312:6%; 624190:5%; 813319:4%; 813311:4%; 712110:4%
+Washing and cleaning services for automobiles and light-duty trucks,811100,0.9,,8462565000.0,6,811192:87%; 447110:9%; 447190:1%; 811191:1%; 811121:1%; 811111:1%; 811198:0%; 812310:0%
+Leased display advertising media space,541800,0.982,,7772652000.0,2,541850:98%; 711211:2%; 541810:0%; 711310:0%; 711212:0%; 711320:0%; 711219:0%
+Other data processing or IT infrastructure provisioning services,518200,0.834,,7720283000.0,3,518210:83%; 541512:12%; 541511:5%
+Coordination of production and delivery of premiums (advertising specialties),541800,0.977,,7635259000.0,2,541890:97%; 323111:1%; 541810:1%; 323113:1%; 425120:0%; 424110:0%; 424920:0%
+"Direct mail advertising, full-service",541800,1.0,,7456252000.0,3,541860:94%; 541810:5%; 541870:1%
+Computer systems integration services,541512,0.684,,7431924000.0,5,541512:68%; 541511:18%; 541513:5%; 541519:4%; 518210:2%; 541611:1%; 541618:1%; 811212:0%
+Collocation services,518200,0.963,,7346297000.0,3,518210:96%; 541513:2%; 541512:1%
+"Meals, snacks, other food items, and beverages prepared for catered events",722,0.373,review-no-dominant,6676665000.0,4,722320:33%; 721110:33%; 722511:13%; 722513:9%; 445110:3%; 722310:2%; 721120:2%; 813410:1%
+"Retail sales of medicines, vitamins, minerals, and supplements",446000,0.517,trade-margin,6472979000.0,3,446110:50%; 454110:27%; 452311:11%; 445110:7%; 622110:1%; 446191:1%; 454390:1%; 452319:1%
+Specialty content for consumers,519130,0.584,,6281239000.0,1,519130:58%; 511191:34%; 511199:7%; 444120:0%
+"Licensing of rights to use intellectual property protected by copyright, excluding audiovisual works and musical compositions and recordings",,0.318,review-no-dominant,5974595000.0,9,511210:32%; 515120:18%; 511120:12%; 519190:7%; 511130:7%; 519110:5%; 711510:5%; 541511:4%
+Executive/retained search services,561300,1.0,,5811131000.0,3,561312:98%; 561320:1%; 561311:1%
+"Specialty content for trade, professional, and business",519130,0.977,,5655307000.0,1,519130:98%; 511199:2%; 511191:0%
+Database design and development services,541511,0.658,,4963133000.0,3,541511:66%; 541512:28%; 541519:3%; 541611:2%; 541613:1%; 541612:0%
+Trading securities and commodity contracts on own account,523110,0.392,own-commodity,4946348000.0,5,521110:32%; 524113:16%; 813211:9%; 551112:9%; 522110:7%; 524126:4%; 523910:4%; 523110:4%
+Basic and applied research in social sciences and humanities,541700,1.0,,4394312000.0,2,541720:98%; 541713:2%
+Licensing of rights to use intellectual property protected by patent,533000,0.686,,4229413000.0,2,533110:69%; 541715:19%; 541714:7%; 551114:5%
+"Retail sales of other goods, not elsewhere classified",452000,0.16,nonproduct,4064172000.0,23,452311:16%; 446110:11%; 441110:10%; 454110:9%; 517312:7%; 444110:6%; 447110:4%; 445110:4%
+Directories,519130,0.696,,3882101000.0,1,519130:70%; 813920:26%; 813910:4%; 813410:1%; 813990:0%; 813312:0%
+"Distribution of advertising materials, other than by mail",541800,1.0,,3864343000.0,4,541870:91%; 541890:5%; 541810:4%; 541830:0%
+"Licensing of rights to exhibit, broadcast, or rent audiovisual works protected by copyright",515200,0.772,own-commodity,3842675000.0,1,515210:77%; 512110:13%; 515120:7%; 512120:2%; 711211:1%; 541922:0%; 711130:0%; 512191:0%
+Sales agent services for advertising space and time,541800,1.0,,3586986000.0,2,541840:86%; 541810:14%
+Network security design and development services,541512,0.537,,3585839000.0,5,541512:54%; 541511:17%; 541519:11%; 541513:9%; 518210:7%; 541611:2%; 541618:0%
+"Other manufacturing revenue, not elsewhere classified",326190,0.153,nonproduct,3566477000.0,3,326199:15%; 541512:15%; 321113:4%; 325411:3%; 321918:3%; 518210:2%; 323111:2%; 321911:2%
+Independent contractor staffing services,561300,1.0,,3063976000.0,3,561320:70%; 561311:28%; 561312:1%
+Maintenance and repair services for computer hardware and peripheral equipment,811200,0.356,review-no-dominant,2968708000.0,3,811212:32%; 541512:26%; 423430:18%; 443142:12%; 541513:3%; 811211:3%; 334118:2%; 541519:2%
+Information and document transformation services,518200,0.961,,2793106000.0,1,518210:96%; 541430:3%; 541370:1%; 541340:0%
+Published applications software ,511200,0.975,,2709313000.0,2,511210:97%; 541511:2%; 518210:1%; 541211:0%; 611710:0%
+Table wagering games,721000,0.731,,2569680000.0,1,721120:73%; 713210:23%; 711212:3%; 713950:0%
+"Other services related to advertising, not elsewhere classified",541800,1.0,nonproduct,2370132000.0,5,541890:60%; 541810:18%; 541860:12%; 541820:9%; 541850:1%
+Retail sales of automotive parts and supplies,441000,0.82,trade-margin,2363716000.0,8,441310:34%; 441110:29%; 441320:18%; 452311:7%; 454110:6%; 447190:1%; 447110:1%; 811111:1%
+Temporary staffing-to-permanent placement services,561300,1.0,,2358089000.0,3,561320:90%; 561311:10%; 561312:1%
+Other information services,5191A0,0.803,,2318920000.0,4,519190:55%; 519110:25%; 518210:20%; 519120:0%
+"Development services for service products, processes, systems, or methods",541700,1.0,,2262089000.0,2,541715:92%; 541720:8%
+"Public and non-commercial programming services, television",515200,0.507,,1904669000.0,1,515210:51%; 515120:49%
+"Scientific and technical consulting services, not elsewhere classified",5416A0,0.867,nonproduct,1869262000.0,3,541690:85%; 541715:5%; 541618:3%; 541611:2%; 541620:2%; 541720:2%; 541613:0%; 541714:0%
+Rental and leasing of office and professional space,531ORE,0.919,,1785756000.0,3,531120:91%; 622110:4%; 531110:2%; 621111:1%; 531210:0%; 531312:0%; 621498:0%; 621340:0%
+"Network design and development services, except security",541512,0.488,review-no-dominant,1766220000.0,4,541512:49%; 423430:16%; 541511:15%; 541513:9%; 541519:5%; 517911:3%; 541611:2%; 517312:1%
+"Retail sales of household and personal goods, not elsewhere classified",452000,0.259,nonproduct,1764971000.0,9,452311:22%; 453220:18%; 454110:13%; 446110:7%; 445110:7%; 447110:6%; 453998:5%; 448140:4%
+Lotteries,713200,0.581,,1663298000.0,2,713290:56%; 813410:40%; 713210:2%; 721120:1%; 713950:1%; 813312:0%; 813319:0%
+Home health care bundled service,621600,0.958,,1595163000.0,1,621610:96%; 622110:4%
+"Assisted daily living (ADL) and skilled nursing services, with rehabilitation services",623A00,0.972,,1531882000.0,3,623110:88%; 623311:9%; 623210:1%; 622110:1%; 622310:0%; 622210:0%; 623220:0%; 623312:0%
+Developing and making prototypes of other goods,541700,0.575,,1403444000.0,2,541715:55%; 333514:35%; 332710:6%; 541714:3%; 541430:1%; 333511:0%; 332313:0%; 332322:0%
+Pari-mutuel sports gambling,711200,0.535,,1290346000.0,2,711212:53%; 713290:41%; 721120:5%; 713210:1%
+"Licensing of rights to use intellectual property protected as industrial property, not elsewhere classified",541700,1.0,nonproduct,1287167000.0,1,541714:100%
+Television air time for programs,515100,0.923,,1055076000.0,1,515120:92%; 517311:8%
+Regulatory safety inspections and emissions testing services for automobiles and light-duty trucks,811100,0.958,,980655000.0,5,811198:67%; 811111:24%; 811191:4%; 447190:4%; 811121:1%; 811113:0%; 488410:0%; 441110:0%
+"Assisted daily living (ADL) and skilled nursing services, without rehabilitation services",623A00,0.905,,975142000.0,3,623110:72%; 623311:18%; 622110:5%; 623210:4%; 623312:1%; 622310:0%; 622210:0%
+Payroll services,541200,0.72,,889485000.0,2,541214:66%; 561110:24%; 541211:3%; 561320:3%; 541219:2%; 541612:1%; 541611:0%; 541213:0%
+"Public and non-commercial programming services, radio",515100,1.0,,843871000.0,2,515112:72%; 515111:28%
+Letter shop services ,541800,1.0,,810364000.0,1,541860:100%
+Amusement park and arcade services,713100,0.783,,806390000.0,4,713110:64%; 713990:14%; 713120:14%; 722513:4%; 713950:1%; 721110:0%; 712130:0%; 512131:0%
+Sales promotion services,541800,1.0,,802258000.0,3,541890:50%; 541810:49%; 541830:0%
+"Direct mail advertising printing (lithographic), including circulars, letters, pamphlets, cards, etc., excluding catalogs",323110,0.846,,759135000.0,1,323111:84%; 541860:15%; 323117:0%; 323120:0%
+Retail sales of automobiles and light-duty trucks,441000,0.996,trade-margin,749350000.0,4,441110:89%; 441120:11%; 454110:0%; 811111:0%; 811121:0%; 441310:0%; 441210:0%; 441228:0%
+"Basic and applied research in agricultural, veterinary, and environmental sciences",541700,1.0,,694217000.0,3,541715:89%; 541720:6%; 541714:5%
+Retail sales of soft drinks and nonalcoholic beverages,445000,0.366,trade-margin,685064000.0,5,445110:30%; 452311:23%; 447110:22%; 452319:6%; 445120:5%; 454210:5%; 454390:2%; 446110:2%
+"Direct marketing services, full-service",541800,1.0,,674761000.0,3,541810:78%; 541890:21%; 541860:0%
+Manufacturing of nonelectric signs and displays,339950,0.832,,671762000.0,1,339950:83%; 541890:10%; 323111:6%; 323113:1%; 339999:0%; 323120:0%; 311999:0%; 332999:0%
+Retail sales of automotive fuels,447000,0.919,trade-margin,665780000.0,3,447110:69%; 447190:23%; 452311:5%; 445110:2%; 454310:1%; 532120:0%; 444220:0%; 445310:0%
+Long-term staffing services (Payrolling),561300,1.0,,629552000.0,1,561320:100%
+Home hospice (end of life) care services,621600,0.931,,589990000.0,1,621610:93%; 623110:4%; 622110:3%; 623312:0%
+"Manufacturing of electric signs and displays, including counter, floor, and point-of-purchase displays, scoreboards, and custom trade show exhibits",339950,0.889,,582477000.0,1,339950:89%; 541890:10%; 323111:1%; 337212:0%; 335129:0%; 337215:0%; 423440:0%
+Media relations services,541800,1.0,,575372000.0,2,541820:100%; 541890:0%
+"Maintenance and repair and related services for motor homes, travel trailers, and campers",441000,0.726,,566519000.0,9,441210:73%; 811111:21%; 811121:5%; 811118:1%; 532120:0%; 811192:0%; 811113:0%; 811191:0%
+"Rental and leasing services for motor homes, travel trailers, campers, and utility trailers",532100,0.893,,541204000.0,1,532120:89%; 441210:7%; 532490:2%; 532412:1%; 532310:0%; 532289:0%
+Lobbying services,541800,1.0,,519596000.0,1,541820:100%
+"Advertising printing (screen), including point-of-purchase, counter, window, and floor display materials, posters, inserts, brochures, etc.",323110,0.538,,512791000.0,4,323113:37%; 541890:27%; 323111:17%; 541810:14%; 339950:2%; 541850:2%; 337212:1%; 323120:0%
+Retail sales of baked goods,445000,0.63,trade-margin,499346000.0,3,445110:54%; 452311:28%; 445291:5%; 447110:4%; 445120:3%; 447190:1%; 722515:1%; 452319:1%
+Retail sales of alcoholic beverages,445000,0.663,trade-margin,473289000.0,2,445310:40%; 445110:23%; 447110:12%; 454110:8%; 452311:8%; 445120:3%; 446110:2%; 452319:1%
+"Retail sales of candy, prepackaged cookies, and snack foods",452000,0.47,trade-margin,452899000.0,5,452311:40%; 445110:28%; 447110:10%; 452319:6%; 447190:4%; 445120:2%; 454210:2%; 445292:2%
+Retail sales of food dry goods and other foods purchased for future consumption,445000,0.613,trade-margin,446469000.0,3,445110:60%; 452311:20%; 454110:13%; 452319:2%; 447110:2%; 445120:1%; 445299:1%; 446110:0%
+Licensing of rights to use intellectual property protected by trademark,533000,0.826,,395902000.0,1,533110:83%; 512110:7%; 551114:5%; 711211:3%; 519130:2%; 711510:1%; 711130:0%; 541370:0%
+Retail sales of perishable prepared foods,445000,0.747,trade-margin,355634000.0,4,445110:68%; 452311:19%; 445120:3%; 452319:3%; 445299:2%; 454210:1%; 721110:1%; 445210:1%
+Local transportation and delivery of purchased or serviced items,484000,0.702,,350839000.0,3,484220:32%; 484110:24%; 492210:14%; 484121:7%; 484230:5%; 442110:4%; 532412:3%; 423330:2%
+Library and archive services,5191A0,1.0,,332683000.0,1,519120:100%
+"Wholesale sales of new and rebuilt automotive parts and supplies, and trailer parts and supplies, except automotive bodies and chemicals",423100,0.909,trade-margin,322316000.0,6,423120:83%; 423110:8%; 425120:6%; 441310:1%; 336390:1%; 336320:0%; 423710:0%; 336350:0%
+Parking services,812900,0.773,,320068000.0,3,812930:77%; 721110:13%; 622110:3%; 713110:2%; 711211:2%; 721120:1%; 711310:1%; 712110:0%
+Media monitoring and analysis services,541800,0.514,,303549000.0,3,541820:51%; 519190:41%; 519110:8%
+"Other constructions or construction services, not elsewhere classified",230301,0.747,nonproduct,299057000.0,7,238220:16%; 238910:14%; 238210:10%; 236118:5%; 236220:4%; 237310:3%; 238990:3%; 238160:3%
+Display lettering services,541800,1.0,,286900000.0,1,541890:100%
+Marketing research services,5419A0,0.985,,254569000.0,2,541910:96%; 541990:3%; 541810:1%; 531390:0%; 531210:0%; 541830:0%; 531311:0%
+Public relations event management services,561900,0.923,own-commodity,252514000.0,2,561920:76%; 561990:16%; 561591:3%; 711320:2%; 541820:1%; 711410:1%; 337212:0%; 541613:0%
+Human resources management consulting and implementation services,541610,0.922,,232847000.0,1,541612:83%; 541611:9%; 541211:3%; 561320:2%; 561110:1%; 541214:1%; 541219:0%
+Other direct mail advertising services,541800,1.0,,229271000.0,1,541860:100%
+Rental and leasing of commercial space,531ORE,0.912,,223772000.0,3,531120:90%; 531110:2%; 721110:1%; 812112:1%; 721120:1%; 712110:1%; 531312:0%; 622110:0%
+Onsite management of temporary help services,561300,1.0,,204572000.0,1,561320:100%
+Retail sales of frozen foods,445000,0.623,trade-margin,195950000.0,4,445110:60%; 452311:31%; 454390:2%; 452319:2%; 445120:1%; 447110:1%; 446110:1%; 445210:0%
+"Trade, career, technical and professional development training programs ",611B00,0.711,,189435000.0,2,611430:22%; 611519:19%; 813910:13%; 813920:12%; 611512:10%; 611420:7%; 611511:5%; 611513:3%
+Online employment services,561300,1.0,,185805000.0,1,561311:100%
+Crisis management services,541800,1.0,,181260000.0,1,541820:100%
+"Rental of space for weddings, banquets, parties, and similar short-term social uses",531ORE,0.632,,179823000.0,3,531120:63%; 722320:14%; 722511:14%; 722410:5%; 721110:2%; 722513:1%; 722515:0%; 721191:0%
+Fulfillment services,323110,0.616,,175653000.0,1,323111:54%; 541860:22%; 493110:14%; 323117:5%; 323113:3%; 334614:1%; 323120:1%
+Other products supporting financial services,52A000,0.423,review-no-dominant,173989000.0,3,522110:38%; 522320:18%; 522390:6%; 522210:6%; 523120:5%; 522220:5%; 523910:4%; 523920:4%
+Product or merchandise demonstrations,541800,1.0,,147299000.0,1,541890:100%
+Admissions to live performing arts performances,711A00,0.584,own-commodity,139868000.0,4,711320:30%; 711310:29%; 711110:19%; 711130:7%; 711190:6%; 721120:5%; 711510:2%; 711120:1%
+"Meals, snacks, other food items, and beverages for immediate consumption, prepared under long-term contract",722A00,0.997,,133822000.0,4,722310:99%; 722320:0%; 722513:0%; 722511:0%; 722515:0%; 722410:0%; 722514:0%
+"Internet access, always-on, business",517110,0.987,,128640000.0,3,517311:99%; 517911:1%; 518210:0%; 541512:0%; 541519:0%; 511210:0%
+Towing services,48A000,0.976,,120861000.0,2,488410:97%; 811111:1%; 811121:1%; 484230:0%; 447110:0%; 488510:0%; 447190:0%; 484220:0%
+Wholesale sales of used automotive parts and accessories,423100,0.891,trade-margin,110711000.0,6,423140:78%; 423120:11%; 441310:7%; 423930:2%; 811111:1%; 811121:1%; 441320:0%; 811118:0%
+"Manufacturing of fabricated flags, banners, and similar emblems, excluding banner printing",314900,0.774,,103776000.0,2,314999:77%; 541890:21%; 541810:2%; 315990:0%; 314910:0%
+Gains (losses) from non-financial assets sold,550000,0.616,,103383000.0,2,551112:40%; 551114:20%; 813211:11%; 531120:9%; 712110:6%; 531110:4%; 551111:1%; 813219:1%
+"Sale of tickets of/for lotteries and other games of chance to gamblers, for a fee or commission",722110,0.542,,97642000.0,4,722511:54%; 721120:40%; 713290:3%; 721110:1%; 447110:1%; 713210:1%; 722515:1%; 721211:0%
+Mailing lists,541800,1.0,,85850000.0,1,541860:100%
+"Maintenance and repair services for recreational, sports, and fitness equipment (including boats, motorcycles, other sports vehicles, and musical instruments)",811400,0.411,review-no-dominant,67280000.0,6,811490:41%; 441228:23%; 441222:14%; 713930:10%; 451110:5%; 423910:3%; 451140:2%; 811111:1%
+"Wholesale sales of other goods, not elsewhere classified",424400,0.191,nonproduct,65012000.0,4,424410:11%; 423690:9%; 424720:9%; 425120:9%; 424510:4%; 424490:4%; 441110:4%; 423830:4%
+Other utilities or waste management operating revenue,,0.384,review-no-dominant,64304000.0,3,531120:25%; 221115:21%; 531110:19%; 238910:19%; 531190:13%; 444190:1%; 541310:1%; 811121:1%
+"Rental of space for meetings, conventions, and similar short-term business uses",531ORE,0.901,,64085000.0,2,531120:90%; 722511:2%; 611430:2%; 722320:2%; 722410:1%; 721110:1%; 611620:1%; 611610:1%
+Concept development services for direct mail advertising campaigns,541800,1.0,,63794000.0,1,541860:100%
+"Finance leasing services, except automobile and light-duty truck leasing services",522A00,0.736,,60324000.0,2,522220:74%; 522110:26%; 532120:0%; 522120:0%; 522130:0%; 532112:0%; 532490:0%; 532420:0%
+"Project management services, except construction",541300,0.672,,58922000.0,1,541330:65%; 541611:18%; 561110:7%; 541618:4%; 541613:2%; 541310:1%; 541614:1%; 541512:1%
+Retail sales of tobacco products and smoking accessories,447000,0.508,trade-margin,48429000.0,4,447110:49%; 452311:11%; 453991:10%; 445110:6%; 445120:6%; 446110:6%; 453998:3%; 452319:3%
+Strategic management consulting and implementation services,541610,0.911,,46460000.0,2,541611:74%; 541612:12%; 561110:5%; 541211:4%; 541613:3%; 541618:1%; 541614:1%; 541690:0%
+"Retail sales of motor homes, travel trailers, and campers ",441000,0.998,trade-margin,44511000.0,3,441210:98%; 441110:1%; 441228:0%; 441120:0%; 441222:0%; 811111:0%; 453930:0%; 811121:0%
+Admissions to dance halls and clubs (including cover charges),722A00,0.87,,43685000.0,1,722410:87%; 722511:10%; 721120:3%
+Hosting of coin-operated self-service gambling machines,722110,0.661,,38073000.0,2,722511:66%; 722513:32%; 721110:2%
+"Video and audio streaming infrastructure provisioning services, except content streaming distribution services",54151A,1.0,,32171000.0,1,541513:100%
+"Wholesale sales of cookies, bread, and baked goods",424400,0.847,trade-margin,26394000.0,2,424490:59%; 424410:21%; 425120:14%; 424420:2%; 424430:1%; 311812:1%; 311824:0%; 311811:0%
+Outplacement/career counseling services,561300,1.0,,25010000.0,1,561312:100%
+"Rental and leasing of nonresidential space in buildings or other facilities, except hosting of coin-operated self-service gambling machines",531ORE,0.515,,24353000.0,2,531120:51%; 551114:20%; 551112:18%; 721110:5%; 813211:2%; 813410:1%; 813910:1%; 813990:0%
+Retail sales of fresh fish and seafood,445000,0.925,trade-margin,23398000.0,2,445110:77%; 445220:15%; 452311:7%; 454390:0%; 445230:0%; 445210:0%; 445120:0%; 452319:0%
+"Maintenance and repair services for household and personal goods, not elsewhere classified",811300,0.467,nonproduct,21840000.0,3,811310:47%; 442110:29%; 442299:10%; 811490:5%; 443141:2%; 811420:1%; 339999:1%; 811111:1%
+Wholesale sales of beer and ale,424A00,0.989,trade-margin,20775000.0,1,424810:96%; 424820:3%; 425120:1%; 424490:0%; 424940:0%; 722511:0%; 722410:0%
+"Assisted daily living (ADL) services, with mental rehabilitation services",623B00,0.961,,20029000.0,1,623210:63%; 623220:31%; 623990:2%; 623312:1%; 623110:1%; 623311:1%; 622210:0%
+"Retail sales of motorcycles, motor scooters, motor bikes, including parts and accessories ",441000,0.996,trade-margin,18990000.0,1,441228:99%; 441120:0%; 811490:0%; 441222:0%; 811111:0%; 441210:0%; 453310:0%; 336991:0%
+Room or unit accommodation for travelers,721000,0.996,,14897000.0,1,721110:93%; 721120:6%; 721191:1%; 721199:0%; 721211:0%; 713110:0%; 813990:0%; 713910:0%
+Rental of computers and peripheral equipment,532400,0.547,,14019000.0,1,532420:55%; 532210:41%; 532310:2%; 532289:2%; 541511:1%; 334118:0%; 522220:0%; 334111:0%
+Document payment services (except traveler's check services),522390,0.277,review-no-dominant,12675000.0,1,522390:28%; 445110:22%; 522110:17%; 447110:16%; 522130:8%; 447190:6%; 445120:2%; 445310:1%
+Retail sales of men's clothing,448000,0.48,trade-margin,9992000.0,2,448140:31%; 452210:16%; 452311:14%; 454110:12%; 448110:9%; 451110:5%; 448190:4%; 448210:2%
+Retail sales of women's clothing,448000,0.544,trade-margin,9860000.0,2,448140:24%; 448120:21%; 454110:20%; 452210:13%; 452311:9%; 448190:8%; 451110:2%; 452319:1%
+Sports and other bookmaking,721000,0.939,,8823000.0,1,721120:94%; 713210:6%
+"Maintenance and repair services for agricultural, construction, forestry, mining, and oil and gas field machinery and equipment",811300,0.53,,8801000.0,1,811310:53%; 423810:22%; 423820:18%; 423830:2%; 444210:2%; 332710:1%; 333132:1%; 333120:1%
+"Retail sales of household fuels, including oil, LP gas, wood, coal",454000,0.894,trade-margin,8389000.0,1,454310:89%; 447190:4%; 447110:3%; 444220:2%; 445110:1%; 444130:1%; 444190:0%; 445120:0%
+Rental and leasing of social events equipment,532A00,0.929,,6534000.0,1,532289:90%; 722320:7%; 532310:3%; 722513:0%; 722410:0%
+Short-term access to communications services,721000,0.983,,4745000.0,1,721110:95%; 622110:2%; 721120:2%; 721310:1%; 721211:1%; 721191:0%; 721199:0%
+"Off-site cleaning and repair services for home furniture, furnishings, and accessories, except curtain and drape cleaning services",811400,0.615,,2974000.0,1,811420:61%; 561740:29%; 442110:5%; 561720:4%; 442210:1%; 811121:0%; 812320:0%; 561790:0%
+"Retail sales of toys, games, and hobby and craft supplies",452000,0.377,trade-margin,2600000.0,1,452311:34%; 454110:27%; 451120:22%; 443142:3%; 452319:3%; 446110:2%; 453220:2%; 451130:1%
+Maintenance and repair services for industrial machinery and equipment,811300,0.931,,2095000.0,1,811310:93%; 423830:2%; 811219:0%; 332710:0%; 333517:0%; 333914:0%; 333923:0%; 333993:0%
+Consulting services for insurance,524200,0.984,,1990000.0,1,524298:77%; 524210:22%; 541611:2%; 524291:0%; 541512:0%
+Retail sales of major household appliances and related parts and accessories,444000,0.71,trade-margin,1884000.0,1,444110:68%; 454110:14%; 452311:7%; 442110:4%; 444190:3%; 452319:2%; 454390:1%; 454310:1%
+Copying and reproduction services,561400,0.845,,1451000.0,2,561439:78%; 561990:7%; 561499:5%; 323111:4%; 561110:3%; 561431:1%; 621111:1%; 424120:0%
+"Wholesale sales of fish and seafood, except canned and frozen fish and seafood",424400,0.964,trade-margin,1256000.0,1,424460:64%; 424410:18%; 424420:6%; 424470:3%; 425120:3%; 424490:2%; 424480:2%; 311710:1%
+Wholesale sales of grocery specialties,424400,0.917,trade-margin,833000.0,1,424490:67%; 424410:20%; 425120:6%; 424430:3%; 424940:1%; 424420:1%; 424210:1%; 424470:0%
+"Rental of commercial and service industry machinery and equipment, without operator",532400,0.931,,817000.0,1,532490:93%; 532310:3%; 423830:3%; 532420:1%; 423810:0%; 541922:0%; 532289:0%; 811310:0%
+Key duplication services,561600,0.856,,767000.0,1,561622:83%; 811490:14%; 561621:2%; 811118:0%
+"All other recreation, sports, and fitness services",713900,0.972,,672000.0,2,713990:61%; 713940:31%; 713910:4%; 481219:1%; 713930:1%; 713920:1%; 713120:1%; 451110:0%
+Medical examinations for employment,561300,1.0,,467000.0,1,561311:100%
+"Other contract manufacturing services, nec.",,0.308,review-no-dominant,410000.0,1,339113:31%; 339112:13%; 339999:9%; 311812:6%; 511110:6%; 325211:6%; 339950:4%; 321912:3%
+Retail sales of home lawn and garden goods,444000,0.506,trade-margin,221000.0,1,444110:23%; 454110:18%; 444220:13%; 444210:10%; 453998:7%; 452311:7%; 453110:6%; 445110:5%
+Warehousing and storage services,493000,0.805,,181000.0,1,493110:48%; 493190:19%; 493120:11%; 484121:8%; 488510:3%; 484210:3%; 493130:2%; 484110:2%
+"Services of self-service machines, not elsewhere classified",713100,0.984,nonproduct,7000.0,1,713110:98%; 812310:2%; 722511:0%

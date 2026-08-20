@@ -43,7 +43,9 @@ CORRECTIONS = (
 #: Seed rows carrying one of these are not usable as a product → commodity map.
 #: ``review-no-dominant`` rows are superseded by the corrections file, which is
 #: where the reviewed target (and any split) lives.
-EXCLUDED_FLAGS = frozenset({'nonproduct', 'trade-margin', 'review-no-dominant'})
+EXCLUDED_FLAGS = frozenset(
+    {'nonproduct', 'trade-margin', 'review-no-dominant', 'own-commodity'}
+)
 
 #: ⚠️ ``Census_EC_PxI`` carries an **all-sectors total** under
 #: ``ActivityProducedBy == '00'`` — 34.36tn beside 32.89tn of six-digit detail,
@@ -52,20 +54,38 @@ EXCLUDED_FLAGS = frozenset({'nonproduct', 'trade-margin', 'review-no-dominant'})
 NAICS_CODE_LENGTH = 6
 
 
-def concordance() -> dict[str, list[tuple[str, float]]]:
-    """Product description → [(BEA 2017 detail commodity, weight)]."""
+def concordance() -> tuple[dict[str, list[tuple[str, float]]], set[str]]:
+    """
+    Product description → [(BEA 2017 detail commodity, weight)], plus the
+    ``own-commodity`` set.
+
+    ⚠️ **A global product → commodity map cannot express a product that is
+    primary to several industries at once.** "Patient care, related to ICD-10
+    major category" is the main output of physicians' offices, outpatient
+    centres, home health *and* hospitals — four different BEA commodities.
+    Mapping it globally to whichever sells most makes every other one appear to
+    produce hospital output and none of its own: all three scored ``L1 = 1.000``
+    against the published block before this class existed.
+
+    So ``own-commodity`` products carry no target. They resolve **against the
+    seller**, which is the manual's own framing — the question is which products
+    are *secondary to an industry*, not what a product is in the abstract.
+    """
     seed = pd.read_csv(SEED)
     corrections = pd.read_csv(CORRECTIONS)
+    own = set(seed.loc[seed['flag'] == 'own-commodity', 'Description'])
     mapping = {
         row['Description']: [(str(row['bea_2017_commodity']).strip(), 1.0)]
         for _, row in seed.iterrows()
         if row['flag'] not in EXCLUDED_FLAGS and not pd.isna(row['bea_2017_commodity'])
     }
     for product, group in corrections.groupby('product'):
+        if product in own:
+            continue  # the seller resolves it; a fixed split would override that
         mapping[product] = [
             (str(b).strip(), float(w)) for b, w in zip(group['bea'], group['weight'])
         ]
-    return mapping
+    return mapping, own
 
 
 def built_mix() -> pd.Series:
@@ -80,14 +100,14 @@ def built_mix() -> pd.Series:
         .str.strip()
         .to_dict()
     )
-    mapping = concordance()
+    mapping, own = concordance()
 
     pxi = getFlowByActivity('Census_EC_PxI', 2017)
     pxi['naics'] = pxi['ActivityProducedBy'].astype(str)
     pxi = pxi[
         (pxi['FlowAmount'] > 0)
         & (pxi['naics'].str.len() == NAICS_CODE_LENGTH)
-        & pxi['Description'].isin(mapping)
+        & (pxi['Description'].isin(mapping) | pxi['Description'].isin(own))
     ]
     pxi['industry'] = pxi['naics'].map(naics_to_bea)
     pxi = pxi[pxi['industry'].notna()]
@@ -97,6 +117,10 @@ def built_mix() -> pd.Series:
         for description, value in (
             group.groupby('Description')['FlowAmount'].sum().items()
         ):
+            if description in own:
+                # primary to this industry: it is this industry's own commodity
+                rows.append((industry, industry, value))
+                continue
             for commodity, weight in mapping[description]:
                 rows.append((industry, commodity, value * weight))
     return (

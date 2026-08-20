@@ -646,13 +646,44 @@ product of several distinct BEA commodities at once. A single global
 product → commodity map cannot express that, and collapsing it onto the biggest
 seller destroys precisely the distinction the Supply table exists to record.
 
-**The fix is to make the mapping industry-conditional.** A product that is
-primary to the selling industry maps to *that industry's own* commodity; only a
-genuinely secondary product maps elsewhere. Concretely the concordance needs a
-third class beside the current single-target and split-target rows:
-`own-commodity`, meaning "resolve against the seller". That also matches the
-manual's own framing, where the question is which products are secondary to the
-industry — not what a product is in the abstract.
+**The fix is to make the mapping industry-conditional**, and it works. A third
+row class beside single-target and split-target: `own-commodity`, carrying no
+target and resolving **against the seller**. A product earns it automatically
+when it is at least 30% of *two or more* selling industries that map to
+different BEA commodities — 14 products, 1,562bn, 41.8% of seed value. That
+matches the manual's framing, where the question is which products are secondary
+to an industry rather than what a product is in the abstract.
+
+| | before | after |
+|---|---:|---:|
+| median L1 | 0.285 | **0.075** |
+| industries under 0.05 | 9 | **17** |
+| industries over 0.30 | 18 | **7** |
+
+The three total failures are gone, and nothing that worked was broken:
+
+| industry | before | after |
+|---|---:|---:|
+| `621100` physicians | 1.000 | **0.005** |
+| `621400` home health | 1.000 | **0.006** |
+| `621300` outpatient | 1.000 | **0.055** |
+| `722110` full-service restaurants | 0.451 | **0.007** |
+| `722211` limited-service | 0.538 | **0.014** |
+| `711100` performing arts | 0.984 | **0.039** |
+| `52A000` other financial | 0.725 | **0.046** |
+| `813A00` | 0.985 | **0.066** |
+| `713200` gambling | 0.918 | **0.181** |
+| `622000` hospitals *(control)* | 0.017 | 0.018 |
+
+⚠️ **`own-commodity` also supersedes the reviewed split for prepared meals**, and
+should. The reviewed target `722` was right; a fixed 45.9/44.9/9.1 split applies
+one global ratio to every seller, whereas resolving against the seller sends
+full-service restaurants' meals to `722110` and limited-service's to `722211`.
+That is why those two go from 0.451 and 0.538 to 0.007 and 0.014.
+
+**Still failing, and unexplained:** `519130` 0.691 (top commodity `519130` where
+the block says `541800`), `711A00` 0.523, `561900` 0.315. Seven industries remain
+over 0.30 and are the next thing to look at.
 
 ⚠️ **My earlier ten-industry read was unrepresentative and too favourable.** The
 priority list is drawn from industries with distinctive products, which is
