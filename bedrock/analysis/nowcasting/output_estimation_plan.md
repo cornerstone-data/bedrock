@@ -1196,49 +1196,49 @@ vehicle parts 61.2bn, `312200` tobacco 47.8bn and `336310` gasoline engines
    concordance — `331110` and `336390` return zero rows. Those need a different
    source rather than a crosswalk repair.
 
-### Closing the crosswalk gap
+### Closing the crosswalk gap — the codes are 2007 NAICS, not 2012
 
-`NAICS_Year_Concordance.csv` (in `utils/mapping/naics/`) does differentiate
-vintages — 160 of its 1,445 rows differ between 2012 and 2017 — but it **does not
-carry the codes we need**. `311222`, `311223`, `311311`, `311320`, `311330` and
-the rest of the 172 are 2012 codes that were *merged away* in 2017, and the file
-lists only the surviving 2017 code (`311224` appears twice where `311222` and
-`311223` should sit). Resolving through it recovers **0 of 172**.
+The 172 unreachable codes are not 2012 NAICS at all. **They are 2007 codes**:
+`311222` Soybean Processing became `311224` in *2012*; `331316` → `331318`,
+`332116` → `332119`, `333295` → `333242`. Census's "2012 product codes" embed
+2007-vintage NAICS wherever a product line was carried forward unchanged.
 
-**A NAICS-prefix fallback does the job instead.** Try the 6-digit code against
-both vintage columns, then progressively shorter prefixes, accepting a match only
-when every crosswalk entry under that prefix agrees on one BEA commodity —
-because BEA detail commodities are frequently aggregates of several NAICS:
+That is why two obvious fixes both returned nothing:
 
-| resolution | codes |
-|---|---:|
-| direct, 2012 column | 301 |
-| **prefix, 5-digit** | **120** |
-| prefix, 4-digit | 14 |
-| unresolved | 38 |
+- `NAICS_Year_Concordance.csv`'s **2012 column** resolves **0 of 172** — it has
+  no rows for codes that were already gone by 2012.
+- Census's official **[2012→2017 concordance](https://www.census.gov/naics/concordances/2012_to_2017_NAICS.xlsx)**
+  is complete (1,069 six-digit rows) and still contains none of them, for the
+  same reason.
 
-BEA commodities reachable go **200 → 222** of 231.
+✅ **The repo's own concordance has the answer in its `NAICS_2007_Code` column.**
+Resolving 2007 → 2017 → BEA recovers **169 of 172**, and the results are
+unambiguous and correct on inspection:
 
-Scored over **all 231** manufacturing commodities, which is the honest
-denominator — the earlier 14.1% counted only the 197 that had any built value:
+| 2007 | 2017 | BEA | |
+|---|---|---|---|
+| `311222`, `311223` | `311224` | `311224` | soybean and other oilseed processing |
+| `311311`, `311312`, `311320`, `311330` | `311314`, `311351`, `311352` | `311300` | sugar and confectionery |
+| `311711`, `311712` | `311710` | `311700` | seafood |
+| `312210`, `312221` | `312230` | `312200` | tobacco |
 
-| | direct 2012 only | **+ prefix fallback** |
+| | prefix heuristic | **2007-vintage concordance** |
 |---|---:|---:|
-| level | 0.839 | **0.928** |
-| wtd abs error | 23.0% | **13.8%** |
-| within ±25% | 169 | **189** |
-| within ±10% | 136 | **143** |
-| unbuilt commodities | 32 | **10** |
+| level | 0.928 | **0.952** |
+| wtd abs error | 13.8% | **11.5%** |
+| within ±25% | 189/231 | **199/231** |
+| within ±10% | 143 | **153** |
+| **unbuilt commodities** | 10 | **0** |
 
-⚠️ **The fallback is a heuristic, not a published mapping.** It is only applied
-where the prefix resolves unambiguously, so it never invents a choice between
-competing commodities — but a 5-digit prefix agreeing on one BEA code is an
-inference about NAICS structure rather than a Census statement. It should be
-frozen as an explicit code list once reviewed, not left as a live rule.
+✅ **The prefix heuristic is no longer needed.** Layering it on top of the
+concordance changes nothing — identical to three decimal places — so it should be
+dropped rather than kept as a fallback. A real vintage concordance strictly
+dominates a structural inference, and keeping both would leave a rule in the code
+that never fires and cannot be tested.
 
-**Still unbuilt: 10 commodities**, and 38 NAICS 2012 codes remain unresolved —
-`311222`, `311223`, `331311`, `331312`, `331316`, `331319`, `332115`, `332116`
-among them. Those need either a hand mapping or a different source.
+⚠️ **The lesson is about vintage, not about crosswalks.** Every failure in this
+sequence came from assuming a code's vintage from the column it sits in. The
+concordance file was right all along; it was being asked the wrong question.
 
 ### Motor vehicles need `U70205`, not the product data
 
