@@ -2272,6 +2272,52 @@ That is the first genuine out-of-sample measurement of the change-signal method,
 and until it runs the method is a well-motivated design rather than a validated
 one.
 
+#### The 2017→2022 change signal, tested — and the testable part is noise
+
+We *do* hold census-quality product data at both ends: `Census_EC_PxI` 2017 and
+2022 are both extracted. What is missing is BEA truth at 2022 — the most recent
+benchmark is **2017**, released in the September 2023 comprehensive update, and
+BEA benchmarks trail the Economic Census by about six years, so 2022's lands
+around 2028. `USA_DETAIL_MUT_YEARS` is `[2007, 2012, 2017]`.
+
+That still leaves one test runnable today: score each method's **unrebalanced**
+prediction of 2022 summary `q` against the published summary table. Rebalancing
+would make both hit it exactly and measure nothing.
+
+Signal: `EC_share(2022) / EC_share(2017)` per commodity — 239 commodities,
+median 0.941, IQR 0.718–1.118. Applied to the 2017 mix, renormalised per
+industry, against 2022 published industry output. Scored over the 19
+manufacturing summary groups:
+
+| method | level | wtd err |
+|---|---:|---:|
+| **A — carried 2017 mix, no signal** | 0.9987 | **4.047%** |
+| B — + EC change signal | 0.9852 | 5.573% |
+| C — signal with the five unstable groups excluded | 0.9835 | 5.698% |
+| D — signal damped to √ | 0.9910 | 4.827% |
+
+⚠️ **Every variant is worse than no signal, and damping improves monotonically
+toward the baseline.** If the signal carried information, some damping level
+would beat A; instead the best result is the least signal. That is the signature
+of noise rather than of a signal needing calibration. Excluding `313TT`, `331`,
+`3361MV`, `321` and `324` made it marginally *worse*, which also kills the
+hypothesis that the contamination is confined to those five.
+
+⚠️ **What this does and does not establish.** Summary aggregation can only see
+the signal's **cross-group** component — a commodity's share moving between
+summary groups. The intended value is *within*-group reallocation, and that is
+invisible here by construction. So this is a clean negative result on the
+cross-group component and says nothing about the within-group one.
+
+**Two consequences.** First, any future use of this signal must be constrained to
+be **within-group neutral**, so it cannot do the damage measured above — that is
+a design requirement, not a tuning choice. Second, the within-group benefit
+remains unverified, and verifying it needs detail truth at two dates: either 2012
+Economic Census product data scored on the 2017 benchmark, or waiting for 2022's.
+
+✅ **So the block ships as the carried mix**, and the signal stays out of the
+pipeline until it can be scored on the axis it is meant to work on.
+
 
 ### Rebalancing
 
