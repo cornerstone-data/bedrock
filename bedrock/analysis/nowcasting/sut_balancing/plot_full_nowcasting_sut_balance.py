@@ -1,13 +1,14 @@
 """Walkthrough figures for ``test_full_nowcasting_sut_balance``.
 
 Imports the toy from the test (same seeds, masks, targets). Does not run
-pytest. Writes a multi-page PDF plus PNGs under ``step5/output/`` (gitignored).
-The PDF is picture-then-glossary: after each snapshot, a page defines every
-term on that picture and describes what happened, for a non-technical reader.
+pytest. Writes a multi-page PDF plus PNGs under ``sut_balancing/output/``
+(gitignored). The PDF is picture-then-glossary: after each snapshot, a page
+defines every term on that picture and describes what happened, for a
+non-technical reader.
 
 From the repo root::
 
-    uv run python bedrock/analysis/nowcasting/step5/plot_full_nowcasting_sut_balance.py
+    uv run python bedrock/analysis/nowcasting/sut_balancing/plot_full_nowcasting_sut_balance.py
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from __future__ import annotations
 import textwrap
 import warnings
 from pathlib import Path
+from typing import TypedDict
 
 import matplotlib
 
@@ -49,6 +51,12 @@ from bedrock.utils.economic.balance import (
 OUTPUT_DIR = Path(__file__).resolve().parent / 'output'
 MASK_CMAP = ListedColormap(['#f4f4f4', '#2a6f97'])
 SIGN_CMAP = ListedColormap(['#b2182b', '#f4f4f4', '#2166ac'])
+
+
+class _ExplainSpec(TypedDict):
+    terms: list[tuple[str, str]]
+    what: str
+
 
 # Filename → (pipeline stage, what this page shows). Also captions.txt + PDF index.
 PAGES: dict[str, tuple[str, str]] = {
@@ -143,7 +151,7 @@ PAGES: dict[str, tuple[str, str]] = {
 }
 
 
-EXPLAIN: dict[str, dict[str, object]] = {
+EXPLAIN: dict[str, _ExplainSpec] = {
     '00_seed_X': {
         'terms': [
             (
@@ -609,8 +617,9 @@ EXPLAIN: dict[str, dict[str, object]] = {
 def _annotate(fig: Figure, name: str) -> Figure:
     """Prefix the pipeline stage and put the caption under the figure."""
     stage, caption = PAGES[name]
-    if fig._suptitle is not None:
-        current = fig._suptitle.get_text()
+    existing = getattr(fig, '_suptitle', None)
+    if existing is not None:
+        current = str(existing.get_text())
     elif fig.axes:
         current = fig.axes[0].get_title()
         fig.axes[0].set_title('')
@@ -644,7 +653,11 @@ def _index_figure() -> Figure:
     for name, (stage, caption) in PAGES.items():
         lines.append(f'{name}.png')
         lines.append(f'    Stage: {stage}')
-        lines.append(textwrap.fill(caption, width=108, initial_indent='    ', subsequent_indent='    '))
+        lines.append(
+            textwrap.fill(
+                caption, width=108, initial_indent='    ', subsequent_indent='    '
+            )
+        )
         lines.append('')
     ax.text(
         0.02,
@@ -675,10 +688,15 @@ def _explain_figure(name: str) -> Figure:
         'Each name below appears on (or is implied by) the picture you just saw.',
         '',
     ]
-    for term, definition in spec['terms']:  # type: ignore[misc]
+    for term, definition in spec['terms']:
         blocks.append(f'•  {term}')
         blocks.append(
-            textwrap.fill(str(definition), width=100, initial_indent='   ', subsequent_indent='   ')
+            textwrap.fill(
+                str(definition),
+                width=100,
+                initial_indent='   ',
+                subsequent_indent='   ',
+            )
         )
         blocks.append('')
     blocks.append('What is happening')
@@ -766,8 +784,22 @@ def _mask_figure(mask: SutMask, block: str) -> Figure:
     fig, axes = plt.subplots(2, 2, figsize=(10.5, 6.5), layout='constrained')
     fig.suptitle(f'{block} mask layers (1 = True / lock sign)', fontsize=12)
     layers = (
-        (axes[0, 0], mask.structural_zero.astype(float), 'structural_zero', MASK_CMAP, 0.0, 1.0),
-        (axes[0, 1], mask.fixed_value.astype(float), 'fixed_value', MASK_CMAP, 0.0, 1.0),
+        (
+            axes[0, 0],
+            mask.structural_zero.astype(float),
+            'structural_zero',
+            MASK_CMAP,
+            0.0,
+            1.0,
+        ),
+        (
+            axes[0, 1],
+            mask.fixed_value.astype(float),
+            'fixed_value',
+            MASK_CMAP,
+            0.0,
+            1.0,
+        ),
         (axes[1, 0], mask.free.astype(float), 'free', MASK_CMAP, 0.0, 1.0),
         (axes[1, 1], mask.sign_lock.astype(float), 'sign_lock', SIGN_CMAP, -1.0, 1.0),
     )
@@ -824,11 +856,13 @@ def _target_rows(targets: TargetSet, blocks: dict[str, pd.DataFrame]) -> pd.Data
 
 
 def _table_figure(frame: pd.DataFrame, title: str) -> Figure:
-    fig, ax = plt.subplots(figsize=(11.5, 0.55 * (len(frame) + 4)), layout='constrained')
+    fig, ax = plt.subplots(
+        figsize=(11.5, 0.55 * (len(frame) + 4)), layout='constrained'
+    )
     ax.axis('off')
     ax.set_title(title, fontsize=12, pad=8)
     table = ax.table(
-        cellText=frame.astype(str).values,
+        cellText=frame.astype(str).values.tolist(),
         colLabels=list(frame.columns),
         loc='center',
         cellLoc='left',
@@ -1029,8 +1063,10 @@ def _write_captions() -> Path:
     ]
     for name, (stage, caption) in PAGES.items():
         spec = EXPLAIN[name]
-        lines.extend((f'{name}.png', f'  Stage: {stage}', f'  {caption}', '', '  Terms:'))
-        for term, definition in spec['terms']:  # type: ignore[misc]
+        lines.extend(
+            (f'{name}.png', f'  Stage: {stage}', f'  {caption}', '', '  Terms:')
+        )
+        for term, definition in spec['terms']:
             lines.append(f'    {term}: {definition}')
         lines.extend(('', '  What is happening:', f'    {spec["what"]}', ''))
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
