@@ -1943,6 +1943,97 @@ its size tracks tax rates and commodity prices, so 2020-2022 fuel prices could
 move `42` materially. That group is worth checking directly rather than assuming.
 
 
+### `TOP` and `SUB` come from NIPA annually — only the sales-tax share is circular
+
+The claim that the producer↔basic conversion is an *output* of Step 5 is too
+strong, and the correction is structural rather than a matter of degree: **both
+Supply-table columns are published annually in NIPA**, independent of the Supply
+table itself. Verified on 2017:
+
+| Supply column | NIPA source | Supply | NIPA | gap |
+|---|---|---:|---:|---:|
+| `TOP` | T30500 taxes on products **less customs duties** | 716,926 | 716,925 | **1m** |
+| `SUB` | T31300 subsidies, total | 59,876 | 59,875 | **1m** |
+
+✅ **`TOP` = taxes on products − customs and other import duties.** Duties attach
+to *imports*, not to the domestic output block, so they leave through a different
+column. Netting them is what turns NIPA's 755,438 into the Supply table's
+716,926 — the residual is 38,513, which is the customs line to the dollar.
+
+⚠️ `SUB` is stored **negative** in the Supply table and positive in NIPA, BEA's
+convention rather than ours (#655). Comparing without the sign gives a tidy
+"200.0017% error" that is nothing but the sign.
+
+⚠️ **Aggregate-column trap, again.** Checking this by summing the `T00TOP` *row*
+of the Use table across all columns lands **exactly 50.000%** high, off by
+exactly `-755,453` — the row carries a total column alongside the industries it
+totals. Same shape as `T017`, `'TRADE '`, `GSLG*`, PxI `'00'`, ASM
+`'0000000000'` and `'31-33'`. The tell was the same as `T017`'s: a ratio landing
+on a round number.
+
+#### What is assignable and what is not
+
+Decomposing the 2017 domestic `TOP` of 716,926:
+
+| | m | share |
+|---|---:|---:|
+| **general sales taxes** (state 309,879 + local 95,260) | **405,139** | **56.5%** |
+| named excise — gasoline 72,800, tobacco 32,400, alcohol 16,600, air transport 18,300, diesel 9,700, public utilities 27,500, insurance receipts 21,500, pharma 4,100, other | ~286,200 | 39.9% |
+| severance, other taxes on goods and services | ~25,600 | 3.6% |
+
+✅ **43.5% is directly assignable from NIPA's own product lines.** Gasoline,
+diesel, tobacco, alcohol, air transport, pharmaceuticals, public utilities and
+insurance receipts are named commodities; severance is mining. These need no
+balance to allocate — NIPA publishes them by product every year.
+
+⚠️ **56.5% is general sales tax, and that is the genuinely circular part.** It is
+levied on the *purchaser* price — basic value plus trade and transport margins
+plus other product taxes — so allocating it across commodities requires the
+margin structure, which is Step 4c/5 output. This, not the conversion as a
+whole, is what couples 4a to 5.
+
+#### This lands on exactly the groups that needed it
+
+The six multi-child groups where the producer/basic wedge shifts the within-group
+split split cleanly along that line:
+
+| group | driver | assignable? |
+|---|---|---|
+| `42` wholesale, 79.2bn | `424700` petroleum wholesalers carrying gasoline and diesel excise | ✅ named lines |
+| `311FT`, 18.1bn | distillery and tobacco excise | ✅ named lines |
+| `111CA` farms, 8.0bn | agricultural subsidies (T31300 line 3) | ✅ named line |
+| `GFE`, 5.6bn | subsidies | ✅ T31300 |
+| `4A0` retail, 14.7bn | general sales tax | ⚠️ needs margins |
+| `HS` housing, 11.9bn | — | ⚠️ needs margins |
+| `524` insurance, 8.3bn | insurance receipts tax is named; remainder sales tax | partly |
+
+**The largest wedges are the assignable ones.** What is left for Step 5 is retail
+and housing, worth roughly 27bn of the 182bn share-shift effect.
+
+#### ⚠️ And the 2017 wedge is not representative — subsidies explode in 2020-21
+
+| year | `TOP` | vs 2017 | sales share | `SUB` | vs 2017 |
+|---|---:|---:|---:|---:|---:|
+| 2017 | 755,438 | 1.00x | 53.6% | 59,875 | 1.00x |
+| 2018 | 825,606 | 1.09x | 51.7% | 63,320 | 1.06x |
+| 2019 | 865,273 | 1.15x | 51.8% | 72,956 | 1.22x |
+| **2020** | 830,246 | 1.10x | 53.6% | **698,507** | **11.67x** |
+| **2021** | 968,856 | 1.28x | 53.9% | **626,071** | **10.46x** |
+| 2022 | 1,075,945 | 1.42x | 54.0% | 127,995 | 2.14x |
+| 2023 | 1,064,838 | 1.41x | 55.4% | 102,252 | 1.71x |
+| 2024 | 1,099,682 | 1.46x | 54.8% | 94,239 | 1.57x |
+
+⚠️ **In 2020 subsidies are 698bn against taxes on products of 830bn** — the
+subsidy side nearly cancels the tax side, where in 2017 it was 8% of it. Pandemic
+support (PPP, air carrier payroll support) ran through this line. **Any treatment
+that freezes the 2017 wedge is not slightly wrong for 2020-21; it is wrong by an
+order of magnitude**, and the earlier "0.68% of within-group shares, 6 groups"
+figure is a 2017 measurement that cannot be carried to those years.
+
+✅ The sales-tax *share* of `TOP` is by contrast very stable, 51.7% to 55.4%
+across eight years, so the assignable/circular split above holds throughout.
+
+
 ### Rebalancing
 
 Detail `q` estimated from primary data is then reconciled to BEA's published
