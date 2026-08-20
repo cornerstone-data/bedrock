@@ -127,9 +127,7 @@ def _holes(match: TableMatch, col: str, direction: str) -> pd.DataFrame:
     )
 
 
-def _commodity_detail(
-    match: TableMatch, col: str, direction: str
-) -> pd.DataFrame:
+def _commodity_detail(match: TableMatch, col: str, direction: str) -> pd.DataFrame:
     """Per-commodity candidate / reference / status for baseline diffing."""
     cand, ref, status = _align(match, col)
     return pd.DataFrame(
@@ -213,14 +211,18 @@ def _print_delta(detail: pd.DataFrame) -> int:
         print("  No changes vs baseline.")
         return 0
 
-    cols = ["direction", "commodity", "reference_M", "prior_candidate_M",
-            "candidate_M", "status_prior", "status", "regression"]
+    cols = [
+        "direction",
+        "commodity",
+        "reference_M",
+        "prior_candidate_M",
+        "candidate_M",
+        "status_prior",
+        "status",
+        "regression",
+    ]
     with pd.option_context("display.width", 180, "display.max_rows", 100):
-        print(
-            changed[cols].to_string(
-                index=False, float_format=lambda x: f"{x:,.1f}"
-            )
-        )
+        print(changed[cols].to_string(index=False, float_format=lambda x: f"{x:,.1f}"))
     if n_regressions:
         print()
         print(f"  WARNING: {n_regressions} regression(s) — commodity moved to MISS.")
@@ -264,7 +266,9 @@ def main() -> None:
         detail.to_csv(BASELINE_CSV, index=False)
         print(f"\nBaseline updated: {BASELINE_CSV}")
     elif n_regressions:
-        print("\nRun with --update-baseline only after confirming regressions are intentional.")
+        print(
+            "\nRun with --update-baseline only after confirming regressions are intentional."
+        )
 
     print()
     print(f"Wrote {SUMMARY_CSV}")
