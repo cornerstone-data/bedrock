@@ -34,7 +34,12 @@ source_names:
     exclusion_fields:
       ActivityProducedBy: ['MADJ', 'MCIF', 'MDTY', 'SUB', 'T007', 'T013',
                            'T014', 'T015', 'T016', 'TOP', 'Trade', 'Trans']
-      ActivityConsumedBy: ['Other', 'Used', 'T017']
+      # ⚠️ 'Used' is NOT excluded: it is scrap (S00401), 10,761m in 2017 produced
+      # as a by-product by 79 industries - GSLGO 4,118m, 562000 waste management
+      # 829m - and dropping it silently loses a real commodity row from the
+      # block. 'Other' (S00300 zero, S00900 3,468m from S00600 alone) is still
+      # excluded; that is the same question and has not been decided.
+      ActivityConsumedBy: ['Other', 'T017']
     attribution_method: proportional
     attribute_on: ['PrimarySector', 'SecondarySector']
     attribution_source:
@@ -44,7 +49,7 @@ source_names:
 
         # Drop unneeded codes
         exclusion_fields:
-          ActivityConsumedBy: ['T017', 'S00300', 'S00401', 'S00402', 'S00900']
+          ActivityConsumedBy: ['T017', 'S00300', 'S00900']
           ActivityProducedBy: ['MADJ', 'MCIF', 'MDTY', 'SUB', 'T007', 'T013',
                                'T014', 'T015', 'T016', 'TOP', 'TRADE', 'TRANS']
         attribution_method: equal

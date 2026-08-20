@@ -2180,10 +2180,23 @@ published detail `x` as a target; a seed that already matched both margins would
 leave the balance nothing to do. What matters is that the gap is now *measured*
 per industry, so Step 5's work is sized rather than assumed.
 
-⚠️ **Five commodities are absent**: `S00401` scrap, `S00402`, `S00300`, `S00900`
-and `4200ID`, excluded by the method's own `exclusion_fields`. Together 14,229m
-in 2017, **0.042%** of `q` — but `S00401` scrap is 10,761m of that and is real,
-so a complete block needs them back.
+#### Scrap is included; two commodities cannot be
+
+✅ **`S00401` scrap is in the block**, at 11,739m in 2021, matching the published
+`Used` summary total exactly. It is produced as a by-product by **79 industries**
+— `GSLGO` 4,650m, `562000` waste management 1,145m, `332119` 754m — so excluding
+it dropped a real, widely-produced commodity row. The `Used` exclusion is gone
+from the summary source and `S00401`/`S00402` from the detail source. 398
+commodities now, `q` 35.74tn (2018) to 49.72tn (2024), row margin still 0.0000.
+
+⚠️ **`S00402` and `4200ID` remain absent and cannot be recovered by this method**:
+both are **zero in the 2017 detail block**, produced by zero industries, so there
+is no mix to attribute a later year's value with. Any value they carry in a
+nowcast year needs a different source, not a different exclusion list.
+
+⚠️ **`Other` is still excluded** — `S00300` (zero) and `S00900` (3,468m, produced
+by `S00600` alone, so trivially attributable). That is the same question as scrap
+and has not been decided rather than deliberately answered.
 
 
 ### Rebalancing
