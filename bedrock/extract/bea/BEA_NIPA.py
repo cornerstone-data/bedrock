@@ -156,8 +156,9 @@ def bea_nipa_parse(
             # number, e.g. "Accommodations (104)". That number is unrelated to Table/Line
             # (which are already tracked separately via Description) and has no counterpart
             # in other BEA tables (e.g. PCE Bridge category names), so it is dropped here.
-            ActivityProducedBy=lambda x: x['ActivityProducedBy']
-            .str.replace(r'(?:\s*\(\d+\))+$', '', regex=True)
+            ActivityProducedBy=lambda x: x['ActivityProducedBy'].str.replace(
+                r'(?:\s*\(\d+\))+$', '', regex=True
+            )
             # BEA sometimes pads slash-separated terms with spaces (e.g. "Cosmetic /
             # perfumes / bath / nail preparations"), while other BEA tables (e.g. PCE
             # Bridge category names) write the same term slash-tight. Normalize so
