@@ -12,37 +12,49 @@
 #         !include:Detail_Supply.yaml:source_names:BEA_Summary_Supply
 #         year: *year
 
-!include:BEA_detail_target.yaml
+# ⚠️ Targets BEA COMMODITY codes, not NAICS. Both Sector_Crosswalk_BEA_2017_*
+# files map BEA -> NAICS, so naming them as activity_to_sector_mapping converts
+# a BEA-coded table into NAICS and lands ~483 codes where 402 commodities were
+# wanted. The sources are declared bea/2017 in source_catalog.yaml, so with a
+# BEA default_schema they are sector-like and map to themselves - no crosswalk
+# belongs in this method at all.
+!include:BEA_detail_commodity_target.yaml
 year: &summary_year 2018
-target_naics_year: 2017
 geoscale: national
 
 data_format: FBS
-activity_schema: NAICS_2017_Code # <- necessary? (long term just look at the FBS)
 
 source_names:
   BEA_Summary_Supply:
     geoscale: national
     year: *summary_year
-    activity_to_sector_mapping: BEA_2017_Summary
     primary_action_type: Consumed # speeds processing
 
     # Drop unneeded codes
     exclusion_fields:
       ActivityProducedBy: ['MADJ', 'MCIF', 'MDTY', 'SUB', 'T007', 'T013',
                            'T014', 'T015', 'T016', 'TOP', 'Trade', 'Trans']
-      ActivityConsumedBy: ['Other', 'Used', 'T017']
+      # ⚠️ Only T017 is excluded here. 'Used' is scrap (S00401), 10,761m in 2017
+      # from 79 industries - GSLGO 4,118m, 562000 waste management 829m - and
+      # 'Other' is the rest-of-the-world adjustment (S00900), 3,468m produced by
+      # S00600. Both are real domestic output and dropping them silently loses
+      # commodity rows from the block.
+      ActivityConsumedBy: ['T017']
     attribution_method: proportional
     attribute_on: ['PrimarySector', 'SecondarySector']
     attribution_source:
       BEA_Detail_Supply:
         year: 2017
-        activity_to_sector_mapping: BEA_2017_Detail
         primary_action_type: Consumed # speeds processing
 
         # Drop unneeded codes
         exclusion_fields:
-          ActivityConsumedBy: ['T017', 'S00300', 'S00401', 'S00402', 'S00900']
+          # ⚠️ S00300 noncomparable imports, S00402 used and secondhand goods and
+          # 4200ID customs duties are all T007 = 0 in the published table - zero
+          # domestic output BY DEFINITION, entering the Supply table through
+          # MCIF (260,421 and 7,340) and MDTY instead. They are not a sourcing
+          # gap and need no exclusion; they simply carry nothing to attribute.
+          ActivityConsumedBy: ['T017', 'S00300']
           ActivityProducedBy: ['MADJ', 'MCIF', 'MDTY', 'SUB', 'T007', 'T013',
                                'T014', 'T015', 'T016', 'TOP', 'TRADE', 'TRANS']
         attribution_method: equal

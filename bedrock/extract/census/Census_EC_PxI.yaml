@@ -91,15 +91,20 @@ datasets:
       # All Sectors: Products by Industry for the U.S. and States: 2017
       - EC1700NAPCSPRDIND
       # https://api.census.gov/data/2017/ecnnapcsprd.html
-    # 2022 is published and live as EC2200NAPCSPRDIND on the same endpoint.
-    # Deliberately not pulled yet - see the note below and issue #650.
+    '2022':
+      # Selected Sectors: Products by Industry for the U.S.: 2022 (#650)
+      - EC2200NAPCSPRDIND
+      # https://api.census.gov/data/2022/ecnnapcsprd.html
 
 # The Economic Census is quinquennial, so any weights built from this are fixed
-# between census years. Only 2017 is pulled: it is the benchmark I-O year the
-# concordance is anchored against, and adding a second vintage is a separate
-# piece of work rather than a years: entry (#650).
+# between census years. 2017 is the benchmark I-O year the concordance is
+# anchored against; 2022 is pulled as of #650 because a *second* vintage is what
+# lets a commodity mix move on observed product data rather than stay frozen at
+# the benchmark, which is what Step 4a needs (#570,
+# analysis/nowcasting/output_estimation_plan.md).
 #
-# What a trial pull of 2022 showed, since it shaped the concordance design:
+# ⚠️ The two vintages do not line up cleanly. What the trial pull showed, which
+# still governs how they may be compared:
 #
 #   - 902 industries against 2017's 946, and the group is titled "Selected
 #     Sectors" where 2017 is "All Sectors" - so the vintages do not obviously
@@ -113,5 +118,19 @@ datasets:
 #
 # The middle point is why anything built on this source keys on the product
 # **description** rather than the code. The third is the work #650 has to do.
+#
+# ✅ **The 70.5% drift is trade-goods specific, not general.** Measured on the
+# twelve service industries that carry Step 4a's at-risk dollars (#570) - 5417,
+# 5418, 5415, 622, 5182, 7132, 5321, 2211, 2213, 8111, 7225 - 2022 value joins
+# back to 2017 at **98.6% by code and 98.1% by description**, on 3.84tn. So the
+# vintage instability is concentrated in the wholesale and retail product lines
+# the trade-margin method uses, and the services side may be joined either way.
+# Do not generalise the 70.5% to a services use, or the reverse.
+#
+# ⚠️ 2022 is "Selected Sectors" against 2017's "All Sectors" and some industries
+# simply drop out - `5151` radio and television broadcasting has no 2022 rows at
+# all. Check presence before differencing the vintages, rather than reading an
+# absence as a decline to zero.
 years:
 - 2017
+- 2022

@@ -429,17 +429,37 @@ concentrated in about 50 commodities. That is the target list.
 | `515100` Radio and TV broadcasting | 81 | 0.57 | 46 |
 | `517110` Wired telecommunications | 352 | 0.13 | 45 |
 
-⚠️ **This inverts the earlier read on which primary source matters most.** The
-regime table above shows manufacturing holding 231 of 399 commodity *rows*, which
-made ASM product lines look like the priority gap. By dollars at risk the list is
-overwhelmingly **services** — R&D, advertising, programming, hospitals, data
-processing, education, gambling. Manufacturing rows are numerous but their `q` is
-nearly all diagonal, so a frozen mix costs almost nothing there.
+**By dollars at risk the top of the list is services** — R&D, advertising,
+programming, hospitals, data processing, gambling.
 
-**So the primary-data programme should target `Census_SAS` product lines first,
-not `Census_ASM` product tables.** SAS is already extracted and already read at
-product-line granularity for the transport margins (Table 8), so the machinery
-exists. ASM product lines drop well down the list.
+⚠️ **But "manufacturing is nearly all diagonal" is wrong, and was a bad read of
+the aggregate.** Multi-source production is the *norm* there, not the exception:
+
+| manufacturing | |
+|---|---:|
+| commodities | 231 |
+| `q` | 5.43 tn |
+| at risk | **0.38 tn** (6.9% of mfg `q`, **11.7% of all at-risk dollars**) |
+| **median industries producing each commodity** | **10** (p90 22, max 60) |
+| commodities with secondary share >10% | 49, covering 20.5% of mfg `q` |
+
+Petrochemicals is 37.6% secondary, alumina and primary aluminium 69%,
+semiconductor machinery 42%, bread and bakery 23%; other basic organic chemicals
+draws on **30** producing industries. These are not diagonal commodities.
+
+⚠️ **And feasibility runs the other way from value, which is what makes
+manufacturing worth doing.** Services hold ~88% of the at-risk dollars but have
+almost no *annual* product data — `Census_SAS` Table 8 reaches 12 NAICS and none
+of the priority list — so they are stuck with quinquennial `Census_EC_PxI` and
+interpolation between 2017 and 2022. Manufacturing holds ~12% of the at-risk
+dollars but **has annual product data**: ASM product lines and the M3 shipments
+series. It is the part of the block where the mix can be moved *year by year*
+from reported data rather than interpolated between benchmarks.
+
+**So both tracks are wanted, for different reasons.** Services for the dollars,
+on a five-year benchmark cadence; manufacturing for the annual signal, on the
+~49 multi-source commodities above. `Census_ASM` as extracted is `RCPTOT` only
+(industry receipts, 2018) — the product tables are the gap.
 
 ### Which primary source actually reaches the priority list
 
@@ -464,12 +484,39 @@ non-profit and government, which the Economic Census does not cover — consiste
 with the manual's note that BEA estimates nonprofit output from *operating
 expenses* rather than receipts. Those two need a different source.
 
-⚠️ **`Census_EC_PxI` 2022 is not wired.** `getFlowByActivity('Census_EC_PxI',
-2022)` raises. The plan records 2022 as live on the API as `ecnnapcsprd`, so this
-is extract work rather than a data gap — **and it is the single highest-value
-piece of work for Step 4a**, because a second product-by-industry benchmark is
-what lets the mix *move* on observed product data instead of being frozen at
-2017.
+✅ **`Census_EC_PxI` 2022 is now wired** (#650): 32,024 rows, 903 industries,
+3,503 products, pulled as `EC2200NAPCSPRDIND` on the same endpoint. A second
+product-by-industry benchmark is what lets the mix *move* on observed product
+data instead of being frozen at 2017.
+
+✅ **And the vintages join, for our industries.** The yaml warns that the
+2017-built concordance reaches only 70.5% of 2022 value against 94.4% of 2017 —
+but that is **trade-goods specific**. Across the twelve priority service
+industries, carrying 3.84tn of 2022 value, the join is **98.6% by code and 98.1%
+by description**:
+
+| NAICS | 2022 $bn | by code | by desc |
+|---|---:|---:|---:|
+| `5417` R&D | 298 | 100.0% | 100.0% |
+| `5418` Advertising | 126 | 99.8% | 99.0% |
+| `5415` Computer systems | 548 | 98.7% | 96.0% |
+| `622` Hospitals | 1,343 | 98.6% | 97.4% |
+| `5182` Data processing | 273 | 95.0% | 100.0% |
+| `7225` Food service | 800 | 100.0% | 99.8% |
+| **total** | **3,838** | **98.6%** | **98.1%** |
+
+⚠️ **`5151` broadcasting has no 2022 rows at all** — 2022 is titled "Selected
+Sectors" where 2017 is "All Sectors", so industries drop out. Check presence
+before differencing, rather than reading an absence as a collapse to zero.
+
+⚠️ **BEA's 2022 summary table does not incorporate the 2022 Economic Census** —
+the 2022 benchmark I-O is not published, so their annual estimate is a
+best-change extrapolation off the *2017* benchmark. That cuts two ways: our
+EC_PxI-informed mix carries information their published mix does not, which is
+the opportunity; and rebalancing detail to their summary level could discard it,
+which is the risk. The coherent division is to take the **level** from BEA's
+annual indicators, which are current, and the **mix** from EC_PxI, which they
+have not used.
 
 Still gated on the **NAPCS-collection → BEA commodity concordance**
 ([#615](https://github.com/cornerstone-data/bedrock/issues/615)). Note the
@@ -481,6 +528,1860 @@ target is the collection codes.
 between the two benchmarks for the ~50 exposed commodities, fall back to frozen
 2017 elsewhere, then rebalance. SAS drops to a supporting role for the dozen
 NAICS its Table 8 does cover.
+
+### Does PxI actually reproduce the supply mix? — precondition tested, and it fails
+
+The decisive test is whether `Census_EC_PxI` reproduces the published 2017 mix
+per cell. That needs the product → BEA commodity concordance, which does not
+exist for services. But a **necessary precondition** needs no concordance at all:
+does PxI account for the right *total* per industry?
+
+Mapping PxI's NAICS to BEA detail industries and comparing against the 2017
+Supply block's column totals:
+
+| | |
+|---|---:|
+| industries matched | 367 |
+| PxI total vs supply block | 32.89 tn vs 27.01 tn |
+| median ratio | **0.853** |
+| within ±10% of the supply column | **104 of 367** |
+| within ±25% | 212 of 367 |
+
+Priority industries scatter widely: `541700` R&D **0.580**, `713200` gambling
+0.717, `518200` 0.862 — against `622000` hospitals **1.267**, `541511` 1.266,
+`722A00` 1.251.
+
+⚠️ **So PxI is not the supply mix, and was never going to be.** It is the raw
+product data BEA *starts* from, before the whole adjustment ladder above —
+imputations for own-account software and construction, miscellaneous receipts,
+tax-misreporting and nonemployer coverage, removal of the cost of resales, then
+reclassifications and secondary in/out. PxI is also a **weighted sample**, not an
+enumeration (`Census_EC_PxI.yaml`). A level match was never the right
+expectation.
+
+**That does not disqualify a *share* use, which is what Step 4a needs.** Most of
+those adjustments are industry-level and scale a whole column, leaving the
+within-column shares intact. The mix could therefore be sound where the level is
+not. But that is an argument, not a measurement — **the mix itself remains
+untested until the concordance exists**, and this precondition result means the
+concordance work has to be followed by the per-cell mix test before anything is
+built on it.
+
+⚠️ **`Census_EC_PxI` carries an all-sectors total row that must be dropped.**
+`ActivityProducedBy == '00'` is a single 2-digit code holding **34.36 tn** beside
+935 six-digit industries holding 32.89 tn — **51.1% of the file**. Any groupby
+that does not filter to 6-digit codes aggregates the total alongside the detail.
+This is the same class of defect as the Supply table's `T017` row, and it is the
+fourth instance in this work.
+
+**Corrected:** the earlier "only 48.9% of value mapped" was not a mapping
+failure — 48.9% is exactly the 6-digit share, and once `'00'` is excluded the
+NAICS→BEA mapping covers **100.0% of value**. The level scatter is therefore
+**real, not an artifact**: redone on 6-digit rows only it is unchanged at median
+ratio 0.853, 104 of 365 industries within ±10%. The conclusion above stands; the
+reasoning that qualified it did not.
+
+### Do service industries produce trade output? — checked in the published block
+
+Before deciding how to treat the retail and wholesale product lines that appear
+inside service industries, the first-principles question is whether the published
+**before-redefinitions** Supply table shows those industries producing trade
+commodities at all. If it does, the margin is part of their industry output until
+redefinition moves it, and cannot simply be excluded.
+
+**It does.** 49 of 93 service-sector industries carry non-zero output of a trade
+commodity in the 2017 detail block. But the amounts are small:
+
+| industry | output bn | trade bn | trade share |
+|---|---:|---:|---:|
+| `811100` Automotive repair | 131.4 | 1.59 | **1.21%** |
+| `532100` Automotive equipment rental | 64.1 | 0.45 | 0.70% |
+| `221100` Electric power | 365.8 | 2.24 | 0.61% |
+| `518200` Data processing | 175.2 | 0.51 | 0.29% |
+| `622000` Hospitals | 843.9 | 1.36 | 0.16% |
+| `541700` R&D, `541800` advertising, `713200`, `561300` | — | 0.00 | 0.00% |
+| **all service-sector industries** | **16.17 tn** | **0.022 tn** | **0.136%** |
+
+⚠️ **So it is real but negligible, and the two sources agree.** PxI's trade
+product lines are 0.4% of PxI value for these industries; the Supply block shows
+0.136% of output. Those are consistent once the valuation difference is applied —
+PxI reports trade **sales** while the Supply block reports trade **margin**, and a
+typical margin rate on 0.4% of sales lands squarely on 0.14% of output.
+
+**That corroborates the `trade-margin` flag rather than an exclusion.** These
+lines map to a real thing the Supply table also records; they simply need a
+margin rate applied before they can be compared with commodity output. Keeping
+them flagged is right, and the stakes are bounded at a few tenths of a percent.
+
+It also confirms the before-redefinitions choice is doing visible work: after
+redefinition these cells would have been moved out to the trade industries, and
+the question could not have been asked of the table at all.
+
+### The mix test: run, and the dominant-seller rule fails systematically
+
+[`pxi_mix_test.py`](pxi_mix_test.py) builds each industry's commodity mix from
+PxI product lines through the services concordance and scores it against the
+published 2017 block. `L1` is half the sum of absolute share differences — the
+fraction of the mix that would have to move.
+
+**Across 38 industries with coverage above 30%: median L1 0.285, nine under 0.05,
+eighteen over 0.30.**
+
+It works well where the industry's products are distinctive — `621600` home
+health 0.003, `811100` auto repair 0.010, `811300` 0.014, `623A00` 0.016,
+`622000` hospitals 0.017, `561300` 0.019, `541800` advertising 0.030, `541700`
+R&D 0.035.
+
+⚠️ **But it fails completely, and systematically, on shared products.** Three
+health industries score **L1 = 1.000** — entirely disjoint from the published
+mix — because `621100` physicians, `621300` outpatient and `621400` home health
+all sell *"Patient care, related to ICD-10 major category"*, and the seed's
+dominant-seller rule assigns that product to `622000` hospitals, which is simply
+the largest seller. Every one of those industries then appears to produce
+hospital output and nothing of its own. `711100`, `713200`, `813A00` and
+`52A000` fail the same way.
+
+**This is a flaw in the rule, not in the data.** "Patient care" is the *primary*
+product of several distinct BEA commodities at once. A single global
+product → commodity map cannot express that, and collapsing it onto the biggest
+seller destroys precisely the distinction the Supply table exists to record.
+
+**The fix is to make the mapping industry-conditional**, and it works. A third
+row class beside single-target and split-target: `own-commodity`, carrying no
+target and resolving **against the seller**. A product earns it automatically
+when it is at least 30% of *two or more* selling industries that map to
+different BEA commodities — 14 products, 1,562bn, 41.8% of seed value. That
+matches the manual's framing, where the question is which products are secondary
+to an industry rather than what a product is in the abstract.
+
+| | before | after |
+|---|---:|---:|
+| median L1 | 0.285 | **0.075** |
+| industries under 0.05 | 9 | **17** |
+| industries over 0.30 | 18 | **7** |
+
+The three total failures are gone, and nothing that worked was broken:
+
+| industry | before | after |
+|---|---:|---:|
+| `621100` physicians | 1.000 | **0.005** |
+| `621400` home health | 1.000 | **0.006** |
+| `621300` outpatient | 1.000 | **0.055** |
+| `722110` full-service restaurants | 0.451 | **0.007** |
+| `722211` limited-service | 0.538 | **0.014** |
+| `711100` performing arts | 0.984 | **0.039** |
+| `52A000` other financial | 0.725 | **0.046** |
+| `813A00` | 0.985 | **0.066** |
+| `713200` gambling | 0.918 | **0.181** |
+| `622000` hospitals *(control)* | 0.017 | 0.018 |
+
+⚠️ **`own-commodity` also supersedes the reviewed split for prepared meals**, and
+should. The reviewed target `722` was right; a fixed 45.9/44.9/9.1 split applies
+one global ratio to every seller, whereas resolving against the seller sends
+full-service restaurants' meals to `722110` and limited-service's to `722211`.
+That is why those two go from 0.451 and 0.538 to 0.007 and 0.014.
+
+### Second experiment: advertising belongs to `541800`
+
+The seven failures clustered in media, and the published block said why — those
+industries produce large shares of **`541800` advertising** where our build gave
+them zero. `515100` broadcasting's single largest published output *is* `541800`
+at **59.3%**; `515200` carries 35.2% and `5111A0` 21.4%.
+
+The advertising products were scattered across four different treatments:
+"Internet advertising" 112bn → `519130`, "Television air time" 84bn →
+`own-commodity`, "Radio air time" 13bn → `515100`, "Advertising space in printed
+publications" 22bn → unmapped. Routing all 26 advertising products to `541800`
+(and adding the 11 that were unmapped, 43bn):
+
+| industry | before | after |
+|---|---:|---:|
+| `519130` internet publishing | 0.691 | **0.234** |
+| `515100` broadcasting | 0.623 | **0.310** |
+| `515200` cable | 0.797 | **0.445** |
+| `5111A0` directory publishers | 0.901 | **0.687** |
+| `541800` advertising *(receiving)* | — | **0.015** |
+
+⚠️ **Coverage below about 0.5 makes the mix an artifact, not a measurement.**
+The remap appeared to *worsen* the headline because it gave `511110` newspapers
+and `511120` periodicals enough coverage to enter the run — at 44%, carrying
+only their advertising lines, so `541800` looks like their main output. That is
+the threshold's fault, not the mapping's. Scored on industries we actually see:
+
+| min coverage | industries | median L1 | under 0.05 | over 0.30 |
+|---|---:|---:|---:|---:|
+| 0.5 | 33 | **0.066** | 15 | **4** |
+| 0.6 | 31 | 0.066 | 14 | 4 |
+| 0.7 | 24 | 0.089 | 10 | 2 |
+
+The default is now 0.5. **Median L1 0.066 with four industries over 0.30**,
+against 0.285 and eighteen before `own-commodity` existed.
+
+⚠️ **My earlier ten-industry read was unrepresentative and too favourable.** The
+priority list is drawn from industries with distinctive products, which is
+exactly the population this rule handles well. Scoring the full set is what
+exposed the failure, and the same trap is available to anyone who samples the
+easy cases first.
+
+### Third experiment: the two stubborn industries
+
+`5111A0` at 0.687 and `515200` at 0.445 needed two further mechanisms, each
+justified by what the published block says rather than by tuning.
+
+**1. The `own-commodity` trigger was too strict.** It required a product to be
+≥30% of **two** sellers mapping to different commodities. "Specialty content for
+consumers" is **99% of `5111A0`'s output** but only 4% of `519130`'s, so it
+missed — and `5111A0` got none of its own commodity. Weakening the trigger to
+≥30% of **any** seller (still requiring ≥2 distinct commodities) takes
+`own-commodity` from 8 products to 59 and `5111A0` from **0.687 to 0.077**.
+
+⚠️ **But the automatic rule must not override an explicit decision.** Weakening
+it first swept "Internet advertising" and "Television air time" back into
+`own-commodity`, undoing the advertising fix and sending `519130` from 0.234
+back to 0.691. Reviewed products are now marked `locked` and are never
+auto-flagged. **An automatic rule and a reviewed decision are not the same kind
+of statement, and the rule must lose.**
+
+**2. Some products are a different commodity depending on who makes them.**
+`515200` cable programming's *"Licensing of rights to exhibit, broadcast, or rent
+audiovisual works"* is 52% of its output, but the published block says `515200`
+produces 42.7% **`515100` broadcasting**. For `512100` motion picture the same
+product is 91% of output and *is* its own commodity. Neither a global target nor
+`own-commodity` can say that, so the corrections file now takes an optional
+`industry` column — a per-(industry, product) override. `515200` goes **0.445 to
+0.193** while `512100` stays at 0.016, unchanged.
+
+⚠️ **Read the corrections with `dtype=str`.** Without it pandas types the code
+columns as floats and `515200` becomes `515200.0`, which matches nothing — the
+override silently did not fire, and the only symptom was an unchanged score.
+
+**Where the mix test now stands:**
+
+| | after `own-commodity` | after advertising | now |
+|---|---:|---:|---:|
+| median L1 | 0.075 | 0.066 | **0.064** |
+| under 0.05 | 17 | 15 | **16** |
+| over 0.30 | 7 | 4 | **3** |
+
+Remaining: `511120` periodicals 0.416 (51.6% coverage — near the floor where the
+mix is an artifact), `541512` 0.370, `221300` water and sewage 0.322.
+
+### What the mix test does and does not establish
+
+⚠️ **The concordance was tuned against the answer.** Advertising to `541800`,
+the cable override and the `own-commodity` threshold were all chosen by
+inspecting where the published mix disagreed, then scored against that same
+published mix. The headline 0.064 is therefore partly fitted, and quoting it as
+an unbiased accuracy would be wrong.
+
+Splitting the 35 industries by whether they were inspected while choosing rules:
+
+| | n | median L1 | under 0.05 | over 0.30 |
+|---|---:|---:|---:|---:|
+| tuned on | 15 | 0.056 | 7 | 1 |
+| **held out — never inspected** | 20 | **0.150** | **9** | 2 |
+| all | 35 | 0.064 | 16 | 3 |
+
+**The held-out median is 2.7x the tuned median.** That is real overfitting and
+0.150 is the honest number.
+
+**What is nonetheless established:** nine of twenty never-inspected industries
+land under 0.05 — `621600` 0.003, `623A00` 0.007, `811100` 0.011, `811300`
+0.014, `532100` 0.017, `524113` 0.017, `561300` 0.022, `541700` 0.032, `221100`
+0.040. That cannot be an artifact of tuning, and it is far better than anything
+a frozen or mechanical mapping produced. **`Census_EC_PxI` can reproduce the
+published supply mix for services**, which is the necessary condition for using
+it to move the mix.
+
+**What is not established.** That PxI *is* BEA's source, rather than a series
+consistent with it; the levels still diverge (median ratio 0.853) and the
+adjustment ladder that would reconcile them is unverified. Coverage is partial —
+industries below 50% are excluded outright, and manufacturing, trade and
+agriculture are untested. And the concordance is demonstrably incomplete on
+industries nobody has looked at yet.
+
+**The honest work queue is the held-out failures**, not the tuned ones:
+`541512` 0.370, `221300` 0.322, `721000` 0.294, `339950` 0.285, `713100` 0.276.
+Each is a place the concordance has a gap that inspection would likely close —
+but every one closed that way moves it from held-out to tuned, so the unbiased
+estimate has to be re-established on a fresh holdout rather than recomputed on
+the same set.
+
+### The cadence split: services quinquennial, manufacturing annual
+
+Checked against the Census API rather than assumed.
+
+**Services carry no annual product detail.** `Census_SAS` Table 8, *Estimated
+Revenue by Product and Class of Customer*, covers 12 NAICS — truck, publishing,
+software, telecom, search portals, admin services — and none of the priority
+list. So for services the only product-level source is `Census_EC_PxI`, which is
+**quinquennial**: 2017 and 2022, interpolated between.
+
+**Manufacturing does, and in the same code space.** The Census API carries
+`timeseries/asm/value2017`, which returns `NAICS2017` x **`NAPCS2017`** (the 2017
+NAPCS *collection* code) with `NAPCSDOL` — 17,269 rows for 2018 and 43,131 for
+2021; 2023 not yet published. There is also `timeseries/asm/product`, the older
+`PSCODE`/`PRODVAL` product-class series.
+
+⚠️ **`asm/value2017` is the annual analogue of `Census_EC_PxI`, keyed on the same
+NAPCS collection codes** — so the concordance built for EC_PxI applies to it
+directly rather than needing its own. That is what makes an *annual* moving
+manufacturing mix reachable instead of a five-year interpolation.
+
+**So the two tracks differ in cadence, not just in coverage:**
+
+| | at-risk dollars | product source | cadence |
+|---|---:|---|---|
+| services | ~88% | `Census_EC_PxI` | **quinquennial** — 2017, 2022 |
+| manufacturing | ~12% | `asm/value2017` | **annual** — 2018 onward |
+
+That sharpens the earlier point that feasibility runs opposite to value. Services
+hold the dollars but can only be interpolated between census years; manufacturing
+holds a eighth of them but can be tracked year by year from reported data.
+
+⚠️ The ASM product series carries aggregate rows the same way everything else
+here does — the first row returned is `NAICS 31-33` with NAPCS `0000000000`.
+Filter before aggregating; this class of defect has now appeared five times in
+this work.
+
+### Annual ASM: the data is there, the manufacturing concordance is not
+
+Pulled `timeseries/asm/value2017` for 2018-2022.
+
+| | |
+|---|---|
+| available | **2018, 2019, 2020, 2021** (17,269 rows in 2018; ~43,000 after) |
+| **2022** | **absent** — ASM is not conducted in an Economic Census year, so EC 2022 fills exactly that gap |
+| NAPCS codes | 2,791, of which **2,783 shared with `Census_EC_PxI`** |
+| ASM value on shared codes | **100.0%** |
+
+⚠️ **So the concordance transfers directly** — anything built on EC_PxI product
+codes applies to the annual ASM series without a second mapping. That is what
+makes annual manufacturing commodity output reachable.
+
+⚠️ **Aggregates are 90.6% of ASM value** (NAICS shorter than six digits, or the
+all-zero NAPCS code). Filtering is not optional; the detail is 13,372 rows and
+about 4.95tn in 2021.
+
+**But the dominant-industry seed does not work for manufacturing.** Summing
+EC_PxI 2017 manufacturing products by commodity and scoring against published
+`T007`:
+
+| | |
+|---|---:|
+| built | 4.01 tn |
+| published | 5.20 tn |
+| weighted mean abs error | **27.6%** |
+| within ±10% | **77 of 228** |
+
+with pathological cases — `325211` plastics resin at ratio **0.034**, `324121`
+asphalt at 0.030, `336111` automobiles at **2.89**.
+
+**The failure is structural, not a tuning problem.** Route 2's whole premise is
+that a manufactured commodity's output is *independent of who makes it* — the
+manual's "the total for the product no matter where it is made". A rule that
+assigns a product to whichever industry predominantly makes it therefore uses
+exactly the wrong instrument, and it collapses cross-industry production into
+the largest producer. It worked for services because a service is usually
+produced by its own industry; manufacturing is the case it cannot handle.
+
+**What manufacturing needs is a product → commodity map keyed on what the product
+is**, over the 1,968 manufacturing products in EC_PxI 2017 — a larger job than
+services' 202, validated the same way against published 2017 `T007`.
+
+❌ **The mechanical route does not exist. Checked the docs.**
+`timeseries/asm/product` works with the documented parameters (`for=us:1`, and
+`PSCODE` really is NAICS-based — `311111` "Dog and cat food manufacturing"), but
+it **stops at 2016**: 2,030 rows for 2016, empty for 2017 onward. It is the
+legacy pre-2017-NAICS series and cannot reach the 2018+ window.
+`asm/benchmark2017` and `asm/benchmark2022` are **industry-level only** — no
+product dimension at all.
+
+**So `asm/value2017` on NAPCS collection codes is the only annual manufacturing
+product source, and the manufacturing concordance is unavoidable.** 1,968
+products, validated against published 2017 `T007` the same way services were.
+
+✅ **Side finding for the inventories work.** `asm/benchmark2017` and
+`asm/benchmark2022` carry inventories **by stage** at industry level —
+`INVFINB`/`INVFINE` finished goods, `INVWIPB`/`INVWIPE` work in process,
+`INVMATB`/`INVMATE` materials, plus `CSTMTOT` and `VALADD`. That is precisely
+what [#664](https://github.com/cornerstone-data/bedrock/issues/664) asks for —
+per-industry stage shares from ASM rather than the durable/nondurable split —
+and neither dataset is currently extracted.
+
+### Can the trade concordance seed the manufacturing one? — tested, no
+
+The idea is sound in principle: the NAPCS goods being *wholesaled or retailed*
+should be the same goods being *produced*, so the trade concordance's 273
+good→BEA judgements ought to transfer to manufacturing products.
+
+**They do not.** Matching on token overlap after removing the wholesale/retail
+lines that sit inside manufacturing industries:
+
+| threshold | products | share of mfg value |
+|---|---:|---:|
+| Jaccard ≥ 0.5 | 22 | 0.9% |
+| Jaccard ≥ 0.4 | 46 | **2.2%** |
+| Jaccard ≥ 0.3 | 111 | 5.9% |
+
+and the matches are unreliable at the useful end — *"Plastics and rubber
+products contract manufacturing"* pairs with *"recyclable plastics and rubber"*,
+mapping a manufactured good to `S00401` **scrap**.
+
+**Why it fails.** The trade list is 273 coarse categories describing *what a
+store sells*; manufacturing is 1,796 specific descriptions of *a manufacturing
+operation*. They are different levels and different concepts, so the vocabularies
+barely intersect even where the underlying good is the same.
+
+⚠️ **A naive exact match looks far better than it is.** Matching stripped
+descriptions returns 164 "hits" — but they are wholesale lines *inside*
+manufacturing industries matching the trade list, not manufactured goods, and
+they are 1.4% of value. Drop `sales of` lines before measuring anything here.
+
+**A better mechanical seed exists, and it is BEA's own commodity names.**
+Manufacturing product descriptions are structured "Manufacturing of X", which
+matches the Supply table's `Commodity Description` far better than it matches
+trade categories:
+
+| threshold | products | share of mfg value |
+|---|---:|---:|
+| Jaccard ≥ 0.5 | 65 | 7.5% |
+| Jaccard ≥ 0.4 | 107 | 11.7% |
+| Jaccard ≥ 0.3 | 201 | **16.1%** |
+| Jaccard ≥ 0.2 | 573 | 34.9% |
+
+and the matches read correctly — *"Manufacturing of civilian aircraft"* → `336411`
+Aircraft manufacturing, *"Manufacturing of ready-mix concrete"* → `327320` at an
+exact token match.
+
+**So the manufacturing concordance can be part-seeded from BEA commodity
+descriptions** — roughly a sixth of value at a defensible threshold, a third if
+0.2 is accepted with review — but the majority still needs judgement. The trade
+concordance is not the shortcut.
+
+### The NAICS index file as a term pool — tested, and it makes accuracy worse
+
+The [2022 NAICS Index File](https://www.census.gov/naics/2022NAICS/2022_NAICS_Index_File.xlsx)
+carries **20,398 index items** mapping specific product and activity terms to
+6-digit NAICS, 10,164 of them in manufacturing across 346 industries — a far
+richer vocabulary than the 231 BEA commodity names. Composed with NAICS→BEA it
+is an obvious candidate for seeding the manufacturing concordance.
+
+**On coverage it is roughly 3x better than BEA commodity names alone:**
+
+| threshold | BEA names only | + NAICS index |
+|---|---:|---:|
+| Jaccard ≥ 0.5 | 7.5% | **20.5%** |
+| ≥ 0.4 | 11.7% | 31.1% |
+| ≥ 0.3 | 16.1% | 47.1% |
+| ≥ 0.2 | 34.9% | **75.6%** |
+
+⚠️ **But coverage is not accuracy, and on accuracy it is worse.** Scored the
+same way as everything else — commodity output summed from products against
+published 2017 `T007` — with the dominant-industry rule as the fallback so
+coverage is 100% either way:
+
+| seeding | wtd abs err | within ±25% |
+|---|---:|---:|
+| **dominant-industry only** | **28.2%** | **131 of 227** |
+| hybrid, index ≥ 0.5 | 29.2% | 123 |
+| hybrid, index ≥ 0.4 | 30.6% | 119 |
+| hybrid, index ≥ 0.3 | 34.2% | 109 |
+| hybrid, index ≥ 0.2 | 41.0% | 73 |
+
+**The degradation is monotonic in how much the index is trusted.** Even at the
+strictest threshold it loses to the simple rule. Token overlap against 10,164
+index items reliably finds a lexically similar item, and lexical similarity is
+not conceptual identity — whereas the dominant-industry rule, structurally wrong
+as it is for manufacturing, at least reads actual production data.
+
+⚠️ **Measuring the index seed alone would have flattered it.** On its own it
+scored 50.2% error at ≥0.2, against the baseline's 28.2% — but that comparison is
+confounded, because unmatched products are dropped and the level falls short
+(2.98tn against 4.91tn published). The fallback is what makes the comparison
+fair, and it is what reverses the apparent direction of the earlier coverage
+result.
+
+**Conclusion: lexical matching is not the route for manufacturing.** Three
+vocabularies have now been tried — trade good names (2.2% of value), BEA
+commodity descriptions (16.1%), and the full NAICS index (75.6% coverage but
+worse accuracy) — and none improves on a rule that is itself only 28.2% accurate.
+The manufacturing concordance needs either real judgement over the 1,796
+products or a signal other than description text.
+
+### The concordance is not the binding constraint
+
+Census does publish a route from NAPCS collection codes to NAICS, via the 2012
+Economic Census product codes — which *were* NAICS-keyed (`21111131` is NAICS
+`211111` plus a product suffix):
+[2017 NAPCS-Based Collection Code to 2012 Product Code](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/2017_NAPCS-Based_Collection_Code_to_2012_Product_Code_20200312_no_highlight.xlsx),
+8,237 rows. Composed with NAICS 2012 → BEA it resolves **3,775 NAPCS codes** and
+covers **86.4% of manufacturing product value**.
+
+**It does not beat the simple rule:**
+
+| seeding | wtd abs err | ±25% | ±10% |
+|---|---:|---:|---:|
+| dominant-industry only | **28.2%** | 131/227 | 77 |
+| Census concordance only | 29.9% | 114/193 | 71 |
+| Census concordance, dominant fallback | 29.1% | 129/227 | 77 |
+
+⚠️ **Four independent mappings now land in the same place: 28-30%.**
+Dominant-industry, trade-good names, the 20,398-term NAICS index, and Census's
+own official concordance. That consistency is the finding — **the error is not in
+the mapping**. If it were, four unrelated methods would not converge on the same
+number.
+
+**What it points to instead is the adjustment ladder.** EC_PxI product value is
+not BEA commodity output: it is a weighted sample of product shipments *before*
+imputations, nonemployer and tax-misreporting coverage, removal of cost of
+resales, and secondary in/out. That is a 20-30% wedge by construction, which is
+exactly what all four methods measure. **Improving the concordance further will
+not close it**, and effort should go to the ladder rather than to more mapping.
+
+⚠️ **There is no NAPCS → NAICS concordance for 2017 or later**, and this is by
+design — NAPCS is a demand-based classification explicitly *not* industry-of-origin
+based. The 2012 product codes were the last NAICS-keyed product codes Census
+published, so any NAPCS → NAICS route must go back through 2012 and inherit that
+vintage's structure.
+
+**Two files worth having anyway**, from
+[`.../technical-documentation/napcs/`](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/):
+
+- [`2017_to_2022_NAPCS_Concordance_Final_08242022.xlsx`](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/2017_to_2022_NAPCS_Concordance_Final_08242022.xlsx)
+  — the official vintage bridge. This is what
+  [#650](https://github.com/cornerstone-data/bedrock/issues/650) needs for the
+  2017↔2022 description drift that `Census_EC_PxI.yaml` documents, in place of
+  matching on description.
+- `2017`/`2022_NAPCS-Based_Collection_Code_to_NAPCS_Trilateral_Product_Code.xlsx`
+  — resolves the complaint recorded in `Census_EC_PxI.yaml` that "0 of the 620
+  trade product codes appear in either official file". The collection codes are
+  not the trilateral codes, and this is the published bridge between them.
+
+### Manufacturing: the concordance is not the constraint
+
+The official Census concordance exists and works mechanically. The
+[2017 NAPCS-Based Collection Code to 2012 Product Code](https://www2.census.gov/programs-surveys/economic-census/technical-documentation/napcs/2017_NAPCS-Based_Collection_Code_to_2012_Product_Code_20200312_no_highlight.xlsx)
+file gives 8,237 NAPCS codes against 2012 Economic Census product codes, and
+**2012 product codes are NAICS-based** (`21111131` is NAICS `211111` plus a
+product suffix). So NAPCS → NAICS 2012 → BEA is a published crosswalk, not a
+judgement: 3,775 NAPCS codes acquire a BEA target and **86.4% of manufacturing
+product value maps**.
+
+⚠️ **It scores no better than the crude rule.** Four independent approaches now
+converge:
+
+| mapping | wtd abs err |
+|---|---:|
+| dominant-industry (crude) | 28.2% |
+| **official Census NAPCS → 2012 → NAICS → BEA** | **29.9%** |
+| + NAICS index file, best threshold | 29.2% |
+| trade-concordance transfer | rejected, 2.2% coverage |
+
+**When four unrelated mappings land within two points of each other, the mapping
+is not what is binding.**
+
+**What is binding — evidence, in the order it was ruled out:**
+
+- **Not a uniform level gap.** Built is 3.41tn against 4.55tn published, but
+  rescaling by that single factor moves the error only 29.9% → **29.3%**. The
+  dispersion is commodity-specific, not a ladder constant.
+- **Not unmapped products.** Correlation between a commodity's shortfall and
+  unmapped value in its own industry is **−0.370** — the wrong sign — and the
+  worst commodities carry *less* unmapped value than the rest (0.7% against 1.0%).
+- **Partly suppression, and this is actionable.** **53.2% of manufacturing PxI
+  rows are suppressed and publish as zero.** The gradient is real: commodities
+  whose industries are under 30% suppressed have median ratio **0.96**, against
+  **0.76** at 50-70% suppression.
+
+⚠️ **Every accuracy number above was measured on data with half its cells
+zeroed.** `getFlowByActivity('Census_EC_PxI', 2017)` returns the *published*
+FBA; suppression recovery lives in
+[`estimate_suppressed_ec_pxi`](../../extract/census/Census_EC.py) and runs in the
+FBS clean-function path, so none of this work has used it.
+
+**So the next step is to apply suppression recovery and re-score, before any
+further concordance effort.** The function exists and the plan already records it
+taking published detail from 90.5% to 100.0% of control.
+
+Suppression does not explain everything — `325412` pharmaceutical preparation at
+ratio **0.08** (24 of 29 rows zero), `325211` plastics resin at 0.08 (34 of 49),
+`334510` electromedical at 0.09 (26 of 34) are far more extreme than the bin
+medians. Those three are the diagnostic targets once recovery is in.
+
+### Suppression recovery: the manufacturing route works
+
+Applying [`estimate_suppressed_ec_pxi`](../../extract/census/Census_EC.py) before
+building `q`, with the official Census NAPCS → 2012 → NAICS → BEA concordance
+unchanged:
+
+| | published (suppressed) | **recovered** |
+|---|---:|---:|
+| commodities scored | 193 | 197 |
+| built vs published | 3.41 vs 4.55 tn — **0.749** | 4.56 vs 4.78 tn — **0.954** |
+| wtd abs error | 29.9% | **14.1%** |
+| within ±25% | 114 | **165** |
+| within ±10% | 71 | **134** |
+
+**The error more than halves and the level closes to within 5%.** Manufacturing
+product value goes from 4.019tn to 5.482tn and the zero-cell rate from **53.2%
+to 4.7%**.
+
+⚠️ **This was the binding constraint all along.** Four mappings converging at
+28-30% looked like a concordance ceiling; it was the same suppression floor
+underneath all of them. The lesson is general: **when unrelated methods converge
+on the same error, suspect the input, not the method.**
+
+**What is left is genuinely a concordance problem**, and it is now small and
+legible — a handful of commodities where value lands on a neighbour:
+
+| commodity | ratio | published |
+|---|---:|---:|
+| `331200` Steel product from purchased steel | **4.70** | 9bn |
+| `336111` Automobile manufacturing | 2.89 | 33bn |
+| `326290` Other rubber product | 2.03 | 17bn |
+| `316000` Leather and allied product | **0.10** | 5bn |
+| `331520` Nonferrous metal foundries | 0.15 | 12bn |
+| `324190` Other petroleum and coal products | 0.18 | 28bn |
+
+These pair up — steel-from-purchased-steel against iron and steel mills,
+automobile against light truck — which is the signature of the **modal** NAPCS →
+BEA rule assigning a whole code to one side of a pair. Splitting those codes
+across their 2012 product codes rather than taking the mode is the next
+refinement, and it is now worth doing because it is the residual rather than a
+rounding error on a much larger one.
+
+⚠️ **Next: the same treatment for annual ASM.** `asm/value2017` carries its own
+suppression and its own aggregate rows, and it has no `'00'` all-industries
+product total to recover against — the recovery here works by subtracting
+published industries from that total. Whether an equivalent control exists in
+ASM is the open question before the annual series can be built.
+
+### The split, tested — marginal, and it exposed the real gap
+
+Splitting each NAPCS code's value across every BEA commodity its 2012 product
+codes imply, weighted by how many map to each, instead of taking the mode:
+
+| rule | level | wtd abs err | ±25% | ±10% |
+|---|---:|---:|---:|---:|
+| modal | 0.954 | 14.1% | 165 | 134 |
+| **split by 2012-code count** | 0.939 | **13.8%** | 169 | 136 |
+
+**Marginal, and for a structural reason: only 2.1% of NAPCS codes are
+multi-target** — 79 map to two BEA commodities, 2 to three, and 3,694 to exactly
+one. There is almost nothing for a split to act on.
+
+⚠️ **My "modal rule picking one side of a pair" diagnosis was wrong.**
+`336111` automobile, `316000` leather and `331520` nonferrous foundries have
+**zero** multi-target codes, so no split could have moved them.
+
+**What is actually wrong: 34 manufacturing commodities have no built value at
+all — 0.654tn, 12.0% of manufacturing `q`** — and 33 of them are never the
+target of any NAPCS code. `331110` iron and steel mills gets **0.0** while its
+pair `331200` gets **4.70x**; `325110` petrochemical 63.4bn, `336390` other motor
+vehicle parts 61.2bn, `312200` tobacco 47.8bn and `336310` gasoline engines
+38.2bn are all unbuilt.
+
+**Two causes, and the larger one is ours:**
+
+1. ⚠️ **Our NAICS 2012 → BEA crosswalk is incomplete.** Of 473 distinct
+   manufacturing NAICS 2012 codes appearing in the Census concordance, **172 are
+   absent from the `NAICS_2012_Code` column** of
+   `NAICS_to_BEA_Crosswalk_2017.csv` — `311222`, `311223`, `311311`, `311312`,
+   `311320`, `311330`, `311711`, `311712` and so on. Their product value cannot
+   reach a BEA commodity at all. Only 200 distinct BEA commodities are reachable
+   through the crosswalk as it stands. **This is the next thing to fix, and it is
+   our data rather than Census's.**
+2. Some commodities genuinely have no 2012 product codes in the Census
+   concordance — `331110` and `336390` return zero rows. Those need a different
+   source rather than a crosswalk repair.
+
+### Closing the crosswalk gap — the codes are 2007 NAICS, not 2012
+
+The 172 unreachable codes are not 2012 NAICS at all. **They are 2007 codes**:
+`311222` Soybean Processing became `311224` in *2012*; `331316` → `331318`,
+`332116` → `332119`, `333295` → `333242`. Census's "2012 product codes" embed
+2007-vintage NAICS wherever a product line was carried forward unchanged.
+
+That is why two obvious fixes both returned nothing:
+
+- `NAICS_Year_Concordance.csv`'s **2012 column** resolves **0 of 172** — it has
+  no rows for codes that were already gone by 2012.
+- Census's official **[2012→2017 concordance](https://www.census.gov/naics/concordances/2012_to_2017_NAICS.xlsx)**
+  is complete (1,069 six-digit rows) and still contains none of them, for the
+  same reason.
+
+✅ **The repo's own concordance has the answer in its `NAICS_2007_Code` column.**
+Resolving 2007 → 2017 → BEA recovers **169 of 172**, and the results are
+unambiguous and correct on inspection:
+
+| 2007 | 2017 | BEA | |
+|---|---|---|---|
+| `311222`, `311223` | `311224` | `311224` | soybean and other oilseed processing |
+| `311311`, `311312`, `311320`, `311330` | `311314`, `311351`, `311352` | `311300` | sugar and confectionery |
+| `311711`, `311712` | `311710` | `311700` | seafood |
+| `312210`, `312221` | `312230` | `312200` | tobacco |
+
+| | prefix heuristic | **2007-vintage concordance** |
+|---|---:|---:|
+| level | 0.928 | **0.952** |
+| wtd abs error | 13.8% | **11.5%** |
+| within ±25% | 189/231 | **199/231** |
+| within ±10% | 143 | **153** |
+| **unbuilt commodities** | 10 | **0** |
+
+✅ **The prefix heuristic is no longer needed.** Layering it on top of the
+concordance changes nothing — identical to three decimal places — so it should be
+dropped rather than kept as a fallback. A real vintage concordance strictly
+dominates a structural inference, and keeping both would leave a rule in the code
+that never fires and cannot be tested.
+
+⚠️ **The lesson is about vintage, not about crosswalks.** Every failure in this
+sequence came from assuming a code's vintage from the column it sits in. The
+concordance file was right all along; it was being asked the wrong question.
+
+### Motor vehicles need `U70205`, not the product data
+
+`336111` automobile is built at 94.6bn against 32.8bn published while `336112`
+light truck is 202.1bn against 215.4bn. The cause is visible in the codes: the
+three NAPCS codes reaching `336111` are *"Manufacturing of complete passenger
+vehicles"*, which **does not distinguish a car from an SUV or pickup**. No
+concordance refinement can split what the source does not separate.
+
+✅ **BEA publishes the split annually, and it is already extracted.**
+`U70205` — Table 7.2.5U Motor Vehicle Output — is in `BEA_NIPA.yaml` today:
+`A953RC` motor vehicle output 567.6bn, `A716RC` **truck output 466.8bn**,
+`A133RC` **auto output 100.8bn**, plus `B148RC` domestic output of new autos
+88.6bn. Autos are **17.8%** of motor vehicle output in 2017, which is why
+assigning "complete passenger vehicles" to `336111` overstates it nearly
+threefold.
+
+That is also what BEA's own Table C1 says it uses for this industry — Wards
+Intelligence unit production and J.D. Power average net cost — so an external
+split here is the documented method, not a workaround.
+
+#### ✅ The split is now applied, and what it does and does not fix
+
+`split_motor_vehicle_output` (`extract/census/Census_ASM.py`) runs as the
+method's `clean_fbs_after_aggregation` hook and takes the ratio from
+`motor_vehicle_auto_share` (`extract/bea/BEA_NIPA.py`), which reads `A133RC` and
+`A716RC` out of the `BEA_NIPA` FBA. The two commodities' combined value is held
+fixed and only its division changes, within each producing industry, so the
+off-diagonal the Supply table records is preserved exactly.
+
+Scored on 2017 against the published **detail** block:
+
+| | 336111 | 336112 | pair abs error | build wtd error |
+|---|---:|---:|---:|---:|
+| built raw | 94,600 | 202,068 | 75,195 | 11.26% |
+| **NIPA split** | **52,694** | **243,974** | **48,489** | **10.80%** |
+| published | 32,758 | 215,421 | — | — |
+
+Commodities within ±25% go from 199 to 208 of 239, and `336111` stops being the
+build's third-largest gap.
+
+⚠️ **It does not close the gap, and the reason is a different problem.** The pair
+is **19.5% over in total** — 296,668 built against 248,179 published — and a split
+cannot touch a level. That overage is what the remaining 48,489 is.
+
+⚠️ **On 2017 alone the ratio is not identified.** Once the pair is over in
+total, every plausible auto share puts *both* commodities above published, so the
+absolute error is the overage regardless: NIPA's 0.1776, `B148RC`/`A953RC`'s
+0.1560 and the published 0.1320 all score **48,489**. 2017 therefore cannot
+choose between them, and does not need to.
+
+✅ **The evidence for the hook is the annual movement, not the 2017 level.**
+
+| 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0.1776 | 0.1347 | 0.1130 | 0.0923 | 0.0946 | 0.0546 | 0.0463 | 0.0427 |
+
+The auto share falls **four-fold** over the window as US assembly shifts from
+cars to SUVs and pickups. That is exactly the kind of within-group reallocation a
+frozen 2017 mix erases, and it is why this belongs in the pipeline even though it
+is unscoreable on the benchmark year.
+
+⚠️ **Heavy trucks are left out, deliberately.** `A716RC` covers heavy trucks and
+buses — BEA `336120`, not `336112` — so pooling `336120` in is the
+concept-consistent reading, and it scores marginally better (**10.67%**). It is
+not taken: NIPA publishes no split *within* trucks, so that variant has to divide
+the truck side by the **built** proportions, which is an assumption of ours
+rather than a published figure, and its 0.13pp gain rides on the pool's overage
+landing in a commodity (`336120`, built 22,127 against 29,382) that happened to
+be short.
+
+⚠️ **The FBA has to be regenerated for this to work.** `U70205` was added to
+`BEA_NIPA.yaml` after the 2018–2024 FBAs were last built, and
+`getFlowByActivity` returns the newest local file without checking the config it
+came from — so a stale cache yields zero `U70205` rows rather than an error.
+`motor_vehicle_auto_share` raises with that instruction rather than returning a
+silent `NaN`.
+
+### Annual ASM: suppression is fully recoverable — the control was misread
+
+`asm/value2017` carries the same suppression as the Economic Census — **57.4% of
+its 13,372 six-digit detail rows are zero** in 2021, with no flag distinguishing
+a withheld cell from a true zero (`NAPCSDOL_IMP` is 0 everywhere, `NAPCSDOL_S` is
+a standard error).
+
+⚠️ **An earlier version of this section got the control wrong, and it is worth
+recording how.** It compared published value by NAICS level using totals that
+still contained the NAPCS `0000000000` all-products row — the very aggregate the
+detail beside it sums to. Every level therefore read as roughly double its true
+product value, and the sector rollup `31-33` read as *smaller* than its own
+children, which prompted the conclusion that ASM had no usable top control. That
+was the trap this document had already flagged for `31-33` on the NAICS axis,
+walked into on the NAPCS axis one paragraph later. Corrected — product detail
+only, `0000000000` excluded:
+
+| year | `31-33` | 3-digit | 4-digit | 5-digit | 6-digit | control |
+|---|---:|---:|---:|---:|---:|---:|
+| 2018 | 3,652 | — | — | — | **5,694** | 5,891 |
+| 2019 | 3,372 | 3,120 | 4,273 | **5,374** | 4,532 | 5,734 |
+| 2020 | — | 2,945 | 3,869 | **4,868** | 4,231 | 5,204 |
+| 2021 | 3,809 | 3,534 | 4,581 | **5,695** | 4,953 | 6,080 |
+
+✅ **The control is the industry's all-products row, and it is complete.** The
+`0000000000` line is published for **every industry at every NAICS level** — 360
+of 360 six-digit industries in all four years — because a total across all
+products discloses nothing about any one company. It sums to the *same* national
+figure at each level (5,734bn in 2019), which is the proof that NAICS suppression
+does not touch it. So ASM does have the same kind of control `Census_EC_PxI` has
+in its `'00'` product total — **transposed**: EC controls a product across
+industries, ASM controls an industry across products.
+
+✅ **And the least-suppressed NAICS level is five-digit, not six.** Suppression
+bites hardest where the cell is smallest, so six-digit detail is more withheld
+(4,953bn in 2021) than the five-digit rollup containing it (5,695bn); going
+coarser than five loses value again because ASM tabulates a product against fewer
+industries there. **The industry axis is summed away** on the road to commodity
+output, so its granularity is free to choose — taking the least-suppressed level
+is a pure gain, not a trade against detail. 2018 publishes only six-digit rows
+and is picked accordingly, which is why it needs no rollup at all.
+
+⚠️ **`'31-33'` is five characters**, so it survives a `len == 5` filter alongside
+real five-digit NAICS. Match `^\d+$` before selecting a level. This is the sixth
+aggregate-row trap in this work, after `'TRADE '`, `GSLGE`, `T017`, PxI `'00'`
+and the ASM all-zero NAPCS code — and the misread above is its seventh instance.
+
+⚠️ **Recovery fixes the level and only approximates the mix.** Because the
+control runs across products within an industry, the residual's split across
+*commodities* is an equal-share guess. That is strictly weaker than the EC case,
+where the control runs across industries within a product and the recovered mass
+therefore lands in exactly the right commodity. Worth stating plainly: ASM
+recovery is near-lossless for the manufacturing total and only indicative for any
+single commodity's share of the residual.
+
+### Annual manufacturing `q` from ASM — built, scored, and running as an FBS
+
+Detail commodity output built from `asm/value2017` through
+`napcs_to_bea_2017.csv`, scored against BEA's **published summary** Supply
+`T007` for the same year, over the 19 manufacturing summary groups:
+
+| year | six-digit, raw | | least-suppressed level | | **+ industry-total recovery** | |
+|---|---:|---:|---:|---:|---:|---:|
+| | level | wtd err | level | wtd err | level | wtd err |
+| 2018 | 0.949 | 6.1% | 0.949 | 6.1% | **0.971** | **4.5%** |
+| 2019 | 0.708 | 29.7% | 0.912 | 9.4% | **0.948** | **6.1%** |
+| 2020 | 0.746 | 25.8% | 0.912 | 9.3% | **0.950** | **6.8%** |
+| 2021 | 0.728 | 27.5% | 0.908 | 9.6% | **0.943** | **6.7%** |
+
+Both moves matter and they are independent: choosing the level recovers most of
+what six-digit suppression hides, and the industry-total residual closes the
+rest. Together they take 2019–2021 from ~28% to under 7%.
+
+⚠️ **This supersedes the five-digit-parent recovery previously recorded here**
+(0.914/9.3% in 2019), which distributed each five-digit parent's residual over
+its zero six-digit children. That route reaches only the five-digit total by
+construction — 93.7% of control — where the industry product total reaches 100%.
+It is also strictly more work for a worse answer, since building at five-digit
+directly needs no distribution at all. Its one advantage is that it preserves the
+commodity axis exactly; that is a real property, and it is the reason the
+combined method's residual split is called a guess above rather than a
+measurement.
+
+⚠️ **These are scored at summary, over 19 groups — not comparable to the
+11.3% the 2017 Economic Census build scores at detail over 239 commodities.**
+Aggregation hides offsetting errors between detail children, so the summary
+figure is the more forgiving of the two by construction. The honest statement is
+that annual ASM reaches roughly 5–7% at summary granularity, and its detail
+accuracy is **unmeasured** because no published detail exists for those years.
+
+⚠️ **3.4% of ASM product value maps to no BEA commodity**, and the largest single
+gap is `3361MV` motor vehicles at 0.74 — the NAPCS code is "complete passenger
+vehicles" and carries no car/truck split, so no concordance can close it. The
+split itself is now taken from NIPA table 7.2.5U (`U70205`) — see above — but
+that fixes the division between cars and light trucks, not the group's level,
+and 0.74 is a level.
+
+**What this establishes:** manufacturing commodity output can be built annually
+from reported product data, at a level within about 5–7% of BEA's own estimate,
+for 2018–2021. That is the route the manual describes for manufacturing —
+product data directly, independent of industry output — and it **now runs as a
+method**: `transform/commodity_output/Commodity_output_manufacturing_<year>.yaml`,
+producing 236 BEA detail commodities per year.
+
+
+### Valuation: the built `q` is at basic prices — verified, not assumed
+
+`T007` is basic value, so a product-based `q` has to be too. Census
+`NAPCSDOL` is *value of shipments* — f.o.b. plant, net of discounts, **excluding
+freight and excise taxes** — which should make it basic rather than producer. That
+was worth testing rather than taking on trust, because the wedge is 7.0% of
+manufacturing basic value (383bn of `TOP` in 2017) and would sit squarely inside
+the residual we are trying to explain.
+
+**The excise-heavy commodities settle it**, since `TOP` is most of their value:
+
+| commodity | built | basic | basic + `TOP` | vs basic | vs producer |
+|---|---:|---:|---:|---:|---:|
+| `312200` Tobacco | 47.2 | 47.8 | 83.8 | **0.99** | 0.56 |
+| `312140` Distilleries | 14.9 | 15.0 | 26.1 | **0.99** | 0.57 |
+| `324110` Petroleum refineries | 496.9 | 478.0 | 577.0 | **1.04** | 0.86 |
+| `312120` Breweries | 25.8 | 29.4 | 37.2 | 0.88 | 0.70 |
+| **manufacturing total** | **5.182** | **5.432** | 5.815 | **0.954** | 0.891 |
+
+Tobacco and distilleries carry excise near 75% of basic, and the build lands on
+**0.99** against basic in both. It is basic value.
+
+✅ **So the remaining gap is coverage and method, not valuation** — which also
+means no basic↔producer conversion belongs anywhere in this construction. That
+matters for the row margin too: Step 4a's industry side needs
+`GO(basic) = GO(producer) - T00TOP + T00SUB`, but the commodity side needs no
+conversion at all. **The two margins of `T007` arrive in different valuations
+from their sources, and only one of them needs correcting.**
+
+⚠️ `325412` pharmaceutical preparation remains at **0.52** even after suppression
+recovery, against 0.99 for tobacco. That is not valuation; it is the largest
+single unexplained commodity left in the manufacturing build.
+
+### Mining has no annual product survey
+
+⚠️ **The conclusion this section reaches is superseded** by the triage below,
+which measured where mining's `q` actually moves. The source review here stands;
+the inference that USGS and EIA are therefore the answer does not, because it
+aims at `212`, the most stable piece. See "Mining — yes, but not where the plan
+said".
+
+Checked rather than assumed:
+
+- **ASM is manufacturing only** — NAICS 31, 32, 33 and nothing else.
+- **AIES** (`timeseries/aies/basic`, all sectors, 2023+) covers mining but has
+  **no product dimension** — receipts, expenses, inventories, value added and
+  payroll by NAICS only.
+- The Economic Census carries mining products, but quinquennially.
+
+So annual mining commodity output has to come from **USGS Mineral Yearbook
+quantities and EIA**, which is what BEA's own Table C1 says it uses. That is a
+different construction from manufacturing's — quantity times price rather than
+reported product value — and the Mineral Yearbook is already an extract here.
+
+✅ **Side finding: `aies/basic` carries inventories by stage for all sectors
+annually** — `INV_E_FIN_VAL`, `INV_E_WIP_VAL`, `INV_E_MAT_VAL` — which is a
+broader and more current source for
+[#664](https://github.com/cornerstone-data/bedrock/issues/664) than the ASM
+benchmark noted earlier.
+
+### The remaining sectors, triaged before building — and two of them are skips
+
+⚠️ **Superseded by the correction that follows this section.** The `q/x` metric
+used here is observed in the published summary Supply table, so it does not
+decide whether a source is needed. The structural findings below (diagonality,
+who produces what) stand; every recommendation drawn from them does not.
+
+Manufacturing is done; the queue was mining, agriculture, construction,
+government and utilities. Rather than build each in turn, all five were measured
+first against the only two questions that decide whether a source is needed:
+
+1. **Is the commodity diagonal?** If a commodity comes almost entirely from its
+   own industry *and* that industry makes almost nothing else, then `q ≈ x` and
+   `x` is already published at detail for 1997-2024. No source is needed.
+2. **Does `q/x` move?** If it does not, freezing the 2017 ratio is not an
+   approximation to apologise for — it is the answer.
+
+`q/x` by summary group from the published Supply tables, 2017-2024, with the
+largest deviation from 2017 in either direction:
+
+| group | `q/x` 2017 | max dev | reading |
+|---|---:|---:|---|
+| `111CA` farms | 0.989 | **0.004** | flat |
+| `23` construction | 1.058 | **0.006** | flat |
+| `GFGD` federal defense | 0.960 | 0.007 | flat |
+| `GSLG` state/local general | 0.766 | 0.017 | flat |
+| `211` oil and gas extraction | 0.832 | 0.023 | flat |
+| `GSLE` state/local enterprises | 0.287 | 0.027 | moves ~9% relative |
+| `212` mining, ex oil and gas | 0.829 | 0.043 | moves |
+| `113FF` forestry, fishing | 1.130 | 0.045 | moves |
+| `22` utilities | 1.320 | 0.047 | moves |
+| `GFGN` federal nondefense | 0.935 | 0.059 | moves |
+| `713` amusements, gambling | 1.439 | 0.099 | moves |
+| **`213` support for mining** | 1.108 | **0.226** | **largest mover in the economy** |
+
+#### Agriculture — skip
+
+The 13 agriculture industries put **98.7%** of their output on their own
+diagonal and **99.5%** inside the sector; 0.5% leaks out. Every crop and
+livestock commodity has `row_diag = 1.000`. Combined with a `q/x` that moves
+0.4% across eight years, `q ≈ 0.989 x` is not a stopgap — it is as good as the
+published industry output it rests on. **No agricultural product source is
+needed for Step 4a.** USDA data remains wanted elsewhere; it does nothing here.
+
+The one caveat is `113FF` (forestry, fishing, support), which runs at 1.130 and
+moves 0.045 — but it is a 60bn group and the movement is worth ~2bn.
+
+#### Construction — skip
+
+The construction sub-block is **100.0% diagonal**: all 12 industries produce
+only their own commodity, and `q/x` moves 0.006 over eight years.
+
+⚠️ `q > x` for every construction commodity, which looks like missing structure
+and is not. The excess is **own-account construction by other sectors** —
+mining industries producing `233240`, government producing `2332C0`/`2332D0` —
+so it is a property of *their* columns, not of construction's. `233240` at
+`q/x = 1.211` is the extreme case and is mining's own-account drilling
+structures.
+
+**`Census_VIP` does not help commodity output.** It is a value-put-in-place
+series and the crosswalk already exists, but the construction block has no mix
+to estimate. VIP earns its keep on levels and deflators, not here.
+
+#### Mining — yes, but not where the plan said
+
+Mining is 84.0% own-diagonal with **10.7% leaking outside the sector**, and it
+splits three ways:
+
+| piece | `q` | behaviour |
+|---|---:|---|
+| `211000` crude oil and gas | 204bn | `row_diag` 0.997, `q/x` dev 0.023 — nearly free |
+| `212xxx` minerals | 82bn | `row_diag` 0.92-1.00, `q/x` dev 0.043 — nearly free |
+| `213xxx` support activities | 118bn | `q/x` dev **0.226** — the real problem |
+
+⚠️ **This overturns "annual mining commodity output has to come from USGS
+Mineral Yearbook quantities and EIA", recorded above.** That aims at `212`,
+which is the *smallest* and *second-most-stable* piece — the whole eight-year
+movement there is worth about 4bn. The volatile piece is `213`, and the Mineral
+Yearbook does not cover it at all.
+
+`213` moves because it is a **make/buy split, not a quantity times price
+problem**: oil and gas extractors and coal miners do drilling and support work
+in-house, and that in-house work is recorded as secondary production of the
+support commodity. `211000` alone contributes 12.9bn of it and `212100` a
+further 5.6bn. The ratio peaks at **1.334 in 2022**, the post-COVID drilling
+rebound. Freezing 2017 would carry a 20% error through the drilling cycle.
+
+⚠️ Whether that split is *observable* annually is a separate question and should
+not be assumed. Rig counts and well completions measure total drilling activity,
+not who performed it. This needs checking before it is promised.
+
+Also unresolved: `211000` ships 25.4bn of `324110` refined petroleum — lease
+condensate and plant liquids leaving the extraction industry as a refinery
+product.
+
+#### Government — do the enterprises, skip general government
+
+Government splits cleanly in two, and only one half is work.
+
+**General government** (`GSLGO`, `GSLGE`, `GSLGH`, `S00500`, `S00600`) has
+`row_diag = 1.000` **exactly** — nobody but government produces these
+commodities — and a flat `q/x`. There is nothing to estimate.
+
+**But `col_diag` is not 1**, and that is where the work is: government
+industries produce large amounts of *other* sectors' commodities, and those land
+squarely on the services priority list:
+
+| industry | secondary output | lands on |
+|---|---:|---|
+| `GSLGH` state/local hospitals | 221.9bn | `622000` hospitals |
+| `GSLGE` state/local education | 90.7bn / 47.1bn | `611A00` colleges / `541700` R&D |
+| `S00500`+`S00600` federal | 36.7bn | `541700` R&D |
+| `S00203` state/local enterprises | 68.0bn / 42.3bn / 50.6bn | `221300` water / `713200` gambling / `531HST`+`531ORE` housing |
+
+`GSLGH` is the sharpest illustration: 312.9bn of industry output carrying only
+68.7bn of its own commodity, `q/x = 0.220`. **Skipping government would strand
+`221300`, `713200` and most of `622000`'s at-risk dollars** — three of the
+commodities the priority list ranks highest.
+
+#### Utilities — the same problem as government enterprises
+
+| commodity | `q` | own industry | government enterprises |
+|---|---:|---:|---:|
+| `221100` electric power | 432bn | 351bn | **79bn** (`S00202` 63.4, `S00101` 15.7) |
+| `221300` water, sewage | 80bn | **10bn** | **68bn** (`S00203`), 84.7% |
+| `221200` natural gas distribution | 75bn | 60bn | 6.1bn (`S00203`) |
+
+✅ **`221300` has `row_diag = 0.125`.** The water and sewage commodity is not
+mainly produced by a water utility industry at all — it is produced by state and
+local government. Solving `S00101`/`S00202`/`S00203` solves `221100`, `221300`,
+`221200` and `713200` in one move, which is why utilities and government are one
+piece of work rather than two.
+
+**The sources follow the split:**
+
+- **Electricity, and probably natural gas — EIA.**
+  `EIA_ElectricPowerAnnual` is already extracted for 2014-2024 and carries
+  `Investor-owned electric utilities` alongside `Total Electric Industry`, so
+  the residual is the public-power share that `S00202`/`S00101` stand for.
+  ⚠️ The residual is public power **plus cooperatives**, which are private, so
+  it is an upper bound rather than the figure itself.
+- **Water, sewage, transit, housing, lotteries — Census state and local
+  government finances.** The Annual Survey of State and Local Government
+  Finances reports utility revenue by function, which is the natural
+  decomposition of `S00203`. **Not yet extracted here** — there is no government
+  finance source in `extract/`, so this is a new FBA.
+
+
+### ⚠️ Correction: the triage above measured the wrong quantity
+
+The `q/x` triage was asked to decide which sectors need a data source. It cannot,
+because **`q` at summary level is published**. Phase 1 is 2018-2024 and its gate
+is "all source data already published"; 2025 is excluded from Phase 1 precisely
+*because* it has no summary SUT. So for every Phase 1 year, BEA's summary Supply
+table supplies `q` per summary group, and the user's own framing — "rebalancing
+the detailed to the observed summary total" — makes that an observed control.
+
+**A moving `q/x` is therefore not a problem to be sourced. It is data we are
+handed.** `213`'s 0.226 swing, called "the largest mover in the economy" above,
+is published in the annual summary Supply table for every year. Nothing needs to
+estimate it.
+
+What Step 4a actually owes is the **within-summary-group split of `q` across its
+detail children**, and nothing else. That reframes every question:
+
+- **21 summary groups have exactly one detail child**, carrying **6,676bn** of
+  `q` at *zero* residual. `211` crude oil and gas, `GSLE` state/local
+  enterprises, `GFGD` federal defense and `GFGN` federal nondefense are all in
+  this set — their `q` is published, full stop.
+- The second input is also published: **BEA's detail gross-output workbook
+  `UGO305-A`** gives `x` per detail industry for every year, independently of
+  the summary SUT, so using it is not circular.
+
+#### The right screen: leverage x drift
+
+Two things must both be true before an external mix source can earn anything:
+
+`leverage`
+    how far the group's **commodity** composition sits from its **industry**
+    composition — the L1 gap between detail `x` shares and detail `q` shares in
+    2017. Zero means industry output already answers the question and no mix
+    data will ever be needed.
+`drift`
+    how far the child `x` shares move across 2017-2024, the proxy for how much
+    the composition travels.
+
+⚠️ **`exposure = q x leverage x drift` is wrong** - see the `213` check below.
+Multiplying two small fractions understates the real spread by roughly two
+orders of magnitude. The single-child findings and the observed-summary argument
+in this section stand; the exposure column does not.
+
+`exposure = q x leverage x drift`. The queued sectors:
+
+| group | children | `q` bn | leverage | drift | **exposure** |
+|---|---:|---:|---:|---:|---:|
+| `22` utilities | 3 | 587 | 0.105 | 0.040 | **2.43bn** |
+| `23` construction | 12 | 1,668 | 0.015 | 0.064 | **1.57bn** |
+| `GSLG` state/local general | 3 | 1,737 | 0.098 | 0.007 | **1.27bn** |
+| `111CA` farms | 10 | 401 | 0.020 | 0.066 | **0.53bn** |
+| `212` minerals | 5 | 82 | 0.043 | 0.076 | **0.27bn** |
+| `213` mining support | 2 | 118 | 0.011 | 0.081 | **0.11bn** |
+| `113FF` forestry, fishing | 3 | 60 | 0.020 | 0.050 | **0.06bn** |
+| `211`, `GSLE`, `GFGD`, `GFGN` | 1 each | 1,290 | — | — | **0** |
+
+**Every sector in the queue is a skip.** All five together are about 4.7bn of
+exposure — less than a quarter of the single largest item in the economy.
+
+Economy-wide, total exposure is **91.2bn against 33,758bn of `q`, or 0.27%**, and
+it concentrates where it always did:
+
+| group | `q` bn | leverage | drift | exposure |
+|---|---:|---:|---:|---:|
+| `5412OP` legal, accounting, other professional | 1,974 | 0.236 | 0.045 | **21.0bn** |
+| `532RL` rental and leasing | 425 | 0.117 | 0.130 | 6.4bn |
+| `5415` computer systems design | 525 | 0.200 | 0.060 | 6.3bn |
+| `81` other services | 830 | 0.102 | 0.059 | 5.0bn |
+| `513` publishing, broadcasting | 705 | 0.109 | 0.063 | 4.8bn |
+| `42` wholesale trade | 1,820 | 0.052 | 0.048 | 4.5bn |
+
+#### What this does and does not overturn
+
+✅ The original priority list was **right about the shape** — services carry the
+mix work, `5412OP` above all — and the manufacturing build was worth doing
+because it is the one regime with genuinely annual product data.
+
+⚠️ It was **wrong about magnitude by roughly an order of magnitude**, because it
+scored "secondary share x commodity size" without crediting the summary control.
+`541700` R&D was listed at 366bn "at risk"; its whole summary group's exposure is
+21bn.
+
+⚠️ **Both mining recommendations in this document are void** — the original
+"USGS Mineral Yearbook quantities and EIA", and the triage's correction of it to
+`213` support activities. Mining's total exposure is 0.38bn. No mining source is
+needed for Step 4a.
+
+⚠️ **The government-enterprise and utilities recommendation is also void as
+stated.** `S00203` is alone in `GSLE`, so its `q` is published and needs nothing;
+`S00101`/`S00202` sit inside `GFE`, exposure 0.14bn. Utilities retains 2.43bn
+because `221300` water really is produced by government rather than by a water
+utility industry — that structure is real, it is just worth 2.4bn rather than
+being a headline. **Neither `EIA_ElectricPowerAnnual` nor a new Census government
+finance extract is justified by Step 4a.** They may be justified elsewhere.
+
+⚠️ **Caveats on the screen itself.** `leverage` is in-sample on 2017, the only
+year with a published detail block, so it measures the structural commodity/
+industry gap rather than a held-out error. `drift` is industry-share movement
+standing in for commodity-mix movement. `leverage x drift` is an order-of-
+magnitude screen, not an error bound — which is enough when the readings are
+0.1bn against 21bn, and would not be if they were close.
+
+
+### `213` checked properly — and the exposure formula was wrong
+
+Asked to verify `213` before acting on it. The structural checks pass:
+
+- Summary group `213` has exactly two children, `213111` and `21311A`, both
+  present as rows *and* columns of the 2017 detail block.
+- The identity closes: detail `q` sums to 118,269 against a published summary
+  `q(213)` of 118,268 — one unit apart on rounding.
+- Both codes carry real values in `UGO305-A` for every year (2017: 27,011 and
+  79,918). ⚠️ This needed checking because the screen used
+  `.reindex(kids).fillna(0.0)`; a code absent from the workbook would have been
+  silently scored against a fabricated zero, and `21311A` is exactly the kind of
+  synthetic aggregate code that goes missing.
+
+⚠️ **`UGO305-A` is industry output, not commodity output.** It supplies `x`, and
+using it to split `q` is a *proxy* whose quality is the whole question. That is
+what `leverage` was meant to measure, and the arithmetic built on it was wrong.
+
+#### The formula was wrong
+
+`exposure = q x leverage x drift` reported **0.11bn** for `213`. Multiplying two
+small fractions produced a small number, but they do not compose that way. The
+actual disagreement between two defensible allocations of the *same* published
+`q(213)`:
+
+| year | `x`-share of `213111` | A: by `x`-share | B: frozen 2017 `q`-share | gap |
+|---|---:|---:|---:|---:|
+| 2017 | 0.253 | 29,875 | 28,579 | 1,297 |
+| 2021 | 0.174 | 15,951 | 22,111 | 6,159 |
+| 2024 | 0.171 | 22,134 | 31,233 | **9,099** |
+
+Drilling's industry share falls from 25.3% to 17.1% across the window; freezing
+2017 `q`-shares denies that move entirely. The gap **widens every year** — the
+opposite of two small independent factors multiplying to nothing.
+
+#### The right method needs no source, and `213` still does not
+
+**Method C — carry the 2017 commodity x industry mix onto published industry
+output** — is the correct construction, and it is neither A nor B:
+
+`q_c(y) = Σ_i (V17[c,i] / x17[i]) · x_i(y)`, rescaled to the published `q(g,y)`.
+
+It is exact in 2017 by construction (10m off on rounding) and it credits the
+industries **outside** the group that produce these commodities, which A and B
+both miss. That matters here: `211000` produces 4,841 of `213111` and 8,085 of
+`21311A`, and `212100` a further 5,639 — **18.6bn of in-house drilling and
+support, 15.7% of the group**, and every one of those industries has published
+annual `x`.
+
+So the answer stands but for a better reason: **no external source is needed for
+`213`.** Rig counts and EIA drilling data are not required, and the `q/x` swing
+is published. What was wrong was the claimed precision.
+
+**Residual uncertainty is single-digit billions, not 0.11bn**: method C sits
+2.7-4.1bn from A and 3.3-6.2bn from B across 2018-2024, on a group of 118bn.
+
+#### ⚠️ Every ranking in this document is a proxy, including the last one
+
+Three metrics have now been tried on the same question and all three are proxies
+with different failure modes:
+
+| metric | failure mode |
+|---|---|
+| secondary share x commodity size | ignores the summary control — **overstates** ~10x |
+| `leverage x drift` | multiplies two fractions — **understates**, badly |
+| `\|C - A\|` method spread | measures how much worse a *worse* method is — **overstates** C |
+
+None of them is the error, because **within-group commodity-mix error is not
+measurable after 2017**: no published detail `q` exists to score against. The
+rankings agree on *shape* — `5412OP` is first under all three, and mining,
+agriculture and forestry are last under all three — and disagree on magnitude by
+an order of magnitude or more. Shape is what they can be trusted for.
+
+✅ **There is a real held-out test available and it has not been run.**
+`USA_DETAIL_MUT_YEARS` is `[2007, 2012, 2017]`, so detail Make tables exist for
+2007 and 2012. Carrying the **2012** detail mix onto 2017 published industry
+output and scoring against the published 2017 detail block is a genuine
+out-of-sample measurement of exactly this error, over a five-year horizon that
+matches the nowcast's. It needs the 2012→2017 code concordance
+(`Sector_Crosswalk_BEA_2012_Detail.csv` exists) and nothing else.
+
+✅ **It has now been run** - see "The held-out test, run" below. Result: 0.94%.
+The claims below held, and the ranking did not.
+
+**That test should settle the priority list before any more sources are
+scoped.** Until it runs, the defensible claims are: mining, agriculture,
+forestry and construction rank last under every metric tried, and `5412OP` ranks
+first under every metric tried.
+
+
+### The held-out test, run — carrying a stale mix costs 0.94%
+
+Every ranking above was a proxy scored in-sample on 2017. This is the
+measurement: the **2012** benchmark Make table's commodity mix carried onto
+**2017** published industry output, scored against the **2017** benchmark. The
+horizon matches — Step 4a carries 2017 forward to 2018-2024, and 2012→2017 is
+the same kind of five-year extrapolation.
+
+Run with `uv run python -m bedrock.analysis.nowcasting.mix_holdout_test`.
+
+| | L1 error | of `q` |
+|---|---:|---:|
+| **C: 2012 mix × 2017 industry output**, summary control applied | **325.3bn** | **0.94%** |
+| A: industry output alone, same control | 1,152.7bn | 3.35% |
+| C, no summary control | 348.0bn | 1.01% |
+| A, no summary control | 1,331.5bn | 3.86% |
+
+✅ **Two findings at once.** The mix does real work — 3.35% → 0.94%, a 3.6×
+improvement over allocating group totals by industry output. And the residual
+after five years of staleness is **under 1%**, which is the honest figure for
+what Step 4a carries into 2024.
+
+⚠️ The summary control is worth only 0.07pp here (1.01% → 0.94%). It pins group
+totals, and group totals were mostly right already; what it cannot fix is the
+split *inside* a group, which is where nearly all the error lives.
+
+#### Where the error actually is — and it is not where the proxies said
+
+| group | `q` bn | **stale-mix err** | no-mix err |
+|---|---:|---:|---:|
+| `521CI` banking, credit | 980 | **39.5** | 28.4 |
+| `5415` computer systems design | 529 | **35.9** | 64.0 |
+| `514` data processing, information | 316 | **30.3** | 75.1 |
+| `561` administrative services | 900 | **29.1** | 43.6 |
+| `325` chemicals | 742 | 16.9 | 15.7 |
+| `513` publishing, broadcasting | 733 | 16.1 | 79.5 |
+| `511` | 310 | 15.5 | 18.4 |
+| `5412OP` legal, accounting, other professional | 1,981 | **13.0** | 244.1 |
+| `GSLG` state/local general government | 1,737 | 9.8 | 186.9 |
+
+⚠️ **`5412OP` ranked first under all three proxies and is eighth here, at 0.65%
+of its own `q`.** Its no-mix error is 244bn, so the mix does enormous work — but
+the *2012* mix still predicts 2017 well. **The proxies were measuring leverage
+and calling it error.** High leverage means the mix matters; it says nothing
+about whether the mix *moves*, and only the second one costs anything. The true
+leaders — `521CI`, `5415`, `514`, `561` — appeared nowhere in any earlier
+ranking.
+
+#### Nine groups where a stale mix is worse than no mix at all
+
+| group | stale-mix err | no-mix err |
+|---|---:|---:|
+| `521CI` | 39.5 | **28.4** |
+| `325` | 16.9 | **15.7** |
+| `333` | 9.50 | **9.41** |
+| `487OS` | 8.2 | **4.2** |
+| `322` | 4.5 | **1.9** |
+| `23` construction | 1.99 | **0.00** |
+| `512`, `337`, `4A0` | — | smaller |
+
+✅ **`23` construction is the clean case and confirms the structural finding
+independently**: its no-mix error is *exactly zero*, because the construction
+sub-block is 100% diagonal, so industry output **is** commodity output. Carrying
+a 2012 mix forward there does not help — it actively injects 1.99bn of error.
+For these nine groups the rule is "use industry output, do not carry a mix".
+
+#### The queued sectors, measured
+
+| group | `q` bn | stale-mix err | of group |
+|---|---:|---:|---:|
+| `GSLG` | 1,737 | 9.80 | 0.6% |
+| `22` utilities | 617 | 5.46 | 0.9% |
+| `23` construction | 1,670 | 1.99 | 0.1% |
+| `212` minerals | 84 | 0.84 | 1.0% |
+| `111CA` farms | 391 | 0.51 | 0.1% |
+| `113FF` | 60 | 0.32 | 0.5% |
+| **`213` mining support** | 118 | **0.0046** | **0.004%** |
+
+**`213` lands at $4.6m on a $118bn group.** The skip conclusion holds, now on a
+measurement rather than a proxy. Mining, agriculture, forestry and construction
+are confirmed skips; utilities and `GSLG` are sub-1% and rank tenth and
+eleventh.
+
+#### What the test cannot see
+
+⚠️ **After redefinitions, producer prices.** BEA moved the 2012 benchmark off
+static download into an interactive application, so the only 2012 detail Make
+available is the redefined one in `CEDA6IO.xlsx`, paired with the 2017 redefined
+table to keep both sides in one space. Economy-wide, redefinitions cut the
+off-diagonal share from **9.54% to 5.53%**, 1.73×.
+
+✅ That bias is far smaller than it looks *for this test*, because what is scored
+is the within-group split and cross-group secondary production is absorbed by
+the summary control either way. Within-group off-diagonal barely moves — the
+largest gap is `5415` at 0.053, then `213` at 0.023, and most groups sit at
+0.000.
+
+⚠️ **`213` is the one queued sector the test cannot speak to on its own terms**:
+its interesting secondary production, oil and gas extraction doing its own
+drilling, is exactly what redefinitions reassign, so it reads 96% diagonal here
+against 80% before redefinitions. The conclusion survives for a reason the test
+*can* support — that production is **cross-group** (`211` into `213`), so
+published summary `q(213)` absorbs it and only the two-way split remains.
+
+⚠️ Other limits: the span is five years against Step 4a's seven to 2024, so this
+understates the far end; 398 of 402 commodities are covered (99.85% of `q`); and
+2012→2017 is a single draw, not a distribution — one benchmark pair cannot say
+how much of the 0.94% is period-specific.
+
+
+### So where is industry output actually needed?
+
+Both margins of the block are **observed at summary** for every Phase 1 year, from
+the same published Supply table: row sums are `q`, column sums are `x`. What Step
+4a supplies is the *detail split* of each — and detail industry output is the
+carrier for both.
+
+**1. Needed wherever a summary group has more than one child.**
+
+| | groups | `q` |
+|---|---:|---:|
+| single-child — `q` published outright, no mix, no `x` | 21 | 6.68tn (20%) |
+| multi-child — needs a split, therefore needs detail `x` | 52 | 27.10tn (80%) |
+
+Both candidate methods need it. Carrying the 2017 mix forward is
+`Σ_i mix17[c,i] · x_i(y)`; the fallback for the nine groups where a stale mix is
+worse than none is to allocate the group total by `x` shares directly. There is
+no route to the detail split that does not pass through detail industry output.
+
+**2. The levels are free.** `UGO305-A` publishes detail industry output for
+**1997-2024, all 28 years**. No sourcing work, at any horizon in Phase 1.
+
+**3. The valuation coupling to Step 5 is real but far narrower than recorded.**
+
+`UGO305-A` is **producer** prices; the block is **basic**.
+`GO(basic) = GO(producer) - T00TOP + T00SUB`, and the per-industry split of
+`T00TOP`/`T00SUB` is published only for 2017 — in a nowcast year it is an
+*output* of Step 5's balance, not an input. This document previously drew the
+strong conclusion from that: "4a cannot be finished in isolation from 5".
+
+⚠️ **That overstates it, because the conversion mostly cancels.** Two things
+remove it: the group *level* is pinned by published summary `q` (and summary `x`
+for the column margin), and a wedge that is **uniform across a group's children**
+leaves the within-group shares algebraically unchanged. So the conversion only
+bites where the wedge *varies between children of the same group*.
+
+Measured on 2017 — the share shift from using producer instead of basic `x`:
+
+| | |
+|---|---:|
+| total effect | **182bn of 26,859bn = 0.68%** |
+| groups with share shift above 1% | **6 of 50** |
+
+| group | `x` bn | wedge range across children | effect |
+|---|---:|---|---:|
+| `42` wholesale trade | 1,843 | 0.001 → **1.428** | 79.2bn |
+| `311FT` food, beverage, tobacco | 930 | 0.000 → 0.339 | 18.1bn |
+| `4A0` other retail | 904 | 0.066 → 0.179 | 14.7bn |
+| `HS` housing | 2,052 | −0.033 → −0.002 | 11.9bn |
+| `524` insurance | 1,019 | 0.000 → 0.038 | 8.3bn |
+| `111CA` farms | 406 | **−0.141** → 0.000 | 8.0bn |
+| `GFE` federal enterprises | 85 | **−0.408** → 0.000 | 5.6bn |
+
+The wedge is taxes on products less subsidies, so the outliers are exactly where
+those are large relative to output: `424700` petroleum wholesalers at **+143%**
+carries fuel excise through a thin margin, distilleries and tobacco carry excise,
+and farms and federal enterprises run **negative** — subsidies exceeding taxes.
+
+✅ **So for 44 of 50 multi-child groups, producer-price industry output can be
+used for the split as-is.** The 4a↔5 coupling survives only for the six above,
+worth about 145bn of the 182bn, and it is a **share** problem confined to those
+groups rather than a blocking dependency for the whole step.
+
+⚠️ Measured on 2017 only, the one year where both valuations are published. The
+wedge's *composition* is stable — excise and subsidy structures move slowly — but
+its size tracks tax rates and commodity prices, so 2020-2022 fuel prices could
+move `42` materially. That group is worth checking directly rather than assuming.
+
+
+### `TOP` and `SUB` come from NIPA annually — only the sales-tax share is circular
+
+The claim that the producer↔basic conversion is an *output* of Step 5 is too
+strong, and the correction is structural rather than a matter of degree: **both
+Supply-table columns are published annually in NIPA**, independent of the Supply
+table itself. Verified on 2017:
+
+| Supply column | NIPA source | Supply | NIPA | gap |
+|---|---|---:|---:|---:|
+| `TOP` | T30500 taxes on products **less customs duties** | 716,926 | 716,925 | **1m** |
+| `SUB` | T31300 subsidies, total | 59,876 | 59,875 | **1m** |
+
+✅ **`TOP` = taxes on products − customs and other import duties.** Duties attach
+to *imports*, not to the domestic output block, so they leave through a different
+column. Netting them is what turns NIPA's 755,438 into the Supply table's
+716,926 — the residual is 38,513, which is the customs line to the dollar.
+
+⚠️ `SUB` is stored **negative** in the Supply table and positive in NIPA, BEA's
+convention rather than ours (#655). Comparing without the sign gives a tidy
+"200.0017% error" that is nothing but the sign.
+
+⚠️ **Aggregate-column trap, again.** Checking this by summing the `T00TOP` *row*
+of the Use table across all columns lands **exactly 50.000%** high, off by
+exactly `-755,453` — the row carries a total column alongside the industries it
+totals. Same shape as `T017`, `'TRADE '`, `GSLG*`, PxI `'00'`, ASM
+`'0000000000'` and `'31-33'`. The tell was the same as `T017`'s: a ratio landing
+on a round number.
+
+#### What is assignable and what is not
+
+Decomposing the 2017 domestic `TOP` of 716,926:
+
+| | m | share |
+|---|---:|---:|
+| **general sales taxes** (state 309,879 + local 95,260) | **405,139** | **56.5%** |
+| named excise — gasoline 72,800, tobacco 32,400, alcohol 16,600, air transport 18,300, diesel 9,700, public utilities 27,500, insurance receipts 21,500, pharma 4,100, other | ~286,200 | 39.9% |
+| severance, other taxes on goods and services | ~25,600 | 3.6% |
+
+✅ **43.5% is directly assignable from NIPA's own product lines.** Gasoline,
+diesel, tobacco, alcohol, air transport, pharmaceuticals, public utilities and
+insurance receipts are named commodities; severance is mining. These need no
+balance to allocate — NIPA publishes them by product every year.
+
+⚠️ **56.5% is general sales tax, and that is the genuinely circular part.** It is
+levied on the *purchaser* price — basic value plus trade and transport margins
+plus other product taxes — so allocating it across commodities requires the
+margin structure, which is Step 4c/5 output. This, not the conversion as a
+whole, is what couples 4a to 5.
+
+#### This lands on exactly the groups that needed it
+
+The six multi-child groups where the producer/basic wedge shifts the within-group
+split split cleanly along that line:
+
+| group | driver | assignable? |
+|---|---|---|
+| `42` wholesale, 79.2bn | `424700` petroleum wholesalers carrying gasoline and diesel excise | ✅ named lines |
+| `311FT`, 18.1bn | distillery and tobacco excise | ✅ named lines |
+| `111CA` farms, 8.0bn | agricultural subsidies (T31300 line 3) | ✅ named line |
+| `GFE`, 5.6bn | subsidies | ✅ T31300 |
+| `4A0` retail, 14.7bn | general sales tax | ⚠️ needs margins |
+| `HS` housing, 11.9bn | — | ⚠️ needs margins |
+| `524` insurance, 8.3bn | insurance receipts tax is named; remainder sales tax | partly |
+
+**The largest wedges are the assignable ones.** What is left for Step 5 is retail
+and housing, worth roughly 27bn of the 182bn share-shift effect.
+
+#### ⚠️ And the 2017 wedge is not representative — subsidies explode in 2020-21
+
+| year | `TOP` | vs 2017 | sales share | `SUB` | vs 2017 |
+|---|---:|---:|---:|---:|---:|
+| 2017 | 755,438 | 1.00x | 53.6% | 59,875 | 1.00x |
+| 2018 | 825,606 | 1.09x | 51.7% | 63,320 | 1.06x |
+| 2019 | 865,273 | 1.15x | 51.8% | 72,956 | 1.22x |
+| **2020** | 830,246 | 1.10x | 53.6% | **698,507** | **11.67x** |
+| **2021** | 968,856 | 1.28x | 53.9% | **626,071** | **10.46x** |
+| 2022 | 1,075,945 | 1.42x | 54.0% | 127,995 | 2.14x |
+| 2023 | 1,064,838 | 1.41x | 55.4% | 102,252 | 1.71x |
+| 2024 | 1,099,682 | 1.46x | 54.8% | 94,239 | 1.57x |
+
+⚠️ **In 2020 subsidies are 698bn against taxes on products of 830bn** — the
+subsidy side nearly cancels the tax side, where in 2017 it was 8% of it. Pandemic
+support (PPP, air carrier payroll support) ran through this line.
+
+**Two different things could be frozen here, and only one of them matters.** The
+*totals* are never frozen — NIPA publishes them annually, which is the point of
+this section. What can be frozen is either the **rate** (used to convert producer
+to basic) or the **commodity share vector** (used to spread the total across 402
+commodities). Both break in 2020-21, and neither breaks elsewhere:
+
+| year | net rate `(TOP−SUB)/GO` | vs 2017 |
+|---|---:|---:|
+| 2018 | 1.94% | 1.02x |
+| 2019 | 1.90% | 1.00x |
+| **2020** | **0.17%** | **0.09x** |
+| **2021** | 0.61% | 0.32x |
+| 2022 | 1.81% | 0.95x |
+| 2024 | 1.82% | 0.95x |
+
+Freezing the 2017 rate is good to ±5% in 2018-19 and 2022-24, and **imposes a
+1.91% wedge on 2020 where the true one is 0.17%** — about 700bn of wedge invented
+against an actual 63bn. The earlier "0.68% of within-group shares, 6 groups"
+figure is likewise a 2017 measurement that cannot be carried to those two years.
+
+⚠️ The **share vector** fails the same two years for the same reason, which is
+[#580](https://github.com/cornerstone-data/bedrock/issues/580)'s concern rather
+than 4a's: the 2017 `SUB` column touches only 15 commodities and puts **66.2%**
+on housing (`531HST` alone is 59.8%), matching NIPA's 2017 type split. Applied to
+2020's total that lands ~462bn on housing against an actual 44bn, while the 587bn
+of PPP has no 2017 counterpart to attach to.
+
+✅ The sales-tax *share* of `TOP` is by contrast very stable, 51.7% to 55.4%
+across eight years, so the assignable/circular split above holds throughout.
+
+
+### The product build is not the best estimator — the carried mix is
+
+Scored on **one basis**: 2017 detail manufacturing commodities, both routes
+rebalanced to the same summary controls.
+
+| estimator | error | on |
+|---|---:|---:|
+| **carried 2012 mix × 2017 industry output** | **1.40%** | 5,458bn |
+| `Census_EC_PxI` product build through `napcs_to_bea_2017` | 5.48% | 5,432bn |
+
+⚠️ **The carried mix wins by ~4×, using data five years older than the census
+the product build is reading.** That is the opposite of the assumption this work
+has run on since the manufacturing route was chosen.
+
+Why: the product route pays for a concordance (NAPCS → BEA, ~11% error at
+detail on its own) and for suppression recovery (53% of rows publish as zero),
+and neither cost exists on the mix route. The mix route pays only for drift, and
+drift is small — 0.94% economy-wide over five years.
+
+⚠️ Not a perfectly clean comparison: the mix figure is after redefinitions in
+producer prices, the product figure before redefinitions in basic value. The
+gap is large enough (4×) to survive that, but a like-for-like rerun belongs on
+the before-redefinitions 2012 Make if it ever becomes available.
+
+✅ **What the product data is still for.** It is the only route that carries
+*independent* information. The carried mix cannot, by construction, discover
+that a commodity composition changed for reasons industry output does not
+reveal — it can only rescale what 2017 already said. ASM and EC_PxI can. So
+they belong as a **cross-check and a candidate override on named commodities**,
+not as the primary estimator.
+
+**Consequence for the build order.** The baseline method — carry the 2017 detail
+mix onto published detail industry output, rebalance to published summary `q` —
+is both the more accurate route and the more general one: 402 commodities
+against the ASM build's 236, 2018-2024 against 2018-2021, and no new source at
+all. It should be built first, and `Commodity_output_manufacturing_*` should sit
+on top of it rather than beside it.
+
+
+### The domestic output block, built — 2018-2024
+
+Step 4a's deliverable is the **domestic output block**: commodity × industry, basic
+value, whose row margin is commodity output `q` and whose column margin is
+industry output `x`. Not the `q` vector alone, and not the full Supply table —
+the margin and valuation columns belong to 4b/4c/4d.
+
+✅ **The method already existed.** `transform/detail/Detail_Supply.yaml`
+disaggregates the published summary Supply table proportionally to the 2017
+detail block, which *is* the carried-mix construction the held-out test scored at
+0.94%. Its `exclusion_fields` already drop every margin and total column, so what
+it emits is exactly the block. Three things were wrong with it and none was the
+method.
+
+**1. It targeted NAICS.** `Sector_Crosswalk_BEA_2017_Detail` and `..._Summary`
+both map BEA → **NAICS**, so naming them as `activity_to_sector_mapping` converted
+a BEA-coded table into NAICS and produced 483 codes where 402 commodities were
+wanted. The sources are declared `bea`/2017 in `source_catalog.yaml`, so under a
+BEA `default_schema` they are sector-like and map to themselves — **no crosswalk
+belongs in this method at all**. Switched to
+`BEA_detail_commodity_target.yaml` and both crosswalk lines removed.
+
+**2. `year` reached the loaders as a `str`** and raised in the vintage-pinning
+comparison. `typing.cast` at the call site is a no-op at runtime. Fixed at the
+call sites and in the loaders.
+
+⚠️ **3. The per-year include has a silent wrong-year trap.** `Detail_Supply.yaml`
+resolves `year: *summary_year` **inside** its source block at parse time, and
+`!include` is a shallow dict update. Overriding only the top-level `year` leaves
+the source pinned to the base file's 2018 while the method reports the new year,
+and `get_flowby_from_config` merges the source's own dict **last**, so the source
+wins. The failure is a full, plausible table for the wrong year. Every per-year
+file therefore redeclares `source_names` with the subtree include.
+
+#### Result
+
+| year | commodities | `q` | row margin vs published summary `q` |
+|---|---:|---:|---:|
+| 2018 | 397 | 35.73tn | **0.0000** |
+| 2019 | 397 | 36.87tn | **0.0000** |
+| 2020 | 397 | 35.96tn | **0.0000** |
+| 2021 | 397 | 40.79tn | **0.0000** |
+| 2022 | 397 | 45.11tn | **0.0000** |
+| 2023 | 397 | 47.55tn | **0.0000** |
+| 2024 | 397 | 49.71tn | **0.0000** |
+
+⚠️ The row margin closing exactly is **by construction**, not evidence — the
+summary total is the control. The evidence that the *detail split* is right is
+the held-out test's 0.94%, and nothing here adds to it.
+
+#### The column margin is the honest check, and it is open by design
+
+`x` is not constrained by this method, so comparing it to published detail
+industry output is independent. 2021:
+
+| | |
+|---|---:|
+| built, basic | 40.792tn |
+| published `UGO305-A`, producer | 41.744tn |
+| ratio | 0.977 |
+| industries within ±5% | **140 of 401** |
+
+The aggregate ratio is about the valuation wedge, but the per-industry spread is
+much wider than any tax could explain:
+
+| industry | ratio | gap |
+|---|---:|---:|
+| `454000` nonstore retailers | 0.747 | −136bn |
+| `424700` petroleum wholesalers | **0.391** | −118bn |
+| `233411` new residential construction | 0.783 | −89bn |
+| `533000` lessors of intangible assets | 0.746 | −76bn |
+| `541700` scientific R&D | 0.830 | −68bn |
+
+`424700` is the fuel-excise case §"`TOP` and `SUB`" identifies. But `541700` and
+`233411` carry no product tax at all — those gaps are **mix drift**, and they sit
+exactly where the leverage measurements pointed (`5412OP` had the highest leverage
+of any summary group, 0.236).
+
+✅ **This is expected rather than a defect.** Step 5 balances the block against
+published detail `x` as a target; a seed that already matched both margins would
+leave the balance nothing to do. What matters is that the gap is now *measured*
+per industry, so Step 5's work is sized rather than assumed.
+
+#### The block carries every commodity with nonzero domestic output
+
+✅ **`S00401` scrap and `S00900` rest-of-the-world adjustment are both in**, at
+11,739m and ~4,200m in 2021, matching their published `Used` and `Other` summary
+totals. Scrap is produced as a by-product by **79 industries** — `GSLGO` 4,650m,
+`562000` waste management 1,145m — and `S00900` by `S00600` alone. Excluding
+either dropped a real commodity row. 399 commodities now, and `q` lands on the
+published summary total exactly.
+
+⚠️ **The three still absent are absent by definition, not by omission**, and
+calling them a sourcing gap was wrong. The published 2017 detail Supply table
+gives all three `T007 = 0`:
+
+| code | description | `T007` | enters the Supply table through |
+|---|---|---:|---|
+| `S00300` | Noncomparable imports | **0** | `MCIF` 260,421 |
+| `S00402` | Used and secondhand goods | **0** | `MCIF` 7,340, `TRANS` 23,869, `TOP` 15,699 |
+| `4200ID` | Customs duties | **0** | `MDTY` |
+
+None of them is domestic output. They have no place in this block in any year,
+they need no source, and the earlier reading — that they were zero in 2017 and
+so had "no mix to attribute with" — mistook a definitional zero for a data gap.
+
+✅ **`S00900` needs no source either, for a different reason: its `q` is
+published.** Because `S00300` is definitionally zero, the `Other` summary group
+is effectively single-child, so the published summary Supply table *is*
+`S00900`'s commodity output. The built block reproduces it to the dollar in every
+year — 3,978m in 2018, 4,222m in 2021, 6,187m in 2024, difference 0.0 throughout.
+It is one of the 21 observed-`q` groups.
+
+⚠️ The one assumption left is on the **industry** side: `S00600` is the sole
+producer in the 2017 benchmark and the carried mix keeps it so. For a
+rest-of-the-world adjustment attached to federal nondefense general government
+that is structural rather than a drifting share, but it is an assumption and a
+published source would only matter if it were doubted — not for the level.
+
+#### The coverage adjustment is close to uniform, which is what makes the signal usable
+
+`EC_PxI` ÷ published, over the 231 manufacturing commodities carrying PxI value:
+
+| | |
+|---|---:|
+| aggregate ratio | 0.962 |
+| **median** | **0.968** |
+| IQR | 0.921 – 0.995 |
+| 10th / 90th percentile | 0.777 / 1.052 |
+| **within ±10% of the aggregate** | **171 of 231** |
+
+✅ **A roughly flat ~4% haircut cancels in a year-over-year ratio.** For three
+quarters of manufacturing commodities the adjustment is near-constant, so
+`ASM_share(year) / EC_share(2017)` carries the compositional change with the
+coverage gap divided out — and, because both legs run through the same NAPCS
+universe and the same concordance, most concordance error divides out too.
+
+⚠️ The dispersion is not uniform everywhere, and the exceptions are named:
+
+| group | within-group std of the ratio | commodities |
+|---|---:|---:|
+| `313TT` textiles | 1.182 | 6 |
+| `331` primary metals | 0.749 | 9 |
+| `3361MV` motor vehicles | 0.548 | 14 |
+| `321` wood | 0.350 | 4 |
+| `324` petroleum | 0.240 | 4 |
+
+`3361MV` is the known car/truck split problem, now handled outside the
+product data by `U70205`. Where the ratio varies
+*within* a group, the shares are contaminated and the change signal is not clean
+either — those groups should be excluded from any signal-based adjustment rather
+than trusted.
+
+#### ⚠️ What would actually score this, and it is not yet possible
+
+The construction to test is
+
+```
+mix_adj[c,i](y) = mix_2017[c,i] · ( ASM_share[c](y) / EC_share[c](2017) )
+```
+
+renormalised per industry, applied to published industry output, rebalanced to
+published summary `q`. Scoring it needs **published detail for a later year**,
+and none exists — 2017 is the current benchmark and 2022's is not out.
+
+✅ **The 2012→2017 held-out frame can score it**, and needs one new input: **2012
+Economic Census product data**. The 2012 leg uses 2012 product codes, and the
+bridge is already in the repo —
+`2017_NAPCS_Collection_Code_to_2012_Product_Code.xlsx`, the same file
+`write_napcs_bea_crosswalk.py` reads. With it the test is:
+
+1. 2012 EC product shares → 2017 EC product shares gives the change signal
+2. apply it to the 2012 mix, predict the 2017 mix
+3. score against published 2017 detail, against the 1.40% the unadjusted carried
+   mix scores
+
+That is the first genuine out-of-sample measurement of the change-signal method,
+and until it runs the method is a well-motivated design rather than a validated
+one.
+
+#### The 2017→2022 change signal, tested — and the testable part is noise
+
+We *do* hold census-quality product data at both ends: `Census_EC_PxI` 2017 and
+2022 are both extracted. What is missing is BEA truth at 2022 — the most recent
+benchmark is **2017**, released in the September 2023 comprehensive update, and
+BEA benchmarks trail the Economic Census by about six years, so 2022's lands
+around 2028. `USA_DETAIL_MUT_YEARS` is `[2007, 2012, 2017]`.
+
+That still leaves one test runnable today: score each method's **unrebalanced**
+prediction of 2022 summary `q` against the published summary table. Rebalancing
+would make both hit it exactly and measure nothing.
+
+Signal: `EC_share(2022) / EC_share(2017)` per commodity — 239 commodities,
+median 0.941, IQR 0.718–1.118. Applied to the 2017 mix, renormalised per
+industry, against 2022 published industry output. Scored over the 19
+manufacturing summary groups:
+
+| method | level | wtd err |
+|---|---:|---:|
+| **A — carried 2017 mix, no signal** | 0.9987 | **4.047%** |
+| B — + EC change signal | 0.9852 | 5.573% |
+| C — signal with the five unstable groups excluded | 0.9835 | 5.698% |
+| D — signal damped to √ | 0.9910 | 4.827% |
+
+⚠️ **Every variant is worse than no signal, and damping improves monotonically
+toward the baseline.** If the signal carried information, some damping level
+would beat A; instead the best result is the least signal. That is the signature
+of noise rather than of a signal needing calibration. Excluding `313TT`, `331`,
+`3361MV`, `321` and `324` made it marginally *worse*, which also kills the
+hypothesis that the contamination is confined to those five.
+
+⚠️ **What this does and does not establish.** Summary aggregation can only see
+the signal's **cross-group** component — a commodity's share moving between
+summary groups. The intended value is *within*-group reallocation, and that is
+invisible here by construction. So this is a clean negative result on the
+cross-group component and says nothing about the within-group one.
+
+**Two consequences.** First, any future use of this signal must be constrained to
+be **within-group neutral**, so it cannot do the damage measured above — that is
+a design requirement, not a tuning choice. Second, the within-group benefit
+remains unverified, and verifying it needs detail truth at two dates: either 2012
+Economic Census product data scored on the 2017 benchmark, or waiting for 2022's.
+
+✅ **So the block ships as the carried mix**, and the signal stays out of the
+pipeline until it can be scored on the axis it is meant to work on.
+
 
 ### Rebalancing
 

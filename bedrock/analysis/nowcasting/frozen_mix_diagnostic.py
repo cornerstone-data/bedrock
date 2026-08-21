@@ -31,7 +31,7 @@ Run: ``uv run python bedrock/analysis/nowcasting/frozen_mix_diagnostic.py``
 from __future__ import annotations
 
 import argparse
-from typing import cast
+import typing as ta
 
 import numpy as np
 import pandas as pd
@@ -126,6 +126,17 @@ def detail_block() -> pd.DataFrame:
     )
 
 
+def _go_year(year: int) -> USA_GROSS_INDUSTRY_OUTPUT_YEARS:
+    """Narrow a plain ``int`` year to the gross-output loader's Literal.
+
+    Years reach this script as ints - from argparse and from the year loops -
+    while the loaders are typed on the Literal of the years they actually carry.
+    The cast is a no-op at runtime; an out-of-range year still fails in the
+    loader, where the real check lives.
+    """
+    return ta.cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year)
+
+
 def summary_block(year: int) -> pd.DataFrame:
     """
     The published **summary** domestic output block for ``year``, 2017-2024.
@@ -137,7 +148,7 @@ def summary_block(year: int) -> pd.DataFrame:
     check exposed.
     """
     return _block(
-        _load_usa_summary_sut('Supply_summary', cast(USA_SUMMARY_SUT_YEARS, year)),
+        _load_usa_summary_sut('Supply_summary', ta.cast(USA_SUMMARY_SUT_YEARS, year)),
         NON_INDUSTRY_COLUMNS_SUMMARY,
     )
 
@@ -175,27 +186,37 @@ def basic_value_output(year: int, industries: list[str]) -> pd.Series:
     **positive** in the Use table and negative in the Supply table, which is
     BEA's convention rather than ours (#655).
 
-    ⚠️ Only 2017 can do this from published data. In a nowcast year the industry
-    split of ``T00TOP``/``T00SUB`` is an *output* of Step 5's balance, not an
-    input — so Step 4a's row margin is observable at the benchmark and solved
-    everywhere else. That coupling is real and is why 4a cannot be finished in
-    isolation from 5.
+    ⚠️ Only 2017 can do this **from the Supply table**. The totals are not
+    trapped there, though: Supply ``TOP`` equals NIPA T30500 taxes on products
+    **less customs duties** (716,926 against 716,925 in 2017 — duties leave with
+    imports), and ``SUB`` equals NIPA T31300 (59,876 against 59,875). Both are
+    published annually.
+
+    ⚠️ What is *not* recoverable that way is the **general sales tax, 56.5% of
+    domestic ``TOP``**, levied on the purchaser price — basic plus margins — so
+    allocating it across commodities needs the margin structure Step 4c/5
+    produces. That share alone is the 4a-to-5 coupling.
+
+    ✅ **But it is narrower than it looks**, because the conversion mostly
+    cancels: group levels are pinned by the published summary table, and a wedge
+    uniform across a group's children leaves within-group shares unchanged. Using
+    producer-price output for the split costs **0.68% overall and exceeds 1% in
+    only 6 of 50 multi-child groups** — ``42`` wholesale (``424700`` petroleum
+    wholesalers carries fuel excise at +143% of basic), ``311FT``, ``4A0``,
+    ``HS``, ``524``, ``111CA`` and ``GFE``, the last two negative because
+    subsidies exceed taxes. So 4a needs 5 for those groups, not for the step as a
+    whole. See ``output_estimation_plan.md``.
     """
     use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
     use.index = [str(i).strip() for i in use.index]
-    producer = (
-        derive_gross_output(cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year), 'before')
-        / DOLLARS_TO_MILLIONS
-    )
+    producer = derive_gross_output(_go_year(year), 'before') / DOLLARS_TO_MILLIONS
     producer.index = producer.index.astype(str)
-    taxes_row = use.loc['T00TOP']
-    subsidies_row = use.loc['T00SUB']
-    if isinstance(taxes_row, pd.DataFrame):
-        taxes_row = taxes_row.iloc[0]
-    if isinstance(subsidies_row, pd.DataFrame):
-        subsidies_row = subsidies_row.iloc[0]
-    taxes = pd.to_numeric(taxes_row, errors='coerce').reindex(industries)
-    subsidies = pd.to_numeric(subsidies_row, errors='coerce').reindex(industries)
+    taxes = pd.to_numeric(pd.Series(use.loc['T00TOP']), errors='coerce').reindex(
+        industries
+    )
+    subsidies = pd.to_numeric(pd.Series(use.loc['T00SUB']), errors='coerce').reindex(
+        industries
+    )
     return producer.reindex(industries) - taxes.fillna(0.0) + subsidies.fillna(0.0)
 
 
@@ -215,9 +236,35 @@ def basic_conversion_ratio(
 
     Applied to a later year's producer-price output this holds the *tax rate*
     fixed rather than the tax level, which is the right frozen assumption when
-    output is growing. It is still an assumption, and it means a later year's
-    score mixes commodity-mix drift with product-tax-rate drift — the two cannot
-    be separated until Step 5 solves the tax split (#655).
+    output is growing.
+
+    ✅ **The rate no longer has to be frozen, and for two years it must not be.**
+    Both totals are published annually in NIPA — Supply ``TOP`` is T30500 taxes
+    on products less customs duties, ``SUB`` is T31300, each closing to $1m on
+    2017 — so the economy-wide net rate is observable every year. Measured as
+    ``(TOP - SUB) / GO``, against 1.91% in 2017:
+
+    ==== ========= ============
+    year net rate  vs 2017
+    ==== ========= ============
+    2018 1.94%     1.02x
+    2019 1.90%     1.00x
+    2020 **0.17%** **0.09x**
+    2021 **0.61%** **0.32x**
+    2022 1.81%     0.95x
+    2024 1.82%     0.95x
+    ==== ========= ============
+
+    ⚠️ **2020 and 2021 break it.** Pandemic subsidies (698bn and 626bn against
+    60bn in 2017) very nearly cancel product taxes, so basic ≈ producer in 2020
+    where the frozen rate would impose a 1.91% wedge — roughly **700bn of wedge
+    invented against an actual 63bn**. Freezing is defensible for 2018-19 and
+    2022-24, within 5%, and indefensible for the two pandemic years.
+
+    ⚠️ What Step 5 is still needed for is narrower than "the tax split": only the
+    **commodity allocation of the general sales tax**, 56.5% of ``TOP``, which is
+    levied on the purchaser price and so needs the margin structure. The other
+    43.5% is named by product in NIPA every year (#655, #580).
     """
     return column_totals.reindex(industries) / (
         derive_gross_output(2017, 'before').rename(index=str).reindex(industries)
@@ -229,10 +276,7 @@ def score_year(
     year: int, mix: pd.DataFrame, industries: list[str], ratio: pd.Series
 ) -> pd.DataFrame:
     """Frozen-mix commodity output vs published summary ``T007``, per group."""
-    output = (
-        derive_gross_output(cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year), 'before')
-        / DOLLARS_TO_MILLIONS
-    )
+    output = derive_gross_output(_go_year(year), 'before') / DOLLARS_TO_MILLIONS
     output.index = output.index.astype(str)
     output = output.reindex(industries) * ratio  # producer -> basic
     built_detail = (mix[industries] * output.reindex(industries).values).sum(axis=1)

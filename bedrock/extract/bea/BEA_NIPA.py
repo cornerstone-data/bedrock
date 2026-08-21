@@ -21,6 +21,9 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 #: tables, so there is one file to cache rather than one per year.
 FLAT_FILES_ZIP = 'FlatFiles.ZIP'
 
+#: Table 7.2.5U. Motor Vehicle Output - the car/truck split, published annually.
+MOTOR_VEHICLE_TABLE = 'U70205'
+
 
 def flat_files_local_path(source: str = 'BEA_NIPA') -> str:
     """Where the flat-file archive is cached: ``extract/input_data/BEA_NIPA/``."""
@@ -195,6 +198,56 @@ def extract_table_info(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
         # .sort_values(by=['Table', 'Line'])
     )
     return fba
+
+
+#: Table 7.2.5U lines for the car/truck split of motor vehicle output. ``A133RC``
+#: is auto output and ``A716RC`` truck output; they sum to ``A953RC``.
+AUTO_OUTPUT = 'A133RC'
+TRUCK_OUTPUT = 'A716RC'
+
+
+def motor_vehicle_auto_share(year: int | str) -> float:
+    """Autos as a share of auto + truck output, from NIPA table 7.2.5U (#570).
+
+    The one annual, published statement of how motor vehicle output divides
+    between cars and trucks. BEA's own Table C1 names the same kind of external
+    evidence for this industry - Wards unit production and J.D. Power average
+    net cost - so taking the split from outside the product data is the
+    documented method here, not a workaround.
+
+    ⚠️ **The ratio is borrowed, not the level.** ``A953RC`` motor vehicle output
+    is a final-expenditure aggregate at purchaser prices and includes imports,
+    so it is not comparable to a commodity output built from domestic shipments.
+    Only the auto/truck proportion crosses over.
+
+    ⚠️ **``A716RC`` includes heavy trucks and buses**, which are BEA commodity
+    ``336120`` rather than ``336112``. The share is therefore slightly low as a
+    car-vs-*light*-truck ratio. See
+    :func:`bedrock.extract.census.Census_ASM.split_motor_vehicle_output` for why
+    that is tolerable and what was measured.
+
+    The share moves a long way and that movement is the point: 0.178 in 2017 to
+    0.043 in 2024, as US assembly shifted from cars to SUVs and pickups. No
+    frozen 2017 share can track it.
+    """
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    fba = getFlowByActivity('BEA_NIPA', int(year))
+    rows = fba[fba['Description'].str.startswith(f'{MOTOR_VEHICLE_TABLE}:')]
+    codes = rows['Description'].str.split(': ').str[1].str.split(' - ').str[0]
+    totals = rows.assign(code=codes).groupby('code')['FlowAmount'].sum()
+    missing = {AUTO_OUTPUT, TRUCK_OUTPUT} - set(totals.index)
+    if missing:
+        raise ValueError(
+            f'BEA_NIPA {year} carries no {sorted(missing)} row, so the motor '
+            f'vehicle split cannot be taken. {MOTOR_VEHICLE_TABLE} is listed in '
+            f'BEA_NIPA.yaml; an FBA cached before it was added there will not '
+            f'have it, and getFlowByActivity returns the newest local file '
+            f'without checking the config it was built from. Regenerate with '
+            f'generateFlowByActivity(source="BEA_NIPA", year="{year}").'
+        )
+    auto, truck = totals[AUTO_OUTPUT], totals[TRUCK_OUTPUT]
+    return float(auto / (auto + truck))
 
 
 def drop_unassigned(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
