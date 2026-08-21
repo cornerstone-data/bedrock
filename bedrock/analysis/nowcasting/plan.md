@@ -201,11 +201,13 @@ conversion and redefinition steps need is already loadable** — no new extract 
   but they are a ready-made **fallback seed / cross-check** for any SUT block we can't source directly,
   and they already encode which codes to exclude from each framework.
 
-**Not in bedrock, to be ported:** a balancing algorithm (**no longer a straight `sut_ras.py` port** —
-see Step 5; Decisions 2 and 3 are recorded as of 2026-08-17, Decision 1 is still open) and commodity
-mix / intermediate nowcasting
-(`CalculateIntermediateUseAndCommodityMix.R`, per #497). Confirmed: no RAS/GRAS code anywhere in
-bedrock today.
+**Not in bedrock, to be ported:** commodity mix / intermediate nowcasting
+(`CalculateIntermediateUseAndCommodityMix.R`, per #497). The Step 5 **engine**
+is in [`bedrock/utils/economic/balance/gras.py`](../../utils/economic/balance/gras.py)
+(`gras_balance`, GRAS: Lenzen, Wood and Gallego 2007 + Temurshoev, Miller and
+Bouwmeester 2013). The SUT wrapper `engine(free, residual, masks)` is still
+missing. Unit tests: [`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py).
+A **zero target is legal**; a **nonzero target on an empty free margin** raises.
 
 **The USEEIO port list shrank to one file.** `check_balances.py` and `load_suts_from_r.py` were both
 on it and are now **dropped, #590 and #589 closed**. The SUTs come from Steps 1-4 as bedrock objects,
@@ -986,10 +988,12 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 
 ### Step 5 — Balance the SUT (RAS)
 
-**⚠️ Three decisions gate this step. Do not start writing code until all three are made** — the
-**starting point** (Decision 1), the **objective function** (Decision 2), and the **target set**
-(Decision 3), below. What follows replaces the earlier one-line instruction to port `sut_ras.py`;
-that is no longer the recommended route.
+**⚠️ Three decisions structured this step.** The **starting point** (Decision 1,
+Option A for the engine: vendored ceda dense + GRAS), the **objective function**
+(Decision 2), and the **target set** (Decision 3) are recorded below. The SUT
+wrapper and KRAS-style soft layer are not done — do not treat the full Step 5
+balancer as complete. What follows replaces the earlier one-line instruction to
+port `sut_ras.py`; that is no longer the recommended route.
 
 **What stays true regardless of how the decisions land:**
 - Balance on the SUT identity: **total supply at purchaser (`T016`) = total use (`T019`) per
@@ -1050,19 +1054,24 @@ orchestration layer written fresh against `sut_ras.py` as the reference.
 
 #### The scaffolding is built — how to run it (#653, #654, #591)
 
-**For anyone starting on the engine layer.** Everything below layer 1 is built — in [#659](https://github.com/cornerstone-data/bedrock/pull/659) until that merges;
-what remains is the engine itself.
+**For anyone starting on the SUT wrapper.** Everything below the ndarray kernel
+is built — mask, targets, offset, precheck in [#659](https://github.com/cornerstone-data/bedrock/pull/659),
+and `gras_balance` in [`gras.py`](../../utils/economic/balance/gras.py).
+What remains is the SUT wrapper around `gras_balance`.
 
 | Module | What it is |
 |---|---|
-| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic, engine-agnostic: `Target`, `SutMask`, the offset method, the precheck |
+| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic scaffolding (`Target`, `SutMask`, offset, precheck) plus the ndarray GRAS kernel (`gras_balance`) |
 | [`transform/iot/nowcast_mask.py`](../../transform/iot/nowcast_mask.py) | the mask sourcing — Tiers 0/1/3/4, and the panel labels |
 | [`transform/iot/nowcast_targets.py`](../../transform/iot/nowcast_targets.py) | the target set — T1 through T17 |
 
-**The engine's contract is narrow.** It receives a seed carrying a *participation* mask and a set of
-*residual* targets, and returns a balanced matrix. It never handles fixed values, sign
-normalisation, aggregation, or cross-block algebra — the offset layer has already reduced all of
-that:
+**The wrapper's job is SUT orchestration.** Offset has already peeled frozen
+mass (`X = F + Z`) and residualised the targets. The wrapper turns
+`free` / `residual` / `masks` into per-block `gras_balance` calls: extract
+ndarrays, map `free_mask = mask.free` and `sign_flex = (sign_lock == 0)`, and
+handle cross-block identities (T11–T17) and aggregators (T4) by choosing which
+kernel vectors to pass. It does not re-implement GRAS, hold fixed values, or
+renormalise signs. `engine(...)` is that adapter and does not exist yet:
 
 ```python
 from bedrock.transform.iot.nowcast_mask import BLOCKS, build_sut_masks, published_2017_panel
@@ -1079,9 +1088,25 @@ frozen, free = split_fixed_blocks(seeds, masks)      # X = F + Z
 residual     = offset_targets(targets, frozen)       # r' = r - F @ 1
 precheck(seeds, masks, targets, allow_placeholders=True)
 
-balanced = engine(free, residual, masks)             # <- the part that does not exist yet
+balanced = engine(free, residual, masks)             # <- SUT adapter; does not exist yet
 result   = restore_fixed_blocks(balanced, frozen)    # fixed cells come back bit-identical
 ```
+
+The **kernel** this package already has, once a wrapper (or a test) has extracted one block's vectors:
+
+```python
+result = gras_balance(
+    matrix=Z.to_numpy(),
+    row_targets=row_targets,
+    col_targets=col_targets,
+    free_mask=mask.free.to_numpy(),                 # not (Z != 0)
+    sign_flex=(mask.sign_lock.to_numpy() == 0),     # must pass; kernel default is not SutMask
+)
+```
+
+Kernel `sign_flex is None` → all-False (no cell may change sign). A default `SutMask`
+(`sign_lock` 0) means flex **is** allowed. Omitting `sign_flex` in a later adapter silently
+sign-locks the whole SUT. Do not write `gras_balance(free, residual, masks)`.
 
 `seeds` and `masks` are **mappings of block name to frame** (`'use'`, `'supply'`), because a target
 may relate the two panels — `T016 = T019` and the product-tax identities all do.
@@ -1127,7 +1152,7 @@ built against this set does not change when Steps 1-4 land — **only values do.
 
 | Option | What it costs | What it buys |
 |---|---|---|
-| **A. Start from ceda, add GRAS + a SUT layer** (current lean) | Add sign-split scaling to a codebase whose invariant is non-negativity — the clamp is load-bearing in places, not a one-line delete. Write the SUT layer from scratch. **Plus aggregate-level constraints, which Decision 3 shows are required and ceda's row/column-vector API cannot express.** | Typed, tested, diagnosable from day one. Mask-awareness and stall projection are exactly what a 402×402 detail balance with structural zeros needs, and rebuilding them is weeks. |
+| **A. Start from ceda, add GRAS + a SUT layer** (**chosen for the engine**) | Sign-split scaling; SUT layer from scratch (later PR). Aggregate-level constraints stay in the wrapper. | Typed, tested, diagnosable. `gras_balance` is this slice. |
 | **B. Start from `sut_ras.py`, harden it** | Type it, test it, replace magic epsilons, add masking and real convergence reporting — i.e. rebuild ceda's engineering around it. | GRAS, the SUT sequencing, **and aggregate-level targets** are already there, and they are the parts that are conceptually hard to get right rather than merely tedious. Decision 3 raises the value of this column. |
 | **C. Fresh engine in bedrock, both as references** | Most upfront work; no inherited tests. | No inherited invariant fighting us, no private-repo or dependency-pin entanglement, and the objective function is a deliberate choice rather than an artifact. |
 
@@ -1175,7 +1200,7 @@ expression of the choice, and the negatives question is decided here rather than
 | Objective | Minimizes | Negatives | Notes |
 |---|---|---|---|
 | **RAS / IPFP** | cross-entropy (KL) to the seed | not admitted | What ceda implements. Cheapest, best-understood, wrong for our seed as-is. |
-| **GRAS** (Junius–Oosterhaven 2003, corrected Lenzen et al. 2007) | generalized cross-entropy with positive and negative parts scaled by `r` and `1/r` | preserved, signs held unless flexed | What `sut_ras` implements. The natural fit for a seed with structural negatives; note the two published variants differ in the negative-part treatment and we should be explicit about which one we implement. |
+| **GRAS** (Junius–Oosterhaven 2003, corrected Lenzen et al. 2007; Temurshoev et al. 2013 all-negative margins) | generalized cross-entropy with positive and negative parts scaled by `r` and `1/r` | preserved, signs held unless flexed | **Implemented** in `gras_balance`. Lenzen 2007 + Temurshoev 2013; 2003 is the name only. |
 | **KRAS** (Lenzen et al. 2009) | as GRAS, plus reliability-weighted constraint violation | preserved | Admits **inconsistent and general (e.g. aggregate, inequality) constraints** by making them soft with weights. Directly relevant once Decision 3 lands: a target set drawn from NIPA, GDP-by-industry and the trade accounts **will not be mutually consistent to the dollar**, and the seed comes from seven independent nowcast paths on top of that. |
 | **Constrained least squares / QP** | weighted squared deviation from the seed | native | Handles bounds, sign constraints, and inequalities cleanly; needs an optimizer (scipy, or a hand-rolled projected solver) and scales worse. |
 
@@ -1213,9 +1238,11 @@ expression of the choice, and the negatives question is decided here rather than
   duties and stays an *industry*: its column carries `T00TOP` = `VAPRO` =
   38,513, which is the Supply `MDTY` total and its published gross output.
   Corrected 2026-08-17; see [`mask_layer_plan.md`](mask_layer_plan.md) §3.
-- **What does "converged" mean?** Elementwise per-margin tolerance (ceda's, and the right answer —
-  a global `max` bound is meaningless across margins spanning six orders of magnitude), plus an
-  `atol` floor, since several commodity targets are legitimately near zero.
+- **What does "converged" mean?** ✅ Elementwise per-margin
+  `|sum - target| <= atol + rtol |target|`, reported as
+  `GrasBalanceResult.converged`. A global `max` bound is meaningless across
+  margins spanning six orders of magnitude; `atol` floors near-zero commodity
+  targets.
 
 #### Decision 3 — the target set
 
@@ -1339,16 +1366,17 @@ imposed a green reconciliation run would prove nothing beyond "the solver ran".
 #### Recommendation to decide against
 
 **GRAS + a KRAS-style soft-constraint layer, aimed at the Decision 3 target set, with the mask
-supplied by the offset method.** The earlier form of this recommendation led with *vendor ceda's
-engine*; the two capabilities that justified it — mask-awareness and (via Decision 3) aggregate
-constraints — have both now failed to hold up, so **Option A's case is materially weaker than when
-this table was written and Decision 1 should be re-run.** What survives from ceda is convergence,
-stall projection and diagnostics; what survives from `sut_ras` is GRAS, the SUT sequencing and the
-aggregator machinery. Hold the commodity identity and gross output hard, everything sourced soft with
+supplied by the offset method.** **Decision 1 Option A is chosen for the engine:** vendored ceda
+dense path, GRAS in place of RAS (Lenzen, Wood and Gallego 2007 + Temurshoev, Miller and
+Bouwmeester 2013), clamps deleted, mask via offset outside the engine, no scipy.
+[`gras_balance`](../../utils/economic/balance/gras.py) is that engine. Convergence is elementwise
+`|sum - target| <= atol + rtol |target|`, reported on `GrasBalanceResult.converged`. The SUT
+orchestration layer (pass order, T11–T17, joint `T016 = T019`) and the KRAS-style soft layer are
+**not yet**. Hold the commodity identity and gross output hard, everything sourced soft with
 per-source weights, and keep summary SUT out of the target set and in the test set.
 
-Decisions 2 (mask) and 3 (target set) are now **recorded**. Decision 1 remains open and is the only
-thing still gating code.
+Decisions 2 (mask) and 3 (target set) are **recorded**. Decision 1 is **resolved for the engine**;
+what remains of Step 5 code is the SUT wrapper, then KRAS.
 
 ### Step 6 — SUT → MUT conversion *(new — produces the actual deliverables)*
 Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
@@ -1461,11 +1489,10 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   frozen mass, free mass and leverage per margin; a nonzero residual target facing zero free mass is
   infeasible and must **raise**, not converge to something meaningless. Leverage above ~10× warns.
   See [`mask_layer_plan.md`](mask_layer_plan.md) §3.
-- **Unit tests** for the balancer — small hand-checkable matrices, with **a negative-cell case and a
-  sign-lock case in the first batch**, not added later: they are the whole reason Step 5 was rescoped.
-  Whichever starting point wins, these tests are written against the objective function chosen in
-  Decision 2, so they encode the decision rather than the implementation. Keep the classic silent
-  failure in the batch too: a zero control total.
+- **Unit tests** for the balancer — [`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py):
+  hand-checkable matrices, including a negative-cell case and a sign-lock case. A **zero target is
+  legal**; a **nonzero target on an empty free margin** raises. Do not treat "zero control total" as
+  the silent RAS failure — that failure is the empty-free-margin case.
 - **Unit tests** for the SUT/MUT FD code lists and the margin reassignment in 6b.
 - **Golden-file per year** once Step 1 stabilizes, so later phases don't silently drift the FD block.
 - **Supply/Use match visualization (#587)** — a full-table picture, cell by cell *and* on the row and
@@ -1546,7 +1573,7 @@ rediscovers the same 210-code problem from scratch.
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
 | **4 Supply table** | **#570** (4a), **#579** (4b — *done*), **#571** (4c, parent) split into **#610** (2017 rates — *done*), **#611** (FAF transport chain — *in progress*), **#612** (annual trade levels — *done*), **#613** (apply to nowcast years, derive `TRADE`/`TRANS`), **#614** (validate per commodity), **#615** (deferred NAPCS concordance), **#620** (transport trend validation), **#580** (4d), **#581** (4e) | 4c's five sub-issues were filed after the first pass and are now on the board |
-| 5 RAS | **#588** (balancer, parent — *blocked on Decision 1 only; Decisions 2 and 3 recorded 2026-08-17*), **#653** (mask/target scaffolding — *Decision-1-independent, so it starts now*), **#654** (the fixed-value mask), **#591** (the target set — *decision settled, now the build*), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
+| 5 RAS | **#588** (balancer, parent — engine `gras_balance` landed; SUT wrapper and KRAS later), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
@@ -1659,21 +1686,17 @@ the issue they close.
    including the Step 3 intermediate seed (seed from `Use_SUT_Framework_2017_DET` — native SUT, native
    purchaser, native before-redef). #497's instruction to nowcast the intermediate block on the
    *after*-redefinitions Use table is **overridden**; it would mix states inside the SUT.
-4. **The Step 5 balance — three coupled decisions, all open, all blocking.** Detail in §Step 5.
+4. **The Step 5 balance — three coupled decisions.** Detail in §Step 5.
    The earlier form of this question ("summary SUT totals or gross output?") **presumed a default that
    is now struck**; see 4c.
-   - 4a. **Starting point — the only one still open, and now the only thing gating Step 5 code.**
-     Vendor and adapt ceda's `ras_balancing.py`, harden `sut_ras.py`, or write fresh with both as
-     references? ⚠️ **The vendor-ceda lean is materially weaker than when it was written**: both
-     capabilities it was buying have failed to hold up — ceda's mask is a *participation* mask that
-     cannot express a fixed nonzero value, and aggregate-level constraints are still needed (for the
-     VA rows). What survives from ceda is convergence, stall projection and diagnostics. Decision 1.
-     Note #653 is deliberately independent of this, so scaffolding work starts now.
-   - 4b. **Objective function** — RAS/IPFP, GRAS (and which published variant), KRAS, or constrained
-     least squares, plus hard-vs-soft and sign-flip policy. Decision 2. **Partly settled:** the mask
-     is recorded ([`mask_layer_plan.md`](mask_layer_plan.md)), and plain RAS is out on evidence rather
-     than on principle — the structural negatives, plus `F03000`'s **negative column target in 2020**.
-     The GRAS variant, the soft-constraint form and the convergence rule are still open.
+   - 4a. ✅ **Starting point — Option A for the engine, resolved.** Vendored ceda dense
+     `ras_balancing.py` + GRAS, no scipy/sparse, clamps deleted, mask via offset.
+     [`gras_balance`](../../utils/economic/balance/gras.py). The SUT-orchestration half of Option A
+     (wrapper `engine(free, residual, masks)`) is later.
+   - 4b. **Objective function** — ✅ inner loop is GRAS (Lenzen 2007 + Temurshoev 2013);
+     `GrasBalanceResult.converged` is elementwise `atol`/`rtol`. Mask policy recorded
+     ([`mask_layer_plan.md`](mask_layer_plan.md)); plain RAS is out. **KRAS / soft weights remain
+     open.** Sign-flex *mechanism* is `sign_flex` on the kernel; *policy* (which cells) is the mask.
    - 4c. ✅ **Target set — settled 2026-08-17.** [`target_set_plan.md`](target_set_plan.md), #591.
      Detail gross output (hard, and **observed at detail for every Phase 1 year** — the circularity
      premise was wrong), thirteen NIPA FD column totals plus six masked columns, compensation by
