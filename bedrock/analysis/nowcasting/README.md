@@ -22,6 +22,9 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 
 # the colour-vision separation check behind the palette
 uv run python -m bedrock.analysis.nowcasting.plots --check-palette
+
+# toy SUT balancer walkthrough (writes sut_balancing/output/)
+uv run python bedrock/analysis/nowcasting/sut_balancing/plot_full_nowcasting_sut_balance.py
 ```
 
 Blocks with no candidate yet are skipped with a message rather than failing.
@@ -84,6 +87,8 @@ local run.
 
 ## Documents
 
+- [`sut_balancing/`](sut_balancing/) — Step 5 balancer plans and the toy
+  walkthrough (`plot_full_nowcasting_sut_balance.py`).
 - [`plan.md`](plan.md) — the nowcast build plan: the seven steps, their data
   sources, and the open decisions.
 - [`compensation_disaggregation_plan.md`](compensation_disaggregation_plan.md) —

@@ -11,8 +11,12 @@ Hard targets this adapter knows by name:
 * T16 — transport margin column sums to 0 (TRANS)
 * T17 — basic-to-producer wedge (Supply industry col vs Use, via T00TOP/T00SUB)
 
-Soft targets (T2, T4, T6–T9) are skipped: their ``.values`` are not read;
-unconstrained slots hold at the current Z row/col sum.
+Soft targets when ``impose_soft`` (default True): T2/T7 are a weighted blend
+from the entry Z; T4 is a column-neutral closer after each Use pass.
+T6/T8/T9 whole-name defer when T12–T14 occupy any of their slots.
+``impose_soft=False`` skips soft targets: their ``.values`` are not read;
+unconstrained slots hold at the current Z row/col sum. The engine reads
+``target.weight``; it does not import ``WEIGHTS``.
 
 Does not import ``nowcast_targets`` or ``nowcast_mask``. Bridge / tax
 literals match ``nowcast_mask.SUPPLY_BRIDGE_COLUMNS`` and Use VA rows
@@ -30,7 +34,7 @@ import pandas as pd
 from bedrock.utils.economic.balance.gras import GrasBalanceResult, gras_balance
 from bedrock.utils.economic.balance.mask import SutMask
 from bedrock.utils.economic.balance.offset import assert_free_seed
-from bedrock.utils.economic.balance.targets import Target, TargetSet
+from bedrock.utils.economic.balance.targets import Target, TargetSet, TargetTerm
 
 # Match nowcast_mask.SUPPLY_BRIDGE_COLUMNS / Use VA rows; do not import that
 # module. Trailing space on TRADE is BEA's label.
@@ -42,9 +46,12 @@ SUB = 'SUB'
 T00TOP = 'T00TOP'
 T00SUB = 'T00SUB'
 CUSTOMS = '4200ID'
+MCIF = 'MCIF'
 
 NAMED = ('T1', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17')
 KNOWN_HARD = frozenset(NAMED)
+KNOWN_SOFT = frozenset({'T2', 'T4', 'T6', 'T7', 'T8', 'T9'})
+KNOWN_NAMES = KNOWN_HARD | KNOWN_SOFT
 REQUIRED = ('T1', 'T11')
 
 
@@ -55,6 +62,7 @@ class SutBalanceResult:
     t11_max_abs_residual: float
     skipped: tuple[str, ...]
     last: dict[str, GrasBalanceResult]
+    soft_deferred: tuple[str, ...]
 
 
 def _require_subset(have: pd.Index, need: pd.Index, what: str) -> None:
@@ -68,19 +76,37 @@ def _require_label(have: pd.Index, label: str, what: str) -> None:
         raise KeyError(f'{what} names {label!r}, which is not on the panel')
 
 
-def _lookup(residual: TargetSet) -> tuple[dict[str, Target], tuple[str, ...]]:
-    """First match by name among T1/T11–T17. Duplicates of those names raise."""
+def _t4_term(t4: Target) -> tuple[TargetTerm, str]:
+    if len(t4.terms) != 1:
+        raise ValueError('T4 must have exactly one term')
+    term = t4.terms[0]
+    if term.aggregator is None:
+        raise ValueError('T4 requires an aggregator')
+    restrict = term.restrict_to
+    if restrict is None or len(restrict) != 1:
+        raise ValueError('T4 restrict_to must be exactly one Use row')
+    return term, restrict[0]
+
+
+def _defer_soft(name: str, seen: Mapping[str, Target]) -> bool:
+    if name in ('T6', 'T9'):
+        return _imposed(seen, 'T12') is not None or _imposed(seen, 'T13') is not None
+    if name == 'T8':
+        return _imposed(seen, 'T14') is not None
+    return False
+
+
+def _lookup(
+    residual: TargetSet, *, impose_soft: bool
+) -> tuple[dict[str, Target], tuple[str, ...], tuple[str, ...]]:
+    """First match by name among hard T1/T11–T17 and known soft T2/T4/T6–T9."""
     seen: dict[str, Target] = {}
-    skipped: list[str] = []
     for target in residual:
-        if target.name in NAMED:
+        if target.name in KNOWN_NAMES:
             if target.name in seen:
                 raise ValueError(f'duplicate target name {target.name!r}')
             seen[target.name] = target
-        if not target.hard:
-            skipped.append(target.name)
-            continue
-        if target.name not in KNOWN_HARD:
+        if target.hard and target.name not in KNOWN_HARD:
             raise ValueError(f'unknown hard target name {target.name!r}')
     for name in REQUIRED:
         found = seen.get(name)
@@ -92,7 +118,20 @@ def _lookup(residual: TargetSet) -> tuple[dict[str, Target], tuple[str, ...]]:
     t14_on = t14 is not None and t14.hard
     if t13_on and not t14_on:
         raise ValueError('hard T13 requires hard T14 (cannot split TOP vs MDTY)')
-    return seen, tuple(skipped)
+
+    skipped: list[str] = []
+    deferred: list[str] = []
+    for target in residual:
+        if target.hard:
+            continue
+        name = target.name
+        if not impose_soft or name not in KNOWN_SOFT:
+            skipped.append(name)
+            continue
+        if _defer_soft(name, seen):
+            deferred.append(name)
+            continue
+    return seen, tuple(skipped), tuple(deferred)
 
 
 def _imposed(seen: Mapping[str, Target], name: str) -> Target | None:
@@ -100,6 +139,21 @@ def _imposed(seen: Mapping[str, Target], name: str) -> Target | None:
     if target is None or not target.hard:
         return None
     return target
+
+
+def _imposed_soft(
+    seen: Mapping[str, Target],
+    skipped: tuple[str, ...],
+    deferred: tuple[str, ...],
+) -> dict[str, Target]:
+    held_back = set(skipped) | set(deferred)
+    imposed: dict[str, Target] = {}
+    for name in KNOWN_SOFT:
+        target = seen.get(name)
+        if target is None or target.hard or name in held_back:
+            continue
+        imposed[name] = target
+    return imposed
 
 
 def _check_labels(
@@ -135,8 +189,42 @@ def _check_labels(
         _require_label(z_supply.columns, TRANS, 'T16')
 
 
+def _check_soft_labels(
+    z_use: pd.DataFrame,
+    z_supply: pd.DataFrame,
+    imposed: Mapping[str, Target],
+) -> None:
+    t2 = imposed.get('T2')
+    if t2 is not None:
+        _require_subset(z_use.columns, t2.values.index, 'T2')
+    t4 = imposed.get('T4')
+    if t4 is not None:
+        _term, row_label = _t4_term(t4)
+        _require_label(z_use.index, row_label, 'T4')
+    t6 = imposed.get('T6')
+    if t6 is not None:
+        _require_subset(z_use.index, t6.values.index, 'T6')
+    t7 = imposed.get('T7')
+    if t7 is not None:
+        _require_label(z_supply.columns, MCIF, 'T7')
+        _require_subset(z_supply.columns, t7.values.index, 'T7')
+    t8 = imposed.get('T8')
+    if t8 is not None:
+        _require_label(z_supply.columns, MDTY, 'T8')
+        _require_subset(z_supply.columns, t8.values.index, 'T8')
+    t9 = imposed.get('T9')
+    if t9 is not None:
+        _require_subset(z_supply.columns, t9.values.index, 'T9')
+
+
 def _cell(frame: pd.DataFrame, row: str, col: str) -> float:
     return float(np.asarray(frame.loc[row, col], dtype=np.float64))
+
+
+def _blend(target: Target, blocks: Mapping[str, pd.DataFrame]) -> pd.Series:
+    current0 = target.evaluate(blocks)
+    values = target.values.astype(float)
+    return current0 + float(target.weight) * (values - current0)
 
 
 def _t11_max_abs(t11: Target, z_use: pd.DataFrame, z_supply: pd.DataFrame) -> float:
@@ -163,6 +251,7 @@ def _use_vectors(
     z_supply: pd.DataFrame,
     seen: Mapping[str, Target],
     use_free: pd.DataFrame,
+    blends: Mapping[str, pd.Series],
 ) -> tuple[pd.Series, pd.Series]:
     t1 = seen['T1']
     t11 = seen['T11']
@@ -183,6 +272,13 @@ def _use_vectors(
             + float(z_supply[TOP].sum())
             + float(z_supply[MDTY].sum())
         )
+    t2 = blends.get('T2')
+    if t2 is not None:
+        slots = t2.index.difference(t1.values.index)
+        col_t.loc[slots] = t2.loc[slots].astype(float)
+    t6 = blends.get('T6')
+    if t6 is not None:
+        row_t.loc[t6.index] = t6.astype(float)
     return row_t, col_t
 
 
@@ -191,6 +287,7 @@ def _supply_vectors(
     z_supply: pd.DataFrame,
     seen: Mapping[str, Target],
     supply_free: pd.DataFrame,
+    blends: Mapping[str, pd.Series],
 ) -> tuple[pd.Series, pd.Series]:
     t11 = seen['T11']
     row_t = z_supply.sum(axis=1).astype(float)
@@ -219,7 +316,77 @@ def _supply_vectors(
         col_t.loc[TOP] = (
             float(z_use.loc[T00TOP].sum()) - float(t13.values.item())
         ) - float(np.asarray(col_t.loc[MDTY], dtype=np.float64))
+    t7 = blends.get('T7')
+    if t7 is not None:
+        col_t.loc[MCIF] = float(t7.astype(float).loc[MCIF])
+    t8 = blends.get('T8')
+    if t8 is not None:
+        col_t.loc[MDTY] = float(t8.astype(float).loc[MDTY])
+    t9 = blends.get('T9')
+    if t9 is not None:
+        col_t.loc[t9.index] = t9.astype(float)
     return row_t, col_t
+
+
+def _apply_t4_closer(
+    z_use: pd.DataFrame,
+    mask: SutMask,
+    t4: Target,
+    desired: pd.Series,
+) -> pd.DataFrame:
+    """Scale free V00100 cells in a group; put −d on sign-flex compensators.
+
+    Copy first: ``_balance_block`` wraps ``result.matrix`` with no copy.
+    Write only compensable columns. The group may miss ``desired``.
+    """
+    z = z_use.copy()
+    term, row_label = _t4_term(t4)
+    aggregator = term.aggregator
+    assert aggregator is not None
+    group_pos = {name: i for i, name in enumerate(aggregator.groups)}
+    free = mask.free
+    sign_flex = mask.sign_lock.eq(0)
+
+    for g_name in desired.index:
+        gi = group_pos[g_name]
+        members = [
+            detail_j
+            for ji, detail_j in enumerate(aggregator.detail)
+            if aggregator.matrix[gi, ji] == 1.0 and detail_j in z.columns
+        ]
+        free_sum = 0.0
+        frozen_sum = 0.0
+        for j in members:
+            val = float(np.asarray(z.loc[row_label, j], dtype=np.float64))
+            if bool(free.loc[row_label, j]):
+                free_sum += val
+            else:
+                frozen_sum += val
+        if free_sum == 0.0:
+            continue
+        factor = (float(desired.loc[g_name]) - frozen_sum) / free_sum
+        for j in members:
+            if not bool(free.loc[row_label, j]):
+                continue
+            compensators: list[tuple[str, float]] = []
+            abs_sum = 0.0
+            for i in z.index:
+                row_i = str(i)
+                if row_i == row_label:
+                    continue
+                if bool(free.loc[row_i, j]) and bool(sign_flex.loc[row_i, j]):
+                    cell = float(np.asarray(z.loc[row_i, j], dtype=np.float64))
+                    compensators.append((row_i, cell))
+                    abs_sum += abs(cell)
+            if abs_sum == 0.0:
+                continue
+            old = float(np.asarray(z.loc[row_label, j], dtype=np.float64))
+            new = factor * old
+            d = new - old
+            z.loc[row_label, j] = new
+            for i, cell in compensators:
+                z.loc[i, j] = cell + (-d * abs(cell) / abs_sum)
+    return z
 
 
 def _balance_block(
@@ -254,11 +421,15 @@ def engine(
     rtol: float = 1e-6,
     atol: float = 100.0,
     close_rows_on_last: bool = True,
+    impose_soft: bool = True,
 ) -> SutBalanceResult:
     """Balance Use then Supply against a residual TargetSet.
 
     ``atol`` is the T11 outer stop (BEA million-dollar units). It is not
     passed to ``gras_balance``; kernel ``atol`` stays 0.0.
+
+    Soft targets blend once from the entry ``Z``. ``impose_soft=False`` is
+    the hard-only protocol (T2/T4/T6–T9 skipped).
     """
     if max_outer < 1:
         raise ValueError(f'max_outer must be >= 1, got {max_outer}')
@@ -271,13 +442,18 @@ def engine(
             f"engine requires blocks 'use' and 'supply' in masks; got {sorted(masks)}"
         )
 
-    seen, skipped = _lookup(residual)
+    seen, skipped, soft_deferred = _lookup(residual, impose_soft=impose_soft)
     blocks = {name: frame.copy() for name, frame in free.items()}
     z_use = blocks['use']
     z_supply = blocks['supply']
     _check_labels(z_use, z_supply, seen)
+    imposed_soft = _imposed_soft(seen, skipped, soft_deferred)
+    _check_soft_labels(z_use, z_supply, imposed_soft)
     assert_free_seed(z_use, masks['use'])
     assert_free_seed(z_supply, masks['supply'])
+
+    entry = {'use': z_use, 'supply': z_supply}
+    blends = {name: _blend(target, entry) for name, target in imposed_soft.items()}
 
     last: dict[str, GrasBalanceResult] = {}
     outer_iterations = 0
@@ -285,7 +461,7 @@ def engine(
 
     def run_pair(close_rows_exactly: bool) -> None:
         nonlocal z_use, z_supply, outer_iterations
-        row_t, col_t = _use_vectors(z_use, z_supply, seen, masks['use'].free)
+        row_t, col_t = _use_vectors(z_use, z_supply, seen, masks['use'].free, blends)
         z_use, last['use'] = _balance_block(
             z_use,
             masks['use'],
@@ -294,7 +470,11 @@ def engine(
             rtol=rtol,
             close_rows_exactly=close_rows_exactly,
         )
-        row_t, col_t = _supply_vectors(z_use, z_supply, seen, masks['supply'].free)
+        if 'T4' in blends:
+            z_use = _apply_t4_closer(z_use, masks['use'], seen['T4'], blends['T4'])
+        row_t, col_t = _supply_vectors(
+            z_use, z_supply, seen, masks['supply'].free, blends
+        )
         z_supply, last['supply'] = _balance_block(
             z_supply,
             masks['supply'],
@@ -324,4 +504,5 @@ def engine(
         t11_max_abs_residual=t11_err,
         skipped=skipped,
         last=last,
+        soft_deferred=soft_deferred,
     )
