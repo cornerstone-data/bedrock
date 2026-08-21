@@ -694,8 +694,8 @@ the same shape as [`compensation_disaggregation_plan.md`](compensation_disaggreg
 |---|---|---|
 | 1 | ✅ [#610](https://github.com/cornerstone-data/bedrock/issues/610) 2017 rates and receiving sets — **built**, §Phase 1 below | — |
 | 2 | [#611](https://github.com/cornerstone-data/bedrock/issues/611) ~~port the FAF transport chain~~ → build a per-mode allocator; see §Transportation | #601 (merged) |
-| 3 | [#612](https://github.com/cornerstone-data/bedrock/issues/612) AWTS/ARTS annual trade levels | — |
-| 4 | [#613](https://github.com/cornerstone-data/bedrock/issues/613) apply and derive `TRADE`/`TRANS` | #610–#612, **#570 (4a), #579 (4b), #580 (4d)** |
+| 3 | ✅ [#612](https://github.com/cornerstone-data/bedrock/issues/612) AWTS/ARTS annual trade levels — **built**, §Phase 3 | — |
+| 4 | [#613](https://github.com/cornerstone-data/bedrock/issues/613) apply and derive `TRADE`/`TRANS` — **`TRADE` built**, §Phase 4; `TRANS` done at Phase 2 | ~~#570 (4a), #579 (4b), #580 (4d)~~ — **no longer needed**, see §Phase 4 |
 | 5 | [#614](https://github.com/cornerstone-data/bedrock/issues/614) validate per commodity | #613 |
 | — | [#615](https://github.com/cornerstone-data/bedrock/issues/615) re-run BEA's product-line method | **deferred, candidate for a Phase 3 of the project** |
 
@@ -773,24 +773,99 @@ schema is available.
 [#601](https://github.com/cornerstone-data/bedrock/pull/601) — it will raise
 `KeyError: ['ActivityProducedBy']` without it.
 
-**Phase 3 — trade levels, and optionally BEA's own allocation.** Port
-`Gross_Margins_2017.yaml` (AWTS/ARTS) as the annual wholesale and retail control
-totals by trade sector. If the 2017-anchored rates from Phase 1 prove
-insufficient, the rest of BEA's method is available: port `Census_EC_PxI` and
-`write_Crosswalk_NAPCS.py` (which already implements MAKB), extend the FBA to
-the 2022 `ecnnapcsprd` vintage, and build the one missing NAPCS → I-O commodity
-concordance. **Do Phase 1 first and see whether that is needed** — it is a large
-piece of work whose output the 2017 Margins file already approximates.
+**Phase 3 — trade levels. ✅ Built.** `Census_AWTS`, `Census_ARTS` and
+`Census_AIES` give a continuous 2012–2023 wholesale and retail gross margin;
+§Phase 3 below records what they turned out to be and the two questions that
+closed along the way. BEA's own allocation was *not* needed — the rest of its
+method (port `Census_EC_PxI`, extend to the 2022 `ecnnapcsprd` vintage, build the
+NAPCS → I-O concordance) stays deferred at
+[#615](https://github.com/cornerstone-data/bedrock/issues/615), and the note
+below on the frozen goods mix is the thing that would reopen it.
 
-**Phase 4 — apply.** Rates from Phase 1 onto the nowcast base, levels controlled
-to Phases 2–3. **The base needs 4a, 4b *and* 4d** — it is producer value less
-the trade-level tax, `T013 + MDTY + SUB + producer-level TOP`, measured in
-§Phase 1 against the published column at −0.003%. Two shortcuts to avoid, in
-opposite directions: applying rates to `T007` alone drops the margin on imports
-(three independent statements confirm imports are in the base — Jolliff's
-"column OR", the wholesale method's "interim supply", and the transport method's
-table 8.2), while applying them to full producer value double-counts the
+**Phase 4 — apply. ✅ `TRADE` is built, and it did *not* need the nowcast base.**
+[`nowcast_trade_margins.py`](../../transform/iot/nowcast_trade_margins.py),
+wired into `derive_initial_supply_bridge` for **2017–2023** — a year further
+than `TRANS`, because the Census margin series reaches 2023 where SAS stops at
+2022.
+
+⚠️ **This supersedes the dependency stated below and in the Approach table.**
+The plan reached `TRADE` as a *rate on producer value*, which is why it was
+scheduled behind 4a, 4b and 4d. But the Supply column can be reached from the
+**give-up side** instead, and the give-up is observed: trade output essentially
+*is* margin, so the 19 trade commodities' own annual margin is the column's
+negative side, and the positive side is that same total redistributed. Nothing
+in the construction touches the nowcast base, so — exactly like `TRANS` — it
+carries no circularity with Step 6b and waits on nothing.
+
+The construction is the transport side's, applied to two kinds rather than five
+modes:
+
+| | wholesale | retail |
+|---|---:|---:|
+| givers | 10 commodities | 9 commodities |
+| 2017 give-up, $M | 1,718,990 | 1,545,941 |
+| Census 2017, $M | 1,100,925 | 1,458,243 |
+| coverage ratio, frozen | **1.561** | **1.061** |
+
+The ratios mean different things. Retail's is near 1 because ARTS covers the
+sector. Wholesale's is not a rounding — it is the 36% of BEA's wholesale margin
+that AWTS cannot see, §The 850,540 wholesale gap — and freezing it is the
+assumption that MSBO margin grows like merchant wholesale.
+
+**Three findings the build produced, each of which had to be got right:**
+
+1. **The giver split is anchored, not taken from Census.** The Census
+   kind-of-business shares disagree with BEA's commodity give-up by up to 40% at
+   this detail — drugs and druggists' sundries is the worst — so only the
+   *change* in the Census series is used. Taking the level from it fails the
+   2017 identity commodity by commodity while passing every totals check.
+2. **The receiving side cannot be split by kind.** Wholesale commodities give up
+   1,718,990 but only 1,701,091 of `TRADE` is apportionable to wholesale on the
+   published `Wholesale`/`Retail` shares; retail is 17,900 the other way. That
+   gap is the **trade-level tax falling unevenly between the two kinds** — it
+   belongs to `TOP`, not `TRADE`. Forcing each kind onto its own give-up total
+   puts a 1.1% error into every commodity of the anchor year. `TRADE` is one
+   column, so nothing downstream needs the split.
+3. **Suppression had to be recovered by subtraction, exactly as §Two gaps that
+   are not bugs specified.** Gasoline stations are suppressed in ARTS 2022 and
+   parse to zero; scaling the survivors gave them a margin of exactly zero and
+   spread their 5.1% of retail over every other kind of business. The recovered
+   residual is **130,671 $M**, which is the figure measured independently off
+   the raw workbook — so the arithmetic checks out against something that was
+   not built from it.
+
+⚠️ **What is still frozen at 2017: the goods mix.** The level moves annually and
+so does the kind-of-business split, but *which commodities* receive the margin
+is the published 2017 column. Nothing annual observes it — BEA's own answer is
+the product-line method, deferred at
+[#615](https://github.com/cornerstone-data/bedrock/issues/615) — so this is the
+same debt the transport side carries as its within-group weight (#672), and it
+is larger here because it is 100% of the trade commodity detail rather than
+67.8% of the transport one.
+
+⚠️ **2024 has no source and is not filled by default.** `TRADE_MARGIN_YEARS`
+stops at 2023 and the extrapolation is behind an explicit flag. The real fix is
+4a's 2024 commodity output, which observes this quantity directly.
+
+**The Margins-table application still needs the base**, and the paragraph below
+stands for it — what is superseded is only the Supply `TRADE` column's
+dependency, not the per-(buyer, commodity) rates.
+
+**Phase 4b — the Margins table itself.** Rates from Phase 1 onto the nowcast
+base, levels controlled to Phases 2–3. **The base needs 4a, 4b *and* 4d** — it is
+producer value less the trade-level tax, `T013 + MDTY + SUB + producer-level
+TOP`, measured in §Phase 1 against the published column at −0.003%. Two shortcuts
+to avoid, in opposite directions: applying rates to `T007` alone drops the margin
+on imports (three independent statements confirm imports are in the base —
+Jolliff's "column OR", the wholesale method's "interim supply", and the transport
+method's table 8.2), while applying them to full producer value double-counts the
 trade-level tax already inside the rates.
+
+⚠️ **Use the right control of the two.** `sum(W + R) = TRADE + TOP`: the
+published margin columns total 3,656,094 $M against a `TRADE` column of
+3,264,931 $M. `trade_control_total` is the Supply column's; the Margins table's
+is `gross_margin_control_total`. Applying the first to the Margins table deletes
+the trade-level tax and the second to the Supply column double-counts it.
 
 **Phase 5 — validate per commodity, never in aggregate.** `T014` nets to **1**
 against **7,361,003** of gross mass, so a totals check passes on *anything*. Use
