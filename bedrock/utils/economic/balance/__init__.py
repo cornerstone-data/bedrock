@@ -1,4 +1,4 @@
-"""Scaffolding and ndarray GRAS kernel for a constrained matrix balance.
+"""Scaffolding and ndarray GRAS kernel.
 
 ``Target``, ``SutMask``, the offset method and the feasibility precheck do
 not depend on the scaler. ``gras_balance`` is the scaler: one signed matrix,
@@ -10,6 +10,7 @@ Typical call order::
     frozen, free = split_fixed_blocks(seeds, masks)   # X = F + Z, per block
     residual     = offset_targets(targets, frozen)
     precheck(seeds, masks, targets)                   # raises if a margin is stuck
+    # scale Z (gras_balance per block, or a SUT adapter)
     result       = restore_fixed_blocks(balanced, frozen)
 
 Callers map ``free_mask = mask.free.to_numpy()`` and
