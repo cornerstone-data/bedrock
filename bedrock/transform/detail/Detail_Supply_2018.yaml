@@ -1,0 +1,14 @@
+# Detail Supply table for 2018. Body and rationale in Detail_Supply.yaml.
+#
+# ⚠️ `source_names` MUST be redeclared here, not just `year`. The !include is a
+# shallow dict update, and Detail_Supply.yaml resolves `year: *summary_year`
+# INSIDE its source block at parse time - so overriding only the top-level year
+# leaves the source pinned to the base file's 2018 while the method reports
+# 2018. get_flowby_from_config merges the source's own dict last, so the source
+# wins. The failure is silent: a full table for the wrong year.
+!include:Detail_Supply.yaml
+year: &year 2018
+source_names:
+  BEA_Summary_Supply:
+    !include:Detail_Supply.yaml:source_names:BEA_Summary_Supply
+    year: *year

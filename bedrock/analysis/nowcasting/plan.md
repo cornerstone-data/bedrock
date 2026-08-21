@@ -451,6 +451,10 @@ overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is
    are listed in `bedrock/transform/trade/README.md`. Goods NAICS coverage is high; remaining ≥1 B
    `MISS` holes include couriers `492000`, `550000`, publishing `51112*`/`51113*`, bakery `311810`,
    cattle `1121A0` (no Census `1121*` activity), restaurants, and electric `221100`.
+3. **Goods allocation surface mismatch (`#670`).** Large non-`MISS` errors remain in directly mapped
+   goods families (notably `336*`), with very large absolute gaps despite zero `MISS` holes. This points
+   to a likely mismatch between a NAICS-based Census goods Crosswalk and BEA's product-level foreign-trade
+   allocation/reconciliation workflow. Tracked in [#670](https://github.com/cornerstone-data/bedrock/issues/670).
 
    **`S00900` needs no extract.** `derive_initial_Y_pur` sets
    `Y[S00900, F04000] = −Y[S00900, F01000] + Supply_T016[S00900] × 1e6` (2017). It has *zero
@@ -471,7 +475,7 @@ overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is
    States by nonresidents* (−199,435) plus U20405 line 149 personal remittances in kind (−1,562) — the
    two lines `FD_PCE_less_nonresident` already handles with `negate_flows` (`7a04a71`). The export
    identity matches published F040 within 1 M USD.
-3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
+4. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
    held from Supply, taken as a residual after mapped commodities, or out of the extract's scope —
    rather than a silent zero. **`S00900`'s rule is the supply identity** (item 2). `S00300` is 0 in
    `F04000`; its ~260B is import and intermediate presence. Totals can look fine while structure is
@@ -486,6 +490,8 @@ non-special codes; top-20 Jaccard ≳ 0.7 / ≳ 0.6; every known hole covered by
 extract can't hit those bars, a documented pipeline that does (extract structure × scale to Use totals,
 or extract + Use residual on specials only) is an acceptable substitute — and *that* pipeline is what
 the nowcast years carry forward. The 2017 gate is `uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail`.
+Use `score_2017_trade_detail_baseline.csv` as the pinned regression baseline for this gate and update it
+only when scorecard movement is intentional.
 
 ## `F03000` — change in inventories, rescoped
 
@@ -826,6 +832,59 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
 
+  **Full treatment in [`output_estimation_plan.md`](output_estimation_plan.md)**, with BEA's own
+  per-industry source table at [`output_estimation_sources.csv`](output_estimation_sources.csv).
+
+  ✅ **The manufacturing half now runs as a method.**
+  `transform/commodity_output/Commodity_output_manufacturing_<year>.yaml` builds 236 BEA detail
+  commodities per year for 2018-2021 from Annual Survey of Manufactures product data, at basic
+  prices, scoring 0.94-0.97 of level and 4.5-6.8% weighted error against published summary `T007`.
+  Still outstanding for 4a: mining `q` (no annual product survey exists), the services half
+  (industry output × mix), 2022-2024, and the rebalance to the summary control.
+
+  ⚠️ **The estimand is *commodity* output, not industry output.** `T007`'s column sums are commodity
+  output; industry output is an input to the construction, not the deliverable. That admits two
+  routes, and the manual says BEA uses different ones by industry: industry output × commodity mix
+  where only industry receipts are collected (most services), but for mining and manufacturing
+  *"the calculation of commodity output starts with [product] data rather than the industry data"*
+  (ch. 5 p. 79). Applying one route to both regimes imposes the services method on manufacturing,
+  where observed product data exists and is better. Score both against published 2017 per cell.
+
+  ⚠️ **The target is output *before* redefinitions, and this has to be settled before anything is
+  built.** The BEA IO manual's chapter 5 walks each industry from source data down to two different
+  lines, and names them: the *featured* measure is **NAICS industry output before redefinitions**,
+  "more useful for comparisons with the economic statistics from other sources", while output after
+  redefinitions "is generally referred to as **I-O industry output**" and is "generally not as
+  comparable with other economic statistics" (p. 78). The SUT framework is aligned with the former.
+  Our own file list already says so: the tables we target are `Supply_2017_DET.xlsx` and
+  `Margins_Before_Redefinitions_2017_DET.xlsx`, and the only `After_Redefinitions` files in
+  [`matrix_mappings.py`](../../utils/taxonomy/bea/matrix_mappings.py) are the legacy summary
+  Make/Use series — a different family, not our target. **So we do not perform the redefinitions BEA
+  performs.**
+
+  **No totals check can catch this**, which is why it is stated here rather than left to validation.
+  Redefinition moves money between cells while preserving every total:
+  [`About_BEA_IOT_table_valuation_differences.md`](compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md)
+  measured **553,635 million moving gross across 5,740 cells for a net of −7**. A benchmark replay
+  that scores on totals would pass with the wrong version throughout.
+
+  **What that means for the manual's recipe.** Chapter 5's worked tables (5.1 cheese, 5.2 telecom)
+  run *through* the line we want to the line we do not. Take the industry column down to
+  `NAICS OUTPUT`, not `I-O OUTPUT`. On the commodity side, do not apply `Redefinitions out` — but
+  **do** apply `Reclassifications` and the make-table adjustment, since neither is a redefinition:
+  reclassification is BEA disagreeing with Census about what is primary, and the make-table
+  adjustment absorbs product-vs-industry source inconsistency. Both survive the choice of version.
+
+  Chapter 5 is PDF pages 69–92 of the 2009 IO manual (narrative to p. 83, then table 5.A's worked
+  per-industry source and calculation summaries) — the closest thing to a per-industry recipe for
+  what external series each industry's output is built from. ⚠️ It documents the **1997** benchmark
+  and says so in its preface, so it is authoritative on concepts and structure only; every named
+  source needs checking against current Census products, since NAPCS landed in the 2007 Economic
+  Census and changed what product data exists at all. For the between-benchmark years the current
+  list is in [BEA's 2023 comprehensive-update preview](https://apps.bea.gov/scb/issues/2023/06-june/0623-nea-preview.htm):
+  ASM, the Annual Surveys of Wholesale and of Retail Trade, SAS, Value of Construction Put in Place,
+  QCEW, IRS corporate and partnership tabulations, and USDA farm statistics.
+
   ⏳ **Test `Census_EC_PxI` as the commodity-mix source before settling on a ported 2017 mix.**
   Economic Census *Products by Industry* is an **observed** industry × product matrix — which is what
   this block is — where a ported mix holds the benchmark year's proportions fixed. It is extracted as
@@ -1053,7 +1112,6 @@ targets = build_target_set(2017)
 frozen, free = split_fixed_blocks(seeds, masks)      # X = F + Z
 residual     = offset_targets(targets, frozen)       # r' = r - F @ 1
 precheck(seeds, masks, targets, allow_placeholders=True)
-
 out    = engine(free, residual, masks)
 result = restore_fixed_blocks(out.blocks, frozen)    # fixed cells come back bit-identical
 ```
