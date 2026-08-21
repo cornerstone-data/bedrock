@@ -204,6 +204,16 @@ LAST_OBSERVED_YEAR = FIRST_AIES_YEAR
 #: rather than decisive - see :func:`_extrapolated_margin`.
 EXTRAPOLATION_WINDOW = 5
 
+#: The bracket and step count for the trade-level tax tilt solve. The bracket is
+#: wide enough to span any split from all-retail to all-wholesale, and geometric
+#: bisection over it reaches machine precision well inside the step count.
+_TILT_BRACKET = (1e-9, 1e9)
+_TILT_BISECTION_STEPS = 200
+
+#: Slack when checking a commodity's tax against the margin it is levied on. The
+#: published table is in whole millions, so an exact comparison trips on rounding.
+_TILT_ROUNDING_TOLERANCE = 1.0 * MILLION_CURRENCY_TO_CURRENCY
+
 #: The years TRADE is sourced for. Stops at the last observed Census year: 2024
 #: has no source in any survey and is filled only on an explicit opt-in.
 TRADE_MARGIN_YEARS: tuple[int, ...] = tuple(range(ANCHOR_YEAR, LAST_OBSERVED_YEAR + 1))
@@ -526,36 +536,149 @@ def published_trade_by_commodity() -> pd.Series:
 
 
 @functools.cache
-def published_trade_received_by_kind() -> pd.DataFrame:
+def published_gross_margin_by_kind() -> pd.DataFrame:
     """
-    The positive side of the published 2017 ``TRADE`` column, split by kind. USD.
+    Published 2017 ``Wholesale`` and ``Retail`` per receiving commodity. USD.
 
-    ⚠️ **The Margins table's own ``Wholesale`` and ``Retail`` columns cannot be
-    used directly as the receiving weight.** They are gross of the trade-level
-    tax - they total 3,656,094 $M against a ``TRADE`` column of 3,264,931 $M -
-    and that tax is **not** a constant share across commodities, so scaling them
-    to a ``TRADE`` control leaves a per-commodity error that reaches 59% on the
-    worst commodity even in the anchor year.
-
-    So the netted column is apportioned instead: each commodity's published
-    ``TRADE`` is split between the two kinds in the ratio its own ``Wholesale``
-    and ``Retail`` margins stand in. The two columns then **sum back to the
-    published ``TRADE`` column exactly**, which is what makes 2017 an identity,
-    while each kind keeps its own commodity profile - retail concentrated in the
-    goods households buy, wholesale spread 8.8x more widely.
+    Gross of the trade-level tax, which is what the Margins table publishes.
+    The givers are excluded: they carry the negative side, which is not in these
+    columns at all.
     """
     margins = nm.load_margins_transactions_2017()
     by_kind = margins.groupby(level=nm.COMMODITY_LEVEL)[
         [MARGIN_COLUMN['wholesale'], MARGIN_COLUMN['retail']]
     ].sum()
-    by_kind.columns = ['wholesale', 'retail']
+    by_kind.columns = list(TRADE_KINDS)
 
-    trade = published_trade_by_commodity().reindex(by_kind.index).fillna(0.0)
-    received = trade.clip(lower=0.0)
+    givers = set(GIVER_COMMODITIES['wholesale']) | set(GIVER_COMMODITIES['retail'])
+    return by_kind[~by_kind.index.isin(givers)]
 
-    gross = by_kind.sum(axis=1)
-    share = by_kind.div(gross.where(gross > 0), axis=0).fillna(0.0)
-    return share.mul(received, axis=0)
+
+@functools.cache
+def trade_level_tax_2017() -> pd.Series:
+    """
+    The trade-level tax per receiving commodity in 2017. USD.
+
+    Straight from the identity, with nothing modelled::
+
+        trade_level_tax[c] = Wholesale[c] + Retail[c] - TRADE[c]
+
+    **391,162 $M**, and it is the reason the Margins table's margin columns
+    (3,656,094 $M) exceed the Supply ``TRADE`` column (3,264,932 $M). It is
+    sales tax: levied on the trade transaction and therefore sitting *inside*
+    the margin columns, where excise sits inside Producers' Value instead -
+    *"The nonmargin taxes (excise taxes) are embedded in the Producers value
+    field... Your distinction is correct about sales tax vs excise taxes."*
+    (B. Jolliff, BEA, 2025-06-16).
+
+    Both land in ``TOP``, so this is also one side of ``TOP``'s decomposition:
+    the other, producer-level, side is ``TOP - trade_level_tax``.
+    """
+    gross = published_gross_margin_by_kind()
+    trade = published_trade_by_commodity().reindex(gross.index).fillna(0.0)
+    return (gross.sum(axis=1) - trade).rename('trade_level_tax')
+
+
+@functools.cache
+def trade_level_tax_by_kind_2017() -> pd.DataFrame:
+    """
+    The 2017 trade-level tax split between wholesale and retail. USD.
+
+    ⚠️ **The tax does not split pro rata, and assuming it does is a real
+    error.** Retail carries **55.2%** of the trade-level tax on only a 48.2%
+    share of the margin - which is what sales tax levied at the counter looks
+    like in the accounts. The fitted tilt is **0.796**, wholesale relative to
+    retail, and a pro-rata split would be a tilt of exactly 1.
+
+    **Both column totals are observed, not assumed.** A trade commodity's
+    published give-up is its margin *net* of the tax it collected, so the give-up
+    side pins them::
+
+        tax[wholesale] = 1,894,329 - 1,718,990 = 175,339
+        tax[retail]    = 1,761,765 - 1,545,941 = 215,824
+                                                 -------
+                                                 391,163  = the tax total
+
+    Per commodity it is one equation in two unknowns. With only two columns the
+    whole family of solutions is one-dimensional, so rather than fitting
+    biproportionally the tax is **tilted on a single scalar** and that scalar
+    solved by bisection::
+
+        share[c] = tilt * s[c] / (tilt * s[c] + 1 - s[c])
+
+    with ``s[c]`` the commodity's wholesale share of gross margin. The column
+    total is monotone in *tilt*, so bisection hits it **exactly** - the residual
+    is $0, not a tolerance - and each commodity's own tax closes by construction
+    because the two shares sum to 1.
+
+    ⚠️ **Feasible, and checked rather than assumed.** 67 commodities bear
+    wholesale margin and no retail, so their whole tax is forced to wholesale;
+    one is forced the other way. Those forced amounts are 12,765 and 1 $M against
+    targets of 175,339 and 215,824, and 378,396 $M of the tax sits on the 187
+    commodities carrying both margins, so the solve has ample freedom. The
+    result is checked to put no commodity's tax above the margin it is levied on.
+    """
+    gross = published_gross_margin_by_kind()
+    tax = trade_level_tax_2017()
+    target = gross['wholesale'].sum() - _kind_give_up_2017('wholesale')
+
+    total = gross.sum(axis=1)
+    wholesale_share = (gross['wholesale'] / total.where(total > 0)).fillna(0.0)
+
+    def wholesale_tax(tilt: float) -> pd.Series:
+        tilted = tilt * wholesale_share
+        denominator = tilted + (1.0 - wholesale_share)
+        return tax * (tilted / denominator.where(denominator > 0)).fillna(0.0)
+
+    low, high = _TILT_BRACKET
+    if not (wholesale_tax(low).sum() <= target <= wholesale_tax(high).sum()):
+        raise ValueError(
+            f'The wholesale share of the trade-level tax, {target:,.0f} USD, is '
+            f'outside what any tilt can reach ('
+            f'{wholesale_tax(low).sum():,.0f} to {wholesale_tax(high).sum():,.0f}). '
+            f'That means the tax forced onto commodities bearing only one kind of '
+            f'margin already exceeds a column total, so no split exists.'
+        )
+    for _ in range(_TILT_BISECTION_STEPS):
+        middle = (low * high) ** 0.5
+        if wholesale_tax(middle).sum() < target:
+            low = middle
+        else:
+            high = middle
+
+    wholesale = wholesale_tax((low * high) ** 0.5)
+    fitted = pd.DataFrame({'wholesale': wholesale, 'retail': tax - wholesale})
+
+    above_margin = (fitted > gross + _TILT_ROUNDING_TOLERANCE).any(axis=1)
+    if above_margin.any():
+        raise ValueError(
+            f'The tax split puts more tax on {sorted(fitted.index[above_margin])} '
+            f'than the margin it is levied on, which would make that margin '
+            f'negative net of tax. The tilt is a single scalar and cannot respect '
+            f'a per-commodity ceiling, so this needs a bounded solve rather than '
+            f'a wider bracket.'
+        )
+    return fitted
+
+
+@functools.cache
+def published_trade_received_by_kind() -> pd.DataFrame:
+    """
+    The positive side of the published 2017 ``TRADE`` column, split by kind. USD.
+
+    ``Wholesale - tax[wholesale]`` and ``Retail - tax[retail]``, so the split is
+    **doubly exact**: the two columns sum to the published ``TRADE`` column per
+    commodity, *and* each column sums to that kind's own published give-up.
+
+    ⚠️ **An earlier version apportioned ``TRADE`` on the raw
+    ``Wholesale``:``Retail`` ratio and got the second of those wrong** - it put
+    wholesale at 1,701,091 $M against a give-up of 1,718,990 $M, and the
+    17,900 $M gap was read as evidence that the receiving side *could not* be
+    split by kind. It could; the gap was the tax being spread pro rata when it
+    is not pro rata. Carrying :func:`trade_level_tax_by_kind_2017` as its own
+    term removes it.
+    """
+    return published_gross_margin_by_kind() - trade_level_tax_by_kind_2017()
 
 
 def trade_coverage_ratio(kind: str) -> float:
@@ -686,22 +809,10 @@ def receiving_allocation(
     """
     *control_total* spread over the 255 commodities that **receive** trade margin.
 
-    ⚠️ **Combined across both kinds by default, and that is deliberate.** The
-    receiving side cannot be split by kind and still reproduce 2017. The
-    wholesale commodities give up 1,718,990 $M but only 1,701,091 $M of the
-    ``TRADE`` column is apportionable to wholesale on the published ``Wholesale``
-    and ``Retail`` shares; retail is 17,900 $M the other way. That gap is the
-    **trade-level tax falling unevenly between the two kinds** - it is part of
-    ``TOP``, not of ``TRADE`` - so forcing each kind's receiving side onto its own
-    give-up total scales one up 1.05% and the other down 1.14% and puts that error
-    into every commodity of the anchor year.
-
-    ``TRADE`` is a single Supply column, so nothing downstream needs the split.
-    The kind distinction is kept exactly where it is real: which commodities give
-    the margin up, and how each kind's level moves. Pass *kind* to get one kind's
-    apportioned share anyway - the Margins table's own ``Wholesale`` and
-    ``Retail`` columns do need it - but control that with
-    :func:`gross_margin_control_total`, not with the ``TRADE`` control.
+    Pass *kind* for one kind's receiving side, or leave it off for both together.
+    Both reproduce 2017 exactly, because
+    :func:`published_trade_received_by_kind` nets the trade-level tax out per
+    kind rather than pro rata.
 
     ⚠️ **The weight is BEA's own published 2017 column, and it is the whole of
     the commodity detail.** Unlike the give-up side - where Census publishes an
@@ -743,6 +854,75 @@ def receiving_allocation(
 # --- the Supply table's TRADE column ---------------------------------------
 
 
+def trade_margin_components(
+    year: int = ANCHOR_YEAR, allow_extrapolation: bool = False
+) -> pd.DataFrame:
+    """
+    Trade margin for *year* decomposed into wholesale, retail and tax. USD.
+
+    One row per BEA 2017 commodity, three columns::
+
+        wholesale   net of the tax collected on it; sums to zero over commodities
+        retail      likewise
+        trade_tax   sales tax collected on the trade transaction; positive only
+
+    and the identity that ties them to the published tables::
+
+        TRADE                  = wholesale + retail
+        Margins table Wholesale = wholesale + trade_tax[wholesale share]
+        TOP                     = trade_tax + producer-level tax
+
+    **This is the separation the Supply column alone cannot give you.** ``TRADE``
+    nets wholesale against retail and excludes the tax entirely, so a consumer
+    that needs the Margins table's own columns, or needs margins in basic prices,
+    has to come here rather than to :func:`trade_margin_column`.
+
+    Each kind's give-up side is negative on its own trade commodities and its
+    receiving side positive on the 255 receivers, so **each kind's column sums to
+    zero on its own** - a stronger statement than the combined column summing to
+    zero, and one that only holds because the tax is carried separately.
+
+    ⚠️ **The tax is not sourced annually.** Its 2017 level per commodity is
+    observed, and it moves with its own kind's Census index - so the tax *rate*
+    on a commodity's margin is frozen at 2017 even though the level moves. A
+    sales-tax rate change is exactly what this will miss. ``TOP`` from 4d
+    (`#580 <https://github.com/cornerstone-data/bedrock/issues/580>`_) is the
+    source that would fix it, at the cost of a dependency the column does not
+    otherwise have.
+    """
+    frames: dict[str, pd.Series] = {}
+    tax_2017 = trade_level_tax_by_kind_2017()
+    taxes: list[pd.Series] = []
+
+    for kind in TRADE_KINDS:
+        control = trade_control_total(kind, year, allow_extrapolation)
+        received = receiving_allocation(year, control, kind=kind)
+        given_up = giver_allocation(kind, year, control)
+        frames[kind] = pd.concat([received, given_up]).groupby(level=0).sum()
+
+        # the tax moves with the margin it is levied on, which is its own kind
+        index = control / _kind_give_up_2017(kind)
+        taxes.append(tax_2017[kind] * index)
+
+    components = pd.DataFrame(frames)
+    components['trade_tax'] = (
+        pd.concat(taxes, axis=1).sum(axis=1).reindex(components.index).fillna(0.0)
+    )
+
+    for kind in TRADE_KINDS:
+        residual = float(components[kind].sum())
+        scale = float(components[kind].abs().sum())
+        if scale and abs(residual) / scale > 1e-9:
+            raise ValueError(
+                f'The {kind} margin for {year} sums to {residual:,.2f} rather '
+                f'than zero. Each kind is a redistribution in its own right - its '
+                f'givers and its receivers are the same dollars - so a non-zero '
+                f'total means the receiving side and the give-up side were '
+                f'controlled differently.'
+            )
+    return components
+
+
 def trade_margin_column(
     year: int = ANCHOR_YEAR, allow_extrapolation: bool = False
 ) -> pd.Series:
@@ -754,19 +934,14 @@ def trade_margin_column(
     redistribution, not value created, which is target T16's identity and the
     only constraint the balance places on step 4c's output.
 
-    The **give-up side is per kind** - wholesale and retail move on their own
-    Census index and land on their own ten and nine commodities - while the
-    **receiving side is combined**, because splitting it by kind cannot reproduce
-    2017; see :func:`receiving_allocation` for why.
+    Both sides are built **per kind** and added - wholesale and retail move on
+    their own Census index, land on their own ten and nine commodities, and
+    receive on their own share of the netted column. Use
+    :func:`trade_margin_components` to get them separately, together with the
+    trade-level tax.
     """
-    controls = {
-        kind: trade_control_total(kind, year, allow_extrapolation)
-        for kind in TRADE_KINDS
-    }
-    given_up = [giver_allocation(kind, year, controls[kind]) for kind in TRADE_KINDS]
-    received = receiving_allocation(year, sum(controls.values()))
-
-    column = pd.concat([received, *given_up]).groupby(level=0).sum().rename('TRADE')
+    components = trade_margin_components(year, allow_extrapolation)
+    column = components[list(TRADE_KINDS)].sum(axis=1).rename('TRADE')
 
     residual = float(column.sum())
     scale = float(column.abs().sum())

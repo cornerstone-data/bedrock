@@ -248,3 +248,115 @@ def test_an_unknown_kind_raises():
     """The kind selects source, TYPOP code, total row and giver set at once."""
     with pytest.raises(ValueError, match='kind must be one of'):
         tr.census_gross_margin('wholesale trade', 2017)
+
+
+# --- the three-way decomposition -------------------------------------------
+
+
+def test_trade_is_wholesale_plus_retail_less_the_tax():
+    """
+    ⚠️ The identity the whole decomposition rests on, per commodity.
+
+    ``TRADE[c] = Wholesale[c] + Retail[c] - trade_level_tax[c]``, straight from
+    published data with nothing modelled in it. The tax is the reason the Margins
+    table's margin columns (3,656,094 $M) exceed the Supply column (3,264,932).
+    """
+    gross = tr.published_gross_margin_by_kind()
+    tax = tr.trade_level_tax_2017()
+    trade = tr.published_trade_by_commodity().reindex(gross.index)
+
+    derived = gross.sum(axis=1) - tax
+    assert (derived - trade).abs().max() < 1
+
+
+def test_the_tax_split_hits_both_observed_column_totals_exactly():
+    """
+    Both totals are observed off the give-up side, not assumed.
+
+    A trade commodity's published give-up is its margin net of the tax it
+    collected, so wholesale's tax is 1,894,329 - 1,718,990 and retail's is
+    1,761,765 - 1,545,941. The tilt is solved by bisection, so this is exact
+    rather than converged.
+
+    ⚠️ **Retail is allowed 1 $M where wholesale is allowed none**, and that is
+    BEA's rounding rather than ours. Bisection pins the wholesale column, and
+    retail is the residual - so retail absorbs the fact that the published
+    ``TRADE`` column itself nets to 1 $M rather than to 0. Tightening this would
+    be asserting that BEA's table balances more exactly than it does.
+    """
+    split = tr.trade_level_tax_by_kind_2017()
+    gross = tr.published_gross_margin_by_kind()
+    published_rounding = {'wholesale': 1.0, 'retail': MILLION}
+
+    for kind in tr.TRADE_KINDS:
+        expected = gross[kind].sum() - tr._kind_give_up_2017(kind)
+        assert split[kind].sum() == pytest.approx(
+            expected, abs=published_rounding[kind]
+        )
+
+
+def test_the_tax_does_not_split_pro_rata():
+    """
+    ⚠️ This is the error the first version of the module made.
+
+    Retail carries 55.2% of the trade-level tax on a 48.2% share of the margin -
+    sales tax is levied at the counter. Spreading the tax pro rata is what made
+    wholesale's receiving side miss its give-up by 17,900 $M, which was then
+    misread as proof that the kinds could not be separated at all.
+    """
+    split = tr.trade_level_tax_by_kind_2017()
+    gross = tr.published_gross_margin_by_kind()
+
+    retail_tax_share = split['retail'].sum() / split.sum().sum()
+    retail_margin_share = gross['retail'].sum() / gross.sum().sum()
+
+    assert retail_tax_share == pytest.approx(0.552, abs=0.005)
+    assert retail_margin_share == pytest.approx(0.482, abs=0.005)
+    assert retail_tax_share > retail_margin_share + 0.05
+
+
+def test_no_commodity_pays_more_tax_than_the_margin_it_is_levied_on():
+    """A margin negative net of its own tax would be nonsense."""
+    split = tr.trade_level_tax_by_kind_2017()
+    gross = tr.published_gross_margin_by_kind()
+
+    assert (split >= -1).all().all()
+    assert (split <= gross + MILLION).all().all()
+
+
+@pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
+def test_each_kind_sums_to_zero_on_its_own(year):
+    """
+    A stronger statement than the combined column netting to zero.
+
+    Wholesale's givers and wholesale's receivers are the same dollars, and so are
+    retail's. It only holds because the tax is carried as its own term - netting
+    it pro rata inside the kinds breaks it.
+    """
+    components = tr.trade_margin_components(year)
+
+    for kind in tr.TRADE_KINDS:
+        column = components[kind]
+        assert abs(column.sum()) / column.abs().sum() < 1e-9
+
+
+def test_components_add_back_to_the_trade_column():
+    """``trade_margin_column`` is exactly the two margin components summed."""
+    components = tr.trade_margin_components(2022)
+    column = tr.trade_margin_column(2022)
+
+    rebuilt = components[list(tr.TRADE_KINDS)].sum(axis=1)
+    assert (rebuilt - column).abs().max() < 1
+
+
+def test_the_tax_is_positive_everywhere_and_only_on_receivers():
+    """
+    Tax is collected on the transaction, so it lands on the good being sold.
+
+    The 19 trade commodities give margin up; they do not receive tax.
+    """
+    components = tr.trade_margin_components(2017)
+    givers = [*tr.GIVER_COMMODITIES['wholesale'], *tr.GIVER_COMMODITIES['retail']]
+
+    assert (components['trade_tax'] >= -1).all()
+    assert components.loc[givers, 'trade_tax'].abs().max() < 1

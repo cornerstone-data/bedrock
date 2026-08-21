@@ -819,13 +819,13 @@ assumption that MSBO margin grows like merchant wholesale.
    this detail — drugs and druggists' sundries is the worst — so only the
    *change* in the Census series is used. Taking the level from it fails the
    2017 identity commodity by commodity while passing every totals check.
-2. **The receiving side cannot be split by kind.** Wholesale commodities give up
-   1,718,990 but only 1,701,091 of `TRADE` is apportionable to wholesale on the
-   published `Wholesale`/`Retail` shares; retail is 17,900 the other way. That
-   gap is the **trade-level tax falling unevenly between the two kinds** — it
-   belongs to `TOP`, not `TRADE`. Forcing each kind onto its own give-up total
-   puts a 1.1% error into every commodity of the anchor year. `TRADE` is one
-   column, so nothing downstream needs the split.
+2. ⚠️ **The receiving side *can* be split by kind — an earlier version of this
+   plan said it could not, and that was wrong.** The claim was that wholesale
+   gives up 1,718,990 while only 1,701,091 of `TRADE` is apportionable to it on
+   the published `Wholesale`/`Retail` shares, so the split was impossible. The
+   17,900 gap is the **trade-level tax**, and the error was spreading that tax
+   *pro rata* to the margin — which it is not. Carry the tax as its own term and
+   both kinds reconcile exactly; see §The three-way separation.
 3. **Suppression had to be recovered by subtraction, exactly as §Two gaps that
    are not bugs specified.** Gasoline stations are suppressed in ARTS 2022 and
    parse to zero; scaling the survivors gave them a margin of exactly zero and
@@ -833,6 +833,90 @@ assumption that MSBO margin grows like merchant wholesale.
    residual is **130,671 $M**, which is the figure measured independently off
    the raw workbook — so the arithmetic checks out against something that was
    not built from it.
+
+### The three-way separation — `TRADE` into wholesale, retail and tax
+
+The Supply column nets wholesale against retail and excludes the tax entirely,
+so anything needing the Margins table's own columns — or margins in basic
+prices — needs the decomposition rather than the column. It is available from
+published 2017 data with nothing modelled:
+
+```
+TRADE[c] = Wholesale[c] + Retail[c] − trade_level_tax[c]
+```
+
+exact to **$0** across all 255 receiving commodities.
+
+| 2017, $M | wholesale | retail | total |
+|---|---:|---:|---:|
+| published margin column | 1,894,329 | 1,761,765 | 3,656,094 |
+| − trade-level tax | 175,339 | 215,824 | **391,163** |
+| = published give-up | **1,718,990** | **1,545,941** | **3,264,931** |
+
+**Both tax column totals are observed, not assumed.** A trade commodity's
+published give-up is its margin *net* of the tax it collected, so the give-up
+side pins them — which makes the 2017 split over-determined rather than fitted.
+
+⚠️ **The tax does not split pro rata, and that is the whole point.** Retail
+carries **55.2%** of the trade-level tax on a **48.2%** share of the margin. The
+fitted tilt is **0.796** where pro rata would be 1.0. That asymmetry is sales
+tax being levied at the counter — the same fact Jolliff's "sales tax vs excise"
+correspondence states, now visible in the arithmetic rather than only asserted.
+
+Per commodity the split is one equation in two unknowns. With only two columns
+the solution family is one-dimensional, so the tax is tilted on a single scalar
+and that scalar bisected to hit the column total **exactly**; each commodity's
+own tax closes by construction. 67 commodities bear wholesale margin and no
+retail (whole tax forced to wholesale) and one the other way, but those forced
+amounts are 12,765 and 1 against targets of 175,339 and 215,824, so the solve
+has ample freedom.
+
+**What this buys:** each kind's column now sums to zero *on its own*, which is
+strictly stronger than the combined column netting to zero, and
+`trade_margin_components(year)` returns `wholesale`, `retail` and `trade_tax`
+per commodity.
+
+⚠️ **The tax is not sourced annually.** Its 2017 level per commodity is
+observed and it moves with its own kind's Census index, so the tax *rate* on a
+commodity's margin is frozen at 2017 even though the level moves. A sales-tax
+rate change is exactly what this misses.
+
+### What the tax column does and does not do for `TOP` and `SUB`
+
+It is a **constraint on `TOP`, not a source for it**, and it does nothing at all
+for `SUB`. Measured on 2017:
+
+| | $M | share of `TOP` |
+|---|---:|---:|
+| `TOP`, all 402 commodities | 716,926 | — |
+| trade-level tax, from this decomposition | **391,162** | **54.6%** |
+| producer-level residual — excise, severance | 325,764 | 45.4% |
+| `SUB` | −59,876 | — |
+
+Three limits, each of which stops it short of populating the column:
+
+- **It is silent on 39.7% of `TOP`.** The tax is defined only where trade margin
+  exists — 255 of 402 commodities, holding 60.3% of `TOP`. The other 284,598 is
+  on services and other commodities bearing no trade margin at all, where `TOP`
+  is entirely producer-level and this says nothing.
+- **The producer-level half needs its own source.** 325,764 of excise and
+  severance is a residual here, not an estimate. It is 9.6% of `TOP` on the 203
+  margin-bearing commodities with `TOP` > 100 and effectively all of `TOP`
+  elsewhere.
+- **`SUB` is untouched.** Subsidies are not a margin phenomenon; they are
+  non-zero on 15 commodities and overlap the tax column on 5. Nothing in step 4c
+  produces them.
+
+**So it feeds [#580](https://github.com/cornerstone-data/bedrock/issues/580)
+rather than replacing it** — but as a hard constraint over half the column,
+derived from published data with no external tax source, which is what §The
+residual decomposes `TOP` anticipated when it said this "gives an excise-vs-sales
+split per commodity from published data alone".
+
+⚠️ 16 commodities have trade-level tax exceeding their `TOP` by 42 $M in total.
+That is publication rounding at the scale of single millions, not a sign the
+decomposition is wrong, but #580 should floor rather than allow a negative
+producer-level residual.
 
 ⚠️ **What is still frozen at 2017: the goods mix.** The level moves annually and
 so does the kind-of-business split, but *which commodities* receive the margin

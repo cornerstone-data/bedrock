@@ -8,7 +8,10 @@ FBS methods for the Supply table's margin columns (nowcast step 4c, #571).
 
 The `TRADE` column is built too, for **2017–2023**, but **not as an FBS** — it
 lives in [`nowcast_trade_margins.py`](../iot/nowcast_trade_margins.py) and is
-wired straight into `derive_initial_supply_bridge`. That is a deliberate
+wired straight into `derive_initial_supply_bridge`. It also decomposes:
+`trade_margin_components(year)` returns `wholesale`, `retail` and `trade_tax`
+per commodity, where the Supply column itself nets the first two and drops the
+third. That is a deliberate
 asymmetry with the transport side, not an omission, and the reason is worth
 stating because a `Margins_Trade_<year>.yaml` looks like the obvious next file
 to add here.
