@@ -395,7 +395,8 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
         'goods MCIF leveled to NIPA B235RC; MADJ from Census GEN_CHA_YR '
         'reassigned onto 2017 Supply MADJ destination codes and leveled to '
         'published Supply MADJ; T007 the row margin of the Detail_Supply_2017 '
-        'FBS domestic-output block; margins, tax and subtotals unsourced. '
+        'FBS domestic-output block; margins and tax unsourced, so the subtotals '
+        'that consume them stay NaN. '
         'T014 nets to ~1 economy-wide, which is why this block needs a '
         'per-commodity picture rather than a totals check.'
     ),
