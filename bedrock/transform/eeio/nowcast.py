@@ -60,6 +60,10 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.iot.nowcast_trade_margins import (
+    TRADE_MARGIN_YEARS,
+    trade_margin_column,
+)
 from bedrock.transform.iot.nowcast_transport_margins import transport_margin_column
 from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.transform.trade.madj import madj_detail_usd
@@ -352,9 +356,10 @@ def derive_initial_supply_bridge(
     MCIF is mapped Trade_Imports_<year> Detail mass for 2017. MDTY is Census
     duty rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
     GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
-    to published Supply MADJ, for 2017. T007 is the row margin of the
-    ``Detail_Supply_<year>`` FBS domestic-output block, and is sourced for
-    every year 2017-2024.
+    to published Supply MADJ, for 2017.
+
+    ``T007`` is the row margin of the ``Detail_Supply_<year>`` FBS
+    domestic-output block, and is sourced for every year **2017-2024** (#570).
 
     ``TRANS`` is Step 4c's transport margin, built per mode on the basis BEA
     uses for each and controlled to that mode's observed annual freight revenue
@@ -367,11 +372,23 @@ def derive_initial_supply_bridge(
     transport margin; that is sourced information, not an unfilled cell, and the
     column has to net to zero for target T16 to hold.
 
-    ``TRADE`` remains unsourced: it is a rate on producer value, so it needs
-    4a (#570) and 4d (#580) first. The remaining tax columns (TOP, SUB) are
-    unsourced too.
+    ``TRADE`` is Step 4c's trade margin, anchored on the published 2017 give-up
+    and moved by the Census wholesale and retail gross margin (#612, #613).
+    Sourced for **2017-2023** - one year further than ``TRANS``, because the
+    Census series runs to 2023 where SAS stops at 2022.
 
-    The subtotals T013/T014/T015/T016 are computed from their components by
+    ⚠️ **It does not wait on 4a or 4d after all.** The plan reached ``TRADE`` as
+    a rate on producer value, which would have needed the nowcast base; the
+    anchor-and-move construction reaches the same column from the give-up side
+    instead, and the give-up is observed. Like ``TRANS`` it never touches the
+    base, so it carries no circularity with Step 6b.
+
+    ⚠️ Both margin columns are filled with **zeros** for commodities that bear no
+    margin, not NaN - a commodity outside the receiving set genuinely has none,
+    and the column has to net to zero for target T16 to hold.
+
+    The remaining tax columns (TOP, SUB) are unsourced. The subtotals
+    T013/T014/T015/T016 are computed from their components by
     :func:`fill_supply_bridge_subtotals`, so a subtotal is NaN until every one
     of its components is sourced. Callers must not mutate the cached frame.
     """
@@ -392,4 +409,6 @@ def derive_initial_supply_bridge(
         bridge['TRANS'] = (
             transport_margin_column(year).reindex(bridge.index).fillna(0.0)
         )
+    if year in TRADE_MARGIN_YEARS:
+        bridge['TRADE'] = trade_margin_column(year).reindex(bridge.index).fillna(0.0)
     return fill_supply_bridge_subtotals(bridge)

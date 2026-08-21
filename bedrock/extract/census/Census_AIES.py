@@ -54,11 +54,17 @@ the 2017-anchored rates without recoding.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 import pandas as pd
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import (
+    gcs_extract_input_sub_bucket_from_kwargs,
+    load_from_gcs,
+)
+from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 
@@ -80,13 +86,43 @@ _FLOW_NAMES = {
 _THOUSANDS = 1_000.0
 
 
-def census_aies_call(*, resp: Any, **_: Any) -> list[pd.DataFrame]:
-    """Convert the API response to a dataframe; 204 means the year is absent."""
+def _census_aies_filename(year: str | int) -> str:
+    return f'Census_AIES_{year}.csv'
+
+
+def census_aies_call(*, resp: Any, **kwargs: Any) -> list[pd.DataFrame]:
+    """Convert the API response to a dataframe; 204 means the year is absent.
+
+    The raw table is also written under ``extract/input_data/Census_AIES/`` so it
+    can be staged to GCS.  AIES needs an API key, and CI has none - without a
+    cached copy every AIES-backed test fails there with ``APIError`` rather than
+    on anything about the data.  See :func:`census_aies_load_gcs`.
+    """
     if resp.status_code == 204:
         log.warning(f'No AIES content for {resp.url}')
         return [pd.DataFrame()]
     payload = json.loads(resp.text)
-    return [pd.DataFrame(payload[1:], columns=payload[0])]
+    df = pd.DataFrame(payload[1:], columns=payload[0])
+    out_dir = load_local_extract_input_dir(kwargs)
+    df.to_csv(os.path.join(out_dir, _census_aies_filename(kwargs['year'])), index=False)
+    return [df]
+
+
+def census_aies_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
+    """Load the cached AIES table from local ``input_data``, or GCS if missing.
+
+    This is the path CI takes.  ``Census_AWTS`` and ``Census_ARTS`` need no key
+    and so regenerate anywhere, but AIES does, which is why the 2023 leg of the
+    trade margin has to come from the cache rather than from Census.
+    """
+    return [
+        load_from_gcs(
+            name=_census_aies_filename(kwargs['year']),
+            sub_bucket=gcs_extract_input_sub_bucket_from_kwargs(kwargs),
+            local_dir=load_local_extract_input_dir(kwargs),
+            loader=pd.read_csv,
+        )
+    ]
 
 
 def census_aies_parse(

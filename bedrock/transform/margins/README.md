@@ -6,7 +6,32 @@ FBS methods for the Supply table's margin columns (nowcast step 4c, #571).
 |---|---|---|
 | `Margins_Transport_<year>` | 2017–2022 | the `TRANS` column, split by the transport commodity that gives the margin up |
 
-`Margins_Trade_<year>` belongs here too and is not built yet (phase 3).
+The `TRADE` column is built too, for **2017–2023**, but **not as an FBS** — it
+lives in [`nowcast_trade_margins.py`](../iot/nowcast_trade_margins.py) and is
+wired straight into `derive_initial_supply_bridge`. It also decomposes:
+`trade_margin_components(year)` returns `wholesale`, `retail` and `trade_tax`
+per commodity, where the Supply column itself nets the first two and drops the
+third. That is a deliberate
+asymmetry with the transport side, not an omission, and the reason is worth
+stating because a `Margins_Trade_<year>.yaml` looks like the obvious next file
+to add here.
+
+**An FBS earns its place when there is a source-key → BEA-commodity mapping for
+the attribution machinery to do.** Transport has one and it is most of the work:
+ten SAS groups, 498 STCC codes, four pipeline items and 42 SCTG groups onto 258
+receiving commodities, through four crosswalks. The trade side has nothing
+equivalent. Its receiving allocation is the published 2017 `TRADE` column and
+nothing else, because **no annual source observes which goods a wholesaler's
+margin sits on** — BEA's own answer is the product-line method, deferred at
+[#615](https://github.com/cornerstone-data/bedrock/issues/615). Its giving side
+is a 31-row crosswalk from Census kinds of business to the 19 trade commodities,
+applied once. Wrapping that in a method yaml would produce a versioned artefact
+with data-quality columns and no method inside it.
+
+⚠️ **Revisit this when #615 lands.** A NAPCS → I-O concordance is exactly the
+source-key → commodity mapping an FBS should own, and at that point
+`Margins_Trade_<year>` becomes the right shape for the same reason
+`Margins_Transport_<year>` is now.
 
 ## What `Margins_Transport` produces
 

@@ -694,8 +694,8 @@ the same shape as [`compensation_disaggregation_plan.md`](compensation_disaggreg
 |---|---|---|
 | 1 | ✅ [#610](https://github.com/cornerstone-data/bedrock/issues/610) 2017 rates and receiving sets — **built**, §Phase 1 below | — |
 | 2 | [#611](https://github.com/cornerstone-data/bedrock/issues/611) ~~port the FAF transport chain~~ → build a per-mode allocator; see §Transportation | #601 (merged) |
-| 3 | [#612](https://github.com/cornerstone-data/bedrock/issues/612) AWTS/ARTS annual trade levels | — |
-| 4 | [#613](https://github.com/cornerstone-data/bedrock/issues/613) apply and derive `TRADE`/`TRANS` | #610–#612, **#570 (4a), #579 (4b), #580 (4d)** |
+| 3 | ✅ [#612](https://github.com/cornerstone-data/bedrock/issues/612) AWTS/ARTS annual trade levels — **built**, §Phase 3 | — |
+| 4 | [#613](https://github.com/cornerstone-data/bedrock/issues/613) apply and derive `TRADE`/`TRANS` — **`TRADE` built**, §Phase 4; `TRANS` done at Phase 2 | ~~#570 (4a), #579 (4b), #580 (4d)~~ — **no longer needed**, see §Phase 4 |
 | 5 | [#614](https://github.com/cornerstone-data/bedrock/issues/614) validate per commodity | #613 |
 | — | [#615](https://github.com/cornerstone-data/bedrock/issues/615) re-run BEA's product-line method | **deferred, candidate for a Phase 3 of the project** |
 
@@ -773,24 +773,183 @@ schema is available.
 [#601](https://github.com/cornerstone-data/bedrock/pull/601) — it will raise
 `KeyError: ['ActivityProducedBy']` without it.
 
-**Phase 3 — trade levels, and optionally BEA's own allocation.** Port
-`Gross_Margins_2017.yaml` (AWTS/ARTS) as the annual wholesale and retail control
-totals by trade sector. If the 2017-anchored rates from Phase 1 prove
-insufficient, the rest of BEA's method is available: port `Census_EC_PxI` and
-`write_Crosswalk_NAPCS.py` (which already implements MAKB), extend the FBA to
-the 2022 `ecnnapcsprd` vintage, and build the one missing NAPCS → I-O commodity
-concordance. **Do Phase 1 first and see whether that is needed** — it is a large
-piece of work whose output the 2017 Margins file already approximates.
+**Phase 3 — trade levels. ✅ Built.** `Census_AWTS`, `Census_ARTS` and
+`Census_AIES` give a continuous 2012–2023 wholesale and retail gross margin;
+§Phase 3 below records what they turned out to be and the two questions that
+closed along the way. BEA's own allocation was *not* needed — the rest of its
+method (port `Census_EC_PxI`, extend to the 2022 `ecnnapcsprd` vintage, build the
+NAPCS → I-O concordance) stays deferred at
+[#615](https://github.com/cornerstone-data/bedrock/issues/615), and the note
+below on the frozen goods mix is the thing that would reopen it.
 
-**Phase 4 — apply.** Rates from Phase 1 onto the nowcast base, levels controlled
-to Phases 2–3. **The base needs 4a, 4b *and* 4d** — it is producer value less
-the trade-level tax, `T013 + MDTY + SUB + producer-level TOP`, measured in
-§Phase 1 against the published column at −0.003%. Two shortcuts to avoid, in
-opposite directions: applying rates to `T007` alone drops the margin on imports
-(three independent statements confirm imports are in the base — Jolliff's
-"column OR", the wholesale method's "interim supply", and the transport method's
-table 8.2), while applying them to full producer value double-counts the
+**Phase 4 — apply. ✅ `TRADE` is built, and it did *not* need the nowcast base.**
+[`nowcast_trade_margins.py`](../../transform/iot/nowcast_trade_margins.py),
+wired into `derive_initial_supply_bridge` for **2017–2023** — a year further
+than `TRANS`, because the Census margin series reaches 2023 where SAS stops at
+2022.
+
+⚠️ **This supersedes the dependency stated below and in the Approach table.**
+The plan reached `TRADE` as a *rate on producer value*, which is why it was
+scheduled behind 4a, 4b and 4d. But the Supply column can be reached from the
+**give-up side** instead, and the give-up is observed: trade output essentially
+*is* margin, so the 19 trade commodities' own annual margin is the column's
+negative side, and the positive side is that same total redistributed. Nothing
+in the construction touches the nowcast base, so — exactly like `TRANS` — it
+carries no circularity with Step 6b and waits on nothing.
+
+The construction is the transport side's, applied to two kinds rather than five
+modes:
+
+| | wholesale | retail |
+|---|---:|---:|
+| givers | 10 commodities | 9 commodities |
+| 2017 give-up, $M | 1,718,990 | 1,545,941 |
+| Census 2017, $M | 1,100,925 | 1,458,243 |
+| coverage ratio, frozen | **1.561** | **1.061** |
+
+The ratios mean different things. Retail's is near 1 because ARTS covers the
+sector. Wholesale's is not a rounding — it is the 36% of BEA's wholesale margin
+that AWTS cannot see, §The 850,540 wholesale gap — and freezing it is the
+assumption that MSBO margin grows like merchant wholesale.
+
+**Three findings the build produced, each of which had to be got right:**
+
+1. **The giver split is anchored, not taken from Census.** The Census
+   kind-of-business shares disagree with BEA's commodity give-up by up to 40% at
+   this detail — drugs and druggists' sundries is the worst — so only the
+   *change* in the Census series is used. Taking the level from it fails the
+   2017 identity commodity by commodity while passing every totals check.
+2. ⚠️ **The receiving side *can* be split by kind — an earlier version of this
+   plan said it could not, and that was wrong.** The claim was that wholesale
+   gives up 1,718,990 while only 1,701,091 of `TRADE` is apportionable to it on
+   the published `Wholesale`/`Retail` shares, so the split was impossible. The
+   17,900 gap is the **trade-level tax**, and the error was spreading that tax
+   *pro rata* to the margin — which it is not. Carry the tax as its own term and
+   both kinds reconcile exactly; see §The three-way separation.
+3. **Suppression had to be recovered by subtraction, exactly as §Two gaps that
+   are not bugs specified.** Gasoline stations are suppressed in ARTS 2022 and
+   parse to zero; scaling the survivors gave them a margin of exactly zero and
+   spread their 5.1% of retail over every other kind of business. The recovered
+   residual is **130,671 $M**, which is the figure measured independently off
+   the raw workbook — so the arithmetic checks out against something that was
+   not built from it.
+
+### The three-way separation — `TRADE` into wholesale, retail and tax
+
+The Supply column nets wholesale against retail and excludes the tax entirely,
+so anything needing the Margins table's own columns — or margins in basic
+prices — needs the decomposition rather than the column. It is available from
+published 2017 data with nothing modelled:
+
+```
+TRADE[c] = Wholesale[c] + Retail[c] − trade_level_tax[c]
+```
+
+exact to **$0** across all 255 receiving commodities.
+
+| 2017, $M | wholesale | retail | total |
+|---|---:|---:|---:|
+| published margin column | 1,894,329 | 1,761,765 | 3,656,094 |
+| − trade-level tax | 175,339 | 215,824 | **391,163** |
+| = published give-up | **1,718,990** | **1,545,941** | **3,264,931** |
+
+**Both tax column totals are observed, not assumed.** A trade commodity's
+published give-up is its margin *net* of the tax it collected, so the give-up
+side pins them — which makes the 2017 split over-determined rather than fitted.
+
+⚠️ **The tax does not split pro rata, and that is the whole point.** Retail
+carries **55.2%** of the trade-level tax on a **48.2%** share of the margin. The
+fitted tilt is **0.796** where pro rata would be 1.0. That asymmetry is sales
+tax being levied at the counter — the same fact Jolliff's "sales tax vs excise"
+correspondence states, now visible in the arithmetic rather than only asserted.
+
+Per commodity the split is one equation in two unknowns. With only two columns
+the solution family is one-dimensional, so the tax is tilted on a single scalar
+and that scalar bisected to hit the column total **exactly**; each commodity's
+own tax closes by construction. 67 commodities bear wholesale margin and no
+retail (whole tax forced to wholesale) and one the other way, but those forced
+amounts are 12,765 and 1 against targets of 175,339 and 215,824, so the solve
+has ample freedom.
+
+**What this buys:** each kind's column now sums to zero *on its own*, which is
+strictly stronger than the combined column netting to zero, and
+`trade_margin_components(year)` returns `wholesale`, `retail` and `trade_tax`
+per commodity.
+
+⚠️ **The tax is not sourced annually.** Its 2017 level per commodity is
+observed and it moves with its own kind's Census index, so the tax *rate* on a
+commodity's margin is frozen at 2017 even though the level moves. A sales-tax
+rate change is exactly what this misses.
+
+### What the tax column does and does not do for `TOP` and `SUB`
+
+It is a **constraint on `TOP`, not a source for it**, and it does nothing at all
+for `SUB`. Measured on 2017:
+
+| | $M | share of `TOP` |
+|---|---:|---:|
+| `TOP`, all 402 commodities | 716,926 | — |
+| trade-level tax, from this decomposition | **391,162** | **54.6%** |
+| producer-level residual — excise, severance | 325,764 | 45.4% |
+| `SUB` | −59,876 | — |
+
+Three limits, each of which stops it short of populating the column:
+
+- **It is silent on 39.7% of `TOP`.** The tax is defined only where trade margin
+  exists — 255 of 402 commodities, holding 60.3% of `TOP`. The other 284,598 is
+  on services and other commodities bearing no trade margin at all, where `TOP`
+  is entirely producer-level and this says nothing.
+- **The producer-level half needs its own source.** 325,764 of excise and
+  severance is a residual here, not an estimate. It is 9.6% of `TOP` on the 203
+  margin-bearing commodities with `TOP` > 100 and effectively all of `TOP`
+  elsewhere.
+- **`SUB` is untouched.** Subsidies are not a margin phenomenon; they are
+  non-zero on 15 commodities and overlap the tax column on 5. Nothing in step 4c
+  produces them.
+
+**So it feeds [#580](https://github.com/cornerstone-data/bedrock/issues/580)
+rather than replacing it** — but as a hard constraint over half the column,
+derived from published data with no external tax source, which is what §The
+residual decomposes `TOP` anticipated when it said this "gives an excise-vs-sales
+split per commodity from published data alone".
+
+⚠️ 16 commodities have trade-level tax exceeding their `TOP` by 42 $M in total.
+That is publication rounding at the scale of single millions, not a sign the
+decomposition is wrong, but #580 should floor rather than allow a negative
+producer-level residual.
+
+⚠️ **What is still frozen at 2017: the goods mix.** The level moves annually and
+so does the kind-of-business split, but *which commodities* receive the margin
+is the published 2017 column. Nothing annual observes it — BEA's own answer is
+the product-line method, deferred at
+[#615](https://github.com/cornerstone-data/bedrock/issues/615) — so this is the
+same debt the transport side carries as its within-group weight (#672), and it
+is larger here because it is 100% of the trade commodity detail rather than
+67.8% of the transport one.
+
+⚠️ **2024 has no source and is not filled by default.** `TRADE_MARGIN_YEARS`
+stops at 2023 and the extrapolation is behind an explicit flag. The real fix is
+4a's 2024 commodity output, which observes this quantity directly.
+
+**The Margins-table application still needs the base**, and the paragraph below
+stands for it — what is superseded is only the Supply `TRADE` column's
+dependency, not the per-(buyer, commodity) rates.
+
+**Phase 4b — the Margins table itself.** Rates from Phase 1 onto the nowcast
+base, levels controlled to Phases 2–3. **The base needs 4a, 4b *and* 4d** — it is
+producer value less the trade-level tax, `T013 + MDTY + SUB + producer-level
+TOP`, measured in §Phase 1 against the published column at −0.003%. Two shortcuts
+to avoid, in opposite directions: applying rates to `T007` alone drops the margin
+on imports (three independent statements confirm imports are in the base —
+Jolliff's "column OR", the wholesale method's "interim supply", and the transport
+method's table 8.2), while applying them to full producer value double-counts the
 trade-level tax already inside the rates.
+
+⚠️ **Use the right control of the two.** `sum(W + R) = TRADE + TOP`: the
+published margin columns total 3,656,094 $M against a `TRADE` column of
+3,264,931 $M. `trade_control_total` is the Supply column's; the Margins table's
+is `gross_margin_control_total`. Applying the first to the Margins table deletes
+the trade-level tax and the second to the Supply column double-counts it.
 
 **Phase 5 — validate per commodity, never in aggregate.** `T014` nets to **1**
 against **7,361,003** of gross mass, so a totals check passes on *anything*. Use
@@ -1131,10 +1290,13 @@ the Economic Census is quinquennial, so it cannot supply annual movement at all.
 Interpolating 2012/2017/2022 into a growth index would add modelled years dressed
 as observations. What a growth factor needs is a basis held constant across every
 year, and the annual surveys are that. The 42% gap therefore never enters the
-build: it cancels in each year's ratio as long as it is stable over time, which
-is the assumption now doing the work and the one to test.
+build at all — not because it cancels, but because only one of the two series is
+ever read. That distinction turned out to matter: the gap was measured at both
+census years and it is **not** stable (42.0% in 2017, 27.8% in 2022), so a
+cancelling argument would have failed. See §Closed — AIES stayed on the annual
+basis.
 
-### The splice is the seam that matters, and only one side of it is clean
+### The splice is the seam that matters, and both sides now hold
 
 With the level anchored on BEA and the movement taken from the annual series, the
 one place a basis change can still corrupt the answer is **2022→2023, where AWTS
@@ -1146,14 +1308,15 @@ the test, because it is invariant to coverage:
 | gross margin ÷ sales | 2019 | 2020 | 2021 | 2022 | **2023 (AIES)** | step |
 |---|---:|---:|---:|---:|---:|---:|
 | wholesale, NAICS 42 | 19.3% | 19.7% | 20.7% | 20.1% | **20.4%** | **+0.3pp** ✅ |
-| retail, `Total` | 29.4% | 29.5% | 30.8% | 31.3% | **34.2%** | **+2.9pp** ⚠️ |
+| retail, `Total` | 29.4% | 29.5% | 30.8% | 31.3% | **34.2%** | **+2.9pp** ✅ |
 
 **Wholesale splices cleanly.** The rate moves +0.29pp across the seam, inside its
 own year-to-year range, and the level falls 1.0% on sales down 2.5% — an ordinary
 2023 for goods wholesaling as inflation cooled. The `TYPOP 1X` = `nomsbo` basis
 match holds up in the data, not just in the documentation.
 
-**Retail does not, yet.** The rate steps 2.9pp in one year against a series that
+**Retail steps hard, but it is a real move** (§Closed — AIES stayed on the
+annual basis). The rate steps 2.9pp in one year against a series that
 had moved ~0.3pp/yr for a decade, on sales up only 1.5% — so nearly all of the
 10.8% margin gain is repricing of the margin itself rather than more trade. It is
 not a NAICS vintage artifact: AIES 2023 publishes the 2017-vintage retail
@@ -1163,18 +1326,55 @@ codes sum to the published `44-45` total exactly.
 ⚠️ **So the EC-versus-annual question resurfaces inside the annual series.** If
 AIES adopted the Economic Census basis, retail 2023 is on a different footing
 from retail 2012–2022 and the growth factor carries a one-off 2.9pp jump that
-never happened. **The discriminating test:** 2022 is an Economic Census year, so
-compute the retail margin rate three ways — ARTS 2022, EC 2022 (`ecnmargin`), and
-AIES 2023. If EC 2022 sits near 34% while ARTS sits at 31.3%, the step is a basis
-change and 2023 must be rebased onto the ARTS rate before it enters the index. If
-EC 2022 sits near 31.3%, the step is real and stands. Wholesale gets the same
-test for free, and its answer is already predicted: the EC basis is 42% above
-AWTS, so a wholesale rate that did *not* jump is evidence AIES stayed on the
-annual basis.
+never happened.
 
-Neither `ecnmargin` nor `ecnbasic` is extracted yet, so this is scoped work
-rather than a lookup. It is a prerequisite of #613's control total, not of the
-extractors, which emit the published rows either way.
+### ✅ Closed — AIES stayed on the annual basis, and the retail step is not a rebasing
+
+The test as scoped could not be run, and the reason is itself the finding.
+**The Economic Census does not publish a retail gross margin in any vintage.**
+`ecnmargin` (2017) and `ecngrmargprof` (2022 — the dataset was renamed, which is
+why a 2022 `ecnmargin` call 404s) are both titled *"for Merchant Wholesalers"*
+and both return `TYPOP 10` at NAICS 42 only. `ecnbasic` carries no retail
+cost-of-goods variable either — its only `CST*` items are electricity, fuels,
+land and materials. So "ARTS 2022 vs EC 2022 vs AIES 2023" has no middle term.
+
+**The wholesale test, which the plan expected to come for free, runs and is
+decisive on its own:**
+
+| wholesale gross margin ÷ sales | 2017 | 2022 | 2023 |
+|---|---:|---:|---:|
+| AWTS → AIES (annual) | 19.3% | 20.1% | **20.4%** |
+| Economic Census | **27.4%** | **26.2%** | — |
+
+AIES 2023 sits on the annual basis, 0.29pp from AWTS 2022 and **5.8pp** from the
+Economic Census one. That is the predicted signature exactly: *"a wholesale rate
+that did not jump is evidence AIES stayed on the annual basis."* The
+consolidation re-engineered the questionnaire without moving the margin footing.
+
+**So retail 2023 is not rebased.** The hypothesis the ⚠️ was raised against —
+that AIES adopted the EC basis at the seam — is falsified on the one sector where
+both bases are observable, and a consolidation that changed the basis for retail
+but not for wholesale is not a coherent reading of a single integrated survey.
+The 2.9pp retail step enters the index as a real move. It remains the largest
+single-year move in the series and is the first thing to re-examine if #614's
+per-commodity validation shows retail drifting, but it is no longer a known
+defect blocking the build.
+
+⚠️ **A second result, and it inverts one of Phase 3's assumptions.** The decision
+to anchor on the annual source rested on the EC/annual gap being *stable* — "it
+cancels in each year's ratio as long as it is stable over time, which is the
+assumption now doing the work and the one to test." **Tested, and it is not
+stable:** the gap is 42.0% in 2017 and 27.8% in 2022. Had the index been built on
+the Economic Census, that drift would have entered the growth factor directly.
+This does not weaken the anchor-on-annual decision — it strengthens it, because
+the unstable series is the one not being used. It does retire the sentence that
+called stability the working assumption: the annual basis is internally
+consistent across the splice, which is what the index actually needs, and the EC
+gap never enters the arithmetic.
+
+The sales bases also drift apart, though far less: EC and AWTS-implied sales are
+0.06% apart in 2017 and 2.0% apart in 2022, so the whole of the margin gap is
+still cost of goods, as §The 850,540 wholesale gap found.
 
 ### Why gross margin, and not sales
 
