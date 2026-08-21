@@ -22,9 +22,9 @@ sources_to_cache:
     estimate_suppressed: !clean_function:flowbyclean estimate_suppressed_sectors_equal_attribution
 
 _attribution_sources:
-  EIA_MECS_Energy_Allocation_CEDA: &mecs_energy_alloc
-    activity_to_sector_mapping: CEDA_2025
-    year: *mecs_year
+  # Nested EPA_GHGI_T_3_25 below is inventory, not UMD T_3_25 (petroleum-systems CH4).
+  Energy_Cornerstone_2022: &mecs_energy_alloc
+    data_format: FBS
     geoscale: national
 
   BEA: &bea # 2017 Make and Use tables
@@ -583,11 +583,11 @@ source_names:
              - Petroleum Industrial
          attribution_method: proportional
          attribution_source:
-           EIA_MECS_Energy_Allocation_CEDA:
+           Energy_Cornerstone_2022:
              <<: *mecs_energy_alloc
              selection_fields:
-               FlowName: Petroleum
-               Description: 'energy'
+               Flowable: Petroleum
+               Class: Money
 
        natural_gas_nonmanufacturing:
          selection_fields:
@@ -606,11 +606,11 @@ source_names:
              - Natural Gas Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           EIA_MECS_Energy_Allocation_CEDA:
+           Energy_Cornerstone_2022:
              <<: *mecs_energy_alloc
              selection_fields:
-               FlowName: Natural Gas
-               Description: "energy"
+               Flowable: Natural Gas
+               Class: Energy
 
        coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
          selection_fields:
@@ -629,11 +629,11 @@ source_names:
             - Coal Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           EIA_MECS_Energy_Allocation_CEDA:
+           Energy_Cornerstone_2022:
              <<: *mecs_energy_alloc
              selection_fields:
-               FlowName: Coal
-               Description: 'energy'
+               Flowable: Coal
+               Class: Energy
 
      # Intentionally left out 'Wood Commercial' and 'Wood Industrial'
 
@@ -717,33 +717,34 @@ source_names:
                     Industry HGL: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
-                  EIA_MECS_Energy_Allocation_CEDA:
+                  Energy_Cornerstone_2022:
                     <<: *mecs_energy_alloc
                     selection_fields:
-                      FlowName: Petroleum
-                      Description: "non energy"
+                      Flowable: Petroleum
+                      Class: Other
+
 
               natural_gas_neu:
                 selection_fields:
                   PrimaryActivity: Industry Natural Gas to Chemical Plants
                 attribution_method: proportional
                 attribution_source:
-                  EIA_MECS_Energy_Allocation_CEDA:
+                  Energy_Cornerstone_2022:
                     <<: *mecs_energy_alloc
                     selection_fields:
-                      FlowName: Natural Gas
-                      Description: "non energy"
+                      Flowable: Natural Gas
+                      Class: Other
 
               transportation_lubricants:
                 selection_fields:
                   PrimaryActivity: Transportation Lubricants
                 attribution_method: proportional
                 attribution_source:
-                  EIA_MECS_Energy_Allocation_CEDA:
+                  Energy_Cornerstone_2022:
                     <<: *mecs_energy_alloc
                     selection_fields:
-                      FlowName: Transport
-                      Description: "non energy"
+                      Flowable: Transport
+                      Class: Money
 
 ## Other Emissions
   UMD_GHGIA_T_4_33: # HFCs from HCFC-22 production
