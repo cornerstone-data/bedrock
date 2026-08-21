@@ -7,11 +7,18 @@ otherwise only surface as a silently misplaced margin.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import pytest
 
+from bedrock.transform.eeio.nowcast import (
+    TRANSPORT_MARGIN_YEARS,
+    derive_initial_supply_bridge,
+)
 from bedrock.transform.iot import nowcast_transport_margins as tm
 from bedrock.transform.iot.nowcast_transport_margins import (
+    MODE_COMMODITIES,
     PIPELINE_ITEM_CODES,
     load_pipeline_crosswalk,
     mode_residual,
@@ -30,7 +37,9 @@ MARGIN_COLUMNS = [
 ]
 
 
-def margins_frame(rows: list[tuple[str, str, float, float, float, float, float]]):
+def margins_frame(
+    rows: list[tuple[str, str, float, float, float, float, float]],
+) -> pd.DataFrame:
     """(buyer, commodity, PV, transport, wholesale, retail, purchasers)."""
     frame = pd.DataFrame(
         rows,
@@ -79,7 +88,7 @@ def test_every_crosswalk_row_records_its_basis() -> None:
 
 
 @pytest.fixture
-def synthetic(monkeypatch):
+def synthetic(monkeypatch: pytest.MonkeyPatch) -> pd.DataFrame:
     """Two items over three commodities, with a 60/40 published transport split."""
     crosswalk = pd.DataFrame(
         {
@@ -104,12 +113,14 @@ def synthetic(monkeypatch):
     )
 
 
-def test_allocation_is_an_identity_on_the_control_total(synthetic) -> None:
+def test_allocation_is_an_identity_on_the_control_total(
+    synthetic: pd.DataFrame,
+) -> None:
     allocation = pipeline_allocation(2017, control_total=1000.0, margins=synthetic)
     assert allocation.sum() == pytest.approx(1000.0)
 
 
-def test_items_carry_their_revenue_share(synthetic) -> None:
+def test_items_carry_their_revenue_share(synthetic: pd.DataFrame) -> None:
     """4861+4862 are 60% of revenue and share one commodity; 48691 is 40%."""
     allocation = pipeline_allocation(2017, control_total=1000.0, margins=synthetic)
     assert allocation['211000'] == pytest.approx(600.0)
@@ -117,7 +128,7 @@ def test_items_carry_their_revenue_share(synthetic) -> None:
 
 
 def test_within_a_set_the_split_is_proportional_to_published_transport(
-    synthetic,
+    synthetic: pd.DataFrame,
 ) -> None:
     """324110 carries 600 of the set's 1000 published transport, so 60% of 400."""
     allocation = pipeline_allocation(2017, control_total=1000.0, margins=synthetic)
@@ -125,7 +136,9 @@ def test_within_a_set_the_split_is_proportional_to_published_transport(
     assert allocation['324190'] == pytest.approx(160.0)
 
 
-def test_a_set_with_no_published_transport_raises(monkeypatch) -> None:
+def test_a_set_with_no_published_transport_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Splitting on a zero weight would divide by zero and silently emit NaN."""
     monkeypatch.setattr(
         tm,
@@ -151,7 +164,9 @@ def test_a_set_with_no_published_transport_raises(monkeypatch) -> None:
 # --------------------------------------------------------------------------
 
 
-def test_bound_check_reports_headroom_for_the_other_modes(synthetic) -> None:
+def test_bound_check_reports_headroom_for_the_other_modes(
+    synthetic: pd.DataFrame,
+) -> None:
     check = pipeline_bound_check(2017, control_total=1000.0, margins=synthetic)
     assert (check['share'] <= 1.0).all()
     # 211000 takes 600 of its 1000 published, leaving 400 for the other modes
@@ -159,7 +174,7 @@ def test_bound_check_reports_headroom_for_the_other_modes(synthetic) -> None:
     assert check.loc['324110', 'headroom_other_modes'] == pytest.approx(360.0)
 
 
-def test_bound_check_catches_an_over_allocation(synthetic) -> None:
+def test_bound_check_catches_an_over_allocation(synthetic: pd.DataFrame) -> None:
     """
     A share above 1 needs the other four modes to contribute negative margin,
     which is the one way this construction can be visibly wrong.
@@ -193,7 +208,7 @@ def test_pipeline_give_up_is_read_off_its_own_rows() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_within_set_weight_can_be_supplied(synthetic) -> None:
+def test_within_set_weight_can_be_supplied(synthetic: pd.DataFrame) -> None:
     """
     The default weight assumes pipeline's within-set mix matches the all-mode
     mix. A caller with a mode-specific measure - FAF pipeline ton-miles - must
@@ -208,7 +223,9 @@ def test_within_set_weight_can_be_supplied(synthetic) -> None:
     assert allocation['324190'] == pytest.approx(200.0)
 
 
-def test_mode_residual_is_what_the_unbuilt_modes_must_supply(synthetic) -> None:
+def test_mode_residual_is_what_the_unbuilt_modes_must_supply(
+    synthetic: pd.DataFrame,
+) -> None:
     allocation = pipeline_allocation(2017, control_total=1000.0, margins=synthetic)
     residual = mode_residual({'pipeline': allocation}, margins=synthetic)
     # 211000 publishes 1000 all-mode and pipeline takes 600
@@ -216,7 +233,9 @@ def test_mode_residual_is_what_the_unbuilt_modes_must_supply(synthetic) -> None:
     assert not residual['over_allocated'].any()
 
 
-def test_mode_residual_flags_an_impossible_decomposition(synthetic) -> None:
+def test_mode_residual_flags_an_impossible_decomposition(
+    synthetic: pd.DataFrame,
+) -> None:
     """
     Over-allocating one mode forces negative margin onto the others, which the
     published column never carries at commodity level.
@@ -348,11 +367,11 @@ def test_built_modes_leave_room_for_the_unbuilt_ones() -> None:
     assert (published - built) == pytest.approx(unbuilt, rel=0.005)
 
 
-def test_unknown_stcc_code_raises(monkeypatch) -> None:
+def test_unknown_stcc_code_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     """A code the crosswalk has never seen must fail loudly, not vanish."""
     real = tm.load_rail_revenue_by_stcc
 
-    def with_a_new_code(year):
+    def with_a_new_code(year: int) -> pd.Series:
         series = real(year)
         series.loc['99999'] = 1234.0
         return series
@@ -483,11 +502,11 @@ def test_three_modes_leave_room_for_water_and_air_in_aggregate() -> None:
     assert (published - built) == pytest.approx(water_and_air, rel=0.07)
 
 
-def test_unmapped_sas_group_raises(monkeypatch) -> None:
+def test_unmapped_sas_group_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     """A new published group must fail loudly rather than shrink the column."""
     real = tm.load_truck_group_revenue
 
-    def with_a_new_group(year):
+    def with_a_new_group(year: int) -> pd.Series:
         series = real(year)
         series.loc['Antimatter'] = 5000.0
         return series
@@ -599,9 +618,9 @@ def test_adding_water_and_air_worsens_the_collision() -> None:
         'air': tm.air_allocation(2017),
     }
 
-    def overshoot(allocations):
+    def overshoot(allocations: dict[str, pd.Series]) -> float:
         frame = tm.mode_residual(allocations)
-        return -frame.loc[frame['over_allocated'], 'residual'].sum()
+        return float(-frame.loc[frame['over_allocated'], 'residual'].sum())
 
     assert overshoot(five) > overshoot(three) > 0
 
@@ -643,7 +662,9 @@ def test_water_and_air_never_fall_back_to_the_parent_industry() -> None:
     """
     real = tm.getFlowByActivity
 
-    def without_scheduled_air_freight(source, year, **kwargs):
+    def without_scheduled_air_freight(
+        source: str, year: int, **kwargs: Any
+    ) -> pd.DataFrame:
         fba = real(source, year, **kwargs)
         if source != 'Census_SAS':
             return fba
@@ -791,11 +812,6 @@ def test_supply_bridge_trans_satisfies_target_t16() -> None:
     Margin is a redistribution, not value created, so this is the only
     constraint the balance places on Step 4c's transport output.
     """
-    from bedrock.transform.eeio.nowcast import (
-        TRANSPORT_MARGIN_YEARS,
-        derive_initial_supply_bridge,
-    )
-
     for year in (min(TRANSPORT_MARGIN_YEARS), max(TRANSPORT_MARGIN_YEARS)):
         bridge = derive_initial_supply_bridge(year)
         assert bridge['TRANS'].sum() == pytest.approx(0.0, abs=1.0)
@@ -809,9 +825,6 @@ def test_supply_bridge_trans_is_zero_not_nan_off_the_receiving_set() -> None:
     NaN would mean unsourced, and would also break the T16 sum. Only five
     commodities may be negative - the modes that give the margin up.
     """
-    from bedrock.transform.eeio.nowcast import derive_initial_supply_bridge
-    from bedrock.transform.iot.nowcast_transport_margins import MODE_COMMODITIES
-
     trans = derive_initial_supply_bridge(2017)['TRANS']
     assert (trans == 0.0).any()
     assert set(trans[trans < 0].index) == set(MODE_COMMODITIES.values())
@@ -823,8 +836,6 @@ def test_supply_bridge_leaves_unsourced_years_alone() -> None:
 
     Filling it from a partial set of modes would break the identity silently.
     """
-    from bedrock.transform.eeio.nowcast import derive_initial_supply_bridge
-
     assert derive_initial_supply_bridge(2023)['TRANS'].isna().all()
 
 
@@ -834,6 +845,4 @@ def test_supply_bridge_trade_is_still_unsourced() -> None:
 
     TRANS does not, which is why the two columns land at different times.
     """
-    from bedrock.transform.eeio.nowcast import derive_initial_supply_bridge
-
     assert derive_initial_supply_bridge(2017)['TRADE'].isna().all()

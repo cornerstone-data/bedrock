@@ -119,8 +119,10 @@ def _measure_columns(years: list[int]) -> dict[str, tuple[str, int, float]]:
     columns = {}
     for year in years:
         for published, (unit, factor) in _MEASURES.items():
-            name = _value_column(year) if published == 'current_value' else (
-                f'{published}_{year}'
+            name = (
+                _value_column(year)
+                if published == 'current_value'
+                else (f'{published}_{year}')
             )
             columns[name] = (unit, year, factor)
     return columns
@@ -206,9 +208,7 @@ def _read_faf_zip(zip_path: str, config: dict[str, Any]) -> list[pd.DataFrame]:
             f'FAF data carries codes the metadata workbook does not name: '
             f'{codes.to_dict("records")}'
         )
-    _validate_against_crosswalk(
-        set(long['FlowName']), set(long['ActivityProducedBy'])
-    )
+    _validate_against_crosswalk(set(long['FlowName']), set(long['ActivityProducedBy']))
 
     return [long.drop(columns=['measure', *keys])]
 
