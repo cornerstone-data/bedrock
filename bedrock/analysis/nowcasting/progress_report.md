@@ -13,7 +13,11 @@ uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
-**Snapshot date:** 2026-08-15. Step 1 is a live `derive_initial_Y_pur` (`NIPA_final_dom_uses_2017` plus Trade `F04000`). Step 4 is a live `derive_initial_supply_bridge` (`MCIF` from `Trade_Imports_2017`; `MDTY` and `MADJ` sourced for 2017; other bridge columns unsourced).
+**Snapshot date:** 2026-08-19. Step 1 is a live `derive_initial_Y_pur`
+(`NIPA_final_dom_uses_2017`, Trade `F04000`, and — new this snapshot —
+`Inventories_2017` on `F03000`). Step 4 is a live `derive_initial_supply_bridge`
+(`MCIF` from `Trade_Imports_2017`; `MDTY` and `MADJ` sourced for 2017; other
+bridge columns unsourced).
 
 ---
 
@@ -21,7 +25,7 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 
 | block | step | shape | reference populates | reference total | candidate | coverage | accuracy |
 |---|---|---|---:|---:|---|---:|---:|
-| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **75.3%** | **69.8%** |
+| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **95.5%** | **55.1%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
 | `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (MCIF, MADJ, MDTY) | **14.5%** | **21.2%** |
 
@@ -32,6 +36,14 @@ Those three blocks are the whole of what a published 2017 detail reference
 supports outside the two 402 × 402 interiors. The reference columns are the
 denominator: they are what "done" looks like, and they are known before the
 corresponding step is built.
+
+⚠️ **Coverage and accuracy moved in opposite directions this snapshot, and that
+is the honest result.** `F03000` landing adds 256 populated cells against a
+column total that is right to 2.3% — coverage 75.3% → 95.5% — while almost none
+of those cells land within tolerance, so accuracy falls 69.8% → 55.1%. Nothing
+that was matching stopped matching. A column moved from "not attempted" to
+"attempted, and mostly wrong per commodity", which is progress that reads as a
+regression on one of the two numbers.
 
 ---
 
@@ -44,38 +56,91 @@ corresponding step is built.
 
 | scope | absent | match | partial | miss | extra |
 |---|---:|---:|---:|---:|---:|
-| cells | 6,385 | 658 | 285 | 310 | 0 |
-| row totals | 22 | 125 | 248 | 7 | 0 |
-| column totals | 0 | 17 | 1 | 1 | 0 |
+| cells | 6,383 | 660 | 537 | 56 | 2 |
+| row totals | 22 | 116 | 260 | 4 | 0 |
+| column totals | 0 | 17 | 2 | 0 | 0 |
 
 | | |
 |---|---:|
-| coverage | 75.3% |
-| accuracy | 69.8% |
-| candidate grand total | $22.33T |
+| coverage | 95.5% |
+| accuracy | 55.1% |
+| candidate grand total | $22.36T |
 | reference grand total | $22.24T |
-| grand total error | 0.42% |
+| grand total error | 0.57% |
 | residual outside the frame | none |
 
 ### What the picture says that the totals do not
 
-**Only two column totals are outside tolerance, and both are known.** `F03000` (change in private inventories, #529) is a whole-column `miss` — unsourced. `F04000` is populated from `Trade_Exports_2017` and is `partial` (+6.15% vs published, #528). **Every other final-demand column now reconciles at the column level**, including the twelve government columns, which land cell for cell.
+**No column is a whole-column `miss` any more.** All 19 final-demand codes are
+sourced. Two are outside tolerance at the column total: `F04000` (+6.15% vs
+published, #528) and `F03000` (−2.28%, #529). The other seventeen reconcile at
+the column level, including the twelve government columns, which land cell for
+cell.
 
-**The two axes disagree, which is the point.** 255 of 402 row totals are outside tolerance against 2 of 19 column totals — a column total can be right in aggregate while its commodity split is wrong, and only the row strip shows it. That gap is not a curiosity: all three fixes below were column totals that looked right while the value sat on the wrong commodity, and the row strip is what exposed them.
+**The two axes disagree, which is the point.** 264 of 402 row totals are outside
+tolerance against 2 of 19 column totals — a column total can be right in
+aggregate while its commodity split is wrong, and only the row strip shows it.
+`F03000` is now the clearest instance of that in the frame.
 
-**What moved since 2026-08-06** — coverage 74.4% → 75.3%, accuracy 67.4% → 69.8%, column totals outside tolerance 3 → 2. `F02R00` came inside tolerance on three fixes sharing that one failure mode:
+**What moved since 2026-08-15** — coverage 75.3% → 95.5%, accuracy 69.8% →
+55.1%, whole-column misses 1 → 0.
 
-- **`S00402` was unreachable in the government columns** ([#633](https://github.com/cornerstone-data/bedrock/issues/633)) — missing from two crosswalks, one supplying the attribution weight and one the receiving set, so fixing either alone changed nothing. `F10E00` had been misallocating 32.8% of its column.
-- **Ten structures lines mapped to a catch-all** rather than the single commodity each names ([#576](https://github.com/cornerstone-data/bedrock/issues/576)) — $142B on the wrong commodity inside `F02R00`, netting to exactly zero.
-- **Residential equipment was routed to `F02E00`** ([#547](https://github.com/cornerstone-data/bedrock/issues/547)) — U50505 line 46 sits under the residential branch, so its 15,025 belongs in `F02R00`. `F02E00` is *nonresidential* equipment.
+- **`F03000` is live** ([#529](https://github.com/cornerstone-data/bedrock/issues/529),
+  merged in #666). The Inventories FBS generates, attributes and reaches
+  `derive_initial_Y_pur`, replacing a hardcoded all-zero column.
+- **A regression in `F02E00` was caught and fixed by this run.** The
+  `Census_EC_PxI` catalog entry added in #666 was inserted *inside* the
+  `BEA_PEQBridge` entry in `source_catalog.yaml`, taking `BEA_PEQBridge`'s
+  `activity_schema: {bea: 2017, flat}` with it. Without a BEA activity schema
+  the PEQ bridge stopped being sector-like, and the whole `F02E00` column
+  collapsed onto `S00402` — 166 rows to 22, and $986B of a $978B column on used
+  and secondhand goods, with every real equipment commodity at zero. `F02R00`
+  lost $15B the same way. Restoring the block to `BEA_PEQBridge` returns both
+  columns to their previous cell-for-cell state. `Census_EC_PxI` keeps
+  `activity_schema: null`, which was a duplicate key under the broken layout and
+  so had never taken effect — the `null` that does the work is the one on the
+  attribution source in `Inventories_2017.yaml`. **The diagnostic found this, and
+  no test did**, which is the failure mode this report exists to make visible.
 
-**Row totals are now dominated by `F04000`.** The ten worst cells are all trade: `336411`, `S00402`, `336412`, `339910`. With the NIPA-sourced columns reconciled, the remaining Step 1 error is concentrated in the trade column and the unbuilt inventories column.
+### `F03000` — read the column, not its total
 
-**`F01000` is mostly `match`.** Personal consumption is the densest live column. Remaining amber is per-commodity split, not a missing column — and it is genuine bridge-vs-Use disagreement rather than attribution error: `F01000` reproduces `BEA_PCEBridge` cell for cell, with the totals agreeing to $2M.
+| | ours | published |
+|---|---:|---:|
+| column total | 31,936 | 32,682 |
+| commodities populated | 256 | 258 |
+| gross mass (sum of absolute cells) | 92,459 | 98,764 |
 
-**`F04000` is mixed `partial` / `miss`.** National mass is close enough to turn the column total amber rather than purple; commodity holes (`492000`, `550000`, and the rest of the ≥1 B USD list) are in [`transform/trade/README.md`](../../transform/trade/README.md).
+Sign agreement on the 254 commodities both sides populate: **69.7%**. Absolute
+error against published gross: **101%**.
+
+**The total is the one thing that is free here** — it equals NIPA CIPI by
+construction — while gross mass is 3× net across 61 negative commodities. So
+−2.28% at the column total says almost nothing about the allocation, and the
+per-commodity numbers above are the real score. The largest cells outstanding
+are all previously scoped rather than new:
+
+| commodity | ours | published | why |
+|---|---:|---:|---|
+| `336411` aircraft | −288 | −6,314 | manufacturing branch needs the industry's own stage split (#664) |
+| `S00402` used goods | 380 | 3,969 | used-goods value sits in wholesale lines routing to `S00401` (#665) |
+| `211000` oil and gas | −4,754 | −7,577 | mining is still an equal-split placeholder (#660) |
+| `325414` biological products | 41 | 2,484 | trade-branch product-line split |
+
+**`F04000` still dominates the worst cells.** All ten worst cells in the frame
+are trade: `336411`, `S00402`, `336412`, `339910`, `336111`. With the
+NIPA-sourced columns reconciled and inventories in, the remaining Step 1 error
+is concentrated in the trade column's commodity split and in `F03000`'s.
+
+**`F01000` is mostly `match`.** Personal consumption is the densest live column,
+and its remaining amber is genuine bridge-vs-Use disagreement rather than
+attribution error: `F01000` reproduces `BEA_PCEBridge` cell for cell, with the
+totals agreeing to $2M.
 
 Longer form: [`About_table_match.md`](About_table_match.md).
+
+⚠️ **One warning surfaces in every current run and has not been chased:** `Some
+rows from BEA_NIPA assigned to multiple activity sets` for `U20405` line 342
+(`DNPIRC`, NPISH) in `FD_PCE_npish`. It is a double-count risk inside `F01000`.
 
 ---
 
@@ -129,7 +194,19 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 | reference grand total | $111.28T |
 | grand total error | 97.6% |
 
-`MCIF`, `MADJ`, and `MDTY` are sourced for 2017 (`Trade_Imports_2017` mapped Detail mass; Census `GEN_CHA_YR` reassigned onto Supply `MADJ` destinations and leveled to Supply `MADJ`; Census duty rates leveled to NIPA `B235RC`). Column totals for `MADJ` and `MDTY` match the published national (within the section tolerance). `MCIF` is `partial` at the column total (+1.29% vs published). `T007`, `TRADE`/`TRANS`/`T014`, `TOP`/`SUB`/`T015`, and the `T013`/`T016` identities are unsourced.
+**Unchanged this snapshot.** The Step 4c margin work since 2026-08-15 — #610
+(2017 rates), #612 (annual wholesale and retail levels), #611 (the pipeline
+transport margin, and BEA's replies) — is derivation and sourcing that has not
+yet been written back into the bridge columns, so the picture is the same one.
+`TRADE`/`TRANS` land here at #613.
+
+`MCIF`, `MADJ`, and `MDTY` are sourced for 2017 (`Trade_Imports_2017` mapped
+Detail mass; Census `GEN_CHA_YR` reassigned onto Supply `MADJ` destinations and
+leveled to Supply `MADJ`; Census duty rates leveled to NIPA `B235RC`). Column
+totals for `MADJ` and `MDTY` match the published national (within the section
+tolerance). `MCIF` is `partial` at the column total (+1.29% vs published).
+`T007`, `TRADE`/`TRANS`/`T014`, `TOP`/`SUB`/`T015`, and the `T013`/`T016`
+identities are unsourced.
 
 The right-hand block of the Supply table: imports, margins, taxes and the
 subtotals carrying a commodity from domestic output at basic value to total
@@ -170,8 +247,17 @@ T016 = T013 + T014 + T015
 
 ## Caveats
 
-**`F04000` / `MCIF` do not clear the #557 bars.** National F040 is +6.15%; import Pearson on non-specials is 0.84 vs ≳ 0.85. Hole rules sit on #528. Whether to apply a national ITA (or other) control is #647.
+**`F04000` / `MCIF` do not clear the #557 bars.** National F040 is +6.15%;
+import Pearson on non-specials is 0.84 vs ≳ 0.85. Hole rules sit on #528.
+Whether to apply a national ITA (or other) control is #647.
 
-**`F03000` is unsourced.** Inventories are a whole-column miss (#529).
+**`F03000` is sourced but not validated per commodity.** The column total is
+right by construction; the allocation is at 69.7% sign agreement and 101%
+absolute error against published gross. Mining and farm are equal-split
+placeholders (#660), manufacturing needs per-industry stage shares (#664), and
+`S00402` is an order of magnitude short (#665). Treat the column as a first
+pass, not as a solved block.
 
-**Nothing here is a rollup.** Every number is BEA 2017 detail. Margins and redefinitions net out at summary and above, so an aggregate view of these blocks would pass on data these pictures show to be broken.
+**Nothing here is a rollup.** Every number is BEA 2017 detail. Margins and
+redefinitions net out at summary and above, so an aggregate view of these blocks
+would pass on data these pictures show to be broken.

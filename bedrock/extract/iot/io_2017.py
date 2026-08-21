@@ -780,9 +780,14 @@ def _load_usa_summary_mut(
     # oldest file containing them so values stay stable across releases (e.g.
     # scale_cornerstone_A uses years 2017 and 2022, which must not change as new
     # vintages add years on the right).
-    if year > 2023:
+    # year arrives as a str from the FBA generation path, and typing.cast at the
+    # call site is a no-op at runtime. Coerce before the vintage comparisons: they
+    # raise on a str today, but sheet_name=str(year) accepts either type, so if
+    # they ever moved a str year would silently select the wrong vintage mapping.
+    year_int = int(year)
+    if year_int > 2023:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2024
-    elif year > 2022:
+    elif year_int > 2022:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2023
     else:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2022
@@ -793,7 +798,7 @@ def _load_usa_summary_mut(
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
                 pth,
-                sheet_name=str(year),
+                sheet_name=str(year_int),
                 skiprows=5,
                 dtype={"Unnamed: 0": str},
             ),
@@ -824,7 +829,12 @@ def _load_usa_summary_sut(
     # existing consumers as new vintages add years on the right. 2017-2022 stays on
     # the workbook its published FBAs were built from; a 2025 vintage would get its
     # own `year > 2024` arm, leaving 2023-2024 where they are.
-    if year > 2022:
+    # year arrives as a str from the FBA generation path, and typing.cast at the
+    # call site is a no-op at runtime. Coerce before the vintage comparisons: they
+    # raise on a str today, but sheet_name=str(year) accepts either type, so if
+    # they ever moved a str year would silently select the wrong vintage mapping.
+    year_int = int(year)
+    if year_int > 2022:
         mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
     else:
         mapping = USA_SUMMARY_SUT_MAPPING_2017_2022
@@ -835,7 +845,7 @@ def _load_usa_summary_sut(
             local_dir=LOCAL_USA_SUP_DIR,
             loader=lambda pth: pd.read_excel(
                 pth,
-                sheet_name=str(year),
+                sheet_name=str(year_int),
                 skiprows=5,
                 dtype={"Unnamed: 0": str},
             ),

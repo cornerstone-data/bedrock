@@ -931,37 +931,31 @@ class FlowByActivity(_FlowBy):
             drop_cols = []
 
         if 'activity_sets' in self.config:
-            try:
-                return FlowBySector(
-                    pd.concat(
-                        [
-                            fba.prepare_fbs(
-                                external_config_path=external_config_path,
-                                download_sources_ok=download_sources_ok,
-                                skip_select_by=True,
-                                retain_activity_columns=retain_activity_columns,
-                                fbs_method_name=fbs_method_name,
-                            )
-                            for fba in (
-                                self.select_by_fields()
-                                .function_socket('clean_fba_before_activity_sets')
-                                .activity_sets()
-                            )
-                        ]
-                    ).reset_index(drop=True),
-                    convert_df_to_flowby=True,
-                )
-            except ValueError:
-                # This discards every activity_set, not just the one that
-                # failed, so a fault in one silently zeroes the whole method.
-                # Log it - the silence is what makes this class of bug expensive
-                # to find.
-                log.exception(
-                    f'Discarding ALL activity_sets for {self.full_name}: one '
-                    f'of them raised while being prepared. The method will '
-                    f'return no rows.'
-                )
-                return FlowBySector(pd.DataFrame(), convert_df_to_flowby=True)
+            prepared = []
+            for fba in (
+                self.select_by_fields()
+                .function_socket('clean_fba_before_activity_sets')
+                .activity_sets()
+            ):
+                try:
+                    prepared.append(
+                        fba.prepare_fbs(
+                            external_config_path=external_config_path,
+                            download_sources_ok=download_sources_ok,
+                            skip_select_by=True,
+                            retain_activity_columns=retain_activity_columns,
+                            fbs_method_name=fbs_method_name,
+                        )
+                    )
+                except ValueError as exc:
+                    log.exception(f'{fba.full_name} failed while preparing FBS: {exc}')
+                    raise ValueError(
+                        f'{fba.full_name} failed while preparing FBS: {exc}'
+                    ) from exc
+            return FlowBySector(
+                pd.concat(prepared).reset_index(drop=True),
+                convert_df_to_flowby=True,
+            )
         log.info(f'Processing FlowBySector for {self.full_name}')
         # Primary FlowBySector generation approach:
         return FlowBySector(

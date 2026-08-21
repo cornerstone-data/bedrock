@@ -1,31 +1,28 @@
-"""Engine-agnostic scaffolding for a constrained matrix balance.
+"""Scaffolding and ndarray GRAS kernel.
 
-Step 5's shared layer
-(`#653 <https://github.com/cornerstone-data/bedrock/issues/653>`_). ``Target``,
-``SutMask``, the offset method and the feasibility precheck are the same code
-whether the balancing engine ends up vendored, hardened from an existing
-implementation, or written fresh - so this package deliberately does not depend
-on that decision, and nothing in it imports a solver.
+``Target``, ``SutMask``, the offset method and the feasibility precheck do
+not depend on the scaler. ``gras_balance`` is the scaler: one signed matrix,
+row/col vectors, ``free_mask``, ``sign_flex``. Nothing in this package
+imports scipy.
 
-The pieces fit together in one order::
+Typical call order::
 
     frozen, free = split_fixed_blocks(seeds, masks)   # X = F + Z, per block
     residual     = offset_targets(targets, frozen)
     precheck(seeds, masks, targets)                   # raises if a margin is stuck
-    balanced     = engine(free, residual, masks)      # not ours
+    # scale Z (gras_balance per block, or a SUT adapter)
     result       = restore_fixed_blocks(balanced, frozen)
 
+Callers map ``free_mask = mask.free.to_numpy()`` and
+``sign_flex = (mask.sign_lock.to_numpy() == 0)``. Kernel
+``sign_flex is None`` is all-False (stricter than a default ``SutMask``).
+
 ``seeds`` and ``masks`` are mappings of block name to frame, because a target
-may relate the Use panel to the Supply panel - ``T016 = T019`` and the
-product-tax identities all do.
+may relate the Use panel to the Supply panel.
 
-**The engine only ever sees a participation mask and residual targets**, which
-is what makes a fixed-value mask expressible without touching the engine at
-all.
-
-Analysis behind the design: ``bedrock/analysis/nowcasting/mask_layer_plan.md``
-and ``target_set_plan.md``, with the measurements in
-``mask_layer_feasibility.py``.
+**The kernel only ever sees a participation mask and residual target
+vectors**, which is what makes a fixed-value mask expressible without
+touching the scaler.
 """
 
 from bedrock.utils.economic.balance.feasibility import (
@@ -38,6 +35,7 @@ from bedrock.utils.economic.balance.feasibility import (
     margin_report,
     precheck,
 )
+from bedrock.utils.economic.balance.gras import GrasBalanceResult, gras_balance
 from bedrock.utils.economic.balance.mask import SutMask, assert_subsidies_negative
 from bedrock.utils.economic.balance.offset import (
     assert_free_seed,
@@ -64,6 +62,7 @@ __all__ = [
     'REPORT_COLUMNS',
     'Aggregator',
     'Axis',
+    'GrasBalanceResult',
     'InfeasibleBalance',
     'Infeasibility',
     'SutMask',
@@ -73,6 +72,7 @@ __all__ = [
     'UnsourcedTargets',
     'assert_free_seed',
     'assert_subsidies_negative',
+    'gras_balance',
     'leverage',
     'margin',
     'margin_report',

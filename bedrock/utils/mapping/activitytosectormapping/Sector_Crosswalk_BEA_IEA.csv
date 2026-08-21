@@ -9,6 +9,7 @@ BEA_IEA,TransportSeaFreight,BEA_2017_Code,483000,C
 BEA_IEA,TransportPostal,BEA_2017_Code,491000,C
 BEA_IEA,TransportRoadAndOth,BEA_2017_Code,482000,C
 BEA_IEA,TransportRoadAndOth,BEA_2017_Code,484000,C
+BEA_IEA,TransportRoadAndOth,BEA_2017_Code,486000,C
 BEA_IEA,Insurance,BEA_2017_Code,524113,C
 BEA_IEA,Insurance,BEA_2017_Code,5241XX,C
 BEA_IEA,Insurance,BEA_2017_Code,524200,C
@@ -32,6 +33,10 @@ BEA_IEA,CloudCompAndDataStor,BEA_2017_Code,518200,C
 BEA_IEA,OthComp,BEA_2017_Code,54151A,C
 BEA_IEA,NewsAgency,BEA_2017_Code,519130,C
 BEA_IEA,DatabaseAndOthInfo,BEA_2017_Code,5191A0,C
+BEA_IEA,DatabaseAndOthInfo,BEA_2017_Code,511110,C
+BEA_IEA,DatabaseAndOthInfo,BEA_2017_Code,511120,C
+BEA_IEA,DatabaseAndOthInfo,BEA_2017_Code,5111A0,C
+BEA_IEA,DatabaseAndOthInfo,BEA_2017_Code,511130,C
 BEA_IEA,Legal,BEA_2017_Code,541100,C
 BEA_IEA,AccountAuditBookkeep,BEA_2017_Code,541200,C
 BEA_IEA,BusMgmtConsPubRel,BEA_2017_Code,541610,C

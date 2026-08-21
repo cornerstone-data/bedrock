@@ -201,11 +201,18 @@ conversion and redefinition steps need is already loadable** — no new extract 
   but they are a ready-made **fallback seed / cross-check** for any SUT block we can't source directly,
   and they already encode which codes to exclude from each framework.
 
-**Not in bedrock, to be ported:** a balancing algorithm (**no longer a straight `sut_ras.py` port** —
-see Step 5; Decisions 2 and 3 are recorded as of 2026-08-17, Decision 1 is still open) and commodity
-mix / intermediate nowcasting
-(`CalculateIntermediateUseAndCommodityMix.R`, per #497). Confirmed: no RAS/GRAS code anywhere in
-bedrock today.
+**Not in bedrock, to be ported:** commodity mix / intermediate nowcasting
+(`CalculateIntermediateUseAndCommodityMix.R`, per #497). The Step 5 **engine**
+is in [`bedrock/utils/economic/balance/gras.py`](../../utils/economic/balance/gras.py)
+(`gras_balance`, GRAS: Lenzen, Wood and Gallego 2007 + Temurshoev, Miller and
+Bouwmeester 2013). The SUT wrapper is
+[`engine`](../../transform/iot/nowcast_sut_gras.py)
+(`engine(free, residual, masks)` → `out.blocks`): Use then Supply, hard T1 and
+T11–T17 only. Soft T2/T4/T6–T9 are skipped until KRAS. Unit tests:
+[`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py),
+[`test_nowcast_sut_gras.py`](../../transform/iot/__tests__/test_nowcast_sut_gras.py).
+
+A **zero target is legal**; a **nonzero target on an empty free margin** raises.
 
 **The USEEIO port list shrank to one file.** `check_balances.py` and `load_suts_from_r.py` were both
 on it and are now **dropped, #590 and #589 closed**. The SUTs come from Steps 1-4 as bedrock objects,
@@ -331,7 +338,9 @@ Ranked by how much they block:
    column**, while **wholesale + retail is 126%** of it. The stage split is already published in
    `U50705BU1` — which bedrock already extracts and never reads — and three of BEA's four allocation
    rules are functions of tables this project already builds. What remains is one crosswalk of ~25
-   trade industries to BEA commodities.
+   trade industries to BEA commodities. ✅ **Built 2026-08-19 (#666)** — the crosswalk went to 54 NIPA
+   lines over 260 commodities, and the column is live at −2.28% on its total. It comes off this list
+   as a *sourcing* question; what is left is allocation accuracy (#660, #664, #665).
 6. ~~Import matrix allocation method~~ — **settled**: proportional to the commodity's use shares along
    its Use-matrix row (Step 6c). Not a data gap; it needs the Step 6b Use matrix as input, which makes
    6c strictly downstream of 6b.
@@ -440,6 +449,10 @@ overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is
    are listed in `bedrock/transform/trade/README.md`. Goods NAICS coverage is high; remaining ≥1 B
    `MISS` holes include couriers `492000`, `550000`, publishing `51112*`/`51113*`, bakery `311810`,
    cattle `1121A0` (no Census `1121*` activity), restaurants, and electric `221100`.
+3. **Goods allocation surface mismatch (`#670`).** Large non-`MISS` errors remain in directly mapped
+   goods families (notably `336*`), with very large absolute gaps despite zero `MISS` holes. This points
+   to a likely mismatch between a NAICS-based Census goods Crosswalk and BEA's product-level foreign-trade
+   allocation/reconciliation workflow. Tracked in [#670](https://github.com/cornerstone-data/bedrock/issues/670).
 
    **`S00900` needs no extract.** `derive_initial_Y_pur` sets
    `Y[S00900, F04000] = −Y[S00900, F01000] + Supply_T016[S00900] × 1e6` (2017). It has *zero
@@ -460,7 +473,7 @@ overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is
    States by nonresidents* (−199,435) plus U20405 line 149 personal remittances in kind (−1,562) — the
    two lines `FD_PCE_less_nonresident` already handles with `negate_flows` (`7a04a71`). The export
    identity matches published F040 within 1 M USD.
-3. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
+4. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
    held from Supply, taken as a residual after mapped commodities, or out of the extract's scope —
    rather than a silent zero. **`S00900`'s rule is the supply identity** (item 2). `S00300` is 0 in
    `F04000`; its ~260B is import and intermediate presence. Totals can look fine while structure is
@@ -475,12 +488,20 @@ non-special codes; top-20 Jaccard ≳ 0.7 / ≳ 0.6; every known hole covered by
 extract can't hit those bars, a documented pipeline that does (extract structure × scale to Use totals,
 or extract + Use residual on specials only) is an acceptable substitute — and *that* pipeline is what
 the nowcast years carry forward. The 2017 gate is `uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail`.
+Use `score_2017_trade_detail_baseline.csv` as the pinned regression baseline for this gate and update it
+only when scorecard movement is intentional.
 
 ## `F03000` — change in inventories, rescoped
 
 Full treatment in [`inventories_estimation_plan.md`](inventories_estimation_plan.md), from three
 emails from David Hill (BEA, National Economic Accounts, 2025-03/05), reproduced in #530's body.
 **This section replaces the previous "deferred, needs ASM and Economic Census" position.**
+
+✅ **Status 2026-08-19: built and wired (#666).** The scoping below held up — the trade branch is the
+126% branch and it ran on the simplest rule, the crosswalk was the one gap and it was closable, and
+farm did need its own level from NIPA. What the build added to the scoping is §Step 1C's three
+follow-ons (#660, #664, #665) and the measurement that makes them rankable. The rest of this section
+is the scoping as written, kept because it is what the follow-ons are still working from.
 
 BEA's method is four rules over three inventory types, applied to CIPI **by holding industry** — NIPA
 records *where* inventory is held, the Use column records *what* is held:
@@ -597,21 +618,47 @@ extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BE
 `S00900` from the identity −F010 + Supply `T016`. Built and wired for 2017 (#617, #618, #622, #623);
 the same extract serves Step 4b. Open: ITA G+S scale ([#647](https://github.com/cornerstone-data/bedrock/issues/647)), FAS→PUR, and the 2018–2024 methods. The 2017
 scorecard is **FAIL + inventory** against the #557 bars (`score_2017_trade_detail`; §Trade data).
-⏳ **Schema fix pending in [#638](https://github.com/cornerstone-data/bedrock/pull/638).** The trade
-yamls declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
+✅ **Schema fix landed ([#638](https://github.com/cornerstone-data/bedrock/pull/638)).** The trade
+yamls had declared `target_naics_year` where the code has read `target_schema_year` since #630, so they
 raised `KeyError` — which took `derive_initial_Y_pur` down with them and blocked validating the NIPA
-columns that have nothing to do with trade. #638 retargets both methods onto the shared
+columns that have nothing to do with trade. #638 retargeted both methods onto the shared
 `BEA_detail_commodity_target.yaml` (the same include `NIPA_final_dom_uses` uses), which supplies
-the key, and retires `Trade_detail_passthrough.yaml` along with the
-`activity_schema: NAICS_2017_Code` weight-source override. Once it lands, the end-to-end validation
-path opens up — and 1A's columns can be checked without a working trade leg for the first time.
+the key, and retired `Trade_detail_passthrough.yaml` along with the
+`activity_schema: NAICS_2017_Code` weight-source override. The end-to-end validation path is open,
+and 1A's columns can be checked without a working trade leg.
 
 **1C — Change in inventories** (#529, #530, #531). `F03000`, the full 402-row column, per
 [`inventories_estimation_plan.md`](inventories_estimation_plan.md). **Not NIPA-total-only**: that
 ships one scalar where the SUT needs a column, and leaves the allocation to Step 5's RAS, which has
 neither a seed nor a sign-safe structure for a column that runs 3× gross to net across 61 negative
-commodities. Start by consuming `U50705BU1`, already extracted and unused, plus the farm line it
-omits (≈ −5,679 in 2017, 17% of the total).
+commodities. Built from `U50705BU1`, already extracted and unused, plus the farm line it omits
+(≈ −5,679 in 2017, 17% of the total).
+
+✅ **First pass landed 2026-08-19 (#666).** `Inventories_2017` generates, attributes across all five
+branches, and is wired into `derive_initial_Y_pur` — `F03000` was a hardcoded all-zero column and is
+now 256 commodities totalling 31,936 against a published 32,682 (−2.28%). Trade weights come from
+`Census_EC_PxI` product lines, the same data BEA reaches for in its margin method; manufacturing
+follows the finished-goods rule on the 22 industry leaves; mining and farm are equal-split
+placeholders.
+
+⚠️ **Read the column, not its total.** The total is the one free thing here — it equals NIPA CIPI by
+construction — while gross mass is 3× net. Per commodity the first pass is **69.7% sign agreement and
+101% absolute error against published gross**, so the column total says almost nothing. Three follow-ons
+carry the remaining error, all measured rather than suspected: **#660** (mining and farm commodity
+splits — EIA MER / USGS for mining, the FIWS crops-livestock split for farm), **#664** (manufacturing
+needs per-industry stage shares; `336411` aircraft is −288 against a published −6,314), **#665**
+(`S00402` at 380 against 3,969, because used-goods value sits in wholesale lines that route to
+`S00401`).
+
+⚠️ **The manufacturing commodity mix must move to the nowcast year's Supply table once Step 4a (#570)
+builds one.** It is on the 2017 benchmark today. Freezing each industry's product composition at the
+benchmark attributes later years with a mix that no longer holds, and it stops being visible once
+buried in an allocation. Source change, not a method change.
+
+**Five NIPA pseudo-codes were the recurring defect, and are now guarded.** `44X`, `336MV`, `336OT`,
+`4521` and `4529` look like NAICS and are not, so `startswith` matching against holding industries
+silently found nothing and the branch fell back to an equal split. `_assert_naics_are_real` fails the
+build instead. Same silent-empty family as #635.
 
 **Above the three — composition and validation.**
 - ⏳ **Split the column list by framework** (#575) — ✅ done in substance: `derive_initial_Y_pur`
@@ -621,8 +668,23 @@ omits (≈ −5,679 in 2017, 17% of the total).
   failure blocks validating NIPA columns that have nothing to do with trade. Pulling assembly out
   decouples them.
 - ❌ **Validate per-column against published NIPA aggregates** (#576). Already satisfied for the
-  government columns and for PCE/equipment against their bridges; outstanding for `F03000`
-  (unbuilt), `F04000` (blocked), and the two gaps below.
+  government columns and for PCE/equipment against their bridges; `F03000` now reconciles at the
+  column total but not per commodity; outstanding for `F04000` (blocked) and the two gaps below.
+
+⚠️ **The board-level state of Step 1, as of 2026-08-19:** all 19 final-demand columns are sourced,
+**no column is a whole-column `miss` any more**, and two are outside tolerance at the column total —
+`F04000` (+6.15%) and `F03000` (−2.28%). Coverage against the published detail SUT is 95.5% and
+accuracy 55.1%; the two moved in opposite directions because `F03000` added 256 cells that are right
+in aggregate and mostly wrong per commodity. [`progress_report.md`](progress_report.md).
+
+⚠️ **A catalog regression rode in with #666 and was caught by the diagnostic, not by a test.** The
+`Census_EC_PxI` entry was inserted *inside* `BEA_PEQBridge` in `source_catalog.yaml`, taking
+`BEA_PEQBridge`'s `activity_schema` with it; the PEQ bridge stopped being sector-like and the whole
+`F02E00` column collapsed onto `S00402` — $986B of a $978B column on used and secondhand goods, with
+every equipment commodity at zero. Fixed 2026-08-19. **Two lessons worth carrying**: a YAML entry
+inserted at the wrong indentation silently steals its neighbour's keys, and duplicate keys in the
+catalog resolve last-wins with no error — the `Census_EC_PxI` block carried `activity_schema` twice
+and neither reader complained. Nothing in the test suite covers the catalog's block structure.
 
 **Gaps carried.** `F02R00` is short `S00402` by 1,883 (#633), blocked behind #635 — a `ValueError`
 in one activity_set discards every activity_set and returns an empty FBS as a valid result, so the
@@ -768,6 +830,59 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output
   across commodities using a nowcast commodity mix (port from the #497 R script). Basic value.
 
+  **Full treatment in [`output_estimation_plan.md`](output_estimation_plan.md)**, with BEA's own
+  per-industry source table at [`output_estimation_sources.csv`](output_estimation_sources.csv).
+
+  ✅ **The manufacturing half now runs as a method.**
+  `transform/commodity_output/Commodity_output_manufacturing_<year>.yaml` builds 236 BEA detail
+  commodities per year for 2018-2021 from Annual Survey of Manufactures product data, at basic
+  prices, scoring 0.94-0.97 of level and 4.5-6.8% weighted error against published summary `T007`.
+  Still outstanding for 4a: mining `q` (no annual product survey exists), the services half
+  (industry output × mix), 2022-2024, and the rebalance to the summary control.
+
+  ⚠️ **The estimand is *commodity* output, not industry output.** `T007`'s column sums are commodity
+  output; industry output is an input to the construction, not the deliverable. That admits two
+  routes, and the manual says BEA uses different ones by industry: industry output × commodity mix
+  where only industry receipts are collected (most services), but for mining and manufacturing
+  *"the calculation of commodity output starts with [product] data rather than the industry data"*
+  (ch. 5 p. 79). Applying one route to both regimes imposes the services method on manufacturing,
+  where observed product data exists and is better. Score both against published 2017 per cell.
+
+  ⚠️ **The target is output *before* redefinitions, and this has to be settled before anything is
+  built.** The BEA IO manual's chapter 5 walks each industry from source data down to two different
+  lines, and names them: the *featured* measure is **NAICS industry output before redefinitions**,
+  "more useful for comparisons with the economic statistics from other sources", while output after
+  redefinitions "is generally referred to as **I-O industry output**" and is "generally not as
+  comparable with other economic statistics" (p. 78). The SUT framework is aligned with the former.
+  Our own file list already says so: the tables we target are `Supply_2017_DET.xlsx` and
+  `Margins_Before_Redefinitions_2017_DET.xlsx`, and the only `After_Redefinitions` files in
+  [`matrix_mappings.py`](../../utils/taxonomy/bea/matrix_mappings.py) are the legacy summary
+  Make/Use series — a different family, not our target. **So we do not perform the redefinitions BEA
+  performs.**
+
+  **No totals check can catch this**, which is why it is stated here rather than left to validation.
+  Redefinition moves money between cells while preserving every total:
+  [`About_BEA_IOT_table_valuation_differences.md`](compare_NIPA_to_IOT/About_BEA_IOT_table_valuation_differences.md)
+  measured **553,635 million moving gross across 5,740 cells for a net of −7**. A benchmark replay
+  that scores on totals would pass with the wrong version throughout.
+
+  **What that means for the manual's recipe.** Chapter 5's worked tables (5.1 cheese, 5.2 telecom)
+  run *through* the line we want to the line we do not. Take the industry column down to
+  `NAICS OUTPUT`, not `I-O OUTPUT`. On the commodity side, do not apply `Redefinitions out` — but
+  **do** apply `Reclassifications` and the make-table adjustment, since neither is a redefinition:
+  reclassification is BEA disagreeing with Census about what is primary, and the make-table
+  adjustment absorbs product-vs-industry source inconsistency. Both survive the choice of version.
+
+  Chapter 5 is PDF pages 69–92 of the 2009 IO manual (narrative to p. 83, then table 5.A's worked
+  per-industry source and calculation summaries) — the closest thing to a per-industry recipe for
+  what external series each industry's output is built from. ⚠️ It documents the **1997** benchmark
+  and says so in its preface, so it is authoritative on concepts and structure only; every named
+  source needs checking against current Census products, since NAPCS landed in the 2007 Economic
+  Census and changed what product data exists at all. For the between-benchmark years the current
+  list is in [BEA's 2023 comprehensive-update preview](https://apps.bea.gov/scb/issues/2023/06-june/0623-nea-preview.htm):
+  ASM, the Annual Surveys of Wholesale and of Retail Trade, SAS, Value of Construction Put in Place,
+  QCEW, IRS corporate and partnership tabulations, and USDA farm statistics.
+
   ⏳ **Test `Census_EC_PxI` as the commodity-mix source before settling on a ported 2017 mix.**
   Economic Census *Products by Industry* is an **observed** industry × product matrix — which is what
   this block is — where a ported mix holds the benchmark year's proportions fixed. It is extracted as
@@ -878,10 +993,14 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 
 ### Step 5 — Balance the SUT (RAS)
 
-**⚠️ Three decisions gate this step. Do not start writing code until all three are made** — the
-**starting point** (Decision 1), the **objective function** (Decision 2), and the **target set**
-(Decision 3), below. What follows replaces the earlier one-line instruction to port `sut_ras.py`;
-that is no longer the recommended route.
+**⚠️ Three decisions structured this step.** The **starting point** (Decision 1,
+Option A for the engine: vendored ceda dense + GRAS), the **objective function**
+(Decision 2), and the **target set** (Decision 3) are recorded below. The
+Use-then-Supply wrapper `engine` is in
+[`nowcast_sut_gras.py`](../../transform/iot/nowcast_sut_gras.py) (hard T1,
+T11–T17). The KRAS-style soft layer is not done — do not treat the full Step 5
+balancer as complete. What follows replaces the earlier one-line instruction to
+port `sut_ras.py`; that is no longer the recommended route.
 
 **What stays true regardless of how the decisions land:**
 - Balance on the SUT identity: **total supply at purchaser (`T016`) = total use (`T019`) per
@@ -933,31 +1052,44 @@ Keeping these separate is what makes the decision tractable:
 1. **Engine** — take one matrix, a seed, and margin targets; scale to the targets. This is where
    RAS-vs-GRAS lives, and where ceda's mask/convergence/stall machinery lives. Small surface, fully
    unit-testable on hand-checkable matrices.
-2. **SUT orchestration** — sequence the blocks (`V`, `Ui`, `Ufd`, `Uva`, imports), decide which
-   identity each pass enforces, carry aggregate-level targets, and iterate to joint convergence. Only
-   `sut_ras.py` has any of this, and it is the part with no tests.
+2. **SUT orchestration** — sequence the two panels (Use then Supply), decide which
+   identity each pass enforces, and iterate to joint T11 convergence. Soft
+   aggregate-level targets (T4 and the rest) stay skipped until KRAS. Historical
+   `sut_ras.py` sequenced `V`/`Ui`/`Ufd`/`Uva`; that script is the comparison
+   table below, not `engine()`.
 
 The two decisions below can land differently at each layer — e.g. ceda's engine under an
 orchestration layer written fresh against `sut_ras.py` as the reference.
 
 #### The scaffolding is built — how to run it (#653, #654, #591)
 
-**For anyone starting on the engine layer.** Everything below layer 1 is built — in [#659](https://github.com/cornerstone-data/bedrock/pull/659) until that merges;
-what remains is the engine itself.
+**For anyone calling the SUT wrapper.** Everything below the ndarray kernel
+is built — mask, targets, offset, precheck in [#659](https://github.com/cornerstone-data/bedrock/pull/659),
+`gras_balance` in [`gras.py`](../../utils/economic/balance/gras.py), and
+`engine` in [`nowcast_sut_gras.py`](../../transform/iot/nowcast_sut_gras.py).
+What remains of Step 5 is KRAS (soft T2/T4/T6–T9).
 
 | Module | What it is |
 |---|---|
-| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic, engine-agnostic: `Target`, `SutMask`, the offset method, the precheck |
+| [`bedrock/utils/economic/balance/`](../../utils/economic/balance/) | generic scaffolding (`Target`, `SutMask`, offset, precheck) and the ndarray GRAS kernel (`gras_balance`) |
+| [`transform/iot/nowcast_sut_gras.py`](../../transform/iot/nowcast_sut_gras.py) | nowcast SUT adapter — Use then Supply, hard T1 and T11–T17 |
 | [`transform/iot/nowcast_mask.py`](../../transform/iot/nowcast_mask.py) | the mask sourcing — Tiers 0/1/3/4, and the panel labels |
 | [`transform/iot/nowcast_targets.py`](../../transform/iot/nowcast_targets.py) | the target set — T1 through T17 |
 
-**The engine's contract is narrow.** It receives a seed carrying a *participation* mask and a set of
-*residual* targets, and returns a balanced matrix. It never handles fixed values, sign
-normalisation, aggregation, or cross-block algebra — the offset layer has already reduced all of
-that:
+**The wrapper's job is SUT orchestration.** Offset has already peeled frozen
+mass (`X = F + Z`) and residualised the targets. `engine` turns
+`free` / `residual` / `masks` into per-block `gras_balance` calls: extract
+ndarrays, map `free_mask = mask.free` and `sign_flex = (sign_lock == 0)`, and
+handle cross-block identities (T11–T17) by choosing which kernel vectors to
+pass. T11 is imposed only on **live** rows of the panel being scaled;
+empty-free T11 slots hold (a frozen Use commodity closes on Supply).
+It does not re-implement GRAS, hold fixed values, renormalise signs, or
+impose T4 aggregators (T4 stays skipped until KRAS). Two panels, Use then
+Supply — not `sut_ras` `V`/`Ui`/`Ufd`/`Uva`.
 
 ```python
 from bedrock.transform.iot.nowcast_mask import BLOCKS, build_sut_masks, published_2017_panel
+from bedrock.transform.iot.nowcast_sut_gras import engine
 from bedrock.transform.iot.nowcast_targets import build_target_set
 from bedrock.utils.economic.balance import (
     offset_targets, precheck, restore_fixed_blocks, split_fixed_blocks,
@@ -970,10 +1102,25 @@ targets = build_target_set(2017)
 frozen, free = split_fixed_blocks(seeds, masks)      # X = F + Z
 residual     = offset_targets(targets, frozen)       # r' = r - F @ 1
 precheck(seeds, masks, targets, allow_placeholders=True)
-
-balanced = engine(free, residual, masks)             # <- the part that does not exist yet
-result   = restore_fixed_blocks(balanced, frozen)    # fixed cells come back bit-identical
+out    = engine(free, residual, masks)
+result = restore_fixed_blocks(out.blocks, frozen)    # fixed cells come back bit-identical
 ```
+
+The **kernel** this package already has, once a wrapper (or a test) has extracted one block's vectors:
+
+```python
+result = gras_balance(
+    matrix=Z.to_numpy(),
+    row_targets=row_targets,
+    col_targets=col_targets,
+    free_mask=mask.free.to_numpy(),                 # not (Z != 0)
+    sign_flex=(mask.sign_lock.to_numpy() == 0),     # must pass; kernel default is not SutMask
+)
+```
+
+Kernel `sign_flex is None` → all-False (no cell may change sign). A default `SutMask`
+(`sign_lock` 0) means flex **is** allowed. Omitting `sign_flex` in a later adapter silently
+sign-locks the whole SUT. Do not write `gras_balance(free, residual, masks)`.
 
 `seeds` and `masks` are **mappings of block name to frame** (`'use'`, `'supply'`), because a target
 may relate the two panels — `T016 = T019` and the product-tax identities all do.
@@ -1019,7 +1166,7 @@ built against this set does not change when Steps 1-4 land — **only values do.
 
 | Option | What it costs | What it buys |
 |---|---|---|
-| **A. Start from ceda, add GRAS + a SUT layer** (current lean) | Add sign-split scaling to a codebase whose invariant is non-negativity — the clamp is load-bearing in places, not a one-line delete. Write the SUT layer from scratch. **Plus aggregate-level constraints, which Decision 3 shows are required and ceda's row/column-vector API cannot express.** | Typed, tested, diagnosable from day one. Mask-awareness and stall projection are exactly what a 402×402 detail balance with structural zeros needs, and rebuilding them is weeks. |
+| **A. Start from ceda, add GRAS + a SUT layer** (**chosen for the engine**) | Sign-split scaling; SUT layer from scratch (later PR). Aggregate-level constraints stay in the wrapper. | Typed, tested, diagnosable. `gras_balance` is this slice. |
 | **B. Start from `sut_ras.py`, harden it** | Type it, test it, replace magic epsilons, add masking and real convergence reporting — i.e. rebuild ceda's engineering around it. | GRAS, the SUT sequencing, **and aggregate-level targets** are already there, and they are the parts that are conceptually hard to get right rather than merely tedious. Decision 3 raises the value of this column. |
 | **C. Fresh engine in bedrock, both as references** | Most upfront work; no inherited tests. | No inherited invariant fighting us, no private-repo or dependency-pin entanglement, and the objective function is a deliberate choice rather than an artifact. |
 
@@ -1067,7 +1214,7 @@ expression of the choice, and the negatives question is decided here rather than
 | Objective | Minimizes | Negatives | Notes |
 |---|---|---|---|
 | **RAS / IPFP** | cross-entropy (KL) to the seed | not admitted | What ceda implements. Cheapest, best-understood, wrong for our seed as-is. |
-| **GRAS** (Junius–Oosterhaven 2003, corrected Lenzen et al. 2007) | generalized cross-entropy with positive and negative parts scaled by `r` and `1/r` | preserved, signs held unless flexed | What `sut_ras` implements. The natural fit for a seed with structural negatives; note the two published variants differ in the negative-part treatment and we should be explicit about which one we implement. |
+| **GRAS** (Junius–Oosterhaven 2003, corrected Lenzen et al. 2007; Temurshoev et al. 2013 all-negative margins) | generalized cross-entropy with positive and negative parts scaled by `r` and `1/r` | preserved, signs held unless flexed | **Implemented** in `gras_balance`. Lenzen 2007 + Temurshoev 2013; 2003 is the name only. |
 | **KRAS** (Lenzen et al. 2009) | as GRAS, plus reliability-weighted constraint violation | preserved | Admits **inconsistent and general (e.g. aggregate, inequality) constraints** by making them soft with weights. Directly relevant once Decision 3 lands: a target set drawn from NIPA, GDP-by-industry and the trade accounts **will not be mutually consistent to the dollar**, and the seed comes from seven independent nowcast paths on top of that. |
 | **Constrained least squares / QP** | weighted squared deviation from the seed | native | Handles bounds, sign constraints, and inequalities cleanly; needs an optimizer (scipy, or a hand-rolled projected solver) and scales worse. |
 
@@ -1105,9 +1252,11 @@ expression of the choice, and the negatives question is decided here rather than
   duties and stays an *industry*: its column carries `T00TOP` = `VAPRO` =
   38,513, which is the Supply `MDTY` total and its published gross output.
   Corrected 2026-08-17; see [`mask_layer_plan.md`](mask_layer_plan.md) §3.
-- **What does "converged" mean?** Elementwise per-margin tolerance (ceda's, and the right answer —
-  a global `max` bound is meaningless across margins spanning six orders of magnitude), plus an
-  `atol` floor, since several commodity targets are legitimately near zero.
+- **What does "converged" mean?** ✅ Elementwise per-margin
+  `|sum - target| <= atol + rtol |target|`, reported as
+  `GrasBalanceResult.converged`. A global `max` bound is meaningless across
+  margins spanning six orders of magnitude; `atol` floors near-zero commodity
+  targets.
 
 #### Decision 3 — the target set
 
@@ -1231,16 +1380,18 @@ imposed a green reconciliation run would prove nothing beyond "the solver ran".
 #### Recommendation to decide against
 
 **GRAS + a KRAS-style soft-constraint layer, aimed at the Decision 3 target set, with the mask
-supplied by the offset method.** The earlier form of this recommendation led with *vendor ceda's
-engine*; the two capabilities that justified it — mask-awareness and (via Decision 3) aggregate
-constraints — have both now failed to hold up, so **Option A's case is materially weaker than when
-this table was written and Decision 1 should be re-run.** What survives from ceda is convergence,
-stall projection and diagnostics; what survives from `sut_ras` is GRAS, the SUT sequencing and the
-aggregator machinery. Hold the commodity identity and gross output hard, everything sourced soft with
+supplied by the offset method.** **Decision 1 Option A is chosen for the engine:** vendored ceda
+dense path, GRAS in place of RAS (Lenzen, Wood and Gallego 2007 + Temurshoev, Miller and
+Bouwmeester 2013), clamps deleted, mask via offset outside the engine, no scipy.
+[`gras_balance`](../../utils/economic/balance/gras.py) is that engine. Convergence is elementwise
+`|sum - target| <= atol + rtol |target|`, reported on `GrasBalanceResult.converged`. The SUT
+orchestration layer is [`engine`](../../transform/iot/nowcast_sut_gras.py): Use then Supply,
+hard T1 and T11–T17, joint T11 stop. T4 aggregators are **not** imposed. The KRAS-style soft layer is
+**not yet**. Hold the commodity identity and gross output hard, everything sourced soft with
 per-source weights, and keep summary SUT out of the target set and in the test set.
 
-Decisions 2 (mask) and 3 (target set) are now **recorded**. Decision 1 remains open and is the only
-thing still gating code.
+Decisions 2 (mask) and 3 (target set) are **recorded**. Decision 1 is **resolved for the engine**;
+the Use-then-Supply wrapper has landed. What remains of Step 5 code is KRAS.
 
 ### Step 6 — SUT → MUT conversion *(new — produces the actual deliverables)*
 Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
@@ -1353,11 +1504,10 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   frozen mass, free mass and leverage per margin; a nonzero residual target facing zero free mass is
   infeasible and must **raise**, not converge to something meaningless. Leverage above ~10× warns.
   See [`mask_layer_plan.md`](mask_layer_plan.md) §3.
-- **Unit tests** for the balancer — small hand-checkable matrices, with **a negative-cell case and a
-  sign-lock case in the first batch**, not added later: they are the whole reason Step 5 was rescoped.
-  Whichever starting point wins, these tests are written against the objective function chosen in
-  Decision 2, so they encode the decision rather than the implementation. Keep the classic silent
-  failure in the batch too: a zero control total.
+- **Unit tests** for the balancer — [`balance/__tests__/test_gras.py`](../../utils/economic/balance/__tests__/test_gras.py):
+  hand-checkable matrices, including a negative-cell case and a sign-lock case. A **zero target is
+  legal**; a **nonzero target on an empty free margin** raises. Do not treat "zero control total" as
+  the silent RAS failure — that failure is the empty-free-margin case.
 - **Unit tests** for the SUT/MUT FD code lists and the margin reassignment in 6b.
 - **Golden-file per year** once Step 1 stabilizes, so later phases don't silently drift the FD block.
 - **Supply/Use match visualization (#587)** — a full-table picture, cell by cell *and* on the row and
@@ -1372,8 +1522,10 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
 
 ## Issue coverage and priority
 
-Reviewed 2026-08-05 against [project 26](https://github.com/orgs/cornerstone-data/projects/26) (40 items
-after this pass) and every open issue in the repo.
+Reviewed 2026-08-05 against [project 26](https://github.com/orgs/cornerstone-data/projects/26) and
+every open issue in the repo, and **re-swept 2026-08-19**: the fourteen issues filed since the first
+pass (#606, #610-#615, #635, #650, #660, #664, #665) were added to the board, and every item's `Status`
+was set from what has actually merged rather than from when the card was made.
 
 ### The gating layer sits above these steps
 
@@ -1432,11 +1584,11 @@ rediscovers the same 210-code problem from scratch.
 | Step | Issues | Remaining gap |
 |---|---|---|
 | 0 Hygiene | #523, #539/#540, **#573** (summary SUT vintage), **#574** (SLG attribution) | — |
-| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531 (rescoped — see §`F03000`), #547, **#575** (1d code list), **#576** (1f reconciliation) | — |
+| 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531 (built — see §`F03000`), **#660**/**#664**/**#665** (the three `F03000` follow-ons), #547, #606 (`S00300`), **#575** (1d code list), **#576** (1f reconciliation), #621 (2018-2024 PCE), #635 (the swallowed `ValueError`) | — |
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
-| **4 Supply table** | **#570** (4a), **#571** (4c), **#579** (4b), **#580** (4d), **#581** (4e) | — |
-| 5 RAS | **#588** (balancer, parent — *blocked on Decision 1 only; Decisions 2 and 3 recorded 2026-08-17*), **#653** (mask/target scaffolding — *Decision-1-independent, so it starts now*), **#654** (the fixed-value mask), **#591** (the target set — *decision settled, now the build*), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
+| **4 Supply table** | **#570** (4a), **#579** (4b — *done*), **#571** (4c, parent) split into **#610** (2017 rates — *done*), **#611** (FAF transport chain — *in progress*), **#612** (annual trade levels — *done*), **#613** (apply to nowcast years, derive `TRADE`/`TRANS`), **#614** (validate per commodity), **#615** (deferred NAPCS concordance), **#620** (transport trend validation), **#580** (4d), **#581** (4e) | 4c's five sub-issues were filed after the first pass and are now on the board |
+| 5 RAS | **#588** (balancer, parent — `gras_balance` and `engine` landed; KRAS later), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
 | 8 Cornerstone schema | **#586** | — |
@@ -1470,15 +1622,25 @@ replaced by #572. **Every item on the board is now a trackable issue.**
   #574 may fall out of this rather than needing its own attribution work — diagnose first. Then #579,
   #580, #581 once the trade FBS path is safe. #573 any time; it is small and Step 5 needs it.
 
-  **#530/#531 (`F03000`) moves up into P1 on the rescope.** Its phase 1 — consume `U50705BU1`, which
-  is already extracted, plus the farm line — needs no new extract and no crosswalk, and it closes one
-  of the eight whole columns currently reported as `miss` in
-  [`progress_report.md`](progress_report.md). It is FBS-routed, so it sits behind the code-space fix
-  like the rest of Step 1; the ~25-line trade crosswalk (phase 2) is not, and can be built in
-  parallel alongside #610.
-- **P2** — Step 5 (promote the four drafts), then #582/#583/#584 and **#585**, the 2017 benchmark
-  replay — the single highest-value test in the project — then #572.
-- **P3** — #586, then Step 9 (promote drafts).
+  ✅ **#529/#530/#531 (`F03000`) is done as a first pass (2026-08-19, #666)** — it was P1 on the
+  rescope and it closed the last whole-column `miss` in
+  [`progress_report.md`](progress_report.md). What is left of it is three ranked follow-ons rather
+  than a build: **#660** (mining and farm splits — the largest single error, `211000` at −4,754
+  against −7,577), then **#664** (manufacturing stage shares — `336411` at −288 against −6,314),
+  then **#665** (`S00402`, at 380 against 3,969). All three are *allocation* work on a column whose
+  total is already right, so they are P1 only against the per-commodity bar, not against anything
+  downstream — nothing else in the build is blocked on them.
+- **P2** — Step 5 (#588 parent, with **#653** scaffolding *landed*, **#654** mask and **#591** target
+  set built to first pass in #659; **#655** gross output at producer prices next), then #582/#583/#584
+  and **#585**, the 2017 benchmark replay — the single highest-value test in the project — then #572.
+- **P3** — #586, then Step 9 (#592, #593).
+
+**Re-ranked 2026-08-19.** The two things that moved: 4c is no longer one card — #610 and #612 are done
+and #611 is in progress, so the critical path through Step 4 now runs #570 (4a) → #613, with #580 (4d)
+alongside. And `F03000` came off the critical path entirely: the column exists, so the remaining
+inventories work competes on accuracy rather than blocking coverage. **The single highest-leverage
+unbuilt thing is still #570 (4a)** — `T007` is a whole missing Supply column, it gates #613, and Step 5
+cannot target gross output without it.
 
 **Filed 2026-08-05:** #573-#587 new, #588-#593 converted from drafts. One issue per sub-step, all on
 the board with milestone `v0.5`. **Every plan step now has full issue coverage.** Board: 33 → 56 items,
@@ -1493,6 +1655,36 @@ every step. USEEIO #4 is `Step 6b`. Pull requests were left alone; they inherit 
 6a-6d → 6 (the whole-phase replay, after the sub-steps it validates) → 7 → 8 → 9 → Diagnostics. Pull
 requests sit with the step of the issue they close. Note this sets **manual position**, so it holds
 only while a view has no explicit sort of its own; a saved sort in the view UI overrides it.
+
+**Re-sorted 2026-08-19, 66 → 78 items.** The twelve added issues were appended at the bottom on
+creation, so the whole board was re-positioned into the order above and they were slotted into their
+steps: #660/#664/#665 behind #529-#531 as the `F03000` follow-ons, #650 with them (it extends the same
+`Census_EC_PxI` source to 2022), #610-#615 and #620 behind #571 as the 4c chain, #606 and #635 into
+Step 1 validation, #621/#646/#647/#668 with 1A and 1B.
+
+**`Status` now means what has merged, not when the card was made,** and **`Done` still means closed** —
+every `Done` item on the board is a closed issue, and breaking that would make the column unreadable.
+Nine items moved off `Todo` on that basis, and six of them were then closed outright:
+
+| issue | what closed it |
+|---|---|
+| #530 (1C source and method) | #666 — the four rules, the sources behind each, and the farm level |
+| #531 (1C FBAs and crosswalks) | #651, #652, #666 — `U50705BU1`/5.7.5B/`U70205`, the `Census_EC_PxI` extractor, and a 1,218-row crosswalk over 54 NIPA lines |
+| #610 (4c-1 2017 rates) | #626 — and it settled that #580 (4d) is a prerequisite for #613 |
+| #612 (4c-3 annual trade levels) | #628 |
+| #653 (Step 5 scaffolding) | #659 — deliberately Decision-1-independent, which is why it could land first |
+| #654 (Step 5 fixed-value mask) | #659 |
+
+The three that stay open are open for a reason: **#529** has the three `F03000` follow-ons under it,
+**#611** is the transport chain in progress, and **#655** is the gross output target. #591 and #588
+were already `In Progress`.
+
+✅ **Every issue on the board now carries its step in its title.** Eleven were renamed 2026-08-19 —
+#615 and #620 into `Step 4c`, #635 and #658 into `Step 1`, #646/#647/#668 into `Step 1B`, and
+#650/#660/#664/#665 into `Step 1C`. ⚠️ An earlier count of ten here was wrong in both directions: it
+included #606, which already carried `Step 1/3` and is correct as it stands, and it missed #615 and
+#620. Only the five pull requests are unprefixed, which is the standing exception — they inherit from
+the issue they close.
 
 ## Open questions
 
@@ -1509,21 +1701,17 @@ only while a view has no explicit sort of its own; a saved sort in the view UI o
    including the Step 3 intermediate seed (seed from `Use_SUT_Framework_2017_DET` — native SUT, native
    purchaser, native before-redef). #497's instruction to nowcast the intermediate block on the
    *after*-redefinitions Use table is **overridden**; it would mix states inside the SUT.
-4. **The Step 5 balance — three coupled decisions, all open, all blocking.** Detail in §Step 5.
+4. **The Step 5 balance — three coupled decisions.** Detail in §Step 5.
    The earlier form of this question ("summary SUT totals or gross output?") **presumed a default that
    is now struck**; see 4c.
-   - 4a. **Starting point — the only one still open, and now the only thing gating Step 5 code.**
-     Vendor and adapt ceda's `ras_balancing.py`, harden `sut_ras.py`, or write fresh with both as
-     references? ⚠️ **The vendor-ceda lean is materially weaker than when it was written**: both
-     capabilities it was buying have failed to hold up — ceda's mask is a *participation* mask that
-     cannot express a fixed nonzero value, and aggregate-level constraints are still needed (for the
-     VA rows). What survives from ceda is convergence, stall projection and diagnostics. Decision 1.
-     Note #653 is deliberately independent of this, so scaffolding work starts now.
-   - 4b. **Objective function** — RAS/IPFP, GRAS (and which published variant), KRAS, or constrained
-     least squares, plus hard-vs-soft and sign-flip policy. Decision 2. **Partly settled:** the mask
-     is recorded ([`mask_layer_plan.md`](mask_layer_plan.md)), and plain RAS is out on evidence rather
-     than on principle — the structural negatives, plus `F03000`'s **negative column target in 2020**.
-     The GRAS variant, the soft-constraint form and the convergence rule are still open.
+   - 4a. ✅ **Starting point — Option A for the engine, resolved.** Vendored ceda dense
+     `ras_balancing.py` + GRAS, no scipy/sparse, clamps deleted, mask via offset.
+     [`gras_balance`](../../utils/economic/balance/gras.py). The SUT-orchestration half of Option A
+     (wrapper `engine(free, residual, masks)`) is ✅ Use then Supply, hard T1 and T11–T17.
+   - 4b. **Objective function** — ✅ inner loop is GRAS (Lenzen 2007 + Temurshoev 2013);
+     `GrasBalanceResult.converged` is elementwise `atol`/`rtol`. Mask policy recorded
+     ([`mask_layer_plan.md`](mask_layer_plan.md)); plain RAS is out. **KRAS / soft weights remain
+     open.** Sign-flex *mechanism* is `sign_flex` on the kernel; *policy* (which cells) is the mask.
    - 4c. ✅ **Target set — settled 2026-08-17.** [`target_set_plan.md`](target_set_plan.md), #591.
      Detail gross output (hard, and **observed at detail for every Phase 1 year** — the circularity
      premise was wrong), thirteen NIPA FD column totals plus six masked columns, compensation by

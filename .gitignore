@@ -29,6 +29,8 @@ __pycache__/
 *_metadata.json
 *_diffs.yaml
 !bedrock/utils/**/*.csv
+# Nowcasting scorecard baselines must be tracked in git.
+!bedrock/analysis/nowcasting/trade_data/score_2017_trade_detail_baseline.csv
 # asets stands for activity sets
 !bedrock/extract/**/*_asets.csv
 !bedrock/extract/external_data/*.csv
