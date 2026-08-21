@@ -1,4 +1,4 @@
-"""Tests for the Step 5 target set sourcing (#591).
+"""Tests for nowcast Supply/Use target-set sourcing.
 
 Structural, following ``test_nowcast_margins.py``: these check that each target
 is *shaped* the way the plan says, because that is what an engine is built
@@ -182,7 +182,7 @@ def test_the_t17_offset_is_named_and_tied_to_the_tier_4_decision() -> None:
 def test_t1_binds_the_use_panel_only() -> None:
     """The Supply industry column is basic-priced, so T1 must not touch it.
 
-    ``target_set_plan.md`` §2 still states T1 as "Supply + Use industry
+    T1 is sometimes stated as "Supply + Use industry
     columns"; measured on 2017 the Use column reproduces gross output to 13 per
     industry while the Supply column misses by up to 88,363. T17 constrains the
     Supply side instead.

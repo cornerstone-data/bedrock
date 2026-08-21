@@ -281,8 +281,8 @@ def initial_Y_pur_candidate(year: int) -> pd.DataFrame:
 def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
     """Our Step 4 supply-bridge block, commodity x bridge code, in USD.
 
-    Runs ``derive_initial_supply_bridge``. MCIF is sourced; other columns are
-    unsourced.
+    Runs ``derive_initial_supply_bridge``. T007 and MCIF are sourced; other
+    columns are unsourced.
     """
     from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
         derive_initial_supply_bridge,
@@ -394,7 +394,9 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
         'mapped Trade_Imports_2017 Detail mass; MDTY from Census duty rate × '
         'goods MCIF leveled to NIPA B235RC; MADJ from Census GEN_CHA_YR '
         'reassigned onto 2017 Supply MADJ destination codes and leveled to '
-        'published Supply MADJ; T007, margins, tax and subtotals unsourced. '
+        'published Supply MADJ; T007 the row margin of the Detail_Supply_2017 '
+        'FBS domestic-output block; margins and tax unsourced, so the subtotals '
+        'that consume them stay NaN. '
         'T014 nets to ~1 economy-wide, which is why this block needs a '
         'per-commodity picture rather than a totals check.'
     ),

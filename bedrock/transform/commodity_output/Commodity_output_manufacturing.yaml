@@ -1,0 +1,107 @@
+# Manufacturing commodity output (q) from reported product data - Step 4a, #570.
+#
+# The shared body. Each year is a two-line sibling file that includes this and
+# sets `year`; the source inherits the method's year, so nothing else varies.
+#
+# ---- What this estimates -------------------------------------------------
+# `q`, commodity output, for the manufacturing commodities of the BEA 2017
+# detail Supply table - the ROW margin of the T007 block. Not industry output,
+# and not industry output times a frozen mix.
+#
+# This is the route BEA's own IO manual (ch. 5) describes for manufacturing and
+# mining: commodity output built from PRODUCT data directly, independent of
+# industry output. Services take the other route - industry output times a
+# commodity mix - and are not in this method.
+#
+# ⚠️ BEFORE REDEFINITIONS. The manual calls its own output "after
+# redefinitions", which is the supplementary presentation. The SUTs this
+# nowcast targets are before redefinitions, and so is Census product data as
+# collected. No redefinition is applied here, by decision - see
+# analysis/nowcasting/output_estimation_plan.md.
+#
+# ---- Valuation -----------------------------------------------------------
+# ✅ The output is at BASIC prices already, and no conversion belongs anywhere
+# in this method. Census NAPCSDOL is value of shipments f.o.b. plant, net of
+# discounts and excluding freight and excise taxes. Verified rather than
+# assumed, on the commodities where the wedge is largest: tobacco builds to
+# 0.99 of published basic value against 0.56 of producer, distilleries 0.99
+# against 0.57.
+#
+# ⚠️ That is the opposite of Step 4a's INDUSTRY side, which needs
+# GO(basic) = GO(producer) - T00TOP + T00SUB because derive_gross_output
+# returns producer prices. The two margins of T007 arrive in different
+# valuations from their sources and only one of them needs correcting.
+#
+# ---- How well it works ---------------------------------------------------
+# Scored against BEA's published summary Supply T007 over the 19 manufacturing
+# summary groups - level ratio and weighted absolute error:
+#
+#   2018  0.971 / 4.5%      2020  0.950 / 6.8%
+#   2019  0.948 / 6.1%      2021  0.943 / 6.7%
+#
+# ⚠️ Scored at SUMMARY over 19 groups. That is not comparable to the 11.5% the
+# 2017 Economic Census build scores at DETAIL over 231 commodities: aggregation
+# hides offsetting errors between detail children, so the summary figure is the
+# more forgiving of the two by construction. Detail accuracy for 2018-2021 is
+# unmeasured, because no published detail exists for those years to measure it
+# against.
+#
+# ⚠️ Known remaining gaps, largest first:
+#   - 325412 pharmaceutical preparations, 0.52 at detail. Not valuation - the
+#     largest single unexplained commodity in the build.
+#   - 3361MV motor vehicles: the car/truck split is now taken from NIPA U70205
+#     (see split_motor_vehicle_output), which fixes the DIVISION between 336111
+#     and 336112 but not their combined level - the pair is 19.5% over in 2017.
+#   - 3.4% of ASM product value maps to no BEA commodity at all.
+#
+# ---- What is NOT here ----------------------------------------------------
+# ⚠️ MINING HAS NO ANNUAL PRODUCT SURVEY. ASM is manufacturing only (NAICS 31,
+# 32, 33); AIES covers mining but carries no product dimension. Mining `q` needs
+# USGS Mineral Yearbook quantities and EIA, which is separate work. A handful of
+# mining commodities appear in this output because manufacturers report some
+# mining products - they are a few tenths of a percent and are not the estimate
+# for those commodities.
+#
+# ⚠️ 2022 IS ABSENT. ASM is not conducted in an Economic Census year, so the
+# 2022 gap is filled by Census_EC_PxI instead. 2023 is not yet published.
+
+!include:BEA_detail_commodity_target.yaml
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+source_names:
+  Census_ASM_PxI:
+    geoscale: national
+    data_format: FBA
+    # ⚠️ MUST be overridden here, and null rather than absent. The source
+    # catalog declares Census_ASM_PxI as naics-schema for the FBA build, and
+    # get_catalog_info is merged AFTER the method config - so the method's
+    # activity_schema loses to it. Without this line map_to_sectors treats the
+    # activity values as NAICS and expands them through the NAICS hierarchy;
+    # they are 10-digit NAPCS collection codes by then, nothing matches, and
+    # mapping returns zero rows rather than raising.
+    activity_schema: null
+    # ⚠️ ONE HOOK, NOT TWO. prepare_fbs runs clean_fba_before_mapping BEFORE
+    # estimate_suppressed, the opposite of the order these two steps need: the
+    # recovery walks the NAICS hierarchy and the reshape is what removes it.
+    # Wiring them to the two sockets separately does not raise - it silently
+    # reports every industry withheld and fills the table with zeros.
+    clean_fba_before_mapping: !script_function:Census_ASM prepare_asm_pxi_for_output
+    activity_to_sector_mapping: Census_ASM_PxI
+    # After the reshape the NAPCS code is in ActivityProducedBy and the NAICS
+    # industry is parked in FlowName. Naming the primary column keeps
+    # add_primary_secondary_columns out of its _identify_secondary branch.
+    primary_action_type: Produced
+    # ⚠️ "equal", not "direct". 156 of 4,870 NAPCS codes map to more than one
+    # BEA commodity and direct attribution would duplicate their value into
+    # each. The activity-to-sector format cannot carry the weight column that
+    # napcs_to_bea_2017.csv computes, so the split is equal: exact for the 138
+    # two-way 0.5/0.5 splits, approximate for the other 18. Measured cost is
+    # 0.16-0.19pp of weighted error (4.47% -> 4.63% in 2018, 6.72% -> 6.91% in
+    # 2021) and nothing at all on the level.
+    attribution_method: equal
+    # ⚠️ AFTER aggregation, not before. The split reallocates value BETWEEN two
+    # BEA commodities, so it needs the commodity axis to exist and the rows to
+    # be aggregated onto it - neither is true at any earlier socket. See #570.
+    clean_fbs_after_aggregation: !script_function:Census_ASM split_motor_vehicle_output

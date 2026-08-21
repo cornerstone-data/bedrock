@@ -1,9 +1,8 @@
 """The precheck: what the mask costs, before the balance runs.
 
-Production form of ``mask_layer_feasibility.py``. A balance that cannot
-succeed should say so up front and name the margin, because *"the balance did
-not converge"* is not actionable and *"commodity 336112 has $1 of free mass
-against a $439,551 row"* is.
+A balance that cannot succeed should say so up front and name the margin,
+because *"the balance did not converge"* is not actionable and *"commodity
+336112 has $1 of free mass against a $439,551 row"* is.
 
 **Leverage is the metric.** ::
 
@@ -17,10 +16,9 @@ not constrained by the mask.
 **Mass is summed across a target's terms**, weighted by ``|coefficient|``. That
 falls out of the linear-combination form and it is the right answer: for
 ``T016 = T019`` the free mass is the free mass on the Supply row *plus* the
-free mass on the Use row, which is exactly ``mask_layer_plan.md`` §3's finding
-that leverage has to be read across both tables. A commodity frozen on the Use
-side is only stuck if its Supply side is frozen too, and the arithmetic now
-says so without a special case.
+free mass on the Use row, which is why leverage has to be read across both
+tables. A commodity frozen on the Use side is only stuck if its Supply side
+is frozen too, and the arithmetic now says so without a special case.
 
 **Two outcomes, and only one of them raises.**
 

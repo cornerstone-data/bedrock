@@ -1,23 +1,18 @@
 """Targets for a constrained matrix balance.
 
-The constraint side of Step 5
-(`#653 <https://github.com/cornerstone-data/bedrock/issues/653>`_). A balance
-is a seed matrix plus a set of margins it must reproduce; this module is the
-margins. It is deliberately engine-agnostic - nothing here knows whether the
-solver ends up being GRAS, RAS, or something vendored, which is the point of
-building it before `#588`'s Decision 1 is settled.
+A balance is a seed matrix plus a set of margins it must reproduce; this
+module is the margins. It is deliberately engine-agnostic - nothing here
+knows whether the solver ends up being GRAS, RAS, or something else.
 
 **A target is a statement about a margin, not about a cell.** Cells that a
 source reports directly belong in the mask (:mod:`.mask`), and the rule that
-separates the two is in ``mask_layer_plan.md`` §4: *mask a cell only if the
-source reports that cell; if the source reports the margin, it belongs to the
-target set instead - never both.* A source spent on a cell cannot also be spent
-on a margin.
+separates the two is: *mask a cell only if the source reports that cell; if
+the source reports the margin, it belongs to the target set instead - never
+both.* A source spent on a cell cannot also be spent on a margin.
 
-**A target is a linear combination of margins, not a single one.** Most of the
-hard constraints in ``target_set_plan.md`` §2 relate the Use panel to the
-Supply panel, so a target that could name only one block could not express
-them::
+**A target is a linear combination of margins, not a single one.** Most of
+the hard constraints relate the Use panel to the Supply panel, so a target
+that could name only one block could not express them::
 
     Σ_k  coefficient_k · margin(block_k, axis_k, aggregator_k)  =  values
 
@@ -36,9 +31,7 @@ so the same machinery covers per-label and economy-wide constraints.
 
 ⚠️ **T12 is a difference, not a sum.** BEA stores the Use ``T00SUB`` row
 positive and the Supply ``SUB`` column negative, so on the raw tables it is a
-sum - and ``target_set_plan.md`` §2's table still states it that way. The
-balance normalises both negative, which makes it a plain equality. See
-§2a of that document.
+sum. The balance normalises both negative, which makes it a plain equality.
 
 **Hard and soft.** Only identities are hard. Everything sourced is an estimate
 from an account with its own vintage, so a target set held entirely hard is

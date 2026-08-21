@@ -53,6 +53,7 @@ identity ``-Y[S00900, F01000] + Supply_T016[S00900]`` (2017 only).
 from __future__ import annotations
 
 import functools
+import typing as ta
 
 import pandas as pd
 
@@ -87,6 +88,105 @@ _SUPPLY_BRIDGE_CODES = (
     'T015',
     'T016',
 )
+
+#: Supply-bridge subtotals, each the plain signed sum of its components, in the
+#: order they have to be evaluated (``T016`` consumes the other three). Verified
+#: against the published 2017 Detail Supply table: every commodity reproduces to
+#: within the workbook's own 1 million USD rounding (2 on ``T016``, which stacks
+#: three rounded subtotals).
+#:
+#: ``SUB`` is stored **negative**, as BEA publishes it in the Supply table, so
+#: ``T015`` adds it rather than subtracting.
+_SUPPLY_BRIDGE_SUBTOTALS: dict[str, tuple[str, ...]] = {
+    'T013': ('T007', 'MCIF', 'MADJ'),
+    'T014': ('TRADE', 'TRANS'),
+    'T015': ('MDTY', 'TOP', 'SUB'),
+    'T016': ('T013', 'T014', 'T015'),
+}
+
+#: Value-added rows of the Use panel, same five as ``nowcast_mask.VA_ROWS``.
+USE_VALUE_ADDED_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
+
+#: Value-added subtotal rows of the Use panel, as ``{row: {component: sign}}``,
+#: in evaluation order. ``T005`` is the intermediate-use column total and is
+#: derived from the commodity rows rather than read off a component. Verified
+#: against the published 2017 Detail Use_SUT table: every industry reproduces to
+#: within the workbook's rounding (1-2 million USD on the value-added rows, 13
+#: on ``T005``/``T018``, which sum 402 rounded commodity cells).
+#:
+#: ⚠️ Sign convention is the balance's, not BEA's: ``T00SUB`` is stored
+#: **negative** here (as ``nowcast_mask.published_2017_panel`` stores it, and as
+#: the Supply table publishes ``SUB``), so ``VAPRO`` adds it. BEA publishes the
+#: Use row positive and subtracts it. Feeding a BEA-signed panel in silently
+#: doubles the subsidy wedge in ``VAPRO``.
+_USE_VALUE_ADDED_SUBTOTALS: dict[str, dict[str, int]] = {
+    'VABAS': {'V00100': 1, 'T00OTOP': 1, 'V00300': 1},
+    'T018': {'T005': 1, 'VABAS': 1},
+    'VAPRO': {'VABAS': 1, 'T00TOP': 1, 'T00SUB': 1},
+}
+
+
+def _signed_sum(parts: ta.Iterable[pd.Series], signs: ta.Iterable[int]) -> pd.Series:
+    """Signed sum of series, propagating NaN.
+
+    ``DataFrame.sum`` skips NaN, which would report an unsourced component as
+    zero; a subtotal one of whose components is unsourced has to stay NaN, so
+    the terms are added with ``+`` instead.
+    """
+    total: pd.Series | None = None
+    for part, sign in zip(parts, signs, strict=True):
+        term = part * sign
+        total = term if total is None else total + term
+    assert total is not None, 'a subtotal needs at least one component'
+    return total
+
+
+def fill_supply_bridge_subtotals(bridge: pd.DataFrame) -> pd.DataFrame:
+    """Fill ``T013``/``T014``/``T015``/``T016`` from their components.
+
+    Returns a new frame; the argument is not mutated. A subtotal whose
+    components are not all sourced stays NaN - ``T014`` before the margin
+    columns land, for instance - rather than being reported as zero.
+    """
+    filled = bridge.copy()
+    for code, components in _SUPPLY_BRIDGE_SUBTOTALS.items():
+        filled[code] = _signed_sum(
+            (filled[c] for c in components), (1,) * len(components)
+        )
+    return filled
+
+
+def use_value_added_subtotals(
+    panel: pd.DataFrame, industries: ta.Sequence[str]
+) -> pd.DataFrame:
+    """``T005``/``VABAS``/``T018``/``VAPRO`` for the Use panel, industries only.
+
+    ``panel`` is a Use block: commodity rows plus :data:`USE_VALUE_ADDED_ROWS`,
+    on the balance's sign convention (see
+    :data:`_USE_VALUE_ADDED_SUBTOTALS`). ``T005`` is the sum of the commodity
+    rows, so the panel must carry them.
+
+    Returned over ``industries`` only, matching the published table: BEA leaves
+    the value-added subtotals blank in the final-demand columns, and ``T018``
+    in particular is *not* ``T005 + VABAS`` there - it is empty, even though
+    ``T005`` is not.
+    """
+    industries = list(industries)
+    missing = [c for c in USE_VALUE_ADDED_ROWS if c not in panel.index]
+    assert not missing, f'Use panel is missing value-added rows: {missing}'
+    derived = {*USE_VALUE_ADDED_ROWS, *_USE_VALUE_ADDED_SUBTOTALS, 'T005'}
+    commodities = [c for c in panel.index if c not in derived]
+    assert commodities, 'Use panel has no commodity rows to total into T005'
+
+    rows = panel.loc[list(USE_VALUE_ADDED_ROWS), industries].copy()
+    rows.loc['T005'] = panel.loc[commodities, industries].sum()
+    for code, terms in _USE_VALUE_ADDED_SUBTOTALS.items():
+        rows.loc[code] = _signed_sum(
+            (ta.cast('pd.Series', rows.loc[c]) for c in terms),
+            tuple(terms.values()),
+        )
+    return rows.loc[['T005', *_USE_VALUE_ADDED_SUBTOTALS]]
+
 
 _SECTOR_SWAP = {
     'SectorProducedBy': 'SectorConsumedBy',
@@ -155,6 +255,42 @@ def _inventories_fbs_commodity_vector(
     )
 
 
+def _supply_fbs_commodity_vector(year: int, download_sources_ok: bool) -> pd.Series:
+    """Domestic commodity output ``T007``, USD, indexed by BEA 2017 Detail.
+
+    Source is the ``Detail_Supply_<year>`` FBS
+    (``bedrock/transform/detail/Detail_Supply_<year>.yaml``), which
+    disaggregates the published summary Supply domestic-output block onto the
+    2017 detail mix. That block is commodity x industry, so ``T007`` is its
+    **row margin** - and in the FBS the commodity is ``SectorConsumedBy``, the
+    industry ``SectorProducedBy`` (the Supply table's rows are commodities and
+    its columns industries).
+
+    The 2017 build reproduces the published detail ``T007`` column to rounding:
+    33,772,550m against 33,772,566m, worst commodity 8.6m on ``541511``'s
+    269,868m. Later years close on the published *summary* row margin exactly
+    by construction - the summary total is the control - so that agreement is
+    not evidence; the detail split rests on the held-out mix test.
+
+    ``S00300``, ``S00402`` and ``4200ID`` are absent because their published
+    ``T007`` is zero by definition: they are not domestic output and enter the
+    Supply table through ``MCIF`` / ``MDTY`` / margins instead. They reindex to
+    0.0 here, which is their correct value, not a gap.
+    """
+    fbs = getFlowBySector(
+        f'Detail_Supply_{year}',
+        download_FBAs_if_missing=download_sources_ok,
+        download_FBS_if_missing=download_sources_ok,
+    )
+    return (
+        pd.DataFrame(fbs)
+        .groupby('SectorConsumedBy')['FlowAmount']
+        .sum()
+        .reindex(USA_2017_COMMODITY_CODES)
+        .fillna(0.0)
+    )
+
+
 def _s00900_export_identity_usd() -> float:
     """2017 Supply T016 on S00900, scaled to USD (workbook is million USD)."""
     supply = _load_2017_detail_supply_use_usa('Supply_detail')
@@ -216,7 +352,9 @@ def derive_initial_supply_bridge(
     MCIF is mapped Trade_Imports_<year> Detail mass for 2017. MDTY is Census
     duty rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
     GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
-    to published Supply MADJ.
+    to published Supply MADJ, for 2017. T007 is the row margin of the
+    ``Detail_Supply_<year>`` FBS domestic-output block, and is sourced for
+    every year 2017-2024.
 
     ``TRANS`` is Step 4c's transport margin, built per mode on the basis BEA
     uses for each and controlled to that mode's observed annual freight revenue
@@ -230,9 +368,12 @@ def derive_initial_supply_bridge(
     column has to net to zero for target T16 to hold.
 
     ``TRADE`` remains unsourced: it is a rate on producer value, so it needs
-    4a (#570) and 4d (#580) first. Other years and remaining columns (T007,
-    tax, subtotals, T013) are unsourced. Callers must not mutate the cached
-    frame.
+    4a (#570) and 4d (#580) first. The remaining tax columns (TOP, SUB) are
+    unsourced too.
+
+    The subtotals T013/T014/T015/T016 are computed from their components by
+    :func:`fill_supply_bridge_subtotals`, so a subtotal is NaN until every one
+    of its components is sourced. Callers must not mutate the cached frame.
     """
     bridge = pd.DataFrame(
         index=pd.Index(USA_2017_COMMODITY_CODES, name='commodity'),
@@ -240,6 +381,7 @@ def derive_initial_supply_bridge(
         dtype=float,
     )
     bridge.columns.name = 'supply_bridge_code'
+    bridge['T007'] = _supply_fbs_commodity_vector(year, download_sources_ok)
     if year == 2017:
         bridge['MCIF'] = _trade_fbs_commodity_vector(
             f'Trade_Imports_{year}', download_sources_ok
@@ -250,4 +392,4 @@ def derive_initial_supply_bridge(
         bridge['TRANS'] = (
             transport_margin_column(year).reindex(bridge.index).fillna(0.0)
         )
-    return bridge
+    return fill_supply_bridge_subtotals(bridge)
