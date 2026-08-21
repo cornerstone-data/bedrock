@@ -387,6 +387,6 @@ def test_receiving_shares_are_frozen_at_2017() -> None:
         assert list(received.index) == list(anchor.index)
         assert (received / received.sum() - anchor_shares).abs().max() < 1e-12
 
-    assert min(levels.values()) < max(levels.values()), (
-        'the levels are identical too, so the shares matching proves nothing'
-    )
+    assert min(levels.values()) < max(
+        levels.values()
+    ), 'the levels are identical too, so the shares matching proves nothing'
