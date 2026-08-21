@@ -855,3 +855,21 @@ def test_supply_bridge_trade_is_sourced_a_year_further_than_trans() -> None:
     assert bridge_2023['TRADE'].notna().all()
     assert bridge_2023['TRANS'].isna().all()
     assert abs(bridge_2023['TRADE'].sum()) < 1
+
+
+def test_supply_bridge_leaves_2024_trade_unsourced() -> None:
+    """
+    2024 is inside the bridge's year range but outside the Census series.
+
+    ⚠️ NaN is the *only* correct answer here, and it has to stay NaN rather
+    than becoming zeros. In a sourced year the non-receiving commodities are
+    filled with zeros deliberately - a commodity that bears no trade margin has
+    none, and that is information. A 2024 column of zeros would be
+    indistinguishable from that, so an unsourced year filled the same way would
+    read as "no commodity bears a trade margin in 2024" instead of "we have not
+    measured 2024". Extrapolating 2023 forward would be worse still.
+    """
+    bridge_2024 = derive_initial_supply_bridge(2024)
+    assert bridge_2024['T007'].notna().any(), '2024 should reach the bridge at all'
+    assert bridge_2024['TRADE'].isna().all()
+    assert bridge_2024['TRANS'].isna().all()
