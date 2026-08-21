@@ -261,8 +261,8 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528) / [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#642](https://github.com/cornerstone-data/bedrock/pull/642)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647) |
 | `MADJ` | Import adjustment (c.i.f./f.o.b.) | Census `GEN_CHA_YR` mapped to Detail, reassigned onto 2017 Supply `MADJ` destination codes (signed shares), leveled to published Supply `MADJ` (`madj_detail_usd`) | ⏳ **2017 candidate** — charges + destination reassignment in `derive_initial_supply_bridge` |
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge` |
-| `TRADE` | Wholesale + retail margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
-| `TRANS` | Transportation margins, by commodity | Aggregate of the nowcast Margins dataset (§Step 4c) | ❌ **unsourced** |
+| `TRADE` | Wholesale + retail margins, by commodity | 2017 published column moved by the Census wholesale/retail gross margin (`nowcast_trade_margins.py`, #612/#613) — **not** an aggregate of the nowcast Margins dataset | ⏳ **2017-2023 candidate** — receiving split is the **frozen 2017 mix** |
+| `TRANS` | Transportation margins, by commodity | Per-mode allocation of observed annual freight revenue (`Margins_Transport_<year>` FBS, #611) | ⏳ **2017-2022 candidate** — within-group weight frozen at 2017 (#672) |
 | `TOP` | Taxes on products | NIPA T30500 total + commodity split (2017 shares?) | ❌ total available, **split unsourced** |
 | `SUB` | Subsidies (stored negative) | NIPA T31300 total + commodity split | ❌ total available, **split unsourced** |
 
@@ -1623,12 +1623,36 @@ replaced by #572. **Every item on the board is now a trackable issue.**
   | half | needs | when |
   |---|---|---|
   | ✅ **Derive 2017 rates** per (buyer, commodity, margin type) from the published Margins table, and prove the two identities reproduce the 2017 Supply columns | nothing — the 2017 tables are already loaded | **done, #610** |
-  | **Apply those rates** to a nowcast year | `T007` from **4a** (#570), `MCIF`/`MADJ`/`MDTY` from **4b** (#579) *and* `TOP`/`SUB` from **4d** (#580) | after all three |
+  | ✅ **The two Supply columns** `TRADE`/`TRANS` | nothing downstream — see below | **done, #611/#612/#613** |
+  | **Apply those rates** to build the transaction-level **Margins table** | `T007` from **4a** (#570), `MCIF`/`MADJ`/`MDTY` from **4b** (#579) *and* `TOP`/`SUB` from **4d** (#580) | after all three |
 
   Doing the first half first is what de-risked the other three consumers, and it also **settled what
   the second half depends on**: the rate base is producer value less trade-level tax, not `T013`, so
   4d joins 4a and 4b as a prerequisite (§Step 4c point 1). Applying rates to `T007` alone to avoid the
   4b dependency is the tempting shortcut and is **wrong** — it drops the margin on imports.
+
+  ⚠️ **Corrected 2026-08-21: the two Supply columns never applied rates to a nowcast base, and so
+  never needed 4a/4b/4d.** This section used to read as if `TRADE`/`TRANS` fell out of the
+  rate-application half. They do not, and the dependency above survives **only** for the
+  transaction-level Margins table (§Phase 4b of
+  [`margins_estimation_plan.md`](margins_estimation_plan.md)):
+
+  - `TRANS` (#611) allocates each mode's **observed annual freight revenue** over its receiving
+    commodities. Nothing in it touches the nowcast base.
+  - `TRADE` (#612/#613) is **anchor-and-move**: the published 2017 column rescaled by the Census
+    wholesale and retail gross margin. The *level* moves annually and so does the kind-of-business
+    split; the **receiving split — which commodities get the margin — is the frozen 2017 product
+    mix**, for every year 2018-2023. It is a rescaled 2017 column, not a rate applied to nowcast
+    output.
+
+  ⚠️ **That frozen mix is the open assumption in #613, and it is why #613 does not close as "the
+  column is sourced" on its own.** Nothing annual observes which goods a wholesaler's margin sits on
+  — BEA's answer is the product-line method, deferred at #615 — so the mix is 100% of the trade
+  commodity detail carried on a 2017 observation. Either **#614** (validate per commodity) closes
+  alongside it, or the shares stay pinned by test so the assumption cannot drift silently;
+  `test_receiving_shares_are_frozen_at_2017` in
+  [`test_nowcast_trade_margins.py`](../../transform/iot/__tests__/test_nowcast_trade_margins.py) is
+  that pin.
 - **P1** — code-space Phase 2 (retarget `FD_Gov`/`FD_Structures`/`FD_IP`, drop
   `map_fbs_sectors_to_model_schema`, roll out 2018-2024), which unblocks #576, Step 2 and Step 3.
   #574 may fall out of this rather than needing its own attribution work — diagnose first. Then #579,

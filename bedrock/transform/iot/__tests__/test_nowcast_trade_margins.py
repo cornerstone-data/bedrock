@@ -360,3 +360,33 @@ def test_the_tax_is_positive_everywhere_and_only_on_receivers() -> None:
 
     assert (components['trade_tax'] >= -1).all()
     assert components.loc[givers, 'trade_tax'].abs().max() < 1
+
+
+def test_receiving_shares_are_frozen_at_2017() -> None:
+    """
+    Every year's receiving split is the 2017 mix exactly - and must stay so.
+
+    ⚠️ **This pins an open assumption, not a result.** The level moves annually
+    and so does the kind-of-business split, but *which commodities* receive the
+    margin is the published 2017 column, because nothing annual observes it -
+    BEA's own answer is the product-line method, deferred at #615. That makes
+    the frozen mix 100% of the trade commodity detail, so #613 cannot be read as
+    "the column is sourced per commodity" until #614 validates it.
+
+    The test exists so the assumption cannot change quietly: swapping the weight
+    for ``T013``, or letting an annual source in, breaks it and forces the
+    change to be argued rather than absorbed.
+    """
+    anchor = tr.receiving_allocation(tr.ANCHOR_YEAR)
+    anchor_shares = anchor / anchor.sum()
+
+    levels = {}
+    for year in tr.TRADE_MARGIN_YEARS:
+        received = tr.receiving_allocation(year)
+        levels[year] = received.sum()
+        assert list(received.index) == list(anchor.index)
+        assert (received / received.sum() - anchor_shares).abs().max() < 1e-12
+
+    assert min(levels.values()) < max(levels.values()), (
+        'the levels are identical too, so the shares matching proves nothing'
+    )
