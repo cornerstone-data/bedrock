@@ -30,7 +30,7 @@ MILLION = 1e6
 # --- the crosswalk ---------------------------------------------------------
 
 
-def test_crosswalk_partitions_every_giver_but_the_unsourced_one():
+def test_crosswalk_partitions_every_giver_but_the_unsourced_one() -> None:
     """
     Every giver except ``425000`` is reachable from a Census code, and no code
     reaches two givers.
@@ -49,7 +49,7 @@ def test_crosswalk_partitions_every_giver_but_the_unsourced_one():
     assert not crosswalk['census_code'].duplicated().any()
 
 
-def test_crosswalk_kinds_do_not_cross():
+def test_crosswalk_kinds_do_not_cross() -> None:
     """A wholesale Census code never maps to a retail commodity, or the reverse."""
     crosswalk = tr.load_trade_crosswalk()
     for kind in tr.TRADE_KINDS:
@@ -61,7 +61,7 @@ def test_crosswalk_kinds_do_not_cross():
 
 
 @pytest.mark.parametrize('kind', tr.TRADE_KINDS)
-def test_census_gross_margin_reads_the_published_total_row(kind):
+def test_census_gross_margin_reads_the_published_total_row(kind: str) -> None:
     """
     ⚠️ The published row, not the sum of sub-industries.
 
@@ -75,7 +75,7 @@ def test_census_gross_margin_reads_the_published_total_row(kind):
 
 
 @pytest.mark.parametrize('kind', tr.TRADE_KINDS)
-def test_coverage_ratio_is_the_2017_give_up_over_the_census_margin(kind):
+def test_coverage_ratio_is_the_2017_give_up_over_the_census_margin(kind: str) -> None:
     """
     1.561 wholesale, 1.061 retail - and the gap between them is the point.
 
@@ -90,14 +90,14 @@ def test_coverage_ratio_is_the_2017_give_up_over_the_census_margin(kind):
 
 
 @pytest.mark.parametrize('kind', tr.TRADE_KINDS)
-def test_2017_control_total_reproduces_the_published_give_up(kind):
+def test_2017_control_total_reproduces_the_published_give_up(kind: str) -> None:
     """The anchor year is an identity, which is what anchor-and-move buys."""
     assert tr.trade_control_total(kind, 2017) == pytest.approx(
         GIVE_UP_2017[kind] * MILLION, rel=1e-6
     )
 
 
-def test_2017_column_reproduces_the_published_trade_column_per_commodity():
+def test_2017_column_reproduces_the_published_trade_column_per_commodity() -> None:
     """
     ⚠️ The whole construction rests on this, on **both** sides.
 
@@ -122,7 +122,7 @@ def test_2017_column_reproduces_the_published_trade_column_per_commodity():
 
 
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
-def test_column_sums_to_zero_every_year(year):
+def test_column_sums_to_zero_every_year(year: int) -> None:
     """
     Margin is a redistribution, not value created - target T16.
 
@@ -134,7 +134,7 @@ def test_column_sums_to_zero_every_year(year):
 
 
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
-def test_all_nineteen_givers_are_present_every_year(year):
+def test_all_nineteen_givers_are_present_every_year(year: int) -> None:
     """
     ⚠️ This is the suppression regression.
 
@@ -152,7 +152,7 @@ def test_all_nineteen_givers_are_present_every_year(year):
 
 
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
-def test_receivers_are_never_negative(year):
+def test_receivers_are_never_negative(year: int) -> None:
     """
     A commodity that receives trade margin receives a positive amount.
 
@@ -170,7 +170,7 @@ def test_receivers_are_never_negative(year):
 # --- suppression -----------------------------------------------------------
 
 
-def test_suppressed_retail_2022_is_recovered_at_the_measured_gap():
+def test_suppressed_retail_2022_is_recovered_at_the_measured_gap() -> None:
     """
     ARTS 2022 retail sums 130,671 $M short of its published total.
 
@@ -187,7 +187,7 @@ def test_suppressed_retail_2022_is_recovered_at_the_measured_gap():
     assert residual / MILLION == pytest.approx(130_671, rel=1e-4)
 
 
-def test_suppressed_codes_get_a_plausible_share_not_zero():
+def test_suppressed_codes_get_a_plausible_share_not_zero() -> None:
     """
     ⚠️ The failure this guards is silent, not loud.
 
@@ -202,7 +202,7 @@ def test_suppressed_codes_get_a_plausible_share_not_zero():
     assert 0.03 < gasoline < 0.10
 
 
-def test_the_unsourced_giver_still_gets_a_share():
+def test_the_unsourced_giver_still_gets_a_share() -> None:
     """
     ``425000`` has no annual Census series and must not vanish because of it.
 
@@ -217,7 +217,7 @@ def test_the_unsourced_giver_still_gets_a_share():
 # --- the two controls are not interchangeable ------------------------------
 
 
-def test_gross_margin_control_exceeds_the_trade_control_by_the_trade_tax():
+def test_gross_margin_control_exceeds_the_trade_control_by_the_trade_tax() -> None:
     """
     ``sum(W + R) = TRADE + TOP``, so the two controls differ by 391,163 $M.
 
@@ -234,7 +234,7 @@ def test_gross_margin_control_exceeds_the_trade_control_by_the_trade_tax():
 # --- the guards ------------------------------------------------------------
 
 
-def test_2024_raises_rather_than_quietly_modelling_a_level():
+def test_2024_raises_rather_than_quietly_modelling_a_level() -> None:
     """
     No survey publishes 2024. A modelled level must be asked for explicitly.
     """
@@ -244,7 +244,7 @@ def test_2024_raises_rather_than_quietly_modelling_a_level():
     assert tr.census_gross_margin('wholesale', 2024, allow_extrapolation=True) > 0
 
 
-def test_an_unknown_kind_raises():
+def test_an_unknown_kind_raises() -> None:
     """The kind selects source, TYPOP code, total row and giver set at once."""
     with pytest.raises(ValueError, match='kind must be one of'):
         tr.census_gross_margin('wholesale trade', 2017)
@@ -253,7 +253,7 @@ def test_an_unknown_kind_raises():
 # --- the three-way decomposition -------------------------------------------
 
 
-def test_trade_is_wholesale_plus_retail_less_the_tax():
+def test_trade_is_wholesale_plus_retail_less_the_tax() -> None:
     """
     ⚠️ The identity the whole decomposition rests on, per commodity.
 
@@ -269,7 +269,7 @@ def test_trade_is_wholesale_plus_retail_less_the_tax():
     assert (derived - trade).abs().max() < 1
 
 
-def test_the_tax_split_hits_both_observed_column_totals_exactly():
+def test_the_tax_split_hits_both_observed_column_totals_exactly() -> None:
     """
     Both totals are observed off the give-up side, not assumed.
 
@@ -295,7 +295,7 @@ def test_the_tax_split_hits_both_observed_column_totals_exactly():
         )
 
 
-def test_the_tax_does_not_split_pro_rata():
+def test_the_tax_does_not_split_pro_rata() -> None:
     """
     ⚠️ This is the error the first version of the module made.
 
@@ -315,7 +315,7 @@ def test_the_tax_does_not_split_pro_rata():
     assert retail_tax_share > retail_margin_share + 0.05
 
 
-def test_no_commodity_pays_more_tax_than_the_margin_it_is_levied_on():
+def test_no_commodity_pays_more_tax_than_the_margin_it_is_levied_on() -> None:
     """A margin negative net of its own tax would be nonsense."""
     split = tr.trade_level_tax_by_kind_2017()
     gross = tr.published_gross_margin_by_kind()
@@ -325,7 +325,7 @@ def test_no_commodity_pays_more_tax_than_the_margin_it_is_levied_on():
 
 
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
-def test_each_kind_sums_to_zero_on_its_own(year):
+def test_each_kind_sums_to_zero_on_its_own(year: int) -> None:
     """
     A stronger statement than the combined column netting to zero.
 
@@ -340,7 +340,7 @@ def test_each_kind_sums_to_zero_on_its_own(year):
         assert abs(column.sum()) / column.abs().sum() < 1e-9
 
 
-def test_components_add_back_to_the_trade_column():
+def test_components_add_back_to_the_trade_column() -> None:
     """``trade_margin_column`` is exactly the two margin components summed."""
     components = tr.trade_margin_components(2022)
     column = tr.trade_margin_column(2022)
@@ -349,7 +349,7 @@ def test_components_add_back_to_the_trade_column():
     assert (rebuilt - column).abs().max() < 1
 
 
-def test_the_tax_is_positive_everywhere_and_only_on_receivers():
+def test_the_tax_is_positive_everywhere_and_only_on_receivers() -> None:
     """
     Tax is collected on the transaction, so it lands on the good being sold.
 

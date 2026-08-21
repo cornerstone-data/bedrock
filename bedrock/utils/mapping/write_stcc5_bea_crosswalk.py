@@ -28,6 +28,8 @@ mapping below. The CSV is the reviewable artefact; this file is where the
 judgment lives.
 """
 
+from collections.abc import Iterable
+
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
@@ -481,16 +483,18 @@ def resolve_by_prefix(code: str) -> tuple[str | None, str] | None:
     for length in (4, 3, 2):
         prefix = code[:length]
         targets = [
-            MAP[c] for c in MAP if c.startswith(prefix) and isinstance(MAP[c], str)
+            value
+            for code, value in MAP.items()
+            if code.startswith(prefix) and isinstance(value, str)
         ]
         if targets:
-            return max(set(targets), key=targets.count), prefix
+            return str(max(set(targets), key=targets.count)), prefix
         if any(c.startswith(prefix) for c in EXCLUDE):
             return None, prefix
     return None
 
 
-def load_stcc_codes(years=CROSSWALK_YEARS) -> pd.DataFrame:
+def load_stcc_codes(years: Iterable[int] = CROSSWALK_YEARS) -> pd.DataFrame:
     """Every STCC5 code the CRSR publishes across *years*, with name and revenue."""
     frames = []
     for year in years:

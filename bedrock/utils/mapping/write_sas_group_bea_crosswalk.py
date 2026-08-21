@@ -178,7 +178,7 @@ def main() -> None:
         )
         for code, value in worst.head(12).items():
             print(
-                f'  UNASSIGNED {code} {value / 1e6:9,.0f}  {DESC.get(code, "?")[:44]}'
+                f'  UNASSIGNED {code} {value / 1e6:9,.0f}  {DESC.get(str(code), "?")[:44]}'
             )
 
     out.to_csv(CROSSWALK_PATH, index=False)

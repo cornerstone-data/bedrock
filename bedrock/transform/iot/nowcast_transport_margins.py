@@ -311,7 +311,7 @@ def bound_check(
     contribute negative transportation margin. A share close to 1 is a softer
     warning that the remaining modes are left implausibly little.
     """
-    name = allocation.name or 'mode'
+    name = str(allocation.name or 'mode')
     published = published_transport_by_commodity(margins).reindex(allocation.index)
     return pd.DataFrame(
         {
@@ -416,9 +416,10 @@ def rail_revenue_by_commodity(
     # would be counted once per target.
     published = published_transport_by_commodity(margins)
     weights = joined['bea_2017_commodity'].map(published).astype(float)
-    denominator = weights.groupby(joined['stcc5'].values).transform('sum')
-    if (denominator <= 0).any():
-        stranded = sorted(set(joined.loc[denominator.values <= 0, 'stcc5']))
+    denominator = weights.groupby(joined['stcc5'].to_numpy()).transform('sum')
+    empty = pd.Series(denominator <= 0, index=joined.index)
+    if empty.any():
+        stranded = sorted(set(joined.loc[empty, 'stcc5'].astype(str)))
         raise ValueError(
             f'STCC codes {stranded} map only to commodities with no published '
             f'transportation margin, so their revenue has nowhere to go. Fix the '
