@@ -358,15 +358,16 @@ class FlowBySector(_FlowBy):
     ) -> FlowBySector:
 
         if 'activity_sets' in self.config:
-            try:
-                return pd.concat(  # type: ignore[return-value]
-                    [
-                        fbs.prepare_fbs()  # type: ignore[operator]
-                        for fbs in (self.select_by_fields().activity_sets())
-                    ]
-                ).reset_index(drop=True)
-            except ValueError:
-                return FlowBySector(pd.DataFrame(), convert_df_to_flowby=True)
+            prepared = []
+            for fbs in self.select_by_fields().activity_sets():
+                try:
+                    prepared.append(fbs.prepare_fbs())  # type: ignore[operator]
+                except ValueError as exc:
+                    log.exception(f'{fbs.full_name} failed while preparing FBS: {exc}')
+                    raise ValueError(
+                        f'{fbs.full_name} failed while preparing FBS: {exc}'
+                    ) from exc
+            return pd.concat(prepared).reset_index(drop=True)
         return (
             self.function_socket('clean_fbs')
             .select_by_fields()

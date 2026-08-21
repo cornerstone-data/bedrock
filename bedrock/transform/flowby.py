@@ -107,7 +107,8 @@ def get_flowby_from_config(
             f'{config.get("data_format")}` for source {name}'
         )
         raise ValueError(
-            'Unrecognized data format, check assignment in '
+            f'Unrecognized data format {config.get("data_format")!r} for '
+            f'source {name}, check assignment in '
             '.../flowsa/methods/method_status.yaml or assign '
             'within the method yaml. Data formats allowed: '
             '"FBA", "FBS", "FBS_outside_flowsa".'
@@ -890,7 +891,10 @@ class _FlowBy(pd.DataFrame):
                     f'Attribution method for {fb.full_name} not '
                     f'recognized: {attribution_method}'
                 )
-                raise ValueError('Attribution method not recognized')
+                raise ValueError(
+                    f'Attribution method for {fb.full_name} not '
+                    f'recognized: {attribution_method}'
+                )
 
             else:
                 if all(fb.groupby('group_id')['group_id'].agg('count') == 1):
@@ -1620,6 +1624,7 @@ class _FlowBy(pd.DataFrame):
 
         fba = self.add_primary_secondary_columns('Sector')
 
+        # Joint pool per flow group — do not partition by SectorSourceName.
         groupby_cols = ['group_id', 'Location']
         for rank in ['Primary', 'Secondary']:
             # continue if values are all np.nan
@@ -1843,20 +1848,16 @@ class _FlowBy(pd.DataFrame):
                     }
                 )
 
-                def _identify_secondary(row: _FlowBySeries) -> str:
-                    sectors = [
-                        row[f'{col_type}ProducedBy'],
-                        row[f'{col_type}ConsumedBy'],
-                    ]
-                    sectors.remove(row[f'Primary{col_type}'])
-                    return sectors[0]
-
+                # Secondary is the other of ProducedBy/ConsumedBy. Vectorized
+                # so an empty frame (matching miss) does not raise: pandas
+                # apply(axis='columns') on 0 rows returns a DataFrame, and
+                # assign then errors with "Cannot set a DataFrame with
+                # multiple columns to the single column SecondarySector".
                 fb = fb.assign(
                     **{
-                        f'Secondary{col_type}': (
-                            fb.apply(_identify_secondary, axis='columns')
-                            # ^^^ Applying with axis='columns' applies TO each row.
-                            .astype('object')
+                        f'Secondary{col_type}': fb[f'{col_type}ConsumedBy'].where(
+                            fb[f'Primary{col_type}'].eq(fb[f'{col_type}ProducedBy']),
+                            fb[f'{col_type}ProducedBy'],
                         )
                     }
                 )
