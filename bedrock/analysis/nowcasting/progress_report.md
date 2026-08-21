@@ -13,11 +13,12 @@ uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
-**Snapshot date:** 2026-08-19. Step 1 is a live `derive_initial_Y_pur`
-(`NIPA_final_dom_uses_2017`, Trade `F04000`, and — new this snapshot —
-`Inventories_2017` on `F03000`). Step 4 is a live `derive_initial_supply_bridge`
-(`MCIF` from `Trade_Imports_2017`; `MDTY` and `MADJ` sourced for 2017; other
-bridge columns unsourced).
+**Snapshot date:** 2026-08-21. Step 1 is a live `derive_initial_Y_pur`
+(`NIPA_final_dom_uses_2017`, Trade `F04000`, `Inventories_2017` on `F03000`).
+Step 4 is a live `derive_initial_supply_bridge` and this is the snapshot where
+it stops being an imports-only column: **`T007` (#570) and `TRADE` (#613) both
+land**, joining `MCIF`, `MDTY`, `MADJ` and `TRANS`. `TOP`/`SUB` and the
+subtotals remain unsourced.
 
 ---
 
@@ -27,7 +28,7 @@ bridge columns unsourced).
 |---|---|---|---:|---:|---|---:|---:|
 | `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **95.5%** | **55.1%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
-| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (MCIF, MADJ, MDTY) | **14.5%** | **21.2%** |
+| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (T007, MCIF, MADJ, MDTY, TRADE, TRANS) | **43.7%** | **55.5%** |
 
 **coverage** = of the cells the reference populates, how many we populate.
 **accuracy** = of the cells we populate, how many land within tolerance.
@@ -182,31 +183,73 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 
 | scope | absent | match | partial | miss | extra |
 |---|---:|---:|---:|---:|---:|
-| cells | 1,599 | 98 | 365 | 2,739 | 23 |
-| row totals | 9 | 0 | 279 | 114 | 0 |
-| column totals | 0 | 2 | 1 | 9 | 0 |
+| cells | 1,599 | 777 | 622 | 1,803 | 23 |
+| row totals | 3 | 0 | 392 | 1 | 6 |
+| column totals | 0 | 3 | 1 | 8 | 0 |
 
 | | |
 |---|---:|
-| coverage | 14.5% |
-| accuracy | 21.2% |
-| candidate grand total | $2.70T |
+| coverage | 43.7% |
+| accuracy | 55.5% |
+| candidate grand total | $36.47T |
 | reference grand total | $111.28T |
-| grand total error | 97.6% |
+| grand total error | 67.2% |
 
-**Unchanged this snapshot.** The Step 4c margin work since 2026-08-15 — #610
-(2017 rates), #612 (annual wholesale and retail levels), #611 (the pipeline
-transport margin, and BEA's replies) — is derivation and sourcing that has not
-yet been written back into the bridge columns, so the picture is the same one.
-`TRADE`/`TRANS` land here at #613.
+### What moved since 2026-08-19
 
-`MCIF`, `MADJ`, and `MDTY` are sourced for 2017 (`Trade_Imports_2017` mapped
-Detail mass; Census `GEN_CHA_YR` reassigned onto Supply `MADJ` destinations and
-leveled to Supply `MADJ`; Census duty rates leveled to NIPA `B235RC`). Column
-totals for `MADJ` and `MDTY` match the published national (within the section
-tolerance). `MCIF` is `partial` at the column total (+1.29% vs published).
-`T007`, `TRADE`/`TRANS`/`T014`, `TOP`/`SUB`/`T015`, and the `T013`/`T016`
-identities are unsourced.
+Coverage 14.5% → **43.7%**, accuracy 21.2% → **55.5%**, whole-column misses
+9 → 8, grand total error 97.6% → **67.2%**. Two columns landed:
+
+- **`T007` is sourced** ([#570](https://github.com/cornerstone-data/bedrock/issues/570),
+  merged in #681) — the row margin of the `Detail_Supply_<year>` FBS
+  domestic-output block, for every year 2017-2024. It is the largest column in
+  the block at $33.8T, which is why it alone moves the grand total error by
+  30 points.
+- **`TRADE` is sourced** ([#613](https://github.com/cornerstone-data/bedrock/issues/613),
+  this branch) — anchored on the published 2017 give-up and moved by the Census
+  wholesale and retail gross margin, split into wholesale, retail and
+  trade-level tax.
+
+### Per-column, which is the only way to read this block
+
+| code | absent | match | partial | miss | extra | coverage | accuracy |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `T007` | 3 | **399** | 0 | 0 | 0 | **100.0%** | **100.0%** |
+| `MCIF` | 99 | 24 | 247 | 27 | 5 | 90.9% | 8.7% |
+| `MADJ` | 396 | **6** | 0 | 0 | 0 | **100.0%** | **100.0%** |
+| `T013` | 1 | 0 | 0 | 401 | 0 | — | — |
+| `TRADE` | 128 | **274** | 0 | 0 | 0 | **100.0%** | **100.0%** |
+| `TRANS` | 139 | 6 | 257 | 0 | 0 | **100.0%** | 2.3% |
+| `T014` | 120 | 0 | 0 | 282 | 0 | — | — |
+| `MDTY` | 194 | 68 | 118 | 4 | 18 | 97.9% | 33.3% |
+| `TOP` | 63 | 0 | 0 | 339 | 0 | — | — |
+| `SUB` | 387 | 0 | 0 | 15 | 0 | — | — |
+| `T015` | 60 | 0 | 0 | 342 | 0 | — | — |
+| `T016` | 9 | 0 | 0 | 393 | 0 | — | — |
+
+**`T007` and `TRADE` are exact.** 399 of 399 and 274 of 274 populated cells land
+inside tolerance — not "close", but every cell. `T007`'s column total is
+33,772,550 against a published 33,772,566: **$16M apart on $33.8T**, which is
+BEA's own rounding grain.
+
+**`TRANS` is the opposite shape, and that is the finding.** It reaches every
+commodity the reference populates — 100% coverage, zero misses — but only 6 of
+263 cells land inside tolerance. The transport margin is arriving at the right
+*commodities* and the wrong *amounts*. Neither coverage nor the column total can
+see this; the per-cell picture is the only thing that can, and this is the
+column to work next.
+
+**⚠️ `TRADE` and `TRANS` score as whole-column `miss` while being right at the
+cell level, and the column total is the wrong test for them.** Both columns net
+to **exactly zero** by construction — a margin is a redistribution, so it must.
+The published columns net to $1M and $10M, which is rounding residue on a
+$33.8T table, and `atol` is $0.5M. So the column-total strip marks a
+cell-for-cell exact column as a miss. Read the per-column table above, not the
+column-total strip, for these two.
+
+`MCIF` is `partial` at the column total (+1.29% vs published). `TOP`/`SUB`, and
+therefore `T015`, remain unsourced, as do the `T013`/`T014`/`T016` identities —
+a subtotal cannot be evaluated until all of its components are in.
 
 The right-hand block of the Supply table: imports, margins, taxes and the
 subtotals carrying a commodity from domestic output at basic value to total
@@ -257,6 +300,17 @@ absolute error against published gross. Mining and farm are equal-split
 placeholders (#660), manufacturing needs per-industry stage shares (#664), and
 `S00402` is an order of magnitude short (#665). Treat the column as a first
 pass, not as a solved block.
+
+**`TRANS` lands on the right commodities and the wrong amounts.** 100% coverage,
+zero misses, but 6 of 263 cells inside tolerance. The receiving sets and the
+per-mode allocation bases are doing their job; the levels are not. This is the
+next Step 4c column to work, and it is invisible to every check except the
+per-cell one.
+
+**The column-total strip cannot score a margin column.** `TRADE` and `TRANS`
+net to exactly zero by construction, so they read as whole-column misses against
+a published total that is $1M/$10M of rounding residue. Two of the eight
+remaining whole-column misses are this artefact rather than unsourced columns.
 
 **Nothing here is a rollup.** Every number is BEA 2017 detail. Margins and
 redefinitions net out at summary and above, so an aggregate view of these blocks
