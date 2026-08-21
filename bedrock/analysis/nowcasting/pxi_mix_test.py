@@ -83,7 +83,7 @@ def concordance() -> (
     # programming's licensing revenue is the broadcasting commodity in BEA's
     # accounts, while motion picture's licensing is its own output.
     scoped = (
-        corrections[corrections.get('industry').notna()]
+        corrections[corrections['industry'].notna()]
         if 'industry' in corrections
         else corrections.iloc[:0]
     )
@@ -131,10 +131,12 @@ def built_mix() -> pd.Series:
     pxi = pxi[pxi['industry'].notna()]
 
     rows = []
-    for industry, group in pxi.groupby('industry'):
-        for description, value in (
+    for industry_key, group in pxi.groupby('industry'):
+        industry = str(industry_key)
+        for description_key, value in (
             group.groupby('Description')['FlowAmount'].sum().items()
         ):
+            description = str(description_key)
             if (industry, description) in override:
                 rows.append((industry, override[(industry, description)], value))
                 continue

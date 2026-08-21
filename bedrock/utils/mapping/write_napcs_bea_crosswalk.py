@@ -115,14 +115,19 @@ def naics_to_bea() -> dict[str, dict[str, str]]:
     )
     maps['NAICS_2007_Code'] = {}
     for code, successors in to_2017.items():
-        targets = {maps['NAICS_2017_Code'].get(s) for s in successors}
-        targets.discard(None)
+        targets = {
+            mapped
+            for s in successors
+            if (mapped := maps['NAICS_2017_Code'].get(s)) is not None
+        }
         if len(targets) == 1:
             maps['NAICS_2007_Code'][code] = targets.pop()
     return maps
 
 
-def resolve(naics: str, maps: dict[str, dict[str, str]], overrides: dict[str, str]):
+def resolve(
+    naics: str, maps: dict[str, dict[str, str]], overrides: dict[str, str]
+) -> tuple[str | None, str]:
     """A NAICS code from the Census file to (BEA commodity, how it resolved)."""
     if naics in overrides:
         return overrides[naics], 'override'
