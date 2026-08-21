@@ -103,7 +103,9 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
         )
 
     elif "Summary_Supply" in source:
-        df = _load_usa_summary_sut('Supply_summary', cast(USA_SUMMARY_SUT_YEARS, int(year)))
+        df = _load_usa_summary_sut(
+            'Supply_summary', cast(USA_SUMMARY_SUT_YEARS, int(year))
+        )
         df = df.iloc[1:, 1:]  # drop first row and column
         df = pd.DataFrame(np.transpose(df))
         df = df.reset_index().rename(columns={'index': 'ActivityProducedBy'})
@@ -114,7 +116,9 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
             value_name="FlowAmount",
         )
     elif "Summary_Use_SUT" in source:
-        df = _load_usa_summary_sut('Use_SUT_summary', cast(USA_SUMMARY_SUT_YEARS, int(year)))
+        df = _load_usa_summary_sut(
+            'Use_SUT_summary', cast(USA_SUMMARY_SUT_YEARS, int(year))
+        )
         df = df.iloc[1:, 1:]  # drop first row and column
         df = df.reset_index()
         df = df.rename(columns={'Unnamed: 0': 'ActivityProducedBy'})
