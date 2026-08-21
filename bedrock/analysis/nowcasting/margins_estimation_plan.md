@@ -1131,10 +1131,13 @@ the Economic Census is quinquennial, so it cannot supply annual movement at all.
 Interpolating 2012/2017/2022 into a growth index would add modelled years dressed
 as observations. What a growth factor needs is a basis held constant across every
 year, and the annual surveys are that. The 42% gap therefore never enters the
-build: it cancels in each year's ratio as long as it is stable over time, which
-is the assumption now doing the work and the one to test.
+build at all — not because it cancels, but because only one of the two series is
+ever read. That distinction turned out to matter: the gap was measured at both
+census years and it is **not** stable (42.0% in 2017, 27.8% in 2022), so a
+cancelling argument would have failed. See §Closed — AIES stayed on the annual
+basis.
 
-### The splice is the seam that matters, and only one side of it is clean
+### The splice is the seam that matters, and both sides now hold
 
 With the level anchored on BEA and the movement taken from the annual series, the
 one place a basis change can still corrupt the answer is **2022→2023, where AWTS
@@ -1146,14 +1149,15 @@ the test, because it is invariant to coverage:
 | gross margin ÷ sales | 2019 | 2020 | 2021 | 2022 | **2023 (AIES)** | step |
 |---|---:|---:|---:|---:|---:|---:|
 | wholesale, NAICS 42 | 19.3% | 19.7% | 20.7% | 20.1% | **20.4%** | **+0.3pp** ✅ |
-| retail, `Total` | 29.4% | 29.5% | 30.8% | 31.3% | **34.2%** | **+2.9pp** ⚠️ |
+| retail, `Total` | 29.4% | 29.5% | 30.8% | 31.3% | **34.2%** | **+2.9pp** ✅ |
 
 **Wholesale splices cleanly.** The rate moves +0.29pp across the seam, inside its
 own year-to-year range, and the level falls 1.0% on sales down 2.5% — an ordinary
 2023 for goods wholesaling as inflation cooled. The `TYPOP 1X` = `nomsbo` basis
 match holds up in the data, not just in the documentation.
 
-**Retail does not, yet.** The rate steps 2.9pp in one year against a series that
+**Retail steps hard, but it is a real move** (§Closed — AIES stayed on the
+annual basis). The rate steps 2.9pp in one year against a series that
 had moved ~0.3pp/yr for a decade, on sales up only 1.5% — so nearly all of the
 10.8% margin gain is repricing of the margin itself rather than more trade. It is
 not a NAICS vintage artifact: AIES 2023 publishes the 2017-vintage retail
@@ -1163,18 +1167,55 @@ codes sum to the published `44-45` total exactly.
 ⚠️ **So the EC-versus-annual question resurfaces inside the annual series.** If
 AIES adopted the Economic Census basis, retail 2023 is on a different footing
 from retail 2012–2022 and the growth factor carries a one-off 2.9pp jump that
-never happened. **The discriminating test:** 2022 is an Economic Census year, so
-compute the retail margin rate three ways — ARTS 2022, EC 2022 (`ecnmargin`), and
-AIES 2023. If EC 2022 sits near 34% while ARTS sits at 31.3%, the step is a basis
-change and 2023 must be rebased onto the ARTS rate before it enters the index. If
-EC 2022 sits near 31.3%, the step is real and stands. Wholesale gets the same
-test for free, and its answer is already predicted: the EC basis is 42% above
-AWTS, so a wholesale rate that did *not* jump is evidence AIES stayed on the
-annual basis.
+never happened.
 
-Neither `ecnmargin` nor `ecnbasic` is extracted yet, so this is scoped work
-rather than a lookup. It is a prerequisite of #613's control total, not of the
-extractors, which emit the published rows either way.
+### ✅ Closed — AIES stayed on the annual basis, and the retail step is not a rebasing
+
+The test as scoped could not be run, and the reason is itself the finding.
+**The Economic Census does not publish a retail gross margin in any vintage.**
+`ecnmargin` (2017) and `ecngrmargprof` (2022 — the dataset was renamed, which is
+why a 2022 `ecnmargin` call 404s) are both titled *"for Merchant Wholesalers"*
+and both return `TYPOP 10` at NAICS 42 only. `ecnbasic` carries no retail
+cost-of-goods variable either — its only `CST*` items are electricity, fuels,
+land and materials. So "ARTS 2022 vs EC 2022 vs AIES 2023" has no middle term.
+
+**The wholesale test, which the plan expected to come for free, runs and is
+decisive on its own:**
+
+| wholesale gross margin ÷ sales | 2017 | 2022 | 2023 |
+|---|---:|---:|---:|
+| AWTS → AIES (annual) | 19.3% | 20.1% | **20.4%** |
+| Economic Census | **27.4%** | **26.2%** | — |
+
+AIES 2023 sits on the annual basis, 0.29pp from AWTS 2022 and **5.8pp** from the
+Economic Census one. That is the predicted signature exactly: *"a wholesale rate
+that did not jump is evidence AIES stayed on the annual basis."* The
+consolidation re-engineered the questionnaire without moving the margin footing.
+
+**So retail 2023 is not rebased.** The hypothesis the ⚠️ was raised against —
+that AIES adopted the EC basis at the seam — is falsified on the one sector where
+both bases are observable, and a consolidation that changed the basis for retail
+but not for wholesale is not a coherent reading of a single integrated survey.
+The 2.9pp retail step enters the index as a real move. It remains the largest
+single-year move in the series and is the first thing to re-examine if #614's
+per-commodity validation shows retail drifting, but it is no longer a known
+defect blocking the build.
+
+⚠️ **A second result, and it inverts one of Phase 3's assumptions.** The decision
+to anchor on the annual source rested on the EC/annual gap being *stable* — "it
+cancels in each year's ratio as long as it is stable over time, which is the
+assumption now doing the work and the one to test." **Tested, and it is not
+stable:** the gap is 42.0% in 2017 and 27.8% in 2022. Had the index been built on
+the Economic Census, that drift would have entered the growth factor directly.
+This does not weaken the anchor-on-annual decision — it strengthens it, because
+the unstable series is the one not being used. It does retire the sentence that
+called stability the working assumption: the annual basis is internally
+consistent across the splice, which is what the index actually needs, and the EC
+gap never enters the arithmetic.
+
+The sales bases also drift apart, though far less: EC and AWTS-implied sales are
+0.06% apart in 2017 and 2.0% apart in 2022, so the whole of the margin gap is
+still cost of goods, as §The 850,540 wholesale gap found.
 
 ### Why gross margin, and not sales
 
