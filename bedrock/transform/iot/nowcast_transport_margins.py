@@ -645,7 +645,7 @@ FAF_SCTG_CROSSWALK_PATH = (
     / 'utils'
     / 'mapping'
     / 'activitytosectormapping'
-    / 'NAICS_Crosswalk_FAF_Mode_and_SCTG.csv'
+    / 'Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv'
 )
 
 #: The reconstructed 1/2/3 difficulty weights, per SCTG and mode.

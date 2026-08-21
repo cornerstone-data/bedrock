@@ -95,7 +95,7 @@ _MEASURES: dict[str, tuple[str, float]] = {
 }
 
 #: The crosswalk both activity dimensions join on.
-_CROSSWALK = 'NAICS_Crosswalk_FAF_Mode_and_SCTG.csv'
+_CROSSWALK = 'Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv'
 
 
 def faf_local_path(source: str = 'BTS_FAF') -> str:

@@ -89,7 +89,7 @@ def load_sctg_names() -> list[str]:
     """Every SCTG group FAF publishes, from the ported mode/SCTG crosswalk."""
     crosswalk = pd.read_csv(
         'bedrock/utils/mapping/activitytosectormapping/'
-        'NAICS_Crosswalk_FAF_Mode_and_SCTG.csv',
+        'Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv',
         dtype=str,
     )
     sctg = crosswalk[crosswalk['ActivitySourceName'] == 'FAF_SCTG']
