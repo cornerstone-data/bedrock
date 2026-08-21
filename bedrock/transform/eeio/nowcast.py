@@ -149,6 +149,42 @@ def _inventories_fbs_commodity_vector(
     )
 
 
+def _supply_fbs_commodity_vector(year: int, download_sources_ok: bool) -> pd.Series:
+    """Domestic commodity output ``T007``, USD, indexed by BEA 2017 Detail.
+
+    Source is the ``Detail_Supply_<year>`` FBS
+    (``bedrock/transform/detail/Detail_Supply_<year>.yaml``), which
+    disaggregates the published summary Supply domestic-output block onto the
+    2017 detail mix. That block is commodity x industry, so ``T007`` is its
+    **row margin** - and in the FBS the commodity is ``SectorConsumedBy``, the
+    industry ``SectorProducedBy`` (the Supply table's rows are commodities and
+    its columns industries).
+
+    The 2017 build reproduces the published detail ``T007`` column to rounding:
+    33,772,550m against 33,772,566m, worst commodity 8.6m on ``541511``'s
+    269,868m. Later years close on the published *summary* row margin exactly
+    by construction - the summary total is the control - so that agreement is
+    not evidence; the detail split rests on the held-out mix test.
+
+    ``S00300``, ``S00402`` and ``4200ID`` are absent because their published
+    ``T007`` is zero by definition: they are not domestic output and enter the
+    Supply table through ``MCIF`` / ``MDTY`` / margins instead. They reindex to
+    0.0 here, which is their correct value, not a gap.
+    """
+    fbs = getFlowBySector(
+        f'Detail_Supply_{year}',
+        download_FBAs_if_missing=download_sources_ok,
+        download_FBS_if_missing=download_sources_ok,
+    )
+    return (
+        pd.DataFrame(fbs)
+        .groupby('SectorConsumedBy')['FlowAmount']
+        .sum()
+        .reindex(USA_2017_COMMODITY_CODES)
+        .fillna(0.0)
+    )
+
+
 def _s00900_export_identity_usd() -> float:
     """2017 Supply T016 on S00900, scaled to USD (workbook is million USD)."""
     supply = _load_2017_detail_supply_use_usa('Supply_detail')
@@ -210,9 +246,10 @@ def derive_initial_supply_bridge(
     MCIF is mapped Trade_Imports_<year> Detail mass for 2017. MDTY is Census
     duty rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
     GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
-    to published Supply MADJ. Other years and remaining columns (T007,
-    margins, tax, subtotals, T013) are unsourced. Callers must not mutate
-    the cached frame.
+    to published Supply MADJ, for 2017. T007 is the row margin of the
+    ``Detail_Supply_<year>`` FBS domestic-output block, and is sourced for
+    every year 2017-2024. The remaining columns (margins, tax, subtotals,
+    T013) are unsourced. Callers must not mutate the cached frame.
     """
     bridge = pd.DataFrame(
         index=pd.Index(USA_2017_COMMODITY_CODES, name='commodity'),
@@ -220,6 +257,7 @@ def derive_initial_supply_bridge(
         dtype=float,
     )
     bridge.columns.name = 'supply_bridge_code'
+    bridge['T007'] = _supply_fbs_commodity_vector(year, download_sources_ok)
     if year == 2017:
         bridge['MCIF'] = _trade_fbs_commodity_vector(
             f'Trade_Imports_{year}', download_sources_ok
