@@ -828,12 +828,21 @@ def test_supply_bridge_leaves_unsourced_years_alone() -> None:
     assert derive_initial_supply_bridge(2023)['TRANS'].isna().all()
 
 
-def test_supply_bridge_trade_is_still_unsourced() -> None:
+def test_supply_bridge_trade_is_sourced_a_year_further_than_trans() -> None:
     """
-    ⚠️ TRADE is a rate on producer value, so it waits on 4a (#570) and 4d (#580).
+    TRADE now lands too, and reaches 2023 where TRANS stops at 2022.
 
-    TRANS does not, which is why the two columns land at different times.
+    ⚠️ **This test used to assert the opposite.** TRADE was expected to wait on
+    4a (#570) and 4d (#580), because the plan reached it as a rate on producer
+    value. The anchor-and-move construction in ``nowcast_trade_margins`` reaches
+    the same column from the *give-up* side instead, and the give-up is observed
+    - so like TRANS it never touches the nowcast base and carries no
+    circularity with Step 6b. The extra year is the Census series running to
+    2023 where SAS stops at 2022.
     """
     from bedrock.transform.eeio.nowcast import derive_initial_supply_bridge
 
-    assert derive_initial_supply_bridge(2017)['TRADE'].isna().all()
+    bridge_2023 = derive_initial_supply_bridge(2023)
+    assert bridge_2023['TRADE'].notna().all()
+    assert bridge_2023['TRANS'].isna().all()
+    assert abs(bridge_2023['TRADE'].sum()) < 1
