@@ -60,11 +60,17 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.iot.nowcast_transport_margins import transport_margin_column
 from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.transform.trade.madj import madj_detail_usd
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
+
+#: Years the transport margin can be built for. Truck and pipeline come from
+#: the Service Annual Survey, which stops at 2022; AIES carries 2023 and is
+#: not wired up, and 2024 is unpublished. Rail alone reaches 2024.
+TRANSPORT_MARGIN_YEARS = range(2017, 2023)
 
 # Same 12 codes as analysis ``SUPPLY_BRIDGE_CODES``. Kept here so nowcast does
 # not import sections (sections already lazy-imports this module).
@@ -348,8 +354,22 @@ def derive_initial_supply_bridge(
     GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
     to published Supply MADJ, for 2017. T007 is the row margin of the
     ``Detail_Supply_<year>`` FBS domestic-output block, and is sourced for
-    every year 2017-2024. The margin and tax columns (TRADE, TRANS, TOP, SUB)
-    are unsourced.
+    every year 2017-2024.
+
+    ``TRANS`` is Step 4c's transport margin, built per mode on the basis BEA
+    uses for each and controlled to that mode's observed annual freight revenue
+    (#611). Unlike the trade columns it is sourced for **2017-2022**, not 2017
+    alone, because it never touches the nowcast base - each mode is allocated
+    from its own revenue. It is the one margin column that does not wait on 4a.
+
+    ⚠️ ``TRANS`` is filled with **zeros** for commodities that bear no transport
+    margin, not NaN. A commodity outside the receiving set genuinely has no
+    transport margin; that is sourced information, not an unfilled cell, and the
+    column has to net to zero for target T16 to hold.
+
+    ``TRADE`` remains unsourced: it is a rate on producer value, so it needs
+    4a (#570) and 4d (#580) first. The remaining tax columns (TOP, SUB) are
+    unsourced too.
 
     The subtotals T013/T014/T015/T016 are computed from their components by
     :func:`fill_supply_bridge_subtotals`, so a subtotal is NaN until every one
@@ -368,4 +388,8 @@ def derive_initial_supply_bridge(
         )
         bridge['MDTY'] = mdty_detail_usd(year, download_sources_ok)
         bridge['MADJ'] = madj_detail_usd(year, download_sources_ok)
+    if year in TRANSPORT_MARGIN_YEARS:
+        bridge['TRANS'] = (
+            transport_margin_column(year).reindex(bridge.index).fillna(0.0)
+        )
     return fill_supply_bridge_subtotals(bridge)

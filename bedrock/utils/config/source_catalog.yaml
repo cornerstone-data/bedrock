@@ -208,6 +208,16 @@ BLS_QCEW:
 BTS_Airlines:
   data_format: FBA
   activity_schema: null
+BTS_FAF:
+  data_format: FBA
+  class:
+    - Other
+  # Activities are FAF's own mode labels and SCTG commodity groups, neither of
+  # which is NAICS or BEA, so they are joined to BEA 2017 detail on
+  # Sector_Crosswalk_BTS_FAF.csv. (Was the string "None", which the legacy
+  # activity_schema guard rejects - #611.)
+  activity_schema: null
+  sector_hierarchy: "flat"
 BTS_TSA:
   data_format: FBA
   activity_schema: null
@@ -272,6 +282,16 @@ Census_AWTS:
     naics:
       year: 2012
       hierarchy: parent-completeChild
+Census_SAS:
+  data_format: FBA
+  class:
+  - Money
+  # Activities are a mix of NAICS (Table 2, where the four pipeline margin items
+  # live) and prose commodity-group names (Table 8, the truck allocator), so
+  # neither schema covers the source. Both are joined to BEA 2017 detail on
+  # Sector_Crosswalk_Census_SAS.csv instead - the same shape STB_CRSR uses.
+  activity_schema: null
+  sector_hierarchy: flat
 Census_CBP:
   data_format: FBA
   class:
@@ -488,6 +508,15 @@ stateio:
     bea:
       year: 2012
       hierarchy: flat
+STB_CRSR:
+  data_format: FBA
+  class:
+  - Money
+  # Activities are 5-digit STCC (Standard Transportation Commodity Code), which
+  # is neither NAICS nor BEA, so the margin module joins to BEA 2017 detail on
+  # its own crosswalk in Python - the same shape the SCTG mapping needs.
+  activity_schema: null
+  sector_hierarchy: flat
 UNEP_IRP_GMFD:
   data_format: FBA
   class:

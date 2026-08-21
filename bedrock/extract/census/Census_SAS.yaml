@@ -9,10 +9,29 @@ format: xlsx
 url:
   base_url: https://www2.census.gov/programs-surveys/sas/tables/time-series/sas-latest/sas-22.xlsx
 sheets:
-  # Table1
+  # Table 2 is revenue by *detailed* NAICS - the four pipeline margin items
+  # BEA names for the transport margin (#611) are 4861, 4862, 48691 and
+  # 48699, and they partition NAICS 486 to the dollar. Table 1 carries the
+  # same item at 3-digit NAICS only, so it cannot serve.
+  Table 2: Estimated Revenue for Employer Firms by Detailed NAICS
   Table 3: Estimated Expense for Employer Firms
+  # Table 8 is the truck margin allocator (#611). Only NAICS 484 carries
+  # commodity rows; the other NAICS in the sheet break revenue out by media
+  # or advertising type. Its eleven commodity groups partition Total Motor
+  # Carrier Revenue to the dollar. Note the hazardous-materials row is a
+  # cross-cut of those groups, not a twelfth one - never sum it with them.
+  Table 8: Estimated Revenue by Product and Class of Customer for Employer Firms
 call_response_fxn: !script_function:Census_SAS census_sas_call
+gcs_fxn: !script_function:Census_SAS census_sas_load_gcs
 parse_response_fxn: !script_function:Census_SAS census_sas_parse
+
+# Read the workbook from extract/input_data/Census_SAS/ (or GCS extract-input if
+# it is not cached yet) rather than re-downloading it every run. The url carries
+# a vintage - sas-22.xlsx today - so the cached copy is named for the vintage it
+# came from and a new release is a url change, not a silent substitution.
+#
+# Set to True to refresh the cache from Census, then upload the new file.
+extract_data_from_raw_sources: False
 call_all_years: True
 years:
   - 2013

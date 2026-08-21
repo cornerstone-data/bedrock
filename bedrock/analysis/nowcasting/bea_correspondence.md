@@ -218,6 +218,73 @@ revenue source, and the 2023 splice.
 
 ---
 
+## 2026-08-19 — Follow-up, sent, unanswered: the within-group weight, and rebalancing
+
+**Question put:** 2026-08-19, to William Nicolls. Two questions, both about truck,
+which is 67.8% of `TRANS` and the only mode whose commodity detail we cannot
+observe.
+
+1. **What weights allocate a SAS group's margin among the specific commodities
+   inside it?** BEA has an internal crosswalk from the SAS groups to Detail I-O
+   commodities, but the crosswalk only says *which* commodities are in a group,
+   not how the group's margin divides among them. Asked in the alternative:
+   **are certain commodities manually excluded from certain modes?**
+2. **Is there a rebalancing step at the end** - RAS-like or otherwise - that
+   forces the commodity totals to equal the total transport margin?
+
+**The evidence sent**, our 2017 results on BEA's own described methods, weighting
+within a group by each commodity's total published `TRANS`:
+
+| commodity | published | other 4 modes | truck | overshoot | truck % | SAS group |
+|---|---:|---:|---:|---:|---:|---|
+| Oil and gas extraction | 47,608 | 42,741 | 12,204 | −7,337 | 26% | Coal & petroleum |
+| Grain farming | 13,602 | 6,227 | 11,920 | −4,545 | **88%** | Grains/alcohol/tobacco |
+| Coal mining | 13,437 | **13,832** | 3,445 | −3,840 | 26% | Coal & petroleum |
+| Other nonmetallic mineral mining | 7,556 | 4,276 | 6,518 | −3,239 | **86%** | Stone/minerals/ores |
+| Iron and steel mills | 6,403 | 2,429 | 6,687 | −2,713 | **104%** | Base metal & machinery |
+| Other basic organic chemicals | 5,489 | 4,514 | 3,581 | −2,606 | 65% | Pharma & chemical |
+| Automobile manufacturing | 4,838 | 4,327 | 2,957 | −2,446 | 61% | Electronic/vehicles |
+| Sawmills | 3,237 | 1,568 | 2,918 | −1,249 | **90%** | Wood/textiles |
+| Paperboard mills | 2,782 | 1,498 | 2,508 | −1,224 | **90%** | Wood/textiles |
+
+Two failure shapes are visible in that table and they need different answers.
+Coal is over-allocated **before truck is added at all** - the other four modes
+already exceed the published column - which is a question about the other modes
+or about the column. Iron and steel is the opposite: truck alone claims 104% of
+everything published, leaving nothing for rail, which certainly hauls steel.
+
+### What turns on the answers
+
+**Question 1 governs 67.8% of `TRANS`.** Truck's commodity detail comes almost
+entirely from the within-group weight: ten identified groups span 258 receiving
+commodities, so Table 8 fixes the group totals and the weight does everything
+below that. Our default - each commodity's total published `TRANS` - is blind to
+which modes already occupy a commodity, which is exactly why rail-heavy
+commodities overshoot. An "excluded commodities" answer would work as well as a
+weight, and would be easier to reproduce.
+
+⚠️ **One group cannot hold its share on our mapping, so this may be upstream of
+the weight.** "Base metal and machinery" demands 104% of the entire published
+`TRANS` of every commodity we place in it, before any other mode takes a share,
+and four more groups sit at 86-90%. No within-group weight can fix that: either
+our group→commodity mapping is too narrow, or a group's revenue share is not
+meant to carry that share of the whole truck margin.
+
+**Question 2 decides whether a joint solve is ours to build.** Feasibility is
+proven - every subset of modes has non-negative slack against the published
+column, tested exactly over all 32 subsets - so a reconciled answer exists. What
+is unknown is whether BEA reaches it by construction or by a final balancing
+step. If they rebalance, we should rebalance the same way; if they do not, their
+within-group rule must avoid the collision in a way ours does not, and that rule
+is the thing to copy.
+
+⚠️ **One error in the message as sent:** it says "8 commodity groups". SAS Table 8
+publishes **eleven**, of which ten carry a commodity identity and "Other goods" is
+the eleventh that BEA discards. Worth watching for in the reply, in case the
+answer is framed around a different set.
+
+---
+
 ## 2025-06-24 — Negative margins in the 2017 Margins table
 
 **Answered by:** William (Billy) Jolliff, BEA.
