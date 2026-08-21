@@ -14,10 +14,21 @@ Run from repo root::
     uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail
 
 Writes under ``bedrock/analysis/nowcasting/trade_data/output/`` (gitignored).
+
+Baseline comparison
+-------------------
+``score_2017_trade_detail_baseline.csv`` (tracked in git, same directory as
+this script) records the per-commodity candidate/reference/status from the
+last intentional scorecard update. Each run diffs the live results against
+it and prints any regressions (MATCH or PARTIAL -> MISS) as warnings.  To
+advance the baseline after a deliberate Crosswalk change, run::
+
+    uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_detail --update-baseline
 """
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -30,6 +41,9 @@ YEAR = 2017
 OUT_DIR = Path(__file__).resolve().parent / "output"
 SUMMARY_CSV = OUT_DIR / "score_2017_trade_detail_summary.csv"
 HOLES_CSV = OUT_DIR / "score_2017_trade_detail_holes.csv"
+
+#: Tracked baseline — committed to git, updated with ``--update-baseline``.
+BASELINE_CSV = Path(__file__).resolve().parent / "score_2017_trade_detail_baseline.csv"
 
 #: Pearson specials: Detail codes starting ``S00`` (#557 ``S00xxx`` family).
 #: Do not drop ``533000``, wholesale ``423*`` / ``424A00``, or ``484000``.
@@ -113,9 +127,24 @@ def _holes(match: TableMatch, col: str, direction: str) -> pd.DataFrame:
     )
 
 
-def score() -> tuple[pd.DataFrame, pd.DataFrame]:
+def _commodity_detail(match: TableMatch, col: str, direction: str) -> pd.DataFrame:
+    """Per-commodity candidate / reference / status for baseline diffing."""
+    cand, ref, status = _align(match, col)
+    return pd.DataFrame(
+        {
+            "direction": direction,
+            "commodity": cand.index,
+            "candidate_usd": cand.to_numpy(),
+            "reference_usd": ref.to_numpy(),
+            "status": status.to_numpy(),
+        }
+    )
+
+
+def score() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     rows: list[dict[str, object]] = []
     hole_frames: list[pd.DataFrame] = []
+    detail_frames: list[pd.DataFrame] = []
     for direction, section_name, col in _COLUMNS:
         match = get_section(section_name).run(YEAR)
         metrics = _score_column(match, col)
@@ -129,18 +158,88 @@ def score() -> tuple[pd.DataFrame, pd.DataFrame]:
             }
         )
         hole_frames.append(_holes(match, col, direction))
+        detail_frames.append(_commodity_detail(match, col, direction))
     summary = pd.DataFrame(rows)
     holes = pd.concat(hole_frames, ignore_index=True) if hole_frames else pd.DataFrame()
-    return summary, holes
+    detail = pd.concat(detail_frames, ignore_index=True)
+    return summary, holes, detail
+
+
+def _delta_report(detail: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Compare current detail against the committed baseline.
+
+    Returns a DataFrame of changed commodities (ref_usd > 0) and a count of
+    regressions (status moved to MISS from a better prior status).
+    """
+    if not BASELINE_CSV.exists():
+        return pd.DataFrame(), 0
+
+    prior = pd.read_csv(BASELINE_CSV, dtype={"commodity": str, "status": int})
+    merged = detail.merge(
+        prior[["direction", "commodity", "candidate_usd", "status"]],
+        on=["direction", "commodity"],
+        suffixes=("", "_prior"),
+        how="left",
+    )
+    miss_val = int(CellStatus.MISS)
+    changed = merged[
+        (merged["reference_usd"].abs() > 0)
+        & (merged["candidate_usd"] != merged["candidate_usd_prior"].fillna(-1))
+    ].copy()
+    if changed.empty:
+        return changed, 0
+
+    changed["candidate_M"] = changed["candidate_usd"] / 1e6
+    changed["prior_candidate_M"] = changed["candidate_usd_prior"] / 1e6
+    changed["reference_M"] = changed["reference_usd"] / 1e6
+    changed["regression"] = (changed["status"] == miss_val) & (
+        changed["status_prior"].fillna(miss_val) != miss_val
+    )
+    n_regressions = int(changed["regression"].sum())
+    return changed, n_regressions
+
+
+def _print_delta(detail: pd.DataFrame) -> int:
+    """Print the delta report. Returns number of regressions."""
+    changed, n_regressions = _delta_report(detail)
+    print()
+    print("=== Delta vs baseline ===")
+    if not BASELINE_CSV.exists():
+        print("  (no baseline file — run with --update-baseline to create one)")
+        return 0
+    if changed.empty:
+        print("  No changes vs baseline.")
+        return 0
+
+    cols = [
+        "direction",
+        "commodity",
+        "reference_M",
+        "prior_candidate_M",
+        "candidate_M",
+        "status_prior",
+        "status",
+        "regression",
+    ]
+    with pd.option_context("display.width", 180, "display.max_rows", 100):
+        print(changed[cols].to_string(index=False, float_format=lambda x: f"{x:,.1f}"))
+    if n_regressions:
+        print()
+        print(f"  WARNING: {n_regressions} regression(s) — commodity moved to MISS.")
+    else:
+        print()
+        print(f"  No regressions. ({len(changed)} commodity/direction(s) changed)")
+    return n_regressions
 
 
 def main() -> None:
+    update_baseline = "--update-baseline" in sys.argv
     print(
         f"Scoring {YEAR} nowcast F04000 / MCIF "
         f"(specials for Pearson: {len(_SPECIALS)} S00* codes; "
         f"hole cutoff |ref| >= {HOLE_CUTOFF_USD:,.0f} USD)..."
     )
-    summary, holes = score()
+    summary, holes, detail = score()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     summary.to_csv(SUMMARY_CSV, index=False)
     holes.to_csv(HOLES_CSV, index=False)
@@ -160,6 +259,17 @@ def main() -> None:
                     index=False, float_format=lambda x: f"{x:,.1f}"
                 )
             )
+
+    n_regressions = _print_delta(detail)
+
+    if update_baseline:
+        detail.to_csv(BASELINE_CSV, index=False)
+        print(f"\nBaseline updated: {BASELINE_CSV}")
+    elif n_regressions:
+        print(
+            "\nRun with --update-baseline only after confirming regressions are intentional."
+        )
+
     print()
     print(f"Wrote {SUMMARY_CSV}")
     print(f"Wrote {HOLES_CSV}")
