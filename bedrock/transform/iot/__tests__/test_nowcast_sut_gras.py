@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.iot.nowcast_sut_gras import SutBalanceResult, engine
+from bedrock.transform.iot.nowcast_targets import WEIGHTS
 from bedrock.utils.economic.balance import (
     Aggregator,
     SutMask,
@@ -357,9 +358,15 @@ def test_skip_soft_does_not_read_values() -> None:
     )
     targets = _hard_set(use, supply, extra=(t2,))
     _frozen, free, out, _restored = _run(
-        use, supply, targets, masks, close_rows_on_last=False
+        use,
+        supply,
+        targets,
+        masks,
+        close_rows_on_last=False,
+        impose_soft=False,
     )
     assert 'T2' in out.skipped
+    assert out.soft_deferred == ()
     assert out.blocks['use']['F01000'].sum() == pytest.approx(
         free['use']['F01000'].sum(), rel=1e-6
     )
@@ -668,3 +675,350 @@ def test_does_not_mutate_caller_free() -> None:
     engine(free, residual, masks, max_outer=1)
     pd.testing.assert_frame_equal(free['use'], use_copy)
     pd.testing.assert_frame_equal(free['supply'], supply_copy)
+
+
+def _t2(values: pd.Series, *, weight: float = 0.5) -> Target:
+    return Target.on_margin(
+        'use',
+        'column',
+        values,
+        'test',
+        name='T2',
+        hard=False,
+        weight=weight,
+        allow_negative=True,
+    )
+
+
+def _t6(values: pd.Series, *, weight: float = 0.7) -> Target:
+    return Target(
+        terms=(
+            TargetTerm(
+                'use',
+                'row',
+                1.0,
+                Aggregator.from_mapping(
+                    {'T00TOP': ['T00TOP'], 'T00SUB': ['T00SUB']},
+                    list(USE_ROWS),
+                ),
+            ),
+        ),
+        values=values,
+        source='test',
+        name='T6',
+        hard=False,
+        weight=weight,
+        allow_negative=True,
+    )
+
+
+def _t7(values: pd.Series, *, weight: float = 0.5) -> Target:
+    return Target.on_margin(
+        'supply',
+        'column',
+        values,
+        'test',
+        name='T7',
+        hard=False,
+        weight=weight,
+        allow_negative=True,
+    )
+
+
+def _t8(values: pd.Series, *, weight: float = 0.7) -> Target:
+    return Target.on_margin(
+        'supply',
+        'column',
+        values,
+        'test',
+        name='T8',
+        hard=False,
+        weight=weight,
+        allow_negative=True,
+    )
+
+
+def test_t2_blend_once_over_two_pairs() -> None:
+    """w is an entry mix, not a per-pair rate. Force two pairs via atol=0."""
+    use, supply = _use_seed(), _supply_seed()
+    masks = _masks(use, supply)
+    weight = 0.5
+    assert weight != WEIGHTS['T2']
+    t2 = _t2(pd.Series({'F01000': 100.0}), weight=weight)
+    t11 = _t11(pd.Series({'c1': 2.0, 'c2': -0.5}))
+    targets = TargetSet.of(_t1(use[list(INDUSTRIES)].sum()), t11, t2)
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    residual = offset_targets(targets, frozen)
+    t2_res = next(t for t in residual if t.name == 'T2')
+    current0 = t2_res.evaluate(free)
+    used = current0 + t2_res.weight * (t2_res.values.astype(float) - current0)
+    reblend = used + t2_res.weight * (t2_res.values.astype(float) - used)
+
+    out = engine(
+        free,
+        residual,
+        masks,
+        max_outer=2,
+        close_rows_on_last=False,
+        atol=0.0,
+        impose_soft=True,
+    )
+    assert out.outer_iterations == 2
+    assert 'T2' not in out.skipped
+    got = out.blocks['use']['F01000'].sum()
+    assert got == pytest.approx(float(used.loc['F01000']), rel=1e-5)
+    assert got != pytest.approx(float(reblend.loc['F01000']), rel=1e-5)
+
+    held = engine(
+        free,
+        residual,
+        masks,
+        max_outer=2,
+        close_rows_on_last=False,
+        atol=0.0,
+        impose_soft=False,
+    )
+    assert 'T2' in held.skipped
+    assert held.blocks['use']['F01000'].sum() == pytest.approx(
+        free['use']['F01000'].sum(), rel=1e-6
+    )
+
+
+def test_t6_defers_to_hard_t12() -> None:
+    use, supply = _use_seed(), _supply_seed()
+    masks = _masks(use, supply)
+    t6 = _t6(pd.Series({'T00TOP': 999.0, 'T00SUB': 888.0}))
+    targets = _hard_set(use, supply, extra=(t6,))
+    frozen, _free, out, restored = _run(
+        use, supply, targets, masks, close_rows_on_last=False, impose_soft=True
+    )
+    assert 'T6' in out.soft_deferred
+    assert 'T6' not in out.skipped
+    t12 = next(t for t in targets if t.name == 'T12')
+    t13 = next(t for t in targets if t.name == 'T13')
+    assert float((t12.evaluate(restored) - t12.values).abs().max()) < 1e-5
+    assert float((t13.evaluate(restored) - t13.values).abs().max()) < 1e-5
+    assert restored['use'].loc['T00TOP'].sum() != pytest.approx(999.0)
+    residual = offset_targets(targets, frozen)
+    t6_res = next(t for t in residual if t.name == 'T6')
+    current0 = t6_res.evaluate(_free)
+    used = current0 + t6_res.weight * (t6_res.values.astype(float) - current0)
+    assert out.blocks['use'].loc['T00TOP'].sum() != pytest.approx(
+        float(used.loc['T00TOP']), rel=1e-5
+    )
+
+
+def test_t4_closer_hits_desired_and_keeps_t1() -> None:
+    use_rows = ('c1', 'V00100', 'V00300')
+    use_cols = ('i1', 'i2', 'F01000')
+    use = pd.DataFrame(
+        [
+            [0.0, 0.0, 3.0],
+            [8.0, 2.0, 0.0],
+            [4.0, 4.0, 0.0],
+        ],
+        index=list(use_rows),
+        columns=list(use_cols),
+    )
+    supply = pd.DataFrame([[3.0]], index=['c1'], columns=['i1'])
+    industries = ('i1', 'i2')
+    aggregator = Aggregator.from_mapping({'g': ['i1', 'i2']}, list(use_cols))
+    t4 = Target(
+        terms=(TargetTerm('use', 'column', 1.0, aggregator, restrict_to=('V00100',)),),
+        values=pd.Series({'g': 20.0}),
+        source='test',
+        name='T4',
+        hard=False,
+        weight=0.6,
+    )
+    masks = _masks(use, supply)
+    targets = TargetSet.of(
+        _t1(use[list(industries)].sum()), _t11(pd.Series({'c1': 0.0})), t4
+    )
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    residual = offset_targets(targets, frozen)
+    t4_res = next(t for t in residual if t.name == 'T4')
+    initial = (t4_res.evaluate(free) - t4_res.values.astype(float)).abs()
+    out = engine(
+        free,
+        residual,
+        masks,
+        close_rows_on_last=False,
+        impose_soft=True,
+        atol=1e-6,
+    )
+    restored = restore_fixed_blocks(out.blocks, frozen)
+    t1 = next(t for t in targets if t.name == 'T1')
+    pd.testing.assert_series_equal(
+        restored['use'][list(industries)].sum(axis=0).astype(float),
+        t1.values.astype(float),
+        check_names=False,
+        rtol=1e-6,
+    )
+    final = (t4_res.evaluate(out.blocks) - t4_res.values.astype(float)).abs()
+    assert (final < (1.0 - t4.weight + 1e-6) * initial + 1e-9).all()
+    assert 'T4' not in out.skipped
+
+
+def test_t4_stuck_column_frozen_and_empty_group() -> None:
+    use_rows = ('c1', 'T00TOP', 'T00SUB', 'V00100', 'V00300')
+    use_cols = ('i1', 'i2', 'stuck', 'empty', 'F01000')
+    use = pd.DataFrame(
+        [
+            [0.0, 0.0, 0.0, 0.0, 4.0],
+            [1.0, 1.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [10.0, 10.0, 6.0, 0.0, 0.0],
+            [5.0, 5.0, 0.0, 0.0, 0.0],
+        ],
+        index=list(use_rows),
+        columns=list(use_cols),
+    )
+    supply = pd.DataFrame([[4.0]], index=['c1'], columns=['i1'])
+    industries = ('i1', 'i2', 'stuck', 'empty')
+    use_fixed = pd.DataFrame(False, index=use.index, columns=use.columns)
+    use_fixed.loc['V00100', 'i2'] = True
+    masks = _masks(use, supply, use_fixed=use_fixed)
+    aggregator = Aggregator.from_mapping(
+        {'g_move': ['i1', 'i2', 'stuck'], 'g_empty': ['empty']},
+        list(use_cols),
+    )
+    t4 = Target(
+        terms=(TargetTerm('use', 'column', 1.0, aggregator, restrict_to=('V00100',)),),
+        values=pd.Series({'g_move': 32.0, 'g_empty': 10.0}),
+        source='test',
+        name='T4',
+        hard=False,
+        weight=0.6,
+    )
+    targets = TargetSet.of(
+        _t1(use[list(industries)].sum()),
+        _t11(pd.Series({'c1': 0.0})),
+        t4,
+    )
+    frozen, free, out, restored = _run(
+        use,
+        supply,
+        targets,
+        masks,
+        close_rows_on_last=False,
+        impose_soft=True,
+        atol=1e-6,
+    )
+    t1 = next(t for t in targets if t.name == 'T1')
+    pd.testing.assert_series_equal(
+        restored['use'][list(industries)].sum(axis=0).astype(float),
+        t1.values.astype(float),
+        check_names=False,
+        rtol=1e-6,
+    )
+    z = out.blocks['use']
+    assert float(np.asarray(z.loc['V00100', 'i2'])) == 0.0
+    assert restored['use'].loc['V00100', 'i2'] == frozen['use'].loc['V00100', 'i2']
+    assert float(np.asarray(z.loc['V00100', 'stuck'])) == pytest.approx(
+        float(np.asarray(free['use'].loc['V00100', 'stuck'])), rel=1e-12
+    )
+    assert float(np.asarray(z.loc['V00100', 'empty'])) == 0.0
+    t4_res = next(t for t in offset_targets(targets, frozen) if t.name == 'T4')
+    current0 = t4_res.evaluate(free)
+    desired = current0 + t4_res.weight * (t4_res.values.astype(float) - current0)
+    i1_old = float(np.asarray(free['use'].loc['V00100', 'i1']))
+    v001 = free['use'].loc['V00100']
+    assert isinstance(v001, pd.Series)
+    free_sum = float(v001.loc[['i1', 'i2', 'stuck']].sum())
+    factor = (float(desired.loc['g_move']) - 0.0) / free_sum
+    assert float(np.asarray(z.loc['V00100', 'i1'])) == pytest.approx(
+        factor * i1_old, rel=1e-6
+    )
+    extra = (float(desired.loc['g_move']) - 0.0) / i1_old
+    assert float(np.asarray(z.loc['V00100', 'i1'])) != pytest.approx(
+        extra * i1_old, rel=1e-4
+    )
+
+
+def test_t7_blend_on_cloned_mcif_t8_defers() -> None:
+    use, supply = _use_seed(), _supply_seed().copy()
+    supply['MCIF'] = [3.0, 1.0]
+    masks = _masks(use, supply)
+    t7 = _t7(pd.Series({'MCIF': 20.0}), weight=0.5)
+    t8 = _t8(pd.Series({'MDTY': 999.0}))
+    targets = _hard_set(use, supply, extra=(t7, t8))
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    residual = offset_targets(targets, frozen)
+    t7_res = next(t for t in residual if t.name == 'T7')
+    current0 = t7_res.evaluate(free)
+    used = current0 + t7_res.weight * (t7_res.values.astype(float) - current0)
+    out = engine(
+        free,
+        residual,
+        masks,
+        close_rows_on_last=False,
+        impose_soft=True,
+        atol=1e-6,
+    )
+    assert 'T7' not in out.skipped
+    assert 'T8' in out.soft_deferred
+    assert 'T8' not in out.skipped
+    assert out.blocks['supply']['MCIF'].sum() == pytest.approx(
+        float(used.loc['MCIF']), rel=1e-5
+    )
+    restored = restore_fixed_blocks(out.blocks, frozen)
+    t14 = next(t for t in targets if t.name == 'T14')
+    assert float((t14.evaluate(restored) - t14.values).abs().max()) < 1e-5
+    assert out.blocks['supply']['MDTY'].sum() != pytest.approx(999.0)
+
+
+def test_impose_soft_false_does_not_require_mcif() -> None:
+    use, supply = _use_seed(), _supply_seed()
+    masks = _masks(use, supply)
+    targets = TargetSet.of(_t1(use[list(INDUSTRIES)].sum()), _t11())
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    residual = TargetSet.of(
+        *offset_targets(targets, frozen).targets,
+        _t7(pd.Series({'MCIF': 20.0})),
+    )
+    engine(free, residual, masks, max_outer=1, impose_soft=False)
+
+
+def test_t7_missing_mcif_raises_when_imposed() -> None:
+    use, supply = _use_seed(), _supply_seed()
+    masks = _masks(use, supply)
+    targets = TargetSet.of(_t1(use[list(INDUSTRIES)].sum()), _t11())
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    residual = TargetSet.of(
+        *offset_targets(targets, frozen).targets,
+        _t7(pd.Series({'MCIF': 20.0})),
+    )
+    with pytest.raises(KeyError, match='MCIF'):
+        engine(free, residual, masks, max_outer=1, impose_soft=True)
+
+
+def test_duplicate_soft_name_raises() -> None:
+    use, supply = _use_seed(), _supply_seed()
+    masks = _masks(use, supply)
+    t2 = _t2(pd.Series({'F01000': 10.0}))
+    t2_b = t2.with_values(t2.values * 2, source_suffix='2')
+    targets = TargetSet.of(_t1(use[list(INDUSTRIES)].sum()), _t11(), t2, t2_b)
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    with pytest.raises(ValueError, match='duplicate'):
+        engine(free, offset_targets(targets, frozen), masks)
+
+
+def test_unknown_soft_stays_skipped() -> None:
+    use, supply = _use_seed(), _supply_seed()
+    masks = _masks(use, supply)
+    ghost = Target.on_margin(
+        'use',
+        'column',
+        pd.Series([1.0], index=['F01000']),
+        'test',
+        name='T99',
+        hard=False,
+    )
+    targets = TargetSet.of(_t1(use[list(INDUSTRIES)].sum()), _t11(), ghost)
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    out = engine(
+        free, offset_targets(targets, frozen), masks, max_outer=1, impose_soft=True
+    )
+    assert 'T99' in out.skipped
+    assert 'T99' not in out.soft_deferred

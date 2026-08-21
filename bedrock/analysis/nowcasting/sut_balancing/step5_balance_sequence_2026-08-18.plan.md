@@ -6,10 +6,10 @@ todos:
     content: "PR1 — gras_balance ndarray kernel (spec: gras_kernel_plan_2026-08-18.plan.md)"
     status: pending
   - id: pr2-wrapper
-    content: "PR2 — engine(free, residual, masks); spec: sut_orchestration_plan_2026-08-18.plan.md (hard only: T1, T11–T17)"
+    content: "PR2 — engine(free, residual, masks); spec: sut_orchestration_03e8183c.plan.md (hard only: T1, T11–T17)"
     status: pending
   - id: pr3-kras
-    content: PR3 — KRAS-style soft constraints around the same kernel; write a full plan when this PR is next (needs sourced weights)
+    content: PR3 — KRAS-style soft layer; spec: kras_soft_layer_c61e0083.plan.md (mechanism; WEIGHTS uncalibrated)
     status: pending
 isProject: false
 ---
@@ -22,9 +22,9 @@ This file is **boundaries**. Implementer detail lives in a per-PR plan. Do not p
 
 | PR | Plan | Ships | Does not ship |
 |---|---|---|---|
-| **1. Engine** | [`gras_kernel_plan_2026-08-18.plan.md`](gras_kernel_plan_2026-08-18.plan.md) | `gras_balance` / `GrasBalanceResult` in `bedrock/utils/economic/balance/gras.py`. One signed matrix, row/col vectors, `free_mask`, `sign_flex`. Hand-checkable numpy tests. | `engine(free, residual, masks)`; `Target` / `SutMask` in the public function; T11–T17; 2017 SUT; KRAS |
-| **2. SUT orchestration** | [`sut_orchestration_plan_2026-08-18.plan.md`](sut_orchestration_plan_2026-08-18.plan.md) | `engine(free, residual, masks)` calling `gras_balance` per block. **Hard only (T1, T11–T17).** Soft/placeholder T2/T4/T6–T9 skipped. T11 on 400 commodities. | T4 aggregators; KRAS; rewriting `gras_balance` to take `TargetSet` |
-| **3. KRAS** | write when PR3 is next | Soft sourced targets (weights already on `Target`); identities stay hard. Around the **same** kernel, not a new inner loop. | Replacing GRAS with QP; putting softness inside `gras_balance` |
+| **1. Engine** | [`gras_kernel_plan_2026-08-18.plan.md`](gras_kernel_plan_2026-08-18.md) | `gras_balance` / `GrasBalanceResult` in `bedrock/utils/economic/balance/gras.py`. One signed matrix, row/col vectors, `free_mask`, `sign_flex`. Hand-checkable numpy tests. | `engine(free, residual, masks)`; `Target` / `SutMask` in the public function; T11–T17; 2017 SUT; KRAS |
+| **2. SUT orchestration** | [`sut_orchestration_03e8183c.plan.md`](sut_orchestration_03e8183c.plan.md) | `engine(free, residual, masks)` calling `gras_balance` per block. **Hard only (T1, T11–T17).** Soft/placeholder T2/T4/T6–T9 skipped. T11 on 400 commodities. | T4 aggregators; KRAS; rewriting `gras_balance` to take `TargetSet` |
+| **3. KRAS** | [`kras_soft_layer_c61e0083.plan.md`](kras_soft_layer_c61e0083.plan.md) | Soft T2/T4/T7 around the same `engine` / `gras_balance`. T6/T8/T9 whole-name deferred when T12–T14 occupy a slot. Starting `WEIGHTS`, not calibrated. | QP; softness inside `gras.py`; calibrating `WEIGHTS` |
 
 ```text
 #659 scaffolding (merged)
@@ -33,7 +33,7 @@ This file is **boundaries**. Implementer detail lives in a per-PR plan. Do not p
             → PR3  KRAS-style soft layer        # still calls gras_balance
 ```
 
-[`plan.md`](bedrock/analysis/nowcasting/plan.md) recommendation: GRAS + KRAS-style soft layer, mask via offset. PR1 is GRAS. PR2 is the missing caller. PR3 is the soft layer. Decision 3’s placeholder NIPA/ITA values can land on PR2’s shape; **calibrated weights** are PR3.
+[`plan.md`](../plan.md) recommendation: GRAS + KRAS-style soft layer, mask via offset. PR1 is GRAS. PR2 is the caller (**hard T1, T11–T17**). PR3 is the soft **mechanism** (blends + T4 closer). **Calibrated weights are not PR3** — starting `WEIGHTS` in `nowcast_targets.py` ship as-is.
 
 ## Interfaces PR1 must not break
 
@@ -46,8 +46,8 @@ This file is **boundaries**. Implementer detail lives in a per-PR plan. Do not p
 ## Interfaces PR2 must not break
 
 - Call `gras_balance`; do not fork a second dense loop.
-- Keep `engine(free, residual, masks)` as the SUT entry. Cross-block identities (T11–T14, T17) and T4 aggregators live here, not in `gras.py`.
-- Pass order (Use vs Supply, how many iterations to joint `T016 = T019`) is a PR2 design, not a PR1 leftover.
+- Keep `engine(free, residual, masks)` as the SUT entry. Cross-block identities (T11–T14, T17) live here, not in `gras.py`. **Hard only in this PR** (T1, T11–T17). T4 aggregators and other `hard=False` targets are skipped; PR3 imposes them.
+- Pass order is locked in the PR2 plan: Use then Supply, outer loop on T11, unconstrained margins hold at current sums.
 
 ## Interfaces PR3 must not break
 
@@ -56,5 +56,5 @@ This file is **boundaries**. Implementer detail lives in a per-PR plan. Do not p
 
 ## When to write the next full plan
 
-- After PR1 merges: SUT-orchestration plan (pass order, how T11/T17 become kernel calls, 2017 replay with `allow_placeholders=True`).
-- After sourced targets are real enough to calibrate: KRAS plan (which weights, how violation is charged, diagnostics). Placeholder `WEIGHTS` in `nowcast_targets.py` are not that calibration.
+- PR3 spec is written: [`kras_soft_layer_c61e0083.plan.md`](kras_soft_layer_c61e0083.plan.md).
+- After NIPA/ITA values replace placeholders: calibrate `WEIGHTS` (not a fourth stacked PR until those sources exist).
