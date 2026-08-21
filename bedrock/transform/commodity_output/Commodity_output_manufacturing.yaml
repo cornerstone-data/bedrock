@@ -47,11 +47,11 @@
 # against.
 #
 # ⚠️ Known remaining gaps, largest first:
-#   - 3361MV motor vehicles, 0.74 in 2021. The NAPCS code is "complete
-#     passenger vehicles" and carries no car/truck split, so no concordance can
-#     fix it; it needs NIPA table 7.2.5U (U70205), already extracted. #676.
 #   - 325412 pharmaceutical preparations, 0.52 at detail. Not valuation - the
 #     largest single unexplained commodity in the build.
+#   - 3361MV motor vehicles: the car/truck split is now taken from NIPA U70205
+#     (see split_motor_vehicle_output), which fixes the DIVISION between 336111
+#     and 336112 but not their combined level - the pair is 19.5% over in 2017.
 #   - 3.4% of ASM product value maps to no BEA commodity at all.
 #
 # ---- What is NOT here ----------------------------------------------------
@@ -101,3 +101,7 @@ source_names:
     # 0.16-0.19pp of weighted error (4.47% -> 4.63% in 2018, 6.72% -> 6.91% in
     # 2021) and nothing at all on the level.
     attribution_method: equal
+    # ⚠️ AFTER aggregation, not before. The split reallocates value BETWEEN two
+    # BEA commodities, so it needs the commodity axis to exist and the rows to
+    # be aggregated onto it - neither is true at any earlier socket. See #570.
+    clean_fbs_after_aggregation: !script_function:Census_ASM split_motor_vehicle_output

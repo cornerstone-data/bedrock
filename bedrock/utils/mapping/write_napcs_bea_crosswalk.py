@@ -45,8 +45,9 @@ without the weights, which that format cannot carry. See
 
 **Validate with** ``--validate``, which builds 2017 commodity output from the
 Economic Census through this crosswalk and scores it against the published 2017
-detail Supply block - the answer. That is the check the accuracy claims above
-rest on, and it is a flag rather than a unit test because it needs the
+detail Supply block - the answer. It applies the NIPA car/truck split the FBS
+method applies (#570), so the score is of what the pipeline actually produces.
+That is the check the accuracy claims above rest on, and it is a flag rather than a unit test because it needs the
 ``Census_EC_PxI`` FBA and the BEA workbooks (see
 ``analysis/nowcasting/README.md`` on why diagnostics are CLI flags here).
 
@@ -275,7 +276,31 @@ def validate() -> pd.DataFrame:
         .sum()
         / 1e6
     )
+    # ⚠️ The car/truck split is imposed here too, because the FBS method imposes
+    # it (`split_motor_vehicle_output`, #570) and a validation that skipped it
+    # would report a build nothing downstream uses. The NAPCS codes reaching
+    # 336111 are "complete passenger vehicles" and carry no car/truck split, so
+    # this is the one place the crosswalk is *not* the whole story.
+    from bedrock.extract.bea.BEA_NIPA import motor_vehicle_auto_share  # noqa: PLC0415
+
+    share = motor_vehicle_auto_share(2017)
+    pair = built.get('336111', 0.0) + built.get('336112', 0.0)
+    before = built.copy()
+    built['336111'] = pair * share
+    built['336112'] = pair * (1 - share)
+
     published = detail_block().sum(axis=1)
+
+    def _pair_error(series: pd.Series) -> float:
+        return sum(
+            abs(series.get(code, 0.0) - published.get(code, 0.0))
+            for code in ('336111', '336112')
+        )
+
+    print(
+        f'\nmotor vehicles: NIPA U70205 auto share {share:.4f}; '
+        f'pair abs error {_pair_error(before):,.0f} -> {_pair_error(built):,.0f}'
+    )
 
     commodities = sorted(set(built.index) & set(published.index))
     scored = pd.DataFrame(

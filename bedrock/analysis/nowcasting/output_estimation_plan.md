@@ -1260,6 +1260,63 @@ That is also what BEA's own Table C1 says it uses for this industry — Wards
 Intelligence unit production and J.D. Power average net cost — so an external
 split here is the documented method, not a workaround.
 
+#### ✅ The split is now applied, and what it does and does not fix
+
+`split_motor_vehicle_output` (`extract/census/Census_ASM.py`) runs as the
+method's `clean_fbs_after_aggregation` hook and takes the ratio from
+`motor_vehicle_auto_share` (`extract/bea/BEA_NIPA.py`), which reads `A133RC` and
+`A716RC` out of the `BEA_NIPA` FBA. The two commodities' combined value is held
+fixed and only its division changes, within each producing industry, so the
+off-diagonal the Supply table records is preserved exactly.
+
+Scored on 2017 against the published **detail** block:
+
+| | 336111 | 336112 | pair abs error | build wtd error |
+|---|---:|---:|---:|---:|
+| built raw | 94,600 | 202,068 | 75,195 | 11.26% |
+| **NIPA split** | **52,694** | **243,974** | **48,489** | **10.80%** |
+| published | 32,758 | 215,421 | — | — |
+
+Commodities within ±25% go from 199 to 208 of 239, and `336111` stops being the
+build's third-largest gap.
+
+⚠️ **It does not close the gap, and the reason is a different problem.** The pair
+is **19.5% over in total** — 296,668 built against 248,179 published — and a split
+cannot touch a level. That overage is what the remaining 48,489 is.
+
+⚠️ **On 2017 alone the ratio is not identified.** Once the pair is over in
+total, every plausible auto share puts *both* commodities above published, so the
+absolute error is the overage regardless: NIPA's 0.1776, `B148RC`/`A953RC`'s
+0.1560 and the published 0.1320 all score **48,489**. 2017 therefore cannot
+choose between them, and does not need to.
+
+✅ **The evidence for the hook is the annual movement, not the 2017 level.**
+
+| 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0.1776 | 0.1347 | 0.1130 | 0.0923 | 0.0946 | 0.0546 | 0.0463 | 0.0427 |
+
+The auto share falls **four-fold** over the window as US assembly shifts from
+cars to SUVs and pickups. That is exactly the kind of within-group reallocation a
+frozen 2017 mix erases, and it is why this belongs in the pipeline even though it
+is unscoreable on the benchmark year.
+
+⚠️ **Heavy trucks are left out, deliberately.** `A716RC` covers heavy trucks and
+buses — BEA `336120`, not `336112` — so pooling `336120` in is the
+concept-consistent reading, and it scores marginally better (**10.67%**). It is
+not taken: NIPA publishes no split *within* trucks, so that variant has to divide
+the truck side by the **built** proportions, which is an assumption of ours
+rather than a published figure, and its 0.13pp gain rides on the pool's overage
+landing in a commodity (`336120`, built 22,127 against 29,382) that happened to
+be short.
+
+⚠️ **The FBA has to be regenerated for this to work.** `U70205` was added to
+`BEA_NIPA.yaml` after the 2018–2024 FBAs were last built, and
+`getFlowByActivity` returns the newest local file without checking the config it
+came from — so a stale cache yields zero `U70205` rows rather than an error.
+`motor_vehicle_auto_share` raises with that instruction rather than returning a
+silent `NaN`.
+
 ### Annual ASM: suppression is fully recoverable — the control was misread
 
 `asm/value2017` carries the same suppression as the Economic Census — **57.4% of
@@ -1352,8 +1409,10 @@ accuracy is **unmeasured** because no published detail exists for those years.
 
 ⚠️ **3.4% of ASM product value maps to no BEA commodity**, and the largest single
 gap is `3361MV` motor vehicles at 0.74 — the NAPCS code is "complete passenger
-vehicles" and carries no car/truck split, so no concordance can close it. It
-needs NIPA table 7.2.5U (`U70205`), already extracted (#676).
+vehicles" and carries no car/truck split, so no concordance can close it. The
+split itself is now taken from NIPA table 7.2.5U (`U70205`) — see above — but
+that fixes the division between cars and light trucks, not the group's level,
+and 0.74 is a level.
 
 **What this establishes:** manufacturing commodity output can be built annually
 from reported product data, at a level within about 5–7% of BEA's own estimate,
@@ -2244,7 +2303,8 @@ universe and the same concordance, most concordance error divides out too.
 | `321` wood | 0.350 | 4 |
 | `324` petroleum | 0.240 | 4 |
 
-`3361MV` is the known car/truck split problem (#676). Where the ratio varies
+`3361MV` is the known car/truck split problem, now handled outside the
+product data by `U70205`. Where the ratio varies
 *within* a group, the shares are contaminated and the change signal is not clean
 either — those groups should be excluded from any signal-based adjustment rather
 than trusted.

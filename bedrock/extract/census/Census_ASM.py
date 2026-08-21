@@ -308,6 +308,99 @@ def move_asm_product_to_activity(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     )
 
 
+#: The two BEA commodities the "complete passenger vehicles" NAPCS codes cannot
+#: tell apart. Autos first - :func:`split_motor_vehicle_output` reads it in
+#: order.
+MOTOR_VEHICLE_COMMODITIES = ('336111', '336112')
+
+
+def split_motor_vehicle_output(fbs: pd.DataFrame, **_: Any) -> pd.DataFrame:
+    """Re-split cars and light trucks using NIPA table 7.2.5U (#570).
+
+    ⚠️ **The product data cannot make this split.** The three NAPCS codes
+    reaching ``336111`` are *"Manufacturing of complete passenger vehicles"*,
+    which does not distinguish a car from an SUV or a pickup, so no concordance
+    refinement can help - the source does not separate them. Built raw, 2017
+    autos come out at 94,600m against 32,758m published while light trucks land
+    at 202,068m against 215,421m.
+
+    So the split is taken from where it *is* published annually:
+    :func:`~bedrock.extract.bea.BEA_NIPA.motor_vehicle_auto_share`, NIPA's auto
+    output over auto plus truck output.
+
+    The two commodities' combined value is held fixed and only its division
+    changes; within each producing industry (parked in ``Flowable`` by
+    :func:`move_asm_product_to_activity`) the pair total is reallocated, so the
+    industry axis - the secondary production the Supply table's off-diagonal
+    records - is preserved exactly.
+
+    ⚠️ **What this does and does not fix, measured on 2017.** Scored against the
+    published detail Supply block, the pair's absolute error falls from 75,195m
+    to 48,489m and the whole manufacturing build from 11.26% to 10.80% weighted
+    error. It does not close the gap, because the pair is also **19.5% over in
+    total** (296,668m built against 248,179m published), which is a level
+    problem the split cannot touch.
+
+    ⚠️ **On 2017 alone the ratio is not identified.** Once the pair is over in
+    total, *any* auto share at or below the published 0.132 gives the same
+    48,489m - NIPA's 0.178, ``B148RC``/``A953RC``'s 0.156 and the published
+    0.132 score identically. The evidence for this hook is therefore not the
+    2017 level but the annual movement: the share runs 0.178, 0.135, 0.113,
+    0.092, 0.095, 0.055, 0.046, 0.043 over 2017-2024, and no frozen share
+    tracks a car-to-truck shift that large.
+
+    ⚠️ **Heavy trucks are deliberately left out.** ``A716RC`` covers heavy trucks
+    and buses too - BEA ``336120``, not ``336112`` - so pooling ``336120`` in
+    would be the concept-consistent reading, and it does score marginally better
+    (10.67%). It is not taken: NIPA publishes no split *within* trucks, so that
+    variant has to divide the truck side by the built proportions, which is an
+    assumption of ours rather than a published figure, and its 0.13pp gain rides
+    on the pool's overage landing in a commodity that happened to be short.
+    """
+    from bedrock.extract.bea.BEA_NIPA import (  # noqa: PLC0415
+        MOTOR_VEHICLE_TABLE,
+        motor_vehicle_auto_share,
+    )
+
+    auto, truck = MOTOR_VEHICLE_COMMODITIES
+    pair = fbs['SectorProducedBy'].isin(MOTOR_VEHICLE_COMMODITIES)
+    if not pair.any():
+        return fbs
+
+    (year,) = fbs.loc[pair, 'Year'].unique()
+    share = motor_vehicle_auto_share(year)
+
+    # The pair total per producing industry is what is held fixed. Rows for the
+    # two commodities are collapsed to one row each per industry, which is what
+    # a reallocation across commodities means - there is nothing left to keep
+    # them apart within an industry once the split is imposed from outside.
+    # Everything but the commodity and the amount is carried from the first row
+    # of the group: the metadata columns (DataReliability, AttributionSources,
+    # SuppressionRecovery) describe the same product data on both sides of a
+    # split that is imposed from outside it, so there is nothing to choose.
+    reallocated: list[dict[str, Any]] = []
+    for _industry, rows in fbs.loc[pair].groupby('Flowable', dropna=False):
+        total = float(rows['FlowAmount'].sum())
+        template = dict(rows.iloc[0])
+        for commodity, amount in (
+            (auto, total * share),
+            (truck, total * (1 - share)),
+        ):
+            reallocated.append(
+                template | {'SectorProducedBy': commodity, 'FlowAmount': amount}
+            )
+
+    log.info(
+        f'Motor vehicle split for {year}: auto share {share:.4f} from NIPA '
+        f'{MOTOR_VEHICLE_TABLE}; {int(pair.sum())} rows -> {len(reallocated)} '
+        f'across {auto}/{truck}'
+    )
+    return pd.concat(
+        [fbs.loc[~pair], pd.DataFrame(reallocated, columns=fbs.columns)],
+        ignore_index=True,
+    )
+
+
 def prepare_asm_pxi_for_output(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
     """Recover suppressed cells, then reshape for mapping - in that order.
 
