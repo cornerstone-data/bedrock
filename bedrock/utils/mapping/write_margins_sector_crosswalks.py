@@ -4,7 +4,7 @@ Emit the three ``Sector_Crosswalk_*`` files the ``Margins_Transport`` FBS needs.
 The judgement about which BEA commodity a rail STCC code, a SAS commodity
 group, a pipeline margin item or an SCTG group belongs to already lives in the
 ``Crosswalk_*_to_BEA_2017.csv`` files (and, for SCTG, in the ported
-``NAICS_Crosswalk_FAF_Mode_and_SCTG.csv``). Those are the source of truth and
+``Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv``). Those are the source of truth and
 are written by their own scripts, where the reasoning is recorded row by row.
 
 This script only re-expresses them in the six-column shape
@@ -126,12 +126,12 @@ def bts_faf() -> pd.DataFrame:
     """
     SCTG group to BEA 2017 commodity, lifted out of the ported FAF crosswalk.
 
-    ``NAICS_Crosswalk_FAF_Mode_and_SCTG.csv`` targets NAICS in its ``Sector``
+    ``Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv`` targets NAICS in its ``Sector``
     column and carries the BEA code in ``Note``; this promotes the BEA code to
     ``Sector`` so the FBS can meet a BEA-coded attribution source (#546).
     """
     faf = pd.read_csv(
-        CROSSWALK_DIR / 'NAICS_Crosswalk_FAF_Mode_and_SCTG.csv', dtype=str
+        CROSSWALK_DIR / 'Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv', dtype=str
     ).fillna('')
     sctg = faf[(faf['ActivitySourceName'] == 'FAF_SCTG') & (faf['Note'] != '')]
     return (

@@ -633,7 +633,7 @@ variation, and it cannot be justified from the source method.
 | Piece | Where | State |
 |---|---|---|
 | `BTS_FAF` extractor + `Transport_Margins_2017.yaml` | flowsa **`margins`** branch | Built, but ton-miles is the right basis for **water and air only** — see §Transportation |
-| `NAICS_Crosswalk_FAF_Mode_and_SCTG.csv` | flowsa `margins` | Built |
+| `Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv` | flowsa `margins` | Built |
 | **SAS Table 8** — truck revenue by commodity | `Census_SAS`, sheet `Table 8` | **Published, 2015–2022.** The extractor reads sheet `Table 3` today; Table 8 is a `sheets:` entry away |
 | **AIES `miscsector`** — truck revenue by commodity, continued | Census API `timeseries/aies/miscsector` | **Published, 2023 only.** `RCPT_MOTR_*_DVAL`, same eleven groups |
 | **STB Commodity Revenue Stratification Report** — rail revenue by commodity | Surface Transportation Board | Public; **not extracted**. AAR's equivalent is proprietary |
@@ -707,7 +707,7 @@ The first attempt ported flowsa's `BTS_FAF` + `Transport_Margins_2017.yaml` and
 allocated every mode on ton-miles; BEA's reply retired it and the PR was closed
 ([#627](https://github.com/cornerstone-data/bedrock/pull/627), branch
 `faf_transport_margins` retained at `b94913f`). What survives from it: the
-`BTS_FAF` extractor fix, `NAICS_Crosswalk_FAF_Mode_and_SCTG.csv`, the per-mode
+`BTS_FAF` extractor fix, `Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv`, the per-mode
 framing, and the anchor-plus-growth construction. What replaces the allocator, in
 descending order of what it is worth:
 
@@ -752,7 +752,7 @@ time to reach:
   name backwards on `_`, so `Margins_Transport_<year>` requires
   `transform/margins/` — and so will Phase 3's `Margins_Trade_<year>`.
 
-The `BTS_FAF` extractor and `NAICS_Crosswalk_FAF_Mode_and_SCTG.csv` are retained
+The `BTS_FAF` extractor and `Sector_Crosswalk_BTS_FAF_Mode_and_SCTG.csv` are retained
 on `faf_transport_margins` at `b94913f` and should be cherry-picked rather than
 rewritten when water and air are built.
 
