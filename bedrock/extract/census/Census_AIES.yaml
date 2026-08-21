@@ -21,6 +21,15 @@ url:
 
 call_response_fxn: !script_function:Census_AIES census_aies_call
 parse_response_fxn: !script_function:Census_AIES census_aies_parse
+gcs_fxn: !script_function:Census_AIES census_aies_load_gcs
+
+# Read the cached table from extract/input_data/Census_AIES/ (or GCS
+# extract-input if it is not cached yet) rather than calling Census every run.
+# AIES requires an API key and CI has none, so without this every AIES-backed
+# test fails in CI on the key rather than on the data.
+#
+# Set to True to refresh the cache from Census, then upload the new file.
+extract_data_from_raw_sources: False
 
 # AIES replaced AWTS and ARTS from data year 2023 and carries no back-years:
 # every earlier year returns 204 No Content. 2024 is not published yet, which
