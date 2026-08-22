@@ -17,8 +17,10 @@ is not a Y column. The Supply bridge fills ``MCIF`` from
 ``Trade_Imports_<year>`` (same mapped Detail mass), ``MDTY`` from Census
 duty rates leveled to NIPA ``B235RC``, and ``MADJ`` from Census import
 charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ``
-destination codes and leveled to published Supply ``MADJ``, for 2017;
-other bridge columns are unsourced. ITA G+S scale lives in
+destination codes and leveled to published Supply ``MADJ``, for 2017.
+``TRADE``/``TRANS`` are step 4c's margin columns and ``TOP``/``SUB`` are
+step 4d's tax and subsidy columns, all sourced for a run of years. ⚠️
+``SUB`` is stored negative, as BEA publishes it in the Supply table. ITA G+S scale lives in
 ``bedrock.transform.trade.scale`` and is not applied here (#647).
 
 Each ``NIPA_final_dom_uses_<year>.yaml`` activity_set assigns its official BEA
@@ -60,6 +62,8 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.iot.nowcast_product_taxes import TOP_YEARS, top_column
+from bedrock.transform.iot.nowcast_subsidies import SUB_YEARS, sub_column
 from bedrock.transform.iot.nowcast_trade_margins import (
     TRADE_MARGIN_YEARS,
     trade_margin_column,
@@ -387,7 +391,27 @@ def derive_initial_supply_bridge(
     margin, not NaN - a commodity outside the receiving set genuinely has none,
     and the column has to net to zero for target T16 to hold.
 
-    The remaining tax columns (TOP, SUB) are unsourced. The subtotals
+    ``TOP`` is Step 4d's taxes-on-products column (#580), sourced for **all of
+    2017-2024** because every input is NIPA. Its total is observed rather than
+    estimated - NIPA T30500 taxes on products less customs duties, 716,925
+    against the published 716,926 in 2017 - and 29.8% of the commodity split
+    comes from NIPA's own named product lines, which move very differently from
+    the column (tobacco falls 40% by 2024 while the column rises 42%). The
+    remaining 70% is general sales tax on frozen 2017 shares.
+
+    ``SUB`` is Step 4d's subsidy column (#580), sourced for **all of 2017-2024**.
+    Its total is NIPA T31300, observed. Each commodity is anchored on its
+    published 2017 value and moved by its own NIPA type line, except that 2020
+    and 2021 replace the ``other`` type - 84% of the column in those years - with
+    BEA's published allocation of PPP across industries, because the 2017 vector
+    is 64% insurance carriers and moving it would put ~377bn of pandemic support
+    there.
+
+    ⚠️ ``SUB`` is stored **negative**, BEA's Supply-table convention, and ``T015``
+    adds it rather than subtracting. The Use table's ``T00SUB`` row carries the
+    same money positive.
+
+    The subtotals
     T013/T014/T015/T016 are computed from their components by
     :func:`fill_supply_bridge_subtotals`, so a subtotal is NaN until every one
     of its components is sourced. Callers must not mutate the cached frame.
@@ -411,4 +435,8 @@ def derive_initial_supply_bridge(
         )
     if year in TRADE_MARGIN_YEARS:
         bridge['TRADE'] = trade_margin_column(year).reindex(bridge.index).fillna(0.0)
+    if year in TOP_YEARS:
+        bridge['TOP'] = top_column(year).reindex(bridge.index).fillna(0.0)
+    if year in SUB_YEARS:
+        bridge['SUB'] = sub_column(year).reindex(bridge.index).fillna(0.0)
     return fill_supply_bridge_subtotals(bridge)

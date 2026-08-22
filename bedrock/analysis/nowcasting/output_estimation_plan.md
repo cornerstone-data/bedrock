@@ -2117,6 +2117,125 @@ of PPP has no 2017 counterpart to attach to.
 across eight years, so the assignable/circular split above holds throughout.
 
 
+#### ✅ `TOP` is built on exactly that split — #580, 2017-2024
+
+`bedrock/transform/iot/nowcast_product_taxes.py`. The section above is the whole
+design; what the build settled is where the line between the two halves actually
+falls once each NIPA line has to name a commodity.
+
+**29.8%, not the 43.5% estimated above.** The earlier figure counted the state
+and local "other excise" lines (73,643 in 2017) as named, and they are not — they
+name no product. What is genuinely assignable is ten groups: motor fuel, alcohol,
+tobacco, air transport, the ACA health insurance fee, medical devices,
+pharmaceutical, insurance receipts, public utilities and severance, **213,347 $M
+in 2017**. Everything else — general sales tax plus the unnamed excise lines —
+is the residual, 503,579.
+
+**Every group fits inside the tax its commodities actually carry**, which is the
+check that the assignment is possible and not merely plausible. Ratios of the
+set's own 2017 `TOP`: tobacco 0.902, insurance receipts 0.899, severance 0.840,
+air transport 0.838, motor fuel 0.832, alcohol 0.709, public utilities 0.482,
+pharmaceutical 0.218, health insurance 0.019. Three of these are near-exact
+identities rather than fits — federal pharmaceutical excise 4,100 against
+`325412`'s producer-level tax of 4,099, federal tobacco 13,302 against `312200`'s
+13,302, severance 10,062 against mining's producer-level 10,221 — which is
+independent confirmation that the lines land where the published table puts them.
+
+⚠️ **The commodity is the taxed *product*, not the remitting industry.** Motor
+fuel tax is `324110`, collected at the pump; that is why `324110`'s tax is 98.8%
+trade-level.
+
+**What the named lines buy, measured against the default.** Half the summed
+absolute difference is 3.7% of the 2020 column and 5.8% of the 2024 one, and it
+is concentrated exactly where the tax law moved: tobacco −26,210 in 2024 (the
+default has it rising 42% while NIPA measures it falling 40%), insurance +17,602
+in 2020 (the ACA provider fee, 15,960, which the default cannot see at all), air
+transport −13,332 in 2020, severance +5,195 in 2024.
+
+**The residual stays frozen, and two movers were rejected on measurement.**
+Moving only the service side by `T007` drifts it to 1.86x its 2017 level by 2024
+against a control growing 1.53x — the goods side has no annual base, so it
+absorbs the whole renormalisation and the drift is an artefact. Moving *every*
+commodity by `T007` removes the drift (rescale 1.10) but cannot move `S00402`
+used and secondhand goods, whose `T007` is zero by definition and which carries
+15,699 of 2017 `TOP` — the eighth largest position in the column — and it is the
+wrong base for an import-heavy good besides. ⚠️ The principled base is purchaser
+value by commodity; PCE would be most of it, and `NIPA_final_dom_uses` carries no
+PCE outside 2017 ([#621](https://github.com/cornerstone-data/bedrock/issues/621)),
+so that route is closed until #621 and Step 5 both land.
+
+The producer/trade split #610 needs is carried by `top_by_level`, freezing each
+commodity's 2017 trade-level share of its own `TOP`. ⚠️ Frozen per *commodity*,
+not per tax line: tobacco's true producer share falls as the federal line falls
+to 4,427 by 2024, and this does not follow it. ~0.9% of the column, against a
+per-line split that would need clipping where a group exceeds its set's capacity
+at that level, which alcohol already does in 2017 by 771.
+
+
+#### ✅ `SUB` is built too — and it is not `TOP` with the sign flipped
+
+`bedrock/transform/iot/nowcast_subsidies.py`. The section above warned that the
+share vector fails for `SUB` in 2020-21 in a way it does not for `TOP`. It does,
+and the build abandons the frozen vector there rather than patching it.
+
+**NIPA's type lines partition the total**, where `TOP`'s named lines cover only
+29.8% of it. So there is no residual and no frozen share vector at all: each of
+the 15 commodities carrying 2017 `SUB` is anchored on its published value and
+moved by its own type's NIPA growth. 2017 replays to under $1M per commodity.
+
+⚠️ **Anchoring on the published column, not on NIPA's type totals.** The two do
+not agree — NIPA housing is 35,771 in 2017 where the three housing commodities
+carry 39,636 — because the type-to-commodity assignment is *ours*. In the one
+year BEA publishes a commodity split, BEA's split wins; the gap goes into the
+scale to the NIPA grand total.
+
+**The type lines carry most of the pandemic signal before any modelling**: air
+carriers 238 → 19,966 in 2020 (84x, the payroll support programme), agricultural
+4.0x, housing only 1.23x. That is the payoff from moving per type rather than
+per column.
+
+⚠️ **Except `other`, which is 84% of the column in 2020-21 and where the anchor
+is worthless.** The eight anchored `other` commodities are 64% `5241XX` insurance
+carriers, so moving them by the `other` line's own growth lands ~377bn of PPP
+there — the same magnitude of error as the ~420bn-on-housing failure this section
+already documented, in a different direction. **Growth of the right line is not
+enough when the line's composition changed completely.**
+
+✅ Those two years use **BEA's own published allocation of PPP across industries**
+([Paycheck Protection Program Subsidies by Industry in the National Accounts](https://www.bea.gov/federal-recovery-programs-and-bea-statistics/covid-19-recovery),
+2023 Comprehensive Update, annual, 19 sectors), cached to GCS under
+`extract/input_data/BEA_PPP_Subsidies/`. BEA states it *"used data from the Small
+Business Administration to allocate the forgivable portion of the business loans
+across industries"* — so the SBA-to-NIPA mapping is already done, on the basis of
+the very line being decomposed. Within a sector the weight is that year's `T007`.
+
+⚠️ **Not an FBA, deliberately.** PPP ended, the 2022 column is 0.0 and this
+vintage is final, so there is nothing for an FBA's refresh machinery to do; it is
+21 rows cached like `BEA_NIPA`'s `FlatFiles.ZIP` and parsed directly.
+
+**Three things are still assumed, and all three are
+[#689](https://github.com/cornerstone-data/bedrock/issues/689):**
+
+1. ⚠️ **PPP is 76% of the 2020 `other` line and only 45% of the 2021 one.** The
+   remainder — Employee Retention Credit, Provider Relief, Restaurant
+   Revitalization, Shuttered Venue Operators — is assumed to distribute like PPP,
+   which in 2021 is doing more than half the work.
+2. ⚠️ **2022-24 `other` is still on the anchor** while it runs 63,763 / 36,263 /
+   24,627 against 11,733 in 2017 — the insurance-carrier concentration again, at
+   smaller scale.
+3. ⚠️ **Within a sector the weight is output, and PPP went to small firms.**
+   `541700` scientific R&D takes 18,153 $M of 2020 professional-services PPP on
+   its output share. Payroll by commodity is the right weight and arrives with
+   Step 2.
+
+#689 measured the route: USAspending's `spending_by_category/naics` returns
+**empty** for assistance awards — financial assistance carries CFDA numbers, not
+NAICS, and only procurement contracts carry NAICS — while
+`spending_by_category/cfda` names each programme directly (PPP 532.3bn, Provider
+Relief 99.7bn on FY2020). ⚠️ Most of that list is transfers to *persons* and is
+nowhere near T31300, so a CFDA-to-NIPA-subsidy filter has to come first.
+
+
 ### The product build is not the best estimator — the carried mix is
 
 Scored on **one basis**: 2017 detail manufacturing commodities, both routes

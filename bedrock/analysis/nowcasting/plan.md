@@ -253,7 +253,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 ### SUT Supply — every column
 
-**This is the least-developed part of the project.** `MCIF`, `MADJ`, and `MDTY` have 2017 candidates; domestic output, margins, and tax/subsidy splits remain unsourced.
+**Every column now has a candidate.** `MCIF`, `MADJ` and `MDTY` are 2017-only; `T007`, `TRADE`, `TRANS`, `TOP` and `SUB` are multi-year. As of 2026-08-22 the 2017 block scores 99.0% coverage and 0.092% on the grand total, and all four subtotals are evaluable.
 
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
@@ -263,8 +263,8 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge` |
 | `TRADE` | Wholesale + retail margins, by commodity | 2017 published column moved by the Census wholesale/retail gross margin (`nowcast_trade_margins.py`, #612/#613) — **not** an aggregate of the nowcast Margins dataset | ⏳ **2017-2023 candidate** — receiving split is the **frozen 2017 mix** |
 | `TRANS` | Transportation margins, by commodity | Per-mode allocation of observed annual freight revenue (`Margins_Transport_<year>` FBS, #611) | ⏳ **2017-2022 candidate** — within-group weight frozen at 2017 (#672) |
-| `TOP` | Taxes on products | NIPA T30500 total + commodity split (2017 shares?) | ❌ total available, **split unsourced** |
-| `SUB` | Subsidies (stored negative) | NIPA T31300 total + commodity split | ❌ total available, **split unsourced** |
+| `TOP` | Taxes on products | NIPA T30500 less customs duties, annually; ten **named NIPA product lines** placed on their own commodities (29.8% of the column) and the sales-tax residual on frozen 2017 shares (`nowcast_product_taxes.py`, #580) | ⏳ **2017-2024 candidate** — total observed to $1M; residual split frozen |
+| `SUB` | Subsidies (stored negative) | NIPA T31300 annually; each commodity anchored on its published 2017 value and moved by its own NIPA **type line**, with 2020-21 `other` on BEA's published PPP-by-industry allocation (`nowcast_subsidies.py`, #580) | ⏳ **2017-2024 candidate** — 2022-24 `other` still on the anchor ([#689](https://github.com/cornerstone-data/bedrock/issues/689)) |
 
 **`TRADE`/`TRANS` and the Margins deliverable sit at two different levels of detail — build the finer
 one and aggregate.** The Margins table is per **commodity-buyer transaction**: its index is
@@ -320,8 +320,12 @@ Ranked by how much they block:
 3. **Product taxes and subsidies — the split, on *both* axes** (`TOP`, `SUB`, and the Use table's
    `T00TOP`/`T00SUB` rows). NIPA gives totals (T30500, T31300); allocating them does not come for
    free.
-   - **By commodity** (Supply `TOP`/`SUB`) — default proposal: 2017 detail Supply shares, held
-     constant, inflated with the commodity.
+   - **By commodity** (Supply `TOP`/`SUB`) — ✅ **both built (#580, step 4d above).** The default
+     proposal was 2017 detail Supply shares held constant. `TOP` keeps it for 70.2% of the column
+     and replaces it with NIPA's own named product lines for the other 29.8%. `SUB` **abandons it
+     entirely** — it is the case the default breaks on, putting ~420bn of 2020 pandemic support onto
+     housing — in favour of anchor-and-move per NIPA type, plus BEA's PPP-by-industry allocation for
+     2020-21.
    - **By industry** (Use `T00TOP`/`T00SUB` rows) — ✅ **no longer a data gap, as of 2026-08-17.**
      Published detail gross output is at *producer* prices and the SUT column identity is at *basic*;
      the wedge is exactly `T00TOP − T00SUB` per industry (verified to $4M on $34T). Rather than assume
@@ -983,13 +987,50 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
   commodities at **56.8%**. That side is close to a function of trade/transport output, which 4a
   produces anyway. The work is the **positive-side allocation across the 255 receiving commodities**,
   which is what the transaction-level rates are for.
-- 4d. **Tax/subsidy columns** (`TOP`, `SUB`) — NIPA T30500/T31300 totals split by 2017 commodity
-  shares. Remember `SUB` is negative here and positive in the Use table.
+- 4d. **Tax/subsidy columns** (`TOP`, `SUB`) — NIPA T30500/T31300 totals by commodity.
+  Remember `SUB` is negative here and positive in the Use table.
   ⚠️ **Not last, and not optional to 4c**: 4c's application phase needs `TOP` and `SUB` for its base
   (point 1 above), so 4d runs before 4c's second half rather than after the margin columns. It also
   needs to carry `TOP`'s **producer-level vs trade-level split**, not just the total — #610 measured
   the 2017 split per commodity (9.6% producer-level over the 203 margin-bearing commodities with
   `TOP` > 100 million), and only the producer-level part belongs in the margin base.
+  - ✅ **`TOP` is built, 2017-2024** (`bedrock/transform/iot/nowcast_product_taxes.py`, #580). The
+    plan said "split by 2017 commodity shares"; the build **beats that on 29.8% of the column and
+    keeps it on the other 70.2%**, which is the split that matters:
+    - The **total is observed, not estimated** — `(LA000236 + LA000238) − B235RC`, 716,925 against a
+      published 716,926. ⚠️ Customs duties must be netted or `MDTY`'s 38,513 is counted twice.
+    - **Ten named NIPA product lines** (motor fuel, alcohol, tobacco, air transport, ACA health
+      insurance fee, medical devices, pharmaceutical, insurance receipts, public utilities,
+      severance) are placed on their own commodities and move at their *own* annual NIPA value.
+      They diverge sharply from the column: tobacco 0.33x federal / 0.78x state by 2024 against a
+      column at 1.42x, air transport 0.33x in 2020, severance 2.99x in 2022. The two constructions
+      differ by **3.7% of the 2020 column and 5.8% of the 2024 one** — 26,210 on tobacco in 2024,
+      17,602 on `5241XX` in 2020.
+    - **The remaining 70.2% is the frozen 2017 share vector**, deliberately. Two movers were built
+      and both rejected on measurement: a service-side-only `T007` mover drifts to 1.86x against a
+      1.53x control because the goods side absorbs the renormalisation, and an all-commodity `T007`
+      mover cannot move `S00402` (15,699 of 2017 `TOP`, eighth largest) because its `T007` is zero
+      by definition. The right base is purchaser value by commodity, which is Step 5's output.
+    - The **producer/trade split** is carried by `top_by_level`, freezing each commodity's 2017
+      trade-level share (`Wholesale + Retail − TRADE`, 391,162). ⚠️ Frozen per *commodity*, not per
+      tax line — carrying it per line would move ~0.9% of the column and needs clipping.
+  - ✅ **`SUB` is built, 2017-2024** (`bedrock/transform/iot/nowcast_subsidies.py`, #580), and it
+    is **not `TOP` with a sign flipped**:
+    - NIPA's type lines **partition** the total rather than covering a third of it, so the
+      construction is anchor-and-move per type — each commodity keeps its published 2017 value and
+      moves at its own type's NIPA growth. 2017 replays to under $1M per commodity.
+    - ⚠️ **The type lines carry most of the pandemic signal on their own**: air carriers 238 → 19,966
+      in 2020 (**84x**, payroll support), agricultural **4.0x**, housing only 1.23x.
+    - ⚠️ **2020-21 `other` is 84% of the column and the anchor is worthless there** — the eight
+      anchored `other` commodities are 64% insurance carriers, so moving them would put ~377bn of PPP
+      on `5241XX`, as against ~420bn on housing from freezing the whole column. Those two years use
+      **BEA's own published PPP-by-industry allocation** (2023 Comprehensive Update, 19 sectors,
+      cached to GCS), split within sector by `T007`.
+    - ⚠️ **PPP is 76% of the 2020 line and only 45% of the 2021 one.** The remainder — ERC, Provider
+      Relief, Restaurant Revitalization, Shuttered Venue — is assumed to distribute like PPP.
+      [#689](https://github.com/cornerstone-data/bedrock/issues/689) sources it from USAspending,
+      where the NAICS axis returns empty for assistance awards but the CFDA axis names each
+      programme. **2022-24 `other` is still on the anchor** and is #689's too.
 - 4e. **Verify the four Supply identities per commodity** (`T013`/`T014`/`T015`/`T016` above), 402/402,
   before declaring the Supply table done.
 
