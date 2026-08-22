@@ -711,10 +711,38 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 ### Step 2 — SUT Use: value added block
 
 ⚠️ **Scope is three rows, not five.** `V00100`, `T00OTOP`, `V00300` — the `VABAS` components, which
-is what `SUT_VALUE_ADDED_CODES` and the `use_va_detail_sut` diagnostic already target. `T00TOP` and
-`T00SUB` are **not** built here: their commodity-axis counterparts shipped in Step 4d (#690), and per
-the decision of 2026-08-17 above their *industry* split is an **output of Step 5's balance rather than
-an input to it**. Building them here would estimate the same money twice on two axes.
+is what `SUT_VALUE_ADDED_CODES` and the `use_va_detail_sut` diagnostic already target.
+
+**`T00TOP`/`T00SUB` are a conversion question, not a sourcing one, and the conversion was measured.**
+They are already built by commodity in Step 4d (#690), so the industry row is a *transformation* of
+money that exists — nothing gets estimated twice. The only question is whether an available operator
+reproduces the published industry row. ✅ **Tested 2026-08-22 for 2017, and the obvious operator
+fails**: the benchmark market-share matrix from the Supply table gives correlation **0.202** on
+`T00TOP` with an absolute error of **114.6% of the row**, and 0.676 / 79.8% on `T00SUB`
+([`tax_axis_conversion.py`](tax_axis_conversion.py)).
+
+⚠️ **The reason is structural, not noise: 55.7% of published `T00TOP` sits in wholesale and retail
+industries**, because a tax on a product is remitted by whoever *sells* it and market shares place it
+with whoever *makes* it. The pairs are stark — petroleum wholesalers `424700` are 88,362 published
+against 13 estimated while refineries `324110` are 397 against 92,893; motor vehicle dealers `441000`
+are 45,947 against 2,301 while assemblers `336111`+`336112` are 26 against 24,141. The whole tax moves
+one stage up the chain.
+
+⚠️ **And this is measured *in* the benchmark year, against the very table the mix comes from.** So it
+is not the "2017 ratios drift" objection the 2026-08-17 decision was argued from — it is stronger.
+A conversion that fails in 2017 cannot be rescued by being applied nearer to 2017.
+
+So the decision above stands — the industry distribution stays free for Step 5 under economy-wide soft
+targets — but *free* is not *unseeded*, and two pieces of structure are in hand:
+- ✅ **`4200ID` takes `MDTY` exactly**: published `T00TOP` there is 38,513 against a Supply `MDTY` of
+  38,507. Customs duties are a lookup, 5.1% of the row, in every year.
+- ⏳ **The remaining split should ride the margin structure, not the Make matrix.** A commodity's
+  wholesale and retail margins say which trade industries handle it, which is the point-of-sale signal
+  the tax actually follows; those margins are built (`nowcast_trade_margins`), so the better operator
+  is testable exactly as this one was. Open follow-up.
+- `T00SUB`'s residual is two named structures rather than a smear — government enterprises `S00203`
+  (19,471 published vs 1,964) and `S00102` (6,339 vs 102) are subsidies paid to an *operator*, so no
+  product-side operator can place them. `T30800` already carries them.
 
 ✅ **Decided 2026-08-22 — three FBS methods, one per Use row**, rather than one method or plain Python
 modules. Reasoning, and the evidence behind it:

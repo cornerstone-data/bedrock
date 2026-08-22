@@ -708,6 +708,22 @@ It is industry-only and stays that way.
 > which axis is primary is a cross-step decision and should be made before
 > either step starts, not discovered when the two disagree. The reconciliation
 > above is the test that whichever direction is chosen still holds.
+>
+> ✅ **Resolved 2026-08-22, and half of it was wrong.** "Build once" was right and
+> is settled — the commodity axis is primary, Step 4d builds it. **"Derive the
+> other through the Make/Supply structure" does not work.** Measured for 2017 in
+> [`tax_axis_conversion.py`](tax_axis_conversion.py), the market-share operator
+> reproduces `T00TOP` at **correlation 0.202** with an absolute error of 114.6%
+> of the row, because a tax on a product is remitted by whoever *sells* it while
+> market shares place it with whoever *makes* it — **55.7% of the published row
+> is in trade industries**, and the operator puts almost none there. Petroleum:
+> 88,362 published on wholesalers `424700` against 13 estimated, while refineries
+> `324110` take 92,893 against a published 397.
+>
+> So the derivation stays undone and Step 5 solves the distribution. The two
+> pieces of structure worth seeding it with are `4200ID` = `MDTY` exactly, and
+> the **margin** structure — which says which trade industries handle a
+> commodity, and is the point-of-sale signal the Make matrix is not.
 
 ## `T00OTOP` — accept a cruder method
 
@@ -744,15 +760,20 @@ output, that shared dependency is a better reason to build the extractor than
    and it is one of the four tables that restates a code (`B394RC`) on two
    lines. Select `A445RC` by code — that one is unique — and take the
    subtree beneath it rather than the table's root.
-8. ✅ **Settled, and Step 2 does not build them at all.** The commodity axis
-   won: `TOP`, `SUB` and `MDTY` are built in Step 4d
+8. ✅ **Settled: build on the commodity axis, and the conversion back is
+   measured rather than assumed.** `TOP`, `SUB` and `MDTY` are built in Step 4d
    ([`nowcast_product_taxes`](../../transform/iot/nowcast_product_taxes.py),
-   [`nowcast_subsidies`](../../transform/iot/nowcast_subsidies.py), #690), and
-   per plan.md's decision of 2026-08-17 the *industry* split of
-   `T00TOP`/`T00SUB` is an **output of Step 5's balance rather than an input
-   to it** — the producer-price column target is `T005 + VAPRO`, so the
-   allocation solves rather than being assumed. Step 2's scope is the three
-   `VABAS` rows: `V00100`, `T00OTOP`, `V00300`.
+   [`nowcast_subsidies`](../../transform/iot/nowcast_subsidies.py), #690), so
+   the industry row is a *transformation* of money that already exists — this
+   was never a question of estimating it twice. What was open is whether the
+   transformation works, and it was tested for 2017
+   ([`tax_axis_conversion.py`](tax_axis_conversion.py)): the benchmark
+   market-share operator gives **correlation 0.202** on `T00TOP`, because
+   **55.7% of the published row sits in trade industries** and market shares put
+   it with the producer instead of the seller. So the industry distribution
+   stays free for Step 5, seeded with the two pieces that do hold — `4200ID`
+   takes `MDTY` exactly, and the rest should ride the margin structure. Step 2's
+   scope is the three `VABAS` rows: `V00100`, `T00OTOP`, `V00300`.
 9. **The sector-table gaps against the SUT.** `T70405`'s implied housing
    operating surplus is 2.71% below the `531HSO`+`531HST` pair, and `T70305`'s
    gross farm value added is 10,118 below the ten farm codes. Compensation ties
