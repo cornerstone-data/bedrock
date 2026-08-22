@@ -52,6 +52,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     distribute_waste_parent_x_using_v_row_shares,
     electricity_conversion_factors,
+    electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
@@ -491,6 +492,34 @@ def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
 # ---------------------------------------------------------------------------
 
 
+def _maybe_reanchor_electricity_aq(
+    aq: SingleRegionAqMatrixSet,
+    *,
+    original_year: int,
+    target_year: int,
+    model_year: int,
+    use_commodity_pi: bool,
+) -> SingleRegionAqMatrixSet:
+    """P5: rewrite published electricity A/q when the 3-way flag is on."""
+    if not electricity_disaggregation_enabled():
+        return aq
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        reanchor_electricity_aq_after_year_scaling,
+    )
+
+    out = reanchor_electricity_aq_after_year_scaling(
+        aq,
+        original_year=original_year,
+        target_year=target_year,
+        model_year=model_year,
+        use_commodity_pi=use_commodity_pi,
+    )
+
+    return _cornerstone_aq_matrix_set(
+        Adom=out.Adom, Aimp=out.Aimp, scaled_q=out.scaled_q
+    )
+
+
 @functools.cache
 def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     """Year-scaled and inflated A matrices and q."""
@@ -538,7 +567,13 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             q, original_year=detail_year, target_year=model_year
         )
-        return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
+        return _maybe_reanchor_electricity_aq(
+            _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q),
+            original_year=int(detail_year),
+            target_year=int(io_year),
+            model_year=int(model_year),
+            use_commodity_pi=True,
+        )
 
     Adom = inflate_cornerstone_A_matrix_with_industry_pi(
         scale_cornerstone_A(
@@ -567,7 +602,13 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         original_year=io_year,
         target_year=model_year,
     )
-    return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
+    return _maybe_reanchor_electricity_aq(
+        _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q),
+        original_year=int(detail_year),
+        target_year=int(io_year),
+        model_year=int(model_year),
+        use_commodity_pi=False,
+    )
 
 
 # ---------------------------------------------------------------------------

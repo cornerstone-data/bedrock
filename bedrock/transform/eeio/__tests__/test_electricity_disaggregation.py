@@ -33,17 +33,15 @@ from bedrock.transform.eeio.derived_cornerstone import (
 from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     ELECTRICITY_DISAGG_SECTORS,
-    _compute_w_row,
     _derive_post_reallocation_checkpoint_for_disagg,
     _float_ndarray,
-    _iou_utility_gtd_operating_expenses,
-    _normalize_gtd_expense_weights,
+    _frame_cell_float,
     applied_utilities_summary_q_growth_ratio,
     build_electricity_detail_GO_growth_ratios,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
     disaggregate_use_industry_columns,
-    get_electricity_commodity_row_weights,
+    get_2017_purchaser_allocation,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
@@ -67,7 +65,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_use_intersection_weights,
     build_electricity_detail_GO_growth_ratios,
     applied_utilities_summary_q_growth_ratio,
-    get_electricity_commodity_row_weights,
+    get_2017_purchaser_allocation,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -87,6 +85,15 @@ def _clear_all_caches() -> None:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
     clear_cornerstone_inflation_caches()
+    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
+        clear_pre_1a_aq,
+    )
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        clear_p5_electricity_q,
+    )
+
+    clear_pre_1a_aq()
+    clear_p5_electricity_q()
 
 
 def _setup_config(config_name: str) -> None:
@@ -216,36 +223,49 @@ class TestElectricityDisaggregationPipeline:
             _teardown()
 
 
-class TestTable83UseIntersectionWeights:
-    def test_purchased_power_weights_sum_to_one(self) -> None:
-        from bedrock.analysis.electricity.d_85.__tests__.conftest import (  # noqa: PLC0415
-            mock_fba_table83_table24,
-        )
+@pytest.mark.eeio_integration
+class TestD10D11UseIntersection:
+    def test_udom_diagonals_and_uimp_generation_only(
+        self, electricity_disagg_config: str
+    ) -> None:
+        _setup_config(electricity_disagg_config)
+        try:
+            bundle = derive_disagg_io_bundle()
+            udom, uimp = bundle.Udom, bundle.Uimp
+            codes = list(ELECTRICITY_DISAGG_SECTORS)
+            for i in codes:
+                for j in codes:
+                    if i != j:
+                        assert _frame_cell_float(udom, i, j) == pytest.approx(
+                            0.0, abs=1e-8
+                        )
+                        assert _frame_cell_float(uimp, i, j) == pytest.approx(
+                            0.0, abs=1e-8
+                        )
+            leftover_udom = _frame_cell_float(udom, '221121', '221121') + (
+                _frame_cell_float(udom, '221122', '221122')
+            )
+            assert leftover_udom >= -1e-6
+            assert _frame_cell_float(uimp, '221121', '221121') == pytest.approx(
+                0.0, abs=1e-8
+            )
+            assert _frame_cell_float(uimp, '221122', '221122') == pytest.approx(
+                0.0, abs=1e-8
+            )
+            for col in uimp.columns:
+                if col in codes:
+                    continue
+                assert _frame_cell_float(uimp, '221121', str(col)) == pytest.approx(
+                    0.0, abs=1e-6
+                )
+                assert _frame_cell_float(uimp, '221122', str(col)) == pytest.approx(
+                    0.0, abs=1e-6
+                )
+        finally:
+            _teardown()
 
-        expenses = _iou_utility_gtd_operating_expenses(
-            2017, fba=mock_fba_table83_table24()
-        )
-        w = _normalize_gtd_expense_weights(expenses)
-        assert set(w.index) == set(ELECTRICITY_DISAGG_SECTORS)
-        np.testing.assert_allclose(float(w.sum()), 1.0, rtol=1e-9, atol=1e-12)
-        assert w['221110'] == pytest.approx(49030.0 / (49030.0 + 10804.0 + 4358.0))
 
-
-class TestCompensatingRowWeights:
-    def test_compute_w_row_closes_market_clearing(self) -> None:
-        w_go = pd.Series({'221110': 0.34, '221121': 0.04, '221122': 0.62})
-        w_int = w_go.copy()
-        t = 100.0
-        p = 200.0
-        w_row = _compute_w_row(w_go, w_int, t, p)
-        np.testing.assert_allclose(w_row, w_go, rtol=1e-9, atol=1e-12)
-        q_total = t + p
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            q_k = float(w_go[code]) * q_total
-            i_k = float(w_int[code]) * t
-            non_int = float(w_row[code]) * p
-            np.testing.assert_allclose(q_k, i_k + non_int, rtol=1e-9, atol=1e-6)
-
+class Test2017PurchaserAllocation:
     def test_getter_does_not_call_io_bundle(
         self, electricity_disagg_config: str
     ) -> None:
@@ -259,10 +279,10 @@ class TestCompensatingRowWeights:
                 with mock.patch(
                     'bedrock.transform.eeio.cornerstone_disagg_pipeline.derive_disagg_Ytot_with_trade'
                 ) as y_mock:
-                    get_electricity_commodity_row_weights.cache_clear()
+                    get_2017_purchaser_allocation.cache_clear()
                     _derive_post_reallocation_checkpoint_for_disagg.cache_clear()
-                    w = get_electricity_commodity_row_weights()
-                    assert set(w.index) == set(ELECTRICITY_DISAGG_SECTORS)
+                    alloc = get_2017_purchaser_allocation()
+                    assert ELECTRICITY_AGGREGATE in alloc.bill.index
                     bundle_mock.assert_not_called()
                     y_mock.assert_not_called()
         finally:
@@ -276,9 +296,19 @@ class TestD7PureScaling:
     ) -> None:
         _setup_config(electricity_disagg_config)
         try:
-            aq = derive_cornerstone_Aq_scaled()
-            ratios = build_electricity_detail_GO_growth_ratios(2017, 2022)
-            q_vals = [float(aq.scaled_q[c]) for c in ELECTRICITY_DISAGG_SECTORS]
+            from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+            cfg = get_usa_config()
+            q_pre = derive_cornerstone_Aq().scaled_q.astype(float)
+            q_scaled = scale_cornerstone_q(
+                q_pre,
+                target_year=int(cfg.usa_io_data_year),  # type: ignore[arg-type]
+                original_year=int(cfg.usa_detail_original_year),  # type: ignore[arg-type]
+            )
+            ratios = build_electricity_detail_GO_growth_ratios(
+                int(cfg.usa_detail_original_year), int(cfg.usa_io_data_year)
+            )
+            q_vals = [float(q_scaled[c]) for c in ELECTRICITY_DISAGG_SECTORS]
             assert len(set(round(v, 6) for v in q_vals)) == 3
             assert ratios['221110'] != pytest.approx(ratios['221121'])
         finally:
@@ -306,3 +336,79 @@ class TestD7PureScaling:
                 assert implied == pytest.approx(float(go.loc[code]), rel=1e-9, abs=1e-9)
         finally:
             _teardown()
+
+    def test_published_q_is_not_1a_result(self) -> None:
+        """P5 overwrites 1a child q on derive_cornerstone_Aq_scaled."""
+        _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
+        try:
+            from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+            from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+                inflate_cornerstone_q_or_y_with_commodity_pi,
+            )
+
+            cfg = get_usa_config()
+            q_pre = derive_cornerstone_Aq().scaled_q.astype(float)
+            q_1a = scale_cornerstone_q(
+                q_pre,
+                target_year=int(cfg.usa_io_data_year),  # type: ignore[arg-type]
+                original_year=int(cfg.usa_detail_original_year),  # type: ignore[arg-type]
+            )
+            q_1a_pi = inflate_cornerstone_q_or_y_with_commodity_pi(
+                q_1a,
+                original_year=int(cfg.usa_detail_original_year),
+                target_year=int(cfg.model_base_year),
+            )
+            published = derive_cornerstone_Aq_scaled().scaled_q.astype(float)
+            for code in ELECTRICITY_DISAGG_SECTORS:
+                assert float(published.loc[code]) != pytest.approx(
+                    float(q_1a_pi.loc[code]), rel=1e-4, abs=1.0
+                )
+        finally:
+            _teardown()
+
+
+@pytest.mark.eeio_integration
+class TestP5OrderLock:
+    def test_adom_times_q_matches_allocated_udom(self) -> None:
+        _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
+        try:
+            from bedrock.utils.math.formulas import (  # noqa: PLC0415
+                backcompute_y_from_A_and_q,
+            )
+
+            aq = derive_cornerstone_Aq_scaled()
+            udom = aq.Adom.multiply(aq.scaled_q, axis=1)
+            y = backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
+            for code in ELECTRICITY_DISAGG_SECTORS:
+                row_use = float(udom.loc[code].sum())
+                q_k = float(aq.scaled_q.loc[code])
+                assert q_k == pytest.approx(
+                    row_use + float(y.loc[code]), rel=1e-6, abs=1.0
+                )
+            for i in ELECTRICITY_DISAGG_SECTORS:
+                for j in ELECTRICITY_DISAGG_SECTORS:
+                    a_cell = _frame_cell_float(aq.Adom, i, j) * float(
+                        aq.scaled_q.loc[j]
+                    )
+                    assert a_cell == pytest.approx(
+                        _frame_cell_float(udom, i, j), rel=1e-9, abs=1e-6
+                    )
+        finally:
+            _teardown()
+
+
+def test_f04000_mapped_to_exports() -> None:
+    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+        build_end_use_map,
+    )
+
+    assert build_end_use_map()['F04000'] == 'Exports'
+
+
+def test_egrid_mwh_for_io_year_2017() -> None:
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        egrid_mwh_for_io_year,
+    )
+
+    got = egrid_mwh_for_io_year(2017)
+    assert got == pytest.approx(4.038559e9, rel=1e-4)

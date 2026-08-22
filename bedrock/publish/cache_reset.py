@@ -61,7 +61,7 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 # Never import electricity_disaggregation / electricity_end_use_mapping here —
 # that would re-couple v0.3 / waste-only publish clears.
 _ELECTRICITY_DISAGG_CACHED_ATTRS: tuple[str, ...] = (
-    'get_electricity_commodity_row_weights',
+    'get_2017_purchaser_allocation',
     '_derive_post_reallocation_checkpoint_for_disagg',
     'build_electricity_disagg_use_intersection_weights',
     'build_electricity_detail_GO_growth_ratios',
@@ -126,6 +126,12 @@ def _clear_electricity_caches_if_loaded() -> None:
     ed = sys.modules.get('bedrock.transform.eeio.electricity_disaggregation')
     if ed is not None:
         _clear_cached_attrs(ed, _ELECTRICITY_DISAGG_CACHED_ATTRS)
+    gtd = sys.modules.get('bedrock.transform.eeio.electricity_gtd_allocation')
+    if gtd is not None:
+        _clear_cached_attrs(gtd, ('get_2017_purchaser_allocation',))
+        clear_p5 = getattr(gtd, 'clear_p5_electricity_q', None)
+        if callable(clear_p5):
+            clear_p5()
     eum = sys.modules.get('bedrock.transform.eeio.electricity_end_use_mapping')
     if eum is not None:
         # No @cache today; keep for future-proofing if helpers become cached.
@@ -134,6 +140,20 @@ def _clear_electricity_caches_if_loaded() -> None:
             (
                 'build_end_use_map',
                 'electricity_end_use_retail_prices_cents_kwh',
+            ),
+        )
+    cys = sys.modules.get('bedrock.transform.eeio.cornerstone_year_scaling')
+    if cys is not None and hasattr(cys, 'clear_pre_1a_aq'):
+        cys.clear_pre_1a_aq()
+    egrid = sys.modules.get('bedrock.extract.disaggregation.egrid_generation')
+    if egrid is not None:
+        _clear_cached_attrs(
+            egrid,
+            (
+                'eia_table_2_2_end_use_mwh',
+                'eia_table_2_14_export_mwh',
+                'eia_table_3_1_total_mwh',
+                'egrid_mwh_for_io_year',
             ),
         )
 

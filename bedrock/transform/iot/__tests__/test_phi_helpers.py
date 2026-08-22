@@ -53,3 +53,32 @@ def test_phi_for_sectors_identity_when_inactive(_mock_active: MagicMock) -> None
     idx = pd.Index(['1111A0', '221100'], name='sector')
     got = phi_for_sectors(idx)
     pd.testing.assert_series_equal(got, pd.Series(1.0, index=idx, dtype=float))
+
+
+@patch(
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.get_usa_config',
+)
+@patch(
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.margins_phi_active',
+    return_value=True,
+)
+@patch(
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa_at_year'
+)
+def test_phi_electricity_children_forced_to_one_when_3way_on(
+    mock_phi: MagicMock,
+    _mock_active: MagicMock,
+    mock_cfg: MagicMock,
+) -> None:
+    mock_cfg.return_value.implement_electricity_disaggregation = True
+    mock_cfg.return_value.model_base_year = 2024
+    mock_phi.return_value = pd.Series(
+        {'1111A0': 0.5, '221110': 0.8, '221121': 0.7, '221122': 0.6}
+    )
+    idx = pd.Index(['1111A0', '221110', '221121', '221122', '311111'], name='sector')
+    got = phi_for_sectors(idx)
+    assert got['221110'] == 1.0
+    assert got['221121'] == 1.0
+    assert got['221122'] == 1.0
+    assert got['1111A0'] == 0.5
+    assert got['311111'] == 1.0

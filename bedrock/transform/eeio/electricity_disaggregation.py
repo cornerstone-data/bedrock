@@ -16,6 +16,9 @@ import pandas as pd
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights, weights_to_csv
 from bedrock.extract.iot.gdp import SECTOR_NAME_COL, load_go_detail
 from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
+from bedrock.transform.eeio.electricity_gtd_allocation import (
+    get_2017_purchaser_allocation as get_2017_purchaser_allocation,
+)
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_V,
 )
@@ -603,6 +606,19 @@ def disaggregate_use_industry_columns(
     Udom = _split_aggregate_column_by_rule(Udom, w=w, va_rows=va_rows)
     Uimp = _split_aggregate_column_by_rule(Uimp, w=w, va_rows=va_rows)
 
+    td_den = float(w['221121']) + float(w['221122'])
+    if td_den > 0:
+        from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+            _spill_generation_nonfuel,
+        )
+
+        Udom, Uimp = _spill_generation_nonfuel(
+            Udom,
+            Uimp,
+            x_g=float(w['221110']) * x_agg,
+            td_share=float(w['221121']) / td_den,
+        )
+
     VA = VA.copy()
     for code in ELECTRICITY_DISAGG_SECTORS:
         if code not in VA.columns:
@@ -632,17 +648,6 @@ def disaggregate_use_industry_columns(
             rtol=1e-9,
             atol=DISAGG_BALANCE_ATOL,
             err_msg=f'Column {code} does not balance to gross output',
-        )
-
-    for va_row in va_rows:
-        orig_row_total = float(orig_va[va_row])
-        new_total = _loc_cols_sum(VA, va_row, list(ELECTRICITY_DISAGG_SECTORS))
-        np.testing.assert_allclose(
-            new_total,
-            orig_row_total,
-            rtol=1e-9,
-            atol=DISAGG_BALANCE_ATOL,
-            err_msg=f'VA row {va_row} total not preserved',
         )
 
     for com, orig_val in orig_row_totals.items():
@@ -849,24 +854,27 @@ def disaggregate_electricity_make_use_va(
     Uimp: pd.DataFrame,
     VA: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Run PR3 steps 1–4 on Make/Use/VA (post-reallocation inputs)."""
-    w_go = build_electricity_disagg_go_weights()
-    w_int = build_electricity_disagg_use_intersection_weights()
-    t = _capture_intersection_total(Udom, Uimp)
+    """EIA-anchored G/T/D on Make/Use/VA (post-reallocation inputs)."""
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        make_last_weights_from_domestic_use_y,
+        write_purchaser_gtd_use_and_y,
+        write_use_intersection_d10_d11,
+    )
+
+    allocation = get_2017_purchaser_allocation()
     y = _derive_y_before_electricity_disagg_lazy()
-    p = _capture_purchases_total(Udom, Uimp, y)
-    weights = build_electricity_disagg_weights(w_go)
-    export_electricity_disagg_weights_to_csv(weights, w_int=w_int)
-
+    Udom, Uimp, _y = write_purchaser_gtd_use_and_y(Udom, Uimp, y, allocation)
     _enforce_go_identity_precondition(V, Udom, Uimp, VA)
-    x_agg = float(compute_x(V=V)[ELECTRICITY_AGGREGATE])
+    Udom, Uimp = write_use_intersection_d10_d11(Udom, Uimp, allocation)
+    w_make = make_last_weights_from_domestic_use_y(Udom, allocation)
+    weights = build_electricity_disagg_weights(w_make)
+    export_electricity_disagg_weights_to_csv(weights)
 
+    x_agg = float(compute_x(V=V)[ELECTRICITY_AGGREGATE])
     V = disaggregate_make_intersection(V, weights)
-    Udom, Uimp = disaggregate_use_intersection(Udom, Uimp, w_int)
-    Udom, Uimp, VA = disaggregate_use_industry_columns(x_agg, Udom, Uimp, VA, w_go)
-    w_row = _compute_w_row(w_go, w_int, t, p)
-    export_electricity_disagg_weights_to_csv(weights, w_int=w_int, w_row=w_row)
-    Udom, Uimp = disaggregate_use_commodity_rows(Udom, Uimp, w_row)
+    Udom, Uimp, VA = disaggregate_use_industry_columns(x_agg, Udom, Uimp, VA, w_make)
+    Udom = Udom.drop(index=[ELECTRICITY_AGGREGATE], errors='ignore')
+    Uimp = Uimp.drop(index=[ELECTRICITY_AGGREGATE], errors='ignore')
 
     V = reindex_v_to_elec_schema(V)
     Udom = reindex_u_to_elec_schema(Udom)
@@ -1020,19 +1028,30 @@ def distribute_electricity_aggregate_x_using_v_row_shares(
     x_cs: pd.Series[float],
     V: pd.DataFrame,
 ) -> pd.Series[float]:
-    """Split aggregate 221100 x across 221110/221121/221122 using V row shares."""
+    """Split aggregate 221100 x across G/T/D.
+
+    After P5, use published ``q`` shares. While A/q is still computing (commodity
+    PI reads GHG-year x), fall back to 2017 V so A/q does not recurse.
+    """
     agg = ELECTRICITY_AGGREGATE
     if agg not in x_cs.index:
         return x_cs.reindex(CORNERSTONE_INDUSTRIES_ELEC)
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        p5_electricity_q_shares,
+    )
+
     x = x_cs.copy()
     parent_go = float(x.loc[agg])
-    x_v = compute_x(V=V)
-    present = [c for c in ELECTRICITY_DISAGG_SECTORS if c in x_v.index]
-    xv_w = x_v.reindex(present).astype(float)
-    total_v = float(xv_w.sum())
-    if total_v <= 0:
-        return x.reindex(CORNERSTONE_INDUSTRIES_ELEC)
-    shares = xv_w / total_v
+    shares = p5_electricity_q_shares()
+    if shares is None:
+        x_v = compute_x(V=V)
+        present = [c for c in ELECTRICITY_DISAGG_SECTORS if c in x_v.index]
+        xv_w = x_v.reindex(present).astype(float)
+        total_v = float(xv_w.sum())
+        if total_v <= 0:
+            return x.reindex(CORNERSTONE_INDUSTRIES_ELEC)
+        shares = xv_w / total_v
+    present = [c for c in ELECTRICITY_DISAGG_SECTORS if c in shares.index]
     for code in present:
         x.loc[code] = parent_go * float(shares.loc[code])
     x = x.drop(agg)

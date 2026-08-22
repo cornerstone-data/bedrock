@@ -11,6 +11,7 @@ import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -44,6 +45,7 @@ from bedrock.utils.config.usa_config import (
 )
 from bedrock.utils.math.formulas import backcompute_y_from_A_and_q
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
+from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics import (
     _compute_bly_series,
 )
@@ -110,21 +112,27 @@ def _class_generation(
 def _generation_use_y(
     *,
     mixed: bool,
-    aq: object,
-    aq_monetary: object,
+    aq: SingleRegionAqMatrixSet,
     q: pd.Series[float],
     uset: object,
     y_table: pd.DataFrame,
 ) -> pd.Series[float]:
     gen = GENERATION_SECTOR
     if mixed:
-        adom = aq.Adom  # type: ignore[attr-defined]
+        adom = aq.Adom
         u_gen = (adom.loc[gen].astype(float) * q.astype(float)).astype(float)
         y_gen = _model_year_y_row_221110(aq).astype(float)
-        return u_gen.add(y_gen, fill_value=0.0)
-    u_gen = uset.Udom.loc[gen].astype(float)  # type: ignore[attr-defined]
-    y_gen = y_table.loc[gen].astype(float)
-    return u_gen.add(y_gen, fill_value=0.0)
+        out = u_gen.add(y_gen, fill_value=0.0)
+    else:
+        u_gen = uset.Udom.loc[gen].astype(float)  # type: ignore[attr-defined]
+        y_row = y_table.loc[gen]
+        if isinstance(y_row, pd.DataFrame):
+            y_row = y_row.iloc[0]
+        y_gen = y_row.astype(float)
+        out = u_gen.add(y_gen, fill_value=0.0)
+    if not isinstance(out, pd.Series):
+        raise TypeError('generation Use+Y row must be a Series')
+    return out.astype(float)
 
 
 def _snapshot_one(config_stem: str) -> None:
@@ -148,7 +156,6 @@ def _snapshot_one(config_stem: str) -> None:
     gen_use_y = _generation_use_y(
         mixed=mixed,
         aq=aq,
-        aq_monetary=aq_monetary,
         q=q,
         uset=uset,
         y_table=y_table,
@@ -190,7 +197,7 @@ def _snapshot_one(config_stem: str) -> None:
 
     ugg = None
     if gen in uset.Udom.index and gen in uset.Udom.columns:
-        ugg = float(uset.Udom.at[gen, gen])
+        ugg = float(cast(float, uset.Udom.at[gen, gen]))
     f01000_gen = float(gen_use_y[HH_FD]) if HH_FD in gen_use_y.index else None
 
     metadata = {
