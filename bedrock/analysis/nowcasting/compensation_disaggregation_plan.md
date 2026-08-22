@@ -215,6 +215,84 @@ is still open question 3.
   each summary parent. This and 2.3 are the body of the `FBS_datapull_fxn`
   described in §The shape of the build.
 
+
+### The 6.2% gap has a shape, and NIPA states it
+
+✅ **`T71800` closes the gap exactly**, and says what kind of money it is:
+
+| | code | 2017, $M |
+|---|---|---:|
+| BLS published wages | `BA06RC` | 7,968,336 |
+| + adjustment for misreporting on employment tax returns | `BA07RC` | 106,273 |
+| + wages not, or not fully, covered by unemployment insurance | `W873RC` | 399,801 |
+| — of which government | `W787RC` | 152,442 |
+| — of which other | `W786RC` | 247,359 |
+| + timing adjustment for accrual basis | `Y663RC` | 0 |
+| **= NIPA wages and salaries, received** | `A034RC` | **8,474,410** |
+
+Exact. Add the rest-of-world adjustment and it is `A4102C`, the paid concept the
+build actually wants.
+
+⚠️ **And the gap is already known to be non-uniform before any industry table is
+opened.** Government's uncovered rate is **11.3%** of government wages against
+private's **3.5%** — a factor of three. Spreading 6.2% pro rata is therefore
+measurably wrong, not merely inelegant.
+
+### 6.4D makes coverage measurable per industry
+
+**`T60400D` is the table that turns the assumption into a measurement.** QCEW
+publishes employment on the same axis, so `QCEW / NIPA` is a coverage ratio *per
+industry* rather than one economy-wide number. Measured for 2017 on private
+employment, thousands:
+
+| NIPA 6.4D private line | 6.4D | QCEW | QCEW/NIPA |
+|---|---:|---:|---:|
+| Farms | 819 | 818 | 99.9% |
+| Construction | 7,127 | 6,919 | 97.1% |
+| Manufacturing | 12,440 | 12,407 | 99.7% |
+| Wholesale trade | 5,934 | 5,899 | 99.4% |
+| Retail trade | 15,989 | 15,854 | 99.2% |
+| Health care and social assistance | 19,576 | 19,322 | 98.7% |
+| Accommodation and food services | 13,711 | 13,607 | 99.2% |
+| **Educational services** | 3,662 | 2,824 | **77.1%** |
+| **Other services, except government** | 7,042 | 4,435 | **63.0%** |
+
+✅ **This is the useful result: coverage is 97–100% across most of the economy and
+collapses in exactly two places.** Religious and grantmaking organisations are
+largely UI-exempt, which carries "other services"; private households `814000` is
+288.5 thousand employees and 7,295 $M of payroll in QCEW against a sector NIPA
+states outright. So QCEW growth can be trusted broadly, and the exceptions are a
+**named short list** — which is a different and much better method than a flat
+6.2% haircut.
+
+⚠️ **Construction at 97.1% is a warning, not a reassurance.** The *count* matches
+because QCEW and NIPA agree on how many construction workers there are. They
+disagree on how to classify them — trade versus structure type — and that error
+is invisible to a coverage ratio. Phase 4's treatment stands.
+
+### Three more lookups NIPA publishes outright
+
+- **`RfHhInstComp` `W151RC` = 18,684**, compensation of employees of private
+  households — the SUT's `814000` to the dollar. The plan called this "an
+  explicit domestic-worker compensation line" without locating it; this is it.
+  The sector QCEW covers worst is the one NIPA hands over directly.
+  `W152RC` is the nonprofit institutions counterpart at 871,882.
+- **`U32500` (3.25U)** splits general government compensation into wages
+  (1,233,594) and supplements (535,640), which 3.10.5 only totals. The
+  `GSLGE`/`GSLGH`/`GSLGO` work needs the split.
+- **`T60600D` (6.6D)**, wages per full-time-equivalent employee by industry. Not
+  a detail source — it stops at the same 74 industries as 6.3D — but it is the
+  plausibility check Phase 5 lacks. An implied wage per worker at BEA detail that
+  falls outside its parent's range is an error a shares-sum-to-one assertion
+  cannot see.
+
+⚠️ **These tables are not all money, and the extractor now knows it.** 6.4D/6.5D
+are thousands of *persons* and 6.6D is a ratio, where `bea_nipa_parse` used to
+apply a flat `× 1,000,000` and label everything `Money`/`USD`. Scale and unit now
+come from each series' own `MetricName`/`DefaultScale`. All 1,812 dollar rows are
+bit-identical across the change; 1.14's three chained-dollar lines moved to
+`Class: Other` so a `Class: Money` selection cannot add real dollars to nominal.
+
 ## Phase 3 — apply controls and assemble
 
 This is `NIPA_VA_compensation_<year>.yaml`, and it is three activity sets plus the
@@ -280,8 +358,11 @@ Hold benchmark shares.
 compensation 30,857, and its wages/supplements split — and **`USDA_ERS_FIWS`**
 hired and contract labor expense is the movement series within it.
 
-**Private households — `814000`** (18,684). Outside QCEW scope entirely. NIPA
-carries an explicit domestic-worker compensation line; carry it down.
+**Private households — `814000`** (18,684). ✅ **The line is located:**
+`RfHhInstComp` `W151RC`, 18,684 — the SUT figure to the dollar, so this is a
+lookup, not an allocation. "Outside QCEW scope entirely" is slightly too
+strong — QCEW has 288.5 thousand household employees and 7,295 $M of payroll —
+but coverage is poor enough that the NIPA line wins outright.
 
 **Government — and this one is nearly solved.** QCEW *does* carry ownership, on
 the flow rather than as a separate axis: `FlowName` is `Annual payroll,
@@ -363,6 +444,10 @@ three-way split is the next thing to check.
   its value added. A negative implied GOS is the usual symptom of a bad
   compensation share, and it shows up most often in exactly the construction and
   real-estate splits Phase 4 covers. **This catches errors 5.1 cannot.**
+- **5.2b** **Implied wage per worker, against 6.6D.** Divide detail `V00100` by
+  a detail employment estimate and check it sits inside its 6.6D parent's
+  range. Catches a bad share that 5.1 cannot see and 5.2 only sometimes can:
+  a share can be positive, sum to one, and still imply an implausible wage.
 - **5.3** Benchmark replay: run the whole pipeline for 2017 and diff against the
   published detail `V00100`. With 2017 as both anchor and target the shares are
   the identity, so this tests the plumbing, not the movement series — a

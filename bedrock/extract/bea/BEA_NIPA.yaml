@@ -96,6 +96,11 @@ tables:
 # trusted as an allocator.  It documents exactly what BEA adds on top of the
 # BLS wage measure (uncovered workers, misreporting, tips, timing).
 - T71800      # Table 7.18. Relation of Wages and Salaries in the NIPA to Wages and Salaries as Published by the BLS
+# 2.2B is coarse - 8 lines - but it is the private/government split of wages
+# on 7.18's own basis (its root is A034RC, wages received), which is what makes
+# the uncovered rates comparable: 11.3% of government wages against 3.5% of
+# private. Without it the 399,801 is just a number.
+- T20200B     # Table 2.2B. Wages and Salaries by Industry
 
 # -- V00300 gross operating surplus -----------------------------------------
 # V00300 has no single NIPA table.  The assembly (see value_added_control_totals)
@@ -139,6 +144,51 @@ tables:
 # The owner/tenant split of housing interest: W318RC owner-occupied housing is
 # 272,372 of T70405's 332,634, leaving roughly 60,000 for tenant-occupied.
 - T71100      # Table 7.11. Interest Paid and Received by Sector and Legal Form of Organization
+
+# -- The QCEW-to-NIPA wage gap (#536) ---------------------------------------
+# QCEW is an allocator and never a control, because it covers UI-covered wages
+# only: its national NAICS-6 payroll is 7,955,155 against NIPA wages paid of
+# 8,485,016, or 93.8%.  The tables below are what turn that 6.2% from an
+# unexplained residual into something with a shape.
+#
+# 7.18 closes it exactly and says what kind of money it is:
+#   BLS published        7,968,336
+#   + misreporting         106,273   BA07RC
+#   + not UI-covered       399,801   W873RC  (government 152,442 | other 247,359)
+#   + timing                     0   Y663RC
+#   = NIPA wages         8,474,410   A034RC, received; +10,606 rest of world = paid
+# Government's uncovered rate is 11.3% against private's 3.5% - 3.3x - so the
+# gap is already known to be non-uniform before any industry table is opened.
+
+# 6.4D is the table that makes the gap measurable *per industry* rather than
+# assumed uniform: QCEW publishes employment on the same axis, so QCEW/NIPA is a
+# coverage ratio per industry.  Measured for 2017 on private employment, it is
+# 97-100% almost everywhere and collapses in exactly two places - educational
+# services 77.1% and other services except government 63.0% (religious and
+# grantmaking organisations are largely UI-exempt, and private households
+# 814000 is 288.5 thousand in QCEW against a sector NIPA states outright).
+# So QCEW growth is trustworthy for ~95% of the economy and the exceptions are
+# a named short list, which is a different method from spreading 6.2% pro rata.
+- T60400D     # Table 6.4D. Full-Time and Part-Time Employees by Industry
+- T60500D     # Table 6.5D. Full-Time Equivalent Employees by Industry
+# 6.6D is wages per FTE by industry.  Not a detail source - it stops at the same
+# 74 industries as 6.3D - but it is the plausibility check Phase 5 lacks: an
+# implied wage per worker at BEA detail that falls outside its parent's range is
+# an error signal that a share-sums-to-one assertion cannot see.
+- T60600D     # Table 6.6D. Wages and Salaries Per Full-Time Equivalent Employee by Industry
+# 3.25U splits general government compensation into wages (1,233,594) and
+# supplements (535,640), which 3.10.5 does not; the GSLGE/GSLGH/GSLGO work needs
+# the split, not just the total.
+- U32500      # Table 3.25U. Compensation of General Government Employees
+# 7.8 decomposes supplements by type.  No industry axis, so it does not allocate
+# anything - it is how to read 6.10D and 6.11D, whose own type panel is the one
+# that must be excluded to avoid double counting.
+- T70800      # Table 7.8. Supplements to Wages and Salaries by Type
+# W151RC here is compensation of employees of private households - 18,684, the
+# SUT's 814000 to the dollar.  The plan called this "an explicit domestic-worker
+# compensation line" without locating it; this is the table.  W152RC is the
+# nonprofit institutions counterpart at 871,882.
+- RfHhInstComp  # Households and institutions compensation
 
 
 years:

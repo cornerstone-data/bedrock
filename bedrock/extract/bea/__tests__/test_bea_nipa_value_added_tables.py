@@ -3,11 +3,8 @@
 Two kinds of check, deliberately separated.
 
 The config checks read only ``BEA_NIPA.yaml`` and always run: they pin the
-table list and guard the one structural hazard in
-:func:`~bedrock.extract.bea.BEA_NIPA.bea_nipa_parse`, which selects a table's
-series with ``str.contains`` rather than an equality test, so a declared id
-that is a *substring* of another declared id pulls that other table's rows in
-under the wrong ``TableId``.
+table list and guard against a declared id being a substring of another, which
+used to contaminate the parse before table ids were matched exactly.
 
 The reconciliation checks need the flat-file archive and skip without it.  They
 are the acceptance test for #536: not "the tables extract" but "the numbers the
@@ -60,6 +57,24 @@ VALUE_ADDED_TABLES = {
         'T70405',
         'T71100',
     ],
+    # QCEW covers 93.8% of NIPA wages; these size and shape the other 6.2%
+    'gap': [
+        'T60400D',
+        'T60500D',
+        'T60600D',
+        'U32500',
+        'T70800',
+        'RfHhInstComp',
+        'T20200B',
+    ],
+}
+
+#: The declared tables that are *not* current-dollar throughout, and what they
+#: carry instead.  Everything else is ``Money``/``USD``.
+NON_MONEY_TABLES = {
+    'T60400D': ('Employment', 'p'),
+    'T60500D': ('Employment', 'p'),
+    'T60600D': ('Other', 'Ratio'),
 }
 
 
@@ -86,12 +101,11 @@ class TestDeclaredTables:
     def test_no_declared_table_is_a_substring_of_another(self) -> None:
         """``bea_nipa_parse`` matches table ids with ``str.contains``.
 
-        Two declared ids where one contains the other would make the shorter
-        one's selection pull the longer one's rows in as well, tagged with the
-        longer id -- silent contamination rather than an error.  ``U70205`` is
-        a substring of the *undeclared* ``U70205S``, which is harmless because
-        a method's selection_fields filter on the parsed ``Table`` value; only
-        a collision between two declared ids matters.
+        Table ids are now matched exactly, so a substring collision no longer
+        contaminates -- ``U70205`` used to drag in ``U70205S``'s 44 physical
+        quantity and price index series under their own id. Keep the assertion
+        anyway: it is cheap, and it fails loudly if the exact match is ever
+        relaxed back to ``str.contains``.
         """
         declared = _declared_tables()
         collisions = [
@@ -130,6 +144,99 @@ class TestValueAddedTablesReconcile:
             for table in tables:
                 assert table in by_table.groups, f'{table} missing from the FBA'
                 assert by_table.get_group(table).notna().all(), f'{table} has nulls'
+
+    def test_class_and_unit_come_from_the_series_metric(
+        self, nipa_2017: pd.DataFrame
+    ) -> None:
+        """Not every declared table is money, and the parser must not assume it.
+
+        6.4D and 6.5D are thousands of *persons* and 6.6D is a dollars-per-worker
+        ratio.  Under the old flat ``* 1000000`` with Class/Unit hardcoded, 6.4D's
+        150,654 thousand employees would have been published as 1.5e11 USD.  The
+        scale and the metric both come from ``SeriesRegister`` now.
+        """
+        for table, (klass, unit) in NON_MONEY_TABLES.items():
+            rows = nipa_2017.query('Table == @table')
+            assert set(rows['Class']) == {klass}, table
+            assert set(rows['Unit']) == {unit}, table
+
+        # employees, not dollars: 150,654 thousand in 2017
+        assert _code(nipa_2017, 'T60400D', 'A4201C') == pytest.approx(150.654, abs=0.01)
+        # a rate, published as-is rather than scaled: $62,726 per FTE
+        assert _line(nipa_2017, 'T60600D', 1) == pytest.approx(0.062726, abs=1e-6)
+
+        # everything not listed above is still Money/USD
+        others = nipa_2017[~nipa_2017['Table'].isin([*NON_MONEY_TABLES, 'T11400'])]
+        assert set(others['Class']) == {'Money'}
+        assert set(others['Unit']) == {'USD'}
+
+    def test_chained_dollars_are_kept_out_of_class_money(
+        self, nipa_2017: pd.DataFrame
+    ) -> None:
+        """1.14 carries three chained-dollar lines among its current-dollar ones.
+
+        Chained dollars are real, not nominal.  Left as ``Class: Money`` they
+        would be swept up by any ``Class: Money`` selection and added to
+        current-dollar flows, which is silent and wrong; ``Other`` keeps them
+        visible without making that possible.
+        """
+        chained = nipa_2017.query('Unit == "USD_chained"')
+        assert set(chained['Table']) == {'T11400'}
+        assert len(chained) == 3
+        assert set(chained['Class']) == {'Other'}
+
+    def test_the_qcew_gap_reconciles_and_is_not_uniform(
+        self, nipa_2017: pd.DataFrame
+    ) -> None:
+        """7.18 closes the QCEW-to-NIPA wage gap exactly, and shapes it.
+
+        QCEW's national NAICS-6 payroll is 93.8% of NIPA wages paid.  7.18 says
+        what the other 6.2% is, and the government/private split of the
+        UI-uncovered line already shows it is not spread evenly -- 11.3% of
+        government wages against 3.5% of private, a factor of three.  That is
+        what makes a per-industry coverage ratio worth computing rather than
+        assuming a flat gap.
+        """
+        bls = _code(nipa_2017, 'T71800', 'BA06RC')
+        misreporting = _code(nipa_2017, 'T71800', 'BA07RC')
+        uncovered = _code(nipa_2017, 'T71800', 'W873RC')
+        timing = _code(nipa_2017, 'T71800', 'Y663RC')
+        received = _code(nipa_2017, 'T60300D', 'A034RC')
+        assert bls + misreporting + uncovered + timing == pytest.approx(
+            received, abs=1.0
+        )
+
+        uncovered_government = _code(nipa_2017, 'T71800', 'W787RC')
+        uncovered_other = _code(nipa_2017, 'T71800', 'W786RC')
+        assert uncovered_government + uncovered_other == pytest.approx(
+            uncovered, abs=1.0
+        )
+        government_rate = uncovered_government / _code(nipa_2017, 'T20200B', 'B202RC')
+        private_rate = uncovered_other / _code(nipa_2017, 'T20200B', 'A132RC')
+        assert government_rate > 3 * private_rate
+
+    def test_private_households_compensation_is_published_outright(
+        self, nipa_2017: pd.DataFrame
+    ) -> None:
+        """``RfHhInstComp`` W151RC is the SUT's ``814000`` to the dollar.
+
+        The sector QCEW covers worst is the one NIPA states directly, so it is a
+        lookup rather than an allocation -- which is the pattern housing and farm
+        already follow.
+        """
+        assert _code(nipa_2017, 'RfHhInstComp', 'W151RC') == pytest.approx(
+            18_684, abs=1.0
+        )
+
+    def test_general_government_wages_and_supplements_split(
+        self, nipa_2017: pd.DataFrame
+    ) -> None:
+        """3.25U splits what 3.10.5 only totals, and the halves close."""
+        wages = _code(nipa_2017, 'U32500', 'B1663C')
+        supplements = _code(nipa_2017, 'U32500', 'B1664C')
+        assert wages + supplements == pytest.approx(
+            _code(nipa_2017, 'U32500', 'A194RC'), abs=1.0
+        )
 
     def test_compensation_is_the_paid_concept_and_its_parts_close_exactly(
         self, nipa_2017: pd.DataFrame
