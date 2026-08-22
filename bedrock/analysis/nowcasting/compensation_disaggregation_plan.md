@@ -22,6 +22,43 @@ via `uv run python -m bedrock.analysis.nowcasting.value_added_control_totals`:
   three CSV lines, since #567/#568 closed — see
   [Phase 0](#phase-0--the-crosswalk-gate--cleared).
 
+## The shape of the build — settled 2026-08-22
+
+**Three FBS methods, one per Use row**, not one method and not plain Python
+modules: `NIPA_VA_compensation_<year>`, `NIPA_VA_surplus_<year>`,
+`NIPA_VA_othertax_<year>`. Reasoning is in [`plan.md`](plan.md) §Step 2; the two
+consequences for *this* document are what follow.
+
+**Most of this plan survives, but as configuration rather than code.** The
+attribution engine already does NIPA-leaf → BEA-detail with weights, and
+`BEA_Detail_Use_SUT` melts the Use SUT through `VAPRO`, so the 2017 benchmark
+`V00100` by industry is loadable as an FBA attribution source today — Phase 1
+below is a `selection_fields` clause, not an extraction.
+
+⚠️ **One step has no FBS primitive: the anchor-and-move itself.** "2017 detail
+share × QCEW growth, renormalised in-parent, then the NIPA control" cannot be
+said in yaml, because `multiplication` does not preserve the group total and
+there is no renormalise step — which is exactly what Phase 3.4 needs. So:
+
+> **Phases 1–2 build a cached `FBS_outside_flowsa` source** (the `FBS_datapull_fxn`
+> hatch, as `stewiFBS_common.yaml` uses) whose FlowAmount per BEA detail industry
+> is `V00100_2017,d × QCEW_growth,d`. **Phase 3 is then a single `proportional`
+> attribution of the NIPA control against it.** Proportional normalises within
+> the group, so 3.4's exact rescale holds by construction rather than by a
+> follow-up step, and the arithmetic stays readable in Python instead of becoming
+> forty lines of nested `multiplication`/`division`.
+
+That seam is the whole design. Everything else is ordinary activity sets.
+
+**Orientation is the transpose of the final-demand methods.** VA codes are Use
+*rows*, so the code goes on `SectorProducedBy` and the industry on
+`SectorConsumedBy` — where `NIPA_final_dom_uses` puts the commodity on
+`SectorProducedBy` and the `F` code on `SectorConsumedBy`. That needs a mirror of
+`assign_sector_consumed_by_from_clean_parameter`, for the same reason the
+original exists: `BEA_NIPA` is a `TECHNOSPHERE_FLOW` source, so populating the
+sector column before attribution would capture `PrimarySector` and corrupt the
+weights. Assign after aggregation, as #539 established.
+
 ## The decision that shapes everything else
 
 **Disaggregate wages and supplements separately, then sum. Do not allocate total
@@ -128,25 +165,77 @@ NIPA control does not.
 
 ## Phase 2 — the movement series
 
-- **2.1** Load QCEW `Class: Money` (annual payroll) at NAICS_6 for the target
-  year and 2017. Confirm `estimate_suppressed_qcew` behaves on the Money class;
-  it was written for Employment. **National 6-digit has few suppressions, but
-  the fallback to 5-digit with residual allocation must be verified, not
-  assumed.**
-- **2.2** Map NAICS_6 → BEA detail via the existing concordance.
+✅ **QCEW is cached locally as per-year FBA parquets** in
+`extract/input_data/BLS_QCEW/`, 2017–2023, because generating the FBA is slow —
+each year is ~9M rows and 23MB, since QCEW comes down at county grain. Dropping
+one into `extract/output_data/` makes `getFlowByActivity('BLS_QCEW', year)` find
+it through the ordinary "import local" path with no code change; esupy matches on
+name and ignores the `v2.0.4` version tag in the filename. Verified for 2017.
+
+⚠️ **The cache is 2017–2023, so the nowcast's 2024 year has no QCEW.** Whatever
+carries 2024 is a separate decision, not an oversight to discover later.
+
+**What the national slice actually holds**, measured rather than assumed:
+
+| | 2017 |
+|---|---:|
+| National `Class: Money` rows (`Location == '00000'`) | 4,545 |
+| …at NAICS-6 | 1,937 |
+| distinct NAICS-6 codes | 1,075 |
+| NAICS-6 payroll, all ownerships | 7,955,155 $M |
+| **as a share of NIPA wages paid** (`A4102C`, 8,485,016) | **93.8%** |
+
+✅ **93.8% is the number that settles "allocator, never control".** The missing
+6.2% is UI-uncovered employment, and it is not spread evenly — it concentrates in
+exactly the sectors Phase 4 carves out. `T71800` itemises what BEA adds on top.
+
+✅ **Ownership is on the flow, not a separate axis.** `FlowName` is
+`Annual payroll, {Private, Federal Government, State Government, Local Government}` —
+2017 NAICS-6: private 6,772,575, local 691,481, state 265,682, federal 225,417.
+Useful, but it still does **not** separate government *enterprises* from general
+government, which is why Phase 4 routes government through NIPA instead.
+
+✅ **Crosswalk coverage is 1,027 of the 1,048** NAICS-6 codes the BEA detail
+crosswalk names — 98%. The 21 missing are a bounded list to inspect, not a
+structural gap.
+
+⚠️ **`Employment_common.yaml` cannot be reused as-is.** Every one of its
+`_bls_selection_fields_*` blocks hardcodes `Class: Employment`, so a wages method
+needs its own selection block; `estimate_suppressed_qcew` and
+`clean_qcew_for_fbs` are reusable, and whether the first behaves on `Class: Money`
+is still open question 3.
+
+- **2.1** Add a `Class: Money` national selection block beside the Employment
+  ones, and confirm `estimate_suppressed_qcew` behaves on it. **National 6-digit
+  has few suppressions, but the fallback to 5-digit with residual allocation must
+  be verified, not assumed.**
+- **2.2** Map NAICS_6 → BEA detail via the existing concordance, checking the 21.
 - **2.3** Compute per-detail-sector wage growth 2017→target year.
 - **2.4** Update the Phase 1 benchmark shares by that growth; renormalise within
-  each summary parent.
+  each summary parent. This and 2.3 are the body of the `FBS_datapull_fxn`
+  described in §The shape of the build.
 
 ## Phase 3 — apply controls and assemble
 
-- **3.1** Wages: allocate the 6.3D summary wage control across detail using the
-  Phase 2 updated shares.
-- **3.2** Supplements: allocate 6.10D (16 industries) and 6.11D (17, lines 3-20) down to
-  summary, then to detail by the **wage** distribution from 3.1 — not by total
-  compensation, per the decision above.
-- **3.3** `V00100` detail = 3.1 + 3.2.
-- **3.4** Rescale so detail sums exactly to the summary control.
+This is `NIPA_VA_compensation_<year>.yaml`, and it is three activity sets plus the
+special cases of Phase 4. Each is a `proportional` attribution of a NIPA control
+against a weight source, which is why the exact rescale that used to be 3.4 is
+now a property of the method rather than a step in it.
+
+- **3.1** Wages. Control is 6.3D **line 2** (`A4102C`, the paid concept — see the
+  table above); weight source is the Phase 2 moved-share `FBS_outside_flowsa`.
+- **3.2** Supplements. Controls are 6.10D (16 industries) and 6.11D
+  (**17**, lines 3–20 only — the type and benefits-paid panels must be excluded
+  or the row double-counts). Weight source is the **wage** distribution from 3.1,
+  not total compensation, per the decision above. Carrying down by wages is what
+  makes this cheaper than it looks, since both halves are published by industry.
+- **3.3** `V00100` detail = 3.1 + 3.2, which is the method's output rather than a
+  separate step: the two activity sets aggregate onto the same
+  `SectorProducedBy = V00100` rows.
+- **3.4** ~~Rescale so detail sums exactly to the summary control.~~ **No longer a
+  step.** `proportional` normalises within the attribution group, so detail sums
+  to its control by construction. Keep it as the Phase 5.1 assertion — a
+  regression guard, not a computation.
 
 ## Phase 4 — the sectors where QCEW does not work
 
@@ -194,9 +283,14 @@ hired and contract labor expense is the movement series within it.
 **Private households — `814000`** (18,684). Outside QCEW scope entirely. NIPA
 carries an explicit domestic-worker compensation line; carry it down.
 
-**Government — and this one is nearly solved.** QCEW ownership codes do not
-distinguish government *enterprises* from general government. NIPA does, and the
-numbers tie exactly.
+**Government — and this one is nearly solved.** QCEW *does* carry ownership, on
+the flow rather than as a separate axis: `FlowName` is `Annual payroll,
+{Private, Federal Government, State Government, Local Government}`, giving
+225,417 federal / 265,682 state / 691,481 local at NAICS-6 in 2017. What it
+still does not do is distinguish government *enterprises* from general
+government — and that, not the ownership split, is the distinction the SUT
+needs. NIPA has it, and the numbers tie exactly, so route government through
+NIPA and leave the QCEW ownership codes out of it.
 
 **`T31005` (Table 3.10.5, *Government Consumption Expenditures and General
 Government Gross Output*)** carries compensation of general government
@@ -548,9 +642,13 @@ output, that shared dependency is a better reason to build the extractor than
    and the difference is the rest-of-world adjustment `A4187C` at −10,607.
    Value added wants the paid line.
 3. **Does `estimate_suppressed_qcew` work on `Class: Money`?** It was written
-   for Employment.
+   for Employment. Now cheap to answer, since the cache removes the
+   generation cost — and `Employment_common.yaml` needs a `Class: Money`
+   selection block either way, because every block there hardcodes
+   `Class: Employment`.
 4. **Which year is the target**, and does the QCEW lag (~5–6 months) meet the
-   nowcast schedule?
+   nowcast schedule? Sharper now: the local cache runs **2017–2023**, so
+   Phase 1's 2024 has no QCEW at all and needs a stated fallback.
 5. **BEA Fixed Assets is not in bedrock**, and both CFC (40% of `V00300`) and
    `T00OTOP` want capital stock by industry. One extractor serves both — is it
    worth building before either?
