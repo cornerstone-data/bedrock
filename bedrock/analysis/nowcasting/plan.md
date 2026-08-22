@@ -248,7 +248,8 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 | Block | Status |
 |---|---|
-| Value added (`V00100`, `T00OTOP`, `V00300`, `T00TOP`, `T00SUB`) | ❌ NIPA tables identified, not built — Step 2 |
+| Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 24 NIPA tables extracted and reconciled (#536); three FBS methods to build — Step 2 |
+| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Not sourced — an **output of Step 5's balance**, see Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3 |
 
 ### SUT Supply — every column
@@ -557,6 +558,10 @@ are never held in inventory, which is why BEA cites materials-and-fuels rather t
 
 ## Value added — fully specified on the board
 
+⚠️ **Superseded — kept for provenance.** The `V00300` construction below is the one sketched on
+the issue; `value_added_control_totals.py` replaced it with an assembly that closes to +13
+million on 7.9 trillion, and `T00TOP`/`T00SUB` left Step 2's scope entirely. Read §Step 2.
+
 | Component | Code | NIPA table |
 |---|---|---|
 | Compensation of employees | V00100 | T60200D |
@@ -704,10 +709,57 @@ Use table's basis. ⚠️ That settles *which*, not *how*: for 2018-2024 there i
 bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off by ~1% of the column.
 
 ### Step 2 — SUT Use: value added block
-- New `NIPA_VA_<year>.yaml` FBS method(s) over the 7 Section-6/3.5/3.13 tables above, reusing the
-  `NIPA_final_dom_uses_<year>.yaml` machinery (`extract_table_info`, `drop_unassigned`, activity_sets).
-- Allocate to BEA industries via 2017 table ratios.
-- Reconcile against T1.14 / VABAS→T10305 / T018→T10105.
+
+⚠️ **Scope is three rows, not five.** `V00100`, `T00OTOP`, `V00300` — the `VABAS` components, which
+is what `SUT_VALUE_ADDED_CODES` and the `use_va_detail_sut` diagnostic already target. `T00TOP` and
+`T00SUB` are **not** built here: their commodity-axis counterparts shipped in Step 4d (#690), and per
+the decision of 2026-08-17 above their *industry* split is an **output of Step 5's balance rather than
+an input to it**. Building them here would estimate the same money twice on two axes.
+
+✅ **Decided 2026-08-22 — three FBS methods, one per Use row**, rather than one method or plain Python
+modules. Reasoning, and the evidence behind it:
+
+- **FBS, not Python.** Step 4's modules are arithmetic on published matrices; Step 2 is genuinely
+  NIPA-leaf → BEA-detail attribution with weights, which is the engine's job. The plumbing already
+  exists: `BEA_Detail_Use_SUT` melts the Use SUT through `VAPRO`, so the **2017 benchmark VA block by
+  industry is loadable as an FBA attribution source today** (existing methods deliberately exclude
+  those rows). No new extractor, and "frozen 2017 detail shares under an annual NIPA control" — which
+  is all `T00OTOP` can honestly be — becomes a single proportional attribution.
+- **Three, not one.** The rows have different quality bars: `V00100` carries a **hard** group-level
+  constraint in Step 5's target set, while `V00300` and `T00OTOP` are **seeds only**, deliberately
+  unimposed so the income side stays out of sample. `V00300` needs ~20 activity sets across 8 NIPA
+  tables plus the housing/farm/government lookups; coupling that churn to the one row Step 5 actually
+  constrains is the mistake Step 1 paid for before the 1A/1B/1C rescope.
+- **The one thing FBS cannot say** is compensation's anchor-and-move construction (2017 detail share ×
+  QCEW growth, renormalised in-parent, then the control). `multiplication` does not preserve the group
+  total, so the exact-control step has no primitive. Build the moved-share vector as a cached
+  `FBS_outside_flowsa` source via `FBS_datapull_fxn` and let the yaml do **one** proportional
+  attribution against it — proportional normalises within group, so the control holds by construction,
+  and the arithmetic stays readable.
+
+✅ **#536 done — 24 NIPA tables added to `BEA_NIPA.yaml`**, all annual and complete for 2012-2024, at
+~950 extra FBA rows per year. Reconciliation through the FBA is pinned by
+`extract/bea/__tests__/test_bea_nipa_value_added_tables.py`. Three findings changed the plan:
+
+- ⚠️ **Take the *paid* line, not the table's root.** 6.2D and 6.3D each state their total twice —
+  line 1 received by residents, line 2 paid by domestic industries and government. Value added wants
+  line 2. On it, wages + both supplements close to **0** against compensation (8,485,016 + 604,656 +
+  1,345,306 = 10,434,978) and land on the SUT's `V00100` within 3. Reading line 1 is what left the
+  ~10,600 that `compensation_disaggregation_plan.md` carried as an open item; it is the rest-of-world
+  adjustment `A4187C`, stated in 6.2D's own lines 97-99.
+- ⚠️ **6.11D is three panels under one code**, and only the first is by industry: lines 1-20 industry,
+  22-36 type of fund, 37-45 *benefits paid* (2,370,770, a different concept). Its industry grain is
+  **17, not 36**, and selecting the whole table double-counts — the U20405 memorandum-block hazard
+  again. `T61600D`, `T71100` and `T11400` also restate a code; select by line in all four.
+- ✅ **3.8 gives the government-enterprise surplus an industry axis** it was thought not to have,
+  federal and state-and-local summing to 1.10's `A108RC` exactly.
+
+Remaining:
+- Add identity crosswalk rows for the three codes (`BEA_2017_Code`, as `F01000` has). The #567/#568
+  gate is **closed**, so this is three CSV lines rather than a decision.
+- A `assign_sector_produced_by_from_clean_parameter` mirror: VA codes are Use *rows*, so the code goes
+  on `SectorProducedBy` and the industry on `SectorConsumedBy` — the transpose of the FD methods.
+- Reconcile against T1.14 / `VABAS`→T10305 / `VAPRO`→T10105, per §Testing strategy.
 - **Note:** the board's "transform VA into after redefinitions" item is *deferred to Step 7* here —
   VA should stay before-redefinitions through the SUT, and get redefined once, with everything else,
   rather than in its own one-off step. (Deviation from the board item, now settled — the whole SUT is

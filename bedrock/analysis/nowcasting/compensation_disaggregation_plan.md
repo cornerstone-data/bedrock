@@ -18,8 +18,9 @@ via `uv run python -m bedrock.analysis.nowcasting.value_added_control_totals`:
 - `T60200D` (6.2D, compensation by industry) has **74 leaf rows** — about BEA
   summary granularity. Nothing in NIPA reaches the 402 detail industries, so
   detail is an allocation problem, not a lookup.
-- **No value-added code is in `NAICS_Crosswalk_BEA_2017_Detail.csv`.** This is a
-  gate, not a detail — see [Phase 0](#phase-0--the-crosswalk-gate).
+- **No value-added code is in the sector crosswalk yet.** Once a gate; now
+  three CSV lines, since #567/#568 closed — see
+  [Phase 0](#phase-0--the-crosswalk-gate--cleared).
 
 ## The decision that shapes everything else
 
@@ -35,22 +36,43 @@ high-wage children and understates low-wage ones.
 This is cheaper than it sounds, because **NIPA publishes both halves by
 industry**, and the identity is exact:
 
-| | table | 2017, $M | leaves |
-|---|---|---:|---:|
-| Wages and salaries | `T60300D` (6.3D) | 8,474,410 | 74 |
-| Employer contributions, government social insurance | `T61000D` (6.10D) | 604,656 | 16 |
-| Employer contributions, pension and insurance funds | `T61100D` (6.11D) | 1,345,306 | 36 |
-| **sum** | | **10,424,372** | |
-| Compensation of employees | `T60200D` (6.2D) | 10,424,372 | 74 |
-| **difference** | | **0** | |
+✅ **Restated on the *paid* concept (#536).** The version below originally read
+each table's line 1 and left an unexplained ~10,600 against the SUT. 6.2D and
+6.3D each state their total **twice** — line 1 is compensation (or wages)
+*received by residents*, line 2 the amount *paid* by domestic industries and
+government — and value added wants the paid line. The supplements tables have
+no such split. On line 2 the identity is exact **and** lands on the SUT:
 
-Verified to the dollar. So supplements need a parent-ratio carry-down only
-*below* 16 and 36 industries respectively — not from the top.
+| | table | line | code | 2017, $M | industry lines |
+|---|---|---:|---|---:|---:|
+| Wages and salaries, paid | `T60300D` (6.3D) | 2 | `A4102C` | 8,485,016 | 74 |
+| Employer contributions, government social insurance | `T61000D` (6.10D) | 1 | `B039RC` | 604,656 | 16 |
+| Employer contributions, pension and insurance funds | `T61100D` (6.11D) | 1 | `B040RC` | 1,345,306 | **17** |
+| **sum** | | | | **10,434,978** | |
+| Compensation of employees, paid | `T60200D` (6.2D) | 2 | `A4002C` | 10,434,978 | 74 |
+| **difference** | | | | **0** | |
 
-> **Open reconciliation item.** 6.2D's root is 10,424,372 while the Use SUT's
-> `V00100` is 10,434,981 and T1.10 `A4002C` is 10,434,978 — a gap of ~10,600,
-> most likely the rest-of-world compensation line. Resolve before using 6.2D as
-> a control; it is small but it is not rounding.
+Verified to the dollar, and 10,434,978 against the Use SUT's `V00100` of
+10,434,981 is BEA's own rounding. So supplements need a parent-ratio carry-down
+only *below* 16 and 17 industries respectively — not from the top.
+
+> ✅ **The ~10,600 gap is closed, and it was a wrong-line error.** 6.2D line 97
+> `A4187C` is the rest-of-world adjustment at −10,607 (receipts 6,347 less
+> payments 16,954, lines 98–99), and `A4002C` − `A033RC` equals it exactly.
+> Same class of mistake the `V00300` assembly warns about three times over:
+> *take the domestic line, not the table's root.* Pinned by
+> `test_bea_nipa_value_added_tables.py`.
+
+⚠️ **6.11D is 17 industries, not 36, and reading the whole table double-counts.**
+The table is three panels, each restating the 1,345,306 total under the same
+code `B040RC`: lines 1–20 by industry, 22–36 by *type of fund*, 37–45 **benefits
+paid** (2,370,770 — a different concept entirely). The "36 leaves" above counted
+the type panel. So pension and insurance supplements are the *coarsest* piece of
+compensation, not the second-finest, and any method reading 6.11D must select
+lines 3–20 explicitly — the same hazard as U20405's memorandum block.
+
+⚠️ **Four of the value-added tables restate a code on more than one line** —
+`T61100D`, `T61600D`, `T71100`, `T11400`. Select by line there, not by code.
 
 ## Data sources, all already in bedrock
 
@@ -70,24 +92,23 @@ reference for how far raw QCEW shares can be trusted.
 
 ---
 
-## Phase 0 — the crosswalk gate
+## Phase 0 — the crosswalk gate ✅ **cleared**
 
-`V00100`, `T00OTOP` and `V00300` are absent from
-`NAICS_Crosswalk_BEA_2017_Detail.csv` on both sides. The precedent is an
-identity row, as `F01000` has and as `7a04a71` added for `S00300`/`S00900`.
+This phase was written as a gate and is no longer one. **#567 and #568 are both
+closed**, so `SectorSourceName` can express a non-NAICS schema and a `non_naics`
+code is its own root in the hierarchy machinery. The crosswalk — now
+`Sector_Crosswalk_BEA_2017_Detail.csv` — already carries `F01000`, `S00300` and
+`S00900` as identity rows declaring `SectorSourceName: BEA_2017_Code`, and
+`test_mixed_bea_naics_assignment.py` covers the mixed BEA/NAICS case.
 
-The crosswalk declares `SectorSourceName: NAICS_2017_Code` and nothing else, and
-these codes are not NAICS. Adding them as identity rows under a NAICS source
-name is the move that put 210 BEA detail codes out of reach of the hierarchy
-machinery — **this is [#568](https://github.com/cornerstone-data/bedrock/issues/568), and Step 2 hits it when it writes its first crosswalk row, not later.**
+What remains is not a decision, it is three CSV lines:
 
-- **0.1** Decide: wait for #567/#568, or add identity rows now and accept the
-  known breakage. Recommend deciding explicitly rather than discovering it.
-- **0.2** Add rows for `V00100` at minimum. `VABAS`/`VAPRO` are aggregates and
-  should not be targets.
+- **0.1** Add identity rows for `V00100`, `T00OTOP` and `V00300` under
+  `BEA_2017_Code`, following `F01000`'s row exactly.
+- **0.2** `VABAS`/`VAPRO`/`T018` are subtotals and must **not** get rows — they
+  are computed from the three, not targeted.
 
-**Blocks every later phase that routes through FBS attribution.** Phases 1–2
-are pure analysis and can proceed regardless.
+Nothing here blocks the later phases any more.
 
 ## Phase 1 — establish the benchmark detail structure
 
@@ -121,7 +142,7 @@ NIPA control does not.
 
 - **3.1** Wages: allocate the 6.3D summary wage control across detail using the
   Phase 2 updated shares.
-- **3.2** Supplements: allocate 6.10D (16 industries) and 6.11D (36) down to
+- **3.2** Supplements: allocate 6.10D (16 industries) and 6.11D (17, lines 3-20) down to
   summary, then to detail by the **wage** distribution from 3.1 — not by total
   compensation, per the decision above.
 - **3.3** `V00100` detail = 3.1 + 3.2.
@@ -133,9 +154,17 @@ These are not edge cases; they are ~15% of compensation and they will produce
 visibly wrong answers if run through the general path.
 
 **Construction — the big one.** BEA's 12 detail construction sectors are defined
-by *type of structure*; QCEW classifies establishments by *trade*. There is no
-valid mapping — a specialty trade contractor's wages spread across every
-structure type.
+by *type of structure*; QCEW classifies establishments by *trade*. A specialty
+trade contractor's wages spread across every structure type.
+
+⚠️ **Correction: a mapping does exist, and that is the trap, not the relief.**
+`Sector_Crosswalk_BEA_2017_Detail.csv` carries **236 rows** for NAICS `23*`, and
+construction employment is available at those NAICS. But it is dense
+many-to-many — NAICS `237210` alone reaches nine BEA construction codes — so the
+crosswalk will happily route QCEW through it and the FBS `equal` default will
+split evenly. The mapping's existence means the pipeline **will not fail**; it
+will produce an even split and call it an answer. Construction therefore needs a
+weighted attribution with a stated weight source, never a bare crosswalk hop.
 
 ```
 233210 Health care structures          2332A0 Office and commercial
@@ -514,7 +543,10 @@ output, that shared dependency is a better reason to build the extractor than
 
 1. **Is there a published detail *wages* series**, or must detail wage shares be
    derived from the summary wages/compensation ratio (1.3)?
-2. **The ~10,600 gap** between 6.2D's root and the SUT's `V00100`.
+2. ✅ **Closed (#536).** The ~10,600 gap was a wrong-line error: 6.2D line 1
+   `A033RC` is compensation *received*, line 2 `A4002C` compensation *paid*,
+   and the difference is the rest-of-world adjustment `A4187C` at −10,607.
+   Value added wants the paid line.
 3. **Does `estimate_suppressed_qcew` work on `Class: Money`?** It was written
    for Employment.
 4. **Which year is the target**, and does the QCEW lag (~5–6 months) meet the
@@ -525,10 +557,19 @@ output, that shared dependency is a better reason to build the extractor than
 6. **Census Nonemployer Statistics is not in bedrock**, and proprietors' income
    (18% of `V00300`) is the component that would most benefit.
 7. **Does `T61600D`'s subtree selection cleanly exclude rest-of-world?** Its
-   leaves mix domestic industries with rest-of-world receipts and payments.
-8. **Which axis is primary for product taxes and subsidies — commodity or
-   industry?** A cross-step decision between Step 2 and Step 4, and the one
-   question here that cannot be answered inside this plan alone.
+   leaves mix domestic industries with rest-of-world receipts and payments,
+   and it is one of the four tables that restates a code (`B394RC`) on two
+   lines. Select `A445RC` by code — that one is unique — and take the
+   subtree beneath it rather than the table's root.
+8. ✅ **Settled, and Step 2 does not build them at all.** The commodity axis
+   won: `TOP`, `SUB` and `MDTY` are built in Step 4d
+   ([`nowcast_product_taxes`](../../transform/iot/nowcast_product_taxes.py),
+   [`nowcast_subsidies`](../../transform/iot/nowcast_subsidies.py), #690), and
+   per plan.md's decision of 2026-08-17 the *industry* split of
+   `T00TOP`/`T00SUB` is an **output of Step 5's balance rather than an input
+   to it** — the producer-price column target is `T005 + VAPRO`, so the
+   allocation solves rather than being assumed. Step 2's scope is the three
+   `VABAS` rows: `V00100`, `T00OTOP`, `V00300`.
 9. **The sector-table gaps against the SUT.** `T70405`'s implied housing
    operating surplus is 2.71% below the `531HSO`+`531HST` pair, and `T70305`'s
    gross farm value added is 10,118 below the ten farm codes. Compensation ties
