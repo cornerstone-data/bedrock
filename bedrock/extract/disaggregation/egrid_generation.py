@@ -308,7 +308,8 @@ def eia_table_3_1_total_mwh(year: int) -> float:
     sub = df.loc[mask]
     if sub.empty:
         raise ValueError(
-            f'Table 3.1 Total (all sectors) missing for year {year} (D12 has no fallback)'
+            f'Table 3.1 Total (all sectors) missing for year {year} '
+            f'(2017 eGRID scale has no fallback)'
         )
     total = float(sub['FlowAmount'].sum())
     if total <= 0:
@@ -318,7 +319,7 @@ def eia_table_3_1_total_mwh(year: int) -> float:
 
 @functools.cache
 def egrid_mwh_for_io_year(year: int, *, download_if_missing: bool = True) -> float:
-    """Plant-net eGRID MWh for an IO-account year (D12 for 2017).
+    """Plant-net eGRID MWh for an IO-account year.
 
     2017 has no stewi eGRID inventory: ``eGRID_2016 * (EIA 3.1_2017 / 3.1_2016)``.
     Other years use ``us_total_net_generation_mwh``. Do not add GGL losses.
@@ -330,6 +331,6 @@ def egrid_mwh_for_io_year(year: int, *, download_if_missing: bool = True) -> flo
         t31_2017 = eia_table_3_1_total_mwh(2017)
         t31_2016 = eia_table_3_1_total_mwh(2016)
         if t31_2016 <= 0:
-            raise ValueError('EIA Table 3.1 2016 total is non-positive (D12)')
+            raise ValueError('EIA Table 3.1 2016 total is non-positive')
         return float(egrid_2016 * (t31_2017 / t31_2016))
     return us_total_net_generation_mwh(year, download_if_missing=download_if_missing)

@@ -1,4 +1,4 @@
-"""P0 freeze of today's electricity 3-way + mixed-units production.
+"""Freeze of previous electricity G/T/D and mixed-units production.
 
-Live replacement comparison lives in ``compare_to_baseline`` (P6).
+Live comparison to that freeze lives in ``compare_to_baseline``.
 """

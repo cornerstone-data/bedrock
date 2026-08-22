@@ -500,7 +500,7 @@ def _maybe_reanchor_electricity_aq(
     model_year: int,
     use_commodity_pi: bool,
 ) -> SingleRegionAqMatrixSet:
-    """P5: rewrite published electricity A/q when the 3-way flag is on."""
+    """Rewrite published electricity A/q when electricity disaggregation is on."""
     if not electricity_disaggregation_enabled():
         return aq
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415

@@ -254,7 +254,7 @@ def assert_221100_make_sparsity(V: pd.DataFrame, *, atol: float = 1.0) -> None:
 
 
 # ---------------------------------------------------------------------------
-# PR3 — 221100 → 221110 / 221121 / 221122 monetary disaggregation
+# 221100 → 221110 / 221121 / 221122 monetary disaggregation
 # ---------------------------------------------------------------------------
 
 
@@ -758,7 +758,7 @@ def _compute_w_row(
 def _derive_post_reallocation_checkpoint_for_disagg() -> (
     tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
 ):
-    """Post-reallocation V/U/VA before PR3 steps 1–4 (production path only)."""
+    """Post-reallocation V/U/VA before the G/T/D Make/Use split (production path)."""
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         derive_cornerstone_U_after_waste,
         derive_cornerstone_V_after_waste,
@@ -857,15 +857,15 @@ def disaggregate_electricity_make_use_va(
     """EIA-anchored G/T/D on Make/Use/VA (post-reallocation inputs)."""
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
         make_last_weights_from_domestic_use_y,
+        write_gtd_use_intersection,
         write_purchaser_gtd_use_and_y,
-        write_use_intersection_d10_d11,
     )
 
     allocation = get_2017_purchaser_allocation()
     y = _derive_y_before_electricity_disagg_lazy()
     Udom, Uimp, _y = write_purchaser_gtd_use_and_y(Udom, Uimp, y, allocation)
     _enforce_go_identity_precondition(V, Udom, Uimp, VA)
-    Udom, Uimp = write_use_intersection_d10_d11(Udom, Uimp, allocation)
+    Udom, Uimp = write_gtd_use_intersection(Udom, Uimp, allocation)
     w_make = make_last_weights_from_domestic_use_y(Udom, allocation)
     weights = build_electricity_disagg_weights(w_make)
     export_electricity_disagg_weights_to_csv(weights)
@@ -934,7 +934,8 @@ def build_electricity_detail_GO_growth_ratios(
 def utilities_summary_q_growth_ratio(original_year: int, target_year: int) -> float:
     """BEA summary Make-Use-Trade (MUT) Utilities sector-22 q growth ratio (raw).
 
-    Used as the D7 denominator when ``apply_io_year_adjustments`` is off.
+    Used as the summary Utilities-22 growth denominator when
+    ``apply_io_year_adjustments`` is off.
     Under ``apply_io``, prefer ``applied_utilities_summary_q_growth_ratio``.
     """
     orig = cast(USA_SUMMARY_MUT_YEARS, original_year)
@@ -978,7 +979,7 @@ def rescale_electricity_children_to_detail_GO_growth_A(
     original_year: int,
     target_year: int,
 ) -> pd.DataFrame:
-    """Rescale electricity child rows after summary-ratio A scaling (D7 pure)."""
+    """Rescale electricity child rows after summary-ratio A scaling."""
     ratios = build_electricity_detail_GO_growth_ratios(original_year, target_year)
     base = applied_utilities_summary_q_growth_ratio(original_year, target_year)
     out = a.copy()
@@ -995,7 +996,7 @@ def rescale_electricity_children_to_detail_GO_growth_q(
     original_year: int,
     target_year: int,
 ) -> pd.Series[float]:
-    """Rescale electricity child q rows after summary-ratio q scaling (D7 pure)."""
+    """Rescale electricity child q rows after summary-ratio q scaling."""
     ratios = build_electricity_detail_GO_growth_ratios(original_year, target_year)
     base = applied_utilities_summary_q_growth_ratio(original_year, target_year)
     out = q.copy()
@@ -1030,19 +1031,20 @@ def distribute_electricity_aggregate_x_using_v_row_shares(
 ) -> pd.Series[float]:
     """Split aggregate 221100 x across G/T/D.
 
-    After P5, use published ``q`` shares. While A/q is still computing (commodity
-    PI reads GHG-year x), fall back to 2017 V so A/q does not recurse.
+    After A/q is reanchored, use published ``q`` shares. While A/q is still
+    computing (commodity PI reads GHG-year x), fall back to 2017 V so A/q
+    does not recurse.
     """
     agg = ELECTRICITY_AGGREGATE
     if agg not in x_cs.index:
         return x_cs.reindex(CORNERSTONE_INDUSTRIES_ELEC)
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
-        p5_electricity_q_shares,
+        reanchored_electricity_q_shares,
     )
 
     x = x_cs.copy()
     parent_go = float(x.loc[agg])
-    shares = p5_electricity_q_shares()
+    shares = reanchored_electricity_q_shares()
     if shares is None:
         x_v = compute_x(V=V)
         present = [c for c in ELECTRICITY_DISAGG_SECTORS if c in x_v.index]

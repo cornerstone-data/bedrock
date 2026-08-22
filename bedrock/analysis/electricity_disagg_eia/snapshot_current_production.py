@@ -1,4 +1,4 @@
-"""Snapshot today's 3-way + mixed-units production (P0 freeze).
+"""Snapshot of previous G/T/D and mixed-units production (comparison freeze).
 
 Run from repo root::
 
@@ -219,9 +219,9 @@ def _snapshot_one(config_stem: str) -> None:
         'mixed_units': mixed,
         'p': implied_p if mixed else 'N/A',
         'p_note': (
-            'implied q_$[221110]/eGRID (today 1/c_col); not D0 p'
+            'implied q_$[221110]/eGRID (frozen 1/c_col); not EIA-anchored p'
             if mixed
-            else 'no single production p on 3-way-only path'
+            else 'no single production p on G/T/D-only path'
         ),
         'c_col': c_col,
         'generation_use_y_total': float(gen_use_y.sum()),

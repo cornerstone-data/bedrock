@@ -1,4 +1,4 @@
-"""Paths for the EIA-anchored G/T/D freeze and later comparison."""
+"""Paths for the prior-production electricity disaggregation freeze."""
 
 from __future__ import annotations
 

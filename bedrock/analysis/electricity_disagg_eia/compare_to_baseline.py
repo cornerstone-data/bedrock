@@ -1,7 +1,7 @@
-"""Compare live EIA-anchored G/T/D production to the P0 freeze.
+"""Compare live EIA-anchored G/T/D production to the prior-production freeze.
 
 The historical CF report used 2018 eGRID and absolute EIA sales; that
-comparison is not a P6 gate.
+comparison is not a production gate.
 """
 
 from __future__ import annotations
@@ -22,13 +22,14 @@ def baseline_dir_for(config_stem: str) -> str:
     """Return the freeze directory for a waterfall config stem."""
     if config_stem not in (DISAGG_CONFIG, MIXED_CONFIG):
         raise ValueError(
-            f'P0 freeze only covers {DISAGG_CONFIG!r} and {MIXED_CONFIG!r}; '
+            f'prior-production freeze only covers {DISAGG_CONFIG!r} and {MIXED_CONFIG!r}; '
             f'got {config_stem!r}'
         )
     path = config_dir(config_stem)
     if not path.is_dir():
         raise FileNotFoundError(
-            f'P0 freeze missing at {path}. Run snapshot_current_production first.'
+            f'prior-production freeze missing at {path}. '
+            f'Run snapshot_current_production first.'
         )
     return str(path)
 
@@ -54,7 +55,7 @@ def compare_q_to_freeze(
     live_q: pd.Series,
     config_stem: str,
 ) -> pd.DataFrame:
-    """Percent-diff live vs P0 freeze ``q`` (not a CI gate)."""
+    """Percent-diff live vs prior-production freeze ``q`` (not a CI gate)."""
     frozen = load_freeze_q(config_stem)
     idx = live_q.index.union(frozen.index)
     live = live_q.reindex(idx).astype(float)

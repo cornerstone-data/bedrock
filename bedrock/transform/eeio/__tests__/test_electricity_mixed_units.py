@@ -1,4 +1,4 @@
-"""Tests for 221110 mixed-unit (MWh) conversion (PR4)."""
+"""Tests for 221110 mixed-unit (MWh) conversion."""
 
 from __future__ import annotations
 
@@ -100,14 +100,14 @@ def _clear_caches() -> None:
             fn.cache_clear()
     clear_cornerstone_inflation_caches()
     from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        clear_pre_1a_aq,
+        clear_summary_year_scaled_aq,
     )
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
-        clear_p5_electricity_q,
+        clear_reanchored_electricity_q,
     )
 
-    clear_pre_1a_aq()
-    clear_p5_electricity_q()
+    clear_summary_year_scaled_aq()
+    clear_reanchored_electricity_q()
     egrid_mwh_for_io_year.cache_clear()
     eia_table_2_2_end_use_mwh.cache_clear()
     eia_table_2_14_export_mwh.cache_clear()

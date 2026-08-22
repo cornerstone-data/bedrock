@@ -1,6 +1,7 @@
-"""Production home for EPA end-use mapping and EIA Table 2.4 prices (PR4).
+"""Production home for EPA end-use mapping and EIA Table 2.4 prices.
 
-Promoted from ``bedrock/analysis/electricity/d_85/``; analysis modules re-import from here.
+Promoted from ``bedrock/analysis/electricity/d_85/`` so production G/T/D
+allocation can share the same class map. Analysis modules re-import from here.
 """
 
 from __future__ import annotations
@@ -35,7 +36,8 @@ EPAEndUse = ta.Literal[
     'Exports',
 ]
 
-# FD codes → end-use. F04000 is the D0 Exports class; F05000 is not a D0 class.
+# FD codes → end-use. F04000 is the Exports class in G/T/D allocation;
+# F05000 (imports) is not an allocation class.
 _FD_DEFAULTS: dict[str, str] = {
     'F01000': 'Residential',
     'F02R00': 'Residential',

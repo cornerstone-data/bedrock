@@ -32,45 +32,57 @@ from bedrock.utils.taxonomy.bea_v2017_to_cornerstone_helpers import (
 
 
 @dataclass(frozen=True)
-class Pre1aAq:
-    """Live A/q after summary ``\"22\"`` and the 0.98 column-sum fix, before 1a."""
+class SummaryYearScaledAq:
+    """Domestic A/q after summary IO year ratios and the 0.98 column-sum cap.
+
+    Captured before electricity children are rescaled to detail GO growth.
+    """
 
     Adom: pd.DataFrame
     q: pd.Series
 
 
-_PRE_1A_A: dict[tuple[int, int], pd.DataFrame] = {}
-_PRE_1A_Q: dict[tuple[int, int], pd.Series] = {}
+_SUMMARY_YEAR_SCALED_A: dict[tuple[int, int], pd.DataFrame] = {}
+_SUMMARY_YEAR_SCALED_Q: dict[tuple[int, int], pd.Series] = {}
 
 
-def clear_pre_1a_aq() -> None:
-    """Wipe the pre-1a intercept store (not only ``@cache``)."""
-    _PRE_1A_A.clear()
-    _PRE_1A_Q.clear()
-    get_pre_1a_aq.cache_clear()
+def clear_summary_year_scaled_aq() -> None:
+    """Wipe the summary-year-scale intercept store (not only ``@cache``)."""
+    _SUMMARY_YEAR_SCALED_A.clear()
+    _SUMMARY_YEAR_SCALED_Q.clear()
+    get_summary_year_scaled_aq.cache_clear()
 
 
-def _store_pre_1a_a(original_year: int, target_year: int, a: pd.DataFrame) -> None:
-    _PRE_1A_A[(int(original_year), int(target_year))] = a.copy()
+def _store_summary_year_scaled_a(
+    original_year: int, target_year: int, a: pd.DataFrame
+) -> None:
+    _SUMMARY_YEAR_SCALED_A[(int(original_year), int(target_year))] = a.copy()
 
 
-def _store_pre_1a_q(original_year: int, target_year: int, q: pd.Series) -> None:
-    _PRE_1A_Q[(int(original_year), int(target_year))] = q.copy()
+def _store_summary_year_scaled_q(
+    original_year: int, target_year: int, q: pd.Series
+) -> None:
+    _SUMMARY_YEAR_SCALED_Q[(int(original_year), int(target_year))] = q.copy()
 
 
 @functools.cache
-def get_pre_1a_aq(original_year: int, target_year: int) -> Pre1aAq:
-    """Return intercepted live pre-1a Adom/q. Does not re-invoke scale."""
+def get_summary_year_scaled_aq(
+    original_year: int, target_year: int
+) -> SummaryYearScaledAq:
+    """Return intercepted summary-year-scaled Adom/q. Does not re-invoke scale."""
     key = (int(original_year), int(target_year))
-    if key not in _PRE_1A_A:
+    if key not in _SUMMARY_YEAR_SCALED_A:
         raise RuntimeError(
-            'pre-1a Adom intercept missing; scale_cornerstone_A(dom) must run first'
+            'summary-year-scaled Adom intercept missing; '
+            'scale_cornerstone_A(dom) must run first'
         )
-    if key not in _PRE_1A_Q:
+    if key not in _SUMMARY_YEAR_SCALED_Q:
         raise RuntimeError(
-            'pre-1a q intercept missing; scale_cornerstone_q must run first'
+            'summary-year-scaled q intercept missing; scale_cornerstone_q must run first'
         )
-    return Pre1aAq(Adom=_PRE_1A_A[key], q=_PRE_1A_Q[key])
+    return SummaryYearScaledAq(
+        Adom=_SUMMARY_YEAR_SCALED_A[key], q=_SUMMARY_YEAR_SCALED_Q[key]
+    )
 
 
 def _get_summary_A(
@@ -184,7 +196,7 @@ def scale_cornerstone_A(
     )
 
     if electricity_disaggregation_enabled() and dom_or_imp_or_total == 'dom':
-        _store_pre_1a_a(original_year, target_year, A_scaled)
+        _store_summary_year_scaled_a(original_year, target_year, A_scaled)
 
     if electricity_disaggregation_enabled():
         from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
@@ -232,7 +244,7 @@ def scale_cornerstone_q(
             rescale_electricity_children_to_detail_GO_growth_q,
         )
 
-        _store_pre_1a_q(original_year, target_year, q_scaled)
+        _store_summary_year_scaled_q(original_year, target_year, q_scaled)
         q_scaled = rescale_electricity_children_to_detail_GO_growth_q(
             q_scaled, original_year, target_year
         )

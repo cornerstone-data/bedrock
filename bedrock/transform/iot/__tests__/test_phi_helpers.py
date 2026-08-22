@@ -65,7 +65,7 @@ def test_phi_for_sectors_identity_when_inactive(_mock_active: MagicMock) -> None
 @patch(
     'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa_at_year'
 )
-def test_phi_electricity_children_forced_to_one_when_3way_on(
+def test_phi_electricity_children_forced_to_one_when_disaggregation_on(
     mock_phi: MagicMock,
     _mock_active: MagicMock,
     mock_cfg: MagicMock,

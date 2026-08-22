@@ -86,14 +86,14 @@ def _clear_all_caches() -> None:
             fn.cache_clear()
     clear_cornerstone_inflation_caches()
     from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        clear_pre_1a_aq,
+        clear_summary_year_scaled_aq,
     )
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
-        clear_p5_electricity_q,
+        clear_reanchored_electricity_q,
     )
 
-    clear_pre_1a_aq()
-    clear_p5_electricity_q()
+    clear_summary_year_scaled_aq()
+    clear_reanchored_electricity_q()
 
 
 def _setup_config(config_name: str) -> None:

@@ -1,4 +1,4 @@
-"""EIA-anchored G/T/D purchaser allocation (Discussion #88).
+"""EIA-anchored generation / transmission / distribution purchaser allocation.
 
 Pure allocator plus the 2017 cached getter and Use/Y/A/q writers.
 Table 2.2 / 2.14 / 3.1 loaders live in ``egrid_generation``.
@@ -29,7 +29,7 @@ from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
 logger = logging.getLogger(__name__)
 
-_P5_ELECTRICITY_Q: pd.Series | None = None
+_REANCHORED_ELECTRICITY_Q: pd.Series | None = None
 
 
 def _cell_float(frame: pd.DataFrame, row: str, col: str) -> float:
@@ -49,24 +49,26 @@ def _as_float_series(obj: object) -> pd.Series:
     return obj.astype(float)
 
 
-def set_p5_electricity_q(q: pd.Series) -> None:
-    """Record published G/T/D ``q`` for the GHG-year ``x`` split (after P5)."""
-    global _P5_ELECTRICITY_Q
-    _P5_ELECTRICITY_Q = q.reindex(ELECTRICITY_DISAGG_SECTORS).astype(float).copy()
+def set_reanchored_electricity_q(q: pd.Series) -> None:
+    """Record published G/T/D ``q`` after A/q reanchor, for the GHG-year ``x`` split."""
+    global _REANCHORED_ELECTRICITY_Q
+    _REANCHORED_ELECTRICITY_Q = (
+        q.reindex(ELECTRICITY_DISAGG_SECTORS).astype(float).copy()
+    )
 
 
-def clear_p5_electricity_q() -> None:
-    global _P5_ELECTRICITY_Q
-    _P5_ELECTRICITY_Q = None
+def clear_reanchored_electricity_q() -> None:
+    global _REANCHORED_ELECTRICITY_Q
+    _REANCHORED_ELECTRICITY_Q = None
 
 
-def p5_electricity_q_shares() -> pd.Series | None:
-    if _P5_ELECTRICITY_Q is None:
+def reanchored_electricity_q_shares() -> pd.Series | None:
+    if _REANCHORED_ELECTRICITY_Q is None:
         return None
-    total = float(_P5_ELECTRICITY_Q.sum())
+    total = float(_REANCHORED_ELECTRICITY_Q.sum())
     if total <= 0:
         return None
-    return _P5_ELECTRICITY_Q / total
+    return _REANCHORED_ELECTRICITY_Q / total
 
 
 ELECTRICITY_AGGREGATE = '221100'
@@ -88,7 +90,7 @@ _WATER_FILL_ATOL = 1e-9
 
 @dataclass(frozen=True)
 class PurchaserAllocation:
-    """Per-purchaser D8 split aligned to ``bills.index``."""
+    """Per-purchaser generation / T&D split aligned to ``bills.index``."""
 
     bill: pd.Series
     end_use_class: pd.Series
@@ -201,9 +203,10 @@ def allocate_purchaser_gtd(
     p_share_2017: float,
     td_share_2017: float,
 ) -> PurchaserAllocation:
-    """Allocate domestic electricity bills to G/T/D (D0/D8/D10).
+    """Allocate domestic electricity bills to generation, transmission, and distribution.
 
-    ``bills`` is domestic D8 only (Use columns ∪ Y columns). Do not pass Uimp.
+    ``bills`` is domestic Use columns union Y columns. Do not pass Uimp —
+    imported Use is written onto the generation row separately.
     ``self_use_key`` is always ``'221100'``. Class dollar weights use
     ``clip(lower=0)`` for shares only; if ``bill <= 0``, ``gen = 0``.
     """
@@ -299,8 +302,9 @@ def write_purchaser_gtd_use_and_y(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Write G/T/D commodity rows; leave ``U[221100,221100]`` on the aggregate.
 
-    P2: Use columns ``≠ 221100`` and all Y columns. Uimp generation-row only
-    for ``j ≠ 221100``. Does not drop ``221100``.
+    Applies to Use columns other than ``221100`` and to all Y columns.
+    Imported Use is written onto the generation row only for those columns.
+    Does not drop ``221100``.
     """
     agg = ELECTRICITY_AGGREGATE
     children = list(ELECTRICITY_DISAGG_SECTORS)
@@ -353,7 +357,7 @@ def write_purchaser_gtd_use_and_y(
     return Udom, Uimp, Y
 
 
-def write_use_intersection_d10_d11(
+def write_gtd_use_intersection(
     Udom: pd.DataFrame,
     Uimp: pd.DataFrame,
     allocation: PurchaserAllocation,
@@ -549,7 +553,7 @@ def _spill_generation_nonfuel(
     return Udom, Uimp
 
 
-def _p5_f04000_bill(
+def _scaled_export_fd_bill(
     *,
     original_year: int,
     target_year: int,
@@ -588,7 +592,7 @@ def _p5_f04000_bill(
     return float(pd.Series(inflated).sum())
 
 
-def _p5_inflate_pre1a(
+def _inflate_summary_year_scaled_aq(
     *,
     original_year: int,
     target_year: int,
@@ -596,7 +600,7 @@ def _p5_inflate_pre1a(
     use_commodity_pi: bool,
 ) -> tuple[pd.DataFrame, pd.Series]:
     from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        get_pre_1a_aq,
+        get_summary_year_scaled_aq,
     )
     from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
         inflate_cornerstone_A_matrix_with_commodity_pi,
@@ -605,7 +609,7 @@ def _p5_inflate_pre1a(
         inflate_cornerstone_q_or_y_with_industry_pi,
     )
 
-    pre = get_pre_1a_aq(original_year, target_year)
+    pre = get_summary_year_scaled_aq(original_year, target_year)
     if use_commodity_pi:
         adom = inflate_cornerstone_A_matrix_with_commodity_pi(
             pre.Adom, original_year=original_year, target_year=model_year
@@ -623,7 +627,7 @@ def _p5_inflate_pre1a(
     return adom, q
 
 
-def _p5_bills_series(
+def _purchaser_bills_from_aq(
     adom_bills: pd.DataFrame,
     q_bills: pd.Series,
 ) -> pd.Series:
@@ -663,7 +667,7 @@ def reanchor_electricity_aq_after_year_scaling(
     model_year: int,
     use_commodity_pi: bool,
 ) -> SingleRegionAqMatrixSet:
-    """Rewrite published A/q electricity G/T/D after PI (P5)."""
+    """Rewrite published A/q electricity G/T/D after price-index inflation."""
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         GENERATION_FUEL_COMMODITIES,
     )
@@ -674,19 +678,19 @@ def reanchor_electricity_aq_after_year_scaling(
     q = aq.scaled_q.astype(float).copy()
     elec = list(ELECTRICITY_DISAGG_SECTORS)
 
-    adom_bills, q_bills = _p5_inflate_pre1a(
+    adom_bills, q_bills = _inflate_summary_year_scaled_aq(
         original_year=original_year,
         target_year=target_year,
         model_year=model_year,
         use_commodity_pi=use_commodity_pi,
     )
     from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        get_pre_1a_aq,
+        get_summary_year_scaled_aq,
     )
 
-    pre = get_pre_1a_aq(original_year, target_year)
-    bills = _p5_bills_series(adom_bills, q_bills)
-    bills[EXPORT_FD_CODE] = _p5_f04000_bill(
+    pre = get_summary_year_scaled_aq(original_year, target_year)
+    bills = _purchaser_bills_from_aq(adom_bills, q_bills)
+    bills[EXPORT_FD_CODE] = _scaled_export_fd_bill(
         original_year=original_year,
         target_year=target_year,
         model_year=model_year,
@@ -756,7 +760,7 @@ def reanchor_electricity_aq_after_year_scaling(
     w = q.reindex(elec).astype(float)
     w_sum = float(w.sum())
     if w_sum <= 0:
-        raise ValueError('P5 electricity q totals are non-positive')
+        raise ValueError('reanchored electricity q totals are non-positive')
     w = w / w_sum
 
     skip_rows = set(elec)
@@ -780,7 +784,7 @@ def reanchor_electricity_aq_after_year_scaling(
     q_safe = q.replace(0.0, np.nan)
     adom_out = udom.divide(q_safe, axis=1).fillna(0.0)
     aimp_out = uimp.divide(q_safe, axis=1).fillna(0.0)
-    set_p5_electricity_q(q)
+    set_reanchored_electricity_q(q)
     return SingleRegionAqMatrixSet(
         Adom=cast(pt.DataFrame[AMatrix], adom_out),
         Aimp=cast(pt.DataFrame[AMatrix], aimp_out),

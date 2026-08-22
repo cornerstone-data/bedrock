@@ -1,4 +1,4 @@
-"""Tests for 221100 electricity sector disaggregation (PR3)."""
+"""Tests for 221100 electricity sector disaggregation."""
 
 from __future__ import annotations
 
@@ -86,14 +86,14 @@ def _clear_all_caches() -> None:
             fn.cache_clear()
     clear_cornerstone_inflation_caches()
     from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        clear_pre_1a_aq,
+        clear_summary_year_scaled_aq,
     )
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
-        clear_p5_electricity_q,
+        clear_reanchored_electricity_q,
     )
 
-    clear_pre_1a_aq()
-    clear_p5_electricity_q()
+    clear_summary_year_scaled_aq()
+    clear_reanchored_electricity_q()
 
 
 def _setup_config(config_name: str) -> None:
@@ -224,7 +224,7 @@ class TestElectricityDisaggregationPipeline:
 
 
 @pytest.mark.eeio_integration
-class TestD10D11UseIntersection:
+class TestGtdUseIntersection:
     def test_udom_diagonals_and_uimp_generation_only(
         self, electricity_disagg_config: str
     ) -> None:
@@ -290,7 +290,7 @@ class Test2017PurchaserAllocation:
 
 
 @pytest.mark.eeio_integration
-class TestD7PureScaling:
+class TestDetailGoGrowthScaling:
     def test_differentiated_child_q_scaling(
         self, electricity_disagg_config: str
     ) -> None:
@@ -315,7 +315,7 @@ class TestD7PureScaling:
             _teardown()
 
     def test_apply_io_plus_elec_child_q_matches_detail_GO_growth(self) -> None:
-        """D7 denom must use applied (ITA) \"22\" so net child growth is GO_i."""
+        """Summary Utilities-22 growth must use the ITA-rebased ratio so net child growth is GO_i."""
         _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
         try:
             from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
@@ -337,8 +337,8 @@ class TestD7PureScaling:
         finally:
             _teardown()
 
-    def test_published_q_is_not_1a_result(self) -> None:
-        """P5 overwrites 1a child q on derive_cornerstone_Aq_scaled."""
+    def test_published_q_is_not_detail_go_growth_q(self) -> None:
+        """Published q is rewritten after year-scale + PI, not left as GO-growth q."""
         _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
         try:
             from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
@@ -348,27 +348,27 @@ class TestD7PureScaling:
 
             cfg = get_usa_config()
             q_pre = derive_cornerstone_Aq().scaled_q.astype(float)
-            q_1a = scale_cornerstone_q(
+            q_year_scaled = scale_cornerstone_q(
                 q_pre,
                 target_year=int(cfg.usa_io_data_year),  # type: ignore[arg-type]
                 original_year=int(cfg.usa_detail_original_year),  # type: ignore[arg-type]
             )
-            q_1a_pi = inflate_cornerstone_q_or_y_with_commodity_pi(
-                q_1a,
+            q_year_scaled_pi = inflate_cornerstone_q_or_y_with_commodity_pi(
+                q_year_scaled,
                 original_year=int(cfg.usa_detail_original_year),
                 target_year=int(cfg.model_base_year),
             )
             published = derive_cornerstone_Aq_scaled().scaled_q.astype(float)
             for code in ELECTRICITY_DISAGG_SECTORS:
                 assert float(published.loc[code]) != pytest.approx(
-                    float(q_1a_pi.loc[code]), rel=1e-4, abs=1.0
+                    float(q_year_scaled_pi.loc[code]), rel=1e-4, abs=1.0
                 )
         finally:
             _teardown()
 
 
 @pytest.mark.eeio_integration
-class TestP5OrderLock:
+class TestReanchoredAqIdentities:
     def test_adom_times_q_matches_allocated_udom(self) -> None:
         _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
         try:

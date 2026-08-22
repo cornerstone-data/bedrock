@@ -129,9 +129,9 @@ def _clear_electricity_caches_if_loaded() -> None:
     gtd = sys.modules.get('bedrock.transform.eeio.electricity_gtd_allocation')
     if gtd is not None:
         _clear_cached_attrs(gtd, ('get_2017_purchaser_allocation',))
-        clear_p5 = getattr(gtd, 'clear_p5_electricity_q', None)
-        if callable(clear_p5):
-            clear_p5()
+        clear_reanchored = getattr(gtd, 'clear_reanchored_electricity_q', None)
+        if callable(clear_reanchored):
+            clear_reanchored()
     eum = sys.modules.get('bedrock.transform.eeio.electricity_end_use_mapping')
     if eum is not None:
         # No @cache today; keep for future-proofing if helpers become cached.
@@ -143,8 +143,8 @@ def _clear_electricity_caches_if_loaded() -> None:
             ),
         )
     cys = sys.modules.get('bedrock.transform.eeio.cornerstone_year_scaling')
-    if cys is not None and hasattr(cys, 'clear_pre_1a_aq'):
-        cys.clear_pre_1a_aq()
+    if cys is not None and hasattr(cys, 'clear_summary_year_scaled_aq'):
+        cys.clear_summary_year_scaled_aq()
     egrid = sys.modules.get('bedrock.extract.disaggregation.egrid_generation')
     if egrid is not None:
         _clear_cached_attrs(
