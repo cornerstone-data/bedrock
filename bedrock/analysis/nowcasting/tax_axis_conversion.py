@@ -131,6 +131,73 @@ conversion is served by the level split, which exists, plus a handful of
 named-line routings, which are enumerated.  That is a seed worth giving Step 5,
 and it is still a seed: 29.9% absolute error is not a target.
 
+Construction needs nothing at all
+---------------------------------
+
+✅ **The construction block converts on plain market shares: correlation 1.000,
+absolute error 31 = 1.7% of the block.**  Commodity ``TOP`` on the twelve
+construction commodities is 1,907 against a published ``T00TOP`` of 1,857 on the
+twelve construction industries, and ``MDTY`` and ``SUB`` are *zero* on both axes
+-- there is no duties question and no subsidy question in this block.
+
+It was worth probing because construction is block-shaped in the same way the
+trade industries are, and could have been a second petroleum.  It is the
+opposite, and the reason is the Make matrix.  BEA defines the construction
+industries *by type of structure*, so the block is diagonal by construction:
+94.5% of construction commodity output is made inside the block and **100.0% of
+that is on the diagonal**.  There is no producer-versus-seller distinction to get
+wrong, because whoever builds the structure sells it.  The level split agrees --
+:func:`~bedrock.transform.iot.nowcast_product_taxes.top_by_level` puts 100% of
+construction ``TOP`` at producer level and nothing at trade level -- so the
+routings that rescue wholesale are inert here, and the three operators of the
+progression above all give the same number.
+
+The tax sits on three of the twelve codes, none of them a ``NAMED_TAX_LINES``
+entry (all three ride the residual, frozen-2017-share block of Step 4d):
+
+=============================================  =======  ==========  ======
+commodity                                        ``TOP``  published    diff
+=============================================  =======  ==========  ======
+``2334A0`` other residential structures            962         962       0
+``230301`` nonresidential maintenance and repair   628         605     -23
+``230302`` residential maintenance and repair      317         290     -27
+=============================================  =======  ==========  ======
+
+The residual 1.7% is a *leak*, and market shares get its direction right and its
+size roughly half.  5.5% of construction commodity output is own-account or
+secondary work by non-construction industries -- ``531HST`` tenant-occupied
+housing 20,279, state and local government 19,991 -- so both the published row
+and the operator move a little maintenance-and-repair tax off the block:
+published moves 50, market shares move 30.4, mostly to durable-goods wholesalers
+and building-material retailers.  Inflow the other way is 2.5, in one cell.
+
+Do the remaining sectors need the same probe?  No
+-------------------------------------------------
+
+⚠️ **The residual error is 20 industries, not 402.**  Under the best operator,
+the top 20 industries by absolute error carry **80.3%** of it and the top 5 carry
+35.1%; 17 of those 20 are wholesale or retail.  By block:
+
+==================  ==========  =============  ====================
+block                published  share of row   share of the error
+==================  ==========  =============  ====================
+wholesale              172,194          22.8%                 41.9%
+retail                 210,297          27.8%                 33.7%
+non-trade              334,447          44.3%                 24.4%
+``4200ID`` customs      38,513           5.1%                  0.0%
+==================  ==========  =============  ====================
+
+So what is left is the *within-trade allocation* already characterised above,
+plus five named non-trade structures: ``721000`` accommodation (lodging tax,
+-6,592), ``517210`` wireless (-4,310), ``221100`` electric power (-3,934), and
+government enterprises handed tax they do not carry (``S00202`` +3,439 against a
+published zero, ``GSLGE`` +1,698 -- these belong to the Step 7 reallocation, see
+`gov_enterprise_reallocation`).  Construction was the last block-shaped unknown
+worth a sweep of its own, and it came back exact.  **Build against this seed and
+repair the named twenty later**, rather than probing the remaining sectors one
+by one: Step 5's balance moves these cells under soft targets anyway, so seed
+accuracy below the block level is not what the build is waiting on.
+
 Usage::
 
     uv run python -m bedrock.analysis.nowcasting.tax_axis_conversion
@@ -171,6 +238,18 @@ CUSTOMS_INDUSTRY = '4200ID'
 #: on 3.4% of wholesale output, and the single reason within-wholesale
 #: differentiation is needed at all.
 PETROLEUM_WHOLESALERS = '424700'
+
+#: Construction codes share a prefix and are the same twelve on both axes.
+CONSTRUCTION_PREFIX = '23'
+
+#: The construction block converts on market shares alone; anything above this
+#: means the diagonal Make block has stopped doing the work.  Measured: 1.7%.
+CONSTRUCTION_ERROR_BAR = 0.10
+
+#: How many industries carry 80% of the best operator's remaining error.  It is
+#: 20, which is why the remaining sectors get repaired by name rather than
+#: probed one by one.
+ERROR_CONCENTRATION_RANK = 20
 
 
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -331,6 +410,86 @@ def level_split_estimates() -> dict[str, 'pd.Series[float]']:
     }
 
 
+def construction_codes() -> list[str]:
+    """The twelve construction codes, identical on the commodity and industry axes."""
+    commodities = [
+        c for c in USA_2017_COMMODITY_CODES if str(c).startswith(CONSTRUCTION_PREFIX)
+    ]
+    industries = [
+        i for i in USA_2017_INDUSTRY_CODES if str(i).startswith(CONSTRUCTION_PREFIX)
+    ]
+    assert set(commodities) == set(industries), 'construction axes have diverged'
+    return commodities
+
+
+def construction_scores() -> dict[str, float]:
+    """How closely the two axes agree on construction, and why they can.
+
+    Kept out of :func:`trade_groups` deliberately -- construction sits inside
+    that function's ``non-trade`` block, and at 0.25% of the row it does not move
+    the 0.987 measured there.  This is the block read on its own terms.
+    """
+    supply, use = _frames()
+    commodities = list(USA_2017_COMMODITY_CODES)
+    codes = construction_codes()
+
+    top = supply.loc[commodities, 'TOP'].astype(float).reindex(codes)
+    duties = supply.loc[commodities, 'MDTY'].astype(float).reindex(codes)
+    subsidies = -supply.loc[commodities, 'SUB'].astype(float).reindex(codes)
+    published = published_row(use, 'T00TOP').reindex(codes).fillna(0.0)
+    estimate = (
+        convert_to_industry(supply.loc[commodities, 'TOP'].astype(float))
+        .reindex(codes)
+        .fillna(0.0)
+    )
+
+    # Diagonality is the reason the conversion works: each construction
+    # commodity is made by the industry of the same name, so market shares have
+    # no producer-versus-seller decision to get wrong.
+    make = supply.loc[commodities, list(USA_2017_INDUSTRY_CODES)].astype(float)
+    block = make.loc[codes, codes]
+    in_block = float(block.to_numpy().sum())
+    absolute_error = float((estimate - published).abs().sum())
+
+    return {
+        'commodity_top': float(top.sum()),
+        'commodity_mdty': float(duties.sum()),
+        'commodity_sub': float(subsidies.sum()),
+        'published_top': float(published.sum()),
+        'estimate_top': float(estimate.sum()),
+        'correlation': float(np.corrcoef(estimate, published)[0, 1]),
+        'absolute_error': absolute_error,
+        'error_share': absolute_error / float(published.sum()),
+        'in_block_share': in_block / float(make.loc[codes].to_numpy().sum()),
+        'diagonal_share': float(np.diag(block.to_numpy()).sum()) / in_block,
+        'taxed_codes': float((top != 0).sum()),
+    }
+
+
+def error_concentration() -> dict[str, float]:
+    """How few industries carry the best operator's remaining error.
+
+    The answer to "do the other sectors each need their own probe": no, because
+    the residual is not spread over 402 of them.
+    """
+    _, use = _frames()
+    published = published_row(use, 'T00TOP')
+    best = list(level_split_estimates().values())[-1]
+    error = (best - published).abs().sort_values(ascending=False)
+    total = float(error.sum())
+    trade = set(trade_groups()['wholesale'] + trade_groups()['retail'])
+    ranked = list(error.index[:ERROR_CONCENTRATION_RANK])
+    return {
+        'total_error': total,
+        'top_5_share': float(error.iloc[:5].sum()) / total,
+        f'top_{ERROR_CONCENTRATION_RANK}_share': float(
+            error.iloc[:ERROR_CONCENTRATION_RANK].sum()
+        )
+        / total,
+        'trade_in_top_rank': float(sum(1 for i in ranked if i in trade)),
+    }
+
+
 def trade_concentration() -> dict[str, float]:
     """How much of the published ``T00TOP`` row sits in trade industries."""
     _, use = _frames()
@@ -386,12 +545,43 @@ def report() -> None:
         )
 
     print()
-    print(f"{'within-group, best operator':<46}{'corr':>7}{'|error|':>13}")
+    print(f"{'within-group, best operator':<46}{'corr':>7}{'|error|':>13}{'of err':>9}")
     best = list(level_split_estimates().values())[-1]
+    total_error = float((best - published).abs().sum())
     for group, codes in trade_groups().items():
         error = float((best[codes] - published[codes]).abs().sum())
         correlation = float(np.corrcoef(best[codes], published[codes])[0, 1])
-        print(f'{group:<46}{correlation:>7.3f}{error:>13,.0f}')
+        print(
+            f'{group:<46}{correlation:>7.3f}{error:>13,.0f}'
+            f'{error / total_error:>9.1%}'
+        )
+
+    construction = construction_scores()
+    print()
+    print(
+        f"construction: commodity TOP {construction['commodity_top']:,.0f} vs "
+        f"published {construction['published_top']:,.0f}, market shares give "
+        f"corr {construction['correlation']:.3f} and "
+        f"|error| {construction['absolute_error']:,.0f} "
+        f"= {construction['error_share']:.1%}"
+    )
+    print(
+        f"  MDTY {construction['commodity_mdty']:,.0f}, "
+        f"SUB {construction['commodity_sub']:,.0f}, "
+        f"taxed on {construction['taxed_codes']:.0f} of "
+        f'{len(construction_codes())} codes; Make block is '
+        f"{construction['in_block_share']:.1%} in-block and "
+        f"{construction['diagonal_share']:.1%} diagonal"
+    )
+
+    concentration = error_concentration()
+    print()
+    print(
+        f'remaining error is concentrated: top 5 industries carry '
+        f"{concentration['top_5_share']:.1%}, top {ERROR_CONCENTRATION_RANK} carry "
+        f"{concentration[f'top_{ERROR_CONCENTRATION_RANK}_share']:.1%}, of which "
+        f"{concentration['trade_in_top_rank']:.0f} are trade industries"
+    )
 
 
 def check() -> int:
@@ -451,6 +641,43 @@ def check() -> int:
                 f'T00TOP; within-wholesale resolution may no longer reduce to '
                 f'one named routing'
             )
+
+    # Construction: the block that needs no operator beyond market shares.
+    construction = construction_scores()
+    if construction['correlation'] < USABLE_CORRELATION:
+        failures.append(
+            f'construction now converts at correlation '
+            f'{construction["correlation"]:.3f}; the diagonal Make block no '
+            f'longer carries the conversion on its own'
+        )
+    if construction['error_share'] > CONSTRUCTION_ERROR_BAR:
+        failures.append(
+            f'construction conversion error is now '
+            f'{construction["error_share"]:.1%} of the block, above '
+            f'{CONSTRUCTION_ERROR_BAR:.0%}'
+        )
+    if construction['diagonal_share'] < 0.999:
+        failures.append(
+            f'the construction Make block is only '
+            f'{construction["diagonal_share"]:.2%} diagonal; the argument that '
+            f'construction has no producer-versus-seller problem rests on it'
+        )
+    if construction['commodity_mdty'] or construction['commodity_sub']:
+        failures.append(
+            f'construction now carries MDTY '
+            f'{construction["commodity_mdty"]:,.0f} or SUB '
+            f'{construction["commodity_sub"]:,.0f}; it is no longer a TOP-only block'
+        )
+
+    # The reason the remaining sectors are repaired by name, not swept.
+    concentration = error_concentration()
+    if concentration[f'top_{ERROR_CONCENTRATION_RANK}_share'] < 0.6:
+        failures.append(
+            f'the top {ERROR_CONCENTRATION_RANK} industries now carry only '
+            f'{concentration[f"top_{ERROR_CONCENTRATION_RANK}_share"]:.1%} of the '
+            f'error; it has spread, and a broader sector sweep may be needed '
+            f'after all'
+        )
 
     for failure in failures:
         print(f'FAIL: {failure}')

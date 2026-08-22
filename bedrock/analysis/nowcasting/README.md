@@ -78,8 +78,12 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   product tax with the producer rather than the seller. Also scores the operator
   that does work — Step 4c's producer-level/trade-level split plus one named
   routing for motor fuel, corr 0.946 — and answers how far trade industries have
-  to be differentiated within wholesale and within retail. `--check` asserts the
-  findings; Step 2 and Step 5 both lean on them.
+  to be differentiated within wholesale and within retail. Construction is read
+  separately and converts exactly (corr 1.000, error 1.7%) because its Make block
+  is 100% diagonal, and `error_concentration` shows the remaining error is 20
+  industries rather than 402, which is the case for building against the seed and
+  repairing by name later. `--check` asserts the findings; Step 2 and Step 5 both
+  lean on them.
 
 - [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
   any NIPA table as a flat frame with its hierarchy intact

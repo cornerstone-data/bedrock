@@ -249,7 +249,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | Block | Status |
 |---|---|
 | Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 24 NIPA tables extracted and reconciled (#536); three FBS methods to build — Step 2 |
-| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded. See Step 2 |
+| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split. Construction converts exactly; the residual is 20 named industries. See Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3 |
 
 ### SUT Supply — every column
@@ -775,6 +775,35 @@ targets — but *free* is not *unseeded*, and two pieces of structure are in han
 - `T00SUB`'s residual is two named structures rather than a smear — government enterprises `S00203`
   (19,471 published vs 1,964) and `S00102` (6,339 vs 102) are subsidies paid to an *operator*, so no
   product-side operator can place them. `T30800` already carries them.
+- ✅ **Construction needs none of this — it converts on plain market shares, corr 1.000, error 1.7%.**
+  Commodity `TOP` is 1,907 against a published `T00TOP` of 1,857, and `MDTY` and `SUB` are zero on both
+  axes. Probed because construction is block-shaped like the trade industries and could have been a
+  second petroleum; it is the opposite, because BEA defines the construction industries *by type of
+  structure*, so the Make block is 94.5% in-block and **100.0% diagonal** — no producer-versus-seller
+  distinction exists when whoever builds the structure sells it. `top_by_level` agrees: 100% of
+  construction `TOP` is producer-level, so the trade routings are inert here. Tax sits on 3 of the 12
+  codes, none of them a `NAMED_TAX_LINES` entry. The residual 1.7% is a leak to own-account and
+  secondary construction (5.5% of the block's output, largely `531HST` and state and local government);
+  market shares leak 30.4 where the published row leaks 50 — right direction, about half the size.
+
+⚠️ **Do the remaining sectors each need the same probe? No — the residual error is 20 industries, not
+402.** Under the best operator the top 20 industries by absolute error carry **80.3%** of it and the top
+5 carry 35.1%, and 17 of those 20 are wholesale or retail:
+
+| block | published | share of row | share of the error |
+|---|---:|---:|---:|
+| wholesale | 172,194 | 22.8% | 41.9% |
+| retail | 210,297 | 27.8% | 33.7% |
+| non-trade | 334,447 | 44.3% | 24.4% |
+| `4200ID` customs | 38,513 | 5.1% | 0.0% |
+
+What is left is the within-trade allocation already characterised, plus five named non-trade
+structures — `721000` accommodation (lodging tax, −6,592), `517210` wireless (−4,310), `221100`
+electric power (−3,934), and government enterprises handed tax they do not carry (`S00202` +3,439
+against a published zero, `GSLGE` +1,698, both of which belong to the Step 7 reallocation). Construction
+was the last block-shaped unknown worth a sweep of its own and it came back exact, so **build against
+this seed and repair the named twenty later**: Step 5's balance moves these cells under soft targets
+anyway, so seed accuracy below the block level is not what the build is waiting on.
 
 ✅ **Decided 2026-08-22 — three FBS methods, one per Use row**, rather than one method or plain Python
 modules. Reasoning, and the evidence behind it:
