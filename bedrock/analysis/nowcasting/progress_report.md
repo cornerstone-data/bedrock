@@ -13,12 +13,12 @@ uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
-**Snapshot date:** 2026-08-21. Step 1 is a live `derive_initial_Y_pur`
+**Snapshot date:** 2026-08-22. Step 1 is a live `derive_initial_Y_pur`
 (`NIPA_final_dom_uses_2017`, Trade `F04000`, `Inventories_2017` on `F03000`).
-Step 4 is a live `derive_initial_supply_bridge` and this is the snapshot where
-it stops being an imports-only column: **`T007` (#570) and `TRADE` (#613) both
-land**, joining `MCIF`, `MDTY`, `MADJ` and `TRANS`. `TOP`/`SUB` and the
-subtotals remain unsourced.
+Step 4 is a live `derive_initial_supply_bridge`, and with **`TOP` and `SUB`
+(#580)** it populates **all twelve bridge columns** for 2017 for the first time.
+No component of the block is unsourced, so `T013`, `T014`, `T015` and `T016` are
+evaluable rather than NaN, and the block can finally be scored as a whole.
 
 ---
 
@@ -28,7 +28,7 @@ subtotals remain unsourced.
 |---|---|---|---:|---:|---|---:|---:|
 | `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **95.5%** | **55.1%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
-| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (T007, MCIF, MADJ, MDTY, TRADE, TRANS) | **43.7%** | **55.5%** |
+| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (all 12 columns) | **99.0%** | **61.8%** |
 
 **coverage** = of the cells the reference populates, how many we populate.
 **accuracy** = of the cells we populate, how many land within tolerance.
@@ -183,32 +183,45 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 
 | scope | absent | match | partial | miss | extra |
 |---|---:|---:|---:|---:|---:|
-| cells | 1,599 | 777 | 622 | 1,803 | 23 |
-| row totals | 3 | 0 | 392 | 1 | 6 |
-| column totals | 0 | 3 | 1 | 8 | 0 |
+| cells | 1,592 | 1,958 | 1,211 | 33 | 30 |
+| row totals | 3 | 200 | 192 | 1 | 6 |
+| column totals | 0 | 8 | 2 | 2 | 0 |
 
 | | |
 |---|---:|
-| coverage | 43.7% |
-| accuracy | 55.5% |
-| candidate grand total | $36.47T |
+| coverage | 99.0% |
+| accuracy | 61.8% |
+| candidate grand total | $111.39T |
 | reference grand total | $111.28T |
-| grand total error | 67.2% |
+| grand total error | **0.092%** |
 
-### What moved since 2026-08-19
+### What moved since 2026-08-21
 
-Coverage 14.5% → **43.7%**, accuracy 21.2% → **55.5%**, whole-column misses
-9 → 8, grand total error 97.6% → **67.2%**. Two columns landed:
+Coverage 65.0% → **99.0%**, accuracy 54.1% → **61.8%**, whole-column misses
+6 → 2, grand total error 34.5% → **0.092%**. The block went from two thirds
+sourced to complete. Two columns landed, and with them the four subtotals:
 
-- **`T007` is sourced** ([#570](https://github.com/cornerstone-data/bedrock/issues/570),
-  merged in #681) — the row margin of the `Detail_Supply_<year>` FBS
-  domestic-output block, for every year 2017-2024. It is the largest column in
-  the block at $33.8T, which is why it alone moves the grand total error by
-  30 points.
-- **`TRADE` is sourced** ([#613](https://github.com/cornerstone-data/bedrock/issues/613),
-  this branch) — anchored on the published 2017 give-up and moved by the Census
-  wholesale and retail gross margin, split into wholesale, retail and
-  trade-level tax.
+- **`TOP` is sourced** ([#580](https://github.com/cornerstone-data/bedrock/issues/580),
+  this branch) — NIPA T30500 taxes on products less customs duties for the
+  annual total, ten named NIPA product lines placed on their own commodities
+  (29.8% of the column), and the general-sales-tax residual on frozen 2017
+  shares. **2017-2024.**
+- **`SUB` is sourced** (same issue) — NIPA T31300 for the total, each commodity
+  anchored on its published 2017 value and moved by its own NIPA type line.
+  ⚠️ 2020 and 2021 replace the `other` type — 84% of the column in those years —
+  with BEA's published allocation of PPP across industries, because moving the
+  2017 `other` vector would put ~377bn of pandemic support on insurance carriers
+  and freezing the whole column would put ~420bn of it on housing. **2017-2024.**
+
+⚠️ **The 339 of 339 and 15 of 15 are replays, not scores.** Both columns are
+anchored on the published 2017 table, so 2017 reconstructs it by construction
+and these rows check arithmetic, not accuracy — the same caveat `TRADE` carries
+for the same reason. 2018-2024 have no published column to score against at all.
+What the construction buys in those years is that the parts move on NIPA's own
+annual measurement instead of on the column's growth rate: for `TOP` that is
+29.8% of the column, differing from the default proposal by 3.7% of 2020 and
+5.8% of 2024; for `SUB` it is the whole column, and the difference there is the
+420bn above.
 
 ### Per-column, which is the only way to read this block
 
@@ -217,20 +230,21 @@ Coverage 14.5% → **43.7%**, accuracy 21.2% → **55.5%**, whole-column misses
 | `T007` | 3 | **399** | 0 | 0 | 0 | **100.0%** | **100.0%** |
 | `MCIF` | 99 | 24 | 247 | 27 | 5 | 90.9% | 8.7% |
 | `MADJ` | 396 | **6** | 0 | 0 | 0 | **100.0%** | **100.0%** |
-| `T013` | 1 | 0 | 0 | 401 | 0 | — | — |
+| `T013` | 1 | 216 | 184 | 1 | 0 | 99.8% | 54.0% |
 | `TRADE` | 128 | **274** | 0 | 0 | 0 | **100.0%** | **100.0%** |
 | `TRANS` | 139 | 6 | 257 | 0 | 0 | **100.0%** | 2.3% |
-| `T014` | 120 | 0 | 0 | 282 | 0 | — | — |
+| `T014` | 120 | 132 | 150 | 0 | 0 | **100.0%** | 46.8% |
 | `MDTY` | 194 | 68 | 118 | 4 | 18 | 97.9% | 33.3% |
-| `TOP` | 63 | 0 | 0 | 339 | 0 | — | — |
-| `SUB` | 387 | 0 | 0 | 15 | 0 | — | — |
-| `T015` | 60 | 0 | 0 | 342 | 0 | — | — |
-| `T016` | 9 | 0 | 0 | 393 | 0 | — | — |
+| `TOP` | 63 | **339** | 0 | 0 | 0 | **100.0%** | **100.0%** |
+| `SUB` | 387 | **15** | 0 | 0 | 0 | **100.0%** | **100.0%** |
+| `T015` | 59 | 279 | 63 | 0 | 1 | **100.0%** | 81.3% |
+| `T016` | 3 | 200 | 192 | 1 | 6 | 99.7% | 50.3% |
 
-**`T007` and `TRADE` are exact.** 399 of 399 and 274 of 274 populated cells land
-inside tolerance — not "close", but every cell. `T007`'s column total is
-33,772,550 against a published 33,772,566: **$16M apart on $33.8T**, which is
-BEA's own rounding grain.
+**`T007`, `TRADE` and `TOP` are exact.** 399 of 399, 274 of 274 and 339 of 339
+populated cells land inside tolerance — not "close", but every cell. `T007`'s
+column total is 33,772,550 against a published 33,772,566: **$16M apart on
+$33.8T**, which is BEA's own rounding grain. `TOP`'s is 716,925 against 716,926,
+and that one is NIPA's reading of the same quantity rather than a fit.
 
 **`TRANS` is the opposite shape, and that is the finding.** It reaches every
 commodity the reference populates — 100% coverage, zero misses — but only 6 of
@@ -247,9 +261,18 @@ $33.8T table, and `atol` is $0.5M. So the column-total strip marks a
 cell-for-cell exact column as a miss. Read the per-column table above, not the
 column-total strip, for these two.
 
-`MCIF` is `partial` at the column total (+1.29% vs published). `TOP`/`SUB`, and
-therefore `T015`, remain unsourced, as do the `T013`/`T014`/`T016` identities —
-a subtotal cannot be evaluated until all of its components are in.
+**The four subtotals are now evaluable, and they inherit rather than add.**
+`T015` is the strongest of them at 279 exact of 342 — it consumes `MDTY`, `TOP`
+and `SUB`, two of which are exact, so its 63 `partial` cells are `MDTY`'s. `T013`
+and `T016` carry `MCIF`'s +1.29% into 184 and 192 `partial` cells respectively.
+None of the four introduces error of its own, which is what the identity check
+is for.
+
+**Only two whole-column misses remain, and both are the zero-sum margin columns**
+— `TRADE` and `TRANS` net to exactly zero by construction against published
+residues of $1M and $10M, so the column-total strip marks a cell-for-cell exact
+column as a miss. `MCIF` is the one genuine `partial` at the column total, and
+its 27 cell misses are the only real misses left in the block.
 
 The right-hand block of the Supply table: imports, margins, taxes and the
 subtotals carrying a commodity from domestic output at basic value to total
