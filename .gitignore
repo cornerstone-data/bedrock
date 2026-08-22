@@ -52,3 +52,8 @@ scratch/
 
 # Ignore analysis output
 bedrock/analysis/**/output/
+# P0 freeze of current 3-way + mixed-units production (must be committed)
+!bedrock/analysis/electricity_disagg_eia/output/
+!bedrock/analysis/electricity_disagg_eia/output/**
+!bedrock/analysis/electricity_disagg_eia/output/**/*.parquet
+!bedrock/analysis/electricity_disagg_eia/output/**/*.json
