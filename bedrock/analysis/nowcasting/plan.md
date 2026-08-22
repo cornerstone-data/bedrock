@@ -249,7 +249,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | Block | Status |
 |---|---|
 | Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 24 NIPA tables extracted and reconciled (#536); three FBS methods to build — Step 2 |
-| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Not sourced — an **output of Step 5's balance**, see Step 2 |
+| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded. See Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3 |
 
 ### SUT Supply — every column
@@ -334,6 +334,16 @@ Ranked by how much they block:
      this allocation is now an *output* of the balance, anchored only by the economy-wide T30500 /
      T31300 totals. Step 2 still supplies a seed. See Step 5 Decision 3 and
      [`target_set_plan.md`](target_set_plan.md) §4.
+
+     ⚠️ **And the conversion is now measured, not just declined** (2026-08-22,
+     [`tax_axis_conversion.py`](tax_axis_conversion.py)). The money is the same on both axes, so this
+     was always a *transformation* rather than a second estimate — the question was only whether an
+     operator reproduces the published row. The benchmark market-share matrix does not:
+     **correlation 0.202** on `T00TOP`, absolute error 114.6% of the row, because **55.7% of the row
+     sits in trade industries** and market shares place a product tax with the producer instead of the
+     seller. Measured *in* the benchmark year, so this is not the drift objection — it is stronger.
+     The seed's usable content is `4200ID` = `MDTY` exactly, plus a **margin**-based operator, still
+     to be tested.
 4. **`MADJ`** — no annual published analogue; likely 2017-ratio-based, though Census `GEN_CHA_YR`
    (import charges) measures the same c.i.f./f.o.b. wedge and comes free with the `MCIF` request, so
    try it before defaulting to a fixed ratio. Small in magnitude, but it sits inside the `T013`
@@ -560,7 +570,8 @@ are never held in inventory, which is why BEA cites materials-and-fuels rather t
 
 ⚠️ **Superseded — kept for provenance.** The `V00300` construction below is the one sketched on
 the issue; `value_added_control_totals.py` replaced it with an assembly that closes to +13
-million on 7.9 trillion, and `T00TOP`/`T00SUB` left Step 2's scope entirely. Read §Step 2.
+million on 7.9 trillion. `T00TOP`/`T00SUB` are built by commodity in Step 4d instead, and their
+industry row is a conversion Step 5 solves rather than a Step 2 source. Read §Step 2.
 
 | Component | Code | NIPA table |
 |---|---|---|

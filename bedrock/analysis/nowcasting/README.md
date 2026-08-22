@@ -71,6 +71,13 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
   `MADJ` / `MDTY` for imports — plus the options writeup behind the source
   decision.
+- `tax_axis_conversion.py` — whether the Use table's `T00TOP`/`T00SUB` rows can
+  be converted from the Supply table's commodity-side `TOP`/`SUB`/`MDTY` by the
+  benchmark market-share matrix. They cannot: correlation 0.202 on `T00TOP`,
+  because 55.7% of that row sits in trade industries and market shares place a
+  product tax with the producer rather than the seller. `--check` asserts the
+  findings; Step 2 and Step 5 both lean on them.
+
 - [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
   any NIPA table as a flat frame with its hierarchy intact
   (`nipa_flat_table`), loads BEA IOT matrices (`bea_matrix_row` /
