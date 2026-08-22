@@ -747,10 +747,31 @@ So the decision above stands — the industry distribution stays free for Step 5
 targets — but *free* is not *unseeded*, and two pieces of structure are in hand:
 - ✅ **`4200ID` takes `MDTY` exactly**: published `T00TOP` there is 38,513 against a Supply `MDTY` of
   38,507. Customs duties are a lookup, 5.1% of the row, in every year.
-- ⏳ **The remaining split should ride the margin structure, not the Make matrix.** A commodity's
-  wholesale and retail margins say which trade industries handle it, which is the point-of-sale signal
-  the tax actually follows; those margins are built (`nowcast_trade_margins`), so the better operator
-  is testable exactly as this one was. Open follow-up.
+- ✅ **A usable operator exists, and Step 4c already built most of it.** `top_by_level` splits `TOP`
+  per commodity into producer-level (325,829) and trade-level (391,096) from an identity with nothing
+  modelled in it — excise sits in Producers' Value, sales tax inside the margin columns. That is
+  exactly the producer-versus-seller distinction market shares get wrong, and its trade-level total
+  lands within **+2.2%** of published wholesale-plus-retail `T00TOP`. Progression:
+
+  | operator | corr | \|error\| |
+  |---|---:|---:|
+  | market share on all `TOP + MDTY` | 0.204 | 114.6% |
+  | + level split, trade-level by trade output | 0.743 | 41.9% |
+  | + motor fuel routed to `424700` by name | **0.946** | 29.9% |
+
+  ⚠️ **Do we need to differentiate trade industries *within* wholesale and *within* retail? Only
+  within wholesale, and only for one code.** Non-trade industries are 44.3% of the row and, once the
+  producer-level portion is separated, plain market shares give **corr 0.987** on them. Within retail,
+  output shares (which for a trade industry are very nearly margin shares) give 0.744 — retail product
+  tax is general sales tax, broad-based, HHI 0.137. Within wholesale they give **−0.192**, because
+  `424700` petroleum wholesalers takes **51.3% of wholesale product tax on 3.4% of wholesale output**:
+  wholesale tax is motor fuel excise, not a broad-based tax.
+
+  ✅ **And wholesale does not need a commodity × trade-industry matrix either — it needs one named
+  routing.** `NAMED_TAX_LINES` already carries motor fuel as `324110` and `trade_level_share` already
+  says that tax is 99.8% trade-level; sending it to `424700` takes the row to 0.946 and wholesale
+  itself to 0.973. So **the general commodity × trade-industry margin matrix the PRO:PUR
+  producer-price work will need is not required here.** Still a seed, not a target — 29.9% error.
 - `T00SUB`'s residual is two named structures rather than a smear — government enterprises `S00203`
   (19,471 published vs 1,964) and `S00102` (6,339 vs 102) are subsidies paid to an *operator*, so no
   product-side operator can place them. `T30800` already carries them.

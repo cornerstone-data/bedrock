@@ -75,7 +75,10 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   be converted from the Supply table's commodity-side `TOP`/`SUB`/`MDTY` by the
   benchmark market-share matrix. They cannot: correlation 0.202 on `T00TOP`,
   because 55.7% of that row sits in trade industries and market shares place a
-  product tax with the producer rather than the seller. `--check` asserts the
+  product tax with the producer rather than the seller. Also scores the operator
+  that does work — Step 4c's producer-level/trade-level split plus one named
+  routing for motor fuel, corr 0.946 — and answers how far trade industries have
+  to be differentiated within wholesale and within retail. `--check` asserts the
   findings; Step 2 and Step 5 both lean on them.
 
 - [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads

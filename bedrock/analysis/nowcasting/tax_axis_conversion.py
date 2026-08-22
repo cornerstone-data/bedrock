@@ -78,16 +78,58 @@ stability ("a fixed 2017 conversion ratio is exactly what we cannot assume").
 The measured objection is sharper: the conversion is wrong in the benchmark year
 itself.
 
-But "leave it free" is not the same as "seed it with nothing", and two pieces of
-structure are available now:
+But "leave it free" is not the same as "seed it with nothing", and a usable seed
+does exist -- it just is not the Make matrix.
 
-- ``4200ID`` takes ``MDTY`` exactly.
-- The remaining split should ride the **margin** structure, not the Make matrix.
-  A commodity's wholesale and retail margins say which trade industries handle
-  it, which is the point-of-sale signal the tax actually follows.  Those margins
-  are built (`nowcast_trade_margins`), so the better operator is testable the
-  same way this one was -- that is the open follow-up, and this module is where
-  it should be measured.
+A usable operator, and how little it needs
+------------------------------------------
+
+Step 4c already computes what this needs, for its own reasons.
+:func:`~bedrock.transform.iot.nowcast_product_taxes.top_by_level` splits ``TOP``
+per commodity into **producer-level** (325,829) and **trade-level** (391,096)
+from an identity with nothing modelled in it -- excise sits in Producers' Value,
+sales tax sits inside the margin columns.  That split is exactly the
+producer-versus-seller distinction the market-share operator gets wrong, and its
+trade-level total lands within **+2.2%** of the published wholesale-plus-retail
+``T00TOP`` (391,096 against 382,491).  Applying it:
+
+===============================================  ======  ==========
+operator                                           corr    ``|error|``
+===============================================  ======  ==========
+market share on all ``TOP + MDTY``                 0.204     114.6%
++ level split, trade-level by trade output         0.743      41.9%
++ motor fuel routed to ``424700`` by name          0.946      29.9%
+===============================================  ======  ==========
+
+**Do we need to differentiate trade industries within wholesale and within
+retail?**  Measured, the answer differs by block, and only one block needs it:
+
+- **Non-trade industries -- no, and no matrix at all.**  They are 44.3% of the
+  row, and once the producer-level portion is separated, plain market shares
+  give **correlation 0.987** on them.  That block is solved.
+- **Within retail -- no.**  Output shares (which for a trade industry are very
+  nearly margin shares) give correlation 0.744 there.  Retail product tax is
+  general sales tax: broad-based, roughly proportional to sales, HHI 0.137 with
+  an effective 7.3 of 9 industries carrying it.
+- **Within wholesale -- yes, and output shares are worse than useless there:
+  correlation −0.192.**  ``424700`` petroleum wholesalers takes **51.3% of
+  wholesale product tax on 3.4% of wholesale output**, a 15x concentration,
+  because wholesale tax is dominated by motor fuel excise rather than by a
+  broad-based tax.  HHI 0.321, an effective 3.1 of 10.
+
+⚠️ **But wholesale does not need a commodity x trade-industry matrix either.**
+It needs one named routing.  ``NAMED_TAX_LINES`` already carries motor fuel as
+``324110``, and ``trade_level_share`` already says that commodity's tax is 99.8%
+trade-level; sending that 98,842 to ``424700`` lands against a published 88,362
+and takes the whole row from 0.743 to **0.946**.  With petroleum pulled out by
+name, the remaining nine wholesale industries score 0.825 on output shares --
+they behave like retail.
+
+So the general commodity-by-trade-industry margin matrix that the PRO:PUR
+producer-price work will eventually need is **not required here**.  The tax
+conversion is served by the level split, which exists, plus a handful of
+named-line routings, which are enumerated.  That is a seed worth giving Step 5,
+and it is still a seed: 29.9% absolute error is not a target.
 
 Usage::
 
@@ -117,6 +159,18 @@ TRADE_PREFIXES = ('42', '44', '45', '4B')
 #: stating is one it fails.  Correlation above this would mean the conversion is
 #: worth seeding with; it is 0.20.
 USABLE_CORRELATION = 0.80
+
+#: The Supply and Use workbooks are in millions; ``nowcast_product_taxes``
+#: returns USD, so its output is divided by this to meet them.
+MILLION = 1e6
+
+#: BEA's customs-duties industry code.  It takes the whole of ``MDTY``.
+CUSTOMS_INDUSTRY = '4200ID'
+
+#: Petroleum and petroleum products wholesalers -- 51.3% of wholesale product tax
+#: on 3.4% of wholesale output, and the single reason within-wholesale
+#: differentiation is needed at all.
+PETROLEUM_WHOLESALERS = '424700'
 
 
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -195,6 +249,88 @@ def conversion_scores() -> dict[str, dict[str, float]]:
     }
 
 
+def _industry_output() -> 'pd.Series[float]':
+    """Industry output at basic value, the Supply table's ``T017`` row.
+
+    Used as the within-trade weight.  For a trade industry output very nearly
+    *is* margin -- eight retail commodities give up exactly 100% of ``T013`` and
+    the ten wholesale ones 90.8-99.4% (`nowcast_trade_margins`) -- so this is
+    the margin-proportional case, not a crude stand-in for it.
+    """
+    supply, _ = _frames()
+    industries = list(USA_2017_INDUSTRY_CODES)
+    series = supply.loc['T017']
+    assert isinstance(series, pd.Series)
+    return series.reindex(industries).astype(float).fillna(0.0)
+
+
+def trade_groups() -> dict[str, list[str]]:
+    """The industry blocks the conversion behaves differently on."""
+    industries = list(USA_2017_INDUSTRY_CODES)
+    wholesale = [
+        c for c in industries if str(c).startswith('42') and c != CUSTOMS_INDUSTRY
+    ]
+    retail = [c for c in industries if str(c).startswith(('44', '45', '4B'))]
+    return {
+        'wholesale': wholesale,
+        'retail': retail,
+        'non-trade': [
+            c for c in industries if c not in wholesale + retail + [CUSTOMS_INDUSTRY]
+        ],
+    }
+
+
+def level_split_estimates() -> dict[str, 'pd.Series[float]']:
+    """The three operators of the docstring's progression, by industry.
+
+    ``producer-level`` tax goes by market share -- that part the Make matrix has
+    always had right.  ``trade-level`` goes to the trade industries, either
+    spread by their output or with motor fuel routed to ``424700`` by name
+    first.  Duties go to ``4200ID``.
+    """
+    from bedrock.transform.iot.nowcast_product_taxes import (  # noqa: PLC0415
+        NAMED_TAX_LINES,
+        top_by_level,
+    )
+
+    supply, _ = _frames()
+    commodities = list(USA_2017_COMMODITY_CODES)
+    industries = list(USA_2017_INDUSTRY_CODES)
+    duties = supply.loc[commodities, 'MDTY'].astype(float)
+    taxes = supply.loc[commodities, 'TOP'].astype(float)
+
+    levels = top_by_level(YEAR) / MILLION
+    producer = levels['producer_level'].reindex(commodities).fillna(0.0)
+    trade = levels['trade_level'].reindex(commodities).fillna(0.0)
+
+    groups = trade_groups()
+    trade_industries = groups['wholesale'] + groups['retail']
+    output = _industry_output()
+
+    base = convert_to_industry(producer).reindex(industries).fillna(0.0)
+    base[CUSTOMS_INDUSTRY] = base.get(CUSTOMS_INDUSTRY, 0.0) + float(duties.sum())
+
+    by_output = base.copy()
+    weight = output[trade_industries].clip(lower=0)
+    by_output[trade_industries] += float(trade.sum()) * (weight / weight.sum())
+
+    named = base.copy()
+    fuel = [c for c in NAMED_TAX_LINES['motor fuel'][1] if c in trade.index]
+    fuel_tax = float(trade.loc[fuel].sum())
+    named[PETROLEUM_WHOLESALERS] += fuel_tax
+    others = [c for c in trade_industries if c != PETROLEUM_WHOLESALERS]
+    weight = output[others].clip(lower=0)
+    named[others] += (float(trade.sum()) - fuel_tax) * (weight / weight.sum())
+
+    return {
+        'market share on all TOP + MDTY': convert_to_industry(taxes + duties)
+        .reindex(industries)
+        .fillna(0.0),
+        '+ level split, trade-level by trade output': by_output,
+        '+ motor fuel routed to 424700 by name': named,
+    }
+
+
 def trade_concentration() -> dict[str, float]:
     """How much of the published ``T00TOP`` row sits in trade industries."""
     _, use = _frames()
@@ -237,6 +373,26 @@ def report() -> None:
         f"Use T00TOP on 4200ID {duties['use_4200ID']:,.0f}"
     )
 
+    _, use = _frames()
+    published = published_row(use, 'T00TOP')
+    print()
+    print(f"{'operator':<46}{'corr':>7}{'|error|':>13}{'of row':>9}")
+    for name, estimate in level_split_estimates().items():
+        error = float((estimate - published).abs().sum())
+        correlation = float(np.corrcoef(estimate, published)[0, 1])
+        print(
+            f'{name:<46}{correlation:>7.3f}{error:>13,.0f}'
+            f'{error / float(published.sum()):>9.1%}'
+        )
+
+    print()
+    print(f"{'within-group, best operator':<46}{'corr':>7}{'|error|':>13}")
+    best = list(level_split_estimates().values())[-1]
+    for group, codes in trade_groups().items():
+        error = float((best[codes] - published[codes]).abs().sum())
+        correlation = float(np.corrcoef(best[codes], published[codes])[0, 1])
+        print(f'{group:<46}{correlation:>7.3f}{error:>13,.0f}')
+
 
 def check() -> int:
     """Assert the findings this module's docstring rests on.
@@ -272,6 +428,29 @@ def check() -> int:
             f'4200ID {duties["use_4200ID"]:,.0f} no longer equals Supply MDTY '
             f'{duties["supply_mdty"]:,.0f}; the duties lookup is not exact'
         )
+
+    # The seed's argument: the level split does the work, and within-wholesale
+    # resolution is needed for exactly one industry.
+    _, use = _frames()
+    published = published_row(use, 'T00TOP')
+    estimates = level_split_estimates()
+    best = list(estimates.values())[-1]
+    if float(np.corrcoef(best, published)[0, 1]) < USABLE_CORRELATION:
+        failures.append(
+            'the level-split operator no longer reaches a usable correlation; '
+            'the seed proposed for Step 5 does not hold'
+        )
+    wholesale = trade_groups()['wholesale']
+    if PETROLEUM_WHOLESALERS not in wholesale:
+        failures.append(f'{PETROLEUM_WHOLESALERS} is no longer a wholesale code')
+    else:
+        share = float(published[PETROLEUM_WHOLESALERS] / published[wholesale].sum())
+        if share < 0.3:
+            failures.append(
+                f'{PETROLEUM_WHOLESALERS} now holds {share:.1%} of wholesale '
+                f'T00TOP; within-wholesale resolution may no longer reduce to '
+                f'one named routing'
+            )
 
     for failure in failures:
         print(f'FAIL: {failure}')
