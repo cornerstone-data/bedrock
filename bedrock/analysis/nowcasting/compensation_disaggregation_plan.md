@@ -490,11 +490,14 @@ Against total industry output `T018` = 33,772,568:
 | `T005` intermediate | 14,856,018 | 44.0% | Step 3, not here |
 | `V00100` compensation | 10,434,981 | **30.9%** | **first** — this plan |
 | `V00300` gross operating surplus | 7,873,013 | **23.3%** | **second** |
-| `T00OTOP` other taxes on production | 608,542 | 1.8% | last |
+| `T00OTOP` other taxes on production | 608,542 | 1.8% | **cheapest** — measured, see below |
 
-`T00OTOP` is the row with *no* industry axis anywhere, and it is 1.8% of output.
-Those two facts together argue for doing it last and accepting a cruder method,
-not for doing it first because it looks hard.
+✅ **`T00OTOP` is no longer the hard one, and the ordering above is by size
+rather than by difficulty.** It has no industry axis in NIPA, which is what the
+earlier reading stopped at — but 46.3% of it is real estate, the housing and farm
+pieces are published lookups that hold across eight years, and its composition
+drifts 1.9% while its level grows 40.5%. It is the row that can be finished
+first, not the one to defer. See [§`T00OTOP` — measured](#t00otop--measured-and-it-is-a-property-tax).
 
 ## `V00300` — where the work actually is
 
@@ -695,7 +698,9 @@ neither is sparser; the difference is interpretability, not coverage.
 
 **`T00OTOP` has no such choice.** Taxes on *production* attach to producing
 units rather than products, which is why the Supply table has no counterpart.
-It is industry-only and stays that way.
+It is industry-only and stays that way — and being industry-only is what makes
+it the easiest of the three rows rather than the hardest, since nothing has to be
+converted across axes at all.
 
 > ### Coordination risk with Step 4
 >
@@ -725,14 +730,116 @@ It is industry-only and stays that way.
 > the **margin** structure — which says which trade industries handle a
 > commodity, and is the point-of-sale signal the Make matrix is not.
 
-## `T00OTOP` — accept a cruder method
+## `T00OTOP` — measured, and it is a property tax
 
-No NIPA table has an industry axis for this. `T30500` is by level of government
-and kind of tax. Its composition — largely property taxes and motor vehicle
-licences — suggests **capital stock or property value** as the allocation basis,
-which is the same missing BEA Fixed Assets input that CFC wants. At 1.8% of
-output, that shared dependency is a better reason to build the extractor than
-`T00OTOP` is on its own.
+✅ **Rewritten 2026-08-23.** This section used to read *"accept a cruder method"*
+on the strength of one true observation — no NIPA table has an industry axis for
+this row — and one wrong inference from it. Measured in
+[`other_taxes_allocation.py`](other_taxes_allocation.py), the row is the
+best-behaved of the three, not the worst.
+
+**It is not an income tax, and the name invites the wrong intuition.** Corporate
+income tax is not in taxes on production at all — it is a distribution of surplus
+and lands in `V00300`. `T30500` says what this row actually is:
+
+| line (state and local, `LA000365`) | 2017, $M | share |
+|---|---:|---:|
+| Recurrent taxes on immovable property | 535,227 | **88.1%** |
+| Other license taxes | 43,855 | 7.2% |
+| Motor vehicle licenses | 11,423 | 1.9% |
+| Special assessments | 10,352 | 1.7% |
+| Other | 6,471 | 1.1% |
+| **total** | **607,329** | |
+
+Plus 1,204 of federal (`LA000237`), giving **608,533** against the Use SUT's
+608,542 — nine apart. So the control is `LA000365 + LA000237`, and the row is
+88% property tax.
+
+⚠️ **`LA000237` is titled "Other taxes on goods and services"**, which reads like
+a product tax. It is not one: it is the federal remainder after `LA000236` taxes
+on product, and it is what closes the control. The arithmetic places it, not the
+name.
+
+⚠️ **So output is a bad allocator, and the obvious guess is the worst one.**
+Each candidate clipped at zero and rescaled to the published total, scored
+against the 2017 detail row:
+
+| allocator | corr | \|error\| |
+|---|---:|---:|
+| industry output `T018` | 0.590 | **92.3%** of the row |
+| value added `VABAS` | 0.711 | 88.4% |
+| gross operating surplus `V00300` | 0.927 | 71.0% |
+| compensation `V00100` | 0.050 | 120.3% |
+
+Output-proportional misses `531HSO` by **−150,567** on a published 178,599. The
+effective rate is not a rate: `T00OTOP` over output runs 0.49% at p10 to
+**15.20%** on `531HST`, a 30× spread around an economy-wide 1.80%. Gross
+operating surplus scores best of the four because both are returns to capital —
+but 71% error is not a method.
+
+### The row is concentrated, and BEA publishes the big cells
+
+Three real-estate codes carry **46.3%** of it, twenty industries carry 68.1%,
+HHI 0.109. A row shaped like that does not need a good economy-wide allocator; it
+needs its big cells looked up.
+
+| | published | NIPA | diff |
+|---|---:|---:|---:|
+| `531HSO`+`531HST` | 254,103 | `T70405` `B1031C` 254,103 | **0** |
+| the ten farm codes | 9,405 | `T70305` `B1017C` 9,408 | 3 |
+| all ten government codes | 0 | — | accounting rule |
+
+✅ **And these are not 2017 coincidences.** Against the summary SUT's own rows,
+the housing line is exact in **six of the eight years 2017–2024** and the farm
+line in **seven of eight** — the two misses being 2021 and 2022, where the NIPA
+revision and the summary workbook are different vintages. BEA builds the SUT's
+housing and farm `T00OTOP` from these very lines.
+
+### Frozen shares for the rest — and that is measured, not conceded
+
+| year | level, $M | growth vs 2017 | `sum |share_y − share_2017|` |
+|---|---:|---:|---:|
+| 2017 | 608,535 | — | — |
+| 2018 | 631,491 | +3.8% | 1.01% of the row |
+| 2019 | 668,074 | +9.8% | 1.09% |
+| 2020 | 692,004 | +13.7% | 1.54% |
+| 2021 | 710,925 | +16.8% | 2.10% |
+| 2022 | 751,582 | +23.5% | 1.85% |
+| 2023 | 796,170 | +30.8% | 2.05% |
+| 2024 | 854,999 | **+40.5%** | **1.92%** |
+
+**The level grows 40.5% and the composition moves 1.9%.** Against an
+output-proportional allocator's 92.3% error in the benchmark year itself, frozen
+shares are two orders of magnitude better — and the composition says why:
+assessed property values move with the general price level far more than they
+move relative to each other.
+
+⚠️ **The summary SUT is evidence here, never an input.** Step 5's Decision 3
+holds it out of the target set and keeps it in the test set, so a method taking
+its annual `T00OTOP` row as a control would consume the table meant to grade it.
+The control comes from NIPA; the summary SUT only grades the frozen-share
+assumption out of sample, which is exactly the role Decision 3 gives it.
+
+### The method
+
+`NIPA_VA_othertax_<year>`, four activity sets:
+
+1. **Housing** — `T70405` `B1031C` to `531HSO`/`531HST`, split on the frozen 2017
+   detail share (70.29% / 29.71%).
+2. **Farm** — `T70305` `B1017C` across the ten farm detail codes on frozen 2017
+   shares.
+3. **Everything else** — `T30500` `LA000365` + `LA000237` less the two lookups,
+   on frozen 2017 detail shares of the remaining industries.
+4. **Government** — nothing, and asserted to be nothing.
+
+⚠️ **Two open items, stated rather than buried.** The owner/tenant split of
+housing property tax has no published source: the frozen 2017 split is 70.29%
+owner where gross value added (`B1300C`/`B1301C`) would say 77.07%, so GVA is
+*not* a substitute and the frozen share is the better of the two. And the honest
+allocator for the non-housing, non-farm remainder is capital stock in structures
+— **BEA Fixed Assets**, not in bedrock, the same missing extractor CFC wants for
+40% of `V00300` (open question 5). At 1.8% of output, seed-only in Step 5, and
+1.9% composition drift, it is not what the build is waiting on.
 
 ## Open questions
 

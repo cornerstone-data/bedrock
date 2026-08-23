@@ -16,6 +16,9 @@ uv run python -m bedrock.analysis.nowcasting.plots --section use_fd_detail_sut
 # the Step 4c margin anchor against the published Supply columns
 uv run python -m bedrock.analysis.nowcasting.margins_2017_baseline --check
 
+# how T00OTOP should be allocated to detail industries (Step 2)
+uv run python -m bedrock.analysis.nowcasting.other_taxes_allocation --check
+
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir <report images dir> --no-report
@@ -85,6 +88,18 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   the remaining error is 20 industries rather than 402, which is the case for
   building against the seed and repairing by name later. `--check` asserts the
   findings; Step 2 and Step 5 both lean on them.
+
+- `other_taxes_allocation.py` — how `T00OTOP` should be allocated to the 402
+  detail industries (#538). NIPA `T30500` puts **88.1%** of the row in recurrent
+  property tax, so the intuitive allocator is the wrong one: industry output
+  scores corr 0.590 with an absolute error of **92.3% of the row**, missing
+  `531HSO` alone by 150,567. What works instead is that the row is
+  concentrated — three real-estate codes carry 46.3% — and BEA publishes the big
+  cells: `T70405` `B1031C` is the `531HSO`+`531HST` pair to the dollar and
+  `T70305` `B1017C` the ten farm codes within 3, both holding across 2017-2024
+  on the summary tables. The remainder rides frozen 2017 shares, graded out of
+  sample on the held-out summary SUT at **1.9% composition drift against a 40.5%
+  level move**. `--check` asserts all of it.
 
 - [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
   any NIPA table as a flat frame with its hierarchy intact

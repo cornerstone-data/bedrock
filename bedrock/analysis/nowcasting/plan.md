@@ -248,7 +248,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 | Block | Status |
 |---|---|
-| Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 24 NIPA tables extracted and reconciled (#536); three FBS methods to build — Step 2 |
+| Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 31 NIPA tables extracted and reconciled (#536); three FBS methods to build (#538) — Step 2. `T00OTOP`'s method is **settled and measured**: two published lookups plus frozen 2017 shares, 1.9% composition drift against a 40.5% level move |
 | Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split plus the government-column exclusion. Construction converts exactly; the residual is 20 named industries. See Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3 |
 
@@ -839,6 +839,42 @@ modules. Reasoning, and the evidence behind it:
   `FBS_outside_flowsa` source via `FBS_datapull_fxn` and let the yaml do **one** proportional
   attribution against it — proportional normalises within group, so the control holds by construction,
   and the arithmetic stays readable.
+
+✅ **`T00OTOP` is settled and measured — 2026-08-23, #538.** The line above says frozen 2017 shares
+are "all `T00OTOP` can honestly be", which was a concession. It should not have been: measured in
+[`other_taxes_allocation.py`](other_taxes_allocation.py), this is the best-behaved of the three rows.
+
+⚠️ **It is a property tax, not an income tax, and the intuitive allocator is the worst one.** NIPA
+`T30500` puts **88.1%** of the state-and-local line in *recurrent taxes on immovable property*, with
+license taxes and special assessments making up the rest — and corporate income tax is not in taxes
+on production at all, it is a distribution of surplus inside `V00300`. So an output-proportional
+allocator, scored against the published 2017 detail row, gives correlation **0.590** with an absolute
+error of **92.3% of the row**; `VABAS` gives 0.711/88.4%, gross operating surplus 0.927/71.0%,
+compensation 0.050/120.3%. Output-proportional misses `531HSO` alone by −150,567 on a published
+178,599, because the effective rate runs 0.49% at p10 to **15.20%** on `531HST` around an
+economy-wide 1.80%.
+
+✅ **The row is concentrated enough that its big cells are lookups.** Three real-estate codes carry
+**46.3%**, twenty industries carry 68.1% (HHI 0.109), and BEA publishes the two biggest blocks:
+`T70405` `B1031C` is the `531HSO`+`531HST` pair to the dollar (254,103), `T70305` `B1017C` is the ten
+farm codes within 3 (9,408 vs 9,405), and all ten government industry codes are zero by the same
+accounting rule §4d found for `T00TOP`. **Neither lookup is a 2017 coincidence** — against the
+summary SUT's own rows the housing line is exact in six of the eight years 2017-2024 and the farm
+line in seven, the misses being 2021-22 vintage mismatches.
+
+✅ **And the frozen part is graded, not assumed.** Composition drift on the summary SUT is
+**1.01-2.10%** of the row across 2018-2024 while the level grows **40.5%** — assessed property values
+move with the price level far more than they move relative to each other. Frozen shares are two
+orders of magnitude better than the allocator that looked obvious. ⚠️ **The summary SUT is evidence
+here, never an input**: Decision 3 holds it out of the target set for exactly this, so the control
+comes from NIPA (`T30500` `LA000365` + `LA000237`, closing to 9 on 608,542) and the summary table only
+grades the result out of sample.
+
+So `NIPA_VA_othertax_<year>` is four activity sets — housing lookup, farm lookup, frozen shares for
+the remainder, nothing on government — and the residual open item is the honest allocator for that
+remainder: **capital stock in structures, i.e. BEA Fixed Assets**, the same missing extractor CFC
+wants for 40% of `V00300` (open question 5). At 1.8% of output, seed-only in Step 5 and 1.9% drift,
+it is not on the critical path.
 
 ✅ **#536 done — 24 NIPA tables added to `BEA_NIPA.yaml`**, all annual and complete for 2012-2024, at
 ~950 extra FBA rows per year. Reconciliation through the FBA is pinned by
