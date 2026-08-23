@@ -249,7 +249,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | Block | Status |
 |---|---|
 | Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 24 NIPA tables extracted and reconciled (#536); three FBS methods to build — Step 2 |
-| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split. Construction converts exactly; the residual is 20 named industries. See Step 2 |
+| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split plus the government-column exclusion. Construction converts exactly; the residual is 20 named industries. See Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3 |
 
 ### SUT Supply — every column
@@ -757,7 +757,8 @@ targets — but *free* is not *unseeded*, and two pieces of structure are in han
   |---|---:|---:|
   | market share on all `TOP + MDTY` | 0.204 | 114.6% |
   | + level split, trade-level by trade output | 0.743 | 41.9% |
-  | + motor fuel routed to `424700` by name | **0.946** | 29.9% |
+  | + motor fuel routed to `424700` by name | 0.946 | 29.9% |
+  | + government columns zeroed, renormalised | **0.948** | 27.9% |
 
   ⚠️ **Do we need to differentiate trade industries *within* wholesale and *within* retail? Only
   within wholesale, and only for one code.** Non-trade industries are 44.3% of the row and, once the
@@ -771,7 +772,19 @@ targets — but *free* is not *unseeded*, and two pieces of structure are in han
   routing.** `NAMED_TAX_LINES` already carries motor fuel as `324110` and `trade_level_share` already
   says that tax is 99.8% trade-level; sending it to `424700` takes the row to 0.946 and wholesale
   itself to 0.973. So **the general commodity × trade-industry margin matrix the PRO:PUR
-  producer-price work will need is not required here.** Still a seed, not a target — 29.9% error.
+  producer-price work will need is not required here.** Still a seed, not a target — 27.9% error.
+- ✅ **Government industries take no product tax, and the seed now knows it.** BEA books `T00OTOP` and
+  `T00TOP` at zero on all ten government industry codes (the one exception is 538 of `T00TOP` on
+  `S00203`), and the columns are real — `V00100` and `VABAS` are populated — so the zero is an
+  accounting rule, not a gap: a tax levied by government and remitted by a government producer nets
+  out. The market-share leg was violating it by 10,513 against that published 538, because government
+  genuinely produces taxed commodities. Dropping those columns and **renormalising each commodity over
+  its remaining producers** moves 15,692 of error and the biggest single piece lands where it should:
+  `S00202`'s 3,439 of electricity tax goes to private `221100`, whose error falls from 3,934 to 443.
+  No commodity is stranded and the seed total is unchanged to the dollar. ⚠️ **Worth fixing before the
+  build, not after** — unlike the other residuals, these columns are redistributed into private
+  industries by the Step 7 reallocation, so a wrong seed here propagates into work that must be
+  unpicked.
 - `T00SUB`'s residual is two named structures rather than a smear — government enterprises `S00203`
   (19,471 published vs 1,964) and `S00102` (6,339 vs 102) are subsidies paid to an *operator*, so no
   product-side operator can place them. `T30800` already carries them.
@@ -787,23 +800,24 @@ targets — but *free* is not *unseeded*, and two pieces of structure are in han
   market shares leak 30.4 where the published row leaks 50 — right direction, about half the size.
 
 ⚠️ **Do the remaining sectors each need the same probe? No — the residual error is 20 industries, not
-402.** Under the best operator the top 20 industries by absolute error carry **80.3%** of it and the top
-5 carry 35.1%, and 17 of those 20 are wholesale or retail:
+402.** Under the best operator the top 20 industries by absolute error carry **85.0%** of it and the top
+5 carry 37.7%, and 17 of those 20 are wholesale or retail:
 
 | block | published | share of row | share of the error |
 |---|---:|---:|---:|
-| wholesale | 172,194 | 22.8% | 41.9% |
-| retail | 210,297 | 27.8% | 33.7% |
-| non-trade | 334,447 | 44.3% | 24.4% |
+| wholesale | 172,194 | 22.8% | 45.0% |
+| retail | 210,297 | 27.8% | 36.2% |
+| non-trade | 334,447 | 44.3% | 18.8% |
 | `4200ID` customs | 38,513 | 5.1% | 0.0% |
 
-What is left is the within-trade allocation already characterised, plus five named non-trade
-structures — `721000` accommodation (lodging tax, −6,592), `517210` wireless (−4,310), `221100`
-electric power (−3,934), and government enterprises handed tax they do not carry (`S00202` +3,439
-against a published zero, `GSLGE` +1,698, both of which belong to the Step 7 reallocation). Construction
-was the last block-shaped unknown worth a sweep of its own and it came back exact, so **build against
-this seed and repair the named twenty later**: Step 5's balance moves these cells under soft targets
-anyway, so seed accuracy below the block level is not what the build is waiting on.
+What is left is the within-trade allocation already characterised, plus four named non-trade
+structures — `721000` accommodation (lodging tax, −5,088), `517210` wireless (−4,310), `611A00`
+colleges (+2,759) and `517110` wired telecom (−1,550). With the government columns excluded the
+non-trade block is at correlation **0.992** and 18.8% of the error, and no government code appears in
+the ranking at all. Construction was the last block-shaped unknown worth a sweep of its own and it came
+back exact, so **build against this seed and repair the named twenty later**: Step 5's balance moves
+these cells under soft targets anyway, so seed accuracy below the block level is not what the build is
+waiting on.
 
 ✅ **Decided 2026-08-22 — three FBS methods, one per Use row**, rather than one method or plain Python
 modules. Reasoning, and the evidence behind it:

@@ -99,6 +99,7 @@ operator                                           corr    ``|error|``
 market share on all ``TOP + MDTY``                 0.204     114.6%
 + level split, trade-level by trade output         0.743      41.9%
 + motor fuel routed to ``424700`` by name          0.946      29.9%
++ government columns zeroed, renormalised          0.948      27.9%
 ===============================================  ======  ==========
 
 **Do we need to differentiate trade industries within wholesale and within
@@ -129,7 +130,55 @@ So the general commodity-by-trade-industry margin matrix that the PRO:PUR
 producer-price work will eventually need is **not required here**.  The tax
 conversion is served by the level split, which exists, plus a handful of
 named-line routings, which are enumerated.  That is a seed worth giving Step 5,
-and it is still a seed: 29.9% absolute error is not a target.
+and it is still a seed: 27.9% absolute error is not a target.
+
+Government industries take no product tax, and the seed has to know it
+---------------------------------------------------------------------
+
+✅ **BEA books zero taxes on production to all ten government industry codes** --
+``T00OTOP`` and ``T00TOP`` are both zero on every one of them in 2017, the single
+exception being 538 of ``T00TOP`` on ``S00203``.  The columns are real
+(``V00100`` and ``VABAS`` are populated), so the zero is an accounting rule
+rather than a gap: a tax levied by government and remitted by a government
+producer nets out.
+
+⚠️ **The market-share leg violated that rule, and it was not a rounding-sized
+violation.**  It seeded 10,513 onto those ten columns against a published 538 --
+``S00202`` state and local electric utilities 3,439 against zero, ``GSLGE``
+educational services 1,698 against zero, ``S00203`` 2,428 against 538.  The cause
+is direct: government *does* produce taxed commodities, so market shares hand it
+a share of the tax on them.
+
+The fix is to drop those columns from the producer-level leg and **renormalise
+each commodity over the producers that remain**, so the tax stays with its own
+commodity instead of being deleted or smeared.  It moves 15,692 of error, and
+two thirds of that is the excess itself:
+
+============================================  ==========  ==========
+industry                                       ``|err|``  after
+============================================  ==========  ==========
+``221100`` electric power                          3,934        443
+``S00202`` S&L electric utilities                  3,439          0
+``721000`` accommodation                           6,592      5,088
+``GSLGE`` S&L educational services                 1,698          0
+``S00203`` other S&L enterprises                   1,890        538
+``622000`` hospitals                                 763        296
+============================================  ==========  ==========
+
+Read the first two rows together: ``S00202``'s electricity tax lands on private
+``221100``, which the previous operator was *under*-attributing by almost exactly
+that amount.  The money was not merely misplaced, it was misplaced in a
+recoverable direction.  Only the producer-level leg needs the exclusion -- the
+trade-level leg lands on wholesale and retail, where no government code sits, and
+duties land on ``4200ID``.  No commodity is stranded: in 2017 no commodity that
+is produced entirely by government carries any product tax, so nothing has to
+fall back, and the seed total is unchanged to the dollar.
+
+⚠️ **This one is worth fixing before the build rather than after.**  The other
+residuals are misallocations the balance can pull back; this one puts tax on
+columns that the Step 7 government-enterprise reallocation later redistributes
+into private industries, so a wrong seed here propagates into work that would
+have to be unpicked.
 
 Construction needs nothing at all
 ---------------------------------
@@ -175,28 +224,29 @@ Do the remaining sectors need the same probe?  No
 -------------------------------------------------
 
 ⚠️ **The residual error is 20 industries, not 402.**  Under the best operator,
-the top 20 industries by absolute error carry **80.3%** of it and the top 5 carry
-35.1%; 17 of those 20 are wholesale or retail.  By block:
+the top 20 industries by absolute error carry **85.0%** of it and the top 5 carry
+37.7%; 17 of those 20 are wholesale or retail.  By block:
 
 ==================  ==========  =============  ====================
 block                published  share of row   share of the error
 ==================  ==========  =============  ====================
-wholesale              172,194          22.8%                 41.9%
-retail                 210,297          27.8%                 33.7%
-non-trade              334,447          44.3%                 24.4%
+wholesale              172,194          22.8%                 45.0%
+retail                 210,297          27.8%                 36.2%
+non-trade              334,447          44.3%                 18.8%
 ``4200ID`` customs      38,513           5.1%                  0.0%
 ==================  ==========  =============  ====================
 
 So what is left is the *within-trade allocation* already characterised above,
-plus five named non-trade structures: ``721000`` accommodation (lodging tax,
--6,592), ``517210`` wireless (-4,310), ``221100`` electric power (-3,934), and
-government enterprises handed tax they do not carry (``S00202`` +3,439 against a
-published zero, ``GSLGE`` +1,698 -- these belong to the Step 7 reallocation, see
-`gov_enterprise_reallocation`).  Construction was the last block-shaped unknown
-worth a sweep of its own, and it came back exact.  **Build against this seed and
-repair the named twenty later**, rather than probing the remaining sectors one
-by one: Step 5's balance moves these cells under soft targets anyway, so seed
-accuracy below the block level is not what the build is waiting on.
+plus four named non-trade structures -- ``721000`` accommodation (lodging tax,
+-5,088), ``517210`` wireless (-4,310), ``611A00`` colleges (+2,759) and
+``517110`` wired telecom (-1,550).  With the government columns excluded, the
+non-trade block is down to correlation **0.992** and 18.8% of the error, and no
+government code appears in the ranking at all.  Construction was the last
+block-shaped unknown worth a sweep of its own, and it came back exact.  **Build
+against this seed and repair the named twenty later**, rather than probing the
+remaining sectors one by one: Step 5's balance moves these cells under soft
+targets anyway, so seed accuracy below the block level is not what the build is
+waiting on.
 
 Usage::
 
@@ -207,6 +257,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import functools
 import sys
 
 import numpy as np
@@ -239,6 +290,14 @@ CUSTOMS_INDUSTRY = '4200ID'
 #: differentiation is needed at all.
 PETROLEUM_WHOLESALERS = '424700'
 
+#: Government industry codes.  BEA books **no taxes on production** to any of
+#: them -- ``T00OTOP`` and ``T00TOP`` are both zero on all ten in 2017, the sole
+#: exception being 538 of ``T00TOP`` on ``S00203`` -- because a tax levied by
+#: government and remitted by a government producer nets out.  The columns are
+#: real (``V00100`` and ``VABAS`` are populated), so the zero is a rule, not a
+#: gap, and any operator that puts product tax here is wrong by construction.
+GOVERNMENT_PREFIXES = ('S00', 'G')
+
 #: Construction codes share a prefix and are the same twelve on both axes.
 CONSTRUCTION_PREFIX = '23'
 
@@ -252,14 +311,29 @@ CONSTRUCTION_ERROR_BAR = 0.10
 ERROR_CONCENTRATION_RANK = 20
 
 
+@functools.cache
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The 2017 Supply and Use tables.
+
+    Cached: every scoring function here needs both, the report and ``--check``
+    call them a dozen times over, and the workbooks are only ever read from.
+    """
     return (
         _load_2017_detail_supply_use_usa('Supply_detail'),
         _load_2017_detail_supply_use_usa('Use_SUT_detail'),
     )
 
 
-def market_share_matrix() -> pd.DataFrame:
+def government_industries() -> list[str]:
+    """The ten industry codes BEA books no taxes on production to."""
+    return [
+        i for i in USA_2017_INDUSTRY_CODES if str(i).startswith(GOVERNMENT_PREFIXES)
+    ]
+
+
+def market_share_matrix(
+    exclude_industries: 'list[str] | None' = None,
+) -> pd.DataFrame:
     """``D[c, i]``: industry ``i``'s share of commodity ``c``'s domestic output.
 
     Normalised by ``T007`` (commodity output, basic, domestic) rather than by
@@ -267,6 +341,13 @@ def market_share_matrix() -> pd.DataFrame:
     A commodity-indexed quantity has to be spread over the industries that make
     that commodity, which is this one; the commodity mix answers the transposed
     question and would give an unrelated number.
+
+    ``exclude_industries`` drops columns and **renormalises each commodity's row
+    over the producers that remain**, so the tax on a commodity stays with that
+    commodity rather than being deleted or smeared economy-wide.  A commodity
+    with no remaining producer would have nowhere to go, so its row is kept
+    unrenormalised rather than losing the money; in 2017 no such row carries any
+    tax, so the fallback never fires.
     """
     supply, _ = _frames()
     commodities, industries = (
@@ -275,7 +356,17 @@ def market_share_matrix() -> pd.DataFrame:
     )
     make = supply.loc[commodities, industries].astype(float)
     output = supply.loc[commodities, 'T007'].astype(float)
-    return make.div(output.replace(0, np.nan), axis=0).fillna(0.0)
+    shares = make.div(output.replace(0, np.nan), axis=0).fillna(0.0)
+    if not exclude_industries:
+        return shares
+
+    keep = [i for i in industries if i not in set(exclude_industries)]
+    retained = shares[keep].sum(axis=1)
+    renormalised = pd.DataFrame(0.0, index=shares.index, columns=industries)
+    renormalised[keep] = shares[keep].div(retained.where(retained > 0), axis=0)
+    stranded = retained <= 0
+    renormalised.loc[stranded] = shares.loc[stranded]
+    return renormalised.fillna(0.0)
 
 
 def convert_to_industry(by_commodity: 'pd.Series[float]') -> 'pd.Series[float]':
@@ -360,12 +451,14 @@ def trade_groups() -> dict[str, list[str]]:
 
 
 def level_split_estimates() -> dict[str, 'pd.Series[float]']:
-    """The three operators of the docstring's progression, by industry.
+    """The four operators of the docstring's progression, by industry.
 
     ``producer-level`` tax goes by market share -- that part the Make matrix has
     always had right.  ``trade-level`` goes to the trade industries, either
     spread by their output or with motor fuel routed to ``424700`` by name
-    first.  Duties go to ``4200ID``.
+    first.  Duties go to ``4200ID``.  The last step drops the government columns
+    the market-share leg should never have filled and renormalises each
+    commodity over its remaining producers.
     """
     from bedrock.transform.iot.nowcast_product_taxes import (  # noqa: PLC0415
         NAMED_TAX_LINES,
@@ -386,27 +479,47 @@ def level_split_estimates() -> dict[str, 'pd.Series[float]']:
     trade_industries = groups['wholesale'] + groups['retail']
     output = _industry_output()
 
-    base = convert_to_industry(producer).reindex(industries).fillna(0.0)
-    base[CUSTOMS_INDUSTRY] = base.get(CUSTOMS_INDUSTRY, 0.0) + float(duties.sum())
+    fuel = [c for c in NAMED_TAX_LINES['motor fuel'][1] if c in trade.index]
+    fuel_tax = float(trade.loc[fuel].sum())
+    others = [c for c in trade_industries if c != PETROLEUM_WHOLESALERS]
+
+    def producer_leg(shares: pd.DataFrame) -> 'pd.Series[float]':
+        """Producer-level tax by the given shares, plus duties on ``4200ID``."""
+        leg = shares.mul(producer, axis=0).sum(axis=0).reindex(industries).fillna(0.0)
+        leg[CUSTOMS_INDUSTRY] = leg.get(CUSTOMS_INDUSTRY, 0.0) + float(duties.sum())
+        return leg
+
+    def with_named_fuel(leg: 'pd.Series[float]') -> 'pd.Series[float]':
+        """Add the trade-level leg, motor fuel routed to ``424700`` by name."""
+        estimate = leg.copy()
+        estimate[PETROLEUM_WHOLESALERS] += fuel_tax
+        weight = output[others].clip(lower=0)
+        estimate[others] += (float(trade.sum()) - fuel_tax) * (weight / weight.sum())
+        return estimate
+
+    base = producer_leg(market_share_matrix())
 
     by_output = base.copy()
     weight = output[trade_industries].clip(lower=0)
     by_output[trade_industries] += float(trade.sum()) * (weight / weight.sum())
 
-    named = base.copy()
-    fuel = [c for c in NAMED_TAX_LINES['motor fuel'][1] if c in trade.index]
-    fuel_tax = float(trade.loc[fuel].sum())
-    named[PETROLEUM_WHOLESALERS] += fuel_tax
-    others = [c for c in trade_industries if c != PETROLEUM_WHOLESALERS]
-    weight = output[others].clip(lower=0)
-    named[others] += (float(trade.sum()) - fuel_tax) * (weight / weight.sum())
+    # Government industries take no product tax, so they take no share of the
+    # producer-level leg either.  Only that leg needs the exclusion -- the
+    # trade-level leg lands on wholesale and retail, where no government code
+    # sits, and duties land on 4200ID.
+    without_government = producer_leg(
+        market_share_matrix(exclude_industries=government_industries())
+    )
 
     return {
         'market share on all TOP + MDTY': convert_to_industry(taxes + duties)
         .reindex(industries)
         .fillna(0.0),
         '+ level split, trade-level by trade output': by_output,
-        '+ motor fuel routed to 424700 by name': named,
+        '+ motor fuel routed to 424700 by name': with_named_fuel(base),
+        '+ government columns zeroed, renormalised': with_named_fuel(
+            without_government
+        ),
     }
 
 
@@ -463,6 +576,32 @@ def construction_scores() -> dict[str, float]:
         'in_block_share': in_block / float(make.loc[codes].to_numpy().sum()),
         'diagonal_share': float(np.diag(block.to_numpy()).sum()) / in_block,
         'taxed_codes': float((top != 0).sum()),
+    }
+
+
+def government_scores() -> dict[str, float]:
+    """The government rule, and what enforcing it is worth.
+
+    ``published`` is what BEA books to the ten government industries -- 538, all
+    of it on ``S00203``.  ``seeded_before`` is what the market-share leg gave
+    them unaided.
+    """
+    _, use = _frames()
+    published = published_row(use, 'T00TOP')
+    other_taxes = published_row(use, 'T00OTOP')
+    estimates = list(level_split_estimates().values())
+    government = government_industries()
+    before, after = estimates[-2], estimates[-1]
+    return {
+        'industries': float(len(government)),
+        'published': float(published[government].sum()),
+        'published_other_taxes': float(other_taxes[government].sum()),
+        'seeded_before': float(before[government].sum()),
+        'seeded_after': float(after[government].sum()),
+        'error_before': float((before - published).abs().sum()),
+        'error_after': float((after - published).abs().sum()),
+        'total_before': float(before.sum()),
+        'total_after': float(after.sum()),
     }
 
 
@@ -574,6 +713,17 @@ def report() -> None:
         f"{construction['diagonal_share']:.1%} diagonal"
     )
 
+    government = government_scores()
+    print(
+        f"  government columns: published "
+        f"{government['published']:,.0f} across "
+        f"{government['industries']:.0f} industries, seeded "
+        f"{government['seeded_before']:,.0f} before the exclusion and "
+        f"{government['seeded_after']:,.0f} after; "
+        f"row error {government['error_before']:,.0f} -> "
+        f"{government['error_after']:,.0f}"
+    )
+
     concentration = error_concentration()
     print()
     print(
@@ -667,6 +817,35 @@ def check() -> int:
             f'construction now carries MDTY '
             f'{construction["commodity_mdty"]:,.0f} or SUB '
             f'{construction["commodity_sub"]:,.0f}; it is no longer a TOP-only block'
+        )
+
+    # Government industries take no product tax.  This is the rule the seed
+    # was violating, and the rule itself is what has to keep holding.
+    government = government_scores()
+    if government['published'] > 1_000 or government['published_other_taxes']:
+        failures.append(
+            f'government industries now carry T00TOP '
+            f'{government["published"]:,.0f} / T00OTOP '
+            f'{government["published_other_taxes"]:,.0f}; BEA no longer books '
+            f'zero taxes on production to them and the exclusion is wrong'
+        )
+    if government['seeded_after'] > 1.0:
+        failures.append(
+            f'the seed still puts {government["seeded_after"]:,.1f} of product '
+            f'tax on government industries; the exclusion is not taking effect'
+        )
+    if government['error_after'] >= government['error_before']:
+        failures.append(
+            f'excluding government columns no longer reduces the row error '
+            f'({government["error_before"]:,.0f} -> '
+            f'{government["error_after"]:,.0f})'
+        )
+    if abs(government['total_after'] - government['total_before']) > 1.0:
+        failures.append(
+            f'the exclusion changed the seed total from '
+            f'{government["total_before"]:,.0f} to '
+            f'{government["total_after"]:,.0f}; renormalisation should move '
+            f'money between industries, never create or destroy it'
         )
 
     # The reason the remaining sectors are repaired by name, not swept.
