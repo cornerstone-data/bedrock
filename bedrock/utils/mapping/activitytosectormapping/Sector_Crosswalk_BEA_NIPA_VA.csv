@@ -1,4 +1,366 @@
 ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+BEA_NIPA,Accommodation,BEA_2017_Code,721000,,T60200D line 83 -> 721
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561100,,T60200D line 71 -> 561
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561200,,T60200D line 71 -> 561
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561300,,T60200D line 71 -> 561
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561400,,T60200D line 71 -> 561
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561500,,T60200D line 71 -> 561
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561600,,T60200D line 71 -> 561
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561700,,T60200D line 71 -> 561
+BEA_NIPA,Administrative and support services,BEA_2017_Code,561900,,T60200D line 71 -> 561
+BEA_NIPA,Air transportation,BEA_2017_Code,481000,,T60200D line 44 -> 481
+BEA_NIPA,Ambulatory health care services,BEA_2017_Code,621100,,T60200D line 75 -> 621
+BEA_NIPA,Ambulatory health care services,BEA_2017_Code,621200,,T60200D line 75 -> 621
+BEA_NIPA,Ambulatory health care services,BEA_2017_Code,621300,,T60200D line 75 -> 621
+BEA_NIPA,Ambulatory health care services,BEA_2017_Code,621400,,T60200D line 75 -> 621
+BEA_NIPA,Ambulatory health care services,BEA_2017_Code,621500,,T60200D line 75 -> 621
+BEA_NIPA,Ambulatory health care services,BEA_2017_Code,621600,,T60200D line 75 -> 621
+BEA_NIPA,Ambulatory health care services,BEA_2017_Code,621900,,T60200D line 75 -> 621
+BEA_NIPA,"Amusements, gambling, and recreation industries",BEA_2017_Code,713100,,T60200D line 81 -> 713
+BEA_NIPA,"Amusements, gambling, and recreation industries",BEA_2017_Code,713200,,T60200D line 81 -> 713
+BEA_NIPA,"Amusements, gambling, and recreation industries",BEA_2017_Code,713900,,T60200D line 81 -> 713
+BEA_NIPA,Apparel and leather and allied products,BEA_2017_Code,315000,,T60200D line 29 -> 315AL
+BEA_NIPA,Apparel and leather and allied products,BEA_2017_Code,316000,,T60200D line 29 -> 315AL
+BEA_NIPA,Broadcasting and telecommunications,BEA_2017_Code,515100,,T60200D line 55 -> 513
+BEA_NIPA,Broadcasting and telecommunications,BEA_2017_Code,515200,,T60200D line 55 -> 513
+BEA_NIPA,Broadcasting and telecommunications,BEA_2017_Code,517110,,T60200D line 55 -> 513
+BEA_NIPA,Broadcasting and telecommunications,BEA_2017_Code,517210,,T60200D line 55 -> 513
+BEA_NIPA,Broadcasting and telecommunications,BEA_2017_Code,517A00,,T60200D line 55 -> 513
+BEA_NIPA,Chemical products,BEA_2017_Code,325110,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325120,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325130,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325180,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325190,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325211,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,3252A0,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325310,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325320,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325411,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325412,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325413,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325414,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325510,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325520,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325610,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325620,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,325910,,T60200D line 33 -> 325
+BEA_NIPA,Chemical products,BEA_2017_Code,3259A0,,T60200D line 33 -> 325
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334111,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334112,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334118,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334210,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334220,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334290,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334300,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334413,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334418,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,33441A,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334510,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334511,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334512,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334513,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334514,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334515,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334516,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334517,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,33451A,,T60200D line 20 -> 334
+BEA_NIPA,Computer and electronic products,BEA_2017_Code,334610,,T60200D line 20 -> 334
+BEA_NIPA,Computer systems design and related services,BEA_2017_Code,541511,,T60200D line 67 -> 5415
+BEA_NIPA,Computer systems design and related services,BEA_2017_Code,541512,,T60200D line 67 -> 5415
+BEA_NIPA,Computer systems design and related services,BEA_2017_Code,54151A,,T60200D line 67 -> 5415
+BEA_NIPA,Construction,BEA_2017_Code,230301,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,230302,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,233210,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,233230,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,233240,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,233262,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,2332A0,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,2332C0,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,2332D0,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,233411,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,233412,,T60200D line 12 -> 23
+BEA_NIPA,Construction,BEA_2017_Code,2334A0,,T60200D line 12 -> 23
+BEA_NIPA,Educational services,BEA_2017_Code,611100,,T60200D line 73 -> 61
+BEA_NIPA,Educational services,BEA_2017_Code,611A00,,T60200D line 73 -> 61
+BEA_NIPA,Educational services,BEA_2017_Code,611B00,,T60200D line 73 -> 61
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335110,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335120,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335210,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335220,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335311,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335312,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335313,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335314,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335911,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335912,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335920,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335930,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335991,,T60200D line 21 -> 335
+BEA_NIPA,"Electrical equipment, appliances, and components",BEA_2017_Code,335999,,T60200D line 21 -> 335
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332114,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332119,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,33211A,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332200,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332310,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332320,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332410,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332420,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332430,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332500,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332600,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332710,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332720,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332800,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332913,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,33291A,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332991,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332996,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,332999,,T60200D line 18 -> 332
+BEA_NIPA,Fabricated metal products,BEA_2017_Code,33299A,,T60200D line 18 -> 332
+BEA_NIPA,Farms,BEA_2017_Code,1111A0,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,1111B0,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,111200,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,111300,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,111400,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,111900,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,112120,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,1121A0,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,112300,,T60200D line 5 -> 111CA
+BEA_NIPA,Farms,BEA_2017_Code,112A00,,T60200D line 5 -> 111CA
+BEA_NIPA,"Federal Reserve banks, credit intermediation, and related activities",BEA_2017_Code,522A00,,T60200D line 58 -> 521CI
+BEA_NIPA,"Federal Reserve banks, credit intermediation, and related activities",BEA_2017_Code,52A000,,T60200D line 58 -> 521CI
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311111,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311119,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311210,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311221,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311224,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311225,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311230,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311300,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311410,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311420,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311513,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311514,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,31151A,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311520,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311615,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,31161A,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311700,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311810,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,3118A0,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311910,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311920,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311930,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311940,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,311990,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,312110,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,312120,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,312130,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,312140,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage and tobacco products,BEA_2017_Code,312200,,T60200D line 27 -> 311FT
+BEA_NIPA,Food and beverage stores,BEA_2017_Code,445000,,T60200D line 40 -> 445
+BEA_NIPA,Food services and drinking places,BEA_2017_Code,722110,,T60200D line 84 -> 722
+BEA_NIPA,Food services and drinking places,BEA_2017_Code,722211,,T60200D line 84 -> 722
+BEA_NIPA,Food services and drinking places,BEA_2017_Code,722A00,,T60200D line 84 -> 722
+BEA_NIPA,"Forestry, fishing, and related activities",BEA_2017_Code,113000,,T60200D line 6 -> 113FF
+BEA_NIPA,"Forestry, fishing, and related activities",BEA_2017_Code,114000,,T60200D line 6 -> 113FF
+BEA_NIPA,"Forestry, fishing, and related activities",BEA_2017_Code,115000,,T60200D line 6 -> 113FF
+BEA_NIPA,"Funds, trusts, and other financial vehicles",BEA_2017_Code,525000,,T60200D line 61 -> 525
+BEA_NIPA,Furniture and related products,BEA_2017_Code,337110,,T60200D line 24 -> 337
+BEA_NIPA,Furniture and related products,BEA_2017_Code,337121,,T60200D line 24 -> 337
+BEA_NIPA,Furniture and related products,BEA_2017_Code,337122,,T60200D line 24 -> 337
+BEA_NIPA,Furniture and related products,BEA_2017_Code,337127,,T60200D line 24 -> 337
+BEA_NIPA,Furniture and related products,BEA_2017_Code,33712N,,T60200D line 24 -> 337
+BEA_NIPA,Furniture and related products,BEA_2017_Code,337215,,T60200D line 24 -> 337
+BEA_NIPA,Furniture and related products,BEA_2017_Code,33721A,,T60200D line 24 -> 337
+BEA_NIPA,Furniture and related products,BEA_2017_Code,337900,,T60200D line 24 -> 337
+BEA_NIPA,General merchandise stores,BEA_2017_Code,452000,,T60200D line 41 -> 452
+BEA_NIPA,Hospitals,BEA_2017_Code,622000,,T60200D line 76 -> 622
+BEA_NIPA,Information and data processing services,BEA_2017_Code,518200,,T60200D line 56 -> 514
+BEA_NIPA,Information and data processing services,BEA_2017_Code,519130,,T60200D line 56 -> 514
+BEA_NIPA,Information and data processing services,BEA_2017_Code,5191A0,,T60200D line 56 -> 514
+BEA_NIPA,Insurance carriers and related activities,BEA_2017_Code,524113,,T60200D line 60 -> 524
+BEA_NIPA,Insurance carriers and related activities,BEA_2017_Code,5241XX,,T60200D line 60 -> 524
+BEA_NIPA,Insurance carriers and related activities,BEA_2017_Code,524200,,T60200D line 60 -> 524
+BEA_NIPA,Legal services,BEA_2017_Code,541100,,T60200D line 66 -> 5411
+BEA_NIPA,Machinery,BEA_2017_Code,333111,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333112,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333120,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333130,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333242,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,33329A,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333314,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333316,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333318,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333413,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333414,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333415,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333511,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333514,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333517,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,33351B,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333611,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333612,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333613,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333618,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333912,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333914,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333920,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333991,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333993,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,333994,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,33399A,,T60200D line 19 -> 333
+BEA_NIPA,Machinery,BEA_2017_Code,33399B,,T60200D line 19 -> 333
+BEA_NIPA,Management of companies and enterprises,BEA_2017_Code,550000,,T60200D line 69 -> 55
+BEA_NIPA,"Mining, except oil and gas",BEA_2017_Code,212100,,T60200D line 9 -> 212
+BEA_NIPA,"Mining, except oil and gas",BEA_2017_Code,212230,,T60200D line 9 -> 212
+BEA_NIPA,"Mining, except oil and gas",BEA_2017_Code,2122A0,,T60200D line 9 -> 212
+BEA_NIPA,"Mining, except oil and gas",BEA_2017_Code,212310,,T60200D line 9 -> 212
+BEA_NIPA,"Mining, except oil and gas",BEA_2017_Code,2123A0,,T60200D line 9 -> 212
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339112,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339113,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339114,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339115,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339116,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339910,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339920,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339930,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339940,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339950,,T60200D line 25 -> 339
+BEA_NIPA,Miscellaneous manufacturing,BEA_2017_Code,339990,,T60200D line 25 -> 339
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541200,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541300,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541400,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541610,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,5416A0,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541700,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541800,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541920,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,541940,,T60200D line 68 -> 5412OP
+BEA_NIPA,"Miscellaneous professional, scientific, and technical services",BEA_2017_Code,5419A0,,T60200D line 68 -> 5412OP
+BEA_NIPA,Motion picture and sound recording industries,BEA_2017_Code,512100,,T60200D line 54 -> 512
+BEA_NIPA,Motion picture and sound recording industries,BEA_2017_Code,512200,,T60200D line 54 -> 512
+BEA_NIPA,Motor vehicle and parts dealers,BEA_2017_Code,441000,,T60200D line 39 -> 441
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336111,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336112,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336120,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336211,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336212,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336213,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336214,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336310,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336320,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336350,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336360,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336370,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,336390,,T60200D line 22 -> 3361MV
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts",BEA_2017_Code,3363A0,,T60200D line 22 -> 3361MV
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327100,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327200,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327310,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327320,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327330,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327390,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327400,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327910,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327991,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327992,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327993,,T60200D line 16 -> 327
+BEA_NIPA,Nonmetallic mineral products,BEA_2017_Code,327999,,T60200D line 16 -> 327
+BEA_NIPA,Nursing and residential care facilities,BEA_2017_Code,623A00,,T60200D line 77 -> 623
+BEA_NIPA,Nursing and residential care facilities,BEA_2017_Code,623B00,,T60200D line 77 -> 623
+BEA_NIPA,Oil and gas extraction,BEA_2017_Code,211000,,T60200D line 8 -> 211
+BEA_NIPA,Other retail,BEA_2017_Code,444000,,T60200D line 42 -> 4A0
+BEA_NIPA,Other retail,BEA_2017_Code,446000,,T60200D line 42 -> 4A0
+BEA_NIPA,Other retail,BEA_2017_Code,447000,,T60200D line 42 -> 4A0
+BEA_NIPA,Other retail,BEA_2017_Code,448000,,T60200D line 42 -> 4A0
+BEA_NIPA,Other retail,BEA_2017_Code,454000,,T60200D line 42 -> 4A0
+BEA_NIPA,Other retail,BEA_2017_Code,4B0000,,T60200D line 42 -> 4A0
+BEA_NIPA,"Other services, except government",BEA_2017_Code,811100,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,811200,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,811300,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,811400,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,812100,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,812200,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,812300,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,812900,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,813100,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,813A00,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,813B00,,T60200D line 85 -> 81
+BEA_NIPA,"Other services, except government",BEA_2017_Code,814000,,T60200D line 85 -> 81
+BEA_NIPA,Other transportation and support activities,BEA_2017_Code,48A000,,T60200D line 50 -> 487OS
+BEA_NIPA,Other transportation and support activities,BEA_2017_Code,492000,,T60200D line 50 -> 487OS
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336411,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336412,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336413,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336414,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,33641A,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336500,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336611,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336612,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336991,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336992,,T60200D line 23 -> 3364OT
+BEA_NIPA,Other transportation equipment,BEA_2017_Code,336999,,T60200D line 23 -> 3364OT
+BEA_NIPA,Paper products,BEA_2017_Code,322110,,T60200D line 30 -> 322
+BEA_NIPA,Paper products,BEA_2017_Code,322120,,T60200D line 30 -> 322
+BEA_NIPA,Paper products,BEA_2017_Code,322130,,T60200D line 30 -> 322
+BEA_NIPA,Paper products,BEA_2017_Code,322210,,T60200D line 30 -> 322
+BEA_NIPA,Paper products,BEA_2017_Code,322220,,T60200D line 30 -> 322
+BEA_NIPA,Paper products,BEA_2017_Code,322230,,T60200D line 30 -> 322
+BEA_NIPA,Paper products,BEA_2017_Code,322291,,T60200D line 30 -> 322
+BEA_NIPA,Paper products,BEA_2017_Code,322299,,T60200D line 30 -> 322
+BEA_NIPA,"Performing arts, spectator sports, museums, and related activities",BEA_2017_Code,711100,,T60200D line 80 -> 711AS
+BEA_NIPA,"Performing arts, spectator sports, museums, and related activities",BEA_2017_Code,711200,,T60200D line 80 -> 711AS
+BEA_NIPA,"Performing arts, spectator sports, museums, and related activities",BEA_2017_Code,711500,,T60200D line 80 -> 711AS
+BEA_NIPA,"Performing arts, spectator sports, museums, and related activities",BEA_2017_Code,711A00,,T60200D line 80 -> 711AS
+BEA_NIPA,"Performing arts, spectator sports, museums, and related activities",BEA_2017_Code,712000,,T60200D line 80 -> 711AS
+BEA_NIPA,Petroleum and coal products,BEA_2017_Code,324110,,T60200D line 32 -> 324
+BEA_NIPA,Petroleum and coal products,BEA_2017_Code,324121,,T60200D line 32 -> 324
+BEA_NIPA,Petroleum and coal products,BEA_2017_Code,324122,,T60200D line 32 -> 324
+BEA_NIPA,Petroleum and coal products,BEA_2017_Code,324190,,T60200D line 32 -> 324
+BEA_NIPA,Pipeline transportation,BEA_2017_Code,486000,,T60200D line 49 -> 486
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326110,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326120,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326130,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326140,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326150,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326160,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326190,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326210,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326220,,T60200D line 34 -> 326
+BEA_NIPA,Plastics and rubber products,BEA_2017_Code,326290,,T60200D line 34 -> 326
+BEA_NIPA,Primary metals,BEA_2017_Code,331110,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331200,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331313,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331314,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,33131B,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331410,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331420,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331490,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331510,,T60200D line 17 -> 331
+BEA_NIPA,Primary metals,BEA_2017_Code,331520,,T60200D line 17 -> 331
+BEA_NIPA,Printing and related support activities,BEA_2017_Code,323110,,T60200D line 31 -> 323
+BEA_NIPA,Printing and related support activities,BEA_2017_Code,323120,,T60200D line 31 -> 323
+BEA_NIPA,Publishing industries (includes software),BEA_2017_Code,511110,,T60200D line 53 -> 511
+BEA_NIPA,Publishing industries (includes software),BEA_2017_Code,511120,,T60200D line 53 -> 511
+BEA_NIPA,Publishing industries (includes software),BEA_2017_Code,511130,,T60200D line 53 -> 511
+BEA_NIPA,Publishing industries (includes software),BEA_2017_Code,5111A0,,T60200D line 53 -> 511
+BEA_NIPA,Publishing industries (includes software),BEA_2017_Code,511200,,T60200D line 53 -> 511
+BEA_NIPA,Rail transportation,BEA_2017_Code,482000,,T60200D line 45 -> 482
+BEA_NIPA,Real estate,BEA_2017_Code,531HSO,,T60200D line 63 -> HS+ORE
+BEA_NIPA,Real estate,BEA_2017_Code,531HST,,T60200D line 63 -> HS+ORE
+BEA_NIPA,Real estate,BEA_2017_Code,531ORE,,T60200D line 63 -> HS+ORE
+BEA_NIPA,Rental and leasing services and lessors of intangible assets,BEA_2017_Code,532100,,T60200D line 64 -> 532RL
+BEA_NIPA,Rental and leasing services and lessors of intangible assets,BEA_2017_Code,532400,,T60200D line 64 -> 532RL
+BEA_NIPA,Rental and leasing services and lessors of intangible assets,BEA_2017_Code,532A00,,T60200D line 64 -> 532RL
+BEA_NIPA,Rental and leasing services and lessors of intangible assets,BEA_2017_Code,533000,,T60200D line 64 -> 532RL
+BEA_NIPA,"Securities, commodity contracts, and investments",BEA_2017_Code,523900,,T60200D line 59 -> 523
+BEA_NIPA,"Securities, commodity contracts, and investments",BEA_2017_Code,523A00,,T60200D line 59 -> 523
+BEA_NIPA,Social assistance,BEA_2017_Code,624100,,T60200D line 78 -> 624
+BEA_NIPA,Social assistance,BEA_2017_Code,624400,,T60200D line 78 -> 624
+BEA_NIPA,Social assistance,BEA_2017_Code,624A00,,T60200D line 78 -> 624
+BEA_NIPA,Support activities for mining,BEA_2017_Code,213111,,T60200D line 10 -> 213
+BEA_NIPA,Support activities for mining,BEA_2017_Code,21311A,,T60200D line 10 -> 213
 BEA_NIPA,T00OTOP all industries,BEA_2017_Code,1111A0,,"T30500 LA000365 + LA000237, every industry but the ten government codes"
 BEA_NIPA,T00OTOP all industries,BEA_2017_Code,1111B0,,"T30500 LA000365 + LA000237, every industry but the ten government codes"
 BEA_NIPA,T00OTOP all industries,BEA_2017_Code,111200,,"T30500 LA000365 + LA000237, every industry but the ten government codes"
@@ -391,3 +753,445 @@ BEA_NIPA,T00OTOP all industries,BEA_2017_Code,813100,,"T30500 LA000365 + LA00023
 BEA_NIPA,T00OTOP all industries,BEA_2017_Code,813A00,,"T30500 LA000365 + LA000237, every industry but the ten government codes"
 BEA_NIPA,T00OTOP all industries,BEA_2017_Code,813B00,,"T30500 LA000365 + LA000237, every industry but the ten government codes"
 BEA_NIPA,T00OTOP all industries,BEA_2017_Code,814000,,"T30500 LA000365 + LA000237, every industry but the ten government codes"
+BEA_NIPA,Textile mills and textile product mills,BEA_2017_Code,313100,,T60200D line 28 -> 313TT
+BEA_NIPA,Textile mills and textile product mills,BEA_2017_Code,313200,,T60200D line 28 -> 313TT
+BEA_NIPA,Textile mills and textile product mills,BEA_2017_Code,313300,,T60200D line 28 -> 313TT
+BEA_NIPA,Textile mills and textile product mills,BEA_2017_Code,314110,,T60200D line 28 -> 313TT
+BEA_NIPA,Textile mills and textile product mills,BEA_2017_Code,314120,,T60200D line 28 -> 313TT
+BEA_NIPA,Textile mills and textile product mills,BEA_2017_Code,314900,,T60200D line 28 -> 313TT
+BEA_NIPA,Transit and ground passenger transportation,BEA_2017_Code,485000,,T60200D line 48 -> 485
+BEA_NIPA,Truck transportation,BEA_2017_Code,484000,,T60200D line 47 -> 484
+BEA_NIPA,Utilities,BEA_2017_Code,221100,,T60200D line 11 -> 22
+BEA_NIPA,Utilities,BEA_2017_Code,221200,,T60200D line 11 -> 22
+BEA_NIPA,Utilities,BEA_2017_Code,221300,,T60200D line 11 -> 22
+BEA_NIPA,V00100 federal general government,BEA_2017_Code,S00500,,T60200D line 88 -> GFGD+GFGN
+BEA_NIPA,V00100 federal general government,BEA_2017_Code,S00600,,T60200D line 88 -> GFGD+GFGN
+BEA_NIPA,V00100 federal government enterprises,BEA_2017_Code,491000,,T60200D line 91 -> GFE
+BEA_NIPA,V00100 federal government enterprises,BEA_2017_Code,S00101,,T60200D line 91 -> GFE
+BEA_NIPA,V00100 federal government enterprises,BEA_2017_Code,S00102,,T60200D line 91 -> GFE
+BEA_NIPA,V00100 state and local general government,BEA_2017_Code,GSLGE,,T60200D line 93 -> GSLG
+BEA_NIPA,V00100 state and local general government,BEA_2017_Code,GSLGH,,T60200D line 93 -> GSLG
+BEA_NIPA,V00100 state and local general government,BEA_2017_Code,GSLGO,,T60200D line 93 -> GSLG
+BEA_NIPA,V00100 state and local government enterprises,BEA_2017_Code,S00201,,T60200D line 96 -> GSLE
+BEA_NIPA,V00100 state and local government enterprises,BEA_2017_Code,S00202,,T60200D line 96 -> GSLE
+BEA_NIPA,V00100 state and local government enterprises,BEA_2017_Code,S00203,,T60200D line 96 -> GSLE
+BEA_NIPA,V00300 all industries,BEA_2017_Code,1111A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,1111B0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,111200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,111300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,111400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,111900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,112120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,1121A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,112300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,112A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,113000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,114000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,115000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,211000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,212100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,212230,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,2122A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,212310,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,2123A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,213111,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,21311A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,221100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,221200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,221300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,230301,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,230302,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,233210,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,233230,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,233240,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,233262,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,2332A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,2332C0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,2332D0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,233411,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,233412,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,2334A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311111,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311119,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311210,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311221,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311224,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311225,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311230,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311410,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311420,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311513,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311514,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,31151A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311520,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311615,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,31161A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311700,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311810,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,3118A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311910,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311920,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311930,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311940,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,311990,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,312110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,312120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,312130,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,312140,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,312200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,313100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,313200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,313300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,314110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,314120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,314900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,315000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,316000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,321100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,321200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,321910,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,3219A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322130,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322210,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322220,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322230,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322291,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,322299,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,323110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,323120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,324110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,324121,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,324122,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,324190,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325130,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325180,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325190,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325211,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,3252A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325310,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325320,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325411,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325412,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325413,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325414,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325510,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325520,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325610,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325620,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,325910,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,3259A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326130,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326140,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326150,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326160,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326190,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326210,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326220,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,326290,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327310,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327320,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327330,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327390,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327910,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327991,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327992,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327993,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,327999,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331313,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331314,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33131B,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331410,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331420,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331490,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331510,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,331520,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332114,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332119,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33211A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332310,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332320,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332410,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332420,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332430,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332500,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332600,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332710,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332720,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332800,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332913,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33291A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332991,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332996,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,332999,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33299A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333111,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333112,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333130,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333242,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33329A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333314,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333316,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333318,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333413,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333414,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333415,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333511,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333514,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333517,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33351B,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333611,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333612,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333613,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333618,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333912,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333914,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333920,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333991,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333993,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,333994,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33399A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33399B,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334111,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334112,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334118,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334210,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334220,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334290,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334413,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334418,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33441A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334510,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334511,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334512,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334513,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334514,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334515,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334516,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334517,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33451A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,334610,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335210,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335220,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335311,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335312,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335313,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335314,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335911,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335912,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335920,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335930,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335991,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,335999,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336111,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336112,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336211,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336212,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336213,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336214,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336310,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336320,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336350,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336360,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336370,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336390,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,3363A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336411,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336412,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336413,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336414,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33641A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336500,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336611,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336612,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336991,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336992,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,336999,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,337110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,337121,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,337122,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,337127,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33712N,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,337215,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,33721A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,337900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339112,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339113,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339114,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339115,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339116,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339910,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339920,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339930,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339940,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339950,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,339990,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,4200ID,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,423100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,423400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,423600,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,423800,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,423A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,424200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,424400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,424700,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,424A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,425000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,441000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,444000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,445000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,446000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,447000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,448000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,452000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,454000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,481000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,482000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,483000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,484000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,485000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,486000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,48A000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,491000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,492000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,493000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,4B0000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,511110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,511120,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,511130,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,5111A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,511200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,512100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,512200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,515100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,515200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,517110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,517210,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,517A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,518200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,519130,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,5191A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,522A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,523900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,523A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,524113,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,5241XX,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,524200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,525000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,52A000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,531HSO,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,531HST,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,531ORE,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,532100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,532400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,532A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,533000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541511,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541512,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,54151A,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541610,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,5416A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541700,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541800,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541920,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,541940,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,5419A0,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,550000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561500,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561600,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561700,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,561900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,562000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,611100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,611A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,611B00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,621100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,621200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,621300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,621400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,621500,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,621600,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,621900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,622000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,623A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,623B00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,624100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,624400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,624A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,711100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,711200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,711500,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,711A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,712000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,713100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,713200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,713900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,721000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,722110,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,722211,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,722A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,811100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,811200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,811300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,811400,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,812100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,812200,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,812300,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,812900,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,813100,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,813A00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,813B00,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,814000,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,GSLGE,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,GSLGH,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,GSLGO,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,S00101,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,S00102,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,S00201,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,S00202,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,S00203,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,S00500,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,V00300 all industries,BEA_2017_Code,S00600,,"T11000 W272RC/A041RC/A108RC/A030RC + T70700 B029RC + T70900 A048RC + T61600D A445RC + T70500 A262RC, every industry"
+BEA_NIPA,Warehousing and storage,BEA_2017_Code,493000,,T60200D line 51 -> 493
+BEA_NIPA,Waste management and remediation services,BEA_2017_Code,562000,,T60200D line 72 -> 562
+BEA_NIPA,Water transportation,BEA_2017_Code,483000,,T60200D line 46 -> 483
+BEA_NIPA,Wholesale trade,BEA_2017_Code,4200ID,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,423100,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,423400,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,423600,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,423800,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,423A00,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,424200,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,424400,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,424700,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,424A00,,T60200D line 35 -> 42
+BEA_NIPA,Wholesale trade,BEA_2017_Code,425000,,T60200D line 35 -> 42
+BEA_NIPA,Wood products,BEA_2017_Code,321100,,T60200D line 15 -> 321
+BEA_NIPA,Wood products,BEA_2017_Code,321200,,T60200D line 15 -> 321
+BEA_NIPA,Wood products,BEA_2017_Code,321910,,T60200D line 15 -> 321
+BEA_NIPA,Wood products,BEA_2017_Code,3219A0,,T60200D line 15 -> 321

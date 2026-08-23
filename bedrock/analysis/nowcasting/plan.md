@@ -248,7 +248,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 | Block | Status |
 |---|---|
-| Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 31 NIPA tables extracted and reconciled (#536); three FBS methods to build (#538) — Step 2. `T00OTOP`'s method is **settled and measured**: two published lookups plus frozen 2017 shares, 1.9% composition drift against a 40.5% level move |
+| Value added (`V00100`, `T00OTOP`, `V00300`) | ✅ **All three rows built for 2017** (#538): `NIPA_VA_compensation` on 69 `T60200D` industry controls, `NIPA_VA_othertax` on one, `NIPA_VA_surplus` on eight across five tables. The `use_va_detail_sut` diagnostic is on and **every cell of the 3 × 402 block matches**. ⏳ 2018-2024 blocked on the compensation movement series |
 | Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split plus the government-column exclusion. Construction converts exactly; the residual is 20 named industries. See Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3 |
 
@@ -897,6 +897,35 @@ The residual open item is unchanged — the honest allocator for the non-housing
 **capital stock in structures, i.e. BEA Fixed Assets**, the same missing extractor CFC wants for 40%
 of `V00300` (open question 5). At 1.8% of output, seed-only in Step 5 and 1.9% drift, it is not on the
 critical path.
+
+✅ **`V00100` and `V00300` built for 2017 too — 2026-08-23, #538.** All three rows now generate, and the
+`use_va_detail_sut` diagnostic runs on the full 3 × 402 block with **every cell matching** (worst 2.6
+million on a 178 billion cell, a relative error of 1.5e-5 — BEA's own rounding).
+
+- **`V00100`** runs on the **69 `T60200D` industry groups as separate controls**, not one national
+  total, because those 69 leaves ✅ **partition the 71 BEA summary industries exactly** and 63 of them
+  equal a summary industry's published compensation *to the dollar*. So the frozen 2017 shares only
+  have to hold within a summary industry.
+- ❌ **The plan's headline decision — split wages from supplements — is reversed on measurement.**
+  `T60300D` matches `T60200D` at 69 groups, but `T61000D`/`T61100D` publish only **16**, so splitting
+  imposes a coarse group's supplement rate on industries whose own rates differ and misplaces
+  **99,025, 0.95% of the row**. "NIPA publishes both halves by industry" does not help when it
+  publishes them at coarser grain than the total. See
+  [`compensation_allocation.py`](compensation_allocation.py).
+- **`V00300`** is eight controls across five tables on one industry distribution, and stays plain
+  deliberately: four of its components have industry tables on **mutually incompatible partitions**
+  (20 / 21 / 12+financial / 63 groups) and three have no axis at all, so a component build imposes
+  four coarse partitions at once — the same 0.95% mistake, four times over. ⚠️ It also keeps `S00201`
+  at its published **−36,919**; no step may assume positivity.
+- 🚧 **The best next source for Step 2 is a value added by industry extractor.**
+  `V00300 = VABAS − V00100 − T00OTOP`, and two of those three are now built at detail, so BEA's
+  **GDP-by-Industry accounts** — published annually, *not in bedrock* — would give `V00300` by 71
+  industry groups as a residual. That beats assembling eight incompatible component tables, and it
+  outranks Fixed Assets because it serves the 41.6% row rather than one 40% component of it. ⚠️ The
+  summary Use SUT carries the same thing and Decision 3 holds it in the test set, so it cannot stand in.
+- ⏳ **2018-2024 are not written.** Every method holds its within-group shares at 2017; for 2017 that
+  is complete (QCEW growth is the identity) and for later years it is not. Compensation needs the
+  moved-share source, which is blocked on the `FBS_outside_flowsa` gap above.
 
 ✅ **#536 done — 24 NIPA tables added to `BEA_NIPA.yaml`**, all annual and complete for 2012-2024, at
 ~950 extra FBA rows per year. Reconciliation through the FBA is pinned by

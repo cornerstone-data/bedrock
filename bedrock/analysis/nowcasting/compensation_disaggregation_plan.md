@@ -15,9 +15,16 @@ via `uv run python -m bedrock.analysis.nowcasting.value_added_control_totals`:
 
 - The control totals reconcile. `V00100` meets NIPA T1.10 `A4002C` within
   **3 million** on 10.4 trillion.
-- `T60200D` (6.2D, compensation by industry) has **74 leaf rows** — about BEA
-  summary granularity. Nothing in NIPA reaches the 402 detail industries, so
-  detail is an allocation problem, not a lookup.
+- `T60200D` (6.2D, compensation by industry) has **69 usable leaf groups**, and
+  ✅ **they are not merely "about BEA summary granularity" — they *are* the BEA
+  summary industries.** Measured 2026-08-23: the 69 leaves partition all **71**
+  summary industries exactly, no gaps and no overlaps, and **63 of them equal a
+  summary industry's published compensation to the dollar**. Nothing in NIPA
+  reaches the 402 detail industries, so detail is still an allocation problem —
+  but it is an allocation *within a summary industry*, which is a much smaller
+  claim than a national spread. (The earlier "74 leaf rows" counted the table's
+  rows rather than a partition of them; 6.2D is hierarchical and summing it
+  double-counts.)
 - **No value-added code is in the sector crosswalk yet.** Once a gate; now
   three CSV lines, since #567/#568 closed — see
   [Phase 0](#phase-0--the-crosswalk-gate--cleared).
@@ -59,7 +66,31 @@ original exists: `BEA_NIPA` is a `TECHNOSPHERE_FLOW` source, so populating the
 sector column before attribution would capture `PrimarySector` and corrupt the
 weights. Assign after aggregation, as #539 established.
 
-## The decision that shapes everything else
+## The decision that shapes everything else — ❌ **reversed 2026-08-23, on measurement**
+
+> ⚠️ **This section's decision was tested when the method was built, and it does
+> not survive.** The reasoning below is right; the data to act on it does not
+> exist. `T60300D` wages is line-for-line identical to `T60200D` at **69**
+> industry groups, but `T61000D` and `T61100D` publish only **16**. So splitting
+> imposes a 16-group supplement rate on industries whose own rates differ —
+> which is the same error the decision was written to avoid, one level up.
+> Measured for 2017 in [`compensation_allocation.py`](compensation_allocation.py),
+> it misplaces **99,025, or 0.95% of the row**, against a `T60200D`-only method
+> that reproduces the benchmark exactly. Worst cases: administrative and support
+> services (own supplement rate 15.7% against its group's 14.0%, −6,898),
+> computer systems design (11.8% vs 14.0%, +5,795), information and data
+> processing (8.8% vs 14.0%, +5,231).
+>
+> ✅ **So "NIPA publishes both halves by industry" does not help, because it
+> publishes them at coarser industry grain than the total.**
+> [`NIPA_VA_compensation_2017.yaml`](../../transform/nipa/NIPA_VA_compensation_2017.yaml)
+> therefore runs on `T60200D` alone, one control per NIPA industry group.
+> Revisit only if the supplements tables ever reach `T60200D`'s grain; they have
+> not in any published year.
+>
+> ⚠️ **The concern below is not refuted, only relocated.** It applies to the
+> *within-summary* split, where QCEW wage growth is the allocator — and there
+> NIPA offers no supplements data at all, so there is nothing to trade off.
 
 **Disaggregate wages and supplements separately, then sum. Do not allocate total
 compensation by wage shares.**
@@ -293,12 +324,26 @@ come from each series' own `MetricName`/`DefaultScale`. All 1,812 dollar rows ar
 bit-identical across the change; 1.14's three chained-dollar lines moved to
 `Class: Other` so a `Class: Money` selection cannot add real dollars to nominal.
 
-## Phase 3 — apply controls and assemble
+## Phase 3 — apply controls and assemble ✅ **built for 2017**
 
-This is `NIPA_VA_compensation_<year>.yaml`, and it is three activity sets plus the
-special cases of Phase 4. Each is a `proportional` attribution of a NIPA control
-against a weight source, which is why the exact rescale that used to be 3.4 is
-now a property of the method rather than a step in it.
+[`NIPA_VA_compensation_2017.yaml`](../../transform/nipa/NIPA_VA_compensation_2017.yaml)
+exists and reproduces the published detail row at **correlation 1.000000**, 400
+industries of 400, off by 1 on 10.4 trillion. It is **five activity sets, not
+three**: one carrying the 65 leaf lines whose NIPA names are unique, and four
+for the government lines that need aliases.
+
+✅ **The controls are the 69 `T60200D` industry groups, not one national total.**
+That is what lifts the method above a restatement of the benchmark — the frozen
+2017 shares only have to hold *within* a summary industry. And the axis is
+verified rather than assumed: the 69 leaves **partition all 71 BEA summary
+industries exactly**, and 63 of them equal a summary industry's published
+compensation to the dollar.
+
+⚠️ **What is *not* built is the movement.** For 2017 the method is complete —
+QCEW growth 2017→2017 is the identity — but Phase 2's moved-share source is
+blocked (see the note at the end of Phase 2), so no 2018-2024 file is written.
+
+The original three-activity-set design, for the record:
 
 - **3.1** Wages. Control is 6.3D **line 2** (`A4102C`, the paid concept — see the
   table above); weight source is the Phase 2 moved-share `FBS_outside_flowsa`.
@@ -455,10 +500,12 @@ three-way split is the next thing to check.
 - **5.4** Replay for a year with a published answer other than 2017 if one
   exists; otherwise the movement series is untested against ground truth and
   that limitation should be stated.
-- **5.5** Point `use_va_detail_sut.candidate` at the output. The
-  [#587](https://github.com/cornerstone-data/bedrock/issues/587) diagnostic then
-  gives the cell-by-cell picture for free — its reference, frame and tolerance
-  are already settled.
+- **5.5** ✅ **Done.** `use_va_detail_sut.candidate` points at
+  `derive_initial_value_added`, which stacks all three `NIPA_VA_*_2017` methods.
+  The [#587](https://github.com/cornerstone-data/bedrock/issues/587) diagnostic
+  runs on the full 3 × 402 block and **every cell matches** — the worst is 2.6
+  million on a 178 billion cell, a relative error of 1.5e-5, which is BEA's own
+  rounding. No section carries `candidate=None` any more.
 
 ---
 
@@ -500,6 +547,39 @@ drifts 1.9% while its level grows 40.5%. It is the row that can be finished
 first, not the one to defer. See [§`T00OTOP` — measured](#t00otop--measured-and-it-is-a-property-tax).
 
 ## `V00300` — where the work actually is
+
+✅ **Built for 2017, and deliberately plain.**
+[`NIPA_VA_surplus_2017.yaml`](../../transform/nipa/NIPA_VA_surplus_2017.yaml)
+runs the eight-line assembly below as eight controls across five tables, on one
+industry distribution, and reproduces the published row at **correlation
+1.000000** — including keeping `S00201` state and local passenger transit at its
+published **−36,919**, which a share method that clips at zero would delete
+silently.
+
+⚠️ **It is plain because a component-wise build does not work, not because it
+was not attempted.** Four of the eight components have an industry table and
+they publish on **mutually incompatible partitions** — net interest 20 groups,
+nonfarm proprietors 21, corporate profits financial/nonfinancial plus 12
+industries, corporate capital consumption 63 — while three components (rental
+income, business transfers, the statistical discrepancy) have no industry axis
+at any scope. Their common refinement is coarser than any one of them. And the
+cost of forcing it is now priced rather than guessed: the same shape of mistake,
+made deliberately for `V00100`, misplaces **0.95%** of that row. A `V00300`
+component build imposes four coarse partitions at once.
+
+✅ **What would fix it is one extractor, not more NIPA tables.**
+`V00300 = VABAS − V00100 − T00OTOP`, and two of those three are now built at
+detail. A **value added by industry** series therefore yields `V00300` by 71
+industry groups as a residual — better than any assembly of eight incompatible
+component tables. BEA publishes exactly that annually in the **GDP-by-Industry
+accounts**, and it is *not in bedrock*. ⚠️ The summary Use SUT carries the same
+thing and is held out of the target set by Step 5's Decision 3, so it cannot be
+an input. **This is the highest-value missing source for Step 2**, ahead of
+Fixed Assets (open question 5), because it serves the 41.6% row directly rather
+than one 40% component of it.
+
+The component sketches below stand as the description of what NIPA offers, and
+as the fallback if the GDP-by-Industry extractor is not built.
 
 Some of these lines touch a handful of sectors and some are genuinely
 economy-wide, and the **NIPA leaf names say which**. Read that way, `V00300`
@@ -866,8 +946,13 @@ allocator for the non-housing, non-farm remainder is capital stock in structures
 
 ## Open questions
 
-1. **Is there a published detail *wages* series**, or must detail wage shares be
-   derived from the summary wages/compensation ratio (1.3)?
+1. ✅ **Closed, and it stopped mattering.** There is no published detail wages
+   series. It would have been needed only for the wages/supplements split, and
+   that split is reversed above on measurement — the shipped method never forms
+   a wage share. Worth noting *why* the 1.3 fallback would have been a no-op
+   anyway: applying a constant summary wages/compensation ratio within a parent
+   leaves the shares unchanged, so derived detail wage shares equal detail
+   compensation shares by construction.
 2. ✅ **Closed (#536).** The ~10,600 gap was a wrong-line error: 6.2D line 1
    `A033RC` is compensation *received*, line 2 `A4002C` compensation *paid*,
    and the difference is the rest-of-world adjustment `A4187C` at −10,607.
