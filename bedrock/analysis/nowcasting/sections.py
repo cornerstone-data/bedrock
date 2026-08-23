@@ -383,13 +383,9 @@ USE_VA_DETAIL_SUT = Section(
     candidate=initial_value_added_candidate,
     note=(
         'Candidate is a live run of derive_initial_value_added: the three '
-        'NIPA_VA_*_2017 methods stacked. V00100 runs on 69 NIPA industry '
-        'controls from T60200D, T00OTOP on one from T30500, V00300 on eight '
-        'across five tables. All three hold their within-group shares at the '
-        '2017 benchmark, so a 2017 run tests the plumbing rather than the '
-        'movement series - it should be near-exact, and a cell that is not is '
-        'a defect. The later-year files wait on the compensation movement '
-        'series (#538).'
+        'NIPA_VA_*_2017 methods stacked. All hold their within-group shares at '
+        'the 2017 benchmark, so a 2017 run tests the plumbing, not the '
+        'movement series - near-exact is the floor, not an achievement.'
     ),
 )
 

@@ -12,14 +12,20 @@ allocation.
 The three rows it serves
 ------------------------
 
-``T00OTOP`` is one activity reaching 392 industries, because its control is one
+``T00OTOP`` is one activity reaching 391 industries, because its control is one
 number. ⚠️ **Government is excluded by name, not left to a zero weight.** BEA
-books no taxes on production to any of the ten government industry codes -- an
-accounting rule, since a tax levied by government and remitted by a government
-producer nets out. The 2017 weights happen to be zero there too, so the rule
-would appear to hold on its own; excluding the codes makes it hold *because* it
-is a rule. Argued at greater length in
-:mod:`~bedrock.analysis.nowcasting.tax_axis_conversion`.
+books no taxes on production to any government producer -- an accounting rule,
+since a tax levied by government and remitted by a government producer nets out.
+The 2017 weights happen to be zero there too, so the rule would appear to hold
+on its own; excluding the codes makes it hold *because* it is a rule. Argued at
+greater length in :mod:`~bedrock.analysis.nowcasting.tax_axis_conversion`.
+
+⚠️ **Eleven codes, not the canonical ten.** ``tax_axis_conversion``'s prefix rule
+(``S00``, ``G``) misses the US Postal Service, ``491000``, which is a federal
+government enterprise with a BEA code shaped like an industry's. Its published
+``T00OTOP`` is zero like the rest, so naming it changes no 2017 number -- and
+that is the point: the rule now holds by rule rather than by the weight
+happening to be zero. Surfaced by the #587 diagnostic.
 
 ``V00100`` is 69 activities, because NIPA ``T60200D`` states compensation for 69
 industry groups and each is its own control. ✅ **Those 69 leaves partition the
@@ -105,6 +111,15 @@ BENCHMARK_YEAR = 2017
 
 #: General government and government enterprises. No taxes on production.
 GOVERNMENT_PREFIXES = ('S00', 'G')
+
+#: The US Postal Service, a federal government enterprise whose BEA code does
+#: not start with ``S00`` or ``G``.  ⚠️ Named separately because the prefix rule
+#: misses it: ``tax_axis_conversion``'s canonical "ten government industry
+#: codes" are the prefix matches, and postal is an eleventh.  Its published
+#: ``T00OTOP`` is zero like the other ten, so excluding it changes no number in
+#: 2017 -- which is exactly why it is worth naming. Left to the weight it would
+#: hold only by coincidence, and the #587 diagnostic is what surfaced it.
+POSTAL_SERVICE = '491000'
 
 #: The alias ``NIPA_VA_othertax_<year>``'s single activity set assigns.  One
 #: activity because there is one control: NIPA states no "other taxes on
@@ -228,16 +243,21 @@ def industries() -> list[str]:
 
 
 def government_industries() -> list[str]:
-    """The ten government industry codes, general and enterprise."""
-    return [code for code in industries() if code.startswith(GOVERNMENT_PREFIXES)]
+    """The eleven codes BEA books no taxes on production to.
+
+    The ten that match ``GOVERNMENT_PREFIXES``, plus :data:`POSTAL_SERVICE`.
+    """
+    matched = [code for code in industries() if code.startswith(GOVERNMENT_PREFIXES)]
+    return [code for code in industries() if code in matched or code == POSTAL_SERVICE]
 
 
 def taxable_industries() -> list[str]:
-    """The 392 industries other taxes on production may reach.
+    """The 391 industries other taxes on production may reach.
 
-    402 less the ten government codes.  The housing pair and the ten farm codes
-    stay in: their published lookups would enter as *weights* rather than as
-    separate controls, so those industries are still reached by this activity.
+    402 less the eleven government codes.  The housing pair and the ten farm
+    codes stay in: their published lookups would enter as *weights* rather than
+    as separate controls, so those industries are still reached by this
+    activity.
     """
     government = set(government_industries())
     return [code for code in industries() if code not in government]
