@@ -917,12 +917,16 @@ million on a 178 billion cell, a relative error of 1.5e-5 — BEA's own rounding
   (20 / 21 / 12+financial / 63 groups) and three have no axis at all, so a component build imposes
   four coarse partitions at once — the same 0.95% mistake, four times over. ⚠️ It also keeps `S00201`
   at its published **−36,919**; no step may assume positivity.
-- 🚧 **The best next source for Step 2 is a value added by industry extractor.**
-  `V00300 = VABAS − V00100 − T00OTOP`, and two of those three are now built at detail, so BEA's
-  **GDP-by-Industry accounts** — published annually, *not in bedrock* — would give `V00300` by 71
-  industry groups as a residual. That beats assembling eight incompatible component tables, and it
-  outranks Fixed Assets because it serves the 41.6% row rather than one 40% component of it. ⚠️ The
-  summary Use SUT carries the same thing and Decision 3 holds it in the test set, so it cannot stand in.
+- ✅ **The value-added-by-industry extractor is built — and it is the summary SUT, not a new source.**
+  [`BEA_GDPbyIndustry`](../../extract/bea/BEA_GDPbyIndustry.yaml) reads BEA's GDP-by-Industry release
+  archive (table `TVA113`, *Components of Value Added by Industry*, annual, no API key), which does
+  state gross operating surplus by industry directly. ⚠️ **Measured: all 71 BEA summary industries'
+  `V003` match a `TVA113` surplus row to the dollar, and all 71 `V001` match compensation** — BEA's
+  industry accounts and the SUTs are the same estimates published twice. So "the highest-value missing
+  source" was the wrong framing: it is not missing, it is the table Decision 3 holds in the test set,
+  under a different name. Worth having as an FBA (versioned, citable, and the natural loader for the
+  test set); **consuming it as a Step 2 input is a testing-strategy decision, not a data-availability
+  one**, and is left open.
 - ⏳ **2018-2024 are not written.** Every method holds its within-group shares at 2017; for 2017 that
   is complete (QCEW growth is the identity) and for later years it is not. Compensation needs the
   moved-share source, which is blocked on the `FBS_outside_flowsa` gap above.

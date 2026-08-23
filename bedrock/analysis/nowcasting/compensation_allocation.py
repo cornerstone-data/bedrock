@@ -105,14 +105,27 @@ different coarse partitions at once -- the ``V00100`` mistake above, four times
 over -- so this module's recommendation is the plain one: eight controls, one
 industry distribution, and say so.
 
-✅ **What would fix it is one extractor, not more NIPA tables.**
-``V00300 = VABAS - V00100 - T00OTOP``, and two of those three are now built at
-detail. A **value added by industry** series would therefore give ``V00300`` by
-71 industry groups as a residual, which beats any assembly of eight incompatible
-component tables. BEA publishes exactly that, annually, in the GDP-by-Industry
-accounts, and it is **not in bedrock**. The summary Use SUT carries the same
-thing and is held out of the target set by Step 5's Decision 3, so it cannot be
-an input.
+✅ **The extractor was built, and it settles the question the other way.**
+:mod:`bedrock.extract.bea.BEA_GDPbyIndustry` reads BEA's GDP-by-Industry release
+archive -- table ``TVA113``, *Components of Value Added by Industry*, annual,
+no API key -- which does state gross operating surplus by industry directly.
+
+⚠️ **But it is the summary Use SUT's ``V003`` row by another door, not an
+independent estimate of it.** Measured: **all 71** BEA summary industries' ``V003``
+match a ``TVA113`` gross-operating-surplus row *to the dollar*, and all 71
+``V001`` match compensation the same way. BEA's industry accounts and the SUTs
+are the same estimates published twice.
+
+So the recommendation this section previously made -- buy the extractor and use
+it as ``V00300``'s industry axis -- **is only half right**. The extractor is
+worth having: it makes the series reachable as an FBA, keyed and versioned,
+1997-2024, and it is the natural loader for the *test* set. Consuming it as a
+Step 2 **input** is a different decision, because Step 5's Decision 3 holds the
+summary SUT out of the target set precisely so it can grade the build. That
+trade -- a near-exact ``V00300`` seed at summary grain, paid for with the ability
+of summary ``V003`` to grade that seed -- is a judgement about the testing
+strategy, not about data availability, and it is left open rather than taken
+here.
 
 ⚠️ **Nothing may assume positivity.** ``S00201`` state and local passenger
 transit carries a ``V00300`` of **-36,919**, and finance and insurance's net

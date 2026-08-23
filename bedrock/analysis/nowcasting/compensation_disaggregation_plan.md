@@ -567,16 +567,27 @@ cost of forcing it is now priced rather than guessed: the same shape of mistake,
 made deliberately for `V00100`, misplaces **0.95%** of that row. A `V00300`
 component build imposes four coarse partitions at once.
 
-✅ **What would fix it is one extractor, not more NIPA tables.**
-`V00300 = VABAS − V00100 − T00OTOP`, and two of those three are now built at
-detail. A **value added by industry** series therefore yields `V00300` by 71
-industry groups as a residual — better than any assembly of eight incompatible
-component tables. BEA publishes exactly that annually in the **GDP-by-Industry
-accounts**, and it is *not in bedrock*. ⚠️ The summary Use SUT carries the same
-thing and is held out of the target set by Step 5's Decision 3, so it cannot be
-an input. **This is the highest-value missing source for Step 2**, ahead of
-Fixed Assets (open question 5), because it serves the 41.6% row directly rather
-than one 40% component of it.
+✅ **The extractor exists now, and it settles the question the other way.**
+[`BEA_GDPbyIndustry`](../../extract/bea/BEA_GDPbyIndustry.yaml) reads BEA's
+GDP-by-Industry release archive — table `TVA113`, *Components of Value Added by
+Industry*, annual 1997–2024, no API key — which does state gross operating
+surplus by industry directly.
+
+⚠️ **But it is the summary Use SUT's `V003` row by another door, not an
+independent estimate of it.** Measured: **all 71** BEA summary industries' `V003`
+match a `TVA113` gross-operating-surplus row *to the dollar*, and all 71 `V001`
+match compensation the same way. BEA's industry accounts and the SUTs are the
+same estimates published twice.
+
+So "the highest-value missing source" was the wrong framing — it is not missing,
+it is the held-out table under a different name. The extractor is still worth
+having: it makes the series reachable as an FBA, versioned and citable, and it
+is the natural loader for the *test* set. Consuming it as a Step 2 **input** is
+a separate decision, because Decision 3 keeps the summary SUT out of the target
+set precisely so it can grade the build. The trade — a near-exact `V00300` seed
+at summary grain, paid for with summary `V003`'s ability to grade that seed — is
+a judgement about the testing strategy rather than about data availability, and
+is left open.
 
 The component sketches below stand as the description of what NIPA offers, and
 as the fallback if the GDP-by-Industry extractor is not built.

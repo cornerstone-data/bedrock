@@ -123,6 +123,15 @@ BEA_NIPA:
     - Other
   activity_schema: null
   sector_hierarchy: flat
+BEA_GDPbyIndustry:
+  data_format: FBA
+  class:
+    - Money
+  # TVA113 names its industries in words ("Farms", "Oil and gas extraction"),
+  # not in codes, so there is no activity schema to declare; a method reaches
+  # BEA sectors through an activity_to_sector_mapping crosswalk.
+  activity_schema: null
+  sector_hierarchy: flat
 BEA_IEA:
   data_format: FBA
   class:

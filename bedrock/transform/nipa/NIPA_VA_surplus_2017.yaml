@@ -50,15 +50,23 @@
 # different coarse partitions at once. See
 # analysis/nowcasting/compensation_allocation.py.
 #
-# ✅ WHAT WOULD ACTUALLY FIX IT, AND IT IS NOT MORE NIPA TABLES.
-# V00300 = VABAS - V00100 - T00OTOP. Two of those three are now built here at
-# detail, so a **value added by industry** series would give V00300 by 71 industry
-# groups as a residual - better than any assembly of eight incompatible component
-# tables. BEA publishes exactly that annually in the GDP-by-Industry accounts,
-# and it is **not in bedrock**. The summary Use SUT carries the same thing and is
-# held out of the target set by Step 5's Decision 3, so it cannot be used as an
-# input. One extractor closes this properly; see the open questions in
-# compensation_disaggregation_plan.md.
+# ✅ THE ONE SOURCE THAT WOULD FIX IT EXISTS NOW - AND IT IS THE TEST SET.
+# BEA_GDPbyIndustry (table TVA113, Components of Value Added by Industry) does
+# state gross operating surplus by industry directly, annually, with no API key.
+# It is deliberately NOT used here.
+#
+# ⚠️ Measured: all 71 BEA summary industries' V003 match a TVA113 surplus row to
+# the dollar, and all 71 V001 match compensation the same way. BEA's industry
+# accounts and the SUTs are the same estimates published twice - so this is the
+# summary Use SUT by another door, and Step 5's Decision 3 holds the summary SUT
+# out of the target set precisely so it can grade the build.
+#
+# Wiring it in is a two-line change: swap this method's attribution source for
+# the TVA113 V00300 rows mapped to BEA detail. What that buys is a near-exact
+# V00300 seed at summary grain. What it costs is summary V003's ability to grade
+# that seed afterwards. That trade is a judgement about the testing strategy, not
+# about data availability, and it is left open rather than taken here. See
+# analysis/nowcasting/compensation_allocation.py and plan.md Step 5 Decision 3.
 #
 # ⚠️ NOTHING HERE MAY ASSUME POSITIVITY. S00201 state and local passenger transit
 # carries a V00300 of **-36,919** in the benchmark, and finance and insurance's

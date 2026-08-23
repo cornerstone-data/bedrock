@@ -39,8 +39,8 @@ industries, corporate capital consumption 63), so a component-wise build cannot
 be reconciled to one industry partition without a common refinement that is
 coarser than any of them. ⚠️ It also reaches all ten government codes and one
 industry with a **negative** surplus (``S00201`` public transit, -36,919), so no
-step here may assume positivity. The reasoning, and the alternative worth buying
-instead, are in
+step here may assume positivity. The reasoning, and why the one source that
+would give it a real axis is deliberately not used, are in
 :mod:`~bedrock.analysis.nowcasting.compensation_allocation`.
 
 How a NIPA group reaches BEA detail

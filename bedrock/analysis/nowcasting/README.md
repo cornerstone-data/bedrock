@@ -112,8 +112,12 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   from supplements (**16**) misplaces **0.95% of the row**, because NIPA
   publishes the two halves at coarser grain than the total. For `V00300`: eight
   controls across five tables, whose industry axes are mutually incompatible, so
-  the build uses one distribution and says so — the fix is a **value added by
-  industry** extractor, not more NIPA tables. `--check` asserts all of it.
+  the build uses one distribution and says so. ⚠️ The obvious fix — a **value
+  added by industry** series — now exists as
+  [`BEA_GDPbyIndustry`](../../extract/bea/BEA_GDPbyIndustry.yaml) and is
+  deliberately *not* used: all 71 summary industries' `V003` match its `TVA113`
+  surplus rows to the dollar, so it is the summary Use SUT by another door and
+  Decision 3 holds that in the test set. `--check` asserts all of it.
 
 - [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
   any NIPA table as a flat frame with its hierarchy intact
