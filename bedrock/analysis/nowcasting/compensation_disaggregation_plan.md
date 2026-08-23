@@ -820,17 +820,40 @@ its annual `T00OTOP` row as a control would consume the table meant to grade it.
 The control comes from NIPA; the summary SUT only grades the frozen-share
 assumption out of sample, which is exactly the role Decision 3 gives it.
 
-### The method
+### The method — built, and its 2017 replay is exact
 
-`NIPA_VA_othertax_<year>`, four activity sets:
+✅ [`NIPA_VA_othertax_2017.yaml`](../../transform/nipa/NIPA_VA_othertax_2017.yaml)
+is **one activity set**: the `T30500` control (`LA000365` + `LA000237`),
+attributed proportionally across the 392 non-government industries on the 2017
+benchmark `T00OTOP` row from the melted `BEA_Detail_Use_SUT`, then transposed
+onto `SectorProducedBy = T00OTOP` by `assign_use_row_from_clean_parameter`.
+Replaying 2017 gives correlation **1.0000** against the published row, the same
+9 of rounding the control carries, 389 industries populated against 389
+published, and zero on government. Per Phase 5.3 that tests the plumbing rather
+than the movement series, since 2017 is both anchor and target — but the
+plumbing is the whole of what was unproven.
 
-1. **Housing** — `T70405` `B1031C` to `531HSO`/`531HST`, split on the frozen 2017
-   detail share (70.29% / 29.71%).
-2. **Farm** — `T70305` `B1017C` across the ten farm detail codes on frozen 2017
-   shares.
-3. **Everything else** — `T30500` `LA000365` + `LA000237` less the two lookups,
-   on frozen 2017 detail shares of the remaining industries.
-4. **Government** — nothing, and asserted to be nothing.
+⚠️ **The housing and farm lookups did not make it in, and the reason is
+structural rather than an omission.** They cannot be their own activity sets:
+NIPA states no *other taxes on production excluding housing and farm* line, so a
+third set's control would still be the whole 608,533 and the three would sum to
+**872,044**. The alternative — folding both into the weight vector — needs an
+`FBS_outside_flowsa` attribution source, and **that path does not work**:
+`get_flowby_from_config` builds a `FlowBySector` for that `data_format` while
+`attribute_flows_to_sectors` then calls `map_to_sectors`, which only
+`FlowByActivity` defines. All four existing uses of the hatch in the repo are
+top-level sources; none is an attribution source.
+
+The cost of shipping without them is measured and small — 1.92% against 1.68% of
+row error in 2024, 0.12–0.39pp across 2018–2024, against a control whose own
+vintage error is 2.9% in 2021.
+
+🚧 **But the blocker is not small, because `V00100` needs the same hatch.** The
+plan's compensation design is "build the moved-share vector as a cached
+`FBS_outside_flowsa` source and let the yaml do one `proportional` attribution
+against it" — which is exactly the call that fails here. **Clear it before Step
+2's largest row, not after.** Finding it on the 1.8% row rather than the 30.9%
+one is the argument for having built this one first.
 
 ⚠️ **Two open items, stated rather than buried.** The owner/tenant split of
 housing property tax has no published source: the frozen 2017 split is 70.29%

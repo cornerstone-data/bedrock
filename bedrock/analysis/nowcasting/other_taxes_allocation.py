@@ -112,28 +112,35 @@ table meant to grade it.  The control comes from NIPA; the summary SUT only
 grades the frozen-share assumption out of sample.  That is exactly the role
 Decision 3 gives it.
 
-The resulting method
---------------------
+The resulting method, and what it leaves on the table
+-----------------------------------------------------
 
-``NIPA_VA_othertax_<year>``, four activity sets:
+``NIPA_VA_othertax_<year>`` is **one activity set**: the ``T30500`` control,
+attributed proportionally across the 392 non-government industries on the 2017
+benchmark ``T00OTOP`` row, then transposed onto ``SectorProducedBy = T00OTOP``.
+Replaying 2017 reproduces the published row at correlation **1.0000** with the
+same 9 of rounding the control carries, and nothing on government.
 
-1. **Housing** -- ``T70405`` ``B1031C`` to ``531HSO``/``531HST``, split on the
-   frozen 2017 detail share (70.29% / 29.71%).
-2. **Farm** -- ``T70305`` ``B1017C`` across the ten farm detail codes on frozen
-   2017 shares.
-3. **Everything else** -- ``T30500`` ``LA000365`` + ``LA000237``, less the two
-   lookups, on frozen 2017 detail shares of the remaining industries.
-4. **Government** -- nothing, and asserted to be nothing.
+⚠️ **The housing and farm lookups are NOT in it, though they are exact**, and
+that is a bounded, measured concession rather than an oversight -- see
+:func:`lookup_improvement`.  They cannot be their own activity sets, because
+NIPA states no *other taxes on production excluding housing and farm* line, so
+a third set's control would still be the whole 608,533 and the three would sum
+to 872,044.  Folding them into the weight vector instead needs an
+``FBS_outside_flowsa`` attribution source, which is not implemented.  The cost
+is 0.12-0.39 percentage points of row error per year -- 1.92% against 1.68% in
+2024 -- and it is smaller than the control's own vintage error, which is 2.9%
+in 2021.
 
-⚠️ **Two open items, both stated rather than buried.**  The owner/tenant split
-of housing property tax has no published source: the frozen 2017 split is 70.29%
-owner, where the gross-value-added shares ``B1300C``/``B1301C`` would say 77.07%
--- so GVA is *not* a substitute, and the frozen share is the better of the two.
-And the honest allocator for the non-housing, non-farm remainder is capital
-stock in structures, which means **BEA Fixed Assets** -- not in bedrock, and the
-same missing extractor consumption of fixed capital wants for 40% of ``V00300``
-(open question 5).  At 1.8% of output, seed-only in Step 5, and 1.9% composition
-drift, it is not what the build is waiting on.
+⚠️ **Two further open items, stated rather than buried.**  The owner/tenant
+split of housing property tax has no published source: the frozen 2017 split is
+70.29% owner, where the gross-value-added shares ``B1300C``/``B1301C`` would say
+77.07% -- so GVA is *not* a substitute, and the frozen share is the better of
+the two.  And the honest allocator for the non-housing, non-farm remainder is
+capital stock in structures, which means **BEA Fixed Assets** -- not in bedrock,
+and the same missing extractor consumption of fixed capital wants for 40% of
+``V00300`` (open question 5).  At 1.8% of output, seed-only in Step 5, and 1.9%
+composition drift, it is not what the build is waiting on.
 
 Usage::
 
@@ -428,6 +435,66 @@ def share_drift() -> pd.DataFrame:
     )
 
 
+def lookup_improvement() -> pd.DataFrame:
+    """How much the housing and farm lookups would add, against frozen shares.
+
+    Two ways of spending the same NIPA control, graded against the summary SUT:
+
+    - **frozen** -- every industry keeps its 2017 share of the row.
+    - **lookups** -- housing takes ``T70405`` ``B1031C`` and farm ``T70305``
+      ``B1017C`` outright, and the remainder is spread on 2017 shares
+      renormalised over the other industries.
+
+    The lookups win, and by less than their exactness suggests: 1.68% against
+    1.92% in 2024, 0.81% against 1.01% in 2018. That is why
+    ``NIPA_VA_othertax_<year>`` ships the frozen version -- the improvement is
+    real but bounded, and the route to it is blocked.
+
+    ⚠️ **The blocker, since it is not visible from the yaml.** The lookups cannot
+    be their own activity sets: NIPA states no *other taxes on production
+    excluding housing and farm* line, so a third set's control would still be
+    the whole 608,533 and the three would sum to 872,044. Folding them into the
+    weight vector instead needs an ``FBS_outside_flowsa`` attribution source,
+    and that path is not implemented -- ``get_flowby_from_config`` builds a
+    ``FlowBySector`` for that ``data_format`` while
+    ``attribute_flows_to_sectors`` then calls ``map_to_sectors``, which only
+    ``FlowByActivity`` defines. All four existing uses of the hatch in the repo
+    are top-level sources, never attribution sources. **``V00100``'s planned
+    anchor-and-move build wants the same hatch**, so this is worth clearing
+    before Step 2's largest row rather than after.
+    """
+    base = summary_row(YEAR)
+    shares = base / base.sum()
+    rest = [code for code in base.index if code not in (SUMMARY_HOUSING, SUMMARY_FARM)]
+    rows = []
+    for year in summary_years():
+        published = summary_row(year)
+        total = control(year)
+
+        frozen = shares * total
+        lookups = pd.Series(0.0, index=published.index)
+        lookups[SUMMARY_HOUSING] = nipa(*HOUSING_LINE, year)
+        lookups[SUMMARY_FARM] = nipa(*FARM_LINE, year)
+        remainder = total - float(lookups.sum())
+        lookups[rest] = shares[rest] / shares[rest].sum() * remainder
+
+        rows.append(
+            {
+                'year': year,
+                'published': float(published.sum()),
+                'frozen_error': float(
+                    (frozen - published).abs().sum() / published.sum()
+                ),
+                'lookup_error': float(
+                    (lookups - published).abs().sum() / published.sum()
+                ),
+            }
+        )
+    return pd.DataFrame(rows).assign(
+        improvement=lambda x: x['frozen_error'] - x['lookup_error']
+    )
+
+
 def report() -> None:
     """Print the whole measurement."""
     published = published_row()
@@ -490,6 +557,14 @@ def report() -> None:
         f'  government: {len(government)} industry codes, summing to '
         f'{government.sum():,.0f}'
     )
+
+    print('\nWhat the housing and farm lookups would add, if reachable:')
+    for _, row in lookup_improvement().iterrows():
+        print(
+            f'  {int(row["year"])}  frozen {row["frozen_error"]:>6.2%}   '
+            f'with lookups {row["lookup_error"]:>6.2%}   improvement '
+            f'{row["improvement"]:>6.2%}'
+        )
 
     print('\nFrozen 2017 shares, graded on the held-out summary SUT:')
     for _, row in share_drift().iterrows():

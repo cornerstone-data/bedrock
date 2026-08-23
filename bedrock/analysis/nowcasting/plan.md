@@ -870,11 +870,33 @@ here, never an input**: Decision 3 holds it out of the target set for exactly th
 comes from NIPA (`T30500` `LA000365` + `LA000237`, closing to 9 on 608,542) and the summary table only
 grades the result out of sample.
 
-So `NIPA_VA_othertax_<year>` is four activity sets — housing lookup, farm lookup, frozen shares for
-the remainder, nothing on government — and the residual open item is the honest allocator for that
-remainder: **capital stock in structures, i.e. BEA Fixed Assets**, the same missing extractor CFC
-wants for 40% of `V00300` (open question 5). At 1.8% of output, seed-only in Step 5 and 1.9% drift,
-it is not on the critical path.
+✅ **Built, and the 2017 replay is exact.** [`NIPA_VA_othertax_2017.yaml`](../../transform/nipa/NIPA_VA_othertax_2017.yaml)
+is one activity set — the `T30500` control attributed across the 392 non-government industries on the
+benchmark row, transposed onto `SectorProducedBy` — and reproduces the published row at correlation
+**1.0000**, 389 industries of 389, zero on government, off by the control's own 9 of rounding. It is
+the first method in the `NIPA_VA_*` family and it proves the whole seam: the three `BEA_2017_Code`
+identity crosswalk rows, `Sector_Crosswalk_BEA_NIPA_VA.csv`, the melted `BEA_Detail_Use_SUT` as an
+attribution source, and `assign_use_row_from_clean_parameter`.
+
+🚧 **And it turned up a blocker that lands squarely on `V00100`.** The housing and farm lookups are
+*not* in the shipped method. They cannot be their own activity sets — NIPA states no "other taxes on
+production excluding housing and farm" line, so a third set's control is still the whole 608,533 and
+the three sum to 872,044 — and the alternative, folding them into the weight vector, needs an
+**`FBS_outside_flowsa` attribution source, which does not work**: `get_flowby_from_config` builds a
+`FlowBySector` for that `data_format` while `attribute_flows_to_sectors` then calls `map_to_sectors`,
+which only `FlowByActivity` defines. All four existing uses of the hatch are top-level sources.
+
+⚠️ **That is the same hatch the compensation design above commits to** — "build the moved-share vector
+as a cached `FBS_outside_flowsa` source and let the yaml do one `proportional` attribution against
+it". It has to be cleared before `V00100`, and finding it on the 1.8% row rather than the 30.9% one is
+the argument for having built `T00OTOP` first. For `T00OTOP` itself the cost of going without is
+bounded: 1.92% against 1.68% of row error in 2024, smaller than the control's own 2.9% vintage error
+in 2021.
+
+The residual open item is unchanged — the honest allocator for the non-housing, non-farm remainder is
+**capital stock in structures, i.e. BEA Fixed Assets**, the same missing extractor CFC wants for 40%
+of `V00300` (open question 5). At 1.8% of output, seed-only in Step 5 and 1.9% drift, it is not on the
+critical path.
 
 ✅ **#536 done — 24 NIPA tables added to `BEA_NIPA.yaml`**, all annual and complete for 2012-2024, at
 ~950 extra FBA rows per year. Reconciliation through the FBA is pinned by
