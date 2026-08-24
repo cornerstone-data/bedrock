@@ -249,7 +249,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | Block | Status |
 |---|---|
 | Value added (`V00100`, `T00OTOP`, `V00300`, `T00TOP`, `T00SUB`) | ❌ NIPA tables identified, not built — Step 2 |
-| Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3 |
+| Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 while the inflation carry moves it +4.9% to **−12.6%** |
 
 ### SUT Supply — every column
 
@@ -714,6 +714,29 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
   before-redefinitions and Step 7 is the single redefinition point.)
 
 ### Step 3 — SUT Use: intermediate block
+
+**Full treatment in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md)**, with the
+measurements reproduced by
+[`intermediate_structure_drift.py`](intermediate_structure_drift.py).
+
+✅ **The finding that reorganises this step: Step 3 estimates a shape, not levels.** Both margins of
+the block are determined elsewhere and Step 5 imposes both hard — the industry column is
+`GO_producer − VAPRO` (T1) and the commodity row is `T016 − Σ_FD Y` (T11). Both identities are exact
+in the published 2017 detail SUT (`T005 + VABAS = T018` to **$1M on $34T**; `T016 = T019` to **$0**).
+A biproportional balance with both margins fixed keeps nothing of the seed but its **cross-structure**,
+so a source that delivers a *column total* delivers a number Step 5 already has, and only a source
+that delivers a *mix* contributes anything. That re-sorts #577/#578/#564 — see the plan doc's
+§Reconciling the sources.
+
+⚠️ **And the structure goes stale far faster than inflation corrects.** Frozen 2017 structure
+misplaces **3.1% of each column's dollars by 2018 rising to 10.2% by 2024** at summary (~2.2T in 2024),
+and **19.5%** at detail over the out-of-sample 2012→2017 holdout. Carrying on a commodity price index
+moves that by **+4.9% to −12.6%** — it helps through 2021 and **hurts from 2022 on**, worst in the
+years the price level moved most, because a nominal share carried on a price ratio assumes zero
+substitution. #497 is not wrong, it is small; the plan doc recommends damping it with a fitted
+exponent and adding Step 4c's **margin-rate movement**, which is the missing term in a *purchaser*-price
+deflator (summary margin rates move a median 2.8pp, p90 12.1pp, 2017→2024).
+
 - **Seed from the actual dollar Use matrix**, not the `A` coefficient matrix. Going `A → U` via
   `U ≈ A @ diag(x)` discards the rounding/negative-clipping baked in when `A` was built.
 - Nowcast forward per #497: port `CalculateIntermediateUseAndCommodityMix.R`'s logic but (a) use
@@ -831,6 +854,29 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 
   **Step 3's default stays #497's inflation-carried 2017 proportions**, with agriculture and government
   as the two justified departures.
+
+  ⚠️ **Revised 2026-08-24 — the two departures were sorted on the wrong axis.**
+  [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) re-sorts every source above by
+  *does it deliver a mix, or only a total*, because Step 5 already holds both margins hard:
+
+  - **NIPA `T31005` and Census `govslocalfin` deliver totals**, and the column total is free — so as
+    *sources* they add nothing. `T31005` is still worth keeping as a **validation** of the derived
+    column (it matches `T005` to $0 / $0 / $2M).
+  - **But `GFGD` 0.192, `GFGN` 0.179 and `GSLG` 0.127 are among the worst-drifting columns in the
+    table** — 258 $B misplaced by 2024. #578's premise, *"the `G*` industries need a column total,
+    not a commodity mix"*, is the opposite of what the drift says. What `govslocalfin` uniquely has
+    is **function × object**, and function → commodity is a bridge that does not exist yet. That
+    bridge is the actual work; **#578 should be rescoped to it, or dropped.**
+  - **Agriculture (#577) stays correct and cheap but is a small prize** — `111CA` carries little of
+    the drift. It should not be first.
+  - **The 2022 Economic Census `MATFUEL` materials breakout, which #564 called a consolation prize,
+    is now the top external candidate**: the only source that speaks to the 82% of manufacturing's
+    column that annual data cannot see, and a genuine second structural observation between 2017 and
+    2025.
+  - **SAS Table 3 loses its promotion.** `annual_survey_expense_sources.md` calls it "the most useful
+    thing the probe found" because it is a *detail* control on service column size — but Step 5's
+    column target is already detail gross output. It was the most useful thing for a Step 3 that owned
+    its column totals, and Step 3 does not.
 
 ### Step 4 — SUT Supply table *(new — the largest unscoped block)*
 - 4a. **Domestic output block** — nowcast gross industry output, then split each industry's output

@@ -16,6 +16,9 @@ uv run python -m bedrock.analysis.nowcasting.plots --section use_fd_detail_sut
 # the Step 4c margin anchor against the published Supply columns
 uv run python -m bedrock.analysis.nowcasting.margins_2017_baseline --check
 
+# how fast a frozen 2017 input structure goes stale, and whether inflation fixes it (Step 3)
+uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
+
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir <report images dir> --no-report
@@ -66,6 +69,14 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   columns, commodity by commodity, and reports what each residual is. `--check`
   exits non-zero if a count regresses. Writes the per-commodity comparison and
   the rate table to `output/`.
+- `intermediate_structure_drift.py` — the Step 3 measurements
+  ([#497](https://github.com/cornerstone-data/bedrock/issues/497)): the index of
+  dissimilarity between a carried input structure and a published one, computed
+  on column shares with the column total given, because Step 5 holds both
+  margins of that block and only the structure survives. `--drift` scores frozen
+  2017 against the summary Use SUT 2018-2024, `--inflation` scores the price-index
+  carry against it, `--holdout` runs the out-of-sample 2012 → 2017 detail version,
+  `--where` locates the drift by column. Prints only; writes nothing.
 - [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
   trade columns (#527): three 2017 probes scoring a Census goods + BEA services
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
@@ -95,6 +106,11 @@ local run.
   Step 2, splitting `V00100` from NIPA's ~74 industries to BEA 2017 detail:
   wages and supplements separately, QCEW payroll as the movement series, and
   the sectors where QCEW does not work.
+- [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) — Step 3,
+  the Use table's commodity × industry interior: why the estimand is the
+  cross-structure rather than any level, how fast a frozen 2017 structure decays,
+  why the inflation carry turns harmful from 2022, and a re-sort of #577 / #578 /
+  #564 by whether a source delivers a mix or only a total.
 - [`margins_estimation_plan.md`](margins_estimation_plan.md) — Step 4c, the
   transaction-level Margins table and the Supply `TRADE`/`TRANS` columns: BEA's
   own method from the 2009 IO manual chapter 8 checked against the 2017 tables,
