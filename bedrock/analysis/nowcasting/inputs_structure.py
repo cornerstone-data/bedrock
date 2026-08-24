@@ -10,25 +10,35 @@ annually (#564).
 ⚠️ **This module was ``materials_structure.py`` and is now named for the column
 rather than for the biggest piece of it.**  Measured against the 2017 detail Use
 table over 232 manufacturing BEA detail industries -- a $3.567T column -- the
-sources read here reach **91.0% of it**:
+sources read here reach **85.8% of it**:
 
 ============================================ =======
 ``Census_EC_MatFuel`` materials                79.4%
-named non-materials cells, ASM and AIES        11.7%
-neither                                         9.0%
+named non-materials cells, and seedable         6.4%
+reached as expense, but not one commodity      10.0%
+neither                                         4.2%
 ============================================ =======
 
-The 11.7% is electricity (1.4%), resales (3.7%), contract work (1.5%) and nine
-to twelve named purchased-service cells -- repair 1.6%, temp staffing 1.1%,
-professional and technical 1.0%, advertising 0.5%, refuse 0.4%, data processing,
-communication, expensed software and computers behind them.  Every one of those
-maps onto a BEA service commodity.
+⚠️ **An earlier draft of this table said 11.7% and 91.0%, and both were too
+generous.**  The 11.7% counted survey-side dollars, and two of its largest
+entries are not purchases of a commodity at all: resales (3.6%) are goods bought
+and sold on untransformed, which the Use table handles through trade margins,
+and contract work (1.4%) is manufacturing services whose commodity is the
+buyer's own industry rather than any fixed row.  Adding the survey's own
+residual, "all other operating expenses" (5.1%), the honest split is the one
+above: **6.4% of the column is both named and placeable on a BEA commodity**,
+and 85.8% is reachable in total rather than 91.0%.
 
-⚠️ **The measurements below are still about the materials mix**, which is what
-has been built.  The non-materials cells are so far only *reported*, by
-:func:`annual_partition`, not turned into a seed.  That is the obvious next
-extension and it is why the module is named for the column now rather than
-after it.
+The 6.4% is electricity, repair, temporary staff, professional and technical
+services, advertising, refuse, data processing, communication, expensed software
+and expensed computers -- ten cells, each mapping onto a BEA commodity, worth
+$228.6B of a $3,566.6B column.
+
+✅ **That block is now seeded**, by :func:`nonmaterial_seed`, and the form is an
+**index rather than a level**.  :func:`expense_scope` is why: at the 2017 base
+itself the survey and BEA disagree about what these cells contain by factors of
+**0.40 to 8.01**, and indexing cancels every one of those while substituting the
+level would import them all.
 
 The commodity breakout is quinquennial Economic Census, and **2022 is a second
 observation of it** between the benchmark and the end of the nowcast span.  The
@@ -118,7 +128,7 @@ full one are mostly the fill.
 ⚠️ **And 0.1330 is a MATFUEL-code score, not a commodity one.**  Step 3 seeds
 BEA detail commodities, and on that frame -- 289 materials aggregated onto ~200
 commodities, industries reconciled -- the same clean subsample scores
-**0.0941** (:func:`commodity_movement`).  That is the number comparable to
+**0.0949** (:func:`commodity_movement`).  That is the number comparable to
 :mod:`~.intermediate_structure_drift`'s 0.173 for the whole Use column over an
 equal-length span, because both are BEA detail commodity frames.  So the
 materials block moves **roughly half as much as the column as a whole**, which
@@ -196,6 +206,8 @@ from bedrock.extract.census.Census_ASM import (
 )
 from bedrock.extract.census.Census_EC import (
     MATFUEL_RESIDUAL_CODES,
+    MATFUEL_SCRAP_BEA_CODE,
+    MATFUEL_SCRAP_CODES,
     MATFUEL_TOTAL_CODES,
     estimate_suppressed_ec_matfuel,
 )
@@ -238,9 +250,19 @@ def _naics_to_bea() -> tuple[dict[str, str], set[str]]:
 
 
 def classify(material: str) -> tuple[str, str | None]:
-    """``(tier, bea_detail_code)`` for one 8-digit ``MATFUEL`` code."""
+    """``(tier, bea_detail_code)`` for one 8-digit ``MATFUEL`` code.
+
+    ⚠️ **Purchased scrap is resolved before the prefix walk, and has to be.**
+    Every scrap code begins ``33``, which reaches no single BEA commodity, so the
+    walk would file $29.6B (2017) and $54.3B (2022) into the bare ``33`` group of
+    136 commodities and smear it across all of manufacturing.  BEA carries
+    ``S00401`` Scrap for exactly this, and Census's "excluding home scrap" is the
+    same concept -- bought in rather than generated on site.
+    """
     if material in MATFUEL_RESIDUAL_CODES:
         return 'residual', None
+    if material in MATFUEL_SCRAP_CODES:
+        return 'direct', MATFUEL_SCRAP_BEA_CODE
     unique, ambiguous = _naics_to_bea()
     for length in (6, 5, 4, 3, 2):
         prefix = material[:length]
@@ -1128,6 +1150,292 @@ def annual_partition() -> pd.DataFrame:
     )
 
 
+# ---------------------------------------------------------------------------
+# S3b -- the named non-materials cells
+# ---------------------------------------------------------------------------
+
+#: The four sources that observe manufacturing's non-materials expense cells,
+#: and the years each answers for.  ``Census_EC_Expenses`` supplies **2017**,
+#: which is what makes an index possible: it is the base year the benchmark Use
+#: table is built on.  ⚠️ **2024 and 2025 are unobserved**, exactly as for the
+#: materials bill -- see :func:`unobserved_years`.
+EXPENSE_SOURCES = {
+    'Census_EC_Expenses': (2017, 2022),
+    'Census_ASM_Expenses': (2018, 2019, 2020, 2021),
+    'Census_AIES_Expenses': (2023,),
+}
+
+#: ``ASM/EC name -> the AIES cells that make it up``.  ⚠️ **Not one-for-one.**
+#: AIES splits ASM's single repair cell into machinery and building, so the two
+#: are summed back to ASM's concept; and it publishes rental of buildings and of
+#: machinery, which ASM and the census do not carry at all, so they have no
+#: entry here and no 2017 base to index against.
+SERVICE_TO_AIES = {
+    'CSTELEC': ('EXPS_ELEC_VAL',),
+    'PCHADVT': ('EXPS_ADVERT_VAL',),
+    'PCHCMPQ': ('EXPS_COMPTR_OTHEQ_VAL',),
+    'PCHDAPR': ('EXPS_DATAPROC_VAL',),
+    'PCHPRTE': ('EXPS_PROFTECH_VAL',),
+    'PCHRFUS': ('EXPS_REFUSE_VAL',),
+    'PCHRPR': ('EXPS_MACH_REP_VAL', 'EXPS_BUILD_REP_VAL'),
+    'PCHTEMP': ('EXPS_TEMPSTAF_VAL',),
+}
+
+#: ⚠️ **Published by ASM and the census, and *not* by AIES.**  Both variables
+#: exist in the 2023 AIES table and both are zero in every one of its 883 rows,
+#: which is an absence rather than an economy that stopped buying telephony and
+#: software.  They are held at the 2022 census observation rather than read as
+#: zero; :func:`expense_panel` marks the year ``held``.
+NO_AIES_COUNTERPART = ('PCHCSVC', 'PCHEXSO')
+
+#: Expense kinds that are **not a purchase of one commodity** and are therefore
+#: excluded from the seed rather than mapped badly.  ``CSTCNT`` contract work is
+#: manufacturing services bought from other manufacturers -- a real intermediate
+#: purchase, but one whose commodity is the *buyer's own* industry rather than
+#: any fixed row.  ``CSTRSL`` resales are goods bought and sold on untransformed,
+#: which the Use table handles through trade margins rather than as an input.
+#: ``PCHOEXP`` is the survey's own residual.  Together they are named so the gap
+#: they leave is visible rather than silent.
+NOT_A_COMMODITY_PURCHASE = ('CSTCNT', 'CSTRSL', 'PCHOEXP')
+
+#: ``expense kind -> the BEA 2017 detail commodities it buys``.  A kind covering
+#: several commodities keeps BEA's own within-group split and moves the group
+#: together, which adds no assumption of its own.
+#:
+#: ⚠️ **These carry an index, never a level** -- see :func:`expense_scope`, which
+#: measures how far each survey cell sits from BEA's row and is the reason.
+EXPENSE_TO_BEA = {
+    'CSTELEC': ('221100',),
+    'PCHADVT': ('541800',),
+    'PCHCSVC': ('517110', '517A00', '517210'),
+    'PCHDAPR': ('518200',),
+    'PCHEXSO': ('511200',),
+    'PCHCMPQ': ('334111',),
+    'PCHPRTE': (
+        '541100',
+        '541200',
+        '541300',
+        '541511',
+        '541512',
+        '541610',
+        '5416A0',
+        '541700',
+        '5419A0',
+    ),
+    'PCHRFUS': ('562000',),
+    'PCHRPR': ('811100', '811200', '811300', '811400'),
+    'PCHTEMP': ('561300',),
+}
+
+
+def _manufacturing_bea_industries() -> list[str]:
+    """The BEA detail industry columns that are manufacturing."""
+    use = _use_2017_detail()
+    return [code for code in use.columns if str(code)[:2] in ('31', '32', '33')]
+
+
+def expense_panel() -> pd.DataFrame:
+    """The non-materials expense cells, four sources on one set of names.
+
+    Long ``bea_industry, kind, year, source, FlowAmount, held``.  Census 2017 and
+    2022, ASM 2018-2021 and AIES 2023, normalised to the **ASM/census** names --
+    which the Economic Census already uses, so only AIES needs
+    :data:`SERVICE_TO_AIES`.
+
+    ⚠️ Aggregated to **BEA detail industry**, because that is the axis the Use
+    table's columns are on; several NAICS-6 industries can land on one column.
+
+    ⚠️ ``held`` marks a cell carried rather than observed -- only
+    :data:`NO_AIES_COUNTERPART` in 2023.  Read it before quoting a 2023 total
+    for those two kinds.
+    """
+    kinds = tuple(EXPENSE_TO_BEA)
+    frames = []
+    for source, years in EXPENSE_SOURCES.items():
+        for year in years:
+            fba = getFlowByActivity(source, year)
+            naics = fba['ActivityConsumedBy'].astype(str)
+            six = fba[naics.str.match(r'^\d{6}$')].copy()
+            six = six[
+                six['ActivityConsumedBy'].astype(str).str[:2].isin(('31', '32', '33'))
+            ]
+            if source == 'Census_AIES_Expenses':
+                rename = {
+                    aies: kind
+                    for kind, cells in SERVICE_TO_AIES.items()
+                    for aies in cells
+                }
+                six['FlowName'] = six['FlowName'].map(
+                    lambda name: rename.get(name, name)
+                )
+            six = six[six['FlowName'].isin(kinds)]
+            column = pd.Series(
+                [bea_industry(code) for code in six['ActivityConsumedBy'].astype(str)],
+                index=six.index,
+                dtype=object,
+            )
+            # ⚠️ Census publishes Thousand USD throughout, ASM and AIES included.
+            six = six.assign(
+                FlowAmount=six['FlowAmount'].astype(float) * 1_000.0,
+                year=year,
+                source=source,
+                bea_industry=column,
+                kind=six['FlowName'],
+            )
+            frames.append(six.dropna(subset=['bea_industry']))
+
+    panel = (
+        pd.concat(frames, ignore_index=True)
+        .groupby(['bea_industry', 'kind', 'year', 'source'], as_index=False)[
+            'FlowAmount'
+        ]
+        .sum()
+    )
+    panel['held'] = False
+
+    # ⚠️ AIES publishes no telephony and no expensed software, so 2023 would read
+    # as a total collapse for both. Carry the 2022 census -- the last observation
+    # on this definition -- and say so, rather than seeding a zero.
+    carried = [
+        panel[(panel['kind'] == kind) & (panel['year'] == 2022)].assign(
+            year=2023, source='held from 2022', held=True
+        )
+        for kind in NO_AIES_COUNTERPART
+    ]
+    carried = [frame for frame in carried if not frame.empty]
+    if carried:
+        panel = pd.concat([panel, *carried], ignore_index=True)
+    return pd.DataFrame(panel)
+
+
+def expense_scope() -> pd.DataFrame:
+    """How far each survey expense cell sits from BEA's own 2017 Use row.
+
+    **This is the measurement that decides the form of the seed, and the answer
+    is that the levels cannot be used.**  Both sides are 2017, and both are
+    manufacturing's purchases, so a matching pair of definitions would give a
+    ratio near one.  They do not: it runs from **0.42 to 8.6**.
+
+    The disagreements are structural rather than noise:
+
+    - **Expensed software and computer hardware** are operating expense to
+      Census and mostly **investment** to BEA, so BEA's intermediate row is a
+      fraction of the survey cell.
+    - **Repair** is one Census question against four BEA rows, and Census's cell
+      carries parts and materials that BEA books elsewhere.
+    - **Professional and technical services** runs the other way -- one Census
+      question against BEA's legal, accounting, engineering, consulting and R&D
+      rows together.
+
+    ✅ **Indexing cancels every one of them**, because a constant scope factor
+    divides out of ``survey(t) / survey(2017)``.  Substituting the level would
+    import all of them into the row control at once.  That is why
+    :func:`nonmaterial_seed` moves BEA's cell instead of replacing it.
+    """
+    use = _use_2017_detail()
+    row = use[_manufacturing_bea_industries()].sum(axis=1) / 1000.0  # $B
+
+    panel = expense_panel()
+    base = panel[panel['year'] == 2017].groupby('kind')['FlowAmount'].sum() / BILLION
+
+    records = []
+    for kind, codes in EXPENSE_TO_BEA.items():
+        present = [code for code in codes if code in row.index]
+        missing = [code for code in codes if code not in row.index]
+        bea = float(row.reindex(present).sum())
+        survey = float(base.get(kind, float('nan')))
+        records.append(
+            {
+                'kind': kind,
+                'BEA_commodities': '+'.join(present),
+                'not_in_use_table': ','.join(missing) or '-',
+                'census_2017_$B': survey,
+                'BEA_2017_$B': bea,
+                'survey/BEA': survey / bea if bea else float('nan'),
+            }
+        )
+    return pd.DataFrame(records).set_index('kind').sort_values('survey/BEA')
+
+
+def nonmaterial_seed(year: int) -> pd.DataFrame:
+    """The S3b seed: BEA's 2017 non-materials cells, moved on the survey index.
+
+    ``commodity x BEA detail industry`` in $M, on the same axes as the benchmark
+    Use table, for the manufacturing columns only.
+
+    **The form is an index, not a substitution.**  For an expense kind ``k``
+    mapped to commodities ``C``::
+
+        seed[c, i] = Use2017[c, i] * survey[i, k, year] / survey[i, k, 2017]
+
+    so BEA's own level and BEA's own split across ``C`` are both preserved and
+    the survey supplies only the movement.  :func:`expense_scope` is why: the
+    two disagree about levels by factors of 0.42 to 8.6, and every one of those
+    cancels in the ratio.
+
+    ⚠️ **An industry with no usable 2017 base holds its benchmark value**, rather
+    than being dropped or zeroed -- a missing denominator is an absence of
+    information about movement, which is what holding the benchmark means.
+
+    ⚠️ **2024 and 2025 have no observation** (:func:`unobserved_years`), so this
+    raises for them rather than quietly extrapolating.  Choosing that
+    extrapolation is the open part of S3b.
+    """
+    observed = {y for years in EXPENSE_SOURCES.values() for y in years}
+    if year not in observed:
+        raise ValueError(
+            f'{year} is not observed for the expense cells; observed years are '
+            f'{sorted(observed)}. Extrapolating past 2023 is not decided.'
+        )
+
+    use = _use_2017_detail()
+    man = _manufacturing_bea_industries()
+    wide = expense_panel().pivot_table(
+        index='bea_industry', columns=['kind', 'year'], values='FlowAmount'
+    )
+
+    seed = pd.DataFrame(0.0, index=use.index, columns=pd.Index(man))
+    for kind, codes in EXPENSE_TO_BEA.items():
+        rows = [code for code in codes if code in use.index]
+        if not rows:
+            continue
+        if (kind, year) not in wide.columns or (kind, 2017) not in wide.columns:
+            continue
+        base = wide[(kind, 2017)]
+        index = (wide[(kind, year)] / base.where(base > 0)).reindex(man)
+        index = index.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        seed.loc[rows, man] = use.loc[rows, man].mul(index, axis=1).to_numpy()
+    return seed.loc[(seed != 0).any(axis=1)]
+
+
+def nonmaterial_movement() -> pd.DataFrame:
+    """What the index does to the non-materials block, against a frozen 2017.
+
+    The size of the correction S3b buys, in one table, rather than inferred.
+    ⚠️ ``PCHCSVC`` and ``PCHEXSO`` are held in 2023 (:data:`NO_AIES_COUNTERPART`),
+    so that row moves slightly less than a fully observed one would.
+    """
+    use = _use_2017_detail()
+    man = _manufacturing_bea_industries()
+    rows = [
+        code for codes in EXPENSE_TO_BEA.values() for code in codes if code in use.index
+    ]
+    frozen = float(use.loc[rows, man].to_numpy().sum()) / 1000.0
+
+    records = []
+    for year in sorted({y for years in EXPENSE_SOURCES.values() for y in years}):
+        seeded = float(nonmaterial_seed(year).to_numpy().sum()) / 1000.0
+        records.append(
+            {
+                'year': year,
+                'frozen_2017_$B': frozen,
+                'seeded_$B': seeded,
+                'change_%': 100 * (seeded - frozen) / frozen,
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--coverage', action='store_true', help='what can be placed')
@@ -1148,6 +1456,11 @@ def main() -> None:
     parser.add_argument(
         '--holdout', action='store_true', help='score the suppression prior'
     )
+    parser.add_argument(
+        '--services',
+        action='store_true',
+        help='the non-materials cells, and the seed they carry',
+    )
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
     chosen = (
@@ -1159,6 +1472,7 @@ def main() -> None:
         or args.groups
         or args.vintage
         or args.annual
+        or args.services
     )
     pd.set_option('display.width', 200)
 
@@ -1221,6 +1535,20 @@ def main() -> None:
         print(annual_path().round(2).to_string())
         print('\nWhat ASM observes annually that the census does not\n')
         print(annual_partition().round(2).to_string())
+    if args.all or args.services:
+        print('\nThe named non-materials cells: how far the survey sits from BEA')
+        print('(both sides 2017, both manufacturing -- a scope match would be 1.0)\n')
+        print(expense_scope().round(2).to_string())
+        print(
+            '\n  the spread is why the seed carries an index and not a level:'
+            '\n  a constant scope factor cancels in survey(t)/survey(2017).\n'
+        )
+        print('What the index does to the block, against a frozen 2017\n')
+        print(nonmaterial_movement().round(2).to_string())
+        print(
+            f'\n  unobserved, so absent above: {unobserved_years()}'
+            '\n  PCHCSVC and PCHEXSO are held from 2022 in 2023 (no AIES cell).'
+        )
     print()
 
 

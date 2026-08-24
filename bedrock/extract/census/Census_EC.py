@@ -32,6 +32,36 @@ MATFUEL_TOTAL_CODES = ('00772000', '00772002')
 #: error in 2022.  Reproduce with ``inputs_structure.py --holdout``.
 NAICS_PEER_GROUP_LENGTH = 3
 
+#: ``ecnmatfuel`` purchased-scrap codes, and **the one place the NAICS-prefix
+#: bridge cannot reach the right answer**.  Every one begins ``33``, which is not
+#: a NAICS that maps to any single BEA commodity, so the prefix walk drops them
+#: into the bare ``33`` group of 136 commodities -- the widest and weakest group
+#: in the whole table -- and smears purchased scrap across all of manufacturing.
+#:
+#: ✅ **BEA has a dedicated row for exactly this concept**: ``S00401`` Scrap,
+#: $49.1B into manufacturing in the 2017 detail Use table.  Census's "excluding
+#: home scrap" is BEA's concept precisely -- scrap bought in, not scrap generated
+#: and reused on site -- so these are mapped straight onto ``S00401`` ahead of
+#: the prefix walk.  Worth $29.6B in 2017 and $54.3B in 2022.
+MATFUEL_SCRAP_CODES = (
+    '33000042',  # Aluminum and aluminum-base alloy scrap (excluding home scrap)
+    '33000045',  # Iron and steel scrap (excluding home scrap)
+    '33000046',  # Copper and copper-base alloy scrap (excluding home scrap)
+    '33000051',  # Precious metal and precious metal alloy scrap
+    '33000053',  # Nonferrous scrap other than aluminium, copper, precious metal
+)
+
+#: The BEA detail commodity :data:`MATFUEL_SCRAP_CODES` all land on.
+MATFUEL_SCRAP_BEA_CODE = 'S00401'
+
+#: ⚠️ **There is no ``S00402`` "used and secondhand goods" counterpart in any of
+#: these sources.**  ``ecnmatfuel`` names no secondhand material, and neither
+#: ``ecnbasic``, ASM nor AIES publishes one -- the nearest concept any of them
+#: carries is ``CSTRSL`` cost of resales, which is new goods bought to sell on
+#: untransformed and is not the same thing.  ``S00402`` is $0.14B into
+#: manufacturing, so nothing here is chasing it.
+MATFUEL_NO_SECONDHAND_SOURCE = True
+
 MATFUEL_RESIDUAL_CODES = (
     '00970098',  # All other supplies
     '00970099',  # Cost of all other materials, components, parts, containers
@@ -399,6 +429,234 @@ def census_EC_MatFuel_parse(*, df_list, year, **_):
     df['DataCollection'] = 5
     df['Compartment'] = None
     return df
+
+
+#: The ``ecnbasic`` expense cells, in the **same names ASM publishes**, which is
+#: what makes a 2017 anchor possible at all.  ``Census_ASM_Expenses`` carries
+#: 2018-2021 under these identical variable names, so the census and the annual
+#: survey splice without a crosswalk -- 2017 electricity is $47.5B here against
+#: ASM's $51.0B in 2018, repair $52.7B against $55.2B.
+EC_EXPENSE_FLOWS = {
+    'CSTELEC': 'Cost of purchased electricity',
+    'CSTCNT': 'Cost of contract work',
+    'CSTRSL': 'Cost of resales',
+    'PCHADVT': 'Advertising and promotional services',
+    'PCHCMPQ': 'Expensed computer hardware and other equipment',
+    'PCHCSVC': 'Communication services',
+    'PCHDAPR': 'Data processing and other purchased computer services',
+    'PCHEXSO': 'Expensed purchases of software',
+    'PCHPRTE': 'Purchased professional and technical services',
+    'PCHRFUS': 'Refuse removal services',
+    'PCHRPR': 'Repair and maintenance services of buildings and/or machinery',
+    'PCHTEMP': 'Temporary staff and leased employee expenses',
+    'PCHOEXP': 'All other operating expenses',
+}
+
+#: Totals of the cells beside them, kept so a consumer can check additivity.
+#: ``PCHTT`` totals the ``PCH*`` services and ``CSTMTOT`` the materials side.
+#: ⚠️ Summing this FBA unfiltered counts the table several times over.
+EC_EXPENSE_CONTROLS = ('CSTMTOT', 'CSTMPRT', 'CSTFU', 'PCHTT', 'RCPTOT', 'VALADD')
+
+#: ⚠️ Not an expense on a commodity.  ``PCHTAX`` is taxes and license fees,
+#: which belong to the taxes-on-production block rather than to intermediate
+#: use, so it is pulled for completeness and excluded from the flows above.
+EC_NON_COMMODITY = ('PCHTAX',)
+
+
+#: ``ecnbasic`` inventory cells: three stages of fabrication plus the total,
+#: at the beginning and the end of each year.  **The stage split is the point.**
+#: ``U50705BU1`` publishes manufacturing inventories by industry and, separately,
+#: by stage -- but split only durable/nondurable, so there is no industry x stage
+#: cell anywhere in BEA's own tables (#664).  This is that cell, at NAICS-6.
+EC_INVENTORY_FLOWS = {
+    'INVFINB': 'Finished goods inventories, beginning of year',
+    'INVFINE': 'Finished goods inventories, end of year',
+    'INVWIPB': 'Work-in-process inventories, beginning of year',
+    'INVWIPE': 'Work-in-process inventories, end of year',
+    'INVMATB': 'Materials and supplies inventories, beginning of year',
+    'INVMATE': 'Materials and supplies inventories, end of year',
+}
+
+#: The stage totals, kept so a consumer can check the three stages sum to them.
+#: ⚠️ Summing this FBA unfiltered counts every inventory twice over.
+EC_INVENTORY_CONTROLS = ('INVTOTB', 'INVTOTE')
+
+
+def census_EC_cells_URL_helper(*, build_url, year, config, **_):
+    """One ``ecnbasic`` call per vintage, on the variable list the config names.
+
+    Unlike :func:`census_EC_URL_helper` this does not use ``group(...)``: these
+    sources want a handful of named variables out of a very wide dataset, and
+    asking for the group returns the entire Economic Census basic table.  The
+    list lives in the config under ``variables`` so one helper serves both
+    ``Census_EC_Expenses`` and ``Census_EC_Inventories``.
+    """
+    variables = ','.join((f'NAICS{year}', *config['variables']))
+    return [build_url.replace('__variables__', variables)]
+
+
+def census_EC_cells_call(*, resp, **_):
+    """Response to dataframe, without :func:`census_EC_call`'s group parsing.
+
+    ⚠️ :func:`census_EC_call` derives a ``Description`` from the ``group(...)``
+    term in the URL.  This source asks for an explicit variable list instead, so
+    there are no parentheses to find and that slice would put **the request URL,
+    API key and all, into a column**.  The description is set per expense kind
+    in the parser, from :data:`EC_EXPENSE_FLOWS`.
+    """
+    census_json = json.loads(resp.text)
+    return pd.DataFrame(data=census_json[1 : len(census_json)], columns=census_json[0])
+
+
+def _census_EC_cells_parse(
+    *, df_list, year, flows, controls, non_commodity, source_name
+):
+    """Melt a named-variable ``ecnbasic`` pull into FBA form.
+
+    Shared by :func:`census_EC_Expenses_parse` and
+    :func:`census_EC_Inventories_parse`, which differ only in which cells they
+    ask for and what has to be said about them.
+
+    ``ActivityConsumedBy`` is the NAICS industry throughout -- for expenses
+    because the industry is the purchaser, and for inventories because the
+    industry is the holder.
+    """
+    df = pd.concat(df_list, sort=False)
+    naics_column = f'NAICS{year}'
+
+    value_columns = [
+        column for column in (*flows, *controls, *non_commodity) if column in df.columns
+    ]
+    long = df.melt(
+        id_vars=[naics_column],
+        value_vars=value_columns,
+        var_name='FlowName',
+        value_name='FlowAmount',
+    ).rename(columns={naics_column: 'ActivityConsumedBy'})
+    long['FlowAmount'] = pd.to_numeric(long['FlowAmount'], errors='coerce')
+    withheld = int(long['FlowAmount'].isna().sum())
+    long = long[long['FlowAmount'].notna()].copy()
+
+    long['Description'] = long['FlowName'].map(
+        dict(flows)
+        | {code: f'{code} (control)' for code in controls}
+        | {code: f'{code} (not a commodity)' for code in non_commodity}
+    )
+    long['ActivityProducedBy'] = None
+    long['Year'] = year
+    long['Location'] = US_FIPS
+    long['Unit'] = 'Thousand USD'
+    long['Class'] = 'Money'
+    long['FlowType'] = 'TECHNOSPHERE_FLOW'
+
+    long = assign_fips_location_system(long, year)
+    long['SourceName'] = source_name
+    long['DataReliability'] = 5
+    long['DataCollection'] = 5
+    long['Compartment'] = None
+
+    log.info(
+        '%s %s: %s rows over %s industries and %s cells; %s withheld and '
+        'dropped, %s published as zero.',
+        source_name,
+        year,
+        len(long),
+        long['ActivityConsumedBy'].nunique(),
+        long['FlowName'].nunique(),
+        withheld,
+        int((long['FlowAmount'] == 0).sum()),
+    )
+    return long
+
+
+def census_EC_Inventories_parse(*, df_list, year, **_):
+    """Parse the Economic Census inventory cells (``ecnbasic``) into FBA form.
+
+    **The industry x stage cell BEA does not publish.**  ``U50705BU1`` gives
+    manufacturing inventories by industry across 22 leaves, and by stage of
+    fabrication split only durable/nondurable; both sum to the same total and
+    there is no cell where the two meet.  Hill's rules for allocating the
+    change in inventories operate at the **6-digit industry** and need to know
+    how much of each industry's stock is finished goods, work-in-process and
+    materials-and-supplies.  This publishes exactly that, for 2017 and 2022
+    (#664).
+
+    ⚠️ **Stock levels, not changes.  Do not difference these to get F03000.**
+    Beginning- and end-of-year stocks differ by holding gains as well as by real
+    accumulation, and CIPI excludes holding gains through the inventory
+    valuation adjustment.  The same trap is documented for FIWS in
+    ``analysis/nowcasting/inventories_estimation_plan.md``, where differencing
+    gave -887 against a true -5,679 -- out by roughly six times.  ✅ **Use these
+    for the stage shares and keep the level from ``U50705BU1``.**
+
+    ⚠️ **Quinquennial.**  ASM's ``timeseries/asm/industry`` carries the same
+    ``INV*`` cells annually and is the source to reach for if the shares are
+    needed between censuses; this is the pair of years the benchmark sits on.
+
+    ⚠️ **``INVTOTB`` and ``INVTOTE`` are the stage totals**, so summing this FBA
+    unfiltered counts every inventory twice.  :data:`EC_INVENTORY_CONTROLS`
+    names them.
+
+    :param df_list: list of dataframes to concat and format
+    :param year: year
+    :return: df, parsed and partially formatted to flowbyactivity specifications
+    """
+    return _census_EC_cells_parse(
+        df_list=df_list,
+        year=year,
+        flows=EC_INVENTORY_FLOWS,
+        controls=EC_INVENTORY_CONTROLS,
+        non_commodity=(),
+        source_name='Census_EC_Inventories',
+    )
+
+
+def census_EC_Expenses_parse(*, df_list, year, **_):
+    """Parse the Economic Census expense cells (``ecnbasic``) into FBA form.
+
+    **The 2017 and 2022 anchor for the annual expense panel.**  ``ecnbasic``
+    publishes each industry's purchased electricity, contract work, resales and
+    ten named service cells under **the same variable names ASM uses**, so
+    census and survey form one panel: 2017 census, ASM 2018-2021, 2022 census,
+    AIES 2023.  That 2017 observation is the point of this source -- it is the
+    base year the 2017 benchmark Use table is built on, so an expense cell can
+    be indexed to it and the index applied to BEA's own cell.
+
+    ⚠️ **Do not read these as Use-table levels.**  The survey and BEA disagree
+    about what these cells contain, at the 2017 base itself and by large
+    factors: purchased repair is $52.7B here against $13.8B in BEA's 811 rows,
+    temporary staff $38.0B against $21.6B for ``561300``, and expensed software
+    and computers are mostly *investment* in BEA's accounts rather than
+    intermediate use.  Indexing cancels the discrepancy; substituting the level
+    would not.  ``analysis/nowcasting/inputs_structure.py --services`` measures
+    every one of them.
+
+    ``ActivityConsumedBy`` is the purchasing NAICS industry and ``FlowName`` the
+    expense kind, matching ``Census_ASM_Expenses`` and ``Census_AIES_Expenses``
+    exactly so the three stack without a crosswalk.
+
+    ⚠️ **Every NAICS level is published**, 3- through 6-digit.  The parents each
+    cover all of manufacturing, so summing unfiltered multiplies the table;
+    filter to ``^\d{6}$`` before summing.
+
+    ⚠️ **A zero here is not always a real zero.**  ``ecnbasic`` publishes a
+    withheld cell as ``0`` for several expense kinds rather than as a null, so
+    zeros are kept and counted rather than trusted; the ``_S`` relative-standard-
+    error companions are not pulled, so a consumer cannot tell the two apart
+    from this FBA alone.  Prefer the industry's own published total as a control.
+
+    :param df_list: list of dataframes to concat and format
+    :param year: year
+    :return: df, parsed and partially formatted to flowbyactivity specifications
+    """
+    return _census_EC_cells_parse(
+        df_list=df_list,
+        year=year,
+        flows=EC_EXPENSE_FLOWS,
+        controls=EC_EXPENSE_CONTROLS,
+        non_commodity=EC_NON_COMMODITY,
+        source_name='Census_EC_Expenses',
+    )
 
 
 def estimate_suppressed_ec_pxi(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:

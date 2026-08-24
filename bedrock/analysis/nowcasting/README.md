@@ -22,9 +22,13 @@ uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 # what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
 uv run python -m bedrock.analysis.nowcasting.row_control_exposure
 
-# what can be sourced for manufacturing's input column
-# (needs the Census_EC_MatFuel, Census_ASM_Expenses and Census_AIES_Expenses FBAs)
+# what can be sourced for manufacturing's input column (needs the
+# Census_EC_MatFuel, Census_EC_Expenses, Census_ASM_Expenses and
+# Census_AIES_Expenses FBAs)
 uv run python -m bedrock.analysis.nowcasting.inputs_structure --all
+
+# the non-materials cells, and the seed they carry
+uv run python -m bedrock.analysis.nowcasting.inputs_structure --services
 
 # how good the MATFUEL suppression fill is, against masked truth
 uv run python -m bedrock.analysis.nowcasting.inputs_structure --holdout
@@ -94,7 +98,7 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   final demand. Prints only; writes nothing.
 - `inputs_structure.py` — what can be sourced for manufacturing's intermediate
   input column. Was `materials_structure.py`; renamed because the sources it
-  reads now reach **91% of that column**, only 79 points of which are materials.
+  reads now reach **86% of that column**, 79 points of which are materials.
   `--coverage` classifies every `MATFUEL` code into `direct` (one BEA detail
   commodity), `group` (a BEA group needing a within-group split) and `residual`
   (Census could not place it); `--groups` splits the group tier onto commodities
@@ -110,7 +114,12 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   by dollars reallocated; `--recovery` shows what filling the withheld cells
   changed; `--holdout` masks published cells and recovers them, which is the
   measurement behind the suppression prior and the error bar on every recovered
-  cell. Reads the `Census_EC_MatFuel` FBAs; prints only.
+  cell. `--services` measures the named non-materials cells against BEA's own
+  2017 Use rows — they disagree by factors of **0.40 to 8.01**, which is why
+  `nonmaterial_seed()` carries an *index* rather than a level — and reports what
+  that index does to the block, which is +23.8% by 2023 against a frozen 2017.
+  Reads the `Census_EC_MatFuel`, `Census_EC_Expenses`, `Census_ASM_Expenses` and
+  `Census_AIES_Expenses` FBAs; prints only.
 - [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
   trade columns (#527): three 2017 probes scoring a Census goods + BEA services
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
