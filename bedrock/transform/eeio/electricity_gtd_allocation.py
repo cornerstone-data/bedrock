@@ -31,7 +31,7 @@ from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 logger = logging.getLogger(__name__)
 
 _REANCHORED_ELECTRICITY_Q: pd.Series | None = None
-_REANCHORED_PURCHASER_ALLOCATION: PurchaserAllocation | None = None
+_REANCHORED_EIA_PURCHASER_ALLOCATION: EIAPurchaserAllocation | None = None
 
 
 def _cell_float(frame: pd.DataFrame, row: str, col: str) -> float:
@@ -59,20 +59,20 @@ def set_reanchored_electricity_q(q: pd.Series) -> None:
     )
 
 
-def set_reanchored_purchaser_allocation(allocation: PurchaserAllocation) -> None:
+def set_reanchored_eia_purchaser_allocation(allocation: EIAPurchaserAllocation) -> None:
     """Record the model-year purchaser split used to rewrite published A/q."""
-    global _REANCHORED_PURCHASER_ALLOCATION
-    _REANCHORED_PURCHASER_ALLOCATION = allocation
+    global _REANCHORED_EIA_PURCHASER_ALLOCATION
+    _REANCHORED_EIA_PURCHASER_ALLOCATION = allocation
 
 
-def get_reanchored_purchaser_allocation() -> PurchaserAllocation | None:
-    return _REANCHORED_PURCHASER_ALLOCATION
+def get_reanchored_eia_purchaser_allocation() -> EIAPurchaserAllocation | None:
+    return _REANCHORED_EIA_PURCHASER_ALLOCATION
 
 
 def clear_reanchored_electricity_q() -> None:
-    global _REANCHORED_ELECTRICITY_Q, _REANCHORED_PURCHASER_ALLOCATION
+    global _REANCHORED_ELECTRICITY_Q, _REANCHORED_EIA_PURCHASER_ALLOCATION
     _REANCHORED_ELECTRICITY_Q = None
-    _REANCHORED_PURCHASER_ALLOCATION = None
+    _REANCHORED_EIA_PURCHASER_ALLOCATION = None
 
 
 def reanchored_electricity_q_shares() -> pd.Series | None:
@@ -102,7 +102,7 @@ _WATER_FILL_ATOL = 1e-9
 
 
 @dataclass(frozen=True)
-class PurchaserAllocation:
+class EIAPurchaserAllocation:
     """Per-purchaser generation / T&D split aligned to ``bills.index``."""
 
     bill: pd.Series
@@ -218,7 +218,7 @@ def allocate_purchaser_gtd(
     eia_year: int,
     p_share_2017: float,
     td_share_2017: float,
-) -> PurchaserAllocation:
+) -> EIAPurchaserAllocation:
     """Allocate domestic electricity bills to generation, transmission, and distribution.
 
     ``bills`` is domestic Use columns union Y columns. Do not pass Uimp —
@@ -285,7 +285,7 @@ def allocate_purchaser_gtd(
     leftover = bills - gen
     t_dollars = leftover * float(td_share_2017)
     d_dollars = leftover * (1.0 - float(td_share_2017))
-    return PurchaserAllocation(
+    return EIAPurchaserAllocation(
         bill=bills,
         end_use_class=classes,
         mwh=mwh.astype(float),
@@ -357,7 +357,7 @@ def write_purchaser_gtd_use_and_y(
     Udom: pd.DataFrame,
     Uimp: pd.DataFrame,
     Y: pd.DataFrame,
-    allocation: PurchaserAllocation,
+    allocation: EIAPurchaserAllocation,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Write G/T/D commodity rows; leave ``U[221100,221100]`` on the aggregate.
 
@@ -419,7 +419,7 @@ def write_purchaser_gtd_use_and_y(
 def write_gtd_use_intersection(
     Udom: pd.DataFrame,
     Uimp: pd.DataFrame,
-    allocation: PurchaserAllocation,
+    allocation: EIAPurchaserAllocation,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Materialize the G/T/D 3×3. ``Uimp[G,G]`` only; no leftover T/D on Uimp."""
     agg = ELECTRICITY_AGGREGATE
@@ -455,7 +455,7 @@ def write_gtd_use_intersection(
 
 def make_last_weights_from_domestic_use_y(
     Udom: pd.DataFrame,
-    allocation: PurchaserAllocation,
+    allocation: EIAPurchaserAllocation,
 ) -> pd.Series:
     """Domestic Use+Y G/T/D row-total shares (not Uimp)."""
     fd = set(FINAL_DEMANDS)
@@ -477,7 +477,7 @@ def make_last_weights_from_domestic_use_y(
 
 
 @functools.cache
-def get_2017_purchaser_allocation() -> PurchaserAllocation:
+def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
     """Cached 2017 domestic bills → G/T/D. Does not call the IO bundle or Ytot."""
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         _derive_post_reallocation_checkpoint_for_disagg,
@@ -510,7 +510,7 @@ def apply_purchaser_allocation_to_y(Y: pd.DataFrame) -> pd.DataFrame:
         reindex_y_commodities_to_elec_schema,
     )
 
-    allocation = get_2017_purchaser_allocation()
+    allocation = get_2017_eia_purchaser_allocation()
     children = list(ELECTRICITY_DISAGG_SECTORS)
     Y = _ensure_index_codes(Y, children)
     agg = ELECTRICITY_AGGREGATE
@@ -764,7 +764,7 @@ def reanchor_electricity_aq_after_year_scaling(
         p_share_2017=p_share,
         td_share_2017=td_share,
     )
-    set_reanchored_purchaser_allocation(allocation)
+    set_reanchored_eia_purchaser_allocation(allocation)
 
     udom = pd.DataFrame(adom.multiply(q, axis=1))
     uimp = pd.DataFrame(aimp.multiply(q, axis=1))

@@ -61,7 +61,7 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 # Never import electricity_disaggregation / electricity_end_use_mapping here —
 # that would re-couple v0.3 / waste-only publish clears.
 _ELECTRICITY_DISAGG_CACHED_ATTRS: tuple[str, ...] = (
-    'get_2017_purchaser_allocation',
+    'get_2017_eia_purchaser_allocation',
     '_derive_post_reallocation_checkpoint_for_disagg',
     'build_electricity_disagg_use_intersection_weights',
     'build_electricity_detail_GO_growth_ratios',
@@ -128,7 +128,7 @@ def _clear_electricity_caches_if_loaded() -> None:
         _clear_cached_attrs(ed, _ELECTRICITY_DISAGG_CACHED_ATTRS)
     gtd = sys.modules.get('bedrock.transform.eeio.electricity_gtd_allocation')
     if gtd is not None:
-        _clear_cached_attrs(gtd, ('get_2017_purchaser_allocation',))
+        _clear_cached_attrs(gtd, ('get_2017_eia_purchaser_allocation',))
         clear_reanchored = getattr(gtd, 'clear_reanchored_electricity_q', None)
         if callable(clear_reanchored):
             clear_reanchored()

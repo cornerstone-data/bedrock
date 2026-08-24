@@ -29,7 +29,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_detail_GO_growth_ratios,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    get_2017_purchaser_allocation,
+    get_2017_eia_purchaser_allocation,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -65,7 +65,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
     build_electricity_detail_GO_growth_ratios,
-    get_2017_purchaser_allocation,
+    get_2017_eia_purchaser_allocation,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,

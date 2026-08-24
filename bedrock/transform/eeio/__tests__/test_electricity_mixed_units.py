@@ -50,7 +50,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
     electricity_output_factor,
-    get_2017_purchaser_allocation,
+    get_2017_eia_purchaser_allocation,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -81,7 +81,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    get_2017_purchaser_allocation,
+    get_2017_eia_purchaser_allocation,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -424,7 +424,7 @@ def test_live_conversion_factors_and_generation_mwh(
 ) -> None:
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
         _go_p_and_td_shares,
-        get_reanchored_purchaser_allocation,
+        get_reanchored_eia_purchaser_allocation,
     )
 
     _setup(mixed_units_config)
@@ -440,7 +440,7 @@ def test_live_conversion_factors_and_generation_mwh(
         assert float(c_row.iloc[0]) == pytest.approx(1.0 / p, rel=1e-9)
         assert list(c_row.index) == list(aq.Adom.columns)
 
-        alloc = get_reanchored_purchaser_allocation()
+        alloc = get_reanchored_eia_purchaser_allocation()
         assert alloc is not None
         mwh_from_dollars = float(alloc.gen_dollars.sum()) / float(alloc.p)
         assert mwh_from_dollars == pytest.approx(

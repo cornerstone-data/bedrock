@@ -35,8 +35,8 @@ __pycache__/
 # Waste disaggregation weight fixtures (small; required for CI tests)
 !bedrock/extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_*.csv
 # Electricity disagg diagnostics local Excel exports (download from Sheets; keep dir via .gitkeep)
-bedrock/analysis/electricity_disagg_diagnostics/local_data/*
-!bedrock/analysis/electricity_disagg_diagnostics/local_data/.gitkeep
+bedrock/analysis/electricity/current/diagnostics/local_data/*
+!bedrock/analysis/electricity/current/diagnostics/local_data/.gitkeep
 
 # Ignore JetBrains IDE project files
 .idea/
@@ -52,8 +52,8 @@ scratch/
 
 # Ignore analysis output
 bedrock/analysis/**/output/
-# P0 freeze of current 3-way + mixed-units production (must be committed)
-!bedrock/analysis/electricity_disagg_eia/output/
-!bedrock/analysis/electricity_disagg_eia/output/**
-!bedrock/analysis/electricity_disagg_eia/output/**/*.parquet
-!bedrock/analysis/electricity_disagg_eia/output/**/*.json
+# Original electricity-disagg implementation freeze (must be committed)
+!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/
+!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**
+!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.parquet
+!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.json
