@@ -23,6 +23,15 @@ MATFUEL_TOTAL_CODES = ('00772000', '00772002')
 #: ``ecnmatfuel`` residual buckets - real spend that Census could not place on a
 #: named material.  Together roughly a third of delivered cost, which is the
 #: ceiling on what this source can attribute to a commodity.
+#: NAICS prefix length defining an industry's peer group for the suppression
+#: prior.  **Three, and that is measured rather than reasoned.**  Masking
+#: published cells and recovering them scores every prefix length.  NAICS-3 and
+#: NAICS-4 are close and both beat the alternatives; NAICS-3 wins on average
+#: (WAPE 0.602 / 0.718 across the two vintages, against 0.649 / 0.705 for
+#: NAICS-4 and 0.640 / 1.033 for an economy-wide prior) and on median relative
+#: error in 2022.  Reproduce with ``materials_structure.py --holdout``.
+NAICS_PEER_GROUP_LENGTH = 3
+
 MATFUEL_RESIDUAL_CODES = (
     '00970098',  # All other supplies
     '00970099',  # Cost of all other materials, components, parts, containers
@@ -502,6 +511,173 @@ def estimate_suppressed_ec_pxi(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
         int(counts.get('unrecoverable', 0)),
         overshoot,
         int(is_total.sum()),
+    )
+    return detail.reset_index(drop=True)
+
+
+def estimate_suppressed_ec_matfuel(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
+    """
+    Recover suppressed ``Census_EC_MatFuel`` cells from the published industry totals.
+
+    Census withholds an industry x material cell when publishing it would
+    disclose an individual company - **412 cells in 2017 and 330 in 2022**. The
+    value is not zero: it is still inside that industry's published total, so
+    leaving it at zero biases the materials mix toward whatever happens to be
+    publishable, which is systematically the *large* materials.
+
+    ✅ **The control is exact, and that is measured rather than assumed.** For
+    every industry with no withheld child, the named materials sum to
+    ``00772000`` "Total Materials" to within 0.1% - **238 of 238 industries in
+    2017 and 247 of 247 in 2022**. Fuels have their own exact control in
+    ``00772002`` "Total Fuels", and every industry carrying fuel rows carries
+    that control (28 of 28, and 21 of 21). So the two kinds are recovered
+    separately against their own totals; pooling them would mix two hierarchies
+    that Census keeps apart.
+
+    ⚠️ **The split weights are not equal shares.** ``estimate_suppressed_ec_pxi``
+    divides a residual equally because it has nothing better; here there is
+    something better, and equal shares would be a poor choice because the
+    withheld set usually has **two** members (96 of 150 industries in 2017), so
+    an equal split is close to a coin flip on which material gets the mass.
+    Instead the residual is shared in proportion to each material's
+    **economy-wide published cost in the same vintage** - paper gets more of an
+    unexplained residual than diamonds do, which is the right prior and costs
+    nothing.
+
+    ⚠️ **A recovered cell is a rough placement, not a measurement, and the
+    holdout says how rough.**  Masking published cells and recovering them gives
+    a weighted absolute percentage error of **0.60 in 2017 and 0.72 in 2022** --
+    the industry total is exact by construction, so all of that is *allocation*
+    error across materials within the column.  Anything reading these cells must
+    treat ``SuppressionRecovery`` as a quality flag, and any diagnostic sensitive
+    to the within-column mix should restrict to industries with nothing withheld
+    rather than trusting the fill.
+
+    ⚠️ **Deliberately within-vintage.** The other census year is an obvious and
+    much stronger prior for the same ``(industry, material)`` cell, and it is
+    **not** used: filling 2022 from 2017 would make the two vintages more alike
+    and bias the 2017 -> 2022 movement measurement toward zero, which is the
+    headline finding this source exists to support. A recovery must not quietly
+    manufacture the answer the analysis is testing for.
+
+    Three outcomes, recorded in ``SuppressionRecovery`` so a consumer can tell a
+    measurement from an estimate - the same vocabulary as the PxI recovery:
+
+    - ``exact`` - one withheld cell in the industry, so the residual belongs to
+      it entirely and this is a recovered measurement, not a guess. Rare here:
+      2 industries in 2017, none in 2022.
+    - ``split`` - two or more withheld, residual shared on the weights above.
+    - ``unrecoverable`` - the industry's own total is withheld (2 industries in
+      2017, none in 2022), so there is nothing to subtract from. Left at zero.
+
+    ⚠️ **The control rows are dropped on the way out.** Once the residual is
+    distributed the detail sums to the total by construction, so keeping both
+    double counts the entire table - $5.77tn against a true $2.87tn in 2017.
+    Callers wanting the control should take it before calling this.
+
+    :param fba: the ``Census_EC_MatFuel`` FlowByActivity
+    :return: material detail only, with withheld cells filled where possible
+    """
+    df = fba.copy()
+    is_control = df['ActivityProducedBy'].isin(MATFUEL_TOTAL_CODES)
+    # 'Material consumed' / 'Fuel consumed' - the M_FI flag, which the parse
+    # turned into FlowName. Each kind has its own total and its own hierarchy.
+    kind = df['FlowName']
+    control_kind = df['ActivityProducedBy'].map(
+        {'00772000': 'Material consumed', '00772002': 'Fuel consumed'}
+    )
+
+    controls = (
+        df[is_control]
+        .assign(_kind=control_kind[is_control], _sup=lambda x: x['Suppressed'].notna())
+        .set_index(['ActivityConsumedBy', '_kind'])[['FlowAmount', '_sup']]
+    )
+    detail = df[~is_control].copy()
+    key = pd.MultiIndex.from_arrays(
+        [detail['ActivityConsumedBy'], kind[~is_control]], names=controls.index.names
+    )
+    detail_withheld = detail['Suppressed'].notna()
+
+    published_by_control = (
+        detail[~detail_withheld]
+        .groupby(key[~detail_withheld])
+        .sum(numeric_only=True)['FlowAmount']
+    )
+    residual = controls['FlowAmount'].sub(
+        published_by_control.reindex(controls.index).fillna(0.0), fill_value=0.0
+    )
+    # Published children exceeding their own total is a rounding artefact, not
+    # licence to invent negative mass.
+    overshoot = int((residual < 0).sum())
+    residual = residual.clip(lower=0.0)
+
+    # Prior: what the industry's **peers** actually buy of that material, this
+    # vintage only. Peers are the other industries sharing its NAICS-4 group.
+    #
+    # ⚠️ An economy-wide prior was tried first and is wrong: it weights by how
+    # large a material is across all of manufacturing, so an idiosyncratic
+    # industry gets the economy's shopping list rather than its own. The peer
+    # prefix length is chosen by holdout (see NAICS_PEER_GROUP_LENGTH), and
+    # economy-wide survives only as the fallback for a material no peer
+    # publishes.
+    published = detail[~detail_withheld]
+    peer = published['ActivityConsumedBy'].str[:NAICS_PEER_GROUP_LENGTH]
+    by_peer = published.groupby([peer, published['ActivityProducedBy']])[
+        'FlowAmount'
+    ].sum()
+    economy_wide = published.groupby('ActivityProducedBy')['FlowAmount'].sum()
+
+    lookup = pd.MultiIndex.from_arrays(
+        [
+            detail['ActivityConsumedBy'].str[:NAICS_PEER_GROUP_LENGTH],
+            detail['ActivityProducedBy'],
+        ]
+    )
+    weights = (
+        pd.Series(by_peer.reindex(lookup).to_numpy(), index=detail.index)
+        .fillna(detail['ActivityProducedBy'].map(economy_wide))
+        .fillna(0.0)
+        .where(detail_withheld, 0.0)
+    )
+    # A material withheld everywhere has no published mass to weight by; fall
+    # back to equal shares for that industry rather than dropping it.
+    weight_total = weights.groupby(key).transform('sum')
+    n_withheld = detail_withheld.groupby(key).transform('sum')
+    share = np.where(
+        weight_total > 0,
+        weights / weight_total.replace(0, np.nan),
+        1.0 / n_withheld.replace(0, np.nan),
+    )
+
+    control_suppressed = (
+        pd.Series(controls['_sup'].reindex(key).to_numpy(), index=detail.index)
+        .astype('boolean')
+        .fillna(True)
+    )
+    fill = pd.Series(residual.reindex(key).to_numpy(), index=detail.index) * share
+    detail.loc[detail_withheld, 'FlowAmount'] = (
+        fill[detail_withheld]
+        .where(~control_suppressed[detail_withheld], 0.0)
+        .fillna(0.0)
+    )
+
+    how = np.where(n_withheld == 1, 'exact', 'split')
+    how = np.where(control_suppressed, 'unrecoverable', how)
+    detail['SuppressionRecovery'] = pd.Series(how, index=detail.index).where(
+        detail_withheld
+    )
+
+    counts = detail.loc[detail_withheld, 'SuppressionRecovery'].value_counts()
+    log.info(
+        'Census_EC_MatFuel suppression recovery: %s exact, %s split, %s '
+        'unrecoverable; %s industry totals had published children exceeding '
+        'them (residual clipped to 0). Dropped %s control rows to avoid double '
+        'counting.',
+        int(counts.get('exact', 0)),
+        int(counts.get('split', 0)),
+        int(counts.get('unrecoverable', 0)),
+        overshoot,
+        int(is_control.sum()),
     )
     return detail.reset_index(drop=True)
 

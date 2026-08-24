@@ -547,16 +547,16 @@ is defined by what it *is*.
 
 | | 2017 | 2022 |
 |---|---:|---:|
-| published cost | $2,866.7B | $3,788.2B |
-| **`direct`** — one BEA detail commodity | **52.9%** | **54.0%** |
-| **`group`** — a BEA group, needs a within-group split | 13.3% | 15.1% |
-| **`residual`** — Census could not place it | 33.8% | 30.8% |
-| **placeable** | **66.2%** | **69.1%** |
+| cost after suppression recovery | $2,906.6B | $3,875.7B |
+| **`direct`** — one BEA detail commodity | **52.9%** | **54.1%** |
+| **`group`** — a BEA group, needs a within-group split | 13.6% | 15.1% |
+| **`residual`** — Census could not place it | 33.5% | 30.8% |
+| **placeable** | **66.5%** | **69.2%** |
 | distinct BEA commodities reached | 139 | 139 |
 | industries × materials | 388 × 289 | 367 × 290 |
-| suppressed cells | 412 | 330 |
+| withheld cells, recovered | 412 ($39.9B) | 330 ($87.5B) |
 
-✅ **66-69% placeable, against 8.3% for the annual data** — an eight-fold
+✅ **66.5% and 69.2% placeable, against 8.3% for the annual data** — an eight-fold
 improvement on exactly the part of the column that matters most. The `group`
 tier is placeable too: `322` paper reaches several BEA detail commodities, and
 splitting within the group on 2017 Use shares is a far lighter benchmark
@@ -574,25 +574,65 @@ Summing the FBA unfiltered doubles the table. It is kept because it is the
 control a suppression recovery has to subtract published children from, exactly
 as NAICS `00` serves `Census_EC_PxI`.
 
+### Suppression recovery, and why it changes what can be claimed
+
+Census withholds **412 cells in 2017 and 330 in 2022**. They are not zero — they
+sit inside each industry's published `00772000` total, and
+`estimate_suppressed_ec_matfuel` fills them against it.
+
+✅ **The control is exact, measured not assumed.** For every industry with
+nothing withheld, the named materials sum to `00772000` to within 0.1% — **238 of
+238 in 2017 and 247 of 247 in 2022** — and fuels have their own exact control in
+`00772002`, present for every industry carrying fuel rows. After recovery all
+**406** (2017) and **386** (2022) industry-by-kind controls close to within 0.1%,
+and no negative cell is created.
+
+⚠️ **But the fill is a placement, not a measurement, and the holdout says how
+rough.** Masking published cells and recovering them gives a weighted absolute
+percentage error of **0.60 in 2017 and 0.72 in 2022**. The *mass* is exact — the
+residual is fixed by the published total — so **all** of that error is allocation
+across materials within the column, which is exactly what a mix score measures.
+
+The prior is chosen by that holdout rather than by argument: the residual is
+shared over withheld cells in proportion to what the industry's **NAICS-3 peers**
+publish for the same material. An economy-wide prior was tried first and is
+visibly wrong — it hands an idiosyncratic industry the economy's shopping list,
+and put **$8.6B of "motor vehicle seating" into aircraft manufacturing** while
+cutting its aircraft engines from $15.5B to $0.5B. NAICS-3 scores 0.602 / 0.718
+against economy-wide's 0.640 / 1.033.
+
+⚠️ **Cross-vintage priors are deliberately not used**, though 2017 is by far the
+best predictor of a withheld 2022 cell. Filling 2022 from 2017 would make the two
+vintages more alike and bias the movement measurement — the headline finding —
+toward zero. A recovery must not manufacture the answer the analysis is testing.
+
 ### How far the materials mix actually moved
 
-| | 2017 → 2022 |
-|---|---:|
-| industries × materials on the shared frame | 345 × 289 |
-| share of each year's cost on that frame | 90.0% / 90.6% |
-| **dissimilarity** | **0.1525** |
-| median column | 0.1569 |
-| columns moving > 0.10 / > 0.25 / > 0.50 | 264 / 69 / 10 |
+| | full frame | **unsuppressed only** |
+|---|---:|---:|
+| industries | 345 | **193** |
+| share of 2022 cost | 90.7% | 43.4% |
+| **dissimilarity** | 0.1588 | **0.1330** |
+| median column | 0.1529 | 0.1257 |
+| columns > 0.10 | 261 | 133 |
+| columns > 0.25 | 66 | **17** |
 
-✅ **0.153 over five years, against 0.173 for the *whole* Use column over
-2012→2017.** The materials block is not the stable part of the column — it moves
-about as fast as everything else. **264 of 345 industries move more than 10
-points.** Freezing 2017 materials structure out to 2025 therefore discards a
-reallocation of this size, and this source observes it.
+✅ **Quote 0.133, the unsuppressed subsample.** The full frame's 0.159 is
+contaminated by the fill, and the collapse from 66 extreme columns to 17 shows
+where: **most of the extremes were the recovery, not the economy.** An earlier
+draft of this section quoted 0.153 on the full frame and called the materials
+block as volatile as the whole column; the clean number does not support that
+strong a claim.
 
-That is the argument in one line: the largest, least-observed part of the
-manufacturing column moves as much as the rest, and there is a second
-observation of it sitting in the middle of the nowcast span.
+⚠️ The clean subsample is not a random one — suppression correlates with having
+few establishments, so it over-represents larger, more diversified industries.
+
+**What survives, and it is enough:** materials mix moves **0.133 over five
+years**, against **0.173 for the entire Use column over 2012→2017**. So the
+largest and least-observed part of the manufacturing column moves substantially
+— somewhat less than the column as a whole, not more — and **133 of 193 clean
+industries move more than 10 points**. Freezing it from 2017 to 2025 discards a
+reallocation of that size, and this source observes it. That is the argument.
 
 ### Where the movement sits
 
@@ -612,21 +652,19 @@ observation of it sitting in the middle of the nowcast span.
 `324110` dominates on size rather than rate — 0.082 on a $625B materials bill,
 which is crude oil composition moving under a very large column.
 
-⚠️ **`336411` at 0.592 is not credible as economics.** Aircraft manufacturing
-reallocating 59% of its materials bill in five years is the signature of a code
-reassignment, and it sits in the same industry the trade work flagged for a
-100,089 $M export shortfall (§The row control). Treat it as suspect until the
-`MATFUEL` code lists have been diffed across vintages.
+⚠️ **`336411` aircraft was the loudest column, and chasing it is what found the
+recovery defect.** It scored 0.592, which is not credible as economics. The cause
+is not a code reassignment: **most of its 2022 column is withheld**, so the score
+was measuring the suppression fill. It is excluded from the clean subsample above,
+which is the right treatment. It remains an industry to distrust in this source —
+and it is separately the one the trade work flagged for a 100,089 $M export
+shortfall (§The row control).
 
 ### What is not built yet
 
-All four are [#698](https://github.com/cornerstone-data/bedrock/issues/698).
+The remainder of [#698](https://github.com/cornerstone-data/bedrock/issues/698).
 
-1. **Suppression recovery.** 412 cells in 2017 and 330 in 2022 carry `D`, zeroed
-   and recorded. The `00772000` control makes the `estimate_suppressed_ec_pxi`
-   pattern directly applicable — subtract published children from the total,
-   share the residual over the withheld cells, mark `exact` where only one was
-   withheld.
+1. ✅ **Suppression recovery — built.** See above.
 2. **The `group`-tier within-group split**, on 2017 Use shares.
 3. **The vintage code diff** — `MATFUEL` and NAICS both change basis between
    2017 and 2022, and 10% of each year's cost is off the shared frame. The
