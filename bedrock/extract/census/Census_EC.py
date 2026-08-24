@@ -29,7 +29,7 @@ MATFUEL_TOTAL_CODES = ('00772000', '00772002')
 #: NAICS-4 are close and both beat the alternatives; NAICS-3 wins on average
 #: (WAPE 0.602 / 0.718 across the two vintages, against 0.649 / 0.705 for
 #: NAICS-4 and 0.640 / 1.033 for an economy-wide prior) and on median relative
-#: error in 2022.  Reproduce with ``materials_structure.py --holdout``.
+#: error in 2022.  Reproduce with ``inputs_structure.py --holdout``.
 NAICS_PEER_GROUP_LENGTH = 3
 
 MATFUEL_RESIDUAL_CODES = (

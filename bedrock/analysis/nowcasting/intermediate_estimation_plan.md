@@ -500,9 +500,9 @@ Sorted by the §Finding above — **does the source deliver mix, or only a total
 | **NIPA T31005** government intermediate purchases | totals — and they match `T005` **exactly** ($0 / $0 / $2M) | zero: Step 5 already has the column total | ⚠️ keep as a *validation* of the derived column, drop as a source |
 | **Census `govslocalfin`** (#578) | function × object totals | a total, again — but the function detail is a *potential* mix proxy | ⚠️ **rescope**, see below |
 | **NIPA T31105** defense by type | 14 leaves, one of which maps | one cell (`33299A` ammunition, −0.2%); the rest miss by 46-287% | ❌ control and hint only, as the plan already records |
-| **ASM `CSTELEC`/`CSTFU`** 2018-2021 | **mix**, 2 cells, ~2.3% of the column, 6-digit, no suppression | small but real, and energy inputs matter downstream for EEIO | ⚠️ narrow; take it if the extractor is cheap |
+| **ASM / AIES expenses** 2018-2021, 2023 | **level and coarse mix**, 14-19 cells at 6-digit — materials, fuels, electricity, contract work, resales and 9-12 named services | far more than the two cells this row used to claim: **11.7% of the manufacturing column** in named non-materials cells, plus the annual materials *level* that kills linear interpolation | ✅ **built** — `Census_ASM_Expenses`, `Census_AIES_Expenses`; see §4 |
 | **SAS Table 3** service expenses | totals at 227 six-digit NAICS | a *detail* total inside a summary constraint — the one case where a total is not redundant | ⚠️ see below |
-| **AIES `exp02`** | one row per service sector, 2023 only | nothing at BEA detail | ❌ as #564 found |
+| **AIES `exp02`** | one row per service sector, 2023 only | nothing at BEA detail | ❌ as #564 found — **re-confirmed**: AIES publishes *no* expense cell for sectors 21, 22, 23 and 51-81 at **any** NAICS level, so it cannot source the worst drifters. Its expense block is manufacturing-only, which is why it appears above as a materials source and not as a services one |
 
 Three of those rows changed verdict, and each is a task:
 
@@ -534,7 +534,7 @@ holding 2017 for eight years. #564 flagged it as a "consolation prize"; on the
 ## The materials census — built, and it delivers
 
 `Census_EC_MatFuel` now pulls `ecnmatfuel` for **2017 and 2022**, and
-[`materials_structure.py`](materials_structure.py) measures what it buys. Both
+[`inputs_structure.py`](inputs_structure.py) measures what it buys. Both
 questions came back positive.
 
 ### How much of the materials bill can be placed on a commodity
@@ -627,51 +627,213 @@ strong a claim.
 ⚠️ The clean subsample is not a random one — suppression correlates with having
 few establishments, so it over-represents larger, more diversified industries.
 
-**What survives, and it is enough:** materials mix moves **0.133 over five
-years**, against **0.173 for the entire Use column over 2012→2017**. So the
-largest and least-observed part of the manufacturing column moves substantially
-— somewhat less than the column as a whole, not more — and **133 of 193 clean
-industries move more than 10 points**. Freezing it from 2017 to 2025 discards a
-reallocation of that size, and this source observes it. That is the argument.
+**What survives:** the materials mix moves **0.133 over five years** on
+`MATFUEL` codes, and **133 of 193 clean industries move more than 10 points**.
+Freezing it from 2017 to 2025 discards a reallocation of that size, and this
+source observes it. That is the argument.
+
+⚠️ **But do not compare 0.133 against the column's 0.173 — they are different
+frames.** 0.173 is a *BEA detail commodity* score and 0.133 is a `MATFUEL`-code
+one. On the same frame as 0.173 this block scores **0.094**. See §The mix score
+on the frame Step 3 actually seeds, which is where the comparable number and the
+corrected claim live.
 
 ### Where the movement sits
 
+⚠️ **This table was regenerated after the suppression recovery landed; an
+earlier draft of it quoted pre-recovery figures** (`336411` at 0.592 on a $34.2B
+bill). The recovery moves both the scores and the weights, and these are the
+current ones.
+
 | industry | dissimilarity | materials 2022 $B | reallocated $B |
 |---|---:|---:|---:|
-| `324110` Petroleum refineries | 0.082 | 625.4 | **51.5** |
-| `336411` Aircraft manufacturing | **0.592** | 34.2 | 20.2 |
+| `324110` Petroleum refineries | 0.081 | 628.6 | **50.8** |
+| `336411` Aircraft manufacturing | **0.655** | 51.5 | **33.8** |
 | `326199` All other plastics products | 0.233 | 54.5 | 12.7 |
-| `325199` All other basic organic chemicals | 0.239 | 51.1 | 12.2 |
-| `331110` Iron and steel mills | 0.164 | 70.0 | 11.5 |
-| `211120` Crude petroleum extraction | 0.311 | 35.9 | 11.2 |
-| `325110` Petrochemicals | 0.337 | 31.5 | 10.6 |
-| `211130` Natural gas extraction | 0.313 | 26.2 | 8.2 |
-| `336390` Other motor vehicle parts | 0.179 | 43.2 | 7.8 |
+| `325199` All other basic organic chemicals | 0.239 | 52.7 | 12.6 |
+| `211120` Crude petroleum extraction | 0.329 | 38.4 | 12.6 |
+| `325110` Petrochemicals | 0.327 | 34.1 | 11.1 |
+| `331110` Iron and steel mills | 0.148 | 71.8 | 10.6 |
+| `336414` Guided missile and space vehicle mfg | **0.815** | 10.5 | 8.5 |
+| `211130` Natural gas extraction | 0.312 | 26.2 | 8.2 |
+| `336390` Other motor vehicle parts | 0.180 | 43.4 | 7.8 |
+| `336415` Space vehicle propulsion units | **0.960** | 8.0 | 7.7 |
 | `311224` Soybean and other oilseed processing | 0.165 | 45.7 | 7.5 |
 
-`324110` dominates on size rather than rate — 0.082 on a $625B materials bill,
+`324110` dominates on size rather than rate — 0.081 on a $629B materials bill,
 which is crude oil composition moving under a very large column.
 
-⚠️ **`336411` aircraft was the loudest column, and chasing it is what found the
-recovery defect.** It scored 0.592, which is not credible as economics. The cause
-is not a code reassignment: **most of its 2022 column is withheld**, so the score
-was measuring the suppression fill. It is excluded from the clean subsample above,
-which is the right treatment. It remains an industry to distrust in this source —
-and it is separately the one the trade work flagged for a 100,089 $M export
-shortfall (§The row control).
+⚠️ **The whole aerospace group is the loudest thing here, and none of it is
+credible as economics.** `336411` scores 0.655, `336414` 0.815 and `336415`
+**0.960** — a score of 0.96 means almost every dollar sits on a different
+material in the two vintages, which no real industry does in five years. The
+cause is not a code reassignment: all three are heavily withheld, so the score is
+measuring the suppression fill rather than the economy. All three fall out of the
+clean subsample above, which is the right treatment, and this is the clearest
+single demonstration of why the clean subsample is the one to quote.
 
-### What is not built yet
+⚠️ `336411` is separately the industry the trade work flagged for a 100,089 $M
+export shortfall (§The row control), so it is doubly one to distrust.
 
-The remainder of [#698](https://github.com/cornerstone-data/bedrock/issues/698).
+### What is now built, and what it changed
 
-1. ✅ **Suppression recovery — built.** See above.
-2. **The `group`-tier within-group split**, on 2017 Use shares.
-3. **The vintage code diff** — `MATFUEL` and NAICS both change basis between
-   2017 and 2022, and 10% of each year's cost is off the shared frame. The
-   `336411` result above is why this matters.
-4. **The interpolation itself** — two observations, and the span runs
-   2018-2025. 2022 sits close to the middle, so linear interpolation between the
-   two and extrapolation past 2022 is the obvious first form.
+All three of the remaining [#698](https://github.com/cornerstone-data/bedrock/issues/698) items are built.
+Two of them dissolved a problem the plan expected to fight; the third overturned
+the interpolation form the plan had already chosen.
+
+#### 2. ✅ The `group`-tier within-group split — built, and scored
+
+A `group` cell is divided over the BEA detail commodities its NAICS could be, on
+the purchasing industry's **own 2017 Use row** for those commodities. Scored the
+way the suppression prior was: demote every `direct` cell to the group one
+prefix higher, split it, and compare against the commodity Census actually named.
+
+| prior | 2017 | 2022 |
+|---|---:|---:|
+| **column** — the industry's own 2017 Use row | **72.0%** | **72.9%** |
+| economy — the commodities' economy-wide row totals | 46.9% | 49.5% |
+
+*share of a split landing on the right commodity*
+
+✅ **The column prior puts about 72% of the money where it belongs, against 47%
+for an economy-wide one.** It is not close, and it settles the choice on
+evidence rather than on which sounds more principled.
+
+⚠️ **Accuracy falls off with group breadth**, so the tier is not uniform:
+
+| group width | on right commodity | group-tier $B, 2017 / 2022 |
+|---|---:|---:|
+| 2-4 commodities | **79.8%** | 134.8 / 188.2 |
+| 5-9 | 68.6% | 152.4 / 217.4 |
+| 10-29 | 51.9% | 76.4 / 124.2 |
+| 30+ | 66.2% | 32.1 / 54.9 |
+
+About **73% of group-tier dollars sit in groups of nine or fewer**, where the
+prior is 69-80% right. The weak end is the bare `33` prefix — 136 BEA
+commodities, $29.6B / $54.3B — which is a split across most of manufacturing and
+should be treated as barely better than residual.
+
+⚠️ **The split uses 2017 structure in both vintages**, so it manufactures no
+movement *inside* a group; only the group's total moves. That is a real
+benchmark dependency, and it is still far lighter than freezing the column: the
+group tier is 13.6% / 15.1% of cost and the ~54% that is `direct` moves freely.
+
+#### 3. ✅ The vintage code diff — built, and it is not a diff
+
+The plan expected to lose 10% of each year's cost to the 2017 → 2022 code
+revision. It loses none.
+
+✅ **The material axis was never affected.** The two vintages share **289 of 289
+and 290** `MATFUEL` codes; the one code unique to either year carries $0.1B.
+Every warning in this repo about "the vintages sit on different NAICS bases" was
+really a warning about the *industry* axis.
+
+✅ **And the industry axis reconciles completely.** All the off-frame cost is
+NAICS 2022 merging pairs of 2017 codes. Taking connected components of the year
+concordance and summing the 2017 side to the merged unit puts **100% of both
+vintages** on one 365-industry basis, with no split assumption anywhere.
+
+| NAICS 2017 | NAICS 2022 | 2017 $B | 2022 $B |
+|---|---|---:|---:|
+| `336111` + `336112` | `336110` | 226.7 | **271.2** |
+| `322121` + `322122` | `322120` | 15.4 | 14.3 |
+| `333314` + `333316` + `333318` | `333310` | 9.1 | 13.8 |
+| `335911` + `335912` | `335910` | 5.4 | 13.5 |
+| `321213` + `321214` | `321215` | 4.4 | 10.1 |
+
+⚠️ **This does not rescue `336411`.** Aircraft manufacturing was on the shared
+frame all along; its 0.592 is the suppression fill, not code churn. The plan's
+guess that the vintage diff was "why `336411` matters" was wrong, and the
+exclusion in §How far the materials mix actually moved remains the right
+treatment.
+
+#### 4. ❌ Linear interpolation — tested, and rejected
+
+The plan called linear interpolation "the obvious first form". It is obvious and
+it is wrong, and the way to see that is to stop treating 2018-2025 as unobserved.
+**Manufacturing's materials bill is published every year the census misses** —
+ASM through 2021, AIES from 2023 — and two new extractors now pull it:
+`Census_ASM_Expenses` and `Census_AIES_Expenses`.
+
+| year | source | linear $B | observed $B | gap | industry WAPE |
+|---|---|---:|---:|---:|---:|
+| 2017 | Economic Census | 2,830 | 2,830 | — | — |
+| 2018 | ASM | 3,019 | 3,053 | −1.3% | 0.07 |
+| 2019 | ASM | 3,207 | 2,966 | +8.1% | 0.11 |
+| 2020 | ASM | 3,396 | **2,636** | **+28.8%** | **0.31** |
+| 2021 | ASM | 3,584 | 3,109 | +15.3% | 0.17 |
+| 2022 | Economic Census | 3,772 | 3,772 | — | — |
+| 2023 | AIES | 3,961 | **3,517** | **+8.7%** | 0.14 |
+
+❌ **Interpolating overstates 2020 by 28.8%**, because a straight line between
+two points five years apart cannot bend around a pandemic.
+
+❌ **Extrapolating past 2022 gets the sign wrong.** The materials bill *fell*
+6.8% into 2023; the line says it rose 5.0%. That is the span the nowcast leans
+on hardest and the span the straight line fails worst.
+
+⚠️ **2024 and 2025 are unobserved.** ASM ends at 2021, AIES 2024 is unpublished,
+the census is quinquennial. The two years the nowcast most needs have nothing
+behind them, so the form fitted on 2018-2023 is all there is to extrapolate on.
+
+✅ **What the annual surveys buy is the level and the coarse partition** —
+materials, fuels, electricity, contract work, resales, and nine to twelve named
+purchased-service cells. ⚠️ **They do not buy the commodity mix.** That remains a
+two-point interpolation; what has changed is that its *form* is now an empirical
+question with a scoreable answer instead of a default.
+
+⚠️ **Match the scope, or read a definition as a growth rate.** The census
+materials universe is `CSTMPRT + CSTFU` (`EXPS_MAT_DVAL + EXPS_FUEL_VAL` in
+AIES) — **not** `CSTMTOT`, which also carries electricity, contract work and
+resales. Against `CSTMTOT` the 2017-census-to-2018-ASM step is a median 1.181
+across industries; on the matched scope it is 1.063, a year of materials
+inflation.
+
+### The mix score on the frame Step 3 actually seeds
+
+The group split makes it possible to score the movement where it matters — BEA
+detail commodities on the reconciled industry basis, rather than `MATFUEL` codes
+against `MATFUEL` codes.
+
+| frame | industries | commodities | 2022 $B | dissimilarity |
+|---|---:|---:|---:|---:|
+| `direct` only — no benchmark dependency at all | 360 | 137 | 2,097 | 0.0910 |
+| `direct` + `group` | 363 | **204** | **2,681** | 0.1053 |
+| **unsuppressed, `direct` + `group`** | 194 | 176 | 1,097 | **0.0941** |
+
+✅ **The split is worth having on coverage alone**: it lifts the placeable bill
+from $2,097B to $2,681B and the commodities reached from 137 to **204**. Those 67
+extra commodities are ones the `direct` tier never touches.
+
+⚠️ **And it revises the headline again, downward.** §How far the materials mix
+actually moved quotes **0.133**, but that is a `MATFUEL`-code score, and the
+0.173 it is compared against is a **BEA detail commodity** score. On the same
+frame as 0.173, the clean subsample gives **0.0941**.
+
+**So the corrected claim is:** the materials block moves **0.094 over five
+years against 0.173 for the whole Use column over an equal-length span** — a
+real reallocation, and roughly **half** the column's rate rather than "somewhat
+less". Freezing it still discards something this source observes; the honest
+size of that something is half what the previous draft implied.
+
+⚠️ Two reasons the commodity score is lower, and both are properties of the seed
+rather than of the economy: aggregating 289 materials onto ~200 commodities nets
+off substitution *within* a commodity, and the group split holds 2017 structure
+fixed inside each group. Neither is a correction to the 0.133 — they are
+different questions, and 0.094 is the one Step 3 is asking.
+
+### ⚠️ BEA has not used the 2022 Economic Census
+
+BEA's 2022 and 2023 summary tables are still annual-survey updates carried over
+the 2017 benchmark. **Nothing here should be validated against them.**
+Aggregating a census-seeded intermediate block to summary and differencing it
+against BEA's published 2022 Use is not a check — a gap is expected, and it is
+not evidence of an error on this side. This bites hardest on **Intermediate Uses
+and Intermediate Supply**, which is exactly what Step 3 builds.
+
+That cuts both ways, and the second way is the point: **this is information BEA
+has not yet incorporated**, which is the strongest available argument for
+seeding from it rather than from a carried-forward 2017.
 
 ---
 
@@ -727,8 +889,31 @@ against it.
 experiment, two terms, scored on the published summary panel 2018-2024. The
 deliverable is a number and a decision, not a new source dependency.
 
-**S3. The 2022 Economic Census materials breakout** — ✅ **extracted**; turning it
-into a seed is [#698](https://github.com/cornerstone-data/bedrock/issues/698). §The materials census.
+**S3. The 2022 Economic Census materials breakout** — ✅ **extracted, recovered,
+placed on commodities and reconciled across vintages.** §The materials census.
+What is left of [#698](https://github.com/cornerstone-data/bedrock/issues/698) is the seed itself, and it now has a shape:
+
+- **the placement is done** — `place_on_commodities()` returns industry × BEA
+  detail commodity for both vintages, 204 commodities and $2,681B in 2022;
+- **the industry axis is done** — one 365-unit basis carrying 100% of both
+  vintages;
+- ⚠️ **the interpolation form is open, and linear is ruled out** (§4). The next
+  measurement is which form to fit: a price-carried path is the candidate,
+  because #497 already carries a commodity price index and the observed level
+  path is dominated by price (2020 collapse, 2022 spike). Fit it on the one span
+  that can be scored — 2017 → 2022 on the census mix — rather than assuming it,
+  which is the same move §S2's θ makes on the summary panel;
+- ⚠️ **and 2024-2025 have no observation at all**, so whatever form is fitted is
+  extrapolated there. That is the risk to state, not to solve.
+
+**S3b. The named non-materials cells** — new, and it falls out of S3's
+extractors. ASM and AIES publish electricity, contract work, resales and 9-12
+named purchased services at NAICS-6, **11.7% of the manufacturing intermediate
+column**, every year 2018-2021 and 2023, and each maps onto a BEA service
+commodity. Together with the materials bill that is **91.0% of the column**
+reachable from these two sources. Currently only reported by `annual_partition()`;
+turning it into a seed is a separate and cheaper task than S3 itself, because
+there is no suppression recovery and no within-group split to do.
 
 **S4. `--where`-driven sourcing for the top drifters** ([#705](https://github.com/cornerstone-data/bedrock/issues/705)). `ORE`, `GSLG`/`GFGD`,
 `42`, `5412OP`, `81`. Currently unsourced and, on the evidence above, worth more

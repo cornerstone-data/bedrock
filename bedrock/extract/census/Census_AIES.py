@@ -195,3 +195,122 @@ if __name__ == '__main__':
 
     generateFlowByActivity(source='Census_AIES', year='2023')
     fba = getFlowByActivity('Census_AIES', 2023)
+
+
+#: AIES expense variables, mapped to the expense each names.  The keys are the
+#: successor series to :data:`~Census_ASM.ASM_EXPENSE_FLOWS`, and the two line up
+#: one for one on the concepts the materials work needs:
+#: ``EXPS_MAT_DVAL`` is ASM's ``CSTMPRT`` and ``EXPS_FUEL_VAL`` its ``CSTFU``.
+#:
+#: ✅ **Verified additive against the published control.**  ``EXPS_MAT_DVAL +
+#: EXPS_FUEL_VAL + EXPS_ELEC_VAL + EXPS_CONTRACT_VAL + EXPS_RESALE_VAL`` sums to
+#: ``EXPS_CSTMTOT_DVAL`` at 99.77% in aggregate, median per-industry ratio
+#: 1.0000, within 1% for 324 of 360 manufacturing industries -- the same
+#: decomposition ASM's ``CSTMTOT`` has, so the splice is a scope match rather
+#: than an approximation.
+AIES_EXPENSE_FLOWS = {
+    'EXPS_MAT_DVAL': 'Cost of materials, parts and containers',
+    'EXPS_FUEL_VAL': 'Cost of fuels',
+    'EXPS_ELEC_VAL': 'Cost of purchased electricity',
+    'EXPS_CONTRACT_VAL': 'Cost of contract work',
+    'EXPS_RESALE_VAL': 'Cost of goods purchased for resale',
+    'EXPS_ADVERT_VAL': 'Purchased advertising services',
+    'EXPS_COMMSVC_VAL': 'Purchased communication services',
+    'EXPS_DATAPROC_VAL': 'Purchased data processing and hosting services',
+    'EXPS_PROFTECH_VAL': 'Purchased professional and technical services',
+    'EXPS_TEMPSTAF_VAL': 'Purchased personnel supply services',
+    'EXPS_REFUSE_VAL': 'Purchased refuse removal services',
+    'EXPS_MACH_REP_VAL': 'Purchased machinery repair and maintenance',
+    'EXPS_BUILD_REP_VAL': 'Purchased building repair and maintenance',
+    'EXPS_RENT_BUILD_VAL': 'Rental of buildings',
+    'EXPS_RENT_MACH_VAL': 'Rental of machinery and equipment',
+    'EXPS_EXSOFT_VAL': 'Purchased software expensed',
+    'EXPS_COMPTR_OTHEQ_VAL': 'Purchased computers and peripherals expensed',
+    'EXPS_OTHER_VAL': 'All other operating expenses',
+}
+
+#: Totals of the cells beside them, kept so a consumer can check additivity.
+#: ⚠️ Summing this FBA unfiltered counts the table several times over.
+AIES_EXPENSE_CONTROLS = ('EXPS_CSTMTOT_DVAL', 'EXPS_TOT_DVAL', 'RCPT_TOT_VAL')
+
+
+def census_aies_expenses_parse(
+    *, df_list: list[pd.DataFrame], year: int, **_: Any
+) -> pd.DataFrame:
+    """Format the AIES expense-by-kind table into a long FBA.
+
+    ``ActivityConsumedBy`` is the purchasing NAICS industry and ``FlowName`` the
+    expense kind, matching :func:`~Census_ASM.asm_expenses_parse` exactly so the
+    two surveys stack into one annual panel.
+
+    ⚠️ **The expense detail is manufacturing only, at every NAICS level.**  This
+    is the single most important thing to know before reaching for this source.
+    AIES lists 883 six-digit industries, but only sectors 31-33 carry any
+    expense cell: 42 publishes ``EXPS_TOT_DVAL`` alone, and 21, 22, 23 and
+    51-81 publish **nothing at all**, at 2-, 3-, 4-, 5- and 6-digit alike.  So
+    this does *not* source the service industries that drift worst
+    (analysis/nowcasting/intermediate_estimation_plan.md, §Where the drift
+    sits); it confirms #564's finding rather than overturning it.
+
+    ⚠️ **And it does not cover mining**, which ``Census_EC_MatFuel`` does.  The
+    2023 observation is narrower than the census it extends.
+
+    ⚠️ **2023 is the only year.**  2022 predates the consolidated survey and
+    2024 is not published; both return ``204 No Content``.  So the annual
+    materials panel is census 2017, ASM 2018-2021, census 2022, AIES 2023, and
+    **2024-2025 are unobserved** -- which is exactly the span the nowcast has to
+    reach and cannot source.
+
+    ⚠️ **Every NAICS level is kept**, including the ``31-33`` rollup, on the same
+    reasoning as :func:`~Census_ASM.asm_expenses_parse`: the parents are the only
+    available control, and ``'31-33'`` is five characters, so match ``^\\d+$``
+    before filtering on length.
+    """
+    df = pd.concat(df_list, sort=False)
+
+    value_columns = [
+        column
+        for column in (*AIES_EXPENSE_FLOWS, *AIES_EXPENSE_CONTROLS)
+        if column in df.columns
+    ]
+    long = df.melt(
+        id_vars=['NAICS'],
+        value_vars=value_columns,
+        var_name='FlowName',
+        value_name='FlowAmount',
+    ).rename(columns={'NAICS': 'ActivityConsumedBy'})
+    long['FlowAmount'] = pd.to_numeric(long['FlowAmount'], errors='coerce')
+    # ⚠️ A missing cell is withheld; a published zero is a real zero, and AIES
+    # publishes a great many of them because the expense block is manufacturing
+    # only. Dropping both would delete the evidence for that; only the withheld
+    # ones go.
+    withheld = int(long['FlowAmount'].isna().sum())
+    long = long[long['FlowAmount'].notna()].copy()
+
+    long['Description'] = long['FlowName'].map(
+        AIES_EXPENSE_FLOWS
+        | {code: f'{code} (control)' for code in AIES_EXPENSE_CONTROLS}
+    )
+    long['ActivityProducedBy'] = None
+    long['Year'] = year
+    long['Location'] = US_FIPS
+    long['Unit'] = 'Thousand USD'
+    long['Class'] = 'Money'
+    long['FlowType'] = 'TECHNOSPHERE_FLOW'
+
+    long = assign_fips_location_system(long, year)
+    long['SourceName'] = 'Census_AIES_Expenses'
+    long['DataReliability'] = 5
+    long['DataCollection'] = 5
+    long['Compartment'] = None
+
+    log.info(
+        'Census_AIES_Expenses %s: %s rows over %s industries and %s expense '
+        'kinds; %s cells withheld and dropped.',
+        year,
+        len(long),
+        long['ActivityConsumedBy'].nunique(),
+        long['FlowName'].nunique(),
+        withheld,
+    )
+    return long

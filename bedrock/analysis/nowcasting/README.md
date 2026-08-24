@@ -22,11 +22,12 @@ uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 # what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
 uv run python -m bedrock.analysis.nowcasting.row_control_exposure
 
-# what the 2022 materials census buys Step 3 (needs the Census_EC_MatFuel FBAs)
-uv run python -m bedrock.analysis.nowcasting.materials_structure --all
+# what can be sourced for manufacturing's input column
+# (needs the Census_EC_MatFuel, Census_ASM_Expenses and Census_AIES_Expenses FBAs)
+uv run python -m bedrock.analysis.nowcasting.inputs_structure --all
 
 # how good the MATFUEL suppression fill is, against masked truth
-uv run python -m bedrock.analysis.nowcasting.materials_structure --holdout
+uv run python -m bedrock.analysis.nowcasting.inputs_structure --holdout
 
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
@@ -91,10 +92,18 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   `T001 = T016 − Σ_FD Y`, so trade error lands in the interior; this scores it per
   commodity, weighted by how much of the commodity goes to industry rather than to
   final demand. Prints only; writes nothing.
-- `materials_structure.py` — what the 2022 Economic Census materials breakout
-  buys Step 3. `--coverage` classifies every `MATFUEL` code into `direct` (one
-  BEA detail commodity), `group` (a BEA group needing a within-group split) and
-  `residual` (Census could not place it); `--movement` scores the 2017 → 2022
+- `inputs_structure.py` — what can be sourced for manufacturing's intermediate
+  input column. Was `materials_structure.py`; renamed because the sources it
+  reads now reach **91% of that column**, only 79 points of which are materials.
+  `--coverage` classifies every `MATFUEL` code into `direct` (one BEA detail
+  commodity), `group` (a BEA group needing a within-group split) and `residual`
+  (Census could not place it); `--groups` splits the group tier onto commodities
+  on 2017 Use shares and scores the prior against Census's own placements (72%
+  land on the right commodity, against 47% for an economy-wide prior);
+  `--vintage` reconciles the 2017/2022 NAICS revision onto one 365-industry
+  basis carrying 100% of both years; `--annual` scores linear interpolation
+  against the observed ASM/AIES path and rejects it — off by 28.8% in 2020 and
+  wrong in sign for 2023; `--movement` scores the 2017 → 2022
   materials mix on the same index of dissimilarity as
   `intermediate_structure_drift.py`, both on the full frame and on the
   unsuppressed subsample, which is the one to quote; `--where` ranks industries

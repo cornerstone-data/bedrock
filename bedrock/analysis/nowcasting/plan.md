@@ -891,7 +891,7 @@ gap may be misallocated rather than missing, which changes #606 from sourcing to
     the drift. It should not be first.
   - ✅ **The 2022 Economic Census `MATFUEL` materials breakout — which #564 called a consolation prize
     — is built and it delivers.** `Census_EC_MatFuel` pulls `ecnmatfuel` for 2017 and 2022;
-    [`materials_structure.py`](materials_structure.py) measures it. **66.5% of the 2017 materials bill
+    [`inputs_structure.py`](inputs_structure.py) measures it. **66.5% of the 2017 materials bill
     and 69.2% of 2022 is placeable on a BEA commodity, against 8.3% for the annual data** — 52.9% / 54.1%
     resolving 1:1 by NAICS prefix and the rest onto a BEA group needing a within-group split. Withheld
     cells are recovered against each industry's published total, which closes all 406 and 386
