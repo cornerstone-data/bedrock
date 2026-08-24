@@ -373,6 +373,8 @@ forging and stamping 146.
 
 ### What this changes
 
+All four are now [#701](https://github.com/cornerstone-data/bedrock/issues/701), with the vehicle split split out to [#702](https://github.com/cornerstone-data/bedrock/issues/702).
+
 - **[#606](https://github.com/cornerstone-data/bedrock/issues/606) is the single
   highest-value item in this area** — 29% of the exposure on its own — and the
   `EXTRA` lead above says where to start.
@@ -618,6 +620,8 @@ reassignment, and it sits in the same industry the trade work flagged for a
 
 ### What is not built yet
 
+All four are [#698](https://github.com/cornerstone-data/bedrock/issues/698).
+
 1. **Suppression recovery.** 412 cells in 2017 and 330 in 2022 carry `D`, zeroed
    and recorded. The `00772000` control makes the `estimate_suppressed_ec_pxi`
    pattern directly applicable — subtract published children from the total,
@@ -642,7 +646,7 @@ reassignment, and it sits in the same industry the trade work flagged for a
 - **`S00401` Scrap** (49,126 $M) and **`S00402` Used and secondhand goods**
   (33,816 $M) — both live in the intermediate block, both have a Supply-side
   counterpart, and neither has a price index (`S00402` gets a neutral 1.0 in
-  `get_cornerstone_industry_price_ratio`). ⚠️ **Not currently owned by any issue.**
+  `get_cornerstone_industry_price_ratio`). Now [#703](https://github.com/cornerstone-data/bedrock/issues/703).
   `Used` also has the largest margin-rate movement of any summary commodity
   (6.87 → 8.18 between 2017 and 2024), so it interacts with §Margins.
 - **`S00102` / `S00203` government enterprises** — 1,234 and 34,545 $M as
@@ -659,7 +663,7 @@ reassignment, and it sits in the same industry the trade work flagged for a
 
 ## What to build, in order
 
-**S0a. Give the benchmark detail SUT panel an extractor.** `Use_SUT_Detail.xlsx`
+**S0a. Give the benchmark detail SUT panel an extractor** ([#700](https://github.com/cornerstone-data/bedrock/issues/700)). `Use_SUT_Detail.xlsx`
 and `Supply_Detail.xlsx` in `SUPPLY-USE_2026-08-24.zip` carry **2007, 2012 and
 2017 on one code basis in one frame**. Today they are a local drop that only this
 diagnostic reads. A year-parameterised, GCS-backed loader beside
@@ -668,7 +672,7 @@ of *every* structural question in the build — Step 3's input mix, Step 4a's
 commodity mix, the margin rates, the FD splits — not just this one. **Cheapest
 high-leverage item on the page**, and everything measured above depends on it.
 
-**S0b. Declare the section before the candidate exists.** `use_intermediate_detail_sut`
+**S0b. Declare the section before the candidate exists** ([#704](https://github.com/cornerstone-data/bedrock/issues/704)). `use_intermediate_detail_sut`
 in [`sections.py`](sections.py) — 402 × 402, reference `_use_sut_detail()` interior,
 `candidate=None`. This is the pattern `use_va_detail_sut` was declared under: the
 reference, the frame and the tolerance are arguments about economics and can be
@@ -681,20 +685,20 @@ index, scale each column to `GO_producer − VAPRO_seed`. This is #497 as scoped
 and it is what turns the section on. Do it first — everything below is measured
 against it.
 
-**S2. Fit θ, and add the margin-rate factor.** §Inflation and §Margins.2. One
+**S2. Fit θ, and add the margin-rate factor** ([#699](https://github.com/cornerstone-data/bedrock/issues/699)). §Inflation and §Margins.2. One
 experiment, two terms, scored on the published summary panel 2018-2024. The
 deliverable is a number and a decision, not a new source dependency.
 
-**S3. The 2022 Economic Census materials breakout.** §Reconciling. The largest
-available structural signal, and the only one aimed at manufacturing.
+**S3. The 2022 Economic Census materials breakout** — ✅ **extracted**; turning it
+into a seed is [#698](https://github.com/cornerstone-data/bedrock/issues/698). §The materials census.
 
-**S4. `--where`-driven sourcing for the top drifters.** `ORE`, `GSLG`/`GFGD`,
+**S4. `--where`-driven sourcing for the top drifters** ([#705](https://github.com/cornerstone-data/bedrock/issues/705)). `ORE`, `GSLG`/`GFGD`,
 `42`, `5412OP`, `81`. Currently unsourced and, on the evidence above, worth more
 than everything in #564's survivor list combined. This is a research task before
 it is a build task.
 
 **S5. ERS agriculture (#577)** and, if the function→commodity bridge survives
-scrutiny, **government finances (#578, rescoped)**.
+scrutiny, **government finances (#578, rescoped to exactly that question)**.
 
 Not in this step: `S00300` (#606, shared with Step 1), the margins redistribution
 (Step 6b, #697), the government-enterprise reallocation (Step 7), and the balance
