@@ -889,10 +889,15 @@ gap may be misallocated rather than missing, which changes #606 from sourcing to
     bridge is the actual work; **#578 should be rescoped to it, or dropped.**
   - **Agriculture (#577) stays correct and cheap but is a small prize** — `111CA` carries little of
     the drift. It should not be first.
-  - **The 2022 Economic Census `MATFUEL` materials breakout, which #564 called a consolation prize,
-    is now the top external candidate**: the only source that speaks to the 82% of manufacturing's
-    column that annual data cannot see, and a genuine second structural observation between 2017 and
-    2025.
+  - ✅ **The 2022 Economic Census `MATFUEL` materials breakout — which #564 called a consolation prize
+    — is built and it delivers.** `Census_EC_MatFuel` pulls `ecnmatfuel` for 2017 and 2022;
+    [`materials_structure.py`](materials_structure.py) measures it. **66.2% of the 2017 materials bill
+    and 69.1% of 2022 is placeable on a BEA commodity, against 8.3% for the annual data** — 52.9% / 54.0%
+    resolving 1:1 by NAICS prefix and the rest onto a BEA group needing a within-group split. And the
+    mix **moved 0.153 between the two censuses, against 0.173 for the whole Use column over 2012→2017**:
+    the materials block is not the stable part of the column, and 264 of 345 industries move more than
+    10 points. Full treatment in
+    [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) §The materials census.
   - **SAS Table 3 loses its promotion.** `annual_survey_expense_sources.md` calls it "the most useful
     thing the probe found" because it is a *detail* control on service column size — but Step 5's
     column target is already detail gross output. It was the most useful thing for a Step 3 that owned

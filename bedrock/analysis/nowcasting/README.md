@@ -22,6 +22,9 @@ uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 # what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
 uv run python -m bedrock.analysis.nowcasting.row_control_exposure
 
+# what the 2022 materials census buys Step 3 (needs the Census_EC_MatFuel FBAs)
+uv run python -m bedrock.analysis.nowcasting.materials_structure --all
+
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir <report images dir> --no-report
@@ -85,6 +88,14 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   `T001 = T016 − Σ_FD Y`, so trade error lands in the interior; this scores it per
   commodity, weighted by how much of the commodity goes to industry rather than to
   final demand. Prints only; writes nothing.
+- `materials_structure.py` — what the 2022 Economic Census materials breakout
+  buys Step 3. `--coverage` classifies every `MATFUEL` code into `direct` (one
+  BEA detail commodity), `group` (a BEA group needing a within-group split) and
+  `residual` (Census could not place it); `--movement` scores the 2017 → 2022
+  materials mix on the same index of dissimilarity as
+  `intermediate_structure_drift.py`, so the two are comparable; `--where`
+  ranks industries by dollars reallocated. Reads the `Census_EC_MatFuel` FBAs;
+  prints only.
 - [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
   trade columns (#527): three 2017 probes scoring a Census goods + BEA services
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /

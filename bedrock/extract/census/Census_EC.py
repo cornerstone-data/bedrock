@@ -14,6 +14,25 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.logging.flowsa_log import log
 
+#: ``ecnmatfuel`` codes that are industry **totals**, not materials.  The named
+#: codes sum to ``00772000`` exactly, so leaving these in a sum double counts
+#: the whole table.  Kept in the FBA because they are the control a suppression
+#: recovery subtracts published children from.
+MATFUEL_TOTAL_CODES = ('00772000', '00772002')
+
+#: ``ecnmatfuel`` residual buckets - real spend that Census could not place on a
+#: named material.  Together roughly a third of delivered cost, which is the
+#: ceiling on what this source can attribute to a commodity.
+MATFUEL_RESIDUAL_CODES = (
+    '00970098',  # All other supplies
+    '00970099',  # Cost of all other materials, components, parts, containers
+    '00971000',  # Materials, ingredients, containers, and supplies, nsk
+    '00973000',  # Undistributed - minerals, purchased machinery, parts
+    '00974000',  # Undistributed fuels
+    '00960018',  # Other fuels (liquefied petroleum gas, coke, wood, etc.)
+    '00999828',  # Water purchased
+)
+
 
 def census_EC_URL_helper(*, build_url, year, config, **_):
     """
@@ -258,6 +277,114 @@ def census_EC_PxI_parse(*, df_list, year, **_):
     df['Class'] = 'Money'
     df['SourceName'] = 'Census_EC_PxI'
     df['FlowType'] = "ELEMENTARY_FLOW"
+    # Add tmp DQ scores
+    df['DataReliability'] = 5
+    df['DataCollection'] = 5
+    df['Compartment'] = None
+    return df
+
+
+def census_EC_MatFuel_parse(*, df_list, year, **_):
+    """
+    Parse Economic Census *Materials Consumed by Kind* (``ecnmatfuel``) into FBA form.
+
+    The commodity breakout of a manufacturing industry's materials bill: for
+    each NAICS-6 industry, the 8-digit material and fuel codes it consumed and
+    the delivered cost of each.  Quinquennial, and the only source that reaches
+    the part of the intermediate column the annual surveys publish as one cell -
+    ``EXPS_MAT_DVAL`` is 82.5% of manufacturing's column and has no commodity
+    split (#564).  Feeds Step 3 (#497); see
+    ``analysis/nowcasting/intermediate_estimation_plan.md``.
+
+    **Orientation is the opposite of** :func:`census_EC_PxI_parse` **and that is
+    deliberate.**  PxI asks what an industry *sells*, so the industry is the
+    producer.  This asks what an industry *buys*, so the industry goes in
+    ``ActivityConsumedBy`` and the material in ``ActivityProducedBy`` - which is
+    also the Use table's own orientation, commodity down and industry across.
+    Getting this backwards would transpose every downstream attribution without
+    raising anything.
+
+    ⚠️ **``00772000`` "Total Materials" is the industry total, not a material.**
+    The named codes sum to it exactly - median ratio 1.000 across 386 of 388
+    industries in 2017 - so **summing this FBA unfiltered double counts the
+    whole table**.  It is kept rather than dropped because it is the control any
+    suppression recovery must subtract published children from, exactly as NAICS
+    ``00`` serves :func:`estimate_suppressed_ec_pxi`.  ``00772002`` "Total Fuels"
+    is the fuels-side equivalent.  :data:`MATFUEL_TOTAL_CODES` names both.
+
+    ⚠️ **A third of the cost sits in named residual buckets**, chiefly
+    ``00970099`` "Cost of all other materials and components, parts, containers,
+    and supplies consumed" and ``00971000`` "Materials, ingredients, containers,
+    and supplies, nsk".  They are the ceiling on what this source can place, and
+    :data:`MATFUEL_RESIDUAL_CODES` names them so a consumer can measure its own
+    coverage rather than discovering the ceiling late.
+
+    ⚠️ **The two vintages are on different NAICS bases** - ``NAICS2017`` against
+    ``NAICS2022`` - and share 345 industries and 291 materials, 89.9% and 90.6%
+    of each year's cost.  Check presence before differencing them.
+
+    :param df_list: list of dataframes to concat and format
+    :param year: year
+    :return: df, parsed and partially formatted to flowbyactivity specifications
+    """
+    df = pd.concat(df_list, sort=False)
+
+    df = (
+        df.filter(
+            [
+                f'NAICS{year}',
+                f'NAICS{year}_LABEL',
+                'MATFUEL',
+                'MATFUEL_LABEL',
+                'MATFUELCOST',
+                'MATFUELCOST_F',
+                'M_FI',
+                'GEO_ID',
+                'YEAR',
+            ]
+        )
+        .rename(
+            columns={
+                f'NAICS{year}': 'ActivityConsumedBy',
+                f'NAICS{year}_LABEL': 'IndustryName',
+                'MATFUEL': 'ActivityProducedBy',
+                'MATFUEL_LABEL': 'Description',
+                'MATFUELCOST': 'FlowAmount',
+                'MATFUELCOST_F': 'Note',
+                'YEAR': 'Year',
+            }
+        )
+        .assign(Location=lambda x: x['GEO_ID'].str[-2:])
+    )
+
+    df = df.assign(
+        # M or F - a material or a fuel.  Fuels are a different economic object
+        # (they are consumed, not embodied) and some consumers want only one.
+        FlowName=np.where(df['M_FI'].eq('F'), 'Fuel consumed', 'Material consumed'),
+        FlowAmount=lambda x: pd.to_numeric(x['FlowAmount'], errors='coerce'),
+    )
+
+    # Census withholds a cell that would disclose an individual company. The
+    # value is not zero - it is still inside the published 00772000 total - so
+    # it is zeroed and recorded, never dropped.
+    suppressed = df['Note'].isin(['D', 'S', 's', 'A'])
+    df = df.assign(
+        Suppressed=np.where(suppressed, df['Note'], np.nan),
+        # MATFUELCOST is published in thousands of dollars.
+        FlowAmount=np.where(suppressed, 0, df['FlowAmount'].fillna(0.0) * 1000),
+    ).drop(columns=['Note', 'M_FI'])
+
+    df['Location'] = np.where(
+        df['Location'] == 'US',
+        US_FIPS,
+        df['Location'].str.pad(5, side='right', fillchar='0'),
+    )
+
+    df = assign_fips_location_system(df, year)
+    df['Unit'] = 'USD'
+    df['Class'] = 'Money'
+    df['SourceName'] = 'Census_EC_MatFuel'
+    df['FlowType'] = 'ELEMENTARY_FLOW'
     # Add tmp DQ scores
     df['DataReliability'] = 5
     df['DataCollection'] = 5

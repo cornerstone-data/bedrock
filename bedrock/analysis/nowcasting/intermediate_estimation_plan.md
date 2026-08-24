@@ -494,7 +494,7 @@ Sorted by the §Finding above — **does the source deliver mix, or only a total
 | source | delivers | worth to Step 3 | verdict |
 |---|---|---|---|
 | **ERS FIWS** farm intermediate expenses (#577) | **mix**, 89-91% commodity-mappable, 11 named categories, 1910-**2025** | real structure, but on a column that barely drifts, and one farm sector against ~10 BEA industries | ✅ **build it, but not first** |
-| **2022 Economic Census `MATFUEL`** (#564, unbuilt) | **mix**, the materials breakout for all of manufacturing | the only second observation of the 82% of manufacturing's column that annual data cannot see | ✅ **highest-value unbuilt item on this page** |
+| **2022 Economic Census `MATFUEL`** | **mix**, the materials breakout for all of manufacturing | the only second observation of the 82% of manufacturing's column that annual data cannot see | ✅ **built — see §The materials census** |
 | **NIPA T31005** government intermediate purchases | totals — and they match `T005` **exactly** ($0 / $0 / $2M) | zero: Step 5 already has the column total | ⚠️ keep as a *validation* of the derived column, drop as a source |
 | **Census `govslocalfin`** (#578) | function × object totals | a total, again — but the function detail is a *potential* mix proxy | ⚠️ **rescope**, see below |
 | **NIPA T31105** defense by type | 14 leaves, one of which maps | one cell (`33299A` ammunition, −0.2%); the rest miss by 46-287% | ❌ control and hint only, as the plan already records |
@@ -526,6 +526,110 @@ a genuine second structural observation between 2017 and 2025, and interpolating
 2017→2022 structure and extrapolating past it is a strictly better carry than
 holding 2017 for eight years. #564 flagged it as a "consolation prize"; on the
 §Finding above it is the main prize.
+
+---
+
+## The materials census — built, and it delivers
+
+`Census_EC_MatFuel` now pulls `ecnmatfuel` for **2017 and 2022**, and
+[`materials_structure.py`](materials_structure.py) measures what it buys. Both
+questions came back positive.
+
+### How much of the materials bill can be placed on a commodity
+
+`MATFUEL` codes are 8-digit and NAICS-derived — `33110090` iron and steel ingot,
+`33272203` bolts and nuts — so the longest NAICS prefix in
+`NAICS_to_BEA_Crosswalk_2017.csv` resolves the material. The seller-not-maker
+problem that made the trade concordance hard does not arise, because a material
+is defined by what it *is*.
+
+| | 2017 | 2022 |
+|---|---:|---:|
+| published cost | $2,866.7B | $3,788.2B |
+| **`direct`** — one BEA detail commodity | **52.9%** | **54.0%** |
+| **`group`** — a BEA group, needs a within-group split | 13.3% | 15.1% |
+| **`residual`** — Census could not place it | 33.8% | 30.8% |
+| **placeable** | **66.2%** | **69.1%** |
+| distinct BEA commodities reached | 139 | 139 |
+| industries × materials | 388 × 289 | 367 × 290 |
+| suppressed cells | 412 | 330 |
+
+✅ **66-69% placeable, against 8.3% for the annual data** — an eight-fold
+improvement on exactly the part of the column that matters most. The `group`
+tier is placeable too: `322` paper reaches several BEA detail commodities, and
+splitting within the group on 2017 Use shares is a far lighter benchmark
+dependency than freezing the whole column.
+
+⚠️ **A third is residual and that is the ceiling.** `00970099` "Cost of all
+other materials, components, parts, containers and supplies" ($487B / $614B) and
+`00971000` "Materials, ingredients, containers and supplies, nsk"
+($453B / $530B) are the two large buckets. No amount of concordance work reaches
+them.
+
+⚠️ **`00772000` "Total Materials" is the industry total, not a material.** The
+named codes sum to it exactly — median ratio 1.000 across 386 of 388 industries.
+Summing the FBA unfiltered doubles the table. It is kept because it is the
+control a suppression recovery has to subtract published children from, exactly
+as NAICS `00` serves `Census_EC_PxI`.
+
+### How far the materials mix actually moved
+
+| | 2017 → 2022 |
+|---|---:|
+| industries × materials on the shared frame | 345 × 289 |
+| share of each year's cost on that frame | 90.0% / 90.6% |
+| **dissimilarity** | **0.1525** |
+| median column | 0.1569 |
+| columns moving > 0.10 / > 0.25 / > 0.50 | 264 / 69 / 10 |
+
+✅ **0.153 over five years, against 0.173 for the *whole* Use column over
+2012→2017.** The materials block is not the stable part of the column — it moves
+about as fast as everything else. **264 of 345 industries move more than 10
+points.** Freezing 2017 materials structure out to 2025 therefore discards a
+reallocation of this size, and this source observes it.
+
+That is the argument in one line: the largest, least-observed part of the
+manufacturing column moves as much as the rest, and there is a second
+observation of it sitting in the middle of the nowcast span.
+
+### Where the movement sits
+
+| industry | dissimilarity | materials 2022 $B | reallocated $B |
+|---|---:|---:|---:|
+| `324110` Petroleum refineries | 0.082 | 625.4 | **51.5** |
+| `336411` Aircraft manufacturing | **0.592** | 34.2 | 20.2 |
+| `326199` All other plastics products | 0.233 | 54.5 | 12.7 |
+| `325199` All other basic organic chemicals | 0.239 | 51.1 | 12.2 |
+| `331110` Iron and steel mills | 0.164 | 70.0 | 11.5 |
+| `211120` Crude petroleum extraction | 0.311 | 35.9 | 11.2 |
+| `325110` Petrochemicals | 0.337 | 31.5 | 10.6 |
+| `211130` Natural gas extraction | 0.313 | 26.2 | 8.2 |
+| `336390` Other motor vehicle parts | 0.179 | 43.2 | 7.8 |
+| `311224` Soybean and other oilseed processing | 0.165 | 45.7 | 7.5 |
+
+`324110` dominates on size rather than rate — 0.082 on a $625B materials bill,
+which is crude oil composition moving under a very large column.
+
+⚠️ **`336411` at 0.592 is not credible as economics.** Aircraft manufacturing
+reallocating 59% of its materials bill in five years is the signature of a code
+reassignment, and it sits in the same industry the trade work flagged for a
+100,089 $M export shortfall (§The row control). Treat it as suspect until the
+`MATFUEL` code lists have been diffed across vintages.
+
+### What is not built yet
+
+1. **Suppression recovery.** 412 cells in 2017 and 330 in 2022 carry `D`, zeroed
+   and recorded. The `00772000` control makes the `estimate_suppressed_ec_pxi`
+   pattern directly applicable — subtract published children from the total,
+   share the residual over the withheld cells, mark `exact` where only one was
+   withheld.
+2. **The `group`-tier within-group split**, on 2017 Use shares.
+3. **The vintage code diff** — `MATFUEL` and NAICS both change basis between
+   2017 and 2022, and 10% of each year's cost is off the shared frame. The
+   `336411` result above is why this matters.
+4. **The interpolation itself** — two observations, and the span runs
+   2018-2025. 2022 sits close to the middle, so linear interpolation between the
+   two and extrapolation past 2022 is the obvious first form.
 
 ---
 
