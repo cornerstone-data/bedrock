@@ -80,13 +80,23 @@ across the 71 industry columns.
 
 | year | dissimilarity | intermediate $M |
 |---|---:|---:|
-| 2018 | **0.031** | 15,847,995 |
-| 2019 | **0.045** | 16,155,023 |
-| 2020 | **0.074** | 15,358,118 |
-| 2021 | **0.071** | 18,071,299 |
-| 2022 | **0.084** | 20,339,157 |
+| 2018 | **0.031** | 15,847,998 |
+| 2019 | **0.050** | 16,117,956 |
+| 2020 | **0.083** | 15,339,322 |
+| 2021 | **0.082** | 18,107,588 |
+| 2022 | **0.086** | 20,556,623 |
 | 2023 | **0.097** | 20,728,742 |
 | 2024 | **0.102** | 21,438,541 |
+
+✅ **Every row now reads the same workbook.** "No revision seam" used to be an
+aspiration — the diagnostic went through `io_2017`'s year-pinned loader, which
+changed vintage between 2022 and 2023. It now reads
+`Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx` for every year, so the
+2019-2022 rows above are **0.005 to 0.011 higher** than the pinned series
+reported and 2018, 2023 and 2024 are unchanged. ⚠️ The shape of the finding did
+not move, but the middle of the series was understated: what looked like a
+plateau across 2020-2022 (0.074, 0.071, 0.084) is a plateau at a higher level
+(0.083, 0.082, 0.086). §The revision floor measures the seam directly.
 
 **About 1.2 points a year, monotone apart from the 2020/2021 COVID pair, and
 10.2% by 2024.** On 2024's 21.4 trillion of intermediate that is **2.2 trillion
@@ -155,12 +165,16 @@ carried on a commodity price index (bedrock's own detail industry PI,
 | year | frozen | + inflation | change |
 |---|---:|---:|---:|
 | 2018 | 0.0314 | 0.0299 | **+4.9%** |
-| 2019 | 0.0452 | 0.0449 | +0.7% |
-| 2020 | 0.0743 | 0.0717 | +3.6% |
-| 2021 | 0.0711 | 0.0709 | +0.3% |
-| 2022 | 0.0838 | 0.0883 | **−5.4%** |
+| 2019 | 0.0504 | 0.0499 | +1.0% |
+| 2020 | 0.0833 | 0.0797 | **+4.3%** |
+| 2021 | 0.0823 | 0.0808 | +1.7% |
+| 2022 | 0.0859 | 0.0922 | **−7.4%** |
 | 2023 | 0.0974 | 0.1083 | **−11.2%** |
 | 2024 | 0.1019 | 0.1148 | **−12.6%** |
+
+(2019-2022 restated onto the single vintage, as above. The sign pattern is
+unchanged and the 2022 loss is **larger** on one basis, −7.4% rather than
+−5.4%.)
 
 **Inflation helps slightly through 2021 and hurts from 2022 on — worst in the
 years the price level moved most.** The detail benchmark holdout is the other
@@ -220,6 +234,22 @@ size of θ will move once that term is in.
 
 Highest *rates*, among columns above $50B: `22` Utilities **0.224**, `81` Other
 services 0.193, `GFGD` 0.192, `GFGN` 0.179, `493` Warehousing 0.159.
+
+✅ **This ranking survives the single-vintage rebuild unchanged — every figure in
+the table above is identical to the digit.** It was worth checking, because
+§The revision floor shows `GFGD` and `521CI` revise by more than `ORE` does and
+`521CI` is not on this list at all. The reason it survives is that the seam sits
+between 2022 and 2023: **2017 and 2018 are identical across the two vintages**,
+and 2024 was only ever read from the current one, so this 2017-against-2024
+comparison never crossed it. The columns named here — and therefore the
+candidate list #705 tested against them — rest on one basis and always did.
+
+⚠️ **The 2022 ranking is a different matter, and it does not survive.** Scored
+on one vintage, four columns enter its top ten (`5412OP`, `81`, `23`, `513`) and
+four leave (`521CI`, `311FT`, `4A0`, `561`), and `ORE` moves from second to
+first as its 2022 dissimilarity goes 0.084 → **0.158**. Nothing on this page
+ranks columns at 2022, so no verdict rests on it — but any future one must read
+the current workbook, which the diagnostic now does.
 
 ### The same picture at detail
 
@@ -985,15 +1015,17 @@ candidate loses, the verdict below rests on a defect that can be pointed at —
 a benchmark seam, a suppression pattern, an item ratio that is not economics —
 and not on the score alone.
 
-### ⚠️ The revision floor — and why `--drift`'s year series is not on one basis
+### ⚠️ The revision floor — and the seam that used to sit under `--drift`
 
 Everything scored above, and everything in §How stale does a frozen 2017
-structure get, compares a 2017 base against a later published year. **Both come
-out of `_load_usa_summary_sut`, which pins the workbook by year**: 2017-2022 read
-from `Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx`, 2023 and 2024 from
-`..._1997-2024_Summary.xlsx`. The pinning is deliberate and right for FBA
-consumers. It is wrong for a diagnostic that differences years against each
-other, and the size of the problem was worth measuring.
+structure get, compares a 2017 base against a later published year. Those reads
+**used to go through `_load_usa_summary_sut`, which pins the workbook by year**:
+2017-2022 from `Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx`, 2023 and
+2024 from `..._1997-2024_Summary.xlsx`. The pinning is deliberate and right for
+FBA consumers — published FBAs must not move under BEA's revisions — and wrong
+for a diagnostic that differences years against each other. ✅ **The diagnostic
+now reads the current workbook for every year**, and `--revision` reproduces the
+table below, which is what the seam was worth.
 
 **Same year, both workbooks, dollar-weighted index of dissimilarity:**
 
@@ -1010,25 +1042,27 @@ other, and the size of the problem was worth measuring.
 every measurement on this page is safe and the drift numbers are not built on
 sand.
 
-⚠️ **But the revision floor at 2022 is 0.0557 against a total measured drift of
-0.0986** — more than half the signal — and for individual columns it is larger
-than the signal: `ORE` revises 0.098 while drifting 0.084, `GFGD` revises 0.178,
-`521CI` 0.108, `22` 0.135. **A gap of two or three hundredths between a seeded
-column and a frozen one is inside BEA's own revision noise**, which is the right
-way to read the near-misses in the verdicts above: they are not evidence that the
-seed is worse, only that this test cannot tell.
+⚠️ **But the revision floor at 2022 is 0.0557 against a same-basis drift of
+0.0859** — nearly two thirds of the signal — and for individual columns it is
+larger than the signal: `ORE` revises 0.098, `GFGD` 0.178, `521CI` 0.108, `22`
+0.135. **A gap of two or three hundredths between a seeded column and a frozen
+one is inside BEA's own revision noise**, which is the right way to read the
+near-misses in the verdicts above: they are not evidence that the seed is worse,
+only that this test cannot tell.
 
-⚠️ **And `--drift`'s 2018-2024 series changes basis at 2023.** 2018-2022 are the
-older vintage and 2023-2024 the newer, so the published series steps rather than
-drifts at that join — which is where `525`'s intermediate column appeared to jump
-+100.8% and `ORE` +16.8%. **That step is the workbook, not the economy.** Read
-one basis at a time until the diagnostic loads every year from one workbook.
+✅ **The 2018-2024 series no longer changes basis at 2023.** It used to: 2018-2022
+came from the older vintage and 2023-2024 from the newer, so the published series
+stepped rather than drifted at that join — which is where `525`'s intermediate
+column appeared to jump +100.8% and `ORE` +16.8%. **That step was the workbook,
+not the economy**, and it is gone; what it had been hiding was 0.005-0.011 of
+real drift in 2019-2022 (§How stale does a frozen 2017 structure get).
 
 #### What this does to `ORE` — it makes the problem bigger, not the answer
 
-✅ **`ORE`'s real drift against BEA's current numbers is 0.158 rather than 0.084**
-— nearly double what the pinned loader reports, because the newer vintage moved
-the column further from its 2017 base. `ORE` is a worse column than §Where the
+✅ **`ORE`'s 2022 drift against BEA's current numbers is 0.158 rather than 0.084**
+— nearly double what the pinned loader reported, because the newer vintage moved
+the column further from its 2017 base. (At 2024 it is 0.141 and always was: that
+year never crossed the seam — see §Where the drift actually sits.) `ORE` is a worse column than §Where the
 drift actually sits says, and the seed's gain against it is scored on this
 vintage throughout (§`ORE` below).
 

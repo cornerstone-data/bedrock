@@ -17,7 +17,7 @@ the share of industry ``j``'s intermediate dollars sitting on the wrong
 commodity.  Reported dollar-weighted across industries, so a column is worth what
 it spends.
 
-Four measurements
+Five measurements
 -----------------
 
 ``--drift`` (default)
@@ -45,6 +45,19 @@ Four measurements
     Which columns carry the drift, at summary for 2024 and at detail for
     2012 -> 2017.  Summary hides about a third of the error and hides it
     unevenly, so the two rankings differ.
+
+``--revision``
+    The same year read from **both** summary Use vintages.  Nothing in it is
+    drift: it is BEA restating a structure it had already published, and it is
+    the noise floor under every year-on-year number above.
+
+⚠️ **Every summary measurement reads one vintage.**  ``io_2017``'s loader picks
+the workbook by year, which is right for FBA consumers and wrong for a module
+that differences years against each other -- it would put a seam between 2022 and
+2023 in the middle of ``--drift``'s series, and make ``--where``'s 2024 ranking a
+2017 base from one workbook against a 2024 from another.  So every summary read
+here goes to :data:`CURRENT_SUMMARY_USE` directly.  ``--revision`` measures what
+that seam was worth.
 
 ⚠️ **The summary reference is not ground truth.**  BEA's annual summary SUT is
 itself an estimate built from annual indicators over a carried-forward benchmark
@@ -74,11 +87,12 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import (
+    GCS_USA_SUP_DIR,
     LOCAL_USA_SUP_DIR,
     _load_2017_detail_supply_use_usa,
-    _load_usa_summary_sut,
 )
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
+from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
@@ -90,6 +104,19 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary impor
 
 #: Years of the published summary Use SUT after the benchmark.
 DRIFT_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024)
+
+#: The two summary Use vintages.  ``io_2017._load_usa_summary_sut`` pins the
+#: workbook by year -- 2017-2022 from the legacy release, 2023-2024 from the
+#: current one -- so that published FBAs do not move under BEA's revisions.  That
+#: is right for FBA consumers and wrong here: this module differences years
+#: against each other, so reading through it would put a vintage seam in the
+#: middle of every series.  Everything below reads :data:`CURRENT_SUMMARY_USE`,
+#: and ``--revision`` measures what the other vintage would have contributed.
+CURRENT_SUMMARY_USE = 'Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx'
+LEGACY_SUMMARY_USE = 'Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx'
+
+#: Years both vintages publish, which is what ``--revision`` can compare.
+REVISION_YEARS = (2017, 2018, 2019, 2020, 2021, 2022)
 
 #: The benchmark detail SUT panel: three years, one code basis, one frame.
 BENCHMARK_YEAR = ta.Literal[2007, 2012, 2017]
@@ -108,11 +135,32 @@ PRICE_INDEX_START = 2012
 THETA_GRID = (0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5)
 
 
-def summary_intermediate(year: int) -> pd.DataFrame:
+def summary_use(year: int, workbook: str = CURRENT_SUMMARY_USE) -> pd.DataFrame:
+    """A year's sheet of a summary Use SUT workbook, indexed by row code.
+
+    Deliberately not ``io_2017._load_usa_summary_sut``: that picks the workbook
+    by year, and this module needs the vintage held fixed across years.  See
+    :data:`CURRENT_SUMMARY_USE`.
+    """
+    use = load_from_gcs(
+        name=workbook,
+        sub_bucket=GCS_USA_SUP_DIR,
+        local_dir=LOCAL_USA_SUP_DIR,
+        loader=lambda pth: pd.read_excel(
+            pth, sheet_name=str(year), skiprows=5, dtype={'Unnamed: 0': str}
+        ),
+    )
+    use = use.set_index(use.columns[0])
+    use.index = use.index.astype(str).str.strip()
+    use.columns = use.columns.astype(str).str.strip()
+    return use
+
+
+def summary_intermediate(
+    year: int, workbook: str = CURRENT_SUMMARY_USE
+) -> pd.DataFrame:
     """Commodity x industry intermediate block of the published summary Use SUT."""
-    use = _load_usa_summary_sut('Use_SUT_summary', year)  # type: ignore[arg-type]
-    use.index = use.index.astype(str)
-    use.columns = use.columns.astype(str)
+    use = summary_use(year, workbook)
     # 'IOCode' is the workbook's header row, not a commodity; T005 and T001 are
     # the first margin row and column, so everything above and left of them is
     # the interior.
@@ -120,7 +168,8 @@ def summary_intermediate(year: int) -> pd.DataFrame:
     first_margin_column = int(ta.cast(int, use.columns.get_loc('T001')))
     rows = [r for r in use.index[:first_margin_row] if r != 'IOCode']
     columns = list(use.columns[1:first_margin_column])
-    return use.loc[rows, columns].astype(float)
+    # '...' marks a withheld cell, and blanks are structural zeros.
+    return use.loc[rows, columns].apply(pd.to_numeric, errors='coerce').fillna(0.0)
 
 
 def column_shares(block: pd.DataFrame) -> pd.DataFrame:
@@ -196,6 +245,59 @@ def drift() -> pd.DataFrame:
             }
         )
     return pd.DataFrame(records).set_index('year')
+
+
+def revision(top: int = 10) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The same year read from both vintages: how big is BEA's own revision?
+
+    Nothing here is drift.  Both sides are the *same year*, so a non-zero score
+    is BEA restating a structure it had already published -- the noise floor
+    under every year-on-year number this module reports, and the reason
+    everything else reads one workbook.  Returns the year series and the columns
+    that move most at the last overlapping year.
+    """
+    records = []
+    for year in REVISION_YEARS:
+        current = summary_intermediate(year, CURRENT_SUMMARY_USE)
+        legacy = summary_intermediate(year, LEGACY_SUMMARY_USE)
+        rows, columns = _align(current, legacy)
+        weights = current.loc[rows, columns].sum(axis=0)
+        score, _ = dissimilarity(
+            column_shares(legacy.loc[rows, columns]),
+            column_shares(current.loc[rows, columns]),
+            weights,
+        )
+        records.append(
+            {
+                'year': year,
+                'revision': score,
+                'intermediate_$M': float(weights.sum()),
+            }
+        )
+    series = pd.DataFrame(records).set_index('year')
+
+    last = REVISION_YEARS[-1]
+    current, legacy = (
+        summary_intermediate(last, CURRENT_SUMMARY_USE),
+        summary_intermediate(last, LEGACY_SUMMARY_USE),
+    )
+    names = summary_use(last).loc['IOCode']
+    rows, columns = _align(current, legacy)
+    weights = current.loc[rows, columns].sum(axis=0)
+    _, per_column = dissimilarity(
+        column_shares(legacy.loc[rows, columns]),
+        column_shares(current.loc[rows, columns]),
+        weights,
+    )
+    columns_frame = pd.DataFrame(
+        {
+            'name': [str(names.get(c))[:38] for c in columns],
+            f'revision_{last}': per_column,
+            'column_$M': weights,
+            'restated_$M': per_column * weights,
+        }
+    ).sort_values('restated_$M', ascending=False)
+    return series, columns_frame.head(top)
 
 
 def inflation() -> pd.DataFrame:
@@ -340,7 +442,7 @@ def where(year: int = 2024, top: int = 15) -> pd.DataFrame:
     """Which summary industry columns carry the drift, by dollars misplaced."""
     benchmark = summary_intermediate(2017)
     actual = summary_intermediate(year)
-    names = _load_usa_summary_sut('Use_SUT_summary', year).loc['IOCode']  # type: ignore[arg-type]
+    names = summary_use(year).loc['IOCode']
     rows, columns = _align(benchmark, actual)
     weights = actual.loc[rows, columns].sum(axis=0)
     _, per_column = dissimilarity(
@@ -401,9 +503,12 @@ def main() -> None:
         '--holdout', action='store_true', help='benchmark to benchmark, detail'
     )
     parser.add_argument('--where', action='store_true', help='which columns drift')
+    parser.add_argument(
+        '--revision', action='store_true', help='same year, both vintages'
+    )
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
-    chosen = args.drift or args.inflation or args.holdout or args.where
+    chosen = args.drift or args.inflation or args.holdout or args.where or args.revision
 
     if args.all or args.drift or not chosen:
         print('\nFrozen 2017 input structure vs the published summary Use SUT')
@@ -421,6 +526,13 @@ def main() -> None:
         print(where().round(3).to_string())
         print('\nWhere the 2012 -> 2017 drift sits, detail\n')
         print(where_detail().round(3).to_string())
+    if args.all or args.revision:
+        series, columns = revision()
+        print('\nThe same year read from both summary Use vintages')
+        print('(not drift - BEA restating a structure it had already published)\n')
+        print(series.round(4).to_string())
+        print(f'\nWhich columns BEA restated most, {REVISION_YEARS[-1]}\n')
+        print(columns.round(3).to_string())
     print()
 
 

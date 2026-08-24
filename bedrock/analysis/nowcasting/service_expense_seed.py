@@ -6,7 +6,7 @@ actually drift, tested every candidate, and found one worth building at all:
 ``ORE`` / ``531ORE`` Other real estate, moved on ``Census_SAS_Expenses`` (SAS
 Table 5, NAICS 531).  This module is that seed and the measurements that size it.
 
-⚠️ **The gain is 4.4% at 2022, which is at the bar rather than over it** -- the
+⚠️ **The gain is 4.5% at 2022, which is at the bar rather than over it** -- the
 inflation carry gets about 4% in a quiet span (§Does #497's inflation step earn
 its place).  It is positive at all three scorable endpoints and the test is
 biased against it, so it is real; it is not large.  The reason is
@@ -44,16 +44,15 @@ Three measurements
     ⚠️ **Why the gain is only 4%.**  How much of the column's movement sits on
     rows a SAS item names at all, and how much does not.
 
-⚠️ **This scores on one BEA vintage, deliberately.**
-:func:`~.intermediate_structure_drift.summary_intermediate` reads through
-``_load_usa_summary_sut``, which pins the workbook by year -- 2017-2022 from the
-2017-2022 release and 2023-2024 from the 1997-2024 one.  Differencing across
-that join measures BEA's revision as well as its drift, and the revision is not
-small: the same 2022, read from both workbooks, differs by a dollar-weighted
-0.0557 overall and **0.0976 for ``ORE`` alone**, against a total measured drift
-of 0.0986.  :func:`summary_intermediate_current` reads every year from the
-current workbook so the comparison is like for like.  Giving the shared
-diagnostic the same treatment is follow-on work.
+⚠️ **This scores on one BEA vintage, deliberately.**  ``io_2017``'s summary Use
+loader pins the workbook by year -- 2017-2022 from the 2017-2022 release and
+2023-2024 from the 1997-2024 one -- so differencing across that join would
+measure BEA's revision as well as its drift, and the revision is not small: the
+same 2022, read from both workbooks, differs by a dollar-weighted 0.0557 overall
+and **0.0976 for ``ORE`` alone**, against a same-basis 2022 drift of 0.0859.
+:func:`~.intermediate_structure_drift.summary_intermediate` now reads every year
+from the current workbook, so the comparison is like for like; its
+``--revision`` flag reproduces the numbers just quoted.
 
 ⚠️ **Part of what this seed corrects is a reclassification, not a substitution.**
 BEA moved equity REITs out of funds and trusts into the real estate industry and
@@ -73,15 +72,12 @@ from __future__ import annotations
 
 import argparse
 import functools
-import typing as ta
 
 import numpy as np
 import pandas as pd
 
 from bedrock.extract.census.Census_SAS_Expenses import SAS_EXPENSE_UNOBSERVED_YEARS
 from bedrock.extract.flowbyactivity import getFlowByActivity
-from bedrock.extract.iot.io_2017 import GCS_USA_SUP_DIR, LOCAL_USA_SUP_DIR
-from bedrock.utils.io.gcp import load_from_gcs
 
 #: The FBA this reads, and the years it publishes the detailed items for.
 SAS_EXPENSE_SOURCE = 'Census_SAS_Expenses'
@@ -94,10 +90,6 @@ SAS_EXPENSE_YEARS = (2013, 2014, 2015, 2016, 2017, 2020, 2021, 2022)
 SEED_NAICS = '531'
 SEED_INDUSTRY = '531ORE'
 SEED_SUMMARY_COLUMN = 'ORE'
-
-#: The current BEA summary Use workbook.  See the module docstring for why every
-#: year is read from this one rather than through the year-pinned loader.
-CURRENT_SUMMARY_USE = 'Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx'
 
 #: SAS Table 5 item -> the BEA detail commodity rows it buys.
 #:
@@ -220,35 +212,6 @@ def _use_2017_detail() -> pd.DataFrame:
     )
 
     return use()
-
-
-def summary_intermediate_current(year: int) -> pd.DataFrame:
-    """Summary Use intermediate block, every year from the **current** workbook.
-
-    ⚠️ Deliberately not :func:`~.intermediate_structure_drift.summary_intermediate`.
-    That reads through the year-pinned loader, so a 2017-to-2022 comparison
-    crosses no seam but a 2017-to-2023 one does, and the revision between the two
-    vintages is over half the size of the drift being measured.  See the module
-    docstring.
-    """
-    use = load_from_gcs(
-        name=CURRENT_SUMMARY_USE,
-        sub_bucket=GCS_USA_SUP_DIR,
-        local_dir=LOCAL_USA_SUP_DIR,
-        loader=lambda pth: pd.read_excel(
-            pth, sheet_name=str(year), skiprows=5, dtype={'Unnamed: 0': str}
-        ),
-    )
-    use = use.set_index(use.columns[0])
-    use.index = use.index.astype(str).str.strip()
-    use.columns = use.columns.astype(str).str.strip()
-    # ta.cast because get_loc is typed as possibly returning a slice or mask;
-    # on a unique index it is an int, as in intermediate_structure_drift.
-    first_margin_row = int(ta.cast(int, use.index.get_loc('T005')))
-    first_margin_column = int(ta.cast(int, use.columns.get_loc('T001')))
-    rows = [r for r in use.index[:first_margin_row] if r != 'IOCode']
-    columns = list(use.columns[1:first_margin_column])
-    return use.loc[rows, columns].apply(pd.to_numeric, errors='coerce').fillna(0.0)
 
 
 def _column_shares(block: pd.DataFrame) -> pd.DataFrame:
@@ -390,6 +353,7 @@ def score(
     """
     from bedrock.analysis.nowcasting.intermediate_structure_drift import (  # noqa: PLC0415
         dissimilarity,
+        summary_intermediate,
     )
     from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
         load_bea_v2017_commodity_to_bea_v2017_summary,
@@ -402,8 +366,8 @@ def score(
 
     records = []
     for year in years:
-        base = summary_intermediate_current(2017)[SEED_SUMMARY_COLUMN]
-        actual = summary_intermediate_current(year)[SEED_SUMMARY_COLUMN]
+        base = summary_intermediate(2017)[SEED_SUMMARY_COLUMN]
+        actual = summary_intermediate(year)[SEED_SUMMARY_COLUMN]
         rows = [r for r in base.index if r in actual.index]
         base, actual = base.loc[rows], actual.loc[rows]
 
@@ -483,6 +447,9 @@ def reachable(year: int = 2022) -> pd.DataFrame:
     block whose bulk is ``561700`` services to buildings and dwellings -- a
     lessor's janitorial and landscaping bill, which no item names either.
     """
+    from bedrock.analysis.nowcasting.intermediate_structure_drift import (  # noqa: PLC0415
+        summary_intermediate,
+    )
     from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
         load_bea_v2017_commodity_to_bea_v2017_summary,
     )
@@ -494,8 +461,8 @@ def reachable(year: int = 2022) -> pd.DataFrame:
     index = relative_index(SEED_NAICS, year)
     touched = {detail_to_summary.get(str(code)) for code in index.index}
 
-    base = summary_intermediate_current(2017)[SEED_SUMMARY_COLUMN]
-    actual = summary_intermediate_current(year)[SEED_SUMMARY_COLUMN]
+    base = summary_intermediate(2017)[SEED_SUMMARY_COLUMN]
+    actual = summary_intermediate(year)[SEED_SUMMARY_COLUMN]
     rows = [r for r in base.index if r in actual.index]
     move = (actual[rows] / actual[rows].sum() - base[rows] / base[rows].sum()) * 100
 
