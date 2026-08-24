@@ -492,24 +492,69 @@ are among the largest rows in the table. That difference *is* the redistribution
 ### 2. Margin-rate movement in the deflator — **this one is Step 3's**
 
 A cell of this block is at **purchaser** value. Its correct price movement is
-therefore the *purchaser*-price movement:
+therefore the *purchaser*-price movement.
+
+**The valuation chain, off the summary Supply table.** `T013` is total product
+supply at **basic** prices, `T014` is total trade and transportation margins,
+`T015` is total tax less subsidies on products, and `T016` is total product
+supply at **purchaser** prices. ⚠️ `T014` is the margins *alone*, not a running
+subtotal — the identity is `T016 = T013 + T014 + T015`, verified to $1M at
+detail. So:
 
 ```
-PUR_c(t) / PUR_c(2017)  ≈  [ basic price ratio ]  ×  [ 1 + m_c(t) ] / [ 1 + m_c(2017) ]
-     where m_c = (TRADE_c + TRANS_c) / T013_c
+PRO_c = T013_c + T015_c                    (basic + net product taxes)
+PUR_c = PRO_c + T014_c = T016_c
+
+PUR_c(t) / PUR_c(2017)  ≈  [ producer price ratio ] × [ 1 + μ_c(t) ] / [ 1 + μ_c(2017) ]
+     where  μ_c = T014_c / (T013_c + T015_c)
 ```
 
-#497 as written supplies only the first factor, off a **gross-output** price
-index — a basic/producer-value index. The second factor is not small. Summary
-Supply, `T014 / T013`, 2017 → 2024, over the 36 commodities with a margin rate
-above 1%: **median absolute change 2.8pp, p90 12.1pp**, and in relative terms
-`313TT` textiles 0.858 → 1.075 (+25%), `339` misc. manufacturing 0.910 → 1.068,
-`337` furniture 0.740 → 0.894, `315AL` apparel 1.79 → 1.88.
+⚠️ **The denominator is producer value, not basic value.** BEA gross output is
+valued at **producers' prices**, so the price ratio #497 carries already contains
+the product-tax layer and only the margin layer is missing — one factor, not two.
+Dividing margins by `T013` instead would overstate the rate by the tax wedge:
+median **3.3%**, and worst on exactly the commodities that matter here —
+`315AL` apparel 1.372 against 1.793 (**+31%**), `324` petroleum 0.246 against
+0.289, `313TT` textiles 0.779 against 0.858, `311FT` food, beverage and tobacco
+0.489 against 0.533.
+
+#497 as written supplies only the first factor. The second is not small. Summary
+Supply, 2017 → 2024, over the 26 commodities with `μ` above 1%: **median absolute
+change 3.6pp, p90 12.7pp**, and in relative terms `313TT` textiles 0.779 → 0.949
+(**+22%**), `337` furniture 0.690 → 0.809 (+17%), `339` misc. manufacturing
+0.853 → 0.988 (+16%), `324` petroleum 0.246 → 0.275 (+12%), `315AL` apparel
+1.372 → 1.466 (+7%).
+
+⚠️ **Apply the factor only to margin-*receiving* commodities.** For the margin
+*suppliers* `T014` is large and negative — the margin is allocated away from the
+transport or trade commodity and onto the goods it carries, which is why
+`Σ TRADE = Σ TRANS = 0` — so `μ` runs to −0.94 for `42` wholesale, −0.99 for
+`486` pipeline, −0.88 for `482` rail. `1 + μ` is then 0.06, 0.01 and 0.12, and
+the factor becomes a ratio of two near-zero numbers: unstable, and not the
+economics of those rows anyway. **Set the factor to 1 wherever `μ_c ≤ 0`.** This
+is nearly free rather than a compromise: in the *purchaser*-priced SUT Use table
+the margin rows carry almost no intermediate dollars (`4B0000` is 0, see above),
+precisely because their margins are sitting inside the goods rows.
+
+On the rows where it does apply the denominator correction is real but
+second-order, because a proportional level error largely divides out of a ratio:
+across the 26 receiving commodities above $20B it moves the carry factor by a
+median of **0.35pp**, p90 **1.4pp**, and at most 2.1pp among named commodities
+(`313TT`). It is one line of code and worth having; it is not what makes or
+breaks the term.
 
 **This is a concrete, cheap improvement to #497 that uses data Step 4c already
 produces for its own reasons**, and it is the one place the margins data belongs
 inside Step 3. It should be built and scored on the same summary panel as θ
 (§Inflation) — the two are the same experiment with one more term.
+
+⚠️ **And it is a competing explanation for θ, not just an addition to it.**
+§Inflation reads the summary panel's low θ as substitution under relative-price
+dispersion, but a *missing deflator term* produces the same symptom. The
+experiment is therefore θ fitted with and without this factor: if adding it pulls
+the summary θ **toward** the detail panel's 1.00, the gap was the missing margin
+layer; if θ stays low, the substitution reading stands. Either result is a
+finding, and neither is available from the price ratio alone.
 
 ⚠️ Ordering: this makes Step 3 depend on Step 4c/4d output. That is a real
 dependency but not a circular one — 4c's rates are built from Census margin data
