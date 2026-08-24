@@ -276,9 +276,10 @@ Three things follow for sourcing:
   total is what those columns least need.
 - **Agriculture is not in this list at all.** `111CA` carries little of the drift.
   #577 remains correct and cheap but is a small prize; it should not be first.
-- **`ORE`, `42`, `23`, `5412OP`, `81` and `722` are where the dollars are**, and
-  none of them has an annual expense source (§Reconciling below). This is the
-  honest shape of the problem.
+- **`ORE`, `42`, `23`, `5412OP`, `81` and `722` are where the dollars are.**
+  ⚠️ Each of them *does* have an expense source — BEA named one for every one of
+  them at the benchmark — and §Sourcing the columns that actually drift tested
+  each in turn. Only `ORE` survives. This is the honest shape of the problem.
 
 ---
 
@@ -502,6 +503,8 @@ Sorted by the §Finding above — **does the source deliver mix, or only a total
 | **NIPA T31105** defense by type | 14 leaves, one of which maps | one cell (`33299A` ammunition, −0.2%); the rest miss by 46-287% | ❌ control and hint only, as the plan already records |
 | **EC / ASM / AIES expenses** 2017-2023 | **level and coarse mix**, 14-19 cells at 6-digit — materials, fuels, electricity, contract work, resales and 9-12 named services | far more than the two cells this row used to claim: **6.4% of the column** seedable onto commodities (not the 11.7% first reported — see §S3b), plus the annual materials *level* that kills linear interpolation | ✅ **built** — `Census_EC_Expenses`, `Census_ASM_Expenses`, `Census_AIES_Expenses`; see §4 and §S3b |
 | **SAS Table 3** service expenses | totals at 227 six-digit NAICS | a *detail* total inside a summary constraint — the one case where a total is not redundant | ⚠️ see below |
+| **SAS Table 5** selected expenses | **mix**, ~35 items at 63 industries, 2-4 digit NAICS, **2013-2017 and 2020-2022** | the structural service source the probe looked past, and far more than Table 3 offers | ⚠️ **tested and mostly rejected** — the two eras sit on different Economic Census benchmarks; §Sourcing the columns that actually drift |
+| **AWTS / ARTS Business Expenses Supplement** | **mix**, 13 items, 2017 and 2022, one benchmark | the trade counterpart, and BEA's own benchmark source for `42` and `4A0` | ❌ **suppression** — `4A0` loses every item; same section |
 | **AIES `exp02`** | one row per service sector, 2023 only | nothing at BEA detail | ❌ as #564 found — **re-confirmed**: AIES publishes *no* expense cell for sectors 21, 22, 23 and 51-81 at **any** NAICS level, so it cannot source the worst drifters. Its expense block is manufacturing-only, which is why it appears above as a materials source and not as a services one |
 
 Three of those rows changed verdict, and each is a task:
@@ -895,6 +898,430 @@ seeding from it rather than from a carried-forward 2017.
 
 ---
 
+## Sourcing the columns that actually drift — S4, answered
+
+[#705](https://github.com/cornerstone-data/bedrock/issues/705) asked, per column, *what can source this*.
+The answer is **one marginal go and four no-goes**, and the reason the no-goes
+are no is not that the sources are missing — every one of them exists, and BEA
+named it.
+
+### What BEA itself used, and why that reframes the question
+
+The 2017 benchmark methodology says, per column group:
+
+| column group | BEA's stated source for the **input structure** |
+|---|---|
+| **Construction** | 2017 Economic Census construction data |
+| **Wholesale, retail, accommodation and food** | Census **AWTS / ARTS quinquennial Business Expenses Supplement** — 13 named items, interpolated against the 2012 benchmark |
+| **Services, transportation, utilities** | **2017 SAS operating expenses** — 14 named items; non-Census industries from Amtrak, STB, Alaska Rail, DOE, FRB |
+
+and the annual updates move those columns on the Census **Value Put in Place**
+(construction), **AWTS** (wholesale), **CPS/HVS** (housing) and the **Census
+Annual Survey of State and Local Government Finances** (government).
+
+Two things follow, and both change what S4 is.
+
+1. ⚠️ **These columns are not "unsourced".** Each has a named source that BEA
+   already used at the benchmark. The question is never *does a source exist* —
+   it is **does a later vintage of the same source exist, on the same basis, and
+   does using it beat holding BEA's 2017 answer**.
+2. ✅ **The item lists BEA names are exactly the BES/SAS expense taxonomy** —
+   electricity, fuels, repairs to machinery, repairs to buildings, rental of
+   machinery, rental of buildings, advertising, professional and technical,
+   data processing, communication, water/sewer/refuse, purchased transportation.
+   The commodity mapping this step would need has therefore already been done
+   once, by BEA, on the same names.
+
+### How much of each column those named items can reach
+
+Share of the **2017 detail** intermediate column sitting on BEA rows that a named
+BES/SAS/`ecnbasic` item maps to. This is the ceiling on what any indexed seed
+built from these sources can move, before any question of whether it should:
+
+| column | column $M | reachable by named items | largest single item |
+|---|---:|---:|---|
+| `4A0` Other retail | 379,058 | **68.7%** | rent of land/buildings 24.6% |
+| `GSLG` State and local | 724,015 | 66.2% | professional/technical 12.2% |
+| `ORE` Other real estate | 747,586 | **62.1%** | rent of land/buildings 23.0% |
+| `5412OP` Misc. professional | 505,468 | 59.4% | professional/technical 23.2% |
+| `42` Wholesale | 877,730 | 53.6% | transport/warehousing 11.5% |
+| `622` Hospitals | 360,026 | 51.8% | rent of land/buildings 17.4% |
+| `81` Other services | 275,706 | 47.9% | rent of land/buildings 18.6% |
+| `GFGD` Federal defense | 218,672 | 43.1% | professional/technical 17.0% |
+| `722` Food services | 376,434 | 37.2% | rent of land/buildings 13.0% |
+| `23` Construction | 737,745 | **25.0%** | professional/technical 7.0% |
+
+**These are not manufacturing's numbers.** S3b could seed 6.4% of the
+manufacturing column from named non-materials cells because 79% of that column is
+materials. Here the same taxonomy reaches half to two-thirds of the column,
+because these industries have no materials bill — which is why the question was
+worth asking, and why a negative answer needs to be earned rather than assumed.
+
+### The test, and the direction it is biased in
+
+Every candidate below is scored the same way. For an industry `j` and an expense
+item `k` mapped to commodities `C`:
+
+    seed[c, j] = Use2017[c, j] × ( survey[j, k, t] / survey[j, k, 2017] ) / g[j, t]
+
+where `g[j, t]` is the industry's **own** growth in the same items, so the index
+carries only *relative* movement — the level is Step 5's job and the shape is
+Step 3's (§The finding). The seeded column is renormalised and scored against
+BEA's published summary Use for that year on the index of dissimilarity, beside
+a frozen 2017 column. This is the form S3b settled on and the metric
+[`intermediate_structure_drift.py`](intermediate_structure_drift.py) reports.
+
+⚠️ **The test is biased against every candidate here, and knowing which way
+matters more than the scores do.** BEA's 2020-2022 summary Use carries the 2017
+benchmark structure forward on annual indicators, and BEA built that structure
+**from the 2017 vintage of these very sources** — the 2017 BES and the 2017 SAS.
+BEA has not used the 2022 Economic Census (§BEA has not used the 2022 Economic
+Census) and has not used the 2022 BES. So a seed built from the *later* vintage
+of the same survey is scored against a table that contains the *earlier* vintage
+of it, and every real movement the new data reports is counted as error.
+
+So: **a win here is strong evidence and a loss is weak evidence.** Where a
+candidate loses, the verdict below rests on a defect that can be pointed at —
+a benchmark seam, a suppression pattern, an item ratio that is not economics —
+and not on the score alone.
+
+### ⚠️ The revision floor — and why `--drift`'s year series is not on one basis
+
+Everything scored above, and everything in §How stale does a frozen 2017
+structure get, compares a 2017 base against a later published year. **Both come
+out of `_load_usa_summary_sut`, which pins the workbook by year**: 2017-2022 read
+from `Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx`, 2023 and 2024 from
+`..._1997-2024_Summary.xlsx`. The pinning is deliberate and right for FBA
+consumers. It is wrong for a diagnostic that differences years against each
+other, and the size of the problem was worth measuring.
+
+**Same year, both workbooks, dollar-weighted index of dissimilarity:**
+
+| year | all columns | `ORE` | `ORE` level, old → new $M |
+|---|---:|---:|---|
+| 2017 | **0.0000** | 0.0000 | 747,583 → 747,583 |
+| 2018 | **0.0000** | 0.0000 | 761,063 → 761,063 |
+| 2019 | 0.0190 | 0.0461 | 894,373 → 843,500 |
+| 2020 | 0.0375 | **0.0995** | 843,940 → 803,625 |
+| 2021 | 0.0407 | **0.0963** | 937,328 → 987,639 |
+| 2022 | **0.0557** | **0.0976** | 1,004,295 → 1,091,894 |
+
+✅ **2017 and 2018 are identical across the two vintages**, so the base year of
+every measurement on this page is safe and the drift numbers are not built on
+sand.
+
+⚠️ **But the revision floor at 2022 is 0.0557 against a total measured drift of
+0.0986** — more than half the signal — and for individual columns it is larger
+than the signal: `ORE` revises 0.098 while drifting 0.084, `GFGD` revises 0.178,
+`521CI` 0.108, `22` 0.135. **A gap of two or three hundredths between a seeded
+column and a frozen one is inside BEA's own revision noise**, which is the right
+way to read the near-misses in the verdicts above: they are not evidence that the
+seed is worse, only that this test cannot tell.
+
+⚠️ **And `--drift`'s 2018-2024 series changes basis at 2023.** 2018-2022 are the
+older vintage and 2023-2024 the newer, so the published series steps rather than
+drifts at that join — which is where `525`'s intermediate column appeared to jump
++100.8% and `ORE` +16.8%. **That step is the workbook, not the economy.** Read
+one basis at a time until the diagnostic loads every year from one workbook.
+
+#### What this does to `ORE` — it makes the problem bigger, not the answer
+
+✅ **`ORE`'s real drift against BEA's current numbers is 0.158 rather than 0.084**
+— nearly double what the pinned loader reports, because the newer vintage moved
+the column further from its 2017 base. `ORE` is a worse column than §Where the
+drift actually sits says, and the seed's gain against it is scored on this
+vintage throughout (§`ORE` below).
+
+⚠️ **But the mechanism has to be restated honestly.** BEA revised `ORE` back to
+2019 and not to 2017 or 2018, and the revision lands on **the same two rows the
+drift does**: `55` management of companies is +1.07pp of drift on the old vintage
+and **+6.60pp on the new**, of which +5.53pp is pure revision; `561` is +2.92pp
+old, +5.83pp new, +2.91pp revision. That is the shape of the **equity-REIT
+reclassification** — a population moved into the real estate industry, bringing
+its corporate-HQ and administrative purchasing with it.
+
+So what the SAS index is tracking is not only a change in how a lessor buys; it
+is partly **the same reclassified population showing up in Census's 531 frame**.
+✅ That is a legitimate reason to use it — the nowcast should land on BEA's
+current basis, and this moves it there — but it is not the input-substitution
+story, and the seed should say so where it is written.
+
+⚠️ **`561` as a *column* does not survive either**: it gained on the old vintage
+at 2022 and loses on the new one. It was a vintage artefact, and `ORE` is the
+only column left standing.
+
+### `ORE` / `531ORE` Other real estate — ⚠️ **built, and marginal**
+
+**First, two things the issue asked to establish.**
+
+✅ **The drift is not the housing imputation.** BEA summary `ORE` is detail
+`531ORE` alone; owner-occupied and tenant-occupied housing are `531HSO` and
+`531HST`, which sit in the separate `HS` column. Nothing in `ORE`'s 0.141 is the
+imputed series.
+
+⚠️ **Part of it is a classification change, and that is now measured rather than
+suspected.** BEA has reclassified **equity REITs out of funds, trusts and other
+financial vehicles and into the real estate industry** (mortgage REITs stay), on
+the grounds that the two have different production processes, and it lands in
+`ORE`. §The revision floor below pins it: BEA revised `ORE` back to **2019 and no
+further**, so the 2017 benchmark base is untouched while every later year moved,
+and the revision sits on the same `55` and `561` rows the drift does. The
+apparent +100.8% jump in `525` at 2023 is **the workbook changing under the
+diagnostic, not a break in the economy** — see below. A reclassification is a
+re-basing job rather than a seeding job, so read `ORE`'s drift as *part
+reclassification* throughout what follows.
+
+**What is left is still the largest drifting column, and it does have a source.**
+SAS Table 5 publishes NAICS `531` — 2013-2017 and 2020-2022, now extracted as
+[`Census_SAS_Expenses`](../../extract/census/Census_SAS_Expenses.yaml) and seeded
+by [`service_expense_seed.py`](service_expense_seed.py). Nine items span the 2017
+base and reach 45.7% of the detail column. Scored on BEA's **current** vintage:
+
+| endpoint | frozen | seeded | gain |
+|---|---:|---:|---:|
+| 2020 | 0.1970 | 0.1883 | +4.4% |
+| 2021 | 0.1642 | 0.1579 | +3.8% |
+| 2022 | 0.1579 | 0.1508 | **+4.5%** |
+
+✅ **Positive at all three endpoints, on a test biased against it** (§The test,
+and the direction it is biased in), and no single item carries it — dropping
+temporary staff, the largest contributor, leaves +2.2%.
+
+⚠️ **But +4.5% is *at* the bar, not over it.** §Inflation puts the price carry at
+about 4% in a quiet span. This clears what #564 could not, and it does not clear
+it by much.
+
+⚠️ **An earlier draft of this section reported +18.9 / +24.5 / +24.7% and those
+numbers were wrong.** They came from applying each item's index to whole
+**summary** rows rather than to the BEA detail rows the item actually names, and
+the error was not a blur — it was an inflation. `Temporary staff and leased
+employee expense` maps to `561300` employment services, **$8.6B of `ORE`'s
+column**. At summary it multiplied all of `561`, **$97.8B**, three quarters of
+which is `561700` services to buildings and dwellings — a lessor's janitorial and
+landscaping bill, which the survey item does not describe and which moved for its
+own reasons. The lesson generalises to every candidate on this page: **a coarse
+commodity mapping applies a measured ratio to dollars the source never measured,
+and it flatters the result rather than fuzzing it.** Build the seed at detail and
+aggregate to score; never the reverse.
+
+#### Why it is only 4% — the movement is on rows nothing names
+
+`service_expense_seed.py --reachable` splits `ORE`'s 2017 → 2022 share change
+into what a SAS item can touch and what it cannot:
+
+| row | movement pp | 2017 share | reachable |
+|---|---:|---:|---|
+| `55` Management of companies | **+6.60** | 0.95% | ❌ no item names it |
+| `561` Administrative and support | +5.83 | 13.09% | ⚠️ only via `561300`, 1.15% of the column |
+| `521CI` Credit intermediation | −3.00 | 10.92% | ❌ |
+| `22` Utilities | −2.37 | 5.65% | ✅ |
+| `ORE` Other real estate | −1.82 | 22.96% | ✅ |
+| `23` Construction | −1.72 | 5.77% | ✅ |
+| `524` Insurance | −1.72 | 7.55% | ❌ (published, but withheld for 531) |
+| `562` Waste management | +1.58 | 4.02% | ❌ (item discontinued after 2017) |
+
+**13.51pp of movement is reachable and 18.07pp is not**, and the single largest
+mover has no counterpart question in the survey at all. That is the honest
+ceiling on this source for this column, and it is why the gain is a twentieth
+rather than a quarter.
+
+⚠️ Two of the unreachable rows are unreachable for reasons worth separating.
+`524` insurance **is** a SAS item — `Cost of insurance` — but it is withheld for
+NAICS 531 in one of the two years, so the seed cannot span the base. `562` waste
+is the `Water, sewer, refuse removal` item, one of the three discontinued after
+2017. Neither is a gap in the questionnaire; both are gaps in what survives the
+seam.
+
+**Verdict: ⚠️ built, marginal, and not the thing to do next.** The extractor and
+the seed exist and are measured, which is worth having — `Census_SAS_Expenses`
+is the only annual observation of any service industry's purchased inputs, and
+#707 will want it. But a 4% gain on one column does not compete with S1 or S2 for
+the next hour of work, and the plan should not pretend otherwise.
+
+---
+
+### `42` Wholesale and `4A0` retail — ❌ **no-go; the source exists and cannot be used**
+
+**#564's "absent from AIES `exp02`" was true and was the wrong place to look.**
+The trade expense detail is not in the annual survey; it is the **quinquennial
+Business Expenses Supplement**, published in years ending in 2 and 7, and both
+vintages are live:
+
+- retail `arts/tables/2017/bes.xlsx` and `arts/tables/2022/bes.xlsx`
+- wholesale `awts .../2017_awts_detailopex_table5.1_revised.xlsx` and
+  `.../2022_awts_detailopex_table5.1.xlsx`
+
+✅ **The item list is identical across the two vintages** — 13 mappable items,
+same names, same order, no questionnaire change — and ✅ **both vintages are
+benchmarked to the 2017 Economic Census**, so unlike SAS there is no basis seam.
+⚠️ **The wholesale 2017 file only satisfies that if the *revised* one is used**:
+the original `table5.1` is benchmarked to the **2012** Economic Census and the
+revision exists precisely to move it to 2017. Reaching for the obvious filename
+imports a rebenchmark as if it were economics.
+
+**It fails on suppression, and the failure is total for the column that matters.**
+Requiring an item to be published for every constituent NAICS in both years:
+
+| column | items surviving | reachable share | frozen | seeded | gain |
+|---|---:|---:|---:|---:|---:|
+| `441` Motor vehicle dealers | 13 of 13 | 57.4% | 0.064 | 0.078 | −21.5% |
+| `445` Food and beverage | 5 of 13 | 28.7% | 0.047 | 0.107 | −129.7% |
+| `452` General merchandise | 12 of 13 | 43.4% | 0.055 | 0.218 | −299.2% |
+| `4A0` Other retail | **0 of 13** | — | — | — | — |
+| `42` Wholesale | 3 of 13 | **7.1%** | 0.062 | 0.068 | −9.3% |
+
+⚠️ **`4A0` — 719 $B and the retail column the drift ranking names — loses every
+single item**, because it spans nine three-digit NAICS and at least one of them
+is withheld for every item in one of the two years. Ignoring that, and letting
+the incomplete sums stand, is what produces the ratios near 0.3 that made the
+first cut of this test look catastrophic; they were suppression, not economics.
+And `452`'s surviving cells still carry contract labour ×4.45 against packaging
+×0.54 and communication ×0.38, which is not a five-year change in how a
+department store buys.
+
+**Verdict: no-go now, reopen only behind a suppression recovery.** The pattern
+that would fix it is the one `estimate_suppressed_ec_pxi` and the `ecnmatfuel`
+recovery already use — published parents as controls, a peer-group prior — and
+that is a build, not a read. Note also that the annual AWTS and ARTS
+operating-expense tables (2002-2022, every year) publish **a total**, which
+§The finding says Step 5 already has.
+
+⚠️ **Nothing continues this after 2022.** AIES publishes no expense cell for 42 or
+44-45 at any NAICS level, so the trade BES pair ends at 2022 with no successor.
+
+### `23` Construction — ❌ **no-go**
+
+✅ **`ecnbasic` covers construction expenses fully, in both vintages, cleanly.**
+Sector 23 populates eleven expense cells at NAICS-6 for 2017 and 2022 —
+subcontracted work, electricity, rental of buildings and of machinery, and the
+eight `PCH*` services — and every 2017 → 2022 ratio is between 1.12 and 2.00,
+with no break of the kind SAS carries. This is the *best-behaved* pair on the
+page.
+
+**It still fails, on reach.** `CSTMPRT` materials is **$598.5B in 2017 and
+$845.1B in 2022 — 51% of the column — and it is one undifferentiated cell.**
+`ecnmatfuel` is manufacturing and mining only; construction has no materials
+breakout anywhere. The named items reach 17.3% of the summary column, and the
+seed scores **0.044 against frozen's 0.038**.
+
+⚠️ **Construction's place in the `--where` ranking is column size, not drift
+rate.** Its summary mix moves 0.038 over 2017 → 2022 and 0.065 by 2024 — the
+lowest rate in the top ten. 78 $B is misplaced because 1.2 $T runs through the
+column, not because the column is unstable.
+
+### `5412OP`, `81`, `722`, `622` — ❌ **no-go, and the reason is a seam**
+
+**#564's characterisation of the service sectors needs correcting, and the
+correction does not rescue them.** "One row for the entire sector" is true of
+AIES `exp02` in 2023. **SAS Table 5 publishes 63 industries at 2- to 4-digit
+NAICS** — `5412`, `5413`, `5414`, `5415`, `5416`, `5417`, `5418`, `5419`
+separately, `81`, `722`, `621`, `622`, `623` separately — with ~35 expense items.
+And it is **annual, not quinquennial**: the item detail runs **2013-2017 and
+2020-2022**. The claim in
+[`annual_survey_expense_sources.md`](annual_survey_expense_sources.md) that
+Table 5 is "63 industries, and 2020-2022 only" reads the latest workbook's
+display window as the series; the 2017, 2018 and 2019 vintages carry the earlier
+years.
+
+**Two defects sit between that and a usable index, and together they are
+decisive.**
+
+⚠️ **1. The 2017 and 2022 observations are on different Economic Census
+benchmarks.** The 2017 workbook states its estimates are adjusted to the **2012**
+Economic Census; the 2022 workbook states the **2017** Economic Census. There is
+no restated 2017 — the detailed-expense series *restarts* at 2020, with nothing
+published for 2018 and 2019. So every 2017 → 2022 ratio the seed needs is a real
+movement, a rebenchmark and a questionnaire change multiplied together.
+
+⚠️ **2. Three mappable items were discontinued** after 2017 — rental of machinery,
+purchased communication services, and water/sewer/refuse — so the two eras do not
+even describe the same expense.
+
+**What that produces is visible at the item level.** Broadcasting and telecom's
+expensed equipment goes 43,232 → 494 ($M, ×0.01) while its temporary staff goes
+617 → 9,141 (×14.8); transport support's repairs to transportation equipment go
+×0.10 while its fuels for transportation equipment go ×7.91. These are the same
+kind of implausible swing #564 flagged in ASM's `334614` and `322121`, and they
+are reporting reallocations, not economics.
+
+**Scored, on the weaker claim the issue asked about — sector movement applied to
+detail sub-columns:**
+
+| column | 2020 | 2021 | 2022 |
+|---|---:|---:|---:|
+| `5412OP` | −22.4% | −6.4% | −79.5% |
+| `81` | +0.5% | +1.0% | −5.9% |
+| `722` | +2.7% | +0.2% | −2.0% |
+| `622` | −8.4% | −4.5% | −14.0% |
+| **all 31 columns, dollar-weighted** | 0.090 → 0.120 | 0.088 → 0.096 | **0.099 → 0.131** |
+
+**None of the four beats frozen at any endpoint**, and the aggregate loses at all
+three. ⚠️ Two columns that are *not* on the drifter list do beat it —
+`561` (+14.9 / +5.9 / +16.9%) and `484` (+10.5 / +9.4 / −5.0%) — which is worth
+recording, but neither is where the dollars are.
+
+### What the Economic Census cannot do here, stated once
+
+⚠️ **`ecnbasic` publishes the expense cells for sectors 21, 23 and 31-33 and for
+nothing else.** Every service and trade sector returns a zero for every expense
+variable at every NAICS level, in both 2017 and 2022; wholesale gets `OPEX`, a
+single total. **The route that worked for manufacturing in #698 does not extend
+to the drifting columns** — the Economic Census asks those industries no expense
+questions, which is why BEA had to reach for BES and SAS in the first place.
+
+❌ **And the three narrow Economic Census datasets that looked like a way in are
+not one.** `ecnpurmode`, `ecnpurelec` and `ecnpurgas` were worth checking because
+`484000` drifts 0.280 and `22` carries the highest summary drift *rate* at 0.224.
+Pulled for both vintages, all three fail, and each fails differently:
+
+| dataset | what it actually publishes | against BEA 2017 |
+|---|---|---|
+| `ecnpurmode` | **one industry** — `48851` freight transportation arrangement — and its purchased transportation split five ways by mode | $134.7B against the whole `48A000` column of **$73.2B**; ⚠️ it never touches `484000` |
+| `ecnpurelec` | two industries, one cell: purchased electricity **for resale** | $100.7B against BEA's `221100`→`221100` cell of **$9.5B**, a 10.6× scope gap |
+| `ecnpurgas` | two industries, one cell: purchased natural gas **for resale** | $51.4B against a `221200` column of **$24.0B** and an own-row cell of **$1M** |
+
+⚠️ **The mode mix does move, and that is what makes the answer instructive rather
+than dull.** Truck goes 62.3% → 48.3% and water 15.4% → 23.6% between the two
+vintages, an index of dissimilarity of **0.170** — larger than almost anything
+measured on this page. There is simply no BEA cell entitled to receive it: BEA
+books freight arrangement net, and the resale purchases utilities report are not
+the intermediate rows BEA carries for those industries. **A real second
+observation of a mix is worth nothing when the concept underneath it is not the
+concept in the Use table**, which is §S3b's scope-factor lesson arriving from the
+other direction — there the mismatch cancelled in a ratio, here there is no cell
+to take the ratio against.
+
+### The verdict, in one table
+
+| column | misplaced $M | source found | verdict |
+|---|---:|---|---|
+| `ORE` | 171,923 | SAS Table 5, NAICS 531 | ⚠️ **built** — +4.5%, at the bar; 18 of 32pp of its movement is unreachable |
+| `GSLG` / `GFGD` | 221,864 | — | rescoped, [#578](https://github.com/cornerstone-data/bedrock/issues/578) |
+| `42` | 118,761 | AWTS BES 2017 (revised) + 2022 | ❌ suppression: 3 items, 7% of the column |
+| `5412OP` | 94,444 | SAS Table 5 | ❌ loses at every endpoint; benchmark seam |
+| `81` | 90,196 | SAS Table 5 | ❌ no gain at any endpoint |
+| `23` | 78,028 | `ecnbasic` sector 23 | ❌ clean pair, 17% reach, 51% of the column is one cell |
+| `722` | 77,787 | SAS Table 5 | ❌ no gain at any endpoint |
+| `622` | 73,394 | SAS Table 5 | ❌ loses at every endpoint |
+| `4A0` | 57,765 | ARTS BES 2017 + 2022 | ❌ suppression: **0 usable items** |
+
+**So S4's honest answer is that #564's negative result generalises**, for a
+reason #564 did not have: not that the surveys lack depth — SAS and BES have far
+more depth than the probe credited them with — but that **the second observation
+is separated from the first by a rebenchmark, a questionnaire change, or a
+suppression pattern, in every case but one.** The 2022 Economic Census materials
+breakout (§S3) remains the only source in this step where the second observation
+is clean, and `ORE` is the only column here worth building.
+
+⚠️ **And one caution against reading these no-goes too hard.** Every score above
+is against a BEA table built from the 2017 vintage of the same survey. They rule
+out *seeding from these sources as they stand*; they do not establish that the
+2017 mix is right. Where BEA later incorporates the 2022 BES and the 2022 SAS —
+as it incorporated the 2017 ones — the sign of these tests can change, and
+nothing here should be quoted as evidence that these columns are stable.
+
+---
+
 ## What to build, in order
 
 **S0a. Give the benchmark detail SUT panel an extractor** ([#700](https://github.com/cornerstone-data/bedrock/issues/700)). `Use_SUT_Detail.xlsx`
@@ -1034,10 +1461,29 @@ zero.
 needs no extrapolation. `nonmaterial_seed()` raises for any later year rather
 than inventing one; extending it is [#707](https://github.com/cornerstone-data/bedrock/issues/707).
 
-**S4. `--where`-driven sourcing for the top drifters** ([#705](https://github.com/cornerstone-data/bedrock/issues/705)). `ORE`, `GSLG`/`GFGD`,
-`42`, `5412OP`, `81`. Currently unsourced and, on the evidence above, worth more
-than everything in #564's survivor list combined. This is a research task before
-it is a build task.
+**S4. `--where`-driven sourcing for the top drifters** ([#705](https://github.com/cornerstone-data/bedrock/issues/705)) — ✅ **researched, and the
+answer is one marginal go and four no-goes.** §Sourcing the columns that
+actually drift.
+The columns were never unsourced: BEA named a source for every one of them at the
+benchmark, and the later vintage of that source exists in every case. What
+separates the two observations is a rebenchmark, a questionnaire change or a
+suppression pattern — in every case but one.
+
+✅ **`ORE` is built** — [`Census_SAS_Expenses`](../../extract/census/Census_SAS_Expenses.yaml)
+splices SAS Table 5 across the two vintages that carry it, and
+[`service_expense_seed.py`](service_expense_seed.py) indexes BEA's 2017 `531ORE`
+column on it. ⚠️ **The gain is +4.5% at 2022 and +3.8-4.4% at the other two
+endpoints — at the inflation carry's bar rather than over it**, because `ORE`'s
+movement sits mostly on rows no survey item names: `55` management of companies
+moves +6.60pp and has no counterpart question at all. Positive at every endpoint
+on a test biased against it, so it is real; it is not large, and it does not
+compete with S1 or S2 for what to do next.
+
+⚠️ **Nothing else on the drifter list survives**, and `4A0` is the sharpest case:
+its Business Expenses Supplement pair exists, on one benchmark and one item list,
+and **not one of its thirteen items is published for all nine of its constituent
+NAICS in both years**. Reopening `42` and `4A0` means building a suppression
+recovery on the `ecnmatfuel` pattern first, not writing an extractor.
 
 **S5. ERS agriculture (#577)** and, if the function→commodity bridge survives
 scrutiny, **government finances (#578, rescoped to exactly that question)**.

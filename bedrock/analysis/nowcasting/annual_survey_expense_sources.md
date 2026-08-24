@@ -64,6 +64,11 @@ Three things to read off this:
    mining (21) and agriculture (11). Sectors present: 22, 31-33, 48-49, 51, 52, 53, 54, 56, 61, 62, 71,
    72, 81. So there is **nothing here for the Step 4c margins work**, which was one of the hoped-for
    cross-benefits.
+   ⚠️ **Absent from `exp02` is not absent from Census.** Trade expense detail is published in the
+   quinquennial **Business Expenses Supplement** to ARTS and AWTS — 13 items, 2017 and 2022, and it is
+   BEA's own benchmark source for these columns. #705 tested it and it fails on suppression rather than
+   on existence; see [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) §Sourcing the
+   columns that actually drift.
 
 ## Year coverage is not what the catalog says
 
@@ -119,6 +124,17 @@ three survey seams.
 
 So the workbook confirms the API picture from the other direction: depth without structure (Table 3),
 or structure without depth or history (Table 5).
+
+⚠️ **The "2020-2022 only" is wrong, and it is this workbook's display window rather than the series.**
+`sas-22.xlsx` prints a rolling three-year panel; the 2017, 2018 and 2019 vintages
+(`sas-17.xlsx`, `sas-18.xlsx`, `sas-19.xlsx`, same time-series directory) carry the earlier years, and
+Table 5's item detail actually runs **2013-2017 and 2020-2022** at 63 industries and 2- to 4-digit
+NAICS. The hole is 2018-2019, where the detailed items are not published at all. #705 spliced the
+vintages and scored the result: the 2013-2017 era is benchmarked to the **2012** Economic Census and
+the 2020-2022 era to the **2017** one, three mappable items were discontinued after 2017, and a seed
+built across that seam loses to a frozen 2017 column. See
+[`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) §Sourcing the columns that
+actually drift — the depth conclusion here needs correcting, the negative verdict does not.
 
 ## What is actually worth taking
 
@@ -277,8 +293,8 @@ extend to these two:
 | Agriculture (`11`) | ✅ **Use it** | ERS FIWS intermediate product expenses; 89-91% mappable; already in bedrock; extend the yaml past 2023 to pick up 2024-2025 |
 | Government (`G*`) | ✅ **Use it** | `govslocalfin` Current Operations − Salaries and Wages as the column total; commodity split not expected for these industries anyway. Federal still needs a source |
 | Manufacturing (`31-33`) | ⚠️ Energy only | `CSTELEC`/`CSTFU` at 6-digit, 2018-2021 |
-| Services | ⚠️ Control totals only | SAS Table 3 at 227 six-digit NAICS |
-| Wholesale / retail | ❌ Nothing | absent from `exp02` |
+| Services | ⚠️ Control totals only | SAS Table 3 at 227 six-digit NAICS. ⚠️ **SAS Table 5 is the structural one** and reaches 63 industries for 2013-2017 and 2020-2022 — tested in #705, rejected on the benchmark seam, not on depth |
+| Wholesale / retail | ❌ Nothing | absent from `exp02`. ⚠️ The **Business Expenses Supplement** does cover them, quinquennially — tested in #705, rejected on suppression |
 
 ## What to drop (business surveys)
 
