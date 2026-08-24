@@ -824,6 +824,12 @@ def derive_cornerstone_Y_and_trade_scaled() -> SingleRegionYtotAndTradeVectorSet
         clip_negatives=True,
         **common,  # type: ignore[arg-type]
     )
+    if electricity_disaggregation_enabled():
+        from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+            collapse_electricity_imports_onto_generation,
+        )
+
+        imports = collapse_electricity_imports_onto_generation(imports)
 
     return SingleRegionYtotAndTradeVectorSet(
         ytot=ytot, exports=exports, imports=imports

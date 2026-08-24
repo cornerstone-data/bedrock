@@ -30,6 +30,7 @@ from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 logger = logging.getLogger(__name__)
 
 _REANCHORED_ELECTRICITY_Q: pd.Series | None = None
+_REANCHORED_PURCHASER_ALLOCATION: PurchaserAllocation | None = None
 
 
 def _cell_float(frame: pd.DataFrame, row: str, col: str) -> float:
@@ -57,9 +58,20 @@ def set_reanchored_electricity_q(q: pd.Series) -> None:
     )
 
 
+def set_reanchored_purchaser_allocation(allocation: PurchaserAllocation) -> None:
+    """Record the model-year purchaser split used to rewrite published A/q."""
+    global _REANCHORED_PURCHASER_ALLOCATION
+    _REANCHORED_PURCHASER_ALLOCATION = allocation
+
+
+def get_reanchored_purchaser_allocation() -> PurchaserAllocation | None:
+    return _REANCHORED_PURCHASER_ALLOCATION
+
+
 def clear_reanchored_electricity_q() -> None:
-    global _REANCHORED_ELECTRICITY_Q
+    global _REANCHORED_ELECTRICITY_Q, _REANCHORED_PURCHASER_ALLOCATION
     _REANCHORED_ELECTRICITY_Q = None
+    _REANCHORED_PURCHASER_ALLOCATION = None
 
 
 def reanchored_electricity_q_shares() -> pd.Series | None:
@@ -259,6 +271,13 @@ def allocate_purchaser_gtd(
         gen.loc[members] = gen_cls
         clipped.loc[members] = clip_cls
 
+    n_clipped = int(clipped.fillna(False).to_numpy().sum())
+    logger.info(
+        'G/T/D water-fill: %s clipped purchasers of %s; class nibble logged above if any',
+        n_clipped,
+        int(len(clipped)),
+    )
+
     leftover = bills - gen
     t_dollars = leftover * float(td_share_2017)
     d_dollars = leftover * (1.0 - float(td_share_2017))
@@ -274,6 +293,42 @@ def allocate_purchaser_gtd(
         egrid_mwh=float(egrid_mwh),
         td_share=float(td_share_2017),
     )
+
+
+def _electricity_column_dollars(frame: pd.DataFrame, col: str) -> float:
+    """Import bill on ``221100`` if still present, else the G/T/D child sum.
+
+    After correspondence, the aggregate row is often gone and the bill sits
+    on the children. Prefer the aggregate when it is non-zero so the two
+    are not added together.
+    """
+    if ELECTRICITY_AGGREGATE in frame.index and col in frame.columns:
+        agg_val = _cell_float(frame, ELECTRICITY_AGGREGATE, col)
+        if np.isfinite(agg_val) and agg_val != 0.0:
+            return agg_val
+    children = [GENERATION_SECTOR, TRANSMISSION_SECTOR, DISTRIBUTION_SECTOR]
+    present = [r for r in children if r in frame.index]
+    if not present or col not in frame.columns:
+        return 0.0
+    return float(frame[col].loc[present].astype(float).sum())
+
+
+def collapse_electricity_imports_onto_generation(imports: pd.Series) -> pd.Series:
+    """Put all G/T/D import dollars on generation; zero T/D import rows.
+
+    Does not change ``q`` or ``Aimp``. Extra import MWh is this generation
+    dollar total divided by ``p``.
+    """
+    out = imports.astype(float).copy()
+    present = [c for c in ELECTRICITY_DISAGG_SECTORS if c in out.index]
+    if not present:
+        return out
+    total = float(out.reindex(present).fillna(0.0).sum())
+    for code in present:
+        out.loc[code] = 0.0
+    if GENERATION_SECTOR in out.index:
+        out.loc[GENERATION_SECTOR] = total
+    return out
 
 
 def _ensure_index_codes(frame: pd.DataFrame, codes: list[str]) -> pd.DataFrame:
@@ -341,7 +396,7 @@ def write_purchaser_gtd_use_and_y(
         col_s = str(col)
         orig = _cell_float(Y, agg, str(col)) if agg in Y.index else 0.0
         if col_s == IMPORT_FD_CODE:
-            Y.at[GENERATION_SECTOR, col] = orig
+            Y.at[GENERATION_SECTOR, col] = _electricity_column_dollars(Y, str(col))
             Y.at[TRANSMISSION_SECTOR, col] = 0.0
             Y.at[DISTRIBUTION_SECTOR, col] = 0.0
         elif col_s in allocation.bill.index:
@@ -459,7 +514,7 @@ def apply_purchaser_allocation_to_y(Y: pd.DataFrame) -> pd.DataFrame:
         col_s = str(col)
         orig = _cell_float(Y, agg, str(col)) if agg in Y.index else 0.0
         if col_s == IMPORT_FD_CODE:
-            Y.at[GENERATION_SECTOR, col] = orig
+            Y.at[GENERATION_SECTOR, col] = _electricity_column_dollars(Y, str(col))
             Y.at[TRANSMISSION_SECTOR, col] = 0.0
             Y.at[DISTRIBUTION_SECTOR, col] = 0.0
         elif col_s in allocation.bill.index:
@@ -705,6 +760,7 @@ def reanchor_electricity_aq_after_year_scaling(
         p_share_2017=p_share,
         td_share_2017=td_share,
     )
+    set_reanchored_purchaser_allocation(allocation)
 
     udom = pd.DataFrame(adom.multiply(q, axis=1))
     uimp = pd.DataFrame(aimp.multiply(q, axis=1))

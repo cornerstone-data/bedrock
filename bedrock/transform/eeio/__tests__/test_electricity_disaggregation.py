@@ -36,6 +36,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     _derive_post_reallocation_checkpoint_for_disagg,
     _float_ndarray,
     _frame_cell_float,
+    _loc_cols_sum,
     applied_utilities_summary_q_growth_ratio,
     build_electricity_detail_GO_growth_ratios,
     build_electricity_disagg_go_weights,
@@ -124,7 +125,11 @@ class TestGoWeights:
 
 
 class TestStep3WorkedExample:
-    def test_va_balancing_worked_example(self) -> None:
+    def test_column_balance_and_non_electricity_use_rows(self) -> None:
+        """Per-column inputs+VA = x_s; non-electricity Use-row totals preserved.
+
+        VA row totals across G/T/D need not match the old aggregate VA rows.
+        """
         w = pd.Series({'221110': 0.34, '221121': 0.04, '221122': 0.62})
         codes = list(ELECTRICITY_DISAGG_SECTORS)
         agg = ELECTRICITY_AGGREGATE
@@ -163,12 +168,6 @@ class TestStep3WorkedExample:
             rtol=1e-9,
             atol=1e-6,
         )
-        np.testing.assert_allclose(
-            _float_ndarray(VA.sum(axis=1).to_numpy()),
-            np.array([70.0, 30.0, 60.0]),
-            rtol=1e-9,
-            atol=1e-6,
-        )
         col_totals = use_sub + va_col_totals
         np.testing.assert_allclose(
             _float_ndarray(col_totals.to_numpy()),
@@ -176,6 +175,9 @@ class TestStep3WorkedExample:
             rtol=1e-9,
             atol=1e-6,
         )
+        for row, expected in (('212100', 50.0), ('541000', 40.0)):
+            got = _loc_cols_sum(Udom, row, codes) + _loc_cols_sum(Uimp, row, codes)
+            assert got == pytest.approx(expected, abs=1e-6)
 
 
 @pytest.mark.eeio_integration
@@ -369,30 +371,81 @@ class TestDetailGoGrowthScaling:
 
 @pytest.mark.eeio_integration
 class TestReanchoredAqIdentities:
-    def test_adom_times_q_matches_allocated_udom(self) -> None:
+    def test_adom_times_q_matches_allocated_udom_and_written_y(self) -> None:
         _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
         try:
+            from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+                DISTRIBUTION_SECTOR,
+                ELECTRICITY_AGGREGATE,
+                GENERATION_SECTOR,
+                IMPORT_FD_CODE,
+                TRANSMISSION_SECTOR,
+                get_reanchored_purchaser_allocation,
+            )
             from bedrock.utils.math.formulas import (  # noqa: PLC0415
                 backcompute_y_from_A_and_q,
             )
+            from bedrock.utils.taxonomy.cornerstone.final_demand import (  # noqa: PLC0415
+                FINAL_DEMANDS,
+            )
 
             aq = derive_cornerstone_Aq_scaled()
+            alloc = get_reanchored_purchaser_allocation()
+            assert alloc is not None
             udom = aq.Adom.multiply(aq.scaled_q, axis=1)
             y = backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
-            for code in ELECTRICITY_DISAGG_SECTORS:
-                row_use = float(udom.loc[code].sum())
-                q_k = float(aq.scaled_q.loc[code])
-                assert q_k == pytest.approx(
-                    row_use + float(y.loc[code]), rel=1e-6, abs=1.0
+            g, t, d = GENERATION_SECTOR, TRANSMISSION_SECTOR, DISTRIBUTION_SECTOR
+            for col in udom.columns:
+                col_s = str(col)
+                if col_s in ELECTRICITY_DISAGG_SECTORS:
+                    continue
+                if col_s not in alloc.bill.index:
+                    continue
+                assert _frame_cell_float(udom, g, col_s) == pytest.approx(
+                    float(alloc.gen_dollars[col_s]), rel=1e-6, abs=1.0
                 )
+                assert _frame_cell_float(udom, t, col_s) == pytest.approx(
+                    float(alloc.t_dollars[col_s]), rel=1e-6, abs=1.0
+                )
+                assert _frame_cell_float(udom, d, col_s) == pytest.approx(
+                    float(alloc.d_dollars[col_s]), rel=1e-6, abs=1.0
+                )
+            gen_self = float(alloc.gen_dollars[ELECTRICITY_AGGREGATE])
+            leftover = float(alloc.bill[ELECTRICITY_AGGREGATE]) - gen_self
+            assert _frame_cell_float(udom, g, g) == pytest.approx(
+                gen_self, rel=1e-6, abs=1.0
+            )
+            assert _frame_cell_float(udom, t, t) == pytest.approx(
+                leftover * float(alloc.td_share), rel=1e-6, abs=1.0
+            )
+            assert _frame_cell_float(udom, d, d) == pytest.approx(
+                leftover * (1.0 - float(alloc.td_share)), rel=1e-6, abs=1.0
+            )
             for i in ELECTRICITY_DISAGG_SECTORS:
                 for j in ELECTRICITY_DISAGG_SECTORS:
-                    a_cell = _frame_cell_float(aq.Adom, i, j) * float(
-                        aq.scaled_q.loc[j]
-                    )
-                    assert a_cell == pytest.approx(
-                        _frame_cell_float(udom, i, j), rel=1e-9, abs=1e-6
-                    )
+                    if i == j:
+                        continue
+                    assert _frame_cell_float(udom, i, j) == pytest.approx(0.0, abs=1e-6)
+            fd_keys = [
+                k
+                for k in alloc.bill.index
+                if k in set(FINAL_DEMANDS) and k != IMPORT_FD_CODE
+            ]
+            assert float(y.loc[g]) == pytest.approx(
+                float(alloc.gen_dollars.reindex(fd_keys).fillna(0.0).sum()),
+                rel=1e-6,
+                abs=1.0,
+            )
+            assert float(y.loc[t]) == pytest.approx(
+                float(alloc.t_dollars.reindex(fd_keys).fillna(0.0).sum()),
+                rel=1e-6,
+                abs=1.0,
+            )
+            assert float(y.loc[d]) == pytest.approx(
+                float(alloc.d_dollars.reindex(fd_keys).fillna(0.0).sum()),
+                rel=1e-6,
+                abs=1.0,
+            )
         finally:
             _teardown()
 
@@ -412,3 +465,120 @@ def test_egrid_mwh_for_io_year_2017() -> None:
 
     got = egrid_mwh_for_io_year(2017)
     assert got == pytest.approx(4.038559e9, rel=1e-4)
+
+
+@pytest.mark.eeio_integration
+class Test2017PurchaserEiaIdentities:
+    def test_generation_mwh_class_mix_exports_and_clip(
+        self, electricity_disagg_config: str
+    ) -> None:
+        from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+            egrid_mwh_for_io_year,
+            eia_table_2_2_end_use_mwh,
+            eia_table_2_14_export_mwh,
+        )
+        from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+            EXPORT_FD_CODE,
+        )
+
+        _setup_config(electricity_disagg_config)
+        try:
+            alloc = get_2017_purchaser_allocation()
+            egrid = egrid_mwh_for_io_year(2017)
+            export = eia_table_2_14_export_mwh(2017)
+            t22 = eia_table_2_2_end_use_mwh(2017)
+            assert float(alloc.egrid_mwh) == pytest.approx(egrid, rel=1e-9)
+            assert not bool(alloc.clipped.any())
+            assert float(alloc.mwh.sum()) == pytest.approx(egrid, rel=1e-4, abs=1.0)
+            assert float(alloc.mwh[EXPORT_FD_CODE]) == pytest.approx(
+                export, rel=1e-4, abs=1.0
+            )
+            remaining = egrid - export
+            teu = float(t22['Total End Use'])
+            pools = {
+                'Residential': float(t22['Residential']),
+                'Commercial': float(t22['Commercial']),
+                'Industrial': float(t22['Industrial']) + float(t22['Direct Use']),
+                'Transportation': float(t22['Transportation']),
+            }
+            for cls, pool in pools.items():
+                got = float(alloc.mwh[alloc.end_use_class == cls].sum())
+                expected = remaining * (pool / teu)
+                assert got == pytest.approx(expected, rel=1e-4, abs=1.0)
+            assert float(alloc.gen_dollars.sum()) / float(alloc.p) == pytest.approx(
+                float(alloc.mwh.sum()), rel=1e-6, abs=1.0
+            )
+        finally:
+            _teardown()
+
+
+def test_collapse_electricity_imports_onto_generation() -> None:
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        DISTRIBUTION_SECTOR,
+        GENERATION_SECTOR,
+        TRANSMISSION_SECTOR,
+        collapse_electricity_imports_onto_generation,
+    )
+
+    imports = pd.Series(
+        {
+            GENERATION_SECTOR: 10.0,
+            TRANSMISSION_SECTOR: 20.0,
+            DISTRIBUTION_SECTOR: 30.0,
+            '1111A0': 5.0,
+        }
+    )
+    out = collapse_electricity_imports_onto_generation(imports)
+    assert float(out[GENERATION_SECTOR]) == pytest.approx(60.0)
+    assert float(out[TRANSMISSION_SECTOR]) == pytest.approx(0.0)
+    assert float(out[DISTRIBUTION_SECTOR]) == pytest.approx(0.0)
+    assert float(out['1111A0']) == pytest.approx(5.0)
+
+
+def test_import_fd_column_uses_child_sum_when_aggregate_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        DISTRIBUTION_SECTOR,
+        GENERATION_SECTOR,
+        IMPORT_FD_CODE,
+        TRANSMISSION_SECTOR,
+        PurchaserAllocation,
+        apply_purchaser_allocation_to_y,
+    )
+
+    empty = pd.Series(dtype=float)
+    alloc = PurchaserAllocation(
+        bill=empty,
+        end_use_class=empty,
+        mwh=empty,
+        gen_dollars=empty,
+        t_dollars=empty,
+        d_dollars=empty,
+        clipped=pd.Series(dtype=bool),
+        p=1.0,
+        egrid_mwh=1.0,
+        td_share=0.06,
+    )
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.electricity_gtd_allocation.get_2017_purchaser_allocation',
+        lambda: alloc,
+    )
+    Y = pd.DataFrame(
+        0.0,
+        index=[GENERATION_SECTOR, TRANSMISSION_SECTOR, DISTRIBUTION_SECTOR, '1111A0'],
+        columns=[IMPORT_FD_CODE, 'F01000'],
+    )
+    Y.at[GENERATION_SECTOR, IMPORT_FD_CODE] = 10.0
+    Y.at[TRANSMISSION_SECTOR, IMPORT_FD_CODE] = 20.0
+    Y.at[DISTRIBUTION_SECTOR, IMPORT_FD_CODE] = 30.0
+    out = apply_purchaser_allocation_to_y(Y)
+    assert _frame_cell_float(out, GENERATION_SECTOR, IMPORT_FD_CODE) == pytest.approx(
+        60.0
+    )
+    assert _frame_cell_float(out, TRANSMISSION_SECTOR, IMPORT_FD_CODE) == pytest.approx(
+        0.0
+    )
+    assert _frame_cell_float(out, DISTRIBUTION_SECTOR, IMPORT_FD_CODE) == pytest.approx(
+        0.0
+    )
