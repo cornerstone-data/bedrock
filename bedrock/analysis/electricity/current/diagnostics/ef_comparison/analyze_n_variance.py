@@ -1,12 +1,12 @@
 """Analyze why total-EF (N) rises for downstream sectors at the 3-way split
 and why the mixed-units (physical generation) panel spreads further.
 
-Decomposes ``N_j = sum_i D_i * L_ij`` for the v0.2 footing, the 3-way
-electricity split, and mixed units, isolating the electricity-supply-chain
+Decomposes ``N_j = sum_i D_i * L_ij`` for the v0.3.1 electricity footing, the
+3-way electricity split, and mixed units, isolating the electricity-supply-chain
 contribution so we can test whether the per-sector N change is driven by each
 sector's electricity share of N (user hypothesis), why the 3-way change is
 almost always positive, and why unit conversion raises N further for many
-sectors (via rewritten A/L and purchaser-specific ``c_row``).
+sectors (via rewritten A/L, flat ``c_row = 1/p``, and P5 D0 re-anchor).
 
 Run:
     python -m bedrock.analysis.electricity.current.diagnostics.ef_comparison.analyze_n_variance
@@ -364,7 +364,8 @@ def render_high_low_walkthrough_section(
         "## Worked examples — high vs low electricity share "
         f"({high_code} vs {low_code})",
         "",
-        "Scope: **3-way monetary split vs v0.3 footing** for two non-electricity "
+        "Scope: **3-way monetary split vs v0.3.1 electricity footing** for two "
+        "non-electricity "
         "sectors — one electricity-dominated footprint and one process-emissions "
         "dominated footprint. Own `D` is unchanged; `y` is not used "
         "(`N_j = Σ_i D_i L_ij`).",
@@ -461,8 +462,8 @@ def _contrast_table(df: pd.DataFrame) -> list[str]:
         "|---|---|---|---:|---:|---:|---:|---:|---|",
     ]
     notes = {
-        "33641A": "Industrial `c_j` amplifies gen `L` (MWh/$)",
-        "452000": "Commercial `c_j` ≲ `c_col`; little extra vs 3-way",
+        "33641A": "High elec share of `N`; mixed units use uniform `1/p` plus P5 re-anchor",
+        "452000": "Commercial; extra mixed bump is uniform `c_row`, not class prices",
         "1121A0": "Industrial but low elec share of `N`; small move either step",
     }
     for code, name in CONTRAST_SECTORS:
@@ -528,8 +529,9 @@ def render_mixed_units_section(
         "",
         "Scope: the **right panel** (\"Conversion to physical units\") of "
         "`ef_panels_vs_v0_3_N.png` vs the **middle panel** (\"3-way monetary split\"). "
-        "Both panels are percent differences against the **same v0.2 footing**, so the "
-        "mixed panel **stacks** the 3-way undilution and the mixed-units `A`/`L` rewrite.",
+        "Both panels are percent differences against the **same v0.3.1 electricity "
+        "footing**, so the mixed panel **stacks** the 3-way undilution, the "
+        "mixed-units `A`/`L` rewrite (flat `c_row = 1/p`), and P5 D0 re-anchor.",
         "",
         "### Panel facts (non-electricity sectors vs footing)",
         "",
@@ -551,30 +553,32 @@ def render_mixed_units_section(
         f"`c_col = D_USD/D_MWh ≈ {c_col:.6f}` MWh/USD. T/D direct EFs and inventory `E` "
         "are untouched; block USD-equiv `D` is stable.",
         "2. **What changes is `L` (and thus `N = Σᵢ Dᵢ Lᵢⱼ`).** Mixed units rewrite "
-        "**A**: the generation **sales row** is multiplied by purchaser-specific "
-        "`c_j` (USD→MWh), and the generation **column** is divided by `c_col`. "
-        "Leontief requirements for generation become **MWh per $** of sector `j`.",
-        "3. **Physical MWh per electricity dollar is not uniform.** `c_row` varies by "
-        "EPA end-use price (`c_j = λ / p_j`). Cheaper power → **larger** `c_j` → more "
-        "MWh embodied per $ of purchases → more kg from `D_MWh`. Empirically, the "
-        "median electricity-channel contribution "
-        f"**`C_elec` rises {celec_ratio_med:.2f}×** from 3-way → mixed "
-        "(in line with typical `c_j / c_col`).",
+        "**A**: the generation **sales row** is multiplied by a **uniform** "
+        "`c_row = 1/p` (USD→MWh), and the generation **column** is divided by "
+        "`c_col`. Leontief requirements for generation become **MWh per $** of "
+        "sector `j`. P5 (`reanchor_electricity_aq_after_year_scaling`) then "
+        "re-applies D0 at `model_base_year`.",
+        "3. **Physical MWh per electricity dollar is uniform across purchasers.** "
+        "Production `c_row` is **not** `λ / p_j` from Table 2.4. Every A column "
+        "gets the same `1/p`. Remaining end-use differences in `%ΔN` come from "
+        "electricity's share of `N` and supply-chain structure, not class prices.",
         "4. **The panel is vs footing, so effects stack:** 3-way undilution "
         f"(embodied-electricity intensity median ~{eff_foot:.2f} → ~{eff_split:.2f} "
-        "kg/$ elec) **+** mixed-units physical `L` rewrite → wider / higher `%ΔN` "
-        "cloud than the middle panel alone.",
+        "kg/$ elec) **+** mixed-units physical `L` rewrite **+** P5 re-anchor → "
+        "wider / higher `%ΔN` cloud than the middle panel alone. Empirically, the "
+        "median electricity-channel contribution "
+        f"**`C_elec` rises {celec_ratio_med:.2f}×** from 3-way → mixed.",
         "",
         "**One-liner:** The 3-way split raises the *price* of electricity emissions "
-        "(`D_gen`); mixed units often raise the *physical quantity* of generation "
-        "embodied per dollar (`L[gen→j]` in MWh).",
+        "(`D_gen`); mixed units re-express generation as physical MWh via uniform "
+        "`1/p` and re-anchor A/q to D0 (`L[gen→j]` in MWh).",
         "",
         "#### Same share logic, bigger multiplier",
         "",
         "| Idea | 3-way vs footing | Mixed vs footing |",
         "|---|---|---|",
         "| Own `%ΔD` | ~0 (non-elec) | ~0 (non-elec; gen reported USD-equiv) |",
-        "| Driver | Higher elec intensity (undiluted `D_110`) | Same + more MWh/`$` via `c_row`/`L` |",
+        "| Driver | Higher elec intensity (undiluted `D_110`) | Same + uniform `1/p` `L` rewrite + P5 |",
         f"| Median `%ΔN` | {_pct_fmt(med_3way)} | {_pct_fmt(med_mixed)} |",
         "| Still true | Larger elec share of `N` → larger `%ΔN` | Same ordering, larger amplitudes |",
         "",
@@ -598,8 +602,8 @@ def render_mixed_units_section(
         f"Strict separation fails: `min(Industrial) = {_pct_fmt(min_ind)}` "
         f"< `max(Commercial∪Transportation) = {_pct_fmt(max_other)}`. "
         f"About **{n_ind_below_com_med}** industrial sectors sit below the commercial "
-        "median `%ΔN` (3-way→mixed). Class mapping correlates with the mixed-units bump "
-        "(via `c_j` / retail prices), but **elec share of `N`** and supply-chain "
+        "median `%ΔN` (3-way→mixed). Class mapping is **not** the mixed-units "
+        "mechanism (`c_row` is flat `1/p`). **Elec share of `N`** and supply-chain "
         "structure still matter — Industrial ≠ always larger than Commercial/"
         "Transportation for every sector.",
         "",

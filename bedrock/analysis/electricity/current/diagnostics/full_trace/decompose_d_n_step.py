@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
-
-import pandas as pd
+from typing import Any
 
 from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace import (
     _clear_model_caches,
@@ -283,8 +281,9 @@ def render_y_nab_section_md(
         "```",
         "",
         "PR3 disaggregates V/U/VA (not a proportional carve of aggregate `y_nab`). That raises "
-        "domestic intermediate flows in `Adom` (block mean A diagonal ~0.071 → ~0.154) and "
-        "slightly lowers electricity `q` ($595.09B → $593.81B). More of each child's `q` is "
+        "domestic intermediate flows in `Adom` and slightly lowers electricity `q` "
+        f"({_fmt_flow_b(realloc['q_usd_total_B'], mixed=False)} → "
+        f"{_fmt_flow_b(split_block['q_total_B'], mixed=False)}). More of each child's `q` is "
         "explained by domestic purchases (`Adom·q`), so less remains as `y_nab`.",
         "",
         "Per-sector backcompute at 3-way split:",
@@ -331,11 +330,16 @@ def render_y_nab_section_md(
     lines.extend(
         [
             "",
-            "Under mixed units, `q_221110` goes from **$230.42B (USD)** to **4.19 B (mixed units, MWh)** "
+            f"Under mixed units, `q_221110` goes from "
+            f"**{_fmt_flow_b(split_110['q_B'], mixed=False)} (USD)** to "
+            f"**{_fmt_flow_b(mixed_110['q_B'], mixed=True)}** "
             "and `Adom` is rescaled for the generation row/column. `y_nab` is backcomputed again on that "
-            "mixed `A`/`q`. The summary-table block total **144.12 B (mixed units)** is **not comparable USD**; "
-            "only 221121 and 221122 remain monetary. The ~60.5B drop is almost entirely **221110's `y_nab` "
-            f"collapsing under MWh units** ({_fmt_flow_b(split_110['y_nab_B'], mixed=False)} → "
+            "mixed `A`/`q`. The summary-table block total "
+            f"**{_fmt_flow_b(mixed_block['y_nab_total_B'], mixed=True)}** is **not comparable USD**; "
+            "only 221121 and 221122 remain monetary. The "
+            f"{split_110['y_nab_B'] - mixed_110['y_nab_B']:.1f}B drop is almost entirely "
+            "**221110's `y_nab` collapsing under MWh units** "
+            f"({_fmt_flow_b(split_110['y_nab_B'], mixed=False)} → "
             f"{_fmt_flow_b(mixed_110['y_nab_B'], mixed=True)}).",
             "",
             "| | sum(q) | sum(Adom·q) | sum(y_nab) |",
@@ -362,10 +366,13 @@ def render_y_nab_section_md(
             f"| {row['sector']} | {row['w_row']:.4f} | ${row['naive_B']:.2f} B | "
             f"**${row['actual_B']:.2f} B** |"
         )
+    w_share_txt = ", ".join(
+        f"{row['sector']} **{100.0 * row['w_row']:.2f}%**" for row in naive_rows
+    )
     lines.extend(
         [
             "",
-            "**w_row** shares: 221110 **33.11%**, 221121 **3.58%**, 221122 **63.31%**.",
+            f"**w_row** shares: {w_share_txt}.",
             "",
         ]
     )
@@ -740,21 +747,9 @@ def _render_delta_summary(
 
 
 def _conversion_factor_detail(config: str) -> dict[str, Any]:
-    """Live ``c_col`` / ``c_row`` inputs and a few example purchasers."""
+    """Live production ``c_col`` and flat ``c_row = 1/p``."""
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
-        us_total_net_generation_mwh,
-    )
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
-        _model_year_y_row_221110,
-    )
-    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
-        _class_price,
-        electricity_class_row_factors,
-        electricity_output_factor,
-    )
-    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
-        build_end_use_map,
-        electricity_end_use_retail_prices_cents_kwh,
+        egrid_mwh_for_io_year,
     )
 
     reset_usa_config()
@@ -762,114 +757,56 @@ def _conversion_factor_detail(config: str) -> dict[str, Any]:
     set_global_usa_config(config)
     aq = derive_cornerstone_Aq_scaled()
     cfg = get_usa_config()
+    c_col, c_row = electricity_conversion_factors(aq)
     q_usd = float(aq.scaled_q[GENERATION_SECTOR])
-    mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
-    c_col = electricity_output_factor(q_usd, mwh)
-    prices = cast(
-        dict[str, float],
-        electricity_end_use_retail_prices_cents_kwh(cfg.usa_ghg_data_year),
-    )
-    end_use_map = build_end_use_map()
-    y_row = _model_year_y_row_221110(aq)
-    adom_row = cast(pd.Series, aq.Adom.loc[GENERATION_SECTOR])
-    c_row = electricity_class_row_factors(
-        adom_row, aq.scaled_q, y_row, prices, end_use_map, mwh
-    )
-
-    denom = 0.0
-    inter_examples: list[dict[str, Any]] = []
-    for col in adom_row.index:
-        coef = float(adom_row[col])
-        if coef == 0.0:
-            continue
-        p_j = _class_price(str(col), prices, end_use_map)
-        flow_usd = coef * float(aq.scaled_q[col])
-        denom += flow_usd / p_j
-        if abs(flow_usd) >= 5e9 and len(inter_examples) < 3:
-            inter_examples.append(
-                {
-                    "col": str(col),
-                    "end_use": end_use_map[str(col)],
-                    "p": p_j,
-                    "a": coef,
-                    "q_B": float(aq.scaled_q[col]) / 1e9,
-                    "flow_B": flow_usd / 1e9,
-                    "c_j": float(c_row[col]),
-                }
-            )
-    for col in y_row.index:
-        y_val = float(y_row[col])
-        if y_val == 0.0:
-            continue
-        denom += y_val / _class_price(str(col), prices, end_use_map)
-
-    lam = float(mwh / denom)
-    fd_examples: list[dict[str, Any]] = []
-    for col in y_row.index:
-        y_val = float(y_row[col])
-        if abs(y_val) < 5e9:
-            continue
-        p_f = _class_price(str(col), prices, end_use_map)
-        fd_examples.append(
-            {
-                "col": str(col),
-                "end_use": end_use_map[str(col)],
-                "p": p_f,
-                "y_B": y_val / 1e9,
-                "c_j": float(c_row[col]),
-            }
-        )
-        if len(fd_examples) >= 2:
-            break
-
+    q_elec = float(aq.scaled_q.reindex(ELECTRICITY_DISAGG_SECTORS).sum())
+    mwh = float(egrid_mwh_for_io_year(cfg.model_base_year))
+    c_row_val = float(c_row.iloc[0]) if len(c_row) else float("nan")
+    p = (1.0 / c_row_val) if c_row_val else float("nan")
     return {
         "model_base_year": int(cfg.model_base_year),
-        "ghg_year": int(cfg.usa_ghg_data_year),
         "q_usd": q_usd,
+        "q_elec": q_elec,
         "mwh": mwh,
-        "c_col": c_col,
-        "prices": prices,
-        "lam": lam,
-        "denom": denom,
-        "inter_examples": inter_examples,
-        "fd_examples": fd_examples,
-        "c_row_min": float(c_row.min()),
-        "c_row_median": float(c_row.median()),
-        "c_row_max": float(c_row.max()),
+        "c_col": float(c_col),
+        "p": float(p),
+        "c_row": c_row_val,
+        "c_row_min": float(c_row.min()) if len(c_row) else float("nan"),
+        "c_row_max": float(c_row.max()) if len(c_row) else float("nan"),
         "n_c_row": int(c_row.notna().sum()),
     }
 
 
 def _render_conversion_factors_subsection(detail: dict[str, Any]) -> list[str]:
     q_b = detail["q_usd"] / 1e9
+    q_elec_b = detail["q_elec"] / 1e9
     mwh_b = detail["mwh"] / 1e9
-    prices = detail["prices"]
-    lines = [
+    return [
         "### How `c_col` and `c_row` are calculated",
         "",
-        "Mixed units need two kinds of conversion factors for generation (**221110**):",
+        "Production mixed units (`electricity_conversion_factors`) use "
+        "`egrid_mwh_for_io_year(model_base_year)` and a **flat** `c_row = 1/p` "
+        "on every A column. There is **no** Table 2.4 class-varying `c_j = λ / p_j`.",
         "",
         "| Factor | Role | Units |",
         "|--------|------|-------|",
         "| **`c_col`** | Converts the **generation column** "
         "(output `q_110`, inputs into gen, `B[:,110]`) from USD to MWh | MWh / USD |",
         "| **`c_row`** | Converts the **generation sales row** "
-        "(`Adom[110, ·]`, `Aimp[110, ·]`, and FD purchases of gen) from USD to MWh, "
-        "**by purchaser** (end-use class) | MWh / USD (per column) |",
-        "",
-        "`c_col` is a single national average intensity. `c_row` varies by purchaser "
-        "because residential, commercial, industrial, and transportation buyers face "
-        "different retail electricity prices (EIA EPA Table 2.4).",
+        "(`Adom[110, ·]`, `Aimp[110, ·]`) from USD to MWh; **same value on every "
+        "column** | MWh / USD |",
         "",
         "#### `c_col` — output / column factor",
         "",
         "```",
-        "c_col = MWh_eGRID / q_USD_221110",
+        "c_col = egrid_mwh_for_io_year(model_base_year) / q_USD_221110",
         "```",
         "",
-        f"- **MWh_eGRID** = U.S. total net generation from eGRID for "
+        f"- **MWh** = `egrid_mwh_for_io_year` at "
         f"model_base_year **{detail['model_base_year']}** "
-        f"= **{detail['mwh']:,.0f} MWh** ({mwh_b:.4f} × 10⁹).",
+        f"= **{detail['mwh']:,.0f} MWh** ({mwh_b:.4f} × 10⁹). "
+        "For 2017 this is 2016 eGRID × EIA Table 3.1 2017/2016, not a missing-year "
+        "proxy of `us_total_net_generation_mwh`.",
         f"- **q_USD_221110** = scaled commodity output of generation "
         f"= **${q_b:.4f} B**.",
         "",
@@ -882,102 +819,26 @@ def _render_conversion_factors_subsection(detail: dict[str, Any]) -> list[str]:
         f"**{detail['c_col']:.4f} MWh** on average. Applying `q_MWh = q_USD × c_col` "
         "and `B_MWh = B_USD / c_col` keeps `B·q` (kg CO₂e) unchanged.",
         "",
-        "#### `c_row` — sales-row factors by purchaser class",
+        "#### `c_row` — uniform `1/p` (not Table 2.4)",
         "",
-        "Purchaser column `j` is mapped to an EPA end-use class "
-        "(Residential / Commercial / Industrial / Transportation) via "
-        "`build_end_use_map()`, then priced with Table 2.4 retail rates "
-        f"(cents/kWh, GHG year **{detail['ghg_year']}**):",
-        "",
-        "| End-use class | Table 2.4 price (¢/kWh) |",
-        "|---------------|------------------------:|",
-        f"| Residential | {prices['Residential']:.2f} |",
-        f"| Commercial | {prices['Commercial']:.2f} |",
-        f"| Industrial | {prices['Industrial']:.2f} |",
-        f"| Transportation | {prices['Transportation']:.2f} |",
-        "",
-        "Domestic generation-row USD flows are intermediate sales "
-        "`A_110,j · q_j` plus model-year final-demand purchases `y_110,f`. "
-        "Define a price-weighted denominator and a scalar **λ** that forces "
-        "total converted MWh to equal eGRID generation:",
+        "`p` is the generation share of electricity commodity output divided by "
+        "eGRID MWh (`p = p_share × q_elec / MWh`). Then every A column gets "
+        "`c_row = 1/p`.",
         "",
         "```",
-        "denom = Σ_j (A_110,j · q_j) / p_j  +  Σ_f y_110,f / p_f",
-        "λ     = MWh_eGRID / denom",
-        "c_j   = λ / p_j     # for every purchaser column j (and FD category f)",
+        f"q_elec (221110+221121+221122) = ${q_elec_b:.4f} B",
+        f"p      = {detail['p']:.6g} USD/MWh",
+        f"c_row  = 1/p = {detail['c_row']:.6f} MWh/USD "
+        f"on all {detail['n_c_row']} columns "
+        f"(min {detail['c_row_min']:.6f}, max {detail['c_row_max']:.6f})",
         "```",
         "",
-        "Here `p_j` is the Table 2.4 price for `j`'s end-use class. **λ** absorbs "
-        "unit consistency between USD flows and ¢/kWh prices so that",
-        "",
-        "```",
-        "Σ_j (A_110,j · q_j · c_j) + Σ_f (y_110,f · c_f) = MWh_eGRID",
-        "```",
-        "",
-        "exactly (row MWh identity). Numerically for this run:",
-        "",
-        "```",
-        f"denom = {detail['denom']:.4e}",
-        f"λ     = {detail['mwh']:,.0f} / denom = {detail['lam']:.6f}",
-        f"c_row ranges [{detail['c_row_min']:.6f}, {detail['c_row_max']:.6f}] "
-        f"MWh/USD across {detail['n_c_row']} columns "
-        f"(median {detail['c_row_median']:.6f})",
-        "```",
+        "P5 (`reanchor_electricity_aq_after_year_scaling`) re-applies the D0 "
+        "purchaser allocation at `model_base_year` after year scaling; mixed-units "
+        "conversion then uses this flat `1/p`. Class-varying Table 2.4 prices are "
+        "not part of production `c_row`.",
         "",
     ]
-    if detail["inter_examples"]:
-        ex0 = detail["inter_examples"][0]
-        lines.extend(
-            [
-                f"**Example — intermediate purchaser** ({ex0['col']}, {ex0['end_use']}):",
-                "",
-                "```",
-                f"p_{ex0['col']} = {ex0['p']:.2f} ¢/kWh  ({ex0['end_use']})",
-                f"A_110,{ex0['col']} = {ex0['a']:.6f}",
-                f"q_{ex0['col']} = ${ex0['q_B']:.2f} B",
-                f"flow_USD = A · q = ${ex0['flow_B']:.2f} B",
-                f"c_{ex0['col']} = λ / p = {detail['lam']:.6f} / {ex0['p']:.2f} "
-                f"= {ex0['c_j']:.6f} MWh/USD",
-                "```",
-                "",
-            ]
-        )
-        if len(detail["inter_examples"]) > 1:
-            ex1 = detail["inter_examples"][1]
-            lines.extend(
-                [
-                    f"**Another intermediate example** ({ex1['col']}, {ex1['end_use']}): "
-                    f"`p = {ex1['p']:.2f}` ¢/kWh → "
-                    f"`c = {ex1['c_j']:.6f}` MWh/USD "
-                    f"(flow ${ex1['flow_B']:.2f} B).",
-                    "",
-                ]
-            )
-    if detail["fd_examples"]:
-        fd0 = detail["fd_examples"][0]
-        lines.extend(
-            [
-                f"**Example — final demand** ({fd0['col']}, {fd0['end_use']}):",
-                "",
-                "```",
-                f"y_110,{fd0['col']} = ${fd0['y_B']:.2f} B",
-                f"p = {fd0['p']:.2f} ¢/kWh ({fd0['end_use']})",
-                f"c = λ / p = {detail['lam']:.6f} / {fd0['p']:.2f} "
-                f"= {fd0['c_j']:.6f} MWh/USD",
-                "```",
-                "",
-            ]
-        )
-    lines.extend(
-        [
-            "In `A`, the generation **row** is multiplied by `c_j` (USD sales → MWh sales) "
-            "and the generation **column** is divided by `c_col` (inputs per $ → inputs per MWh). "
-            "Cheaper industrial power gets a **larger** `c_j` than residential for the same λ, "
-            "so a dollar of industrial purchases maps to more MWh.",
-            "",
-        ]
-    )
-    return lines
 
 
 def render_unit_conversion_walkthrough_md(

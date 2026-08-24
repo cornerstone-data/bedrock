@@ -3,12 +3,17 @@
 Tasks (mixed-units model only):
 1. Compare national and electricity-block BLy vs E with a fully single-year 2017
    attempt (no A/q scale/inflate; 2017 GHG FBS). Document blockers (no 2017 eGRID
-   inventory / eGRID FBS years only 2023–2024) and the proxies used.
+   FBS; ``usa_ghg_data_year`` Literal; USEEIO A-scale skips P5 reanchor).
+   ``egrid_mwh_for_io_year(2017)`` already exists — do not patch
+   ``us_total_net_generation_mwh``.
 2. Summarize how year changes are handled for E, B, A, q, L, D, N (+ x, y_nab, Vnorm).
+   Conversion is ``egrid_mwh_for_io_year(model_base_year)`` + flat ``1/p``.
+   P5 ``reanchor_electricity_aq_after_year_scaling`` re-applies D0 at model year;
+   1a year-scale is intermediate.
 3. Outline what a 2017–2023 D/N time series would require (no implementation).
 
     Run:
-    python -m bedrock.analysis.electricity.current.diagnostics.year_alignment.year_alignment_bly_e
+    python -m bedrock.analysis.electricity.current.diagnostics.year_alignment
 """
 
 from __future__ import annotations
@@ -61,8 +66,6 @@ from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics 
 logger = logging.getLogger(__name__)
 
 MIXED_CONFIG = "2025_usa_cornerstone_v0_3_electricity_mixed_units"
-# stewi eGRID inventories: 2016, 2018–2023 (no 2017). Proxy MWh for mixed units.
-EGRID_MWH_PROXY_YEAR = 2018
 
 PANEL_DIR = OUT_DIR / "year_alignment"
 REPORT_MD = PANEL_DIR / "bly_e_year_alignment.md"
@@ -97,26 +100,6 @@ def _install_usa_config(overrides: dict[str, Any]) -> USAConfig:
     cfg = USAConfig.model_construct(**merged)
     uc._usa_config = cfg
     return cfg
-
-
-def _patch_egrid_mwh_for_missing_2017() -> Any:
-    from bedrock.extract.disaggregation import egrid_generation as eg  # noqa: PLC0415
-
-    real = eg.us_total_net_generation_mwh
-
-    def _wrapped(year: int, download_if_missing: bool = True) -> float:
-        if year == 2017:
-            logger.warning(
-                "eGRID has no 2017 inventory; using %s MWh for mixed-units c_col",
-                EGRID_MWH_PROXY_YEAR,
-            )
-            return real(EGRID_MWH_PROXY_YEAR, download_if_missing=download_if_missing)
-        return real(year, download_if_missing=download_if_missing)
-
-    return patch(
-        "bedrock.extract.disaggregation.egrid_generation.us_total_net_generation_mwh",
-        _wrapped,
-    )
 
 
 def _patch_load_e_use_year_fbs_not_egrid() -> Any:
@@ -224,13 +207,10 @@ def run_scenario(
     *,
     overrides: dict[str, Any],
     use_2017_e_patch: bool,
-    use_egrid_mwh_proxy: bool,
 ) -> dict[str, Any]:
     _clear_model_caches()
     cfg = _install_usa_config(overrides)
     patches: list[Any] = []
-    if use_egrid_mwh_proxy:
-        patches.append(_patch_egrid_mwh_for_missing_2017())
     if use_2017_e_patch:
         patches.append(_patch_load_e_use_year_fbs_not_egrid())
 
@@ -368,25 +348,21 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
     apply_io = bool(baseline.get("apply_io_year_adjustments", False))
     years_match_aq = model_year == ghg_year
     egrid_eia_lead = (
-        f"Numerically yes for the current config — both are {model_year} — but "
-        "they are not the same config field."
+        f"Conversion MWh follows `model_base_year={model_year}` via "
+        "`egrid_mwh_for_io_year`. `c_row` is flat `1/p` from UGO generation "
+        "share × electricity `q` / MWh — not Table 2.4 at `usa_ghg_data_year`."
         if years_match_aq
         else (
-            f"Numerically **no** for the current config: inflated A/q and eGRID MWh "
-            f"use `model_base_year={model_year}`, while EIA Table 2.4 prices use "
-            f"`usa_ghg_data_year={ghg_year}`."
+            f"Conversion MWh still follows `model_base_year={model_year}` via "
+            f"`egrid_mwh_for_io_year`. GHG year `{ghg_year}` does **not** set "
+            "`c_row` (no Table 2.4 class prices in production conversion)."
         )
     )
     egrid_eia_trail = (
-        f"eGRID matches the inflated A/q year by construction. Prices match only "
-        f"because the baseline also sets `usa_ghg_data_year={ghg_year}`; if GHG "
-        "year diverged from `model_base_year`, prices would follow GHG, not A/q."
-        if years_match_aq
-        else (
-            "eGRID still matches the inflated A/q year by construction "
-            "(`model_base_year`). Prices follow `usa_ghg_data_year`, which differs "
-            "from `model_base_year` on this baseline."
-        )
+        "P5 (`reanchor_electricity_aq_after_year_scaling`) re-applies D0 at "
+        f"`model_base_year={model_year}` after the 1a scale/inflate hop. "
+        "A 2017 probe with `scale_a_matrix_with_useeio_method=True` skips that "
+        "reanchor, so `get_reanchored_eia_purchaser_allocation()` stays `None`."
     )
     if apply_io:
         aq_baseline_bullets = (
@@ -397,8 +373,10 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         aq_table_cell = (
             f"Scale detail→`usa_io_data_year` ({io_year}) with dollar-year-rebased "
             f"summary ratios; inflate→`model_base_year` ({model_year}) via "
-            "commodity PI (`apply_io_year_adjustments`); then mixed-units rewrite "
-            "of gen row/column and `q_110`"
+            "commodity PI (`apply_io_year_adjustments`); **then P5** "
+            "`reanchor_electricity_aq_after_year_scaling` re-applies D0 at model "
+            "year (1a is intermediate); then mixed-units rewrite of gen "
+            "row/column and `q_110` with flat `c_row = 1/p`"
         )
         x_table_cell = (
             "BEA GO at `usa_ghg_data_year` via `use_ghg_year_x_in_B` "
@@ -463,10 +441,13 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "- E: **`GHG_national_Cornerstone_2017`** on GCS; this probe bypasses the "
         "production eGRID branch and splits aggregate `221100` → G/T/D via "
         "`split_electricity_e_for_disaggregated_b` (SF₆→transmission; other gases→generation)",
-        f"- Mixed-units MWh: stewi eGRID has **no 2017** inventory "
-        f"(available: 2016, 2018–2023). Proxy: **eGRID {EGRID_MWH_PROXY_YEAR}** "
-        "net generation for `c_col` / `c_row`",
-        "- Table 2.4 retail prices: **2017** EIA EPA values are available",
+        "- Mixed-units MWh: `egrid_mwh_for_io_year(2017)` (2016 eGRID × EIA Table 3.1 "
+        "2017/2016). **No** `us_total_net_generation_mwh` proxy patch — production "
+        "conversion does not call that function.",
+        "- `c_row` is flat `1/p` (UGO generation share × electricity `q` / MWh), "
+        "not Table 2.4 class prices",
+        "- `scale_a_matrix_with_useeio_method=True` **skips P5 reanchor**, so "
+        "`get_reanchored_eia_purchaser_allocation()` stays `None` on this probe",
         "",
         "**Blockers to a true fully single-year 2017 mixed model in production code:**",
         "",
@@ -474,7 +455,11 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "`reconciling_data_years/model1.yaml`)",
         "2. Electricity-disagg eGRID FBS is only defined for 2023/2024 "
         "(`egrid_fbs_method_for_year`); 2017 has no eGRID-backed FBS",
-        "3. No stewi eGRID 2017 inventory for physical MWh",
+        "3. USEEIO A-scale (`scale_a_matrix_with_useeio_method=True`) returns 2017 "
+        "base A and never calls `reanchor_electricity_aq_after_year_scaling`",
+        "",
+        "A missing 2017 stewi eGRID inventory is **not** a conversion blocker: "
+        "`egrid_mwh_for_io_year(2017)` already exists.",
         "",
         "## Results",
         "",
@@ -508,10 +493,10 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "`BLy_110 ≈ D_110 · q_110` can diverge from the electricity inventory slice "
         "when `q_110` and `x_110` diverge — same mechanism as in "
         "`electricity_full_trace.md`.",
-        "3. **2017 proxy gaps.** The single-year attempt still uses eGRID "
-        f"{EGRID_MWH_PROXY_YEAR} MWh for mixed units and a gas-row split of 2017 "
-        "aggregate electricity E (not facility eGRID), so it is not a pure "
-        "same-source year.",
+        "3. **2017 E/FBS proxy.** The single-year attempt still uses a gas-row split "
+        "of 2017 aggregate electricity E (not facility eGRID FBS), so it is not a "
+        "pure same-source year. Conversion MWh uses `egrid_mwh_for_io_year(2017)`, "
+        "not a patched `us_total_net_generation_mwh`.",
         "",
         "Remaining in 2017 for A/q removes price scale/inflate drift and tightens "
         "`BLy/E` nationally, but **does not make `BLy = E`**.",
@@ -549,8 +534,9 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "Reallocation, 3-way split, mixed units | Mixes B year with A/L year |",
         "| **BLy** | `diag(D) @ L_dom @ y_nab` | "
         "Reallocation, 3-way split, mixed units | Couples B/D year to A/q year |",
-        "| **Mixed `c_col`/`c_row`** | MWh from eGRID@`model_base_year`; prices "
-        "Table 2.4@`usa_ghg_data_year` | mixed units | 2017 MWh missing in stewi |",
+        "| **Mixed `c_col`/`c_row`** | MWh from `egrid_mwh_for_io_year(model_base_year)`; "
+        "`c_row` is flat `1/p` on every A column | mixed units | "
+        "2017 MWh via EIA 3.1 ratio of 2016 eGRID; not Table 2.4 |",
         "",
         "### Why D7 GO correction does not force electricity `q ≈ x`",
         "",
@@ -586,15 +572,16 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "the same BEA GO vector used as `x` in `B`. That residual `q`–`x` wedge is "
         "what opens electricity-block `BLy/E` under production scale/inflate.",
         "",
-        "### eGRID MWh and EIA prices vs inflated A/q year",
+        "### eGRID MWh and conversion vs inflated A/q year",
         "",
         egrid_eia_lead,
         "",
         "| Input | Year source | Current value |",
         "|---|---|---:|",
-        f"| Inflated A/q | `model_base_year` | {model_year} |",
-        f"| eGRID MWh (`c_col`) | `model_base_year` | {model_year} |",
-        f"| EIA Table 2.4 prices (`c_row`) | `usa_ghg_data_year` | {ghg_year} |",
+        f"| Inflated A/q (1a, intermediate) | `model_base_year` | {model_year} |",
+        f"| P5 D0 reanchor | `model_base_year` | {model_year} |",
+        f"| eGRID MWh (`c_col`) | `egrid_mwh_for_io_year(model_base_year)` | {model_year} |",
+        f"| `c_row` | flat `1/p` (UGO share × q_elec / MWh) | {model_year} |",
         "",
         egrid_eia_trail,
         "",
@@ -606,15 +593,15 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "   - Extend `usa_ghg_data_year` to include 2017–2018 (FBS already on GCS).",
         "   - Parameterize electricity E source: eGRID FBS by year when available; "
         "else year GHG FBS + documented G/T/D split.",
-        "   - Parameterize eGRID MWh year (or accept nearest-year proxy with flags).",
+        "   - Parameterize eGRID MWh year via `egrid_mwh_for_io_year` (2017 already "
+        "constructed from 2016 eGRID × EIA 3.1).",
         "",
         "2. **Per-year inputs**",
         "   - GHG FBS `GHG_national_Cornerstone_{y}` for each y.",
         "   - Industry `x(y)` from BEA GO (already time-series capable).",
         "   - A/q(y): either freeze 2017 structure (`useeio` method), or run "
         "scale/inflate / nowcast / summary-ratio path to each `model_base_year=y`.",
-        "   - Table 2.4 prices(y); eGRID MWh(y) where stewi supports it "
-        "(gap at 2017).",
+        "   - `egrid_mwh_for_io_year(y)`; flat `c_row = 1/p` (not Table 2.4).",
         "",
         "3. **Per-year compute**",
         "   - For each y: build mixed-units A/q (if desired), B(y)=E(y)/x(y)@Vnorm, "
@@ -636,7 +623,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "## Reproduce",
         "",
         "```",
-        "python -m bedrock.analysis.electricity.current.diagnostics.year_alignment.year_alignment_bly_e",
+        "python -m bedrock.analysis.electricity.current.diagnostics.year_alignment",
         "```",
         "",
         f"Writes `{REPORT_MD.as_posix()}` and `{REPORT_JSON.as_posix()}`.",
@@ -644,7 +631,7 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "Re-render markdown only (from existing JSON):",
         "",
         "```",
-        "python -m bedrock.analysis.electricity.current.diagnostics.year_alignment.year_alignment_bly_e "
+        "python -m bedrock.analysis.electricity.current.diagnostics.year_alignment "
         "--report-only",
         "```",
         "",
@@ -681,7 +668,6 @@ def main(argv: list[str] | None = None) -> None:
         "baseline_mixed_v0_3",
         overrides={},
         use_2017_e_patch=False,
-        use_egrid_mwh_proxy=False,
     )
     print(
         "national BLy/E=",
@@ -703,7 +689,6 @@ def main(argv: list[str] | None = None) -> None:
             "adjust_summary_A_and_q_dollar_year": False,
         },
         use_2017_e_patch=True,
-        use_egrid_mwh_proxy=True,
     )
     print(
         "national BLy/E=",

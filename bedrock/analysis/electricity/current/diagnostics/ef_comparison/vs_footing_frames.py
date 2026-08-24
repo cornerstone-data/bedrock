@@ -1,4 +1,4 @@
-"""Build N/D percent and abs-change frames vs Cornerstone v0.3 footing."""
+"""Build N/D percent and abs-change frames vs Cornerstone v0.3.1 footing."""
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ def collect_electricity_drops(
             drops.append(
                 DroppedSector(
                     sector,
-                    'not present in v0.2 baseline '
+                    'not present in v0.3.1 electricity footing '
                     '(cannot compare on a shared sector code)',
                 )
             )
@@ -124,7 +124,7 @@ def collect_electricity_drops(
             drops.append(
                 DroppedSector(
                     sector,
-                    'present only in v0.2 baseline '
+                    'present only in v0.3.1 electricity footing '
                     '(aggregate electricity; not in this step)',
                 )
             )

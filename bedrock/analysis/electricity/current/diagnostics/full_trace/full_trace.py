@@ -44,7 +44,7 @@ from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics 
 )
 
 CONFIG_CHAIN: list[tuple[str, str]] = [
-    ("v0.3 footing", "2025_usa_cornerstone_v0_3_electricity_footing"),
+    ("v0.3.1 footing", "2025_usa_cornerstone_v0_3_electricity_footing"),
     ("reallocation", "2025_usa_cornerstone_v0_3_electricity_reallocation"),
     ("3-way split", "2025_usa_cornerstone_v0_3_electricity_disaggregation"),
     ("unit conversion", "2025_usa_cornerstone_v0_3_electricity_mixed_units"),
@@ -507,11 +507,13 @@ def _delta_note(
         base_note = notes[key]
     elif is_intensity:
         base_note = (
-            f"Largest change at {step} ({max_rel:.1%} vs v0.3 footing); "
+            f"Largest change at {step} ({max_rel:.1%} vs v0.3.1 electricity footing); "
             "reflects IO and/or unit-basis shift."
         )
     else:
-        base_note = f"Largest change at {step} ({max_rel:.1%} vs v0.3 footing)."
+        base_note = (
+            f"Largest change at {step} ({max_rel:.1%} vs v0.3.1 electricity footing)."
+        )
 
     if row == "y_nab (USD)":
         return f"{base_note} {y_nab_mixed_caveat}"
@@ -529,7 +531,7 @@ def write_full_trace_markdown(
         "Comparison of IO anchors, emissions inventory **E**, direct EF **D**, "
         "total EF **N**, and **BLy** for the electricity block.",
         "",
-        "Configs: **v0.3 footing** → **reallocation** → **3-way split** "
+        "Configs: **v0.3.1 footing** → **reallocation** → **3-way split** "
         "→ **unit conversion** (mixed units).",
         "",
         "Rows labeled **221100\\*** after PR3 are re-aggregated values for "

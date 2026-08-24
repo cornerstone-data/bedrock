@@ -40,16 +40,16 @@ def test_collect_drops_ordered_exemption_before_presence() -> None:
     assert '221110' in by_sector
     assert 'mixed units' in by_sector['221110']
     assert '221121' in by_sector
-    assert 'not present in v0.2 baseline' in by_sector['221121']
+    assert 'not present in v0.3.1 electricity footing' in by_sector['221121']
     assert '221100' in by_sector
-    assert 'present only in v0.2 baseline' in by_sector['221100']
+    assert 'present only in v0.3.1 electricity footing' in by_sector['221100']
 
 
 def test_format_drop_footnote() -> None:
     text = format_drop_footnote(
         [
             DroppedSector('221110', 'mixed units are incompatible for plotting'),
-            DroppedSector('221100', 'present only in v0.2 baseline'),
+            DroppedSector('221100', 'present only in v0.3.1 electricity footing'),
         ]
     )
     assert '221110 dropped:' in text

@@ -2,8 +2,8 @@
 
 Diagnostics for **current** production flags
 (`implement_electricity_disaggregation` / `implement_electricity_mixed_units`).
-Conversion copy in some reports still describes the old Table 2.4 path — do not
-paste into a deck until rewritten.
+Conversion copy in live reports uses `electricity_conversion_factors` /
+`egrid_mwh_for_io_year` and flat `c_row = 1/p` (not Table 2.4 class `c_row`).
 
 Scripts are grouped by analysis so each subpackage owns the question it answers.
 Shared cache / path helpers stay at package root. All reports and figures still
@@ -13,7 +13,7 @@ write under [`output/`](output/).
 diagnostics/
   paths.py, manifest.py, local_workbooks.py, manifest.yaml, local_data/
   bly_dispersion/       # BLy waterfalls from diagnostics sheets
-  ef_comparison/        # N/D vs v0.3 footing + N-variance writeup
+  ef_comparison/        # N/D vs v0.3.1 electricity footing + N-variance writeup
   full_trace/           # live model IO / E / D / N / BLy walkthrough
   year_alignment/       # BLy vs E under A/q year handling
   hh_vs_interindustry/  # F01000 BLy attribution vs interindustry (not D0 class MWh)
@@ -151,9 +151,9 @@ python -m bedrock.analysis.electricity.current.diagnostics.ef_comparison.analyze
 
 | Path | Contents |
 |---|---|
-| `electricity_reallocation/` | Suite PNGs for that step vs v0.3 footing |
-| `electricity_disaggregation/` | Suite PNGs for 3-way vs v0.3 footing |
-| `electricity_mixed_units/` | Suite PNGs for mixed units vs v0.3 footing |
+| `electricity_reallocation/` | Suite PNGs for that step vs v0.3.1 electricity footing |
+| `electricity_disaggregation/` | Suite PNGs for 3-way vs v0.3.1 electricity footing |
+| `electricity_mixed_units/` | Suite PNGs for mixed units vs v0.3.1 electricity footing |
 | `panel/ef_panels_vs_v0_3_N.png` | 3-panel N % hist |
 | `panel/ef_panels_vs_v0_3_D.png` | 3-panel D % hist |
 | `panel/n_variance_*.csv`, `n_variance_explained.md` | From `analyze_n_variance` |
@@ -191,8 +191,7 @@ probes a single-year 2017 attempt (blockers + proxies). Uses
 `2025_usa_cornerstone_v0_3_electricity_mixed_units`.
 
 ```bash
-python -m bedrock.analysis.electricity.current.diagnostics.year_alignment.year_alignment_bly_e
-# or: python -m bedrock.analysis.electricity.current.diagnostics.year_alignment
+python -m bedrock.analysis.electricity.current.diagnostics.year_alignment
 ```
 
 ### Outputs (`output/year_alignment/`)
@@ -248,5 +247,6 @@ Prints to stdout (no dedicated output file).
 ## Tests
 
 ```bash
-python -m pytest bedrock/analysis/electricity/current/diagnostics/__tests__ -q
+python -m pytest bedrock/analysis/electricity/current/diagnostics/__tests__ \
+    bedrock/analysis/electricity/current/eia_gtd/__tests__ -q
 ```

@@ -15,15 +15,15 @@ steps:
   - label: |
       3-way
       monetary split
-    sheet_id: 16UGlYVS05W4Gqhkx55fcuSGxRjchvFIA0h93cu1nmrY
+    sheet_id: 10rkBq4n4pDcMZSl6rB_WHSSBuOJWm2HmgzCI-UelG1E
     config: 2025_usa_cornerstone_v0_3_electricity_disaggregation
   - label: |
       Conversion to
       physical units
-    sheet_id: 1dse1RUGIIHH9qKZ6KEE-_qKKEbvgnZknF_AxfvF6hOQ
+    sheet_id: 1OH-tWrEdgBw5GdTOd3ezMmAEXWfTjY-ZMrZmstazp9Y
     config: 2025_usa_cornerstone_v0_3_electricity_mixed_units
 
 final:
   label: Combined (FINAL)
-  sheet_id: 1dse1RUGIIHH9qKZ6KEE-_qKKEbvgnZknF_AxfvF6hOQ
+  sheet_id: 1OH-tWrEdgBw5GdTOd3ezMmAEXWfTjY-ZMrZmstazp9Y
   config: 2025_usa_cornerstone_v0_3_electricity_mixed_units

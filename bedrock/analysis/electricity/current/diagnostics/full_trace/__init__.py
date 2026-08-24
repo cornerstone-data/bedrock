@@ -1,4 +1,4 @@
-﻿"""Live model traces across v0.2 → reallocation → 3-way → mixed units.
+﻿"""Live model traces across v0.3.1 footing → reallocation → 3-way → mixed units.
 
 Scripts:
 - ``full_trace`` — markdown report of IO / E / D / N / BLy by config step
