@@ -17,8 +17,8 @@ the share of industry ``j``'s intermediate dollars sitting on the wrong
 commodity.  Reported dollar-weighted across industries, so a column is worth what
 it spends.
 
-Three measurements
-------------------
+Four measurements
+-----------------
 
 ``--drift`` (default)
     Published **summary** Use SUT, 2017 against 2018-2024.  One benchmark
@@ -31,23 +31,31 @@ Three measurements
     earn its place*.
 
 ``--holdout``
-    The 2012 benchmark detail Use table carried to 2017 and scored against the
-    published 2017 detail table -- the only **out-of-sample, detail-level,
-    both-ends-observed** version of the same question.  Mirrors
-    :mod:`~.mix_holdout_test`, which does this for Step 4a's commodity mix.
+    The **benchmark detail SUT panel** -- 2007, 2012 and 2017, each carried to a
+    later benchmark and scored there.  This is the load-bearing measurement:
+    purchaser value, before redefinitions, BEA detail, all three years on the
+    2017 code basis in one frame, which is Step 3's estimand exactly rather than
+    an analogue of it.  Every span is out of sample at both ends, since each
+    benchmark is its own Economic-Census-anchored *best-level* estimate.  It also
+    reports what aggregating to summary hides, and fits the ``theta`` exponent on
+    the price ratio.  Mirrors :mod:`~.mix_holdout_test`, which does the same for
+    Step 4a's commodity mix.
+
+``--where``
+    Which columns carry the drift, at summary for 2024 and at detail for
+    2012 -> 2017.  Summary hides about a third of the error and hides it
+    unevenly, so the two rankings differ.
 
 ⚠️ **The summary reference is not ground truth.**  BEA's annual summary SUT is
 itself an estimate built from annual indicators over a carried-forward benchmark
-structure.  Wherever BEA also froze structure, "frozen" wins here by
-construction, and the drift below is a floor.  ``--holdout`` is the
-non-circular check: both 2012 and 2017 are Economic-Census-anchored best-*level*
-estimates, so neither was carried from the other.
+structure.  Wherever BEA also froze structure, "frozen" wins there by
+construction, and ``--drift`` is a floor.  ``--holdout`` is the non-circular
+check, and it is also the one that reaches BEA detail.
 
-⚠️ **The two references sit in different spaces.**  The summary SUT is
-before-redefinitions at purchaser value, which is Step 3's own space; the 2012
-detail table is available only after redefinitions at producer value
-(``CEDA6IO.xlsx``, see :mod:`~.mix_holdout_test`).  The holdout is therefore an
-analogue of Step 3's object, not that object.
+⚠️ **The benchmark panel has no extractor yet.**  It arrives as a local drop of
+``SUPPLY-USE_2026-08-24.zip`` in the ``USA_AllTablesSUP`` cache directory;
+``io_2017`` still maps ``Use_SUT_detail`` to the single-year 2017 workbook.  See
+:func:`benchmark_detail_intermediate`.
 
 Run::
 
@@ -59,34 +67,45 @@ from __future__ import annotations
 
 import argparse
 import typing as ta
+import zipfile
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.io_2012 import load_2012_UR_usa
 from bedrock.extract.iot.io_2017 import (
+    LOCAL_USA_SUP_DIR,
     _load_2017_detail_supply_use_usa,
     _load_usa_summary_sut,
-    load_2017_Utot_after_redef_usa,
 )
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
+from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
+from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
     load_bea_v2017_commodity_to_bea_v2017_summary,
+)
+from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
+    load_bea_v2017_industry_to_bea_v2017_summary,
 )
 
 #: Years of the published summary Use SUT after the benchmark.
 DRIFT_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024)
 
-#: The five detail codes that changed between the 2012 and 2017 benchmarks.
-#: ``33391A`` was renumbered; the four ``3352xx`` motor/generator codes merged.
-#: Same map as :mod:`~.mix_holdout_test`.
-RENAME = {
-    '33391A': '333914',
-    '335221': '335220',
-    '335222': '335220',
-    '335224': '335220',
-    '335228': '335220',
-}
+#: The benchmark detail SUT panel: three years, one code basis, one frame.
+BENCHMARK_YEAR = ta.Literal[2007, 2012, 2017]
+BENCHMARK_YEARS: tuple[BENCHMARK_YEAR, ...] = (2007, 2012, 2017)
+BENCHMARK_SPANS: tuple[tuple[BENCHMARK_YEAR, BENCHMARK_YEAR], ...] = (
+    (2007, 2012),
+    (2012, 2017),
+    (2007, 2017),
+)
+BENCHMARK_SUT_ARCHIVE = 'SUPPLY-USE_2026-08-24.zip'
+
+#: ``derive_industry_price_index`` starts here, so 2007 spans carry no carry.
+PRICE_INDEX_START = 2012
+
+#: Exponent on the price ratio.  1.0 is #497 as written; 0.0 is a frozen ``A``.
+THETA_GRID = (0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5)
 
 
 def summary_intermediate(year: int) -> pd.DataFrame:
@@ -205,50 +224,116 @@ def inflation() -> pd.DataFrame:
     return pd.DataFrame(records).set_index('year')
 
 
-def _detail_2012_and_2017() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """2012 and 2017 detail Use interiors on one shared commodity x industry frame."""
-    use_2012 = load_2012_UR_usa()
-    use_2012.index = use_2012.index.astype(str)
-    use_2012.columns = use_2012.columns.astype(str)
-    use_2012 = use_2012.rename(index=RENAME, columns=RENAME)
-    # groupby on both axes: the 3352xx merge maps four codes onto one
-    use_2012 = use_2012.groupby(level=0).sum().T.groupby(level=0).sum().T
-    use_2017 = load_2017_Utot_after_redef_usa()
-    use_2017.index = use_2017.index.astype(str)
-    use_2017.columns = use_2017.columns.astype(str)
-    rows, columns = _align(use_2012, use_2017)
-    return use_2012.loc[rows, columns], use_2017.loc[rows, columns]
+def benchmark_detail_intermediate(year: BENCHMARK_YEAR) -> pd.DataFrame:
+    """Intermediate block of the detail Use SUT for a benchmark year, in $M.
+
+    ``Use_SUT_Detail.xlsx`` inside ``SUPPLY-USE_2026-08-24.zip`` carries **2007,
+    2012 and 2017 on one sheet each, all on the 2017 code basis and all in the
+    same 413 x 424 frame** -- purchaser value, before redefinitions, BEA detail.
+    That is Step 3's estimand exactly, three times, so the holdout below scores
+    the thing being built rather than an analogue of it.
+
+    ⚠️ **Not wired to GCS yet.**  ``io_2017`` maps ``Use_SUT_detail`` to the
+    single-year ``Use_SUT_Framework_2017_DET.xlsx``; this zip is a local drop in
+    the same cache directory and has no extractor.  Promoting it to a proper
+    year-parameterised loader is its own task -- until then this reads the local
+    file and says so if it is missing.
+    """
+    archive = Path(LOCAL_USA_SUP_DIR) / BENCHMARK_SUT_ARCHIVE
+    if not archive.exists():
+        raise FileNotFoundError(
+            f'{archive} not found.  The 2007/2012/2017 detail SUT panel is a '
+            'local drop with no extractor yet; see this module docstring.'
+        )
+    with (
+        zipfile.ZipFile(archive) as bundle,
+        bundle.open('Use_SUT_Detail.xlsx') as sheet,
+    ):
+        frame = (
+            pd.read_excel(sheet, sheet_name=str(year), skiprows=5, dtype={'Code': str})
+            .set_index('Code')
+            .fillna(0)
+        )
+    frame.columns = frame.columns.astype(str)
+    return frame.reindex(
+        index=list(USA_2017_COMMODITY_CODES), columns=list(USA_2017_INDUSTRY_CODES)
+    ).astype(float)
+
+
+def _to_summary(block: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate a detail commodity x industry block to BEA summary on both axes."""
+
+    def first(parents: object) -> str:
+        return str(parents[0]) if isinstance(parents, list) else str(parents)
+
+    commodity = {
+        str(code): first(parents)
+        for code, parents in load_bea_v2017_commodity_to_bea_v2017_summary().items()
+    }
+    industry = {
+        str(code): first(parents)
+        for code, parents in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    rows = block.groupby(pd.Series({c: commodity.get(c, c) for c in block.index})).sum()
+    return (
+        rows.T.groupby(pd.Series({c: industry.get(c, c) for c in rows.columns})).sum().T
+    )
 
 
 def holdout() -> pd.DataFrame:
-    """2012 detail structure carried to 2017, with and without inflation."""
-    use_2012, use_2017 = _detail_2012_and_2017()
+    """Each benchmark structure carried to a later benchmark, detail and summary.
+
+    ``theta`` is the exponent on the price ratio that minimises the score:
+    ``theta = 1`` is #497 as written, ``theta = 0`` is a frozen ``A``.  Only
+    spans starting at 2012 or later carry one -- ``derive_industry_price_index``
+    begins at 2012.
+    """
+    blocks = {year: benchmark_detail_intermediate(year) for year in BENCHMARK_YEARS}
     price_index = derive_industry_price_index()
     price_index.index = price_index.index.astype(str)
-    ratio = (price_index[2017] / price_index[2012]).rename(index=RENAME)
-    ratio = ratio.groupby(level=0).mean().reindex(use_2012.index).fillna(1.0)
+    commodities = list(USA_2017_COMMODITY_CODES)
 
-    observed = column_shares(use_2017)
-    frozen = column_shares(use_2012)
-    carried = column_shares(frozen.mul(ratio, axis=0))
-    weights = use_2017.sum(axis=0)
-    frozen_score, frozen_columns = dissimilarity(frozen, observed, weights)
-    carried_score, carried_columns = dissimilarity(carried, observed, weights)
-    improved = int((carried_columns < frozen_columns).sum())
-    return pd.DataFrame(
-        [
-            {
-                'variant': 'frozen 2012 structure',
-                'dissimilarity': frozen_score,
-                'columns_improved': f'- / {len(frozen_columns)}',
-            },
-            {
-                'variant': '+ commodity inflation',
-                'dissimilarity': carried_score,
-                'columns_improved': f'{improved} / {len(carried_columns)}',
-            },
-        ]
-    ).set_index('variant')
+    records = []
+    for base, target in BENCHMARK_SPANS:
+        seed, actual = blocks[base], blocks[target]
+        weights = actual.sum(axis=0)
+        observed = column_shares(actual)
+        frozen = column_shares(seed)
+        detail_score, frozen_columns = dissimilarity(frozen, observed, weights)
+        summary_score, _ = dissimilarity(
+            column_shares(_to_summary(seed)),
+            column_shares(_to_summary(actual)),
+            _to_summary(actual).sum(axis=0),
+        )
+        record: dict[str, object] = {
+            'span': f'{base} -> {target}',
+            'detail': detail_score,
+            'summary': summary_score,
+            'hidden_by_summary_%': 100 * (1 - summary_score / detail_score),
+        }
+        if base >= PRICE_INDEX_START:
+            ratio = (
+                (price_index[target] / price_index[base])
+                .reindex(commodities)
+                .fillna(1.0)
+            )
+            carried, carried_columns = column_shares(frozen.mul(ratio, axis=0)), None
+            inflated_score, carried_columns = dissimilarity(carried, observed, weights)
+            scored = {
+                theta: dissimilarity(
+                    column_shares(frozen.mul(ratio**theta, axis=0)), observed, weights
+                )[0]
+                for theta in THETA_GRID
+            }
+            record |= {
+                'inflated': inflated_score,
+                'inflation_%': 100 * (detail_score - inflated_score) / detail_score,
+                'columns_improved': f'{int((carried_columns < frozen_columns).sum())}'
+                f' / {len(frozen_columns)}',
+                'best_theta': min(scored, key=lambda t: scored[t]),
+            }
+        records.append(record)
+    return pd.DataFrame(records).set_index('span')
 
 
 def where(year: int = 2024, top: int = 15) -> pd.DataFrame:
@@ -274,13 +359,47 @@ def where(year: int = 2024, top: int = 15) -> pd.DataFrame:
     return table.sort_values('misplaced_$M', ascending=False).head(top)
 
 
+def where_detail(
+    base: BENCHMARK_YEAR = 2012, target: BENCHMARK_YEAR = 2017, top: int = 15
+) -> pd.DataFrame:
+    """The same picture at BEA detail, off the benchmark SUT panel.
+
+    Worth having beside :func:`where`: summary hides roughly a third of the
+    error (see :func:`holdout`), and it hides it unevenly, so the two rankings
+    are not the same ranking.
+    """
+    seed = benchmark_detail_intermediate(base)
+    actual = benchmark_detail_intermediate(target)
+    names = _detail_descriptions(target)
+    weights = actual.sum(axis=0)
+    _, per_column = dissimilarity(column_shares(seed), column_shares(actual), weights)
+    table = pd.DataFrame(
+        {
+            'name': [str(names.get(c))[:38] for c in actual.columns],
+            'dissimilarity': per_column,
+            'column_$M': weights,
+            'misplaced_$M': per_column * weights,
+        }
+    )
+    return table.sort_values('misplaced_$M', ascending=False).head(top)
+
+
+def _detail_descriptions(year: BENCHMARK_YEAR) -> pd.Series:
+    """``code -> description`` off the same sheet, for readable output."""
+    use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    _ = year  # descriptions are the 2017 code book in every sheet
+    return use['Commodity Description']
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--drift', action='store_true', help='summary 2017 to 2018-2024'
     )
     parser.add_argument('--inflation', action='store_true', help='does #497 help?')
-    parser.add_argument('--holdout', action='store_true', help='2012 to 2017, detail')
+    parser.add_argument(
+        '--holdout', action='store_true', help='benchmark to benchmark, detail'
+    )
     parser.add_argument('--where', action='store_true', help='which columns drift')
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
@@ -294,11 +413,14 @@ def main() -> None:
         print('\nDoes carrying on a commodity price index help?\n')
         print(inflation().round(4).to_string())
     if args.all or args.holdout:
-        print('\n2012 detail structure carried to 2017, scored on the 2017 benchmark\n')
+        print('\nBenchmark detail SUT carried forward, scored on the later benchmark')
+        print('(purchaser value, before redefinitions - Step 3 estimand exactly)\n')
         print(holdout().round(4).to_string())
     if args.all or args.where:
-        print('\nWhere the 2024 drift sits\n')
+        print('\nWhere the 2024 drift sits, summary\n')
         print(where().round(3).to_string())
+        print('\nWhere the 2012 -> 2017 drift sits, detail\n')
+        print(where_detail().round(3).to_string())
     print()
 
 

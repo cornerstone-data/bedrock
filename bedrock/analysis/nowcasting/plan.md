@@ -249,7 +249,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 | Block | Status |
 |---|---|
 | Value added (`V00100`, `T00OTOP`, `V00300`, `T00TOP`, `T00SUB`) | ❌ NIPA tables identified, not built — Step 2 |
-| Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 while the inflation carry moves it +4.9% to **−12.6%** |
+| Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 at summary and **17.3% per five years at detail**, while the inflation carry moves it +4.5% to **−12.6%** depending on the span |
 
 ### SUT Supply — every column
 
@@ -730,12 +730,32 @@ that delivers a *mix* contributes anything. That re-sorts #577/#578/#564 — see
 
 ⚠️ **And the structure goes stale far faster than inflation corrects.** Frozen 2017 structure
 misplaces **3.1% of each column's dollars by 2018 rising to 10.2% by 2024** at summary (~2.2T in 2024),
-and **19.5%** at detail over the out-of-sample 2012→2017 holdout. Carrying on a commodity price index
-moves that by **+4.9% to −12.6%** — it helps through 2021 and **hurts from 2022 on**, worst in the
-years the price level moved most, because a nominal share carried on a price ratio assumes zero
-substitution. #497 is not wrong, it is small; the plan doc recommends damping it with a fitted
-exponent and adding Step 4c's **margin-rate movement**, which is the missing term in a *purchaser*-price
-deflator (summary margin rates move a median 2.8pp, p90 12.1pp, 2017→2024).
+and **17.3% over five years / 21.4% over ten** at BEA detail on the benchmark SUT holdout. Carrying on
+a commodity price index moves that by **+4.5% at detail over 2012→2017** but **−5.4% to −12.6% at
+summary over 2022-2024** — it helps in quiet spans and **hurts when relative prices disperse**, because
+a nominal share carried on a price ratio assumes zero substitution. #497 is not wrong, it is small and
+regime-dependent; the plan doc makes θ a fitted exponent rather than an assumed 1, and adds Step 4c's
+**margin-rate movement**, the missing term in a *purchaser*-price deflator (summary margin rates move a
+median 2.8pp, p90 12.1pp, 2017→2024).
+
+✅ **New data, 2026-08-24: `SUPPLY-USE_2026-08-24.zip` carries the detail Supply and Use SUT for 2007,
+2012 and 2017** — three sheets, one 2017 code basis, one frame, purchaser value, before redefinitions.
+That is Step 3's estimand three times over, and it is what the detail numbers above are measured on.
+⚠️ **It has no extractor**; `io_2017` still maps `Use_SUT_detail` to the single-year 2017 workbook.
+Promoting it is worth more than Step 3 alone — a 2007 and 2012 detail SUT in the 2017 frame is a second
+and third observation of the commodity mix (Step 4a), the margin rates (Step 4c) and the FD splits
+(Step 1), all of which are carried from a single benchmark today. It also measures what the summary
+tables hide: **aggregating identical detail data to summary conceals 30% of the structural error.**
+
+⚠️ **The row control's own uncertainty costs this block 3.3%.** `T001 = T016 − Σ_FD Y` is a
+residual, so `MCIF` (Step 4b) and `F04000` (Step 1d) error lands in the interior:
+**488,408 $M**, of which 454,227 is imports and 313,910 exports. It is second-order against the 17.3%
+structural drift, and **extremely concentrated — `S00300` alone is 29%, ten commodities are 57%,
+twenty are 71%.** Measured by [`row_control_exposure.py`](row_control_exposure.py). Two findings worth
+carrying: the five `MCIF` `EXTRA` commodities include **`533000` lessors of intangibles (33,285) and
+`483000` water transportation (28,361), both textbook `S00300` categories** — so 24% of the `S00300`
+gap may be misallocated rather than missing, which changes #606 from sourcing to reallocation; and the
+**aircraft cluster `336411`/`336412`/`336413` is short 100,089 $M of *exports***, not imports.
 
 - **Seed from the actual dollar Use matrix**, not the `A` coefficient matrix. Going `A → U` via
   `U ≈ A @ diag(x)` discards the rounding/negative-clipping baked in when `A` was built.

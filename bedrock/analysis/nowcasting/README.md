@@ -19,6 +19,9 @@ uv run python -m bedrock.analysis.nowcasting.margins_2017_baseline --check
 # how fast a frozen 2017 input structure goes stale, and whether inflation fixes it (Step 3)
 uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 
+# what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
+uv run python -m bedrock.analysis.nowcasting.row_control_exposure
+
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir <report images dir> --no-report
@@ -77,6 +80,11 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   2017 against the summary Use SUT 2018-2024, `--inflation` scores the price-index
   carry against it, `--holdout` runs the out-of-sample 2012 → 2017 detail version,
   `--where` locates the drift by column. Prints only; writes nothing.
+- `row_control_exposure.py` — what `MCIF` and `F04000` error costs the
+  intermediate block. Step 3's commodity row is the residual
+  `T001 = T016 − Σ_FD Y`, so trade error lands in the interior; this scores it per
+  commodity, weighted by how much of the commodity goes to industry rather than to
+  final demand. Prints only; writes nothing.
 - [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
   trade columns (#527): three 2017 probes scoring a Census goods + BEA services
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /

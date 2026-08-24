@@ -14,7 +14,9 @@ method), [#577](https://github.com/cornerstone-data/bedrock/issues/577)
 [`annual_survey_expense_sources.md`](annual_survey_expense_sources.md)).
 
 Everything numbered below is reproduced by
-[`intermediate_structure_drift.py`](intermediate_structure_drift.py).
+[`intermediate_structure_drift.py`](intermediate_structure_drift.py). Its
+benchmark measurements read the **2007 / 2012 / 2017 detail SUT panel** from
+`SUPPLY-USE_2026-08-24.zip`, which has no extractor yet — see §What to build S0a.
 
 ---
 
@@ -92,35 +94,55 @@ of dollars on the wrong commodity** — at summary, where 71 columns hide every
 reallocation happening *inside* a summary industry. The detail number is larger
 by an unknown amount.
 
-⚠️ **This is a floor, and the reason matters.** BEA's annual summary SUT is
-itself an estimate: annual indicators applied over a carried-forward benchmark
-structure. Wherever BEA also froze structure, "frozen" scores well here by
-construction rather than by being right. The measurement below is the
-non-circular one.
+⚠️ **This is a floor twice over.** First, BEA's annual summary SUT is itself an
+estimate — annual indicators applied over a carried-forward benchmark structure —
+so wherever BEA also froze structure, "frozen" scores well here by construction
+rather than by being right. Second, and this one is now measured rather than
+asserted: **aggregating to summary hides 30% of the detail error**
+(§The out-of-sample version). At detail the 2024 figure is nearer **0.146**.
 
-### The out-of-sample version
+### The out-of-sample version, on the estimand itself
 
-`--holdout`. The 2012 benchmark detail Use table carried to 2017 and scored
-against the published 2017 detail table. Both ends are Economic-Census-anchored
-*best-level* estimates, so neither was carried from the other — this is the same
-design as [`mix_holdout_test.py`](mix_holdout_test.py) for Step 4a's commodity
-mix, and it is the only measurement here that is out of sample at detail.
+`--holdout`. **`Use_SUT_Detail.xlsx` inside `SUPPLY-USE_2026-08-24.zip` carries
+2007, 2012 and 2017 as three sheets — all on the 2017 code basis, all in the same
+413 × 424 frame, purchaser value, before redefinitions, BEA detail.** That is
+Step 3's estimand exactly, three times over, so each span is a real benchmark
+holdout rather than an analogue: every year is its own Economic-Census-anchored
+*best-level* estimate, and none is carried from another. Same design as
+[`mix_holdout_test.py`](mix_holdout_test.py) for Step 4a's commodity mix, but
+with a better reference than that test could get.
 
-| variant | dissimilarity | columns improved |
-|---|---:|---:|
-| frozen 2012 structure | **0.195** | — / 402 |
-| + commodity inflation | **0.187** | 230 / 402 |
+| span | detail | aggregated to summary | summary hides | + inflation | best θ |
+|---|---:|---:|---:|---:|---:|
+| 2007 → 2012 | **0.132** | 0.093 | 30% | — | — |
+| 2012 → 2017 | **0.173** | 0.122 | 30% | 0.166 (+4.5%, 229/402 cols) | 1.00 |
+| 2007 → 2017 | **0.214** | 0.142 | 33% | — | — |
 
-**19.5% of every column's dollars land on the wrong detail commodity after five
-years**, against 7-8% at summary over a comparable span. The gap between the two
-is the within-summary reallocation the summary table cannot see, plus the 2012/2017
-benchmark reconstruction difference — the two are not separable here.
+(2007 spans carry no price ratio — `derive_industry_price_index` starts at 2012.)
 
-⚠️ **After redefinitions, producer value.** BEA has moved the 2012 benchmark off
-static download, so the only 2012 detail Use table available is the redefined one
-in `CEDA6IO.xlsx`; it is paired with the 2017 redefined table so both sides sit in
-one space. Step 3's own object is before-redefinitions at purchaser value, so
-this is an analogue of the estimand, not the estimand.
+Three things, and the third is the one that changes how the other measurements
+should be read:
+
+1. **17.3% of every column's dollars land on the wrong detail commodity after
+   five years, 21.4% after ten.** Sub-linear: the second five years add 4.0
+   points on top of the first five years' 13.2. Structure drifts fastest early
+   and then settles, which is mildly good news for a nowcast that reruns off a
+   fresh benchmark every five years and bad news for the tail of the span.
+2. **The 2012→2017 span drifted more than 2007→2012** (0.173 against 0.132)
+   — so 13% per five years is not a constant to plan around.
+3. ⚠️ **Aggregating to summary hides 30% of the error, measured on identical
+   data.** The same 2012→2017 comparison scores 0.173 at detail and 0.122 at
+   summary. So the summary panel above is not just a proxy, it is a *systematically
+   optimistic* one: the 10.2% at 2024 corresponds to roughly **0.146 at detail**
+   if that ratio holds. Every summary number on this page should be read with
+   that multiplier attached.
+
+⚠️ **The benchmark panel has no extractor.** It is a local drop in the
+`USA_AllTablesSUP` cache directory; `io_2017` still maps `Use_SUT_detail` to the
+single-year `Use_SUT_Framework_2017_DET.xlsx`. Promoting it to a year-parameterised,
+GCS-backed loader is a task on its own, and it is worth more than this diagnostic
+— a 2007 and 2012 detail SUT in the same frame as 2017 is a second and third
+observation of *every* structural question in the build, not just Step 3's.
 
 ---
 
@@ -141,9 +163,12 @@ carried on a commodity price index (bedrock's own detail industry PI,
 | 2024 | 0.1019 | 0.1148 | **−12.6%** |
 
 **Inflation helps slightly through 2021 and hurts from 2022 on — worst in the
-years the price level moved most.** The detail holdout agrees on the magnitude
-from the other side: +4.3% over 2012→2017, a span whose median cumulative price
-ratio was 1.047.
+years the price level moved most.** The detail benchmark holdout is the other
+half of the picture: over 2012→2017, a span whose median cumulative price ratio
+was 1.047, it helps by **+4.5%** and the fitted θ comes out at **1.00**. So the
+carry is not broken; it is **regime-dependent**, and the regime is relative-price
+dispersion. In a quiet span full inflation is right and worth about 4%. In
+2022-2024 it is wrong and costs up to 13%.
 
 **The mechanism is substitution, and it is not a bug in the price index.**
 Carrying a *nominal* share vector on a price ratio assumes the physical input
@@ -160,18 +185,19 @@ the relative price dispersion, which is exactly what 2022-2024 supplied.
 2. **The summary reference may be biased toward frozen** (above), which would
    flatter the frozen column. But it flatters the *inflated* column equally at
    2018-2021 and cannot explain a sign flip that tracks the inflation rate.
-3. ✅ **Recommendation: keep the inflation carry, damp it, and stop treating it
-   as the method.** Concretely — apply the price ratio with an exponent
-   `θ ∈ [0, 1]` and fit θ on this same summary panel; θ = 1 is #497 today, θ = 0
-   is a frozen `A`. The panel above says the fitted θ is well below 1 and may be
-   near zero. A one-parameter fit on published data is a day of work and is the
-   difference between a defensible carry and an assumed one.
+3. ✅ **Recommendation: keep the inflation carry, make θ a fitted parameter
+   rather than an assumed 1, and stop treating the carry as the method.** Apply
+   the price ratio as `ratio ** θ`; θ = 1 is #497 today, θ = 0 is a frozen `A`.
+   The two panels disagree about the value — detail 2012→2017 fits θ = 1.00,
+   summary 2022-2024 wants θ well below it — and that disagreement **is** the
+   finding: θ should be a function of relative-price dispersion in the span, not
+   a constant. Fitting it needs both panels, and the detail one only became
+   available with the benchmark SUT drop.
 
-⚠️ **What is measured here is a summary-level proxy for a detail method, on a
-commodity axis built by output-weighting an industry PI.** A true purchaser-price
-commodity index is a different object (§Margins). Redo the fit at detail once
-Step 4c's margin rates are in — the sign of the 2022-2024 result is robust, the
-size of θ is not.
+⚠️ **The commodity axis here is an output-weighted industry PI, not a true
+purchaser-price commodity index** — a different object, and the missing piece is
+the margin-rate term (§Margins). The sign of the 2022-2024 result is robust; the
+size of θ will move once that term is in.
 
 ---
 
@@ -195,6 +221,35 @@ size of θ is not.
 Highest *rates*, among columns above $50B: `22` Utilities **0.224**, `81` Other
 services 0.193, `GFGD` 0.192, `GFGN` 0.179, `493` Warehousing 0.159.
 
+### The same picture at detail
+
+The detail ranking is not the summary ranking, because summary hides 30% of the
+error and hides it unevenly. `--where` also prints the 2012→2017 benchmark span
+at BEA detail:
+
+| industry | dissimilarity | column $M | misplaced $M |
+|---|---:|---:|---:|
+| `531ORE` Other real estate | 0.188 | 747,586 | **140,555** |
+| `S00500` Federal general government (defense) | **0.383** | 218,672 | 83,851 |
+| `622000` Hospitals | 0.225 | 360,026 | 81,132 |
+| `GSLGO` State and local government (other services) | 0.221 | 356,483 | 78,926 |
+| `484000` Truck transportation | **0.280** | 189,186 | 52,939 |
+| `52A000` Monetary authorities and depository credit | 0.205 | 218,869 | 44,847 |
+| `550000` Management of companies | 0.219 | 198,487 | 43,417 |
+| `424200` Drugs and druggists' sundries | **0.371** | 107,524 | 39,931 |
+| `221100` Electric power generation | **0.297** | 130,972 | 38,955 |
+| `561300` Employment services | 0.280 | 137,423 | 38,479 |
+| `324110` Petroleum refineries | 0.094 | 397,451 | 37,251 |
+| `S00600` Federal general government (nondefense) | **0.308** | 108,824 | 33,538 |
+
+**`S00500` federal defense is the worst-drifting large column in the table at
+0.383 — 38% of its dollars on the wrong commodity after five years**, with
+`S00600` at 0.308 right behind it and the three `GSLG*` columns between 0.164 and
+0.221. The government block is not a quiet corner of this table; it is the
+noisiest part of it.
+
+`531ORE` tops both rankings, at both levels, in both eras.
+
 And on the row axis — each commodity's share of all intermediate use,
 2017 → 2024, in percentage points:
 
@@ -213,16 +268,129 @@ which is the substitution story of §Inflation stated on the row axis.
 
 Three things follow for sourcing:
 
-- **The three government columns are among the worst-drifting in the table**
-  (`GFGD` 0.192, `GFGN` 0.179, `GSLG` 0.127, together 258 $B misplaced). #578's
-  premise — *government needs a column total, not a mix, because `G*` is not
-  commodity-specific* — is what the data contradicts. A total is what those
-  columns least need.
+- **The government columns are the worst-drifting in the table**, and at detail
+  it is stark: `S00500` **0.383**, `S00600` **0.308**, `GSLGO` 0.221, `GSLGE`
+  0.164 — 230 $B misplaced across the block over one five-year span, and 258 $B
+  at summary by 2024. #578's premise — *government needs a column total, not a
+  mix, because `G*` is not commodity-specific* — is what the data contradicts. A
+  total is what those columns least need.
 - **Agriculture is not in this list at all.** `111CA` carries little of the drift.
   #577 remains correct and cheap but is a small prize; it should not be first.
 - **`ORE`, `42`, `23`, `5412OP`, `81` and `722` are where the dollars are**, and
   none of them has an annual expense source (§Reconciling below). This is the
   honest shape of the problem.
+
+---
+
+## The row control — what the trade estimates cost this block
+
+The commodity row is not estimated, it is a residual: `T001[c] = T016[c] − Σ_FD Y[c]`,
+imposed hard by Step 5. So error in the two least settled terms of that identity
+lands in the intermediate block. Those terms are **`MCIF`** (imports, Step 4b) and
+**`F04000`** (exports, Step 1d) — commodity output that leaves the country and so is
+not available for domestic industry use. Both come from the same trade extract and
+both still show `PARTIAL` / `MISS` / `EXTRA` cells against 2017.
+
+Measured by [`row_control_exposure.py`](row_control_exposure.py). Per commodity,
+`dT001 = err_MCIF − err_F04000`, weighted by how much of that commodity actually
+goes to industry (`ι = T001/T019`), because an error on a commodity that is 95%
+final demand mostly lands in final demand.
+
+| | $M | % of intermediate |
+|---|---:|---:|
+| net error in the row control | −93,889 | −0.6% |
+| gross error, Σ\|dT001\| | 1,164,084 | 7.8% |
+| **landing in the intermediate block** | **488,408** | **3.3%** |
+|  attributable to `MCIF` | 454,227 | 3.1% |
+|  attributable to `F04000` | 313,910 | 2.1% |
+
+**Three readings:**
+
+1. **It is real but second-order.** 3.3% against the 17.3% of structural drift over
+   five years (§The out-of-sample version). Worth fixing, not worth reordering the
+   step around — and the *net* is only −0.6%, so this is misallocation across
+   commodities rather than a level problem.
+2. **Exports are two-thirds the size of imports here.** `F04000` contributes 313,910
+   against `MCIF`'s 454,227. The user's instinct is right: the export column belongs
+   in this accounting, and it is not a rounding term.
+3. ✅ **It is extremely concentrated — one commodity is 29%, ten are 57%, twenty are
+   71%.** This is a short list, not a research programme.
+
+### The list
+
+| commodity | ι | `MCIF` ref | `MCIF` err | | `F04000` ref | `F04000` err | | exposure $M |
+|---|---:|---:|---:|---|---:|---:|---|---:|
+| `S00300` Noncomparable imports | 0.55 | 260,421 | **−260,421** | miss | 0 | 0 | absent | **142,489** |
+| `334418` Printed circuit assembly | 0.83 | 757 | **+19,833** | partial | 2,839 | −2,221 | partial | 18,309 |
+| `52A000` Monetary authorities, depository credit | 0.58 | 6,646 | **+30,983** | partial | 30,778 | −35 | match | 18,076 |
+| `325414` Biological products | 0.79 | 51,322 | −25,007 | partial | 22,574 | −2,327 | partial | 17,806 |
+| `533000` Lessors of nonfinancial intangibles | 0.54 | **0** | **+33,285** | **extra** | 73,049 | +2,476 | partial | 16,588 |
+| `336412` Aircraft engines and parts | 0.38 | 13,535 | +7,842 | partial | 35,982 | **−33,265** | partial | 15,571 |
+| `334118` Computer terminals | 0.40 | 37,618 | −14,968 | partial | 6,060 | +21,063 | partial | 14,367 |
+| `54151A` Other computer related services | 0.88 | 7,562 | +12,871 | partial | 8,269 | −1,595 | partial | 12,704 |
+| `336411` Aircraft manufacturing | 0.23 | 8,839 | +4,943 | partial | 52,720 | **−50,141** | partial | 12,447 |
+| `336413` Other aircraft parts | 0.62 | 14,753 | +1,720 | partial | 22,154 | −16,683 | partial | 11,377 |
+| `331410` Nonferrous metal smelting | 0.87 | 18,967 | +11,807 | partial | 4,683 | +21,043 | partial | 8,062 |
+| `492000` Couriers and messengers | 0.85 | 44 | −44 | miss | 9,411 | **−9,411** | **miss** | 8,008 |
+| `336390` Other motor vehicle parts | 0.68 | 35,891 | +1,002 | partial | 27,336 | −10,127 | partial | 7,620 |
+| `325411` Medicinal and botanical | 0.98 | 93 | **+9,841** | partial | 78 | +2,149 | partial | 7,512 |
+| `541300` Architectural and engineering | 0.81 | 14,609 | −8,505 | partial | 33,253 | −18,298 | partial | 7,362 |
+| `325910` Printing ink | 0.80 | 160 | **+8,642** | partial | 953 | +249 | partial | 6,951 |
+
+Two more worth naming for their *rate* rather than their size: `334610` magnetic
+media — error 217% of total use — and `325910` printing ink at 146%. Both are small
+commodities where the trade extract is producing several times the published import
+level.
+
+⚠️ **`336111` / `336112` automobiles and light trucks look catastrophic on a raw
+error basis (−90 and +88 billion) and are excluded here on purpose**: their `ι` is
+essentially zero — `T001` is 14 and 1 $M — so the error lands in PCE and investment,
+not in this block. It is a large problem for Step 1, and not this step's problem.
+
+### The `EXTRA` list is a lead on `S00300`, not a separate bug
+
+Five commodities carry `MCIF` where BEA publishes **zero**, 64,548 $M in all. The
+top two are the interesting ones:
+
+| commodity | our `MCIF` | BEA |
+|---|---:|---:|
+| `533000` Lessors of nonfinancial intangible assets | 33,285 | **0** |
+| `483000` Water transportation | 28,361 | **0** |
+
+✅ **Both are textbook `S00300`.** [#606](https://github.com/cornerstone-data/bedrock/issues/606)
+defines noncomparable imports as *services produced and consumed abroad* (its own
+example: airport expenditures by U.S. airlines in foreign countries) and *payments
+for the rights to patents, copyrights, or industrial processes*. Licensing of
+intangibles is the second category verbatim; foreign port and vessel services are the
+first. So **61,646 $M of the `S00300` gap is plausibly not missing at all — it is
+sitting on named service commodities in our extract**, and #606 is partly a
+*reallocation* problem rather than a sourcing one. That is a cheap thing to test and
+it accounts for 24% of `S00300`.
+
+The other three extras are small and look like ordinary concordance noise: `425000`
+wholesale electronic markets 2,234, `339116` dental laboratories 522, `33211A`
+forging and stamping 146.
+
+### What this changes
+
+- **[#606](https://github.com/cornerstone-data/bedrock/issues/606) is the single
+  highest-value item in this area** — 29% of the exposure on its own — and the
+  `EXTRA` lead above says where to start.
+- **The aircraft cluster is an exports problem, not an imports one.** `336411` /
+  `336412` / `336413` are short 100,089 $M of exports between them, 39,395 of
+  exposure. One concordance, three commodities.
+- **`52A000` is the largest pure-imports error**: +30,983 on a published 6,646, a
+  5.7× overstatement of financial service imports. ⚠️ Worth checking against the
+  unapplied ITA goods-and-services scale
+  ([#647](https://github.com/cornerstone-data/bedrock/issues/647)) before treating it
+  as a concordance fault.
+- **`492000` couriers is `MISS` on both sides** — we produce neither its imports nor
+  its 9,411 $M of exports. A commodity absent from both halves of the trade extract
+  is a mapping gap, not an estimate.
+
+⚠️ **This is 2017, where the answer is published.** It grades the *estimates*, not
+the nowcast years. But the extract is the same extract, so a commodity that misses
+here is a commodity to distrust in 2018-2025 — with no published table to catch it.
 
 ---
 
@@ -386,7 +554,16 @@ holding 2017 for eight years. #564 flagged it as a "consolation prize"; on the
 
 ## What to build, in order
 
-**S0. Declare the section before the candidate exists.** `use_intermediate_detail_sut`
+**S0a. Give the benchmark detail SUT panel an extractor.** `Use_SUT_Detail.xlsx`
+and `Supply_Detail.xlsx` in `SUPPLY-USE_2026-08-24.zip` carry **2007, 2012 and
+2017 on one code basis in one frame**. Today they are a local drop that only this
+diagnostic reads. A year-parameterised, GCS-backed loader beside
+`_load_2017_detail_supply_use_usa` turns them into a second and third observation
+of *every* structural question in the build — Step 3's input mix, Step 4a's
+commodity mix, the margin rates, the FD splits — not just this one. **Cheapest
+high-leverage item on the page**, and everything measured above depends on it.
+
+**S0b. Declare the section before the candidate exists.** `use_intermediate_detail_sut`
 in [`sections.py`](sections.py) — 402 × 402, reference `_use_sut_detail()` interior,
 `candidate=None`. This is the pattern `use_va_detail_sut` was declared under: the
 reference, the frame and the tolerance are arguments about economics and can be
