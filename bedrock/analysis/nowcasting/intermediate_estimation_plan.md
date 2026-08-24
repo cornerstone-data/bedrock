@@ -392,7 +392,7 @@ All four are now [#701](https://github.com/cornerstone-data/bedrock/issues/701),
 
 ⚠️ **This is 2017, where the answer is published.** It grades the *estimates*, not
 the nowcast years. But the extract is the same extract, so a commodity that misses
-here is a commodity to distrust in 2018-2025 — with no published table to catch it.
+here is a commodity to distrust in 2018-2023 — with no published table to catch it.
 
 ---
 
@@ -524,7 +524,7 @@ thing *for a Step 3 that owned its column totals*. Step 3 does not.
 
 **The 2022 Economic Census materials breakout is now the top external candidate.**
 It is the only source that speaks to manufacturing's undifferentiated 82%, it is
-a genuine second structural observation between 2017 and 2025, and interpolating
+a genuine second structural observation inside the estimation span, and interpolating
 2017→2022 structure and extrapolating past it is a strictly better carry than
 holding 2017 for eight years. #564 flagged it as a "consolation prize"; on the
 §Finding above it is the main prize.
@@ -629,8 +629,8 @@ few establishments, so it over-represents larger, more diversified industries.
 
 **What survives:** the materials mix moves **0.133 over five years** on
 `MATFUEL` codes, and **133 of 193 clean industries move more than 10 points**.
-Freezing it from 2017 to 2025 discards a reallocation of that size, and this
-source observes it. That is the argument.
+Freezing it across the estimation span discards a reallocation of that size,
+and this source observes it. That is the argument.
 
 ⚠️ **But do not compare 0.133 against the column's 0.173 — they are different
 frames.** 0.173 is a *BEA detail commodity* score and 0.133 is a `MATFUEL`-code
@@ -777,7 +777,7 @@ treatment.
 #### 4. ❌ Linear interpolation — tested, and rejected
 
 The plan called linear interpolation "the obvious first form". It is obvious and
-it is wrong, and the way to see that is to stop treating 2018-2025 as unobserved.
+it is wrong, and the way to see that is to stop treating 2018-2023 as unobserved.
 **Manufacturing's materials bill is published every year the census misses** —
 ASM through 2021, AIES from 2023 — and two new extractors now pull it:
 `Census_ASM_Expenses` and `Census_AIES_Expenses`.
@@ -799,9 +799,10 @@ two points five years apart cannot bend around a pandemic.
 6.8% into 2023; the line says it rose 5.0%. That is the span the nowcast leans
 on hardest and the span the straight line fails worst.
 
-⚠️ **2024 and 2025 are unobserved.** ASM ends at 2021, AIES 2024 is unpublished,
-the census is quinquennial. The two years the nowcast most needs have nothing
-behind them, so the form fitted on 2018-2023 is all there is to extrapolate on.
+⚠️ **The observed panel ends at 2023.** ASM ends at 2021, the census is
+quinquennial, and AIES 2024 still returns `204 No Content`. So the form is
+fitted and scored on 2017-2023 and the span stops there — extending it to 2024
+is [#707](https://github.com/cornerstone-data/bedrock/issues/707), and 2025 is out of scope.
 
 ✅ **What the annual surveys buy is the level and the coarse partition** —
 materials, fuels, electricity, contract work, resales, and nine to twelve named
@@ -935,9 +936,12 @@ What is left of [#698](https://github.com/cornerstone-data/bedrock/issues/698) i
   because #497 already carries a commodity price index and the observed level
   path is dominated by price (2020 collapse, 2022 spike). Fit it on the one span
   that can be scored — 2017 → 2022 on the census mix — rather than assuming it,
-  which is the same move §S2's θ makes on the summary panel;
-- ⚠️ **and 2024-2025 have no observation at all**, so whatever form is fitted is
-  extrapolated there. That is the risk to state, not to solve.
+  which is the same move §S2's θ makes on the summary panel.
+
+⚠️ **The estimation span ends at 2023, which is the last year observed.**
+Extending it to 2024 is [#707](https://github.com/cornerstone-data/bedrock/issues/707) and is Phase 2 work tied to producing a
+2024 table; **2025 is out of scope**. So the form is fitted and scored on
+observed years only, and nothing here extrapolates past the data.
 
 **S3b. The named non-materials cells** — ✅ **built.** It was expected to be the
 cheap half of S3, and it was, but not for the reason given: the work turned out
@@ -1026,9 +1030,9 @@ absence rather than an economy that stopped buying them. They are held at the
 2022 census and the year is marked `held`, rather than seeded as a collapse to
 zero.
 
-⚠️ **2024 and 2025 are unobserved here too**, so `nonmaterial_seed()` raises for
-them rather than quietly extrapolating. Choosing that extrapolation is what is
-left of S3b, and it is the same open question as S3's.
+✅ **The observed span runs 2017-2023 and the seed covers all of it**, so S3b
+needs no extrapolation. `nonmaterial_seed()` raises for any later year rather
+than inventing one; extending it is [#707](https://github.com/cornerstone-data/bedrock/issues/707).
 
 **S4. `--where`-driven sourcing for the top drifters** ([#705](https://github.com/cornerstone-data/bedrock/issues/705)). `ORE`, `GSLG`/`GFGD`,
 `42`, `5412OP`, `81`. Currently unsourced and, on the evidence above, worth more

@@ -35,8 +35,9 @@ bib_id: Census_AIES_Expenses
 # ⚠️ **2023 is the only year that answers.** 2022 predates the consolidated
 # survey and 2024 is not published yet; both return `204 No Content`. The annual
 # materials panel is therefore census 2017, ASM 2018-2021, census 2022, AIES
-# 2023 - and **2024-2025 unobserved**, which is precisely the end of the nowcast
-# span.
+# 2023, and the estimation span ends there. Adding 2024 once it publishes is
+# cornerstone-data/bedrock#707, Phase 2 work tied to a 2024 table; 2025 is out
+# of scope.
 #
 # ⚠️ **Every NAICS level is kept**, including the `31-33` rollup, which is five
 # characters and survives a `len == 5` filter. Match `^\d+$` first, then filter

@@ -258,8 +258,8 @@ def census_aies_expenses_parse(
     ⚠️ **2023 is the only year.**  2022 predates the consolidated survey and
     2024 is not published; both return ``204 No Content``.  So the annual
     materials panel is census 2017, ASM 2018-2021, census 2022, AIES 2023, and
-    **2024-2025 are unobserved** -- which is exactly the span the nowcast has to
-    reach and cannot source.
+    the estimation span ends there.  Adding 2024 once it publishes is #707,
+    Phase 2 work tied to a 2024 table; 2025 is out of scope.
 
     ⚠️ **Every NAICS level is kept**, including the ``31-33`` rollup, on the same
     reasoning as :func:`~Census_ASM.asm_expenses_parse`: the parents are the only

@@ -163,9 +163,10 @@ pandemic.
 is the span the nowcast leans on hardest, and it is the span the straight line
 fails worst.
 
-⚠️ **2024 and 2025 are unobserved** (:func:`unobserved_years`).  ASM ends at
-2021, AIES 2024 is unpublished, and the census is quinquennial, so the last two
-years of the nowcast have nothing behind them at all.
+⚠️ **The observed span ends at 2023** (:func:`unobserved_years`).  ASM ends at
+2021, the census is quinquennial, and AIES 2024 still returns ``204 No Content``.
+So the form is fitted and scored on observed years only; extending the span to
+2024 is #707 and is Phase 2 work, and **2025 is out of scope**.
 
 ✅ **What the annual surveys buy is the level and the coarse partition** --
 materials, fuels, electricity, contract work, resales and ten to thirteen named
@@ -966,8 +967,8 @@ AIES_MATFUEL_SCOPE = ('EXPS_MAT_DVAL', 'EXPS_FUEL_VAL')
 
 #: The annual surveys that observe manufacturing's materials bill between and
 #: after the two censuses, and the years each answers for.  ASM stops at 2021,
-#: AIES replaced it from 2023, and **nothing covers 2022 (it is the census),
-#: 2024 or 2025** -- so the end of the nowcast span is unobserved.
+#: AIES replaced it from 2023, and **nothing covers 2022** (it is the census).
+#: The observed span therefore ends at 2023; extending it is #707.
 ANNUAL_SOURCES = {
     'Census_ASM_Expenses': (2018, 2019, 2020, 2021),
     'Census_AIES_Expenses': (2023,),
@@ -1062,8 +1063,8 @@ def annual_path(kinds: tuple[str, ...] = ASM_MATFUEL_SCOPE) -> pd.DataFrame:
     for year in range(VINTAGES[0], max(observed_years) + 1):
         fraction = (year - VINTAGES[0]) / (VINTAGES[1] - VINTAGES[0])
         # Past 2022 the same straight line is an extrapolation rather than an
-        # interpolation, which is the weaker claim of the two and the one the
-        # nowcast actually leans on for 2023-2025.
+        # interpolation, which is the weaker claim of the two and the one 2023
+        # tests.
         linear = early + (late - early) * fraction
         if year in VINTAGES:
             observed = early if year == VINTAGES[0] else late
@@ -1094,13 +1095,14 @@ def annual_path(kinds: tuple[str, ...] = ASM_MATFUEL_SCOPE) -> pd.DataFrame:
 
 
 def unobserved_years() -> tuple[int, ...]:
-    """Years of the nowcast span with no observation of the materials bill.
+    """Years in 2018-2025 with no observation of the materials bill.
 
-    ⚠️ **2024 and 2025.**  ASM ends at 2021, AIES 2024 is not published, and the
-    census is quinquennial -- so the two years the nowcast most needs are the two
-    with nothing behind them.  Whatever form the path takes, it is an
-    extrapolation there, and :func:`annual_path` shows what extrapolating a
-    straight line costs on the years that *can* be checked.
+    ⚠️ **2024 and 2025**, and both are **outside the current estimation span**
+    rather than gaps in it.  ASM ends at 2021, AIES 2024 is not published, and
+    the census is quinquennial, so the observed panel runs 2017-2023 and the
+    estimate stops there.  Extending it to 2024 is #707 and is Phase 2 work;
+    2025 is out of scope.  This reports the fact so a caller can assert on it --
+    :func:`nonmaterial_seed` raises rather than extrapolating.
     """
     observed = {year for years in ANNUAL_SOURCES.values() for year in years}
     observed |= set(VINTAGES)
@@ -1157,7 +1159,7 @@ def annual_partition() -> pd.DataFrame:
 #: The four sources that observe manufacturing's non-materials expense cells,
 #: and the years each answers for.  ``Census_EC_Expenses`` supplies **2017**,
 #: which is what makes an index possible: it is the base year the benchmark Use
-#: table is built on.  ⚠️ **2024 and 2025 are unobserved**, exactly as for the
+#: table is built on.  ⚠️ **The observed span ends at 2023**, exactly as for the
 #: materials bill -- see :func:`unobserved_years`.
 EXPENSE_SOURCES = {
     'Census_EC_Expenses': (2017, 2022),
@@ -1377,9 +1379,9 @@ def nonmaterial_seed(year: int) -> pd.DataFrame:
     than being dropped or zeroed -- a missing denominator is an absence of
     information about movement, which is what holding the benchmark means.
 
-    ⚠️ **2024 and 2025 have no observation** (:func:`unobserved_years`), so this
-    raises for them rather than quietly extrapolating.  Choosing that
-    extrapolation is the open part of S3b.
+    ⚠️ **The observed span ends at 2023** (:func:`unobserved_years`), so this
+    raises for any later year rather than inventing one.  Extending it to 2024
+    is #707; 2025 is out of scope.
     """
     observed = {y for years in EXPENSE_SOURCES.values() for y in years}
     if year not in observed:
