@@ -1521,7 +1521,7 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   needs a decision — proportional to each industry's domestic production of that commodity is the
   obvious default. Validate against `load_2017_V_before_redef_usa()` by running the conversion on the
   **2017 SUT** and checking it reproduces the published 2017 before-redef Make.
-- 6b. **Use table, producer price** — for each purchaser-valued cell, replace it with the 4c Margins
+- 6b. **Use table, producer price** ([#697](https://github.com/cornerstone-data/bedrock/issues/697)) — for each purchaser-valued cell, replace it with the 4c Margins
   table's `Producers' Value` for that same `(buyer, commodity)` pair, and add the stripped
   Transportation/Wholesale/Retail amounts to the margin-supplying commodity rows *within the same
   buyer's column*. The per-cell join is the whole reason 4c is built at transaction level — a

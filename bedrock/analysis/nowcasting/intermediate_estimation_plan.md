@@ -442,8 +442,9 @@ wholesale / retail / transport amounts onto the margin-supplying commodity rows
 *within the same buyer's column*. The allocator across buyers is each buyer's
 purchases of the margined commodities — which is this block. So:
 
-**Step 3 is an input to that conversion, not the place it happens.** The plan's
-§Step 6b already specifies it at transaction level off the 4c Margins dataset.
+**Step 3 is an input to that conversion, not the place it happens.**
+[#697](https://github.com/cornerstone-data/bedrock/issues/697) owns it, at
+transaction level off the 4c Margins dataset.
 What is worth adding there is the check the redistribution makes available:
 after 6b, the margin commodity rows of the producer-priced Use table plus their
 final-demand cells must recover the Supply `TRADE`/`TRANS` columns per commodity,
@@ -592,5 +593,5 @@ it is a build task.
 scrutiny, **government finances (#578, rescoped)**.
 
 Not in this step: `S00300` (#606, shared with Step 1), the margins redistribution
-(Step 6b), the government-enterprise reallocation (Step 7), and the balance
+(Step 6b, #697), the government-enterprise reallocation (Step 7), and the balance
 itself (Step 5, #588).
