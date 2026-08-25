@@ -8,47 +8,62 @@ that, and ❌ **it does not survive** -- for four separate, measurable reasons.
 ⚠️ **The most important one is the weighting.**  Every ranking in the plan --
 which columns drift, which sources are worth building, what "a small prize"
 means -- is **dollar-weighted**.  Cornerstone is an EEIO model, so the quantity
-that matters is **kg CO2e**, and :func:`impact_intensity` reads it directly from
-the shipped model: the v0.3 ``B_USA_non_finetuned`` snapshot, characterised to
-CO2e.  Re-weighting the same table on that basis inverts the priority order.
+that matters is **kg CO2e**, and :func:`impact_intensity` reads it from the
+shipped model.  Re-weighting the same table on that basis inverts the priority
+order.
+
+⚠️ **The weighting is ``N``, not ``D``** (Wes, 2026-08-25) -- total kg CO2e per
+dollar, direct *plus indirect*, per :func:`total_impact_intensity`.  A Use cell
+is an entry in ``A``, so an error in it propagates through the entire Leontief
+inverse; what a row is worth getting right is its **total** embodied emissions.
+⚠️ **Every number below moved when this changed**, some by a lot -- see
+:func:`total_impact_intensity` for the before/after.
 
 ⚠️ 1. The dollar ranking and the impact ranking are different rankings
 -----------------------------------------------------------------------
 
 :func:`impact_by_row_group`, on the 2017 detail intermediate block:
 
-======================  ===========  ==========  ==========
-commodity rows           dollars $B   dollar %    **impact %**
-======================  ===========  ==========  ==========
-manufacturing 31-33          4,699       31.6%      28.0%
-**utilities 22**               350       **2.4%**   **26.1%**
-**agriculture 111/112**        413       **2.8%**   **23.3%**
-mining 21                      510        3.4%      11.5%
-*all other* (services)       8,260       55.6%       **7.2%**
-transportation 48-49           624        4.2%       3.8%
-======================  ===========  ==========  ==========
+===========================  ===========  ==========  ==========  ==========
+commodity rows                dollars $B   dollar %    **N %**     (``D`` %)
+===========================  ===========  ==========  ==========  ==========
+**manufacturing 31-33**          4,699       31.6%     **44.7%**     28.0%
+**agriculture 111/112**            413       **2.8%**  **16.4%**     23.3%
+*all other* (mostly services)    8,260       55.6%     **14.3%**      7.2%
+utilities 22                       350        2.4%      13.7%        26.1%
+mining 21                          510        3.4%       8.0%        11.5%
+transportation 48-49               624        4.2%       2.9%         3.8%
+===========================  ===========  ==========  ==========  ==========
 
-❌ **Utilities and agriculture are 5.2% of intermediate dollars and 49.4% of
-direct impact.**  ❌ **"All other" -- 55.6% of the dollars, and every column
-§S4 agonised over -- is 7.2%.**  ``ORE``, ``42``, ``5412OP``, ``81``, ``23``,
-``722``, ``622`` and ``4A0`` are the plan's drifter list; collectively they sit
-inside that 7.2%.
+⚠️ **``D`` and ``N`` are different rankings, and ``N`` is the right one.**
+Manufacturing nearly doubles, because a manufactured good carries a long
+upstream chain; utilities halves, because electricity's emissions are almost
+all *direct* and ``D`` therefore flatters it.
 
-:func:`priority_rows` is the ordering to source against.  It is brutally
-concentrated: ⚠️ **the top 10 commodity rows carry 65.3% of the block's direct
-impact and the top 25 carry 85.1%**, led by ``221100`` electricity at **25.2%
-on its own**, ``211000`` oil and gas 8.5%, ``1111B0`` grains 6.8%, ``1121A0``
-cattle 6.3%, ``112120`` dairy 4.0%.
+❌ **The dollar ranking is still wrong either way.**  Agriculture is 2.8% of
+intermediate dollars and **16.4%** of total impact.  ⚠️ **But "all other" --
+55.6% of the dollars, and every column §S4 agonised over -- is 14.3% on ``N``,
+double its 7.2% on ``D``.**  The services block is worth about twice what the
+direct weighting said.
+
+:func:`priority_rows` is the ordering to source against.  ⚠️ **It is less
+concentrated on ``N``**: the top 10 rows carry **48.5%** of total impact and the
+top 25 carry **65.6%** (against 65.3% and 85.1% on ``D``), led by ``221100``
+electricity at **13.0%**, ``211000`` oil and gas 6.1%, ``1121A0`` cattle 5.4%,
+``324110`` petroleum 5.3%, ``1111B0`` grains 4.2%, ``531ORE`` real estate 4.0%.
 
 ✅ **Two consequences for what to build next, and neither is what the plan says.**
 
 * ⚠️ **Agriculture (#577) is not "a small prize".**  The plan set it aside
-  because ``111CA`` barely drifts and carries few dollars.  On impact it is
-  **23.3% of the block**, ERS FIWS is 89-91% commodity-mappable, annual, runs to
-  2025 and is *already wired into bedrock*.  Re-read that verdict.
-* ✅ **Purchased electricity in the service columns is the single highest-value
-  cell in this step**, because one row is a quarter of the block's impact and
-  SAS and AIES both observe it annually, per industry.
+  because ``111CA`` barely drifts and carries few dollars.  On ``N`` its rows
+  are **16.4% of the block**, and the 13 agriculture *columns* -- what farms
+  buy -- are 1.8% of dollars and **6.9% of impact**, a 3.8x ratio.  ERS FIWS is
+  89-91% commodity-mappable, annual and runs to 2025.  Re-read that verdict.
+  ⚠️ **Do not conflate the two**: a seed on the agriculture *column* moves the
+  6.9%, not the 16.4%.
+* ✅ **Purchased electricity in the service columns is still the single
+  highest-value cell**, at 13.0% of total impact on one row, observed annually
+  per industry by both SAS and AIES.
 
 ⚠️ 2. The AIES finding was an artefact of the wrong endpoint
 -------------------------------------------------------------
@@ -83,18 +98,19 @@ $6,269B, 42.2% of the intermediate block**.  The plan's built service seed
 
 =====================================  ======
 dollar-weighted reach (§S4's metric)    41.4%
-**impact-weighted reach**               **63.8%**
+**impact-weighted reach** (``N``)       **51.4%**
 =====================================  ======
 
 The per-column gaps are larger still: ``481000`` air transport reaches 53.8% of
-dollars and **95.6% of impact**; ``721000`` accommodation 25.5% and **81.8%**;
-``483000`` water transport 40.1% and **87.9%**.  ⚠️ SAS names few of the dollars
-in those columns and nearly all of what matters in them.
+dollars and **88.9% of impact**; ``483000`` water transport 40.1% and **71.1%**;
+``531ORE`` 45.7% and **63.0%**; ``721000`` accommodation 25.5% and **51.5%**.
+⚠️ SAS names few of the dollars in those columns and much more of what matters
+in them.
 
-⚠️ Those 97 columns hold 22.7% of the block's direct impact, of which SAS names
-14.5 points.  **Meaningful, and not dominant** -- the rest is agriculture,
-mining and manufacturing, which is exactly why the bullet above says to re-read
-#577.
+⚠️ Those 97 columns hold **25.1%** of the block's total impact, of which SAS
+names **12.9** points.  **Meaningful, and not dominant** -- the rest is
+agriculture, mining and manufacturing, which is exactly why the bullet above
+says to re-read #577.
 
 ⚠️ 4. The benchmark seam is not the blocker it was taken for
 -------------------------------------------------------------
@@ -221,17 +237,81 @@ AIES_DETAIL_ENDPOINT = 'timeseries/aies/exp02'
 
 
 @functools.cache
-def impact_intensity() -> pd.Series:
-    """kg CO2e per dollar by BEA detail commodity, from the v0.3 ``B`` matrix.
+def direct_impact_intensity() -> pd.Series:
+    """``D``: **direct** kg CO2e per dollar, characterised from the v0.3 ``B``.
 
-    ⚠️ **This is the weighting the plan's rankings are missing.**  ``B`` is 7
-    greenhouse gases x 400 sectors; characterising it to a single CO2e row is
-    what makes it a priority ordering.
+    ⚠️ **Not the right weighting for prioritising this step** -- see
+    :func:`total_impact_intensity`.  Kept because the direct/total split is
+    what makes that argument legible.
     """
     matrix = load_configured_snapshot(B_SNAPSHOT)
     intensity = (build_ghg_characterization_matrix(list(matrix.index)) @ matrix).iloc[0]
     intensity.index = intensity.index.astype(str)
     return intensity
+
+
+@functools.cache
+def total_impact_intensity() -> pd.Series:
+    """``N``: **direct plus indirect** kg CO2e per dollar -- ``C B L``.
+
+    ✅ **This is the weighting to prioritise on** (Wes, 2026-08-25).  A cell in
+    the Use table is an entry in ``A``, so an error in it propagates through the
+    whole Leontief inverse.  What getting a commodity row right is *worth* is
+    therefore the total emissions embodied in a dollar of it, not the direct
+    slice -- and some rows are almost entirely indirect.
+
+    ⚠️ **The ranking moves a long way**, on the 2017 block's own dollars:
+
+    ==================  =========  ========  ========
+    commodity rows       dollars     ``D``     ``N``
+    ==================  =========  ========  ========
+    ``31G`` mfg             31.6%     28.0%   **44.7%**
+    ``11`` agriculture       3.3%     23.7%   **16.8%**
+    ``22`` utilities         2.4%     26.1%   **13.7%**
+    ``21`` mining            3.4%     11.5%     8.0%
+    ``FIRE``                20.0%      1.9%     5.2%
+    ``PROF``                21.1%      3.4%     4.9%
+    ==================  =========  ========  ========
+
+    ⚠️ **Manufacturing nearly doubles and utilities halves.**  Electricity is
+    mostly *direct*, so ``D`` flatters it; a manufactured good carries a long
+    upstream chain that only ``N`` counts.  Individual rows move harder still --
+    ``31161A`` meat processing goes **0.10% -> 2.61%**, a 26x change, because
+    all of it is upstream livestock, and ``531ORE`` goes 1.48% -> 3.97%.
+
+    ⚠️ **``L`` matches the model's own**, ``(I - (Adom + Aimp))^-1``, the same
+    inverse ``cornerstone_disagg_pipeline`` builds ``N`` from.  Using ``Adom``
+    alone would understate every row with an imported input.
+    """
+    from bedrock.utils.math.formulas import (  # noqa: PLC0415
+        compute_L_matrix,
+        compute_M_matrix,
+    )
+
+    matrix = load_configured_snapshot(B_SNAPSHOT)
+    leontief = compute_L_matrix(
+        A=load_configured_snapshot('Adom_USA') + load_configured_snapshot('Aimp_USA')
+    )
+    direct = build_ghg_characterization_matrix(list(matrix.index)) @ matrix
+    direct = direct.reindex(columns=leontief.index).fillna(0.0)
+    intensity = compute_M_matrix(B=direct, L=leontief).iloc[0]
+    intensity.index = intensity.index.astype(str)
+    return intensity
+
+
+def impact_intensity(kind: str = 'total') -> pd.Series:
+    """The impact weighting, ``'total'`` (``N``, the default) or ``'direct'``.
+
+    ⚠️ **The default changed on 2026-08-25**, from ``D`` to ``N``.  Every
+    ranking taken before that -- including the table #717 re-sorted the plan on
+    -- is a ``D`` ranking and understates any row whose emissions are mostly
+    upstream.
+    """
+    if kind == 'direct':
+        return direct_impact_intensity()
+    if kind == 'total':
+        return total_impact_intensity()
+    raise ValueError(f"kind must be 'total' or 'direct', not {kind!r}")
 
 
 def _use() -> pd.DataFrame:

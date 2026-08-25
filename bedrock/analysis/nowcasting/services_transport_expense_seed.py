@@ -102,35 +102,36 @@ changed to make it possible:
 ======  =================  =================
 year     dollar-weighted    impact-weighted
 ======  =================  =================
-2020          +0.5%             **+22.6%**
-2021          +1.4%             **+25.1%**
-2022          +2.3%             **+22.6%**
-2023          -5.0%               -2.9%
+2020          +0.5%             **+10.2%**
+2021          +1.4%             **+10.8%**
+2022          +2.3%              **+9.2%**
+2023          -5.0%               -4.1%
 ======  =================  =================
 
-✅ **The seed wins on impact in every SAS year, and on dollars too.**  That is
-the re-evaluation's thesis holding up: the survey names purchased electricity
-and purchased fuels for every industry, and those are the rows the model
-weights.
+⚠️ **Impact here means ``N``, not ``D``** -- total kg CO2e per dollar, direct
+plus indirect, per :func:`~.services_transport_expense_resource.total_impact_intensity`.
+A Use cell is an entry in ``A``, so an error in it propagates through the whole
+Leontief inverse; what a row is worth getting right is its *total* embodied
+emissions.  ⚠️ **On ``D`` these read +22.6/+25.1/+22.6%** -- more than twice as
+large, and the wrong measure.
+
+✅ **The seed wins under both weightings in every SAS year.**  That is the
+re-evaluation's thesis holding up: the survey names purchased electricity and
+purchased fuels for every industry, and those are rows the model weights
+heavily.
 
 ⚠️ **Read the impact column as the result and the dollar column as a sign
-check.**  +0.5% to +2.3% is still inside the noise §S4 rejected other columns
-on; what it now establishes is only that the two weightings agree in sign.
+check.**  +0.5% to +2.3% is inside the noise §S4 rejected other columns on;
+what it establishes is only that the two weightings agree in sign.
 
-⚠️ **Part of the jump from +4.5-5.0% is a smaller denominator, not a better
-seed.**  Holding ``22`` back removes a column carrying half the block's frozen
-dissimilarity under impact weighting -- 0.0333 falls to 0.0166 -- so the
-percentage is now measured over the columns the seed actually touches.
-✅ **The seeded error falls too**, 0.0318 -> 0.0128, so this is not only
-rescaling; but quoting +22.6% against the old +4.5% as "5x better" would be
-wrong.
-
-⚠️ **The gain is carried by weight, not by count** -- 21, 17 and 15 of 33
-columns individually win, and ``ORE`` alone carries **71-78%** of the
+⚠️ **The gain is carried by weight, not by count** -- 22, 21 and 17 of 33
+columns individually win, and ``ORE`` alone carries **59-83%** of the
 aggregate.
-✅ Three columns §S4 rejected on dollars *do* win consistently on impact:
-``622`` (+36.1/+61.1%), ``722`` (+27.6/+32.1%) and ``486`` (+54.7/+32.7%).
-⚠️ **``5412OP``'s rejection stands** (-5.6/-2.3%).
+✅ **Two columns §S4 rejected on dollars win consistently on impact**:
+``622`` (+11.4/+12.3/+27.5%) and ``722`` (+7.5/+11.2/+10.6%).
+⚠️ **``5412OP``'s rejection stands** (-9.0/-7.7/-2.0%), and so does ``81``'s
+(-0.8/+2.9/+0.6%) -- ⚠️ **``81`` looked like a win on ``D`` and is flat on
+``N``**, which is the kind of thing the weighting change decides.
 :func:`services_transport_score_by_column` is where this is read.
 
 ❌ **``22`` utilities is not seeded** -- :data:`NOT_SEEDED`, decided by Wes on
@@ -896,7 +897,7 @@ def _panel_for(year: int) -> pd.DataFrame:
 #: crosses the survey change as well as the sas-17/sas-22 rebenchmark: the
 #: SAS -> AIES level step is a median \|log\| of **0.203** against **0.118** for
 #: a within-instrument year, 72% noisier, and :func:`services_transport_score` measures the
-#: result at **-5.0% dollar-weighted and -2.9% impact-weighted**.  Pass
+#: result at **-5.0% dollar-weighted and -4.1% impact-weighted**.  Pass
 #: ``allow_survey_change=True`` to build it anyway; nothing should ship it.
 SURVEY_CHANGE_YEARS = AIES_OBSERVED_YEARS
 
@@ -938,7 +939,7 @@ def services_transport_seed(
             f'{year} is observed only by AIES, and indexing it against a SAS '
             f'{base_year} base crosses the survey change as well as the '
             f'sas-17/sas-22 rebenchmark. services_transport_score() measures that at -5.0% '
-            f'dollar-weighted and -2.9% impact-weighted -- it makes the column '
+            f'dollar-weighted and -4.1% impact-weighted -- it makes the column '
             f'worse. Pass allow_survey_change=True to build it anyway.'
         )
     if year not in OBSERVED_YEARS:
@@ -976,9 +977,10 @@ def services_transport_movement(
 
     ⚠️ **The two weightings are the point.**  ``dollar_moved`` is what §S4 would
     have measured; ``impact_moved`` weights each commodity row by the shipped
-    model's kg CO2e per dollar, which is what Cornerstone cares about.  The
-    second is consistently the larger, because the rows the survey names are the
-    rows the model weights.
+    model's **total** kg CO2e per dollar (``N``, direct plus indirect), which is
+    what Cornerstone cares about.  The second is consistently the larger --
+    about **1.3x** -- because the rows the survey names are the rows the model
+    weights.
     """
     from bedrock.analysis.nowcasting.services_transport_expense_resource import (  # noqa: PLC0415
         impact_intensity,
@@ -1142,10 +1144,11 @@ def services_transport_score_by_column(
     """:func:`services_transport_score` broken out per summary column, worst gain last.
 
     ⚠️ **The aggregate gain is not a majority verdict.** The block wins by
-    +22.6% on impact at 2022, and only 15 of its 33 columns individually win --
+    +9.2% on impact at 2022, and only 17 of its 33 columns individually win --
     the gain is carried by the weight, not by the count, and ``ORE`` alone
-    carries **71-78%** of it.  §S4's per-column no-goes were scored on dollars
-    alone, and this is what re-scores them.
+    carries **59-83%** of it.  §S4's per-column no-goes were scored on dollars
+    alone, and this is what re-scores them: ``622`` and ``722`` overturn,
+    ``5412OP`` and ``81`` do not.
 
     ``share_of_gain_%`` apportions the aggregate: a column's contribution to the
     numerator ``sum((frozen - seeded) * weight)`` over that sum.  ⚠️ **It is
@@ -1172,16 +1175,19 @@ def services_transport_score(
     summary commodity row by the shipped v0.3 model's kg CO2e per dollar,
     aggregated from detail on that row's own intermediate dollars.
 
-    ✅ **The seed wins under both weightings in every SAS year** -- +22.6%,
-    +25.1% and +22.6% on impact against +0.5%, +1.4% and +2.3% on dollars.
+    ✅ **The seed wins under both weightings in every SAS year** -- +10.2%,
+    +10.8% and +9.2% on impact against +0.5%, +1.4% and +2.3% on dollars.
     That is the thesis of the re-evaluation holding up: the survey names the
     rows the model weights.
 
-    ⚠️ **The impact figures are over the columns the seed touches**, utilities
-    excluded (:data:`NOT_SEEDED`); part of the gap to the +4.5-5.0% this scored
-    with ``22`` in the block is a smaller denominator.
+    ⚠️ **``impact`` is ``N``**, total kg CO2e per dollar including indirect.
+    On ``D`` the same rows read +22.6/+25.1/+22.6%; ``D`` flatters the seed
+    because it over-weights electricity, which is nearly all direct.
 
-    ❌ **2023 loses on both** (-5.0% / -2.9%), which is why
+    ⚠️ **The impact figures are over the columns the seed touches**, utilities
+    excluded (:data:`NOT_SEEDED`).
+
+    ❌ **2023 loses on both** (-5.0% / -4.1%), which is why
     :data:`SURVEY_CHANGE_YEARS` exists.
 
     ⚠️ **The test is biased against the seed**, as :func:`score` explains: BEA
@@ -1191,8 +1197,8 @@ def services_transport_score(
     and the dollar-weighted gains here are small enough that the impact-weighted
     ones are the reason to build this, not the headline number.
 
-    ⚠️ **``wins`` is a minority even in the years that win** -- 15 of 33 columns
-    at 2022 against a +22.6% block gain.  The aggregate is carried by the weight,
+    ⚠️ **``wins`` is a minority even in the years that win** -- 17 of 33 columns
+    at 2022 against a +9.2% block gain.  The aggregate is carried by the weight,
     not by the count; :func:`services_transport_score_by_column` breaks it out per column.
     """
     records = []
@@ -1443,16 +1449,16 @@ def main() -> None:
         print('What the seed moves, against a frozen 2017\n')
         print(services_transport_movement().round(4).to_string())
         print(
-            '\n  impact_moved is consistently ~1.8x dollar_moved: the survey'
-            '\n  names the rows the model weights.\n'
+            '\n  impact_moved is consistently ~1.3x dollar_moved on N: the'
+            '\n  survey names the rows the model weights.\n'
         )
         print("Whether it helps, on BEA's published summary Use\n")
         print(services_transport_score().round(4).to_string())
         print(
-            '\n  the SAS years win on impact, and the gain grows with distance'
-            '\n  from the benchmark. The dollar column straddles zero and is'
-            '\n  not evidence. 2023 loses on both and is refused: AIES against'
-            '\n  a SAS base crosses the survey change and the rebenchmark.'
+            '\n  impact here is N (direct + indirect), not D. The SAS years'
+            '\n  win under both weightings; on D the impact column would read'
+            '\n  +22.6/+25.1/+22.6%, which over-weights electricity. 2023 is'
+            '\n  refused: AIES on a SAS base crosses the survey change too.'
         )
     if args.all or args.by_column:
         for year in (2020, 2021, 2022):
@@ -1461,10 +1467,10 @@ def main() -> None:
             print(f'\nPer column, {year}, impact-weighted -- {wins}/{len(frame)} win\n')
             print(frame.round(3).to_string())
         print(
-            '\n  the aggregate is carried by weight, not by count: ORE alone is'
-            '\n  110-156% of it, so the rest is net negative without it, and 22'
-            '\n  carries -119% at 2020. 622, 722 and 486 -- S4 no-goes on'
-            '\n  dollars -- win consistently on impact. 5412OP still does not.'
+            '\n  the aggregate is carried by weight, not by count: ORE alone'
+            '\n  is 59-83% of it. 622 and 722 -- S4 no-goes on dollars -- win'
+            '\n  consistently on N. 5412OP and 81 do not; 81 looked like a win'
+            '\n  on D, which is what changing the weighting decides.'
         )
     if args.all or args.scope:
         print("\nHow far each SAS cell sits from BEA's own 2017 row, NAICS 531")
