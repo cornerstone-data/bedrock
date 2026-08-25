@@ -15,8 +15,8 @@ method), [#577](https://github.com/cornerstone-data/bedrock/issues/577)
 
 Everything numbered below is reproduced by
 [`intermediate_structure_drift.py`](intermediate_structure_drift.py). Its
-benchmark measurements read the **2007 / 2012 / 2017 detail SUT panel** from
-`SUPPLY-USE_2026-08-24.zip`, which has no extractor yet — see §What to build S0a.
+benchmark measurements read the **2007 / 2012 / 2017 detail SUT panel** through
+`io_2017.load_benchmark_detail_U_intermediate_usa` (§What to build S0a).
 
 ---
 
@@ -113,7 +113,7 @@ asserted: **aggregating to summary hides 30% of the detail error**
 
 ### The out-of-sample version, on the estimand itself
 
-`--holdout`. **`Use_SUT_Detail.xlsx` inside `SUPPLY-USE_2026-08-24.zip` carries
+`--holdout`. **BEA's benchmark detail Use SUT carries
 2007, 2012 and 2017 as three sheets — all on the 2017 code basis, all in the same
 413 × 424 frame, purchaser value, before redefinitions, BEA detail.** That is
 Step 3's estimand exactly, three times over, so each span is a real benchmark
@@ -147,12 +147,11 @@ should be read:
    if that ratio holds. Every summary number on this page should be read with
    that multiplier attached.
 
-⚠️ **The benchmark panel has no extractor.** It is a local drop in the
-`USA_AllTablesSUP` cache directory; `io_2017` still maps `Use_SUT_detail` to the
-single-year `Use_SUT_Framework_2017_DET.xlsx`. Promoting it to a year-parameterised,
-GCS-backed loader is a task on its own, and it is worth more than this diagnostic
-— a 2007 and 2012 detail SUT in the same frame as 2017 is a second and third
-observation of *every* structural question in the build, not just Step 3's.
+✅ **The benchmark panel has an extractor** (§S0a). `io_2017` reads all three
+years off the published panel, GCS-backed, and its 2017 sheets are checked cell
+for cell against the single-year workbooks. That is worth more than this
+diagnostic — a 2007 and 2012 detail SUT in the same frame as 2017 is a second and
+third observation of *every* structural question in the build, not just Step 3's.
 
 ---
 
@@ -1475,14 +1474,39 @@ nothing here should be quoted as evidence that these columns are stable.
 
 ## What to build, in order
 
-**S0a. Give the benchmark detail SUT panel an extractor** ([#700](https://github.com/cornerstone-data/bedrock/issues/700)). `Use_SUT_Detail.xlsx`
-and `Supply_Detail.xlsx` in `SUPPLY-USE_2026-08-24.zip` carry **2007, 2012 and
-2017 on one code basis in one frame**. Today they are a local drop that only this
-diagnostic reads. A year-parameterised, GCS-backed loader beside
-`_load_2017_detail_supply_use_usa` turns them into a second and third observation
-of *every* structural question in the build — Step 3's input mix, Step 4a's
-commodity mix, the margin rates, the FD splits — not just this one. **Cheapest
-high-leverage item on the page**, and everything measured above depends on it.
+**S0a. Give the benchmark detail SUT panel an extractor** ([#700](https://github.com/cornerstone-data/bedrock/issues/700)) — ✅ **built.**
+`Use_SUT_Detail.xlsx` and `Supply_Detail.xlsx` carry **2007, 2012 and 2017 on one
+code basis in one frame**, and they are now read through
+[`io_2017.py`](../../extract/iot/io_2017.py)`._load_benchmark_detail_supply_use_usa(matrix, year)`,
+GCS-backed like every other table, with `load_benchmark_detail_U_intermediate_usa`
+and `load_benchmark_detail_supply_usa` as the typed 402 × 402 accessors. They are
+a second and third observation of *every* structural question in the build —
+Step 3's input mix, Step 4a's commodity mix, the margin rates, the FD splits —
+not just this one.
+
+✅ **The panel's 2017 sheets are the single-year workbooks, cell for cell.**
+Both matrices agree exactly with `Use_SUT_Framework_2017_DET.xlsx` and
+`Supply_2017_DET.xlsx` — 0 differing cells on 413 × 424 and 405 × 415 — so the
+panel really is the published 2017 table plus two earlier observations of it, not
+a different vintage of it. `assert_benchmark_panel_matches_2017()` is the check,
+and it is a callable rather than a test because it needs both files.
+
+⚠️ **The two loaders are kept separate anyway.**
+`_load_2017_detail_supply_use_usa` is what `bea_parse` emits as the
+`BEA_Detail_Use_SUT` / `BEA_Detail_Supply` FBAs, and those stay pinned to the
+workbook BEA published them from. Extending the FBAs themselves to 2007 and 2012
+is a separate question — the year is hardcoded on the detail branches of
+`bea_parse` and the yaml declares `years: [2017]`.
+
+⚠️ **BEA's subsidy sign convention holds on all three years**, not just 2017:
+Use `T00SUB` positive, Supply `SUB` negative, agreeing to $1M in 2007
+(109,169 vs −109,168) and exactly in 2012. `_assert_bea_subsidy_signs` runs on
+every year the panel loader returns.
+
+⚠️ **The 2007 span still cannot carry a θ.** `derive_industry_price_index`
+starts at 2012, so of the three benchmark spans only 2012 → 2017 is fitted. The
+panel gives a second *detail* observation of the mix but not yet a second detail
+θ, which is what §Inflation's dispersion candidate needs.
 
 **S0b. Declare the section before the candidate exists** ([#704](https://github.com/cornerstone-data/bedrock/issues/704)) — ✅ **declared, and it
 did not stay candidate-less.** S1 landed in the same change, so

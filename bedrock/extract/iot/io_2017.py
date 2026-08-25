@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import functools
+import typing as ta
 import warnings
+import zipfile
 
 import pandas as pd
 from typing_extensions import deprecated
@@ -21,6 +23,9 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_2017_DETAIL_IO_MATRIX_NAMES,
     USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING,
     USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
+    USA_BENCHMARK_DETAIL_SUT_ARCHIVE,
+    USA_BENCHMARK_DETAIL_SUT_MEMBER_MAPPING,
+    USA_BENCHMARK_DETAIL_SUT_YEARS,
     USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
     USA_SUMMARY_MUT_MAPPING_1997_2024,
@@ -659,6 +664,139 @@ def _load_2017_detail_supply_use_usa(
     _assert_bea_subsidy_signs(df, matrix_name)
 
     return df
+
+
+@functools.cache
+def _load_benchmark_detail_supply_use_usa(
+    matrix_name: USA_2017_DETAIL_IO_SUT_MATRIX_NAMES,
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
+    """
+    Load a USA Detail Supply or Use_SUT matrix for a *benchmark* year.
+
+    ``_load_2017_detail_supply_use_usa`` reads the single-year workbooks and can
+    only ever return 2017.  BEA also publishes the three benchmark years as one
+    zip -- ``Supply_Detail.xlsx`` and ``Use_SUT_Detail.xlsx``, each with a sheet
+    per year -- and **all three sheets are already on the 2017 code basis in one
+    413 x 424 (Use) / 405 x 415 (Supply) frame**, so 2007, 2012 and 2017 can be
+    differenced against each other without a crosswalk.
+
+    The 2017 sheets are **identical, cell for cell**, to the single-year
+    workbooks; :func:`assert_benchmark_panel_matches_2017` checks that.  The two
+    loaders are kept separate anyway because ``_load_2017_detail_supply_use_usa``
+    is what ``bea_parse`` emits as the ``BEA_Detail_Use_SUT`` /
+    ``BEA_Detail_Supply`` FBAs, which are pinned to their published workbook.
+
+    Returns the frame as published: ``Code`` index, description column kept,
+    million USD, purchaser value, before redefinitions.
+    """
+    member = USA_BENCHMARK_DETAIL_SUT_MEMBER_MAPPING[matrix_name]
+
+    def _read_member(pth: str) -> pd.DataFrame:
+        with (
+            zipfile.ZipFile(pth) as bundle,
+            bundle.open(member) as sheet,
+        ):
+            return pd.read_excel(
+                sheet, sheet_name=str(year), skiprows=5, dtype={"Code": str}
+            )
+
+    df = (
+        load_from_gcs(
+            name=USA_BENCHMARK_DETAIL_SUT_ARCHIVE,
+            sub_bucket=GCS_USA_SUP_DIR,
+            local_dir=LOCAL_USA_SUP_DIR,
+            loader=_read_member,
+        )
+        .set_index("Code")
+        .fillna(0)
+    )
+    df.columns = df.columns.astype(str)
+
+    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert (
+        len(df.shape) == 2
+    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+
+    _assert_bea_subsidy_signs(df, matrix_name)
+
+    return df
+
+
+@functools.cache
+def load_benchmark_detail_U_intermediate_usa(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
+    """
+    Intermediate block of the benchmark detail Use SUT, commodity x industry.
+
+    Purchaser value, before redefinitions, unit is USD, original unit is
+    million USD.  This is the interior only -- no final demand columns and no
+    value-added rows.
+    """
+    df = (
+        _load_benchmark_detail_supply_use_usa("Use_SUT_detail", year)
+        .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_benchmark_detail_supply_usa(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
+    """
+    Production block of the benchmark detail Supply table, commodity x industry.
+
+    Basic value, before redefinitions, unit is USD, original unit is million
+    USD.  The valuation columns BEA carries beside it -- ``T013`` basic,
+    ``T014`` margins, ``T015`` net taxes, ``T016`` purchaser -- are dropped
+    here; read them off :func:`_load_benchmark_detail_supply_use_usa`.
+    """
+    df = (
+        _load_benchmark_detail_supply_use_usa("Supply_detail", year)
+        .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_INDUSTRY_INDEX.copy()
+    return df
+
+
+def assert_benchmark_panel_matches_2017() -> None:
+    """Check the panel's 2017 sheets against the single-year workbooks.
+
+    The two are separate GCS objects that BEA published separately, and the
+    benchmark panel is only usable as a second and third observation of the
+    single-year 2017 table if its 2017 sheet *is* that table.  Today they agree
+    on every cell of both matrices; this raises if a re-release breaks that.
+    """
+    for matrix_name in ta.get_args(USA_2017_DETAIL_IO_SUT_MATRIX_NAMES):
+        single = _load_2017_detail_supply_use_usa(matrix_name)
+        panel = _load_benchmark_detail_supply_use_usa(matrix_name, 2017)
+        if list(single.index) != list(panel.index):
+            raise AssertionError(
+                f"{matrix_name}: benchmark panel 2017 rows differ from the "
+                f"single-year workbook"
+            )
+        if list(single.columns) != list(panel.columns):
+            raise AssertionError(
+                f"{matrix_name}: benchmark panel 2017 columns differ from the "
+                f"single-year workbook"
+            )
+        left = single.apply(pd.to_numeric, errors="coerce")
+        right = panel.apply(pd.to_numeric, errors="coerce")
+        gap = (left - right).abs().max().max()
+        if not (pd.isna(gap) or gap == 0):
+            raise AssertionError(
+                f"{matrix_name}: benchmark panel 2017 differs from the "
+                f"single-year workbook by up to {gap} million USD"
+            )
 
 
 @functools.cache
