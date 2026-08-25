@@ -201,7 +201,8 @@ the relative price dispersion, which is exactly what 2022-2024 supplied.
    2018-2021 and cannot explain a sign flip that tracks the inflation rate.
 3. ✅ **Recommendation: keep the inflation carry, make θ a fitted parameter
    rather than an assumed 1, and stop treating the carry as the method.** Apply
-   the price ratio as `ratio ** θ`; θ = 1 is #497 today, θ = 0 is a frozen `A`.
+   the price ratio as `ratio ** θ`; θ = 1 is #497 today, θ = 0 is a frozen `A`,
+   and ⚠️ **θ < 0 is where 2023 and 2024 actually fit** — see §θ goes negative.
    The two panels disagree about the value — detail 2012→2017 fits θ = 1.00,
    summary 2022-2024 wants θ well below it — and that disagreement **is** the
    finding: θ should be a function of relative-price dispersion in the span, not
@@ -209,9 +210,12 @@ the relative price dispersion, which is exactly what 2022-2024 supplied.
    available with the benchmark SUT drop.
 
 ⚠️ **The commodity axis here is an output-weighted industry PI, not a true
-purchaser-price commodity index** — a different object, and the missing piece is
-the margin-rate term (§Margins). The sign of the 2022-2024 result is robust; the
-size of θ will move once that term is in.
+purchaser-price commodity index** — a different object, and the missing piece was
+the margin-rate term (§Margins). ✅ **That term has since been built and the
+result above survives it**: adding it leaves θ unchanged in six years of seven
+and moves it *away* from 1.00 in the seventh, because it scales up the same goods
+rows the price leg does. See §It was a competing explanation for θ. The sign of
+the 2022-2024 result is robust, and so now is the size.
 
 ---
 
@@ -548,13 +552,81 @@ produces for its own reasons**, and it is the one place the margins data belongs
 inside Step 3. It should be built and scored on the same summary panel as θ
 (§Inflation) — the two are the same experiment with one more term.
 
-⚠️ **And it is a competing explanation for θ, not just an addition to it.**
+### ⚠️ It was a competing explanation for θ, and it has been tested and rejected
+
 §Inflation reads the summary panel's low θ as substitution under relative-price
-dispersion, but a *missing deflator term* produces the same symptom. The
-experiment is therefore θ fitted with and without this factor: if adding it pulls
-the summary θ **toward** the detail panel's 1.00, the gap was the missing margin
-layer; if θ stays low, the substitution reading stands. Either result is a
-finding, and neither is available from the price ratio alone.
+dispersion. A *missing deflator term* produces the same symptom, so the two were
+separable by experiment rather than by argument: fit θ with and without this
+factor (`--theta`), and see whether adding it pulls θ toward the detail panel's
+1.00.
+
+**It does not** — and running the experiment turned up something larger than the
+question it was asked.
+
+| year | θ, price only | θ, + margin leg | θ moves by |
+|---|---:|---:|---:|
+| 2018 | 0.75 | 0.75 | 0.00 |
+| 2019 | 0.75 | 0.50 | **−0.25** |
+| 2020 | 1.00 | 1.00 | 0.00 |
+| 2021 | 0.50 | 0.50 | 0.00 |
+| 2022 | 0.25 | 0.25 | 0.00 |
+| 2023 | **−0.25** | **−0.25** | 0.00 |
+| 2024 | **−0.50** | **−0.50** | 0.00 |
+
+θ is unmoved in six years of seven and moves *away* from 1.00 in the seventh. The
+score at the fitted θ differs by less than 0.001 either way — very slightly worse
+with the term at 2018-2022, very slightly better at 2023-2024. ✅ **The
+substitution reading stands, and it now survives a correct purchaser-price
+deflator rather than merely predating one.**
+
+⚠️ **This is not a null test.** The factor is live: 26 of 73 summary commodities
+move, the range at 2024 is 0.975 to 1.099, and the dollar-weighted mean deviation
+across the 2017 intermediate rows is 1.3%. It lands on the largest goods rows in
+the table — `325` chemicals ×1.049 on a $705B row, `3361MV` motor vehicles
+×1.047, `332` ×1.037, `334` ×1.044, `333` ×1.056.
+
+**And that is why it cannot rescue θ.** The margin leg scales *up* the same goods
+rows the price leg scales up — 22 of the 26 touched commodities have a factor
+above 1 — while the observed data moves the other way: **17 of those 22 lost
+intermediate share**, and the touched set lost **3.26pp** of the block between
+2017 and 2024. Both legs are nominal-share-inflating terms on goods during a
+period of real substitution away from goods, so a more correct deflator pushes
+harder in the direction that was already overshooting.
+
+✅ **Keep the term anyway.** It is the correct deflator for a purchaser-valued
+cell, it costs one line, and the case for it never rested on this experiment.
+What changes is the claim attached to it: it is a correctness fix worth a median
+0.35pp on the carry factor, **not** a repair for θ.
+
+### ⚠️ θ goes negative, and that is the finding
+
+**2023 fits θ = −0.25 and 2024 fits θ = −0.50.** The frozen structure scores
+*better* when commodity shares are moved **against** their own price movement.
+This is not "inflation stops helping"; it is inflation running the wrong way, and
+it is a stronger statement than anything §Inflation previously claimed.
+
+⚠️ **The earlier draft could not see it.** `THETA_GRID` started at 0.0, so 2023
+and 2024 both pinned to the floor and were reported as θ = 0.00 — "the carry
+contributes nothing". The grid now runs to −1.0 and the floor is no longer
+binding. The detail 2012→2017 span still fits **1.00**, interior to the old grid,
+so nothing measured there moves.
+
+The span from **+1.00 at 2020 to −0.50 at 2024** is monotone in the price regime
+and is the §Inflation mechanism at full strength: when relative prices disperse
+hard, nominal shares move *opposite* to price because the quantity response
+outruns the price effect. Elasticity above one, in nominal terms.
+
+⚠️ **Direct consequence for S1.** #497's θ = 1 is not merely too strong for the
+target years — it is the **wrong sign**. A build that hardcodes θ = 1 and ships a
+2024 table applies a correction pointing away from the answer on the largest
+goods rows in the block. Whatever S1 ships must take θ as a parameter, and its
+default for the recent span is negative rather than 0 or 1.
+
+⚠️ **So the θ gap is still unexplained by anything measured.** Detail 2012→2017
+fits 1.00; summary fits 0.75 falling to 0.00 by 2023. The regime story predicts
+that, and nothing else on this page tests it. The next candidate is the one
+§Inflation already names — θ as a function of relative-price dispersion in the
+span — and it needs the benchmark panel (§S0a) to get a second detail span.
 
 ⚠️ Ordering: this makes Step 3 depend on Step 4c/4d output. That is a real
 dependency but not a circular one — 4c's rates are built from Census margin data
