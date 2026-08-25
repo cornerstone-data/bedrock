@@ -157,6 +157,11 @@ third observation of *every* structural question in the build, not just Step 3's
 
 ## Does #497's inflation step earn its place?
 
+*What θ is mechanically — a scalar exponent on a commodity deflator, not a price
+ratio or a valuation bridge — is in
+[`About_the_price_carry.md`](About_the_price_carry.md). This section is about
+whether the carry earns its place, not what it is.*
+
 `--inflation`. Same summary years, frozen structure against the same structure
 carried on a commodity price index (bedrock's own detail industry PI,
 `derive_industry_price_index`, output-weighted to summary).

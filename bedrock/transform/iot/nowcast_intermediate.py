@@ -26,6 +26,10 @@ column-normalised object, so the level and the structure never mix.
 ⚠️ theta is a parameter, and 1.0 is not obviously right
 --------------------------------------------------------
 
+What ``theta`` is mechanically -- a scalar exponent on a commodity deflator, one
+per span, and the ``theta = 1 - sigma`` reading of it -- is documented in
+``bedrock/analysis/nowcasting/About_the_price_carry.md``.
+
 ``theta = 1`` is #497 as written -- a nominal share carried in full on its own
 price movement, which assumes zero substitution. ``theta = 0`` is a frozen
 ``A``. Fitted per year on the published summary panel (``--theta`` on the drift
