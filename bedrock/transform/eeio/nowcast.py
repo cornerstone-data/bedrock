@@ -65,7 +65,6 @@ from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.transform.iot.nowcast_intermediate import (
-    DEFAULT_THETA,
     derive_intermediate_use,
 )
 from bedrock.transform.iot.nowcast_product_taxes import TOP_YEARS, top_column
@@ -449,7 +448,7 @@ def derive_initial_supply_bridge(
 
 
 def derive_initial_U_intermediate(
-    year: int, theta: float = DEFAULT_THETA
+    year: int, theta: float | None = None
 ) -> pd.DataFrame:
     """Initial (pre-RAS-balanced) intermediate block of the Use table, USD.
 
@@ -457,10 +456,12 @@ def derive_initial_U_intermediate(
     redefinitions - the native basis of ``Use_SUT_Framework_2017_DET``, which is
     what this is seeded from.
 
-    Step 3 (#497). The sourcing, the carry, the column control and every caveat
-    live in :mod:`bedrock.transform.iot.nowcast_intermediate`; read that module
-    docstring before using this for anything but the section diagnostic. In
-    particular ``theta`` defaults to #497's 1.0 and **fits negative at 2023-24**,
-    and the column control is a *seed* because Step 2 is unbuilt.
+    Step 3 (#497, #699). The sourcing, the carry, the column control and every
+    caveat live in :mod:`bedrock.transform.iot.nowcast_intermediate`; read that
+    module docstring before using this for anything but the section diagnostic.
+    ``theta`` defaults to ``nowcast_intermediate.default_theta`` for the span --
+    0.75 off the 2021-22 price surge and 0.0 across it, not #497's 1.0 - and the
+    column shares are carried on the full purchaser deflator, price times
+    margin rate.
     """
     return derive_intermediate_use(year, theta=theta)

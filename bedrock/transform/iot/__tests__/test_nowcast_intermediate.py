@@ -14,6 +14,10 @@ criterion that the seven published negatives survive, and every layer below
 would absorb a clip silently. The second pins the meaning of ``theta``, which is
 the one parameter of this step and fits **negative** at 2023-24 -- a sign error
 in the exponent would still produce a plausible-looking table.
+
+``theta`` is no longer a constant: :func:`test_theta_splits_on_the_price_surge_
+and_not_on_span_length` pins the rule that replaced it, which keys off whether
+the span crosses 2021-22 rather than off how long it is.
 """
 
 from __future__ import annotations
@@ -25,13 +29,22 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.iot.nowcast_intermediate import (
-    DEFAULT_THETA,
     INTERMEDIATE_YEARS,
+    MARGIN_YEARS,
+    PRICE_SURGE,
     SEED_YEAR,
+    SUPPLY_VALUATION_COLUMNS,
+    THETA_497,
+    THETA_ACROSS_SURGE,
+    THETA_OFF_SURGE,
     UNPRICED_COMMODITIES,
+    _require_margin_year,
     apply_column_control,
     carry_shares,
+    commodity_deflator,
+    default_theta,
     derive_intermediate_use,
+    margin_rate,
 )
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -74,14 +87,14 @@ def _cell(frame: pd.DataFrame, row: str, column: str) -> float:
 
 def test_every_live_column_sums_to_one() -> None:
     """The carry estimates shares, so it must hand back shares."""
-    shares = carry_shares(_seed(), _factor())
+    shares = carry_shares(_seed(), _factor(), THETA_497)
     live = ['1111B0', '324110']
     assert shares[live].sum(axis=0).round(12).tolist() == [1.0, 1.0]
 
 
 def test_a_dead_column_stays_dead_instead_of_dividing_by_zero() -> None:
     """``4200ID`` and ``814000`` have no 2017 structure to normalise."""
-    shares = carry_shares(_seed(), _factor())
+    shares = carry_shares(_seed(), _factor(), THETA_497)
     assert (shares['4200ID'] == 0.0).all()
 
 
@@ -109,7 +122,7 @@ def test_a_negative_seed_cell_stays_negative() -> None:
     have to survive the control for the same reason - a clip would be a silent
     change to the seed's own source.
     """
-    shares = carry_shares(_seed(), _factor())
+    shares = carry_shares(_seed(), _factor(), THETA_497)
     assert _cell(shares, '531ORE', '1111B0') < 0
     block = apply_column_control(shares, pd.Series(dict.fromkeys(INDUSTRIES, 1000.0)))
     assert _cell(block, '531ORE', '1111B0') < 0
@@ -148,7 +161,7 @@ def test_a_negative_theta_moves_share_the_other_way() -> None:
 def test_the_control_is_reproduced_column_by_column() -> None:
     """The whole point of the control: the block arrives at the given level."""
     control = pd.Series({'1111B0': 1_000.0, '324110': 2_500.0, '4200ID': 0.0})
-    block = apply_column_control(carry_shares(_seed(), _factor()), control)
+    block = apply_column_control(carry_shares(_seed(), _factor(), THETA_497), control)
     pd.testing.assert_series_equal(
         block.sum(axis=0), control, check_names=False, check_index_type=False
     )
@@ -162,13 +175,13 @@ def test_dollars_aimed_at_a_dead_column_are_refused() -> None:
     """
     control = pd.Series({'1111B0': 1_000.0, '324110': 2_500.0, '4200ID': 9e9})
     with pytest.raises(ValueError, match='no.*structure to spread'):
-        apply_column_control(carry_shares(_seed(), _factor()), control)
+        apply_column_control(carry_shares(_seed(), _factor(), THETA_497), control)
 
 
 def test_a_control_missing_an_industry_raises() -> None:
     control = pd.Series({'1111B0': 1_000.0, '324110': 2_500.0})
     with pytest.raises(KeyError, match='missing industries'):
-        apply_column_control(carry_shares(_seed(), _factor()), control)
+        apply_column_control(carry_shares(_seed(), _factor(), THETA_497), control)
 
 
 def _cancelling_seed(second: float) -> pd.DataFrame:
@@ -188,7 +201,11 @@ def test_a_seed_column_that_cancels_is_refused_not_flattened() -> None:
     cancels a whole column - but it is the failure mode of the normalisation.
     """
     with pytest.raises(ValueError, match='summing to zero'):
-        carry_shares(_cancelling_seed(-10.0), pd.Series({'111130': 1.0, '211000': 1.0}))
+        carry_shares(
+            _cancelling_seed(-10.0),
+            pd.Series({'111130': 1.0, '211000': 1.0}),
+            THETA_497,
+        )
 
 
 def test_a_column_whose_carried_shares_cancel_is_refused() -> None:
@@ -198,7 +215,11 @@ def test_a_column_whose_carried_shares_cancel_is_refused() -> None:
     propagate ``inf`` through the whole column.
     """
     with pytest.raises(ValueError, match='cannot be renormalised'):
-        carry_shares(_cancelling_seed(-5.0), pd.Series({'111130': 1.0, '211000': 2.0}))
+        carry_shares(
+            _cancelling_seed(-5.0),
+            pd.Series({'111130': 1.0, '211000': 2.0}),
+            THETA_497,
+        )
 
 
 def test_years_outside_the_gross_output_span_are_refused() -> None:
@@ -215,7 +236,76 @@ def test_the_unpriced_commodities_are_the_four_with_no_industry_code() -> None:
     assert set(UNPRICED_COMMODITIES) == commodities - industries
 
 
-def test_the_defaults_are_497_as_written() -> None:
-    """``theta = 1`` and a 2017 seed are the issue's scope, not a preference."""
-    assert DEFAULT_THETA == 1.0
+def test_497s_theta_is_kept_under_its_own_name() -> None:
+    """``theta = 1`` is what #497 specified; it is no longer what runs."""
+    assert THETA_497 == 1.0
     assert SEED_YEAR == 2017
+    assert default_theta(2024) != THETA_497
+
+
+def test_theta_splits_on_the_price_surge_and_not_on_span_length() -> None:
+    """The fitted rule is a regime, so a longer span alone does not move it.
+
+    2017 -> 2021 is four years and does not cross 2021-22; 2020 -> 2022 is two
+    and does. If this ever starts keying off ``year - base`` the R^2 0.14
+    elapsed-years model has quietly replaced the R^2 0.61 regime one.
+    """
+    assert default_theta(2021, base=2017) == THETA_OFF_SURGE
+    assert default_theta(2022, base=2020) == THETA_ACROSS_SURGE
+    assert default_theta(2019, base=2018) == THETA_OFF_SURGE
+    assert PRICE_SURGE == (2021, 2022)
+
+
+def test_every_target_year_from_2022_crosses_the_surge() -> None:
+    """The build seeds from 2017, so 2022 on is the frozen-A regime."""
+    fitted = {year: default_theta(year) for year in INTERMEDIATE_YEARS}
+    assert set(list(fitted.values())[:5]) == {THETA_OFF_SURGE}
+    assert set(list(fitted.values())[5:]) == {THETA_ACROSS_SURGE}
+
+
+def test_a_year_with_no_published_margins_is_refused_not_carried() -> None:
+    """A missing Supply sheet must raise rather than read as "margins held".
+
+    ``INTERMEDIATE_YEARS`` is bounded by gross output and ``MARGIN_YEARS`` by
+    BEA's published Supply table; they agree at 2024 today and a 2025 build
+    (#707) would reach a year with one and not the other. Falling through to a
+    factor of 1.0 there would be invisible in the built block.
+    """
+    assert MARGIN_YEARS[-1] == INTERMEDIATE_YEARS[-1]
+    with pytest.raises(ValueError, match='no margin rate for 2025'):
+        commodity_deflator(2025)
+
+
+def test_the_guard_is_margin_specific_and_not_a_year_range() -> None:
+    """It must fire on the margin data alone.
+
+    The price index reaches 2025 and gross output does not, so a blanket year
+    check here would duplicate ``_require_year`` and mask which input is
+    actually missing. ``margins=False`` gets past this one.
+    """
+    _require_margin_year(MARGIN_YEARS[-1])
+    for absent in (MARGIN_YEARS[0] - 1, MARGIN_YEARS[-1] + 1):
+        with pytest.raises(ValueError, match='no margin rate for'):
+            _require_margin_year(absent)
+
+
+def test_the_margin_rate_denominator_is_producer_not_basic_value() -> None:
+    """``mu = T014 / (T013 + T015)``.
+
+    Dividing by ``T013`` alone would double-count the product-tax wedge, which
+    the price index already carries: a median 3.3% overstatement of the rate.
+    """
+    valuation = pd.DataFrame(
+        {'T013': [800.0], 'T014': [100.0], 'T015': [200.0], 'T016': [1100.0]},
+        index=pd.Index(['315AL'], name='commodity'),
+    )
+    assert list(SUPPLY_VALUATION_COLUMNS) == ['T013', 'T014', 'T015']
+    assert margin_rate(valuation).loc['315AL'] == pytest.approx(100.0 / 1000.0)
+
+
+def test_a_zero_producer_value_gives_no_margin_rate_rather_than_infinity() -> None:
+    valuation = pd.DataFrame(
+        {'T013': [0.0], 'T014': [50.0], 'T015': [0.0]},
+        index=pd.Index(['S00900'], name='commodity'),
+    )
+    assert np.isnan(margin_rate(valuation).loc['S00900'])
