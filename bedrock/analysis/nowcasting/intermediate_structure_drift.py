@@ -639,16 +639,26 @@ def where_detail(
 def column_control(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
     """Score Step 3's column control against the published summary ``T005``.
 
-    The control is ``GO_producer - VAPRO_seed`` per detail industry, and with
-    Step 2 unbuilt ``VAPRO_seed`` is 2017's value-added share of gross output.
-    Nothing at detail can check that, but the *summary* Use SUT publishes
-    ``T005`` for every year, so aggregating the detail control to summary gives
-    a real out-of-sample test of the frozen ratio.
+    The control is ``GO_producer - VAPRO`` per detail industry, both read off
+    :mod:`bedrock.transform.iot.derived_intermediate_and_value_added`. Nothing
+    observed exists at detail after 2017, but the *summary* Use SUT publishes
+    ``T005`` for every year, so aggregating the detail control to summary checks
+    that the 191-line to detail allocation adds back the way it should.
 
     ``level_%`` is the economy-wide error and ``spread_%`` is the dollar-weighted
-    mean absolute error across summary industries -- the two say different
-    things, and the frozen ratio is good at the first and increasingly bad at
-    the second.
+    mean absolute error across summary industries.
+
+    ⚠️ **This is a consistency check, not an independent validation.** BEA's
+    ``UII205-A``/``UVA205-A`` and the summary Use SUT's ``T005`` are the same
+    underlying estimate published two ways, so agreement confirms the mapping,
+    the allocation and the residual construction -- not the source. Read it as
+    "the control is now BEA's own ``T005``" rather than "the control was tested
+    against something else".
+
+    Measured 2026-08-25: ``level_%`` within 0.00007% and ``spread_%`` within
+    0.00023% in every year 2018-2024, worst summary industry 0.003%. The
+    superseded frozen-ratio seed scored 0.2-2.3% and 2.5-8.0% on the same two
+    columns, with ``GSLG`` 18.3% low at 2022.
     """
     industry_to_summary = {
         str(code): (parents[0] if isinstance(parents, list) else str(parents))
