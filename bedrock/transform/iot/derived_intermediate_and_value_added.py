@@ -215,7 +215,17 @@ def allocate_underlying_to_detail(
     if len(suppressed):
         raise ValueError(f'underlying lines {list(suppressed)} carry suppressed cells')
 
+    if not group_values.index.is_unique:
+        duplicated = group_values.index[group_values.index.duplicated()].unique()
+        raise ValueError(f'group values carry duplicated lines {list(duplicated)}')
+
     codes = [code for line in sorted(mapping) for code in mapping[line]]
+    # A code under two lines would be indexed twice by ``.loc[children]`` and
+    # written twice into ``out``, so the group totals would silently stop
+    # adding up rather than raising.
+    if len(codes) != len(set(codes)):
+        shared = sorted({code for code in codes if codes.count(code) > 1})
+        raise ValueError(f'mapping puts industries under more than one line: {shared}')
     missing_codes = sorted(set(codes) - set(anchor.index))
     if missing_codes:
         raise KeyError(f'anchor is missing industries {missing_codes}')

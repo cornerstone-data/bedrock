@@ -143,3 +143,17 @@ def test_output_is_in_mapping_code_order() -> None:
     )
     assert list(out.index) == ['aaa', 'bbb', 'ccc']
     assert list(out.columns) == YEARS
+
+
+def test_a_code_under_two_lines_raises() -> None:
+    mapping = {10: ['aaa', 'bbb'], 20: ['bbb', 'ccc']}
+    with pytest.raises(ValueError, match='more than one line'):
+        allocate_underlying_to_detail(
+            _group_values(), _anchor(), _gross_output(), mapping
+        )
+
+
+def test_duplicated_line_raises() -> None:
+    group_values = pd.concat([_group_values(), _group_values().loc[[10]]])
+    with pytest.raises(ValueError, match='duplicated lines'):
+        allocate_underlying_to_detail(group_values, _anchor(), _gross_output(), MAPPING)
