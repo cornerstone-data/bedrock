@@ -2303,7 +2303,33 @@ and **not one of its thirteen items is published for all nine of its constituent
 NAICS in both years**. Reopening `42` and `4A0` means building a suppression
 recovery on the `ecnmatfuel` pattern first, not writing an extractor.
 
-**S5. ERS agriculture (#577)** — ⚠️ **source extracted, seed not built.**
+**S5. ERS agriculture (#577)** — ❌ **built, measured, and rejected.**
+
+Scored on BEA's published `111CA` for 2018-2024, the seed is **4 of 7 years
+positive on each weighting and swings from −42.9% to +33.5%** on `N`. That is
+noise around zero. `leave_one_out` finds no culprit — `feed` contributes
+**+8.0pp** at 2022 and **−5.9pp** at 2024.
+
+❌ **The mechanism is absent.** Each ERS category's share movement against its
+BEA commodity row's share movement, six cleanest pairs over seven years:
+electricity **+0.61**, pesticide +0.38, petroleum +0.27, livestock +0.16, feed
++0.13, fertilizer **−0.38** — **pooled +0.18 over 42 observations.**
+
+✅ **And the reason is legible.** BEA uses ERS for the farm income **levels** —
+which is exactly why the level agreement below is the best in this step — and
+distributes across **commodities by its own means**. ⚠️ **A category-share index
+cannot reproduce a commodity mix that is not built from category shares.**
+
+⚠️ **What this does not establish**: the test is at `111CA` summary, ten detail
+columns aggregated, because that is the only place a later year is published;
+fertilizer and pesticide both collapse to `325` there; and the span contains the
+2022 rebenchmark.
+
+✅ **The extractor is kept and is the real yield of this section**, below.
+
+---
+
+⚠️ **The source work, which stands regardless.**
 [`USDA_ERS_FIWS`](../../extract/usda/USDA_ERS_FIWS.py) now emits intermediate
 product expenses. ✅ It was already in bedrock and its parse was **filtering to
 cash receipts alone**, which dropped the concept #577 is built on — the same
