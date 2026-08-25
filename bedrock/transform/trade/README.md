@@ -37,6 +37,14 @@ When adding a new IEA row, update **both** files unless the classification argum
 
 Do not copy `Cornerstone_2025_target.yaml` / `BEA_detail_target.yaml` here — those select NAICS leaves; these Crosswalks emit Detail.
 
+### Crosswalk experiments (rejected)
+
+Prototypes scored on 2017 Trade FBS; not shipped.
+
+**Census goods → `S00300` on imports (`339116`, `33211A`).** A direction-specific Census Crosswalk routed dental-lab and forging NAICS to `S00300` when Detail `MCIF` is zero (~$668 M). That cleared import EXTRA on those codes and moved mass onto `S00300` PARTIAL, but [#606](https://github.com/cornerstone-data/bedrock/issues/606) noncomparable imports covers services produced abroad and IP licensing — not Census merchandise. `intermediate_estimation_plan.md` treats `339116` / `33211A` as concordance noise, not textbook `S00300`. `339116` has nonzero export F040, so BEA books product trade on the export side. Rejected pending a [#658](https://github.com/cornerstone-data/bedrock/issues/658) / [#670](https://github.com/cornerstone-data/bedrock/issues/670) goods-allocation argument or an explicit import unmap.
+
+**`TravelHealth` 1:m across the healthcare Detail family.** Split ~$1,098 M export / ~$639 M import `TravelHealth` across `621100`–`621900`, `622000`, `623A00`, `623B00` by frozen SUT F040/MCIF weights. Family candidate totals were unchanged; L1 error vs published healthcare F040/MCIF was unchanged ($2,704 M exports / $3,935 M imports). Ambulatory/residential MISS became PARTIAL by shifting mass off `622000` without improving fit. IEA `TravelHealth` covers ~29% of published healthcare export F040; the remainder has no IntlServTrade or Census source. TTSA or other `Travel*` decomposition is the path if pursued.
+
 ### Overlay (nowcast)
 
 `bedrock.transform.eeio.nowcast._trade_fbs_commodity_vector` aggregates Trade FBS to Detail and drops non-SUT commodity codes (e.g. industry-only `331314`) before writing Use `F04000` and Supply `MCIF`. FBS parquet is the same mapped mass. `S00900` / `F04000` is the Y identity after overlay (not part of the Trade vector). `bedrock.transform.trade.scale.scale_amounts_to_ita` can multiply a Detail series to ITA G+S; nowcast does not call it (#647).
@@ -51,14 +59,16 @@ Scored against the assembled nowcast columns (`use_fd_detail_sut` F04000 / `supp
 
 | direction | National % vs SUT | Pearson all / non-`S00*` | Spearman all / non-`S00*` | Top-20 Jaccard all / non-`S00*` | n_miss |
 | --- | --- | --- | --- | --- | --- |
-| F040 exports | +6.16% | 0.93 / 0.89 | 0.88 / 0.88 | 0.60 / 0.60 | 44 |
-| MCIF imports | +1.30% | 0.62 / 0.84 | 0.91 / 0.92 | 0.67 / 0.74 | 23 |
+| F040 exports | +12.20% | 0.96 / 0.94 | 0.89 / 0.89 | 0.67 / 0.67 | 40 |
+| MCIF imports | +0.58% | 0.75 / 0.85 | 0.95 / 0.95 | 0.74 / 0.82 | 19 |
 
 ## Residual / specials
 
 Documented rules; FBS methods do not allocate onto these codes. Holes below are `MISS` cells with `|reference| >= 1` B USD.
 
 - **Unmapped IEA types.** Hierarchy totals (`AllTypesOfService`, `Transport`, `Travel`, `OtherBusiness`, `ProfMgmtConsult`, `TechTradeRelatedOth`, `PersonalCulturalAndRecreational`, ...) stay unmapped when children are mapped. Digitally deliverable cross-cuts (`PotIctEnServ*`) stay unmapped. `Travel` other than `TravelHealth`, transport port services (`TransportAirPort`, `TransportSeaPort`), `GovtGoodsAndServicesNie`, and `OthBusinessNie` have no Detail home on the Crosswalk. Those types do not appear on F040/MCIF.
+- **Import EXTRA (goods, MCIF = 0).** `339116` dental laboratories (~522 M), `33211A` forging (~146 M). Census CIF mass lands on Detail codes with zero published `MCIF`. Not routed to `S00300` — see Crosswalk experiments (rejected). Track under [#658](https://github.com/cornerstone-data/bedrock/issues/658) / [#670](https://github.com/cornerstone-data/bedrock/issues/670).
+- **Healthcare ambulatory / residential export MISS.** `621100`–`621900`, `623A00`, `623B00` (~$100–181 M F040 per leaf). Crosswalk maps `TravelHealth` → `622000` only (~$1,098 M vs ~$2,815 M hospital ref). No Census or additional IEA leaf hits the ambulatory/residential codes; a 1:m `TravelHealth` split by SUT weights did not improve family-level error (see Crosswalk experiments (rejected)).
 - **1:m zero-weight concentration.** When a mapped IEA type fans out to several Detail codes and some have zero Use `F04000` / Supply `MCIF` weight, proportional attribution puts all mass on the positive-weight targets. Examples on the leaf Crosswalk: `MaintenanceAndRepairNie` -> `811100`/`811200`/`811300`/`811400` (import MCIF often only on `811400`); `Insurance` -> `524113`/`5241XX`/`524200` (mass concentrates on codes with positive weight). `OthPersonalCulturalAndRecreational` -> `712000`/`713900` can drop when Supply MCIF is zero on both (see generate warnings). Leaf parents such as `GovtGoodsAndServicesNie` remain **unmapped** (no `491000` row).
 - **Census residual NAICS (`*X` / `*XX`).** Census USA Trade publishes suppressed-detail residuals alongside digit-6 NAICS (2017 exports: `33641X` 120,967 M, `31181X`, `31135X`, `31131X`, `11211X`, `1123XX`; imports: the same set except `33641X`). `census_usatrade_parse` keeps `\d{6}|\d{5}X|\d{4}XX`. `Sector_Crosswalk_Census_USATrade` maps each residual 1:m onto the Detail commodities of that family (`33641X` → `336411`/`336412`/`336413`/`336414`/`33641A` by Use `F04000` weights). Dropping residuals at parse left those Crosswalk rows unreachable and understated aerospace exports by ~$121 B.
 - **Census `980000`.** No Detail sector in the goods Crosswalk; the NAICS row is omitted from `Sector_Crosswalk_Census_USATrade.csv` and stays unmapped.
@@ -85,6 +95,7 @@ Candidates to revisit. Trigger is a classification or source argument, not a 201
 - **`GovtGoodsAndServicesNie`** -- unmapped. Needs a commodity home that is government n.i.e., not federal electric (`S00101` / `S00102`) and not postal (`491000`).
 - **`OthBusinessNie` -> `561*`** -- n.i.e. residual onto admin/support only if a concordance names those NAICS. Mass is several times 561\* F040/MCIF; file leaves the type unmapped.
 - **Travel other than `TravelHealth`** -- visitor spend (hotels, food, education travel) via BEA TTSA or leave unmapped. Not Use `F04000` mix (`721000` is 0 in the 2017 SUT).
+- **`TravelHealth` → `622000` only** -- a 1:m split across the healthcare Detail family by SUT weights was rejected (see Crosswalk experiments (rejected)); does not close the gap vs published healthcare F040/MCIF totals.
 - **Transport port services** -- `TransportAirPort` / `TransportSeaPort` wait for a support-activities Detail code (no `488000` in 2017 commodities) or a written rule that port is the mode commodity (`481000` / `483000`).
 - **1:m weights** -- `attribution_method: equal`, or same-year `BEA_Detail_GrossOutput_IO`, vs frozen 2017 F040/MCIF. Equal/GO do not require a later Detail Use/Supply.
 - **Financial services** -- direction-specific Crosswalks (`BEA_IEA_exports` vs `BEA_IEA_imports`). Exports: parent `Financial` 1:m by 2017 `F04000`. Imports: `FinFisim` → `52A000` only. Do not map parent `Financial` or explicit `Fin*` leaves onto `MCIF`.
