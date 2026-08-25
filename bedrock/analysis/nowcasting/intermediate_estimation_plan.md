@@ -1484,18 +1484,141 @@ of *every* structural question in the build — Step 3's input mix, Step 4a's
 commodity mix, the margin rates, the FD splits — not just this one. **Cheapest
 high-leverage item on the page**, and everything measured above depends on it.
 
-**S0b. Declare the section before the candidate exists** ([#704](https://github.com/cornerstone-data/bedrock/issues/704)). `use_intermediate_detail_sut`
-in [`sections.py`](sections.py) — 402 × 402, reference `_use_sut_detail()` interior,
-`candidate=None`. This is the pattern `use_va_detail_sut` was declared under: the
-reference, the frame and the tolerance are arguments about economics and can be
-settled now. Cheap, and it puts Step 3 into the progress report.
+**S0b. Declare the section before the candidate exists** ([#704](https://github.com/cornerstone-data/bedrock/issues/704)) — ✅ **declared, and it
+did not stay candidate-less.** S1 landed in the same change, so
+`use_intermediate_detail_sut` in [`sections.py`](sections.py) went in **runnable**:
+402 × 402, reference `_use_sut_detail()` interior, candidate
+`derive_initial_U_intermediate`, `Tolerance(rtol=0.01, atol=$0.5M, ramp=0.25)`.
 
-**S1. The seed, per #497, plus the column control.** Seed from
-`Use_SUT_Framework_2017_DET` (native SUT, native purchaser, native
-before-redefinitions — no conversion round-trip), carry on the commodity price
-index, scale each column to `GO_producer − VAPRO_seed`. This is #497 as scoped,
-and it is what turns the section on. Do it first — everything below is measured
-against it.
+**S1. The seed, per #497, plus the column control** — ✅ **built.**
+[`nowcast_intermediate.py`](../../transform/iot/nowcast_intermediate.py) carries
+the three moves and
+[`nowcast.py`](../../transform/eeio/nowcast.py)`.derive_initial_U_intermediate`
+is the entry point. Seed from `Use_SUT_Framework_2017_DET` (native SUT, native
+purchaser, native before-redefinitions — no conversion round-trip), carry the
+column shares on the commodity price ratio at **θ as an argument**, defaulting to
+#497's 1.0, then scale each column to `GO_producer − VAPRO_seed`. Runs for
+**2017-2024**; the binding constraint is `BEA_Detail_GrossOutput_IO_<year>`, not
+the price index.
+
+Reproduce with `intermediate_structure_drift --seed --control`.
+
+✅ **The section passes at 2017 on every cell**: 44,281 populated cells, 366 row
+totals and 400 column totals all inside tolerance, 100% coverage and 100%
+accuracy. ⚠️ **That is the plumbing, not the movement** — at 2017 the carry
+factor is 1.0 everywhere and the only move left is the column rescale.
+
+⚠️ **The 2017 rescale is not the identity, and the residual is BEA's own
+rounding.** Published `T005` is one rounded number; the interior sums 402
+separately rounded cells to a different one — $350M on $14.9T, at most $13M on
+any single column. A *small* column wears that as a large fraction: `334610` is
+$482M of intermediates and carries $6M of the gap, so the largest **relative**
+cell error is **1.05%** while the largest **absolute** one is **$6.0M**, on a
+$19.2B cell. `atol` is what carries the small cells here, not `rtol`.
+
+✅ **The seven published negatives survive** in all eight years, and the two
+structurally empty columns — `4200ID` customs duties and `814000` private
+households — stay empty. ⚠️ A control that puts real dollars on an empty column
+raises rather than dropping them, and so does a seed column whose nonzero cells
+cancel: an *empty* column has no structure to normalise, a *cancelling* one has
+structure that cannot be written as shares of its own total, and collapsing both
+to all-zero would lose that distinction.
+
+| year | intermediate $B | vs frozen 2017 |
+|---|---:|---:|
+| 2017 | 14,856.0 | +0.00% |
+| 2018 | 15,754.5 | +6.05% |
+| 2019 | 16,150.2 | +8.71% |
+| 2020 | 15,528.1 | +4.53% |
+| 2021 | 17,900.0 | +20.49% |
+| 2022 | 20,084.2 | +35.20% |
+| 2023 | 20,805.4 | +40.05% |
+| 2024 | 21,635.5 | **+45.64%** |
+
+which is §The column control's "~30% short without it" restated from the other
+side: a frozen 2017 level is 1/1.456 = **31.3% short** at 2024.
+
+### ⚠️ The column control is well levelled and badly allocated
+
+`VAPRO` is Step 2's and Step 2 is unbuilt, so `vapro_seed` carries 2017's
+value-added share of gross output forward. **Under a frozen ratio the control
+reduces to `GO(t) × T005(2017) / GO(2017)`** — until Step 2 lands it contributes
+gross-output movement and nothing else. It is written in the `GO − VAPRO` form
+anyway so that landing Step 2 changes one function.
+
+Nothing observed at detail can check that, but the summary Use SUT publishes
+`T005` every year, so aggregating the detail control to summary is a real
+out-of-sample test (`--control`):
+
+| year | level % | weighted MAE % | worst | worst % |
+|---|---:|---:|---|---:|
+| 2018 | −0.59 | 2.51 | `42` | −3.4 |
+| 2019 | +0.20 | 3.92 | `521CI` | +13.1 |
+| 2020 | +1.23 | 5.68 | `42` | +9.2 |
+| 2021 | −1.15 | 6.99 | `GSLG` | −12.0 |
+| 2022 | −2.30 | 7.99 | `GSLG` | **−18.3** |
+| 2023 | +0.37 | 7.23 | `GSLG` | −15.4 |
+| 2024 | +0.92 | 7.91 | `GSLG` | −13.6 |
+
+✅ **Economy-wide it is right** — within 2.3% in every year, and within 1.3% in
+five of seven. ⚠️ **Per industry it is not, and it degrades**: the weighted mean
+absolute error triples between 2018 and 2022, and `GSLG` state and local
+government is 18.3% low at 2022. Government's VA share of output moved and a
+2017 ratio cannot see it.
+
+⚠️ **`GSLG` topping this list is not a Step 3 sourcing gap, and it is not #578.**
+Two different government problems are easy to run together:
+
+| | what is wrong | what fixes it |
+|---|---|---|
+| **this table** | the column *level*, `GO − VAPRO_seed` | an annual government column total, or Step 2's `VABAS` |
+| [#578](https://github.com/cornerstone-data/bedrock/issues/578) | the commodity *mix* inside the column | function → commodity, if that bridge exists |
+
+`govslocalfin` is the source for the second and does nothing for the first.
+`GFGD` 0.192, `GFGN` 0.179 and `GSLG` 0.127 are among the worst-drifting columns
+in the table — that is #578's problem and it is sequenced at **S5**, behind a
+go/no-go that has not been run.
+
+⚠️ **And government is the one column whose annual total is already identified
+and not built.** [`plan.md`](plan.md) §Step 3 records NIPA `T31005` *Government
+Consumption Expenditures and General Government Gross Output* matching the
+published `T005` at **$0 / $0 / $2M** in 2017 — `W087RC` against `S00500`,
+`W131RC` against `S00600`, `W140RC` against `GSLGE`+`GSLGH`+`GSLGO`. Nothing in
+the tree reads it; it is documented as a validation source and never wired. So
+the worst cell of the control table is the one with an exact annual source
+sitting unused.
+
+⚠️ **And Step 5 rescues less of this than §The column control implies.** T1 is
+hard and real for 2017-2024, but it constrains `T005 + VAPRO = GO` — the
+column's **sum**, not the split. The split is pinned only by **T4** (`V00100` by
+industry group) and **T6** (the tax rows, economy-wide), both **soft** and both
+still `PLACEHOLDER`, with `va_row_targets` reading their values off the 2017
+panel after `del year`. And **T5 — `T00OTOP` and `V00300` — is deliberately not
+imposed**: they "enter the balance as seed only, which is the price of the test
+being worth running", because the income side is the hold-back that keeps GDP
+out-of-sample. `V00300` is **$7.873T**. So the balance cannot re-derive `VABAS`,
+and §The column control's argument only ever licensed a 2017 ratio for the
+`T00TOP`/`T00SUB` wedge — it assumed `VABAS` came from Step 2. `vapro_seed`
+freezes more than that.
+
+**What that does and does not cost.** The estimand here is the column *shape*,
+and the shape is untouched: it is seeded, carried and renormalised before the
+control is applied, so a wrong control rescales a column without moving a single
+share inside it. What the missing VA costs is the **level** — and until Step 2
+lands there is no VA seed for any year but 2017 either, so the balance cannot
+run on 2024 whatever this module does.
+
+**None of which changes what to build here.** Step 5 re-imposes T1 hard and
+re-solves the `T00TOP`/`T00SUB` wedge, so a wrong wedge is overwritten rather
+than propagated —
+which is exactly the argument §The column control makes for allowing a 2017
+ratio at Step 3 in the first place, and it is why `T31005` "as a *source* adds
+nothing" there. It is recorded because two cheap alternatives are already
+measured or identified: the published summary `T005`, observed annually and
+spreadable within a summary parent on gross-output share, and `T31005` for the
+government columns specifically. Whoever needs the column right per industry
+before Step 5 runs should pass `column_control` explicitly rather than
+re-deriving it.
 
 **S2. Fit θ, and add the margin-rate factor** ([#699](https://github.com/cornerstone-data/bedrock/issues/699)). §Inflation and §Margins.2. One
 experiment, two terms, scored on the published summary panel 2018-2024. The

@@ -98,6 +98,14 @@ from bedrock.extract.iot.io_2017 import (
     _load_2017_detail_supply_use_usa,
 )
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
+from bedrock.transform.iot.nowcast_intermediate import (
+    INTERMEDIATE_YEARS,
+    benchmark_intermediate,
+    derive_intermediate_use,
+    intermediate_column_control,
+    reproduction_check,
+)
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -628,6 +636,80 @@ def where_detail(
     return table.sort_values('misplaced_$M', ascending=False).head(top)
 
 
+def column_control(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
+    """Score Step 3's column control against the published summary ``T005``.
+
+    The control is ``GO_producer - VAPRO_seed`` per detail industry, and with
+    Step 2 unbuilt ``VAPRO_seed`` is 2017's value-added share of gross output.
+    Nothing at detail can check that, but the *summary* Use SUT publishes
+    ``T005`` for every year, so aggregating the detail control to summary gives
+    a real out-of-sample test of the frozen ratio.
+
+    ``level_%`` is the economy-wide error and ``spread_%`` is the dollar-weighted
+    mean absolute error across summary industries -- the two say different
+    things, and the frozen ratio is good at the first and increasingly bad at
+    the second.
+    """
+    industry_to_summary = {
+        str(code): (parents[0] if isinstance(parents, list) else str(parents))
+        for code, parents in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    group = pd.Series(
+        {code: industry_to_summary.get(code) for code in USA_2017_INDUSTRY_CODES}
+    )
+    records = []
+    for year in years:
+        built = (
+            intermediate_column_control(year).groupby(group).sum()
+            / MILLION_CURRENCY_TO_CURRENCY
+        )
+        published = pd.to_numeric(
+            ta.cast('pd.Series', summary_use(year).loc['T005']), errors='coerce'
+        ).reindex(built.index)
+        shared = published.notna()
+        error = built[shared] - published[shared]
+        total = float(published[shared].sum())
+        worst = ta.cast(str, error.abs().idxmax())
+        records.append(
+            {
+                'year': year,
+                'built_$M': float(built[shared].sum()),
+                'published_$M': total,
+                'level_%': 100 * (float(built[shared].sum()) / total - 1),
+                'spread_%': 100 * float(error.abs().sum()) / total,
+                'worst': worst,
+                'worst_%': 100 * float(error[worst]) / float(published[worst]),
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
+def seed(theta: float = 1.0) -> pd.DataFrame:
+    """The built Step 3 block, year by year, against a frozen 2017 level.
+
+    ⚠️ **This is not a score.** Nothing observed exists at detail after 2017, so
+    all this reports is that the block is levelled, signed and shaped the way it
+    should be. The structure is scored on the summary panel by :func:`drift` and
+    :func:`inflation`, and the plumbing is checked by
+    :func:`~bedrock.transform.iot.nowcast_intermediate.reproduction_check`.
+    """
+    frozen = float(benchmark_intermediate().to_numpy().sum())
+    records = []
+    for year in INTERMEDIATE_YEARS:
+        block = derive_intermediate_use(year, theta=theta)
+        total = float(block.to_numpy().sum())
+        records.append(
+            {
+                'year': year,
+                'intermediate_$B': total / 1e9,
+                'vs_frozen_2017_%': 100 * (total / frozen - 1),
+                'negative_cells': int((block.to_numpy() < 0).sum()),
+                'empty_columns': int((block.abs().sum(axis=0) == 0).sum()),
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
 def _detail_descriptions(year: BENCHMARK_YEAR) -> pd.Series:
     """``code -> description`` off the same sheet, for readable output."""
     use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
@@ -651,9 +733,24 @@ def main() -> None:
     parser.add_argument(
         '--theta', action='store_true', help='fit theta, with and without margins'
     )
+    parser.add_argument(
+        '--control', action='store_true', help='score the column control'
+    )
+    parser.add_argument('--seed', action='store_true', help='the built Step 3 block')
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
-    chosen = args.drift or args.inflation or args.holdout or args.where or args.revision
+    chosen = any(
+        (
+            args.drift,
+            args.inflation,
+            args.holdout,
+            args.where,
+            args.revision,
+            args.theta,
+            args.control,
+            args.seed,
+        )
+    )
 
     if args.all or args.drift or not chosen:
         print('\nFrozen 2017 input structure vs the published summary Use SUT')
@@ -675,6 +772,15 @@ def main() -> None:
         print('\nFitting theta, with and without the margin leg of the deflator')
         print('(does the missing purchaser-price term explain the low theta?)\n')
         print(theta().round(4).to_string())
+    if args.all or args.control:
+        print("\nStep 3's column control against the published summary T005")
+        print('(level_% is economy-wide; spread_% is weighted MAE by industry)\n')
+        print(column_control().round(3).to_string())
+    if args.all or args.seed:
+        print('\nThe built Step 3 block, against a frozen 2017 level\n')
+        print(seed().round(3).to_string())
+        print('\n2017 reproduction of the published interior\n')
+        print(reproduction_check().to_string())
     if args.all or args.revision:
         series, columns = revision()
         print('\nThe same year read from both summary Use vintages')

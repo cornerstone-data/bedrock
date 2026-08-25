@@ -65,10 +65,15 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   |---|---|---|---|
   | `use_fd_detail_sut` | 1 — Use final-demand columns | 402 × 19 | exported CSV |
   | `use_va_detail_sut` | 2 — Use value-added rows | 3 × 402 | none yet |
+  | `use_intermediate_detail_sut` | 3 — Use intermediate interior | 402 × 402 | `derive_initial_U_intermediate` |
   | `supply_bridge_detail_sut` | 4 — Supply imports, margins, taxes and the basic→purchaser subtotals | 402 × 12 | `derive_initial_supply_bridge` (MCIF) |
 
-  Those three are the whole of what a published 2017 detail reference supports
-  outside the two 402 × 402 interiors.
+  The first three are the whole of what a published 2017 detail reference
+  supports *outside* the two 402 × 402 interiors.
+  `use_intermediate_detail_sut` is one of those interiors: 161,604 cells is too
+  many to read as a picture but not too many to score, and the section machinery
+  reports the totals, the margins and a status count without anyone looking at
+  the grid. The Supply interior — the Make table, Step 4a — is still undeclared.
 - `plots.py` — the renderer and its CLI. Draws the interior as a single raster
   `imshow`, with the row totals as a strip down the right edge and the column
   totals along the bottom, on the same colour scale. `palette_separation()`
@@ -90,7 +95,11 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   margins of that block and only the structure survives. `--drift` scores frozen
   2017 against the summary Use SUT 2018-2024, `--inflation` scores the price-index
   carry against it, `--holdout` runs the out-of-sample 2012 → 2017 detail version,
-  `--where` locates the drift by column. Prints only; writes nothing.
+  `--where` locates the drift by column, `--revision` measures BEA's own restatement
+  of a year it had already published, `--theta` fits the carry exponent,
+  `--control` scores the built column control against the published summary
+  `T005`, and `--seed` reports the built block year by year. Prints only; writes
+  nothing.
 - `row_control_exposure.py` — what `MCIF` and `F04000` error costs the
   intermediate block. Step 3's commodity row is the residual
   `T001 = T016 − Σ_FD Y`, so trade error lands in the interior; this scores it per

@@ -14,8 +14,9 @@ comparable to each other.
 
 Everything here is BEA 2017 **detail** schema: 402 commodities, 402 industries,
 the published final-demand, value-added and supply-bridge codes.  No summary
-rollup -- these three blocks are small enough to read at detail
-(402 x 19, 3 x 402, 402 x 12), which is not true of the 402 x 402 interiors.
+rollup -- three of the four blocks are small enough to read at detail
+(402 x 19, 3 x 402, 402 x 12); the Use interior is not, and is scored rather
+than read.
 
 Sections defined here
 -------------------------
@@ -30,10 +31,17 @@ Sections defined here
                             imports, margins, taxes and the subtotals
                             bridging basic to purchaser value.  Runnable;
                             candidate fills MCIF only.
+``use_intermediate_detail_sut`` Step 3.  The Use table's 402 x 402 interior.
+                            Runnable.
 =========================== =================================================
 
-These three are the whole of what a published 2017 detail reference supports
-outside the two 402 x 402 interiors.
+The first three are the whole of what a published 2017 detail reference
+supports *outside* the two 402 x 402 interiors.  ``use_intermediate_detail_sut``
+is one of those interiors, and it is the exception the docstring above used to
+deny: 161,604 cells is too many to read as a picture, but it is not too many to
+*score*, and the section machinery reports totals, row and column margins and a
+status count without anyone having to look at the grid.  The Supply interior --
+the Make table, Step 4a -- is still undeclared.
 
 A section can be declared before its candidate exists
 -----------------------------------------------------
@@ -252,6 +260,18 @@ def use_sut_value_added_reference(year: int = 2017) -> pd.DataFrame:
     return _block(_use_sut_detail(), SUT_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES)
 
 
+def use_sut_intermediate_reference(year: int = 2017) -> pd.DataFrame:
+    """Intermediate interior of the published 2017 detail Use SUT table, in USD.
+
+    402 commodities x 402 industries, purchaser price, before redefinitions.
+
+    ⚠️ **Seven cells are negative and stay negative.**  They are published that
+    way, and a candidate that clips them has stopped reproducing its own source.
+    """
+    _require_2017(year)
+    return _block(_use_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES)
+
+
 def supply_sut_bridge_reference(year: int = 2017) -> pd.DataFrame:
     """Right-hand block of the published 2017 detail Supply SUT table, in USD.
 
@@ -289,6 +309,21 @@ def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
     )
 
     return derive_initial_supply_bridge(year)
+
+
+def initial_U_intermediate_candidate(year: int) -> pd.DataFrame:
+    """Our Step 3 intermediate block, commodity x industry, in USD.
+
+    Runs ``derive_initial_U_intermediate`` at #497's ``theta = 1``.  At 2017 the
+    carry is the identity and only the column control moves, so this section run
+    is a plumbing test; the movement is scored on the summary panel by
+    ``intermediate_structure_drift``, not here.
+    """
+    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        derive_initial_U_intermediate,
+    )
+
+    return derive_initial_U_intermediate(year)
 
 
 #: Where ``initial_Y_pur_baseline.export_cellwise_comparison`` writes.
@@ -406,10 +441,45 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
     ),
 )
 
+USE_INTERMEDIATE_DETAIL_SUT = Section(
+    name='use_intermediate_detail_sut',
+    title='Use intermediate block, BEA 2017 detail — nowcast vs published SUT',
+    step='Step 3 - the intermediate interior',
+    rows=tuple(USA_2017_COMMODITY_CODES),
+    columns=tuple(USA_2017_INDUSTRY_CODES),
+    row_axis='commodity',
+    column_axis='industry',
+    # 1% because the plan states no bar for Step 3.  ⚠️ At 2017 the candidate is
+    # the reference rescaled to a column control that is BEA's own rounded
+    # ``T005``, and the interior sums 402 separately rounded cells to a
+    # different number -- $350M on $14.9T, at most $13M on a column.  A *small*
+    # column wears that as a large fraction, so ``atol`` is what carries those
+    # cells, not ``rtol``: ``334610`` is $482M of intermediates and is rescaled
+    # by 1.05%.
+    tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
+    reference=use_sut_intermediate_reference,
+    candidate=initial_U_intermediate_candidate,
+    note=(
+        'Candidate is derive_initial_U_intermediate: the published 2017 detail '
+        'interior column-normalised, carried on the detail commodity price '
+        'ratio at theta = 1, and rescaled to GO_producer - VAPRO_seed. '
+        'VAPRO is a seed, not Step 2 - Step 2 is unbuilt, so the wedge is '
+        "2017's VA share of gross output carried on published gross output, and "
+        'the control therefore contributes gross-output movement and nothing '
+        'else. theta = 1 is #497 as written and fits negative at 2023-24; '
+        'choosing it is #699. The seven negative cells are preserved.'
+    ),
+)
+
 #: Every section, by name.  The renderer and the tests both select from here.
 SECTIONS: dict[str, Section] = {
     section.name: section
-    for section in (USE_FD_DETAIL_SUT, USE_VA_DETAIL_SUT, SUPPLY_BRIDGE_DETAIL_SUT)
+    for section in (
+        USE_FD_DETAIL_SUT,
+        USE_VA_DETAIL_SUT,
+        USE_INTERMEDIATE_DETAIL_SUT,
+        SUPPLY_BRIDGE_DETAIL_SUT,
+    )
 }
 
 
