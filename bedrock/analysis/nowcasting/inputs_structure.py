@@ -1636,9 +1636,9 @@ def materials_theta() -> pd.DataFrame:
 
 
 @functools.cache
-def _census_mix_frames() -> tuple[
-    tuple[str, pd.DataFrame, pd.DataFrame, pd.Series], ...
-]:
+def _census_mix_frames() -> (
+    tuple[tuple[str, pd.DataFrame, pd.DataFrame, pd.Series], ...]
+):
     """The 2017 and 2022 census commodity blocks, aligned, on both frames.
 
     The same construction :func:`commodity_movement` scores, returned rather
@@ -1782,7 +1782,8 @@ def _panel_forms(interior: bool) -> pd.DataFrame:
     reference = 'frozen' if interior else 'hold the last observation'
     return table.assign(
         **{
-            'vs_%s_%%' % reference.split()[0]: lambda frame: 100
+            'vs_%s_%%'
+            % reference.split()[0]: lambda frame: 100
             * (frame.loc[reference, 'manufacturing'] - frame['manufacturing'])
             / frame.loc[reference, 'manufacturing']
         }
@@ -1898,9 +1899,7 @@ def materials_seed_movement(clean: bool = False) -> pd.DataFrame:
                 'treatment': (
                     'census observed'
                     if year in VINTAGES
-                    else 'held at 2022'
-                    if year > VINTAGES[1]
-                    else 'interpolated'
+                    else 'held at 2022' if year > VINTAGES[1] else 'interpolated'
                 ),
             }
         )
