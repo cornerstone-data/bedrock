@@ -979,7 +979,13 @@ guess that the vintage diff was "why `336411` matters" was wrong, and the
 exclusion in §How far the materials mix actually moved remains the right
 treatment.
 
-#### 4. ❌ Linear interpolation — tested, and rejected
+#### 4. ❌ Linear interpolation **of the level** — tested, and rejected
+
+⚠️ **This section is about the materials *level*, not the mix.** The two were
+run together in an earlier draft and they have different answers: the level is
+observed annually and so needs no interpolation at all, while the mix is observed
+only at the two censuses and its form is settled separately, in
+§The interpolation form — answered.
 
 The plan called linear interpolation "the obvious first form". It is obvious and
 it is wrong, and the way to see that is to stop treating 2018-2023 as unobserved.
@@ -1073,6 +1079,117 @@ and Intermediate Supply**, which is exactly what Step 3 builds.
 That cuts both ways, and the second way is the point: **this is information BEA
 has not yet incorporated**, which is the strongest available argument for
 seeding from it rather than from a carried-forward 2017.
+
+---
+
+### ✅ The interpolation form — answered, and it is not the price path
+
+The form left open above has been fitted, in
+[`inputs_structure.py`](inputs_structure.py) (`--form`, `--seed`).
+
+⚠️ **First, separate the two things that were being called "interpolation".**
+The materials **level** is observed every year — ASM to 2021, AIES from 2023 —
+so it never needed interpolating, and §4 above rules out doing so. The
+**commodity mix** is observed only at 2017 and 2022, and *nothing* observes its
+interior: the fuels share of the census universe sits between 0.98% and 1.14%
+across the whole span, so the coarse annual partition constrains the mix hardly
+at all. The open question was only ever about the mix.
+
+#### ❌ The price-carried path is rejected
+
+The candidate this plan named was a price-carried path, reasoning that #497
+already carries a commodity price index and the observed level path is dominated
+by price. Carrying the 2017 census mix to 2022 on `(p_c(2022)/p_c(2017))^θ` and
+scoring against the observed 2022 census mix:
+
+| frame | best θ | gain over frozen |
+|---|---:|---:|
+| `direct + group` | −0.25 | +0.4% |
+| **unsuppressed, `direct + group`** | **0.00** | **0.0%** |
+
+❌ **θ fits 0.00 on the frame this plan says to quote.** The price carry buys
+*nothing* on the materials mix. **The level moves with price; the mix does not**
+— which is the same lesson §Inflation learned on the summary panel, arriving
+from a different direction.
+
+#### ⚠️ The summary panel cannot arbitrate the form, and that is not a detail
+
+The obvious test is to take the annually-published summary Use SUT, interpolate
+between two years five apart and score against the years in between. ⚠️ **That
+test is circular and its answer must not be used.** BEA's annual tables are the
+last benchmark carried forward on annual indicators, so every interior year of a
+summary span is *itself* an interpolation; scoring a candidate against it
+measures agreement between two methods rather than the shape of the thing. And
+because **BEA has not incorporated the 2022 Economic Census**, its 2022, 2023 and
+2024 tables are still *2017*-benchmark carries — so a span with an endpoint
+anywhere in the nowcast horizon is contaminated at the endpoint as well as in the
+interior.
+
+✅ **The benchmark detail panel can arbitrate it**, and this is a second use for
+what S0a built: 2007, 2012 and 2017 are three *independent*
+Economic-Census-anchored observations. Interpolate 2007 → 2017, score at the
+observed 2012:
+
+| form | manufacturing | whole table |
+|---|---:|---:|
+| frozen at 2007 | 0.0889 | 0.1323 |
+| linear | 0.0764 | 0.1190 |
+| **geometric** (log-linear in shares) | **0.0710** | **0.1164** |
+| endpoint — adopt the 2017 mix at once | 0.1216 | 0.1712 |
+
+✅ **Interpolating beats freezing by 20.1%**, ✅ **geometric beats linear by
+7.1%** — the form is worth choosing rather than defaulting — and ❌ **adopting
+the newer observation immediately is worse than freezing.** So *"just seed every
+year from the 2022 census, it is nearer the target years"* is the one candidate
+that loses to doing nothing.
+
+#### ❌ But do not extend the trend past the last observation
+
+Step 3's target years run past the last census, so the tail needs its own test.
+From 2007 and 2012, reaching the observed 2017:
+
+| form | manufacturing | whole table |
+|---|---:|---:|
+| **hold the 2012 mix** | **0.1232** | **0.1733** |
+| linear trend extended | 0.1569 | 0.2455 |
+| geometric trend extended | 0.1513 | 0.2546 |
+
+❌ **Extending a mix trend one span past its last observation costs 27.4% on
+manufacturing and 41.7% on the whole table.** A mix trend does not persist.
+
+✅ **So S3 ships an asymmetry, and every leg of it is measured:** geometric
+interpolation between the two censuses, and the 2022 mix **held flat** for 2023
+and 2024.
+
+⚠️ **One clean interior observation, on a ten-year span**, transferred to the
+census's five-year one. It is the only clean test the data admits — not a large
+sample — and the honest reading is that it settles *which* form rather than
+proving the form is right.
+
+#### What the seed moves
+
+`materials_seed(year)` returns commodity × BEA detail industry in $M on the
+benchmark Use axes, manufacturing columns only — the same shape `nonmaterial_seed`
+returns, so the two compose. ✅ **The form is an index on the share, not a
+substitution of the level**, for the reason §The 2017 anchor gives, and the
+column total is held because Step 3 owns the level through `GO − VAPRO`.
+
+| year | treatment | moved from frozen 2017 |
+|---|---|---:|
+| 2017 | census observed | 0.0000 |
+| 2018 | interpolated | 0.0192 |
+| 2019 | interpolated | 0.0378 |
+| 2020 | interpolated | 0.0567 |
+| 2021 | interpolated | 0.0770 |
+| 2022 | census observed | 0.0979 |
+| 2023 | held at 2022 | 0.0979 |
+| 2024 | held at 2022 | 0.0979 |
+
+⚠️ The seed runs on the **full, suppression-recovered** frame rather than the
+unsuppressed subsample, because the seed wants every industry it can reach where
+the *score* wants only clean ones — on the unsuppressed frame alone the same
+table peaks at 0.0414. The 0.0979 at 2022 sits alongside §The mix score's
+independently-computed 0.0949, which is the construction checking out.
 
 ---
 
@@ -1905,12 +2022,15 @@ What is left of [#698](https://github.com/cornerstone-data/bedrock/issues/698) i
   detail commodity for both vintages, 200 commodities and $2,681B in 2022;
 - **the industry axis is done** — one 365-unit basis carrying 100% of both
   vintages;
-- ⚠️ **the interpolation form is open, and linear is ruled out** (§4). The next
-  measurement is which form to fit: a price-carried path is the candidate,
-  because #497 already carries a commodity price index and the observed level
-  path is dominated by price (2020 collapse, 2022 spike). Fit it on the one span
-  that can be scored — 2017 → 2022 on the census mix — rather than assuming it,
-  which is the same move §S2's θ makes on the summary panel.
+- ✅ **the interpolation form is answered, and it is not the price path**
+  (§The interpolation form — answered). The price-carried candidate this plan
+  named fits **θ = 0.00** on the census span: the level moves with price, the
+  mix does not. The form is chosen on the benchmark panel instead —
+  **geometric interpolation** between the censuses (+20.1% over frozen, +7.1%
+  over linear), and the 2022 mix **held flat** past the last observation, since
+  extending the trend costs 27.4%;
+- ✅ **the seed is built** — `materials_seed(year)`, an index on the share with
+  the column total held, moving the block 0.0979 off frozen 2017 by 2022.
 
 ⚠️ **The estimation span ends at 2023, which is the last year observed.**
 Extending it to 2024 is [#707](https://github.com/cornerstone-data/bedrock/issues/707) and is Phase 2 work tied to producing a
