@@ -13,13 +13,17 @@ Crosswalks: `Sector_Crosswalk_Census_USATrade.csv` (shared by exports and import
 
 Exports and imports share one Census goods Crosswalk. IEA uses two files because BEA books financial services trade asymmetrically in the 2017 Detail SUT: family `F04000` is spread across four financial commodities (~$132 B); family `MCIF` is almost entirely FISIM on `52A000` (~$6.6 B). IEA reports explicit financial subtypes on imports that have no matching `MCIF` cells.
 
-**All non-financial rows are the same in both files.** Only the financial block differs:
+**Non-financial rows match across both files except the `#606` noncomparable-imports block below** (imports route to `S00300`; exports keep the Detail commodity). Financial services also differ:
 
 | IEA `TypeOfService` | Exports (`BEA_IEA_exports`) | Imports (`BEA_IEA_imports`) | Why they differ |
 | --- | --- | --- | --- |
 | `Financial` | 1:m → `52A000`, `522A00`, `523A00`, `523900`; split by 2017 Use `F04000` | *unmapped* | Parent total (~$38 B imports) has no SUT `MCIF` home; mapping it dumps mass onto `52A000` (5.7× SUT). |
 | `FinFisim` | *unmapped* (included in parent `Financial`) | 1:1 → `52A000` | FISIM imports (~$6.6 B) match published `52A000` `MCIF`. |
-| `FinExplicitAndOth` | *unmapped* (included in parent `Financial`) | *unmapped* | Explicit fees (~$31 B imports); no Detail `MCIF` rows except ~$57 M residual on `523A00`. Candidate for `#606` / `S00300` later. |
+| `CipLicensesOutcomesResearchAndDev` | → `533000` (F040-weighted family) | → **`S00300`** | Intangible licensing imports; `533000` `MCIF` is zero ([#606](https://github.com/cornerstone-data/bedrock/issues/606)). |
+| `CipLicensesFranchiseFees` / `CipLicensesTrademarks` | → `533000` | → **`S00300`** | Same noncomparable-imports bucket on `MCIF`. |
+| `TransportSeaFreight` | → `483000` | → **`S00300`** | Foreign port/vessel services consumed abroad; `483000` `MCIF` is zero ([#606](https://github.com/cornerstone-data/bedrock/issues/606)). |
+| `TradeRelated` | → `425000` | → **`S00300`** | Wholesale electronic markets; `425000` `MCIF` is zero. |
+| `FinExplicitAndOth` | *unmapped* (included in parent `Financial`) | *unmapped* | Explicit fees (~$31 B imports); no Detail `MCIF` home. |
 | `FinCredCardOthCredRelated` | *unmapped* | *unmapped* | Explicit credit services; `522A00` `MCIF` is zero in SUT. |
 | `FinSecBrokAndMM` | *unmapped* | *unmapped* | Explicit brokerage; `523A00` `MCIF` is ~$57 M in SUT vs ~$4.8 B in IEA. |
 | `FinUwAndPP` | *unmapped* | *unmapped* | Explicit underwriting; no SUT `MCIF` cell. |
@@ -29,7 +33,7 @@ Exports and imports share one Census goods Crosswalk. IEA uses two files because
 
 **Export financial rule:** map parent `Financial` only; proportional split uses frozen 2017 `F04000` weights among the four Detail codes. **Import financial rule:** map `FinFisim` → `52A000` only (direct 1:1; no proportional step).
 
-When adding a new IEA row, update **both** files unless the classification argument is direction-specific (financial services is the only current case).
+When adding a new IEA row, update **both** files unless the classification argument is direction-specific (financial services, `#606` / `S00300` imports).
 
 Do not copy `Cornerstone_2025_target.yaml` / `BEA_detail_target.yaml` here — those select NAICS leaves; these Crosswalks emit Detail.
 
@@ -59,7 +63,7 @@ Documented rules; FBS methods do not allocate onto these codes. Holes below are 
 - **Census residual NAICS (`*X` / `*XX`).** Census USA Trade publishes suppressed-detail residuals alongside digit-6 NAICS (2017 exports: `33641X` 120,967 M, `31181X`, `31135X`, `31131X`, `11211X`, `1123XX`; imports: the same set except `33641X`). `census_usatrade_parse` keeps `\d{6}|\d{5}X|\d{4}XX`. `Sector_Crosswalk_Census_USATrade` maps each residual 1:m onto the Detail commodities of that family (`33641X` → `336411`/`336412`/`336413`/`336414`/`33641A` by Use `F04000` weights). Dropping residuals at parse left those Crosswalk rows unreachable and understated aerospace exports by ~$121 B.
 - **Census `980000`.** No Detail sector in the goods Crosswalk; the NAICS row is omitted from `Sector_Crosswalk_Census_USATrade.csv` and stays unmapped.
 - **`S00900` (rest of the world adjustment).** Set at Y assembly: `Y[S00900,F040] = -Y[S00900,F010] + Supply_T016[S00900]` (USD). Not an FBS extract.
-- **`S00300` (noncomparable imports).** 260,421 M USD on Supply `MCIF`. No Crosswalk row. Hold-from-Supply / residual allocation is later wiring, not FBS generation.
+- **`S00300` (noncomparable imports).** 260,421 M USD on Supply `MCIF`. Imports Crosswalk routes `CipLicensesOutcomesResearchAndDev`, `CipLicensesFranchiseFees`, `CipLicensesTrademarks`, `TransportSeaFreight`, and `TradeRelated` to `S00300` ([#606](https://github.com/cornerstone-data/bedrock/issues/606)); exports keep the Detail commodity targets. Remaining `S00300` mass is hold-from-Supply / residual allocation, not Trade FBS.
 - **Export `MISS` >= 1 B USD.** `492000` couriers (9,411 M), `550000` management of companies (4,296 M), `531ORE` other real estate (3,274 M), `221100` electric power (2,744 M), `722110` full-service restaurants (1,177 M), `722211` limited-service restaurants (1,130 M). Rule: no Census NAICS-6 / residual and no mapped IEA type hits that Detail commodity. (`311810` bakery is filled from `31181X`.)
 - **Import `MISS` >= 1 B USD besides `S00300`.** `221100` (2,431 M), `561300` employment services (1,588 M). Same rule. (`311810` and `1121A0` are filled from `31181X` / `11211X`.)
 - **Large non-`MISS` gaps (PARTIAL, ~>=10x).** `325413` exports (~63x), `322130` exports (~19x), `325910` imports (~55x), `517110` imports (~36x), `334418` imports (~27x), `334610` imports (~21x), `333112` imports (~12x). These errors are driven by incorrect split/weighting rather than zeroing.
