@@ -71,9 +71,10 @@ structure.  Wherever BEA also froze structure, "frozen" wins there by
 construction, and ``--drift`` is a floor.  ``--holdout`` is the non-circular
 check, and it is also the one that reaches BEA detail.
 
-⚠️ **The benchmark panel has no extractor yet.**  It arrives as a local drop of
-``SUPPLY-USE_2026-08-24.zip`` in the ``USA_AllTablesSUP`` cache directory;
-``io_2017`` still maps ``Use_SUT_detail`` to the single-year 2017 workbook.  See
+✅ **The benchmark panel has an extractor.**  ``io_2017``'s
+``load_benchmark_detail_U_intermediate_usa`` reads 2007, 2012 and 2017 off the
+published panel, GCS-backed like every other table here, and its 2017 sheet is
+checked cell for cell against the single-year workbook.  See
 :func:`benchmark_detail_intermediate`.
 
 Run::
@@ -86,8 +87,6 @@ from __future__ import annotations
 
 import argparse
 import typing as ta
-import zipfile
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -96,6 +95,7 @@ from bedrock.extract.iot.io_2017 import (
     GCS_USA_SUP_DIR,
     LOCAL_USA_SUP_DIR,
     _load_2017_detail_supply_use_usa,
+    load_benchmark_detail_U_intermediate_usa,
 )
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
 from bedrock.transform.iot.nowcast_intermediate import (
@@ -143,7 +143,6 @@ BENCHMARK_SPANS: tuple[tuple[BENCHMARK_YEAR, BENCHMARK_YEAR], ...] = (
     (2012, 2017),
     (2007, 2017),
 )
-BENCHMARK_SUT_ARCHIVE = 'SUPPLY-USE_2026-08-24.zip'
 
 #: ``derive_industry_price_index`` starts here, so 2007 spans carry no carry.
 PRICE_INDEX_START = 2012
@@ -479,37 +478,22 @@ def theta(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
 def benchmark_detail_intermediate(year: BENCHMARK_YEAR) -> pd.DataFrame:
     """Intermediate block of the detail Use SUT for a benchmark year, in $M.
 
-    ``Use_SUT_Detail.xlsx`` inside ``SUPPLY-USE_2026-08-24.zip`` carries **2007,
-    2012 and 2017 on one sheet each, all on the 2017 code basis and all in the
-    same 413 x 424 frame** -- purchaser value, before redefinitions, BEA detail.
-    That is Step 3's estimand exactly, three times, so the holdout below scores
-    the thing being built rather than an analogue of it.
+    BEA's benchmark detail SUT panel carries **2007, 2012 and 2017 on one sheet
+    each, all on the 2017 code basis and all in the same 413 x 424 frame** --
+    purchaser value, before redefinitions, BEA detail.  That is Step 3's
+    estimand exactly, three times, so the holdout below scores the thing being
+    built rather than an analogue of it.
 
-    ⚠️ **Not wired to GCS yet.**  ``io_2017`` maps ``Use_SUT_detail`` to the
-    single-year ``Use_SUT_Framework_2017_DET.xlsx``; this zip is a local drop in
-    the same cache directory and has no extractor.  Promoting it to a proper
-    year-parameterised loader is its own task -- until then this reads the local
-    file and says so if it is missing.
+    ``io_2017.load_benchmark_detail_U_intermediate_usa`` returns it in USD on
+    the model index; this module works in $M against the summary panel, so it
+    is divided back and left on the raw codes.
     """
-    archive = Path(LOCAL_USA_SUP_DIR) / BENCHMARK_SUT_ARCHIVE
-    if not archive.exists():
-        raise FileNotFoundError(
-            f'{archive} not found.  The 2007/2012/2017 detail SUT panel is a '
-            'local drop with no extractor yet; see this module docstring.'
-        )
-    with (
-        zipfile.ZipFile(archive) as bundle,
-        bundle.open('Use_SUT_Detail.xlsx') as sheet,
-    ):
-        frame = (
-            pd.read_excel(sheet, sheet_name=str(year), skiprows=5, dtype={'Code': str})
-            .set_index('Code')
-            .fillna(0)
-        )
-    frame.columns = frame.columns.astype(str)
-    return frame.reindex(
-        index=list(USA_2017_COMMODITY_CODES), columns=list(USA_2017_INDUSTRY_CODES)
-    ).astype(float)
+    block = (
+        load_benchmark_detail_U_intermediate_usa(year) / MILLION_CURRENCY_TO_CURRENCY
+    )
+    block.index = pd.Index(list(USA_2017_COMMODITY_CODES))
+    block.columns = pd.Index(list(USA_2017_INDUSTRY_CODES))
+    return block
 
 
 def _to_summary(block: pd.DataFrame) -> pd.DataFrame:

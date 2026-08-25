@@ -787,11 +787,14 @@ median 2.8pp, p90 12.1pp, 2017→2024).
 ✅ **New data, 2026-08-24: `SUPPLY-USE_2026-08-24.zip` carries the detail Supply and Use SUT for 2007,
 2012 and 2017** — three sheets, one 2017 code basis, one frame, purchaser value, before redefinitions.
 That is Step 3's estimand three times over, and it is what the detail numbers above are measured on.
-⚠️ **It has no extractor**; `io_2017` still maps `Use_SUT_detail` to the single-year 2017 workbook.
-Promoting it is worth more than Step 3 alone — a 2007 and 2012 detail SUT in the 2017 frame is a second
-and third observation of the commodity mix (Step 4a), the margin rates (Step 4c) and the FD splits
-(Step 1), all of which are carried from a single benchmark today. It also measures what the summary
-tables hide: **aggregating identical detail data to summary conceals 30% of the structural error.**
+✅ **It now has an extractor** (2026-08-25): `io_2017._load_benchmark_detail_supply_use_usa(matrix,
+year)`, GCS-backed, with `load_benchmark_detail_U_intermediate_usa` / `load_benchmark_detail_supply_usa`
+as the typed 402 × 402 accessors, and its 2017 sheets verified equal to the single-year workbooks cell
+for cell. That is worth more than Step 3 alone — a 2007 and 2012 detail SUT in the 2017 frame is a
+second and third observation of the commodity mix (Step 4a), the margin rates (Step 4c) and the FD
+splits (Step 1), all of which are carried from a single benchmark today. It also measures what the
+summary tables hide: **aggregating identical detail data to summary conceals 30% of the structural
+error.** ⚠️ The BEA FBAs are *not* extended — `bea_parse`'s detail branches stay pinned to 2017.
 
 ⚠️ **The row control's own uncertainty costs this block 3.3%.** `T001 = T016 − Σ_FD Y` is a
 residual, so `MCIF` (Step 4b) and `F04000` (Step 1d) error lands in the interior:
