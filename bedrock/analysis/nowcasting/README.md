@@ -97,6 +97,7 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   carry against it, `--holdout` runs the out-of-sample 2012 → 2017 detail version,
   `--where` locates the drift by column, `--revision` measures BEA's own restatement
   of a year it had already published, `--theta` fits the carry exponent,
+  `--regime` refits it on all 78 non-nested spans and reports what predicts it,
   `--control` scores the built column control against the published summary
   `T005`, and `--seed` reports the built block year by year. Prints only; writes
   nothing.
@@ -178,6 +179,10 @@ local run.
   thing under `images/`.
 - [`About_table_match.md`](About_table_match.md) — what the first Step 1 run
   showed.
+- [`About_the_price_carry.md`](About_the_price_carry.md) — reference for Step 3's
+  carry: what `theta` is, the two legs of the commodity deflator, the valuation
+  chain the margin leg sits in, the `theta = 1 - sigma` reading, and the
+  approximations the carry rests on.
 - [`annual_survey_expense_sources.md`](annual_survey_expense_sources.md) — Step 3
   probe of annual survey data as a source of input structure for the Use
   intermediate block: Census business surveys, Census state and local government
