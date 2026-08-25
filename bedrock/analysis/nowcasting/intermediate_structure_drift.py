@@ -86,6 +86,7 @@ Run::
 from __future__ import annotations
 
 import argparse
+import itertools
 import typing as ta
 
 import numpy as np
@@ -100,6 +101,7 @@ from bedrock.extract.iot.io_2017 import (
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
 from bedrock.transform.iot.nowcast_intermediate import (
     INTERMEDIATE_YEARS,
+    PRICE_SURGE,
     benchmark_intermediate,
     derive_intermediate_use,
     intermediate_column_control,
@@ -146,6 +148,10 @@ BENCHMARK_SPANS: tuple[tuple[BENCHMARK_YEAR, BENCHMARK_YEAR], ...] = (
 
 #: ``derive_industry_price_index`` starts here, so 2007 spans carry no carry.
 PRICE_INDEX_START = 2012
+
+#: Every year both the summary Use SUT and the price index cover, which is the
+#: span universe :func:`regime` fits on -- 78 base/target pairs.
+REGIME_YEARS = tuple(range(PRICE_INDEX_START, 2025))
 
 #: Exponent on the price ratio.  1.0 is #497 as written; 0.0 is a frozen ``A``.
 #:
@@ -475,6 +481,135 @@ def theta(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
     return pd.DataFrame(records).set_index('year')
 
 
+def regime(price_years: tuple[int, ...] = REGIME_YEARS) -> pd.DataFrame:
+    """Fit ``theta`` on every non-nested summary span, and see what predicts it.
+
+    ⚠️ **Every span in :func:`theta` starts at 2017**, so span length, cumulative
+    inflation, price dispersion and accumulated structural drift all move
+    together with the calendar and none of them can be told from the others.
+    That is why §Inflation's "``theta`` is a function of relative-price
+    dispersion in the span" could be named but not tested.
+
+    The summary Use SUT publishes 1997-2024 and ``derive_industry_price_index``
+    reaches back to 2012, so spans with **different base years, different
+    lengths and different inflation** are free -- 78 of them.  On those the
+    regressors come apart, and the answer is not the one that was expected:
+
+    ==============================  =====
+    predictor of the fitted theta   R^2
+    ==============================  =====
+    crosses the 2021-22 surge       0.613
+    cumulative price level          0.525
+    elapsed years                   0.142
+    relative-price **dispersion**   0.014
+    ==============================  =====
+
+    ✅ **The regime reading survives and the dispersion reading does not.**
+    Dispersion explains 1.4% of the variance and its coefficient has the *wrong
+    sign*; elapsed time explains 14%.  A single binary -- does the span cross
+    2021-22 -- explains 61%, and adding elapsed years to it moves its
+    coefficient to 0.002 and its R^2 not at all.  Holding length fixed, spans
+    that cross the surge fit theta 0.0-0.5 and spans that do not fit 0.7-0.9, at
+    every length from one to nine years.
+
+    ⚠️ **And the choice is worth little where it matters most.**  The median gain
+    of the best theta over a frozen ``A`` is **5.44%** of the score off the
+    surge and **0.59%** across it.  Every year this build targets from 2022 on
+    crosses it.
+    """
+    records = []
+    for base, target in itertools.combinations(price_years, 2):
+        seed_block, actual = summary_intermediate(base), summary_intermediate(target)
+        rows, columns = _align(seed_block, actual)
+        observed = column_shares(actual.loc[rows, columns])
+        frozen = column_shares(seed_block.loc[rows, columns])
+        weights = actual.loc[rows, columns].sum(axis=0)
+        price = (
+            (summary_price_index(target) / summary_price_index(base))
+            .reindex(rows)
+            .fillna(1.0)
+        )
+        margin = summary_margin_factor(target, base).reindex(rows).fillna(1.0)
+        mass = seed_block.loc[rows, columns].sum(axis=1)
+
+        def best(ratio: pd.Series) -> tuple[float, float]:
+            ratio = ratio.where(ratio > 0, 1.0)
+            scored = {
+                t: dissimilarity(
+                    column_shares(frozen.mul(ratio**t, axis=0)), observed, weights
+                )[0]
+                for t in THETA_GRID
+            }
+            fitted = min(scored, key=lambda t: scored[t])
+            return fitted, scored[fitted]
+
+        fitted_theta, score = best(price)
+        with_margin, _ = best(price * margin)
+        # A ratio of exactly 1.0 scores the same at every theta, so this is the
+        # frozen-A score rather than a fit.
+        _, frozen_score = best(price * 0 + 1.0)
+        records.append(
+            {
+                'base': base,
+                'target': target,
+                'elapsed': target - base,
+                'crosses_surge': base <= PRICE_SURGE[0] and target >= PRICE_SURGE[1],
+                'theta': fitted_theta,
+                'theta_with_margin': with_margin,
+                'gain_over_frozen_%': 100 * (frozen_score - score) / frozen_score,
+                **_price_spread(price, mass),
+            }
+        )
+    return pd.DataFrame(records)
+
+
+def _price_spread(ratio: pd.Series, mass: pd.Series) -> dict[str, float]:
+    """The level and the spread of a span's log price ratio, dollar-weighted."""
+    keep = (ratio > 0) & mass.notna() & (mass > 0)
+    log = np.log(ratio[keep])
+    weight = mass[keep] / mass[keep].sum()
+    mean = float((log * weight).sum())
+    return {
+        'mean_log_ratio': mean,
+        'sd_log_ratio': float(np.sqrt(float((weight * (log - mean) ** 2).sum()))),
+    }
+
+
+def regime_summary(spans: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """``regime``'s two readable cuts: what predicts theta, and what it is worth."""
+
+    def r_squared(columns: list[str]) -> float:
+        design = np.column_stack([np.ones(len(spans)), spans[columns].to_numpy(float)])
+        target = spans['theta'].to_numpy(float)
+        beta, *_ = np.linalg.lstsq(design, target, rcond=None)
+        residual = float(((target - design @ beta) ** 2).sum())
+        return 1 - residual / float(((target - target.mean()) ** 2).sum())
+
+    models = {
+        'crosses the 2021-22 surge': ['crosses_surge'],
+        'cumulative price level': ['mean_log_ratio'],
+        'elapsed years': ['elapsed'],
+        'relative-price dispersion': ['sd_log_ratio'],
+        'surge + elapsed': ['crosses_surge', 'elapsed'],
+        'level + dispersion': ['mean_log_ratio', 'sd_log_ratio'],
+    }
+    fits = pd.DataFrame(
+        {'R2': {name: r_squared(columns) for name, columns in models.items()}}
+    )
+    worth = (
+        spans.groupby('crosses_surge')
+        .agg(
+            spans=('theta', 'size'),
+            theta_mean=('theta', 'mean'),
+            theta_min=('theta', 'min'),
+            theta_max=('theta', 'max'),
+            median_gain_over_frozen_pct=('gain_over_frozen_%', 'median'),
+        )
+        .round(3)
+    )
+    return fits.round(3), worth
+
+
 def benchmark_detail_intermediate(year: BENCHMARK_YEAR) -> pd.DataFrame:
     """Intermediate block of the detail Use SUT for a benchmark year, in $M.
 
@@ -678,8 +813,11 @@ def column_control(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
     return pd.DataFrame(records).set_index('year')
 
 
-def seed(theta: float = 1.0) -> pd.DataFrame:
+def seed(theta: float | None = None) -> pd.DataFrame:
     """The built Step 3 block, year by year, against a frozen 2017 level.
+
+    ``theta`` defaults to ``nowcast_intermediate.default_theta`` for the span,
+    which is what the build ships; pass ``THETA_497`` for #497 as written.
 
     ⚠️ **This is not a score.** Nothing observed exists at detail after 2017, so
     all this reports is that the block is levelled, signed and shaped the way it
@@ -728,6 +866,11 @@ def main() -> None:
         '--theta', action='store_true', help='fit theta, with and without margins'
     )
     parser.add_argument(
+        '--regime',
+        action='store_true',
+        help='fit theta on all 78 non-nested spans; what predicts it',
+    )
+    parser.add_argument(
         '--control', action='store_true', help='score the column control'
     )
     parser.add_argument('--seed', action='store_true', help='the built Step 3 block')
@@ -741,6 +884,7 @@ def main() -> None:
             args.where,
             args.revision,
             args.theta,
+            args.regime,
             args.control,
             args.seed,
         )
@@ -766,6 +910,14 @@ def main() -> None:
         print('\nFitting theta, with and without the margin leg of the deflator')
         print('(does the missing purchaser-price term explain the low theta?)\n')
         print(theta().round(4).to_string())
+    if args.all or args.regime:
+        spans = regime()
+        fits, worth = regime_summary(spans)
+        print('\nFitting theta on every non-nested summary span, 2012-2024')
+        print(f'({len(spans)} spans, so span length and inflation come apart)\n')
+        print(fits.to_string())
+        print('\nand what the choice is worth\n')
+        print(worth.to_string())
     if args.all or args.control:
         print("\nStep 3's column control against the published summary T005")
         print('(level_% is economy-wide; spread_% is weighted MAE by industry)\n')

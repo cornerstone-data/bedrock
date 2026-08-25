@@ -204,9 +204,14 @@ the relative price dispersion, which is exactly what 2022-2024 supplied.
    and ⚠️ **θ < 0 is where 2023 and 2024 actually fit** — see §θ goes negative.
    The two panels disagree about the value — detail 2012→2017 fits θ = 1.00,
    summary 2022-2024 wants θ well below it — and that disagreement **is** the
-   finding: θ should be a function of relative-price dispersion in the span, not
-   a constant. Fitting it needs both panels, and the detail one only became
-   available with the benchmark SUT drop.
+   finding.
+
+❌ **This section then guessed that θ is a function of relative-price dispersion
+in the span. It is not — see §S2, where that guess was tested and failed.** On
+78 non-nested spans dispersion explains **1.4%** of the variance in fitted θ,
+with the coefficient pointing the wrong way. What explains 61% is whether the
+span crosses the 2021-22 surge. The substitution *mechanism* above survives
+intact; what does not survive is dispersion as its measurable proxy.
 
 ⚠️ **The commodity axis here is an output-weighted industry PI, not a true
 purchaser-price commodity index** — a different object, and the missing piece was
@@ -548,8 +553,45 @@ breaks the term.
 
 **This is a concrete, cheap improvement to #497 that uses data Step 4c already
 produces for its own reasons**, and it is the one place the margins data belongs
-inside Step 3. It should be built and scored on the same summary panel as θ
-(§Inflation) — the two are the same experiment with one more term.
+inside Step 3.
+
+✅ **Built, at detail** (`nowcast_intermediate.margin_rate_factor`), and the
+piece that was not obvious is how an *annual* rate reaches 402 rows at all: BEA
+publishes the Supply table at detail only for benchmark years. So the rate's
+**level** is detail-observed at 2017 and only its **movement** is borrowed from
+the summary parent — `μ_c(t) = μ_c(2017) × μ_P(t)/μ_P(2017)`.
+
+✅ **S0a made that rule testable, and it is the better of the two.** 2012 is a
+benchmark, so the true detail factor is observed there. Weighted by 2017
+intermediate dollars, against the truth:
+
+| rule | weighted MAE |
+|---|---:|
+| detail level × parent movement | **0.756pp** |
+| the parent's factor, taken down unchanged | 1.010pp |
+| no factor at all | 1.818pp |
+
+So the shipped rule recovers about three-fifths of the observable movement and
+the naive one about two-fifths. ⚠️ 2012→2017 is a quiet span; nothing here says
+the rule holds up as well across the 2021-22 surge, and no detail observation
+exists to check that.
+
+⚠️ **A year with no published Supply table is refused, not carried.**
+`MARGIN_YEARS` is 1997-2024 — BEA's Supply vintage — and it is a *separate*
+constraint from `INTERMEDIATE_YEARS`, which is bounded by gross output. They
+agree at 2024 today, so nothing is blocked; a 2025 build ([#707](https://github.com/cornerstone-data/bedrock/issues/707)) would reach a
+year with a gross-output parquet and no Supply table, and `margin_rate_factor`
+raises there. Falling through to a factor of 1.0 would read as "margins did not
+move" and carrying the last published rate would read as a measurement — both
+invisible in the built block. The caller either waits for BEA or passes
+`margins=False` and says in writing that the deflator is the producer one.
+
+⚠️ **One vintage, not the pinned one.** `_load_usa_summary_sut` picks the
+workbook by year, which would take a ratio's numerator and denominator off
+different vintages. The two disagree by a median 0.50pp on 2020's rates and
+1.20pp on 2022's — but **exactly 0.00pp on 2017**, because BEA does not revise
+the benchmark. So reading the current vintage throughout costs nothing at the
+base and removes the seam at the target.
 
 ### ⚠️ It was a competing explanation for θ, and it has been tested and rejected
 
@@ -618,8 +660,13 @@ outruns the price effect. Elasticity above one, in nominal terms.
 ⚠️ **Direct consequence for S1.** #497's θ = 1 is not merely too strong for the
 target years — it is the **wrong sign**. A build that hardcodes θ = 1 and ships a
 2024 table applies a correction pointing away from the answer on the largest
-goods rows in the block. Whatever S1 ships must take θ as a parameter, and its
-default for the recent span is negative rather than 0 or 1.
+goods rows in the block.
+
+✅ **What the build ships instead is θ = 0, not the fitted negative** — see §S2.
+The fitted values are real and the sign is real, but the *gain* they buy over a
+frozen `A` is under 1% of the score on these spans, and a negative θ asserts a
+mechanism nobody has proposed. Rounding up to zero keeps the 12.6% that θ = 1
+was giving away and declines the last 0.9%.
 
 ⚠️ **So the θ gap is still unexplained by anything measured.** Detail 2012→2017
 fits 1.00; summary fits 0.75 falling to 0.00 by 2023. The regime story predicts
@@ -1551,66 +1598,73 @@ to all-zero would lose that distinction.
 | year | intermediate $B | vs frozen 2017 |
 |---|---:|---:|
 | 2017 | 14,856.0 | +0.00% |
-| 2018 | 15,754.5 | +6.05% |
-| 2019 | 16,150.2 | +8.71% |
-| 2020 | 15,528.1 | +4.53% |
-| 2021 | 17,900.0 | +20.49% |
-| 2022 | 20,084.2 | +35.20% |
-| 2023 | 20,805.4 | +40.05% |
-| 2024 | 21,635.5 | **+45.64%** |
+| 2018 | 15,848.0 | +6.68% |
+| 2019 | 16,118.0 | +8.50% |
+| 2020 | 15,339.3 | +3.26% |
+| 2021 | 18,107.6 | +21.89% |
+| 2022 | 20,556.6 | +38.38% |
+| 2023 | 20,728.8 | +39.53% |
+| 2024 | 21,438.5 | **+44.31%** |
 
 which is §The column control's "~30% short without it" restated from the other
-side: a frozen 2017 level is 1/1.456 = **31.3% short** at 2024.
+side: a frozen 2017 level is 1/1.443 = **30.7% short** at 2024.
 
-### ⚠️ The column control is well levelled and badly allocated
+⚠️ **The level is θ's one blind spot.** Every column is renormalised before the
+control is applied, so the block total is set entirely by `GO − VAPRO` — the
+table above is identical to 12 decimal places at θ = 1 and at the fitted θ.
+Read it as a check on the control, never as evidence about the carry.
 
-`VAPRO` is Step 2's and Step 2 is unbuilt, so `vapro_seed` carries 2017's
-value-added share of gross output forward. **Under a frozen ratio the control
-reduces to `GO(t) × T005(2017) / GO(2017)`** — until Step 2 lands it contributes
-gross-output movement and nothing else. It is written in the `GO − VAPRO` form
-anyway so that landing Step 2 changes one function.
+### ✅ The column control is observed on both sides
 
-Nothing observed at detail can check that, but the summary Use SUT publishes
-`T005` every year, so aggregating the detail control to summary is a real
-out-of-sample test (`--control`):
+⚠️ **This section described a `vapro_seed` that no longer exists.** The numbers
+it carried — 2.3% economy-wide, 2.5→8.0% weighted MAE, `GSLG` 18.3% low at 2022
+— are the **superseded** frozen-ratio seed and should not be quoted as current.
+
+`T005 = GO_producer − VAPRO`, and **both sides are now observed annually**, from
+`derived_intermediate_and_value_added`, which allocates BEA's
+`UGO205-A`/`UVA205-A`/`UII205-A` underlying-industry tables down to the 402
+detail industries. Aggregated to summary and scored against the published
+summary `T005` (`--control`):
 
 | year | level % | weighted MAE % | worst | worst % |
 |---|---:|---:|---|---:|
-| 2018 | −0.59 | 2.51 | `42` | −3.4 |
-| 2019 | +0.20 | 3.92 | `521CI` | +13.1 |
-| 2020 | +1.23 | 5.68 | `42` | +9.2 |
-| 2021 | −1.15 | 6.99 | `GSLG` | −12.0 |
-| 2022 | −2.30 | 7.99 | `GSLG` | **−18.3** |
-| 2023 | +0.37 | 7.23 | `GSLG` | −15.4 |
-| 2024 | +0.92 | 7.91 | `GSLG` | −13.6 |
+| 2018 | 0.00001 | 0.00013 | `327` | −0.003 |
+| 2019 | 0.00004 | 0.00013 | `22` | −0.001 |
+| 2020 | −0.00004 | 0.00010 | `326` | −0.001 |
+| 2021 | −0.00007 | 0.00012 | `111CA` | −0.001 |
+| 2022 | −0.00001 | 0.00006 | `42` | −0.000 |
+| 2023 | 0.00000 | 0.00023 | `333` | +0.001 |
+| 2024 | −0.00000 | 0.00016 | `333` | −0.002 |
 
-✅ **Economy-wide it is right** — within 2.3% in every year, and within 1.3% in
-five of seven. ⚠️ **Per industry it is not, and it degrades**: the weighted mean
-absolute error triples between 2018 and 2022, and `GSLG` state and local
-government is 18.3% low at 2022. Government's VA share of output moved and a
-2017 ratio cannot see it.
+⚠️ **Read that as a consistency check, not a validation.** `UII205-A` and the
+summary Use SUT's `T005` are the same BEA estimate published two ways, so
+agreeing to a thousandth of a percent says the allocation is arithmetically
+faithful — not that BEA is right.
 
-⚠️ **`GSLG` topping this list is not a Step 3 sourcing gap, and it is not #578.**
-Two different government problems are easy to run together:
+✅ **The `GSLG` level problem is fixed.** It was the column *level* under a
+frozen VA ratio, and the level is now read rather than seeded.
 
-| | what is wrong | what fixes it |
+⚠️ **What is fixed is the government column's *level*, and #578 is untouched.**
+They were always two problems, and the superseded seed made them easy to run
+together:
+
+| | what is wrong | status |
 |---|---|---|
-| **this table** | the column *level*, `GO − VAPRO_seed` | an annual government column total, or Step 2's `VABAS` |
-| [#578](https://github.com/cornerstone-data/bedrock/issues/578) | the commodity *mix* inside the column | function → commodity, if that bridge exists |
+| the column *level*, `GO − VAPRO` | a frozen 2017 VA share could not see government's moving one | ✅ **fixed** — both sides observed |
+| [#578](https://github.com/cornerstone-data/bedrock/issues/578), the commodity *mix* inside the column | `govslocalfin`'s function × object split, if that bridge exists | ❌ open, sequenced at **S5** behind a go/no-go that has not been run |
 
 `govslocalfin` is the source for the second and does nothing for the first.
-`GFGD` 0.192, `GFGN` 0.179 and `GSLG` 0.127 are among the worst-drifting columns
-in the table — that is #578's problem and it is sequenced at **S5**, behind a
-go/no-go that has not been run.
+`GFGD` 0.192, `GFGN` 0.179 and `GSLG` 0.127 are still among the worst-drifting
+columns in the table — that is #578's problem, and no amount of column control
+touches it, because the control rescales a column without moving one share
+inside it.
 
-⚠️ **And government is the one column whose annual total is already identified
-and not built.** [`plan.md`](plan.md) §Step 3 records NIPA `T31005` *Government
-Consumption Expenditures and General Government Gross Output* matching the
-published `T005` at **$0 / $0 / $2M** in 2017 — `W087RC` against `S00500`,
-`W131RC` against `S00600`, `W140RC` against `GSLGE`+`GSLGH`+`GSLGO`. Nothing in
-the tree reads it; it is documented as a validation source and never wired. So
-the worst cell of the control table is the one with an exact annual source
-sitting unused.
+⚠️ **NIPA `T31005` is no longer worth wiring for the level.**
+[`plan.md`](plan.md) §Step 3 records it matching the published `T005` at
+**$0 / $0 / $2M** in 2017, and this page previously called it the exact annual
+source sitting unused for the worst cell of the control table. It supplies a
+column *total*, which is now had for free — the same reason §The column control
+gives for why a total-only candidate adds nothing here.
 
 ⚠️ **And Step 5 rescues less of this than §The column control implies.** T1 is
 hard and real for 2017-2024, but it constrains `T005 + VAPRO = GO` — the
@@ -1620,17 +1674,18 @@ still `PLACEHOLDER`, with `va_row_targets` reading their values off the 2017
 panel after `del year`. And **T5 — `T00OTOP` and `V00300` — is deliberately not
 imposed**: they "enter the balance as seed only, which is the price of the test
 being worth running", because the income side is the hold-back that keeps GDP
-out-of-sample. `V00300` is **$7.873T**. So the balance cannot re-derive `VABAS`,
-and §The column control's argument only ever licensed a 2017 ratio for the
-`T00TOP`/`T00SUB` wedge — it assumed `VABAS` came from Step 2. `vapro_seed`
-freezes more than that.
+out-of-sample. `V00300` is **$7.873T**. So the balance cannot re-derive `VABAS`.
+
+⚠️ **What is still missing from Step 2 is the row split, not the level.** There
+is now a `VAPRO` for every year 1997-2024, so "the balance cannot run on 2024 at
+all" is no longer true; what Step 2 still owes is the split of that total across
+the five value-added rows, and T4/T6 remain soft placeholders reading 2017
+values off `published_2017_panel` after `del year`.
 
 **What that does and does not cost.** The estimand here is the column *shape*,
 and the shape is untouched: it is seeded, carried and renormalised before the
 control is applied, so a wrong control rescales a column without moving a single
-share inside it. What the missing VA costs is the **level** — and until Step 2
-lands there is no VA seed for any year but 2017 either, so the balance cannot
-run on 2024 whatever this module does.
+share inside it.
 
 **None of which changes what to build here.** Step 5 re-imposes T1 hard and
 re-solves the `T00TOP`/`T00SUB` wedge, so a wrong wedge is overwritten rather
@@ -1644,9 +1699,53 @@ government columns specifically. Whoever needs the column right per industry
 before Step 5 runs should pass `column_control` explicitly rather than
 re-deriving it.
 
-**S2. Fit θ, and add the margin-rate factor** ([#699](https://github.com/cornerstone-data/bedrock/issues/699)). §Inflation and §Margins.2. One
-experiment, two terms, scored on the published summary panel 2018-2024. The
-deliverable is a number and a decision, not a new source dependency.
+**S2. Fit θ, and add the margin-rate factor** ([#699](https://github.com/cornerstone-data/bedrock/issues/699)) — ✅ **built, and the
+number is not the one this page expected.** §Inflation and §Margins.2.
+
+⚠️ **Every span on this page starts at 2017**, so elapsed years, cumulative
+inflation, price dispersion and accumulated structural drift all move together
+with the calendar and none can be told from the others. That is why §Inflation
+could *name* "θ is a function of relative-price dispersion" but not test it. The
+summary Use SUT publishes 1997-2024 and the price index reaches 2012, so **78
+non-nested spans** — different bases, different lengths, different inflation —
+are free. `--regime`:
+
+| predictor of the fitted θ | R² |
+|---|---:|
+| **crosses the 2021-22 surge** | **0.613** |
+| cumulative price level | 0.525 |
+| elapsed years | 0.142 |
+| relative-price **dispersion** | **0.014** |
+
+❌ **Dispersion is dead**: 1.4% of the variance, coefficient the wrong sign.
+❌ **So is elapsed time**: 14%, and adding it to the regime binary moves that
+binary's coefficient to 0.002 and its R² not at all. ✅ **The regime reading
+stands** — holding span length fixed, spans that cross the surge fit θ 0.0-0.5
+and spans that do not fit 0.7-0.9, at *every* length from one to nine years.
+
+⚠️ **And the decision matters much less than the diagnosis.** The median gain of
+the *best* θ over a frozen `A` is **5.44%** of the score off the surge and
+**0.59%** across it — and every year this build targets from 2022 on crosses it.
+**In the target regime the carry is worth well under one percent however θ is
+set.** What #497's θ = 1 cost was not a missed 0.6%, it was the 12.6% it gave
+away by pointing the wrong way.
+
+✅ **What ships** (`nowcast_intermediate.default_theta`): **θ = 0.75 off the
+surge, θ = 0.0 across it** — fitted 0.755 and 0.141 on the 78 spans, and rounded
+rather than carried to three digits. Rounding *up* to zero rather than to the
+target spans' own −0.25/−0.50 is deliberate: a negative θ says nominal shares
+move against their own price, which is a curve-fit rather than a mechanism, and
+it buys 0.6%. ✅ The one detail span agrees in direction — 2012→2017 does not
+cross the surge and fits 1.00 against the rule's 0.75, on a panel the rule was
+not fitted on.
+
+✅ **The margin-rate leg is built too** and the deflator is now the purchaser
+one, price × margin rate. See §Margins.2 for the spreading rule and the test
+S0a made possible. ⚠️ **It is inert in exactly the years this build targets**:
+at θ = 0 every factor is raised to the zero power, so the leg moves 0.21% of the
+2019 block and 0.54% of the 2021 block and **0.000% of the 2024 one**. It is
+kept because it is the correct deflator for a purchaser-valued cell and because
+θ is not 0 forever, not because it changes the current answer.
 
 **S3. The 2022 Economic Census materials breakout** — ✅ **extracted, recovered,
 placed on commodities and reconciled across vintages.** §The materials census.

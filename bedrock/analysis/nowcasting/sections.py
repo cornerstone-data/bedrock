@@ -407,9 +407,10 @@ def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
 def initial_U_intermediate_candidate(year: int) -> pd.DataFrame:
     """Our Step 3 intermediate block, commodity x industry, in USD.
 
-    Runs ``derive_initial_U_intermediate`` at #497's ``theta = 1``.  At 2017 the
-    carry is the identity and only the column control moves, so this section run
-    is a plumbing test; the movement is scored on the summary panel by
+    Runs ``derive_initial_U_intermediate`` at the fitted ``theta`` for the span.
+    At 2017 the carry is the identity -- both legs of the deflator are 1.0 --
+    and only the column control moves, so this section run is a plumbing test;
+    the movement is scored on the summary panel by
     ``intermediate_structure_drift``, not here.
     """
     from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
@@ -591,15 +592,18 @@ USE_INTERMEDIATE_DETAIL_SUT = Section(
     candidate=initial_U_intermediate_candidate,
     note=(
         'Candidate is derive_initial_U_intermediate: the published 2017 detail '
-        'interior column-normalised, carried on the detail commodity price '
-        'ratio at theta = 1, and rescaled to GO_producer - VAPRO. Both sides '
+        'interior column-normalised, carried on the purchaser deflator (the '
+        'detail commodity price ratio times the margin-rate factor) at the '
+        'fitted theta, and rescaled to GO_producer - VAPRO. Both sides '
         'of that control are observed annually, from '
         'derived_intermediate_and_value_added, which allocates BEA UVA205-A '
         'down to the 402 detail industries; aggregated to summary it matches '
         'the published T005 to 0.0002%. VAPRO is the column total, not Step 2 '
         '- Step 2 owes the split across the five value-added rows and is '
-        'unbuilt. theta = 1 is #497 as written and fits negative at 2023-24; '
-        'choosing it is #699. The seven negative cells are preserved.'
+        'unbuilt. theta is 0.75 on a span that does not cross the 2021-22 '
+        'price surge and 0.0 on one that does (#699), not #497 as written. '
+        'At 2017 both legs of the deflator are 1.0, so this run is a plumbing '
+        'test. The seven negative cells are preserved.'
     ),
 )
 
