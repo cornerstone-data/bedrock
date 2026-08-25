@@ -7,7 +7,29 @@ National goods + services trade mapped to BEA 2017 Detail commodities.
 - `Trade_Exports_2017` — Census `ALL_VAL_YR` goods + BEA IntlServTrade exports. `SectorConsumedBy` is `F04000` after aggregation. 1:m Crosswalk rows are split in proportion to 2017 Use SUT `F04000`.
 - `Trade_Imports_2017` — Census `GEN_CIF_YR` goods + BEA IntlServTrade imports (CIF-family mass for Supply `MCIF`). 1:m rows are split in proportion to 2017 Supply `MCIF`. Duties (`CAL_DUT_YR`) and charges (`GEN_CHA_YR`) stay selectable on the Census FBA via `FlowName`; they are not applied here.
 
-Crosswalks: `Sector_Crosswalk_Census_USATrade.csv` and `Sector_Crosswalk_BEA_IEA.csv` (`SectorSourceName` `BEA_2017_Code`). IEA rows are deepest `TypeOfService` codes whose label names the Detail commodity (or a small family the type spans). Parent totals are omitted when children are mapped (`AllTypesOfService`, `Transport`, `ChargesForTheUseOfIpNie`, `TelecomCompAndInfo`, `OtherBusiness`, `ProfMgmtConsult`, `Travel`). Crosswalk membership is not chosen by closing 2017 Use/Supply cells. Methods include `BEA_detail_commodity_target.yaml` so FBS output stays on BEA 2017 Detail commodities. Calling FBAs are `TECHNOSPHERE_FLOW` with empty `ActivityConsumedBy`; activity sets select by `FlowName` (and IEA exclusions). Attribution weight sources select Use `F04000` / Supply `MCIF` via `selection_fields`.
+Crosswalks: `Sector_Crosswalk_Census_USATrade.csv` (shared by exports and imports) and direction-specific IEA files `Sector_Crosswalk_BEA_IEA_exports.csv` / `Sector_Crosswalk_BEA_IEA_imports.csv` (`SectorSourceName` `BEA_2017_Code`). `Trade_Exports_2017` selects `BEA_IEA_exports`; `Trade_Imports_2017` selects `BEA_IEA_imports`. Non-financial IEA rows are identical across both files. IEA rows are deepest `TypeOfService` codes whose label names the Detail commodity (or a small family the type spans). Parent totals are omitted when children are mapped (`AllTypesOfService`, `Transport`, `ChargesForTheUseOfIpNie`, `TelecomCompAndInfo`, `OtherBusiness`, `ProfMgmtConsult`, `Travel`, `Financial`, `FinExplicitAndOth`). Crosswalk membership is not chosen by closing 2017 Use/Supply cells. Methods include `BEA_detail_commodity_target.yaml` so FBS output stays on BEA 2017 Detail commodities. Calling FBAs are `TECHNOSPHERE_FLOW` with empty `ActivityConsumedBy`; activity sets select by `FlowName` (and IEA exclusions). Attribution weight sources select Use `F04000` / Supply `MCIF` via `selection_fields`.
+
+### Direction-specific IEA crosswalks
+
+Exports and imports share one Census goods Crosswalk. IEA uses two files because BEA books financial services trade asymmetrically in the 2017 Detail SUT: family `F04000` is spread across four financial commodities (~$132 B); family `MCIF` is almost entirely FISIM on `52A000` (~$6.6 B). IEA reports explicit financial subtypes on imports that have no matching `MCIF` cells.
+
+**All non-financial rows are the same in both files.** Only the financial block differs:
+
+| IEA `TypeOfService` | Exports (`BEA_IEA_exports`) | Imports (`BEA_IEA_imports`) | Why they differ |
+| --- | --- | --- | --- |
+| `Financial` | 1:m → `52A000`, `522A00`, `523A00`, `523900`; split by 2017 Use `F04000` | *unmapped* | Parent total (~$38 B imports) has no SUT `MCIF` home; mapping it dumps mass onto `52A000` (5.7× SUT). |
+| `FinFisim` | *unmapped* (included in parent `Financial`) | 1:1 → `52A000` | FISIM imports (~$6.6 B) match published `52A000` `MCIF`. |
+| `FinExplicitAndOth` | *unmapped* (included in parent `Financial`) | *unmapped* | Explicit fees (~$31 B imports); no Detail `MCIF` rows except ~$57 M residual on `523A00`. Candidate for `#606` / `S00300` later. |
+| `FinCredCardOthCredRelated` | *unmapped* | *unmapped* | Explicit credit services; `522A00` `MCIF` is zero in SUT. |
+| `FinSecBrokAndMM` | *unmapped* | *unmapped* | Explicit brokerage; `523A00` `MCIF` is ~$57 M in SUT vs ~$4.8 B in IEA. |
+| `FinUwAndPP` | *unmapped* | *unmapped* | Explicit underwriting; no SUT `MCIF` cell. |
+| `FinSecLendEftOth` | *unmapped* | *unmapped* | Securities lending / EFT; no SUT `MCIF` cell. |
+| `FinFinMan` | *unmapped* | *unmapped* | Financial management; `523900` `MCIF` is zero in SUT. |
+| `FinAdvCust` | *unmapped* | *unmapped* | Advisory / custody; `523900` `MCIF` is zero in SUT. |
+
+**Export financial rule:** map parent `Financial` only; proportional split uses frozen 2017 `F04000` weights among the four Detail codes. **Import financial rule:** map `FinFisim` → `52A000` only (direct 1:1; no proportional step).
+
+When adding a new IEA row, update **both** files unless the classification argument is direction-specific (financial services is the only current case).
 
 Do not copy `Cornerstone_2025_target.yaml` / `BEA_detail_target.yaml` here — those select NAICS leaves; these Crosswalks emit Detail.
 
@@ -61,4 +83,5 @@ Candidates to revisit. Trigger is a classification or source argument, not a 201
 - **Travel other than `TravelHealth`** -- visitor spend (hotels, food, education travel) via BEA TTSA or leave unmapped. Not Use `F04000` mix (`721000` is 0 in the 2017 SUT).
 - **Transport port services** -- `TransportAirPort` / `TransportSeaPort` wait for a support-activities Detail code (no `488000` in 2017 commodities) or a written rule that port is the mode commodity (`481000` / `483000`).
 - **1:m weights** -- `attribution_method: equal`, or same-year `BEA_Detail_GrossOutput_IO`, vs frozen 2017 F040/MCIF. Equal/GO do not require a later Detail Use/Supply.
+- **Financial services** -- direction-specific Crosswalks (`BEA_IEA_exports` vs `BEA_IEA_imports`). Exports: parent `Financial` 1:m by 2017 `F04000`. Imports: `FinFisim` → `52A000` only. Do not map parent `Financial` or explicit `Fin*` leaves onto `MCIF`.
 - **Goods coverage** -- `11211X` / `31181X` and other Census residuals are kept in the FBA and mapped (see Residual / specials). `311824` maps to `3118A0` per BEA's NAICS-to-Detail crosswalk (dry pasta/dough/flour mixes, not bakery). `980000` (low-value shipments) stays omitted; no Detail sector.
