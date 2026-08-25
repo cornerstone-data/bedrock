@@ -697,7 +697,7 @@ Sorted by the §Finding above — **does the source deliver mix, or only a total
 | **ERS FIWS** farm intermediate expenses (#577) | **mix**, 89-91% commodity-mappable, 11 named categories, 1910-**2025** | real structure, but on a column that barely drifts, and one farm sector against ~10 BEA industries | ✅ **build it, but not first** |
 | **2022 Economic Census `MATFUEL`** | **mix**, the materials breakout for all of manufacturing | the only second observation of the 82% of manufacturing's column that annual data cannot see | ✅ **built — see §The materials census** |
 | **NIPA T31005** government intermediate purchases | totals — and they match `T005` **exactly** ($0 / $0 / $2M) | zero: Step 5 already has the column total | ⚠️ keep as a *validation* of the derived column, drop as a source |
-| **Census `govslocalfin`** (#578) | function × object totals | a total, again — but the function detail is a *potential* mix proxy | ⚠️ **rescope**, see below |
+| **Census `govslocalfin`** (#578) | function × object totals | a total, again — the function detail looked like a *potential* mix proxy | ❌ **tested and rejected** — the function mix moves 0.046 in five years against a 0.201 commodity drift; §The government function bridge |
 | **NIPA T31105** defense by type | 14 leaves, one of which maps | one cell (`33299A` ammunition, −0.2%); the rest miss by 46-287% | ❌ control and hint only, as the plan already records |
 | **EC / ASM / AIES expenses** 2017-2023 | **level and coarse mix**, 14-19 cells at 6-digit — materials, fuels, electricity, contract work, resales and 9-12 named services | far more than the two cells this row used to claim: **6.4% of the column** seedable onto commodities (not the 11.7% first reported — see §S3b), plus the annual materials *level* that kills linear interpolation | ✅ **built** — `Census_EC_Expenses`, `Census_ASM_Expenses`, `Census_AIES_Expenses`; see §4 and §S3b |
 | **SAS Table 3** service expenses | totals at 227 six-digit NAICS | a *detail* total inside a summary constraint — the one case where a total is not redundant | ⚠️ see below |
@@ -707,15 +707,19 @@ Sorted by the §Finding above — **does the source deliver mix, or only a total
 
 Three of those rows changed verdict, and each is a task:
 
-**#578 needs rescoping, not cancelling.** Its stated premise is wrong in both
-directions: the `G*` columns are the *worst-drifting* in the table, so a mix is
-exactly what they need, and the column total it offers is already free (NIPA
-matches `T005` to the dollar, so even the total is better sourced elsewhere).
-What `govslocalfin` uniquely has is **function × object** — education, highways,
-police, hospitals, utilities — and function is a plausible bridge to commodity
-mix, because a highway department and a school district buy different things.
-That bridge does not exist yet and is the actual work. Decide whether it is worth
-it before building the extractor; the payoff is the 156 $B misplaced in `GSLG`.
+**#578 needed rescoping, and the rescoped version has now been tested and
+rejected.** Its stated premise was wrong in both directions: the `G*` columns are
+the *worst-drifting* in the table, so a mix is exactly what they need, and the
+column total it offers is already free (NIPA matches `T005` to the dollar, so
+even the total is better sourced elsewhere). What `govslocalfin` uniquely has is
+**function × object** — education, highways, police, hospitals, utilities — and
+function looked like a plausible bridge to commodity mix, because a highway
+department and a school district buy different things.
+❌ **They do buy different things, and it is not nearly enough.** The go/no-go
+ran before the extractor did, which was the point of gating it: the function mix
+moves only 0.046 in five years, government functions overlap by 36%, and
+reweighting BEA's own function split delivers **+2.4%**. See §The government
+function bridge — tested, and it is a no-go.
 
 **SAS Table 3 is the exception that proves the rule.** Step 5's column target is
 detail gross output, which is already detail — so a detail service *total* adds
@@ -1498,7 +1502,7 @@ to take the ratio against.
 | column | misplaced $M | source found | verdict |
 |---|---:|---|---|
 | `ORE` | 171,923 | SAS Table 5, NAICS 531 | ⚠️ **built** — +4.5%, at the bar; 18 of 32pp of its movement is unreachable |
-| `GSLG` / `GFGD` | 221,864 | — | rescoped, [#578](https://github.com/cornerstone-data/bedrock/issues/578) |
+| `GSLG` / `GFGD` | 221,864 | `govslocalfin` function × object | ❌ **+2.4%** — the function mix moves 0.046 against a 0.201 drift; §The government function bridge |
 | `42` | 118,761 | AWTS BES 2017 (revised) + 2022 | ❌ suppression: 3 items, 7% of the column |
 | `5412OP` | 94,444 | SAS Table 5 | ❌ loses at every endpoint; benchmark seam |
 | `81` | 90,196 | SAS Table 5 | ❌ no gain at any endpoint |
@@ -1521,6 +1525,147 @@ out *seeding from these sources as they stand*; they do not establish that the
 2017 mix is right. Where BEA later incorporates the 2022 BES and the 2022 SAS —
 as it incorporated the 2017 ones — the sign of these tests can change, and
 nothing here should be quoted as evidence that these columns are stable.
+
+---
+
+## The government function bridge — tested, and it is a no-go
+
+The go/no-go this plan sequenced S5 behind has been run, in
+[`gov_function_bridge.py`](gov_function_bridge.py)
+(`uv run python -m bedrock.analysis.nowcasting.gov_function_bridge --all`).
+❌ **The answer is no, and the reason is arithmetic rather than data quality.**
+
+### The bound that decides it
+
+The bridge #578 was rescoped to means one model: government functions have
+stable input mixes, and what moves the column is the changing weight of
+education against highways against police. For function shares `w` and
+within-function commodity mixes `m`:
+
+```
+s_c(t) = Σ_f w_f(t) · m_{c|f}
+```
+
+Hold `m` fixed and the commodity movement that model can produce is bounded by
+the **function** movement itself:
+
+```
+d(s(t), s(0)) = ½ Σ_c |Σ_f Δw_f · m_{c|f}|
+             ≤ ½ Σ_f |Δw_f| · Σ_c m_{c|f}
+              = ½ Σ_f |Δw_f| = d(w(t), w(0))
+```
+
+— because every `m_{c|f}` sums to 1 over commodities. The bound is attained only
+if the function mixes are **disjoint**. ✅ **So the question is answerable without
+building the bridge**: measure how far the function mix moves, and measure how
+different government functions really are in what they buy. Both are observable
+today.
+
+### 1. The function mix barely moves
+
+`govslocalfin`'s 33 state-and-local functions, dissimilarity against 2017:
+
+| 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---|---|---|---|---|---|
+| 0.0074 | 0.0093 | 0.0155 | 0.0355 | **0.0464** | 0.0440 | 0.0385 |
+
+**4.6% of government dollars changed function over five years**, and the COVID
+bulge at 2021-22 is most of even that. On the current-operations basis the
+2022 → 2024 movement is **0.0121**.
+
+⚠️ **That 0.0464 is the ceiling**, against a **0.201** dollar-weighted commodity
+drift in the same columns over a comparable span.
+
+### 2. Government functions are not disjoint
+
+BEA's own government columns, pairwise dissimilarity of their 2017 commodity
+shares — the direct measurement of how much a function reweighting could matter:
+
+| | `GSLGE` | `GSLGH` | `GSLGO` | `S00500` | `S00600` |
+|---|---|---|---|---|---|
+| `GSLGE` | — | 0.507 | 0.443 | 0.729 | 0.673 |
+| `GSLGH` | 0.507 | — | 0.537 | 0.774 | 0.675 |
+| `GSLGO` | 0.443 | 0.537 | — | 0.683 | 0.628 |
+
+Mean off-diagonal **0.639** — government functions **overlap by 36%**, because a
+school district and a highway department both buy electricity, professional
+services, repair and supplies. So the realistic ceiling is `0.0464 × 0.639 =`
+**0.030**, or **14.7%** of what has to be explained, still crediting the model
+with a perfect within-function mix.
+
+### 3. Reweighting real functions delivers 2.4%
+
+The bound can be *realised* rather than argued, because BEA's three general
+state-and-local columns are themselves a function split — education, hospitals
+and health, everything else — whose weights **and** within-function commodity
+mixes are both observed, at 2012 and at 2017. Freeze each column's 2012 mix, move
+only the weights to 2017, score the aggregate:
+
+| | index of dissimilarity |
+|---|---|
+| function-weight movement 2012 → 2017 | 0.0453 |
+| frozen 2012 mix, scored at 2017 | 0.1946 |
+| **function-reweighted, scored at 2017** | **0.1899** |
+| | **gain +2.4%** |
+
+⚠️ **97.6% of the drift in these columns is movement *within* a function**, which
+no function reweighting can see. And note the weight movement: BEA's 3-function
+split moves 0.0453 where `govslocalfin`'s 33 functions move 0.0464 — ✅ **a finer
+function list does not help, because disaggregating functions does not move more
+dollars between them.** The result is not specific to Census's function taxonomy.
+
+For scale: the inflation carry gets ~4-5% in a quiet span and `ORE`'s built seed
+gets +4.5%, both of which this plan already calls *at* the bar rather than over
+it. A perfect function bridge lands at half that.
+
+### Two independent defects, either of which would also sink it
+
+⚠️ **`Current Operations` by function does not exist before 2022.** The
+intermediate-consumption object — current operations net of the salaries and
+wages exhibit — is published **by function only for 2022, 2023 and 2024**. For
+2017-2021 it is a single economy-wide number. So there is **no 2017 observation
+to anchor the bridge at the seed year**, and the annual movement the source was
+wanted for is precisely what it does not carry. The row-count jump
+`annual_survey_expense_sources.md` flagged — 137 codes to 232 at 2022 — *is* this
+defect, not a coverage curiosity.
+
+⚠️ **The only continuous function series is `Total Expenditure`, and its proxy
+error exceeds the signal.** It carries salaries, capital outlay, assistance and
+subsidies, and interest alongside the intermediate purchases. Against
+`Current Operations` in the three years both exist it is **0.062, 0.062, 0.064**
+dissimilar — **larger than the whole 0.0385 of function movement 2017 → 2024**
+that it would have to transmit.
+
+⚠️ **`govslocalfin` is state and local only**, and federal is where the worst
+column is. Detail 2012 → 2017, the government block's misplaced dollars:
+
+| tier | column $M | misplaced $M | share |
+|---|---:|---:|---:|
+| federal (`S00500`, `S00600`, `S00101`, `S00102`) | 345,303 | 124,647 | 43.1% |
+| **state + local** (`GSLG*`, `S0020*`) | 933,736 | **164,683** | **56.9%** |
+
+`S00500` alone — **83,851 $M misplaced at 0.383, the worst-drifting column in the
+entire Use table** — is federal and out of reach of this source at any depth.
+
+### What this closes, and what it does not
+
+✅ **Closed: the function bridge as a route to the `G*` commodity mix.** #578's
+rescoped premise was that function is a plausible proxy for what a government
+buys. It is plausible; it is also far too small, and it fails on three
+independent grounds before the bridge itself has to be judged.
+
+❌ **Not closed: #578's underlying problem.** The `G*` columns still drift, the
+drift is still 230-258 $B, and it is **within-function** — a school district
+buying a different basket than it bought in 2012, not a shift from schools to
+highways. Nothing in this step sources that, and nothing here should be read as
+evidence those columns are stable.
+
+⚠️ **Two by-products of the pull survive the no-go and belong elsewhere.**
+`Salaries and Wages` is the government `V00100` that Step 2's row split needs,
+and **`Capital Outlay` by function *is* published 2017-2024** — unlike current
+operations — which makes it the natural check on the final-demand government
+investment columns and on §Step 0's open SLG Equipment/Structures/IP attribution
+bug. Neither is Step 3's, and neither is claimed here.
 
 ---
 
@@ -1656,7 +1801,7 @@ together:
 | | what is wrong | status |
 |---|---|---|
 | the column *level*, `GO − VAPRO` | a frozen 2017 VA share could not see government's moving one | ✅ **fixed** — both sides observed |
-| [#578](https://github.com/cornerstone-data/bedrock/issues/578), the commodity *mix* inside the column | `govslocalfin`'s function × object split, if that bridge exists | ❌ open, sequenced at **S5** behind a go/no-go that has not been run |
+| [#578](https://github.com/cornerstone-data/bedrock/issues/578), the commodity *mix* inside the column | `govslocalfin`'s function × object split, if that bridge exists | ❌ **still open — and `govslocalfin` is no longer the answer.** The go/no-go ran and the bridge buys +2.4%; §The government function bridge |
 
 `govslocalfin` is the source for the second and does nothing for the first.
 `GFGD` 0.192, `GFGN` 0.179 and `GSLG` 0.127 are still among the worst-drifting
@@ -1887,8 +2032,12 @@ and **not one of its thirteen items is published for all nine of its constituent
 NAICS in both years**. Reopening `42` and `4A0` means building a suppression
 recovery on the `ecnmatfuel` pattern first, not writing an extractor.
 
-**S5. ERS agriculture (#577)** and, if the function→commodity bridge survives
-scrutiny, **government finances (#578, rescoped to exactly that question)**.
+**S5. ERS agriculture (#577)** — and ❌ **not** government finances. The
+function→commodity bridge was the gate on #578 and it did not survive scrutiny:
+§The government function bridge — tested, and it is a no-go. ⚠️ **That does not
+close #578**, whose columns are still the worst-drifting in the table; it closes
+`govslocalfin` as the route to them, and the drift it leaves behind is
+*within*-function, which no reallocation between functions can reach.
 
 Not in this step: `S00300` (#606, shared with Step 1), the margins redistribution
 (Step 6b, #697), the government-enterprise reallocation (Step 7), and the balance
