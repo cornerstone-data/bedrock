@@ -1397,7 +1397,7 @@ reclassification* throughout what follows.
 **What is left is still the largest drifting column, and it does have a source.**
 SAS Table 5 publishes NAICS `531` — 2013-2017 and 2020-2022, now extracted as
 [`Census_SAS_Expenses`](../../extract/census/Census_SAS_Expenses.yaml) and seeded
-by [`service_expense_seed.py`](service_expense_seed.py). Nine items span the 2017
+by [`services_transport_expense_seed.py`](services_transport_expense_seed.py). Nine items span the 2017
 base and reach 45.7% of the detail column. Scored on BEA's **current** vintage:
 
 | endpoint | frozen | seeded | gain |
@@ -1429,7 +1429,7 @@ aggregate to score; never the reverse.
 
 #### Why it is only 4% — the movement is on rows nothing names
 
-`service_expense_seed.py --reachable` splits `ORE`'s 2017 → 2022 share change
+`services_transport_expense_seed.py --reachable` splits `ORE`'s 2017 → 2022 share change
 into what a SAS item can touch and what it cannot:
 
 | row | movement pp | 2017 share | reachable |
@@ -2138,7 +2138,7 @@ suppression pattern — in every case but one.
 
 ✅ **`ORE` is built** — [`Census_SAS_Expenses`](../../extract/census/Census_SAS_Expenses.yaml)
 splices SAS Table 5 across the two vintages that carry it, and
-[`service_expense_seed.py`](service_expense_seed.py) indexes BEA's 2017 `531ORE`
+[`services_transport_expense_seed.py`](services_transport_expense_seed.py) indexes BEA's 2017 `531ORE`
 column on it. ⚠️ **The gain is +4.5% at 2022 and +3.8-4.4% at the other two
 endpoints — at the inflation carry's bar rather than over it**, because `ORE`'s
 movement sits mostly on rows no survey item names: `55` management of companies
