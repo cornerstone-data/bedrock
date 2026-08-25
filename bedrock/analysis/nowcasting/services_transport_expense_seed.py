@@ -83,7 +83,7 @@ were.
 
 ⚠️ **The module title is now too narrow.**  #705 built one column; the
 re-evaluation in
-[`service_expense_resource.py`](service_expense_resource.py) showed the source
+[`services_transport_expense_resource.py`](services_transport_expense_resource.py) showed the source
 reaches **103 BEA detail industries**, and :func:`services_transport_seed` is that seed --
 **100 of them**, with utilities held back (:data:`NOT_SEEDED`).  Three things
 changed to make it possible:
@@ -911,7 +911,7 @@ def services_transport_seed(
     the one ``ore_seed`` moves.
 
     The form is :func:`relative_index`'s, unchanged and for the reason
-    ``service_expense_resource`` measures: each item's ratio is divided by the
+    ``services_transport_expense_resource`` measures: each item's ratio is divided by the
     industry's growth over the same item set, so **only relative movement
     survives** and a rebenchmark that rescales the whole block cancels.  ✅ That
     is also why the sas-17/sas-22 seam costs so little here -- shares are 30-54%
@@ -980,7 +980,7 @@ def services_transport_movement(
     second is consistently the larger, because the rows the survey names are the
     rows the model weights.
     """
-    from bedrock.analysis.nowcasting.service_expense_resource import (  # noqa: PLC0415
+    from bedrock.analysis.nowcasting.services_transport_expense_resource import (  # noqa: PLC0415
         impact_intensity,
     )
 
@@ -1060,7 +1060,7 @@ def _summary_intensity() -> pd.Series:
     the dollar-weighted mean intensity of the detail rows the summary row holds
     -- not an unweighted average over codes.
     """
-    from bedrock.analysis.nowcasting.service_expense_resource import (  # noqa: PLC0415
+    from bedrock.analysis.nowcasting.services_transport_expense_resource import (  # noqa: PLC0415
         impact_intensity,
     )
 
@@ -1168,7 +1168,7 @@ def services_transport_score(
 
     The counterpart of :func:`score` for the whole block rather than ``ORE``,
     and it is reported under **both** weightings because they answer different
-    questions -- see ``service_expense_resource``.  ``impact`` weights each
+    questions -- see ``services_transport_expense_resource``.  ``impact`` weights each
     summary commodity row by the shipped v0.3 model's kg CO2e per dollar,
     aggregated from detail on that row's own intermediate dollars.
 

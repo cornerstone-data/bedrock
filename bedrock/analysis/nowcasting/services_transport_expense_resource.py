@@ -77,7 +77,7 @@ advertising, data processing, repairs to buildings, repairs to machinery,
 temporary staff, expensed equipment, expensed software -- plus six more at 7 or
 14 industries.  :func:`reach` maps those onto **97 BEA detail industries holding
 $6,269B, 42.2% of the intermediate block**.  The plan's built service seed
-(`service_expense_seed`) uses exactly one of them, ``531ORE``.
+(`services_transport_expense_seed`) uses exactly one of them, ``531ORE``.
 
 ✅ **And scored the right way it looks quite different:**
 
@@ -170,7 +170,7 @@ answered the wrong question and the seam was the wrong reason.
 
 ⚠️ **The undifferentiated cell is still undifferentiated.**  ``Expensed
 purchases of other materials, parts, and supplies`` is $357.7B at 63 industries
-with no commodity attached, which is why `service_expense_seed` omits it.
+with no commodity attached, which is why `services_transport_expense_seed` omits it.
 Splitting it on 2017 Use shares is the move ``place_on_commodities`` makes for
 the ``group`` tier and ``group_split_holdout`` already scored that prior -- so it
 is testable rather than assumed.  Not built here.
@@ -182,7 +182,7 @@ answer, and a row with small direct intensity can still matter upstream.
 
 Run::
 
-    uv run python -m bedrock.analysis.nowcasting.service_expense_resource --all
+    uv run python -m bedrock.analysis.nowcasting.services_transport_expense_resource --all
 """
 
 import argparse
@@ -192,7 +192,7 @@ import numpy as np
 import pandas as pd
 
 from bedrock.analysis.nowcasting.inputs_structure import _use_2017_detail
-from bedrock.analysis.nowcasting.service_expense_seed import (
+from bedrock.analysis.nowcasting.services_transport_expense_seed import (
     SAS_DISCONTINUED_AFTER_2017,
     SAS_ITEM_TO_BEA,
     SAS_TOTAL_ITEM,

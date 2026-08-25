@@ -262,7 +262,7 @@ def census_aies_expenses_parse(
     all" and generalised it to the survey.  That is wrong.**
     ``timeseries/aies/exp02`` (group ``AIES00EXP02``) publishes all 41 expense
     variables for **13 service sectors** in 2023.  See
-    ``analysis/nowcasting/service_expense_resource.py``.
+    ``analysis/nowcasting/services_transport_expense_resource.py``.
 
     ⚠️ **Wholesale and retail are genuinely absent** -- no 42, 44 or 45 rows in
     ``exp02``, and ``ecnbasic`` carries the expense variables for sectors 21, 23
