@@ -18,15 +18,19 @@ bib_id: Census_AIES_Expenses
 # cells sum to the published `EXPS_CSTMTOT_DVAL` control at 99.77% in aggregate,
 # median per-industry ratio 1.0000, within 1% for 324 of 360 industries.
 #
-# ⚠️ **The expense detail is manufacturing only, at every NAICS level.** Read
-# this before reaching for the source for anything else. AIES lists 883
-# six-digit industries here, but only sectors 31-33 carry an expense cell: 42
-# publishes `EXPS_TOT_DVAL` alone, and 21, 22, 23 and 51-81 publish **nothing at
-# all** - not at six digits, and not at the 2-, 3-, 4- or 5-digit rollups
-# either. So this does **not** source the service industries that drift worst
-# (`ORE`, `GSLG`, `5412OP`, `81` - see analysis/nowcasting/
-# intermediate_estimation_plan.md). It confirms #564's ❌ verdict on AIES for
-# services rather than overturning it.
+# ⚠️ **The expense detail in THIS pull is manufacturing only** - because this
+# pull reads `timeseries/aies/basic`, where every service row comes back a
+# **well-formed zero**. ❌ **An earlier draft read that as "21, 22, 23 and 51-81
+# publish nothing at all" and generalised it to the survey. That is wrong.**
+# `timeseries/aies/exp02` (group `AIES00EXP02`, *Detailed Operating Expenses*)
+# publishes all 41 expense variables for **13 service sectors** in 2023 - 22,
+# 48, 49, 51, 52, 53, 54, 56, 61, 62, 71, 72, 81. Purchased electricity is
+# $50.3B for sector 22. See analysis/nowcasting/service_expense_resource.py.
+#
+# ⚠️ **Wholesale and retail are absent from `exp02` entirely** - no 42, 44 or 45
+# rows, not zeros - and `ecnbasic` populates the expense variables for sectors
+# 21, 23 and 31-33 only, in both 2017 and 2022. The trade counterpart is the
+# AWTS/ARTS Business Expenses Supplement, rejected in #705 on suppression.
 #
 # ⚠️ **No mining.** `Census_EC_MatFuel` covers NAICS sector 21 as well as 31-33;
 # this covers 31-33 only, so the 2023 observation is narrower than the census
