@@ -1,0 +1,16 @@
+author: US Bureau of Transportation Statistics
+source_name: VIUS - Vehicle Inventory and Use Survey
+source_url: https://www.census.gov/data/experimental-data-products/vius-national-estimates.html
+bib_id: BTS_VIUS
+api_name: None
+api_key_required: false
+format: xlsx
+url:
+  base_url: https://www2.census.gov/data/experimental-data-products/vius-national-estimates/modeled-data.xlsx
+sheets:
+  - Table M2E # kind of business × body type
+  - Table M2C # business use × body type × fuel
+call_response_fxn: !script_function:BTS_VIUS vius_call
+parse_response_fxn: !script_function:BTS_VIUS vius_parse
+years:
+  - 2021

@@ -153,6 +153,11 @@ BTS_Airlines:
 BTS_TSA:
   data_format: FBA
   activity_schema: None
+BTS_VIUS:
+  data_format: FBA
+  class:
+    - Other
+  activity_schema: None
 CalRecycle_WasteCharacterization:
   data_format: FBA
   class:
