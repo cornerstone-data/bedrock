@@ -1528,7 +1528,11 @@ the next hour of work, and the plan should not pretend otherwise.
 
 ---
 
-### `42` Wholesale and `4A0` retail — ❌ **no-go; the source exists and cannot be used**
+### `42` Wholesale and `4A0` retail — ❌ **no-go, retested and confirmed**
+
+⚠️ **Read the verdict at the end of this section, not the table in the middle.**
+The table was scored at the wrong granularity, on an item set BEA did not use,
+in dollars. The retest fixes all three and the answer is a firmer no.
 
 **#564's "absent from AIES `exp02`" was true and was the wrong place to look.**
 The trade expense detail is not in the annual survey; it is the **quinquennial
@@ -1567,12 +1571,67 @@ And `452`'s surviving cells still carry contract labour ×4.45 against packaging
 ×0.54 and communication ×0.38, which is not a five-year change in how a
 department store buys.
 
-**Verdict: no-go now, reopen only behind a suppression recovery.** The pattern
-that would fix it is the one `estimate_suppressed_ec_pxi` and the `ecnmatfuel`
-recovery already use — published parents as controls, a peer-group prior — and
-that is a build, not a read. Note also that the annual AWTS and ARTS
-operating-expense tables (2002-2022, every year) publish **a total**, which
-§The finding says Step 5 already has.
+**Verdict: ❌ no-go, and ⚠️ do not build the suppression recovery.**
+
+⚠️ **This section's own reasoning was wrong in three ways**, all corrected in
+[`trade_expense_supplement.py`](trade_expense_supplement.py), and the answer
+after correcting them is a *firmer* no:
+
+1. ⚠️ **The test above is at BEA summary; Step 3 estimates BEA detail.** "`4A0`
+   loses every item because it spans nine three-digit NAICS" is a summary
+   artefact — at detail `4A0` is **six columns**, and **five of the six are a
+   single three-digit NAICS**, needing no aggregation at all.
+2. ⚠️ **It scored items BEA did not use.** The `452` account above rests on
+   *contract labour ×4.45* — ❌ **contract labour is not one of BEA's thirteen
+   items** for trade (C2). It is a BES column BEA did not take.
+3. ⚠️ **It was dollar-weighted** (§What a column is worth).
+
+**Re-scored at BEA detail, on BEA's own 13 items, at 2022:**
+
+| column | dollar | **`N`** |
+|---|---:|---:|
+| `42` | −3.3% | −2.5% |
+| `441` | −24.4% | **−43.6%** |
+| `445` | −24.0% | +5.4% |
+| `452` | −132.7% | **−183.6%** |
+| `4A0` | −3.3% | −31.8% |
+
+❌ **Every column loses on dollars; four of five lose on impact.**
+
+✅ **`441` is why the suppression recovery must not be built.** It has **13 of
+13 items published in both years**, needs no aggregation, and reaches **61.5%
+of its dollars and 75.7% of its impact** — and it loses **−43.6%**. ⚠️ **Neither
+suppression nor reach is the binding constraint**, so recovering suppressed
+cells would buy nothing. That is a build saved.
+
+❌ **The mechanism is absent**, and it is the same one that sank ERS
+agriculture: each BES item's movement against its BEA commodities' published
+share movement correlates **+0.06 pooled over 54 pairs** (`441` +0.32, `445`
++0.25, `4A0` +0.06, `452` −0.00), against ERS agriculture's +0.18. **A survey
+can measure an industry's expenses well and still not describe how BEA moved
+the commodity mix**, because BEA does not build the mix from item shares.
+
+⚠️ **Some movements are not credible on their own terms.** `452` reports
+building rent falling **$9,037M → $5,577M** — a 38% *nominal* fall in five
+years — with professional services ×2.83 and communication ×0.38.
+
+⚠️ **What still stands from the original verdict.** Suppression is real: at BEA
+detail, retail has **1 of 9 columns with all 13 items and 3 with none**;
+wholesale **0 of 9 and 4 with none**, and 2022 is far more suppressed than 2017
+(42.5% of retail cells against 18.8%). ⚠️ **The percent-of-total column is
+suppressed on exactly the same cells** — 0 of 471 recoverable by arithmetic.
+⚠️ **`425000` ($20.5B) has no AWTS coverage at all**: AWTS surveys merchant
+wholesalers, `425` is agents and brokers. And the annual AWTS/ARTS
+operating-expense tables publish **a total**, which §The finding says Step 5
+already has.
+
+⚠️ **Nothing continues this after 2022** — AIES publishes no expense cell for
+42 or 44-45 — so ✅ **no extractor was built**: a `Census_BES` source would
+carry two observations and no future.
+
+⚠️ **One caveat on the retest.** 2017 → 2022 is the only span the BES offers,
+so the correlations rest on cross-sectional spread inside one interval, not on
+repeated observation the way the seven-year agriculture test does.
 
 ⚠️ **Nothing continues this after 2022.** AIES publishes no expense cell for 42 or
 44-45 at any NAICS level, so the trade BES pair ends at 2022 with no successor.
@@ -1924,16 +1983,18 @@ both 2017 and 2022 — which is exactly §S3's scope and none of the held block.
 
 | held sector | its 2022 observation | status |
 |---|---|---|
-| `42` / `44RT` | AWTS / ARTS **Business Expenses Supplement**, 2017 + 2022 | ⚠️ both vintages exist and are 2017-benchmarked; **suppression is the blocker**, not the source |
+| `42` / `44RT` | AWTS / ARTS **Business Expenses Supplement**, 2017 + 2022 | ❌ **retested and rejected** — not suppression; the movements do not track (corr **+0.06**). No successor after 2022 |
 | `11` | ERS FIWS — **annual, not quinquennial**, and runs to 2025 | ✅ no interpolation needed at all |
 | `22` | EIA 861/861M, form 176 — **annual** | ✅ no interpolation needed; #719 |
 | `G` | — | ❌ `govslocalfin` rejected; nothing else identified |
 
-✅ **So "rebenchmark at 2022 and interpolate" is the right shape only for
-`42` and `44RT`.** Agriculture and utilities have *annual* sources and should
-be seeded directly, not interpolated. ⚠️ **And for trade the work is a
-suppression recovery on the `ecnmatfuel` pattern, not an extractor** — the files
-are already identified.
+❌ **So "rebenchmark at 2022 and interpolate" has no candidate left.** Trade was
+the only held sector the shape fitted, and it has now been retested and rejected
+— ⚠️ **and specifically the suppression recovery this plan pointed at should not
+be built**, because the column with no suppression fails too. Agriculture and
+utilities have *annual* sources and would be seeded directly rather than
+interpolated; agriculture has since been rejected as well, leaving utilities
+(#719) as the only live route into the held block.
 
 ---
 
