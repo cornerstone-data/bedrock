@@ -405,7 +405,10 @@ USE_VA_DETAIL_SUT = Section(
     note=(
         'Step 2 has not been built, so there is no candidate to compare yet. The '
         'reference, the row/column frame and the bar are settled here so that '
-        'Step 2 only has to point Section.candidate at its output.'
+        'Step 2 only has to point Section.candidate at its output. What it '
+        'starts from is now observed: derived_intermediate_and_value_added '
+        'gives VAPRO by detail industry for 1997-2024, so what Step 2 owes is '
+        'the split of that column total across these five rows, not its level.'
     ),
 )
 
@@ -462,11 +465,13 @@ USE_INTERMEDIATE_DETAIL_SUT = Section(
     note=(
         'Candidate is derive_initial_U_intermediate: the published 2017 detail '
         'interior column-normalised, carried on the detail commodity price '
-        'ratio at theta = 1, and rescaled to GO_producer - VAPRO_seed. '
-        'VAPRO is a seed, not Step 2 - Step 2 is unbuilt, so the wedge is '
-        "2017's VA share of gross output carried on published gross output, and "
-        'the control therefore contributes gross-output movement and nothing '
-        'else. theta = 1 is #497 as written and fits negative at 2023-24; '
+        'ratio at theta = 1, and rescaled to GO_producer - VAPRO. Both sides '
+        'of that control are observed annually, from '
+        'derived_intermediate_and_value_added, which allocates BEA UVA205-A '
+        'down to the 402 detail industries; aggregated to summary it matches '
+        'the published T005 to 0.0002%. VAPRO is the column total, not Step 2 '
+        '- Step 2 owes the split across the five value-added rows and is '
+        'unbuilt. theta = 1 is #497 as written and fits negative at 2023-24; '
         'choosing it is #699. The seven negative cells are preserved.'
     ),
 )

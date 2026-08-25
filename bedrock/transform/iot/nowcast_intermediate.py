@@ -56,42 +56,41 @@ industry counterpart -- :data:`UNPRICED_COMMODITIES` -- are held at 1.0 rather
 than given a borrowed index; see there for why that is the right answer and not
 a gap.
 
-The column control, and what it is not
----------------------------------------
+The column control
+------------------
 
 ``T005[j] = GO_producer[j] - VAPRO[j]``, exact in the published table to $1M on
 $34T (measured: 34,468,127 against 34,468,114, and no industry off by more than
-1). ``GO_producer`` is a straight read of BEA's UGO305-A for 2017-2024, all 402
-industries. ``VAPRO`` is Step 2's, and **Step 2 has not been built**, so
-:func:`vapro_seed` carries 2017's VA share of gross output forward and the
-result is labelled a seed throughout.
+1). Both sides are observed annually, from
+:mod:`bedrock.transform.iot.derived_intermediate_and_value_added`, which
+allocates BEA's ``UGO205-A``/``UVA205-A``/``UII205-A`` underlying-industry
+tables down to the 402 detail industries. Its ``VAPRO`` reproduces
+``UVA205-A``'s line totals exactly and the published 2017 detail ``VAPRO``
+column to 0.89 million USD; ``T005`` is taken there as the residual
+``GO - VAPRO``, so the control and :func:`vapro` satisfy T1 by construction.
 
-⚠️ **Under a frozen-ratio VAPRO the control reduces to
-``GO(t) x T005(2017) / GO(2017)``**, which is worth saying out loud: until Step
-2 lands, the control contributes gross-output movement and nothing else. It is
-still worth having -- without it a 2024 seed is roughly 30% short economy-wide
-and every cell-level comparison reports that one number 160,000 times -- and it
-is written in the ``GO - VAPRO`` form so that landing Step 2 changes
-:func:`vapro_seed` alone.
+The control is read off that module rather than differenced here, so the two
+agree to the floating-point bit.
 
-✅ **Measured against the published summary ``T005``**, the frozen-ratio control
-is within **0.2-2.3%** economy-wide in every year 2018-2024, so it is not
-mis-levelled. ⚠️ It *is* mis-allocated across industries, and increasingly:
-weighted mean absolute error by summary industry runs 2.5% (2018) to 8.0%
-(2022), with ``GSLG`` state and local government 18.3% low at 2022 and 13.6% low
-at 2024. Anyone who needs the column right per industry rather than in total
-should pass ``column_control`` explicitly.
+✅ **Aggregated to summary and scored against the published summary ``T005``**
+(``column_control`` on the drift diagnostic), the control is within
+**0.00007% economy-wide** and **0.00023% weighted MAE by industry** in every
+year 2018-2024, worst summary industry 0.003%. The superseded frozen-ratio seed
+scored 0.2-2.3% and 2.5-8.0% on the same two columns, with ``GSLG`` state and
+local government 18.3% low at 2022.
 
-⚠️ **``GSLG`` topping that list is a *level* problem, not
-`#578 <https://github.com/cornerstone-data/bedrock/issues/578>`_.** Two
-government problems are easy to run together and only one of them is this
-module's: what is wrong here is the column total ``GO - VAPRO_seed``, which an
-annual government column total or Step 2's ``VABAS`` would fix. #578 is about
-the commodity *mix* inside the ``G*`` columns -- a different defect, sourced
-from Census ``govslocalfin``'s function x object split, and sequenced later.
-Note also that NIPA ``T31005`` matches the published ``T005`` for government at
-$0 / $0 / $2M in 2017 and is **not wired up anywhere**, so the worst cell of the
-control table is the one with an exact annual source already identified.
+⚠️ **That is a consistency check, not an independent validation.**
+``UII205-A``/``UVA205-A`` and the summary Use SUT's ``T005`` are the same BEA
+estimate published two ways. What it establishes is that the 191-line to detail
+allocation adds back correctly, so the control *is* BEA's published ``T005``
+rather than an approximation of it -- not that BEA's number was tested against
+a second source.
+
+⚠️ **The remaining ``G*`` defect is
+`#578 <https://github.com/cornerstone-data/bedrock/issues/578>`_ and this does
+not touch it.** What is fixed here is the government column *total*. #578 is the
+commodity *mix* inside the ``G*`` columns, sourced from Census
+``govslocalfin``'s function x object split, and sequenced later.
 
 ⚠️ **Do not let the control leak into the sourcing argument.** Having the column
 total for free is precisely why a candidate source that supplies only a column
@@ -101,7 +100,7 @@ total supplies nothing to this step -- ``T31005`` included.
 ----------------------------------------
 
 An earlier draft of this docstring said it did. It does not, and the difference
-decides how much weight ``vapro_seed`` carries.
+decides how much weight :func:`vapro` carries.
 
 What Step 5 imposes, from :mod:`bedrock.transform.iot.nowcast_targets`:
 
@@ -126,18 +125,21 @@ gross operating surplus is **$7.873T** in 2017. Nothing in the balance can
 re-derive it.
 
 So the claim that survives is the narrow one: Step 5 re-solves the
-``T00TOP``/``T00SUB`` **wedge**, which is what §The column control's argument
-actually licensed -- it assumed ``VABAS`` arrived from Step 2. With Step 2
-unbuilt, :func:`vapro_seed` freezes *all* of ``VAPRO``, which is more than that
-argument covers, and the balance will not correct the excess.
+``T00TOP``/``T00SUB`` **wedge**. §The column control's argument assumed
+``VABAS`` arrived from Step 2; what arrives instead is an observed ``VAPRO``,
+which pins the ``T005``/``VAPRO`` split that T1 alone leaves free.
 
-⚠️ **Read that as a bound on this module, not a defect in it.** The estimand
-here is the column *shape*, and the shape is untouched by any of the above: it
-is seeded, carried and renormalised before the control is applied, so a wrong
-control rescales a column without moving one share within it. What the missing
-VA costs is the **level**, and until Step 2 lands there is no VA seed for any
-year but 2017 -- so the balance cannot run on 2024 regardless of what this
-module does.
+⚠️ **This supplies ``VAPRO``, not ``VABAS``, and Step 2 is still unbuilt.**
+``VAPRO`` is value added at producer prices -- the whole column below ``T005``,
+taxes and subsidies on products included. Step 2 owes the *split* of it across
+the five value-added rows, and T4/T6 remain soft placeholders reading 2017
+values off ``published_2017_panel``. What has changed is that there is now a VA
+level for every year 1997-2024 rather than for 2017 alone, so the balance can
+run on 2024.
+
+⚠️ **The estimand here is still the column shape**, and the shape is untouched:
+it is seeded, carried and renormalised before the control is applied, so the
+control rescales a column without moving one share within it.
 """
 
 from __future__ import annotations
@@ -148,8 +150,11 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
+from bedrock.transform.iot.derived_intermediate_and_value_added import (
+    derive_detail_intermediate_inputs,
+    derive_detail_value_added,
+)
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
-from bedrock.transform.iot.nowcast_targets import published_gross_output
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -196,20 +201,6 @@ def _require_year(year: int) -> None:
 def _use_sut_detail_2017() -> pd.DataFrame:
     """The published 2017 detail Use SUT workbook sheet, million USD."""
     return _load_2017_detail_supply_use_usa('Use_SUT_detail')
-
-
-def _row(table: pd.DataFrame, label: str) -> pd.Series:
-    """One row of the workbook, narrowed to a Series.
-
-    ``.loc[label]`` is typed ``Series | DataFrame`` because a duplicated label
-    would return a frame. The workbook's margin rows are unique, so this asserts
-    that rather than spreading ignores -- the same move
-    ``nowcast_targets._row`` makes on the panels.
-    """
-    row = table.loc[label]
-    if isinstance(row, pd.DataFrame):
-        raise ValueError(f'{label} matches {len(row)} rows of the workbook; expected 1')
-    return row
 
 
 def benchmark_intermediate() -> pd.DataFrame:
@@ -265,36 +256,41 @@ def commodity_price_factor(year: int, base: int = SEED_YEAR) -> pd.Series:
     return factor.astype(float)
 
 
-def vapro_seed(year: int) -> pd.Series:
-    """``VAPRO`` by industry, USD -- **a seed, not an estimate**.
+def vapro(year: int) -> pd.Series:
+    """``VAPRO`` by industry, USD -- observed, from BEA's ``UVA205-A``.
 
-    Step 2 is unbuilt, so this carries 2017's value-added share of gross output
-    forward on that year's published gross output. Every caveat in the module
-    docstring's column-control section applies; the one line to change when Step
-    2 lands is this function.
+    :mod:`bedrock.transform.iot.derived_intermediate_and_value_added` allocates
+    BEA's annual value added by underlying industry down to the 402 detail
+    industries. Its line totals reproduce ``UVA205-A`` exactly and its 2017
+    column reproduces the published detail ``VAPRO`` to 0.89 million USD, so
+    this is a read rather than a seed.
     """
     _require_year(year)
     industries = list(USA_2017_INDUSTRY_CODES)
-    vapro_2017 = _row(_use_sut_detail_2017(), 'VAPRO').reindex(industries).astype(float)
-    go_2017 = published_gross_output(SEED_YEAR).reindex(industries)
-    share = (vapro_2017 / go_2017.where(go_2017 != 0, np.nan)).fillna(0.0)
-    seed = published_gross_output(year).reindex(industries) * share
-    seed.index.name = 'industry'
-    return seed * MILLION_CURRENCY_TO_CURRENCY
+    observed = derive_detail_value_added(year).reindex(industries)
+    if observed.isna().any():
+        missing = list(observed.index[observed.isna()])
+        raise KeyError(f'no {year} value added for industries: {missing}')
+    observed.index.name = 'industry'
+    return observed * MILLION_CURRENCY_TO_CURRENCY
 
 
 def intermediate_column_control(year: int) -> pd.Series:
-    """``T005 = GO_producer - VAPRO_seed`` by industry, USD.
+    """``T005 = GO_producer - VAPRO`` by industry, USD.
 
-    The column total the seeded block is scaled to. ⚠️ Labelled a seed because
-    :func:`vapro_seed` is one.
+    The column total the seeded block is scaled to. Read off
+    :func:`~bedrock.transform.iot.derived_intermediate_and_value_added
+    .derive_detail_intermediate_inputs` rather than differenced here, so the
+    control and :func:`vapro` satisfy T1 to the floating-point bit.
     """
     _require_year(year)
     industries = list(USA_2017_INDUSTRY_CODES)
-    gross_output = published_gross_output(year).reindex(industries)
-    control = gross_output * MILLION_CURRENCY_TO_CURRENCY - vapro_seed(year)
+    control = derive_detail_intermediate_inputs(year).reindex(industries)
+    if control.isna().any():
+        missing = list(control.index[control.isna()])
+        raise KeyError(f'no {year} intermediate inputs for industries: {missing}')
     control.index.name = 'industry'
-    return control
+    return control * MILLION_CURRENCY_TO_CURRENCY
 
 
 def carry_shares(
@@ -447,5 +443,5 @@ __all__ = [
     'derive_intermediate_use',
     'intermediate_column_control',
     'reproduction_check',
-    'vapro_seed',
+    'vapro',
 ]
