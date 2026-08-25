@@ -369,8 +369,11 @@ Three things follow for sourcing:
   at summary by 2024. #578's premise — *government needs a column total, not a
   mix, because `G*` is not commodity-specific* — is what the data contradicts. A
   total is what those columns least need.
-- **Agriculture is not in this list at all.** `111CA` carries little of the
-  *dollar* drift. ⚠️ **But "a small prize" was a dollar judgement and does not
+- ❌ **"Agriculture is not in this list at all" is wrong**, and doubly so. It was
+  a *dollar* judgement taken at *summary*. At **detail on `N`** the farm columns
+  are among the **worst-drifting in the table** — `1111A0` 0.474, `1121A0`
+  0.424, `1111B0` 0.311 — against an economy-wide 0.0606. `111CA` carries little
+  of the *dollar* drift. ⚠️ **But "a small prize" was a dollar judgement and does not
   survive re-weighting** — see §What a column is worth. The 13 agriculture
   columns are **1.8% of intermediate dollars and 6.9% of impact on `N`**, and
   BEA's own `111CA` commodity mix drifts **0.059** (`N`-weighted) by 2022. It is
@@ -1528,7 +1531,13 @@ the next hour of work, and the plan should not pretend otherwise.
 
 ---
 
-### `42` Wholesale and `4A0` retail — ❌ **no-go, retested and confirmed**
+### `42` Wholesale and `4A0` retail — ⚠️ **verdict under review**
+
+⚠️ **BOTH the original test and the retest used the wrong answer key**, and the
+retest's conclusion is therefore not safe. Agriculture was rejected the same way
+and the rejection **reversed** once regraded — see §The answer key. The trade
+BES has 2012 and 2017 vintages, so it *can* be regraded on the holdout, and that
+has not been done yet. ❌ **Do not act on the no-go below until it is.**
 
 ⚠️ **Read the verdict at the end of this section, not the table in the middle.**
 The table was scored at the wrong granularity, on an item set BEA did not use,
@@ -1764,6 +1773,11 @@ generalisation, for two reasons measured in
    returns well-formed zeros for services; `exp02` publishes 41 expense
    variables for 13 sectors.
 
+⚠️ **These are graded against BEA's carry-forward** (§The answer key) and are
+therefore weak evidence in both directions. ⚠️ **`Census_SAS_Expenses` starts at
+2013, so this block cannot be regraded on the 2012 holdout** without
+substituting 2013 for the base and saying so.
+
 **Re-scored on `N`**, by
 [`services_transport_expense_seed.py`](services_transport_expense_seed.py)
 `--by-column`, against a frozen 2017 at 2020 / 2021 / 2022:
@@ -1938,6 +1952,52 @@ bug. Neither is Step 3's, and neither is claimed here.
 
 ---
 
+## The answer key, and why every earlier score used the wrong one
+
+⚠️ **Scores in §S4, §S5 and the trade retest were graded against BEA's published
+*summary* Use for 2018–2024. That is the wrong key**, for two reasons Wes
+identified on 2026-08-25:
+
+1. ⚠️ **BEA has not incorporated the 2022 Economic Census.** Its 2018–2024
+   tables are the 2017 benchmark **carried forward** on BEA's own annual
+   methods. ❌ So those tests measure agreement with an extrapolation, not
+   accuracy — and a seed that correctly caught real structural change would
+   *lose* against a key that has not seen it.
+2. ⚠️ **Summary collapses the detail the seed moves.** Ten farm columns are
+   summed into `111CA` before scoring; several survey items land on one summary
+   code, so distinct movements are averaged away and different items get
+   identical targets. ❌ **Any correlation computed that way is depressed by
+   construction**, which withdraws the +0.18 and +0.06 figures below as
+   evidence.
+
+✅ **[`benchmark_holdout.py`](benchmark_holdout.py) is the key that has neither
+problem.** BEA publishes **three detail benchmarks** — 2007, 2012, 2017 — and
+`io_2017` reads all of them onto the **same 2017 code axis**. So:
+
+> seed the observed **2012** block with a source's 2012 → 2017 movement,
+> and score against the observed **2017** block
+
+✅ Out of sample, ✅ at detail, ✅ against an observation rather than an
+extrapolation, ✅ and nothing in the test derives from what is being tested.
+⚠️ **Only the mix is on trial** — every column is renormalised to the observed
+2017 total, because Step 3 observes the level through `GO − VAPRO`.
+
+**Economy-wide 2012 → 2017 mix drift is 0.0606 impact-weighted**, and that is
+the bar.
+
+⚠️ **What the holdout cannot do.** It measures **2012 → 2017**, a span with no
+counterpart to the 2021-22 price surge. A source needs a **2012 observation**:
+ERS FIWS (1910–2025) and the trade BES (quinquennial) have one;
+`Census_SAS_Expenses` **starts at 2013**, so the services and transportation
+seed cannot be graded here without substituting 2013 and saying so. ⚠️ **Its
++10.2/+10.8/+9.2% therefore remains ungraded on a sound key.**
+
+⚠️ And at benchmark years BEA built these columns from the same sources, so the
+holdout shows a source reproduces BEA's **benchmark process** — the right target
+for a nowcast, but not an independent check on the world.
+
+---
+
 ## What is still held at the 2017 benchmark
 
 ⚠️ **A quarter of the block has no annual source at all** and holds its 2017
@@ -1957,7 +2017,7 @@ feeling, because it is the backlog:
 | `G` government | 8 | 1,222 | `govslocalfin` bridge rejected | #578 |
 | `42` wholesale | 11 | 878 | AWTS BES suppression, 3 of 13 items | — |
 | `44RT` retail | 9 | 668 | ARTS BES suppression, **0 of 13 items** | — |
-| `11` agriculture | 13 | 272 | ERS FIWS now extracted, seed not built | #577 |
+| `11` agriculture | 13 | 272 | ✅ **seed validated on the holdout, +17.9%** | #577 |
 | `PROF` | 1 | 198 | no prefix match in either survey | — |
 | `22` utilities | 3 | 160 | survey refused on the mechanism | #719 |
 | `48TW` | 2 | 108 | no prefix match | — |
@@ -1983,7 +2043,7 @@ both 2017 and 2022 — which is exactly §S3's scope and none of the held block.
 
 | held sector | its 2022 observation | status |
 |---|---|---|
-| `42` / `44RT` | AWTS / ARTS **Business Expenses Supplement**, 2017 + 2022 | ❌ **retested and rejected** — not suppression; the movements do not track (corr **+0.06**). No successor after 2022 |
+| `42` / `44RT` | AWTS / ARTS **Business Expenses Supplement**, 2017 + 2022 | ⚠️ **verdict under review** — rejected on the wrong answer key; 2012 vintage exists, holdout retest pending |
 | `11` | ERS FIWS — **annual, not quinquennial**, and runs to 2025 | ✅ no interpolation needed at all |
 | `22` | EIA 861/861M, form 176 — **annual** | ✅ no interpolation needed; #719 |
 | `G` | — | ❌ `govslocalfin` rejected; nothing else identified |
@@ -2364,29 +2424,30 @@ and **not one of its thirteen items is published for all nine of its constituent
 NAICS in both years**. Reopening `42` and `4A0` means building a suppression
 recovery on the `ecnmatfuel` pattern first, not writing an extractor.
 
-**S5. ERS agriculture (#577)** — ❌ **built, measured, and rejected.**
+**S5. ERS agriculture (#577)** — ✅ **built, measured, and it earns its place.**
 
-Scored on BEA's published `111CA` for 2018-2024, the seed is **4 of 7 years
-positive on each weighting and swings from −42.9% to +33.5%** on `N`. That is
-noise around zero. `leave_one_out` finds no culprit — `feed` contributes
-**+8.0pp** at 2022 and **−5.9pp** at 2024.
+⚠️ **This section recorded a rejection on 2026-08-25 and the rejection was
+wrong.** It was an artefact of the answer key, not a fact about ERS. See
+§The answer key, and why every earlier score used the wrong one.
 
-❌ **The mechanism is absent.** Each ERS category's share movement against its
-BEA commodity row's share movement, six cleanest pairs over seven years:
-electricity **+0.61**, pesticide +0.38, petroleum +0.27, livestock +0.16, feed
-+0.13, fertilizer **−0.38** — **pooled +0.18 over 42 observations.**
+✅ **On the sound key** ([`benchmark_holdout.py`](benchmark_holdout.py)) — seed
+the **observed 2012** benchmark detail block with ERS's 2012 → 2017 movement,
+score against the **observed 2017** block, at detail:
 
-✅ **And the reason is legible.** BEA uses ERS for the farm income **levels** —
-which is exactly why the level agreement below is the best in this step — and
-distributes across **commodities by its own means**. ⚠️ **A category-share index
-cannot reproduce a commodity mix that is not built from category shares.**
+| weighting | frozen 2012 | seeded | gain | columns won |
+|---|---:|---:|---:|---:|
+| dollar | 0.2269 | 0.2074 | **+8.6%** | 8 of 10 |
+| **impact (`N`)** | 0.3286 | 0.2698 | **+17.9%** | **9 of 10** |
 
-⚠️ **What this does not establish**: the test is at `111CA` summary, ten detail
-columns aggregated, because that is the only place a later year is published;
-fertilizer and pesticide both collapse to `325` there; and the span contains the
-2022 rebenchmark.
+⚠️ **And the prize is much bigger than this plan says.** Farm columns are among
+the **worst-drifting in the whole table** at detail on `N` — `1111A0` **0.474**,
+`1121A0` **0.424**, `1111B0` 0.311, `112120` 0.308, against an economy-wide
+0.0606. ❌ **"Agriculture is not in this list at all" was a dollar judgement
+taken at summary and is wrong twice over.**
 
-✅ **The extractor is kept and is the real yield of this section**, below.
+⚠️ `111400` greenhouse and nursery is the one column the seed worsens (−49.5%).
+
+✅ **The extractor is the other yield**, below.
 
 ---
 

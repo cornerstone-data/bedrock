@@ -1,10 +1,15 @@
 """Moving the farm columns' 2017 Use structure on ERS farm income expenses.
 
-❌ **Measured, and it does not work.**  See the verdict section below: the seed
-scores 4 of 7 years positive and swings from -42.9% to +33.5%, because ERS
-category shares correlate **0.18** with BEA's commodity shares.  ✅ **The
-extractor it is built on is worth keeping and is used elsewhere.**  This module
-stays as the record of a tested no-go, not as a step in the pipeline.
+✅ **Measured on the benchmark holdout, and it works**: **+17.9%**
+impact-weighted with **9 of 10 columns improving** (:func:`agriculture_holdout`).
+
+⚠️ **This module previously recorded a rejection, and that was wrong.**  The
+rejection came from :func:`agriculture_score`, which grades against BEA's
+published 2018-2024 summary -- the 2017 benchmark **carried forward**, at a
+granularity that averages the mix away.  Wes identified both defects on
+2026-08-25; :mod:`~.benchmark_holdout` is the answer key that has neither, and
+on it the verdict reverses.  ❌ **Do not quote the -42.9% to +33.5% swing or the
+0.18 correlation as evidence about this source.**
 
 Step 3 (#497) seeds the intermediate block from the 2017 benchmark and carries it
 on a price index.  This is the agriculture departure from that (#577), on the
@@ -49,67 +54,59 @@ block's dollars and 6.9% of its impact on** ``N``.  ⚠️ **Do not confuse that
 with the 16.4% that agriculture *rows* carry**, which is what everyone buys
 *from* farms and which no seed on the farm column touches.
 
-❌ The verdict: built, measured, and it does not earn its place
-----------------------------------------------------------------
+✅ The verdict: built, measured on a sound key, and it earns its place
+--------------------------------------------------------------------
 
-❌ **:func:`agriculture_score` does not show a gain**, on the only test
-available -- BEA's published ``111CA``, 2018-2024:
+✅ **:func:`agriculture_holdout`** seeds the observed **2012** benchmark detail
+block with ERS's 2012 -> 2017 movement and scores it against the observed
+**2017** block, at detail:
 
-======  =============  =============
-year     dollar gain    impact gain
-======  =============  =============
-2018        -6.7%         +19.1%
-2019       -17.6%         -42.9%
-2020       +10.5%          +4.6%
-2021        +0.4%         -18.8%
-2022        -5.8%         -10.5%
-2023        +3.0%         +10.7%
-2024        +7.3%         +33.5%
-======  =============  =============
+=================  ==========  ==========  ==========  =========
+weighting           frozen      seeded      gain        columns
+=================  ==========  ==========  ==========  =========
+dollar                0.2269      0.2074    **+8.6%**    8 of 10
+**impact (N)**        0.3286      0.2698   **+17.9%**    9 of 10
+=================  ==========  ==========  ==========  =========
 
-⚠️ **Four of seven years positive on each weighting, swinging from -42.9% to
-+33.5%.**  That is not a seed that tracks; it is noise around zero.
-:func:`leave_one_out` finds no culprit either -- ``feed`` contributes **+8.0pp**
-at 2022 and **-5.9pp** at 2024, and ``livestock purchases`` **-5.1pp** then
-**+46.9pp**.  A mapping that helps in one year and hurts in the next is not a
-mapping problem.
+⚠️ **The frozen error is large** -- 0.33 impact-weighted -- because farm columns
+are among the **worst-drifting in the whole table** at detail: ``1111A0`` 0.474,
+``1121A0`` 0.424, ``1111B0`` 0.311, ``112120`` 0.308. ❌ **The plan's
+"agriculture is not in this list at all" was a dollar judgement taken at
+summary**, and it is wrong twice over.
 
-❌ **The mechanism is absent, and that is the real finding.**  Comparing each
-category's share movement against the matching BEA commodity row's share
-movement, on the six cleanest pairs over seven years:
+⚠️ ``111400`` greenhouse and nursery is the one column the seed makes worse
+(-49.5% on impact).  ``112A00`` is flat.
 
-===============================  ==========
-pair                              correlation
-===============================  ==========
-electricity -> ``22``                 +0.61
-pesticide -> ``325``                  +0.38
-petroleum fuel & oil -> ``324``       +0.27
-livestock purchases -> ``111CA``      +0.16
-feed -> ``311FT``                     +0.13
-fertilizer -> ``325``                 **-0.38**
-**pooled, 42 observations**           **+0.18**
-===============================  ==========
+❌ Why the first verdict said the opposite
+--------------------------------------------
 
-⚠️ **ERS category shares do not track BEA's commodity shares.**  BEA uses ERS
-for the farm income **levels** -- which is exactly why
-:func:`published_agreement` is 0.99-1.05 -- and distributes across commodities
-by its own means.  A category-share index cannot reproduce a commodity mix that
-is not built from category shares.
+:func:`agriculture_score`, kept below, grades against BEA's published
+``111CA`` for 2018-2024 and reports **4 of 7 years positive, swinging -42.9% to
++33.5%**.  ⚠️ **That is a fact about the answer key, not about ERS**:
 
-✅ **#577's instinct was right for a reason it did not state.**  It says "do not
-build this expecting a shifting mix" because the mix is *stable*; the stronger
-reason is that even where it moves, it does not move *with* BEA's.
+* ⚠️ **BEA has not incorporated the 2022 Economic Census**, so 2018-2024 is the
+  2017 benchmark carried forward on BEA's own annual methods.  A seed that
+  caught real structural change would *lose* against a key that has not seen it.
+* ⚠️ **``111CA`` is one summary column.**  Ten detail farm columns are summed
+  into it before scoring, so most of what the seed moves cancels inside the
+  aggregate.
 
-⚠️ **What this does not establish.**  The test is at ``111CA`` summary, ten
-detail columns aggregated, because that is the only place a later year is
-published -- detail-level mix is unobservable and could behave differently.
-Fertilizer and pesticide both collapse to ``325`` at summary, so that pair
-cannot be separated. And the span contains the 2022 rebenchmark.
+⚠️ **The +0.18 "movements do not track" correlation has the same defect** and is
+withdrawn as evidence: several ERS categories map to the *same* summary parent
+(fertilizer and pesticide both to ``325``), which gives different category
+movements identical targets and pushes the correlation toward zero by
+construction.
 
-✅ **What is worth keeping regardless**: the extractor. ``USDA_ERS_FIWS`` now
-surfaces a concept it was filtering away, three silent bugs are fixed, and it
-is the only source in this step reaching **2025** -- for Step 2, for
-inventories, and for whatever replaces this.
+⚠️ **What is still true.**  #577's "the value is in the levels" is still
+unusable -- Step 3 observes the level through ``GO - VAPRO``, and ERS agrees
+with BEA on it anyway (:func:`published_agreement`, 0.988-1.047).  ✅ **The
+value is the mix after all**, which is what #577 said not to expect.
+
+⚠️ **And the holdout has its own limits.**  It measures **2012 -> 2017**, a span
+with no counterpart to the 2021-22 price surge, and BEA built both those
+benchmark columns from ERS -- so it shows the source reproduces BEA's
+**benchmark process**, which is the right target for a nowcast but is not an
+independent check on the world.
 
 The form
 --------
@@ -136,8 +133,11 @@ bug in the services seed; see :func:`~.services_transport_expense_seed.industry_
 ------------------------------
 
 ⚠️ **One farm sector against ten BEA farm columns.**  ERS has no NAICS-6 crop or
-livestock split, so the index moves all ten identically and can only be
-validated at the ``111CA`` aggregate.  The 2017 proportions do the splitting.
+livestock split, so the index moves all ten identically, scaled by their own
+2017 shares.  ✅ **It is nonetheless validated per column** by
+:func:`agriculture_holdout`, which scores each of the ten against the observed
+2017 benchmark -- 9 of 10 improve, so applying one index to all ten is not
+merely unfalsifiable.
 
 ⚠️ **Forestry, fishing and support (``113000``, ``114000``, ``115000``) are not
 seeded.**  FIWS is farms.  ⚠️ Note ``115000`` support activities is $22.9B *of*
@@ -245,6 +245,12 @@ FIWS_NESTED = (f'{FIWS_CONCEPT}, miscellaneous , insurance premiums, federal',)
 #: The years the seed can build.  Bounded by the FBA, which now runs to 2025.
 SEED_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025)
 
+#: ⚠️ **Loaded for the benchmark holdout, not for seeding.**  2012 is a BEA
+#: detail benchmark, so a 2012 -> 2017 index can be scored against an *observed*
+#: 2017 rather than against BEA's carry-forward -- see
+#: :mod:`~.benchmark_holdout` for why that distinction decides everything.
+HOLDOUT_YEARS = (2012,)
+
 BASE_YEAR = 2017
 MILLION = 1e6
 
@@ -268,7 +274,7 @@ def expense_panel() -> pd.DataFrame:
     :func:`relative_index`, which divides it out, and wrong for any level.
     """
     frames = []
-    for year in (BASE_YEAR, *SEED_YEARS):
+    for year in (*HOLDOUT_YEARS, BASE_YEAR, *SEED_YEARS):
         fba = getFlowByActivity(FIWS_SOURCE, year)
         keep = fba[
             (fba['FlowName'] == FIWS_CONCEPT) & (fba['Location'] == US_LOCATION)
@@ -383,7 +389,7 @@ def agriculture_seed(year: int, base_year: int = BASE_YEAR) -> pd.DataFrame:
     ⚠️ **All ten columns move identically in the commodities ERS names**, scaled
     by their own 2017 shares, because ERS has one farm sector.
     """
-    if year not in SEED_YEARS and year != base_year:
+    if year not in (*SEED_YEARS, *HOLDOUT_YEARS) and year != base_year:
         raise ValueError(
             f'{year} is not available for the farm expense seed; observed years '
             f'are {list(SEED_YEARS)}. The FBA is bounded by USDA_ERS_FIWS.yaml.'
@@ -494,6 +500,43 @@ def published_agreement() -> pd.DataFrame:
             }
         )
     return pd.DataFrame(records).set_index('year')
+
+
+def agriculture_holdout(weighting: str = 'impact') -> pd.DataFrame:
+    """✅ **The test that decides this seed**, per :mod:`~.benchmark_holdout`.
+
+    Seed the **observed 2012** benchmark detail block with ERS's 2012 -> 2017
+    movement and score against the **observed 2017** block, at detail.
+
+    ✅ **The seed wins, consistently**: **+17.9%** impact-weighted with **9 of
+    10 columns improving**, and +8.6% dollar-weighted with 8 of 10.
+
+    ⚠️ **This is the opposite of what :func:`agriculture_score` says**, and the
+    difference is the answer key, not the seed.  That function grades against
+    BEA's published 2018-2024 summary, which is the 2017 benchmark carried
+    forward -- so it measures agreement with an extrapolation, at a granularity
+    that averages the mix away.  See :mod:`~.benchmark_holdout`.
+
+    ⚠️ **No leakage**: the only 2017 information entering the seed is the ERS
+    index itself.  The renormalisation to observed 2017 column totals divides
+    out of the score, because frozen and seeded are both compared as shares.
+
+    ⚠️ **What it measures, precisely.**  BEA built both the 2012 and the 2017
+    benchmark farm columns from ERS, so this asks whether the source moves the
+    mix the way BEA's **benchmark process** did.  ✅ That is the right target
+    for a nowcast -- matching BEA's benchmark is the job -- but it is not an
+    independent check on whether either is right about the world.
+
+    ⚠️ ``111400`` greenhouse and nursery is the one loser (-49.5% on impact).
+    """
+    from bedrock.analysis.nowcasting.benchmark_holdout import (  # noqa: PLC0415
+        BASE,
+        TARGET,
+        holdout_score,
+    )
+
+    index = relative_index(TARGET, base_year=BASE)
+    return holdout_score(lambda _column: index, farm_industries(), weighting)
 
 
 def agriculture_score(
@@ -621,6 +664,9 @@ def leave_one_out(year: int = 2022) -> pd.DataFrame:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--holdout', action='store_true', help='THE test: 2012 -> observed 2017'
+    )
     parser.add_argument('--scope', action='store_true', help='ERS vs BEA at 2017')
     parser.add_argument('--coverage', action='store_true', help='what ERS names')
     parser.add_argument(
@@ -638,9 +684,32 @@ def main() -> None:
         or args.agreement
         or args.score
         or args.leave_one_out
+        or args.holdout
     )
     pd.set_option('display.width', 200)
 
+    if args.all or args.holdout or not chosen:
+        from bedrock.analysis.nowcasting.benchmark_holdout import (  # noqa: PLC0415
+            aggregate,
+        )
+
+        print('\nTHE test: seed observed 2012, score against observed 2017\n')
+        for weighting in ('dollar', 'impact'):
+            scored = agriculture_holdout(weighting)
+            summary = aggregate(scored)
+            print(
+                f'  {weighting:>7}  frozen {summary["frozen"]:.4f} -> seeded '
+                f'{summary["seeded"]:.4f}   gain {summary["gain_%"]:+.1f}%   '
+                f'{int(summary["wins"])}/{int(summary["columns"])} columns win'
+            )
+        print()
+        print(agriculture_holdout('impact')[['frozen', 'seeded', 'gain_%']].round(4))
+        print(
+            '\n  this is the sound key: out of sample, at detail, against an'
+            '\n  OBSERVED benchmark. --score below grades against BEA carried'
+            '\n  forward from 2017 and says the opposite; that is a fact about'
+            '\n  the key, not about ERS.'
+        )
     if args.all or args.coverage or not chosen:
         print('\nHow much of the farm intermediate bill ERS names\n')
         print(coverage().round(1).to_string())
