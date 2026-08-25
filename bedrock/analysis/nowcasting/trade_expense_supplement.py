@@ -1,13 +1,83 @@
 """Can the trade Business Expenses Supplement seed the wholesale and retail columns?
 
-❌ **No, and the reason is not the one §S4 gave.**  §S4 rejected the BES on
-**suppression** and left the door open: *"no-go now, reopen only behind a
-suppression recovery"*.  This re-runs the test with three of that verdict's
-objections removed, and the answer is a firmer no -- ⚠️ **a suppression recovery
-would not fix it**, so the build §S4 pointed at should not be started.
+❌ **No -- and on the sound answer key the reason is neither §S4's nor this
+module's first one.**  The seed is a **wash**: on :mod:`~.benchmark_holdout`,
+seeding the observed 2012 block with the BES's
+2012 -> 2017 movement and scoring against the observed 2017 block gives
+**+0.3% on dollars and -5.6% on impact**, with **9 of 18 and 8 of 18** columns
+winning.  A coin flip, not a catastrophe.
 
-What was wrong with the first test
-------------------------------------
+⚠️ **This module's earlier verdict (-43.6%, -183.6%, "the movements do not
+track at +0.06") was taken against BEA's published 2018-2024 summary**, which
+is the 2017 benchmark carried forward -- the key that had already reversed the
+agriculture no-go.  ❌ **Both of those figures are withdrawn as evidence.**
+They are kept below because the *conclusion* they were used for -- do not build
+the suppression recovery -- survives the regrade, and it is worth knowing what
+the wrong key does to a number.
+
+✅ **The mechanism is present.**  Regraded at BEA **detail** against the
+**observed** 2017 block, a BES item's movement correlates **+0.62 pooled over
+164 item-column pairs**, and per item as high as **+0.89** (rent of machinery),
++0.81 (water and sewer), +0.75 (communication).  ❌ The +0.06 was an artefact of
+scoring against a summary carry-forward.
+
+❌ Why a working mechanism still buys nothing
+----------------------------------------------
+
+❌ **The BES tracks BEA on the items that carry almost no impact, and fails on
+the three that carry 60% of it** (:func:`item_carriers`):
+
+=====================  ======  ==========  =========
+item                     corr    ``N`` %    $ %
+=====================  ======  ==========  =========
+electricity             -0.19    **38.0**      4.4
+rent of buildings       +0.21    **13.2**     16.3
+transport / shipping    +0.01     **8.9**      9.7
+advertising             +0.47       2.2        7.6
+professional            +0.49       1.9        8.0
+water / sewer           +0.81       1.6        0.6
+communication           +0.75       0.5        1.5
+rent of machinery       +0.89       0.4        0.9
+=====================  ======  ==========  =========
+
+⚠️ **So the mean correlation is whatever you weight it by**: **0.469**
+unweighted, **0.281** dollar-weighted, **0.028** weighted by ``N``.  ✅ That
+single line is the verdict, and it is the sharpest statement yet of
+§Prioritise on ``N``: a source can look good on an unweighted average of items
+and be worth nothing, because impact is concentrated in three of them.
+
+⚠️ **And it is not that electricity is measured badly.**  The BES gets its
+*average* movement almost exactly right -- x0.894 against BEA's x0.901 -- it
+simply cannot say **which** trade column's electricity share moved, which is
+the only thing a mix seed needs.  ⚠️ Building rent is the opposite failure: the
+BES says x0.969 where BEA observed **x1.237**, a real movement in 13% of the
+column's impact that the survey misses outright.
+
+❌ **It is not an overshoot either** (:func:`holdout_shrinkage`).  Raising the
+index to a power below 1 shrinks every movement toward 1 without changing a
+sign; the impact gain rises monotonically to **+0.44% at power 0.1**, which is
+a seed that barely moves anything.  ⚠️ The log-log slope of observed on index
+is 0.72 (0.45 dollar-weighted) over 397 commodity pairs, so the overshoot is
+real -- it is just not what costs the seed its gain.
+
+✅ **Do not build the suppression recovery** -- this survives the regrade
+------------------------------------------------------------------------------
+
+§S4 left the door open: *"no-go now, reopen only behind a suppression
+recovery"*.  ❌ **That build would still be wasted.**  ``441000`` motor vehicle
+dealers has **13 of 13 items published in both 2012 and 2017**, needs no
+aggregation, and reaches **61.5% of its dollars and 75.7% of its impact** --
+and it scores **-16.8%** on the holdout.  ✅ Neither suppression nor reach is
+the binding constraint, so recovering suppressed cells buys nothing.
+
+⚠️ **The percent-of-total column is suppressed on exactly the same cells** -- 0
+of 471 amount-suppressed cells has a surviving percent -- so no arithmetic
+recovery exists, only a modelled one.
+
+What was wrong with §S4's test, and still is
+----------------------------------------------
+
+These three corrections stand; they are simply not what decides the verdict.
 
 ⚠️ **1. It was run at BEA summary, and Step 3 estimates BEA detail.**  §S4
 required an item to be published for every constituent NAICS of a *summary*
@@ -22,18 +92,20 @@ thirteen items** for trade (Table C2); it is a BES column BEA did not take.
 :data:`BEA_ITEMS` is BEA's own list.
 
 ⚠️ **3. It was dollar-weighted**, and dollars are the wrong unit
-(§What a column is worth).  Scored here on ``N`` as well.
+(§What a column is worth) -- as the ``N``-weighted correlation above shows more
+sharply than anything else in this package.
 
-✅ **And the source itself is fine on the points §S4 checked.**  Both vintages
-are live, the item list is identical across them, and
-:data:`WHOLESALE_2017_REVISED` is used rather than the original -- the original
-is benchmarked to the **2012** Economic Census and importing it would read a
-rebenchmark as economics.
+⚠️ **4. And a fourth, this module's own**: it said *"2017 -> 2022 is the only
+pair the BES offers"*.  ❌ **Wrong** -- the BES is quinquennial, and the 2012
+release exists in both directories under names the 2017 and 2022 files do not
+predict (:data:`RETAIL_2012`, :data:`WHOLESALE_2012_REVISED`).  ⚠️ **2007 is
+published too**, so a second holdout span is available if this is ever reopened.
 
-❌ The result, with all three fixed
-------------------------------------
+⚠️ What the old key said, kept for the record
+-----------------------------------------------
 
-Scored at 2022 against a frozen 2017, on BEA's published summary:
+Scored at 2022 against a frozen 2017 on BEA's published **summary**
+(:func:`trade_score`) -- ❌ **the wrong key, not evidence**:
 
 ======  =============  =============
 column   dollar gain    ``N`` gain
@@ -45,63 +117,44 @@ column   dollar gain    ``N`` gain
 ``4A0``     -3.3%         -31.8%
 ======  =============  =============
 
-❌ **Every column loses on dollars; four of five lose on impact.**
+⚠️ **The gap between -43.6% there and -16.8% on the holdout for the same column
+is the size of the answer-key effect**, on a source whose real verdict is
+"no signal".
 
-⚠️ **The decisive column is ``441``.**  It has **13 of 13 items published in
-both years**, needs no aggregation, and reaches **61.5% of its dollars and
-75.7% of its impact** -- and it loses **-43.6%**.  ✅ **So neither suppression
-nor reach is the binding constraint**, and neither a suppression recovery nor a
-better item map can rescue this.
+⚠️ What is still true, and what this does not establish
+--------------------------------------------------------
 
-❌ Why it fails: the movements do not track
----------------------------------------------
+⚠️ **Suppression is real.**  At BEA detail across 2017 and 2022 retail has **1
+column of 9 with all 13 items** and **3 with none**; wholesale **0 of 9 and 4
+with none**, and 2022 is far more suppressed than 2017 (42.5% of retail cells
+against 18.8%).  ✅ **2012 is the least suppressed vintage of the three** --
+**eight of the nine** retail columns hold 12 or 13 items and only ``446000``
+holds none --
+which is why the holdout can be run at all, and why its result is the
+strongest test this source will get.
 
-Comparing each item's relative movement against the published share movement of
-the BEA commodities it maps to, over 54 item-column pairs:
+⚠️ **``425000`` has no AWTS coverage at all** ($20.5B).  AWTS surveys merchant
+wholesalers; ``425`` is agents and brokers.
 
-=============================  ==========
-pairing                         correlation
-=============================  ==========
-``441``                            +0.32
-``445``                            +0.25
-``4A0``                            +0.06
-``452``                            -0.00
-**pooled, 54 pairs**            **+0.06**
-=============================  ==========
-
-⚠️ **The same failure mode as ERS agriculture** -- see
-:mod:`~.agriculture_expense_seed`, pooled +0.18.  A survey can measure an
-industry's expenses accurately and still not describe how BEA's commodity mix
-moved, because BEA does not build the mix from the survey's item shares.
-
-⚠️ **And some of the movements are not credible on their own terms.**  ``452``
+⚠️ **Some 2017 -> 2022 movements are not credible on their own terms.**  ``452``
 general merchandise reports building rent falling **$9,037M -> $5,577M**, a 38%
 *nominal* fall in five years, alongside professional services x2.83 and
 communication x0.38.  That is a universe or classification effect, not how a
 department store changed its purchasing.
 
-⚠️ **The source also understates growth systematically**: BES total operating
+⚠️ **The source understates growth systematically**: BES total operating
 expenses against BEA's published column, median **0.858** across the 18
-addressable columns, range 0.610 to 1.113.  Better than utilities' SAS panel
-(0.63-0.89) and much worse than ERS agriculture (0.988-1.047).
-
-⚠️ What this does not establish, and what is still true
---------------------------------------------------------
-
-⚠️ **Suppression is real, it is just not what decides this.**  At BEA detail,
-in both years: retail has **1 column of 9 with all 13 items** and **3 with
-none**; wholesale has **0 of 9 with all 13** and **4 with none**.  2022 is far
-more suppressed than 2017 -- 42.5% of retail cells against 18.8%.
-
-⚠️ **``425000`` has no AWTS coverage at all** ($20.5B).  AWTS surveys merchant
-wholesalers; ``425`` is agents and brokers.
+addressable columns, range 0.610 to 1.113.  ⚠️ Irrelevant to the holdout, which
+renormalises to the observed column total and tries only the mix -- but it
+matters to any use of the BES that is not purely relative.
 
 ⚠️ **Nothing continues this after 2022.**  AIES publishes no expense cell for
 42 or 44-45 at any NAICS level, so even a working seed would have ended at 2022.
 
-⚠️ **The test is one span.**  2017 -> 2022 is the only pair the BES offers, so
-the correlations above rest on cross-sectional spread within one interval rather
-than on repeated observation, unlike the seven-year agriculture test.
+⚠️ **The holdout is one span**, 2012 -> 2017, with no counterpart to the 2021-22
+price surge; and at benchmark years BEA built these columns from this survey, so
+it shows whether the BES reproduces BEA's **benchmark process**, not whether
+either is right about the world.
 
 ✅ **No extractor is built.**  With the seed rejected and no successor vintage,
 a ``Census_BES`` source would carry two observations and no future.  This module
@@ -136,6 +189,25 @@ WHOLESALE_2017_REVISED = (
     f'{BASE}/awts/tables/2017/2017_awts_detailopex_table5.1_revised.xlsx'
 )
 WHOLESALE_2022 = f'{BASE}/awts/tables/2022/2022_awts_detailopex_table5.1.xlsx'
+
+#: ✅ **The 2012 vintage, for :mod:`~.benchmark_holdout`.**  The BES is
+#: quinquennial (years ending 2 and 7), so the 2012 -> 2017 span the holdout
+#: needs is observed on both sides.  ⚠️ **Neither file is where the 2017 and
+#: 2022 names suggest**: the 2012 releases are ``.xls``, the wholesale table is
+#: ``detailopexpenses`` rather than ``detailopex``, and both directories carry
+#: two versions of the same table.
+#:
+#: ⚠️ **Take the version benchmarked to its own Economic Census**, the same rule
+#: :data:`WHOLESALE_2017_REVISED` follows.  The ARTS
+#: ``2012_arts_detailed_operating_expenses.xls`` is adjusted to *preliminary*
+#: 2012 results and ``bes.xls`` to the **final** ones;
+#: ``2012_awts_detailopexpenses_table5.1.xls`` is adjusted to the **2007**
+#: census and only ``2012r`` moves onto 2012.  Pairing an original with the
+#: revised 2017 file would read two rebenchmarks as economics.
+RETAIL_2012 = f'{BASE}/arts/tables/2012/bes.xls'
+WHOLESALE_2012_REVISED = (
+    f'{BASE}/awts/tables/2012/2012r_awts_detailopexpenses_table5.1.xls'
+)
 
 #: ⚠️ **BEA's own thirteen items** (Table C2), as BES *Amount* column offsets.
 #: The BES publishes 22 expense concepts; these are the ones BEA took.
@@ -236,8 +308,16 @@ SUPPRESSION_FLAGS = frozenset({'D', 'S', 'Z', 'ZZ', 'nan', ''})
 #: 'Operating Expenses, Total', the denominator of :func:`relative_index`.
 TOTAL_COLUMN = 2
 
-#: The first data row; rows 0-5 are titles and the two header bands.
-FIRST_DATA_ROW = 6
+
+#: ⚠️ **The first data row moves between vintages** -- row 6 in the 2017 and
+#: 2022 workbooks, row 4 in the 2012 ones, which carry one fewer title line.
+#: The item columns themselves are identical across all four, so only this
+#: offset has to be found rather than assumed.
+def _first_data_row(frame: pd.DataFrame) -> int:
+    for row in range(len(frame)):
+        if str(frame.iat[row, 0]).strip()[:1].isdigit():
+            return row
+    return len(frame)
 
 
 @functools.cache
@@ -261,9 +341,9 @@ def amounts(url: str) -> dict[tuple[str, int], float | None]:
     """``(naics, column) -> amount``, ``None`` where Census suppressed it."""
     frame = _workbook(url)
     values: dict[tuple[str, int], float | None] = {}
-    for row in range(FIRST_DATA_ROW, len(frame)):
+    for row in range(_first_data_row(frame), len(frame)):
         naics = str(frame.iat[row, 0]).strip()
-        if not naics[:1].isdigit():
+        if not naics.isdigit():
             continue
         for column in BEA_ITEMS:
             values[(naics, column)] = _cell(frame, row, column)
@@ -274,9 +354,9 @@ def operating_totals(url: str) -> dict[str, float]:
     """``naics -> total operating expenses``."""
     frame = _workbook(url)
     out: dict[str, float] = {}
-    for row in range(FIRST_DATA_ROW, len(frame)):
+    for row in range(_first_data_row(frame), len(frame)):
         naics = str(frame.iat[row, 0]).strip()
-        if not naics[:1].isdigit():
+        if not naics.isdigit():
             continue
         value = _cell(frame, row, TOTAL_COLUMN)
         if value is not None:
@@ -395,12 +475,187 @@ def trade_seed() -> pd.DataFrame:
     return seed.fillna(0.0)
 
 
+def _holdout_urls(bea: str) -> tuple[str, str]:
+    """The 2012 -> 2017 workbook pair for a BEA detail trade column."""
+    if bea in RETAIL:
+        return RETAIL_2012, RETAIL_2017
+    return WHOLESALE_2012_REVISED, WHOLESALE_2017_REVISED
+
+
+def trade_holdout(weighting: str = 'impact') -> pd.DataFrame:
+    """The test that decides this seed, per :mod:`~.benchmark_holdout`.
+
+    Seed the **observed 2012** benchmark detail block with the BES's
+    2012 -> 2017 movement and score against the **observed 2017** block, at
+    detail.  ⚠️ **:func:`trade_score` grades against BEA's published 2018-2024,
+    which is the 2017 benchmark carried forward**, and that key already
+    reversed the agriculture verdict -- so this function, not that one, is what
+    the no-go has to rest on.
+
+    ⚠️ **The span is not the one the seed is wanted for.**  The BES is
+    quinquennial, so 2012 -> 2017 and 2017 -> 2022 are the only two spans it
+    offers; this scores the first and :func:`trade_score` the second.
+    """
+    from bedrock.analysis.nowcasting.benchmark_holdout import (  # noqa: PLC0415
+        holdout_score,
+    )
+
+    mapping = {**RETAIL, **WHOLESALE}
+
+    def index_for(column: str) -> 'pd.Series[float]':
+        codes = mapping.get(column)
+        if codes is None:
+            return pd.Series(dtype=float)
+        return relative_index(codes, *_holdout_urls(column))
+
+    return holdout_score(index_for, list(mapping), weighting)
+
+
+def holdout_shrinkage(
+    powers: tuple[float, ...] = (1.0, 0.75, 0.5, 0.35, 0.25, 0.1),
+) -> pd.DataFrame:
+    """Is the index right in direction and merely too large?  ❌ **No.**
+
+    Raising the index to a power below 1 shrinks every movement toward 1
+    without changing a single sign, so if the BES pointed the right way and
+    only overshot, some power would win.  ⚠️ **The gain rises monotonically as
+    the seed disappears** -- best on impact at power 0.1, which is a seed that
+    barely moves anything -- so there is no amplitude that rescues it.
+
+    ⚠️ The log-log slope of the observed movement on the index is **0.72**
+    unweighted and **0.45** dollar-weighted over 397 commodity-level pairs, so
+    the overshoot is real; it is simply not what costs the seed its gain.
+    """
+    from bedrock.analysis.nowcasting.benchmark_holdout import (  # noqa: PLC0415
+        aggregate,
+        holdout_score,
+    )
+
+    mapping = {**RETAIL, **WHOLESALE}
+    records = []
+    for power in powers:
+
+        def index_for(column: str, power: float = power) -> 'pd.Series[float]':
+            codes = mapping.get(column)
+            if codes is None:
+                return pd.Series(dtype=float)
+            index = relative_index(codes, *_holdout_urls(column))
+            return index ** power if len(index) else index
+
+        record: dict[str, object] = {'power': power}
+        for weighting in ('dollar', 'impact'):
+            summary = aggregate(holdout_score(index_for, list(mapping), weighting))
+            record[f'{weighting}_gain_%'] = summary['gain_%']
+            record[f'{weighting}_wins'] = summary['wins']
+        records.append(record)
+    return pd.DataFrame(records).set_index('power')
+
+
+def holdout_pairs() -> pd.DataFrame:
+    """Every (item, BEA column) pair on the holdout span, BES against observed.
+
+    ✅ **This is where the withdrawn +0.06 goes.**  Regraded at BEA detail
+    against the **observed** 2017 block rather than BEA's summary
+    carry-forward, the same comparison correlates **+0.62 over 164 pairs**.
+    ⚠️ **The mechanism was never the problem** -- see :func:`item_carriers`
+    for what is.
+    """
+    from bedrock.analysis.nowcasting.benchmark_holdout import (  # noqa: PLC0415
+        BASE,
+        TARGET,
+        block,
+        intensity,
+    )
+
+    early, late = block(BASE), block(TARGET)
+    weights = intensity()
+    records = []
+    for bea, codes in {**RETAIL, **WHOLESALE}.items():
+        if bea not in early.columns or bea not in late.columns:
+            continue
+        first_url, second_url = _holdout_urls(bea)
+        before, after = amounts(first_url), amounts(second_url)
+        base_total = sum(operating_totals(first_url).get(code, 0.0) for code in codes)
+        late_total = sum(operating_totals(second_url).get(code, 0.0) for code in codes)
+        if not base_total or not late_total:
+            continue
+        overall = late_total / base_total
+        early_column, late_column = early[bea], late[bea]
+        weighted = late_column * weights.reindex(late_column.index).fillna(0.0)
+        for column, name in BEA_ITEMS.items():
+            first = [before.get((code, column)) for code in codes]
+            second = [after.get((code, column)) for code in codes]
+            if any(v is None for v in first) or any(v is None for v in second):
+                continue
+            base = float(sum(v for v in first if v is not None))
+            if base <= 0:
+                continue
+            targets = [c for c in ITEM_TO_BEA[name] if c in early_column.index]
+            start = float(early_column.loc[targets].sum()) / float(early_column.sum())
+            if start <= 0:
+                continue
+            records.append(
+                {
+                    'item': name,
+                    'bes': float(sum(v for v in second if v is not None))
+                    / base
+                    / overall,
+                    'observed': float(late_column.loc[targets].sum())
+                    / float(late_column.sum())
+                    / start,
+                    'share_$': float(late_column.loc[targets].sum())
+                    / float(late_column.sum()),
+                    'share_N': float(weighted.loc[targets].sum())
+                    / float(weighted.sum()),
+                }
+            )
+    return pd.DataFrame(records)
+
+
+def item_carriers() -> pd.DataFrame:
+    """❌ **The reason for the no-go: the BES tracks where it does not matter.**
+
+    :func:`holdout_pairs` grouped by item: how well each item's movement
+    correlates with the **observed** movement of the BEA commodities it maps
+    to, next to how much of the average trade column's dollars and ``N`` those
+    commodities carry.
+
+    ❌ **Electricity is 38% of the average column's impact and correlates
+    -0.19**; transportation is 8.9% at **+0.01**; building rent is 13.2% at
+    +0.21.  ✅ The items that track well -- rent of machinery +0.89, water and
+    sewer +0.81, communication +0.75 -- are worth **0.4%, 1.6% and 0.5%** of
+    the column's impact between them.
+
+    ⚠️ **So the mean correlation is whatever you weight it by**: 0.469
+    unweighted, 0.281 dollar-weighted, **0.028 weighted by ``N``**.  That is
+    the whole verdict, and it is why :func:`trade_holdout` is a wash on dollars
+    and negative on impact while the item correlations look healthy.
+    """
+    pairs = holdout_pairs()
+    rows = [
+        {
+            'item': str(name),
+            'columns': len(group),
+            'corr': float(np.corrcoef(group['bes'], group['observed'])[0, 1]),
+            'share_$_%': 100 * float(group['share_$'].mean()),
+            'share_N_%': 100 * float(group['share_N'].mean()),
+            'mean_bes': float(group['bes'].mean()),
+            'mean_observed': float(group['observed'].mean()),
+        }
+        for name, group in pairs.groupby('item')
+    ]
+    frame = pd.DataFrame(rows).set_index('item')
+    return frame.sort_values('share_N_%', ascending=False)
+
+
 def trade_score() -> pd.DataFrame:
     """Frozen 2017 against the BES-seeded columns at 2022, on published summary.
 
-    ❌ **Every column loses on dollars and four of five on ``N``.**  ``441`` is
-    the one to read: full item coverage, no aggregation, 75.7% impact reach,
-    and **-43.6%**.
+    ⚠️ **The wrong answer key, kept for the record.**  BEA's 2018-2024 tables
+    are the 2017 benchmark carried forward, and summary averages away the
+    detail a seed moves; :func:`trade_holdout` is the sound test and says
+    **-5.6%** where this says -43.6% on the same column.  ❌ **Do not quote
+    these numbers as evidence** -- see the module docstring.
     """
     from bedrock.analysis.nowcasting.intermediate_structure_drift import (  # noqa: PLC0415
         summary_intermediate,
@@ -455,10 +710,12 @@ def trade_score() -> pd.DataFrame:
 def movement_correlation() -> pd.DataFrame:
     """Does a BES item's movement predict its BEA commodities' movement?
 
-    ❌ **Pooled +0.06 over 54 pairs**, and that is the finding: the survey can
-    measure trade's expenses well and still say nothing about how BEA moved the
-    commodity mix.  Restricted to the retail columns that map one-to-one onto a
-    summary column, so no aggregation blurs the comparison.
+    ⚠️ **Withdrawn: the +0.06 over 54 pairs this returns is an artefact of the
+    key.**  It compares against BEA's published *summary* movement 2017 -> 2022,
+    which collapses several items onto one code and is a carry-forward of the
+    2017 benchmark besides.  ✅ :func:`holdout_pairs` runs the same comparison
+    at detail against the observed 2017 block and gets **+0.62 over 164
+    pairs**.  Kept because the size of the gap is itself the lesson.
     """
     from bedrock.analysis.nowcasting.intermediate_structure_drift import (  # noqa: PLC0415
         summary_intermediate,
@@ -513,14 +770,67 @@ def movement_correlation() -> pd.DataFrame:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--holdout', action='store_true', help='THE test: 2012 -> observed 2017'
+    )
+    parser.add_argument(
+        '--carriers', action='store_true', help='which items carry the N'
+    )
+    parser.add_argument('--shrink', action='store_true', help='is it only an overshoot')
     parser.add_argument('--suppression', action='store_true', help='items per column')
     parser.add_argument('--score', action='store_true', help='frozen vs seeded')
     parser.add_argument('--mechanism', action='store_true', help='do movements track')
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
-    chosen = args.suppression or args.score or args.mechanism
+    chosen = (
+        args.holdout
+        or args.carriers
+        or args.shrink
+        or args.suppression
+        or args.score
+        or args.mechanism
+    )
     pd.set_option('display.width', 200)
 
+    if args.all or args.holdout or not chosen:
+        from bedrock.analysis.nowcasting.benchmark_holdout import (  # noqa: PLC0415
+            aggregate,
+        )
+
+        print('\nTHE test: seed observed 2012, score against observed 2017\n')
+        for weighting in ('dollar', 'impact'):
+            summary = aggregate(trade_holdout(weighting))
+            print(
+                f'  {weighting:>7}  frozen {summary["frozen"]:.4f} -> seeded '
+                f'{summary["seeded"]:.4f}   gain {summary["gain_%"]:+.1f}%   '
+                f'{int(summary["wins"])}/{int(summary["columns"])} columns win'
+            )
+        print()
+        print(trade_holdout('impact')[['frozen', 'seeded', 'gain_%']].round(4))
+
+    if args.all or args.carriers or not chosen:
+        frame = item_carriers()
+        print('\nPer item: does it track, and how much N does it carry\n')
+        print(frame.round(3).to_string())
+        for label, key in (('dollar', 'share_$_%'), ('N', 'share_N_%')):
+            mean = float((frame['corr'] * frame[key]).sum() / frame[key].sum())
+            print(f'  mean correlation weighted by {label}: {mean:+.3f}')
+        print(f'  unweighted: {frame["corr"].mean():+.3f}')
+        pairs = holdout_pairs()
+        pooled = float(np.corrcoef(pairs['bes'], pairs['observed'])[0, 1])
+        print(f'  pooled over {len(pairs)} pairs: {pooled:+.3f}')
+        print(
+            '\n  electricity alone is 38% of the average column and does not'
+            '\n  track. The items that do track are worth a few percent of N'
+            '\n  between them, which is the whole verdict.'
+        )
+    if args.all or args.shrink:
+        print('\nHoldout gain as the index is shrunk toward 1\n')
+        print(holdout_shrinkage().round(2).to_string())
+        print(
+            '\n  the gain rises as the seed vanishes, so the index is not'
+            '\n  right-but-too-large; there is no amplitude that wins.'
+        )
     if args.all or args.suppression:
         table = suppression()
         print("\nBEA's 13 items, published in BOTH 2017 and 2022, at BEA detail\n")
@@ -531,14 +841,15 @@ def main() -> None:
             '\n  Suppression is still real -- 3 retail and 4 wholesale columns'
             '\n  have nothing -- it just is not what decides the verdict.'
         )
-    if args.all or args.score or not chosen:
+    if args.all or args.score:
         print('\nFrozen 2017 against the BES-seeded columns at 2022\n')
         print(trade_score().round(4).to_string())
         print(
-            '\n  441 is the column to read: 13 of 13 items, no aggregation,'
-            '\n  75.7% impact reach -- and -43.6%. Neither suppression nor'
-            '\n  reach is the binding constraint, so a suppression recovery'
-            '\n  would not rescue this.'
+            '\n  the WRONG KEY: BEA carried forward from 2017, at summary.'
+            '\n  --holdout scores the same 441 at -16.8%, and the block at'
+            '\n  -5.6%. What survives from here is only that 441 has 13 of'
+            '\n  13 items and 75.7% impact reach and still loses, so the'
+            '\n  suppression recovery must not be built.'
         )
     if args.all or args.mechanism:
         frame = movement_correlation()
@@ -558,9 +869,11 @@ def main() -> None:
             for name, group in frame.groupby('column')
         ]
         print(pd.DataFrame(per_column).set_index('column').to_string())
-        print(f'\n  pooled {pooled:.3f} -- the same failure mode as ERS')
-        print('  agriculture (+0.18). Measuring an industry accurately is not')
-        print("  the same as describing how BEA moved its commodity mix.")
+        print(f'\n  pooled {pooled:.3f} -- WITHDRAWN. Against BEA summary,')
+        print('  carried forward from 2017. --carriers runs the same')
+        print('  comparison at detail against the OBSERVED 2017 block and')
+        print('  gets +0.62 over 164 pairs: the mechanism is there, it just')
+        print('  is not there on the items that carry the impact.')
 
 
 if __name__ == '__main__':

@@ -1531,17 +1531,81 @@ the next hour of work, and the plan should not pretend otherwise.
 
 ---
 
-### `42` Wholesale and `4A0` retail — ⚠️ **verdict under review**
+### `42` Wholesale and `4A0` retail — ❌ **no-go, and it survived the regrade**
 
-⚠️ **BOTH the original test and the retest used the wrong answer key**, and the
-retest's conclusion is therefore not safe. Agriculture was rejected the same way
-and the rejection **reversed** once regraded — see §The answer key. The trade
-BES has 2012 and 2017 vintages, so it *can* be regraded on the holdout, and that
-has not been done yet. ❌ **Do not act on the no-go below until it is.**
+✅ **Regraded on the holdout, 2026-08-25.** Agriculture was rejected on the wrong
+key and the rejection **reversed**; trade was rejected the same way and it does
+**not** reverse. ⚠️ **But almost every number below is withdrawn**, and the
+reason for the no-go is not the one this section gave.
 
-⚠️ **Read the verdict at the end of this section, not the table in the middle.**
-The table was scored at the wrong granularity, on an item set BEA did not use,
-in dollars. The retest fixes all three and the answer is a firmer no.
+**On [`benchmark_holdout`](benchmark_holdout.py)** — seed the observed 2012
+block with the BES's 2012 → 2017 movement, score against the observed 2017
+block, at detail:
+
+| weighting | frozen | seeded | gain | columns |
+|---|---:|---:|---:|---:|
+| dollar | 0.1899 | 0.1893 | **+0.3%** | 9 of 18 |
+| **impact (`N`)** | 0.0493 | 0.0521 | **−5.6%** | 8 of 18 |
+
+❌ **A wash — a coin flip, not the −43.6% and −183.6% below.** Those were scored
+against BEA's carry-forward at summary; the same `441` column scores **−16.8%**
+on the sound key, and **that gap is the size of the answer-key effect.**
+
+✅ **The 2012 vintage exists**, contrary to what this section said, under names
+the 2017 and 2022 files do not predict: retail `arts/tables/2012/bes.xls`
+(the **final**-census file, not `2012_arts_detailed_operating_expenses.xls`,
+which is preliminary) and wholesale
+`awts/tables/2012/2012r_awts_detailopexpenses_table5.1.xls` (the **`2012r`**
+revision, benchmarked to the 2012 Economic Census; the original is on 2007).
+⚠️ **2012 is the least suppressed of the three vintages** — eight of the nine
+retail columns hold 12 or 13 items — so this is the strongest test this source
+will get. ⚠️ **2007 is published too**, so a second span exists if it is reopened.
+
+#### ✅ The mechanism is there. It is not there where the impact is.
+
+❌ **The "+0.06, the movements do not track" finding is withdrawn.** Regraded at
+BEA **detail** against the **observed** 2017 block, a BES item's movement
+correlates **+0.62 pooled over 164 item-column pairs**. The +0.06 was the
+summary carry-forward talking.
+
+❌ **What actually decides it**: the BES tracks BEA on the items that carry no
+impact and fails on the three that carry 60% of it
+([`trade_expense_supplement.py`](trade_expense_supplement.py) `--carriers`):
+
+| item | corr | share of column `N` | share of $ |
+|---|---:|---:|---:|
+| electricity | **−0.19** | **38.0%** | 4.4% |
+| rent of buildings | +0.21 | **13.2%** | 16.3% |
+| transport / shipping | **+0.01** | **8.9%** | 9.7% |
+| advertising | +0.47 | 2.2% | 7.6% |
+| professional | +0.49 | 1.9% | 8.0% |
+| water / sewer / refuse | +0.81 | 1.6% | 0.6% |
+| communication | +0.75 | 0.5% | 1.5% |
+| rent of machinery | **+0.89** | 0.4% | 0.9% |
+
+⚠️ **The mean correlation is whatever you weight it by: 0.469 unweighted, 0.281
+on dollars, 0.028 on `N`.** ✅ **That is the sharpest statement of §What a column
+is worth in this plan** — a source can look sound on an unweighted average of
+its items and be worth nothing, because impact sits in three of them.
+
+⚠️ **And electricity is not measured badly.** The BES gets its *average*
+movement right — ×0.894 against BEA's ×0.901 — it just cannot say **which**
+column's electricity share moved, which is the only thing a mix seed needs.
+⚠️ Building rent is the opposite: the BES says ×0.969 where BEA observed
+**×1.237**, a real movement in 13% of the column's impact, missed outright.
+
+❌ **It is not an overshoot either.** Shrinking the index toward 1 (raising it
+to a power < 1, which changes no sign) makes the impact gain rise monotonically
+to **+0.44% at power 0.1** — a seed that barely moves anything. There is no
+amplitude that wins, so this is not a calibration problem.
+
+✅ **Still do not build the suppression recovery.** `441000` has **13 of 13
+items in both 2012 and 2017**, no aggregation, **75.7% impact reach** — and
+**−16.8%** on the sound key. Neither suppression nor reach is the binding
+constraint, on either key. **That is the build this saves.**
+
+⚠️ **The old material below is kept for the record.** Read it as an account of
+what the wrong key does to a number, not as evidence.
 
 **#564's "absent from AIES `exp02`" was true and was the wrong place to look.**
 The trade expense detail is not in the annual survey; it is the **quinquennial
@@ -1613,12 +1677,12 @@ of its dollars and 75.7% of its impact** — and it loses **−43.6%**. ⚠️ *
 suppression nor reach is the binding constraint**, so recovering suppressed
 cells would buy nothing. That is a build saved.
 
-❌ **The mechanism is absent**, and it is the same one that sank ERS
-agriculture: each BES item's movement against its BEA commodities' published
-share movement correlates **+0.06 pooled over 54 pairs** (`441` +0.32, `445`
-+0.25, `4A0` +0.06, `452` −0.00), against ERS agriculture's +0.18. **A survey
-can measure an industry's expenses well and still not describe how BEA moved
-the commodity mix**, because BEA does not build the mix from item shares.
+⚠️ ~~**The mechanism is absent**: +0.06 pooled over 54 pairs~~ — **withdrawn**.
+That comparison is against BEA's published *summary* movement 2017 → 2022, which
+collapses several items onto one code and is a carry-forward besides. At detail
+against the observed 2017 block the same comparison is **+0.62 over 164 pairs**.
+⚠️ **The ERS +0.18 was withdrawn for the same reason**, and the ERS seed then
+passed at +17.9%.
 
 ⚠️ **Some movements are not credible on their own terms.** `452` reports
 building rent falling **$9,037M → $5,577M** — a 38% *nominal* fall in five
@@ -1638,9 +1702,12 @@ already has.
 42 or 44-45 — so ✅ **no extractor was built**: a `Census_BES` source would
 carry two observations and no future.
 
-⚠️ **One caveat on the retest.** 2017 → 2022 is the only span the BES offers,
-so the correlations rest on cross-sectional spread inside one interval, not on
-repeated observation the way the seven-year agriculture test does.
+⚠️ ~~**2017 → 2022 is the only span the BES offers**~~ — **wrong**, and it is
+what delayed the regrade. The BES is quinquennial: **2012 and 2007 are both
+published**, and the 2012 → 2017 span is the one the holdout uses. What stands
+is the caveat's other half — each span is a single interval, so the
+correlations rest on cross-sectional spread rather than on repeated observation
+the way the seven-year agriculture test does.
 
 ⚠️ **Nothing continues this after 2022.** AIES publishes no expense cell for 42 or
 44-45 at any NAICS level, so the trade BES pair ends at 2022 with no successor.
@@ -2015,8 +2082,8 @@ feeling, because it is the backlog:
 | sector | columns | $B | why | issue |
 |---|---:|---:|---|---|
 | `G` government | 8 | 1,222 | `govslocalfin` bridge rejected | #578 |
-| `42` wholesale | 11 | 878 | AWTS BES suppression, 3 of 13 items | — |
-| `44RT` retail | 9 | 668 | ARTS BES suppression, **0 of 13 items** | — |
+| `42` wholesale | 11 | 878 | ❌ BES regraded on the holdout: no signal on `N` | — |
+| `44RT` retail | 9 | 668 | ❌ BES regraded on the holdout: no signal on `N` | — |
 | `11` agriculture | 13 | 272 | ✅ **seed validated on the holdout, +17.9%** | #577 |
 | `PROF` | 1 | 198 | no prefix match in either survey | — |
 | `22` utilities | 3 | 160 | survey refused on the mechanism | #719 |
@@ -2043,18 +2110,19 @@ both 2017 and 2022 — which is exactly §S3's scope and none of the held block.
 
 | held sector | its 2022 observation | status |
 |---|---|---|
-| `42` / `44RT` | AWTS / ARTS **Business Expenses Supplement**, 2017 + 2022 | ⚠️ **verdict under review** — rejected on the wrong answer key; 2012 vintage exists, holdout retest pending |
+| `42` / `44RT` | AWTS / ARTS **Business Expenses Supplement**, 2012 + 2017 + 2022 | ❌ **no-go, regraded on the holdout** — +0.3% dollar / −5.6% impact, 9 and 8 of 18 columns |
 | `11` | ERS FIWS — **annual, not quinquennial**, and runs to 2025 | ✅ no interpolation needed at all |
 | `22` | EIA 861/861M, form 176 — **annual** | ✅ no interpolation needed; #719 |
 | `G` | — | ❌ `govslocalfin` rejected; nothing else identified |
 
 ❌ **So "rebenchmark at 2022 and interpolate" has no candidate left.** Trade was
-the only held sector the shape fitted, and it has now been retested and rejected
-— ⚠️ **and specifically the suppression recovery this plan pointed at should not
-be built**, because the column with no suppression fails too. Agriculture and
-utilities have *annual* sources and would be seeded directly rather than
-interpolated; agriculture has since been rejected as well, leaving utilities
-(#719) as the only live route into the held block.
+the only held sector the shape fitted, and it has now been retested, regraded on
+the sound key, and rejected on both — ⚠️ **and specifically the suppression
+recovery this plan pointed at should not be built**, because the column with no
+suppression fails too. ✅ Agriculture and utilities have *annual* sources and
+would be seeded directly rather than interpolated; **agriculture passes the
+holdout at +17.9%** and is a go, and utilities (#719) is the remaining
+unexplored route.
 
 ---
 
@@ -2418,11 +2486,13 @@ moves +6.60pp and has no counterpart question at all. Positive at every endpoint
 on a test biased against it, so it is real; it is not large, and it does not
 compete with S1 or S2 for what to do next.
 
-⚠️ **Nothing else on the drifter list survives**, and `4A0` is the sharpest case:
-its Business Expenses Supplement pair exists, on one benchmark and one item list,
-and **not one of its thirteen items is published for all nine of its constituent
-NAICS in both years**. Reopening `42` and `4A0` means building a suppression
-recovery on the `ecnmatfuel` pattern first, not writing an extractor.
+⚠️ **Nothing else on the drifter list survives**, and `4A0` is the sharpest case
+— ❌ **though not for the reason given here.** "Not one of its thirteen items is
+published for all nine of its constituent NAICS" is a **summary** artefact: at
+detail `4A0` is six columns, five of them one NAICS. ❌ **And reopening `42` and
+`4A0` does not mean building a suppression recovery**: `441000` has all thirteen
+items in both holdout years and loses anyway. See §`42` Wholesale and `4A0`
+retail for the regrade.
 
 **S5. ERS agriculture (#577)** — ✅ **built, measured, and it earns its place.**
 
