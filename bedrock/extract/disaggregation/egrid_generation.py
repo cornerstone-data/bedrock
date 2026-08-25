@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -12,6 +13,10 @@ from stewi.egrid import OUTPUT_PATH, _config, download_eGRID, extract_eGRID_exce
 from stewi.formats import StewiFormat
 from stewi.globals import MWh_MJ, read_inventory
 from stewi.globals import config as stewi_config
+
+from bedrock.utils.validation.exceptions import FBANotAvailableError
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_YEAR_START = 2016
 DEFAULT_YEAR_END = 2024
@@ -209,6 +214,13 @@ def _epa_fba(year: int) -> pd.DataFrame:
     return getFlowByActivity('EIA_ElectricPowerAnnual', year)
 
 
+def _epa_fba_if_available(year: int) -> pd.DataFrame | None:
+    try:
+        return _epa_fba(year)
+    except (FBANotAvailableError, FileNotFoundError):
+        return None
+
+
 def _table_mask(df: pd.DataFrame, year: int, table_fragment: str) -> pd.Series:
     desc = df['Description'].astype(str)
     return (df['Year'] == year) & desc.str.contains(table_fragment, na=False)
@@ -259,37 +271,49 @@ def _export_mwh_from_fba(df: pd.DataFrame, year: int) -> float | None:
     return float(rows['FlowAmount'].sum())
 
 
+_TABLE_2_14_MIN_YEAR = 2014
+
+
+@functools.cache
+def eia_table_2_14_year_for_egrid_year(egrid_year: int) -> int:
+    """Latest EPA Table 2.14 year at or before ``egrid_year``.
+
+    Table 2.14 (Canada/Mexico electricity trade) can lag the eGRID inventory
+    year. Callers that need a lag must resolve the table year here and pass it
+    to ``eia_table_2_14_export_mwh`` — the loader itself does not substitute.
+    """
+    for table_year in range(egrid_year, _TABLE_2_14_MIN_YEAR - 1, -1):
+        df = _epa_fba_if_available(table_year)
+        if df is None:
+            continue
+        if _export_mwh_from_fba(df, table_year) is not None:
+            if table_year != egrid_year:
+                logger.info(
+                    'EPA Table 2.14 not available for eGRID year %s; '
+                    'using Table 2.14 year %s',
+                    egrid_year,
+                    table_year,
+                )
+            return table_year
+    raise ValueError(
+        f'Table 2.14 Canada+Mexico exports missing for eGRID year {egrid_year} '
+        f'(no table found in {_TABLE_2_14_MIN_YEAR}–{egrid_year})'
+    )
+
+
 @functools.cache
 def eia_table_2_14_export_mwh(year: int) -> float:
-    """Canada + Mexico electricity exports from EIA Table 2.14, MWh.
+    """Canada + Mexico electricity exports from EIA Table 2.14 for *year*, MWh.
 
     ``epa_02_14`` uses ``flow_amount_scale: 1`` (not Table 3.1's 1000).
-    If *year* is missing, use the latest available 2.14 year and log it.
+    Requires Table 2.14 for this exact year. If EPA lags eGRID, resolve the
+    table year with ``eia_table_2_14_year_for_egrid_year`` at the call site.
     """
-    import logging  # noqa: PLC0415
-
-    logger = logging.getLogger(__name__)
-    try:
-        df = _epa_fba(year)
-        val = _export_mwh_from_fba(df, year)
-        if val is not None:
-            return val
-    except Exception:
-        df = None
-    for fallback in range(year - 1, 2013, -1):
-        try:
-            fb = _epa_fba(fallback)
-        except Exception:
-            continue
-        val = _export_mwh_from_fba(fb, fallback)
-        if val is not None:
-            logger.info(
-                'Table 2.14 year %s missing; using latest available year %s',
-                year,
-                fallback,
-            )
-            return val
-    raise ValueError(f'Table 2.14 Canada+Mexico exports missing for year {year}')
+    df = _epa_fba(year)
+    val = _export_mwh_from_fba(df, year)
+    if val is None:
+        raise ValueError(f'Table 2.14 Canada+Mexico exports missing for year {year}')
+    return val
 
 
 @functools.cache
@@ -321,8 +345,10 @@ def eia_table_3_1_total_mwh(year: int) -> float:
 def egrid_mwh_for_io_year(year: int, *, download_if_missing: bool = True) -> float:
     """Plant-net eGRID MWh for an IO-account year.
 
-    2017 has no stewi eGRID inventory: ``eGRID_2016 * (EIA 3.1_2017 / 3.1_2016)``.
-    Other years use ``us_total_net_generation_mwh``. Do not add GGL losses.
+    For 2017 there is no stewi eGRID inventory, so we take 2016 eGRID net
+    generation and scale it by EIA Table 3.1 total generation in 2017 relative
+    to 2016. Other years use the eGRID inventory for that year directly.
+    Do not add GGL losses.
     """
     if year == 2017:
         egrid_2016 = us_total_net_generation_mwh(

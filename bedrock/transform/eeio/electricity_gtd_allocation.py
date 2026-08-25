@@ -20,6 +20,7 @@ from bedrock.extract.disaggregation.egrid_generation import (
     egrid_mwh_for_io_year,
     eia_table_2_2_end_use_mwh,
     eia_table_2_14_export_mwh,
+    eia_table_2_14_year_for_egrid_year,
 )
 from bedrock.transform.eeio.electricity_end_use_mapping import build_end_use_map
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
@@ -140,7 +141,10 @@ def _class_mwh_targets(
     egrid_mwh: float,
 ) -> dict[str, float]:
     t22 = eia_table_2_2_end_use_mwh(eia_year)
-    export_mwh = eia_table_2_14_export_mwh(eia_year)
+    # Table 2.14 (Canada/Mexico trade) can lag eGRID; resolve the table year
+    # here instead of substituting inside the loader.
+    table_2_14_year = eia_table_2_14_year_for_egrid_year(eia_year)
+    export_mwh = eia_table_2_14_export_mwh(table_2_14_year)
     teu = float(t22['Total End Use'])
     if teu <= 0:
         raise ValueError(f'Table 2.2 Total End Use non-positive for {eia_year}')

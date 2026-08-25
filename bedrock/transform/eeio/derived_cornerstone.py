@@ -492,7 +492,7 @@ def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
 # ---------------------------------------------------------------------------
 
 
-def _maybe_reanchor_electricity_aq(
+def _reanchor_electricity_aq_if_disaggregation_enabled(
     aq: SingleRegionAqMatrixSet,
     *,
     original_year: int,
@@ -500,7 +500,14 @@ def _maybe_reanchor_electricity_aq(
     model_year: int,
     use_commodity_pi: bool,
 ) -> SingleRegionAqMatrixSet:
-    """Rewrite published electricity A/q when electricity disaggregation is on."""
+    """Re-apply EIA end-use class shares at model year onto A/q when enabled.
+
+    No-op when electricity disaggregation is off. Otherwise delegates to
+    ``reanchor_electricity_aq_after_year_scaling``, which re-runs the allocator
+    so class MWh targets come from EIA Table 2.2 / 2.14 at ``model_year``
+    (not the scaled 2017 structure) and rewrites electricity rows/columns of
+    A and q after year scaling and price-index inflation.
+    """
     if not electricity_disaggregation_enabled():
         return aq
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
@@ -533,31 +540,31 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # IO year adjustments (v0.3): CEDA's A approach with dollar-year rebase.
-    # Scale to usa_io_data_year, then inflate to model_base_year:
-    # 1. scale detail A and q with dollar-year-adjusted summary numbers
-    #    (`scale_cornerstone_A`/`_q` rebase the target-year summary tables into
-    #    2017 USD before the ratio is taken, so the structural cross-year ratio
-    #    is formed entirely in 2017 USD),
-    # 2. inflate with commodity pi instead of industry pi.
+    # 1. Scale detail A and q to usa_io_data_year.
+    #    With apply_io_year_adjustments, scale_cornerstone_A/_q rebase the
+    #    target-year summary tables into 2017 USD before the ratio is taken,
+    #    so the structural cross-year ratio is formed entirely in 2017 USD.
+    Adom = scale_cornerstone_A(
+        base.Adom,
+        target_year=io_year,
+        original_year=detail_year,
+        dom_or_imp_or_total='dom',
+    )
+    Aimp = scale_cornerstone_A(
+        base.Aimp,
+        target_year=io_year,
+        original_year=detail_year,
+        dom_or_imp_or_total='imp',
+    )
+    q = scale_cornerstone_q(
+        base.scaled_q,
+        target_year=io_year,
+        original_year=detail_year,
+    )
+
+    # 2. Inflate to model_base_year (commodity pi for v0.3 IO-year path;
+    #    industry pi otherwise).
     if cfg.apply_io_year_adjustments:
-        Adom = scale_cornerstone_A(
-            base.Adom,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='dom',
-        )
-        Aimp = scale_cornerstone_A(
-            base.Aimp,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='imp',
-        )
-        q = scale_cornerstone_q(
-            base.scaled_q,
-            target_year=io_year,
-            original_year=detail_year,
-        )
         Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
             Adom, original_year=detail_year, target_year=model_year
         )
@@ -567,47 +574,26 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             q, original_year=detail_year, target_year=model_year
         )
-        return _maybe_reanchor_electricity_aq(
-            _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q),
-            original_year=int(detail_year),
-            target_year=int(io_year),
-            model_year=int(model_year),
-            use_commodity_pi=True,
+        use_commodity_pi = True
+    else:
+        Adom = inflate_cornerstone_A_matrix_with_industry_pi(
+            Adom, original_year=io_year, target_year=model_year
         )
+        Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
+            Aimp, original_year=io_year, target_year=model_year
+        )
+        q = inflate_cornerstone_q_or_y_with_industry_pi(
+            q, original_year=io_year, target_year=model_year
+        )
+        use_commodity_pi = False
 
-    Adom = inflate_cornerstone_A_matrix_with_industry_pi(
-        scale_cornerstone_A(
-            base.Adom,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='dom',
-        ),
-        original_year=io_year,
-        target_year=model_year,
-    )
-    Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
-        scale_cornerstone_A(
-            base.Aimp,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='imp',
-        ),
-        original_year=io_year,
-        target_year=model_year,
-    )
-    q = inflate_cornerstone_q_or_y_with_industry_pi(
-        scale_cornerstone_q(
-            base.scaled_q, target_year=io_year, original_year=detail_year
-        ),
-        original_year=io_year,
-        target_year=model_year,
-    )
-    return _maybe_reanchor_electricity_aq(
+    # 3. Re-apply electricity end-use class shares at model year when enabled.
+    return _reanchor_electricity_aq_if_disaggregation_enabled(
         _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q),
         original_year=int(detail_year),
         target_year=int(io_year),
         model_year=int(model_year),
-        use_commodity_pi=False,
+        use_commodity_pi=use_commodity_pi,
     )
 
 
