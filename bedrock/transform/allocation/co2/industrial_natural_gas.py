@@ -15,8 +15,6 @@ from bedrock.extract.allocation.mecs import load_mecs_3_1 as _load_mecs_3_1
 from bedrock.transform.allocation.mappings.cornerstone import (
     CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
     CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
-)
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
     NON_MECS_INDUSTRIES,
 )
 from bedrock.transform.allocation.utils import get_allocation_sectors

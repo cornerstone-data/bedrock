@@ -335,7 +335,7 @@ def derive_useeio_excel_y_nab_scaled_to_model_base_year(
     from bedrock.utils.taxonomy.bea.v2017_industry_summary import (  # noqa: PLC0415
         USA_2017_SUMMARY_INDUSTRY_CODES,
     )
-    from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (  # noqa: PLC0415
+    from bedrock.utils.taxonomy.bea_v2017_to_cornerstone_helpers import (  # noqa: PLC0415
         get_bea_v2017_summary_to_useeio_corresp_df,
     )
 
