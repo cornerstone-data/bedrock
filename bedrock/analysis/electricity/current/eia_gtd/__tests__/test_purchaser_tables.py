@@ -124,8 +124,8 @@ def test_nibble_is_class_totals_clipped_is_purchaser_only() -> None:
     )
     assert bool(nibble.loc['Residential', 'nibble'])
     assert not bool(nibble.loc['Commercial', 'nibble'])
-    assert int(nibble.loc['Commercial', 'n_clipped_purchasers']) == 1
-    assert int(nibble.loc['Residential', 'n_clipped_purchasers']) == 0
+    assert nibble.loc['Commercial', 'n_clipped_purchasers'] == 1
+    assert nibble.loc['Residential', 'n_clipped_purchasers'] == 0
     purchasers = leftover_td_purchaser_frame(alloc).set_index('purchaser')
     assert bool(purchasers.loc['452000', 'clipped'])
     assert not bool(purchasers.loc['F01000', 'clipped'])

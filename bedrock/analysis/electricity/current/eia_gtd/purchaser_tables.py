@@ -178,9 +178,7 @@ def optional_implied_cents_kwh_frame(
             continue
         class_bill = float(bills.get(cls, 0.0))
         class_mwh = float(mwh.get(cls, 0.0))
-        implied = (
-            class_bill / (10.0 * class_mwh) if class_mwh > 0 else float('nan')
-        )
+        implied = class_bill / (10.0 * class_mwh) if class_mwh > 0 else float('nan')
         listed = float(table_24_cents_kwh.get(cls, float('nan')))
         rows.append(
             {
@@ -343,10 +341,11 @@ def build_live_report(config: str = MIXED_CONFIG) -> str:
         'Exports': float(eia_table_2_14_export_mwh(eia_year)),
     }
     prices = electricity_end_use_retail_prices_cents_kwh(eia_year)
+    table_24: dict[str, float] = {str(k): float(v) for k, v in prices.items()}
     return render_purchaser_tables_md(
         alloc,
         eia_year,
         raw_table_22_mwh=raw_22,
-        table_24_cents_kwh=dict(prices),
+        table_24_cents_kwh=table_24,
         config=config,
     )
