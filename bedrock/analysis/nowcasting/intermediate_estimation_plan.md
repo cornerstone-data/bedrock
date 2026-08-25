@@ -228,6 +228,58 @@ the 2022-2024 result is robust, and so now is the size.
 
 ---
 
+## What a column is worth — and it is not dollars
+
+⚠️ **Every ranking in the rest of this plan is dollar-weighted, and dollars are
+the wrong unit for an EEIO model.** Which columns "matter", which sources are
+worth building, what "a small prize" means — all of it was sorted on dollars.
+Cornerstone estimates kg CO2e, so that is the unit a priority ordering has to be
+in.
+
+✅ **The weighting is `N`, not `D`** (Wes, 2026-08-25).
+
+- `D` = **direct** kg CO2e per dollar = characterised `B`.
+- `N` = **direct + indirect** = `C B L`, with `L = (I − (Adom + Aimp))⁻¹` — the
+  same inverse the shipped model builds its own `N` from.
+
+**Why `N`.** A Use-table cell *is* an entry in `A`, so an error in it propagates
+through the entire Leontief inverse. What getting a commodity row right is worth
+is therefore the **total** emissions embodied in a dollar of it. Some sectors
+have much higher `N` than `D` because their indirect is large — and their inputs
+are still very important, which `D` cannot see.
+
+**On the 2017 detail intermediate block, by commodity row:**
+
+| commodity rows | dollars $B | dollar % | **`N` %** | (`D` %) |
+|---|---:|---:|---:|---:|
+| **manufacturing 31-33** | 4,699 | 31.6% | **44.7%** | 28.0% |
+| **agriculture 111/112** | 413 | 2.8% | **16.4%** | 23.7% |
+| *all other* (mostly services) | 8,260 | 55.6% | **14.3%** | 7.2% |
+| utilities 22 | 350 | 2.4% | 13.7% | 26.1% |
+| mining 21 | 510 | 3.4% | 8.0% | 11.5% |
+| transportation 48-49 | 624 | 4.2% | 2.9% | 3.8% |
+
+⚠️ **Manufacturing nearly doubles and utilities halves.** Electricity's
+emissions are almost entirely *direct*, so `D` flatters it; a manufactured good
+carries a long upstream chain that only `N` counts. ⚠️ **Services double**,
+7.2% → 14.3% — the block §S4 dismissed is worth twice what the direct weighting
+said.
+
+Individual rows move harder still: `31161A` meat processing goes **0.10% →
+2.61%**, a 26× change that is all upstream livestock; `531ORE` goes 1.48% →
+3.97%. ⚠️ **The block is less concentrated on `N`** — the top 10 rows are 48.5%
+against 65.3% on `D`, and the top 25 are 65.6% against 85.1%.
+
+⚠️ **Any ranking in this plan dated before 2026-08-25 is a `D` ranking at best
+and a dollar ranking usually.** Re-check before quoting one.
+
+⚠️ **Rows and columns are different questions, and confusing them is easy.**
+Agriculture *rows* are 16.4% of impact — what everyone buys **from** farms. The
+13 agriculture *columns* are 6.9% — what farms **buy**. A seed on the
+agriculture column moves the 6.9%, not the 16.4%.
+
+---
+
 ## Where the drift actually sits
 
 `--where`. 2024, summary, by dollars misplaced.
@@ -317,12 +369,18 @@ Three things follow for sourcing:
   at summary by 2024. #578's premise — *government needs a column total, not a
   mix, because `G*` is not commodity-specific* — is what the data contradicts. A
   total is what those columns least need.
-- **Agriculture is not in this list at all.** `111CA` carries little of the drift.
-  #577 remains correct and cheap but is a small prize; it should not be first.
+- **Agriculture is not in this list at all.** `111CA` carries little of the
+  *dollar* drift. ⚠️ **But "a small prize" was a dollar judgement and does not
+  survive re-weighting** — see §What a column is worth. The 13 agriculture
+  columns are **1.8% of intermediate dollars and 6.9% of impact on `N`**, and
+  BEA's own `111CA` commodity mix drifts **0.059** (`N`-weighted) by 2022. It is
+  a modest prize, not a negligible one, and ERS FIWS is the only source in this
+  step that reaches **2025**.
 - **`ORE`, `42`, `23`, `5412OP`, `81` and `722` are where the dollars are.**
   ⚠️ Each of them *does* have an expense source — BEA named one for every one of
   them at the benchmark — and §Sourcing the columns that actually drift tested
-  each in turn. Only `ORE` survives. This is the honest shape of the problem.
+  each in turn. ⚠️ **That section's verdicts were also taken on dollars**, and
+  two of them flip on `N`: see §The verdict, in one table.
 
 ---
 
@@ -1373,7 +1431,14 @@ story, and the seed should say so where it is written.
 at 2022 and loses on the new one. It was a vintage artefact, and `ORE` is the
 only column left standing.
 
-### `ORE` / `531ORE` Other real estate — ⚠️ **built, and marginal**
+### `ORE` / `531ORE` Other real estate — ✅ **built, and not marginal after all**
+
+⚠️ **The "marginal" verdict below was a dollar verdict and is superseded.** On
+`N` (§What a column is worth) `ORE` gains **+25.1 / +32.6 / +37.2%** against a
+frozen 2017 at 2020 / 2021 / 2022, and it carries **59-83% of the whole
+services-and-transportation block's gain** on its own. The +4.5% figure quoted
+throughout this section is the dollar-weighted one; read it as the *lower*
+bound, not the result.
 
 **First, two things the issue asked to establish.**
 
@@ -1628,13 +1693,41 @@ to take the ratio against.
 | `622` | 73,394 | SAS Table 5 | ❌ loses at every endpoint |
 | `4A0` | 57,765 | ARTS BES 2017 + 2022 | ❌ suppression: **0 usable items** |
 
-**So S4's honest answer is that #564's negative result generalises**, for a
-reason #564 did not have: not that the surveys lack depth — SAS and BES have far
-more depth than the probe credited them with — but that **the second observation
-is separated from the first by a rebenchmark, a questionnaire change, or a
-suppression pattern, in every case but one.** The 2022 Economic Census materials
-breakout (§S3) remains the only source in this step where the second observation
-is clean, and `ORE` is the only column here worth building.
+❌ **S4's conclusion — "#564's negative result generalises" — did not survive,
+and the table above is superseded.** It was true of the *sources* in three cases
+(`42`, `4A0` and `23` still fail on suppression and reach) and false as a
+generalisation, for two reasons measured in
+[`services_transport_expense_resource.py`](services_transport_expense_resource.py):
+
+1. ⚠️ **Every verdict above is dollar-weighted.** Re-scored on `N` — total kg
+   CO2e per dollar, §What a column is worth — the SAS columns do not all lose.
+2. ⚠️ **The AIES half of #564 was the wrong endpoint.** `timeseries/aies/basic`
+   returns well-formed zeros for services; `exp02` publishes 41 expense
+   variables for 13 sectors.
+
+**Re-scored on `N`**, by
+[`services_transport_expense_seed.py`](services_transport_expense_seed.py)
+`--by-column`, against a frozen 2017 at 2020 / 2021 / 2022:
+
+| column | §S4 verdict | on `N` | now |
+|---|---|---|---|
+| `622` | ❌ loses at every endpoint | **+11.4 / +12.3 / +27.5%** | ✅ **overturned** |
+| `722` | ❌ no gain at any endpoint | **+7.5 / +11.2 / +10.6%** | ✅ **overturned** |
+| `81` | ❌ no gain at any endpoint | −0.8 / +2.9 / +0.6% | ⚠️ **stands** (flat) |
+| `5412OP` | ❌ loses at every endpoint | −9.0 / −7.7 / −2.0% | ❌ **stands** |
+| `ORE` | ⚠️ built, marginal | **+25.1 / +32.6 / +37.2%** | ✅ much better than "marginal" |
+
+⚠️ **`81` is the cautionary one**: it wins consistently on `D` and is flat on
+`N`. Changing the weighting decides verdicts, so a verdict is only as good as
+the weighting it was taken under.
+
+✅ **The whole block is built and it wins**, 100 BEA detail columns and $6,779B:
+**+10.2 / +10.8 / +9.2%** on `N`, +0.5 / +1.4 / +2.3% on dollars.
+⚠️ **`ORE` alone carries 59–83% of that**, and 22, 21 and 17 of 33 scored
+columns individually win — the aggregate is carried by weight, not by count.
+
+⚠️ **What does still stand from S4**: `42`, `4A0` and `23` are unchanged, the
+suppression finding is unchanged, and the caution below is unchanged.
 
 ⚠️ **And one caution against reading these no-goes too hard.** Every score above
 is against a BEA table built from the 2017 vintage of the same survey. They rule
@@ -1783,6 +1876,64 @@ and **`Capital Outlay` by function *is* published 2017-2024** — unlike current
 operations — which makes it the natural check on the final-demand government
 investment columns and on §Step 0's open SLG Equipment/Structures/IP attribution
 bug. Neither is Step 3's, and neither is claimed here.
+
+---
+
+## What is still held at the 2017 benchmark
+
+⚠️ **A quarter of the block has no annual source at all** and holds its 2017
+mix, carried only by the price step. Worth stating as a list rather than a
+feeling, because it is the backlog:
+
+| block | columns | $B | share |
+|---|---:|---:|---:|
+| census-seeded (§S3, §S3b) | 252 | 4,500 | 30.3% |
+| survey-seeded (§S4, services + transportation) | 100 | 6,779 | 45.6% |
+| ❌ **held at frozen 2017** | **50** | **3,577** | **24.1%** |
+
+**The held 50, by BEA sector:**
+
+| sector | columns | $B | why | issue |
+|---|---:|---:|---|---|
+| `G` government | 8 | 1,222 | `govslocalfin` bridge rejected | #578 |
+| `42` wholesale | 11 | 878 | AWTS BES suppression, 3 of 13 items | — |
+| `44RT` retail | 9 | 668 | ARTS BES suppression, **0 of 13 items** | — |
+| `11` agriculture | 13 | 272 | ERS FIWS now extracted, seed not built | #577 |
+| `PROF` | 1 | 198 | no prefix match in either survey | — |
+| `22` utilities | 3 | 160 | survey refused on the mechanism | #719 |
+| `48TW` | 2 | 108 | no prefix match | — |
+
+### The route back: rebenchmark at 2022, then interpolate
+
+✅ **The form is settled** (§The interpolation form): **geometric interpolation
+between the two observations, and hold the later one flat afterwards.** Fitted
+by holding out the observed 2012 on a 2007→2017 span — geometric 0.0710 against
+linear 0.0764 and frozen 0.0889.
+
+⚠️ **Two guardrails, both measured:**
+- ❌ **Do not extrapolate past the last observation.** Holding 2022 flat for
+  2023-24 beats a trend by 27.4% on manufacturing and 41.7% on the whole table.
+- ❌ **Do not adopt the newer census early.** Using the 2022 mix for every year
+  scores 0.1216 — worse than freezing at 2007. It is the one candidate that
+  loses to doing nothing.
+
+⚠️ **But the 2022 source is not the same source for every held sector**, and
+this is where the plan has to stop being generic. The Economic Census expense
+breakout `ecnbasic` carries expenses for sectors **21, 23 and 31-33 only**, in
+both 2017 and 2022 — which is exactly §S3's scope and none of the held block.
+
+| held sector | its 2022 observation | status |
+|---|---|---|
+| `42` / `44RT` | AWTS / ARTS **Business Expenses Supplement**, 2017 + 2022 | ⚠️ both vintages exist and are 2017-benchmarked; **suppression is the blocker**, not the source |
+| `11` | ERS FIWS — **annual, not quinquennial**, and runs to 2025 | ✅ no interpolation needed at all |
+| `22` | EIA 861/861M, form 176 — **annual** | ✅ no interpolation needed; #719 |
+| `G` | — | ❌ `govslocalfin` rejected; nothing else identified |
+
+✅ **So "rebenchmark at 2022 and interpolate" is the right shape only for
+`42` and `44RT`.** Agriculture and utilities have *annual* sources and should
+be seeded directly, not interpolated. ⚠️ **And for trade the work is a
+suppression recovery on the `ecnmatfuel` pattern, not an extractor** — the files
+are already identified.
 
 ---
 
@@ -2152,12 +2303,78 @@ and **not one of its thirteen items is published for all nine of its constituent
 NAICS in both years**. Reopening `42` and `4A0` means building a suppression
 recovery on the `ecnmatfuel` pattern first, not writing an extractor.
 
-**S5. ERS agriculture (#577)** — and ❌ **not** government finances. The
-function→commodity bridge was the gate on #578 and it did not survive scrutiny:
-§The government function bridge — tested, and it is a no-go. ⚠️ **That does not
-close #578**, whose columns are still the worst-drifting in the table; it closes
-`govslocalfin` as the route to them, and the drift it leaves behind is
-*within*-function, which no reallocation between functions can reach.
+**S5. ERS agriculture (#577)** — ⚠️ **source extracted, seed not built.**
+[`USDA_ERS_FIWS`](../../extract/usda/USDA_ERS_FIWS.py) now emits intermediate
+product expenses. ✅ It was already in bedrock and its parse was **filtering to
+cash receipts alone**, which dropped the concept #577 is built on — the same
+class of silent whitelist as `Census_AIES`'s `AIES_EXPENSE_FLOWS`. Three
+separate silent filters were found and fixed; see the module.
+
+✅ **This is the source BEA itself used.** Table C2: *"Inputs to the agriculture,
+forestry, fishing, and hunting industries were estimated from BEA NIPA estimates
+based on USDA ERS statistics for farm income, EIA data, and 2017 Economic Census
+data."*
+
+✅ **It reconciles.** 2017 intermediate product expenses, excl. operator
+dwellings, is **$226,611M**, and farm origin $104,467M + manufactured inputs
+$56,316M + other intermediate $65,828M sums to it exactly. Named categories are
+**89.6–91.7%** of the total, as #577 claimed.
+
+✅ **And it agrees with BEA year by year** — FIWS's own growth against BEA's
+published `111CA` intermediate total runs **0.988 to 1.047** across 2018-2024,
+the closest agreement of any source examined in this step (utilities' SAS panel
+runs 0.63–0.89 on the same test).
+
+⚠️ **But #577's stated rationale does not survive.** It says *"The value is in
+the levels. Do not build this expecting a shifting mix."* The **level is already
+observed** — Step 3 controls every column to `GO − VAPRO` — and FIWS agrees with
+BEA on the level anyway, so the level is worth nothing here. **The value has to
+be the mix, which is the thing #577 says not to expect.**
+
+The mix is small and real:
+
+| | dissimilarity |
+|---|---:|
+| FIWS's own category mix, 2017→2023 | 0.045 |
+| BEA's `111CA` commodity mix at 2022 | 0.077 dollar / **0.059 `N`** |
+| the 13 agriculture columns' weight | 1.8% dollars / **6.9% `N`** |
+
+✅ **Two things still argue for building it**: ERS FIWS is the **only source in
+this step that reaches 2025**, and the category→commodity mapping is close to
+one-for-one (pesticide $15.7B against BEA's $16.9B, petroleum $12.8B against
+$11.7B) — gaps a relative index divides out.
+
+⚠️ **One farm sector against ten BEA farm columns.** FIWS has no NAICS-6 split,
+so the index moves all ten identically and is validated only at the `111CA`
+aggregate — the same limitation the services and transportation seed carries.
+⚠️ **2025 is an ERS forecast**, and **irrigation is discontinued after 2023** —
+18 categories in 2024-25 against 19 before, so its absence is not a zero.
+
+❌ **Not government finances.** The function→commodity bridge was the gate on
+#578 and it did not survive scrutiny: §The government function bridge — tested,
+and it is a no-go. ⚠️ **That does not close #578**, whose columns are still the
+worst-drifting in the table; it closes `govslocalfin` as the route to them, and
+the drift it leaves behind is *within*-function, which no reallocation between
+functions can reach.
+
+**S6. Utilities from EIA ([#719](https://github.com/cornerstone-data/bedrock/issues/719))** — ⚠️ **new, and it exists because the
+services seed had to refuse this column.** `22`'s three detail columns are
+**held at the benchmark** (`NOT_SEEDED`), not seeded, because what utilities'
+column does over 2017-2022 is a **price-driven reweighting** — `211` goes 7.7%
+→ 23.3% of it as the column rises $160.4B → $258.4B — while the survey's
+purchased-fuels line moves the *other way*, $102.5B → $79.6B.
+
+⚠️ **A relative share index cannot carry that by construction**: dividing out
+common movement is the one thing it does. Seeding it anyway made `22` the
+largest single drag on the block, **−119%** of the aggregate gain at 2020.
+⚠️ **BEA did use SAS for utilities** (C2), so "different universe" is not
+available as an explanation.
+
+✅ **The instrument is EIA, per C1**: forms 861/861M for electric power, form
+176 and the *Natural Gas Monthly* for gas. Physical fuel receipts × price is
+what tracks a fuel-price reweighting. ⚠️ **Holding 2017 is not a fix** — θ is
+0.0 across exactly this surge, so the column is close to frozen and its drift
+is unaddressed.
 
 Not in this step: `S00300` (#606, shared with Step 1), the margins redistribution
 (Step 6b, #697), the government-enterprise reallocation (Step 7), and the balance
