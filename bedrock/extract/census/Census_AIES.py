@@ -227,6 +227,18 @@ AIES_EXPENSE_FLOWS = {
     'EXPS_EXSOFT_VAL': 'Purchased software expensed',
     'EXPS_COMPTR_OTHEQ_VAL': 'Purchased computers and peripherals expensed',
     'EXPS_OTHER_VAL': 'All other operating expenses',
+    # ⚠️ Sector-specific cells, published for a handful of industries each
+    # and zero elsewhere.  They exist only in ``exp02`` and are named to
+    # match SAS Table 5's item wording so the two panels stack.
+    'EXPS_FUEL_TRANSP_VAL': 'Purchased fuels for transportation equipment',
+    'EXPS_TRANSP_REP_VAL': (
+        'Purchased repairs and maintenance to transportation equipment'
+    ),
+    'EXPS_TRANSP_VAL': 'Purchased freight transportation',
+    'EXPS_SUPPLY_MED_VAL': 'Medical supplies',
+    'EXPS_INS_PREM_VAL': 'Cost of insurance',
+    'EXPS_PROFLIAB_VAL': 'Professional liability insurance',
+    'EXPS_PRINT_VAL': 'Purchased printing services',
 }
 
 #: Totals of the cells beside them, kept so a consumer can check additivity.

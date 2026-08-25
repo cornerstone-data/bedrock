@@ -63,9 +63,57 @@ nowcast onto BEA's current basis, which is right -- but it is not evidence about
 how a lessor's input mix changed, and nothing here should be quoted as if it
 were.
 
+✅ The whole service block, not just ``ORE``
+--------------------------------------------
+
+⚠️ **The module title is now too narrow.**  #705 built one column; the
+re-evaluation in
+[`service_expense_resource.py`](service_expense_resource.py) showed the source
+reaches **103 BEA detail industries**, and :func:`service_seed` is that seed.
+Two things changed to make it possible:
+
+* ✅ ``Census_AIES_Service_Expenses`` -- a new source on
+  ``timeseries/aies/exp02``, which carries the service sectors that
+  ``Census_AIES_Expenses``'s ``basic`` endpoint returns as well-formed zeros;
+* ✅ :func:`relative_index` now takes an injected ``panel``, so a year can be
+  read from a different survey than the base.
+
+**Scored on BEA's published summary** (:func:`service_score`), against a frozen
+2017:
+
+======  =================  =================
+year     dollar-weighted    impact-weighted
+======  =================  =================
+2020          +1.1%              **+3.6%**
+2021          +1.2%              **+3.8%**
+2022          +0.4%              **+4.2%**
+2023          -5.5%              -5.8%
+======  =================  =================
+
+✅ **The seed wins on the SAS years, and wins three to four times bigger on
+impact than on dollars.**  That is the re-evaluation's thesis holding up: the
+survey names purchased electricity and purchased fuels for every industry, and
+those are the rows the model weights.  ⚠️ **Read the dollar column honestly** --
++0.4% to +1.2% is inside the noise §S4 rejected other columns on.  The case for
+this seed is the impact column, and it should be quoted that way.
+
+❌ **2023 loses on both, and is refused** (:data:`SURVEY_CHANGE_YEARS`).  It is
+AIES read against a SAS 2017 base, so it crosses the survey change on top of the
+sas-17/sas-22 rebenchmark: the SAS -> AIES level step is a median \|log\| of
+0.203 against 0.118 for a within-instrument year.  ⚠️ **The extractor and the
+mapping are still worth having** -- when AIES publishes a second year, 2024
+against 2023 is a within-instrument ratio and this becomes usable without the
+seam.
+
+⚠️ **2018 and 2019 have no seed at all** and are not interpolated.  Neither SAS
+vintage publishes the detailed items for them and the gap sits exactly on the
+benchmark seam, so the interpolation form fitted for the census mix
+(``inputs_structure``) does not license crossing it.
+
 Run::
 
     uv run python -m bedrock.analysis.nowcasting.service_expense_seed --all
+    uv run python -m bedrock.analysis.nowcasting.service_expense_seed --service
 """
 
 from __future__ import annotations
@@ -146,8 +194,10 @@ SAS_ITEM_TO_BEA: dict[str, tuple[str, ...]] = {
     'Professional liability insurance': ('524113', '5241XX', '524200'),
     'Medical supplies': ('339112', '339113'),
     # ⚠️ Discontinued after 2017 -- see SAS_DISCONTINUED_AFTER_2017.
-    'Lease and rental payments for machinery, equipment, and other tangible '
-    'items': ('532100', '532400'),
+    'Lease and rental payments for machinery, equipment, and other tangible items': (
+        '532100',
+        '532400',
+    ),
     'Purchased communication services': ('517110', '517A00', '517210'),
     'Water, sewer, refuse removal, and other utility payments': (
         '221300',
@@ -173,6 +223,7 @@ SAS_TOTAL_ITEM = 'Expenses'
 
 BILLION = 1e9
 MILLION = 1e6
+THOUSAND = 1e3
 
 
 @functools.cache
@@ -255,9 +306,18 @@ def item_scope(naics: str = SEED_NAICS, industry: str = SEED_INDUSTRY) -> pd.Dat
     return pd.DataFrame(records).set_index('item').sort_values('survey/BEA')
 
 
-def usable_items(naics: str, year: int, base_year: int = 2017) -> list[str]:
-    """Items published for both years, with a positive base.  Order is stable."""
-    panel = expense_panel()
+def usable_items(
+    naics: str,
+    year: int,
+    base_year: int = 2017,
+    panel: pd.DataFrame | None = None,
+) -> list[str]:
+    """Items published for both years, with a positive base.  Order is stable.
+
+    ``panel`` lets a caller inject a wider observation set than
+    :func:`expense_panel` -- the AIES service years do that.
+    """
+    panel = expense_panel() if panel is None else panel
     industry = panel[panel['naics'] == naics]
     wide = industry.pivot_table(index='item', columns='year', values='value')
     if base_year not in wide.columns or year not in wide.columns:
@@ -271,6 +331,7 @@ def relative_index(
     year: int,
     base_year: int = 2017,
     drop: str | None = None,
+    panel: pd.DataFrame | None = None,
 ) -> pd.Series:
     """Per-BEA-commodity index carrying only *relative* movement.
 
@@ -285,11 +346,11 @@ def relative_index(
     combined weighted by each item's own base-year dollars, so the bigger
     question dominates the row rather than the two being averaged flat.
     """
-    items = [i for i in usable_items(naics, year, base_year) if i != drop]
+    panel = expense_panel() if panel is None else panel
+    items = [i for i in usable_items(naics, year, base_year, panel=panel) if i != drop]
     if not items:
         return pd.Series(dtype=float)
 
-    panel = expense_panel()
     industry = panel[panel['naics'] == naics]
     wide = industry.pivot_table(index='item', columns='year', values='value')
     base, later = wide.loc[items, base_year], wide.loc[items, year]
@@ -334,6 +395,369 @@ def ore_seed(year: int, drop: str | None = None) -> pd.DataFrame:
         seed.loc[touched, SEED_INDUSTRY] * index.reindex(touched).to_numpy()
     )
     return seed
+
+
+# ---------------------------------------------------------------------------
+# The whole service block, not just ORE
+# ---------------------------------------------------------------------------
+
+#: ``Census_AIES_Service_Expenses`` flow -> the SAS Table 5 item it continues.
+#: ⚠️ **AIES is a different survey**, so 2023 indexed against a 2017 SAS base
+#: crosses both the sas-17/sas-22 rebenchmark *and* the survey change.  The
+#: names are aligned so the two stack; that they stack is not the same as their
+#: being one instrument.  See :func:`service_seed`.
+AIES_TO_SAS_ITEM = {
+    'EXPS_ELEC_VAL': 'Purchased electricity',
+    'EXPS_FUEL_VAL': 'Purchased fuels (except motor fuels)',
+    'EXPS_FUEL_TRANSP_VAL': 'Purchased fuels for transportation equipment',
+    'EXPS_MACH_REP_VAL': (
+        'Purchased repairs and maintenance to machinery and equipment'
+    ),
+    'EXPS_BUILD_REP_VAL': (
+        'Purchased repairs and maintenance to buildings, structures, and offices'
+    ),
+    'EXPS_TRANSP_REP_VAL': (
+        'Purchased repairs and maintenance to transportation equipment'
+    ),
+    'EXPS_RENT_BUILD_VAL': (
+        'Lease and rental payments for land, buildings, structures, store spaces, '
+        'and offices'
+    ),
+    'EXPS_ADVERT_VAL': 'Purchased advertising and promotional services',
+    'EXPS_PROFTECH_VAL': 'Purchased professional and technical services',
+    'EXPS_DATAPROC_VAL': 'Data processing and other purchased computer services',
+    'EXPS_TEMPSTAF_VAL': 'Temporary staff and leased employee expense',
+    'EXPS_TRANSP_VAL': 'Purchased freight transportation',
+    'EXPS_SUPPLY_MED_VAL': 'Medical supplies',
+    'EXPS_INS_PREM_VAL': 'Cost of insurance',
+    'EXPS_PROFLIAB_VAL': 'Professional liability insurance',
+    'EXPS_PRINT_VAL': 'Purchased printing services',
+}
+
+#: The AIES source that carries the service sectors.  ⚠️ **Not**
+#: ``Census_AIES_Expenses``, which reads ``timeseries/aies/basic`` where every
+#: service row is a well-formed zero.
+AIES_SERVICE_SOURCE = 'Census_AIES_Service_Expenses'
+
+#: The one year AIES answers for.  2021, 2022 and 2024 return ``204 No Content``.
+AIES_SERVICE_YEARS = (2023,)
+
+#: Every year the service panel observes, SAS then AIES.
+SERVICE_YEARS = (*SAS_EXPENSE_YEARS, *AIES_SERVICE_YEARS)
+
+
+@functools.cache
+def _aies_service_panel() -> pd.DataFrame:
+    """AIES 2023 service expenses, on SAS Table 5's item names and in $M."""
+    frames = []
+    for year in AIES_SERVICE_YEARS:
+        fba = getFlowByActivity(AIES_SERVICE_SOURCE, year)
+        keep = fba[fba['FlowName'].isin(AIES_TO_SAS_ITEM)].copy()
+        frames.append(
+            pd.DataFrame(
+                {
+                    'naics': keep['ActivityConsumedBy'].astype(str),
+                    'item': keep['FlowName'].map(AIES_TO_SAS_ITEM).astype(str),
+                    'year': int(year),
+                    # ⚠️ **AIES publishes Thousand USD and SAS Table 5 publishes
+                    # dollars**, so the two panels need different divisors to
+                    # meet in $M.  Getting this wrong scales every AIES cell by
+                    # 1000 and is invisible in :func:`relative_index`, which
+                    # divides it out -- but not to anything that reads a level.
+                    'value': keep['FlowAmount'].astype(float) / THOUSAND,
+                }
+            )
+        )
+    panel = pd.concat(frames, ignore_index=True)
+    # ⚠️ A published zero is an absence of the cell for that sector, not a real
+    # zero purchase -- AIES routes transport fuel to its own variable and leaves
+    # ``EXPS_FUEL_VAL`` at 0 for transportation.  A zero base makes the index
+    # infinite, so zeros are dropped exactly as withheld SAS cells are.
+    panel = panel[panel['value'] > 0]
+    return pd.DataFrame(panel.groupby(['naics', 'item', 'year'], as_index=False).sum())
+
+
+#: ⚠️ **Sectors this seed deliberately does not touch**, because
+#: :mod:`~.inputs_structure` already seeds them from the Economic Census
+#: materials breakout and the manufacturing expense panel.  AIES ``exp02``
+#: publishes manufacturing at six digits, so without this the two seeds would
+#: both claim the same columns and silently disagree.
+SEEDED_ELSEWHERE = ('21', '23', '31', '32', '33')
+
+
+@functools.cache
+def _bea_to_survey_industry() -> dict[str, str]:
+    """BEA detail industry -> the survey industry that describes it.
+
+    Longest NAICS prefix wins, so ``541511`` takes SAS ``5415`` rather than
+    ``54``.  ⚠️ **A BEA industry with no prefix match gets no seed at all** and
+    holds its 2017 column, which is what "no information about movement" means.
+
+    ⚠️ :data:`SEEDED_ELSEWHERE` is excluded -- see there.
+    """
+    industries = sorted(
+        set(expense_panel()['naics']) | set(_aies_service_panel()['naics']),
+        key=len,
+        reverse=True,
+    )
+    mapping = {}
+    for industry in _use_2017_detail().columns:
+        if str(industry)[:2] in SEEDED_ELSEWHERE:
+            continue
+        match = next((n for n in industries if str(industry).startswith(n)), None)
+        if match is not None:
+            mapping[str(industry)] = match
+    return mapping
+
+
+def service_industries() -> list[str]:
+    """The BEA detail industry columns this seed can move."""
+    return sorted(_bea_to_survey_industry())
+
+
+def _panel_for(year: int) -> pd.DataFrame:
+    """The observation panel for a year -- SAS, or AIES for 2023."""
+    if year in AIES_SERVICE_YEARS:
+        return pd.concat([expense_panel(), _aies_service_panel()], ignore_index=True)
+    return expense_panel()
+
+
+#: ⚠️ **Years the seed refuses**, because scoring says they make the column
+#: worse rather than better.  2023 is AIES read against a SAS 2017 base, which
+#: crosses the survey change as well as the sas-17/sas-22 rebenchmark: the
+#: SAS -> AIES level step is a median \|log\| of **0.203** against **0.118** for
+#: a within-instrument year, 72% noisier, and :func:`service_score` measures the
+#: result at **-5.5% dollar-weighted and -5.8% impact-weighted**.  Pass
+#: ``allow_survey_change=True`` to build it anyway; nothing should ship it.
+SURVEY_CHANGE_YEARS = AIES_SERVICE_YEARS
+
+
+def service_seed(
+    year: int, base_year: int = 2017, allow_survey_change: bool = False
+) -> pd.DataFrame:
+    """The service seed: BEA's 2017 columns moved on the survey's relative index.
+
+    ``commodity x BEA detail industry`` in $M on the benchmark Use axes, for
+    every column :func:`service_industries` can reach -- **97 of them**, against
+    the one ``ore_seed`` moves.
+
+    The form is :func:`relative_index`'s, unchanged and for the reason
+    ``service_expense_resource`` measures: each item's ratio is divided by the
+    industry's growth over the same item set, so **only relative movement
+    survives** and a rebenchmark that rescales the whole block cancels.  ✅ That
+    is also why the sas-17/sas-22 seam costs so little here -- shares are 30-54%
+    quieter than levels within a vintage, and crossing the seam adds 3.1%.
+
+    ⚠️ **Rows no item names hold their 2017 value.**  They are neither dropped
+    nor zeroed.
+
+    ⚠️ **The column total is held.**  Step 3 owns the level through
+    ``GO - VAPRO``; this supplies shape only, so the column is renormalised back
+    to its 2017 total after the index is applied.
+
+    ⚠️ **2023 crosses a survey change as well as a rebenchmark.**  It is read
+    from AIES against a SAS 2017 base -- the names are aligned
+    (:data:`AIES_TO_SAS_ITEM`) but the instrument is not the same one.  Treat a
+    2023 movement as weaker evidence than a 2020-2022 one.
+
+    ⚠️ **2018 and 2019 raise.**  Neither SAS vintage publishes the detailed
+    items for them, and the interpolation form fitted for the census mix does
+    not license crossing this gap: it sits exactly on the benchmark seam.
+    """
+    if year in SURVEY_CHANGE_YEARS and not allow_survey_change:
+        raise ValueError(
+            f'{year} is observed only by AIES, and indexing it against a SAS '
+            f'{base_year} base crosses the survey change as well as the '
+            f'sas-17/sas-22 rebenchmark. service_score() measures that at -5.5% '
+            f'dollar-weighted and -5.8% impact-weighted -- it makes the column '
+            f'worse. Pass allow_survey_change=True to build it anyway.'
+        )
+    if year not in SERVICE_YEARS:
+        raise ValueError(
+            f'{year} is not observed for the service expense cells; observed '
+            f'years are {list(SERVICE_YEARS)}. 2018 and 2019 publish none of '
+            f'the detailed items in either SAS vintage, and they sit on the '
+            f'sas-17/sas-22 benchmark seam, so they are not interpolated.'
+        )
+    use = _use_2017_detail()
+    columns = service_industries()
+    seed = use[columns].astype(float).copy()
+    panel = _panel_for(year)
+
+    for industry in columns:
+        naics = _bea_to_survey_industry()[industry]
+        index = relative_index(naics, year, base_year=base_year, panel=panel)
+        if index.empty:
+            continue
+        touched = [code for code in index.index if code in seed.index]
+        if not touched:
+            continue
+        seed.loc[touched, industry] = (
+            seed.loc[touched, industry] * index.reindex(touched).to_numpy()
+        )
+    totals, base_totals = seed.sum(axis=0), use[columns].sum(axis=0)
+    seed = seed.div(totals.where(totals != 0, np.nan), axis=1).mul(base_totals, axis=1)
+    return seed.fillna(0.0)
+
+
+def service_movement(years: tuple[int, ...] = (2020, 2021, 2022, 2023)) -> pd.DataFrame:
+    """What the seed moves, weighted by dollars and by emissions intensity.
+
+    ⚠️ **The two weightings are the point.**  ``dollar_moved`` is what §S4 would
+    have measured; ``impact_moved`` weights each commodity row by the shipped
+    model's kg CO2e per dollar, which is what Cornerstone cares about.  The
+    second is consistently the larger, because the rows the survey names are the
+    rows the model weights.
+    """
+    from bedrock.analysis.nowcasting.service_expense_resource import (  # noqa: PLC0415
+        impact_intensity,
+    )
+
+    use = _use_2017_detail()
+    columns = service_industries()
+    base = _column_shares(use[columns])
+    weights = impact_intensity().reindex(use.index).fillna(0.0)
+
+    records = []
+    for year in years:
+        seed = service_seed(year, allow_survey_change=True)
+        moved = _column_shares(seed) - base
+        dollars = use[columns].sum(axis=0)
+        impact = (weights.to_numpy()[:, None] * use[columns].to_numpy()).sum(axis=0)
+        per_column = moved.abs().sum(axis=0) / 2.0
+        impact_moved = (
+            (moved.abs() * weights.to_numpy()[:, None]).sum(axis=0)
+            / 2.0
+            * use[columns].sum(axis=0)
+        )
+        records.append(
+            {
+                'year': year,
+                'columns_moved': int((per_column > 1e-9).sum()),
+                'dollar_moved': float((per_column * dollars).sum() / dollars.sum()),
+                'impact_moved': float(impact_moved.sum() / impact.sum()),
+                'source': 'AIES' if year in AIES_SERVICE_YEARS else 'SAS',
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
+def service_score(
+    years: tuple[int, ...] = (2020, 2021, 2022, 2023),
+) -> pd.DataFrame:
+    """Frozen 2017 against the seeded service block, on BEA's published summary.
+
+    The counterpart of :func:`score` for the whole block rather than ``ORE``,
+    and it is reported under **both** weightings because they answer different
+    questions -- see ``service_expense_resource``.  ``impact`` weights each
+    summary commodity row by the shipped v0.3 model's kg CO2e per dollar,
+    aggregated from detail on that row's own intermediate dollars.
+
+    ✅ **The seed wins on the SAS years, and wins three to four times bigger on
+    impact than on dollars**: +3.6%, +3.8% and +4.2% against +1.1%, +1.2% and
+    +0.4% for 2020, 2021 and 2022.  That is the thesis of the re-evaluation
+    holding up -- the survey names the rows the model weights.
+
+    ❌ **2023 loses on both** (-5.5% / -5.8%), which is why
+    :data:`SURVEY_CHANGE_YEARS` exists.
+
+    ⚠️ **The test is biased against the seed**, as :func:`score` explains: BEA
+    built the 2017 benchmark structure from the 2017 vintage of this same
+    survey and carries it forward, so agreeing with BEA is partly agreeing with
+    the seed's own base.  A gain is stronger evidence than its size suggests --
+    and the dollar-weighted gains here are small enough that the impact-weighted
+    ones are the reason to build this, not the headline number.
+    """
+    from bedrock.analysis.nowcasting.intermediate_structure_drift import (  # noqa: PLC0415
+        summary_intermediate,
+    )
+    from bedrock.analysis.nowcasting.service_expense_resource import (  # noqa: PLC0415
+        impact_intensity,
+    )
+    from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
+        load_bea_v2017_commodity_to_bea_v2017_summary,
+    )
+    from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
+        load_bea_v2017_industry_to_bea_v2017_summary,
+    )
+
+    def first(parents: object) -> str:
+        return str(parents[0]) if isinstance(parents, list) else str(parents)
+
+    commodity = {
+        str(code): first(parents)
+        for code, parents in load_bea_v2017_commodity_to_bea_v2017_summary().items()
+    }
+    industry = {
+        str(code): first(parents)
+        for code, parents in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    use = _use_2017_detail()
+    columns = service_industries()
+    intensity = impact_intensity().reindex(use.index).fillna(0.0)
+
+    def to_summary(block: pd.DataFrame) -> pd.DataFrame:
+        rows = pd.Series({c: commodity.get(str(c)) for c in block.index}).dropna()
+        cols = pd.Series({c: industry.get(str(c)) for c in block.columns}).dropna()
+        grouped = block.reindex(index=rows.index, columns=cols.index)
+        return grouped.groupby(rows).sum().T.groupby(cols).sum().T
+
+    rows_map = pd.Series({c: commodity.get(str(c)) for c in use.index}).dropna()
+    numerator = (intensity * use.sum(axis=1)).groupby(rows_map).sum()
+    denominator = use.sum(axis=1).groupby(rows_map).sum()
+    summary_intensity = (numerator / denominator.where(denominator != 0)).fillna(0.0)
+
+    frozen_summary = to_summary(use[columns])
+    records = []
+    for year in years:
+        seeded_summary = to_summary(service_seed(year, allow_survey_change=True))
+        base, actual = summary_intermediate(2017), summary_intermediate(year)
+        for weighting in ('dollar', 'impact'):
+            total_frozen = total_seeded = total_weight = 0.0
+            wins = columns_scored = 0
+            for column in frozen_summary.columns:
+                if column not in actual.columns:
+                    continue
+                rows = [
+                    r
+                    for r in base.index
+                    if r in actual.index and r in frozen_summary.index
+                ]
+                frozen = frozen_summary[column].reindex(rows).fillna(0.0)
+                seeded = seeded_summary[column].reindex(rows).fillna(0.0)
+                truth = actual[column].reindex(rows).fillna(0.0)
+                if truth.sum() <= 0 or frozen.sum() <= 0 or seeded.sum() <= 0:
+                    continue
+                weights = (
+                    summary_intensity.reindex(rows).fillna(0.0)
+                    if weighting == 'impact'
+                    else pd.Series(1.0, index=rows)
+                )
+                truth_share = truth / truth.sum()
+                d_frozen = float(
+                    (weights * (frozen / frozen.sum() - truth_share).abs()).sum() / 2
+                )
+                d_seeded = float(
+                    (weights * (seeded / seeded.sum() - truth_share).abs()).sum() / 2
+                )
+                weight = float((weights * truth).sum())
+                total_frozen += d_frozen * weight
+                total_seeded += d_seeded * weight
+                total_weight += weight
+                wins += d_seeded < d_frozen
+                columns_scored += 1
+            records.append(
+                {
+                    'year': year,
+                    'weighting': weighting,
+                    'columns': columns_scored,
+                    'frozen': total_frozen / total_weight,
+                    'seeded': total_seeded / total_weight,
+                    'gain_%': 100 * (total_frozen - total_seeded) / total_frozen,
+                    'wins': wins,
+                }
+            )
+    return pd.DataFrame(records).set_index(['year', 'weighting'])
 
 
 def score(
@@ -490,18 +914,44 @@ def main() -> None:
     parser.add_argument(
         '--reachable', action='store_true', help='what movement the seed can touch'
     )
+    parser.add_argument(
+        '--service',
+        action='store_true',
+        help='the whole service block: what it moves and whether it helps',
+    )
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
-    chosen = args.scope or args.score or args.leave_one_out or args.reachable
+    chosen = (
+        args.scope or args.score or args.leave_one_out or args.reachable or args.service
+    )
     pd.set_option('display.width', 200)
 
+    if args.all or args.service:
+        columns = service_industries()
+        print(
+            f'\nThe whole service block: {len(columns)} BEA detail columns, '
+            f'${_use_2017_detail()[columns].sum().sum() / 1000:,.0f}B\n'
+        )
+        print('What the seed moves, against a frozen 2017\n')
+        print(service_movement().round(4).to_string())
+        print(
+            '\n  impact_moved is consistently ~1.8x dollar_moved: the survey'
+            '\n  names the rows the model weights.\n'
+        )
+        print("Whether it helps, on BEA's published summary Use\n")
+        print(service_score().round(4).to_string())
+        print(
+            '\n  the SAS years win, and win 3-4x bigger on impact than on'
+            '\n  dollars. 2023 loses on both and is refused: AIES against a'
+            '\n  SAS base crosses the survey change as well as the rebenchmark.'
+        )
     if args.all or args.scope:
-        print('\nHow far each SAS cell sits from BEA\'s own 2017 row, NAICS 531')
+        print("\nHow far each SAS cell sits from BEA's own 2017 row, NAICS 531")
         print('(the argument for indexing rather than substituting)\n')
         print(item_scope().round(2).to_string())
     if args.all or args.score or not chosen:
         print(f'\nFrozen 2017 against the SAS-seeded {SEED_SUMMARY_COLUMN} column')
-        print('(index of dissimilarity on BEA\'s current summary Use)\n')
+        print("(index of dissimilarity on BEA's current summary Use)\n")
         print(score().round(4).to_string())
     if args.all or args.leave_one_out:
         print('\nWhich items carry the gain, 2022\n')
