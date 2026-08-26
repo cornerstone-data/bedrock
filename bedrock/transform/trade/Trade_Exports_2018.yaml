@@ -1,6 +1,6 @@
-# Census goods + BEA IntlServTrade exports for 2017.
+# Census goods + BEA IntlServTrade exports for 2018.
 #
 # Method body: Trade_Exports_common.yaml. Sources inherit this year; 1:m
 # attribution stays on 2017 Use F04000.
 !include:Trade_Exports_common.yaml
-year: 2017
+year: 2018

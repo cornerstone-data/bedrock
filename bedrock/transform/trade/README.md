@@ -1,13 +1,20 @@
 # Trade FBS (BEA 2017 Detail)
 
-National goods + services trade mapped to BEA 2017 Detail commodities.
+National goods + services trade mapped to BEA 2017 Detail commodities for
+nowcast years **2017–2024** (#727).
 
 ## Methods
 
-- `Trade_Exports_2017` — Census `ALL_VAL_YR` goods + BEA IntlServTrade exports. `SectorConsumedBy` is `F04000` after aggregation. 1:m Crosswalk rows are split in proportion to 2017 Use SUT `F04000`.
-- `Trade_Imports_2017` — Census `GEN_CIF_YR` goods + BEA IntlServTrade imports (CIF-family mass for Supply `MCIF`). 1:m rows are split in proportion to 2017 Supply `MCIF`. Duties (`CAL_DUT_YR`) and charges (`GEN_CHA_YR`) stay selectable on the Census FBA via `FlowName`; they are not applied here.
+Method bodies live in `Trade_Exports_common.yaml` / `Trade_Imports_common.yaml`.
+Thin `Trade_Exports_<year>` / `Trade_Imports_<year>` stubs (`year: 2017` … `2024`)
+set the calendar year; Census and IEA sources inherit that year. Attribution
+weights stay pinned on the 2017 Detail SUT (exports: Use `F04000`; imports:
+Supply `MCIF`). Same-year commodity output / total uses is [#729](https://github.com/cornerstone-data/bedrock/issues/729).
 
-Crosswalks: `Sector_Crosswalk_Census_USATrade.csv` (shared by exports and imports) and direction-specific IEA files `Sector_Crosswalk_BEA_IEA_exports.csv` / `Sector_Crosswalk_BEA_IEA_imports.csv` (`SectorSourceName` `BEA_2017_Code`). `Trade_Exports_2017` selects `BEA_IEA_exports`; `Trade_Imports_2017` selects `BEA_IEA_imports`. Non-financial IEA rows are identical across both files. IEA rows are deepest `TypeOfService` codes whose label names the Detail commodity (or a small family the type spans). Parent totals are omitted when children are mapped (`AllTypesOfService`, `Transport`, `ChargesForTheUseOfIpNie`, `TelecomCompAndInfo`, `OtherBusiness`, `ProfMgmtConsult`, `Travel`, `Financial`, `FinExplicitAndOth`). Crosswalk membership is not chosen by closing 2017 Use/Supply cells. Methods include `BEA_detail_commodity_target.yaml` so FBS output stays on BEA 2017 Detail commodities. Calling FBAs are `TECHNOSPHERE_FLOW` with empty `ActivityConsumedBy`; activity sets select by `FlowName` (and IEA exclusions). Attribution weight sources select Use `F04000` / Supply `MCIF` via `selection_fields`.
+- `Trade_Exports_<year>` — Census `ALL_VAL_YR` goods + BEA IntlServTrade exports. `SectorConsumedBy` is `F04000` after aggregation. 1:m Crosswalk rows are split in proportion to 2017 Use SUT `F04000`.
+- `Trade_Imports_<year>` — Census `GEN_CIF_YR` goods + BEA IntlServTrade imports (CIF-family mass for Supply `MCIF`). 1:m rows are split in proportion to 2017 Supply `MCIF`. Duties (`CAL_DUT_YR`) and charges (`GEN_CHA_YR`) stay selectable on the Census FBA via `FlowName`; they are not applied here.
+
+Crosswalks: `Sector_Crosswalk_Census_USATrade.csv` (shared by exports and imports) and direction-specific IEA files `Sector_Crosswalk_BEA_IEA_exports.csv` / `Sector_Crosswalk_BEA_IEA_imports.csv` (`SectorSourceName` `BEA_2017_Code`). `Trade_Exports_<year>` selects `BEA_IEA_exports`; `Trade_Imports_<year>` selects `BEA_IEA_imports`. Non-financial IEA rows are identical across both files. IEA rows are deepest `TypeOfService` codes whose label names the Detail commodity (or a small family the type spans). Parent totals are omitted when children are mapped (`AllTypesOfService`, `Transport`, `ChargesForTheUseOfIpNie`, `TelecomCompAndInfo`, `OtherBusiness`, `ProfMgmtConsult`, `Travel`, `Financial`, `FinExplicitAndOth`). Crosswalk membership is not chosen by closing 2017 Use/Supply cells. Methods include `BEA_detail_commodity_target.yaml` so FBS output stays on BEA 2017 Detail commodities. Calling FBAs are `TECHNOSPHERE_FLOW` with empty `ActivityConsumedBy`; activity sets select by `FlowName` (and IEA exclusions). Attribution weight sources select Use `F04000` / Supply `MCIF` via `selection_fields`.
 
 ### Direction-specific IEA crosswalks
 
@@ -48,7 +55,7 @@ Prototypes scored on 2017 Trade FBS; not shipped.
 
 ### Overlay (nowcast)
 
-`bedrock.transform.eeio.nowcast._trade_fbs_commodity_vector` aggregates Trade FBS to Detail and drops non-SUT commodity codes (e.g. industry-only `331314`) before writing Use `F04000` and Supply `MCIF`. FBS parquet is the same mapped mass. `S00900` / `F04000` is the Y identity after overlay (not part of the Trade vector). `bedrock.transform.trade.scale.scale_amounts_to_ita` can multiply a Detail series to ITA G+S; nowcast does not call it (#647).
+`bedrock.transform.eeio.nowcast._trade_fbs_commodity_vector` aggregates Trade FBS to Detail and drops non-SUT commodity codes (e.g. industry-only `331314`) before writing Use `F04000` and Supply `MCIF` for every year in `TRADE_OVERLAY_YEARS` (2017–2024). FBS parquet is the same mapped mass. `S00900` / `F04000` is the Y identity after overlay (not part of the Trade vector); the Supply `T016[S00900]` half is the frozen 2017 published value. `bedrock.transform.trade.scale.scale_amounts_to_ita` can multiply a Detail series to ITA G+S; nowcast does not call it (#647).
 
 ## 2017 nowcast scorecard
 
@@ -84,8 +91,8 @@ Documented rules; FBS methods do not allocate onto these codes. Holes below are 
 - **Construction maintenance/repair (no source).** `230301` nonresidential (F040 81 M), `230302` residential (18 M). Not merchandise trade; not in IEA services.
 - **BEA Detail disaggregations without Census NAICS.** `332710` machine shops (F040 353 M), `332800` coating/engraving/heat treating (F040 179 M) -- standalone BEA Detail codes; no Census NAICS-6 on trade and no IEA type. `332996` fabricated pipe fittings (F040 97 M), `332114` custom roll forming (24 M), `326130`/`326140`/`326150` plastics foams/laminates (26 M combined) -- Census lumps these into parent Detail codes (`33299A`, `33211A`, `326190`); a SUT-proportional split from the parent is available but not applied given the small magnitudes (< 0.1 % of parent F040 for the plastics children).
 - **FAS vs PUR.** Census export `ALL_VAL_YR` is FAS-family; Use `F04000` is purchasers' value. These methods do not convert valuation basis commodity-by-commodity.
-- **`MDTY`.** Census effective duty rate (`CAL_DUT_YR` / `GEN_VAL_YR` mapped to Detail via `Sector_Crosswalk_Census_USATrade`, 1:m by Supply `MCIF`) times Census goods MCIF from `Trade_Imports`, leveled so the national sum matches NIPA T30500 `B235RC`. Calculated Census duty != collected duty (tariff-era gap). Wired in `derive_initial_supply_bridge` via `bedrock.transform.trade.duties.mdty_detail_usd`.
-- **`MADJ`.** Census `GEN_CHA_YR` (import charges) mapped to Detail via the goods Crosswalk, then reassigned onto Detail codes with nonzero 2017 Supply `MADJ` in proportion to those published `MADJ` values (signed shares), leveled so the national sum matches published Supply `MADJ`. That destination mix matches BEA's transport/insurance booking of the wedge (including codes with zero SUT `MCIF`). Does not fill `T013`. Wired via `bedrock.transform.trade.madj.madj_detail_usd`.
+- **`MDTY`.** Census effective duty rate (`CAL_DUT_YR` / `GEN_VAL_YR` mapped to Detail via `Sector_Crosswalk_Census_USATrade`, 1:m by Supply `MCIF`) times Census goods MCIF from `Trade_Imports_<year>`, leveled so the national sum matches NIPA T30500 `B235RC` for that year. Calculated Census duty != collected duty (tariff-era gap). Wired in `derive_initial_supply_bridge` via `bedrock.transform.trade.duties.mdty_detail_usd`.
+- **`MADJ`.** Census `GEN_CHA_YR` (import charges) mapped to Detail via the goods Crosswalk, then reassigned onto Detail codes with nonzero 2017 Supply `MADJ` in proportion to those published `MADJ` values (signed shares). In 2017 the national sum matches published Supply `MADJ`. In later years the national sum equals that year's mapped charge total with the published Supply `MADJ` sign (negative c.i.f./f.o.b. adjustment). Does not fill `T013`. Wired via `bedrock.transform.trade.madj.madj_detail_usd`.
 
 ## IEA Crosswalk revisions
 
@@ -98,6 +105,6 @@ Candidates to revisit. Trigger is a classification or source argument, not a 201
 - **Travel other than `TravelHealth`** -- visitor spend (hotels, food, education travel) via BEA TTSA or leave unmapped. Not Use `F04000` mix (`721000` is 0 in the 2017 SUT).
 - **`TravelHealth` → `622000` only** -- a 1:m split across the healthcare Detail family by SUT weights was rejected (see Crosswalk experiments (rejected)); does not close the gap vs published healthcare F040/MCIF totals.
 - **Transport port services (exports)** -- imports already map `TransportAirPort` / `TransportSeaPort` → `S00300`. Export-side rows wait for a support-activities Detail code (no `488000` in 2017 commodities) or a written rule that port is the mode commodity (`481000` / `483000`).
-- **1:m weights** -- `attribution_method: equal`, or same-year `BEA_Detail_GrossOutput_IO`, vs frozen 2017 F040/MCIF. Equal/GO do not require a later Detail Use/Supply.
+- **1:m weights** -- frozen 2017 Use `F04000` (exports) and Supply `MCIF` (imports). Same-year commodity output / total uses is [#729](https://github.com/cornerstone-data/bedrock/issues/729). Equal shares remain a README candidate only.
 - **Financial services** -- direction-specific Crosswalks (`BEA_IEA_exports` vs `BEA_IEA_imports`). Exports: parent `Financial` 1:m by 2017 `F04000`. Imports: `FinFisim` → `52A000` only. Do not map parent `Financial` or explicit `Fin*` leaves onto `MCIF`.
 - **Goods coverage** -- `11211X` / `31181X` and other Census residuals are kept in the FBA and mapped (see Residual / specials). `311824` maps to `3118A0` per BEA's NAICS-to-Detail crosswalk (dry pasta/dough/flour mixes, not bakery). `980000` (low-value shipments) stays omitted; no Detail sector.

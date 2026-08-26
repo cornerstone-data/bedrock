@@ -1,0 +1,48 @@
+# National goods + services exports mapped to BEA 2017 Detail.
+#
+# Everything except the year lives here; each source inherits `year` from the
+# method config. 1:m Crosswalk splits use frozen 2017 Use SUT F04000 weights
+# (same-year commodity output is #729). Per-year stubs: Trade_Exports_<year>.yaml.
+!include:BEA_detail_commodity_target.yaml
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+_attribution_sources:
+  use_f040: &use_f040
+    year: 2017
+    selection_fields:
+      ActivityConsumedBy: {'F04000': ''}
+
+source_names:
+  Census_USATrade:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: Census_USATrade
+    activity_sets:
+      goods_exports:
+        selection_fields:
+          FlowName: ALL_VAL_YR
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *use_f040
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+
+  BEA_IEA:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: BEA_IEA_exports
+    activity_sets:
+      service_exports:
+        selection_fields:
+          FlowName: Exports
+        exclusion_fields:
+          ActivityProducedBy: [AllTypesOfService]
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *use_f040
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter

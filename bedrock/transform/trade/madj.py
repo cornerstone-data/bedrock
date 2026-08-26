@@ -10,9 +10,10 @@ Published ``MADJ`` is booked mainly on transport and insurance Detail codes,
 not on the goods NAICS where Census reports import charges. This module maps
 Census ``GEN_CHA_YR`` to Detail, then **reassigns** that charge mass onto
 commodities with nonzero 2017 Supply ``MADJ`` in proportion to those published
-``MADJ`` values (signed shares), and levels the national sum to published
-Supply ``MADJ``. The 2017 destination mix is the extendable hold-structure for
-later years once an annual level target is chosen.
+``MADJ`` values (signed shares). For 2017 the national sum is leveled to
+published Supply ``MADJ``. For later years the national sum tracks that year's
+mapped ``GEN_CHA_YR`` total with the published Supply ``MADJ`` sign (negative
+adjustment).
 """
 
 from __future__ import annotations
@@ -53,21 +54,30 @@ def _madj_destination_shares() -> pd.Series:
     return dest / dest_sum
 
 
+def _madj_national_level_usd(year: int, charge_sum: float) -> float:
+    """National ``MADJ`` level for *year*, USD.
+
+    2017 matches published Supply ``MADJ``. Later years use the year's mapped
+    ``GEN_CHA_YR`` magnitude with the published Supply ``MADJ`` sign so the
+    column stays a negative c.i.f./f.o.b. adjustment.
+    """
+    if int(year) == 2017:
+        return supply_madj_national_usd()
+    published = supply_madj_national_usd()
+    sign = -1.0 if published < 0.0 else 1.0
+    return sign * abs(float(charge_sum))
+
+
 def madj_detail_usd(year: int, download_sources_ok: bool = True) -> pd.Series:
     """Detail c.i.f./f.o.b. import adjustment (``MADJ``), USD.
 
     Maps Census ``GEN_CHA_YR`` to Detail, reassigns the charge total onto
     nonzero 2017 Supply ``MADJ`` codes by signed published ``MADJ`` shares,
-    then rescales so the national sum matches published Supply ``MADJ``.
-    Does not fill ``T013``. ``download_sources_ok`` is accepted for call-site
-    symmetry with other trade helpers; the Census FBA load follows extract
-    defaults.
+    then rescales to :func:`_madj_national_level_usd`. Does not fill ``T013``.
+    ``download_sources_ok`` is accepted for call-site symmetry with other trade
+    helpers; the Census FBA load follows extract defaults.
     """
     _ = download_sources_ok  # call-site symmetry; Census FBA load has no flag
-    if int(year) != 2017:
-        raise NotImplementedError(
-            f'madj_detail_usd is only implemented for 2017 (got {year})'
-        )
     charges = map_census_import_flow_to_detail(year, _CHARGE_FLOW)
     charge_sum = float(pd.to_numeric(charges, errors='coerce').fillna(0.0).sum())
     if charge_sum == 0.0:
@@ -79,10 +89,9 @@ def madj_detail_usd(year: int, download_sources_ok: bool = True) -> pd.Series:
     prov_sum = float(provisional.sum())
     if prov_sum == 0.0:
         raise ValueError(
-            f'Provisional MADJ mass is zero for {year}; '
-            'cannot level to published Supply MADJ'
+            f'Provisional MADJ mass is zero for {year}; cannot form national level'
         )
-    level = supply_madj_national_usd()
+    level = _madj_national_level_usd(year, charge_sum)
     out = provisional * (level / prov_sum)
     out.name = 'MADJ'
     return out

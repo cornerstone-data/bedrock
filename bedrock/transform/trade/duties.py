@@ -108,12 +108,9 @@ def mdty_detail_usd(year: int, download_sources_ok: bool = True) -> pd.Series:
     """Detail ``MDTY``: Census duty rate × goods MCIF, leveled to NIPA ``B235RC``.
 
     Rate is mapped ``CAL_DUT_YR`` / mapped ``GEN_VAL_YR``. Services stay at
-    zero.
+    zero. Works for every year with ``Trade_Imports_<year>`` and ``BEA_NIPA``
+    ``B235RC``.
     """
-    if int(year) != 2017:
-        raise NotImplementedError(
-            f'mdty_detail_usd is only implemented for 2017 (got {year})'
-        )
     duty = map_census_import_flow_to_detail(year, _DUTY_FLOW)
     customs = map_census_import_flow_to_detail(year, _CUSTOMS_FLOW)
     rate = (duty / customs).where(customs != 0.0, 0.0).fillna(0.0)
