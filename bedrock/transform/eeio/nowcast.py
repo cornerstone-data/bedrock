@@ -402,20 +402,32 @@ def derive_initial_value_added(
     ``SectorProducedBy`` and the industry on ``SectorConsumedBy``, which is the
     transpose of :func:`derive_initial_Y_pur`'s orientation.
 
-    ⚠️ **2017 only.** Every method holds its within-group shares at the 2017
-    benchmark, so for 2017 they are complete and for later years they are not:
-    compensation still needs the QCEW movement series, which is blocked on the
-    ``FBS_outside_flowsa`` attribution-source gap. Rather than return a
-    silently frozen block, this raises for other years.
+    ⚠️ **2017 only, and what is left is no longer compensation.**
+    ``NIPA_VA_compensation`` now moves its within-group shares on QCEW and has
+    a file for every year 2017-2024 - see
+    :mod:`bedrock.transform.nipa.compensation_movement`, which took a
+    ``clean_fba`` socket on the existing attribution source rather than the
+    ``FBS_outside_flowsa`` hatch that blocked it (#731). What still holds 2017
+    shares is ``T00OTOP`` and ``V00300``, and neither has a later-year file
+    yet, so this still raises rather than return a silently frozen block.
+
+    ⚠️ ``V00300``'s role changed under T18 and it should not simply be given
+    per-year files by analogy. With ``VAPRO`` pinned per industry
+    (:func:`~bedrock.transform.iot.nowcast_targets.industry_value_added_target`)
+    gross operating surplus is the **residual the balance solves for**, so what
+    Step 2 owes it is a seed, and the eight-line NIPA assembly is a
+    plausibility check rather than an input.
 
     ⚠️ **Rows may be negative and must stay so.** ``S00201`` state and local
     passenger transit carries a ``V00300`` of -36,919 million.
     """
     if year != 2017:
         raise ValueError(
-            f'the value-added block is built for 2017 only; got {year}. The '
-            f'later-year files need the compensation movement series first - '
-            f'see NIPA_VA_compensation_2017.yaml.'
+            f'the value-added block is built for 2017 only; got {year}. '
+            f'NIPA_VA_compensation_{year} exists and moves on QCEW, but '
+            f'NIPA_VA_othertax_{year} and NIPA_VA_surplus_{year} do not - and '
+            f'V00300 wants a seed rather than a per-year build now that T18 '
+            f'makes it the residual.'
         )
     rows = []
     for code, method in _VALUE_ADDED_METHODS.items():
