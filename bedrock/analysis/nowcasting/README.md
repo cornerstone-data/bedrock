@@ -27,6 +27,10 @@ uv run python -m bedrock.analysis.nowcasting.other_taxes_allocation --check
 
 # what industry axis V00100 and V00300 have in NIPA (Step 2)
 uv run python -m bedrock.analysis.nowcasting.compensation_allocation --check
+
+# what Step 2 estimates for 2018-2024, now that VAPRO and its three components
+# are both published annually (Step 2)
+uv run python -m bedrock.analysis.nowcasting.value_added_timeseries --check
 # what can be sourced for manufacturing's input column (needs the
 # Census_EC_MatFuel, Census_EC_Expenses, Census_ASM_Expenses and
 # Census_AIES_Expenses FBAs)
