@@ -14,74 +14,76 @@ comparable to each other.
 
 Everything here is BEA 2017 **detail** schema: 402 commodities, 402 industries,
 the published final-demand, value-added and supply-bridge codes.  No summary
-rollup -- these three blocks are small enough to read at detail
-(402 x 19, 3 x 402, 402 x 12).  The Supply interior is 402 x 402 and is read
-through its margins and a severity summary instead -- see below.
-rollup -- three of the four blocks are small enough to read at detail
-(402 x 19, 3 x 402, 402 x 12); the Use interior is not, and is scored rather
-than read.
+rollup -- three of the five blocks are small enough to read at detail
+(402 x 19, 3 x 402, 402 x 12).  The two 402 x 402 interiors are not, and are
+read through their margins and a severity summary instead -- see below.
 
 Sections defined here
 -------------------------
 
+============================== ==============================================
+``use_fd_detail_sut``          Step 1.  ``derive_initial_Y_pur`` against the
+                               Use table's final-demand columns.  Both sides
+                               purchaser price.  Runnable today.
+``use_va_detail_sut``          Step 2.  The Use table's value-added rows.
+                               Runnable; all three rows sourced, 2017 only.
+``use_intermediate_detail_sut`` Step 3.  The Use table's **interior** --
+                               commodity x industry, purchaser value.
+                               Runnable.
+``supply_output_detail_sut``   Step 4a.  The Supply table's **interior** --
+                               the domestic output block, commodity x
+                               industry, basic value.  Runnable.
+``supply_bridge_detail_sut``   Step 4.  The Supply table's right-hand block --
+                               imports, margins, taxes and the subtotals
+                               bridging basic to purchaser value.  Runnable;
+                               candidate fills MCIF only.
+============================== ==============================================
 
-Those four are the whole of what a published 2017 detail reference supports
-outside the Use interior, which has no candidate at all until the RAS runs.
+The three small sections are the whole of what a published 2017 detail
+reference supports *outside* the two interiors.
 
-The one 402 x 402 section, and why it is different
---------------------------------------------------
+The two 402 x 402 sections, and why they are different
+------------------------------------------------------
 
-``supply_output_detail_sut`` is the Supply interior: 161,604 cells, against the
-low thousands for the other three.  Two consequences worth stating rather than
-discovering.
+``use_intermediate_detail_sut`` and ``supply_output_detail_sut`` are the two
+interiors: 161,604 cells each, against the low thousands for the other three.
+They are the exception the docstring above used to deny -- too many cells to
+read as a picture, but not too many to *score*, since the section machinery
+reports totals, row and column margins and a status count without anyone having
+to look at the grid.  Three consequences worth stating rather than discovering.
 
-**It is sparse, and the sparsity is the answer.**  Only ~5,000 cells are
-non-zero on either side -- an industry makes a handful of commodities, not 402.
-:class:`~.table_match.Tolerance` already has ``presence`` for this: a zero on
-both sides is *absent*, not a match, so the 97% of the block that is
-structurally empty does not flatter the score.  ⚠️ Never quote a match *rate*
-on this section without saying it is over present cells.
+**The Supply interior is sparse, and the sparsity is the answer.**  Only ~5,000
+of its cells are non-zero on either side -- an industry makes a handful of
+commodities, not 402.  :class:`~.table_match.Tolerance` already has ``presence``
+for this: a zero on both sides is *absent*, not a match, so the 97% of the block
+that is structurally empty does not flatter the score.  ⚠️ Never quote a
+match *rate* on that section without saying it is over present cells.  The Use
+interior is dense by comparison and carries no such caveat.
 
-**It cannot be read cell by cell.**  The other three sections are rendered as a
-labelled grid; this one has to be read through its margins -- the row margin is
-commodity output ``T007`` and the column margin is industry output ``x`` -- and
-through the worst-cell list.  That is a renderer concern, not a reason to leave
-the section undeclared: the reference, the frame and the bar are the same kind
-of settled argument here as anywhere else.
-=========================== =================================================
-``use_fd_detail_sut``       Step 1.  ``derive_initial_Y_pur`` against the Use
-                            table's final-demand columns.  Both sides
-                            purchaser price.  Runnable today.
-``use_va_detail_sut``       Step 2.  The Use table's value-added rows.
-                            Declared, not yet runnable -- see below.
-``supply_bridge_detail_sut`` Step 4.  The Supply table's right-hand block --
-                            imports, margins, taxes and the subtotals
-                            bridging basic to purchaser value.  Runnable;
-                            candidate fills MCIF only.
-``use_intermediate_detail_sut`` Step 3.  The Use table's 402 x 402 interior.
-                            Runnable.
-=========================== =================================================
+**Neither can be read cell by cell.**  The other three sections are rendered as
+a labelled grid; these two have to be read through their margins -- for Supply,
+commodity output ``T007`` by row and industry output by column; for Use,
+``T001`` by row and ``T005`` by column -- and through the worst-cell list.  That
+is a renderer concern, not a reason to leave a section undeclared: the
+reference, the frame and the bar are the same kind of settled argument here as
+anywhere else.
 
-The first three are the whole of what a published 2017 detail reference
-supports *outside* the two 402 x 402 interiors.  ``use_intermediate_detail_sut``
-is one of those interiors, and it is the exception the docstring above used to
-deny: 161,604 cells is too many to read as a picture, but it is not too many to
-*score*, and the section machinery reports totals, row and column margins and a
-status count without anyone having to look at the grid.  The Supply interior --
-the Make table, Step 4a -- is still undeclared.
+⚠️ **The Use interior has no candidate at all until the RAS runs.**  Step 3
+seeds a shape whose two margins Step 5 then imposes, so what this section scores
+before Step 5 is the seed, not the estimate.
 
 A section can be declared before its candidate exists
 -----------------------------------------------------
 
-``use_va_detail_sut`` was declared this way and is now switched on: it carried
-the reference loader, the row and column frame and the tolerance -- the three
-things that are arguments about the economics rather than about the code -- for
-as long as Step 2 had no output, and turning it on was the one line the note
-promised (#538).
+Step 2 has not been built, so ``use_va_detail_sut`` carries
+``candidate=None``.  What it *does* carry is the reference loader, the exact
+row and column frame, and the tolerance -- the three things that are arguments
+about the economics rather than about the code, and that are therefore worth
+settling before the build rather than after it.  Turning the section on is one
+line when Step 2 lands: point :attr:`Section.candidate` at its output.
 
 :attr:`Section.runnable` reports which sections have a candidate, so the
-renderer and the tests skip the rest rather than failing on them.  No section
-carries ``candidate=None`` at the moment.
+renderer and the tests skip the rest rather than failing on them.
 
 Tolerances
 ----------
@@ -287,6 +289,18 @@ def use_sut_value_added_reference(year: int = 2017) -> pd.DataFrame:
     return _block(_use_sut_detail(), SUT_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES)
 
 
+def use_sut_intermediate_reference(year: int = 2017) -> pd.DataFrame:
+    """Intermediate interior of the published 2017 detail Use SUT table, in USD.
+
+    402 commodities x 402 industries, purchaser price, before redefinitions.
+
+    ⚠️ **Seven cells are negative and stay negative.**  They are published that
+    way, and a candidate that clips them has stopped reproducing its own source.
+    """
+    _require_2017(year)
+    return _block(_use_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES)
+
+
 def supply_sut_output_reference(year: int = 2017) -> pd.DataFrame:
     """Domestic output block of the published 2017 detail Supply table, in USD.
 
@@ -307,18 +321,6 @@ def supply_sut_output_reference(year: int = 2017) -> pd.DataFrame:
     return _block(
         _supply_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES
     )
-
-
-def use_sut_intermediate_reference(year: int = 2017) -> pd.DataFrame:
-    """Intermediate interior of the published 2017 detail Use SUT table, in USD.
-
-    402 commodities x 402 industries, purchaser price, before redefinitions.
-
-    ⚠️ **Seven cells are negative and stay negative.**  They are published that
-    way, and a candidate that clips them has stopped reproducing its own source.
-    """
-    _require_2017(year)
-    return _block(_use_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES)
 
 
 def supply_sut_bridge_reference(year: int = 2017) -> pd.DataFrame:
@@ -511,7 +513,11 @@ USE_VA_DETAIL_SUT = Section(
         'Candidate is a live run of derive_initial_value_added: the three '
         'NIPA_VA_*_2017 methods stacked. All hold their within-group shares at '
         'the 2017 benchmark, so a 2017 run tests the plumbing, not the '
-        'movement series - near-exact is the floor, not an achievement.'
+        'movement series - near-exact is the floor, not an achievement. What '
+        'the later years owe is the split of an observed column total, not its '
+        'level: derived_intermediate_and_value_added gives VAPRO by detail '
+        'industry for 1997-2024. These three rows are VABAS; the column '
+        'identity also carries T00TOP and T00SUB, which the balance solves.'
     ),
 )
 
@@ -546,12 +552,6 @@ SUPPLY_OUTPUT_DETAIL_SUT = Section(
         'method is right. The method rests on the held-out mix test (0.94% '
         'economy-wide over five years) and on the finding that no annual '
         'survey can improve the between-census mix (annual_mix_test.py).'
-        'Step 2 has not been built, so there is no candidate to compare yet. The '
-        'reference, the row/column frame and the bar are settled here so that '
-        'Step 2 only has to point Section.candidate at its output. What it '
-        'starts from is now observed: derived_intermediate_and_value_added '
-        'gives VAPRO by detail industry for 1997-2024, so what Step 2 owes is '
-        'the split of that column total across these five rows, not its level.'
     ),
 )
 
@@ -625,8 +625,8 @@ SECTIONS: dict[str, Section] = {
     for section in (
         USE_FD_DETAIL_SUT,
         USE_VA_DETAIL_SUT,
-        SUPPLY_OUTPUT_DETAIL_SUT,
         USE_INTERMEDIATE_DETAIL_SUT,
+        SUPPLY_OUTPUT_DETAIL_SUT,
         SUPPLY_BRIDGE_DETAIL_SUT,
     )
 }
