@@ -34,16 +34,27 @@ where the summary control belongs.
 Two guards, and why each is here
 --------------------------------
 
-⚠️ **1. A ratio may only move a cell the census agrees is there**
-(:data:`AGREEMENT_FACTOR`). The census's share of a commodity within an
-industry and the published block's share are two measurements of the same
-quantity; where they differ by more than a factor of three they are not
-measuring the same thing, and transferring a ratio across that gap is what
-produced the worst results in testing. ``339950`` sign manufacturing is the
-clean example: the census sees advertising services at **0.4%** of the
-industry, the published block puts it at **19.5%**. The census ratio of 3.3
-applied to 19.5% takes that one cell to half the column — a number neither
-source supports. With the guard the cell holds.
+⚠️ **1. A ratio may only come from a cell the census actually measured**
+(:data:`MIN_CENSUS_SHARE`). A commodity holding under 0.1% of an industry's
+mapped products is not an observation — the share is a rounding artefact and its
+ratio is arithmetic on noise — yet it still gets multiplied into whatever share
+the *published* block carries, which can be large. Ungated, ``517110`` levers a
+**0.004%** census share by a factor of **104**, and ``713200`` gambling ends up
+**61%** above the frozen-mix estimate off a 0.01% share in accommodation. Both
+vintages must clear the floor: one is not enough, since a cell seen in 2017 and
+not 2022 gives a ratio of ~0 and the reverse gives ~inf.
+
+⚠️ **This replaced an agreement test, which was withdrawn.** The earlier guard
+refused a cell where the census and the published block disagreed about its
+share by more than a factor of three. Two things were wrong with it. The
+threshold was a knob, not a break — the factor's distribution runs smoothly
+through 3x — and applying it *per cell* inside a two-commodity support is
+incoherent, because the two shares sum to one, so refusing one holds nothing
+back and renormalisation pushes the movement into it anyway. More importantly it
+suppressed real signal: the IT shifts this file carries are a genuine move
+toward cloud infrastructure and the laundry decline is genuine, and those are
+exactly the cells an agreement test fights. ✅ The validity floor makes the
+narrower claim, which is the only one the data supports.
 
 ⚠️ **2. Wholesale and retail industries are excluded entirely**
 (:func:`is_trade`). ``Census_EC_PxI.yaml`` records the measurement: the
@@ -63,11 +74,19 @@ cannot be told apart from a reclassification.
 What it comes to
 ----------------
 
-35 columns move, on 52 cells; 33 cells are held by the agreement guard and 9
-trade columns are skipped. Ten commodities' output moves by more than 1%, the
-largest ±4.0% — ``812300`` drycleaning −4.0%, ``541511`` custom programming
-+3.6%, ``541610`` management consulting −3.0%, ``518200`` data processing −2.1%.
+35 columns move, on 76 cells; 9 cells are held by the validity floor and 9
+trade columns are skipped. Sixteen commodities' output moves by more than 1%.
 The grand total is unchanged to ten decimal places and no cell goes negative.
+
+⚠️ **Two of the movers rest on very thin published columns and are worth reading
+before quoting.** ``339950`` signs (−30.3%, a 10bn commodity) turns on the
+census seeing advertising services go from 0.39% to 1.28% of sign
+manufacturers' mapped products, levered onto a published advertising share of
+21.5%; ``333514`` (+7.2%, also 10bn) is the same shape. Both clear the floor
+honestly — the census did measure them — but a 0.39% base is at the edge of
+what a ratio can carry, and raising the floor to 0.5% removes both and caps the
+largest change at 7.2%. That is a judgment call left open rather than silently
+taken.
 
 ⚠️ **There is no answer key for 2022 and this is not graded.** Adoption is a
 decision, not a test result: the 2022 census is newer data measured on the years
@@ -96,12 +115,22 @@ OUT = 'bedrock/utils/mapping/census_pxi/supply_mix_2022.csv'
 #: The census vintage the mix is moved onto.
 MIX_YEAR = 2022
 
-#: How far the census's 2017 share of a cell may sit from the published one
-#: before that cell's ratio is refused. Three is not tuned — it is the point at
-#: which the two sources are plainly describing different things, and the result
-#: is insensitive to it: at 2x the outcome is 46 moved cells instead of 52 and
-#: the same maximum output change.
-AGREEMENT_FACTOR = 3.0
+#: The smallest share of an industry's mapped products a commodity may hold, in
+#: **both** vintages, for its ratio to be usable. Below this the census did not
+#: measure the cell — the ratio is arithmetic on a rounding artefact, and it
+#: still gets multiplied into whatever share the published block carries.
+#:
+#: ⚠️ This is a **validity** floor, not an agreement test. An earlier version
+#: refused a cell where the census and the published block disagreed about its
+#: share by more than a factor of three. That was withdrawn: the factor's
+#: distribution runs smoothly through 3x (sorted distances in units of log3:
+#: 0.91, 0.97, | 1.04, 1.06, 1.10), so the threshold was a knob rather than a
+#: discovered break, and it suppressed real signal — the IT commodity shifts
+#: this file now carries are a genuine move toward cloud infrastructure, and the
+#: laundry decline is genuine too. What survives is the narrow claim that a
+#: ratio computed on ~0 is not an observation: ungated, `517110` levers a
+#: 0.004% census share by **104x**, and `713200` gambling would rise 61%.
+MIN_CENSUS_SHARE = 0.001
 
 
 def is_trade(industry: str, to_summary: dict[str, str]) -> bool:
@@ -162,19 +191,21 @@ def moved_block() -> tuple[pd.DataFrame, pd.DataFrame]:
 
         census_base = shares(first[common])
         census_later = shares(second[common])
-        published_share = shares(column.reindex(common))
 
         ratio = pd.Series(1.0, index=column.index)
         moved = guarded = 0
         for commodity in common:
-            reference = published_share[commodity]
-            factor = census_base[commodity] / reference if reference > 0 else np.inf
-            if factor > AGREEMENT_FACTOR or factor < 1 / AGREEMENT_FACTOR:
+            # ⚠️ both vintages must clear the floor. One is not enough: a cell
+            # the census saw in 2017 and not in 2022 gives a ratio of ~0, and a
+            # cell it saw only in 2022 gives one of ~inf.
+            if (
+                census_base[commodity] < MIN_CENSUS_SHARE
+                or census_later[commodity] < MIN_CENSUS_SHARE
+            ):
                 guarded += 1
                 continue
-            if census_base[commodity] > 0:
-                ratio[commodity] = census_later[commodity] / census_base[commodity]
-                moved += 1
+            ratio[commodity] = census_later[commodity] / census_base[commodity]
+            moved += 1
 
         candidate = column * ratio
         if candidate.sum() <= 0:
