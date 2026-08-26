@@ -123,6 +123,7 @@ What Step 5 imposes, from :mod:`bedrock.transform.iot.nowcast_targets`:
 
 ===== ===================================== ==========================
 T1    ``T005 + VAPRO = GO_producer``        **hard, real, 2017-2024**
+T18   ``VAPRO`` per industry                **hard, real, 2017-2024**
 T4    ``V00100`` by industry group          soft, ``PLACEHOLDER``
 T6    ``T00TOP``/``T00SUB`` economy-wide    soft, ``PLACEHOLDER``
 T5    ``T00OTOP``, ``V00300``               **deliberately not imposed**
@@ -130,16 +131,25 @@ T5    ``T00OTOP``, ``V00300``               **deliberately not imposed**
 
 ⚠️ **T1 pins the column's sum, not its split.** It says intermediate plus all
 five value-added rows equal gross output; it says nothing about where the line
-between them falls. The split is pinned only by T4 and T6 -- both soft, both
-still placeholders, and ``va_row_targets`` reads their values off
-``published_2017_panel`` after ``del year``, so they carry no annual movement
-either.
+between them falls.
 
-⚠️ **And T5 is unimposed on purpose**: ``T00OTOP`` and ``V00300`` "enter the
-balance as seed only, which is the price of the test being worth running" --
-the income side is held back so GDP stays out-of-sample evidence. ``V00300``
-gross operating surplus is **$7.873T** in 2017. Nothing in the balance can
-re-derive it.
+✅ **T18 pins the split, as of 2026-08-26.** It is the value-added half of the
+same column, sourced from ``UVA205-A`` -- the sibling of the ``UGO305-A``
+behind T1 -- so ``T005`` is now determined per industry rather than left as the
+place income-side error lands. This is what the last paragraph of this section
+predicted would be needed; it now exists.
+
+⚠️ Within value added the split is still pinned only by T4 and T6 -- both soft,
+both still placeholders, and ``va_row_targets`` reads their values off
+``published_2017_panel`` after ``del year``, so they carry no annual movement.
+
+⚠️ **T5 is unimposed on purpose, and that is now load-bearing**: ``T00OTOP``
+and ``V00300`` "enter the balance as seed only, which is the price of the test
+being worth running" -- the income side is held back so GDP stays out-of-sample
+evidence. With T18 fixing the column total, leaving ``V00300`` free is also
+what makes it the row that absorbs the residual, which is where the model wants
+its error: gross operating surplus is **$7.873T** in 2017 and appears in no
+``A``, no ``L`` and no emission factor.
 
 So the claim that survives is the narrow one: Step 5 re-solves the
 ``T00TOP``/``T00SUB`` **wedge**. §The column control's argument assumed

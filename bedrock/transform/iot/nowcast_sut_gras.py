@@ -3,6 +3,7 @@
 Hard targets this adapter knows by name:
 
 * T1  — industry gross output (Use columns)
+* T18 — value added (Use columns, restricted to the five VA rows)
 * T11 — commodity identity (Supply row − Use row)
 * T12 — subsidies (Use T00SUB = Supply SUB)
 * T13 — product taxes (Use T00TOP = Supply TOP + MDTY)
@@ -10,6 +11,24 @@ Hard targets this adapter knows by name:
 * T15 — trade margin column sums to 0 (``TRADE ``)
 * T16 — transport margin column sums to 0 (TRANS)
 * T17 — basic-to-producer wedge (Supply industry col vs Use, via T00TOP/T00SUB)
+
+T18 is **not** a margin the kernel can take. A column margin restricted to
+five rows partitions each industry column into a value-added part and an
+intermediate part, and ``gras_balance`` accepts one column vector, not a
+partition of one. So T18 is imposed the way T4 is - as a **closer applied to
+the Use block after each Use pass** (:func:`_apply_t18_closer`) - and the two
+run in that order, T4 then T18, so the compensation T4 sheds is inside what
+T18 then closes over.
+
+⚠️ **The whole adjustment goes on ``V00300``, and the offset comes off the
+commodity rows.** Not a proportional scale of the VA block: scaling would move
+``V00100`` and undo the T4 closer that just ran, and it would put value-added
+estimation error back into rows that have their own sources. Gross operating
+surplus is the designated residual - BEA largely computes it as one, and
+nothing downstream reads it, where the intermediate column total is the scale
+of a column of ``A``. Putting ``+d`` on ``V00300`` and ``-d`` across the free
+sign-flexible commodity cells of the same column **imposes T18 and leaves T1
+exactly where the pass put it**, because the column sum does not move.
 
 Soft targets when ``impose_soft`` (default True): T2/T7 are a weighted blend
 from the entry Z; T4 is a column-neutral closer after each Use pass.
@@ -48,7 +67,11 @@ T00SUB = 'T00SUB'
 CUSTOMS = '4200ID'
 MCIF = 'MCIF'
 
-NAMED = ('T1', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17')
+#: The Use row T18's closer moves. Everything else in the value-added block is
+#: left where its own source put it; see the module docstring.
+V00300 = 'V00300'
+
+NAMED = ('T1', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17', 'T18')
 KNOWN_HARD = frozenset(NAMED)
 KNOWN_SOFT = frozenset({'T2', 'T4', 'T6', 'T7', 'T8', 'T9'})
 KNOWN_NAMES = KNOWN_HARD | KNOWN_SOFT
@@ -86,6 +109,23 @@ def _t4_term(t4: Target) -> tuple[TargetTerm, str]:
     if restrict is None or len(restrict) != 1:
         raise ValueError('T4 restrict_to must be exactly one Use row')
     return term, restrict[0]
+
+
+def _t18_rows(t18: Target) -> tuple[str, ...]:
+    """The Use rows T18 sums over, taken from the target rather than assumed."""
+    if len(t18.terms) != 1:
+        raise ValueError('T18 must have exactly one term')
+    term = t18.terms[0]
+    if term.axis != 'column' or term.aggregator is not None:
+        raise ValueError('T18 must be an unaggregated Use column margin')
+    if term.restrict_to is None:
+        raise ValueError('T18 requires restrict_to naming the value-added rows')
+    if V00300 not in term.restrict_to:
+        raise ValueError(
+            f'T18 restrict_to must contain {V00300!r}, the row its closer moves; '
+            f'got {term.restrict_to}'
+        )
+    return term.restrict_to
 
 
 def _defer_soft(name: str, seen: Mapping[str, Target]) -> bool:
@@ -172,6 +212,10 @@ def _check_labels(
         _require_subset(z_supply.columns, t17.values.index, 'T17')
         _require_label(z_use.index, T00TOP, 'T17')
         _require_label(z_use.index, T00SUB, 'T17')
+    t18 = _imposed(seen, 'T18')
+    if t18 is not None:
+        _require_subset(z_use.columns, t18.values.index, 'T18')
+        _require_subset(z_use.index, pd.Index(_t18_rows(t18)), 'T18')
     if _imposed(seen, 'T12') is not None:
         _require_label(z_use.index, T00SUB, 'T12')
         _require_label(z_supply.columns, SUB, 'T12')
@@ -389,6 +433,59 @@ def _apply_t4_closer(
     return z
 
 
+def _apply_t18_closer(
+    z_use: pd.DataFrame,
+    mask: SutMask,
+    t18: Target,
+) -> pd.DataFrame:
+    """Put each industry's value-added total on target, all of it on ``V00300``.
+
+    ``+d`` on ``V00300`` and ``-d`` spread over the free sign-flexible cells of
+    the same column, weighted by ``|cell|``. The column sum does not move, so
+    the T1 the pass just imposed survives untouched and what changes is only
+    **where the line between ``T005`` and ``VAPRO`` falls** - which is the one
+    thing T1 never said.
+
+    Copy first: ``_balance_block`` wraps ``result.matrix`` with no copy.
+
+    A column is skipped when ``V00300`` is frozen there, or when it has no
+    free sign-flexible cell outside the value-added block to take the offset -
+    ``4200ID`` is the standing case, buying no intermediates at all, and there
+    ``d`` is zero anyway because its whole column *is* value added. A skip
+    leaves a hard target unmet rather than forcing it, and shows up as a
+    nonzero T18 residual in the replay table; forcing it would have to move a
+    frozen cell or flip a sign lock.
+    """
+    z = z_use.copy()
+    rows = set(_t18_rows(t18))
+    free = mask.free
+    sign_flex = mask.sign_lock.eq(0)
+    offset_rows = [str(i) for i in z.index if str(i) not in rows]
+    values = t18.values.astype(float)
+
+    for label in values.index:
+        column = str(label)
+        if not bool(free.loc[V00300, column]):
+            continue
+        current = sum(_cell(z, str(i), column) for i in z.index if str(i) in rows)
+        delta = float(values.loc[label]) - current
+        if delta == 0.0:
+            continue
+        offsets: list[tuple[str, float]] = []
+        abs_sum = 0.0
+        for i in offset_rows:
+            if bool(free.loc[i, column]) and bool(sign_flex.loc[i, column]):
+                cell = _cell(z, i, column)
+                offsets.append((i, cell))
+                abs_sum += abs(cell)
+        if abs_sum == 0.0:
+            continue
+        z.loc[V00300, column] = _cell(z, V00300, column) + delta
+        for i, cell in offsets:
+            z.loc[i, column] = cell - delta * abs(cell) / abs_sum
+    return z
+
+
 def _balance_block(
     z: pd.DataFrame,
     mask: SutMask,
@@ -472,6 +569,12 @@ def engine(
         )
         if 'T4' in blends:
             z_use = _apply_t4_closer(z_use, masks['use'], seen['T4'], blends['T4'])
+        t18 = _imposed(seen, 'T18')
+        if t18 is not None:
+            # After T4, never before: T4's closer sheds its compensation onto
+            # whatever rows are free, V00300 among them, and T18 is what puts
+            # the column's value-added total back on BEA's number afterwards.
+            z_use = _apply_t18_closer(z_use, masks['use'], t18)
         row_t, col_t = _supply_vectors(
             z_use, z_supply, seen, masks['supply'].free, blends
         )
