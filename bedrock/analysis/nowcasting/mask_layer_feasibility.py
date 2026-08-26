@@ -452,10 +452,10 @@ def _engine_hard_residuals(
     """Hard (and soft) |evaluate(X) - pre-offset values| after engine + restore.
 
     Optional 2017 replay for ``--check-engine`` / ``--check-engine-soft``.
-    Not a unit test. T1 is UGO305-A when the extract parquet is present;
-    otherwise Use industry column sums (weaker — not the sourced series).
-    ``impose_soft=False`` is exact PR2. Soft residuals are returned for
-    printing; they are not a fail gate.
+    Not a unit test. T1 is UGO305-A and T18 is UVA205-A when the extracts are
+    present; otherwise both fall back to the published panel's own column sums
+    (weaker — not the sourced series). ``impose_soft=False`` is exact PR2. Soft
+    residuals are returned for printing; they are not a fail gate.
     """
     seeds: dict[str, pd.DataFrame] = {
         block: published_2017_panel(block) for block in BLOCKS
@@ -463,14 +463,20 @@ def _engine_hard_residuals(
     masks: dict[str, SutMask] = {
         str(name): mask for name, mask in build_sut_masks(year).items()
     }
+    industries = list(balance_industries())
     try:
         targets = build_target_set(year)
-        t1_source = 'UGO305-A extract parquet'
-    except FileNotFoundError:
-        go = seeds['use'][list(balance_industries())].sum()
+        t1_source = 'UGO305-A extract parquet, UVA205-A workbook'
+    except (FileNotFoundError, KeyError):
+        # Both fall back together: T1 and T18 are two halves of one column, and
+        # sourcing one from BEA while reading the other off the seed would make
+        # the implied T005 a difference of two different things.
+        go = seeds['use'][industries].sum()
         go.index.name = 'industry'
-        targets = build_target_set(year, gross_output=go)
-        t1_source = 'Use industry column sums (no UGO305-A parquet)'
+        vapro = seeds['use'].loc[list(VA_ROWS), industries].sum(axis=0)
+        vapro.index.name = 'industry'
+        targets = build_target_set(year, gross_output=go, value_added=vapro)
+        t1_source = 'Use column sums (no UGO305-A parquet, no UVA205-A workbook)'
     original_hard = {t.name: t.values.copy() for t in targets if t.hard}
     original_soft = {t.name: t.values.copy() for t in targets if t.name in KNOWN_SOFT}
     frozen, free = split_fixed_blocks(seeds, masks)
@@ -511,7 +517,7 @@ def _engine_hard_residuals(
 def _print_engine_replay(*, impose_soft: bool, heading: str) -> bool:
     table, t1_source, soft_table = _engine_hard_residuals(impose_soft=impose_soft)
     print(f'\n{heading}')
-    print(f'  T1 source: {t1_source}')
+    print(f'  T1/T18 source: {t1_source}')
     print(table.to_string())
     if impose_soft:
         print('  soft residuals (print only, not a fail gate):')

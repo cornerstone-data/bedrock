@@ -67,14 +67,66 @@ imposed.
 | T15 | Supply `TRADE` column | `Σ TRADE = 0` | identity (§2b) | scalar | **H** |
 | T16 | Supply `TRANS` column | `Σ TRANS = 0` | identity (§2b) | scalar | **H** |
 | T17 | Supply industry columns | `BAS + TAX − SUB = PRO`, per industry (§2c) | identity (§2c) | **detail, 402** | **H** |
+| T18 | **Use** industry columns, VA rows only | value added at **producer** prices — `V00100 + T00OTOP + V00300 + T00TOP + T00SUB` (§2d) | UVA205-A, allocated to detail | **detail, 402** | **H** |
 
-**The hard constraints are T1 and T11–T17** — all identities, none of which
-spends a source. Everything *sourced* is an estimate from an account
+**The hard constraints are T1, T18 and T11–T17.** T11–T17 are identities and
+spend nothing; T1 and T18 spend one BEA release between them. Everything *sourced* is an estimate from an account
 with its own vintage; a set held entirely hard is infeasible by construction,
 which is the argument for the KRAS-style soft layer in #588 Decision 2. The
 weights above are a **starting proposal to be calibrated**, not a result — the
 ordering (identity > gross output > expenditure > income > allocation) is the
 part worth defending.
+
+### ✅ Added 2026-08-26 — T18, the value-added column control
+
+T1 pins the Use column's **sum**; it says nothing about where the line between
+`T005` and `VAPRO` falls. Nothing else did either — T4 is soft and aggregated
+to summary groups, T6 is two economy-wide scalars, T5 is unimposed by design.
+So every dollar of income-side estimation error landed in the **intermediate
+column total**, which is the scale of a column of `A` and multiplies through
+`L` into every downstream result.
+
+T18 closes that. `UVA205-A` is the sibling of the `UGO305-A` that already
+sources T1, published for the same 1997–2024 span and allocated to 402 detail
+by
+[`derived_intermediate_and_value_added.py`](../../transform/iot/derived_intermediate_and_value_added.py).
+
+**What it is worth.** Measuring frozen 2017 `VAPRO/GO` ratios against the
+observed series — i.e. exactly the error T18 removes from the intermediate
+block:
+
+| year | error, $M | % of `VAPRO` | % of `T005` | worst industry |
+|---|---:|---:|---:|---|
+| 2017 | 31 | 0.00% | 0.00% | *(the anchor)* |
+| 2018 | 435,698 | 2.11% | 2.75% | `531ORE` at 4.1% of its `T005` |
+| 2020 | 1,000,641 | 4.68% | 6.52% | `52A000` at 21.6% |
+| 2022 | 1,861,154 | 7.14% | 9.05% | `GSLGE` at 29.9% |
+| **2024** | **1,981,204** | **6.76%** | **9.24%** | `GSLGE` at 23.5% |
+
+⚠️ **The drift compounds.** 2.75% of the intermediate block in the first
+nowcast year, 9.24% by 2024. That is the cost of leaving the split free, and
+2017 reading 31 is what says the measurement is not scoring its own anchor.
+
+✅ **The two halves cannot disagree.** T1 reads the extracted `UGO305-A`
+parquet, T18's series is derived against `load_go_detail()`, and the two
+gross-output vectors are **identical to the dollar for every industry in every
+year 2017–2024**. So the `T005` the pair implies is exactly the derived
+intermediate-inputs panel.
+
+⚠️ **T18 is not a margin the kernel can take.** A column margin restricted to
+five rows partitions each column; `gras_balance` takes one column vector. So it
+is imposed as a **closer after each Use pass**, the way T4 is — `+d` on
+`V00300` and `−d` across that column's free sign-flexible commodity cells, so
+the column sum does not move and T1 survives untouched. **All of it on
+`V00300`, deliberately**: a proportional scale would move `V00100` and undo the
+T4 closer that just ran. Gross operating surplus is the designated residual —
+BEA largely computes it as one, and nothing downstream reads it. On the 2017
+replay T18 closes to **0.005**.
+
+⚠️ **T5 stays unimposed, and that is now load-bearing** rather than merely
+tolerated. With the VA column total fixed, leaving `V00300` unconstrained is
+precisely what makes it the absorbing row. Imposing T5 would push the slack
+back into `T005` and undo T18.
 
 ⚠️ **Corrected 2026-08-17: T1 binds the Use panel only.** This table said
 "Supply + Use industry columns". Measured on the 2017 detail tables, only the
