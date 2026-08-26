@@ -15,25 +15,50 @@ comparable to each other.
 Everything here is BEA 2017 **detail** schema: 402 commodities, 402 industries,
 the published final-demand, value-added and supply-bridge codes.  No summary
 rollup -- these three blocks are small enough to read at detail
-(402 x 19, 3 x 402, 402 x 12), which is not true of the 402 x 402 interiors.
+(402 x 19, 3 x 402, 402 x 12).  The Supply interior is 402 x 402 and is read
+through its margins and a severity summary instead -- see below.
 
 Sections defined here
 -------------------------
 
-=========================== =================================================
-``use_fd_detail_sut``       Step 1.  ``derive_initial_Y_pur`` against the Use
-                            table's final-demand columns.  Both sides
-                            purchaser price.  Runnable today.
-``use_va_detail_sut``       Step 2.  The Use table's value-added rows.
-                            Declared, not yet runnable -- see below.
-``supply_bridge_detail_sut`` Step 4.  The Supply table's right-hand block --
-                            imports, margins, taxes and the subtotals
-                            bridging basic to purchaser value.  Runnable;
-                            candidate fills MCIF only.
-=========================== =================================================
+============================== ==============================================
+``use_fd_detail_sut``          Step 1.  ``derive_initial_Y_pur`` against the
+                               Use table's final-demand columns.  Both sides
+                               purchaser price.  Runnable today.
+``use_va_detail_sut``          Step 2.  The Use table's value-added rows.
+                               Declared, not yet runnable -- see below.
+``supply_output_detail_sut``   Step 4a.  The Supply table's **interior** --
+                               the domestic output block, commodity x
+                               industry, basic value.  Runnable.
+``supply_bridge_detail_sut``   Step 4.  The Supply table's right-hand block --
+                               imports, margins, taxes and the subtotals
+                               bridging basic to purchaser value.  Runnable;
+                               candidate fills MCIF only.
+============================== ==============================================
 
-These three are the whole of what a published 2017 detail reference supports
-outside the two 402 x 402 interiors.
+Those four are the whole of what a published 2017 detail reference supports
+outside the Use interior, which has no candidate at all until the RAS runs.
+
+The one 402 x 402 section, and why it is different
+--------------------------------------------------
+
+``supply_output_detail_sut`` is the Supply interior: 161,604 cells, against the
+low thousands for the other three.  Two consequences worth stating rather than
+discovering.
+
+**It is sparse, and the sparsity is the answer.**  Only ~5,000 cells are
+non-zero on either side -- an industry makes a handful of commodities, not 402.
+:class:`~.table_match.Tolerance` already has ``presence`` for this: a zero on
+both sides is *absent*, not a match, so the 97% of the block that is
+structurally empty does not flatter the score.  ⚠️ Never quote a match *rate*
+on this section without saying it is over present cells.
+
+**It cannot be read cell by cell.**  The other three sections are rendered as a
+labelled grid; this one has to be read through its margins -- the row margin is
+commodity output ``T007`` and the column margin is industry output ``x`` -- and
+through the worst-cell list.  That is a renderer concern, not a reason to leave
+the section undeclared: the reference, the frame and the bar are the same kind
+of settled argument here as anywhere else.
 
 A section can be declared before its candidate exists
 -----------------------------------------------------
@@ -55,7 +80,7 @@ Tolerances
 tables rounded to millions -- a difference below that grain is a rounding
 artefact of the source, not a defect in the build.  ``rtol`` follows the plan's
 stated bar where the plan states one (Step 1's final demand reconciles to
-~1.3%) and is 1% where it does not.
+~1.3%, Step 4a's held-out mix test to 0.94%) and is 1% where it does not.
 """
 
 from __future__ import annotations
@@ -252,6 +277,28 @@ def use_sut_value_added_reference(year: int = 2017) -> pd.DataFrame:
     return _block(_use_sut_detail(), SUT_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES)
 
 
+def supply_sut_output_reference(year: int = 2017) -> pd.DataFrame:
+    """Domestic output block of the published 2017 detail Supply table, in USD.
+
+    The Supply **interior**: commodity x industry, basic value, whose row margin
+    is commodity output ``T007`` and whose column margin is industry output.
+    Not the ``T007`` column itself -- that is the margin of this block, and
+    reproducing a margin says nothing about how the block divides beneath it,
+    which is the whole of what Step 4a builds.
+
+    ⚠️ ``_supply_sut_detail`` strips the workbook's trailing space off
+    ``'TRADE '``.  Without that the margin column is six characters like a BEA
+    detail code and a shape-based column selection swallows it, injecting the
+    whole trade margin into the interior.  Selecting by
+    :data:`USA_2017_INDUSTRY_CODES` as this does is immune, and is why it is
+    done by name.
+    """
+    _require_2017(year)
+    return _block(
+        _supply_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES
+    )
+
+
 def supply_sut_bridge_reference(year: int = 2017) -> pd.DataFrame:
     """Right-hand block of the published 2017 detail Supply SUT table, in USD.
 
@@ -276,6 +323,48 @@ def initial_Y_pur_candidate(year: int) -> pd.DataFrame:
     from bedrock.transform.eeio.nowcast import derive_initial_Y_pur  # noqa: PLC0415
 
     return derive_initial_Y_pur(year)
+
+
+def detail_supply_output_candidate(year: int) -> pd.DataFrame:
+    """Our Step 4a domestic output block, commodity x industry, in USD.
+
+    Reads the ``Detail_Supply_<year>`` FBS
+    (``bedrock/transform/detail/Detail_Supply_<year>.yaml``), which
+    disaggregates the published **summary** Supply domestic-output block onto
+    the 2017 detail mix.
+
+    ⚠️ **The axes are the reverse of what the column names suggest.**  In this
+    FBS the commodity is ``SectorConsumedBy`` and the industry is
+    ``SectorProducedBy``, because the Supply table's rows are commodities and
+    its columns industries.  Reading them the intuitive way round transposes the
+    block, which still balances economy-wide and is therefore not caught by a
+    totals check.
+
+    ⚠️ **2017 is close to circular and later years are not evidence at all.**
+    The 2017 build reproduces the published detail ``T007`` to rounding
+    (33,772,550m against 33,772,566m) because it is disaggregating a summary
+    control onto the same detail mix the reference publishes.  Later years close
+    on the published *summary* margin exactly by construction.  What the split
+    beneath actually rests on is the held-out mix test -- 0.94% economy-wide
+    over five years -- and, from 2022, the Economic Census product lines
+    (``pxi_mix_test.py``).  ✅ This section's job is to catch a build that has
+    broken, not to prove the method.
+
+    ``S00300``, ``S00402`` and ``4200ID`` carry no rows: their published
+    ``T007`` is zero by definition -- they are not domestic output and enter the
+    Supply table through ``MCIF`` / ``MDTY`` / margins.  They reindex to 0.0,
+    which is their correct value and not a gap.
+    """
+    from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415
+
+    fbs = pd.DataFrame(getFlowBySector(f'Detail_Supply_{year}'))
+    return (
+        fbs.groupby(['SectorConsumedBy', 'SectorProducedBy'])['FlowAmount']
+        .sum()
+        .unstack('SectorProducedBy')
+        .astype(float)
+        .fillna(0.0)
+    )
 
 
 def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
@@ -374,6 +463,40 @@ USE_VA_DETAIL_SUT = Section(
     ),
 )
 
+SUPPLY_OUTPUT_DETAIL_SUT = Section(
+    name='supply_output_detail_sut',
+    title='Supply domestic output block, BEA 2017 detail — nowcast vs published SUT',
+    step='Step 4a - the commodity x industry domestic output block',
+    rows=tuple(USA_2017_COMMODITY_CODES),
+    columns=tuple(USA_2017_INDUSTRY_CODES),
+    row_axis='commodity',
+    column_axis='industry',
+    # The plan's Step 4a bar: the held-out test put a carried 2017 mix 0.94%
+    # off economy-wide over five years, so 1% is the stated bar rather than a
+    # default. ⚠️ presence is left at its default so a cell that is zero on
+    # both sides counts as absent -- 97% of this block is structurally empty,
+    # and scoring those as matches would report ~97% for any build at all.
+    tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
+    reference=supply_sut_output_reference,
+    candidate=detail_supply_output_candidate,
+    note=(
+        'The Supply interior, 402 x 402 and 96.9% structurally empty: 5,059 '
+        'cells of 161,604 are present, because an industry makes a handful of '
+        'commodities, not 402. Quote a match rate only over present cells. '
+        '2017 runs at 100.0% coverage and 99.6% accuracy - 5,038 match, 21 '
+        'partial, no misses and no extras. '
+        'Candidate is the Detail_Supply_<year> FBS, '
+        'which disaggregates the published summary domestic-output block onto '
+        'the 2017 detail mix; from 2022 the mix itself moves on Economic '
+        'Census product lines (pxi_mix_test.py, 133 of 178 columns). '
+        '2017 is close to circular - the same detail mix appears on both sides '
+        '- so a green result here means the build has not broken, not that the '
+        'method is right. The method rests on the held-out mix test (0.94% '
+        'economy-wide over five years) and on the finding that no annual '
+        'survey can improve the between-census mix (annual_mix_test.py).'
+    ),
+)
+
 SUPPLY_BRIDGE_DETAIL_SUT = Section(
     name='supply_bridge_detail_sut',
     title='Supply bridge to purchaser value, BEA 2017 detail — nowcast vs published SUT',
@@ -409,7 +532,12 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
 #: Every section, by name.  The renderer and the tests both select from here.
 SECTIONS: dict[str, Section] = {
     section.name: section
-    for section in (USE_FD_DETAIL_SUT, USE_VA_DETAIL_SUT, SUPPLY_BRIDGE_DETAIL_SUT)
+    for section in (
+        USE_FD_DETAIL_SUT,
+        USE_VA_DETAIL_SUT,
+        SUPPLY_OUTPUT_DETAIL_SUT,
+        SUPPLY_BRIDGE_DETAIL_SUT,
+    )
 }
 
 

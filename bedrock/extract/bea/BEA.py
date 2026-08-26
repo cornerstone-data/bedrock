@@ -30,10 +30,14 @@ from bedrock.extract.iot.io_2017 import (
 )
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.iot.helpers import map_detail_table
-from bedrock.utils.config.settings import PATHS
+from bedrock.utils.config.settings import PATHS, mappingpath
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.metadata.metadata import set_fb_meta
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_SUT_YEARS
+
+#: The census-moved domestic output block ``BEA_Detail_Supply_PxI`` serves,
+#: written by ``bedrock/utils/mapping/write_supply_mix_update.py``.
+SUPPLY_MIX_UPDATE = mappingpath / 'census_pxi' / 'supply_mix_2022.csv'
 
 
 # %%
@@ -58,6 +62,29 @@ def bea_parse(*, source: str, year: int, **_: Any) -> pd.DataFrame:
             var_name="ActivityConsumedBy",
             value_name="FlowAmount",
         )
+    elif "Detail_Supply_PxI" in source:
+        # ⚠️ Must be tested BEFORE the plain Detail_Supply branch: the substring
+        # check below matches this source name too, and would silently serve the
+        # unmoved 2017 block under the moved source's name.
+        #
+        # The 2017 detail Supply domestic-output block with the 2022 Economic
+        # Census's own mix movement applied - the same shape and the same grand
+        # total, differing only in how 35 industry columns divide. Built by
+        # bedrock/utils/mapping/write_supply_mix_update.py, which documents the
+        # two guards deciding which columns may take the new data.
+        #
+        # Read from the committed CSV rather than rebuilt here: the construction
+        # needs the PxI concordance and the services product seed, and importing
+        # those from bedrock.extract would make extract depend on analysis, which
+        # already depends on extract.
+        df = pd.read_csv(SUPPLY_MIX_UPDATE, dtype={'commodity': str, 'industry': str})
+        df = df.rename(
+            columns={
+                'industry': 'ActivityProducedBy',
+                'commodity': 'ActivityConsumedBy',
+                'million_usd': 'FlowAmount',
+            }
+        )[['ActivityProducedBy', 'ActivityConsumedBy', 'FlowAmount']]
     elif "Detail_Supply" in source:
         df = _load_2017_detail_supply_use_usa('Supply_detail')
         df = df.iloc[:, 1:]  # drop first column

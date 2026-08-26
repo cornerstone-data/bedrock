@@ -70,6 +70,16 @@ BEA_Detail_Supply:
     bea:
       year: 2017
       hierarchy: flat
+BEA_Detail_Supply_PxI:
+  data_format: FBA
+  class:
+  - Money
+  # The 2022-moved mix. Still BEA 2017 codes on both axes - only the split
+  # inside 35 industry columns differs from BEA_Detail_Supply.
+  activity_schema:
+    bea:
+      year: 2017
+      hierarchy: flat
 BEA_Summary_Use_SUT:
   data_format: FBA
   class:
