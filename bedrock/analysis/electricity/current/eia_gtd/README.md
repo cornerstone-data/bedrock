@@ -22,5 +22,6 @@ use `get_2017_eia_purchaser_allocation`.
 | Leftover T&D | `bill − gen_dollars` (equals `t_dollars + d_dollars`) |
 | Nibble vs clipped | class totals below D0 target; `clipped` is purchaser-level only |
 | Optional ¢/kWh | `bill / (10 × MWh)` vs Table 2.4 — check only, not D0 |
+| MECS vs dollar manufacturing | Dual-run `industrial_weights=mecs\|dollars` on the same bills |
 
 Markdown lands at `current/diagnostics/output/eia_gtd_purchaser_tables.md`.

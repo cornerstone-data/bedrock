@@ -16,8 +16,10 @@ Two eras, one tree.
 | `current/diagnostics/` | BLy / EF / full-trace / year-alignment / F01000 BLy attribution |
 | `current/eia_gtd/` | Stub for results-deck G/T/D tables (`EIAPurchaserAllocation`) |
 | `current/vs_original_elec_disagg/` | Live EIA path vs the original-implementation freeze |
+| `current/vs_pre_mecs_industrial_weights/` | Live MECS Industrial weights vs dollar-weight freeze |
 | `current/eia_gtd_code_impl_f8f73b01.plan.md` | Design note for current production (internal names are stale) |
 | `historical/original_elec_disagg_implementation/` | Read-only freeze (`q`, `x`, E/D/N/BLy, …) |
+| `historical/pre_mecs_industrial_weights/` | EIA G/T/D mixed units with dollar manufacturing weights |
 
 Do not invent a snapshotter for the freeze. If freeze files are missing, they
 are missing or not tracked.

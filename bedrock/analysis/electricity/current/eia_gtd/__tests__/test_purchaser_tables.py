@@ -11,7 +11,9 @@ from bedrock.analysis.electricity.current.eia_gtd.purchaser_tables import (
     leftover_td_class_frame,
     leftover_td_purchaser_frame,
     leftover_td_usd,
+    manufacturing_mecs_vs_dollar_frame,
     optional_implied_cents_kwh_frame,
+    p_share_from_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import EIAPurchaserAllocation
 
@@ -143,3 +145,47 @@ def test_optional_implied_cents_kwh_is_bill_over_mwh() -> None:
     assert frame.loc['Residential', 'implied_cents_kwh'] == pytest.approx(16.0)
     assert frame.loc['Residential', 'table_24_cents_kwh'] == pytest.approx(16.0)
     assert 'Exports' not in frame.index
+
+
+def test_p_share_from_allocation_recovers_generation_share() -> None:
+    alloc = _alloc(
+        bills={'F01000': 200.0, '1111A0': 100.0},
+        classes={'F01000': 'Residential', '1111A0': 'Industrial'},
+        mwh={'F01000': 2.0, '1111A0': 1.0},
+        p=40.0,
+        egrid_mwh=150.0,
+    )
+    assert p_share_from_allocation(alloc) == pytest.approx(40.0 * 150.0 / 300.0)
+
+
+def test_manufacturing_mecs_vs_dollar_flags() -> None:
+    mecs = _alloc(
+        bills={'331110': 0.0, '1111A0': 50.0, 'F01000': 80.0},
+        classes={
+            '331110': 'Industrial',
+            '1111A0': 'Industrial',
+            'F01000': 'Residential',
+        },
+        mwh={'331110': 10.0, '1111A0': 5.0, 'F01000': 8.0},
+        gen={'331110': 0.0, '1111A0': 40.0, 'F01000': 20.0},
+        clipped={'331110': True, '1111A0': False, 'F01000': False},
+    )
+    dollars = _alloc(
+        bills={'331110': 0.0, '1111A0': 50.0, 'F01000': 80.0},
+        classes={
+            '331110': 'Industrial',
+            '1111A0': 'Industrial',
+            'F01000': 'Residential',
+        },
+        mwh={'331110': 0.0, '1111A0': 20.0, 'F01000': 8.0},
+        gen={'331110': 0.0, '1111A0': 20.0, 'F01000': 20.0},
+    )
+    frame = manufacturing_mecs_vs_dollar_frame(mecs, dollars).set_index('purchaser')
+    assert 'F01000' not in frame.index
+    assert bool(frame.loc['331110', 'manufacturing'])
+    assert bool(frame.loc['331110', 'zero_bill_mecs_assignee'])
+    assert bool(frame.loc['331110', 'clipped_mecs'])
+    assert not bool(frame.loc['1111A0', 'manufacturing'])
+    assert bool(frame.loc['1111A0', 'cross_pool_overflow_recipient'])
+    assert frame.loc['331110', 'mecs_mwh'] == pytest.approx(10.0)
+    assert frame.loc['331110', 'dollar_mwh'] == pytest.approx(0.0)

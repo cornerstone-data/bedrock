@@ -190,6 +190,88 @@ def optional_implied_cents_kwh_frame(
     return pd.DataFrame(rows)
 
 
+def p_share_from_allocation(alloc: EIAPurchaserAllocation) -> float:
+    """Recover the 2017 UGO generation share from ``p = share × bills / eGRID``."""
+    bill_total = float(alloc.bill.sum())
+    if bill_total <= 0 or float(alloc.egrid_mwh) <= 0:
+        raise ValueError(
+            'cannot recover generation share from non-positive bills or eGRID'
+        )
+    return float(alloc.p) * float(alloc.egrid_mwh) / bill_total
+
+
+def dual_run_industrial_allocations(
+    alloc: EIAPurchaserAllocation,
+    eia_year: int,
+) -> tuple[EIAPurchaserAllocation, EIAPurchaserAllocation]:
+    """Re-allocate the same bills with MECS vs dollar Industrial manufacturing weights."""
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        ELECTRICITY_AGGREGATE,
+        allocate_purchaser_gtd,
+    )
+
+    p_share = p_share_from_allocation(alloc)
+    common = {
+        'bills': alloc.bill,
+        'self_use_key': ELECTRICITY_AGGREGATE,
+        'eia_year': eia_year,
+        'p_share_2017': p_share,
+        'td_share_2017': float(alloc.td_share),
+    }
+    mecs = allocate_purchaser_gtd(**common, industrial_weights='mecs')
+    dollars = allocate_purchaser_gtd(**common, industrial_weights='dollars')
+    return mecs, dollars
+
+
+def manufacturing_mecs_vs_dollar_frame(
+    mecs_alloc: EIAPurchaserAllocation,
+    dollar_alloc: EIAPurchaserAllocation,
+) -> pd.DataFrame:
+    """Per manufacturing sector: MECS vs dollar MWh, clip flags, zero-bill assignees.
+
+    Cross-pool overflow marks residual Industrial purchasers whose generation
+    dollars rose under MECS (water-fill from clipped energy-intensive manufacturers).
+    """
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        industrial_manufacturing_pool,
+    )
+
+    idx = mecs_alloc.bill.index.union(dollar_alloc.bill.index)
+    mfg_pool = industrial_manufacturing_pool()
+    classes = mecs_alloc.end_use_class.reindex(idx)
+    industrial = classes.astype(str) == 'Industrial'
+    is_mfg = pd.Series([str(i) in mfg_pool for i in idx], index=idx)
+    bill = mecs_alloc.bill.reindex(idx).astype(float).fillna(0.0)
+    mecs_mwh = mecs_alloc.mwh.reindex(idx).astype(float).fillna(0.0)
+    dollar_mwh = dollar_alloc.mwh.reindex(idx).astype(float).fillna(0.0)
+    mecs_gen = mecs_alloc.gen_dollars.reindex(idx).astype(float).fillna(0.0)
+    dollar_gen = dollar_alloc.gen_dollars.reindex(idx).astype(float).fillna(0.0)
+    clipped_mecs = mecs_alloc.clipped.reindex(idx).fillna(False).astype(bool)
+    clipped_dollars = dollar_alloc.clipped.reindex(idx).fillna(False).astype(bool)
+    residual = industrial & ~is_mfg
+    overflow = residual & (mecs_gen > dollar_gen + 1e-9)
+    rows = pd.DataFrame(
+        {
+            'purchaser': idx.astype(str),
+            'end_use_class': classes.astype(str).to_numpy(),
+            'manufacturing': is_mfg.to_numpy(),
+            'bill': bill.to_numpy(),
+            'mecs_mwh': mecs_mwh.to_numpy(),
+            'dollar_mwh': dollar_mwh.to_numpy(),
+            'mwh_diff': (mecs_mwh - dollar_mwh).to_numpy(),
+            'mecs_gen_dollars': mecs_gen.to_numpy(),
+            'dollar_gen_dollars': dollar_gen.to_numpy(),
+            'clipped_mecs': clipped_mecs.to_numpy(),
+            'clipped_dollars': clipped_dollars.to_numpy(),
+            'zero_bill_mecs_assignee': (
+                is_mfg & (bill <= 0.0) & (mecs_mwh > 0.0)
+            ).to_numpy(),
+            'cross_pool_overflow_recipient': overflow.to_numpy(),
+        }
+    )
+    return rows.loc[industrial.to_numpy()].reset_index(drop=True)
+
+
 def _fmt_mwh(value: float) -> str:
     return f'{value / 1e6:,.1f} TWh'
 
@@ -342,10 +424,51 @@ def build_live_report(config: str = MIXED_CONFIG) -> str:
     }
     prices = electricity_end_use_retail_prices_cents_kwh(eia_year)
     table_24: dict[str, float] = {str(k): float(v) for k, v in prices.items()}
-    return render_purchaser_tables_md(
+    md = render_purchaser_tables_md(
         alloc,
         eia_year,
         raw_table_22_mwh=raw_22,
         table_24_cents_kwh=table_24,
         config=config,
     )
+    mecs_alloc, dollar_alloc = dual_run_industrial_allocations(alloc, eia_year)
+    compare = manufacturing_mecs_vs_dollar_frame(mecs_alloc, dollar_alloc)
+    mfg = compare.loc[compare['manufacturing']]
+    overflow = compare.loc[compare['cross_pool_overflow_recipient']]
+    extra = [
+        '',
+        '## MECS vs dollar Industrial manufacturing weights',
+        '',
+        'Same bills through `allocate_purchaser_gtd` with '
+        '`industrial_weights=mecs` vs `dollars`. Generation share recovered as '
+        '`p × eGRID / bill_total`. Manufacturing rows use Table 7.7 purchased kWh; '
+        'residual Industrial stays dollar-weighted. Class-wide water-fill can move '
+        'generation dollars from clipped manufacturers onto residual ag/mining/'
+        'construction.',
+        '',
+        f'Manufacturing purchasers: **{int(len(mfg))}**. '
+        f'Clipped under MECS: **{int(mfg["clipped_mecs"].sum()) if not mfg.empty else 0}**. '
+        f'Zero-bill MECS assignees: '
+        f'**{int(mfg["zero_bill_mecs_assignee"].sum()) if not mfg.empty else 0}**. '
+        f'Cross-pool overflow recipients: **{int(len(overflow))}**.',
+        '',
+    ]
+    if not mfg.empty:
+        extra.extend(
+            _markdown_table(
+                mfg.assign(_abs=mfg['mwh_diff'].abs())
+                .sort_values('_abs', ascending=False)
+                .drop(columns='_abs')
+                .head(25),
+                {
+                    'bill': '${:,.2f}',
+                    'mecs_mwh': '{:,.0f}',
+                    'dollar_mwh': '{:,.0f}',
+                    'mwh_diff': '{:,.0f}',
+                    'mecs_gen_dollars': '${:,.2f}',
+                    'dollar_gen_dollars': '${:,.2f}',
+                },
+            )
+        )
+        extra.append('')
+    return md + '\n'.join(extra)

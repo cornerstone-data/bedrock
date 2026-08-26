@@ -18,3 +18,10 @@ The freeze under `original_elec_disagg_implementation/output/<config_stem>/` is
 Do not run historical Python against current production. Compare live EIA
 output to the freeze with
 `bedrock.analysis.electricity.current.vs_original_elec_disagg.compare_to_original_elec_disagg`.
+
+The freeze under `pre_mecs_industrial_weights/output/` is EIA-anchored G/T/D
+mixed units with dollar manufacturing weights (before Table 7.7 shares).
+Generate it with
+`python -m bedrock.analysis.electricity.historical.pre_mecs_industrial_weights.write_freeze`
+and compare live MECS output with
+`bedrock.analysis.electricity.current.vs_pre_mecs_industrial_weights.compare_to_pre_mecs`.

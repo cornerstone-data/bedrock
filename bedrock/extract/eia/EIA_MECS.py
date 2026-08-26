@@ -382,7 +382,7 @@ def _eia_clean_mecs_energy(
             df_data_region.columns = table_dict[year][table]['col_names']
             df_rse_region.columns = table_dict[year][table]['col_names']
         # if table name ends in 2, the units must be stripped from the column names listed in the table dict
-        if table[-1] in ['2', '0', '5', '6']:
+        if table[-1] in ['2', '0', '5', '6', '7']:
             df_data_region.columns = [
                 name.split(' | ', 2)[0] for name in table_dict[year][table]['col_names']
             ]
@@ -464,6 +464,8 @@ def _eia_clean_mecs_energy(
             df_data_region['Unit'] = 'Trillion Btu'
             if table[-3] == '7':  # 7_2
                 df_data_region['Unit'] = 'USD / million btu'
+        elif table[-1] == '7':
+            df_data_region['Unit'] = 'million kWh'
         elif table[-1] == '0':
             df_data_region['Unit'] = 'million USD'
 

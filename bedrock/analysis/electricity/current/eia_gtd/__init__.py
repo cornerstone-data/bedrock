@@ -8,7 +8,9 @@ from bedrock.analysis.electricity.current.eia_gtd.purchaser_tables import (
     leftover_td_class_frame,
     leftover_td_purchaser_frame,
     load_reanchored_allocation,
+    manufacturing_mecs_vs_dollar_frame,
     optional_implied_cents_kwh_frame,
+    p_share_from_allocation,
     render_purchaser_tables_md,
 )
 
@@ -20,6 +22,8 @@ __all__ = [
     'leftover_td_class_frame',
     'leftover_td_purchaser_frame',
     'load_reanchored_allocation',
+    'manufacturing_mecs_vs_dollar_frame',
     'optional_implied_cents_kwh_frame',
+    'p_share_from_allocation',
     'render_purchaser_tables_md',
 ]
