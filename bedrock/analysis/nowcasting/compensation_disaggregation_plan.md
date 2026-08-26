@@ -43,10 +43,10 @@ For each year and summary industry `i`:
 ```
              detail child d1  d2  ...  dn         row control
 V00100                                        T60200D, 69 NIPA groups
-T00OTOP                                       T30500, one control
+T00OTOP                                       T30500 + two block lookups
 V00300                                        ** the residual **
-T00TOP  }  the basic-to-producer wedge        left free -- Step 5
-T00SUB  }                                     left free -- Step 5
+T00TOP  }  the basic-to-producer wedge        Step 4d, converted + seeded
+T00SUB  }                                     Step 4d, converted + seeded
 ---------------------------------------------------------------
 column margin  VAPRO_d1 VAPRO_d2 ... VAPRO_dn   UVA205-A, observed
 ```
@@ -104,9 +104,16 @@ intermediate block. That is the behaviour the second decision below changes.
 4d commodity column cannot be converted to the industry axis: through the benchmark
 market-share matrix it scores **r = 0.202** and misplaces 114.6% of the row, because
 a product tax is remitted by whoever *sells* the product while market shares place it
-with whoever *makes* it. **That finding stands, and so does its conclusion** — the
-industry split is left free for Step 5. `TVA113` cannot rescue it, because
-`TVA113` is a test source (see the decision below).
+with whoever *makes* it. **That finding stands**, and product taxes get no industry
+*target*. `TVA113` cannot rescue it, because `TVA113` is a test source (see the
+decision below).
+
+⚠️ **But "left free" overstated it, and that wording is withdrawn.**
+[`tax_axis_conversion.py`](tax_axis_conversion.py) rejects the *Make matrix*, not
+the idea of an operator. Step 4c's producer-versus-trade **level split**, plus a
+named routing of motor fuel to `424700` and the government columns zeroed, reaches
+**r = 0.948** at 27.9% absolute error; customs duties onto `4200ID` are exact. That
+is a seed and not a target — and Step 5 is seeded with it.
 
 What the table does buy is a **grader**. `TVA113`'s `V00200` **is**
 `T00OTOP + T00TOP − T00SUB` by industry — verified against the published 2017
@@ -146,8 +153,9 @@ what Step 5's Decision 3 reserves them for.
 - ❌ **"`T00TOP` gets an industry axis after all."** The identity is real —
   `TVA113`'s `V00200` **is** `T00OTOP + T00TOP − T00SUB` by industry, max $1M
   across all 71 — but a test source cannot supply a build. #536's conclusion
-  stands unchanged: the industry split of product taxes is left free for Step 5,
-  and the market-share conversion (r = 0.202) stays rejected. ✅ What the identity
+  stands unchanged in what it rejects: the market-share conversion (r = 0.202)
+  stays rejected, and product taxes get no industry target. ⚠️ It does **not**
+  follow that the split is left free — see the seed above. ✅ What the identity
   buys instead is a **grader** — it says where the money should have landed
   (wholesale trade 210,708, other retail 104,107, food services 52,391, motor
   vehicle dealers 45,947), so whatever Step 5 produces for those rows can be
@@ -1250,27 +1258,27 @@ published, and zero on government. Per Phase 5.3 that tests the plumbing rather
 than the movement series, since 2017 is both anchor and target — but the
 plumbing is the whole of what was unproven.
 
-⚠️ **The housing and farm lookups did not make it in, and the reason is
-structural rather than an omission.** They cannot be their own activity sets:
-NIPA states no *other taxes on production excluding housing and farm* line, so a
-third set's control would still be the whole 608,533 and the three would sum to
-**872,044**. The alternative — folding both into the weight vector — needs an
-`FBS_outside_flowsa` attribution source, and **that path does not work**:
+✅ **The housing and farm lookups are in, via a `clean_fba` socket.** They still
+cannot be their own activity sets: NIPA states no *other taxes on production
+excluding housing and farm* line, so a third set's control would still be the
+whole 608,533 and the three would sum to **872,044**. So they enter as *weights*
+instead — [`othertax_lookups.py`](../../transform/nipa/othertax_lookups.py)
+rescales the housing block to `T70405` `B1031C`, the farm block to `T70305`
+`B1017C`, and the remaining 56.7% to what is left of the control, each keeping
+its own 2017 within-block shape. Worth **0.12–0.39pp** of row error across
+2018–2024 — 1.92% to 1.68% in 2024 — against a control whose own vintage error
+is 2.9% in 2021.
+
+⚠️ **This reverses what this section used to say, and the reversal is worth
+keeping.** Folding the lookups into the weight vector was thought to need an
+`FBS_outside_flowsa` attribution source, and **that path still does not work**:
 `get_flowby_from_config` builds a `FlowBySector` for that `data_format` while
 `attribute_flows_to_sectors` then calls `map_to_sectors`, which only
-`FlowByActivity` defines. All four existing uses of the hatch in the repo are
-top-level sources; none is an attribution source.
-
-The cost of shipping without them is measured and small — 1.92% against 1.68% of
-row error in 2024, 0.12–0.39pp across 2018–2024, against a control whose own
-vintage error is 2.9% in 2021.
-
-🚧 **But the blocker is not small, because `V00100` needs the same hatch.** The
-plan's compensation design is "build the moved-share vector as a cached
-`FBS_outside_flowsa` source and let the yaml do one `proportional` attribution
-against it" — which is exactly the call that fails here. **Clear it before Step
-2's largest row, not after.** Finding it on the 1.8% row rather than the 30.9%
-one is the argument for having built this one first.
+`FlowByActivity` defines. All four existing uses of the hatch are top-level
+sources. The error was concluding that the lookups therefore needed it. A weight
+vector that is a *rescaling of an FBA already in the method* is a `clean_fba`
+socket — which is how `V00100` ended up carrying QCEW, on the same realisation.
+Both rows were blocked on a hatch neither needed.
 
 ⚠️ **Two open items, stated rather than buried.** The owner/tenant split of
 housing property tax has no published source: the frozen 2017 split is 70.29%

@@ -116,21 +116,35 @@ The resulting method, and what it leaves on the table
 -----------------------------------------------------
 
 ``NIPA_VA_othertax_<year>`` is **one activity set**: the ``T30500`` control,
-attributed proportionally across the 392 non-government industries on the 2017
-benchmark ``T00OTOP`` row, then transposed onto ``SectorProducedBy = T00OTOP``.
-Replaying 2017 reproduces the published row at correlation **1.0000** with the
-same 9 of rounding the control carries, and nothing on government.
+attributed proportionally across the 392 non-government industries, then
+transposed onto ``SectorProducedBy = T00OTOP``.  Replaying 2017 reproduces the
+published row at correlation **1.0000** with the same 9 of rounding the control
+carries, and nothing on government.
 
-⚠️ **The housing and farm lookups are NOT in it, though they are exact**, and
-that is a bounded, measured concession rather than an oversight -- see
-:func:`lookup_improvement`.  They cannot be their own activity sets, because
-NIPA states no *other taxes on production excluding housing and farm* line, so
-a third set's control would still be the whole 608,533 and the three would sum
-to 872,044.  Folding them into the weight vector instead needs an
-``FBS_outside_flowsa`` attribution source, which is not implemented.  The cost
-is 0.12-0.39 percentage points of row error per year -- 1.92% against 1.68% in
-2024 -- and it is smaller than the control's own vintage error, which is 2.9%
-in 2021.
+✅ **The housing and farm lookups ARE in it**, through a ``clean_fba`` socket on
+the attribution source -- :mod:`bedrock.transform.nipa.othertax_lookups`.  The
+weight vector is no longer the frozen 2017 row: the housing block is rescaled to
+``T70405`` ``B1031C``, the farm block to ``T70305`` ``B1017C``, and the
+remaining 56.7% takes what is left of the control, each keeping its own 2017
+within-block shape.  :func:`lookup_improvement` is what that buys -- 0.12-0.39
+percentage points of row error per year, 1.92% down to 1.68% in 2024.
+
+⚠️ **This reverses what this module used to conclude, and the reversal is
+mechanical rather than substantive.**  The lookups still cannot be their own
+activity sets -- NIPA states no *other taxes on production excluding housing and
+farm* line, so a third set's control would still be the whole 608,533 and the
+three would sum to 872,044.  What changed is the other half of the old
+objection: folding them into the weight vector was thought to need an
+``FBS_outside_flowsa`` attribution source, which is still not implemented.  It
+does not need one.  A weight vector that is a *rescaling of an FBA already in
+the method* is a ``clean_fba`` socket, which is how ``NIPA_VA_compensation``
+carries QCEW.  This module's own note said the hatch was worth clearing "before
+Step 2's largest row rather than after"; it was bypassed there, and the same
+bypass serves here.
+
+⚠️ **The gain stays smaller than the control's own vintage error**, which is
+2.9% in 2021.  Carrying the lookups is worth doing and does not change what this
+row's dominant error is.
 
 ⚠️ **Two further open items, stated rather than buried.**  The owner/tenant
 split of housing property tax has no published source: the frozen 2017 split is
@@ -174,6 +188,19 @@ ROW = 'T00OTOP'
 #: The two ``T30500`` lines that sum to it: state and local other taxes on
 #: production, and the federal remainder after taxes on product.
 CONTROL_LINES = (('T30500', 'LA000365'), ('T30500', 'LA000237'))
+
+#: The line *numbers* those two codes sit on, which is how the yaml selects
+#: them -- ``selection_fields`` reads the FBA's ``Line``, not its series code.
+#:
+#: ⚠️ A line number is a property of the table, not of the series.  A NIPA
+#: restructuring would leave ``NIPA_VA_othertax_<year>`` selecting different
+#: series at the same numbers, and no total would look wrong, so :func:`check`
+#: re-derives the pairing from ``SeriesRegister`` in every nowcast year.
+CONTROL_LINE_NUMBERS = {'LA000365': 37, 'LA000237': 17}
+
+#: The years ``NIPA_VA_othertax_<year>`` has a file for.  2017 is the benchmark
+#: and the anchor for the frozen shares; 2018-2024 move only on the control.
+NOWCAST_YEARS = tuple(range(2017, 2025))
 
 #: ``T30500``'s decomposition of the state and local line, which is 99.8% of the
 #: row.  Property tax is 88.1% of it, and that is the whole argument for what
@@ -291,6 +318,32 @@ def composition(year: int = YEAR) -> pd.DataFrame:
 def control(year: int = YEAR) -> float:
     """The NIPA control for the row: state and local plus federal."""
     return sum(nipa(table, code, year) for table, code in CONTROL_LINES)
+
+
+def control_lines(year: int = YEAR) -> pd.DataFrame:
+    """Where the two control series actually sit in ``T30500`` in ``year``.
+
+    The yaml selects by line number and this module selects by code, so the two
+    agree only as long as the table's shape holds.  Returns one row per control
+    series with the line number it is published on and the number the method
+    assumes, so :func:`check` can compare them.
+    """
+    frame = nipa_flat_table('T30500', year).frame
+    rows = []
+    for _, code in CONTROL_LINES:
+        match = frame.loc[frame['code'] == code]
+        rows.append(
+            {
+                'year': year,
+                'code': code,
+                'expected_line': CONTROL_LINE_NUMBERS[code],
+                'published_line': (
+                    int(match['line'].iloc[0]) if not match.empty else -1
+                ),
+                'value': float(match['value'].iloc[0]) if not match.empty else 0.0,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def allocator_scores() -> pd.DataFrame:
@@ -446,22 +499,27 @@ def lookup_improvement() -> pd.DataFrame:
       renormalised over the other industries.
 
     The lookups win, and by less than their exactness suggests: 1.68% against
-    1.92% in 2024, 0.81% against 1.01% in 2018. That is why
-    ``NIPA_VA_othertax_<year>`` ships the frozen version -- the improvement is
-    real but bounded, and the route to it is blocked.
+    1.92% in 2024, 0.81% against 1.01% in 2018. ``NIPA_VA_othertax_<year>``
+    ships the lookup version, so this function now measures what the method
+    gained rather than what it declined.
 
-    ⚠️ **The blocker, since it is not visible from the yaml.** The lookups cannot
-    be their own activity sets: NIPA states no *other taxes on production
-    excluding housing and farm* line, so a third set's control would still be
-    the whole 608,533 and the three would sum to 872,044. Folding them into the
-    weight vector instead needs an ``FBS_outside_flowsa`` attribution source,
-    and that path is not implemented -- ``get_flowby_from_config`` builds a
-    ``FlowBySector`` for that ``data_format`` while
-    ``attribute_flows_to_sectors`` then calls ``map_to_sectors``, which only
-    ``FlowByActivity`` defines. All four existing uses of the hatch in the repo
-    are top-level sources, never attribution sources. **``V00100``'s planned
-    anchor-and-move build wants the same hatch**, so this is worth clearing
-    before Step 2's largest row rather than after.
+    ⚠️ **It shipped late, and why is worth keeping.** The lookups cannot be
+    their own activity sets: NIPA states no *other taxes on production excluding
+    housing and farm* line, so a third set's control would still be the whole
+    608,533 and the three would sum to 872,044. Folding them into the weight
+    vector instead was thought to need an ``FBS_outside_flowsa`` attribution
+    source, and that path is still not implemented --
+    ``get_flowby_from_config`` builds a ``FlowBySector`` for that
+    ``data_format`` while ``attribute_flows_to_sectors`` then calls
+    ``map_to_sectors``, which only ``FlowByActivity`` defines. All four existing
+    uses of the hatch in the repo are top-level sources, never attribution
+    sources.
+
+    ✅ **The hatch was never needed.** A weight vector that is a rescaling of an
+    FBA already in the method is a ``clean_fba`` socket. ``V00100`` reached the
+    same conclusion first -- this function used to end by saying its
+    anchor-and-move build "wants the same hatch", and it turned out neither row
+    did. See :mod:`bedrock.transform.nipa.othertax_lookups`.
     """
     base = summary_row(YEAR)
     shares = base / base.sum()
@@ -632,6 +690,19 @@ def check() -> int:
                     f'longer holds'
                 )
 
+    # The yaml's `Line: [37, 17]` against the published line numbers, in every
+    # year there is a file for. This is the one failure in the family that a
+    # total would not show: the wrong line is still a number, and the row would
+    # still sum to it.
+    for year in NOWCAST_YEARS:
+        for _, line in control_lines(year).iterrows():
+            if int(line['published_line']) != int(line['expected_line']):
+                failures.append(
+                    f'{year}: {line["code"]} is on T30500 line '
+                    f'{line["published_line"]}, not {line["expected_line"]}; '
+                    f'NIPA_VA_othertax_{year} selects the wrong series'
+                )
+
     worst_drift = float(share_drift()['drift'].max())
     if worst_drift > DRIFT_BAR:
         failures.append(
@@ -646,8 +717,9 @@ def check() -> int:
         return 1
     print(
         f'{ROW}: the control closes, no allocator is usable, both lookups hold '
-        f'in every summary year, government is zero, and composition drift '
-        f'stays under {DRIFT_BAR:.0%}.'
+        f'in every summary year, government is zero, the control lines sit '
+        f'where the method selects them in all {len(NOWCAST_YEARS)} nowcast '
+        f'years, and composition drift stays under {DRIFT_BAR:.0%}.'
     )
     return 0
 

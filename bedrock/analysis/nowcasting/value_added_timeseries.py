@@ -36,10 +36,10 @@ margin it did not have::
 
                  detail child d1  d2  ...  dn         row control
     V00100                                        T60200D, 69 NIPA groups
-    T00OTOP                                       T30500, one control
+    T00OTOP                                       T30500 + two block lookups
     V00300                                        ** the residual **
-    T00TOP  }  the basic-to-producer wedge        left free -- Step 5
-    T00SUB  }                                     left free -- Step 5
+    T00TOP  }  the basic-to-producer wedge        Step 4d, converted + seeded
+    T00SUB  }                                     Step 4d, converted + seeded
     ---------------------------------------------------------------
     column margin   VAPRO_d1 VAPRO_d2 ... VAPRO_dn   UVA205-A, observed
 
@@ -105,12 +105,22 @@ ability to grade the build, which is what Step 5's Decision 3 reserves them for.
 - ❌ *"``T00TOP`` gets an industry axis after all."*  ``TVA113``'s ``V00200``
   **is** ``T00OTOP + T00TOP - T00SUB`` by industry -- ``--topils`` verifies it at
   **max $1M across all 71** -- but a test source cannot supply a build.  #536's
-  conclusion stands unchanged: the industry split of product taxes is left free
-  for Step 5, and the market-share conversion (r = 0.202) stays rejected.  What
-  the identity buys instead is a **grader**: it says where the money should have
-  landed -- wholesale trade 210,708, other retail 104,107, food services 52,391,
-  motor vehicle dealers 45,947 -- so whatever Step 5 produces for those rows can
-  be scored rather than trusted.
+  conclusion stands unchanged in what it rejects: the market-share conversion
+  (r = 0.202) stays rejected, and product taxes get no *target* on the industry
+  axis.  What the identity buys instead is a **grader**: it says where the money
+  should have landed -- wholesale trade 210,708, other retail 104,107, food
+  services 52,391, motor vehicle dealers 45,947 -- so whatever Step 5 produces
+  for those rows can be scored rather than trusted.
+
+  ⚠️ **Do not read that as "left free".**  An earlier draft of this module said
+  the industry split is left free for Step 5, and
+  :mod:`~.tax_axis_conversion` has since taken that apart: rejecting the Make
+  matrix is not the same as having no operator.  Step 4c's producer-versus-trade
+  **level split**, plus a named routing of motor fuel to ``424700`` and the
+  government columns zeroed, reaches **r = 0.948** at 27.9% absolute error, and
+  customs duties onto ``4200ID`` are exact.  27.9% is a seed and not a target --
+  but Step 5 is seeded with it, so the split is an input to the balance as well
+  as an output of it.
 - ❌ *"``T60200D``'s 69 groups are superseded."*  They are not.  They remain the
   compensation control.
 

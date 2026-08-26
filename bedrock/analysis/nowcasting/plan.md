@@ -924,20 +924,23 @@ the first method in the `NIPA_VA_*` family and it proves the whole seam: the thr
 identity crosswalk rows, `Sector_Crosswalk_BEA_NIPA_VA.csv`, the melted `BEA_Detail_Use_SUT` as an
 attribution source, and `assign_use_row_from_clean_parameter`.
 
-🚧 **And it turned up a blocker that lands squarely on `V00100`.** The housing and farm lookups are
-*not* in the shipped method. They cannot be their own activity sets — NIPA states no "other taxes on
-production excluding housing and farm" line, so a third set's control is still the whole 608,533 and
-the three sum to 872,044 — and the alternative, folding them into the weight vector, needs an
+✅ **The housing and farm lookups are in the shipped method**, carried as weights through a
+`clean_fba` socket on the attribution source —
+[`othertax_lookups.py`](../../transform/nipa/othertax_lookups.py). They cannot be their own activity
+sets — NIPA states no "other taxes on production excluding housing and farm" line, so a third set's
+control is still the whole 608,533 and the three sum to 872,044 — so instead the housing block is
+rescaled to `T70405` `B1031C`, the farm block to `T70305` `B1017C`, and the remaining 56.7% takes what
+is left of the control. Worth 1.92% → 1.68% of row error in 2024, 0.12–0.39pp across 2018–2024.
+
+⚠️ **It was originally shipped without them, on a blocker that turned out not to bind**, and both
+`T00OTOP` and `V00100` lost time to it. Folding a computed weight vector in was read as needing an
 **`FBS_outside_flowsa` attribution source, which does not work**: `get_flowby_from_config` builds a
 `FlowBySector` for that `data_format` while `attribute_flows_to_sectors` then calls `map_to_sectors`,
-which only `FlowByActivity` defines. All four existing uses of the hatch are top-level sources.
-
-⚠️ **That is the same hatch the compensation design above commits to** — "build the moved-share vector
-as a cached `FBS_outside_flowsa` source and let the yaml do one `proportional` attribution against
-it". It has to be cleared before `V00100`, and finding it on the 1.8% row rather than the 30.9% one is
-the argument for having built `T00OTOP` first. For `T00OTOP` itself the cost of going without is
-bounded: 1.92% against 1.68% of row error in 2024, smaller than the control's own 2.9% vintage error
-in 2021.
+which only `FlowByActivity` defines. All four existing uses of the hatch are top-level sources, and
+that is still true. But a weight vector that is a *rescaling of an FBA already in the method* needs no
+new source at all — it needs a `clean_fba` socket. The hatch is still broken, still unused, and was
+never on the path. For `T00OTOP` the cost of the delay was bounded: 1.92% against 1.68% of row error
+in 2024, smaller than the control's own 2.9% vintage error in 2021.
 
 The residual open item is unchanged — the honest allocator for the non-housing, non-farm remainder is
 **capital stock in structures, i.e. BEA Fixed Assets**, the same missing extractor CFC wants for 40%
@@ -1772,9 +1775,13 @@ set.
 ✅ **Decided 2026-08-17: do not convert. The target stays at producer prices and the balance solves
 the allocation** — a fixed 2017 conversion ratio is exactly what we cannot assume. So the industry
 column margin is `T005 + VAPRO` (intermediate plus **all five** VA rows, verified to **$1 per
-industry**), not `T005 + VABAS`, and **the product-tax industry split becomes an output of Step 5
-rather than an input to it.** `T00TOP`/`T00SUB` keep their economy-wide soft targets, which anchor the
-level while leaving the industry distribution free.
+industry**), not `T005 + VABAS`. `T00TOP`/`T00SUB` keep their economy-wide soft targets, which anchor
+the level while leaving the industry distribution free of a hard target.
+
+> ⚠️ **Superseded in part.** This decision originally read "**the product-tax industry split becomes an
+> output of Step 5 rather than an input to it**". That half is **withdrawn** — see the `tax_axis_conversion`
+> section above. The split still has no industry target, but it is *seeded*, at r = 0.948, so it is an
+> input to the balance as well as an output of it.
 
 ⚠️ **Sign trap, and it is BEA's, not ours.** The Use table stores `T00SUB` **positive** (0 of 402
 cells negative) while the Supply table stores `SUB` **negative** (15 of 15). So the producer-price

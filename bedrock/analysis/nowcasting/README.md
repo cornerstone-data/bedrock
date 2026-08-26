@@ -38,6 +38,10 @@ uv run python -m bedrock.analysis.nowcasting.compensation_movement_holdout --che
 # the shipped V00100 weight vector: vintage bridge, carve-out, coverage and
 # suppression guards. Not analysis -- this one feeds NIPA_VA_compensation_<year>
 uv run python -m bedrock.transform.nipa.compensation_movement --check
+
+# the shipped T00OTOP weight vector: the housing and farm blocks rescaled to
+# their published NIPA lines. Feeds NIPA_VA_othertax_<year>
+uv run python -m bedrock.transform.nipa.othertax_lookups --check
 # what can be sourced for manufacturing's input column (needs the
 # Census_EC_MatFuel, Census_EC_Expenses, Census_ASM_Expenses and
 # Census_AIES_Expenses FBAs)
