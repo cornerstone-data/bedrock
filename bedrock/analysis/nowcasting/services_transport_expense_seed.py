@@ -140,7 +140,10 @@ and that is the whole of what utilities' column does over this span.
 ⚠️ **The column's drift is real and now unaddressed**, not solved: theta is
 0.0 across this surge, so ``22`` is close to frozen.
 
-❌ **2023 loses on both, and is refused** (:data:`SURVEY_CHANGE_YEARS`).  It is
+✅ **2023 is built** (:data:`SURVEY_CHANGE_YEARS`) -- the refusal was reversed
+on 2026-08-25 once the dispersion was compared against a *rebenchmark* control
+rather than a within-vintage one.  ⚠️ The paragraph below is the withdrawn
+reasoning, kept because the -5.0%/-4.1% it cites is the discredited key.  It is
 AIES read against a SAS 2017 base, so it crosses the survey change on top of the
 sas-17/sas-22 rebenchmark: the SAS -> AIES level step is a median \|log\| of
 0.203 against 0.118 for a within-instrument year.  ⚠️ **The extractor and the
@@ -892,37 +895,52 @@ def _panel_for(year: int) -> pd.DataFrame:
     return expense_panel()
 
 
-#: ⚠️ **Years the seed refuses.**  2023 is AIES read against a SAS base, and
-#: ✅ **AIES does continue the collection** -- :data:`AIES_TO_SAS_ITEM` aligns
-#: the names, so the *correspondence* is not what fails.
+#: ⚠️ **Years that cross the survey change.**  ✅ **They are built, not
+#: refused** -- reversed 2026-08-25 (Wes), and the reversal is the point of the
+#: constant now.
 #:
-#: ❌ **What fails is the dispersion the index actually reads.**  A relative
-#: index divides out whatever is common to the industry, so a level step that
-#: hits every item alike costs nothing; only each item's deviation from its
-#: industry's own step survives into the seed.  Measured as the median
-#: \|log\| residual after removing the industry step:
+#: ❌ **The old reasoning was wrong twice.**  It cited -5.0%/-4.1% from
+#: :func:`services_transport_score`, which is scored against BEA's carry-forward
+#: summary (§The answer key) and is withdrawn; and it read the SAS -> AIES step's
+#: dispersion as instrument noise **against the wrong control**.
 #:
-#: =========================  ==========
-#: pair                        residual
-#: =========================  ==========
-#: 2016 -> 2017 (quiet)          0.035
-#: 2020 -> 2021 (surge)          0.046
-#: 2021 -> 2022 (surge)          0.043
-#: **2022 -> 2023 (SAS -> AIES)**  **0.164**
-#: =========================  ==========
+#: ✅ **A relative index divides out whatever is common to the industry**, so
+#: only each item's deviation from its industry's own step reaches the seed.
+#: Median \|log\| of that residual:
 #:
-#: ⚠️ **An eventful year is worth about +0.01; the instrument change is worth
-#: +0.12** -- 3.6x the dispersion of a genuine energy surge, so what crosses the
-#: seam is mostly instrument.  ✅ **This is key-independent**, unlike the
-#: -5.0%/-4.1% :func:`services_transport_score` figure that used to justify this
-#: constant: that was scored against BEA's carry-forward summary (§The answer
-#: key) and is withdrawn as evidence.  Pass ``allow_survey_change=True`` to
-#: build it anyway; nothing should ship it.
+#: ==========================================  ==========
+#: pair                                         residual
+#: ==========================================  ==========
+#: within vintage, 1yr, quiet (2016->17)          0.035
+#: within vintage, 1yr, surge (2021->22)          0.043
+#: within vintage, **4yr**, no seam (2013->17)    0.108
+#: **same instrument, CROSSES the EC rebenchmark (2017->20)**  **0.146**
+#: SAS -> AIES (2022->23)                         0.164
+#: ==========================================  ==========
+#:
+#: ✅ **0.164 is what crossing a benchmark looks like, not what a broken
+#: instrument looks like** -- a known rebenchmark inside the same instrument
+#: costs 0.146, so the instrument change itself adds about **0.018**.  The
+#: earlier "3.6x a surge year" compared against a within-vintage pair, which is
+#: the wrong control for a seam.
+#:
+#: ✅ **And the rebenchmark is information, not contamination** (Wes): AIES
+#: replaced SAS outright at data year **2023**, and a survey launched off the
+#: 2022 Economic Census resets levels *and composition* toward what that census
+#: revealed.  ❌ Refusing 2023 holds the mix on a 2017-benchmarked structure --
+#: the frozen-benchmark problem this step exists to fix, in miniature.
+#: ⚠️ **Census documentation has not been read to confirm the 2022-EC benchmark
+#: explicitly**; the timing and the dispersion signature are consistent with it.
+#:
+#: ⚠️ **What is genuinely lost**: the ~0.018 of item-specific movement that is
+#: instrument rather than economics, and AIES covers **466 item-industry pairs
+#: against 974** in the last SAS year.  Treat a 2023 movement as weaker evidence
+#: than a 2020-2022 one -- but weaker is not unusable.
 SURVEY_CHANGE_YEARS = AIES_OBSERVED_YEARS
 
 
 def services_transport_seed(
-    year: int, base_year: int = 2017, allow_survey_change: bool = False
+    year: int, base_year: int = 2017, allow_survey_change: bool = True
 ) -> pd.DataFrame:
     """The service seed: BEA's 2017 columns moved on the survey's relative index.
 
@@ -955,11 +973,11 @@ def services_transport_seed(
     """
     if year in SURVEY_CHANGE_YEARS and not allow_survey_change:
         raise ValueError(
-            f'{year} is observed only by AIES, and indexing it against a SAS '
-            f'{base_year} base crosses the survey change as well as the '
-            f'sas-17/sas-22 rebenchmark. services_transport_score() measures that at -5.0% '
-            f'dollar-weighted and -4.1% impact-weighted -- it makes the column '
-            f'worse. Pass allow_survey_change=True to build it anyway.'
+            f'{year} is observed by AIES rather than SAS, and indexing it '
+            f'against a {base_year} SAS base crosses the survey change. That is '
+            f'built by default now -- see SURVEY_CHANGE_YEARS -- because the '
+            f'step is a rebenchmark rather than a broken instrument. Pass '
+            f'allow_survey_change=True (the default) to build it.'
         )
     if year not in OBSERVED_YEARS:
         raise ValueError(
