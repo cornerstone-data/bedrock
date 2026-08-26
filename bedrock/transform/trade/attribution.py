@@ -33,11 +33,8 @@ def collapse_detail_supply_to_t007(fbs: FlowBySector, **_kwargs: Any) -> FlowByS
     ]
     agg = {c: 'first' for c in first_cols}
     agg['FlowAmount'] = 'sum'
-    out = (
-        raw.assign(SectorProducedBy=pd.NA)
-        .groupby('SectorConsumedBy', as_index=False)
-        .agg(agg)
-    )
+    # SectorProducedBy is dropped in the groupby (commodity margin only).
+    out = raw.groupby('SectorConsumedBy', as_index=False).agg(agg)
     return FlowBySector(
         out,
         full_name=fbs.full_name,
