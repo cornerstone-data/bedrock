@@ -2275,6 +2275,95 @@ all. It should be built first, and `Commodity_output_manufacturing_*` should sit
 on top of it rather than beside it.
 
 
+### The 2022 census mix, wired in — Supply block and commodity output, 2022-2024
+
+✅ **Done.** `Detail_Supply_2022/2023/2024` now attribute onto a detail mix that
+carries the 2022 Economic Census's own movement, rather than the frozen 2017
+benchmark. Since `T007` is the row margin of that block, the commodity output
+estimate moves with it — this is one change, not two.
+
+**How it is built.** `write_supply_mix_update.py` writes
+`census_pxi/supply_mix_2022.csv`, the published 2017 detail domestic-output
+block with the census ratio applied; `BEA_Detail_Supply_PxI` serves it as an
+FBA; the three method files name it as `attribution_source`.
+
+⚠️ **Chained, not substituted, and that is the whole design.** The built mix
+sees only the commodities the concordance maps and the published block sees
+everything, so their *levels* differ by a median `L1` of **0.064** in 2017 —
+that is the concordance, not an error. Substituting would import the offset
+wholesale; applying the census's own **ratio** cancels whatever part of it is
+stable across the two vintages. Same reasoning that made chaining the fair form
+in `annual_mix_test.py`.
+
+⚠️ **Column totals are preserved, so the change is confined to the mix.** The
+block is consumed as attribution shares — `Detail_Supply` splits each summary
+cell proportionally — so only relative weights matter. Renormalising each column
+to its published total keeps the summary control exactly where it was: the
+rebuilt 2022, 2023 and 2024 tables come out to **+0.000000%** on the grand
+total, with the same row count as before.
+
+#### Two guards, both of which changed the answer
+
+⚠️ **1. A ratio may only move a cell the census agrees is there** — within a
+factor of three of the published share. Without it, `339950` sign manufacturing
+was the worst case: the census sees advertising services at **0.4%** of the
+industry and the published block puts it at **19.5%**, so the census's ratio of
+3.3 took one cell to half the column. Neither source supports that number. 33
+cells are held this way.
+
+⚠️ **2. Wholesale and retail are excluded outright.** `Census_EC_PxI.yaml`
+already records why: the 2017-built concordance covers 94.4% of 2017 trade goods
+value but only **70.5%** of 2022, against **98.6%** for services. `423100` motor
+vehicle wholesale is the casualty — its census own-commodity share falls from
+40.6% to 9.0% across the vintages, which would have cut its commodity output by
+**14.7%** and handed the difference to automotive repair. That is a recode, not
+a change in what a car dealer sells. 9 columns skipped.
+
+Boundary and absent industries hold as `pxi_mix_test.adopted_mix` defines them.
+
+#### What actually moved
+
+35 columns of 178 take the new mix; 89 hold because their mapped support is a
+single commodity, 25 because the industry is absent from the 2022 census, 20 on
+a moved NAICS boundary, 9 on the trade guard. 52 cells take an explicit ratio,
+and 1,735 cells of the rebuilt table change value once the columns renormalise.
+
+Eleven commodities' output moves by more than 1%, on the rebuilt 2022 table:
+
+| commodity | change | 2022 output |
+|---|---:|---|
+| `812300` drycleaning and laundry | −3.84% | 35 → 34bn |
+| `541512` computer systems design | −3.15% | 278 → 270bn |
+| `541610` management consulting | −2.53% | 300 → 292bn |
+| `332710` machine shops | +2.38% | 47 → 48bn |
+| `541511` custom programming | +2.34% | 372 → 381bn |
+| `811400` household goods repair | +1.80% | 69 → 70bn |
+| `519130` internet publishing | −1.79% | 112 → 110bn |
+| `5191A0` other information services | −1.42% | 18 → 17bn |
+
+2023 and 2024 move by the same percentages, as they must — the mix is one block
+and only the summary control differs between the years.
+
+⚠️ **`519130` and `5191A0` are held columns and still move.** `T007` is a row
+margin across every industry, so a commodity's output changes when *other*
+industries' columns are re-divided. Holding an industry's mix does not hold its
+commodities' output.
+
+⚠️ **There is no answer key for 2022 and this is not graded.** Adoption is a
+decision — the census is newer data measured on the years being estimated — and
+the guards decide *which columns* may take it, never whether to. What is
+measured is that the census says the mix moved a median `L1` of 0.0091 against
+BEA's published 0.0010 on a common commodity support, and that no annual survey
+can improve on holding the mix between censuses (above).
+
+⚠️ **A pre-existing warning is not new.** The rebuild logs `Could not attribute
+activities in BEA_Summary_Supply due to lack of flows in attribution source` for
+a long list of summary cells whose 2017 detail children are all zero. Checked
+against `Detail_Supply_2021`, which is untouched and still on
+`BEA_Detail_Supply`: it logs the same warning. Row counts before and after the
+switch are identical (5,066 / 5,064 / 5,061), which is the direct evidence that
+no cell was lost.
+
 ### Can an annual survey move the mix between censuses? — no, and it is measured
 
 Step 4a now builds the mix from the Economic Census in **2017 and 2022**
