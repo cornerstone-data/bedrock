@@ -97,7 +97,6 @@ def _classify_census_activity(
     *,
     naics_2017: set[str],
     legacy: dict[str, str],
-    mapped: set[str],
 ) -> str:
     if activity in _CENSUS_SPECIAL:
         return "census_special"
