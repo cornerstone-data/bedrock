@@ -7,7 +7,9 @@ Cornerstone mapping (not the CEDA v7 version).
 
 from __future__ import annotations
 
+import functools
 import typing as ta
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -24,9 +26,63 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
 )
 from bedrock.utils.math.formulas import compute_total_industry_inputs
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_MUT_YEARS
-from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+from bedrock.utils.taxonomy.bea_v2017_to_cornerstone_helpers import (
     load_bea_v2017_summary_to_cornerstone,
 )
+
+
+@dataclass(frozen=True)
+class SummaryYearScaledAq:
+    """Domestic A/q after summary IO year ratios and the 0.98 column-sum cap.
+
+    Captured before electricity children are rescaled to detail GO growth.
+    """
+
+    Adom: pd.DataFrame
+    q: pd.Series
+
+
+_SUMMARY_YEAR_SCALED_A: dict[tuple[int, int], pd.DataFrame] = {}
+_SUMMARY_YEAR_SCALED_Q: dict[tuple[int, int], pd.Series] = {}
+
+
+def clear_summary_year_scaled_aq() -> None:
+    """Wipe the summary-year-scale intercept store (not only ``@cache``)."""
+    _SUMMARY_YEAR_SCALED_A.clear()
+    _SUMMARY_YEAR_SCALED_Q.clear()
+    get_summary_year_scaled_aq.cache_clear()
+
+
+def _store_summary_year_scaled_a(
+    original_year: int, target_year: int, a: pd.DataFrame
+) -> None:
+    _SUMMARY_YEAR_SCALED_A[(int(original_year), int(target_year))] = a.copy()
+
+
+def _store_summary_year_scaled_q(
+    original_year: int, target_year: int, q: pd.Series
+) -> None:
+    _SUMMARY_YEAR_SCALED_Q[(int(original_year), int(target_year))] = q.copy()
+
+
+@functools.cache
+def get_summary_year_scaled_aq(
+    original_year: int, target_year: int
+) -> SummaryYearScaledAq:
+    """Return intercepted summary-year-scaled Adom/q. Does not re-invoke scale."""
+    key = (int(original_year), int(target_year))
+    if key not in _SUMMARY_YEAR_SCALED_A:
+        raise RuntimeError(
+            'summary-year-scaled Adom intercept missing; '
+            'scale_cornerstone_A(dom) must run first'
+        )
+    if key not in _SUMMARY_YEAR_SCALED_Q:
+        raise RuntimeError(
+            'summary-year-scaled q intercept missing; scale_cornerstone_q must run first'
+        )
+    return SummaryYearScaledAq(
+        Adom=_SUMMARY_YEAR_SCALED_A[key], q=_SUMMARY_YEAR_SCALED_Q[key]
+    )
 
 
 def _get_summary_A(
@@ -139,6 +195,9 @@ def scale_cornerstone_A(
         electricity_disaggregation_enabled,
     )
 
+    if electricity_disaggregation_enabled() and dom_or_imp_or_total == 'dom':
+        _store_summary_year_scaled_a(original_year, target_year, A_scaled)
+
     if electricity_disaggregation_enabled():
         from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
             rescale_electricity_children_to_detail_GO_growth_A,
@@ -185,6 +244,7 @@ def scale_cornerstone_q(
             rescale_electricity_children_to_detail_GO_growth_q,
         )
 
+        _store_summary_year_scaled_q(original_year, target_year, q_scaled)
         q_scaled = rescale_electricity_children_to_detail_GO_growth_q(
             q_scaled, original_year, target_year
         )

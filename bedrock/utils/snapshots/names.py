@@ -11,6 +11,7 @@ SnapshotName = ta.Literal[
     "exports_USA",
     "ydom_USA",
     "yimp_USA",
+    "Phi",
 ]
 
 SNAPSHOT_NAMES: ta.List[SnapshotName] = list[SnapshotName](ta.get_args(SnapshotName))
