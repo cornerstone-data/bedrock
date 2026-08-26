@@ -638,7 +638,29 @@ are 1B because they are not domestic; inventories are 1C.
   two rows from 2020 — `LA001282` "Data centers" and `LA001283` "General, financial, and other",
   BEA's new split of line 4 "Office" — and they are harmless here *only* because `FD_Structures2`
   selects by **name**, so the new children are ignored and the parent still carries the full total. A
-  set selecting that table by line range would double count from 2020 on.
+  set selecting that table by line range would double count from 2020 on. Guarded with a comment on
+  the set itself, since the trap is invisible from the line list.
+- ⚠️ **Data centres are not in the structures crosswalk, and should not be added.** The two new lines
+  partition line 4 exactly — zero residual, every year 2020–2024 — and BEA Detail has **no
+  data-centre commodity**, so both belong to `2332A0` *Office and commercial structures*, which is
+  where their parent already goes. Crosswalking them buys nothing in commodity space and adding them
+  to `FD_Structures2` would double count the whole of Office.
+  ⚠️ **But the split itself is a real finding and is measured**: data centres run 10.0% → 11.2% →
+  13.3% → 19.8% → **31.0%** of office structures from 2020 to 2024, while "General, financial, and
+  other" *falls* in absolute terms, 83.3bn to 69.4bn. A third of a commodity is now a different kind
+  of building. It cannot reach `F02S00`, because it is a composition shift *inside* one commodity —
+  it reaches the **intermediate block**, where a data centre and an office build very differently and
+  the finished buildings draw very different power. Step 3's concern, not Step 1's.
+- ✅ **`derive_initial_Y_pur` returns a full 402-row `Y` in every year** (#621). The reindex onto
+  `USA_2017_COMMODITY_CODES` and the `S00900` guard sat inside the `if year == 2017:` branch, so later
+  years came back with only the commodities the groupby happened to produce — 2018 was **(321, 19)**
+  against 2017's (402, 19). The 81 absent commodities are exactly the 81 that come back **zero**
+  across all seventeen NIPA columns in 2017: they receive no final domestic use at all. Zero and
+  absent are the same fact, but only one of them survives a join. Hoisted; 2017 is unchanged to the
+  cent and 2018–2024 are now (402, 19).
+  ⚠️ `F03000` and `F04000` remain **all-zero for 2018–2024** — 1B and 1C are built for 2017 only, as
+  is the `S00900`/`F04000` rest-of-world identity. An annual `Y` is the 17 NIPA domestic columns and
+  two placeholders until those go annual.
 - ❌ Review all activity mappings; port the common yaml (#495).
 
 **1B — Trade** (#526, #528). ⏳ `F04000` exports plus the Supply-side import columns from one

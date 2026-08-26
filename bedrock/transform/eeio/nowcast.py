@@ -332,6 +332,16 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     y.index.name = 'commodity'
     y.columns.name = 'final_demand_code'
 
+    # Every year is padded onto the full BEA detail commodity list, not just the
+    # benchmark. A commodity absent from the groupby is one that receives no
+    # final domestic use at all - in 2017 that is 81 of the 402, and they are
+    # the same 81 that come back zero across all seventeen NIPA columns. Zero
+    # and absent are the same fact here, but only one of them survives a join,
+    # so the reindex has to happen before the frame is handed out (#621).
+    y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
+    if 'S00900' not in y.index:
+        y.loc['S00900'] = 0.0
+
     if year == 2017:
         exports = _trade_fbs_commodity_vector(
             f'Trade_Exports_{year}', download_sources_ok
@@ -339,11 +349,8 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
         inventories = _inventories_fbs_commodity_vector(
             f'Inventories_{year}', download_sources_ok
         )
-        y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
         y['F04000'] = exports.reindex(y.index).fillna(0.0)
         y['F03000'] = inventories.reindex(y.index).fillna(0.0)
-        if 'S00900' not in y.index:
-            y.loc['S00900'] = 0.0
         pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
         y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
 
