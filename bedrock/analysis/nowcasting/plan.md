@@ -650,7 +650,9 @@ are 1B because they are not domestic; inventories are 1C.
   other" *falls* in absolute terms, 83.3bn to 69.4bn. A third of a commodity is now a different kind
   of building. It cannot reach `F02S00`, because it is a composition shift *inside* one commodity —
   it reaches the **intermediate block**, where a data centre and an office build very differently and
-  the finished buildings draw very different power. Step 3's concern, not Step 1's.
+  the finished buildings draw very different power. **Out of scope for Phase 1 — recorded, not
+  scheduled, and deliberately not filed as an issue** (Wes, 2026-08-26). It is a Step 3 concern
+  whenever Step 3 next moves, and the numbers above are the whole of what is known.
 - ✅ **`derive_initial_Y_pur` returns a full 402-row `Y` in every year** (#621). The reindex onto
   `USA_2017_COMMODITY_CODES` and the `S00900` guard sat inside the `if year == 2017:` branch, so later
   years came back with only the commodities the groupby happened to produce — 2018 was **(321, 19)**
