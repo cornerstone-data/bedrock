@@ -2094,14 +2094,58 @@ if the seed misbehaves in a year when prices and volumes part company.
 benchmark at both ends and EIA 923 coverage — the form starts in **2008**, so
 the 2007 benchmark cannot serve as a second base.
 
-### What it does not reach
+### ❌ `221200` gas distribution — tested on form 176, and rejected
 
-❌ **`221200` gas distribution ($24.0B, drift 0.204) and `221300` water ($5.4B)
-stay held**, and not for want of data: BEA books gas bought for resale **net**,
-so `ecnpurgas`'s $51.4B of resale purchases faces a `221200` own-row cell of
-**$1M**. ⚠️ Same reason the purchased-power leg indexes a *net* concept on a
-*gross* one — $9.5B of own-row electricity against $100.7B bought for resale.
-It adds 3.5 points and is kept with that stated.
+EIA form 176 is what C1 names for gas, and it was pulled and scored on the one
+column it could move. **Three reasons it cannot carry it, any one sufficient:**
+
+**1. The only index that wins is a form change.** Every candidate 176 offers,
+scored on `221200`:
+
+| index | EIA says | BEA observed | dollar | `N` | continuous across 2014? |
+|---|---:|---:|---:|---:|---|
+| citygate receipts, sales customers | 0.553 | 0.290 | **+31.7%** | **+29.0%** | ❌ **no** |
+| merchant sales volume | 1.040 | 0.290 | −2.3% | −2.0% | ✅ yes |
+| merchant sales revenue | 1.086 | 0.290 | −4.9% | −4.2% | ✅ yes |
+| implied price per mcf | 1.045 | 0.290 | −2.6% | −2.2% | ✅ yes |
+
+⚠️ **The winner falls 45% because EIA split the line in 2014**, when
+`citygate_receipts_transportation_customers` first appears. The tell is
+receipts over merchant sales volume: **1.24, 1.55, 1.42 through 2013, then 0.86,
+0.85, 0.82, 0.82 … for eleven straight years.** A step, not a trend. ✅ **The
+merchant function itself is flat** — 6,959 → 7,237 bcf and $57.0B → $62.0B —
+and every concept continuous across the break **loses**. ⚠️ **Respondent counts
+run smooth across 2014** (2,007 → 2,025 → 2,027), which rules out a universe
+change and leaves the form's own line split.
+
+**2. Form 176 is not a survey of the utilities sector** (Wes). Its ~2,000
+respondents are interstate and intrastate **pipelines**, storage and LNG
+operators and direct-delivery **producers** as well as distribution utilities,
+each filing **one report per state**:
+
+| where 176's volume goes, 2017 | bcf | share |
+|---|---:|---:|
+| to other pipelines / out of state / to distribution companies | 113,699 | **77.9%** |
+| delivered to consumers — the only part `221200` describes | 25,168 | 17.2% |
+| producer lease use — `211000` | 101 | 0.1% |
+
+⚠️ **And the volumes are not additive**: total disposition is about **5.7×** US
+gas consumption, the same molecule counted at each step of the chain. An index
+built on the national sum mixes `486000`, `221200` and `211000` and double
+counts the lot.
+
+**3. The concept BEA carries is net anyway** — `ecnpurgas`'s $51.4B of gas
+bought for resale against a `221200` own-row cell of **$1M**. ⚠️ Same reason the
+purchased-power leg indexes a *net* concept on a *gross* one; it adds 3.5
+points and is kept with that stated.
+
+✅ **The general lesson, and it is the mirror of the trade regrade.** There a
+wrong answer key made a sound source look useless; here a **vintage break in
+the source** makes a useless index look excellent. **A holdout gain is only as
+good as the source's continuity across the span** — plot the series through the
+break years before believing one.
+
+❌ **`221300` water ($5.4B) has no EIA source at all.**
 
 ### What EIA says about the years the seed is wanted for
 
@@ -2209,7 +2253,7 @@ feeling, because it is the backlog:
 | `44RT` retail | 9 | 668 | ❌ BES regraded on the holdout: no signal on `N` | — |
 | `11` agriculture | 13 | 272 | ✅ **seed validated on the holdout, +17.9%** | #577 |
 | `PROF` | 1 | 198 | no prefix match in either survey | — |
-| `22` utilities | 3 | 160 | ✅ **EIA seed validated on the holdout, +16.0%** (electric only; `221200`/`221300` still held) | #719 |
+| `22` utilities | 3 | 160 | ✅ **EIA 923 seed validated, +16.0%** (electric only; `221200` rejected on form 176, `221300` unsourced) | #719 |
 | `48TW` | 2 | 108 | no prefix match | — |
 
 ### The route back: rebenchmark at 2022, then interpolate
@@ -2716,8 +2760,8 @@ available as an explanation.
 score **+18.9% on dollars and +16.0% on `N`** on the holdout, with **all three
 electric columns winning on both weightings**
 ([`utilities_expense_seed.py`](utilities_expense_seed.py)). ⚠️ **`221200` gas
-distribution and `221300` stay held** — BEA books gas-for-resale net, so there
-is no cell for what EIA measures. ⚠️ **Nothing is wired in yet.**
+distribution and `221300` stay held** — form 176 was tested on `221200` and
+rejected three ways over. ⚠️ **Nothing is wired in yet.**
 
 Not in this step: `S00300` (#606, shared with Step 1), the margins redistribution
 (Step 6b, #697), the government-enterprise reallocation (Step 7), and the balance
