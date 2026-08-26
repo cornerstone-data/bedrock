@@ -616,8 +616,30 @@ are 1B because they are not domestic; inventories are 1C.
 - ✅ **Structures lines map to their own commodity** (#576) — the crosswalk had expanded ten lines
   into an 11- or 4-sector catch-all, putting $142B on the wrong commodity inside `F02R00` while the
   column total stayed right.
-- ❌ Review all activity mappings; 2018–2024 have no PCE activity sets (#621); port the common yaml
-  (#495).
+- ✅ **1A is annual, 2017–2024** (#621). The seven later yamls were an earlier generation of the
+  method — 352 lines against 2017's 636, with no PCE, no equipment and no
+  `assign_sector_consumed_by_from_clean_parameter` — so `NIPA_final_dom_uses_2018` returned 314 rows
+  and $4.6T against 2017's $20.1T. All seven are now the 2017 file with its `year:` changed and
+  nothing else, and all eight years produce the identical shape: 1,171 rows, 321 commodities, 17
+  columns, 27 negatives. Totals run $20.12T (2017) → $21.19 → $22.05 → $22.02 (the COVID dip) →
+  $24.55 → $26.81 → $28.55 → $30.14T. **All 17 columns reconcile to their published NIPA aggregate to
+  rounding, in every year** — PCE to `U20405` line 1, equipment to `U50505` line 2, IP to `T50605`
+  line 1, the twelve government columns to their `T30905` lines, and the two structures columns to
+  `U50405` lines 2 and 39. The one carried gap is unchanged and deliberate: `U50405` line 48
+  (residential net purchases of used structures) is in no activity_set, per the #635 guard. It is
+  worth 1,365 in 2017 and −1,171 in 2024, so **the sign flips** — the column is *below* published
+  early and *above* it late.
+- ⚠️ **The attribution weights stay pinned to 2017 in every year, by design.** The PCE and PEQ bridge
+  workbooks and the detail Use SUT are benchmark-year publications; they supply each NIPA line's
+  commodity *split*, while the *level* comes from that year's own NIPA table. So the later years carry
+  the 2017 commodity mix within each line. Same question Step 4a faces on the Supply side.
+- ✅ **The `Line:` selectors were checked against every vintage, not assumed.** `U20405` (400 rows),
+  `U50505` (46) and `T30905` (40) are line-for-line identical 2017→2024 on series code. `U50405` gains
+  two rows from 2020 — `LA001282` "Data centers" and `LA001283` "General, financial, and other",
+  BEA's new split of line 4 "Office" — and they are harmless here *only* because `FD_Structures2`
+  selects by **name**, so the new children are ignored and the parent still carries the full total. A
+  set selecting that table by line range would double count from 2020 on.
+- ❌ Review all activity mappings; port the common yaml (#495).
 
 **1B — Trade** (#526, #528). ⏳ `F04000` exports plus the Supply-side import columns from one
 extraction — Census FAS goods + `BEA_IEA` `TypeOfService` leaves, mapped to BEA Detail, with
