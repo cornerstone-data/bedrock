@@ -201,12 +201,79 @@ error moves their gross surplus by more than 10%:
 so a residual that manufactures new negatives is visibly wrong, and a sign census
 over these 22 is the cheap guard. Nothing here may clip: `S00201` is BEA's number.
 
+### ✅ Graded 2026-08-26 — QCEW is a **GO**, with one carve-out
+
+Run: [`compensation_movement_holdout.py`](compensation_movement_holdout.py)
+`--check`. This is the test the plan could never run. Two things unblocked it:
+`SUPPLY-USE_2026-08-24.zip` carries `V00100` at BEA detail for 2007/2012/2017 on
+one 2017 code basis (#704), and QCEW 2012 now exists (#728).
+
+Scored the way #704 requires — **on the observed 2012 → 2017 span, never against
+BEA's carried-forward 2018-2024** — as the share of a group's compensation
+dollars sitting on the wrong detail industry, with the group total given to every
+candidate so this measures the *shape* and not the level:
+
+| candidate | misplaced $M | % of scored | vs frozen |
+|---|---:|---:|---:|
+| `frozen` — 2012 shares held, what the model does today | 487,348 | 5.84% | — |
+| `qcew` — the plan as written, applied everywhere | 517,328 | 6.20% | **+6.2%** |
+| `qcew_covered` — trust QCEW where its payroll covers the group | 462,044 | 5.54% | −5.2% |
+| **`qcew_resolvable`** — QCEW except where the concordance cannot express the split | **438,534** | **5.26%** | **−10.0%** |
+
+❌ **Applied everywhere, QCEW makes the block worse.** ✅ **Applied where the
+concordance can resolve it, it is a clear go.**
+
+⚠️ **The damage is essentially one group.** `GSLG` state and local general
+government goes from 4,748 misplaced under frozen shares to **71,694** under
+QCEW — on its own more than twice the entire net degradation. Construction adds
+−11,446.
+
+✅ **The carve-out is derived, not fitted.** The crosswalk puts 47 NAICS codes
+under more than one BEA detail industry — 23 construction, 24 government — and
+they reach 18 detail industries sitting in exactly five summary groups: **`23`,
+`GFE`, `GFGN`, `GSLE`, `GSLG`**. So the rule is *"carve out the groups the
+concordance cannot resolve"*, decidable before any score is computed. It is the
+same carve-out Phase 4 argued for on structural grounds — now measured. BEA
+splits construction by **type of structure** and NAICS by **trade**, so a
+plumbing contractor's payroll belongs to no single BEA construction industry;
+government splits federal/state/local and general/enterprise, which QCEW's
+ownership flag does not reach.
+
+❌ **The coverage ratio is rejected as the selector.** Trusting QCEW where its
+payroll covers ≥75% of the group's compensation scores −5.2%, which looks like a
+win until the floor moves: **−9.7% at 0.70, −5.2% at 0.75, −3.5% at 0.80, +0.0%
+at 0.90**. A selector *non-monotonic in its own threshold* is not measuring what
+it claims to — between 0.70 and 0.75 it drops the five groups where QCEW helps
+most (insurance, other professional services, broadcasting), because their
+compensation includes a great deal no payroll series covers. **Coverage and
+predictive value are different quantities.**
+
+⚠️ **Two vintage traps had to be cleared, and each faked a verdict.**
+
+1. **NAICS 2012 against NAICS 2017.** QCEW 2012 is on the 2012 vintage and the
+   crosswalk is 2017: 28 codes exist in 2012 and not 2017, 20 the other way.
+   `541700` came out at **20.9x** growth and `454000` at 5.2x — pure
+   renumbering. Unfiltered, raw QCEW scored **+92%**. Restricting both years to
+   the intersection of published codes fixes it and costs 3.9% of 2017 payroll.
+   This is the same failure mode the EIA 176 route was rejected for.
+2. **The ambiguous concordance**, above — which would not have raised, it would
+   have produced an even split and called it an answer, exactly as #536 warned.
+
+⚠️ **Neither trap is visible in a total.** Both were found only by looking at the
+growth distribution and at the crosswalk's own multiplicity.
+
+⚠️ **QCEW reaches 379 of 402 industries.** The other 23 keep their group's
+growth, which is the frozen share — never a zero, which would delete the
+industry.
+
 ### ▶️ What this makes the build
 
 1. **A new hard target pinning `VAPRO_d`** in `nowcast_targets.py`, beside T1.
    This is the load-bearing change and it does not exist yet.
-2. `V00100` for 2018–2024 — the QCEW movement series, as planned below, on
-   `T60200D`'s 69 controls. Needs the `FBS_outside_flowsa` blocker cleared.
+2. `V00100` for 2018–2024 — the QCEW movement series on `T60200D`'s 69
+   controls, **with the five unresolvable groups carved out** (graded above:
+   −10.0%). Needs the `FBS_outside_flowsa` blocker cleared, and the NAICS-vintage
+   filter applied per year, not just for 2012.
 3. `T00OTOP` for 2018–2024 — level from `T30500`, concentrated frozen shares.
 4. `V00300` becomes the **residual**, not an estimate. The eight-line NIPA
    assembly stays built, demoted from input to plausibility check.
