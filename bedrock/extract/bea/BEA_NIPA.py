@@ -24,6 +24,27 @@ FLAT_FILES_ZIP = 'FlatFiles.ZIP'
 #: Table 7.2.5U. Motor Vehicle Output - the car/truck split, published annually.
 MOTOR_VEHICLE_TABLE = 'U70205'
 
+#: What a series' ``MetricName`` means for ``Class`` and ``Unit``.  BEA states
+#: this per series in ``SeriesRegister.txt``, so it is read rather than assumed.
+#: ``'p'`` for a person count is the unit ``BLS_QCEW`` already uses and the one
+#: ``unit_conversion.csv`` standardizes to.
+#:
+#: Only ``Current Dollars`` is ``Class: Money``.  Chained dollars are real
+#: rather than nominal, so a method selecting ``Class: Money`` must not sweep
+#: them up and add them to current-dollar flows; ``Other`` keeps them visible
+#: but out of the way.  A ``Ratio`` series' meaning is table-specific (in 6.6D
+#: it is dollars per full-time-equivalent employee), so it gets no more
+#: specific a unit here than BEA gives it.
+#:
+#: Adding a table whose series carry a metric absent from this map raises in
+#: :func:`bea_nipa_parse` rather than defaulting to dollars.
+_METRIC_TO_FLOW: dict[str, dict[str, str]] = {
+    'Current Dollars': {'Class': 'Money', 'Unit': 'USD'},
+    'Chained Dollars': {'Class': 'Other', 'Unit': 'USD_chained'},
+    'Persons': {'Class': 'Employment', 'Unit': 'p'},
+    'Ratio': {'Class': 'Other', 'Unit': 'Ratio'},
+}
+
 
 def flat_files_local_path(source: str = 'BEA_NIPA') -> str:
     """Where the flat-file archive is cached: ``extract/input_data/BEA_NIPA/``."""
@@ -102,7 +123,7 @@ def bea_nipa_parse(
             tables = df
         elif 'Value' in df:
             data = df
-            data['Value'] = data['Value'].str.replace(',', '').astype(float) * 1000000
+            data['Value'] = data['Value'].str.replace(',', '').astype(float)
         elif 'SeriesLabel' in df:
             series = df
 
@@ -114,9 +135,14 @@ def bea_nipa_parse(
         series1['Table_and_Line'] = series1['Table_and_Line'].str.split('|')
         # Explode the lists into separate rows
         df = series1.explode('Table_and_Line')
-        df = df.query('Table_and_Line.str.contains(@table)').reset_index(drop=True)
         df['TableId'] = df['Table_and_Line'].str.split(':', expand=True)[0]
         df['Line'] = df['Table_and_Line'].str.split(':', expand=True)[1].astype('int')
+        # Match the table id exactly. This used to be a second `str.contains`,
+        # which let a table whose id merely *contains* the requested one through
+        # under its own TableId: asking for U70205 also returned U70205S's 44
+        # series - physical quantities and a price index - which then rode the
+        # dollar path. Nothing downstream selected them, so it never showed.
+        df = df[df['TableId'] == table].reset_index(drop=True)
         df = df.drop(columns=['Table_and_Line'])
         df = df.merge(tables, on='TableId', how='left', validate='m:1')
         return df.reset_index(drop=True)
@@ -137,6 +163,30 @@ def bea_nipa_parse(
     df = pd.concat(
         [generate_data_table(c) for c in config['tables']], ignore_index=True
     )
+
+    # Scale and unit come from SeriesRegister rather than being assumed. This
+    # used to be a flat `* 1000000` with Class/Unit hardcoded to Money/USD,
+    # which is right only as long as every declared table is in millions of
+    # dollars. It stopped being true when the value-added block brought in
+    # 6.4D/6.5D (thousands of *persons*) and 6.6D (a dollars-per-worker ratio):
+    # those would have been published as USD, at a million times their value.
+    #
+    # For every dollar table BEA publishes DefaultScale = -6, so this
+    # reproduces the old behaviour exactly for everything declared before.
+    scale = 10.0 ** (-df['DefaultScale'].astype(float))
+    df['Value'] = df['Value'] * scale
+    metric = df['MetricName'].map(_METRIC_TO_FLOW)
+    unrecognized = sorted(set(df.loc[metric.isna(), 'MetricName'].dropna()))
+    if unrecognized:
+        raise ValueError(
+            f'BEA_NIPA MetricName(s) with no Class/Unit mapping: {unrecognized}. '
+            f'Add them to _METRIC_TO_FLOW rather than letting them default to '
+            f'dollars.'
+        )
+    df['Class'] = [m['Class'] for m in metric]
+    df['Unit'] = [m['Unit'] for m in metric]
+    df['FlowName'] = df['Unit']
+
     df = df.drop(
         columns=['SeriesCodeParents', 'DefaultScale', 'CalculationType', 'MetricName']
     )
@@ -172,16 +222,14 @@ def bea_nipa_parse(
         )
     )
 
-    # columns relevant to all BEA data
+    # columns relevant to all BEA data. Class, Unit and FlowName are set above,
+    # from the series' own MetricName.
     df['SourceName'] = source
-    df['FlowName'] = 'USD'
     df['ActivityConsumedBy'] = ''  # set something here?
     df['Compartment'] = ''  # set something here?
-    df['Class'] = 'Money'
     df['FlowType'] = 'TECHNOSPHERE_FLOW'
     df['Location'] = US_FIPS
     df = assign_fips_location_system(df, 2024)
-    df['Unit'] = 'USD'
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 5  # tmp
 

@@ -10,6 +10,14 @@ from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_buck
 
 # NOTE: this is the data version used by the BEA Data Archive (https://apps.bea.gov/histdatacore/histChildLevels.html?HMI=8&oldDiv=Industry%20Accounts)
 # where "YEAR, Q2" is the major release every year that includes annual update of the Detail tables
+#
+# ⚠️ The workbooks this module reads are BEA's UGdpByInd/GdpByInd release
+# archives, manually extracted and uploaded to GCS at the pinned vintage above.
+# BEA_GDPbyIndustry (added in #538) fetches the sibling GDPbyInd.zip straight
+# from BEA instead, so GrossOutput.xlsx is duplicated across the two sources.
+# Consolidating them into one industry-accounts source is filed as #694; the
+# thing that must survive it is this pin, since the two archives are currently
+# different vintages.
 BEA_DATA_VERSION = "2025Q2"
 SECTOR_NAME_COL = "sector_name"
 

@@ -21,20 +21,6 @@ through its margins and a severity summary instead -- see below.
 Sections defined here
 -------------------------
 
-============================== ==============================================
-``use_fd_detail_sut``          Step 1.  ``derive_initial_Y_pur`` against the
-                               Use table's final-demand columns.  Both sides
-                               purchaser price.  Runnable today.
-``use_va_detail_sut``          Step 2.  The Use table's value-added rows.
-                               Declared, not yet runnable -- see below.
-``supply_output_detail_sut``   Step 4a.  The Supply table's **interior** --
-                               the domestic output block, commodity x
-                               industry, basic value.  Runnable.
-``supply_bridge_detail_sut``   Step 4.  The Supply table's right-hand block --
-                               imports, margins, taxes and the subtotals
-                               bridging basic to purchaser value.  Runnable;
-                               candidate fills MCIF only.
-============================== ==============================================
 
 Those four are the whole of what a published 2017 detail reference supports
 outside the Use interior, which has no candidate at all until the RAS runs.
@@ -63,15 +49,15 @@ of settled argument here as anywhere else.
 A section can be declared before its candidate exists
 -----------------------------------------------------
 
-Step 2 has not been built, so ``use_va_detail_sut`` carries
-``candidate=None``.  What it *does* carry is the reference loader, the exact
-row and column frame, and the tolerance -- the three things that are arguments
-about the economics rather than about the code, and that are therefore worth
-settling before the build rather than after it.  Turning the section on is one
-line when Step 2 lands: point :attr:`Section.candidate` at its output.
+``use_va_detail_sut`` was declared this way and is now switched on: it carried
+the reference loader, the row and column frame and the tolerance -- the three
+things that are arguments about the economics rather than about the code -- for
+as long as Step 2 had no output, and turning it on was the one line the note
+promised (#538).
 
 :attr:`Section.runnable` reports which sections have a candidate, so the
-renderer and the tests skip the rest rather than failing on them.
+renderer and the tests skip the rest rather than failing on them.  No section
+carries ``candidate=None`` at the moment.
 
 Tolerances
 ----------
@@ -366,6 +352,19 @@ def detail_supply_output_candidate(year: int) -> pd.DataFrame:
         .fillna(0.0)
     )
 
+def initial_value_added_candidate(year: int) -> pd.DataFrame:
+    """Our Step 2 value-added block, value-added code x industry, in USD.
+
+    Runs ``derive_initial_value_added``, which stacks the three
+    ``NIPA_VA_*_2017`` methods. 2017 only -- the later-year files wait on the
+    compensation movement series.
+    """
+    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        derive_initial_value_added,
+    )
+
+    return derive_initial_value_added(year)
+
 
 def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
     """Our Step 4 supply-bridge block, commodity x bridge code, in USD.
@@ -455,11 +454,12 @@ USE_VA_DETAIL_SUT = Section(
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
     row_names=SUT_VALUE_ADDED_DESC,
     reference=use_sut_value_added_reference,
-    candidate=None,
+    candidate=initial_value_added_candidate,
     note=(
-        'Step 2 has not been built, so there is no candidate to compare yet. The '
-        'reference, the row/column frame and the bar are settled here so that '
-        'Step 2 only has to point Section.candidate at its output.'
+        'Candidate is a live run of derive_initial_value_added: the three '
+        'NIPA_VA_*_2017 methods stacked. All hold their within-group shares at '
+        'the 2017 benchmark, so a 2017 run tests the plumbing, not the '
+        'movement series - near-exact is the floor, not an achievement.'
     ),
 )
 

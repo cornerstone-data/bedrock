@@ -22,6 +22,12 @@ uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 # what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
 uv run python -m bedrock.analysis.nowcasting.row_control_exposure
 
+# how T00OTOP should be allocated to detail industries (Step 2)
+uv run python -m bedrock.analysis.nowcasting.other_taxes_allocation --check
+
+# what industry axis V00100 and V00300 have in NIPA (Step 2)
+uv run python -m bedrock.analysis.nowcasting.compensation_allocation --check
+
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir <report images dir> --no-report
@@ -53,7 +59,7 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   | section | step | shape | candidate |
   |---|---|---|---|
   | `use_fd_detail_sut` | 1 — Use final-demand columns | 402 × 19 | exported CSV |
-  | `use_va_detail_sut` | 2 — Use value-added rows | 3 × 402 | none yet |
+  | `use_va_detail_sut` | 2 — Use value-added rows | 3 × 402 | `derive_initial_value_added` (all three rows, 2017) |
   | `supply_bridge_detail_sut` | 4 — Supply imports, margins, taxes and the basic→purchaser subtotals | 402 × 12 | `derive_initial_supply_bridge` (MCIF) |
 
   Those three are the whole of what a published 2017 detail reference supports
@@ -90,6 +96,48 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
   `MADJ` / `MDTY` for imports — plus the options writeup behind the source
   decision.
+- `tax_axis_conversion.py` — whether the Use table's `T00TOP`/`T00SUB` rows can
+  be converted from the Supply table's commodity-side `TOP`/`SUB`/`MDTY` by the
+  benchmark market-share matrix. They cannot: correlation 0.202 on `T00TOP`,
+  because 55.7% of that row sits in trade industries and market shares place a
+  product tax with the producer rather than the seller. Also scores the operator
+  that does work — Step 4c's producer-level/trade-level split plus one named
+  routing for motor fuel, plus the exclusion of the ten government industry codes
+  BEA books no taxes on production to — corr 0.948, error 27.9%. Also answers how
+  far trade industries have to be differentiated within wholesale and within
+  retail. Construction is read separately and converts exactly (corr 1.000, error
+  1.7%) because its Make block is 100% diagonal, and `error_concentration` shows
+  the remaining error is 20 industries rather than 402, which is the case for
+  building against the seed and repairing by name later. `--check` asserts the
+  findings; Step 2 and Step 5 both lean on them.
+
+- `other_taxes_allocation.py` — how `T00OTOP` should be allocated to the 402
+  detail industries (#538). NIPA `T30500` puts **88.1%** of the row in recurrent
+  property tax, so the intuitive allocator is the wrong one: industry output
+  scores corr 0.590 with an absolute error of **92.3% of the row**, missing
+  `531HSO` alone by 150,567. What works instead is that the row is
+  concentrated — three real-estate codes carry 46.3% — and BEA publishes the big
+  cells: `T70405` `B1031C` is the `531HSO`+`531HST` pair to the dollar and
+  `T70305` `B1017C` the ten farm codes within 3, both holding across 2017-2024
+  on the summary tables. The remainder rides frozen 2017 shares, graded out of
+  sample on the held-out summary SUT at **1.9% composition drift against a 40.5%
+  level move**. `--check` asserts all of it.
+
+- `compensation_allocation.py` — the industry axis behind the other two Step 2
+  rows (#538). For `V00100`: NIPA `T60200D`'s **69 leaves partition the 71 BEA
+  summary industries exactly**, 63 of them equal a summary industry's published
+  compensation to the dollar, so each is its own control. ⚠️ It also prices the
+  plan's headline decision and finds against it — splitting wages (69 groups)
+  from supplements (**16**) misplaces **0.95% of the row**, because NIPA
+  publishes the two halves at coarser grain than the total. For `V00300`: eight
+  controls across five tables, whose industry axes are mutually incompatible, so
+  the build uses one distribution and says so. ⚠️ The obvious fix — a **value
+  added by industry** series — now exists as
+  [`BEA_GDPbyIndustry`](../../extract/bea/BEA_GDPbyIndustry.yaml) and is
+  deliberately *not* used: all 71 summary industries' `V003` match its `TVA113`
+  surplus rows to the dollar, so it is the summary Use SUT by another door and
+  Decision 3 holds that in the test set. `--check` asserts all of it.
+
 - [`compare_NIPA_to_IOT/`](compare_NIPA_to_IOT/README.md) — the NIPA side. Loads
   any NIPA table as a flat frame with its hierarchy intact
   (`nipa_flat_table`), loads BEA IOT matrices (`bea_matrix_row` /
