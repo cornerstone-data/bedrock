@@ -33,7 +33,11 @@ _CROSSWALK = (
     / "Sector_Crosswalk_Census_USATrade.csv"
 )
 _NAICS_2017 = (
-    Path(__file__).resolve().parents[3] / "utils" / "mapping" / "naics" / "NAICS_2017_Crosswalk.csv"
+    Path(__file__).resolve().parents[3]
+    / "utils"
+    / "mapping"
+    / "naics"
+    / "NAICS_2017_Crosswalk.csv"
 )
 _NAICS_CONCORDANCE = (
     Path(__file__).resolve().parents[3]
@@ -48,9 +52,19 @@ _RESIDUAL_RE = re.compile(r"^\d{4}XX$|^\d{5}X$")
 _DIGIT6_RE = re.compile(r"^\d{6}$")
 
 _SERVICE_PREFIXES = (
-    "4", "5", "6", "7", "8",
-    "S00", "GFE", "GFGD", "GFGN", "GSLE", "GSLG",
-    "HS", "ORE",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "S00",
+    "GFE",
+    "GFGD",
+    "GFGN",
+    "GSLE",
+    "GSLG",
+    "HS",
+    "ORE",
 )
 
 
@@ -61,9 +75,7 @@ def _is_service_or_special(code: str) -> bool:
 def _naics_2017_leaves() -> set[str]:
     df = pd.read_csv(_NAICS_2017, dtype=str)
     return {
-        c.strip()
-        for c in df["NAICS_6"].dropna()
-        if c.strip() and c.strip() != "nan"
+        c.strip() for c in df["NAICS_6"].dropna() if c.strip() and c.strip() != "nan"
     }
 
 
@@ -103,9 +115,9 @@ def _classify_census_activity(
 def review_census_naics_vintage(year: int = 2017) -> pd.DataFrame:
     """Audit Census_USATrade activities vs Crosswalk and 2017 NAICS vintage."""
     fba = getFlowByActivity("Census_USATrade", year)
-    flow_m = (
-        fba.groupby("ActivityProducedBy")["FlowAmount"].sum() / 1e6
-    ).rename("flow_M")
+    flow_m = (fba.groupby("ActivityProducedBy")["FlowAmount"].sum() / 1e6).rename(
+        "flow_M"
+    )
     xw = pd.read_csv(_CROSSWALK, dtype=str)
     mapped = set(xw["Activity"].astype(str).str.strip())
     naics_2017 = _naics_2017_leaves()
@@ -123,7 +135,9 @@ def review_census_naics_vintage(year: int = 2017) -> pd.DataFrame:
                 "flow_M": float(flow_m.loc[activity]),
                 "in_crosswalk": act in mapped,
                 "vintage": vintage,
-                "naics_2017_target": legacy.get(act, act if vintage == "naics_2017" else ""),
+                "naics_2017_target": legacy.get(
+                    act, act if vintage == "naics_2017" else ""
+                ),
             }
         )
     return pd.DataFrame(rows)
@@ -192,7 +206,9 @@ def main() -> None:
 
     # 1. Invalid sector targets
     invalid = xw.loc[~xw["Sector"].isin(valid_comms)]
-    print(f"\n## 1. Sector targets NOT in USA_2017_COMMODITY_CODES ({len(invalid)} rows)")
+    print(
+        f"\n## 1. Sector targets NOT in USA_2017_COMMODITY_CODES ({len(invalid)} rows)"
+    )
     for _, row in invalid.iterrows():
         print(f"   Activity {row['Activity']} -> Sector {row['Sector']}")
 
@@ -220,9 +236,7 @@ def main() -> None:
         f_val = float(f040.loc[code])
         m_val = float(mcif.loc[code])
         if abs(f_val) > 0 or abs(m_val) > 0:
-            goods_holes.append(
-                {"commodity": code, "F040_M": f_val, "MCIF_M": m_val}
-            )
+            goods_holes.append({"commodity": code, "F040_M": f_val, "MCIF_M": m_val})
 
     holes_df = (
         pd.DataFrame(goods_holes).sort_values("MCIF_M", ascending=False, key=abs)
@@ -230,7 +244,9 @@ def main() -> None:
         else pd.DataFrame(columns=["commodity", "F040_M", "MCIF_M"])
     )
 
-    print(f"\n## 3. Goods-family SUT holes not reached by Census Crosswalk ({len(holes_df)} codes)")
+    print(
+        f"\n## 3. Goods-family SUT holes not reached by Census Crosswalk ({len(holes_df)} codes)"
+    )
     if not holes_df.empty:
         with pd.option_context("display.max_rows", 100, "display.width", 120):
             print(holes_df.to_string(index=False, float_format=lambda x: f"{x:,.1f}"))
@@ -239,8 +255,14 @@ def main() -> None:
     print("\n## 4. Known issues")
     issues = [
         ("331314", "FIXED: was industry-only target; now maps to 33131B."),
-        ("311824->3118A0", "CORRECT per BEA NAICS crosswalk. 311824 is dry pasta/dough/flour mixes (3118A0), not bakery (311810)."),
-        ("11211X", "Only 1:m row (-> 1121A0, 112120). No finer 1121* activities on Census trade."),
+        (
+            "311824->3118A0",
+            "CORRECT per BEA NAICS crosswalk. 311824 is dry pasta/dough/flour mixes (3118A0), not bakery (311810).",
+        ),
+        (
+            "11211X",
+            "Only 1:m row (-> 1121A0, 112120). No finer 1121* activities on Census trade.",
+        ),
         ("980000", "Low-value shipments. Omitted; no BEA Detail sector. Not fixable."),
         ("1121A0", "Import hole (1,659 M). Only reachable via 11211X 1:m split."),
     ]

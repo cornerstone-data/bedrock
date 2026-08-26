@@ -100,9 +100,7 @@ def census_usatrade_parse(
         # Keep digit-6 NAICS and Census residual codes (trailing X / XX), e.g.
         # 33641X, 31181X, 11211X, 1123XX. Residuals carry suppressed detail mass
         # that Sector_Crosswalk_Census_USATrade maps 1:m onto BEA Detail.
-        keep = keep.loc[
-            keep['NAICS'].str.fullmatch(r'\d{6}|\d{5}X|\d{4}XX', na=False)
-        ]
+        keep = keep.loc[keep['NAICS'].str.fullmatch(r'\d{6}|\d{5}X|\d{4}XX', na=False)]
         melted = keep.melt(
             id_vars=['NAICS'],
             value_vars=present,

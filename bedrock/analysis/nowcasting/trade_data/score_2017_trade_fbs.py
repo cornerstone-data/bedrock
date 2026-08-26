@@ -165,9 +165,11 @@ def main() -> None:
         focus_rows["cand_M"] = focus_rows["candidate_usd"] / 1e6
         focus_rows["ref_M"] = focus_rows["reference_usd"] / 1e6
         focus_rows["ratio"] = focus_rows.apply(
-            lambda r: (r["candidate_usd"] / r["reference_usd"])
-            if abs(r["reference_usd"]) >= 1.0
-            else float("nan"),
+            lambda r: (
+                (r["candidate_usd"] / r["reference_usd"])
+                if abs(r["reference_usd"]) >= 1.0
+                else float("nan")
+            ),
             axis=1,
         )
         print()
