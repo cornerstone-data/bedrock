@@ -18,7 +18,12 @@ from bedrock.utils.logging.flowsa_log import log
 #: codes sum to ``00772000`` exactly, so leaving these in a sum double counts
 #: the whole table.  Kept in the FBA because they are the control a suppression
 #: recovery subtracts published children from.
-MATFUEL_TOTAL_CODES = ('00772000', '00772002')
+#:
+#: ⚠️ **2012 names its totals differently** -- ``00000001`` materials and
+#: ``00000002`` fuels, where 2017 and 2022 use ``00772000``/``00772002``.  The
+#: four codes are disjoint across the vintages, so one tuple serves all three;
+#: missing the 2012 pair leaves a $6.4T total row in as if it were a material.
+MATFUEL_TOTAL_CODES = ('00772000', '00772002', '00000001', '00000002')
 
 #: ``ecnmatfuel`` residual buckets - real spend that Census could not place on a
 #: named material.  Together roughly a third of delivered cost, which is the
@@ -91,12 +96,17 @@ def census_EC_URL_helper(*, build_url, year, config, **_):
             url = build_url.replace('__dataset__', k).replace(
                 '__group__', f'group({dataset})'
             )
-            if year == '2012':
-                # for 2012 need both us and state call separately
+            # ⚠️ **Only when the config has not already set a geography.**
+            # 2012 needs the national and state calls issued separately, which
+            # is why Census_EC.yaml leaves `for` blank. A config that sets
+            # `for: us:*` itself -- Census_EC_MatFuel does, because 2022 returns
+            # HTTP 400 without one -- already carries the clause, and appending
+            # a second `for` gives two URLs the API answers identically: every
+            # row arrives twice. Shares survive that, levels and coverage do not.
+            if year == '2012' and 'for=' not in url:
                 url += '&for=us:*'
                 urls_census.append(url)
-                url = url.replace('&for=us:*', '&for=state:*')
-                urls_census.append(url)
+                urls_census.append(url.replace('&for=us:*', '&for=state:*'))
             else:
                 urls_census.append(url)
 
@@ -367,6 +377,17 @@ def census_EC_MatFuel_parse(*, df_list, year, **_):
     :return: df, parsed and partially formatted to flowbyactivity specifications
     """
     df = pd.concat(df_list, sort=False)
+
+    # ⚠️ **2012 publishes neither the label columns nor MATFUELCOST_F.** The
+    # 2017 and 2022 vintages carry a suppression flag beside each cost; 2012
+    # carries none, and a withheld cell arrives as a bare 0 (888 of 7,488 rows,
+    # 11.9%, against 9.1% flagged in 2017). They are added empty so the parse is
+    # one path for all three vintages, and a 2012 zero is therefore
+    # indistinguishable from a true zero -- which is why `Suppressed` is empty
+    # for that vintage rather than guessed at.
+    for optional in (f'NAICS{year}_LABEL', 'MATFUEL_LABEL', 'MATFUELCOST_F'):
+        if optional not in df.columns:
+            df[optional] = np.nan
 
     df = (
         df.filter(
