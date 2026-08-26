@@ -2465,11 +2465,16 @@ one asks the Supply-side question at all:
   producer buys, not what it sells. They cannot move a Supply mix at all. SAS
   does publish revenue by product line, which would be the services analogue of
   ASM; that is unpulled and is the one route this result does not speak to.
+  **[#722](https://github.com/cornerstone-data/bedrock/issues/722)** — and it is
+  where the 2022 mix update actually landed, so it is the one that would matter.
 - **EIA 923/861** resolve one commodity, so there is no mix for them to move.
 - **ERS agriculture** publishes cash receipts by commodity, which *is* a product
   mix and a genuinely different shape from ASM's — a farm's commodity split
   moves with plantings and prices, not with what a survey means by a product
   line. It is the one candidate worth testing on its own terms.
+  **[#723](https://github.com/cornerstone-data/bedrock/issues/723)**. ⚠️ Its
+  first question is what the answer key even is: agriculture is enumerated by
+  the Census of Agriculture, not the Economic Census.
 
 ### The domestic output block, built — 2018-2024
 
