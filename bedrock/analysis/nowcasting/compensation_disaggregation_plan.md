@@ -268,12 +268,60 @@ industry.
 
 ### ▶️ What this makes the build
 
-1. **A new hard target pinning `VAPRO_d`** in `nowcast_targets.py`, beside T1.
-   This is the load-bearing change and it does not exist yet.
-2. `V00100` for 2018–2024 — the QCEW movement series on `T60200D`'s 69
-   controls, **with the five unresolvable groups carved out** (graded above:
-   −10.0%). Needs the `FBS_outside_flowsa` blocker cleared, and the NAICS-vintage
-   filter applied per year, not just for 2012.
+1. ✅ **Done 2026-08-26 — `VAPRO_d` is pinned, as T18.**
+   [`nowcast_targets.industry_value_added_target`](../../transform/iot/nowcast_targets.py)
+   is hard, real for 2017-2024, and sits beside T1; the GRAS adapter imposes it
+   as a closer after each Use pass, putting the whole adjustment on `V00300` and
+   taking the offset off that column's commodity cells so T1 does not move. On
+   the 2017 replay it closes to **0.005**.
+
+   ⚠️ **It was worth more than expected.** The error it removes from the
+   intermediate block — frozen 2017 `VAPRO/GO` ratios against the observed
+   series — is **2.75% of `T005` in 2018 rising to 9.24% ($1.98tn) in 2024**,
+   worst industry `GSLGE` at 23.5% of its own `T005`. 2017 reads 31, which is
+   what says the measurement is not scoring its own anchor.
+2. ✅ **Done 2026-08-26 — `V00100` is built for 2018–2024.**
+   [`compensation_movement.py`](../../transform/nipa/compensation_movement.py)
+   supplies the weight vector and
+   `NIPA_VA_compensation_{2018..2024}.yaml` consume it. All eight years build;
+   **2017 still reproduces the published benchmark row to $1M**, which is the
+   check that the movement did not disturb the identity case.
+
+   ✅ **The `FBS_outside_flowsa` blocker was bypassed, not cleared.** The weight
+   vector is a *rescaling of an FBA already in the method*, so it needs no new
+   source at all — a `clean_fba` socket on the existing `BEA_Detail_Use_SUT`
+   attribution source scales the 2017 benchmark weights by QCEW growth before
+   sector mapping. The blocker is diagnosed to two lines in
+   [#731](https://github.com/cornerstone-data/bedrock/issues/731); `T00OTOP`'s
+   housing and farm lookups still want it.
+
+   ❌ **Pointing `proportional` straight at the QCEW FBA was tested and
+   rejected.** That would have been the trivial build. QCEW *level* shares score
+   **+21.9%** worse than frozen at their best and **+270.9%** raw, against
+   **−10.0%** for the movement form — QCEW's share of an industry's
+   compensation is not that industry's share of compensation.
+
+   ⚠️ **Three further traps, each found by looking rather than by a total.**
+   - **QCEW changes NAICS vintage at data year 2022**, not 2023. Unbridged it
+     costs 31 detail industries their coverage and doubles unmapped payroll from
+     10.4% to 20.7%. The vintage is now *detected* from the concordance rather
+     than hardcoded, and the two years are paired through it so composition is
+     identical across the ratio.
+   - **`482000` rail is outside QCEW's universe** — railroad employees fall
+     under the Railroad Retirement Board, not state UI, so QCEW sees **0.11%**
+     of its compensation and rail "grows" **4.45x** by 2024. A 1% coverage guard
+     catches it. ⚠️ The holdout is **neutral** on that guard (−10.016%,
+     identical) because the 2012→2017 span does not contain the failure; it is
+     kept on an argument about the source, not the score.
+   - **A published zero is a suppression.** QCEW reports exactly `0.0` for both
+     NAICS under `334610` in **2021**, with normal payroll either side. Read as
+     an observation it zeroes the weight and **deletes the industry**. One
+     occurrence in seven years, fatal each time, so `--check` sweeps every year.
+
+   ⚠️ **What is still owed (#731):** for QCEW-uncovered industries BEA uses 2017
+   Economic Census payroll; we give them their group's movement. Deferred past
+   the milestone — 14 of the 15 are already carved out, and the fifteenth is
+   rail.
 3. `T00OTOP` for 2018–2024 — level from `T30500`, concentrated frozen shares.
 4. `V00300` becomes the **residual**, not an estimate. The eight-line NIPA
    assembly stays built, demoted from input to plausibility check.
