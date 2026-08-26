@@ -1752,9 +1752,21 @@ decisive.**
 ⚠️ **1. The 2017 and 2022 observations are on different Economic Census
 benchmarks.** The 2017 workbook states its estimates are adjusted to the **2012**
 Economic Census; the 2022 workbook states the **2017** Economic Census. There is
-no restated 2017 — the detailed-expense series *restarts* at 2020, with nothing
-published for 2018 and 2019. So every 2017 → 2022 ratio the seed needs is a real
-movement, a rebenchmark and a questionnaire change multiplied together.
+no restated 2017 — the detailed-expense series *restarts* at 2020. So every
+2017 → 2022 ratio the seed needs is a real movement, a rebenchmark and a
+questionnaire change multiplied together.
+
+⚠️ **What is published for 2018 and 2019, precisely** — the earlier wording
+here and in the extractor were both wrong. `sas-17` carries 2013-2017 and
+`sas-22` carries 2020-2022, so those two years are in **neither**; they live in
+`sas-18.xlsx` and `sas-19.xlsx`, which the source does not fetch. ✅ **There they
+are fully populated**, on a **cut item list** — 8-12 items per NAICS against
+24-28 in sas-17 and 18-22 in sas-22. ❌ **What is cut is exactly the seed's input
+list**: purchased electricity, communication, fuels, professional and technical
+services, advertising, repairs to buildings and to machinery, water and sewer,
+lease and rental of buildings and of machinery, data processing. ✅ **The total
+`Expenses` line survives**, which is a denominator rather than a mix — usable
+for `industry_growth` and as a control, and not fetched today.
 
 ⚠️ **2. Three mappable items were discontinued** after 2017 — rental of machinery,
 purchased communication services, and water/sewer/refuse — so the two eras do not

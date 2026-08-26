@@ -892,13 +892,32 @@ def _panel_for(year: int) -> pd.DataFrame:
     return expense_panel()
 
 
-#: ⚠️ **Years the seed refuses**, because scoring says they make the column
-#: worse rather than better.  2023 is AIES read against a SAS 2017 base, which
-#: crosses the survey change as well as the sas-17/sas-22 rebenchmark: the
-#: SAS -> AIES level step is a median \|log\| of **0.203** against **0.118** for
-#: a within-instrument year, 72% noisier, and :func:`services_transport_score` measures the
-#: result at **-5.0% dollar-weighted and -4.1% impact-weighted**.  Pass
-#: ``allow_survey_change=True`` to build it anyway; nothing should ship it.
+#: ⚠️ **Years the seed refuses.**  2023 is AIES read against a SAS base, and
+#: ✅ **AIES does continue the collection** -- :data:`AIES_TO_SAS_ITEM` aligns
+#: the names, so the *correspondence* is not what fails.
+#:
+#: ❌ **What fails is the dispersion the index actually reads.**  A relative
+#: index divides out whatever is common to the industry, so a level step that
+#: hits every item alike costs nothing; only each item's deviation from its
+#: industry's own step survives into the seed.  Measured as the median
+#: \|log\| residual after removing the industry step:
+#:
+#: =========================  ==========
+#: pair                        residual
+#: =========================  ==========
+#: 2016 -> 2017 (quiet)          0.035
+#: 2020 -> 2021 (surge)          0.046
+#: 2021 -> 2022 (surge)          0.043
+#: **2022 -> 2023 (SAS -> AIES)**  **0.164**
+#: =========================  ==========
+#:
+#: ⚠️ **An eventful year is worth about +0.01; the instrument change is worth
+#: +0.12** -- 3.6x the dispersion of a genuine energy surge, so what crosses the
+#: seam is mostly instrument.  ✅ **This is key-independent**, unlike the
+#: -5.0%/-4.1% :func:`services_transport_score` figure that used to justify this
+#: constant: that was scored against BEA's carry-forward summary (§The answer
+#: key) and is withdrawn as evidence.  Pass ``allow_survey_change=True`` to
+#: build it anyway; nothing should ship it.
 SURVEY_CHANGE_YEARS = AIES_OBSERVED_YEARS
 
 
@@ -971,7 +990,7 @@ def services_transport_seed(
 
 
 def services_transport_movement(
-    years: tuple[int, ...] = (2020, 2021, 2022, 2023)
+    years: tuple[int, ...] = (2020, 2021, 2022, 2023),
 ) -> pd.DataFrame:
     """What the seed moves, weighted by dollars and by emissions intensity.
 
