@@ -1744,13 +1744,25 @@ the project does not have to stall behind P0.**
 | Gated by the code-space fix | Independent of it |
 |---|---|
 | Step 1 — FD block (already bitten) | Step 4a domestic output / commodity mix |
-| Step 2 — VA; `NIPA_VA_*.yaml` is a new FBS and will hit the same wall | Step 4c transaction-level margins |
+| Step 2 — VA *rows*; `NIPA_VA_*.yaml` is a new FBS and will hit the same wall | Step 4c transaction-level margins |
+| — the VA **column total** is no longer gated (see below) | Step 2's `VAPRO` level, 1997-2024 |
 | Step 3 — intermediate, incl. the agriculture/government departures | Step 4e Supply identities |
 | Step 4b/4d — #528 maps NAICS→BEA Detail, the exact lossy path | Steps 5, 6, 7 — transform over benchmark tables |
 
 Step 4 is both the **longest pole** and mostly **ungated**, so it starts immediately. Sequencing
 everything behind Phase 1 would idle the critical path; sequencing nothing behind it means Step 2
 rediscovers the same 210-code problem from scratch.
+
+✅ **Step 2's `VAPRO` level came in off the gated path (2026-08-25).** BEA publishes value added
+annually by underlying industry (`UVA205-A`), on the same 191-row frame as the gross output table
+this repo already reads.
+[`derived_intermediate_and_value_added.py`](../../transform/iot/derived_intermediate_and_value_added.py)
+allocates it to the 402 detail industries, 1997-2024. It is a straight Excel read on the shape of the
+working `UGO305-A` loader, so `map_fbs_sectors_to_model_schema` never enters it and P1 does not gate
+it. What this supplies is the **column total** `VAPRO`; what Step 2 still owes is the **split** of
+that total across the five SUT value-added rows, and that is the part `NIPA_VA_*.yaml` was for.
+Step 3's column control now reads both sides off this module and its own frozen-2017 `VAPRO` seed is
+gone.
 
 ### Coverage by step
 
