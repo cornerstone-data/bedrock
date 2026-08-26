@@ -307,6 +307,8 @@ def supply_sut_output_reference(year: int = 2017) -> pd.DataFrame:
     return _block(
         _supply_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES
     )
+
+
 def use_sut_intermediate_reference(year: int = 2017) -> pd.DataFrame:
     """Intermediate interior of the published 2017 detail Use SUT table, in USD.
 
@@ -385,6 +387,7 @@ def detail_supply_output_candidate(year: int) -> pd.DataFrame:
         .astype(float)
         .fillna(0.0)
     )
+
 
 def initial_value_added_candidate(year: int) -> pd.DataFrame:
     """Our Step 2 value-added block, value-added code x industry, in USD.
