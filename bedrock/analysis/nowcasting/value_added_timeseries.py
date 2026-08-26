@@ -31,21 +31,25 @@ traded off, or ranked -- they nest.
 What Step 2 now estimates
 -------------------------
 
-For each year and each summary industry ``i``, both margins of a small block are
-given::
+For each year and each summary industry ``i``, the block gains a **column**
+margin it did not have::
 
-                    detail child d1   d2   ...   dn        row margin
-    V00100                                              TVA113 V00100_i
-    V00200 (TOPILS)                                     TVA113 V00200_i
-    V00300                                              TVA113 V00300_i
-    -----------------------------------------------------------------
-    column margin      VAPRO_d1  VAPRO_d2  ... VAPRO_dn   (UVA205-A)
+                 detail child d1  d2  ...  dn         row control
+    V00100                                        T60200D, 69 NIPA groups
+    T00OTOP                                       T30500, one control
+    V00300                                        ** the residual **
+    T00TOP  }  the basic-to-producer wedge        left free -- Step 5
+    T00SUB  }                                     left free -- Step 5
+    ---------------------------------------------------------------
+    column margin   VAPRO_d1 VAPRO_d2 ... VAPRO_dn   UVA205-A, observed
 
-Both margins observed, interior free.  That is the same reframing #497 got when
+The row controls are NIPA's, unchanged -- see the decision below.  What is new is
+that the **column** is no longer free: ``VAPRO_d(t)`` is observed for every
+detail industry in every year, so **Step 2 estimates a cross-structure, not a
+level.**  That is the same reframing #497 got when
 :mod:`~.intermediate_structure_drift` found Step 5 holds both margins of the
-intermediate block: **Step 2 estimates a cross-structure, not a level.**  A
-source that delivers a column total for value added now delivers a number the
-model already has.
+intermediate block.  A source that delivers a column total for value added now
+delivers a number the model already has.
 
 Where the freedom actually is
 -----------------------------
@@ -87,36 +91,78 @@ a single leaf line, so their within-group movement contributes nothing to the
 numerator and their value added contributes to the denominator; and movement of
 detail *within* a leaf line is invisible to the source.
 
-``T00TOP`` gets an industry axis after all
-------------------------------------------
+Decided 2026-08-26: ``TVA113`` stays a **test**, not an input
+-------------------------------------------------------------
 
-#536 concluded that the industry distribution of taxes on products cannot be got
-from the commodity side: converting the Step 4d commodity column through the
-benchmark market-share matrix scores **r = 0.202** and misplaces 114.6% of the
-row, because a product tax is remitted by whoever *sells* the product while
-market shares place it with whoever *makes* it.  That finding stands, and the
-plan left the industry split free for Step 5 to solve.
+#538 left open whether to consume ``TVA113`` as Step 2's industry axis.  ❌ **It
+is not consumed.**  The row controls stay NIPA's, as the plan below has them --
+``T60200D``'s 69 groups for ``V00100``, ``T30500`` for ``T00OTOP``, the eight-line
+assembly for ``V00300`` -- so summary ``V001``/``V002``/``V003`` keep their
+ability to grade the build, which is what Step 5's Decision 3 reserves them for.
 
-It no longer has to.  ``TVA113``'s ``V00200`` **is** ``T00OTOP + T00TOP -
-T00SUB`` by industry -- verified by ``--topils`` against the published 2017
-summary SUT, **max $1 million across all 71 industries** -- and it is published
-annually.  With ``T00OTOP`` already built (#538), ``T00TOP - T00SUB`` falls out
-as a summary-grain residual every year, with no conversion operator anywhere.
-And it lands where #536 said the money actually is: wholesale trade 210,708,
-other retail 104,107, food services 52,391, motor vehicle dealers 45,947.
+⚠️ **Two claims an earlier draft of this module made are therefore withdrawn.**
+
+- ❌ *"``T00TOP`` gets an industry axis after all."*  ``TVA113``'s ``V00200``
+  **is** ``T00OTOP + T00TOP - T00SUB`` by industry -- ``--topils`` verifies it at
+  **max $1M across all 71** -- but a test source cannot supply a build.  #536's
+  conclusion stands unchanged: the industry split of product taxes is left free
+  for Step 5, and the market-share conversion (r = 0.202) stays rejected.  What
+  the identity buys instead is a **grader**: it says where the money should have
+  landed -- wholesale trade 210,708, other retail 104,107, food services 52,391,
+  motor vehicle dealers 45,947 -- so whatever Step 5 produces for those rows can
+  be scored rather than trusted.
+- ❌ *"``T60200D``'s 69 groups are superseded."*  They are not.  They remain the
+  compensation control.
+
+✅ **The ``VAPRO`` column control is a separate decision and it is kept.**
+``UVA205-A`` is the sibling of ``UGO305-A``, which is already T1 -- a hard
+target -- so the underlying detail release is precedent, not a new class of
+source.  What is spent is the value-added **total** per industry; the three-way
+**split** stays in the test set.
+
+Where the error lands -- the reason the column control is imposed
+-----------------------------------------------------------------
+
+T1 pins ``T005 + VAPRO = GO`` per industry but **not the split**, and T5 is
+deliberately not imposed at all (#710).  So today the slack falls on ``T005``,
+the intermediate column total -- which is *the scale of a column of* ``A``.
+Income-side estimation error propagates through ``L`` into every downstream
+``N``.
+
+Pinning ``VAPRO`` to ``UVA205-A`` makes ``T005 = GO - VAPRO``, both observed from
+the same BEA release, and moves the slack inside value added -- where ``V00300``
+is the natural home, since BEA builds gross operating surplus as a residual too
+and it is already where the statistical discrepancy lands
+(:mod:`~.value_added_control_totals`).
+
+⚠️ **``--residual`` states the honest counterargument.**  In percentage terms
+``T005`` is the *more forgiving* absorber, because it is the bigger number: a 1%
+compensation error is a median **0.50%** of an industry's ``T005`` and a median
+**1.55%** of its ``V00300``.  That loses on a different axis -- ``V00300`` is
+**terminal**.  Nothing reads gross operating surplus: it is not in ``A``, not in
+``L``, not in any emission factor.  A 7% error in a number nothing reads beats a
+1.4% error in a column scale that multiplies through the Leontief inverse.
+
+⚠️ **22 industries have too little surplus to absorb much**, and they need a sign
+guard rather than trust.  A 1% compensation error moves their gross surplus by
+more than 10%; the worst is ``336414`` (guided missiles) at **121%**, an $81M
+surplus under $9.8B of compensation.  Only **one** industry has a published
+negative ``V00300`` -- ``S00201`` at -36,919 -- so a residual that manufactures
+new negatives is visibly wrong and cheap to detect.
 
 What is left for QCEW
 ---------------------
 
-The movement series is still needed and its job is now smaller and, for the
-first time, gradeable.  QCEW no longer carries compensation's *level* against a
-69-group control with the rest of value added unconstrained; it shapes the
-within-summary-industry split of the ``V00100`` row inside a block whose other
-margin is known.  Two consequences:
+The movement series is still needed, unchanged in construction -- 2017 detail
+shares carried on QCEW wage growth, renormalised inside ``T60200D``'s 69 groups,
+rescaled to the NIPA control.  What changed is what happens to its error, and
+that it can now be graded.
 
-- ⚠️ **It is no longer the only thing holding the column together.**  A QCEW
-  movement that is wrong about the split between two detail children of a summary
-  industry is now corrected in the direction of ``VAPRO_d``, not propagated.
+- ⚠️ **Its error no longer reaches ``A``.**  With ``VAPRO_d`` pinned and
+  ``V00300`` the slack row, a QCEW movement that is wrong about two detail
+  children of a summary industry moves gross operating surplus and stops there,
+  instead of moving that column's ``T005`` and with it the scale of a column of
+  the technology matrix.
 - ✅ **It can be graded on the benchmark holdout** -- 2012 -> 2017 observed detail
   compensation, the rule [#704] established for Step 3 seeds -- rather than
   against BEA's carried-forward later years.  That needs QCEW 2012, which
@@ -151,6 +197,7 @@ from bedrock.extract.iot.io_2017 import _load_usa_summary_sut
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     detail_value_added_panel,
 )
+from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
@@ -433,6 +480,67 @@ def freedom() -> pd.DataFrame:
     return pd.DataFrame(rows).set_index('children')
 
 
+def published_va_block() -> pd.DataFrame:
+    """All five value-added rows plus ``VAPRO`` and ``T005``, published 2017 detail.
+
+    2017 only, and deliberately: this is the one year in which every row of the
+    identity is published, so it is the only year the headroom below can be read
+    off rather than modelled.
+    """
+    from bedrock.analysis.nowcasting.sections import (  # noqa: PLC0415
+        _use_sut_detail,
+    )
+
+    use = _use_sut_detail()
+    codes = [c for c in USA_2017_INDUSTRY_CODES if c in use.columns]
+    rows = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB', 'VAPRO', 'T005')
+    columns = {}
+    for row in rows:
+        series = use.loc[row]
+        assert isinstance(series, pd.Series)
+        columns[row] = pd.to_numeric(series.reindex(codes), errors='coerce').fillna(0.0)
+    block = pd.DataFrame(columns)
+    block.index.name = 'industry'
+    return block
+
+
+def residual_headroom() -> pd.DataFrame:
+    """If ``V00300`` is the slack row, how much can it absorb before it misbehaves?
+
+    The design question behind it: **which row wears the estimation error?**  T1
+    pins ``T005 + VAPRO = GO`` but not the split, so today the slack falls on
+    ``T005`` -- the intermediate column total, which is the *scale of a column of
+    A*.  Pinning ``VAPRO`` to ``UVA205-A`` instead moves the slack inside value
+    added, where ``V00300`` is the natural home: BEA builds gross operating
+    surplus as a residual too, and it is where the statistical discrepancy
+    already lands (:mod:`~.value_added_control_totals`).
+
+    ⚠️ **In percentage terms the intermediate column is the more forgiving
+    absorber, and this table says so.**  A 1% error in an industry's compensation
+    is a median 0.50% of its ``T005`` and a median 1.55% of its ``V00300``,
+    because ``T005`` is the bigger number.  That is the honest counterargument
+    and it loses on a different axis: ``V00300`` is **terminal**.  Nothing reads
+    gross operating surplus -- it is not in ``A``, not in ``L``, and not in any
+    emission factor.  ``T005`` multiplies through the Leontief inverse into every
+    downstream ``N``.  A 7% error in a number nothing reads beats a 1.4% error in
+    a column scale that propagates.
+
+    ⚠️ **22 industries cannot absorb much.**  Their gross surplus is thin enough
+    that a 1% compensation error moves it more than 10% -- worst is ``336414``
+    (guided missiles) at **121%**, an $81M surplus under $9.8B of compensation.
+    Only **one** industry has a published negative ``V00300`` (``S00201``, at
+    -36,919), so a residual that manufactures new negatives is visibly wrong, and
+    a sign census over these 22 is the cheap guard.
+    """
+    block = published_va_block()
+    frame = block[block['VAPRO'].abs() > 0].copy()
+    shock = 0.01 * frame['V00100'].abs()
+    frame['surplus_share'] = frame['V00300'] / frame['VAPRO']
+    frame['pct_of_surplus'] = 100.0 * shock / frame['V00300'].abs().replace(0.0, np.nan)
+    frame['pct_of_T005'] = 100.0 * shock / frame['T005'].abs().replace(0.0, np.nan)
+    return frame.sort_values('pct_of_surplus', ascending=False)
+
+
 def price(years: ta.Sequence[int] = NOWCAST_YEARS) -> pd.DataFrame:
     """What does holding within-summary composition at 2017 cost?
 
@@ -543,6 +651,13 @@ def check() -> int:
     )
     expect('top 10 groups share', share, 81.0, 1.0)
 
+    head = residual_headroom()
+    expect('published negative V00300', float((head['V00300'] < 0).sum()), 1.0, 0.0)
+    expect('worst thin surplus', float(head['pct_of_surplus'].iloc[0]), 121.4, 0.1)
+    expect('thin industries', float((head['pct_of_surplus'] > 10).sum()), 22.0, 0.0)
+    expect('median vs T005', float(head['pct_of_T005'].median()), 0.50, 0.01)
+    expect('median vs surplus', float(head['pct_of_surplus'].median()), 1.55, 0.01)
+
     for failure in failures:
         print(f'FAIL {failure}')
     if not failures:
@@ -557,13 +672,21 @@ def main() -> None:
     parser.add_argument('--freedom', action='store_true')
     parser.add_argument('--price', action='store_true')
     parser.add_argument('--where', action='store_true')
+    parser.add_argument('--residual', action='store_true')
     parser.add_argument('--check', action='store_true', help='assert every figure')
     args = parser.parse_args()
     if args.check:
         sys.exit(check())
 
     everything = not any(
-        (args.reconcile, args.topils, args.freedom, args.price, args.where)
+        (
+            args.reconcile,
+            args.topils,
+            args.freedom,
+            args.price,
+            args.where,
+            args.residual,
+        )
     )
     if everything or args.reconcile:
         print(
@@ -591,6 +714,22 @@ def main() -> None:
     if everything or args.where:
         print('\nWhere the 2024 composition shift sits\n')
         print(where(2024).head(15).round(1).to_string())
+    if everything or args.residual:
+        head = residual_headroom()
+        print('\nIf V00300 is the slack row: what a 1% compensation error moves')
+        print(
+            f'(median {head["pct_of_surplus"].median():.2f}% of gross surplus '
+            f'against {head["pct_of_T005"].median():.2f}% of T005 -- T005 is the '
+            f'more forgiving\nabsorber in percent, and the one that propagates '
+            f'through L)\n'
+        )
+        columns = ['V00100', 'V00300', 'VAPRO', 'pct_of_surplus', 'pct_of_T005']
+        print(head[columns].head(15).round(1).to_string())
+        print(
+            f'\nindustries where a 1% compensation error moves surplus by >10%: '
+            f'{int((head["pct_of_surplus"] > 10).sum())}; '
+            f'published negative V00300: {int((head["V00300"] < 0).sum())}'
+        )
     print()
 
 

@@ -36,26 +36,29 @@ enterprises come out **15% short in every year**, which reads exactly like a vin
 disagreement and is not one. `load_bea_v2017_industry_to_bea_v2017_summary` covers
 all 402, one parent each.
 
-### The estimand: a 3 × n block with both margins given
+### The estimand: the column margin is no longer free
 
 For each year and summary industry `i`:
 
 ```
-                 detail child d1   d2  ...  dn        row margin
-V00100                                             TVA113 V00100_i
-V00200 (TOPILS)                                    TVA113 V00200_i
-V00300                                             TVA113 V00300_i
+             detail child d1  d2  ...  dn         row control
+V00100                                        T60200D, 69 NIPA groups
+T00OTOP                                       T30500, one control
+V00300                                        ** the residual **
+T00TOP  }  the basic-to-producer wedge        left free -- Step 5
+T00SUB  }                                     left free -- Step 5
 ---------------------------------------------------------------
-column margin       VAPRO_d1  VAPRO_d2 ... VAPRO_dn  (UVA205-A)
+column margin  VAPRO_d1 VAPRO_d2 ... VAPRO_dn   UVA205-A, observed
 ```
 
-This is the **same reframing Step 3 got** in
-[`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): with both
-margins fixed, a biproportional balance keeps nothing of the seed but its
-cross-structure. **Step 2 estimates a shape, not a level** — so a source that
-delivers a value-added column total now delivers a number the model already has.
+The row controls are NIPA's, unchanged — see [the decision below](#-decided-2026-08-26--tva113-stays-a-test). What is new is that the **column** is
+no longer free. This is the **same reframing Step 3 got** in
+[`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): with a
+margin fixed, what is left to estimate is a shape, not a level. **Step 2
+estimates a cross-structure.**
+
 ✅ **The nesting is strict**: all 138 leaf lines sit inside one summary industry
-each, so detail ⊂ line ⊂ summary and the two constraints stack rather than cross.
+each, so detail ⊂ line ⊂ summary and the constraints stack rather than cross.
 
 ### How much is left to estimate — much less than 402 × 3
 
@@ -91,63 +94,123 @@ dilute the denominator and contribute nothing to the numerator; and movement of
 detail *within* a leaf line is invisible to the source.
 
 ⚠️ **Small next to Step 3's 17.3%, and it still has to be right**, because Step 5
-imposes the column identity `GO = T005 + VAPRO` hard (T1). Value-added error does not
-stay in value added — it is pushed into the intermediate block.
+imposes `GO = T005 + VAPRO` hard (T1) — but pins only the column's *sum*, not the
+split, so value-added error does not stay in value added. It is pushed into the
+intermediate block. That is the behaviour the second decision below changes.
 
-### ❌ `T00TOP`'s industry axis is published — the conversion is not needed
+### `T00TOP`'s industry axis is published — but as a grader, not a source
 
 [#536](https://github.com/cornerstone-data/bedrock/issues/536) measured that the Step
 4d commodity column cannot be converted to the industry axis: through the benchmark
 market-share matrix it scores **r = 0.202** and misplaces 114.6% of the row, because
 a product tax is remitted by whoever *sells* the product while market shares place it
-with whoever *makes* it. **That finding stands.** What does not stand is the
-conclusion drawn from it — that the industry split has to be left free for Step 5.
+with whoever *makes* it. **That finding stands, and so does its conclusion** — the
+industry split is left free for Step 5. `TVA113` cannot rescue it, because
+`TVA113` is a test source (see the decision below).
 
-`TVA113`'s `V00200` **is** `T00OTOP + T00TOP − T00SUB` by industry: verified against
-the published 2017 summary SUT at **max $1M across all 71 industries**, and published
-annually 1997–2024. With `T00OTOP` already built (#538), `T00TOP − T00SUB` is a
-summary-grain **residual**, every year, with no conversion operator anywhere. And it
-lands exactly where #536 said the money is: wholesale trade 210,708, other retail
-104,107, food services 52,391, motor vehicle dealers 45,947.
+What the table does buy is a **grader**. `TVA113`'s `V00200` **is**
+`T00OTOP + T00TOP − T00SUB` by industry — verified against the published 2017
+summary SUT at **max $1M across all 71 industries**, and published annually
+1997–2024. So the split Step 5 solves for can be *scored* against an observation
+instead of being trusted, and the observation says the money sits exactly where
+#536 said: wholesale trade 210,708, other retail 104,107, food services 52,391,
+motor vehicle dealers 45,947.
 
 ### What is left for QCEW — and it is now gradeable
 
-The movement series is still needed, for the ~80% of the compensation row in groups
-with more than one child. But its job changed:
+The movement series is needed for the ~80% of the compensation row in groups with
+more than one child, and it is built exactly as planned below — 2017 detail shares
+carried on QCEW wage growth, renormalised inside `T60200D`'s 69 groups, rescaled to
+the NIPA control. Nothing about its construction changes. What changes is what
+happens to its error, and that it can now be graded:
 
-- ⚠️ **It no longer carries the level.** QCEW shapes the within-summary split of the
-  `V00100` row inside a block whose other margin is known, instead of being the only
-  thing holding the column together. A QCEW movement that is wrong about two children
-  of a summary industry is now corrected toward `VAPRO_d`, not propagated.
+- ⚠️ **Its error no longer reaches `A`.** With `VAPRO_d` pinned and `V00300` the
+  slack row, a QCEW movement that is wrong about two detail children of a summary
+  industry moves gross operating surplus and stops there, instead of moving that
+  column's `T005` and with it the scale of a column of the technology matrix.
 - ✅ **It can be graded on the benchmark holdout** — observed 2012 → 2017 detail
   compensation, the rule #704 established for Step 3 seeds — instead of against BEA's
   carried-forward later years. That needs QCEW **2012**, which `BLS_QCEW.yaml` did not
-  declare until #728.
-- ⚠️ **`T60200D`'s 69 groups are superseded as the compensation control.** `TVA113` is
-  the same partition at 71, annual, matches the summary SUT to the dollar, and carries
-  the other two components on the same axis — five NIPA tables collapse to one source.
-  See the open decision below.
+  declare until #728, and which is now generatable for 2000–2025.
 
-### 🔶 Open decision — does `TVA113` become an input?
+### ✅ Decided 2026-08-26 — `TVA113` stays a test
 
-#538 left this open: consuming `TVA113` buys a near-exact `V00100`/`V00300` seed at
-summary grain and spends summary `V001`/`V003`'s ability to grade the build, which
-Step 5's Decision 3 holds out of the target set for exactly that purpose.
+#538 left open whether to consume `TVA113` as Step 2's industry axis. **It is
+not consumed.** The row controls stay NIPA's — `T60200D`'s 69 groups for
+`V00100`, `T30500` for `T00OTOP`, the eight-line assembly for `V00300` — so
+summary `V001`/`V002`/`V003` keep their ability to grade the build, which is
+what Step 5's Decision 3 reserves them for.
 
-**The trade is smaller than it looked, on two grounds:**
+⚠️ **Two claims made earlier in this re-evaluation are withdrawn.**
 
-1. **The precedent is already set on the sibling table.**
-   [`target_set_plan.md`](target_set_plan.md) §1 refutes #591's circularity objection
-   for `UGO305-A` — the underlying detail series is a straight read, behaves like an
-   estimate, and is now T1, a *hard* target. `UVA205-A` is the sibling table in the
-   same archive on the same frame.
-2. **The total is spent either way.** `UVA205-A` and `TVA113` are the same estimates
-   (§above), so adopting the `VAPRO` column control — which Step 3 and Step 5's T1
-   already assume — spends summary `VAPRO`. What `TVA113` costs on top is only the
-   **three-way split**, not the total.
+- ❌ **"`T00TOP` gets an industry axis after all."** The identity is real —
+  `TVA113`'s `V00200` **is** `T00OTOP + T00TOP − T00SUB` by industry, max $1M
+  across all 71 — but a test source cannot supply a build. #536's conclusion
+  stands unchanged: the industry split of product taxes is left free for Step 5,
+  and the market-share conversion (r = 0.202) stays rejected. ✅ What the identity
+  buys instead is a **grader** — it says where the money should have landed
+  (wholesale trade 210,708, other retail 104,107, food services 52,391, motor
+  vehicle dealers 45,947), so whatever Step 5 produces for those rows can be
+  scored rather than trusted.
+- ❌ **"`T60200D`'s 69 groups are superseded."** They are not. They remain the
+  compensation control, and the movement series is built as planned below.
 
-What stays in the test set under either answer: the **detail** split, graded on the
-2007/2012/2017 benchmark panel, which is where the estimating actually happens.
+✅ **The `VAPRO` column control is a separate decision, and it is kept.**
+`UVA205-A` is the sibling of `UGO305-A`, which is already T1 — a *hard* target —
+so the underlying detail release is precedent, not a new class of source. What is
+spent is the value-added **total** per industry; the three-way **split** stays in
+the test set.
+
+### ✅ Decided 2026-08-26 — the slack goes to `V00300`, never to `T005`
+
+⚠️ **Today it goes to `T005`, and that is the problem.** #710 checked
+`nowcast_targets.py`: T1 is hard for 2017-2024 but **pins the column's sum, not
+the split**, and T5 — `T00OTOP` and `V00300` — is deliberately not imposed at
+all. So nothing pins `VAPRO`, and income-side estimation error lands in the
+intermediate column total, which is *the scale of a column of `A`*. It then
+propagates through `L` into every downstream `N`
+([[bedrock-prioritize-on-n-not-d]] is the reason that matters).
+
+**The fix is one target.** Pin `VAPRO_d` to `UVA205-A`, which makes
+`T005 = GO − VAPRO` — both observed, from the same BEA release — and moves the
+slack inside value added. `V00300` is the natural home: BEA builds gross
+operating surplus as a residual too, and it is already where the statistical
+discrepancy lands ([`value_added_control_totals.py`](value_added_control_totals.py)
+documents the 67,902).
+
+⚠️ **The honest counterargument, and why it loses.** In *percentage* terms `T005`
+is the more forgiving absorber, because it is the bigger number — a 1%
+compensation error is a median **0.50%** of an industry's `T005` against a median
+**1.55%** of its `V00300`. That loses on a different axis: **`V00300` is
+terminal**. Nothing reads gross operating surplus — it is not in `A`, not in `L`,
+not in any emission factor. A 7% error in a number nothing reads beats a 1.4%
+error in a column scale that multiplies through the Leontief inverse.
+
+⚠️ **22 industries cannot absorb much, and need a sign guard.** A 1% compensation
+error moves their gross surplus by more than 10%:
+
+| industry | | `V00100` | `V00300` | 1% of comp, as % of surplus |
+|---|---|---:|---:|---:|
+| `336414` | guided missiles | 9,833 | **81** | **121.4** |
+| `333314` | optical instruments | 2,153 | 25 | 86.1 |
+| `336213` | motor homes | 1,318 | 24 | 54.9 |
+| `611B00` | other educational services | 36,048 | 1,090 | 33.1 |
+| `491000` | postal service | 54,249 | 2,781 | 19.5 |
+
+✅ **Only one industry has a published negative `V00300`** — `S00201` at −36,919 —
+so a residual that manufactures new negatives is visibly wrong, and a sign census
+over these 22 is the cheap guard. Nothing here may clip: `S00201` is BEA's number.
+
+### ▶️ What this makes the build
+
+1. **A new hard target pinning `VAPRO_d`** in `nowcast_targets.py`, beside T1.
+   This is the load-bearing change and it does not exist yet.
+2. `V00100` for 2018–2024 — the QCEW movement series, as planned below, on
+   `T60200D`'s 69 controls. Needs the `FBS_outside_flowsa` blocker cleared.
+3. `T00OTOP` for 2018–2024 — level from `T30500`, concentrated frozen shares.
+4. `V00300` becomes the **residual**, not an estimate. The eight-line NIPA
+   assembly stays built, demoted from input to plausibility check.
+5. A sign census over the 22 thin-surplus industries, run every year.
 
 ---
 
@@ -729,11 +792,16 @@ is the natural loader for the *test* set. Consuming it as a Step 2 **input** is
 a separate decision, because Decision 3 keeps the summary SUT out of the target
 set precisely so it can grade the build. The trade — a near-exact `V00300` seed
 at summary grain, paid for with summary `V003`'s ability to grade that seed — is
-a judgement about the testing strategy rather than about data availability, and
-is left open.
+a judgement about the testing strategy rather than about data availability.
 
-The component sketches below stand as the description of what NIPA offers, and
-as the fallback if the GDP-by-Industry extractor is not built.
+✅ **Answered 2026-08-26: it is not consumed.** `TVA113` stays a test source.
+See [the decision](#-decided-2026-08-26--tva113-stays-a-test) at the top of this
+document, which also records the two claims that answer withdraws.
+
+The component sketches below are therefore not a fallback — they are the method.
+⚠️ But `V00300` is now the **residual** row rather than an estimate (see the
+second decision at the top), so what they buy is a plausibility check on the
+residual, not the number itself.
 
 Some of these lines touch a handful of sectors and some are genuinely
 economy-wide, and the **NIPA leaf names say which**. Read that way, `V00300`
