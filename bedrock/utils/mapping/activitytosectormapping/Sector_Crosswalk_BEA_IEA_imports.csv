@@ -4,8 +4,11 @@ BEA_IEA,MaintenanceAndRepairNie,BEA_2017_Code,811200,C
 BEA_IEA,MaintenanceAndRepairNie,BEA_2017_Code,811300,C
 BEA_IEA,MaintenanceAndRepairNie,BEA_2017_Code,811400,C
 BEA_IEA,TransportAirFreight,BEA_2017_Code,481000,C
+BEA_IEA,TransportAirFreight,BEA_2017_Code,492000,C
 BEA_IEA,TransportAirPass,BEA_2017_Code,481000,C
+BEA_IEA,TransportAirPort,BEA_2017_Code,S00300,C
 BEA_IEA,TransportSeaFreight,BEA_2017_Code,S00300,C
+BEA_IEA,TransportSeaPort,BEA_2017_Code,S00300,C
 BEA_IEA,TransportPostal,BEA_2017_Code,491000,C
 BEA_IEA,TransportRoadAndOth,BEA_2017_Code,482000,C
 BEA_IEA,TransportRoadAndOth,BEA_2017_Code,484000,C
