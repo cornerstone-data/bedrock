@@ -1181,10 +1181,18 @@ gap may be misallocated rather than missing, which changes #606 from sourcing to
     bridge is the actual work; **#578 should be rescoped to it, or dropped.**
   - **Agriculture (#577) stays correct and cheap but is a small prize** — `111CA` carries little of
     the drift. It should not be first.
-  - **The 2022 Economic Census `MATFUEL` materials breakout, which #564 called a consolation prize,
-    is now the top external candidate**: the only source that speaks to the 82% of manufacturing's
-    column that annual data cannot see, and a genuine second structural observation between 2017 and
-    2025.
+  - ✅ **The 2022 Economic Census `MATFUEL` materials breakout — which #564 called a consolation prize
+    — is built and it delivers.** `Census_EC_MatFuel` pulls `ecnmatfuel` for 2017 and 2022;
+    [`inputs_structure.py`](inputs_structure.py) measures it. **66.5% of the 2017 materials bill
+    and 69.2% of 2022 is placeable on a BEA commodity, against 8.3% for the annual data** — 52.9% / 54.1%
+    resolving 1:1 by NAICS prefix and the rest onto a BEA group needing a within-group split. Withheld
+    cells are recovered against each industry's published total, which closes all 406 and 386
+    industry-by-kind controls to within 0.1%. And the mix **moved 0.133 between the two censuses**,
+    against 0.173 for the whole Use column over 2012→2017, with **133 of 193 industries moving more
+    than 10 points**. ⚠️ That 0.133 is the *unsuppressed subsample*; the full frame reads 0.159 and is
+    contaminated by the fill, whose holdout error is WAPE 0.60-0.72 and is pure allocation error. Full
+    treatment in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) §The materials
+    census.
   - **SAS Table 3 loses its promotion.** `annual_survey_expense_sources.md` calls it "the most useful
     thing the probe found" because it is a *detail* control on service column size — but Step 5's
     column target is already detail gross output. It was the most useful thing for a Step 3 that owned
@@ -1982,13 +1990,25 @@ the project does not have to stall behind P0.**
 | Gated by the code-space fix | Independent of it |
 |---|---|
 | Step 1 — FD block (already bitten) | Step 4a domestic output / commodity mix |
-| Step 2 — VA; `NIPA_VA_*.yaml` is a new FBS and will hit the same wall | Step 4c transaction-level margins |
+| Step 2 — VA *rows*; `NIPA_VA_*.yaml` is a new FBS and will hit the same wall | Step 4c transaction-level margins |
+| — the VA **column total** is no longer gated (see below) | Step 2's `VAPRO` level, 1997-2024 |
 | Step 3 — intermediate, incl. the agriculture/government departures | Step 4e Supply identities |
 | Step 4b/4d — #528 maps NAICS→BEA Detail, the exact lossy path | Steps 5, 6, 7 — transform over benchmark tables |
 
 Step 4 is both the **longest pole** and mostly **ungated**, so it starts immediately. Sequencing
 everything behind Phase 1 would idle the critical path; sequencing nothing behind it means Step 2
 rediscovers the same 210-code problem from scratch.
+
+✅ **Step 2's `VAPRO` level came in off the gated path (2026-08-25).** BEA publishes value added
+annually by underlying industry (`UVA205-A`), on the same 191-row frame as the gross output table
+this repo already reads.
+[`derived_intermediate_and_value_added.py`](../../transform/iot/derived_intermediate_and_value_added.py)
+allocates it to the 402 detail industries, 1997-2024. It is a straight Excel read on the shape of the
+working `UGO305-A` loader, so `map_fbs_sectors_to_model_schema` never enters it and P1 does not gate
+it. What this supplies is the **column total** `VAPRO`; what Step 2 still owes is the **split** of
+that total across the five SUT value-added rows, and that is the part `NIPA_VA_*.yaml` was for.
+Step 3's column control now reads both sides off this module and its own frozen-2017 `VAPRO` seed is
+gone.
 
 ### Coverage by step
 

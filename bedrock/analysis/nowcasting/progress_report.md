@@ -14,6 +14,11 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 ```
 
 **Snapshot date:** 2026-08-23. Step 1 is a live `derive_initial_Y_pur`
+**Snapshot date:** 2026-08-24 for Step 3; **Steps 1 and 4 are unchanged from the
+2026-08-22 run** and were not re-run for this edit.
+
+**Step 3 has landed ([#497](https://github.com/cornerstone-data/bedrock/issues/497)),** so the 402 × 402 Use interior is in
+the report for the first time. Step 1 is a live `derive_initial_Y_pur`
 (`NIPA_final_dom_uses_2017`, Trade `F04000`, `Inventories_2017` on `F03000`).
 **Step 2 is live for the first time** ([#538](https://github.com/cornerstone-data/bedrock/issues/538)):
 all three value-added rows are sourced, so every section in the diagnostic now
@@ -35,15 +40,26 @@ estimate. Read the Step 2 section before reading its numbers as quality.
 |---|---|---|---:|---:|---|---:|---:|
 | `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **95.5%** | **55.1%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | live (all 3 rows) | **100.0%** | **100.0%** |
+| `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
+| `use_intermediate_detail_sut` | 3 — intermediate interior | 402 × 402 | 44,281 cells | $14.86T | live | **100.0%** | **100.0%** |
 | `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (all 12 columns) | **99.0%** | **61.8%** |
 
 **coverage** = of the cells the reference populates, how many we populate.
 **accuracy** = of the cells we populate, how many land within tolerance.
 
-Those three blocks are the whole of what a published 2017 detail reference
-supports outside the two 402 × 402 interiors. The reference columns are the
-denominator: they are what "done" looks like, and they are known before the
-corresponding step is built.
+The first three of those blocks are the whole of what a published 2017 detail
+reference supports *outside* the two 402 × 402 interiors, and Step 3 is one of
+those interiors. The reference columns are the denominator: they are what "done"
+looks like, and they are known before the corresponding step is built.
+
+⚠️ **Step 3's 100%/100% is not comparable to the other rows, and it must not be
+read as "Step 3 is finished".** Steps 1 and 4 build their blocks from
+independent sources and are scored against an answer they never saw. Step 3 is
+*seeded from this very reference*, so at 2017 the carry factor is 1.0 everywhere
+and the only move left is the column rescale. A perfect score here says the
+plumbing is right, and says nothing at all about the years that matter. The
+movement is scored on the published summary panel by
+[`intermediate_structure_drift`](intermediate_structure_drift.py), not here.
 
 ⚠️ **Coverage and accuracy moved in opposite directions this snapshot, and that
 is the honest result.** `F03000` landing adds 256 populated cells against a
@@ -230,6 +246,53 @@ producer prices. The section deliberately does not alias the two, so a candidate
 built on `V00200` would show as a `MISS`/`EXTRA` pair rather than a bad match.
 ⚠️ Note that `BEA_GDPbyIndustry`, added alongside these methods, publishes
 exactly `V00200` — its taxes column is not this row.
+
+---
+
+## Step 3 — Use table, the intermediate interior
+
+`use_intermediate_detail_sut` · 402 commodities × 402 industries · tolerance
+`rtol=0.01, atol=5e5, ramp=0.25`
+
+![Step 3 intermediate block match](images/use_intermediate_detail_sut_2017.png)
+
+| scope | absent | match | partial | miss | extra |
+|---|---:|---:|---:|---:|---:|
+| cells | 117,323 | 44,281 | 0 | 0 | 0 |
+| row totals | 36 | 366 | 0 | 0 | 0 |
+| column totals | 2 | 400 | 0 | 0 | 0 |
+
+Grand total $14.856T against $14.856T, off by **0.002%**.
+
+**Read the picture as a coverage map, not a score.** The candidate is
+`derive_initial_U_intermediate`: the published 2017 interior column-normalised,
+carried on the detail commodity price ratio at θ = 1, and rescaled to
+`GO_producer − VAPRO_seed`. At 2017 every carry factor is 1.0, so the block is
+the reference put through a per-column rescale — everything green is what that
+should look like, and anything else would have been a plumbing bug.
+
+⚠️ **The rescale is not the identity, and the residual is BEA's own rounding.**
+Published `T005` is one rounded number; the interior sums 402 separately rounded
+cells to a different one — $350M on $14.9T, at most $13M on a column. A *small*
+column wears that as a large fraction, so `atol` is what carries those cells
+rather than `rtol`: `334610` is $482M of intermediates and is rescaled by 1.05%,
+the largest relative error in the block, while the largest absolute error is
+$6.0M on a $19.2B cell.
+
+✅ **The seven published negative cells survive**, and the two structurally empty
+columns — `4200ID` customs duties and `814000` private households — stay empty.
+
+⚠️ **Two things here are seeds and will be overwritten at Step 5.** `VAPRO` is
+Step 2's, and Step 2 is unbuilt, so the column control carries 2017's
+value-added share of gross output forward; it is right economy-wide to within
+2.3% in every year 2018-2024 but drifts by industry, with `GSLG` 18.3% low at
+2022. ⚠️ **That `GSLG` figure is the column *level*, not
+[#578](https://github.com/cornerstone-data/bedrock/issues/578)** — #578 is the
+commodity *mix* inside the government columns and is a separate, later job. NIPA
+`T31005` already matches the published government `T005` at $0 / $0 / $2M in
+2017 and is not wired up anywhere. And **θ = 1 is #497 as written, not a
+finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
+[#699](https://github.com/cornerstone-data/bedrock/issues/699).
 
 ---
 

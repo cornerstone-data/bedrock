@@ -17,6 +17,9 @@ the published final-demand, value-added and supply-bridge codes.  No summary
 rollup -- these three blocks are small enough to read at detail
 (402 x 19, 3 x 402, 402 x 12).  The Supply interior is 402 x 402 and is read
 through its margins and a severity summary instead -- see below.
+rollup -- three of the four blocks are small enough to read at detail
+(402 x 19, 3 x 402, 402 x 12); the Use interior is not, and is scored rather
+than read.
 
 Sections defined here
 -------------------------
@@ -45,6 +48,27 @@ commodity output ``T007`` and the column margin is industry output ``x`` -- and
 through the worst-cell list.  That is a renderer concern, not a reason to leave
 the section undeclared: the reference, the frame and the bar are the same kind
 of settled argument here as anywhere else.
+=========================== =================================================
+``use_fd_detail_sut``       Step 1.  ``derive_initial_Y_pur`` against the Use
+                            table's final-demand columns.  Both sides
+                            purchaser price.  Runnable today.
+``use_va_detail_sut``       Step 2.  The Use table's value-added rows.
+                            Declared, not yet runnable -- see below.
+``supply_bridge_detail_sut`` Step 4.  The Supply table's right-hand block --
+                            imports, margins, taxes and the subtotals
+                            bridging basic to purchaser value.  Runnable;
+                            candidate fills MCIF only.
+``use_intermediate_detail_sut`` Step 3.  The Use table's 402 x 402 interior.
+                            Runnable.
+=========================== =================================================
+
+The first three are the whole of what a published 2017 detail reference
+supports *outside* the two 402 x 402 interiors.  ``use_intermediate_detail_sut``
+is one of those interiors, and it is the exception the docstring above used to
+deny: 161,604 cells is too many to read as a picture, but it is not too many to
+*score*, and the section machinery reports totals, row and column margins and a
+status count without anyone having to look at the grid.  The Supply interior --
+the Make table, Step 4a -- is still undeclared.
 
 A section can be declared before its candidate exists
 -----------------------------------------------------
@@ -283,6 +307,16 @@ def supply_sut_output_reference(year: int = 2017) -> pd.DataFrame:
     return _block(
         _supply_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES
     )
+def use_sut_intermediate_reference(year: int = 2017) -> pd.DataFrame:
+    """Intermediate interior of the published 2017 detail Use SUT table, in USD.
+
+    402 commodities x 402 industries, purchaser price, before redefinitions.
+
+    ⚠️ **Seven cells are negative and stay negative.**  They are published that
+    way, and a candidate that clips them has stopped reproducing its own source.
+    """
+    _require_2017(year)
+    return _block(_use_sut_detail(), USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES)
 
 
 def supply_sut_bridge_reference(year: int = 2017) -> pd.DataFrame:
@@ -377,6 +411,21 @@ def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
     )
 
     return derive_initial_supply_bridge(year)
+
+
+def initial_U_intermediate_candidate(year: int) -> pd.DataFrame:
+    """Our Step 3 intermediate block, commodity x industry, in USD.
+
+    Runs ``derive_initial_U_intermediate`` at #497's ``theta = 1``.  At 2017 the
+    carry is the identity and only the column control moves, so this section run
+    is a plumbing test; the movement is scored on the summary panel by
+    ``intermediate_structure_drift``, not here.
+    """
+    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        derive_initial_U_intermediate,
+    )
+
+    return derive_initial_U_intermediate(year)
 
 
 #: Where ``initial_Y_pur_baseline.export_cellwise_comparison`` writes.
@@ -494,6 +543,12 @@ SUPPLY_OUTPUT_DETAIL_SUT = Section(
         'method is right. The method rests on the held-out mix test (0.94% '
         'economy-wide over five years) and on the finding that no annual '
         'survey can improve the between-census mix (annual_mix_test.py).'
+        'Step 2 has not been built, so there is no candidate to compare yet. The '
+        'reference, the row/column frame and the bar are settled here so that '
+        'Step 2 only has to point Section.candidate at its output. What it '
+        'starts from is now observed: derived_intermediate_and_value_added '
+        'gives VAPRO by detail industry for 1997-2024, so what Step 2 owes is '
+        'the split of that column total across these five rows, not its level.'
     ),
 )
 
@@ -529,6 +584,38 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
     ),
 )
 
+USE_INTERMEDIATE_DETAIL_SUT = Section(
+    name='use_intermediate_detail_sut',
+    title='Use intermediate block, BEA 2017 detail — nowcast vs published SUT',
+    step='Step 3 - the intermediate interior',
+    rows=tuple(USA_2017_COMMODITY_CODES),
+    columns=tuple(USA_2017_INDUSTRY_CODES),
+    row_axis='commodity',
+    column_axis='industry',
+    # 1% because the plan states no bar for Step 3.  ⚠️ At 2017 the candidate is
+    # the reference rescaled to a column control that is BEA's own rounded
+    # ``T005``, and the interior sums 402 separately rounded cells to a
+    # different number -- $350M on $14.9T, at most $13M on a column.  A *small*
+    # column wears that as a large fraction, so ``atol`` is what carries those
+    # cells, not ``rtol``: ``334610`` is $482M of intermediates and is rescaled
+    # by 1.05%.
+    tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
+    reference=use_sut_intermediate_reference,
+    candidate=initial_U_intermediate_candidate,
+    note=(
+        'Candidate is derive_initial_U_intermediate: the published 2017 detail '
+        'interior column-normalised, carried on the detail commodity price '
+        'ratio at theta = 1, and rescaled to GO_producer - VAPRO. Both sides '
+        'of that control are observed annually, from '
+        'derived_intermediate_and_value_added, which allocates BEA UVA205-A '
+        'down to the 402 detail industries; aggregated to summary it matches '
+        'the published T005 to 0.0002%. VAPRO is the column total, not Step 2 '
+        '- Step 2 owes the split across the five value-added rows and is '
+        'unbuilt. theta = 1 is #497 as written and fits negative at 2023-24; '
+        'choosing it is #699. The seven negative cells are preserved.'
+    ),
+)
+
 #: Every section, by name.  The renderer and the tests both select from here.
 SECTIONS: dict[str, Section] = {
     section.name: section
@@ -536,6 +623,7 @@ SECTIONS: dict[str, Section] = {
         USE_FD_DETAIL_SUT,
         USE_VA_DETAIL_SUT,
         SUPPLY_OUTPUT_DETAIL_SUT,
+        USE_INTERMEDIATE_DETAIL_SUT,
         SUPPLY_BRIDGE_DETAIL_SUT,
     )
 }
