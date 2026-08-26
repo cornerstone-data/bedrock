@@ -2328,6 +2328,14 @@ single commodity, 25 because the industry is absent from the 2022 census, 20 on
 a moved NAICS boundary, 9 on the trade guard. 52 cells take an explicit ratio,
 and 1,735 cells of the rebuilt table change value once the columns renormalise.
 
+⚠️ **The guard was later replaced by a validity floor** (see the commit history
+on `write_supply_mix_update.py`): the 3x agreement test was withdrawn as an
+arbitrary threshold that also suppressed real signal, and a cell now moves only
+where the census measured it at 0.1% or more of the industry's mapped products
+in both vintages. The rebuilt tables carry **28 commodities over 1%**, the
+largest `339950` signs at **−28.5%**. The table below is the superseded
+3x-guard result, kept because it is what the two guards were measured against.
+
 Eleven commodities' output moves by more than 1%, on the rebuilt 2022 table:
 
 | commodity | change | 2022 output |

@@ -20,6 +20,19 @@ bib_id: BEA_Detail_Supply
 # their product lines (70.5% of 2022 trade goods value joins back to 2017,
 # against 98.6% for services - see Census_EC_PxI.yaml).
 #
+# ⚠️⚠️ **Editing supply_mix_2022.csv does NOT invalidate this FBA.** The parquet
+# in extract/output_data is cached and getFlowByActivity returns it without
+# re-reading the csv, so a rebuilt mix silently does not reach Detail_Supply -
+# and the FBS logs look completely normal while serving the old block. This
+# already happened once. After running write_supply_mix_update.py you must
+# regenerate the FBA before the FBS:
+#
+#   generateFlowByActivity(source='BEA_Detail_Supply_PxI', year=2022)
+#
+# To check rather than trust: group the parquet by
+# (ActivityConsumedBy, ActivityProducedBy) and diff it against the csv's
+# million_usd column - they must agree to 1e-6.
+#
 # ⚠️ The parse branch for this source must be tested BEFORE the plain
 # Detail_Supply branch in bea_parse: the substring check there matches this
 # source name too, and would silently serve the unmoved 2017 block.

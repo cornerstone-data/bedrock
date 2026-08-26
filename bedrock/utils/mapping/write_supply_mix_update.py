@@ -6,6 +6,17 @@ USD — that ``Detail_Supply_2022`` and later attribute onto. It is the publishe
 2017 detail block with the Economic Census's own 2017 -> 2022 movement applied,
 column totals unchanged.
 
+⚠️ **Writing this file is not enough.** ``BEA_Detail_Supply_PxI`` caches it as
+an FBA parquet, and ``getFlowByActivity`` serves that parquet without re-reading
+the csv — so a rebuilt mix does not reach ``Detail_Supply`` until the FBA is
+regenerated too, and nothing in the FBS logs says otherwise. The full sequence:
+
+1. ``uv run python bedrock/utils/mapping/write_supply_mix_update.py``
+2. ``generateFlowByActivity(source='BEA_Detail_Supply_PxI', year=2022)``
+3. rebuild ``Detail_Supply_2022`` / ``_2023`` / ``_2024``
+
+Skipping step 2 silently keeps the previous block. It has already happened once.
+
 Run: ``uv run python bedrock/utils/mapping/write_supply_mix_update.py``
 
 Why this exists
@@ -85,10 +96,14 @@ trade columns are skipped. Sixteen commodities' output moves by more than 1%.
 The grand total is unchanged to ten decimal places and no cell goes negative.
 
 ⚠️ **Two of the movers rest on very thin published columns and are worth reading
-before quoting.** ``339950`` signs (−30.3%, a 10bn commodity) turns on the
+before quoting.** ``339950`` signs (**−28.5% on the rebuilt 2022 table**, a 12bn
+commodity, and the largest single change in the update) turns on the
 census seeing advertising services go from 0.39% to 1.28% of sign
 manufacturers' mapped products, levered onto a published advertising share of
-21.5%; ``333514`` (+7.2%, also 10bn) is the same shape. Both clear the floor
+21.5%; ``333514`` (+7.4%, also 12bn) is the same shape. ⚠️ Its loss is
+redistributed inside the ``339`` summary group, which is why nine ``339xxx``
+commodities all move about +2.1% together — that cluster is one industry's
+change, not nine. Both clear the floor
 honestly — the census did measure them — but a 0.39% base is at the edge of
 what a ratio can carry, and raising the floor to 0.5% removes both and caps the
 largest change at 7.2%. That is a judgment call left open rather than silently
