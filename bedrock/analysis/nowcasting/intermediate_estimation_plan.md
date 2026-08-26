@@ -2019,6 +2019,129 @@ bug. Neither is Step 3's, and neither is claimed here.
 
 ---
 
+## Utilities from EIA's fuel receipts — ✅ **a go, and the first one in the held block**
+
+✅ **Measured 2026-08-25** in
+[`utilities_expense_seed.py`](utilities_expense_seed.py)
+(`uv run python -m bedrock.analysis.nowcasting.utilities_expense_seed --all`).
+Seed the observed **2012** block with EIA form 923's 2012 → 2017 fuel movement
+and score against the observed **2017** block, at detail:
+
+| weighting | frozen | seeded | gain | columns |
+|---|---:|---:|---:|---:|
+| dollar | 0.2525 | 0.2049 | **+18.9%** | **3 of 3** |
+| **impact (`N`)** | 0.1652 | 0.1387 | **+16.0%** | **3 of 3** |
+
+| column | frozen | seeded | `N` gain |
+|---|---:|---:|---:|
+| `221100` electric power | 0.1937 | 0.1591 | **+17.9%** |
+| `S00101` federal electric | 0.3404 | 0.3064 | +10.0% |
+| `S00202` SLG electric | 0.0672 | 0.0581 | +13.5% |
+
+⚠️ **These are among the worst-drifting columns in the table** — `S00101`
+**0.340** and `221100` **0.194** against an economy-wide 0.0606 — so the prize
+is real, not a rounding win on a stable column.
+
+### Why EIA works where the survey had to refuse
+
+§S6's refusal was correct and is now explained rather than merely asserted. The
+utilities column does a **price-driven reweighting** of its fuel bill, and a
+relative *share* index divides common movement out by construction. ✅ **EIA
+measures receipts × delivered price**, which is exactly a reweighting — and the
+fuel **mix** is doing the work, not a general "fuel got cheaper" signal: one
+uniform index across all three fuels scores **+7.1%** against the per-fuel
+**+16.0%**.
+
+**Four rows move, and they carry 85.6% of the columns' `N`:**
+
+| row | EIA says | BEA observed | 2012 $M | share of `N` |
+|---|---:|---:|---:|---:|
+| `212100` coal | 0.635 | 0.488 | 22,488 | 19.0% |
+| `211000` gas | 0.937 | 0.849 | 34,118 | 24.6% |
+| `324110` petroleum | 0.489 | 0.573 | 30,277 | 13.0% |
+| `221100` purchased power | 0.927 | 0.784 | 14,645 | 29.0% |
+
+✅ **Every one moves the way BEA observed.** ⚠️ Gas and purchased power
+under-move, so the seeded gas *share* still ends above the observed one; the
+gain comes from coal and petroleum landing close.
+
+⚠️ **The index is not divided by the industry's own expense growth**, unlike
+every other seed in this plan. What the untouched rows are assumed to do is a
+parameter, and **nominally flat scores best** (+16.0% against +14.6% for the
+column total) ✅ **and leaves the seed independent of everything observed at the
+target year**, which removes the leakage question entirely. The observed growth
+of the untouched rows would score +21.3% and is not available in production.
+
+✅ **Not a knife edge**: the gain stays positive with the index raised to any
+power from 0.25 to 2.0, peaking between 0.75 and 1.0.
+
+### ⚠️ The three things to hold against it
+
+⚠️ **1. Coal carries it, and coal is the leg with the least future.** Dropping
+coal takes the gain to **−0.3%**; coal alone is +10.3%. Coal was **51.7%** of
+the fuel bill in 2012 and **16.6%** in 2022 — the span that could be tested is
+the span coal dominated.
+
+⚠️ **2. Only gas matches on level.** At 2017, EIA against the BEA row it moves:
+coal $22.6B vs **$11.0B**, gas $30.0B vs $29.0B, oil $0.57B vs **$17.4B**. The
+four rows together are within 7% of BEA's, but ❌ **BEA's `324110` row for the
+electric columns is not oil-fired generation**, whatever else it is. That is the
+`ecnpurelec` failure mode, and the petroleum leg works only because refined
+product **prices** moved both series together. **It is the first leg to drop**
+if the seed misbehaves in a year when prices and volumes part company.
+
+⚠️ **3. Three columns, one span.** 2012 → 2017 is the only pair with an observed
+benchmark at both ends and EIA 923 coverage — the form starts in **2008**, so
+the 2007 benchmark cannot serve as a second base.
+
+### What it does not reach
+
+❌ **`221200` gas distribution ($24.0B, drift 0.204) and `221300` water ($5.4B)
+stay held**, and not for want of data: BEA books gas bought for resale **net**,
+so `ecnpurgas`'s $51.4B of resale purchases faces a `221200` own-row cell of
+**$1M**. ⚠️ Same reason the purchased-power leg indexes a *net* concept on a
+*gross* one — $9.5B of own-row electricity against $100.7B bought for resale.
+It adds 3.5 points and is kept with that stated.
+
+### What EIA says about the years the seed is wanted for
+
+⚠️ **Not a test** — nothing after 2017 is observed at detail — but it is why
+#719 exists:
+
+| year | coal $M | gas $M | oil $M | gas share |
+|---|---:|---:|---:|---:|
+| 2012 | 35,597 | 32,053 | 1,157 | 46.6% |
+| 2017 | 22,605 | 30,019 | 566 | 56.4% |
+| 2020 | 13,049 | 27,144 | 315 | 67.0% |
+| 2021 | 14,232 | **58,754** | 684 | 79.8% |
+| 2022 | 17,298 | **85,689** | 1,219 | **82.2%** |
+| 2024 | 15,744 | 37,552 | 597 | 69.7% |
+
+⚠️ **θ is 0.0 across exactly this surge**, so the held column is close to
+literally frozen through the years that move most.
+
+### The source, and two traps
+
+✅ **PUDL's public S3 mirror** carries EIA 923, 861 and 176 as parquet — no
+credentials, CC-BY-4.0, quarterly stable releases:
+`https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/stable/<table>.parquet`.
+⚠️ **Check a name against the bucket listing before assuming it**: there is no
+`core_eia176__yearly_company_data` (the gas tables are `..._yearly_gas_supply`,
+`..._yearly_gas_disposition` and friends) and no `out_eia861__yearly_sales`.
+⚠️ **A partial year reads as a collapse in fuel purchases** — PUDL publishes the
+current year month by month, so only years with all twelve months are used.
+
+❌ **EPA's Table 8.3 is the wrong instrument** and is already wired in
+`EIA_ElectricPowerAnnual`: it is **major investor-owned utilities only**, and
+IPPs are 41-45% of generation. ⚠️ Its sheet is 7 columns wide, so 2020-2024 sit
+in a **second header block at row 26**.
+
+⚠️ **Nothing here is wired into the pipeline.** `derive_initial_U_intermediate`
+still holds `22` at `NOT_SEEDED`; this measures the seed, it does not install
+it.
+
+---
+
 ## The answer key, and why every earlier score used the wrong one
 
 ⚠️ **Scores in §S4, §S5 and the trade retest were graded against BEA's published
@@ -2086,7 +2209,7 @@ feeling, because it is the backlog:
 | `44RT` retail | 9 | 668 | ❌ BES regraded on the holdout: no signal on `N` | — |
 | `11` agriculture | 13 | 272 | ✅ **seed validated on the holdout, +17.9%** | #577 |
 | `PROF` | 1 | 198 | no prefix match in either survey | — |
-| `22` utilities | 3 | 160 | survey refused on the mechanism | #719 |
+| `22` utilities | 3 | 160 | ✅ **EIA seed validated on the holdout, +16.0%** (electric only; `221200`/`221300` still held) | #719 |
 | `48TW` | 2 | 108 | no prefix match | — |
 
 ### The route back: rebenchmark at 2022, then interpolate
@@ -2120,9 +2243,9 @@ the only held sector the shape fitted, and it has now been retested, regraded on
 the sound key, and rejected on both — ⚠️ **and specifically the suppression
 recovery this plan pointed at should not be built**, because the column with no
 suppression fails too. ✅ Agriculture and utilities have *annual* sources and
-would be seeded directly rather than interpolated; **agriculture passes the
-holdout at +17.9%** and is a go, and utilities (#719) is the remaining
-unexplored route.
+are seeded directly rather than interpolated; **agriculture passes the holdout
+at +17.9%** and **the EIA utilities seed at +16.0%**, so the two live routes
+into the held block are both annual and neither needs the interpolation shape.
 
 ---
 
@@ -2575,9 +2698,10 @@ worst-drifting in the table; it closes `govslocalfin` as the route to them, and
 the drift it leaves behind is *within*-function, which no reallocation between
 functions can reach.
 
-**S6. Utilities from EIA ([#719](https://github.com/cornerstone-data/bedrock/issues/719))** — ⚠️ **new, and it exists because the
-services seed had to refuse this column.** `22`'s three detail columns are
-**held at the benchmark** (`NOT_SEEDED`), not seeded, because what utilities'
+**S6. Utilities from EIA ([#719](https://github.com/cornerstone-data/bedrock/issues/719))** — ✅ **measured, and it is the first
+go in the held block.** §Utilities from EIA's fuel receipts.
+
+It exists because the services seed had to refuse this column: what utilities'
 column does over 2017-2022 is a **price-driven reweighting** — `211` goes 7.7%
 → 23.3% of it as the column rises $160.4B → $258.4B — while the survey's
 purchased-fuels line moves the *other way*, $102.5B → $79.6B.
@@ -2588,11 +2712,12 @@ largest single drag on the block, **−119%** of the aggregate gain at 2020.
 ⚠️ **BEA did use SAS for utilities** (C2), so "different universe" is not
 available as an explanation.
 
-✅ **The instrument is EIA, per C1**: forms 861/861M for electric power, form
-176 and the *Natural Gas Monthly* for gas. Physical fuel receipts × price is
-what tracks a fuel-price reweighting. ⚠️ **Holding 2017 is not a fix** — θ is
-0.0 across exactly this surge, so the column is close to frozen and its drift
-is unaddressed.
+✅ **The instrument is EIA, per C1**, and it works: EIA form 923's fuel receipts
+score **+18.9% on dollars and +16.0% on `N`** on the holdout, with **all three
+electric columns winning on both weightings**
+([`utilities_expense_seed.py`](utilities_expense_seed.py)). ⚠️ **`221200` gas
+distribution and `221300` stay held** — BEA books gas-for-resale net, so there
+is no cell for what EIA measures. ⚠️ **Nothing is wired in yet.**
 
 Not in this step: `S00300` (#606, shared with Step 1), the margins redistribution
 (Step 6b, #697), the government-enterprise reallocation (Step 7), and the balance
