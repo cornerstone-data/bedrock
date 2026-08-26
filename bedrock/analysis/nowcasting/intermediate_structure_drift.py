@@ -17,8 +17,8 @@ the share of industry ``j``'s intermediate dollars sitting on the wrong
 commodity.  Reported dollar-weighted across industries, so a column is worth what
 it spends.
 
-Four measurements
------------------
+Six measurements
+----------------
 
 ``--drift`` (default)
     Published **summary** Use SUT, 2017 against 2018-2024.  One benchmark
@@ -45,6 +45,25 @@ Four measurements
     Which columns carry the drift, at summary for 2024 and at detail for
     2012 -> 2017.  Summary hides about a third of the error and hides it
     unevenly, so the two rankings differ.
+
+``--revision``
+    The same year read from **both** summary Use vintages.  Nothing in it is
+    drift: it is BEA restating a structure it had already published, and it is
+    the noise floor under every year-on-year number above.
+
+``--theta``
+    Fits the price-ratio exponent with and without the **margin leg** of the
+    purchaser deflator.  ⚠️ Answered: the margin leg does not move ``theta``, so
+    the low summary ``theta`` is not a missing-deflator artefact.  See
+    :func:`theta`.
+
+⚠️ **Every summary measurement reads one vintage.**  ``io_2017``'s loader picks
+the workbook by year, which is right for FBA consumers and wrong for a module
+that differences years against each other -- it would put a seam between 2022 and
+2023 in the middle of ``--drift``'s series, and make ``--where``'s 2024 ranking a
+2017 base from one workbook against a 2024 from another.  So every summary read
+here goes to :data:`CURRENT_SUMMARY_USE` directly.  ``--revision`` measures what
+that seam was worth.
 
 ⚠️ **The summary reference is not ground truth.**  BEA's annual summary SUT is
 itself an estimate built from annual indicators over a carried-forward benchmark
@@ -74,11 +93,20 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import (
+    GCS_USA_SUP_DIR,
     LOCAL_USA_SUP_DIR,
     _load_2017_detail_supply_use_usa,
-    _load_usa_summary_sut,
 )
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
+from bedrock.transform.iot.nowcast_intermediate import (
+    INTERMEDIATE_YEARS,
+    benchmark_intermediate,
+    derive_intermediate_use,
+    intermediate_column_control,
+    reproduction_check,
+)
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
@@ -90,6 +118,22 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary impor
 
 #: Years of the published summary Use SUT after the benchmark.
 DRIFT_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024)
+
+#: The two summary Use vintages.  ``io_2017._load_usa_summary_sut`` pins the
+#: workbook by year -- 2017-2022 from the legacy release, 2023-2024 from the
+#: current one -- so that published FBAs do not move under BEA's revisions.  That
+#: is right for FBA consumers and wrong here: this module differences years
+#: against each other, so reading through it would put a vintage seam in the
+#: middle of every series.  Everything below reads :data:`CURRENT_SUMMARY_USE`,
+#: and ``--revision`` measures what the other vintage would have contributed.
+CURRENT_SUMMARY_USE = 'Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx'
+LEGACY_SUMMARY_USE = 'Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx'
+
+#: The Supply side of the same vintage, which carries the margin and tax legs.
+CURRENT_SUMMARY_SUPPLY = 'Supply_Tables_1997-2024_Summary.xlsx'
+
+#: Years both vintages publish, which is what ``--revision`` can compare.
+REVISION_YEARS = (2017, 2018, 2019, 2020, 2021, 2022)
 
 #: The benchmark detail SUT panel: three years, one code basis, one frame.
 BENCHMARK_YEAR = ta.Literal[2007, 2012, 2017]
@@ -105,14 +149,54 @@ BENCHMARK_SUT_ARCHIVE = 'SUPPLY-USE_2026-08-24.zip'
 PRICE_INDEX_START = 2012
 
 #: Exponent on the price ratio.  1.0 is #497 as written; 0.0 is a frozen ``A``.
-THETA_GRID = (0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5)
+#:
+#: ⚠️ **The grid runs negative deliberately.**  It used to start at 0.0, which
+#: censored the summary panel: 2023 and 2024 both pinned to the floor and were
+#: read as "inflation contributes nothing".  They do not -- they fit -0.25 and
+#: -0.50, meaning the frozen structure scores *better* when commodity shares are
+#: moved **against** their price movement.  A floor of 0.0 cannot represent that
+#: and silently reports it as 0.0.
+THETA_GRID = (
+    -1.0,
+    -0.75,
+    -0.5,
+    -0.25,
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.25,
+    1.5,
+)
 
 
-def summary_intermediate(year: int) -> pd.DataFrame:
+def summary_use(year: int, workbook: str = CURRENT_SUMMARY_USE) -> pd.DataFrame:
+    """A year's sheet of a summary Use SUT workbook, indexed by row code.
+
+    Deliberately not ``io_2017._load_usa_summary_sut``: that picks the workbook
+    by year, and this module needs the vintage held fixed across years.  See
+    :data:`CURRENT_SUMMARY_USE`.
+    """
+    use = load_from_gcs(
+        name=workbook,
+        sub_bucket=GCS_USA_SUP_DIR,
+        local_dir=LOCAL_USA_SUP_DIR,
+        loader=lambda pth: pd.read_excel(
+            pth, sheet_name=str(year), skiprows=5, dtype={'Unnamed: 0': str}
+        ),
+    )
+    use = use.set_index(use.columns[0])
+    use.index = use.index.astype(str).str.strip()
+    use.columns = use.columns.astype(str).str.strip()
+    return use
+
+
+def summary_intermediate(
+    year: int, workbook: str = CURRENT_SUMMARY_USE
+) -> pd.DataFrame:
     """Commodity x industry intermediate block of the published summary Use SUT."""
-    use = _load_usa_summary_sut('Use_SUT_summary', year)  # type: ignore[arg-type]
-    use.index = use.index.astype(str)
-    use.columns = use.columns.astype(str)
+    use = summary_use(year, workbook)
     # 'IOCode' is the workbook's header row, not a commodity; T005 and T001 are
     # the first margin row and column, so everything above and left of them is
     # the interior.
@@ -120,7 +204,8 @@ def summary_intermediate(year: int) -> pd.DataFrame:
     first_margin_column = int(ta.cast(int, use.columns.get_loc('T001')))
     rows = [r for r in use.index[:first_margin_row] if r != 'IOCode']
     columns = list(use.columns[1:first_margin_column])
-    return use.loc[rows, columns].astype(float)
+    # '...' marks a withheld cell, and blanks are structural zeros.
+    return use.loc[rows, columns].apply(pd.to_numeric, errors='coerce').fillna(0.0)
 
 
 def column_shares(block: pd.DataFrame) -> pd.DataFrame:
@@ -143,6 +228,61 @@ def _align(left: pd.DataFrame, right: pd.DataFrame) -> tuple[list[str], list[str
     rows = [r for r in left.index if r in right.index]
     columns = [c for c in left.columns if c in right.columns]
     return rows, columns
+
+
+def summary_supply(year: int) -> pd.DataFrame:
+    """A year's sheet of the summary Supply SUT, indexed by commodity code."""
+    supply = load_from_gcs(
+        name=CURRENT_SUMMARY_SUPPLY,
+        sub_bucket=GCS_USA_SUP_DIR,
+        local_dir=LOCAL_USA_SUP_DIR,
+        loader=lambda pth: pd.read_excel(
+            pth, sheet_name=str(year), skiprows=5, dtype={'Unnamed: 0': str}
+        ),
+    )
+    supply = supply.set_index(supply.columns[0])
+    supply.index = supply.index.astype(str).str.strip()
+    supply.columns = supply.columns.astype(str).str.strip()
+    return supply
+
+
+def summary_margin_rate(year: int) -> pd.Series:
+    """``mu_c``: trade and transport margins over **producer** value, by commodity.
+
+    ⚠️ The denominator is producer value, ``T013 + T015``, not basic ``T013``.
+    BEA gross output is at producers' prices, so the price index carried in
+    :func:`inflation` already contains the product-tax layer; taking the rate
+    over basic value would double-count that wedge.  See §Margins.2 of
+    ``intermediate_estimation_plan.md``.
+
+    ``T016 = T013 + T014 + T015`` -- ``T014`` is the margins alone, not a
+    running subtotal.
+    """
+    supply = summary_supply(year)
+    rows = [r for r in supply.index if r != 'IOCode' and not r.startswith('T0')]
+    parts = (
+        supply.reindex(rows)[['T013', 'T014', 'T015']]
+        .apply(pd.to_numeric, errors='coerce')
+        .dropna(how='all')
+    )
+    producer = parts['T013'] + parts['T015']
+    return parts['T014'] / producer.where(producer != 0, np.nan)
+
+
+def summary_margin_factor(year: int, base: int = 2017) -> pd.Series:
+    """``(1 + mu(t)) / (1 + mu(base))``, the margin leg of the purchaser deflator.
+
+    ⚠️ **Margin suppliers are held at 1.0.**  For a trade or transport commodity
+    ``T014`` is large and negative -- its margin is allocated away onto the goods
+    it carries, which is why the columns net to zero -- so ``mu`` runs to -0.94
+    (``42``), -0.99 (``486``), -0.88 (``482``) and ``1 + mu`` is a near-zero
+    denominator.  Those rows carry almost no dollars in the purchaser-priced
+    intermediate block anyway, for the same reason their ``mu`` is negative.
+    """
+    now, then = summary_margin_rate(year), summary_margin_rate(base)
+    factor = (1.0 + now) / (1.0 + then)
+    receiving = (then > 0) & (now > -1)
+    return factor.where(receiving, 1.0).replace([np.inf, -np.inf], 1.0).fillna(1.0)
 
 
 def summary_price_index(year: int) -> pd.Series:
@@ -198,6 +338,59 @@ def drift() -> pd.DataFrame:
     return pd.DataFrame(records).set_index('year')
 
 
+def revision(top: int = 10) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The same year read from both vintages: how big is BEA's own revision?
+
+    Nothing here is drift.  Both sides are the *same year*, so a non-zero score
+    is BEA restating a structure it had already published -- the noise floor
+    under every year-on-year number this module reports, and the reason
+    everything else reads one workbook.  Returns the year series and the columns
+    that move most at the last overlapping year.
+    """
+    records = []
+    for year in REVISION_YEARS:
+        current = summary_intermediate(year, CURRENT_SUMMARY_USE)
+        legacy = summary_intermediate(year, LEGACY_SUMMARY_USE)
+        rows, columns = _align(current, legacy)
+        weights = current.loc[rows, columns].sum(axis=0)
+        score, _ = dissimilarity(
+            column_shares(legacy.loc[rows, columns]),
+            column_shares(current.loc[rows, columns]),
+            weights,
+        )
+        records.append(
+            {
+                'year': year,
+                'revision': score,
+                'intermediate_$M': float(weights.sum()),
+            }
+        )
+    series = pd.DataFrame(records).set_index('year')
+
+    last = REVISION_YEARS[-1]
+    current, legacy = (
+        summary_intermediate(last, CURRENT_SUMMARY_USE),
+        summary_intermediate(last, LEGACY_SUMMARY_USE),
+    )
+    names = summary_use(last).loc['IOCode']
+    rows, columns = _align(current, legacy)
+    weights = current.loc[rows, columns].sum(axis=0)
+    _, per_column = dissimilarity(
+        column_shares(legacy.loc[rows, columns]),
+        column_shares(current.loc[rows, columns]),
+        weights,
+    )
+    columns_frame = pd.DataFrame(
+        {
+            'name': [str(names.get(c))[:38] for c in columns],
+            f'revision_{last}': per_column,
+            'column_$M': weights,
+            'restated_$M': per_column * weights,
+        }
+    ).sort_values('restated_$M', ascending=False)
+    return series, columns_frame.head(top)
+
+
 def inflation() -> pd.DataFrame:
     """Frozen structure against the same structure carried on a price index."""
     benchmark = summary_intermediate(2017)
@@ -219,6 +412,65 @@ def inflation() -> pd.DataFrame:
                 'frozen': frozen_score,
                 'inflated': carried_score,
                 'improvement_%': 100 * (frozen_score - carried_score) / frozen_score,
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
+def theta(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
+    """Fit ``theta`` with and without the margin leg -- the discriminating test.
+
+    §Inflation reads the summary panel's low ``theta`` as substitution under
+    relative-price dispersion.  But a **missing deflator term** produces the same
+    symptom, and the term that is missing is known: a cell of this block is at
+    purchaser value and the price index carried against it is a producer-value
+    one (§Margins.2).  So the two readings are separable by experiment rather
+    than by argument:
+
+    * if adding the margin leg pulls ``theta`` **toward** the detail panel's
+      1.00, the gap was the deflator;
+    * if ``theta`` stays low, the substitution reading stands and the margin leg
+      is a second-order correction to a term that is wrong for another reason.
+
+    Scored per year so the answer can be read against the price regime rather
+    than averaged across it.
+    """
+    benchmark = summary_intermediate(2017)
+    base_pi = summary_price_index(2017)
+    records = []
+    for year in years:
+        actual = summary_intermediate(year)
+        rows, columns = _align(benchmark, actual)
+        observed = column_shares(actual.loc[rows, columns])
+        frozen = column_shares(benchmark.loc[rows, columns])
+        weights = actual.loc[rows, columns].sum(axis=0)
+        price = (summary_price_index(year) / base_pi).reindex(rows).fillna(1.0)
+        margin = summary_margin_factor(year).reindex(rows).fillna(1.0)
+
+        def best(ratio: pd.Series) -> tuple[float, float]:
+            # THETA_GRID runs negative, so a zero ratio would raise the whole
+            # fit to infinity rather than harmlessly to zero.  No year has one
+            # today; this keeps a future one from poisoning the fit silently.
+            ratio = ratio.where(ratio > 0, 1.0)
+            scored = {
+                t: dissimilarity(
+                    column_shares(frozen.mul(ratio**t, axis=0)), observed, weights
+                )[0]
+                for t in THETA_GRID
+            }
+            fitted = min(scored, key=lambda t: scored[t])
+            return fitted, scored[fitted]
+
+        price_theta, price_score = best(price)
+        both_theta, both_score = best(price * margin)
+        records.append(
+            {
+                'year': year,
+                'theta_price_only': price_theta,
+                'score_at_theta': price_score,
+                'theta_with_margin': both_theta,
+                'score_at_theta_margin': both_score,
+                'margin_moves_theta': both_theta - price_theta,
             }
         )
     return pd.DataFrame(records).set_index('year')
@@ -340,7 +592,7 @@ def where(year: int = 2024, top: int = 15) -> pd.DataFrame:
     """Which summary industry columns carry the drift, by dollars misplaced."""
     benchmark = summary_intermediate(2017)
     actual = summary_intermediate(year)
-    names = _load_usa_summary_sut('Use_SUT_summary', year).loc['IOCode']  # type: ignore[arg-type]
+    names = summary_use(year).loc['IOCode']
     rows, columns = _align(benchmark, actual)
     weights = actual.loc[rows, columns].sum(axis=0)
     _, per_column = dissimilarity(
@@ -384,6 +636,80 @@ def where_detail(
     return table.sort_values('misplaced_$M', ascending=False).head(top)
 
 
+def column_control(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
+    """Score Step 3's column control against the published summary ``T005``.
+
+    The control is ``GO_producer - VAPRO_seed`` per detail industry, and with
+    Step 2 unbuilt ``VAPRO_seed`` is 2017's value-added share of gross output.
+    Nothing at detail can check that, but the *summary* Use SUT publishes
+    ``T005`` for every year, so aggregating the detail control to summary gives
+    a real out-of-sample test of the frozen ratio.
+
+    ``level_%`` is the economy-wide error and ``spread_%`` is the dollar-weighted
+    mean absolute error across summary industries -- the two say different
+    things, and the frozen ratio is good at the first and increasingly bad at
+    the second.
+    """
+    industry_to_summary = {
+        str(code): (parents[0] if isinstance(parents, list) else str(parents))
+        for code, parents in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    group = pd.Series(
+        {code: industry_to_summary.get(code) for code in USA_2017_INDUSTRY_CODES}
+    )
+    records = []
+    for year in years:
+        built = (
+            intermediate_column_control(year).groupby(group).sum()
+            / MILLION_CURRENCY_TO_CURRENCY
+        )
+        published = pd.to_numeric(
+            ta.cast('pd.Series', summary_use(year).loc['T005']), errors='coerce'
+        ).reindex(built.index)
+        shared = published.notna()
+        error = built[shared] - published[shared]
+        total = float(published[shared].sum())
+        worst = ta.cast(str, error.abs().idxmax())
+        records.append(
+            {
+                'year': year,
+                'built_$M': float(built[shared].sum()),
+                'published_$M': total,
+                'level_%': 100 * (float(built[shared].sum()) / total - 1),
+                'spread_%': 100 * float(error.abs().sum()) / total,
+                'worst': worst,
+                'worst_%': 100 * float(error[worst]) / float(published[worst]),
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
+def seed(theta: float = 1.0) -> pd.DataFrame:
+    """The built Step 3 block, year by year, against a frozen 2017 level.
+
+    ⚠️ **This is not a score.** Nothing observed exists at detail after 2017, so
+    all this reports is that the block is levelled, signed and shaped the way it
+    should be. The structure is scored on the summary panel by :func:`drift` and
+    :func:`inflation`, and the plumbing is checked by
+    :func:`~bedrock.transform.iot.nowcast_intermediate.reproduction_check`.
+    """
+    frozen = float(benchmark_intermediate().to_numpy().sum())
+    records = []
+    for year in INTERMEDIATE_YEARS:
+        block = derive_intermediate_use(year, theta=theta)
+        total = float(block.to_numpy().sum())
+        records.append(
+            {
+                'year': year,
+                'intermediate_$B': total / 1e9,
+                'vs_frozen_2017_%': 100 * (total / frozen - 1),
+                'negative_cells': int((block.to_numpy() < 0).sum()),
+                'empty_columns': int((block.abs().sum(axis=0) == 0).sum()),
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
 def _detail_descriptions(year: BENCHMARK_YEAR) -> pd.Series:
     """``code -> description`` off the same sheet, for readable output."""
     use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
@@ -401,9 +727,30 @@ def main() -> None:
         '--holdout', action='store_true', help='benchmark to benchmark, detail'
     )
     parser.add_argument('--where', action='store_true', help='which columns drift')
+    parser.add_argument(
+        '--revision', action='store_true', help='same year, both vintages'
+    )
+    parser.add_argument(
+        '--theta', action='store_true', help='fit theta, with and without margins'
+    )
+    parser.add_argument(
+        '--control', action='store_true', help='score the column control'
+    )
+    parser.add_argument('--seed', action='store_true', help='the built Step 3 block')
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
-    chosen = args.drift or args.inflation or args.holdout or args.where
+    chosen = any(
+        (
+            args.drift,
+            args.inflation,
+            args.holdout,
+            args.where,
+            args.revision,
+            args.theta,
+            args.control,
+            args.seed,
+        )
+    )
 
     if args.all or args.drift or not chosen:
         print('\nFrozen 2017 input structure vs the published summary Use SUT')
@@ -421,6 +768,26 @@ def main() -> None:
         print(where().round(3).to_string())
         print('\nWhere the 2012 -> 2017 drift sits, detail\n')
         print(where_detail().round(3).to_string())
+    if args.all or args.theta:
+        print('\nFitting theta, with and without the margin leg of the deflator')
+        print('(does the missing purchaser-price term explain the low theta?)\n')
+        print(theta().round(4).to_string())
+    if args.all or args.control:
+        print("\nStep 3's column control against the published summary T005")
+        print('(level_% is economy-wide; spread_% is weighted MAE by industry)\n')
+        print(column_control().round(3).to_string())
+    if args.all or args.seed:
+        print('\nThe built Step 3 block, against a frozen 2017 level\n')
+        print(seed().round(3).to_string())
+        print('\n2017 reproduction of the published interior\n')
+        print(reproduction_check().to_string())
+    if args.all or args.revision:
+        series, columns = revision()
+        print('\nThe same year read from both summary Use vintages')
+        print('(not drift - BEA restating a structure it had already published)\n')
+        print(series.round(4).to_string())
+        print(f'\nWhich columns BEA restated most, {REVISION_YEARS[-1]}\n')
+        print(columns.round(3).to_string())
     print()
 
 

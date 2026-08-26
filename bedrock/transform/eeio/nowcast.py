@@ -7,8 +7,10 @@ controls. See https://github.com/orgs/cornerstone-data/projects/26 for the track
 
 This module implements the final-demand section of the Use table, in
 purchaser (PUR) price, commodity x SUT final-demand codes (MUT list minus
-``F05000``), and the Supply bridge block (commodity x the 12 basic-to-
-purchaser codes). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
+``F05000``), the Supply bridge block (commodity x the 12 basic-to-
+purchaser codes), and the Use table's 402 x 402 intermediate interior
+(``derive_initial_U_intermediate``, Step 3 / #497 - the sourcing lives in
+``bedrock.transform.iot.nowcast_intermediate``). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
 (``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for 2017,
 ``Trade_Exports_<year>`` on ``F04000`` via mapped Detail mass in
 ``_trade_fbs_commodity_vector``. ``F03000`` (change in private
@@ -62,6 +64,10 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.iot.nowcast_intermediate import (
+    DEFAULT_THETA,
+    derive_intermediate_use,
+)
 from bedrock.transform.iot.nowcast_product_taxes import TOP_YEARS, top_column
 from bedrock.transform.iot.nowcast_subsidies import SUB_YEARS, sub_column
 from bedrock.transform.iot.nowcast_trade_margins import (
@@ -447,3 +453,21 @@ def derive_initial_supply_bridge(
     if year in SUB_YEARS:
         bridge['SUB'] = sub_column(year).reindex(bridge.index).fillna(0.0)
     return fill_supply_bridge_subtotals(bridge)
+
+
+def derive_initial_U_intermediate(
+    year: int, theta: float = DEFAULT_THETA
+) -> pd.DataFrame:
+    """Initial (pre-RAS-balanced) intermediate block of the Use table, USD.
+
+    Commodity x industry, 402 x 402, **purchaser** price and **before**
+    redefinitions - the native basis of ``Use_SUT_Framework_2017_DET``, which is
+    what this is seeded from.
+
+    Step 3 (#497). The sourcing, the carry, the column control and every caveat
+    live in :mod:`bedrock.transform.iot.nowcast_intermediate`; read that module
+    docstring before using this for anything but the section diagnostic. In
+    particular ``theta`` defaults to #497's 1.0 and **fits negative at 2023-24**,
+    and the column control is a *seed* because Step 2 is unbuilt.
+    """
+    return derive_intermediate_use(year, theta=theta)

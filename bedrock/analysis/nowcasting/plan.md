@@ -935,10 +935,18 @@ gap may be misallocated rather than missing, which changes #606 from sourcing to
     bridge is the actual work; **#578 should be rescoped to it, or dropped.**
   - **Agriculture (#577) stays correct and cheap but is a small prize** — `111CA` carries little of
     the drift. It should not be first.
-  - **The 2022 Economic Census `MATFUEL` materials breakout, which #564 called a consolation prize,
-    is now the top external candidate**: the only source that speaks to the 82% of manufacturing's
-    column that annual data cannot see, and a genuine second structural observation between 2017 and
-    2025.
+  - ✅ **The 2022 Economic Census `MATFUEL` materials breakout — which #564 called a consolation prize
+    — is built and it delivers.** `Census_EC_MatFuel` pulls `ecnmatfuel` for 2017 and 2022;
+    [`inputs_structure.py`](inputs_structure.py) measures it. **66.5% of the 2017 materials bill
+    and 69.2% of 2022 is placeable on a BEA commodity, against 8.3% for the annual data** — 52.9% / 54.1%
+    resolving 1:1 by NAICS prefix and the rest onto a BEA group needing a within-group split. Withheld
+    cells are recovered against each industry's published total, which closes all 406 and 386
+    industry-by-kind controls to within 0.1%. And the mix **moved 0.133 between the two censuses**,
+    against 0.173 for the whole Use column over 2012→2017, with **133 of 193 industries moving more
+    than 10 points**. ⚠️ That 0.133 is the *unsuppressed subsample*; the full frame reads 0.159 and is
+    contaminated by the fill, whose holdout error is WAPE 0.60-0.72 and is pure allocation error. Full
+    treatment in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) §The materials
+    census.
   - **SAS Table 3 loses its promotion.** `annual_survey_expense_sources.md` calls it "the most useful
     thing the probe found" because it is a *detail* control on service column size — but Step 5's
     column target is already detail gross output. It was the most useful thing for a Step 3 that owned
