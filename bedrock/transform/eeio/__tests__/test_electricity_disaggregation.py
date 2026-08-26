@@ -42,7 +42,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
     disaggregate_use_industry_columns,
-    get_2017_purchaser_allocation,
+    get_2017_eia_purchaser_allocation,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
@@ -66,7 +66,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_use_intersection_weights,
     build_electricity_detail_GO_growth_ratios,
     applied_utilities_summary_q_growth_ratio,
-    get_2017_purchaser_allocation,
+    get_2017_eia_purchaser_allocation,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -267,7 +267,7 @@ class TestGtdUseIntersection:
             _teardown()
 
 
-class Test2017PurchaserAllocation:
+class Test2017EIAPurchaserAllocation:
     def test_getter_does_not_call_io_bundle(
         self, electricity_disagg_config: str
     ) -> None:
@@ -281,9 +281,9 @@ class Test2017PurchaserAllocation:
                 with mock.patch(
                     'bedrock.transform.eeio.cornerstone_disagg_pipeline.derive_disagg_Ytot_with_trade'
                 ) as y_mock:
-                    get_2017_purchaser_allocation.cache_clear()
+                    get_2017_eia_purchaser_allocation.cache_clear()
                     _derive_post_reallocation_checkpoint_for_disagg.cache_clear()
-                    alloc = get_2017_purchaser_allocation()
+                    alloc = get_2017_eia_purchaser_allocation()
                     assert ELECTRICITY_AGGREGATE in alloc.bill.index
                     bundle_mock.assert_not_called()
                     y_mock.assert_not_called()
@@ -380,7 +380,7 @@ class TestReanchoredAqIdentities:
                 GENERATION_SECTOR,
                 IMPORT_FD_CODE,
                 TRANSMISSION_SECTOR,
-                get_reanchored_purchaser_allocation,
+                get_reanchored_eia_purchaser_allocation,
             )
             from bedrock.utils.math.formulas import (  # noqa: PLC0415
                 backcompute_y_from_A_and_q,
@@ -390,7 +390,7 @@ class TestReanchoredAqIdentities:
             )
 
             aq = derive_cornerstone_Aq_scaled()
-            alloc = get_reanchored_purchaser_allocation()
+            alloc = get_reanchored_eia_purchaser_allocation()
             assert alloc is not None
             udom = aq.Adom.multiply(aq.scaled_q, axis=1)
             y = backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
@@ -483,7 +483,7 @@ class Test2017PurchaserEiaIdentities:
 
         _setup_config(electricity_disagg_config)
         try:
-            alloc = get_2017_purchaser_allocation()
+            alloc = get_2017_eia_purchaser_allocation()
             egrid = egrid_mwh_for_io_year(2017)
             export = eia_table_2_14_export_mwh(2017)
             t22 = eia_table_2_2_end_use_mwh(2017)
@@ -543,12 +543,12 @@ def test_import_fd_column_uses_child_sum_when_aggregate_missing(
         GENERATION_SECTOR,
         IMPORT_FD_CODE,
         TRANSMISSION_SECTOR,
-        PurchaserAllocation,
+        EIAPurchaserAllocation,
         apply_purchaser_allocation_to_y,
     )
 
     empty = pd.Series(dtype=float)
-    alloc = PurchaserAllocation(
+    alloc = EIAPurchaserAllocation(
         bill=empty,
         end_use_class=empty,
         mwh=empty,
@@ -561,7 +561,7 @@ def test_import_fd_column_uses_child_sum_when_aggregate_missing(
         td_share=0.06,
     )
     monkeypatch.setattr(
-        'bedrock.transform.eeio.electricity_gtd_allocation.get_2017_purchaser_allocation',
+        'bedrock.transform.eeio.electricity_gtd_allocation.get_2017_eia_purchaser_allocation',
         lambda: alloc,
     )
     Y = pd.DataFrame(

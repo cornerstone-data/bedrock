@@ -17,7 +17,7 @@ from bedrock.extract.disaggregation.disagg_weights import DisaggWeights, weights
 from bedrock.extract.iot.gdp import SECTOR_NAME_COL, load_go_detail
 from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
 from bedrock.transform.eeio.electricity_gtd_allocation import (
-    get_2017_purchaser_allocation as get_2017_purchaser_allocation,
+    get_2017_eia_purchaser_allocation as get_2017_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_V,
@@ -861,7 +861,7 @@ def disaggregate_electricity_make_use_va(
         write_purchaser_gtd_use_and_y,
     )
 
-    allocation = get_2017_purchaser_allocation()
+    allocation = get_2017_eia_purchaser_allocation()
     y = _derive_y_before_electricity_disagg_lazy()
     Udom, Uimp, _y = write_purchaser_gtd_use_and_y(Udom, Uimp, y, allocation)
     _enforce_go_identity_precondition(V, Udom, Uimp, VA)

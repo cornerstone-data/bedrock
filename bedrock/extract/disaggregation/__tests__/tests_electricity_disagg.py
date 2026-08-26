@@ -12,6 +12,7 @@ import bedrock.transform.eeio.derived_cornerstone as derived_cornerstone
 from bedrock.extract.disaggregation.egrid_generation import (
     eia_table_2_14_export_mwh,
     eia_table_2_14_year_for_egrid_year,
+    load_egrid_flowbyfacility,
     load_egrid_ggl,
     us_total_net_generation_mwh,
 )
@@ -37,6 +38,78 @@ def test_derive_cornerstone_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
         out = derived_cornerstone.derive_cornerstone_Ytot_full_cs_matrix()
     pd.testing.assert_frame_equal(out, fake)
     assert out is not fake
+
+
+def _fake_flowbyfacility() -> pd.DataFrame:
+    return pd.DataFrame(
+        {'FlowName': ['Electricity'], 'FlowAmount': [1.0], 'Unit': ['MJ']}
+    )
+
+
+def test_load_egrid_flowbyfacility_uses_cache_or_remote_when_present() -> None:
+    fake = _fake_flowbyfacility()
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            return_value=fake,
+        ) as read,
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+    ):
+        out = load_egrid_flowbyfacility(2024, download_if_missing=True)
+    pd.testing.assert_frame_equal(out, fake)
+    read.assert_called_once()
+    generate.assert_not_called()
+
+
+def test_load_egrid_flowbyfacility_generates_from_source_after_remote_miss() -> None:
+    fake = _fake_flowbyfacility()
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            side_effect=[None, fake],
+        ) as read,
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+    ):
+        out = load_egrid_flowbyfacility(2024, download_if_missing=True)
+    pd.testing.assert_frame_equal(out, fake)
+    generate.assert_called_once_with('eGRID', 2024)
+    assert read.call_count == 2
+    assert read.call_args_list[0].kwargs['download_if_missing'] is True
+    assert read.call_args_list[1].kwargs['download_if_missing'] is False
+
+
+def test_load_egrid_flowbyfacility_does_not_generate_when_download_disabled() -> None:
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            return_value=None,
+        ),
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+        pytest.raises(FileNotFoundError, match='not available for 2024'),
+    ):
+        load_egrid_flowbyfacility(2024, download_if_missing=False)
+    generate.assert_not_called()
+
+
+def test_load_egrid_flowbyfacility_raises_if_generate_still_missing() -> None:
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            return_value=None,
+        ),
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+        pytest.raises(FileNotFoundError, match='not available for 2024'),
+    ):
+        load_egrid_flowbyfacility(2024, download_if_missing=True)
+    generate.assert_called_once_with('eGRID', 2024)
 
 
 @pytest.mark.eeio_integration

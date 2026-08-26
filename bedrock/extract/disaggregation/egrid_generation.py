@@ -11,7 +11,7 @@ import pandas as pd
 import stewi.exceptions
 from stewi.egrid import OUTPUT_PATH, _config, download_eGRID, extract_eGRID_excel
 from stewi.formats import StewiFormat
-from stewi.globals import MWh_MJ, read_inventory
+from stewi.globals import MWh_MJ, generate_inventory, read_inventory
 from stewi.globals import config as stewi_config
 
 from bedrock.utils.validation.exceptions import FBANotAvailableError
@@ -130,6 +130,12 @@ def load_egrid_flowbyfacility(
     Uses ``read_inventory`` so plant net generation matches the stored inventory
     (sum of PLNT / US ``USNGENAN``). ``getInventory`` re-aggregates on read and drops
     non-positive ``FlowAmount`` rows, which raises the US electricity total.
+
+    ``read_inventory(..., download_if_missing=True)`` only fetches a pre-built
+    parquet from EPA DMAP S3; it does not generate from the eGRID workbook.
+    Years that exist in Cornerstone stewi config (e.g. 2024) but are not on
+    S3 yet therefore miss. After that miss, generate from source (Zenodo xlsx
+    → processed inventory) and read the local parquet.
     """
     _require_egrid_year(year)
     inv = read_inventory(
@@ -138,6 +144,19 @@ def load_egrid_flowbyfacility(
         StewiFormat.FLOWBYFACILITY,
         download_if_missing=download_if_missing,
     )
+    if inv is None and download_if_missing:
+        logger.info(
+            'eGRID %s flow-by-facility not in local cache or remote; '
+            'generating from source',
+            year,
+        )
+        generate_inventory('eGRID', year)
+        inv = read_inventory(
+            'eGRID',
+            year,
+            StewiFormat.FLOWBYFACILITY,
+            download_if_missing=False,
+        )
     if inv is None:
         msg = f'eGRID flow-by-facility inventory not available for {year}'
         raise FileNotFoundError(msg)
