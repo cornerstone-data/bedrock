@@ -11,19 +11,21 @@ purchaser (PUR) price, commodity x SUT final-demand codes (MUT list minus
 purchaser codes), and the Use table's 402 x 402 intermediate interior
 (``derive_initial_U_intermediate``, Step 3 / #497 - the sourcing lives in
 ``bedrock.transform.iot.nowcast_intermediate``). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
-(``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for 2017,
-``Trade_Exports_<year>`` on ``F04000`` via mapped Detail mass in
-``_trade_fbs_commodity_vector``. ``F03000`` (change in private
-inventories, #529) is present but all-zero. ``F05000`` is MUT-only and
-is not a Y column. The Supply bridge fills ``MCIF`` from
+(``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for
+``TRADE_OVERLAY_YEARS`` (2017-2024), ``Trade_Exports_<year>`` on ``F04000``
+via mapped Detail mass in ``_trade_fbs_commodity_vector``. ``F03000``
+(change in private inventories, #529) is sourced for 2017 only. ``F05000``
+is MUT-only and is not a Y column. The Supply bridge fills ``MCIF`` from
 ``Trade_Imports_<year>`` (same mapped Detail mass), ``MDTY`` from Census
 duty rates leveled to NIPA ``B235RC``, and ``MADJ`` from Census import
-charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ``
-destination codes and leveled to published Supply ``MADJ``, for 2017.
-``TRADE``/``TRANS`` are step 4c's margin columns and ``TOP``/``SUB`` are
-step 4d's tax and subsidy columns, all sourced for a run of years. ⚠️
-``SUB`` is stored negative, as BEA publishes it in the Supply table. ITA G+S scale lives in
-``bedrock.transform.trade.scale`` and is not applied here (#647).
+charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ`` destination
+codes — for 2017 leveled to published Supply ``MADJ``, for later years to
+that year's charge total with the published ``MADJ`` sign — for every year
+in ``TRADE_OVERLAY_YEARS``. ``TRADE``/``TRANS`` are step 4c's margin columns
+and ``TOP``/``SUB`` are step 4d's tax and subsidy columns, all sourced for
+a run of years. ⚠️ ``SUB`` is stored negative, as BEA publishes it in the
+Supply table. ITA G+S scale lives in ``bedrock.transform.trade.scale`` and
+is not applied here (#647).
 
 Each ``NIPA_final_dom_uses_<year>.yaml`` activity_set assigns its official BEA
 final-demand code directly to ``SectorConsumedBy`` via a
@@ -51,7 +53,8 @@ Trade FBS ``SectorProducedBy`` is BEA 2017 Detail (same include on
 ``Trade_Exports_<year>`` / ``Trade_Imports_<year>``). Overlay ``F04000``
 after the NIPA frame exists; do not send Trade through
 ``map_fbs_sectors_to_model_schema``. ``S00900`` / ``F04000`` is the rest-of-world
-identity ``-Y[S00900, F01000] + Supply_T016[S00900]`` (2017 only).
+identity ``-Y[S00900, F01000] + Supply_T016[S00900]`` (frozen 2017 Supply
+``T016``) for every trade-overlay year.
 """
 
 from __future__ import annotations
@@ -80,6 +83,10 @@ from bedrock.transform.trade.madj import madj_detail_usd
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
+
+#: Years with ``Trade_Exports_<year>`` / ``Trade_Imports_<year>`` and overlay
+#: of ``F04000`` / ``MCIF`` / ``MDTY`` / ``MADJ`` (#727).
+TRADE_OVERLAY_YEARS = range(2017, 2025)
 
 #: Years the transport margin can be built for. Truck and pipeline come from
 #: the Service Annual Survey, which stops at 2022; AIES carries 2023 and is
@@ -320,9 +327,9 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     price, commodity x SUT final-demand codes (no F05000).
 
     F03000 is Inventories_<year> for 2017 (#529); other years all-zero.
-    F04000 is mapped Trade_Exports_<year> Detail mass for 2017; other years
-    all-zero. S00900/F04000 uses the rest-of-world identity against Supply
-    T016 (2017).
+    F04000 is mapped Trade_Exports_<year> Detail mass for every year in
+    ``TRADE_OVERLAY_YEARS``. S00900/F04000 uses the rest-of-world identity
+    against frozen 2017 Supply T016.
     """
     fbs = FlowBySector.generateFlowBySector(
         f'NIPA_final_dom_uses_{year}', download_sources_ok=download_sources_ok
@@ -348,17 +355,19 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     if 'S00900' not in y.index:
         y.loc['S00900'] = 0.0
 
-    if year == 2017:
+    if year in TRADE_OVERLAY_YEARS:
         exports = _trade_fbs_commodity_vector(
             f'Trade_Exports_{year}', download_sources_ok
         )
+        y['F04000'] = exports.reindex(y.index).fillna(0.0)
+        pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
+        y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
+
+    if year == 2017:
         inventories = _inventories_fbs_commodity_vector(
             f'Inventories_{year}', download_sources_ok
         )
-        y['F04000'] = exports.reindex(y.index).fillna(0.0)
         y['F03000'] = inventories.reindex(y.index).fillna(0.0)
-        pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
-        y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
 
     y.index.name = 'commodity'
     return y.sort_index()
@@ -370,10 +379,12 @@ def derive_initial_supply_bridge(
 ) -> pd.DataFrame:
     """Commodity x Supply-bridge codes, USD, BEA 2017 Detail rows.
 
-    MCIF is mapped Trade_Imports_<year> Detail mass for 2017. MDTY is Census
-    duty rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
-    GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
-    to published Supply MADJ, for 2017.
+    MCIF is mapped Trade_Imports_<year> Detail mass for every year in
+    ``TRADE_OVERLAY_YEARS``. MDTY is Census duty rate × goods MCIF, leveled to
+    NIPA B235RC, for those years. MADJ is Census GEN_CHA_YR reassigned onto
+    2017 Supply MADJ destination codes — leveled to published Supply MADJ in
+    2017, and to that year's charge total with the published MADJ sign in
+    later years.
 
     ``T007`` is the row margin of the ``Detail_Supply_<year>`` FBS
     domestic-output block, and is sourced for every year **2017-2024** (#570).
@@ -436,7 +447,7 @@ def derive_initial_supply_bridge(
     )
     bridge.columns.name = 'supply_bridge_code'
     bridge['T007'] = _supply_fbs_commodity_vector(year, download_sources_ok)
-    if year == 2017:
+    if year in TRADE_OVERLAY_YEARS:
         bridge['MCIF'] = _trade_fbs_commodity_vector(
             f'Trade_Imports_{year}', download_sources_ok
         )

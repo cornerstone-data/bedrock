@@ -1,11 +1,11 @@
-# Census goods + BEA IntlServTrade exports for 2017.
+# Census goods + BEA IntlServTrade exports for 2019.
 #
-# Method body: Trade_Exports_common.yaml. 1:m attribution uses Detail_Supply_2017
+# Method body: Trade_Exports_common.yaml. 1:m attribution uses Detail_Supply_2019
 # collapsed to commodity T007 (#729).
 !include:Trade_Exports_common.yaml
-year: 2017
+year: 2019
 sources_to_cache:
-  Detail_Supply_2017:
+  Detail_Supply_2019:
     data_format: FBS
     primary_action_type: Consumed
     geoscale: national
@@ -16,10 +16,10 @@ source_names:
     activity_sets:
       goods_exports:
         !include:Trade_Exports_common.yaml:source_names:Census_USATrade:activity_sets:goods_exports
-        attribution_source: Detail_Supply_2017
+        attribution_source: Detail_Supply_2019
   BEA_IEA:
     !include:Trade_Exports_common.yaml:source_names:BEA_IEA
     activity_sets:
       service_exports:
         !include:Trade_Exports_common.yaml:source_names:BEA_IEA:activity_sets:service_exports
-        attribution_source: Detail_Supply_2017
+        attribution_source: Detail_Supply_2019

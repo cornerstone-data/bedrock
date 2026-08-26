@@ -1,6 +1,6 @@
-# Census goods (CIF) + BEA IntlServTrade imports for 2017.
+# Census goods (CIF) + BEA IntlServTrade imports for 2023.
 #
 # Method body: Trade_Imports_common.yaml. Sources inherit this year; 1:m
 # attribution stays on 2017 Supply MCIF.
 !include:Trade_Imports_common.yaml
-year: 2017
+year: 2023

@@ -1,0 +1,44 @@
+# National goods + services imports (CIF-family) mapped to BEA 2017 Detail.
+#
+# Everything except the year lives here; each source inherits `year` from the
+# method config. Attribution weights stay on the 2017 Supply MCIF column.
+# Per-year stubs: Trade_Imports_<year>.yaml.
+!include:BEA_detail_commodity_target.yaml
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+_attribution_sources:
+  supply_mcif: &supply_mcif
+    year: 2017
+    selection_fields:
+      ActivityProducedBy: {'MCIF': ''}
+
+source_names:
+  Census_USATrade:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: Census_USATrade
+    activity_sets:
+      goods_imports_cif:
+        selection_fields:
+          FlowName: GEN_CIF_YR
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *supply_mcif
+
+  BEA_IEA:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: BEA_IEA_imports
+    activity_sets:
+      service_imports:
+        selection_fields:
+          FlowName: Imports
+        exclusion_fields:
+          ActivityProducedBy: [AllTypesOfService]
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *supply_mcif
