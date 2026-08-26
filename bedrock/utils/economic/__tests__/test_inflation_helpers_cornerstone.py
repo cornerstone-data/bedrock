@@ -29,7 +29,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_detail_GO_growth_ratios,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    get_electricity_commodity_row_weights,
+    get_2017_purchaser_allocation,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -65,7 +65,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
     build_electricity_detail_GO_growth_ratios,
-    get_electricity_commodity_row_weights,
+    get_2017_purchaser_allocation,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -85,6 +85,15 @@ def _clear_all_caches() -> None:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
     clear_cornerstone_inflation_caches()
+    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
+        clear_summary_year_scaled_aq,
+    )
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        clear_reanchored_electricity_q,
+    )
+
+    clear_summary_year_scaled_aq()
+    clear_reanchored_electricity_q()
 
 
 def _setup_config(config_name: str) -> None:
@@ -103,9 +112,9 @@ def test_rho_inflation_ratio_is_inverse_of_industry_price_ratio() -> None:
     original_year, target_year = 2017, 2024
     industry = get_cornerstone_industry_price_ratio(original_year, target_year)
     rho = get_rho_inflation_ratio(original_year, target_year)
-    product = (industry * rho).replace([float("inf"), float("-inf")], float("nan"))
+    product = (industry * rho).replace([float('inf'), float('-inf')], float('nan'))
     max_dev = (product - 1.0).abs().max()
-    assert max_dev < 1e-9, f"expected industry * rho == 1, max deviation {max_dev:.2e}"
+    assert max_dev < 1e-9, f'expected industry * rho == 1, max deviation {max_dev:.2e}'
 
 
 def test_vnorm_commodity_price_ratio_is_identity_at_year_to_self() -> None:
@@ -122,7 +131,7 @@ def test_vnorm_commodity_price_ratio_is_identity_at_year_to_self() -> None:
     max_abs_dev = (ratio - 1.0).abs().max()
     assert (
         max_abs_dev < 1e-12
-    ), f"Expected ratio == 1.0 at year=year, got max abs deviation {max_abs_dev:.2e}"
+    ), f'Expected ratio == 1.0 at year=year, got max abs deviation {max_abs_dev:.2e}'
 
 
 def test_v_inflation_uses_industry_row_axis(
@@ -165,10 +174,10 @@ def test_v_inflation_uses_industry_row_axis(
     max_row_std = float(row_stds.max())
 
     assert max_row_std > 1e-3, (
-        f"Vnorm True/False ratio appears row-uniform across commodity columns "
-        f"(max row std {max_row_std:.2e}). Under correct axis=0, per-industry "
-        f"scaling yields column-varying ratios; under axis=1, uniform column "
-        f"scaling cancels in normalization, yielding row-constant ratios."
+        f'Vnorm True/False ratio appears row-uniform across commodity columns '
+        f'(max row std {max_row_std:.2e}). Under correct axis=0, per-industry '
+        f'scaling yields column-varying ratios; under axis=1, uniform column '
+        f'scaling cancels in normalization, yielding row-constant ratios.'
     )
 
 

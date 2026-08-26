@@ -1,4 +1,4 @@
-"""Tests for 221110 mixed-unit (MWh) conversion (PR4)."""
+"""Tests for 221110 mixed-unit (MWh) conversion."""
 
 from __future__ import annotations
 
@@ -9,12 +9,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.extract.disaggregation.egrid_generation import (
+    egrid_mwh_for_io_year,
+    eia_table_2_2_end_use_mwh,
+    eia_table_2_14_export_mwh,
+    eia_table_3_1_total_mwh,
+)
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     build_end_use_map,
     compute_mixed_unit_ef_vectors,
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    electricity_conversion_factors,
     electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
     electricity_reallocation_enabled,
@@ -37,15 +44,19 @@ from bedrock.transform.eeio.derived_cornerstone import (
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
+    _derive_post_reallocation_checkpoint_for_disagg,
     apply_electricity_unit_conversion_to_A,
     apply_electricity_unit_conversion_to_B,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    electricity_class_row_factors,
     electricity_output_factor,
-    get_electricity_commodity_row_weights,
+    get_2017_purchaser_allocation,
 )
-from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.config.usa_config import (
+    get_usa_config,
+    reset_usa_config,
+    set_global_usa_config,
+)
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     clear_cornerstone_inflation_caches,
 )
@@ -70,7 +81,8 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    get_electricity_commodity_row_weights,
+    get_2017_purchaser_allocation,
+    _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_U_with_negatives,
@@ -92,6 +104,19 @@ def _clear_caches() -> None:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
     clear_cornerstone_inflation_caches()
+    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
+        clear_summary_year_scaled_aq,
+    )
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        clear_reanchored_electricity_q,
+    )
+
+    clear_summary_year_scaled_aq()
+    clear_reanchored_electricity_q()
+    egrid_mwh_for_io_year.cache_clear()
+    eia_table_2_2_end_use_mwh.cache_clear()
+    eia_table_2_14_export_mwh.cache_clear()
+    eia_table_3_1_total_mwh.cache_clear()
 
 
 def _setup(config_name: str) -> None:
@@ -117,26 +142,40 @@ def test_electricity_output_factor_raises_on_bad_inputs() -> None:
         electricity_output_factor(1e11, 0.0)
 
 
-def test_class_row_factors_monotonicity() -> None:
-    prices = {
-        'Residential': 12.0,
-        'Commercial': 10.0,
-        'Industrial': 7.0,
-        'Transportation': 9.0,
-        'Total': 10.0,
-    }
-    end_use_map = {'col_ind': 'Industrial', 'col_res': 'Residential'}
-    scaled_q = pd.Series({'col_ind': 100.0, 'col_res': 100.0})
-    adom_row = pd.Series({'col_ind': 0.01, 'col_res': 0.01})
-    y_row = pd.Series(dtype=float)
-    mwh = 1e9
-    c_row = electricity_class_row_factors(
-        adom_row, scaled_q, y_row, prices, end_use_map, mwh
-    )
-    assert c_row['col_ind'] > c_row['col_res']
+def test_c_row_from_conversion_factors_is_flat_one_over_p(
+    mixed_units_config: str,
+) -> None:
+    _setup(mixed_units_config)
+    try:
+        cols = list(ELECTRICITY_DISAGG_SECTORS) + ['1111A0']
+        adom = pd.DataFrame(0.01, index=cols, columns=cols)
+        aimp = pd.DataFrame(0.0, index=cols, columns=cols)
+        q = pd.Series({c: 1.0e9 for c in cols}, dtype=float)
+        q[GENERATION_SECTOR] = 1.0e11
+        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+        mwh = 4.0e9
+        p_share = 0.4
+        with (
+            patch(
+                'bedrock.extract.disaggregation.egrid_generation.egrid_mwh_for_io_year',
+                return_value=mwh,
+            ),
+            patch(
+                'bedrock.transform.eeio.electricity_gtd_allocation._go_p_and_td_shares',
+                return_value=(p_share, 0.3),
+            ),
+        ):
+            _c_col, c_row = electricity_conversion_factors(aq)
+        q_elec = float(q.reindex(ELECTRICITY_DISAGG_SECTORS).sum())
+        p = p_share * q_elec / mwh
+        assert int(c_row.nunique()) == 1
+        assert float(c_row.iloc[0]) == pytest.approx(1.0 / p)
+        assert list(c_row.index) == cols
+    finally:
+        _teardown()
 
 
-def test_uniform_prices_similarity_transform() -> None:
+def test_uniform_c_row_similarity_transform() -> None:
     cols = [GENERATION_SECTOR, 'c0', 'c1', 'c2']
     A = pd.DataFrame(0.0, index=cols, columns=cols)
     for c in cols:
@@ -144,15 +183,8 @@ def test_uniform_prices_similarity_transform() -> None:
     q = pd.Series({c: 100.0 for c in cols}, dtype=float)
     q[GENERATION_SECTOR] = 500.0
     mwh = float(q[GENERATION_SECTOR]) * 0.01
-    prices = {
-        k: 10.0
-        for k in ('Residential', 'Commercial', 'Industrial', 'Transportation', 'Total')
-    }
-    end_use_map = {c: 'Commercial' for c in cols}
-    adom_row = cast(pd.Series, A.loc[GENERATION_SECTOR])
-    y_row = pd.Series(dtype=float)
     c_col = electricity_output_factor(float(q[GENERATION_SECTOR]), mwh)
-    c_row = electricity_class_row_factors(adom_row, q, y_row, prices, end_use_map, mwh)
+    c_row = pd.Series(c_col, index=cols, dtype=float)
     A_m = apply_electricity_unit_conversion_to_A(A, c_col=c_col, c_row=c_row)
     for c in cols:
         if c == GENERATION_SECTOR:
@@ -165,6 +197,7 @@ def test_build_end_use_map_includes_electricity_children() -> None:
     mapping = build_end_use_map()
     for code in ELECTRICITY_DISAGG_SECTORS:
         assert mapping[code] == 'Industrial'
+    assert mapping['F04000'] == 'Exports'
 
 
 def test_mixed_units_flag_off_is_noop() -> None:
@@ -179,24 +212,18 @@ def test_mixed_units_flag_off_is_noop() -> None:
 
 
 @patch(
-    'bedrock.extract.disaggregation.egrid_generation.us_total_net_generation_mwh',
+    'bedrock.transform.eeio.electricity_gtd_allocation.egrid_mwh_for_io_year',
     return_value=4_000_000_000.0,
 )
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh',
+    'bedrock.extract.disaggregation.egrid_generation.egrid_mwh_for_io_year',
+    return_value=4_000_000_000.0,
 )
 def test_output_mwh_anchor(
-    mock_prices: Mock,
-    mock_mwh: Mock,
+    _mock_egrid: Mock,
+    _mock_egrid_gtd: Mock,
     mixed_units_config: str,
 ) -> None:
-    mock_prices.return_value = {
-        'Residential': 12.0,
-        'Commercial': 10.0,
-        'Industrial': 7.0,
-        'Transportation': 9.0,
-        'Total': 10.0,
-    }
     _setup(mixed_units_config)
     try:
         aq = derive_cornerstone_Aq_mixed_units()
@@ -265,24 +292,18 @@ def test_y_nab_stays_monetary_under_mixed_gate(mixed_units_config: str) -> None:
 
 
 @patch(
-    'bedrock.extract.disaggregation.egrid_generation.us_total_net_generation_mwh',
+    'bedrock.transform.eeio.electricity_gtd_allocation.egrid_mwh_for_io_year',
     return_value=4_000_000_000.0,
 )
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh',
+    'bedrock.extract.disaggregation.egrid_generation.egrid_mwh_for_io_year',
+    return_value=4_000_000_000.0,
 )
 def test_y_nab_mixed_differs_from_monetary_under_gate(
-    mock_prices: Mock,
-    mock_mwh: Mock,
+    _mock_egrid: Mock,
+    _mock_egrid_gtd: Mock,
     mixed_units_config: str,
 ) -> None:
-    mock_prices.return_value = {
-        'Residential': 12.0,
-        'Commercial': 10.0,
-        'Industrial': 7.0,
-        'Transportation': 9.0,
-        'Total': 10.0,
-    }
     _setup(mixed_units_config)
     try:
         y_mon = derive_cornerstone_y_nab()
@@ -298,24 +319,18 @@ def test_y_nab_mixed_differs_from_monetary_under_gate(
 
 
 @patch(
-    'bedrock.extract.disaggregation.egrid_generation.us_total_net_generation_mwh',
+    'bedrock.transform.eeio.electricity_gtd_allocation.egrid_mwh_for_io_year',
     return_value=4_000_000_000.0,
 )
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh',
+    'bedrock.extract.disaggregation.egrid_generation.egrid_mwh_for_io_year',
+    return_value=4_000_000_000.0,
 )
 def test_d_scalar_bridge_under_gate(
-    mock_prices: Mock,
-    mock_mwh: Mock,
+    _mock_egrid: Mock,
+    _mock_egrid_gtd: Mock,
     mixed_units_config: str,
 ) -> None:
-    mock_prices.return_value = {
-        'Residential': 12.0,
-        'Commercial': 10.0,
-        'Industrial': 7.0,
-        'Transportation': 9.0,
-        'Total': 10.0,
-    }
     _setup(mixed_units_config)
     try:
         gen = GENERATION_SECTOR
@@ -353,10 +368,14 @@ def test_compute_mixed_unit_ef_vectors_not_cached() -> None:
 
 @pytest.mark.eeio_integration
 @patch(
-    'bedrock.extract.disaggregation.egrid_generation.us_total_net_generation_mwh',
+    'bedrock.transform.eeio.electricity_gtd_allocation.egrid_mwh_for_io_year',
     return_value=4_000_000_000.0,
 )
-def test_pull_efs_mixed_units_config(mock_mwh: Mock) -> None:
+@patch(
+    'bedrock.extract.disaggregation.egrid_generation.egrid_mwh_for_io_year',
+    return_value=4_000_000_000.0,
+)
+def test_pull_efs_mixed_units_config(_mock_egrid: Mock, _mock_egrid_gtd: Mock) -> None:
     _setup('2025_usa_cornerstone_v0_3_electricity_mixed_units.yaml')
     try:
         result = pull_efs_for_diagnostics()
@@ -367,6 +386,10 @@ def test_pull_efs_mixed_units_config(mock_mwh: Mock) -> None:
 
 
 def test_electricity_class_row_factors_missing_column_raises() -> None:
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        electricity_class_row_factors,
+    )
+
     prices = {
         'Industrial': 7.0,
         'Commercial': 10.0,
@@ -383,3 +406,56 @@ def test_electricity_class_row_factors_missing_column_raises() -> None:
             {},
             1e9,
         )
+
+
+def test_export_mwh_is_twh_not_gwh() -> None:
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        eia_table_2_14_export_mwh,
+    )
+
+    mwh = eia_table_2_14_export_mwh(2017)
+    # ~10 TWh, not ~10 GWh (loader units vs Table 3.1 scale 1000).
+    assert 1e6 < mwh < 5e7
+
+
+@pytest.mark.eeio_integration
+def test_live_conversion_factors_and_generation_mwh(
+    mixed_units_config: str,
+) -> None:
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        _go_p_and_td_shares,
+        get_reanchored_purchaser_allocation,
+    )
+
+    _setup(mixed_units_config)
+    try:
+        aq = derive_cornerstone_Aq_scaled()
+        _c_col, c_row = electricity_conversion_factors(aq)
+        cfg = get_usa_config()
+        mwh = float(egrid_mwh_for_io_year(int(cfg.model_base_year)))
+        p_share, _td = _go_p_and_td_shares()
+        q_elec = float(aq.scaled_q.reindex(ELECTRICITY_DISAGG_SECTORS).sum())
+        p = p_share * q_elec / mwh
+        assert int(c_row.nunique()) == 1
+        assert float(c_row.iloc[0]) == pytest.approx(1.0 / p, rel=1e-9)
+        assert list(c_row.index) == list(aq.Adom.columns)
+
+        alloc = get_reanchored_purchaser_allocation()
+        assert alloc is not None
+        mwh_from_dollars = float(alloc.gen_dollars.sum()) / float(alloc.p)
+        assert mwh_from_dollars == pytest.approx(
+            float(alloc.mwh.sum()), rel=1e-6, abs=1.0
+        )
+        if not bool(alloc.clipped.any()):
+            assert float(alloc.mwh.sum()) == pytest.approx(
+                float(alloc.egrid_mwh), rel=1e-4, abs=1.0
+            )
+        else:
+            assert mwh_from_dollars <= float(alloc.egrid_mwh) + 1.0
+
+        aq_mix = derive_cornerstone_Aq_mixed_units()
+        assert float(aq_mix.scaled_q[GENERATION_SECTOR]) == pytest.approx(
+            mwh, rel=1e-6, abs=1.0
+        )
+    finally:
+        _teardown()
