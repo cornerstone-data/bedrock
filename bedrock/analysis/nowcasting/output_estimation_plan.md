@@ -2275,6 +2275,113 @@ all. It should be built first, and `Commodity_output_manufacturing_*` should sit
 on top of it rather than beside it.
 
 
+### Can an annual survey move the mix between censuses? — no, and it is measured
+
+Step 4a now builds the mix from the Economic Census in **2017 and 2022**
+(`pxi_mix_test.py --year 2022`); 2018-21 and 2023-24 carry the last census
+unchanged. The question this closes is whether an annual product survey can fill
+that gap. `annual_mix_test.py` answers it on the strongest candidate that
+exists: `Census_ASM_PxI`, manufacturing's own census-run survey, publishing
+industry × product for 2018-2021 on the **same 2017 NAPCS collection codes** the
+Economic Census uses — no second concordance, no vintage bridge.
+
+❌ **It cannot.** The two instruments agree on what the mix *is* and share no
+signal about how it *moves*. Both directions of the test are null, on 181
+manufacturing detail industries:
+
+| graded on the 2022 census mix | median `L1` | value-weighted | wins |
+|---|---:|---:|---:|
+| **hold the 2017 census mix** | **0.0122** | **0.0335** | — |
+| 2017 mix chained by ASM's 2018→2021 ratio | 0.0141 | 0.0349 | 87/181 |
+| ASM's 2021 mix substituted outright | 0.0169 | 0.0373 | 83/181 |
+
+| graded on ASM's own year | frozen 2017 | geometric 2017→2022 | wins |
+|---|---:|---:|---:|
+| 2018 | 0.0116 | 0.0118 | 96/181 |
+| 2019 | 0.0137 | 0.0132 | 90/181 |
+| 2020 | 0.0137 | 0.0136 | 92/181 |
+| 2021 | 0.0140 | 0.0133 | 97/181 |
+
+Chaining rather than substituting was deliberate — a time-invariant instrument
+offset cancels in a ratio, so the middle row is ASM's best case, and it still
+loses. The second table turns the question around so the censuses *bracket* the
+target rather than extrapolate past it, and the offset is common to both
+estimates: still a coin flip in every year.
+
+⚠️ **The direction is worse than the magnitude.** Correlating the two movement
+vectors cell by cell, over every ASM span:
+
+| span | `r` | same sign | slope |
+|---|---:|---:|---:|
+| 2018-2019 | −0.006 | 45.2% | −0.047 |
+| 2018-2020 | 0.075 | 40.0% | 0.400 |
+| 2018-2021 | 0.132 | 42.9% | 0.613 |
+| 2019-2021 | 0.142 | 44.3% | 0.693 |
+| 2020-2021 | 0.109 | 45.2% | 0.825 |
+
+On the cells the census moved most, ASM calls the *sign* right less than half
+the time. A movement of the wrong size is fixable with a damping factor — the
+sweep puts the optimum at α ≈ 0.25 for a gain of 0.0001 — but a movement of the
+wrong sign is not. ⚠️ **And it is not COVID**: the pre-COVID 2018-2019 span is
+the *worst* of the six.
+
+✅ **The number that explains all of it.** At BEA detail the manufacturing mix
+travels a median `L1` of **0.0122 in five years**, while ASM 2018 and the 2017
+census sit **0.0116** apart on the same industry one year apart — against each
+one's ~0.065 distance from the published Supply block. The instruments are 5×
+closer to each other than to BEA, so that 0.065 is the shared concordance gap
+and 0.0116 is the genuine disagreement between two surveys about what a product
+line means. **The five-year signal is at the one-year noise floor.** More annual
+data does not fix that, because the disagreement is not sampling error that
+averages away.
+
+This is the same verdict as *the carried mix beats the product build*, one level
+up: there the product route lost on **level**, here the annual product route
+loses on **movement**. ✅ **Hold the manufacturing mix between censuses.**
+
+⚠️ **Three traps, each of which faked a result before being fixed** — the first
+two are reusable anywhere ASM is read:
+
+1. **Suppression is not stable across years.** 2018 publishes 96.7% of the
+   industry product control, 2019-2021 only 79-82%, so a mix built on each
+   year's own publication moves because Census withheld differently. Everything
+   above is built on the **common support** — the 3,490 (industry, product)
+   cells published in all four years — which holds a flat 74.6-75.1% of control
+   in every year. Without it the movement is a publication artefact.
+2. **The least-suppressed NAICS level reverses when the industry axis is kept.**
+   Commodity *output* sums that axis away and so takes five-digit, where more
+   value publishes (5.7tn against 5.0tn in 2021). A *mix* needs the industry, and
+   87 of 709 five-digit codes straddle two BEA industries — at five-digit only
+   3.3tn resolves to a single BEA industry, against 4.8tn at six-digit. The mix
+   builds at **six**.
+3. **`estimate_suppressed_asm_pxi` guesses on exactly the axis a mix needs.** Its
+   control runs across products within an industry, so the residual's split
+   across commodities is an equal-share guess. It fixes the level and invents the
+   mix. Nothing here uses it.
+
+✅ **The answer key is not a bridge artefact, and that was checked.** Only 10.5%
+of 2022 manufacturing value sits on a NAPCS code unchanged since 2017, so
+`napcs_2022_to_2017.csv` carries nearly all of it — and a bridge that scrambled
+products would manufacture the very movement it is used to detect. Built from
+unchanged codes alone the census movement is **larger** (0.0139) than the full
+bridged build (0.0122): the bridge damps movement rather than creating it. ⚠️ On
+10.5% of value that shows direction, not magnitude.
+
+**What is left open.** This bounds the other annual candidates on manufacturing
+rather than dismissing them elsewhere. The Step 3 seed survey
+(`intermediate_estimation_plan.md`) turned up three more annual sources, and only
+one asks the Supply-side question at all:
+
+- **`Census_SAS_Expenses`** and the **trade BES** are *expense* surveys — what a
+  producer buys, not what it sells. They cannot move a Supply mix at all. SAS
+  does publish revenue by product line, which would be the services analogue of
+  ASM; that is unpulled and is the one route this result does not speak to.
+- **EIA 923/861** resolve one commodity, so there is no mix for them to move.
+- **ERS agriculture** publishes cash receipts by commodity, which *is* a product
+  mix and a genuinely different shape from ASM's — a farm's commodity split
+  moves with plantings and prices, not with what a survey means by a product
+  line. It is the one candidate worth testing on its own terms.
+
 ### The domestic output block, built — 2018-2024
 
 Step 4a's deliverable is the **domestic output block**: commodity × industry, basic
