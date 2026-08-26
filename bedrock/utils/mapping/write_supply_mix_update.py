@@ -66,10 +66,16 @@ own-commodity share falls from 40.6% to 9.0% between the vintages, which would
 have cut its commodity output by 14.7% and handed the difference to automotive
 repair. That is a recode, not a shift in what a car dealer sells.
 
-⚠️ **3. Boundary and absent industries hold**, as ``pxi_mix_test.adopted_mix``
-defines them: NAICS 2022 dissolved electronic shopping across retail and
-``516210`` streaming draws on four BEA industries, so for those a mix change
-cannot be told apart from a reclassification.
+⚠️ **3. Boundary and "absent" industries hold** — but ⚠️ **neither label means
+the data is missing, and both are ours to relax.** 20 columns (2,345bn of 2017
+industry output) hold because a 2022 NAICS code's 2017 parents land on different
+BEA industries; that is a *classification* change, not an existence one, and the
+concordance can reallocate it — imperfectly — using 2017 relative values, which
+is what BEA itself does when re-basing a benchmark across NAICS vintages. The 25
+"absent" columns (875bn) are worse labelled still: **the 2022 Economic Census
+reaches every one of them, with 891bn of product value.** They vanish in our own
+*product* concordance, not in the census. Both are held for now because the
+alternatives are unbuilt, not because the observation is unavailable.
 
 What it comes to
 ----------------

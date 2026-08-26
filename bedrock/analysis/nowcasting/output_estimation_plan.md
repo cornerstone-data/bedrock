@@ -2364,6 +2364,72 @@ against `Detail_Supply_2021`, which is untouched and still on
 switch are identical (5,066 / 5,064 / 5,061), which is the direct evidence that
 no cell was lost.
 
+### Building our own 2022+ detail industry output — scoped, not built
+
+⚠️ **The mechanical route was the wrong shape and is withdrawn as a candidate.**
+`detail_go_control.py` refits the detail block so each industry column takes the
+share of its summary group that BEA's detail GO gives it. That imposes *BEA's*
+industry split, which is itself a best-change extrapolation off the 2017
+benchmark — so it cannot carry 2022 information, only propagate BEA's. It stays
+as a **diagnostic**, because the gap it measures is real and was not previously
+visible, and it is marked in its own docstring as not usable for the build.
+
+✅ **What the diagnostic establishes, and it stands on its own.**
+`Detail_Supply` has **no constraint on the detail industry axis at all** — its
+only control is the summary block, so the within-group split is frozen at 2017
+while BEA's detail GO moves annually. The within-group share differs from BEA's
+detail GO by a median of **0.53 percentage points**, with **125 of 401**
+industries off by more than a point. And because nothing holds that axis, the
+commodity-mix change leaked into it: up to **1.44%** on 34-39 industries.
+
+#### The route to actually take
+
+Restored to this folder: [`bea_2017_benchmark_sources.md`](bea_2017_benchmark_sources.md),
+BEA's Table C1 from the 2023 comprehensive update — the principal data sources
+for industry and commodity output, by sector, benchmark year and non-benchmark
+year. It was written on `step3_service_seed` and never reached this branch.
+
+For **manufacturing** it says the benchmark source is exactly one thing:
+*"Census Bureau 2017 Economic Census, NAICS Sector 31–33, Manufacturing."* We
+hold the 2017 **and** 2022 Economic Census. So the construction is available in
+principle:
+
+1. rebuild BEA's **2017** manufacturing industry output from EC 2017
+2. compare against BEA's published 2017 detail industry output — the difference
+   is the wedge BEA's adjustments add (misclassification, own-account software,
+   nonemployers, and the rest)
+3. carry that wedge onto EC 2022 to get a 2022 industry output that rests on
+   2022 data rather than on a 2017 extrapolation
+
+Manufacturing first because it is where `N` is largest and the data is best
+([[bedrock-prioritize-on-N-not-D]]).
+
+⚠️ **Step 1 is blocked on a source we do not pull, and a first attempt showed
+why it matters.** Summing published `Census_EC_PxI` product lines by industry
+gives 4,019bn against BEA's 5,464bn for 2017 manufacturing — an aggregate wedge
+of 1.36 — but that is **not** BEA's adjustments. It is suppression: 53% of PxI
+rows publish as zero, and the per-industry wedge runs to **622x** on `336213`
+(9m of published shipments against 5,566m of BEA output) and 99x on `327310`.
+Only 66 of 231 industries land within 10% of 1.0. A wedge measured this way
+tells us nothing about BEA's method.
+
+Two things are needed before the comparison means anything:
+
+- **The EC's industry-statistics table**, not products-by-industry. Value of
+  shipments/receipts by NAICS is a different dataset from `ecnnapcsprd`, and it
+  is the one C1 actually points at. We pull `Census_EC_Expenses`,
+  `Census_EC_Inventories`, `Census_EC_MatFuel` and `Census_EC_PxI` — not this.
+- **Suppression recovery**, if the PxI route is used at all —
+  `estimate_suppressed_ec_pxi` exists and is the right tool, but the industry
+  table should not need it to the same degree.
+
+⚠️ **And a caution carried from the mix work**: whatever is built has to land on
+the BEA 2017 detail industry axis, which is where the NAICS 2022 vintage damage
+is worst — 55 codes carrying 9.5% of 2022 EC value have 2017 parents on
+different BEA industries. That is a *classification* problem rather than an
+existence problem and the concordance can address it (see below), but it is
+work, and it lands on the industry axis specifically.
+
 ### Can an annual survey move the mix between censuses? — no, and it is measured
 
 Step 4a now builds the mix from the Economic Census in **2017 and 2022**
