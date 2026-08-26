@@ -125,9 +125,7 @@ def review_census_naics_vintage(year: int = 2017) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
     for activity in sorted(flow_m.index.astype(str)):
         act = activity.strip()
-        vintage = _classify_census_activity(
-            act, naics_2017=naics_2017, legacy=legacy, mapped=mapped
-        )
+        vintage = _classify_census_activity(act, naics_2017=naics_2017, legacy=legacy)
         rows.append(
             {
                 "activity": act,

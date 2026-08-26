@@ -78,7 +78,7 @@ def _score_side(
     detail["status"] = [
         _status(c, r) for c, r in zip(detail["candidate_usd"], detail["reference_usd"])
     ]
-    summary = {
+    summary: dict[str, float | int | str] = {
         "direction": direction,
         "cand_sum_usd": float(cand.sum()),
         "ref_sum_usd": float(ref.sum()),
@@ -108,7 +108,7 @@ def score() -> tuple[pd.DataFrame, pd.DataFrame]:
         * MILLION_CURRENCY_TO_CURRENCY
     )
 
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, float | int | str]] = []
     details: list[pd.DataFrame] = []
     for direction, cand, ref in (
         ("exports", exports, f040),
