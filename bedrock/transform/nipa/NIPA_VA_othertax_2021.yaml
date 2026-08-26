@@ -57,13 +57,47 @@
 # the level grows 40.5% - assessed property values move with the price level far
 # more than they move relative to each other.
 #
+#
+# WHAT MAKES THIS THE LATER-YEAR FILE: A MOVING LEVEL, TWO MOVING BLOCKS.
+# This is the year-2021 member of NIPA_VA_othertax_<year>, and the only thing
+# that differs from the 2017 file is `year`. Three things move with it and one
+# deliberately does not:
+#
+#   * The LEVEL is this year's own observation. The T30500 control is read for
+#     `year`, so the row grows on published tax collections rather than on an
+#     assumption - 608,533 in 2017 to 855,003 in 2024, +40.5%.
+#   * The HOUSING block is this year's T70405 B1031C - 254,103 in 2017 to
+#     356,011 in 2024. 41.8% of the row, published, exact.
+#   * The FARM block is this year's T70305 B1017C. 1.5% of the row, same.
+#   * The REMAINING 56.7% keeps 2017's within-block shape, because nothing
+#     observed says otherwise and the held-out summary SUT says it barely moves.
+#
+# ✅ The frozen part is graded rather than assumed, and it is the split between
+# what moves and what does not that the grade licenses. On the summary Use SUT,
+# composition drift against 2017 is 1.01-2.10% of the row across 2018-2024 while
+# the level grows 40.5% - assessed property values move with the price level far
+# more than they move relative to each other. So the movement worth having is
+# the one this file takes from NIPA, and the movement not worth inventing is the
+# one it declines. other_taxes_allocation.py --check asserts drift stays under
+# DRIFT_BAR = 5%.
+#
+# ⚠️ WHY THE REST IS NOT MOVED TOO, BY ANALOGY WITH V00100. Because the two
+# rows are not in the same position. Compensation's frozen shares were losing to
+# QCEW by 10.0% on the observed 2012->2017 holdout, so a movement series had
+# something to win; T00OTOP's are already inside 2.10% on every out-of-sample
+# year available, and there is no annual property-tax-base series on the BEA
+# detail axis outside the two blocks above. The four candidate economy-wide
+# allocators are scored in the header above and the best is 71% error - an
+# allocator that bad cannot be rescued by making it annual.
+#
 # ⚠️ The summary SUT is evidence there and never an input here. Step 5's
 # Decision 3 keeps it out of the target set and in the test set, so a method
 # taking its annual T00OTOP row as a control would consume the very table meant
-# to grade it. The controls below are all NIPA.
+# to grade it. The controls below are all NIPA - T30500 for the level, T70405
+# and T70305 for the two blocks.
 
 !include:BEA_detail_commodity_target.yaml
-year: &va_year 2017
+year: &va_year 2021
 target_schema_year: 2017
 geoscale: national
 activity_schema: null
@@ -119,9 +153,21 @@ source_names:
         # ONE activity set, because there is one control. T30500 (Table 3.5,
         # Taxes on Production and Imports) states the row in two lines that are
         # not taxes on products:
-        #   line 37  LA000365  state and local, other taxes on production  607,329
-        #   line 17  LA000237  federal remainder after taxes on product      1,204
-        # summing to 608,533 against a published T00OTOP of 608,542 - nine apart.
+        #   line 37  LA000365  state and local, other taxes on production
+        #   line 17  LA000237  federal remainder after taxes on product
+        #
+        # ✅ Both are read for `year`. The pair closes against the published row
+        # where that row exists: in 2017 they are 607,329 and 1,204, summing to
+        # 608,533 against a published T00OTOP of 608,542 - nine apart, rounding.
+        #
+        # ⚠️ SELECTING BY LINE NUMBER ONLY WORKS BECAUSE THESE LINES DO NOT MOVE.
+        # A line number is a property of the table, not of the series, so a NIPA
+        # restructuring would silently point these at different series - and no
+        # total would look wrong. Verified across all eight years 2017-2024:
+        # line 37 is LA000365 and line 17 is LA000237 in every one of them, and
+        # the control they sum to rises monotonically 608,533 -> 855,003.
+        # other_taxes_allocation.py selects by CODE rather than line, so its
+        # --check regrades this control independently of the selection below.
         #
         # ⚠️ LA000237 is titled "Other taxes on goods and services", which reads
         # like a product tax. It is not treated as one: it is what is left of the

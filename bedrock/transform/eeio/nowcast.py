@@ -377,15 +377,36 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     return y.sort_index()
 
 
-#: The three ``VABAS`` rows Step 2 builds, one FBS method each, and the Use row
-#: each writes.  ``T00TOP``/``T00SUB`` are deliberately absent: they are built on
-#: the commodity axis in Step 4d and their industry split is an output of Step
-#: 5's balance, not an input to it.
+#: The three ``VABAS`` rows Step 2 builds from NIPA, one FBS method each, and
+#: the Use row each writes.
+#:
+#: ⚠️ ``T00TOP``/``T00SUB`` are absent **from this dict**, and that is not the
+#: same as absent from the block. They are built on the commodity axis in Step
+#: 4d and converted to the industry axis by
+#: :mod:`bedrock.analysis.nowcasting.tax_axis_conversion`, which measured the
+#: conversion rather than assuming it: the Make matrix alone is useless (r =
+#: 0.202, 114.6% error - it sends petroleum tax to refineries and motor-vehicle
+#: tax to assemblers), but the producer/trade **level split** Step 4c already
+#: computes, plus a handful of named routings, reaches **r = 0.948** at 27.9%
+#: absolute error.
+#:
+#: So the older "their industry split is an output of Step 5's balance, not an
+#: input to it" is **withdrawn**: 27.9% is not a target and the balance still
+#: sets the final split under economy-wide soft targets, but a seed that good
+#: is an input, and Step 5 gets it. Two pieces of it are exact rather than
+#: estimated - customs duties are a lookup onto ``4200ID`` (38,513 against a
+#: Supply ``MDTY`` of 38,510) and the ten government columns are zero by the
+#: same accounting rule ``T00OTOP`` obeys.
 _VALUE_ADDED_METHODS = {
     'V00100': 'NIPA_VA_compensation',
     'T00OTOP': 'NIPA_VA_othertax',
     'V00300': 'NIPA_VA_surplus',
 }
+
+#: The years all three methods have a file for. 2017 is the benchmark, and the
+#: horizon is the nowcast's rather than any source's - NIPA and ``UVA205-A``
+#: both run well past it.
+VALUE_ADDED_YEARS = tuple(range(2017, 2025))
 
 
 @functools.cache
@@ -402,32 +423,57 @@ def derive_initial_value_added(
     ``SectorProducedBy`` and the industry on ``SectorConsumedBy``, which is the
     transpose of :func:`derive_initial_Y_pur`'s orientation.
 
-    ⚠️ **2017 only, and what is left is no longer compensation.**
-    ``NIPA_VA_compensation`` now moves its within-group shares on QCEW and has
-    a file for every year 2017-2024 - see
-    :mod:`bedrock.transform.nipa.compensation_movement`, which took a
-    ``clean_fba`` socket on the existing attribution source rather than the
-    ``FBS_outside_flowsa`` hatch that blocked it (#731). What still holds 2017
-    shares is ``T00OTOP`` and ``V00300``, and neither has a later-year file
-    yet, so this still raises rather than return a silently frozen block.
+    ✅ **2017-2024, and the three rows are three different claims.** Reading
+    the block as "value added, nowcast" overstates two thirds of it, so what
+    each row is worth is worth keeping straight:
 
-    ⚠️ ``V00300``'s role changed under T18 and it should not simply be given
-    per-year files by analogy. With ``VAPRO`` pinned per industry
-    (:func:`~bedrock.transform.iot.nowcast_targets.industry_value_added_target`)
-    gross operating surplus is the **residual the balance solves for**, so what
-    Step 2 owes it is a seed, and the eight-line NIPA assembly is a
-    plausibility check rather than an input.
+    ``V00100``
+        An **estimate**. 2017 detail shares carried on QCEW payroll growth,
+        renormalised inside each of ``T60200D``'s 69 NIPA industry groups, then
+        rescaled to that group's published control - see
+        :mod:`bedrock.transform.nipa.compensation_movement`, which took a
+        ``clean_fba`` socket on the existing attribution source rather than the
+        ``FBS_outside_flowsa`` hatch that blocked it (#731). Graded -10.0%
+        against frozen shares on the observed 2012->2017 holdout.
+
+    ``T00OTOP``
+        A **level plus two lookups**. The ``T30500`` control is read per year
+        (+40.5% over the span); the housing block is rescaled to ``T70405``
+        ``B1031C`` and the farm block to ``T70305`` ``B1017C``, both published
+        annually and both exact against the benchmark; the remaining 56.7%
+        keeps 2017's within-block shape, which the held-out summary SUT
+        licenses at 1.01-2.10% drift. So 43.3% of the row is observed rather
+        than assumed. See :mod:`bedrock.transform.nipa.othertax_lookups` and
+        :mod:`bedrock.analysis.nowcasting.other_taxes_allocation`.
+
+    ``V00300``
+        A **seed**, and only a seed. Level from the eight-line NIPA assembly
+        per year, shares frozen at 2017 - where drift reaches **12.51%** by
+        2022, six times ``T00OTOP``'s. That is acceptable only because T18
+        changed what the row is: with ``VAPRO`` pinned per industry
+        (:func:`~bedrock.transform.iot.nowcast_targets.industry_value_added_target`)
+        gross operating surplus is the **residual the balance solves for**, and
+        the closer overwrites this distribution. Do not "improve" it with
+        ``TVA113`` - that is the grader, held out by Step 5's Decision 3.
+
+    ⚠️ **The summary SUT is a stale grader for 2019-2022.** Its own ``VAPRO``
+    total sits 0.09-1.21% below current-vintage ``UVA205-A`` in exactly those
+    four years and matches to the dollar in 2017, 2018, 2023 and 2024. So an
+    apparent 2.64% ``V00300`` assembly error in 2022 is the workbook being
+    behind, not the assembly being wrong - and ``V00300`` shows it at roughly
+    twice ``VAPRO``'s rate because it is the row a NIPA revision lands in.
 
     ⚠️ **Rows may be negative and must stay so.** ``S00201`` state and local
-    passenger transit carries a ``V00300`` of -36,919 million.
+    passenger transit carries a ``V00300`` of -36,919 million in 2017 and stays
+    negative in every year; it is the only industry that does.
     """
-    if year != 2017:
+    if year not in VALUE_ADDED_YEARS:
         raise ValueError(
-            f'the value-added block is built for 2017 only; got {year}. '
-            f'NIPA_VA_compensation_{year} exists and moves on QCEW, but '
-            f'NIPA_VA_othertax_{year} and NIPA_VA_surplus_{year} do not - and '
-            f'V00300 wants a seed rather than a per-year build now that T18 '
-            f'makes it the residual.'
+            f'the value-added block is built for '
+            f'{min(VALUE_ADDED_YEARS)}-{max(VALUE_ADDED_YEARS)}; got {year}. '
+            f'Each row needs a NIPA_VA_*_{year} method file, and the benchmark '
+            f'attribution weights come from the 2017 detail Use SUT, which BEA '
+            f'publishes for no other year.'
         )
     rows = []
     for code, method in _VALUE_ADDED_METHODS.items():

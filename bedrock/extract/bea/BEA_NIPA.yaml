@@ -52,9 +52,17 @@ tables:
 # ---------------------------------------------------------------------------
 # Value added - Step 2 (#536).  The three Use SUT rows Step 2 builds are
 # V00100 compensation, T00OTOP other taxes on production, and V00300 gross
-# operating surplus.  T00TOP/T00SUB are NOT here: they are built on the
-# commodity axis in Step 4d, and their industry split is an output of Step 5's
-# balance rather than an input to it (plan.md, decision of 2026-08-17).
+# operating surplus.  T00TOP/T00SUB are NOT here because they are not built
+# from NIPA: they come off the commodity axis in Step 4d and are converted to
+# the industry axis by analysis/nowcasting/tax_axis_conversion.py.
+#
+# ⚠️ That module withdraws the older reading of the 2026-08-17 decision -- that
+# their industry split is "an output of Step 5's balance rather than an input to
+# it".  The balance still sets the final split under economy-wide soft targets,
+# but it is SEEDED, and the seed reaches correlation 0.948 off Step 4c's
+# producer/trade level split plus a few named routings.  Nothing in this file
+# is needed for it either way; the point is not to read the absence below as
+# "product taxes have no industry estimate".
 #
 # Every table below is annual and complete for 2012-2024.  Reconciliation of
 # each row against these tables is in
