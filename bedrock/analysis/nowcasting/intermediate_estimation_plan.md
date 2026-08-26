@@ -1840,10 +1840,17 @@ generalisation, for two reasons measured in
    returns well-formed zeros for services; `exp02` publishes 41 expense
    variables for 13 sectors.
 
-⚠️ **These are graded against BEA's carry-forward** (§The answer key) and are
-therefore weak evidence in both directions. ⚠️ **`Census_SAS_Expenses` starts at
-2013, so this block cannot be regraded on the 2012 holdout** without
-substituting 2013 for the base and saying so.
+⚠️ **These were graded against BEA's carry-forward** (§The answer key). ✅ **The
+block has since been regraded on the holdout with a 2013 base** — the earliest
+`Census_SAS_Expenses` publishes — and it **passes: +11.5% on `N`**, 58 of 99
+scored columns winning, against +2.0% on dollars. 93 of the 100 columns get an
+index; the seven that do not are accommodation, food service and finance, where
+SAS published no items at 2013. ⚠️ **The base is 2013 and the frozen comparator
+is 2012**, so the seed is not credited with the 2012 → 2013 movement — which
+biases the test *against* it. ✅ `531ORE`, the heaviest column at $747.6B, gains
+**+15.5%** on impact and +8.6% on dollars; transportation is where it is
+strongest (`481000` +54%, `483000` +37%, `492000` +37%, `484000` +33%) and
+`562000` waste management is the worst at −88.9%.
 
 **Re-scored on `N`**, by
 [`services_transport_expense_seed.py`](services_transport_expense_seed.py)
@@ -2183,6 +2190,78 @@ in a **second header block at row 26**.
 ⚠️ **Nothing here is wired into the pipeline.** `derive_initial_U_intermediate`
 still holds `22` at `NOT_SEEDED`; this measures the seed, it does not install
 it.
+
+---
+
+## When the holdout gate decides, and when it cannot — the materials override
+
+✅ **Decision (Wes, 2026-08-25): the materials seed ships ungraded.** The census
+materials mix is the best observation of manufacturing's structure that exists,
+and it is used whatever the holdout says.
+
+⚠️ **The reason is not impatience with the test, it is what the test can decide.**
+
+**The gate earns its keep when a decision hangs on it *and* there is an
+alternative to switch to.** It has paid for itself three times: it stopped the
+trade suppression recovery (the fully-published column fails too), it reversed
+the agriculture rejection (+17.9%), and it caught a **fake +29%** on gas
+distribution that was a 2014 form split. Each of those was a live choice —
+build or don't, this source or that, this index leg or the continuous one.
+
+❌ **It cannot decide anything when the source is the only observation of the
+movement.** For manufacturing materials the alternative to the census mix is not
+a better source, it is the **frozen 2017 mix** — the assertion that nothing
+changed in eight years, which is a *stronger* claim than the data makes. No test
+result changes which of the two is preferable, so the gate is informational at
+best; and where the vintages' schemas differ enough, it is noise.
+
+✅ **And the break found here is in the test, not in the seed.** The production
+seed differences **2017 against 2022**, which share **291 materials carrying
+89.9% and 90.6%** of each year's cost. The 1,272-against-289 code problem exists
+only because the holdout reaches back to **2012** for an answer key. ⚠️ Nothing
+in the shipped path was ever exposed to it.
+
+### ✅ What the test is actually for — confirming correspondences
+
+✅ **Wes, 2026-08-25: the durable output of a holdout run is not the gain, it is
+which source-to-Use-table correspondences it confirms** — because a confirmed
+correspondence replicates for **2022** with confidence and a gain number does
+not. Read that way, the useful results of this step are the per-row tables, not
+the headline scores:
+
+| correspondence | status | the evidence |
+|---|---|---|
+| EIA gas → `211000` | ✅ **confirmed** | $30.0B against $29.0B at 2017; movement tracks |
+| EIA coal → `212100` | ⚠️ partial | **2.1×** the cell — movement tracks, level does not |
+| EIA oil → `324110` | ❌ **not confirmed** | **3%** of the cell; transfers through *price* only |
+| EIA 861 resale → `221100` own row | ❌ not confirmed | net against gross, $9.5B against $100.7B |
+| EIA 176 citygate → `221200` gas row | ❌ not confirmed | wrong universe (78% pipelines) and a 2014 form break |
+| BES items → trade commodities | ⚠️ confirmed but worthless | +0.62 at detail, **0.03** weighted by `N` |
+| MatFuel codes → BEA commodities | ✅ 132 codes confirmed | the shared-code subset; index median 0.72 |
+
+⚠️ **So an unverified correspondence is not a rejected one.** The 2012 materials
+pull confirms the mapping for 132 codes and leaves the rest *unverified*, which
+is a different statement from wrong.
+
+✅ **What this changes in the build**: a seed moves a row on measured movement
+where the correspondence is confirmed, and an unconfirmed row either holds or is
+carried explicitly as a **price proxy** rather than a measurement. That is a
+per-row decision recorded as data — and it is the part that replicates to 2022.
+
+### ✅ What replaces the gate when it cannot run
+
+Two checks that need no second benchmark year, both of which caught a real error
+on the day they were written:
+
+1. **Continuity inside the source.** Plot the series through its own break
+   years. The `receipts / merchant sales` ratio stepping 1.4 → 0.8 in 2014 is
+   what exposed form 176; the 1,272-against-289 code count is what exposed this.
+2. **Level and coverage sanity.** What fraction of the BEA cell the source
+   actually measures — EIA oil at **3%** of `324110` was found this way, and it
+   is why that leg is documented as a price proxy rather than a measurement.
+
+⚠️ **Neither replaces the holdout where the holdout can run.** Where a source
+has comparable vintages either side of an observed benchmark span, grade it.
 
 ---
 
