@@ -28,6 +28,9 @@ uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 # what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
 uv run python -m bedrock.analysis.nowcasting.row_control_exposure
 
+# what Step 2 estimates for 2018-2024, now that VAPRO and its three components
+# are both published annually (Step 2)
+uv run python -m bedrock.analysis.nowcasting.value_added_timeseries --check
 # what can be sourced for manufacturing's input column (needs the
 # Census_EC_MatFuel, Census_EC_Expenses, Census_ASM_Expenses and
 # Census_AIES_Expenses FBAs)

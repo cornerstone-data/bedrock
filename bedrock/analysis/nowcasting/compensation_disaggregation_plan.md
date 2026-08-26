@@ -8,6 +8,149 @@ beside the code they describe — see the note at the end of `plan.md`.
 
 ---
 
+## ⚠️ Re-evaluated 2026-08-26 — value added is now an observation, and that changes the estimand
+
+Everything below this section was written when the only annual industry-axis data
+for value added was NIPA's, at 69 groups, for compensation alone. Two sources have
+landed since, and they do not merely improve the movement series — they change what
+Step 2 is estimating. Reproduce every figure here with
+[`value_added_timeseries.py`](value_added_timeseries.py) `--check`.
+
+| | what it gives | grain | years |
+|---|---|---|---|
+| `UVA205-A` (#712) | `VAPRO` **column total** per industry | **402 BEA detail** (138 observed leaf lines) | 1997–2024 |
+| `TVA113` (#538) | that same `VAPRO` split into `V00100` / `V00200` / `V00300` | 71 BEA summary | 1997–2024 |
+
+✅ **They nest — measured, not assumed.** The yaml warns the two release archives
+are *different vintages* (`GDPbyInd.zip` June 2026, the underlying-detail archive
+September 2025), so this was checked rather than trusted. Rolled to the 71 summary
+industries, the detail `VAPRO` panel and `TVA113`'s industry rows agree to **$9M in
+the worst of 923 industry-years**, and nationally to $9M on $29T. They are the same
+estimates published at two grains.
+
+⚠️ **Roll up with the *industry* map.** `frozen_mix_diagnostic.detail_to_summary()`
+uses `load_bea_v2017_commodity_to_bea_v2017_summary`, which is correct on the Supply
+table's commodity axis and silently drops four codes on the industry axis —
+`331314`, `S00101`, `S00201`, `S00202`. Through it, state and local government
+enterprises come out **15% short in every year**, which reads exactly like a vintage
+disagreement and is not one. `load_bea_v2017_industry_to_bea_v2017_summary` covers
+all 402, one parent each.
+
+### The estimand: a 3 × n block with both margins given
+
+For each year and summary industry `i`:
+
+```
+                 detail child d1   d2  ...  dn        row margin
+V00100                                             TVA113 V00100_i
+V00200 (TOPILS)                                    TVA113 V00200_i
+V00300                                             TVA113 V00300_i
+---------------------------------------------------------------
+column margin       VAPRO_d1  VAPRO_d2 ... VAPRO_dn  (UVA205-A)
+```
+
+This is the **same reframing Step 3 got** in
+[`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): with both
+margins fixed, a biproportional balance keeps nothing of the seed but its
+cross-structure. **Step 2 estimates a shape, not a level** — so a source that
+delivers a value-added column total now delivers a number the model already has.
+✅ **The nesting is strict**: all 138 leaf lines sit inside one summary industry
+each, so detail ⊂ line ⊂ summary and the two constraints stack rather than cross.
+
+### How much is left to estimate — much less than 402 × 3
+
+| | groups | industries | 2017 VA | share |
+|---|---:|---:|---:|---:|
+| summary industries with **1** detail child | 20 | 20 | 3,800,144 | **19.4%** |
+| 2–3 children | 21 | 54 | 7,318,411 | 37.3% |
+| 4–9 children | 13 | 75 | 3,226,209 | 16.5% |
+| 10+ children | 17 | 253 | 5,267,340 | 26.9% |
+| **leaf line == a single detail industry** | 74 | 74 | 12,525,521 | **63.9%** |
+
+✅ **19.4% of value added needs no allocator at all** — the block is 3 × 1 and the
+two margins determine it. ✅ **63.9% has a `VAPRO_d(t)` that is BEA's own published
+annual number**, untouched by any allocation model. Only **26.9%** sits in the 17
+groups with 10+ children, where a within-group allocator earns its keep.
+
+### What the column control is worth
+
+The old plan rested on holding within-summary composition at 2017. Graded on BEA's
+own annual leaf lines — no allocation model in the measurement:
+
+| year | misplaced $M | % of VA | % of the measurable groups |
+|---|---:|---:|---:|
+| 2018 | 93,425 | 0.45 | 0.74 |
+| 2021 | 481,034 | 2.03 | 3.28 |
+| 2024 | **678,415** | **2.32** | **3.75** |
+
+81% of it in ten summary industries, led by other retail (**11.7%** of the group),
+wholesale trade, construction, and other professional services.
+
+⚠️ **A lower bound.** 47 of the 71 summary industries are a single leaf line, so they
+dilute the denominator and contribute nothing to the numerator; and movement of
+detail *within* a leaf line is invisible to the source.
+
+⚠️ **Small next to Step 3's 17.3%, and it still has to be right**, because Step 5
+imposes the column identity `GO = T005 + VAPRO` hard (T1). Value-added error does not
+stay in value added — it is pushed into the intermediate block.
+
+### ❌ `T00TOP`'s industry axis is published — the conversion is not needed
+
+[#536](https://github.com/cornerstone-data/bedrock/issues/536) measured that the Step
+4d commodity column cannot be converted to the industry axis: through the benchmark
+market-share matrix it scores **r = 0.202** and misplaces 114.6% of the row, because
+a product tax is remitted by whoever *sells* the product while market shares place it
+with whoever *makes* it. **That finding stands.** What does not stand is the
+conclusion drawn from it — that the industry split has to be left free for Step 5.
+
+`TVA113`'s `V00200` **is** `T00OTOP + T00TOP − T00SUB` by industry: verified against
+the published 2017 summary SUT at **max $1M across all 71 industries**, and published
+annually 1997–2024. With `T00OTOP` already built (#538), `T00TOP − T00SUB` is a
+summary-grain **residual**, every year, with no conversion operator anywhere. And it
+lands exactly where #536 said the money is: wholesale trade 210,708, other retail
+104,107, food services 52,391, motor vehicle dealers 45,947.
+
+### What is left for QCEW — and it is now gradeable
+
+The movement series is still needed, for the ~80% of the compensation row in groups
+with more than one child. But its job changed:
+
+- ⚠️ **It no longer carries the level.** QCEW shapes the within-summary split of the
+  `V00100` row inside a block whose other margin is known, instead of being the only
+  thing holding the column together. A QCEW movement that is wrong about two children
+  of a summary industry is now corrected toward `VAPRO_d`, not propagated.
+- ✅ **It can be graded on the benchmark holdout** — observed 2012 → 2017 detail
+  compensation, the rule #704 established for Step 3 seeds — instead of against BEA's
+  carried-forward later years. That needs QCEW **2012**, which `BLS_QCEW.yaml` did not
+  declare until #728.
+- ⚠️ **`T60200D`'s 69 groups are superseded as the compensation control.** `TVA113` is
+  the same partition at 71, annual, matches the summary SUT to the dollar, and carries
+  the other two components on the same axis — five NIPA tables collapse to one source.
+  See the open decision below.
+
+### 🔶 Open decision — does `TVA113` become an input?
+
+#538 left this open: consuming `TVA113` buys a near-exact `V00100`/`V00300` seed at
+summary grain and spends summary `V001`/`V003`'s ability to grade the build, which
+Step 5's Decision 3 holds out of the target set for exactly that purpose.
+
+**The trade is smaller than it looked, on two grounds:**
+
+1. **The precedent is already set on the sibling table.**
+   [`target_set_plan.md`](target_set_plan.md) §1 refutes #591's circularity objection
+   for `UGO305-A` — the underlying detail series is a straight read, behaves like an
+   estimate, and is now T1, a *hard* target. `UVA205-A` is the sibling table in the
+   same archive on the same frame.
+2. **The total is spent either way.** `UVA205-A` and `TVA113` are the same estimates
+   (§above), so adopting the `VAPRO` column control — which Step 3 and Step 5's T1
+   already assume — spends summary `VAPRO`. What `TVA113` costs on top is only the
+   **three-way split**, not the total.
+
+What stays in the test set under either answer: the **detail** split, graded on the
+2007/2012/2017 benchmark panel, which is where the estimating actually happens.
+
+---
+
 ## What is already settled
 
 From [#537](https://github.com/cornerstone-data/bedrock/issues/537), reproducible
