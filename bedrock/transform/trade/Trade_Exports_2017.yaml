@@ -31,7 +31,7 @@ source_names:
     geoscale: national
     year: *trade_year
     data_format: FBA
-    activity_to_sector_mapping: BEA_IEA
+    activity_to_sector_mapping: BEA_IEA_exports
     activity_sets:
       service_exports:
         selection_fields:

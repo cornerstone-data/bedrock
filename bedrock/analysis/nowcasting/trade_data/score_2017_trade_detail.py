@@ -1,12 +1,14 @@
 """
 2017 nowcast F040 / MCIF scorecard for bedrock#528 Phase 3.
 
-Slices the live ``use_fd_detail_sut`` and ``supply_bridge_detail_sut``
-TableMatch columns (USD) and reports national percent, Pearson/Spearman,
-top-20 Jaccard, and MISS holes ranked by |reference|.
+Exports: live ``use_fd_detail_sut`` ``F04000`` (Trade overlay + ``S00900``
+identity). Imports: Trade ``MCIF`` only (same mass
+``derive_initial_supply_bridge`` writes), compared to published Supply
+``MCIF`` — does **not** build the full supply bridge, so STB transport
+margins and other Step 4c/4d columns are not required.
 
-This is the nowcast-column gate (Trade overlay + S00900 identity on F040;
-Trade imports on MCIF). It is not the FBA totals probe and not
+Reports national percent, Pearson/Spearman, top-20 Jaccard, and MISS holes
+ranked by |reference|. Not the FBA totals probe and not
 ``TableMatch.ok()`` on the full FD/bridge blocks.
 
 Run from repo root::
@@ -33,8 +35,17 @@ from pathlib import Path
 
 import pandas as pd
 
-from bedrock.analysis.nowcasting.sections import get_section
-from bedrock.analysis.nowcasting.table_match import CellStatus, TableMatch
+from bedrock.analysis.nowcasting.sections import (
+    SUPPLY_BRIDGE_DETAIL_SUT,
+    get_section,
+    supply_sut_bridge_reference,
+)
+from bedrock.analysis.nowcasting.table_match import (
+    CellStatus,
+    TableMatch,
+    compare_tables,
+)
+from bedrock.transform.eeio.nowcast import _trade_fbs_commodity_vector
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 
 YEAR = 2017
@@ -53,10 +64,9 @@ _SPECIALS = tuple(c for c in _FRAME if c.startswith("S00"))
 #: Document holes at or above this |reference| (USD).
 HOLE_CUTOFF_USD = 1e9
 
-_COLUMNS = (
-    ("exports", "use_fd_detail_sut", "F04000"),
-    ("imports", "supply_bridge_detail_sut", "MCIF"),
-)
+_EXPORT = ("exports", "use_fd_detail_sut", "F04000")
+_IMPORT_SECTION = "trade_imports_mcif"
+_IMPORT_COL = "MCIF"
 
 
 def _is_special(code: str) -> bool:
@@ -141,24 +151,60 @@ def _commodity_detail(match: TableMatch, col: str, direction: str) -> pd.DataFra
     )
 
 
+def _mcif_trade_only_match(year: int) -> TableMatch:
+    """Trade_Imports Detail MCIF vs published Supply MCIF.
+
+    Same import mass as ``derive_initial_supply_bridge`` writes for 2017, without
+    building TRANS/TRADE/TOP/SUB (avoids STB_CRSR and other Step 4c/4d sources).
+    """
+    cand = _trade_fbs_commodity_vector(
+        f"Trade_Imports_{year}", download_sources_ok=False
+    ).to_frame(_IMPORT_COL)
+    ref = supply_sut_bridge_reference(year)[[_IMPORT_COL]]
+    return compare_tables(
+        cand,
+        ref,
+        tolerance=SUPPLY_BRIDGE_DETAIL_SUT.tolerance,
+        rows=pd.Index(_FRAME, name="commodity"),
+        columns=pd.Index([_IMPORT_COL], name="supply_bridge_code"),
+        label=f"Trade MCIF only ({year})",
+    )
+
+
 def score() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     rows: list[dict[str, object]] = []
     hole_frames: list[pd.DataFrame] = []
     detail_frames: list[pd.DataFrame] = []
-    for direction, section_name, col in _COLUMNS:
-        match = get_section(section_name).run(YEAR)
-        metrics = _score_column(match, col)
-        rows.append(
-            {
-                "direction": direction,
-                "section": section_name,
-                "column": col,
-                "year": YEAR,
-                **metrics,
-            }
-        )
-        hole_frames.append(_holes(match, col, direction))
-        detail_frames.append(_commodity_detail(match, col, direction))
+
+    direction, section_name, col = _EXPORT
+    match = get_section(section_name).run(YEAR)
+    metrics = _score_column(match, col)
+    rows.append(
+        {
+            "direction": direction,
+            "section": section_name,
+            "column": col,
+            "year": YEAR,
+            **metrics,
+        }
+    )
+    hole_frames.append(_holes(match, col, direction))
+    detail_frames.append(_commodity_detail(match, col, direction))
+
+    match = _mcif_trade_only_match(YEAR)
+    metrics = _score_column(match, _IMPORT_COL)
+    rows.append(
+        {
+            "direction": "imports",
+            "section": _IMPORT_SECTION,
+            "column": _IMPORT_COL,
+            "year": YEAR,
+            **metrics,
+        }
+    )
+    hole_frames.append(_holes(match, _IMPORT_COL, "imports"))
+    detail_frames.append(_commodity_detail(match, _IMPORT_COL, "imports"))
+
     summary = pd.DataFrame(rows)
     holes = pd.concat(hole_frames, ignore_index=True) if hole_frames else pd.DataFrame()
     detail = pd.concat(detail_frames, ignore_index=True)
@@ -235,9 +281,9 @@ def _print_delta(detail: pd.DataFrame) -> int:
 def main() -> None:
     update_baseline = "--update-baseline" in sys.argv
     print(
-        f"Scoring {YEAR} nowcast F04000 / MCIF "
-        f"(specials for Pearson: {len(_SPECIALS)} S00* codes; "
-        f"hole cutoff |ref| >= {HOLE_CUTOFF_USD:,.0f} USD)..."
+        f"Scoring {YEAR} nowcast F04000 (use_fd) / MCIF (Trade FBS only; "
+        f"no supply-bridge TRANS/STB; specials for Pearson: {len(_SPECIALS)} "
+        f"S00* codes; hole cutoff |ref| >= {HOLE_CUTOFF_USD:,.0f} USD)..."
     )
     summary, holes, detail = score()
     OUT_DIR.mkdir(parents=True, exist_ok=True)

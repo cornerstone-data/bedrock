@@ -4,6 +4,7 @@ BEA_IEA,MaintenanceAndRepairNie,BEA_2017_Code,811200,C
 BEA_IEA,MaintenanceAndRepairNie,BEA_2017_Code,811300,C
 BEA_IEA,MaintenanceAndRepairNie,BEA_2017_Code,811400,C
 BEA_IEA,TransportAirFreight,BEA_2017_Code,481000,C
+BEA_IEA,TransportAirFreight,BEA_2017_Code,492000,C
 BEA_IEA,TransportAirPass,BEA_2017_Code,481000,C
 BEA_IEA,TransportSeaFreight,BEA_2017_Code,483000,C
 BEA_IEA,TransportPostal,BEA_2017_Code,491000,C
@@ -13,10 +14,10 @@ BEA_IEA,TransportRoadAndOth,BEA_2017_Code,486000,C
 BEA_IEA,Insurance,BEA_2017_Code,524113,C
 BEA_IEA,Insurance,BEA_2017_Code,5241XX,C
 BEA_IEA,Insurance,BEA_2017_Code,524200,C
-BEA_IEA,Financial,BEA_2017_Code,523A00,C
-BEA_IEA,Financial,BEA_2017_Code,523900,C
 BEA_IEA,Financial,BEA_2017_Code,52A000,C
 BEA_IEA,Financial,BEA_2017_Code,522A00,C
+BEA_IEA,Financial,BEA_2017_Code,523A00,C
+BEA_IEA,Financial,BEA_2017_Code,523900,C
 BEA_IEA,CipLicensesOutcomesResearchAndDev,BEA_2017_Code,533000,C
 BEA_IEA,CipLicensesCompSoftware,BEA_2017_Code,511200,C
 BEA_IEA,CipLicensesFranchiseFees,BEA_2017_Code,533000,C
