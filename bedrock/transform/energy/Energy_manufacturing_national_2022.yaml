@@ -1,4 +1,5 @@
-# Manufacturing energy FBS for Cornerstone. MECS survey year 2022.
+# Manufacturing energy FBS used in GHG Cornerstone FBS methods.
+# MECS survey year 2022.
 # Replicates CEDA allocation steps as quantity weights: MECS mapped with
 # parent-incomplete-child + Cornerstone_2025
 
