@@ -115,6 +115,7 @@ minversion = "6.0"
 addopts = "-s -v -m 'not eeio_integration'"
 markers = [
     "eeio_integration: integration tests for eeio model",
+    "realdata: needs real sources - FBAs, FBSs, GCS or the network. Applied automatically by bedrock/conftest.py to everything outside its hermetic allowlist.",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

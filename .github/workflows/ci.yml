@@ -44,6 +44,24 @@ jobs:
       - name: Typecheck w/ mypy
         run: uv run mypy bedrock
 
+  # The hermetic tests, for feedback rather than for a shorter gate. They need no
+  # GCS credentials, so this job carries no id-token permission and no auth step,
+  # and it reports in about a minute while `test` is still fetching sources.
+  # `test` below still runs the whole suite, so a test classified wrongly in
+  # bedrock/conftest.py costs a minute here rather than a hole in the gate.
+  test-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Run the hermetic tests
+        run: uv run pytest -m 'not realdata'
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
