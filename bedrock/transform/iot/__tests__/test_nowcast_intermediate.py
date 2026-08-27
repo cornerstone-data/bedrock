@@ -57,6 +57,7 @@ from bedrock.transform.iot.nowcast_intermediate import (
     derive_intermediate_use,
     margin_rate,
 )
+from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
@@ -322,6 +323,33 @@ def test_a_zero_producer_value_gives_no_margin_rate_rather_than_infinity() -> No
     assert np.isnan(margin_rate(valuation).loc['S00900'])
 
 
+def _census_key_available() -> bool:
+    """Whether a Census API key resolves, without raising if it does not.
+
+    ⚠️ **The seed tests reach live Census endpoints.** That is deliberate -- what
+    they guard is how the real seeds compose, and a toy frame composes however
+    the toy was built -- but it means they cannot run where no key is
+    configured. They skip there rather than fail, and run in full wherever one
+    exists.
+
+    ⚠️ **Asks the real accessor rather than reading the environment.** The key
+    normally lives in the project-root ``.env`` and only reaches ``os.environ``
+    when ``get_api_key`` loads it, so an ``os.getenv`` check reports "no key" on
+    a machine that has one -- which skipped all seven tests locally instead of
+    running them.
+    """
+    try:
+        return bool(load_env_file_key('api_key', 'Census'))
+    except Exception:  # noqa: BLE001 - any failure to resolve means "cannot run"
+        return False
+
+
+needs_census = pytest.mark.skipif(
+    not _census_key_available(),
+    reason='no Census API key: set CENSUS_API_KEY (repo secret in CI, .env locally)',
+)
+
+
 # --- the composed seed ------------------------------------------------------
 #
 # Real sources rather than synthetic frames, for the reason the module docstring
@@ -329,6 +357,7 @@ def test_a_zero_producer_value_gives_no_margin_rate_rather_than_infinity() -> No
 # compose, and a toy frame composes however the toy was built.
 
 
+@needs_census
 @pytest.mark.parametrize('block', ['manufacturing', 'services', 'agriculture'])
 def test_every_seed_is_the_identity_at_2017(block: str) -> None:
     """The composition must not move 2017, whatever it overlays.
@@ -348,6 +377,7 @@ def test_every_seed_is_the_identity_at_2017(block: str) -> None:
     assert difference.to_numpy().max() < 1.0
 
 
+@needs_census
 def test_the_composition_loses_no_dollars_and_invents_no_gaps() -> None:
     """Overlaying must not strand mass or leave a cell unfilled.
 
@@ -366,6 +396,7 @@ def test_the_composition_loses_no_dollars_and_invents_no_gaps() -> None:
     )
 
 
+@needs_census
 def test_no_column_is_seeded_by_two_blocks() -> None:
     """The blocks must partition the industries they reach.
 
@@ -388,6 +419,7 @@ def test_no_column_is_seeded_by_two_blocks() -> None:
             assert not overlap, f'{left} and {right} both claim {sorted(overlap)}'
 
 
+@needs_census
 def test_a_later_year_actually_moves_off_the_2017_shape() -> None:
     """The counterpart to the identity test: a seed that never moves is not one.
 
@@ -405,6 +437,7 @@ def test_a_later_year_actually_moves_off_the_2017_shape() -> None:
     assert int(moved.sum()) > 300
 
 
+@needs_census
 def test_the_columns_no_seed_reaches_hold_their_benchmark() -> None:
     """Government, trade and construction hold 2017, and that is the claim.
 
