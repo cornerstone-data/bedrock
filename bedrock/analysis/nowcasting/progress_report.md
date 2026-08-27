@@ -297,21 +297,59 @@ and 0.0 across it ([#699](https://github.com/cornerstone-data/bedrock/issues/699
 ### Which cells actually carry annual data
 
 The match picture above says the block reproduces 2017. It says nothing about
-where the block's movement *away* from 2017 comes from, and that is the question
-Step 3 is answerable on. This is the same 402 × 402 block, coloured by
-provenance instead of by match — grey where a cell keeps its 2017 structure and
-moves only on the price carry, green where an annual survey observes it.
+where the block's movement *away* from 2017 comes from, and that is the only
+question Step 3 is answerable on.
 
 ![Step 3 seed coverage](images/intermediate_seed_coverage_2022.png)
 
-⚠️ **The green is graded, because "seeded" is not one thing.** A survey datum
-almost never lands on a single cell: `Purchased freight transportation` is one
-number in the Service Annual Survey spread over 8 BEA commodities, and ERS
-publishes one farm sector whose index drives all 10 farm columns. So the green
-carries `N` — **how many cells share the single observation behind this cell** —
-with the darkest green at `N = 1`, where the datum *is* the cell. Reporting a
-cell fed by a number shared with 79 others in the same colour as one fed by a
-number about it alone would flatter the coverage badly.
+**How to read it.** This is the same 402 × 402 intermediate block as the match
+picture — commodities down the side, the industries that buy them across the
+top — but coloured by **provenance** rather than by score. Both axes are
+regrouped into contiguous sector bands, in the order the sectors fall in the
+table, because BEA's detail order interleaves them enough that the seeds would
+otherwise read as scattered speckle rather than as the blocks they are. Every
+cell is in one of three states:
+
+- **white** — no cell. The 2017 benchmark is zero here, so there is nothing to
+  seed and nothing to carry. This is 73% of the raster and it is why the
+  cell-count share and the dollar share are so far apart.
+- **grey** — carried. The cell keeps its 2017 structure and moves only on the
+  commodity price carry. No annual source observes it.
+- **green** — seeded. An annual survey observes this cell's movement.
+
+**The green is graded, and that is the part of the picture that does the work.**
+"Seeded" is not one thing. A survey datum almost never lands on a single cell:
+`Purchased freight transportation` is one number in the Service Annual Survey
+that has to be spread over 8 BEA commodities, and ERS publishes one farm sector
+whose index drives all 10 farm columns at once. So the green carries `N` — **how
+many cells share the single observation behind this cell** — computed as the
+commodities a datum is split across times the industry columns the same index
+drives. The darkest green is `N = 1`, where the datum *is* the cell: the
+Economic Census reported that material, for that industry, and it resolves to
+exactly one BEA commodity. The ramp is logarithmic and saturates at 64.
+
+Reporting a cell fed by a number shared with 79 others in the same colour as one
+fed by a number about it alone would flatter the coverage badly, which is the
+whole reason for the gradation rather than a flat green.
+
+**What to look at first.** The dark diagonal through manufacturing is the
+Economic Census materials detail — the densest cell-specific evidence in the
+block. The pale green horizontal bands low in the picture are services rows
+reaching across nearly every buying industry on a small number of shared survey
+items: wide, but weak per cell. And the three solid grey column blocks —
+construction, trade, government — are where no annual source reaches at all.
+
+⚠️ **One figure, not one per year.** The mappings behind `N` do not depend on
+the year, so the map is nearly year-invariant; measured, the seeded share moves
+**1.9 points across 2020-2023** (35.7 / 35.7 / 33.8 / 34.6), which is inside the
+band where one picture stands for the span. ⚠️ **2018 and 2019 are the
+exception and are excluded on purpose** — the SAS expense panel jumps straight
+from 2017 to 2020, with no 2018 or 2019 vintage in it, so services and
+transportation hold their 2017 columns entirely and the block reads **19.5%**
+rather than 33.8%. A 2018 figure would be showing the missing SAS vintages, not
+the seeds. `--check-years` re-measures this rather than trusting it.
+
+Dollar-weighted, at 2022:
 
 | band | columns | $M | seeded | of which N = 1 | median N |
 |---|---:|---:|---:|---:|---:|
@@ -354,9 +392,10 @@ Three things the picture says that the totals do not:
    condition is in
    [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md).
 
-Reproduced by
-[`seed_coverage.py`](seed_coverage.py) — `--check` re-asserts the map and
-`--check-palette` re-runs the colour separation.
+Reproduced by [`seed_coverage.py`](seed_coverage.py) — `--check` re-asserts the
+map, `--check-years` re-measures the one-figure claim, and `--check-palette`
+re-runs the colour separation (worst pair dE 29.0 against a floor of 27, binding
+on grey against the light end of the ramp under deuteranopia).
 
 ---
 

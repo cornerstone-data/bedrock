@@ -91,6 +91,12 @@ CLI::
 
     uv run python -m bedrock.analysis.nowcasting.seed_coverage --year 2022
     uv run python -m bedrock.analysis.nowcasting.seed_coverage --check
+    uv run python -m bedrock.analysis.nowcasting.seed_coverage --check-years
+
+⚠️ **One figure is shipped, not one per year.**  The mappings behind ``N`` do
+not depend on the year, so the map is nearly year-invariant; ``--check-years``
+measures the "nearly" rather than assuming it, and 2018-19 are excluded from
+the claim for a named reason.  See :func:`year_stability`.
 """
 
 from __future__ import annotations
@@ -661,8 +667,51 @@ def render(year: int = DEFAULT_YEAR, path: Path | None = None, dpi: int = 200) -
     return path
 
 
-def check(year: int = DEFAULT_YEAR) -> int:
-    """Assert the provenance map is well formed.  Returns a process exit code."""
+#: Years the shipped figure is claimed to stand for.  ⚠️ **2018 and 2019 are
+#: deliberately not in here** -- see :func:`year_stability`.
+STABLE_YEARS: tuple[int, ...] = (2020, 2021, 2022, 2023)
+
+#: Widest spread in seeded dollars across :data:`STABLE_YEARS` that still lets
+#: one figure stand for all of them, in percentage points.
+STABILITY_BAND = 3.0
+
+
+def year_stability(years: tuple[int, ...] = STABLE_YEARS) -> pd.DataFrame:
+    """Seeded share per year -- the check on shipping **one** figure.
+
+    The mappings behind ``N`` do not depend on the year, so the provenance map
+    is nearly year-invariant and a figure per year would be a figure repeated.
+    "Nearly" is the part worth measuring rather than assuming, because what
+    *does* move is which items a survey published in a given year.
+
+    ⚠️ **2018 and 2019 are a different picture and are excluded on purpose.**
+    The SAS expense panel jumps straight from 2017 to 2020 -- there is no 2018
+    or 2019 vintage in it -- so :func:`usable_items` returns nothing for those
+    years and **services and transportation hold their 2017 columns entirely**.
+    That is 19.5% of the block's dollars observed against 33.8% at 2022, and it
+    is a gap in the source rather than in the method.  A figure for 2018 would
+    be showing the missing SAS vintages, not the seeds.
+    """
+    records = []
+    for year in years:
+        total = coverage(year).loc['TOTAL']
+        records.append(
+            {
+                'year': year,
+                'seeded_%': float(total['seeded_%']),
+                'cells_seeded': int(total['cells_seeded']),
+                'median_N': float(total['median_N']),
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
+def check(year: int = DEFAULT_YEAR, years: bool = False) -> int:
+    """Assert the provenance map is well formed.  Returns a process exit code.
+
+    ``years`` adds the :func:`year_stability` assertion, which re-runs every
+    seed once per year and is slow enough to be opt-in.
+    """
     from bedrock.transform.iot import nowcast_intermediate  # noqa: PLC0415
 
     failures: list[str] = []
@@ -705,6 +754,19 @@ def check(year: int = DEFAULT_YEAR) -> int:
     table = coverage(year)
     print(table.round(1).to_string())
     print(f'\npalette worst-pair separation dE {floor:.1f}')
+
+    if years:
+        spread = year_stability()
+        print(f'\n{spread.round(1).to_string()}')
+        width = float(spread['seeded_%'].max() - spread['seeded_%'].min())
+        print(f'spread across {STABLE_YEARS}: {width:.1f} points')
+        if width > STABILITY_BAND:
+            failures.append(
+                f'seeded share moves {width:.1f} points across {STABLE_YEARS}, '
+                f'over the {STABILITY_BAND} band -- one figure no longer stands '
+                f'for the span'
+            )
+
     for failure in failures:
         print(f'FAIL {failure}')
     return 1 if failures else 0
@@ -713,15 +775,26 @@ def check(year: int = DEFAULT_YEAR) -> int:
 @click.command()
 @click.option('--year', default=DEFAULT_YEAR, show_default=True, type=int)
 @click.option('--check', 'run_check', is_flag=True, help='Assert and print the stats.')
+@click.option(
+    '--check-years',
+    is_flag=True,
+    help='Also assert one figure stands for 2020-2023 (slow).',
+)
 @click.option('--check-palette', is_flag=True, help='Print the separation table.')
 @click.option('--dpi', default=200, show_default=True, type=int)
-def main(year: int, run_check: bool, check_palette: bool, dpi: int) -> None:
+def main(
+    year: int,
+    run_check: bool,
+    check_years: bool,
+    check_palette: bool,
+    dpi: int,
+) -> None:
     """Render the intermediate block's provenance map."""
     if check_palette:
         print(palette_separation().to_string(index=False))
         return
-    if run_check:
-        sys.exit(check(year))
+    if run_check or check_years:
+        sys.exit(check(year, years=check_years))
     path = render(year, dpi=dpi)
     print(coverage(year).round(1).to_string())
     print(f'\nwrote {path}')
