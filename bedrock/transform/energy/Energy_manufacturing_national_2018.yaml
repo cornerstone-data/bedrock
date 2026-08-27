@@ -119,7 +119,7 @@ source_names:
           FlowName: Transport
           Class: Money
         clean_source:
-          EPA_GHGI_T_A_10:
+          UMD_GHGIA_T_A5_1_S6:
             year: *mecs_year
             selection_fields:
               Unit: TBtu
