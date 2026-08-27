@@ -11,5 +11,5 @@ python -m bedrock.analysis.electricity.historical.pre_mecs_industrial_weights.wr
 ```
 
 Compare live MECS output with
-`bedrock.analysis.electricity.current.vs_pre_mecs_industrial_weights.compare_to_pre_mecs`.
+`python -m bedrock.analysis.electricity.current.vs_pre_mecs_industrial_weights`.
 The compare script is not a CI gate.

@@ -1,6 +1,6 @@
 """Slide 7/8/27–30 tables from the reanchored ``EIAPurchaserAllocation``.
 
-Class MWh is compared to D0 ``_class_mwh_targets``, not raw Table 2.2.
+Class MWh is compared to ``_class_mwh_targets``, not raw Table 2.2.
 Leftover T&D is ``bill − gen_dollars``. Nibble is class totals vs those
 targets; ``clipped`` is purchaser-level only.
 """
@@ -36,12 +36,12 @@ CLASS_ORDER: tuple[str, ...] = (
 )
 
 # Class nibble is logged in production, not stored as a Series. Treat a class
-# as nibbled when allocated MWh sits below the D0 target by more than this.
+# as nibbled when allocated MWh sits below the class target by more than this.
 NIBBLE_ATOL = 1e-6
 
 
 def load_reanchored_allocation(config: str = MIXED_CONFIG) -> EIAPurchaserAllocation:
-    """Flush caches, resolve ``config``, run A/q, and return the P5 allocation.
+    """Flush caches, resolve ``config``, run A/q, and return the reanchored allocation.
 
     ``get_reanchored_eia_purchaser_allocation`` stays ``None`` until
     ``reanchor_electricity_aq_after_year_scaling`` runs. Do not use
@@ -61,7 +61,7 @@ def load_reanchored_allocation(config: str = MIXED_CONFIG) -> EIAPurchaserAlloca
     return alloc
 
 
-def d0_targets(alloc: EIAPurchaserAllocation, eia_year: int) -> dict[str, float]:
+def class_mwh_targets(alloc: EIAPurchaserAllocation, eia_year: int) -> dict[str, float]:
     return _class_mwh_targets(eia_year, alloc.egrid_mwh)
 
 
@@ -74,16 +74,16 @@ def leftover_td_usd(alloc: EIAPurchaserAllocation) -> pd.Series:
     return (alloc.bill.astype(float) - alloc.gen_dollars.astype(float)).astype(float)
 
 
-def d0_class_mwh_frame(
+def class_mwh_targets_frame(
     alloc: EIAPurchaserAllocation,
     eia_year: int,
     *,
     targets: dict[str, float] | None = None,
     raw_table_22_mwh: dict[str, float] | None = None,
 ) -> pd.DataFrame:
-    """Allocator class MWh vs D0 targets (and optional raw Table 2.2)."""
+    """Allocator class MWh vs ``_class_mwh_targets`` (and optional raw Table 2.2)."""
     if targets is None:
-        targets = d0_targets(alloc, eia_year)
+        targets = class_mwh_targets(alloc, eia_year)
     got = allocated_class_mwh(alloc)
     rows: list[dict[str, Any]] = []
     for cls in CLASS_ORDER:
@@ -91,9 +91,9 @@ def d0_class_mwh_frame(
         allocated = float(got.get(cls, 0.0))
         row: dict[str, Any] = {
             'end_use_class': cls,
-            'd0_target_mwh': target,
+            'class_target_mwh': target,
             'allocator_mwh': allocated,
-            'ratio_vs_d0': allocated / target if target else float('nan'),
+            'ratio_vs_class_target': allocated / target if target else float('nan'),
             'nibble': bool(allocated + NIBBLE_ATOL < target),
         }
         if raw_table_22_mwh is not None and cls in raw_table_22_mwh:
@@ -138,27 +138,27 @@ def class_nibble_frame(
     *,
     targets: dict[str, float] | None = None,
 ) -> pd.DataFrame:
-    """Class nibble (totals vs D0) alongside purchaser ``clipped`` counts.
+    """Class nibble (totals vs class targets) alongside purchaser ``clipped`` counts.
 
     Nibble has no Series flag. ``clipped`` marks purchasers that hit their
     bill cap during water-fill; a clipped purchaser does not imply class nibble.
     """
-    d0 = d0_class_mwh_frame(alloc, eia_year, targets=targets)
+    class_mwh = class_mwh_targets_frame(alloc, eia_year, targets=targets)
     purchasers = leftover_td_purchaser_frame(alloc)
     clip_counts = (
         purchasers.groupby('end_use_class')['clipped'].sum().astype(int)
         if not purchasers.empty
         else pd.Series(dtype=int)
     )
-    d0['n_clipped_purchasers'] = [
-        int(clip_counts.get(cls, 0)) for cls in d0['end_use_class']
+    class_mwh['n_clipped_purchasers'] = [
+        int(clip_counts.get(cls, 0)) for cls in class_mwh['end_use_class']
     ]
-    return d0[
+    return class_mwh[
         [
             'end_use_class',
-            'd0_target_mwh',
+            'class_target_mwh',
             'allocator_mwh',
-            'ratio_vs_d0',
+            'ratio_vs_class_target',
             'nibble',
             'n_clipped_purchasers',
         ]
@@ -308,16 +308,16 @@ def render_purchaser_tables_md(
     table_24_cents_kwh: dict[str, float] | None = None,
     config: str = MIXED_CONFIG,
 ) -> str:
-    d0 = d0_class_mwh_frame(
+    class_mwh = class_mwh_targets_frame(
         alloc, eia_year, targets=targets, raw_table_22_mwh=raw_table_22_mwh
     )
     leftover = leftover_td_class_frame(alloc)
     nibble = class_nibble_frame(alloc, eia_year, targets=targets)
     leftover_usd = leftover_td_usd(alloc)
     lines = [
-        '# EIA-anchored purchaser allocation (D0)',
+        '# EIA-anchored purchaser allocation',
         '',
-        f'Config: `{config}`. EIA / D0 year: **{eia_year}**. '
+        f'Config: `{config}`. EIA / class-target year: **{eia_year}**. '
         f'eGRID MWh = **{alloc.egrid_mwh:,.0f}**. '
         f'Generation price `p` = **{alloc.p:.6g}** USD/MWh. '
         f'T&D split `td_share` = **{alloc.td_share:.4f}**.',
@@ -326,27 +326,27 @@ def render_purchaser_tables_md(
         '`reset_usa_config` -> `clear_all_publish_caches` -> '
         '`set_global_usa_config` -> `derive_cornerstone_Aq_scaled`.',
         '',
-        '## Class MWh vs D0 targets',
+        '## Class MWh vs class targets',
         '',
-        'D0 identity: `(class / Total End Use) * (eGRID - Table 2.14 exports)`, '
+        'Class-target identity: `(class / Total End Use) * (eGRID - Table 2.14 exports)`, '
         'Industrial pool = Industrial + Direct Use, `F04000` = Exports. '
-        'Do **not** read Model / raw Table 2.2 ~ 1.0 as the D0 claim. '
+        'Do **not** read Model / raw Table 2.2 ~ 1.0 as the class-target claim. '
         'Nibble (class bills cannot cover `p *` class MWh) is the expected '
         'exception.',
         '',
         *_markdown_table(
-            d0,
+            class_mwh,
             {
-                'd0_target_mwh': '{:,.0f}',
+                'class_target_mwh': '{:,.0f}',
                 'allocator_mwh': '{:,.0f}',
-                'ratio_vs_d0': '{:.4f}',
+                'ratio_vs_class_target': '{:.4f}',
                 'raw_table_22_mwh': '{:,.0f}',
                 'ratio_vs_raw_22': '{:.4f}',
             },
         ),
         '',
-        f'Totals: D0 {_fmt_mwh(float(d0["d0_target_mwh"].sum()))}; '
-        f'allocator {_fmt_mwh(float(d0["allocator_mwh"].sum()))}.',
+        f'Totals: class targets {_fmt_mwh(float(class_mwh["class_target_mwh"].sum()))}; '
+        f'allocator {_fmt_mwh(float(class_mwh["allocator_mwh"].sum()))}.',
         '',
         '## Leftover T&D = bill - gen_dollars',
         '',
@@ -367,15 +367,15 @@ def render_purchaser_tables_md(
         '## Nibble (class) vs clipped (purchaser)',
         '',
         'Nibble has **no Series flag**. A class is nibbled when '
-        '`sum(mwh) < D0 target`. `clipped` is the only Series flag and is '
+        '`sum(mwh) < class target`. `clipped` is the only Series flag and is '
         'purchaser-level water-fill.',
         '',
         *_markdown_table(
             nibble,
             {
-                'd0_target_mwh': '{:,.0f}',
+                'class_target_mwh': '{:,.0f}',
                 'allocator_mwh': '{:,.0f}',
-                'ratio_vs_d0': '{:.4f}',
+                'ratio_vs_class_target': '{:.4f}',
             },
         ),
         '',
@@ -387,7 +387,7 @@ def render_purchaser_tables_md(
                 '## Optional check - implied cents/kWh vs Table 2.4',
                 '',
                 'Implied cents/kWh = `bill / (10 * MWh)`. This is a check against '
-                'retail Table 2.4, **not** the D0 identity and not production '
+                'retail Table 2.4, **not** the class-target identity and not production '
                 '`c_row` (production `c_row` is flat `1/p`).',
                 '',
                 *_markdown_table(

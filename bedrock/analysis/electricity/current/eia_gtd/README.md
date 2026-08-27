@@ -18,10 +18,10 @@ use `get_2017_eia_purchaser_allocation`.
 
 | Table | Identity |
 |---|---|
-| Class MWh vs D0 | `_class_mwh_targets(eia_year, alloc.egrid_mwh)` vs `alloc.mwh.groupby(alloc.end_use_class).sum()` |
+| Class MWh vs class targets | `_class_mwh_targets(eia_year, alloc.egrid_mwh)` vs `alloc.mwh.groupby(alloc.end_use_class).sum()` |
 | Leftover T&D | `bill − gen_dollars` (equals `t_dollars + d_dollars`) |
-| Nibble vs clipped | class totals below D0 target; `clipped` is purchaser-level only |
-| Optional ¢/kWh | `bill / (10 × MWh)` vs Table 2.4 — check only, not D0 |
+| Nibble vs clipped | class totals below class target; `clipped` is purchaser-level only |
+| Optional ¢/kWh | `bill / (10 × MWh)` vs Table 2.4 — check only, not class targets |
 | MECS vs dollar manufacturing | Dual-run `industrial_weights=mecs\|dollars` on the same bills |
 
 Markdown lands at `current/diagnostics/output/eia_gtd_purchaser_tables.md`.

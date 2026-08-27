@@ -1,4 +1,4 @@
-"""Unit tests for D0 class-MWh, leftover T&D, and nibble vs clipped tables."""
+"""Unit tests for class-MWh targets, leftover T&D, and nibble vs clipped tables."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 from bedrock.analysis.electricity.current.eia_gtd.purchaser_tables import (
+    class_mwh_targets_frame,
     class_nibble_frame,
-    d0_class_mwh_frame,
     leftover_td_class_frame,
     leftover_td_purchaser_frame,
     leftover_td_usd,
@@ -53,7 +53,7 @@ def _alloc(
     )
 
 
-def test_d0_identity_matches_class_targets() -> None:
+def test_class_mwh_identity_matches_class_targets() -> None:
     alloc = _alloc(
         bills={'F01000': 100.0, '1111A0': 200.0, 'F04000': 50.0},
         classes={
@@ -70,14 +70,14 @@ def test_d0_identity_matches_class_targets() -> None:
         'Transportation': 0.0,
         'Exports': 5.0,
     }
-    frame = d0_class_mwh_frame(alloc, eia_year=2024, targets=targets)
+    frame = class_mwh_targets_frame(alloc, eia_year=2024, targets=targets)
     by_class = frame.set_index('end_use_class')
     assert by_class.loc['Residential', 'allocator_mwh'] == pytest.approx(10.0)
     assert by_class.loc['Industrial', 'allocator_mwh'] == pytest.approx(20.0)
     assert by_class.loc['Exports', 'allocator_mwh'] == pytest.approx(5.0)
     assert not bool(by_class.loc['Residential', 'nibble'])
     assert not bool(by_class.loc['Industrial', 'nibble'])
-    assert by_class.loc['Residential', 'ratio_vs_d0'] == pytest.approx(1.0)
+    assert by_class.loc['Residential', 'ratio_vs_class_target'] == pytest.approx(1.0)
 
 
 def test_leftover_td_is_bill_minus_gen_dollars() -> None:
