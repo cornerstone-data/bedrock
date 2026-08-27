@@ -248,7 +248,8 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 | Block | Status |
 |---|---|
-| Value added (`V00100`, `T00OTOP`, `V00300`, `T00TOP`, `T00SUB`) | ❌ NIPA tables identified, not built — Step 2 |
+| Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 24 NIPA tables extracted and reconciled (#536); three FBS methods to build — Step 2 |
+| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split plus the government-column exclusion. Construction converts exactly; the residual is 20 named industries. See Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 at summary and **17.3% per five years at detail**, while the inflation carry moves it +4.5% to **−12.6%** depending on the span |
 
 ### SUT Supply — every column
@@ -342,6 +343,16 @@ Ranked by how much they block:
      this allocation is now an *output* of the balance, anchored only by the economy-wide T30500 /
      T31300 totals. Step 2 still supplies a seed. See Step 5 Decision 3 and
      [`target_set_plan.md`](target_set_plan.md) §4.
+
+     ⚠️ **And the conversion is now measured, not just declined** (2026-08-22,
+     [`tax_axis_conversion.py`](tax_axis_conversion.py)). The money is the same on both axes, so this
+     was always a *transformation* rather than a second estimate — the question was only whether an
+     operator reproduces the published row. The benchmark market-share matrix does not:
+     **correlation 0.202** on `T00TOP`, absolute error 114.6% of the row, because **55.7% of the row
+     sits in trade industries** and market shares place a product tax with the producer instead of the
+     seller. Measured *in* the benchmark year, so this is not the drift objection — it is stronger.
+     The seed's usable content is `4200ID` = `MDTY` exactly, plus a **margin**-based operator, still
+     to be tested.
 4. **`MADJ`** — no annual published analogue; likely 2017-ratio-based, though Census `GEN_CHA_YR`
    (import charges) measures the same c.i.f./f.o.b. wedge and comes free with the `MCIF` request, so
    try it before defaulting to a fixed ratio. Small in magnitude, but it sits inside the `T013`
@@ -566,6 +577,11 @@ are never held in inventory, which is why BEA cites materials-and-fuels rather t
 
 ## Value added — fully specified on the board
 
+⚠️ **Superseded — kept for provenance.** The `V00300` construction below is the one sketched on
+the issue; `value_added_control_totals.py` replaced it with an assembly that closes to +13
+million on 7.9 trillion. `T00TOP`/`T00SUB` are built by commodity in Step 4d instead, and their
+industry row is a conversion Step 5 solves rather than a Step 2 source. Read §Step 2.
+
 | Component | Code | NIPA table |
 |---|---|---|
 | Compensation of employees | V00100 | T60200D |
@@ -762,10 +778,149 @@ Use table's basis. ⚠️ That settles *which*, not *how*: for 2018-2024 there i
 bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off by ~1% of the column.
 
 ### Step 2 — SUT Use: value added block
-- New `NIPA_VA_<year>.yaml` FBS method(s) over the 7 Section-6/3.5/3.13 tables above, reusing the
-  `NIPA_final_dom_uses_<year>.yaml` machinery (`extract_table_info`, `drop_unassigned`, activity_sets).
-- Allocate to BEA industries via 2017 table ratios.
-- Reconcile against T1.14 / VABAS→T10305 / T018→T10105.
+
+⚠️ **Scope is three rows, not five.** `V00100`, `T00OTOP`, `V00300` — the `VABAS` components, which
+is what `SUT_VALUE_ADDED_CODES` and the `use_va_detail_sut` diagnostic already target.
+
+**`T00TOP`/`T00SUB` are a conversion question, not a sourcing one, and the conversion was measured.**
+They are already built by commodity in Step 4d (#690), so the industry row is a *transformation* of
+money that exists — nothing gets estimated twice. The only question is whether an available operator
+reproduces the published industry row. ✅ **Tested 2026-08-22 for 2017, and the obvious operator
+fails**: the benchmark market-share matrix from the Supply table gives correlation **0.202** on
+`T00TOP` with an absolute error of **114.6% of the row**, and 0.676 / 79.8% on `T00SUB`
+([`tax_axis_conversion.py`](tax_axis_conversion.py)).
+
+⚠️ **The reason is structural, not noise: 55.7% of published `T00TOP` sits in wholesale and retail
+industries**, because a tax on a product is remitted by whoever *sells* it and market shares place it
+with whoever *makes* it. The pairs are stark — petroleum wholesalers `424700` are 88,362 published
+against 13 estimated while refineries `324110` are 397 against 92,893; motor vehicle dealers `441000`
+are 45,947 against 2,301 while assemblers `336111`+`336112` are 26 against 24,141. The whole tax moves
+one stage up the chain.
+
+⚠️ **And this is measured *in* the benchmark year, against the very table the mix comes from.** So it
+is not the "2017 ratios drift" objection the 2026-08-17 decision was argued from — it is stronger.
+A conversion that fails in 2017 cannot be rescued by being applied nearer to 2017.
+
+So the decision above stands — the industry distribution stays free for Step 5 under economy-wide soft
+targets — but *free* is not *unseeded*, and two pieces of structure are in hand:
+- ✅ **`4200ID` takes `MDTY` exactly**: published `T00TOP` there is 38,513 against a Supply `MDTY` of
+  38,507. Customs duties are a lookup, 5.1% of the row, in every year.
+- ✅ **A usable operator exists, and Step 4c already built most of it.** `top_by_level` splits `TOP`
+  per commodity into producer-level (325,829) and trade-level (391,096) from an identity with nothing
+  modelled in it — excise sits in Producers' Value, sales tax inside the margin columns. That is
+  exactly the producer-versus-seller distinction market shares get wrong, and its trade-level total
+  lands within **+2.2%** of published wholesale-plus-retail `T00TOP`. Progression:
+
+  | operator | corr | \|error\| |
+  |---|---:|---:|
+  | market share on all `TOP + MDTY` | 0.204 | 114.6% |
+  | + level split, trade-level by trade output | 0.743 | 41.9% |
+  | + motor fuel routed to `424700` by name | 0.946 | 29.9% |
+  | + government columns zeroed, renormalised | **0.948** | 27.9% |
+
+  ⚠️ **Do we need to differentiate trade industries *within* wholesale and *within* retail? Only
+  within wholesale, and only for one code.** Non-trade industries are 44.3% of the row and, once the
+  producer-level portion is separated, plain market shares give **corr 0.987** on them. Within retail,
+  output shares (which for a trade industry are very nearly margin shares) give 0.744 — retail product
+  tax is general sales tax, broad-based, HHI 0.137. Within wholesale they give **−0.192**, because
+  `424700` petroleum wholesalers takes **51.3% of wholesale product tax on 3.4% of wholesale output**:
+  wholesale tax is motor fuel excise, not a broad-based tax.
+
+  ✅ **And wholesale does not need a commodity × trade-industry matrix either — it needs one named
+  routing.** `NAMED_TAX_LINES` already carries motor fuel as `324110` and `trade_level_share` already
+  says that tax is 99.8% trade-level; sending it to `424700` takes the row to 0.946 and wholesale
+  itself to 0.973. So **the general commodity × trade-industry margin matrix the PRO:PUR
+  producer-price work will need is not required here.** Still a seed, not a target — 27.9% error.
+- ✅ **Government industries take no product tax, and the seed now knows it.** BEA books `T00OTOP` and
+  `T00TOP` at zero on all ten government industry codes (the one exception is 538 of `T00TOP` on
+  `S00203`), and the columns are real — `V00100` and `VABAS` are populated — so the zero is an
+  accounting rule, not a gap: a tax levied by government and remitted by a government producer nets
+  out. The market-share leg was violating it by 10,513 against that published 538, because government
+  genuinely produces taxed commodities. Dropping those columns and **renormalising each commodity over
+  its remaining producers** moves 15,692 of error and the biggest single piece lands where it should:
+  `S00202`'s 3,439 of electricity tax goes to private `221100`, whose error falls from 3,934 to 443.
+  No commodity is stranded and the seed total is unchanged to the dollar. ⚠️ **Worth fixing before the
+  build, not after** — unlike the other residuals, these columns are redistributed into private
+  industries by the Step 7 reallocation, so a wrong seed here propagates into work that must be
+  unpicked.
+- `T00SUB`'s residual is two named structures rather than a smear — government enterprises `S00203`
+  (19,471 published vs 1,964) and `S00102` (6,339 vs 102) are subsidies paid to an *operator*, so no
+  product-side operator can place them. `T30800` already carries them.
+- ✅ **Construction needs none of this — it converts on plain market shares, corr 1.000, error 1.7%.**
+  Commodity `TOP` is 1,907 against a published `T00TOP` of 1,857, and `MDTY` and `SUB` are zero on both
+  axes. Probed because construction is block-shaped like the trade industries and could have been a
+  second petroleum; it is the opposite, because BEA defines the construction industries *by type of
+  structure*, so the Make block is 94.5% in-block and **100.0% diagonal** — no producer-versus-seller
+  distinction exists when whoever builds the structure sells it. `top_by_level` agrees: 100% of
+  construction `TOP` is producer-level, so the trade routings are inert here. Tax sits on 3 of the 12
+  codes, none of them a `NAMED_TAX_LINES` entry. The residual 1.7% is a leak to own-account and
+  secondary construction (5.5% of the block's output, largely `531HST` and state and local government);
+  market shares leak 30.4 where the published row leaks 50 — right direction, about half the size.
+
+⚠️ **Do the remaining sectors each need the same probe? No — the residual error is 20 industries, not
+402.** Under the best operator the top 20 industries by absolute error carry **85.0%** of it and the top
+5 carry 37.7%, and 17 of those 20 are wholesale or retail:
+
+| block | published | share of row | share of the error |
+|---|---:|---:|---:|
+| wholesale | 172,194 | 22.8% | 45.0% |
+| retail | 210,297 | 27.8% | 36.2% |
+| non-trade | 334,447 | 44.3% | 18.8% |
+| `4200ID` customs | 38,513 | 5.1% | 0.0% |
+
+What is left is the within-trade allocation already characterised, plus four named non-trade
+structures — `721000` accommodation (lodging tax, −5,088), `517210` wireless (−4,310), `611A00`
+colleges (+2,759) and `517110` wired telecom (−1,550). With the government columns excluded the
+non-trade block is at correlation **0.992** and 18.8% of the error, and no government code appears in
+the ranking at all. Construction was the last block-shaped unknown worth a sweep of its own and it came
+back exact, so **build against this seed and repair the named twenty later**: Step 5's balance moves
+these cells under soft targets anyway, so seed accuracy below the block level is not what the build is
+waiting on.
+
+✅ **Decided 2026-08-22 — three FBS methods, one per Use row**, rather than one method or plain Python
+modules. Reasoning, and the evidence behind it:
+
+- **FBS, not Python.** Step 4's modules are arithmetic on published matrices; Step 2 is genuinely
+  NIPA-leaf → BEA-detail attribution with weights, which is the engine's job. The plumbing already
+  exists: `BEA_Detail_Use_SUT` melts the Use SUT through `VAPRO`, so the **2017 benchmark VA block by
+  industry is loadable as an FBA attribution source today** (existing methods deliberately exclude
+  those rows). No new extractor, and "frozen 2017 detail shares under an annual NIPA control" — which
+  is all `T00OTOP` can honestly be — becomes a single proportional attribution.
+- **Three, not one.** The rows have different quality bars: `V00100` carries a **hard** group-level
+  constraint in Step 5's target set, while `V00300` and `T00OTOP` are **seeds only**, deliberately
+  unimposed so the income side stays out of sample. `V00300` needs ~20 activity sets across 8 NIPA
+  tables plus the housing/farm/government lookups; coupling that churn to the one row Step 5 actually
+  constrains is the mistake Step 1 paid for before the 1A/1B/1C rescope.
+- **The one thing FBS cannot say** is compensation's anchor-and-move construction (2017 detail share ×
+  QCEW growth, renormalised in-parent, then the control). `multiplication` does not preserve the group
+  total, so the exact-control step has no primitive. Build the moved-share vector as a cached
+  `FBS_outside_flowsa` source via `FBS_datapull_fxn` and let the yaml do **one** proportional
+  attribution against it — proportional normalises within group, so the control holds by construction,
+  and the arithmetic stays readable.
+
+✅ **#536 done — 24 NIPA tables added to `BEA_NIPA.yaml`**, all annual and complete for 2012-2024, at
+~950 extra FBA rows per year. Reconciliation through the FBA is pinned by
+`extract/bea/__tests__/test_bea_nipa_value_added_tables.py`. Three findings changed the plan:
+
+- ⚠️ **Take the *paid* line, not the table's root.** 6.2D and 6.3D each state their total twice —
+  line 1 received by residents, line 2 paid by domestic industries and government. Value added wants
+  line 2. On it, wages + both supplements close to **0** against compensation (8,485,016 + 604,656 +
+  1,345,306 = 10,434,978) and land on the SUT's `V00100` within 3. Reading line 1 is what left the
+  ~10,600 that `compensation_disaggregation_plan.md` carried as an open item; it is the rest-of-world
+  adjustment `A4187C`, stated in 6.2D's own lines 97-99.
+- ⚠️ **6.11D is three panels under one code**, and only the first is by industry: lines 1-20 industry,
+  22-36 type of fund, 37-45 *benefits paid* (2,370,770, a different concept). Its industry grain is
+  **17, not 36**, and selecting the whole table double-counts — the U20405 memorandum-block hazard
+  again. `T61600D`, `T71100` and `T11400` also restate a code; select by line in all four.
+- ✅ **3.8 gives the government-enterprise surplus an industry axis** it was thought not to have,
+  federal and state-and-local summing to 1.10's `A108RC` exactly.
+
+Remaining:
+- Add identity crosswalk rows for the three codes (`BEA_2017_Code`, as `F01000` has). The #567/#568
+  gate is **closed**, so this is three CSV lines rather than a decision.
+- A `assign_sector_produced_by_from_clean_parameter` mirror: VA codes are Use *rows*, so the code goes
+  on `SectorProducedBy` and the industry on `SectorConsumedBy` — the transpose of the FD methods.
+- Reconcile against T1.14 / `VABAS`→T10305 / `VAPRO`→T10105, per §Testing strategy.
 - **Note:** the board's "transform VA into after redefinitions" item is *deferred to Step 7* here —
   VA should stay before-redefinitions through the SUT, and get redefined once, with everything else,
   rather than in its own one-off step. (Deviation from the board item, now settled — the whole SUT is

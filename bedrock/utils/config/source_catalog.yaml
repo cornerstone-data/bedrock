@@ -124,7 +124,13 @@ Census_EC_PxI:
 BEA_NIPA:
   data_format: FBA
   class:
+    # Class comes from each series' own MetricName (see _METRIC_TO_FLOW in
+    # BEA_NIPA.py). Employment is 6.4D/6.5D employee counts; Other is 6.6D's
+    # wages-per-FTE ratio and 1.14's chained-dollar lines, kept out of Money so
+    # a Class: Money selection cannot add real dollars to nominal ones.
     - Money
+    - Employment
+    - Other
   activity_schema: null
   sector_hierarchy: flat
 BEA_IEA:

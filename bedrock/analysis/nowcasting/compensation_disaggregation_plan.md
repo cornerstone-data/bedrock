@@ -18,8 +18,46 @@ via `uv run python -m bedrock.analysis.nowcasting.value_added_control_totals`:
 - `T60200D` (6.2D, compensation by industry) has **74 leaf rows** — about BEA
   summary granularity. Nothing in NIPA reaches the 402 detail industries, so
   detail is an allocation problem, not a lookup.
-- **No value-added code is in `NAICS_Crosswalk_BEA_2017_Detail.csv`.** This is a
-  gate, not a detail — see [Phase 0](#phase-0--the-crosswalk-gate).
+- **No value-added code is in the sector crosswalk yet.** Once a gate; now
+  three CSV lines, since #567/#568 closed — see
+  [Phase 0](#phase-0--the-crosswalk-gate--cleared).
+
+## The shape of the build — settled 2026-08-22
+
+**Three FBS methods, one per Use row**, not one method and not plain Python
+modules: `NIPA_VA_compensation_<year>`, `NIPA_VA_surplus_<year>`,
+`NIPA_VA_othertax_<year>`. Reasoning is in [`plan.md`](plan.md) §Step 2; the two
+consequences for *this* document are what follow.
+
+**Most of this plan survives, but as configuration rather than code.** The
+attribution engine already does NIPA-leaf → BEA-detail with weights, and
+`BEA_Detail_Use_SUT` melts the Use SUT through `VAPRO`, so the 2017 benchmark
+`V00100` by industry is loadable as an FBA attribution source today — Phase 1
+below is a `selection_fields` clause, not an extraction.
+
+⚠️ **One step has no FBS primitive: the anchor-and-move itself.** "2017 detail
+share × QCEW growth, renormalised in-parent, then the NIPA control" cannot be
+said in yaml, because `multiplication` does not preserve the group total and
+there is no renormalise step — which is exactly what Phase 3.4 needs. So:
+
+> **Phases 1–2 build a cached `FBS_outside_flowsa` source** (the `FBS_datapull_fxn`
+> hatch, as `stewiFBS_common.yaml` uses) whose FlowAmount per BEA detail industry
+> is `V00100_2017,d × QCEW_growth,d`. **Phase 3 is then a single `proportional`
+> attribution of the NIPA control against it.** Proportional normalises within
+> the group, so 3.4's exact rescale holds by construction rather than by a
+> follow-up step, and the arithmetic stays readable in Python instead of becoming
+> forty lines of nested `multiplication`/`division`.
+
+That seam is the whole design. Everything else is ordinary activity sets.
+
+**Orientation is the transpose of the final-demand methods.** VA codes are Use
+*rows*, so the code goes on `SectorProducedBy` and the industry on
+`SectorConsumedBy` — where `NIPA_final_dom_uses` puts the commodity on
+`SectorProducedBy` and the `F` code on `SectorConsumedBy`. That needs a mirror of
+`assign_sector_consumed_by_from_clean_parameter`, for the same reason the
+original exists: `BEA_NIPA` is a `TECHNOSPHERE_FLOW` source, so populating the
+sector column before attribution would capture `PrimarySector` and corrupt the
+weights. Assign after aggregation, as #539 established.
 
 ## The decision that shapes everything else
 
@@ -35,22 +73,43 @@ high-wage children and understates low-wage ones.
 This is cheaper than it sounds, because **NIPA publishes both halves by
 industry**, and the identity is exact:
 
-| | table | 2017, $M | leaves |
-|---|---|---:|---:|
-| Wages and salaries | `T60300D` (6.3D) | 8,474,410 | 74 |
-| Employer contributions, government social insurance | `T61000D` (6.10D) | 604,656 | 16 |
-| Employer contributions, pension and insurance funds | `T61100D` (6.11D) | 1,345,306 | 36 |
-| **sum** | | **10,424,372** | |
-| Compensation of employees | `T60200D` (6.2D) | 10,424,372 | 74 |
-| **difference** | | **0** | |
+✅ **Restated on the *paid* concept (#536).** The version below originally read
+each table's line 1 and left an unexplained ~10,600 against the SUT. 6.2D and
+6.3D each state their total **twice** — line 1 is compensation (or wages)
+*received by residents*, line 2 the amount *paid* by domestic industries and
+government — and value added wants the paid line. The supplements tables have
+no such split. On line 2 the identity is exact **and** lands on the SUT:
 
-Verified to the dollar. So supplements need a parent-ratio carry-down only
-*below* 16 and 36 industries respectively — not from the top.
+| | table | line | code | 2017, $M | industry lines |
+|---|---|---:|---|---:|---:|
+| Wages and salaries, paid | `T60300D` (6.3D) | 2 | `A4102C` | 8,485,016 | 74 |
+| Employer contributions, government social insurance | `T61000D` (6.10D) | 1 | `B039RC` | 604,656 | 16 |
+| Employer contributions, pension and insurance funds | `T61100D` (6.11D) | 1 | `B040RC` | 1,345,306 | **17** |
+| **sum** | | | | **10,434,978** | |
+| Compensation of employees, paid | `T60200D` (6.2D) | 2 | `A4002C` | 10,434,978 | 74 |
+| **difference** | | | | **0** | |
 
-> **Open reconciliation item.** 6.2D's root is 10,424,372 while the Use SUT's
-> `V00100` is 10,434,981 and T1.10 `A4002C` is 10,434,978 — a gap of ~10,600,
-> most likely the rest-of-world compensation line. Resolve before using 6.2D as
-> a control; it is small but it is not rounding.
+Verified to the dollar, and 10,434,978 against the Use SUT's `V00100` of
+10,434,981 is BEA's own rounding. So supplements need a parent-ratio carry-down
+only *below* 16 and 17 industries respectively — not from the top.
+
+> ✅ **The ~10,600 gap is closed, and it was a wrong-line error.** 6.2D line 97
+> `A4187C` is the rest-of-world adjustment at −10,607 (receipts 6,347 less
+> payments 16,954, lines 98–99), and `A4002C` − `A033RC` equals it exactly.
+> Same class of mistake the `V00300` assembly warns about three times over:
+> *take the domestic line, not the table's root.* Pinned by
+> `test_bea_nipa_value_added_tables.py`.
+
+⚠️ **6.11D is 17 industries, not 36, and reading the whole table double-counts.**
+The table is three panels, each restating the 1,345,306 total under the same
+code `B040RC`: lines 1–20 by industry, 22–36 by *type of fund*, 37–45 **benefits
+paid** (2,370,770 — a different concept entirely). The "36 leaves" above counted
+the type panel. So pension and insurance supplements are the *coarsest* piece of
+compensation, not the second-finest, and any method reading 6.11D must select
+lines 3–20 explicitly — the same hazard as U20405's memorandum block.
+
+⚠️ **Four of the value-added tables restate a code on more than one line** —
+`T61100D`, `T61600D`, `T71100`, `T11400`. Select by line there, not by code.
 
 ## Data sources, all already in bedrock
 
@@ -70,24 +129,23 @@ reference for how far raw QCEW shares can be trusted.
 
 ---
 
-## Phase 0 — the crosswalk gate
+## Phase 0 — the crosswalk gate ✅ **cleared**
 
-`V00100`, `T00OTOP` and `V00300` are absent from
-`NAICS_Crosswalk_BEA_2017_Detail.csv` on both sides. The precedent is an
-identity row, as `F01000` has and as `7a04a71` added for `S00300`/`S00900`.
+This phase was written as a gate and is no longer one. **#567 and #568 are both
+closed**, so `SectorSourceName` can express a non-NAICS schema and a `non_naics`
+code is its own root in the hierarchy machinery. The crosswalk — now
+`Sector_Crosswalk_BEA_2017_Detail.csv` — already carries `F01000`, `S00300` and
+`S00900` as identity rows declaring `SectorSourceName: BEA_2017_Code`, and
+`test_mixed_bea_naics_assignment.py` covers the mixed BEA/NAICS case.
 
-The crosswalk declares `SectorSourceName: NAICS_2017_Code` and nothing else, and
-these codes are not NAICS. Adding them as identity rows under a NAICS source
-name is the move that put 210 BEA detail codes out of reach of the hierarchy
-machinery — **this is [#568](https://github.com/cornerstone-data/bedrock/issues/568), and Step 2 hits it when it writes its first crosswalk row, not later.**
+What remains is not a decision, it is three CSV lines:
 
-- **0.1** Decide: wait for #567/#568, or add identity rows now and accept the
-  known breakage. Recommend deciding explicitly rather than discovering it.
-- **0.2** Add rows for `V00100` at minimum. `VABAS`/`VAPRO` are aggregates and
-  should not be targets.
+- **0.1** Add identity rows for `V00100`, `T00OTOP` and `V00300` under
+  `BEA_2017_Code`, following `F01000`'s row exactly.
+- **0.2** `VABAS`/`VAPRO`/`T018` are subtotals and must **not** get rows — they
+  are computed from the three, not targeted.
 
-**Blocks every later phase that routes through FBS attribution.** Phases 1–2
-are pure analysis and can proceed regardless.
+Nothing here blocks the later phases any more.
 
 ## Phase 1 — establish the benchmark detail structure
 
@@ -107,25 +165,155 @@ NIPA control does not.
 
 ## Phase 2 — the movement series
 
-- **2.1** Load QCEW `Class: Money` (annual payroll) at NAICS_6 for the target
-  year and 2017. Confirm `estimate_suppressed_qcew` behaves on the Money class;
-  it was written for Employment. **National 6-digit has few suppressions, but
-  the fallback to 5-digit with residual allocation must be verified, not
-  assumed.**
-- **2.2** Map NAICS_6 → BEA detail via the existing concordance.
+✅ **QCEW is cached locally as per-year FBA parquets** in
+`extract/input_data/BLS_QCEW/`, 2017–2023, because generating the FBA is slow —
+each year is ~9M rows and 23MB, since QCEW comes down at county grain. Dropping
+one into `extract/output_data/` makes `getFlowByActivity('BLS_QCEW', year)` find
+it through the ordinary "import local" path with no code change; esupy matches on
+name and ignores the `v2.0.4` version tag in the filename. Verified for 2017.
+
+⚠️ **The cache is 2017–2023, so the nowcast's 2024 year has no QCEW.** Whatever
+carries 2024 is a separate decision, not an oversight to discover later.
+
+**What the national slice actually holds**, measured rather than assumed:
+
+| | 2017 |
+|---|---:|
+| National `Class: Money` rows (`Location == '00000'`) | 4,545 |
+| …at NAICS-6 | 1,937 |
+| distinct NAICS-6 codes | 1,075 |
+| NAICS-6 payroll, all ownerships | 7,955,155 $M |
+| **as a share of NIPA wages paid** (`A4102C`, 8,485,016) | **93.8%** |
+
+✅ **93.8% is the number that settles "allocator, never control".** The missing
+6.2% is UI-uncovered employment, and it is not spread evenly — it concentrates in
+exactly the sectors Phase 4 carves out. `T71800` itemises what BEA adds on top.
+
+✅ **Ownership is on the flow, not a separate axis.** `FlowName` is
+`Annual payroll, {Private, Federal Government, State Government, Local Government}` —
+2017 NAICS-6: private 6,772,575, local 691,481, state 265,682, federal 225,417.
+Useful, but it still does **not** separate government *enterprises* from general
+government, which is why Phase 4 routes government through NIPA instead.
+
+✅ **Crosswalk coverage is 1,027 of the 1,048** NAICS-6 codes the BEA detail
+crosswalk names — 98%. The 21 missing are a bounded list to inspect, not a
+structural gap.
+
+⚠️ **`Employment_common.yaml` cannot be reused as-is.** Every one of its
+`_bls_selection_fields_*` blocks hardcodes `Class: Employment`, so a wages method
+needs its own selection block; `estimate_suppressed_qcew` and
+`clean_qcew_for_fbs` are reusable, and whether the first behaves on `Class: Money`
+is still open question 3.
+
+- **2.1** Add a `Class: Money` national selection block beside the Employment
+  ones, and confirm `estimate_suppressed_qcew` behaves on it. **National 6-digit
+  has few suppressions, but the fallback to 5-digit with residual allocation must
+  be verified, not assumed.**
+- **2.2** Map NAICS_6 → BEA detail via the existing concordance, checking the 21.
 - **2.3** Compute per-detail-sector wage growth 2017→target year.
 - **2.4** Update the Phase 1 benchmark shares by that growth; renormalise within
-  each summary parent.
+  each summary parent. This and 2.3 are the body of the `FBS_datapull_fxn`
+  described in §The shape of the build.
+
+
+### The 6.2% gap has a shape, and NIPA states it
+
+✅ **`T71800` closes the gap exactly**, and says what kind of money it is:
+
+| | code | 2017, $M |
+|---|---|---:|
+| BLS published wages | `BA06RC` | 7,968,336 |
+| + adjustment for misreporting on employment tax returns | `BA07RC` | 106,273 |
+| + wages not, or not fully, covered by unemployment insurance | `W873RC` | 399,801 |
+| — of which government | `W787RC` | 152,442 |
+| — of which other | `W786RC` | 247,359 |
+| + timing adjustment for accrual basis | `Y663RC` | 0 |
+| **= NIPA wages and salaries, received** | `A034RC` | **8,474,410** |
+
+Exact. Add the rest-of-world adjustment and it is `A4102C`, the paid concept the
+build actually wants.
+
+⚠️ **And the gap is already known to be non-uniform before any industry table is
+opened.** Government's uncovered rate is **11.3%** of government wages against
+private's **3.5%** — a factor of three. Spreading 6.2% pro rata is therefore
+measurably wrong, not merely inelegant.
+
+### 6.4D makes coverage measurable per industry
+
+**`T60400D` is the table that turns the assumption into a measurement.** QCEW
+publishes employment on the same axis, so `QCEW / NIPA` is a coverage ratio *per
+industry* rather than one economy-wide number. Measured for 2017 on private
+employment, thousands:
+
+| NIPA 6.4D private line | 6.4D | QCEW | QCEW/NIPA |
+|---|---:|---:|---:|
+| Farms | 819 | 818 | 99.9% |
+| Construction | 7,127 | 6,919 | 97.1% |
+| Manufacturing | 12,440 | 12,407 | 99.7% |
+| Wholesale trade | 5,934 | 5,899 | 99.4% |
+| Retail trade | 15,989 | 15,854 | 99.2% |
+| Health care and social assistance | 19,576 | 19,322 | 98.7% |
+| Accommodation and food services | 13,711 | 13,607 | 99.2% |
+| **Educational services** | 3,662 | 2,824 | **77.1%** |
+| **Other services, except government** | 7,042 | 4,435 | **63.0%** |
+
+✅ **This is the useful result: coverage is 97–100% across most of the economy and
+collapses in exactly two places.** Religious and grantmaking organisations are
+largely UI-exempt, which carries "other services"; private households `814000` is
+288.5 thousand employees and 7,295 $M of payroll in QCEW against a sector NIPA
+states outright. So QCEW growth can be trusted broadly, and the exceptions are a
+**named short list** — which is a different and much better method than a flat
+6.2% haircut.
+
+⚠️ **Construction at 97.1% is a warning, not a reassurance.** The *count* matches
+because QCEW and NIPA agree on how many construction workers there are. They
+disagree on how to classify them — trade versus structure type — and that error
+is invisible to a coverage ratio. Phase 4's treatment stands.
+
+### Three more lookups NIPA publishes outright
+
+- **`RfHhInstComp` `W151RC` = 18,684**, compensation of employees of private
+  households — the SUT's `814000` to the dollar. The plan called this "an
+  explicit domestic-worker compensation line" without locating it; this is it.
+  The sector QCEW covers worst is the one NIPA hands over directly.
+  `W152RC` is the nonprofit institutions counterpart at 871,882.
+- **`U32500` (3.25U)** splits general government compensation into wages
+  (1,233,594) and supplements (535,640), which 3.10.5 only totals. The
+  `GSLGE`/`GSLGH`/`GSLGO` work needs the split.
+- **`T60600D` (6.6D)**, wages per full-time-equivalent employee by industry. Not
+  a detail source — it stops at the same 74 industries as 6.3D — but it is the
+  plausibility check Phase 5 lacks. An implied wage per worker at BEA detail that
+  falls outside its parent's range is an error a shares-sum-to-one assertion
+  cannot see.
+
+⚠️ **These tables are not all money, and the extractor now knows it.** 6.4D/6.5D
+are thousands of *persons* and 6.6D is a ratio, where `bea_nipa_parse` used to
+apply a flat `× 1,000,000` and label everything `Money`/`USD`. Scale and unit now
+come from each series' own `MetricName`/`DefaultScale`. All 1,812 dollar rows are
+bit-identical across the change; 1.14's three chained-dollar lines moved to
+`Class: Other` so a `Class: Money` selection cannot add real dollars to nominal.
 
 ## Phase 3 — apply controls and assemble
 
-- **3.1** Wages: allocate the 6.3D summary wage control across detail using the
-  Phase 2 updated shares.
-- **3.2** Supplements: allocate 6.10D (16 industries) and 6.11D (36) down to
-  summary, then to detail by the **wage** distribution from 3.1 — not by total
-  compensation, per the decision above.
-- **3.3** `V00100` detail = 3.1 + 3.2.
-- **3.4** Rescale so detail sums exactly to the summary control.
+This is `NIPA_VA_compensation_<year>.yaml`, and it is three activity sets plus the
+special cases of Phase 4. Each is a `proportional` attribution of a NIPA control
+against a weight source, which is why the exact rescale that used to be 3.4 is
+now a property of the method rather than a step in it.
+
+- **3.1** Wages. Control is 6.3D **line 2** (`A4102C`, the paid concept — see the
+  table above); weight source is the Phase 2 moved-share `FBS_outside_flowsa`.
+- **3.2** Supplements. Controls are 6.10D (16 industries) and 6.11D
+  (**17**, lines 3–20 only — the type and benefits-paid panels must be excluded
+  or the row double-counts). Weight source is the **wage** distribution from 3.1,
+  not total compensation, per the decision above. Carrying down by wages is what
+  makes this cheaper than it looks, since both halves are published by industry.
+- **3.3** `V00100` detail = 3.1 + 3.2, which is the method's output rather than a
+  separate step: the two activity sets aggregate onto the same
+  `SectorProducedBy = V00100` rows.
+- **3.4** ~~Rescale so detail sums exactly to the summary control.~~ **No longer a
+  step.** `proportional` normalises within the attribution group, so detail sums
+  to its control by construction. Keep it as the Phase 5.1 assertion — a
+  regression guard, not a computation.
 
 ## Phase 4 — the sectors where QCEW does not work
 
@@ -133,9 +321,17 @@ These are not edge cases; they are ~15% of compensation and they will produce
 visibly wrong answers if run through the general path.
 
 **Construction — the big one.** BEA's 12 detail construction sectors are defined
-by *type of structure*; QCEW classifies establishments by *trade*. There is no
-valid mapping — a specialty trade contractor's wages spread across every
-structure type.
+by *type of structure*; QCEW classifies establishments by *trade*. A specialty
+trade contractor's wages spread across every structure type.
+
+⚠️ **Correction: a mapping does exist, and that is the trap, not the relief.**
+`Sector_Crosswalk_BEA_2017_Detail.csv` carries **236 rows** for NAICS `23*`, and
+construction employment is available at those NAICS. But it is dense
+many-to-many — NAICS `237210` alone reaches nine BEA construction codes — so the
+crosswalk will happily route QCEW through it and the FBS `equal` default will
+split evenly. The mapping's existence means the pipeline **will not fail**; it
+will produce an even split and call it an answer. Construction therefore needs a
+weighted attribution with a stated weight source, never a bare crosswalk hop.
 
 ```
 233210 Health care structures          2332A0 Office and commercial
@@ -162,12 +358,20 @@ Hold benchmark shares.
 compensation 30,857, and its wages/supplements split — and **`USDA_ERS_FIWS`**
 hired and contract labor expense is the movement series within it.
 
-**Private households — `814000`** (18,684). Outside QCEW scope entirely. NIPA
-carries an explicit domestic-worker compensation line; carry it down.
+**Private households — `814000`** (18,684). ✅ **The line is located:**
+`RfHhInstComp` `W151RC`, 18,684 — the SUT figure to the dollar, so this is a
+lookup, not an allocation. "Outside QCEW scope entirely" is slightly too
+strong — QCEW has 288.5 thousand household employees and 7,295 $M of payroll —
+but coverage is poor enough that the NIPA line wins outright.
 
-**Government — and this one is nearly solved.** QCEW ownership codes do not
-distinguish government *enterprises* from general government. NIPA does, and the
-numbers tie exactly.
+**Government — and this one is nearly solved.** QCEW *does* carry ownership, on
+the flow rather than as a separate axis: `FlowName` is `Annual payroll,
+{Private, Federal Government, State Government, Local Government}`, giving
+225,417 federal / 265,682 state / 691,481 local at NAICS-6 in 2017. What it
+still does not do is distinguish government *enterprises* from general
+government — and that, not the ownership split, is the distinction the SUT
+needs. NIPA has it, and the numbers tie exactly, so route government through
+NIPA and leave the QCEW ownership codes out of it.
 
 **`T31005` (Table 3.10.5, *Government Consumption Expenditures and General
 Government Gross Output*)** carries compensation of general government
@@ -240,6 +444,10 @@ three-way split is the next thing to check.
   its value added. A negative implied GOS is the usual symptom of a bad
   compensation share, and it shows up most often in exactly the construction and
   real-estate splits Phase 4 covers. **This catches errors 5.1 cannot.**
+- **5.2b** **Implied wage per worker, against 6.6D.** Divide detail `V00100` by
+  a detail employment estimate and check it sits inside its 6.6D parent's
+  range. Catches a bad share that 5.1 cannot see and 5.2 only sometimes can:
+  a share can be positive, sum to one, and still imply an implausible wage.
 - **5.3** Benchmark replay: run the whole pipeline for 2017 and diff against the
   published detail `V00100`. With 2017 as both anchor and target the shares are
   the identity, so this tests the plumbing, not the movement series — a
@@ -500,6 +708,22 @@ It is industry-only and stays that way.
 > which axis is primary is a cross-step decision and should be made before
 > either step starts, not discovered when the two disagree. The reconciliation
 > above is the test that whichever direction is chosen still holds.
+>
+> ✅ **Resolved 2026-08-22, and half of it was wrong.** "Build once" was right and
+> is settled — the commodity axis is primary, Step 4d builds it. **"Derive the
+> other through the Make/Supply structure" does not work.** Measured for 2017 in
+> [`tax_axis_conversion.py`](tax_axis_conversion.py), the market-share operator
+> reproduces `T00TOP` at **correlation 0.202** with an absolute error of 114.6%
+> of the row, because a tax on a product is remitted by whoever *sells* it while
+> market shares place it with whoever *makes* it — **55.7% of the published row
+> is in trade industries**, and the operator puts almost none there. Petroleum:
+> 88,362 published on wholesalers `424700` against 13 estimated, while refineries
+> `324110` take 92,893 against a published 397.
+>
+> So the derivation stays undone and Step 5 solves the distribution. The two
+> pieces of structure worth seeding it with are `4200ID` = `MDTY` exactly, and
+> the **margin** structure — which says which trade industries handle a
+> commodity, and is the point-of-sale signal the Make matrix is not.
 
 ## `T00OTOP` — accept a cruder method
 
@@ -514,21 +738,42 @@ output, that shared dependency is a better reason to build the extractor than
 
 1. **Is there a published detail *wages* series**, or must detail wage shares be
    derived from the summary wages/compensation ratio (1.3)?
-2. **The ~10,600 gap** between 6.2D's root and the SUT's `V00100`.
+2. ✅ **Closed (#536).** The ~10,600 gap was a wrong-line error: 6.2D line 1
+   `A033RC` is compensation *received*, line 2 `A4002C` compensation *paid*,
+   and the difference is the rest-of-world adjustment `A4187C` at −10,607.
+   Value added wants the paid line.
 3. **Does `estimate_suppressed_qcew` work on `Class: Money`?** It was written
-   for Employment.
+   for Employment. Now cheap to answer, since the cache removes the
+   generation cost — and `Employment_common.yaml` needs a `Class: Money`
+   selection block either way, because every block there hardcodes
+   `Class: Employment`.
 4. **Which year is the target**, and does the QCEW lag (~5–6 months) meet the
-   nowcast schedule?
+   nowcast schedule? Sharper now: the local cache runs **2017–2023**, so
+   Phase 1's 2024 has no QCEW at all and needs a stated fallback.
 5. **BEA Fixed Assets is not in bedrock**, and both CFC (40% of `V00300`) and
    `T00OTOP` want capital stock by industry. One extractor serves both — is it
    worth building before either?
 6. **Census Nonemployer Statistics is not in bedrock**, and proprietors' income
    (18% of `V00300`) is the component that would most benefit.
 7. **Does `T61600D`'s subtree selection cleanly exclude rest-of-world?** Its
-   leaves mix domestic industries with rest-of-world receipts and payments.
-8. **Which axis is primary for product taxes and subsidies — commodity or
-   industry?** A cross-step decision between Step 2 and Step 4, and the one
-   question here that cannot be answered inside this plan alone.
+   leaves mix domestic industries with rest-of-world receipts and payments,
+   and it is one of the four tables that restates a code (`B394RC`) on two
+   lines. Select `A445RC` by code — that one is unique — and take the
+   subtree beneath it rather than the table's root.
+8. ✅ **Settled: build on the commodity axis, and the conversion back is
+   measured rather than assumed.** `TOP`, `SUB` and `MDTY` are built in Step 4d
+   ([`nowcast_product_taxes`](../../transform/iot/nowcast_product_taxes.py),
+   [`nowcast_subsidies`](../../transform/iot/nowcast_subsidies.py), #690), so
+   the industry row is a *transformation* of money that already exists — this
+   was never a question of estimating it twice. What was open is whether the
+   transformation works, and it was tested for 2017
+   ([`tax_axis_conversion.py`](tax_axis_conversion.py)): the benchmark
+   market-share operator gives **correlation 0.202** on `T00TOP`, because
+   **55.7% of the published row sits in trade industries** and market shares put
+   it with the producer instead of the seller. So the industry distribution
+   stays free for Step 5, seeded with the two pieces that do hold — `4200ID`
+   takes `MDTY` exactly, and the rest should ride the margin structure. Step 2's
+   scope is the three `VABAS` rows: `V00100`, `T00OTOP`, `V00300`.
 9. **The sector-table gaps against the SUT.** `T70405`'s implied housing
    operating surplus is 2.71% below the `531HSO`+`531HST` pair, and `T70305`'s
    gross farm value added is 10,118 below the ten farm codes. Compensation ties
