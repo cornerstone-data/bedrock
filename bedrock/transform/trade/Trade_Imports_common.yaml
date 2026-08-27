@@ -42,3 +42,16 @@ source_names:
         attribution_source:
           BEA_Detail_Supply:
             <<: *supply_mcif
+
+  # Physical electricity trade (#668): EIA Table 2.14 MWh × Census HS 2716
+  # unit value. Import stubs inherit this source from the common body.
+  EIA_ElectricPowerAnnual:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: EIA_ElectricPowerAnnual
+    clean_fba_before_activity_sets: !clean_function:trade.utilities dollarize_electricity_trade_fba
+    activity_sets:
+      electricity_imports:
+        selection_fields:
+          FlowName: electricity imports
+        attribution_method: direct
