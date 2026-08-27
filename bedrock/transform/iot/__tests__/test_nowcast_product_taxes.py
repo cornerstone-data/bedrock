@@ -309,6 +309,11 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     moving is the frozen-share one, **5.8%**. 7.3% is a long way above it, and
     tobacco's own gap *grew* over the same change, so #734 re-allocated within a
     residual that is still moving. A fall toward 5.8% is the one to stop for.
+
+    ⚠️ **2020's two numbers did not move at all, and that is the control.** The
+    purchaser-price base carries ``MCIF`` from ``Trade_Imports_<year>``, and the
+    2022-vintage Census leaves #734 remapped reach no earlier FBA. A change that
+    moved 2020 as well would have been the method moving, not the Crosswalk.
     """
     published = pt.published_top_by_commodity()
 
