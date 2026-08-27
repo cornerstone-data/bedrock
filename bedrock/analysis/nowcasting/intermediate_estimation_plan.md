@@ -1745,7 +1745,30 @@ the way the seven-year agriculture test does.
 ⚠️ **Nothing continues this after 2022.** AIES publishes no expense cell for 42 or
 44-45 at any NAICS level, so the trade BES pair ends at 2022 with no successor.
 
-### `23` Construction — ❌ **no-go**
+### `23` Construction — ❌ **no-go, and closed** (Wes, 2026-08-27)
+
+✅ **Held, and not reopened on re-weighting.** The 2026-08-27 review asked whether
+this verdict was an artefact of dollar-weighting, as the SAS verdicts were. It is
+not, for three reasons that survive any weighting:
+
+1. ⚠️ **51% of the column is one undifferentiated cell** (`CSTMPRT`), and no
+   Census product publishes a construction materials breakout — `ecnmatfuel` is
+   manufacturing and mining only. **No weighting splits a cell that is not
+   split.**
+2. ❌ **The seed already loses to frozen**, 0.044 against 0.038, on the only
+   comparison run.
+3. ⚠️ **The drift rate is the lowest in the top ten** — 0.038 over 2017 → 2022.
+   Construction ranks by column size ($1.2T), not instability, so the ceiling on
+   what a correct seed could buy here is small.
+
+⚠️ **It was also never run through [`benchmark_holdout.py`](benchmark_holdout.py)**
+— the pair tested is 2017 → 2022 and the holdout runs 2012 → 2017, which would
+need an `ecnbasic` 2012 vintage that is not extracted.
+
+✅ **The condition that would reopen it**: a construction materials breakout, from
+any source. Until one exists the binding constraint is (1), and re-scoring is
+effort spent on the 17.3% the named items reach.
+
 
 ✅ **`ecnbasic` covers construction expenses fully, in both vintages, cleanly.**
 Sector 23 populates eleven expense cells at NAICS-6 for 2017 and 2022 —

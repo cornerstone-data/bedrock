@@ -1060,6 +1060,10 @@ been 2017's in every year.
 | agriculture | 10 | ERS | **GO**, +17.9%, 9 of 10 columns |
 | — | 60 | hold 2017 | nothing observes their movement |
 
+✅ **Utilities and mining were closed on 2026-08-27**; construction was reviewed
+and **stays held**, because 51% of its column is one undifferentiated cell and no
+Census product breaks it out — see the Step 3 plan's §`23` Construction.
+
 ⚠️ **Two gaps, both deliberate and neither a bug.** **Trade** is a **no-go** on the benchmark holdout
 — it tracks where `N` is not — and is the seed most likely to be wired in by reflex, because it is
 built and it imports. **Utilities** graded **GO** (EIA 923, +16.0% on `N`, 3 of 3 columns) but

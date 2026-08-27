@@ -377,10 +377,18 @@ def utilities_seed(year: int, base_year: int = 2017) -> pd.DataFrame:
     :data:`UNSEEDED` records that form 176 was tested on gas distribution and
     rejected, and that water has no EIA source at all. **$29.4B stays open.**
 
-    ⚠️ **The graded span is the one coal dominated.** Coal carries the result --
-    dropping it takes the gain from +16.0% to -0.3% -- and coal fell from 51.7%
-    of the fuel bill in 2012 to 16.6% in 2022, so the later years lean on the
-    leg that is least like the span the holdout could see.
+    ⚠️ **All four rows are seeded. Nothing is dropped here** -- the note below is
+    about the *evidence*, not about this function, and it sat close enough to the
+    held-column notes above to be misread as an exclusion.
+
+    ⚠️ **The graded span is the one coal dominated.** :func:`legs` re-ran the
+    holdout with each fuel removed to find which leg carried the +16.0%: without
+    coal the gain is **-0.3%**, and coal alone is **+10.3%**. Coal was 51.7% of
+    the fuel bill in 2012 and **16.6% in 2022**, so the leg that earned the
+    verdict is the one shrinking fastest, and 2023-24 shape leans on legs the
+    holdout never really tested. That is a caveat on confidence, not a reason to
+    drop a fuel: dropping one would discard observed movement to make the seed
+    match the span that graded it.
     """
     use = _use_2017_detail()
     index = relative_index(year, base_year)
