@@ -35,6 +35,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     AGGREGATE_ONLY_NA,
     PAIRS,
     STEPS,
+    ImplId,
     na_sectors_at_step,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pptx_write import write_pptx
@@ -291,6 +292,15 @@ def test_published_original_panel_is_on_disk() -> None:
     path = frozen_panel_png('original', 'D')
     assert path is not None
     assert path.name == 'v0.2_original_electricity_disagg_D.png'
+    published: tuple[tuple[ImplId, str], ...] = (
+        ('original', 'D'),
+        ('original', 'N'),
+        ('eia_gtd', 'D'),
+        ('eia_gtd', 'N'),
+    )
+    for impl_id, kind in published:
+        found = frozen_panel_png(impl_id, kind)
+        assert found is not None, f'missing published panel for {impl_id} {kind}'
 
 
 def test_write_pptx_five_slides(
