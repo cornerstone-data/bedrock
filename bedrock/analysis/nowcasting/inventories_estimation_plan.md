@@ -299,10 +299,32 @@ durable/nondurable rows.
 Verified end-2023 AIES totals: wholesale $10.32T, manufacturing $4.53T, retail
 $3.49T, all with three stages present.
 
-**bedrock already has all four extractors.** `Census_AWTS` and `Census_ARTS`
-(from [#612](https://github.com/cornerstone-data/bedrock/issues/612)) pull only
-the *margin* workbooks, so wholesale and retail inventories are an added table on
-an existing source rather than new work. `Census_ASM` pulls only `RCPTOT`.
+✅ **Both trade inventory tables are now extracted** (2026-08-27).
+`Census_AWTS_Inventories` and `Census_ARTS_Inventories` are added tables on the
+existing #612 extractors, built 2012-2022, alongside `Census_ASM_Inventories`
+and `Census_EC_Inventories` on the manufacturing side. Two structural traps were
+found on the way and are asserted in the configs:
+
+⚠️ **AWTS table 3 is not the `nomsbo` table, and its three types of operation
+nest.** `Merchant Wholesalers` is the parent of `Merchant Wholesalers, except
+MSBOs` and `Manufacturers' sales branches and offices`, and equals their sum —
+measured at NAICS 42 in 2017, parent 842.2bn against children 842.2bn, gap
+**0.000bn**. Summing the FBA unfiltered counts wholesale inventory twice. All
+three are kept because the consumers differ: the F03000 trade branch wants the
+whole of wholesale, a margin consumer wants the `nomsbo` cut that table 4 and
+`Census_AIES` TYPOP `1X` are both on.
+
+⚠️ **ARTS publishes two total rows and they are different totals.** `Retail
+inventories, total` is all of retail (604.7bn in 2017); `Retail inventories,
+total (excl. motor vehicle and parts dealers)` is 385.7bn. The difference is
+**218.977bn, exactly the published 441 row** — which is the check that both are
+being read correctly, and the reason neither may be summed with the children.
+Emitted as the activities `Total` and `Total excluding 441`.
+
+⚠️ Two smaller traps: ARTS's sheet name is `Inventories` followed by **sixteen
+spaces**, so a lookup by the obvious string fails and it is addressed by
+position; and **446 and 4461 carry the same label**, so parent and child there
+must be told apart by code and never by name.
 
 ⚠️ **These are stock levels, not changes — the same trap §Farm records for
 FIWS.** CIPI is a change concept that excludes holding gains through the
@@ -352,13 +374,27 @@ The trade weights are therefore on BEA's own suggested path, not an invention.
 
 ### The gap, stated precisely
 
-✅ **Closed.** The gap was one crosswalk — the named trade industries → BEA 2017
-detail commodities, covering 126% of the column gross. It is built
-(`Sector_Crosswalk_BEA_NIPA_Inventories.csv`, 858 rows, 254 of 258 populated
-commodities, 91% of gross mass), and the weights within each commodity set are
-built alongside it from `Census_EC_PxI`.
+✅ **The receiving structure is closed. The weights are not.** The gap was one
+crosswalk — the named trade industries → BEA 2017 detail commodities, covering
+126% of the column gross — and it is built as
+`Sector_Crosswalk_BEA_NIPA_Inventories.csv`.
 
-What remains is not a missing source but Phase 3: applying the four rules and
+✅ **Re-measured 2026-08-27: 1,218 rows, 54 activities, 260 commodities, and it
+reaches 258 of 258 populated `F03000` commodities — 100% of gross mass.** The
+file has grown past what this section used to describe (858 rows, 254 of 258,
+91%), because the mining and farm lines were added after that text was written.
+⚠️ The 259th populated row is `T005`, an aggregate rather than a commodity, and
+must not be counted as a miss or summed with the rest.
+
+❌ **The weights are NOT built.** This section previously said they were "built
+alongside it from `Census_EC_PxI`"; the file has **no weight column at all** —
+its columns are `ActivitySourceName, Activity, SectorSourceName, Sector,
+SectorType, Note`. §The weights within each trade commodity set below is the
+accurate account, and it says the split still needs `NAPCSDOL` from the
+`Census_EC_PxI` port. The crosswalk says what a trade line can *reach*, not how
+its value divides across what it reaches.
+
+What remains is therefore the weights, plus Phase 3: applying the four rules and
 validating per commodity.
 
 This is a smaller object than the NAPCS → I-O commodity concordance that
@@ -463,18 +499,28 @@ method's line selection must follow the verified leaf sets in §Traps.
 **Phase 2 — the crosswalk.** 29 trade lines to BEA detail commodities. Build it
 by concept, never by value proximity.
 
-**Built** as `Sector_Crosswalk_BEA_NIPA_Inventories.csv`: 858 rows, 256
-commodities, generated from a documented concept map rather than hand-written.
+**Built** as `Sector_Crosswalk_BEA_NIPA_Inventories.csv`: **1,218 rows, 54
+activities, 260 commodities** as re-measured 2026-08-27 (this text used to say
+858 rows and 256 commodities), generated from a documented concept map rather
+than hand-written.
 The approach that worked — NIPA's trade lines *are* NAICS wholesale (423x/424x)
 and retail (44x/45x) categories, and NAICS itself defines what each distributes,
 so each line maps to the NAICS goods ranges its own definition names and those
 expand mechanically through `NAICS_to_BEA_Crosswalk_2017.csv`. Nothing fitted to
 the 2017 column.
 
-Measured coverage of the published 2017 `F03000`: **254 of 258 populated
-commodities, 91% of gross mass**. The four misses — `211000` oil and gas,
-`212100` coal, `21311A`, `213111` — are all the mining/utilities/construction
-branch, which is open question 2 and correctly outside a trade crosswalk.
+Measured coverage of the published 2017 `F03000`, re-run 2026-08-27: **258 of
+258 populated commodities, 100% of gross mass** ($98,764M). The four misses this
+text used to record — `211000` oil and gas, `212100` coal, `21311A`, `213111` —
+are now reached, because the mining lines were added to the crosswalk after it
+was written.
+
+✅ **The structural claim holds and was verified directly**: the 28 wholesale and
+retail activities reach **209 manufacturing commodities, 12 agriculture, 7
+information, 4 mining and 2 scrap — and zero trade commodities.** That is the
+seller-not-maker shape the column requires, the same structure `T00TOP` exposes
+where 55.7% of published product tax sits in wholesale and retail because a tax
+is remitted by whoever *sells* the good.
 
 Three gaps that a first pass missed, each with a named NAICS trade category
 behind it and each worth re-checking in any rebuild: forestry and fishery
