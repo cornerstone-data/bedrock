@@ -248,8 +248,8 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 | Block | Status |
 |---|---|
-| Value added (`V00100`, `T00OTOP`, `V00300`) | ✅ **All three rows built for 2017** (#538): `NIPA_VA_compensation` on 69 `T60200D` industry controls, `NIPA_VA_othertax` on one, `NIPA_VA_surplus` on eight across five tables. The `use_va_detail_sut` diagnostic is on and **every cell of the 3 × 402 block matches**. ⏳ 2018-2024 blocked on the compensation movement series |
-| Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split plus the government-column exclusion. Construction converts exactly; the residual is 20 named industries. See Step 2 |
+| Value added (`V00100`, `T00OTOP`, `V00300`) | ✅ **All three rows built 2017-2024** (#538): `NIPA_VA_compensation` on 69 `T60200D` industry controls, `NIPA_VA_othertax` on one, `NIPA_VA_surplus` on eight across five tables. They are three *different claims* — an estimate, a level plus two lookups, and a seed — and the block guard is lifted |
+| Value added (`T00TOP`, `T00SUB`) by industry | ✅ **Both rows built 2017-2024** (`nowcast_va_taxes.py`). Converted from the Supply columns, so the **levels carry no modelling content** and only the split is estimated. `T00SUB` reproduces the published 2017 row **exactly** (code identity + two government-enterprise routings); `T00TOP` is a **seed** at r=0.947 / 27.9%, and its residual is 20 named trade industries Step 5 moves |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 at summary and **17.3% per five years at detail**, while the inflation carry moves it +4.5% to **−12.6%** depending on the span |
 
 ### SUT Supply — every column
@@ -779,8 +779,12 @@ bridge basis, and explain the $15B. Until then `F02E00`'s nowcast target is off 
 
 ### Step 2 — SUT Use: value added block
 
-⚠️ **Scope is three rows, not five.** `V00100`, `T00OTOP`, `V00300` — the `VABAS` components, which
-is what `SUT_VALUE_ADDED_CODES` and the `use_va_detail_sut` diagnostic already target.
+⚠️ **Scope was three rows and is now five, as of 2026-08-26.** `SUT_VALUE_ADDED_CODES` and the
+`use_va_detail_sut` diagnostic carry all five; `T00TOP`/`T00SUB` are built by
+[`nowcast_va_taxes.py`](../../transform/iot/nowcast_va_taxes.py) and stacked into
+`derive_initial_value_added`. ⚠️ They are still not the same *kind* of row as the other three — the
+first three are `VABAS` at basic prices and are estimated from NIPA; these two are the wedge to
+`VAPRO` at producer prices and are **converted** from money that already exists.
 
 **`T00TOP`/`T00SUB` are a conversion question, not a sourcing one, and the conversion was measured.**
 They are already built by commodity in Step 4d (#690), so the industry row is a *transformation* of
@@ -801,8 +805,10 @@ one stage up the chain.
 is not the "2017 ratios drift" objection the 2026-08-17 decision was argued from — it is stronger.
 A conversion that fails in 2017 cannot be rescued by being applied nearer to 2017.
 
-So the decision above stands — the industry distribution stays free for Step 5 under economy-wide soft
-targets — but *free* is not *unseeded*, and two pieces of structure are in hand:
+So the decision above stands for `T00TOP` — the industry distribution stays free for Step 5 under
+economy-wide soft targets — but *free* is not *unseeded*, and the seed is now **built and shipped**
+rather than only measured. ⚠️ **It does not stand for `T00SUB`, which turned out not to be a seed at
+all**: see the `T00SUB` bullet below. The pieces:
 - ✅ **`4200ID` takes `MDTY` exactly**: published `T00TOP` there is 38,513 against a Supply `MDTY` of
   38,507. Customs duties are a lookup, 5.1% of the row, in every year.
 - ✅ **A usable operator exists, and Step 4c already built most of it.** `top_by_level` splits `TOP`
@@ -843,9 +849,29 @@ targets — but *free* is not *unseeded*, and two pieces of structure are in han
   build, not after** — unlike the other residuals, these columns are redistributed into private
   industries by the Step 7 reallocation, so a wrong seed here propagates into work that must be
   unpicked.
-- `T00SUB`'s residual is two named structures rather than a smear — government enterprises `S00203`
-  (19,471 published vs 1,964) and `S00102` (6,339 vs 102) are subsidies paid to an *operator*, so no
-  product-side operator can place them. `T30800` already carries them.
+- ✅ **`T00SUB` is not a seed — it reproduces the published 2017 row exactly**, and the finding that
+  got it there is that *no matrix operator belongs here at all*. A subsidy is paid to an **operator**,
+  so it stays on its own code: 398 of the 402 commodity codes are also industry codes, and the four
+  that are not (`S00300`, `S00401`, `S00402`, `S00900`) carry no subsidy in any year. Market shares
+  score 0.676 / 79.8% and code identity alone scores **0.569 — worse**, which is the point: identity's
+  entire residual is *two pairs of cells* rather than a smear. `S00203` public housing authorities
+  (19,471 published, sitting on commodity `531HST`) and `S00102` federal insurance enterprises (6,339,
+  sitting on `5241XX`) are government enterprises that *produce* a subsidised commodity. Routing those
+  two by name closes the row to **shape agreement of 7e-17** — machine precision — with the residual
+  1 $M being NIPA's 59,875 against the workbook's 59,876.
+  - ⚠️ **What is frozen is one number, and it is named**: `S00203`'s 54.4% of the housing line. NIPA
+    `T31300` has eight lines and none splits housing assistance between public authorities and private
+    landlords, so that share is anchored at 2017 and moved by the housing line's own growth.
+  - ⚠️ **The routings do not fire in 2020-21**, where `sub_decomposition` replaces the `other` type
+    with BEA's PPP-by-industry allocation; `5241XX`'s subsidy is then private-insurance PPP, not a
+    federal enterprise line. And PPP is *already industry-shaped* — BEA publishes it by industry and
+    the commodity axis gets it by spreading on `T007` — so code identity nearly recovers the original
+    allocation, making the pandemic years this operator's best rather than its worst.
+  - ⚠️ **`S00102` is over-subsidised from 2022 and the cause is upstream, not here.** The insurance
+    routing is 100%, so the federal enterprise takes whatever the commodity axis puts on `5241XX` —
+    36.6bn in 2022 against 6.3bn in 2017, because NIPA's `other` line still carries pandemic-era
+    programmes. The *same* 36.6bn sits on commodity `5241XX` with or without this conversion; fixing it
+    means splitting `T31300`'s `other` line, which BEA does not publish.
 - ✅ **Construction needs none of this — it converts on plain market shares, corr 1.000, error 1.7%.**
   Commodity `TOP` is 1,907 against a published `T00TOP` of 1,857, and `MDTY` and `SUB` are zero on both
   axes. Probed because construction is block-shaped like the trade industries and could have been a
@@ -936,20 +962,23 @@ the first method in the `NIPA_VA_*` family and it proves the whole seam: the thr
 identity crosswalk rows, `Sector_Crosswalk_BEA_NIPA_VA.csv`, the melted `BEA_Detail_Use_SUT` as an
 attribution source, and `assign_use_row_from_clean_parameter`.
 
-🚧 **And it turned up a blocker that lands squarely on `V00100`.** The housing and farm lookups are
-*not* in the shipped method. They cannot be their own activity sets — NIPA states no "other taxes on
-production excluding housing and farm" line, so a third set's control is still the whole 608,533 and
-the three sum to 872,044 — and the alternative, folding them into the weight vector, needs an
+✅ **The housing and farm lookups are in the shipped method**, carried as weights through a
+`clean_fba` socket on the attribution source —
+[`othertax_lookups.py`](../../transform/nipa/othertax_lookups.py). They cannot be their own activity
+sets — NIPA states no "other taxes on production excluding housing and farm" line, so a third set's
+control is still the whole 608,533 and the three sum to 872,044 — so instead the housing block is
+rescaled to `T70405` `B1031C`, the farm block to `T70305` `B1017C`, and the remaining 56.7% takes what
+is left of the control. Worth 1.92% → 1.68% of row error in 2024, 0.12–0.39pp across 2018–2024.
+
+⚠️ **It was originally shipped without them, on a blocker that turned out not to bind**, and both
+`T00OTOP` and `V00100` lost time to it. Folding a computed weight vector in was read as needing an
 **`FBS_outside_flowsa` attribution source, which does not work**: `get_flowby_from_config` builds a
 `FlowBySector` for that `data_format` while `attribute_flows_to_sectors` then calls `map_to_sectors`,
-which only `FlowByActivity` defines. All four existing uses of the hatch are top-level sources.
-
-⚠️ **That is the same hatch the compensation design above commits to** — "build the moved-share vector
-as a cached `FBS_outside_flowsa` source and let the yaml do one `proportional` attribution against
-it". It has to be cleared before `V00100`, and finding it on the 1.8% row rather than the 30.9% one is
-the argument for having built `T00OTOP` first. For `T00OTOP` itself the cost of going without is
-bounded: 1.92% against 1.68% of row error in 2024, smaller than the control's own 2.9% vintage error
-in 2021.
+which only `FlowByActivity` defines. All four existing uses of the hatch are top-level sources, and
+that is still true. But a weight vector that is a *rescaling of an FBA already in the method* needs no
+new source at all — it needs a `clean_fba` socket. The hatch is still broken, still unused, and was
+never on the path. For `T00OTOP` the cost of the delay was bounded: 1.92% against 1.68% of row error
+in 2024, smaller than the control's own 2.9% vintage error in 2021.
 
 The residual open item is unchanged — the honest allocator for the non-housing, non-farm remainder is
 **capital stock in structures, i.e. BEA Fixed Assets**, the same missing extractor CFC wants for 40%
@@ -1045,11 +1074,14 @@ median 2.8pp, p90 12.1pp, 2017→2024).
 ✅ **New data, 2026-08-24: `SUPPLY-USE_2026-08-24.zip` carries the detail Supply and Use SUT for 2007,
 2012 and 2017** — three sheets, one 2017 code basis, one frame, purchaser value, before redefinitions.
 That is Step 3's estimand three times over, and it is what the detail numbers above are measured on.
-⚠️ **It has no extractor**; `io_2017` still maps `Use_SUT_detail` to the single-year 2017 workbook.
-Promoting it is worth more than Step 3 alone — a 2007 and 2012 detail SUT in the 2017 frame is a second
-and third observation of the commodity mix (Step 4a), the margin rates (Step 4c) and the FD splits
-(Step 1), all of which are carried from a single benchmark today. It also measures what the summary
-tables hide: **aggregating identical detail data to summary conceals 30% of the structural error.**
+✅ **It now has an extractor** (2026-08-25): `io_2017._load_benchmark_detail_supply_use_usa(matrix,
+year)`, GCS-backed, with `load_benchmark_detail_U_intermediate_usa` / `load_benchmark_detail_supply_usa`
+as the typed 402 × 402 accessors, and its 2017 sheets verified equal to the single-year workbooks cell
+for cell. That is worth more than Step 3 alone — a 2007 and 2012 detail SUT in the 2017 frame is a
+second and third observation of the commodity mix (Step 4a), the margin rates (Step 4c) and the FD
+splits (Step 1), all of which are carried from a single benchmark today. It also measures what the
+summary tables hide: **aggregating identical detail data to summary conceals 30% of the structural
+error.** ⚠️ The BEA FBAs are *not* extended — `bea_parse`'s detail branches stay pinned to 2017.
 
 ⚠️ **The row control's own uncertainty costs this block 3.3%.** `T001 = T016 − Σ_FD Y` is a
 residual, so `MCIF` (Step 4b) and `F04000` (Step 1d) error lands in the interior:
@@ -1797,9 +1829,13 @@ set.
 ✅ **Decided 2026-08-17: do not convert. The target stays at producer prices and the balance solves
 the allocation** — a fixed 2017 conversion ratio is exactly what we cannot assume. So the industry
 column margin is `T005 + VAPRO` (intermediate plus **all five** VA rows, verified to **$1 per
-industry**), not `T005 + VABAS`, and **the product-tax industry split becomes an output of Step 5
-rather than an input to it.** `T00TOP`/`T00SUB` keep their economy-wide soft targets, which anchor the
-level while leaving the industry distribution free.
+industry**), not `T005 + VABAS`. `T00TOP`/`T00SUB` keep their economy-wide soft targets, which anchor
+the level while leaving the industry distribution free of a hard target.
+
+> ⚠️ **Superseded in part.** This decision originally read "**the product-tax industry split becomes an
+> output of Step 5 rather than an input to it**". That half is **withdrawn** — see the `tax_axis_conversion`
+> section above. The split still has no industry target, but it is *seeded*, at r = 0.948, so it is an
+> input to the balance as well as an output of it.
 
 ⚠️ **Sign trap, and it is BEA's, not ours.** The Use table stores `T00SUB` **positive** (0 of 402
 cells negative) while the Supply table stores `SUB` **negative** (15 of 15). So the producer-price

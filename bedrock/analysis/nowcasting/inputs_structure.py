@@ -68,7 +68,68 @@ to be built around it before it can be used:
 7. ``--annual`` -- **is a linear interpolation between the two censuses even
    defensible?**  :func:`annual_path` scores it against the observed annual
    path, from ``Census_ASM_Expenses`` (2018-2021) and ``Census_AIES_Expenses``
-   (2023).  It is not.
+   (2023).  It is not -- for the *level*, which those surveys observe.
+8. ``--form`` -- **so what form does the MIX take between the two censuses?**
+   :func:`materials_theta` rejects the price-carried path the plan proposed,
+   :func:`interior_form_holdout` chooses the interior form on the benchmark
+   panel, and :func:`extrapolation_holdout` settles the tail.  See below.
+9. ``--seed`` -- **the built seed**, :func:`materials_seed`, and what it moves.
+
+The interpolation form, and why the summary panel cannot choose it
+-----------------------------------------------------------------
+
+The annual surveys observe the materials **level** every year, so nothing has to
+be interpolated there and ``--annual`` rules out doing so.  The **mix** is a
+different matter: the census breaks it out only at 2017 and 2022, and no source
+observes the interior at all -- the fuels share of the census universe sits
+between 0.98% and 1.14% throughout (:func:`annual_partition`), so the coarse
+annual partition constrains the commodity mix hardly at all.
+
+❌ **The price-carried path the plan named is rejected** (:func:`materials_theta`).
+Carrying the 2017 census mix to 2022 on ``(p_c(2022)/p_c(2017)) ** theta`` fits
+**theta = 0.00** on the unsuppressed frame -- the one :func:`clean_movement` says
+to quote -- and theta = -0.25 for +0.4% on the full one.  **The level moves with
+price and the mix does not**, so the reasoning that carried #497's price index
+into this question does not survive contact with the census span.
+
+⚠️ **The published summary panel cannot arbitrate the form, and the reason is
+structural.**  BEA's annual tables are the last benchmark carried forward on
+annual indicators -- and since BEA has not incorporated the 2022 Economic Census,
+its 2022 and 2023 tables are still **2017**-benchmark carries.  So every interior
+year of a summary span is itself an interpolation, and scoring a candidate
+against it measures agreement between two methods rather than the shape of the
+thing.  ⚠️ Any test of interpolation form run on that panel is circular, however
+clean the arithmetic looks.
+
+✅ **The benchmark detail panel can arbitrate it**, because 2007, 2012 and 2017
+are three independent Economic-Census-anchored observations.  Interpolating
+2007 -> 2017 and scoring at the observed 2012 (:func:`interior_form_holdout`),
+on manufacturing:
+
+======================  =============
+form                    dissimilarity
+======================  =============
+frozen at 2007                 0.0889
+linear                         0.0764
+**geometric**                  **0.0710**
+endpoint (the 2017 mix)        0.1216
+======================  =============
+
+✅ **Interpolating beats freezing by 20.1%**, ✅ **geometric beats linear by
+7.1%**, and ❌ **adopting the newer observation early is worse than freezing** --
+so "just use the 2022 census for every year" is the one candidate that loses to
+doing nothing.
+
+❌ **But do not extend the trend past the last observation**
+(:func:`extrapolation_holdout`).  From 2007 and 2012, reaching the observed 2017,
+holding the 2012 mix scores 0.1232 against 0.1569 for a linear trend and 0.1513
+for a geometric one -- **27.4% worse on manufacturing, 41.7% on the whole
+table**.  A mix trend does not persist.
+
+**So S3 ships an asymmetry**: geometric interpolation between 2017 and 2022,
+and the 2022 mix held flat for 2023 and 2024.  ⚠️ **One clean interior
+observation on a ten-year span**, transferred to the census's five-year one; it
+is the only clean test the data admits, not a large sample.
 
 The bridge to BEA
 -----------------
@@ -197,6 +258,12 @@ import functools
 import numpy as np
 import pandas as pd
 
+from bedrock.analysis.nowcasting.intermediate_structure_drift import (
+    BENCHMARK_YEAR,
+    benchmark_detail_intermediate,
+    column_shares,
+    dissimilarity,
+)
 from bedrock.extract.census import Census_EC
 from bedrock.extract.census.Census_AIES import (
     AIES_EXPENSE_CONTROLS,
@@ -213,6 +280,10 @@ from bedrock.extract.census.Census_EC import (
     estimate_suppressed_ec_matfuel,
 )
 from bedrock.extract.flowbyactivity import getFlowByActivity
+from bedrock.transform.iot.nowcast_intermediate import (
+    carry_shares,
+    commodity_price_factor,
+)
 
 #: Same file :mod:`~.pxi_mix_test` reads, and by the same repo-relative path.
 NAICS_TO_BEA = 'bedrock/utils/mapping/naics/NAICS_to_BEA_Crosswalk_2017.csv'
@@ -223,6 +294,11 @@ NAICS_YEAR_CONCORDANCE = 'bedrock/utils/mapping/naics/NAICS_Year_Concordance.csv
 
 #: The two Economic Census vintages either side of the nowcast span's midpoint.
 VINTAGES = (2017, 2022)
+
+#: The benchmark detail SUT panel's three years -- three INDEPENDENT
+#: Economic-Census-anchored observations, which is what makes them the only
+#: clean arbiter of the interpolation form.  See :func:`interior_form_holdout`.
+BENCHMARK_PANEL_YEARS: tuple[BENCHMARK_YEAR, ...] = (2007, 2012, 2017)
 
 BILLION = 1e9
 
@@ -1230,10 +1306,14 @@ EXPENSE_TO_BEA = {
 }
 
 
+#: NAICS sector prefixes that are manufacturing, on either code basis.
+MANUFACTURING = ('31', '32', '33')
+
+
 def _manufacturing_bea_industries() -> list[str]:
     """The BEA detail industry columns that are manufacturing."""
     use = _use_2017_detail()
-    return [code for code in use.columns if str(code)[:2] in ('31', '32', '33')]
+    return [code for code in use.columns if str(code)[:2] in MANUFACTURING]
 
 
 def expense_panel() -> pd.DataFrame:
@@ -1438,6 +1518,394 @@ def nonmaterial_movement() -> pd.DataFrame:
     return pd.DataFrame(records).set_index('year')
 
 
+# ---------------------------------------------------------------------------
+# S3 -- the interpolation form, and the materials seed
+# ---------------------------------------------------------------------------
+
+#: The exponent grid the price carry is fitted on, matching
+#: :data:`~bedrock.analysis.nowcasting.intermediate_structure_drift.THETA_GRID`
+#: so the two fits are directly comparable.  ⚠️ It runs negative deliberately: a
+#: grid floored at 0.0 cannot represent shares moving *against* their own price
+#: and silently reports that case as 0.0.
+THETA_GRID = (-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5)
+
+#: The interpolation forms tested in :func:`interior_form_holdout`.
+#: ⚠️ **A "hold the base, snap at the end year" step is not among them**: in the
+#: interior it *is* ``frozen``, cell for cell, so it is not a distinct estimator
+#: and testing it would report the same number twice.  ``endpoint`` is the
+#: distinct candidate -- adopt the newer observation immediately.
+INTERPOLATION_FORMS = ('frozen', 'linear', 'geometric', 'endpoint')
+
+#: The form S3 ships, chosen by :func:`interior_form_holdout` rather than
+#: assumed.  Log-linear in shares: it respects the simplex, which linear does
+#: not, and it wins the one clean out-of-sample test that exists.
+SHIPPED_FORM = 'geometric'
+
+#: ⚠️ Below this the geometric form is undefined, so those cells fall back to
+#: the linear one.  BEA's detail Use table has 8 negative cells in 161,604
+#: (0.00%, -$0.8B) and the census materials block has none, so this is a
+#: correctness guard rather than a treatment that moves a number.
+_POSITIVE = 1e-15
+
+
+def interpolate_shares(
+    base: pd.DataFrame, end: pd.DataFrame, t: float, form: str = SHIPPED_FORM
+) -> pd.DataFrame:
+    """Column shares ``t`` of the way from ``base`` to ``end``, renormalised.
+
+    ``t = 0`` returns ``base`` and ``t = 1`` returns ``end`` for every form, so
+    the forms differ only in the interior -- which is exactly what
+    :func:`interior_form_holdout` scores and the only thing at stake.
+
+    ``frozen``
+        ignore ``end`` entirely; the θ = 0 comparison every measurement here is
+        scored against.
+    ``linear``
+        ``(1-t)·base + t·end``.
+    ``geometric``
+        ``base^(1-t) · end^t``, renormalised -- log-linear in shares.
+    ``endpoint``
+        take ``end`` at every ``t`` -- adopt the newer observation immediately.
+        ⚠️ Not the same as a step that holds ``base`` and snaps at the end year;
+        that step is ``frozen`` everywhere it differs from ``end``.
+
+    ⚠️ **A non-positive cell has no geometric mean**, so those cells take the
+    linear value instead; see :data:`_POSITIVE`.
+    """
+    if form not in INTERPOLATION_FORMS:
+        raise ValueError(
+            f'unknown form {form!r}; expected one of {INTERPOLATION_FORMS}'
+        )
+    if form == 'frozen':
+        return base
+    if form == 'endpoint':
+        return end
+    linear = base + t * (end - base)
+    if form == 'linear':
+        return linear
+    usable = (base > _POSITIVE) & (end > _POSITIVE)
+    geometric = (base.where(usable, 1.0) ** (1 - t)) * (end.where(usable, 1.0) ** t)
+    geometric = geometric.where(usable, linear)
+    total = geometric.sum(axis=0)
+    return geometric.div(total.where(total != 0, np.nan), axis=1).fillna(0.0)
+
+
+def materials_theta() -> pd.DataFrame:
+    """❌ Fit the price carry on the census materials mix -- and reject it.
+
+    The plan named a price-carried path as S3's candidate interpolation form,
+    on the reasoning that #497 already carries a commodity price index and the
+    observed *level* path is dominated by price.  This is that hypothesis tested
+    on the one span that can score it: carry the 2017 census commodity mix to
+    2022 on ``(p_c(2022)/p_c(2017)) ** theta`` and score against the observed
+    2022 census mix.  The same move :mod:`~.intermediate_structure_drift`'s
+    ``--theta`` makes on the summary panel, on this module's frame.
+
+    ⚠️ **It fits θ = 0.00 on the unsuppressed subsample** -- the frame
+    :func:`clean_movement` says to quote -- so **price explains none of the
+    materials mix movement** and the price-carried path is not justified.  The
+    full frame's θ = −0.25 is worth +0.4%, which is noise at this frame's
+    resolution.  The level moves with price; the mix does not.
+    """
+    factor = commodity_price_factor(VINTAGES[1], base=VINTAGES[0])
+    records = []
+    for label, first, second, weights in _census_mix_frames():
+        codes = list(first.index)
+        priced = factor.reindex(codes)
+        target = _shares(second)
+        for theta in THETA_GRID:
+            carried = carry_shares(first, priced.fillna(1.0), theta)
+            per_column = (carried - target).abs().sum(axis=0) / 2.0
+            records.append(
+                {
+                    'frame': label,
+                    'theta': theta,
+                    'dissimilarity': float(
+                        (per_column * weights).sum() / weights.sum()
+                    ),
+                }
+            )
+    table = pd.DataFrame(records)
+    frozen = table[table['theta'] == 0.0].set_index('frame')['dissimilarity']
+    table['gain_vs_frozen_%'] = (
+        100
+        * (table['frame'].map(frozen) - table['dissimilarity'])
+        / table['frame'].map(frozen)
+    )
+    return table.pivot(index='theta', columns='frame')
+
+
+@functools.cache
+def _census_mix_frames() -> (
+    tuple[tuple[str, pd.DataFrame, pd.DataFrame, pd.Series], ...]
+):
+    """The 2017 and 2022 census commodity blocks, aligned, on both frames.
+
+    The same construction :func:`commodity_movement` scores, returned rather
+    than scored so the form measurements can reuse it.
+    """
+    withheld = set()
+    for year in VINTAGES:
+        raw = materials(year, recover=False)
+        withheld |= {
+            _unit(year, code) for code in raw.loc[raw['Suppressed'].notna(), 'industry']
+        }
+
+    blocks = {}
+    for year in VINTAGES:
+        placed = place_on_commodities(year)
+        placed = placed[placed['tier'].isin(('direct', 'group'))].copy()
+        placed['unit'] = [_unit(year, code) for code in placed['industry']]
+        blocks[year] = placed.pivot_table(
+            index='bea', columns='unit', values='FlowAmount', aggfunc='sum'
+        )
+
+    first_raw, second_raw = blocks[VINTAGES[0]], blocks[VINTAGES[1]]
+    frames = []
+    for label, clean in (
+        ('direct + group', False),
+        ('unsuppressed, direct + group', True),
+    ):
+        units = sorted(set(first_raw.columns) & set(second_raw.columns))
+        if clean:
+            units = [unit for unit in units if unit not in withheld]
+        codes = sorted(set(first_raw.index) | set(second_raw.index))
+        first = first_raw.reindex(index=codes, columns=units).fillna(0.0)
+        second = second_raw.reindex(index=codes, columns=units).fillna(0.0)
+        frames.append((label, first, second, second.sum(axis=0)))
+    return tuple(frames)
+
+
+def interior_form_holdout() -> pd.DataFrame:
+    """✅ Which interpolation form, scored out of sample on the benchmark panel.
+
+    ⚠️ **The published summary panel cannot answer this, and the reason matters.**
+    BEA's annual summary tables are the last benchmark carried forward on annual
+    indicators -- its 2022 and 2023 tables are still 2017-benchmark carries,
+    since BEA has not incorporated the 2022 Economic Census -- so every interior
+    year of a summary span is *itself* an interpolation.  Scoring one
+    interpolation against another measures agreement between two methods, not
+    the shape of the thing.
+
+    The **benchmark detail panel** can answer it, because 2007, 2012 and 2017 are
+    three independent Economic-Census-anchored observations.  Interpolate
+    2007 → 2017 and score at the observed 2012:
+
+    ======================  =============  ===========
+    form                    manufacturing  whole table
+    ======================  =============  ===========
+    frozen at 2007                 0.0889       0.1323
+    linear                         0.0764       0.1190
+    **geometric**                  **0.0710**   **0.1164**
+    endpoint (the 2017 mix)        0.1216       0.1712
+    ======================  =============  ===========
+
+    ✅ **Interpolating beats freezing** -- geometric by **+20.1%** on
+    manufacturing -- and ✅ **geometric beats linear by +7.1%**, which is why
+    :data:`SHIPPED_FORM` is not the obvious choice.  ❌ **Adopting the newer
+    observation immediately is the worst of the four**, materially worse than
+    freezing: it puts a five-year move into the first year of the span.
+
+    ⚠️ **One interior observation, on a ten-year span**, transferred to the
+    census's five-year one.  It is one clean test rather than many, and it is
+    the only clean test the data admits.
+    """
+    return _panel_forms(interior=True)
+
+
+def extrapolation_holdout() -> pd.DataFrame:
+    """❌ Past the last observation, hold the mix -- do not extend the trend.
+
+    Step 3's target years run past the last census: 2022 is observed, and 2023
+    and 2024 are not.  So the extrapolation question is separate from the
+    interior one and needs its own test.  From 2007 and 2012, reach the observed
+    2017 benchmark:
+
+    ================================  =============  ===========
+    form                              manufacturing  whole table
+    ================================  =============  ===========
+    **hold the 2012 mix**             **0.1232**     **0.1733**
+    linear trend extended                  0.1569        0.2455
+    geometric trend extended               0.1513        0.2546
+    ================================  =============  ===========
+
+    ❌ **Extending the trend one span past its last observation costs 27.4% on
+    manufacturing and 41.7% on the whole table.**  A mix trend does not persist,
+    and this is the asymmetry S3 ships on: **interpolate between observations,
+    hold flat past the last one.**
+    """
+    return _panel_forms(interior=False)
+
+
+def _panel_forms(interior: bool) -> pd.DataFrame:
+    """Score the forms on the benchmark detail panel; see the two callers."""
+    blocks = {
+        year: benchmark_detail_intermediate(year) for year in BENCHMARK_PANEL_YEARS
+    }
+    shares = {year: column_shares(block) for year, block in blocks.items()}
+    records = []
+    scored: BENCHMARK_YEAR
+    for label, columns in (
+        (
+            'manufacturing',
+            [c for c in blocks[2012].columns if str(c)[:2] in MANUFACTURING],
+        ),
+        ('whole table', list(blocks[2012].columns)),
+    ):
+        if interior:
+            base, end, scored = shares[2007][columns], shares[2017][columns], 2012
+            candidates = {
+                form: interpolate_shares(base, end, 0.5, form)
+                for form in INTERPOLATION_FORMS
+            }
+        else:
+            base, end, scored = shares[2007][columns], shares[2012][columns], 2017
+            candidates = {'hold the last observation': end}
+            for form in ('linear', 'geometric'):
+                # one span on from ``end`` is t = 2 on the base -> end line
+                candidates[f'{form} trend extended'] = interpolate_shares(
+                    base, end, 2.0, form
+                )
+        weights = blocks[scored][columns].sum(axis=0)
+        for form, estimate in candidates.items():
+            records.append(
+                {
+                    'frame': label,
+                    'form': form,
+                    'dissimilarity': dissimilarity(
+                        estimate, shares[scored][columns], weights
+                    )[0],
+                }
+            )
+    table = pd.DataFrame(records).pivot(index='form', columns='frame')
+    table.columns = table.columns.droplevel(0)
+    reference = 'frozen' if interior else 'hold the last observation'
+    return table.assign(
+        **{
+            'vs_%s_%%'
+            % reference.split()[0]: lambda frame: 100
+            * (frame.loc[reference, 'manufacturing'] - frame['manufacturing'])
+            / frame.loc[reference, 'manufacturing']
+        }
+    )
+
+
+def census_mix_on_bea_industries(
+    clean: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The two census vintages' commodity blocks, on the BEA industry axis.
+
+    ⚠️ **Aggregate the dollars, then take shares -- never average the ratios.**
+    Several census units can map to one BEA detail industry, and the mean of
+    their index ratios is not the index of their combined block: it weights a
+    $40M industry like a $40B one.  Summing first makes the weighting the
+    dollars' own.
+
+    ``clean=True`` restricts to industries with nothing withheld in either
+    vintage.  ⚠️ That is the right frame for *scoring* (see
+    :func:`clean_movement`) and the wrong one for the *seed*, which wants every
+    industry it can reach; the recovered cells are why
+    :func:`~bedrock.extract.census.Census_EC.estimate_suppressed_ec_matfuel`
+    exists.
+    """
+    _, first, second, _ = _census_mix_frames()[1 if clean else 0]
+    mapping = pd.Series({unit: _unit_to_bea(unit) for unit in first.columns}).dropna()
+    keep = list(mapping.index)
+    grouped = [block[keep].T.groupby(mapping).sum().T for block in (first, second)]
+    return grouped[0], grouped[1]
+
+
+def materials_seed(year: int, clean: bool = False) -> pd.DataFrame:
+    """The S3 seed: BEA's 2017 materials cells, moved on the census mix.
+
+    ``commodity x BEA detail industry`` in $M, on the same axes as the benchmark
+    Use table and the manufacturing columns only -- the same shape
+    :func:`nonmaterial_seed` returns, so the two compose.
+
+    **The form is an index on the share, not a substitution of the level**, for
+    the reason §The 2017 anchor gives: the census materials universe and BEA's
+    commodity cells are different objects, so their levels disagree and only
+    their *movement* transfers::
+
+        seed[c, i] = Use2017[c, i] * census_mix[c, i, year] / census_mix[c, i, 2017]
+
+    then renormalised to hold the column total, because Step 3 owns the level
+    through ``GO - VAPRO`` and this step supplies only the shape.
+
+    The mix comes from :func:`interpolate_shares` at :data:`SHIPPED_FORM`, and
+    each year's treatment is decided by measurement rather than convention:
+
+    * **2017 and 2022** -- the census observes the mix; no interpolation.
+    * **2018-2021** -- interpolated, geometric, per :func:`interior_form_holdout`.
+    * **2023 onward** -- ⚠️ **held at the 2022 mix**, per
+      :func:`extrapolation_holdout`, which finds that extending the trend one
+      span costs 27.4%.
+
+    ⚠️ **A cell absent from either census vintage holds its benchmark value.**
+    An absent cell is an absence of information about movement, which is what
+    holding the benchmark means -- not a fall to zero.
+
+    ⚠️ **This is the materials half only.**  It covers the 79.4% of
+    manufacturing's column that :data:`~bedrock.extract.census.Census_EC` places;
+    :func:`nonmaterial_seed` is the 6.4% beside it.
+    """
+    if year < VINTAGES[0]:
+        raise ValueError(f'{year} is before the first census vintage {VINTAGES[0]}')
+    first, second = census_mix_on_bea_industries(clean=clean)
+    span = VINTAGES[1] - VINTAGES[0]
+    t = min((year - VINTAGES[0]) / span, 1.0)
+    base_mix = _shares(first)
+    mix = interpolate_shares(base_mix, _shares(second), t)
+
+    index = (mix / base_mix.where(base_mix > 0)).replace([np.inf, -np.inf], np.nan)
+    use = _use_2017_detail()
+    man = _manufacturing_bea_industries()
+    seed = use[man] * index.reindex(index=use.index, columns=man).fillna(1.0)
+    totals, base_totals = seed.sum(axis=0), use[man].sum(axis=0)
+    seed = seed.div(totals.where(totals != 0, np.nan), axis=1).mul(base_totals, axis=1)
+    seed = seed.fillna(0.0)
+    return seed.loc[(seed != 0).any(axis=1)]
+
+
+def _unit_to_bea(unit: str) -> str | None:
+    """A reconciled census industry unit back to a BEA detail industry.
+
+    ⚠️ **A unit is ``"{vintage}/{naics}"``**, not a bare NAICS code -- that is
+    what :func:`_common_industry_basis` names its components -- so the prefix has
+    to come off before the crosswalk sees it.  Reading the unit as a code maps
+    nothing at all and produces a seed that silently does not move.
+    """
+    return bea_industry(unit.split('/')[-1])
+
+
+def materials_seed_movement(clean: bool = False) -> pd.DataFrame:
+    """What the seed does to the materials block, against a frozen 2017.
+
+    The size of the correction S3 buys, per year, rather than inferred -- the
+    counterpart of :func:`nonmaterial_movement` for the materials half.
+    """
+    use = _use_2017_detail()
+    man = _manufacturing_bea_industries()
+    frozen = column_shares(use[man])
+    records = []
+    for year in range(VINTAGES[0], 2025):
+        seed = materials_seed(year, clean=clean)
+        estimate = column_shares(seed.reindex(index=use.index, columns=man).fillna(0.0))
+        weights = use[man].sum(axis=0)
+        records.append(
+            {
+                'year': year,
+                'moved_from_frozen': dissimilarity(estimate, frozen, weights)[0],
+                'treatment': (
+                    'census observed'
+                    if year in VINTAGES
+                    else 'held at 2022' if year > VINTAGES[1] else 'interpolated'
+                ),
+            }
+        )
+    return pd.DataFrame(records).set_index('year')
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--coverage', action='store_true', help='what can be placed')
@@ -1462,6 +1930,14 @@ def main() -> None:
         '--services',
         action='store_true',
         help='the non-materials cells, and the seed they carry',
+    )
+    parser.add_argument(
+        '--form',
+        action='store_true',
+        help='the interpolation form: the price fit, the interior and the tail',
+    )
+    parser.add_argument(
+        '--seed', action='store_true', help='the built materials seed, per year'
     )
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
@@ -1537,6 +2013,39 @@ def main() -> None:
         print(annual_path().round(2).to_string())
         print('\nWhat ASM observes annually that the census does not\n')
         print(annual_partition().round(2).to_string())
+    if args.all or args.form:
+        print('\nDoes the price carry explain the materials mix?')
+        print('(theta on the census span, scored at the observed 2022 mix)\n')
+        print(materials_theta().round(4).to_string())
+        print(
+            '\n  theta = 0.00 on the frame to quote: the price carry buys'
+            '\n  NOTHING on the mix. The level moves with price; the mix'
+            '\n  does not, so the price-carried path is not justified.'
+        )
+        print('\nWhich interpolation form, scored out of sample on the')
+        print('benchmark panel (2007 -> 2017, scored at the observed 2012)\n')
+        print(interior_form_holdout().round(4).to_string())
+        print(
+            '\n  the published summary panel CANNOT score this: BEA carries'
+            '\n  the last benchmark forward, so its interior years are'
+            '\n  themselves an interpolation, and its 2022 and 2023 tables'
+            '\n  are still 2017-benchmark carries.'
+        )
+        print('\nAnd past the last observation (2007, 2012 -> observed 2017)\n')
+        print(extrapolation_holdout().round(4).to_string())
+        print('\n  so: interpolate between observations, hold past the last.')
+    if args.all or args.seed:
+        print('\nWhat the materials seed does, against a frozen 2017\n')
+        print(materials_seed_movement().round(4).to_string())
+        print('\n  the same, on the unsuppressed frame only\n')
+        print(materials_seed_movement(clean=True).round(4).to_string())
+        built = materials_seed(VINTAGES[1])
+        print(
+            f'\n  {VINTAGES[1]} seed: {built.shape[0]} commodities x '
+            f'{built.shape[1]} industries, ${built.sum().sum() / 1000:,.0f}B'
+            '\n  the column total is held: the seed supplies shape, and'
+            '\n  Step 3 owns the level through GO - VAPRO.'
+        )
     if args.all or args.services:
         print('\nThe named non-materials cells: how far the survey sits from BEA')
         print('(both sides 2017, both manufacturing -- a scope match would be 1.0)\n')

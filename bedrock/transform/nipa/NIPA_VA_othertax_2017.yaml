@@ -41,7 +41,16 @@
 # What works is that the row is concentrated - three real-estate codes carry
 # 46.3% - and BEA publishes the two biggest blocks outright. So: housing and
 # farm are lookups, government is zero by an accounting rule, and only the
-# remaining ~56% is allocated, on frozen 2017 detail shares.
+# remaining 56.7% is allocated, on frozen 2017 detail shares.
+#
+# ✅ The two lookups are carried through a clean_fba socket on the attribution
+# source - transform/nipa/othertax_lookups.py - and they are exact rather than
+# fitted: T70405 B1031C equals the published 531HSO+531HST pair to the dollar,
+# and T70305 B1017C equals the ten farm codes. Against the held-out summary SUT
+# they take the row error from 1.01% to 0.81% in 2018 and from 2.05% to 1.66%
+# in 2023 - about a fifth of the remaining error. Bounded, and worth having,
+# and not a transformation of the method: the larger error is in the control,
+# where 2021's NIPA vintage sits 2.9% above that year's workbook.
 #
 # ✅ The frozen part is graded rather than assumed. On the summary Use SUT,
 # composition drift against 2017 is 1.01-2.10% of the row across 2018-2024 while
@@ -69,7 +78,17 @@ _attribution_sources:
   # `proportional` normalises within the attribution group, so the control holds
   # by construction rather than by a follow-up rescale step.
   benchmark_T00OTOP: &benchmark
+    # ⚠️ `year` stays 2017: this source IS the benchmark row, and 2017 is the
+    # only year BEA publishes a detail Use SUT for. The year being nowcast is
+    # `movement_year`, read by the clean_fba socket below.
     year: 2017
+    movement_year: *va_year
+    # Rescales the housing block to T70405 B1031C, the farm block to T70305
+    # B1017C, and everything else to what is left of the T30500 control, each
+    # keeping its own 2017 within-block shape. The identity when movement_year
+    # is 2017. Runs after unit conversion and before sector mapping, which is
+    # where ActivityConsumedBy still holds BEA detail codes.
+    clean_fba: !clean_function:nipa.othertax_lookups apply_published_lookups
     activity_to_sector_mapping: BEA_2017_Detail
     selection_fields:
       ActivityProducedBy: T00OTOP
@@ -115,29 +134,31 @@ source_names:
         # siblings rather than repeating a parent - the double count U20405 and
         # U50705BU1 both punish.
         #
-        # ⚠️ WHY THE HOUSING AND FARM LOOKUPS ARE NOT HERE, THOUGH THEY ARE EXACT.
+        # ⚠️ THE HOUSING AND FARM LOOKUPS ARE NOT ACTIVITY SETS, AND CANNOT BE.
         # T70405 B1031C IS the 531HSO+531HST pair and T70305 B1017C IS the ten
-        # farm codes, in six and seven of the eight years 2017-2024. Neither is
-        # used, for two reasons measured rather than assumed:
+        # farm codes - together 43.3% of the row, published annually, exact. But
+        # they cannot be their own activity sets: NIPA states no "other taxes on
+        # production excluding housing and farm" line, so a third set's control
+        # would still be the whole 608,533 and the three would sum to 872,044.
         #
-        #   1. They cannot be their own activity sets. NIPA states no "other
-        #      taxes on production excluding housing and farm" line, so the third
-        #      set's control would still be the whole 608,533 and the three would
-        #      sum to 872,044.
-        #   2. Folding them into the weight vector needs an FBS_outside_flowsa
-        #      attribution source, and that does not work: get_flowby_from_config
-        #      builds a FlowBySector for that data_format while
-        #      attribute_flows_to_sectors then calls map_to_sectors, which only
-        #      FlowByActivity has. No yaml in the repo uses FBS_outside_flowsa as
-        #      an attribution source; all four existing uses are top-level
-        #      sources. See analysis/nowcasting/other_taxes_allocation.py
-        #      §lookup_improvement and plan.md §Step 2.
+        # ✅ So they enter as WEIGHTS instead, through the clean_fba socket on
+        # the attribution source above - see transform/nipa/othertax_lookups.py.
+        # One activity set and one control is still right; what changed is that
+        # the weight vector handed to `proportional` is no longer the frozen
+        # 2017 row.
         #
-        # The cost of leaving them out is bounded and small: against the summary
-        # SUT the error is 1.01-3.60% of the row across 2018-2024, where carrying
-        # the lookups would give 0.81-3.36%. The larger error is in the control
-        # itself - 2021's NIPA vintage sits 2.9% above the workbook - not in the
-        # distribution.
+        # ⚠️ This reverses what this file used to say, and the reason is worth
+        # keeping. The lookups were left out because folding them into the
+        # weight vector appeared to need an FBS_outside_flowsa attribution
+        # source, which does not work: get_flowby_from_config builds a
+        # FlowBySector for that data_format while attribute_flows_to_sectors
+        # then calls map_to_sectors, which only FlowByActivity has (#731).
+        # That hatch is still broken and is still not used. It simply is not
+        # needed: a weight vector that is a RESCALING of an FBA already in the
+        # method is a clean_fba socket, which is how NIPA_VA_compensation_<year>
+        # carries QCEW. other_taxes_allocation.py said the hatch was "worth
+        # clearing before Step 2's largest row rather than after" - it was
+        # cleared there, and this is the row that was waiting on it.
         activity_to_sector_mapping: BEA_NIPA_VA
         clean_parameter: T00OTOP
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter

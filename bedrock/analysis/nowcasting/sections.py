@@ -21,6 +21,27 @@ read through their margins and a severity summary instead -- see below.
 Sections defined here
 -------------------------
 
+``use_fd_detail_sut``       Step 1.  ``derive_initial_Y_pur`` against the Use
+                            table's final-demand columns.  Both sides
+                            purchaser price.  Runnable today.
+``use_va_detail_sut``       Step 2.  The Use table's value-added rows.
+                            Declared, not yet runnable -- see below.
+``supply_bridge_detail_sut`` Step 4.  The Supply table's right-hand block --
+                            imports, margins, taxes and the subtotals
+                            bridging basic to purchaser value.  Runnable;
+                            candidate fills MCIF only.
+``use_intermediate_detail_sut`` Step 3.  The Use table's 402 x 402 interior.
+                            Runnable.
+=========================== =================================================
+
+The first three are the whole of what a published 2017 detail reference
+supports *outside* the two 402 x 402 interiors.  ``use_intermediate_detail_sut``
+is one of those interiors, and it is the exception the docstring above used to
+deny: 161,604 cells is too many to read as a picture, but it is not too many to
+*score*, and the section machinery reports totals, row and column margins and a
+status count without anyone having to look at the grid.  The Supply interior --
+the Make table, Step 4a -- is still undeclared.
+=======
 ============================== ==============================================
 ``use_fd_detail_sut``          Step 1.  ``derive_initial_Y_pur`` against the
                                Use table's final-demand columns.  Both sides
@@ -121,18 +142,33 @@ from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 #: resolution of the reference itself.
 ROUNDING_ATOL = 0.5 * MILLION_CURRENCY_TO_CURRENCY
 
-#: Value-added rows of the Use SUT, basic prices.  ``T00OTOP`` is *other* taxes
-#: on production less subsidies -- not the MUT's ``V00200``, which is taxes on
-#: production **and imports** at producer prices.  Step 2's candidate has to
-#: arrive on these codes, in this valuation.
-SUT_VALUE_ADDED_CODES = ('V00100', 'T00OTOP', 'V00300')
+#: Value-added rows of the Use SUT.  ``T00OTOP`` is *other* taxes on production
+#: less subsidies -- not the MUT's ``V00200``, which is taxes on production
+#: **and imports** at producer prices.  Step 2's candidate has to arrive on
+#: these codes, in this valuation.
+#:
+#: ⚠️ The first three are ``VABAS`` and are at **basic** prices; ``T00TOP`` and
+#: ``T00SUB`` are the wedge that takes the column to ``VAPRO`` at producer
+#: prices.  They are five rows on one frame but not five rows of one kind, and
+#: they are not built the same way -- the first three are estimated from NIPA,
+#: the last two are *converted* from the Supply table's ``TOP``/``MDTY``/``SUB``
+#: columns (:mod:`bedrock.transform.iot.nowcast_va_taxes`).
+SUT_VALUE_ADDED_CODES = (
+    'V00100',
+    'T00OTOP',
+    'V00300',
+    'T00TOP',
+    'T00SUB',
+)
 
-#: What those three rows are.  ``USA_2017_VALUE_ADDED_DESC`` describes the MUT's
+#: What those five rows are.  ``USA_2017_VALUE_ADDED_DESC`` describes the MUT's
 #: codes, so it does not carry ``T00OTOP``.
 SUT_VALUE_ADDED_DESC = {
     'V00100': 'Compensation of employees',
     'T00OTOP': 'Other taxes on production, less subsidies',
     'V00300': 'Gross operating surplus',
+    'T00TOP': 'Taxes on products and imports',
+    'T00SUB': 'Subsidies (negative, balance convention)',
 }
 
 #: The Supply table's right-hand block: everything to the right of the
@@ -284,9 +320,21 @@ def use_sut_final_demand_reference(year: int = 2017) -> pd.DataFrame:
 
 
 def use_sut_value_added_reference(year: int = 2017) -> pd.DataFrame:
-    """Value-added rows of the published 2017 detail Use SUT table, in USD."""
+    """Value-added rows of the published 2017 detail Use SUT table, in USD.
+
+    ⚠️ ``T00SUB`` is flipped to the **balance's** sign convention, negative, as
+    ``nowcast_mask.published_2017_panel`` and ``nowcast._USE_VALUE_ADDED_SUBTOTALS``
+    store it and as the candidate produces it.  BEA publishes the Use row
+    positive and subtracts it.  Comparing an unflipped reference against the
+    candidate reports every subsidised industry as a 200% error, which reads
+    like a broken row rather than like a sign.
+    """
     _require_2017(year)
-    return _block(_use_sut_detail(), SUT_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES)
+    block = _block(
+        _use_sut_detail(), SUT_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES
+    ).copy()
+    block.loc['T00SUB'] = -block.loc['T00SUB']
+    return block
 
 
 def use_sut_intermediate_reference(year: int = 2017) -> pd.DataFrame:
@@ -421,9 +469,10 @@ def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
 def initial_U_intermediate_candidate(year: int) -> pd.DataFrame:
     """Our Step 3 intermediate block, commodity x industry, in USD.
 
-    Runs ``derive_initial_U_intermediate`` at #497's ``theta = 1``.  At 2017 the
-    carry is the identity and only the column control moves, so this section run
-    is a plumbing test; the movement is scored on the summary panel by
+    Runs ``derive_initial_U_intermediate`` at the fitted ``theta`` for the span.
+    At 2017 the carry is the identity -- both legs of the deflator are 1.0 --
+    and only the column control moves, so this section run is a plumbing test;
+    the movement is scored on the summary panel by
     ``intermediate_structure_drift``, not here.
     """
     from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
@@ -510,10 +559,17 @@ USE_VA_DETAIL_SUT = Section(
     reference=use_sut_value_added_reference,
     candidate=initial_value_added_candidate,
     note=(
-        'Candidate is a live run of derive_initial_value_added: the three '
-        'NIPA_VA_*_2017 methods stacked. All hold their within-group shares at '
-        'the 2017 benchmark, so a 2017 run tests the plumbing, not the '
-        'movement series - near-exact is the floor, not an achievement.'
+        'Candidate is a live run of derive_initial_value_added, 2017-2024. The '
+        'five rows are not five claims of one kind. V00100 is an ESTIMATE '
+        '(QCEW movement in 69 NIPA groups); T00OTOP is a LEVEL plus two '
+        'lookups (43.3% of the row observed); V00300 is a SEED only, and the '
+        'residual T18 hands the balance. T00TOP and T00SUB are neither - they '
+        'are CONVERTED from the Supply columns by nowcast_va_taxes, so their '
+        'levels carry no modelling content at all and only the industry split '
+        'is estimated. T00SUB reproduces the published 2017 row exactly; '
+        'T00TOP is a seed at r = 0.947, 27.9% off, and stays one. A 2017 run '
+        'of the first three tests the plumbing, not the movement series - '
+        'near-exact is the floor there, not an achievement.'
     ),
 )
 
@@ -603,15 +659,18 @@ USE_INTERMEDIATE_DETAIL_SUT = Section(
     candidate=initial_U_intermediate_candidate,
     note=(
         'Candidate is derive_initial_U_intermediate: the published 2017 detail '
-        'interior column-normalised, carried on the detail commodity price '
-        'ratio at theta = 1, and rescaled to GO_producer - VAPRO. Both sides '
+        'interior column-normalised, carried on the purchaser deflator (the '
+        'detail commodity price ratio times the margin-rate factor) at the '
+        'fitted theta, and rescaled to GO_producer - VAPRO. Both sides '
         'of that control are observed annually, from '
         'derived_intermediate_and_value_added, which allocates BEA UVA205-A '
         'down to the 402 detail industries; aggregated to summary it matches '
         'the published T005 to 0.0002%. VAPRO is the column total, not Step 2 '
-        '- Step 2 owes the split across the five value-added rows and is '
-        'unbuilt. theta = 1 is #497 as written and fits negative at 2023-24; '
-        'choosing it is #699. The seven negative cells are preserved.'
+        '- Step 2 owes the split across the five value-added rows, and now '
+        'supplies it for 2017-2024 (#538). theta is 0.75 on a span that does not cross the 2021-22 '
+        'price surge and 0.0 on one that does (#699), not #497 as written. '
+        'At 2017 both legs of the deflator are 1.0, so this run is a plumbing '
+        'test. The seven negative cells are preserved.'
     ),
 )
 

@@ -16,13 +16,19 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.transform.iot.nowcast_mask import EXCLUDED_COMMODITIES, ONE_TO_ONE_FD
+from bedrock.transform.iot.nowcast_mask import (
+    EXCLUDED_COMMODITIES,
+    ONE_TO_ONE_FD,
+    VA_ROWS,
+    published_2017_panel,
+)
 from bedrock.transform.iot.nowcast_targets import (
     FD_TARGET_COLUMNS,
     REST_OF_WORLD_ADJUSTMENT,
     WEIGHTS,
     identity_targets,
     industry_output_target,
+    industry_value_added_target,
     rest_of_world_adjustment_supply_make,
 )
 from bedrock.utils.economic.balance.targets import PLACEHOLDER_PREFIX
@@ -196,3 +202,72 @@ def test_t1_binds_the_use_panel_only() -> None:
     assert not t1.is_cross_block
     assert [(term.block, term.axis) for term in t1.terms] == [('use', 'column')]
     assert not t1.is_placeholder
+
+
+def test_t18_restricts_the_use_column_to_the_five_value_added_rows() -> None:
+    """T18 is a *sub-column* sum, which is why it needs ``restrict_to``.
+
+    A plain column margin would be T1 again and a row margin would be an
+    economy-wide total; the constraint that pins ``VAPRO`` per industry is
+    neither. All five rows participate - ``T00TOP`` and ``T00SUB`` are the
+    basic-to-producer wedge, and ``VAPRO`` is a producer-price quantity.
+    """
+    synthetic = pd.Series([100.0, 200.0], index=['1111A0', '1111B0'])
+    t18 = industry_value_added_target(2017, value_added=synthetic)
+
+    assert t18.name == 'T18'
+    assert t18.hard
+    assert t18.blocks == ('use',)
+    assert not t18.is_placeholder
+    assert [(term.block, term.axis) for term in t18.terms] == [('use', 'column')]
+    assert t18.terms[0].restrict_to == VA_ROWS
+    assert t18.terms[0].aggregator is None
+
+
+def test_t18_admits_negative_value_added() -> None:
+    """``S00201`` publishes ``VAPRO`` of -10,069 in 2017 and is negative in
+    every derived year. A sign guard here would clip BEA's own number.
+    """
+    negative = pd.Series([-10069.0], index=['S00201'])
+    t18 = industry_value_added_target(2017, value_added=negative)
+    assert t18.allow_negative
+
+
+def test_t18_evaluates_to_vapro_on_the_published_panel() -> None:
+    """The five rows summed on the *normalised* panel are ``VAPRO`` directly.
+
+    BEA states ``VAPRO = VABAS + T00TOP - T00SUB``, but ``published_2017_panel``
+    stores the Use ``T00SUB`` row negative, so here it is a plain sum. Writing
+    the subtraction against the normalised panel would be wrong by
+    ``2 x T00SUB`` - the same sign trap T12 was caught on, which is why this is
+    asserted rather than assumed.
+    """
+    panel = published_2017_panel('use')
+    industries = ['1111A0', '1111B0']
+    expected = panel.loc[list(VA_ROWS), industries].sum(axis=0).astype(float)
+    t18 = industry_value_added_target(2017, value_added=expected)
+    evaluated = t18.evaluate({'use': panel, 'supply': published_2017_panel('supply')})
+    pd.testing.assert_series_equal(evaluated, expected, check_names=False, rtol=1e-9)
+    assert float(panel.loc['T00SUB'][industries].sum()) < 0.0
+
+
+def test_t1_and_t18_together_pin_the_intermediate_column() -> None:
+    """Neither target alone says where the ``T005``/``VAPRO`` line falls.
+
+    T1 pins the column sum and T18 the value-added part of it, so the pair
+    determines intermediate inputs per industry. That is the point of adding
+    T18: without it, income-side estimation error lands in ``T005``, which is
+    the scale of a column of ``A``.
+    """
+    go = pd.Series([100.0, 200.0], index=['1111A0', '1111B0'])
+    vapro = pd.Series([40.0, 130.0], index=['1111A0', '1111B0'])
+    t1 = industry_output_target(2017, gross_output=go)
+    t18 = industry_value_added_target(2017, value_added=vapro)
+
+    assert t1.hard and t18.hard
+    assert t1.terms[0].restrict_to is None
+    assert t18.terms[0].restrict_to is not None
+    implied = t1.values - t18.values
+    pd.testing.assert_series_equal(
+        implied, pd.Series([60.0, 70.0], index=['1111A0', '1111B0'])
+    )

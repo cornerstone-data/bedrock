@@ -26,10 +26,31 @@ to a BEA commodity. Against the 2017 detail Use table those items reach 38-72%
 of the columns they describe, because a service industry has no materials bill
 for them to hide behind.
 
-⚠️ **There is no 2018 or 2019.** Both vintages publish the sheet for those years
-but populate only a handful of items in it - payroll, temporary staff,
-depreciation, the sector-specific cells - and none of the general purchased
-inputs. The gap is real and is why :data:`SAS_EXPENSE_UNOBSERVED_YEARS` exists;
+⚠️ **There is no *usable* 2018 or 2019, and the reason is not the one this
+docstring used to give.** ❌ It said both vintages publish the sheet for those
+years with only a handful of items populated. **Neither is true.** ``sas-17``
+carries 2013-2017 and ``sas-22`` carries 2020-2022; **2018 and 2019 are in
+neither**, because they live in ``sas-18.xlsx`` and ``sas-19.xlsx``, which this
+source does not fetch. ✅ **There they are fully populated** - 8 of 8 cells for
+every NAICS - **on a cut item list**: Census reduced the detailed-expense
+content for those two collection years and restored it in 2020.
+
+======  =================  ================
+sheet    items per NAICS    distinct items
+======  =================  ================
+sas-17         24-28              40
+sas-19          8-12              24
+sas-22         18-22              33
+======  =================  ================
+
+❌ **What sas-19 drops is exactly the seed's input list**: purchased
+electricity, communication services, fuels, professional and technical
+services, advertising, repairs to buildings, repairs to machinery, water and
+sewer, lease and rental of buildings, lease and rental of machinery, and data
+processing. ✅ **What it keeps is the total ``Expenses`` line**, which is a
+denominator rather than a mix -- usable for :func:`industry_growth` and as a
+control, and not fetched today. The gap in the *mix* is real and is why
+:data:`SAS_EXPENSE_UNOBSERVED_YEARS` exists;
 do not read an absent 2019 cell as a fall to zero.
 
 ⚠️ **The two vintages sit on different Economic Census benchmarks, and this is

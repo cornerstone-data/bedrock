@@ -28,6 +28,27 @@ uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 # what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
 uv run python -m bedrock.analysis.nowcasting.row_control_exposure
 
+# what Step 2 estimates for 2018-2024, now that VAPRO and its three components
+# are both published annually (Step 2)
+uv run python -m bedrock.analysis.nowcasting.value_added_timeseries --check
+
+# does QCEW wage growth predict detail compensation? graded 2012->2017 (Step 2)
+uv run python -m bedrock.analysis.nowcasting.compensation_movement_holdout --check
+
+# the shipped V00100 weight vector: vintage bridge, carve-out, coverage and
+# suppression guards. Not analysis -- this one feeds NIPA_VA_compensation_<year>
+uv run python -m bedrock.transform.nipa.compensation_movement --check
+
+# the shipped T00OTOP weight vector: the housing and farm blocks rescaled to
+# their published NIPA lines. Feeds NIPA_VA_othertax_<year>
+uv run python -m bedrock.transform.nipa.othertax_lookups --check
+
+# can the product-tax rows be converted from commodity to industry? (Step 2)
+uv run python -m bedrock.analysis.nowcasting.tax_axis_conversion --check
+
+# the shipped T00TOP/T00SUB rows: the operator above, made annual. Not analysis --
+# derive_initial_value_added stacks these two onto the three NIPA rows
+uv run python -m bedrock.transform.iot.nowcast_va_taxes --check
 # what can be sourced for manufacturing's input column (needs the
 # Census_EC_MatFuel, Census_EC_Expenses, Census_ASM_Expenses and
 # Census_AIES_Expenses FBAs)
@@ -103,6 +124,7 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   carry against it, `--holdout` runs the out-of-sample 2012 → 2017 detail version,
   `--where` locates the drift by column, `--revision` measures BEA's own restatement
   of a year it had already published, `--theta` fits the carry exponent,
+  `--regime` refits it on all 78 non-nested spans and reports what predicts it,
   `--control` scores the built column control against the published summary
   `T005`, and `--seed` reports the built block year by year. Prints only; writes
   nothing.
@@ -226,6 +248,10 @@ local run.
   thing under `images/`.
 - [`About_table_match.md`](About_table_match.md) — what the first Step 1 run
   showed.
+- [`About_the_price_carry.md`](About_the_price_carry.md) — reference for Step 3's
+  carry: what `theta` is, the two legs of the commodity deflator, the valuation
+  chain the margin leg sits in, the `theta = 1 - sigma` reading, and the
+  approximations the carry rests on.
 - [`annual_survey_expense_sources.md`](annual_survey_expense_sources.md) — Step 3
   probe of annual survey data as a source of input structure for the Use
   intermediate block: Census business surveys, Census state and local government

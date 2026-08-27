@@ -39,16 +39,40 @@
 # only if the supplements tables reach 6.2D's grain, which they have not in any
 # published year.
 #
-# ⚠️ WHAT THIS METHOD DOES *NOT* YET DO: move the shares between years.
+# THE SHARES MOVE BETWEEN YEARS, ON QCEW.
 # The plan's design is "2017 detail share x QCEW growth, renormalised in-parent,
-# then the NIPA control". Only the last two of those are here. For 2017 that is
-# complete rather than partial - QCEW growth 2017->2017 is the identity - but a
-# 2018+ file needs the moved-share source, and that is blocked: an
-# FBS_outside_flowsa attribution source does not work (see
-# NIPA_VA_othertax_2017.yaml and other_taxes_allocation.lookup_improvement).
-# Until it is cleared, later years would hold 2017 shares within each of the 69
-# groups, which is a materially weaker method than the plan intends for the row
-# Step 5 constrains hardest. That is why no 2018-2024 file is written yet.
+# then the NIPA control", and all three are now here. The movement enters as a
+# clean_fba socket on the attribution source below, which rescales the published
+# 2017 V00100 weights by each industry's QCEW payroll growth before they are
+# normalised inside the group. See transform/nipa/compensation_movement.py; it
+# reproduces every figure it states under --check.
+#
+# ⚠️ WHY NOT POINT `proportional` STRAIGHT AT THE QCEW FBA. Because QCEW's
+# *level* is not a usable share and its *change* is. Graded on the observed
+# 2012->2017 span, level shares score +21.9% worse than frozen 2017 shares at
+# their best and +270.9% raw, against -10.0% for this movement form. QCEW misses
+# proprietors, several benefit components and whole statutorily-excluded
+# industries, so its share of an industry's compensation is not that industry's
+# share of compensation.
+#
+# ✅ This is also BEA's own construction. The benchmark source notes say benefits
+# were built from an Economic-Census/SAS/BES benefit-to-payroll relationship
+# "applied to the 2017 QCEW wage and salary data", with everything "adjusted to
+# sum to total compensation by industry in the NIPAs" - which is a fixed benefit
+# rate carried on QCEW wages under a NIPA control, i.e. this method.
+#
+# ⚠️ Three corrections are applied, each of which changes the answer: the five
+# summary groups the NAICS-to-BEA concordance cannot resolve are carved out,
+# QCEW's NAICS vintage change at data year 2022 is bridged through the year
+# concordance, and industries QCEW does not observe keep their group's movement
+# rather than a growth ratio computed on a remnant. compensation_movement.py
+# documents and measures all three.
+#
+# ⚠️ WHAT IS STILL OWED (#731). For the industries QCEW does not cover, BEA uses
+# 2017 Economic Census payroll adjusted for misreporting and I-O definitions.
+# This file gives them their group's movement instead. Deferred deliberately:
+# 14 of the 15 are already carved out for the concordance reason, and the
+# fifteenth is 482000 rail.
 
 !include:BEA_detail_commodity_target.yaml
 year: &va_year 2017
@@ -71,7 +95,16 @@ _attribution_sources:
   # reached through the BEA_2017_Code identity row in
   # Sector_Crosswalk_BEA_2017_Detail.csv, as F01000 and S00300 are.
   benchmark_V00100: &benchmark
+    # ⚠️ `year` stays 2017: this source IS the benchmark row. The year being
+    # nowcast is `movement_year`, read by the clean_fba socket below, and
+    # conflating the two would silently look for a detail Use SUT that BEA does
+    # not publish for any year but 2017.
     year: 2017
+    movement_year: *va_year
+    # Rescales each industry's benchmark weight by its QCEW payroll growth
+    # 2017 -> movement_year. Runs after unit conversion and before sector
+    # mapping, which is where ActivityConsumedBy still holds BEA detail codes.
+    clean_fba: !clean_function:nipa.compensation_movement apply_qcew_movement
     activity_to_sector_mapping: BEA_2017_Detail
     selection_fields:
       ActivityProducedBy: V00100

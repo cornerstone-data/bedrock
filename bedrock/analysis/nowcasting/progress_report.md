@@ -296,6 +296,53 @@ finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
 
 ---
 
+## Step 3 — Use table, the intermediate interior
+
+`use_intermediate_detail_sut` · 402 commodities × 402 industries · tolerance
+`rtol=0.01, atol=5e5, ramp=0.25`
+
+![Step 3 intermediate block match](images/use_intermediate_detail_sut_2017.png)
+
+| scope | absent | match | partial | miss | extra |
+|---|---:|---:|---:|---:|---:|
+| cells | 117,323 | 44,281 | 0 | 0 | 0 |
+| row totals | 36 | 366 | 0 | 0 | 0 |
+| column totals | 2 | 400 | 0 | 0 | 0 |
+
+Grand total $14.856T against $14.856T, off by **0.002%**.
+
+**Read the picture as a coverage map, not a score.** The candidate is
+`derive_initial_U_intermediate`: the published 2017 interior column-normalised,
+carried on the detail commodity price ratio at θ = 1, and rescaled to
+`GO_producer − VAPRO_seed`. At 2017 every carry factor is 1.0, so the block is
+the reference put through a per-column rescale — everything green is what that
+should look like, and anything else would have been a plumbing bug.
+
+⚠️ **The rescale is not the identity, and the residual is BEA's own rounding.**
+Published `T005` is one rounded number; the interior sums 402 separately rounded
+cells to a different one — $350M on $14.9T, at most $13M on a column. A *small*
+column wears that as a large fraction, so `atol` is what carries those cells
+rather than `rtol`: `334610` is $482M of intermediates and is rescaled by 1.05%,
+the largest relative error in the block, while the largest absolute error is
+$6.0M on a $19.2B cell.
+
+✅ **The seven published negative cells survive**, and the two structurally empty
+columns — `4200ID` customs duties and `814000` private households — stay empty.
+
+⚠️ **Two things here are seeds and will be overwritten at Step 5.** `VAPRO` is
+Step 2's, and Step 2 is unbuilt, so the column control carries 2017's
+value-added share of gross output forward; it is right economy-wide to within
+2.3% in every year 2018-2024 but drifts by industry, with `GSLG` 18.3% low at
+2022. ⚠️ **That `GSLG` figure is the column *level*, not
+[#578](https://github.com/cornerstone-data/bedrock/issues/578)** — #578 is the
+commodity *mix* inside the government columns and is a separate, later job. NIPA
+`T31005` already matches the published government `T005` at $0 / $0 / $2M in
+2017 and is not wired up anywhere. And **θ = 1 is #497 as written, not a
+finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
+[#699](https://github.com/cornerstone-data/bedrock/issues/699).
+
+---
+
 ## Step 4 — Supply table, bridge to purchaser value
 
 `supply_bridge_detail_sut` · 402 commodities × 12 bridge codes · tolerance

@@ -26,6 +26,10 @@ column-normalised object, so the level and the structure never mix.
 ⚠️ theta is a parameter, and 1.0 is not obviously right
 --------------------------------------------------------
 
+What ``theta`` is mechanically -- a scalar exponent on a commodity deflator, one
+per span, and the ``theta = 1 - sigma`` reading of it -- is documented in
+``bedrock/analysis/nowcasting/About_the_price_carry.md``.
+
 ``theta = 1`` is #497 as written -- a nominal share carried in full on its own
 price movement, which assumes zero substitution. ``theta = 0`` is a frozen
 ``A``. Fitted per year on the published summary panel (``--theta`` on the drift
@@ -39,10 +43,23 @@ diagnostic) it is **negative in the target years**:
 
 so at 2023-24 the frozen structure scores *better* when shares are moved
 **against** their own price movement. The detail benchmark span 2012->2017 still
-fits 1.00, so the disagreement is regime rather than code. This module
-therefore takes ``theta`` as an argument and defaults to #497's 1.0; choosing it
-is `#699 <https://github.com/cornerstone-data/bedrock/issues/699>`_, together
-with the margin-rate leg of the deflator, which is **not** applied here.
+fits 1.00, so the disagreement is regime rather than code.
+
+✅ **Both halves of that are now decided**
+(`#699 <https://github.com/cornerstone-data/bedrock/issues/699>`_). ``theta``
+comes from :func:`default_theta`, a two-regime rule fitted on **78 non-nested
+summary spans** rather than on the seven this build runs, and the deflator is
+the full purchaser one -- the producer price ratio times
+:func:`margin_rate_factor`. #497's ``theta = 1`` survives as
+:data:`THETA_497`, and ``margins=False`` still gets the producer-only leg, so
+the two can be scored against each other rather than only argued about.
+
+⚠️ **The headline is that the carry barely matters in this regime.** On a
+span that crosses the 2021-22 price surge -- which every target year from 2022
+on does -- the median gain of the *best* theta over a frozen ``A`` is 0.59% of
+the score, against 5.44% off the surge. #497's 1.0 is not merely unfitted
+there, it costs 12.6% at 2024; a frozen structure gives that back and the
+fitted negative theta adds under one percent on top.
 
 The price index is an *industry* index used on commodity rows
 -------------------------------------------------------------
@@ -106,6 +123,7 @@ What Step 5 imposes, from :mod:`bedrock.transform.iot.nowcast_targets`:
 
 ===== ===================================== ==========================
 T1    ``T005 + VAPRO = GO_producer``        **hard, real, 2017-2024**
+T18   ``VAPRO`` per industry                **hard, real, 2017-2024**
 T4    ``V00100`` by industry group          soft, ``PLACEHOLDER``
 T6    ``T00TOP``/``T00SUB`` economy-wide    soft, ``PLACEHOLDER``
 T5    ``T00OTOP``, ``V00300``               **deliberately not imposed**
@@ -113,16 +131,25 @@ T5    ``T00OTOP``, ``V00300``               **deliberately not imposed**
 
 ⚠️ **T1 pins the column's sum, not its split.** It says intermediate plus all
 five value-added rows equal gross output; it says nothing about where the line
-between them falls. The split is pinned only by T4 and T6 -- both soft, both
-still placeholders, and ``va_row_targets`` reads their values off
-``published_2017_panel`` after ``del year``, so they carry no annual movement
-either.
+between them falls.
 
-⚠️ **And T5 is unimposed on purpose**: ``T00OTOP`` and ``V00300`` "enter the
-balance as seed only, which is the price of the test being worth running" --
-the income side is held back so GDP stays out-of-sample evidence. ``V00300``
-gross operating surplus is **$7.873T** in 2017. Nothing in the balance can
-re-derive it.
+✅ **T18 pins the split, as of 2026-08-26.** It is the value-added half of the
+same column, sourced from ``UVA205-A`` -- the sibling of the ``UGO305-A``
+behind T1 -- so ``T005`` is now determined per industry rather than left as the
+place income-side error lands. This is what the last paragraph of this section
+predicted would be needed; it now exists.
+
+⚠️ Within value added the split is still pinned only by T4 and T6 -- both soft,
+both still placeholders, and ``va_row_targets`` reads their values off
+``published_2017_panel`` after ``del year``, so they carry no annual movement.
+
+⚠️ **T5 is unimposed on purpose, and that is now load-bearing**: ``T00OTOP``
+and ``V00300`` "enter the balance as seed only, which is the price of the test
+being worth running" -- the income side is held back so GDP stays out-of-sample
+evidence. With T18 fixing the column total, leaving ``V00300`` free is also
+what makes it the row that absorbs the residual, which is where the model wants
+its error: gross operating surplus is **$7.873T** in 2017 and appears in no
+``A``, no ``L`` and no emission factor.
 
 So the claim that survives is the narrow one: Step 5 re-solves the
 ``T00TOP``/``T00SUB`` **wedge**. §The column control's argument assumed
@@ -149,18 +176,32 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
+from bedrock.extract.iot.constants import GCS_USA_SUP_DIR
+from bedrock.extract.iot.io_2017 import (
+    LOCAL_USA_SUP_DIR,
+    _load_2017_detail_supply_use_usa,
+    _load_benchmark_detail_supply_use_usa,
+)
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     derive_detail_intermediate_inputs,
     derive_detail_value_added,
 )
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.io.gcp import load_from_gcs
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_BENCHMARK_DETAIL_SUT_YEARS,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
+from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
+    load_bea_v2017_commodity_to_bea_v2017_summary,
+)
 
-#: The benchmark the structure is seeded from.
-SEED_YEAR = 2017
+#: The benchmark the structure is seeded from. Typed as a benchmark year because
+#: the margin leg reads the detail Supply table here, which BEA publishes only
+#: for 2007, 2012 and 2017.
+SEED_YEAR: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017
 
 #: Years this step can be built for. Bounded by
 #: ``BEA_Detail_GrossOutput_IO_<year>``, extracted for 2017-2024; the price
@@ -185,8 +226,10 @@ INTERMEDIATE_YEARS = tuple(range(2017, 2025))
 UNPRICED_COMMODITIES = ('S00300', 'S00401', 'S00402', 'S00900')
 
 #: #497 as written: the nominal share carried in full on its own price ratio.
-#: See the module docstring for why this is a default rather than a finding.
-DEFAULT_THETA = 1.0
+#: ⚠️ **Not the default any more** -- kept as the name for what #497 specified,
+#: so a caller can ask for it explicitly and the two can be scored against each
+#: other. :func:`default_theta` is what the build uses.
+THETA_497 = 1.0
 
 
 def _require_year(year: int) -> None:
@@ -256,6 +299,246 @@ def commodity_price_factor(year: int, base: int = SEED_YEAR) -> pd.Series:
     return factor.astype(float)
 
 
+#: The summary Supply workbook the margin leg reads, for **every** year.
+#:
+#: ``_load_usa_summary_sut`` pins the vintage by year -- 2017-2022 to the legacy
+#: workbook, 2023-2024 to the current one -- so that BEA's revisions do not move
+#: published FBAs. That is right for an FBA and wrong for a *ratio* of two years,
+#: which would otherwise take its numerator and denominator off different
+#: vintages. Measured: the two vintages disagree by a median 0.50pp on 2020's
+#: margin rates and 1.20pp on 2022's. ✅ They agree **exactly** on 2017 -- BEA
+#: does not revise the benchmark year -- so reading one vintage throughout costs
+#: nothing at the base and removes the seam at the target.
+SUMMARY_SUPPLY_VINTAGE = 'Supply_Tables_1997-2024_Summary.xlsx'
+
+#: The years :data:`SUMMARY_SUPPLY_VINTAGE` carries a sheet for, and so the years
+#: the margin leg of the deflator exists at all. 1997-2024, contiguous.
+#:
+#: ⚠️ **This is a separate constraint from :data:`INTERMEDIATE_YEARS`**, which is
+#: bounded by gross output. They happen to agree at the right-hand end today, so
+#: nothing is blocked; a 2025 build (#707) would reach a year with a gross output
+#: parquet and no published Supply table, and :func:`margin_rate_factor` refuses
+#: rather than carrying a stale or silently-1.0 margin rate into the deflator.
+MARGIN_YEARS = tuple(range(1997, 2025))
+
+#: The valuation columns of a Supply table: basic, margins, net product taxes.
+#: ``T016 = T013 + T014 + T015``, so ``T014`` is the margins alone rather than a
+#: running subtotal.
+SUPPLY_VALUATION_COLUMNS = ('T013', 'T014', 'T015')
+
+#: The years the fitted regime splits on: a span that starts at or before 2021
+#: and ends at or after 2022 crosses the 2021-22 price surge.
+PRICE_SURGE = (2021, 2022)
+
+#: theta on a span that does **not** cross the surge, and on one that does.
+#: Fitted on 78 non-nested summary spans (``--regime`` on the drift diagnostic),
+#: not on the seven the build runs. See :func:`default_theta`.
+THETA_OFF_SURGE = 0.75
+THETA_ACROSS_SURGE = 0.0
+
+
+def default_theta(year: int, base: int = SEED_YEAR) -> float:
+    """The fitted exponent for a ``base -> year`` span.
+
+    ⚠️ **theta is not a constant and it is not a function of elapsed time.**
+    Fitted on all 78 summary spans with a base of 2012 or later -- non-nested,
+    so span length, cumulative inflation and price dispersion are separable
+    rather than all moving with the calendar -- the single best predictor is
+    whether the span **crosses the 2021-22 price surge**: R^2 0.61 on that
+    binary alone, against 0.14 on elapsed years and **0.014 on relative-price
+    dispersion**, which was the candidate §Inflation named and which this rules
+    out. Adding elapsed years to the regime binary moves its coefficient to
+    0.002 and its R^2 not at all.
+
+    Off the surge theta fits 0.755 and here rounds to :data:`THETA_OFF_SURGE`;
+    across it 0.141, and here rounds to :data:`THETA_ACROSS_SURGE` -- a frozen
+    ``A`` -- rather than to the seven target spans' own fitted values, which run
+    to -0.50. Two reasons for rounding up to zero: a negative theta says nominal
+    shares move *against* their own price, which is not a mechanism anyone has
+    proposed; and it buys almost nothing, because on surge-crossing spans the
+    median gain of the best theta over a frozen ``A`` is **0.59%** of the score
+    against **5.44%** off the surge. ⚠️ **In the regime this build targets the
+    carry is worth well under one percent however theta is set** -- which is the
+    real finding, and the reason not to fit it harder.
+
+    ✅ **The one detail span is consistent**: 2012 -> 2017 does not cross the
+    surge and fits 1.00 against the rule's 0.75 -- the right side, on a panel
+    the rule was not fitted on.
+    """
+    crosses = base <= PRICE_SURGE[0] and year >= PRICE_SURGE[1]
+    return THETA_ACROSS_SURGE if crosses else THETA_OFF_SURGE
+
+
+@functools.cache
+def _summary_supply(year: int) -> pd.DataFrame:
+    """One year's sheet of the summary Supply SUT, indexed by commodity code.
+
+    Read off :data:`SUMMARY_SUPPLY_VINTAGE` for every year rather than through
+    ``_load_usa_summary_sut``; see there for why.
+    """
+    supply = load_from_gcs(
+        name=SUMMARY_SUPPLY_VINTAGE,
+        sub_bucket=GCS_USA_SUP_DIR,
+        local_dir=LOCAL_USA_SUP_DIR,
+        loader=lambda pth: pd.read_excel(
+            pth, sheet_name=str(year), skiprows=5, dtype={'Unnamed: 0': str}
+        ),
+    )
+    supply = supply.set_index(supply.columns[0])
+    supply.index = supply.index.astype(str).str.strip()
+    supply.columns = supply.columns.astype(str).str.strip()
+    return supply
+
+
+def margin_rate(valuation: pd.DataFrame) -> pd.Series:
+    """``mu_c = T014 / (T013 + T015)``: margins over **producer** value.
+
+    ⚠️ **The denominator is producer value, not basic value.** BEA gross output
+    is at producers' prices, so the price index this factor multiplies already
+    carries the product-tax layer; dividing by ``T013`` alone would double-count
+    that wedge -- a median 3.3% overstatement, and worst on exactly the rows
+    that matter here (``315AL`` apparel 1.372 against 1.793).
+    """
+    parts = valuation.reindex(columns=list(SUPPLY_VALUATION_COLUMNS)).apply(
+        pd.to_numeric, errors='coerce'
+    )
+    producer = parts['T013'] + parts['T015']
+    rate = parts['T014'] / producer.where(producer != 0, np.nan)
+    rate.index.name = 'commodity'
+    return rate
+
+
+def _require_margin_year(year: int) -> None:
+    """Refuse a year the Supply vintage does not publish.
+
+    ⚠️ **Silence would be the dangerous answer here.** A missing sheet that fell
+    through to a factor of 1.0 would look exactly like "margins did not move",
+    and a stale rate carried from the last published year would look like a
+    measurement. Both would be invisible in the built block. So this raises, and
+    the caller either waits for BEA or passes ``margins=False`` and says in
+    writing that the deflator is the producer-price one.
+    """
+    if year not in MARGIN_YEARS:
+        raise ValueError(
+            f'no margin rate for {year}: {SUMMARY_SUPPLY_VINTAGE} publishes '
+            f'{MARGIN_YEARS[0]}-{MARGIN_YEARS[-1]}. Pass margins=False to carry '
+            f'on the producer price ratio alone, which is #497 as written and a '
+            f'wrong deflator for a purchaser-valued cell.'
+        )
+
+
+def summary_margin_rate(year: int) -> pd.Series:
+    """``mu_c`` on the BEA summary commodities, annually."""
+    _require_margin_year(year)
+    supply = _summary_supply(year)
+    rows = [r for r in supply.index if r != 'IOCode' and not r.startswith('T0')]
+    return margin_rate(supply.reindex(rows)).dropna(how='all')
+
+
+def detail_margin_rate(year: USA_BENCHMARK_DETAIL_SUT_YEARS = SEED_YEAR) -> pd.Series:
+    """``mu_c`` on the 402 detail commodities, benchmark years only.
+
+    BEA publishes the Supply table at detail for 2007, 2012 and 2017 and at
+    summary every year, which is the whole reason :func:`margin_rate_factor`
+    takes its *level* from here and its *movement* from the summary parent.
+    """
+    supply = _load_benchmark_detail_supply_use_usa('Supply_detail', year)
+    supply.columns = supply.columns.astype(str).str.strip()
+    return margin_rate(supply.reindex(list(USA_2017_COMMODITY_CODES)))
+
+
+@functools.cache
+def _detail_to_summary_commodity() -> pd.Series:
+    """Each detail commodity's summary parent."""
+    mapping = {
+        str(code): (parents[0] if isinstance(parents, list) else str(parents))
+        for code, parents in load_bea_v2017_commodity_to_bea_v2017_summary().items()
+    }
+    parents = pd.Series(
+        {code: mapping.get(code) for code in USA_2017_COMMODITY_CODES}, dtype=object
+    )
+    missing = list(parents.index[parents.isna()])
+    if missing:
+        raise KeyError(f'detail commodities with no summary parent: {missing}')
+    parents.index.name = 'commodity'
+    return parents
+
+
+def margin_rate_factor(year: int, base: int = SEED_YEAR) -> pd.Series:
+    """``(1 + mu_c(year)) / (1 + mu_c(base))`` on the 402 detail commodity rows.
+
+    The margin leg of a *purchaser*-price deflator. A cell of this block is at
+    purchaser value, so its price movement is the purchaser one; the industry
+    price index supplies the producer leg and this supplies what is left.
+
+    ⚠️ **The rate's level is detail-observed and only its movement is borrowed.**
+    ``mu_c(year) = mu_c(base) * mu_parent(year) / mu_parent(base)`` -- the
+    benchmark detail Supply table gives every commodity its own rate at
+    ``base``, and the summary parent gives the annual movement, because detail
+    Supply is published only for benchmark years. ✅ **Scored on the one span
+    where both are observed** (2012, through the S0a panel), against the true
+    detail factor and weighted by 2017 intermediate dollars: this rule is
+    **0.756pp** off, taking the parent's factor down unchanged is **1.010pp**,
+    and applying no factor at all is **1.818pp**. So the rule recovers about
+    three-fifths of the movement and the simpler one about two-fifths.
+
+    ⚠️ **Applied only to margin-receiving commodities.** For a trade or
+    transport commodity ``T014`` is large and negative -- its margin is
+    allocated away onto the goods it carries -- so ``mu`` runs to -0.94
+    (``42``), -0.99 (``486``), and ``1 + mu`` is a near-zero denominator. Those
+    rows are held at exactly 1.0. This costs almost nothing: in the
+    purchaser-priced Use table they carry almost no intermediate dollars,
+    precisely because their margins are sitting inside the goods rows.
+
+    ⚠️ **This is a correctness fix, not a repair for theta.** It moves the carry
+    factor a median 0.35pp on the receiving rows and it does **not** pull theta
+    toward the detail panel's 1.00 -- it leaves it unmoved in six years of seven
+    (§It was a competing explanation for theta).
+    """
+    now, then = _detail_margin_rate(year), _detail_margin_rate(base)
+    factor = (1.0 + now) / (1.0 + then)
+    receiving = (then > 0) & (now > -1)
+    factor = factor.where(receiving, 1.0).replace([np.inf, -np.inf], 1.0).fillna(1.0)
+    factor.index = pd.Index(list(USA_2017_COMMODITY_CODES), name='commodity')
+    return factor.astype(float)
+
+
+def _detail_margin_rate(year: int) -> pd.Series:
+    """``mu_c`` at detail for any year: the benchmark level on the parent's movement.
+
+    Exactly :func:`detail_margin_rate` at :data:`SEED_YEAR`, and elsewhere that
+    same per-commodity level scaled by how much its summary parent's rate moved.
+    """
+    anchor = detail_margin_rate(SEED_YEAR)
+    if year == SEED_YEAR:
+        return anchor
+    parents = _detail_to_summary_commodity()
+    now = summary_margin_rate(year).reindex(parents.to_numpy()).to_numpy()
+    then = summary_margin_rate(SEED_YEAR).reindex(parents.to_numpy()).to_numpy()
+    movement = pd.Series(now / np.where(then == 0, np.nan, then), index=anchor.index)
+    return anchor * movement
+
+
+def commodity_deflator(
+    year: int, base: int = SEED_YEAR, margins: bool = True
+) -> pd.Series:
+    """The purchaser-price ratio the column shares are carried on.
+
+    ``[producer price ratio] x [margin-rate factor]``, per §Margins.2. Passing
+    ``margins=False`` returns #497 as written -- the producer leg alone, which
+    is the wrong deflator for a purchaser-valued cell and is kept only so the
+    two can be scored against each other.
+    """
+    if margins:
+        _require_margin_year(year)
+        _require_margin_year(base)
+    factor = commodity_price_factor(year, base)
+    if margins:
+        factor = factor * margin_rate_factor(year, base)
+    factor.index.name = 'commodity'
+    return factor.astype(float)
+
+
 def vapro(year: int) -> pd.Series:
     """``VAPRO`` by industry, USD -- observed, from BEA's ``UVA205-A``.
 
@@ -293,9 +576,7 @@ def intermediate_column_control(year: int) -> pd.Series:
     return control * MILLION_CURRENCY_TO_CURRENCY
 
 
-def carry_shares(
-    seed: pd.DataFrame, factor: pd.Series, theta: float = DEFAULT_THETA
-) -> pd.DataFrame:
+def carry_shares(seed: pd.DataFrame, factor: pd.Series, theta: float) -> pd.DataFrame:
     """A dollar block's column shares moved on ``factor ** theta``, renormalised.
 
     The whole of what this step estimates, with no data-loading in it, which is
@@ -342,9 +623,19 @@ def carry_shares(
     return out
 
 
-def carried_column_shares(year: int, theta: float = DEFAULT_THETA) -> pd.DataFrame:
-    """:func:`carry_shares` on the 2017 benchmark and this year's price factor."""
-    return carry_shares(benchmark_intermediate(), commodity_price_factor(year), theta)
+def carried_column_shares(
+    year: int, theta: float | None = None, margins: bool = True
+) -> pd.DataFrame:
+    """:func:`carry_shares` on the 2017 benchmark and this year's deflator.
+
+    ``theta`` defaults to :func:`default_theta` for the span, and ``margins``
+    to the full purchaser deflator; ``theta=THETA_497, margins=False`` is #497
+    as written.
+    """
+    exponent = default_theta(year) if theta is None else theta
+    return carry_shares(
+        benchmark_intermediate(), commodity_deflator(year, margins=margins), exponent
+    )
 
 
 def apply_column_control(shares: pd.DataFrame, control: pd.Series) -> pd.DataFrame:
@@ -374,8 +665,9 @@ def apply_column_control(shares: pd.DataFrame, control: pd.Series) -> pd.DataFra
 
 def derive_intermediate_use(
     year: int,
-    theta: float = DEFAULT_THETA,
+    theta: float | None = None,
     column_control: pd.Series | None = None,
+    margins: bool = True,
 ) -> pd.DataFrame:
     """The Step 3 intermediate block, commodity x industry, USD, purchaser price.
 
@@ -393,10 +685,12 @@ def derive_intermediate_use(
     control = (
         intermediate_column_control(year) if column_control is None else column_control
     )
-    return apply_column_control(carried_column_shares(year, theta), control)
+    return apply_column_control(
+        carried_column_shares(year, theta, margins=margins), control
+    )
 
 
-def reproduction_check(theta: float = DEFAULT_THETA) -> pd.Series:
+def reproduction_check(theta: float | None = None) -> pd.Series:
     """How exactly the 2017 build reproduces the published 2017 interior.
 
     The plumbing test, not a test of the movement: at 2017 every carry factor is
@@ -431,17 +725,29 @@ def reproduction_check(theta: float = DEFAULT_THETA) -> pd.Series:
 
 
 __all__ = [
-    'DEFAULT_THETA',
     'INTERMEDIATE_YEARS',
+    'MARGIN_YEARS',
+    'PRICE_SURGE',
     'SEED_YEAR',
+    'SUMMARY_SUPPLY_VINTAGE',
+    'SUPPLY_VALUATION_COLUMNS',
+    'THETA_497',
+    'THETA_ACROSS_SURGE',
+    'THETA_OFF_SURGE',
     'UNPRICED_COMMODITIES',
     'apply_column_control',
     'benchmark_intermediate',
     'carried_column_shares',
     'carry_shares',
+    'commodity_deflator',
     'commodity_price_factor',
+    'default_theta',
     'derive_intermediate_use',
+    'detail_margin_rate',
     'intermediate_column_control',
+    'margin_rate',
+    'margin_rate_factor',
     'reproduction_check',
+    'summary_margin_rate',
     'vapro',
 ]

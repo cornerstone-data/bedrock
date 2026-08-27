@@ -389,6 +389,18 @@ AIES_EXPENSE_FLOWS = {
     'EXPS_EXSOFT_VAL': 'Purchased software expensed',
     'EXPS_COMPTR_OTHEQ_VAL': 'Purchased computers and peripherals expensed',
     'EXPS_OTHER_VAL': 'All other operating expenses',
+    # ⚠️ Sector-specific cells, published for a handful of industries each
+    # and zero elsewhere.  They exist only in ``exp02`` and are named to
+    # match SAS Table 5's item wording so the two panels stack.
+    'EXPS_FUEL_TRANSP_VAL': 'Purchased fuels for transportation equipment',
+    'EXPS_TRANSP_REP_VAL': (
+        'Purchased repairs and maintenance to transportation equipment'
+    ),
+    'EXPS_TRANSP_VAL': 'Purchased freight transportation',
+    'EXPS_SUPPLY_MED_VAL': 'Medical supplies',
+    'EXPS_INS_PREM_VAL': 'Cost of insurance',
+    'EXPS_PROFLIAB_VAL': 'Professional liability insurance',
+    'EXPS_PRINT_VAL': 'Purchased printing services',
 }
 
 #: Totals of the cells beside them, kept so a consumer can check additivity.
@@ -405,14 +417,18 @@ def census_aies_expenses_parse(
     expense kind, matching :func:`~Census_ASM.asm_expenses_parse` exactly so the
     two surveys stack into one annual panel.
 
-    ⚠️ **The expense detail is manufacturing only, at every NAICS level.**  This
-    is the single most important thing to know before reaching for this source.
-    AIES lists 883 six-digit industries, but only sectors 31-33 carry any
-    expense cell: 42 publishes ``EXPS_TOT_DVAL`` alone, and 21, 22, 23 and
-    51-81 publish **nothing at all**, at 2-, 3-, 4-, 5- and 6-digit alike.  So
-    this does *not* source the service industries that drift worst
-    (analysis/nowcasting/intermediate_estimation_plan.md, §Where the drift
-    sits); it confirms #564's finding rather than overturning it.
+    ⚠️ **The expense detail in this pull is manufacturing only** -- because it
+    reads ``timeseries/aies/basic``, where every service row comes back a
+    **well-formed zero**, the same trap :data:`_TYPE_OF_OPERATION` documents.
+    ❌ **An earlier draft read that as "21, 22, 23 and 51-81 publish nothing at
+    all" and generalised it to the survey.  That is wrong.**
+    ``timeseries/aies/exp02`` (group ``AIES00EXP02``) publishes all 41 expense
+    variables for **13 service sectors** in 2023.  See
+    ``analysis/nowcasting/services_transport_expense_resource.py``.
+
+    ⚠️ **Wholesale and retail are genuinely absent** -- no 42, 44 or 45 rows in
+    ``exp02``, and ``ecnbasic`` carries the expense variables for sectors 21, 23
+    and 31-33 only in both 2017 and 2022.
 
     ⚠️ **And it does not cover mining**, which ``Census_EC_MatFuel`` does.  The
     2023 observation is narrower than the census it extends.

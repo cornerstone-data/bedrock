@@ -80,6 +80,13 @@ parse_response_fxn: !script_function:Census_EC census_EC_MatFuel_parse
 
 datasets:
   ecnmatfuel:
+    # 2012 is the third vintage and its group is named on the older pattern -
+    # EC1231SM1 "Materials Summary", not EC__31MATFUEL. Pulled so the materials
+    # seed can be graded on the 2012 -> 2017 benchmark holdout, which is the
+    # only span with an observed BEA detail block at both ends.
+    # https://api.census.gov/data/2012/ecnmatfuel.html
+    '2012':
+      - EC1231SM1
     '2017':
       # Manufacturing: Materials Consumed by Kind of Industry for the U.S.: 2017
       - EC1731MATFUEL
@@ -94,5 +101,6 @@ datasets:
 # second observation of materials structure between the benchmark and the end of
 # the nowcast span, and it sits close to the middle of 2018-2025.
 years:
+- 2012
 - 2017
 - 2022
