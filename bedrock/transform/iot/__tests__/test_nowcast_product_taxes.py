@@ -284,9 +284,9 @@ def test_2024_holds_2023_shares_rather_than_reverting_to_2017() -> None:
 def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     """Sized on commodities, not just lines, against the default proposal itself.
 
-    Tobacco is 26,153 $M lower than the default in 2024 and insurance 17,791 $M
+    Tobacco is 26,282 $M lower than the default in 2024 and insurance 17,791 $M
     higher in 2020 - the ACA provider fee, which the default cannot see at all.
-    Half the summed absolute difference is 6.3% of the 2020 column and 7.7% of
+    Half the summed absolute difference is 6.3% of the 2020 column and 7.3% of
     the 2024 one, so this is a re-allocation of tens of billions rather than a
     refinement.
 
@@ -295,6 +295,14 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     (#611) gave the residual a purchaser-price base, so the other 70% of the
     column moves too - see ``residual_share_for_year``. A *fall* here would mean
     the residual had stopped moving.
+
+    ⚠️ **These constants move when the Trade FBSs are rebuilt, and only after
+    2021.** The purchaser-price base carries ``MCIF`` from
+    ``Trade_Imports_<year>``, so mapping the NAICS-2022 Census leaves onto the
+    goods Crosswalk (#734) shifted the 2024 residual: tobacco went -26,153 to
+    -26,282 and the 2024 share 7.7% to 7.3%. **2020's two numbers did not move
+    at all**, because the 2022-vintage leaves reach no earlier FBA - which is
+    the check that the shift is the Crosswalk rather than the method.
     """
     published = pt.published_top_by_commodity()
 
@@ -304,13 +312,13 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     gap_2024 = pt.top_column(2024) - default(2024)
     gap_2020 = pt.top_column(2020) - default(2020)
 
-    assert gap_2024['312200'] / MILLION == pytest.approx(-26_153, abs=100)
+    assert gap_2024['312200'] / MILLION == pytest.approx(-26_282, abs=100)
     assert gap_2020['5241XX'] / MILLION == pytest.approx(17_791, abs=100)
     assert gap_2020.abs().sum() / 2 / pt.top_column(2020).sum() == pytest.approx(
         0.063, abs=0.003
     )
     assert gap_2024.abs().sum() / 2 / pt.top_column(2024).sum() == pytest.approx(
-        0.077, abs=0.003
+        0.073, abs=0.003
     )
 
 

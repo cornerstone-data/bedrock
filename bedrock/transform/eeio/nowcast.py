@@ -78,6 +78,7 @@ from bedrock.transform.iot.nowcast_trade_margins import (
     trade_margin_column,
 )
 from bedrock.transform.iot.nowcast_transport_margins import transport_margin_column
+from bedrock.transform.iot.nowcast_va_taxes import va_tax_rows
 from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.transform.trade.madj import madj_detail_usd
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
@@ -483,7 +484,19 @@ def derive_initial_value_added(
         resolved = _resolve_both_sector_columns(pd.DataFrame(fbs))
         by_industry = resolved.groupby('SectorConsumedBy')['FlowAmount'].sum()
         rows.append(by_industry.rename(code))
-    block = pd.DataFrame(rows).reindex(columns=list(USA_2017_INDUSTRY_CODES))
+
+    # The tax rows are converted from the Supply columns rather than estimated,
+    # so they are appended here instead of taking an FBS method of their own -
+    # see the note on _VALUE_ADDED_METHODS above.
+    tax_rows = va_tax_rows(year)
+    rows.extend(
+        ta.cast('pd.Series[float]', tax_rows.loc[code])
+        for code in ('T00TOP', 'T00SUB')
+    )
+
+    block = pd.DataFrame(rows).reindex(
+        index=list(USE_VALUE_ADDED_ROWS), columns=list(USA_2017_INDUSTRY_CODES)
+    )
     block = block.fillna(0.0).astype(float)
     block.index.name = 'value_added_code'
     block.columns.name = 'industry'

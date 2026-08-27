@@ -42,6 +42,13 @@ uv run python -m bedrock.transform.nipa.compensation_movement --check
 # the shipped T00OTOP weight vector: the housing and farm blocks rescaled to
 # their published NIPA lines. Feeds NIPA_VA_othertax_<year>
 uv run python -m bedrock.transform.nipa.othertax_lookups --check
+
+# can the product-tax rows be converted from commodity to industry? (Step 2)
+uv run python -m bedrock.analysis.nowcasting.tax_axis_conversion --check
+
+# the shipped T00TOP/T00SUB rows: the operator above, made annual. Not analysis --
+# derive_initial_value_added stacks these two onto the three NIPA rows
+uv run python -m bedrock.transform.iot.nowcast_va_taxes --check
 # what can be sourced for manufacturing's input column (needs the
 # Census_EC_MatFuel, Census_EC_Expenses, Census_ASM_Expenses and
 # Census_AIES_Expenses FBAs)
