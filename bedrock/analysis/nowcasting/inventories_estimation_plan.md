@@ -657,6 +657,65 @@ whole branch, not just a third of it.
 All four published cells outside the trade crosswalk's reach are mining:
 `211000` −7,577, `212100` −1,172, `21311A` −77, `213111` −10.
 
+### ✅ Levels checked against the benchmark, 2026-08-27 — and they are comparable
+
+Pulled live from the EIA v2 API and differenced 2016 → 2017, against the
+published detail `F03000` read from the 2017 Use SUT:
+
+| commodity | physical change | 2017 price | implied $M |
+|---|---:|---:|---:|
+| crude oil (`petroleum/stoc/cu`, `NUS`) | −65,931 MBBL | $50.80/bbl | **−3,349** |
+| natural gas, working (`natural-gas/stor/sum`, `SAO`, December) | −264,342 MMcf | $3.07/Mcf | **−812** |
+| coal (`total-energy`, *Coal Stocks, Total, End of Period*) | −26,034 kst | $39.00/ton | **−1,015** |
+| **sum** | | | **−5,176** |
+
+| published cell | published | EIA-implied | coverage |
+|---|---:|---:|---:|
+| `211000` oil and gas extraction | −7,577 | −4,161 | **55%** |
+| `212100` coal | −1,172 | −1,015 | **87%** |
+| all eight mining commodities | −9,398 | −5,176 | **55%** |
+
+✅ **Same sign on every cell and the right order of magnitude**, with coal at 87%
+close enough that the correspondence reads as real rather than coincidental. That
+is a stronger result than this plan's earlier "net to the right sign and order of
+magnitude", which was inferred rather than computed.
+
+⚠️ **These are rough single prices, so ±20% a row.** It is a magnitude check, not
+a calibration — and the build rule is unchanged: **structure from the source,
+level from NIPA**, so the price sensitivity never reaches `F03000`.
+
+⚠️ **`211000` at 55% is the honest gap, and it should not be closed with a price
+adjustment.** Crude plus working gas does not reach the whole oil-and-gas cell;
+the likely remainder is NGLs, lease stocks, and refinery-held crude outside the
+storage series. The coal cell at 87% shows what good coverage looks like on the
+same method, so the shortfall is scope, not price.
+
+#### ❌ The gas direction below is wrong
+
+⚠️ **The table further down states natural gas *rose* +531,118 MMcf over
+2016 → 2017**, and concludes from crude falling against gas rising that "the
+branch cannot be split on a single commodity proxy". **Both EIA storage measures
+show gas falling:**
+
+| measure | 2016 | 2017 | change |
+|---|---:|---:|---:|
+| `SAO` working gas | 3,296,944 | 3,032,602 | **−264,342** |
+| `SAT` total underground | 7,676,680 | 7,392,391 | **−284,289** |
+
+✅ **Crude and gas moved the same way**, so `211000` at −7,577 is a *sum* of
+same-signed movements rather than a net of opposing ones. **That makes the branch
+more tractable than this plan concluded, not less** — the stated obstacle is not
+there.
+
+#### Endpoints, as they actually answer
+
+| want | route | note |
+|---|---|---|
+| crude stocks | `petroleum/stoc/cu`, `frequency=annual`, `duoarea=NUS` | ✅ annual directly |
+| gas stocks | `natural-gas/stor/sum`, `process=SAO` (working) or `SAT` (total) | ⚠️ **monthly only** — annual returns 0 rows; take December |
+| coal stocks | `total-energy`, series *Coal Stocks, Total, End of Period* | ⚠️ needs `sort[0][column]=period`; without it the window returns only the last year |
+| coal, v2 `coal/` routes | — | ❌ no stocks route; shipments, production, prices and reserves only |
+
 ### Sources, probed 2026-08-18
 
 | Source | Detail | Cadence | State |
