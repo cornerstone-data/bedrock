@@ -1,24 +1,29 @@
-# Manufacturing energy FBS for Cornerstone. MECS survey year 2022.
+# Manufacturing energy FBS used in GHG Cornerstone FBS methods.
+# MECS survey year 2018.
 # Replicates CEDA allocation steps as quantity weights: MECS mapped with
-# parent-incomplete-child + Cornerstone_2025, then nested BEA splits;
-# petrol energy is BEA 324110 times MECS Other energy fraction.
+# parent-incomplete-child + Cornerstone_2025
 
 !include:Cornerstone_2025_target.yaml
-year: &mecs_year 2022
+year: &mecs_year 2018
 geoscale: national
 
 _attribution_sources:
-  BEA: &bea
-    year: 2017
-    activity_to_sector_mapping: Cornerstone_2025
-    exclusion_fields:
-      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
-                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
-                           'T001', 'T004', 'T007', 'T019']
-      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
-                           'MCIF']
-    attribution_method: equal
-  transport_consumers: &transport_consumers
+  transport_industries: &transport_industries
+    - '481000'
+    - '482000'
+    - '483000'
+    - '484000'
+    - '485000'
+    - '486000'
+    - '48A000'
+    - '492000'
+    - 'S00500'
+    - 'S00600'
+    - '491000'
+    - 'GSLGO'
+    - 'S00203'
+    - 'F01000'
+  petrol_exclude: &petrol_exclude
     - '481000'
     - '482000'
     - '483000'
@@ -46,96 +51,45 @@ source_names:
     clean_fba_before_activity_sets:
       - !script_function:EIA_MECS estimate_suppressed_mecs_energy
     activity_sets:
-      coal:
+      direct_table_3_1:
         selection_fields:
-          Description:
-            Table 3.1: energy
-          FlowName: Coal
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'212100': ''}
-
-      ng:
+          Description: Table 3.1
+          FlowName:
+            - Coal
+            - Natural Gas
+        attribution_method: direct
+      direct_table_2_1:
         selection_fields:
-          Description:
-            Table 3.1: energy
-          FlowName: 'Natural Gas'
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'221200': ''}
-
-      neu_ng:
+          Description: Table 2.1
+          FlowName:
+            'Hydrocarbon Gas Liquids, excluding natural gasoline': HGL
+            Other: Petroleum
+        attribution_method: direct
+      direct_table_2_1_ng:
         selection_fields:
-          Description:
-            Table 2.1: non energy
-          FlowName: 'Natural Gas'
+          Description: Table 2.1
+          FlowName: Natural Gas
         clean_fba: !script_function:EIA_MECS keep_chemical_manufacturing
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'221200': ''}
-
-      neu_petrol_asphalt:
-        selection_fields:
-          Description:
-            Table 2.1: non energy
-          FlowName:
-            Other: Petroleum
-          ActivityConsumedBy: ['324121', '324122']
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'324110': ''}
-
-      neu_petrol_hgl:
-        selection_fields:
-          Description:
-            Table 2.1: non energy
-          FlowName:
-            'Hydrocarbon Gas Liquids, excluding natural gasoline': Petroleum
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'324110': ''}
-
-      neu_petrol_other:
-        selection_fields:
-          Description:
-            Table 2.1: non energy
-          FlowName:
-            Other: Petroleum
-        exclusion_fields:
-          ActivityConsumedBy: ['324121', '324122']
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
-            selection_fields:
-              ActivityProducedBy: {'324110': ''}
+        attribution_method: direct
 
   BEA_Detail_Use_AfterRedef:
-    <<: *bea
+    year: 2017
+    activity_to_sector_mapping: Cornerstone_2025
+    exclusion_fields:
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
+                           'T001', 'T004', 'T007', 'T019']
+      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                           'MCIF']
     activity_sets:
       petrol:
         selection_fields:
           ActivityProducedBy: {'324110': ''}
         exclusion_fields:
-          ActivityConsumedBy: *transport_consumers
+          ActivityConsumedBy: *petrol_exclude
         assign_fields:
           FlowName: Petroleum
-          Description: energy
+          Class: Money
         clean_source:
           EIA_MECS_Energy:
             year: *mecs_year
@@ -155,18 +109,17 @@ source_names:
           ActivityProducedBy: '324110'
         assign_fields:
           FlowName: Coal and Coke
-          Description: non energy
+          Class: Other
         attribution_method: direct
       neu_transport:
         selection_fields:
           ActivityProducedBy: {'324110': ''}
-          ActivityConsumedBy: *transport_consumers
+          ActivityConsumedBy: *transport_industries
         assign_fields:
           FlowName: Transport
-          Description: non energy
-        # Annex A-6 = 2022 energy consumption (TBtu) from EPA GHGI.
+          Class: Money
         clean_source:
-          EPA_GHGI_T_A_6:
+          EPA_GHGI_T_A_10:
             year: *mecs_year
             selection_fields:
               Unit: TBtu

@@ -18,10 +18,7 @@ from requests import Response
 from bedrock.extract.eia.EIA_CBECS_Land import calculate_total_facility_land_area
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
-from bedrock.transform.flowbyclean import (
-    define_parentincompletechild_descendants,
-    load_prepare_clean_source,
-)
+from bedrock.transform.flowbyclean import load_prepare_clean_source
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import WITHDRAWN_KEYWORD, get_catalog_info
 from bedrock.utils.economic.units import (
@@ -672,61 +669,50 @@ def keep_chemical_manufacturing(fba: FlowByActivity, **_kwargs: Any) -> FlowByAc
     return fba.query("ActivityConsumedBy.str.startswith('325')")
 
 
+# 2013 MECS Other energy / (energy + nonfuel) when the mapped NAICS has no
+# Table 2.1 / 3.1 Other ratio. Keys are MECS NAICS prefixes.
+PETROL_FUEL_RATIO_FALLBACKS: dict[str, float] = {
+    '311221': 0.93,
+    '324110': 0.43,
+    '324199': 0.45,
+    '324121': 0.45,
+    '324122': 0.45,
+    '325110': 0.95,
+    '325180': 0.91,
+    '325194': 0.76,
+    '325211': 0.99,
+    '325212': 0.84,
+    '325311': 0.50,
+    '327211': 0.00,
+    '327310': 0.98,
+    '331110': 0.96,
+    '3312': 0.70,
+    '336': 0.83,
+}
+
+
 def multiply_bea_by_mecs_petroleum_energy_fraction(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:
     '''
-    clean_fba_after_attribution. CEDA industrial petrol weights are BEA 324110
+    clean_fba_after_attribution. Industrial petrol weights are BEA 324110
     purchases times MECS Other energy fraction Table 3.1 / (Table 2.1 + Table 3.1).
-    Sectors with no MECS ratio keep 1.0. Restricts to ag/mining/construction/
-    manufacturing plus natural gas distribution.
-
-    Loads MECS from config clean_source (FBA only — selection / estimate_suppressed
-    from YAML; does not run prepare_fbs).
+    Join on mapped NAICS (SectorConsumedBy after Cornerstone_2025), prefix-matching
+    published MECS lines. Sectors with no MECS ratio use 2013 fallback values,
+    else 1.0. Restricts to ag/mining/construction/manufacturing plus 221200.
     '''
-    clean_source = fba.config.get('clean_source')
-    if not clean_source:
-        raise ValueError(
-            'clean_source is required for multiply_bea_by_mecs_petroleum_energy_fraction'
-        )
+    clean_source = fba.config['clean_source']
     if isinstance(clean_source, str):
         name, src_config = clean_source, {}
     else:
         ((name, src_config),) = clean_source.items()
-    year = int(
-        src_config.get(
-            'year',
-            (fba.config.get('clean_parameter') or {}).get(
-                'year', fba.config.get('year')
-            ),
-        )
-    )
+    year = int(src_config['year'])
     mecs = FlowByActivity(
         getFlowByActivity(name, year),
         full_name=name,
         config={**get_catalog_info(name), **src_config, 'year': year},
     )
-    mecs = (
-        mecs.function_socket('estimate_suppressed')
-        .select_by_fields()
-        .assign(Flowable=lambda x: x.FlowName)
-    )
-    # Residualize each MECS table separately (define groups by Flowable only).
-    # define_parentincompletechild_descendants expects group_id / group_total.
-    residualized = []
-    for desc in ['Table 2.1', 'Table 3.1']:
-        table = (
-            mecs.query(f'Description == "{desc}"')
-            .drop(columns=['group_id', 'group_total'], errors='ignore')
-            .reset_index(drop=True)
-        )
-        table = table.assign(group_id=table.index, group_total=table.FlowAmount)
-        residualized.append(define_parentincompletechild_descendants(table))
-    mecs = FlowByActivity(
-        pd.concat(residualized),
-        full_name=mecs.full_name,
-        config=mecs.config,
-    )
+    mecs = mecs.function_socket('estimate_suppressed').select_by_fields()
     t21 = (
         mecs.query("Description == 'Table 2.1'")
         .groupby('ActivityConsumedBy')['FlowAmount']
@@ -743,27 +729,25 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
     den = t21 + t31
     ratios = (t31 / den).where(den != 0).fillna(1.0)
 
-    activity = fba['ActivityConsumedBy'].astype(str)
-    industrial = activity.str.startswith(
-        ('11', '21', '23', '31', '32', '33')
-    ) | activity.eq('221200')
-    out = fba.loc[industrial].copy()
-    if out.empty:
-        log.warning('No industrial BEA 324110 rows left to apply MECS petrol fraction')
-        return out
-
     sector_col = (
         'SectorConsumedBy'
-        if 'SectorConsumedBy' in out.columns
+        if 'SectorConsumedBy' in fba.columns
         else 'ActivityConsumedBy'
     )
+    sector = fba[sector_col].astype(str)
+    industrial = sector.str.startswith(
+        ('11', '21', '23', '31', '32', '33')
+    ) | sector.eq('221200')
+    out = fba.loc[industrial].copy()
     ratio_index = set(ratios.index.astype(str))
 
-    def ratio_for_sector(sector: str) -> float:
-        for n in range(len(sector), 1, -1):
-            key = sector[:n]
+    def ratio_for_sector(naics: str) -> float:
+        for n in range(len(naics), 0, -1):
+            key = naics[:n]
             if key in ratio_index:
                 return float(ratios[key])
+            if key in PETROL_FUEL_RATIO_FALLBACKS:
+                return PETROL_FUEL_RATIO_FALLBACKS[key]
         return 1.0
 
     matched = out[sector_col].astype(str).map(ratio_for_sector)
@@ -774,26 +758,13 @@ def household_petroleum_transport_fraction(config: dict[str, Any]) -> float:
     '''
     Share of PCE gasoline-and-other-energy that is transport rather than
     residential heat oil/propane. Same formula CEDA uses on F01000.
-
-    All inputs come from config clean_source (GHGI annex FBA) and
-    clean_parameter (PCE + residential fuel prices + fuel price groups).
     '''
-    clean_parameter = config.get('clean_parameter') or {}
-    year = int(clean_parameter.get('year', config.get('year')))
-
-    pce_cfg = clean_parameter.get('pce')
-    propane_cfg = clean_parameter.get('propane_price')
-    heat_oil_cfg = clean_parameter.get('heating_oil_price')
-    heat_fuels = clean_parameter.get('residential_heat_fuels')
-    if not all((pce_cfg, propane_cfg, heat_oil_cfg, heat_fuels)):
-        raise ValueError(
-            'clean_parameter must define pce, propane_price, '
-            'heating_oil_price, and residential_heat_fuels'
-        )
-    assert pce_cfg is not None
-    assert propane_cfg is not None
-    assert heat_oil_cfg is not None
-    assert heat_fuels is not None
+    clean_parameter = config['clean_parameter']
+    year = int(clean_parameter.get('year', config['year']))
+    pce_cfg = clean_parameter['pce']
+    propane_cfg = clean_parameter['propane_price']
+    heat_oil_cfg = clean_parameter['heating_oil_price']
+    heat_fuels = clean_parameter['residential_heat_fuels']
 
     pce_tbl = load_from_gcs(
         name=pce_cfg['file'],
@@ -809,12 +780,7 @@ def household_petroleum_transport_fraction(config: dict[str, Any]) -> float:
     )
     pce_tbl.index = pce_tbl.index.str.strip()
     pce_tbl.columns = pce_tbl.columns.astype(int)
-    pce_years = [c for c in pce_tbl.columns if c <= year] or list(pce_tbl.columns)
-    pce_year = int(max(pce_years))
-    if pce_year != year:
-        log.warning(
-            f'BEA PCE has no {year} gasoline-and-other-energy; using {pce_year}'
-        )
+    pce_year = int(max(int(c) for c in pce_tbl.columns if int(c) <= year))
     pce = float(pce_tbl.loc[pce_cfg['line'], pce_year])
 
     prices: dict[str, float] = {}
@@ -822,13 +788,12 @@ def household_petroleum_transport_fraction(config: dict[str, Any]) -> float:
         ('propane_price', propane_cfg),
         ('heating_oil_price', heat_oil_cfg),
     ):
+        skiprows = int(price_cfg.get('skiprows', 4))
         price_tbl = load_from_gcs(
             name=price_cfg['file'],
             sub_bucket=gcs_extract_input_path(price_cfg['extract_input']),
             local_dir=local_extract_input_dir(price_cfg['extract_input']),
-            loader=lambda pth, rows=int(price_cfg.get('skiprows', 4)): pd.read_csv(
-                pth, skiprows=rows
-            ),
+            loader=lambda pth: pd.read_csv(pth, skiprows=skiprows),
         )
         month_col = price_cfg.get('month_column', 'Month')
         value_col = price_cfg['value_column']
@@ -837,11 +802,7 @@ def household_petroleum_transport_fraction(config: dict[str, Any]) -> float:
         years = [y for y in by_year.index if y <= year] or list(by_year.index)
         prices[key] = float(by_year[int(max(years))])
 
-    clean_source = config.get('clean_source')
-    if not clean_source:
-        raise ValueError(
-            'clean_source is required for household_petroleum_transport_fraction'
-        )
+    clean_source = config['clean_source']
     if isinstance(clean_source, str):
         name, src_config = clean_source, {}
     else:
@@ -853,20 +814,20 @@ def household_petroleum_transport_fraction(config: dict[str, Any]) -> float:
         config={**get_catalog_info(name), **src_config, 'year': annex_year},
     ).select_by_fields()
 
-    propane_priced = list(heat_fuels['propane_priced'])
-    heating_oil_priced = list(heat_fuels['heating_oil_priced'])
     kerosene_lpg = float(
-        annex.loc[annex['FlowName'].isin(propane_priced), 'FlowAmount'].sum()
+        annex.loc[
+            annex['FlowName'].isin(list(heat_fuels['propane_priced'])), 'FlowAmount'
+        ].sum()
     )
     distillate = float(
-        annex.loc[annex['FlowName'].isin(heating_oil_priced), 'FlowAmount'].sum()
+        annex.loc[
+            annex['FlowName'].isin(list(heat_fuels['heating_oil_priced'])),
+            'FlowAmount',
+        ].sum()
     )
     res_heat = (kerosene_lpg * (prices['propane_price'] / PROPANE_MMBTU_PER_GALLON)) + (
         distillate * (prices['heating_oil_price'] / HEATING_OIL_MMBTU_PER_GALLON)
     )
-    if pce == 0:
-        log.warning('PCE gasoline-and-other-energy is 0; F01000 transport share is 1.0')
-        return 1.0
     return (pce - res_heat) / pce
 
 
@@ -966,41 +927,6 @@ def mecs_land_fba_cleanup(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     fba = calculate_total_facility_land_area(fba)
 
     return fba
-
-
-def clean_mecs_energy_fba_for_bea_summary(
-    fba: FlowByActivity, **_kwargs: Any
-) -> FlowByActivity:
-    naics_3 = fba.query('ActivityConsumedBy.str.len() == 3')
-    naics_4 = fba.query(
-        'ActivityConsumedBy.str.len() == 4 '
-        '& ActivityConsumedBy.str.startswith("336")'
-    )
-    naics_4_sum = (
-        naics_4.assign(ActivityConsumedBy='336')
-        .aggregate_flowby()[['Flowable', 'FlowAmount', 'Unit', 'ActivityConsumedBy']]
-        .rename(columns={'FlowAmount': 'naics_4_sum'})
-    )
-
-    merged = naics_3.merge(naics_4_sum, how='left').fillna({'naics_4_sum': 0})
-    subtracted = merged.assign(FlowAmount=merged.FlowAmount - merged.naics_4_sum).drop(
-        columns='naics_4_sum'
-    )
-
-    subtracted.config['naics_4_list'] = list(naics_4.ActivityConsumedBy.unique())
-
-    return subtracted
-
-
-def clean_mapped_mecs_energy_fba_for_bea_summary(
-    fba: FlowByActivity, **_kwargs: Any
-) -> FlowByActivity:
-    _naics_4_list = fba.config['naics_4_list']
-
-    return fba.query(
-        '~(SectorConsumedBy in @_naics_4_list '
-        '& ActivityConsumedBy != SectorConsumedBy)'
-    )
 
 
 if __name__ == "__main__":
