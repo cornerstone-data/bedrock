@@ -86,13 +86,13 @@ from __future__ import annotations
 
 import argparse
 import functools
-import glob
 import os
 import sys
 
 import numpy as np
 import pandas as pd
 
+from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
@@ -106,8 +106,6 @@ BENCHMARK_YEAR = 2017
 #: Use row this module weights.
 COMPENSATION_ROW = 'V00100'
 
-#: QCEW annual payroll FBAs, generated locally; see ``BLS_QCEW.yaml``.
-QCEW_GLOB = 'bedrock/extract/output_data/BLS_QCEW_{year}_*.parquet'
 
 #: NAICS vintage concordance, one column per NAICS revision.
 CONCORDANCE = os.path.join(
@@ -203,14 +201,22 @@ def qcew_national_payroll(year: int) -> pd.Series:
     does not separate government enterprises from general government - which is
     why government is routed through NIPA instead and carved out here.
     """
-    paths = sorted(glob.glob(QCEW_GLOB.format(year=year)))
-    if not paths:
-        raise FileNotFoundError(
-            f'no extracted QCEW for {year}: {QCEW_GLOB.format(year=year)}'
-        )
-    frame = pd.read_parquet(
-        paths[0], columns=['Class', 'Location', 'ActivityProducedBy', 'FlowAmount']
+    # ⚠️ Loaded through getFlowByActivity rather than by globbing output_data.
+    # The glob only ever saw a *locally generated* cache, so this module worked
+    # on a developer machine and could not work anywhere else - CI has no cache
+    # to glob, and failed with FileNotFoundError on 2018 and 2024. The loader is
+    # the same path every other FBA here uses, and it fetches from the remote
+    # before falling back to generating.
+    frame = getFlowByActivity('BLS_QCEW', year, download_FBA_if_missing=True)
+    missing = {'Class', 'Location', 'ActivityProducedBy', 'FlowAmount'} - set(
+        frame.columns
     )
+    if missing:
+        raise ValueError(
+            f'BLS_QCEW {year} is missing {sorted(missing)}, so the three filters '
+            f'below cannot all be applied - and dropping any one of them is '
+            f'silent. See the docstring above.'
+        )
     national = frame[(frame['Class'] == 'Money') & (frame['Location'] == '00000')]
     codes = national['ActivityProducedBy'].astype(str)
     national = national[codes.str.len() == 6]
