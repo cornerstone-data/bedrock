@@ -643,9 +643,10 @@ def composed_seed(year: int) -> pd.DataFrame:
                                  survey index on the non-materials cells
     services/transport      100  ``Census_SAS_Expenses`` / AIES
     agriculture              10  ERS
+    utilities                 3  EIA 923 fuel receipts
     ==================  =======  =======================================
 
-    The remaining 60 columns hold their 2017 structure, which says nothing
+    The remaining 57 columns hold their 2017 structure, which says nothing
     observes their movement rather than that none happened.
 
     ⚠️ **The seeds are overlaid cell-wise, never added.** ``materials_seed``
@@ -666,10 +667,10 @@ def composed_seed(year: int) -> pd.DataFrame:
     it tracks where ``N`` is not. It is the seed most likely to be wired in by
     reflex, because it is built and it imports.
 
-    ⚠️ **Utilities is absent because no seed builder exists.** EIA 923 graded
-    **GO** (+16.0% on ``N``, 3 of 3 columns) but ``utilities_expense_seed`` stops
-    at the grading and never produced a ``commodity x industry`` block, so those
-    three columns still hold 2017.
+    ⚠️ **Utilities covers ``221100``/``S00101``/``S00202`` only.** ``221200`` gas
+    distribution was tested on form 176 and rejected - the only index that wins
+    is a 2014 form change in disguise - and ``221300`` water has no EIA source.
+    **$29.4B stays open**, holding 2017.
 
     ⚠️ **``ore_seed`` is not applied separately** - ``531ORE`` is one of the 100
     columns ``services_transport_seed`` already moves, and applying both would
@@ -691,6 +692,9 @@ def composed_seed(year: int) -> pd.DataFrame:
     from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415, E501
         services_transport_seed,
     )
+    from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
+        utilities_seed,
+    )
 
     base = benchmark_intermediate()
     # Ordered: within manufacturing, non-materials is written after materials and
@@ -700,6 +704,7 @@ def composed_seed(year: int) -> pd.DataFrame:
         ('manufacturing', nonmaterial_seed(year)),
         ('services/transport', services_transport_seed(year)),
         ('agriculture', agriculture_seed(year)),
+        ('utilities', utilities_seed(year)),
     ]
 
     claimed: dict[str, str] = {}
