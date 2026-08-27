@@ -8,6 +8,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from PIL import Image
+from pptx import Presentation as PptxPresentation
+from pptx.util import Inches
 
 from bedrock.analysis.electricity.current.diagnostics.deck import histograms as hist
 from bedrock.analysis.electricity.current.diagnostics.deck.data import (
@@ -342,6 +344,15 @@ def test_write_pptx_five_slides(
         media = [n for n in z.namelist() if n.startswith('ppt/media/')]
     assert len(slides) == 5
     assert len(media) >= 2
+    prs = PptxPresentation(str(out))
+    d_tables = [s for s in prs.slides[1].shapes if s.has_table]
+    assert d_tables
+    table = d_tables[0].table
+    run = table.cell(1, 0).text_frame.paragraphs[0].runs[0]
+    assert run.font.size is not None
+    assert run.font.size.pt == 12
+    assert d_tables[0].height < Inches(3.2)
+    assert d_tables[0].width < Inches(6.5)
 
 
 def test_production_pair_schema_and_na() -> None:
