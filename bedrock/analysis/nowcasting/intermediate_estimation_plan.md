@@ -19,17 +19,30 @@ is the **shape**, which had been 2017's in every year.
 | manufacturing | 232 | Economic Census materials, then the survey index on the non-materials cells | ships ungraded — the census mix is the only observation there is |
 | services / transportation | 100 | `Census_SAS_Expenses` / AIES | **GO**, +11.5% on `N` |
 | agriculture | 10 | ERS | **GO**, +17.9%, 9 of 10 columns |
-| — | 60 | hold 2017 | nothing observes their movement |
+| utilities | 3 | EIA 923 fuel receipts | **GO**, +16.0% on `N`, 3 of 3 columns |
+| mining | 6 | Economic Census materials, sector 21 | ships ungraded, as manufacturing does |
+| — | 51 | hold 2017 | nothing observes their movement |
 
-The three partition the industries they reach — checked in `composed_seed`, not
+The five partition the industries they reach — checked in `composed_seed`, not
 assumed — and at 2017 the composition is the identity to **0.000008 USD on a
 $14.86T block**, so `reproduction_check` still measures the column rescale alone.
-At 2022, **321 of 402 columns** move off the 2017 shape.
+At 2022, **330 of 402 columns** move off the 2017 shape.
 
-⚠️ **One open build item: utilities.** EIA 923 graded **GO** (+16.0% on `N`, 3 of
-3 columns) but `utilities_expense_seed` stops at the grading and never produced a
-commodity × industry block, so those three columns still hold 2017. A verdict
-without a builder.
+⚠️ **The seeds are overlaid cell-wise, never added.** `materials_seed` returns the
+*whole* manufacturing column renormalised to its 2017 total; `nonmaterial_seed`
+returns only the 23 non-materials rows. Summing them double-counts those rows —
+it put `334111` **55% above** the benchmark at 2017, where every seed must be the
+identity, while still producing a well-formed 402 × 402 of plausible dollars.
+
+⚠️ **What stays held is a claim, not a gap in the work.** Mining seeds six of
+eight columns: `213111` and `21311A` support activities buy labour and services
+rather than the materials the census measures, and coverage agrees rather than
+leads (6.7% and 15.6% against 25-34% for extraction) — **$53.0B holds 2017**, the
+same exclusion agriculture already makes with its ten farm columns and no `115`.
+Utilities reaches `221100`/`S00101`/`S00202` only: `221200` gas distribution was
+tested on EIA form 176 and rejected, and `221300` water has no EIA source —
+**$29.4B holds 2017**. Government, trade and construction are held on verdicts
+recorded below.
 
 ⚠️ **Trade stays out.** It is a **no-go** on the benchmark holdout — it tracks
 where `N` is not — and `trade_expense_supplement.trade_seed` is built and

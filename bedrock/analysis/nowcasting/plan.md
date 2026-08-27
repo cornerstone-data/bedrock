@@ -250,7 +250,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 |---|---|
 | Value added (`V00100`, `T00OTOP`, `V00300`) | ✅ **All three rows built 2017-2024** (#538): `NIPA_VA_compensation` on 69 `T60200D` industry controls, `NIPA_VA_othertax` on one, `NIPA_VA_surplus` on eight across five tables. They are three *different claims* — an estimate, a level plus two lookups, and a seed — and the block guard is lifted |
 | Value added (`T00TOP`, `T00SUB`) by industry | ✅ **Both rows built 2017-2024** (`nowcast_va_taxes.py`). Converted from the Supply columns, so the **levels carry no modelling content** and only the split is estimated. `T00SUB` reproduces the published 2017 row **exactly** (code identity + two government-enterprise routings); `T00TOP` is a **seed** at r=0.947 / 27.9%, and its residual is 20 named trade industries Step 5 moves |
-| Intermediate (commodity × industry) | ✅ **Built, and seeded from the surveys** — `derive_initial_U_intermediate` (#497), starting from `composed_seed` rather than the frozen 2017 benchmark: manufacturing 232 columns, services/transportation 100, agriculture 10, and 60 columns holding 2017. ⚠️ Utilities graded GO but has no seed *builder*, so its three columns still hold. Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 at summary and **17.3% per five years at detail**, while the inflation carry moves it +4.5% to **−12.6%** depending on the span |
+| Intermediate (commodity × industry) | ✅ **Built, and seeded from the surveys** — `derive_initial_U_intermediate` (#497), starting from `composed_seed` rather than the frozen 2017 benchmark: manufacturing 232 columns, services/transportation 100, agriculture 10, utilities 3, mining 6, and 51 columns holding 2017. Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 at summary and **17.3% per five years at detail**, while the inflation carry moves it +4.5% to **−12.6%** depending on the span |
 
 ### SUT Supply — every column
 
@@ -1058,24 +1058,24 @@ been 2017's in every year.
 | manufacturing | 232 | Economic Census materials, then the survey index on the non-materials cells | ships ungraded — the census mix is the only observation that exists |
 | services / transportation | 100 | `Census_SAS_Expenses` / AIES | **GO**, +11.5% on `N` |
 | agriculture | 10 | ERS | **GO**, +17.9%, 9 of 10 columns |
-| — | 60 | hold 2017 | nothing observes their movement |
+| utilities | 3 | EIA 923 fuel receipts | **GO**, +16.0% on `N`, 3 of 3 columns |
+| mining | 6 | Economic Census materials, sector 21 | ships ungraded, as manufacturing does |
+| — | 51 | hold 2017 | nothing observes their movement |
 
 ✅ **Utilities and mining were closed on 2026-08-27**; construction was reviewed
 and **stays held**, because 51% of its column is one undifferentiated cell and no
 Census product breaks it out — see the Step 3 plan's §`23` Construction.
 
-⚠️ **Two gaps, both deliberate and neither a bug.** **Trade** is a **no-go** on the benchmark holdout
-— it tracks where `N` is not — and is the seed most likely to be wired in by reflex, because it is
-built and it imports. **Utilities** graded **GO** (EIA 923, +16.0% on `N`, 3 of 3 columns) but
-`utilities_expense_seed` stops at the grading and never produced a commodity × industry block, so
-those three columns still hold 2017. That is the one open build item in this step.
+⚠️ **Trade is a deliberate gap, not a bug.** It is a **no-go** on the benchmark holdout — it tracks
+where `N` is not — and is the seed most likely to be wired in by reflex, because it is built and it
+imports.
 
 ⚠️ **`ore_seed` is not applied separately** — `531ORE` is already one of the 100 columns
 `services_transport_seed` moves, and applying both would index the column twice.
 
 ✅ **The composition is checked, not assumed.** At 2017 every seed is a ratio against its own 2017
 base, so the composition must be the identity: it is, to **0.000008 USD on a $14.86T block**, with no
-NaNs and the grand total unchanged. At 2022, **321 of 402 columns** move off the 2017 shape.
+NaNs and the grand total unchanged. At 2022, **330 of 402 columns** move off the 2017 shape.
 
 
 **Full treatment in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md)**, with the
