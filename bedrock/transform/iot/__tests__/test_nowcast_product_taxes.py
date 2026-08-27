@@ -241,14 +241,60 @@ def test_named_lines_move_against_the_column_rather_than_with_it() -> None:
     assert growth('severance', 2022) > 2.5
 
 
+def test_purchaser_base_reaches_what_domestic_output_cannot() -> None:
+    """``S00402`` is why the base is T013+T014 and not ``T007``.
+
+    Used and secondhand goods carry the eighth-largest 2017 ``TOP`` position but
+    have **zero** domestic output by definition, so a ``T007`` mover could not
+    move them at all. Their purchaser base is large because secondhand goods are
+    almost entirely trade margin - which is exactly the layer ``T007`` misses.
+    """
+    base = pt.purchaser_base(pt.ANCHOR_YEAR)
+    assert base['S00402'] > 100_000 * MILLION
+    assert (base >= 0).all(), 'a tax base cannot be negative'
+
+
+def test_residual_does_not_drift_against_its_control() -> None:
+    """The rejected one-sided mover reached 1.86x; this base must not drift.
+
+    The residual is renormalised to its control every year, so drift shows up as
+    the *base* growing at a different rate from taxes on products. Purchaser
+    value is what sales tax is levied on, so the two should track.
+    """
+    base_2017 = pt.purchaser_base(pt.ANCHOR_YEAR).sum()
+    control_2017 = pt.top_control_total(pt.ANCHOR_YEAR)
+    for year in range(2018, 2024):
+        base_growth = pt.purchaser_base(year).sum() / base_2017
+        control_growth = pt.top_control_total(year) / control_2017
+        assert 0.90 < base_growth / control_growth < 1.10, (
+            f'{year}: base grows {base_growth:.3f} against a control of '
+            f'{control_growth:.3f}'
+        )
+
+
+def test_2024_holds_2023_shares_rather_than_reverting_to_2017() -> None:
+    """The margin columns stop at 2023, so 2024 is a hold, not a measurement.
+
+    Reverting to the frozen 2017 vector would undo six years of movement in one
+    step, which would read as a real 2024 reallocation.
+    """
+    assert pt.residual_share_for_year(2024).equals(pt.residual_share_for_year(2023))
+
+
 def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     """Sized on commodities, not just lines, against the default proposal itself.
 
-    Tobacco is 26,210 $M lower than the default in 2024 and insurance 17,602 $M
+    Tobacco is 26,153 $M lower than the default in 2024 and insurance 17,791 $M
     higher in 2020 - the ACA provider fee, which the default cannot see at all.
-    Half the summed absolute difference is 3.7% of the 2020 column and 5.8% of
+    Half the summed absolute difference is 6.3% of the 2020 column and 7.7% of
     the 2024 one, so this is a re-allocation of tens of billions rather than a
     refinement.
+
+    ⚠️ **The divergence grew when the residual started moving.** It was 3.7% and
+    5.8% while the residual sat on frozen 2017 shares; sourcing TRADE and TRANS
+    (#611) gave the residual a purchaser-price base, so the other 70% of the
+    column moves too - see ``residual_share_for_year``. A *fall* here would mean
+    the residual had stopped moving.
     """
     published = pt.published_top_by_commodity()
 
@@ -258,13 +304,13 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     gap_2024 = pt.top_column(2024) - default(2024)
     gap_2020 = pt.top_column(2020) - default(2020)
 
-    assert gap_2024['312200'] / MILLION == pytest.approx(-26_210, abs=100)
-    assert gap_2020['5241XX'] / MILLION == pytest.approx(17_602, abs=100)
+    assert gap_2024['312200'] / MILLION == pytest.approx(-26_153, abs=100)
+    assert gap_2020['5241XX'] / MILLION == pytest.approx(17_791, abs=100)
     assert gap_2020.abs().sum() / 2 / pt.top_column(2020).sum() == pytest.approx(
-        0.037, abs=0.003
+        0.063, abs=0.003
     )
     assert gap_2024.abs().sum() / 2 / pt.top_column(2024).sum() == pytest.approx(
-        0.058, abs=0.003
+        0.077, abs=0.003
     )
 
 

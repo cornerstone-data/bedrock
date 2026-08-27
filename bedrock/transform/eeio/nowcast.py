@@ -89,9 +89,12 @@ from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 TRADE_OVERLAY_YEARS = range(2017, 2025)
 
 #: Years the transport margin can be built for. Truck and pipeline come from
-#: the Service Annual Survey, which stops at 2022; AIES carries 2023 and is
-#: not wired up, and 2024 is unpublished. Rail alone reaches 2024.
-TRANSPORT_MARGIN_YEARS = range(2017, 2023)
+#: the Service Annual Survey through 2022 and from AIES for 2023, which is the
+#: last published year: ``aies/basic`` and ``aies/miscsector`` both return 204
+#: for 2024. Rail (16.5%) and water/air (3.8%) reach 2024 on STB and FAF, but
+#: truck and pipeline are 79.7% of the column between them, so 2024 has no
+#: transport margin until the next AIES release.
+TRANSPORT_MARGIN_YEARS = range(2017, 2024)
 
 # Same 12 codes as analysis ``SUPPLY_BRIDGE_CODES``. Kept here so nowcast does
 # not import sections (sections already lazy-imports this module).
