@@ -75,7 +75,7 @@
 # fifteenth is 482000 rail.
 
 !include:BEA_detail_commodity_target.yaml
-year: &va_year 2017
+year: &va_year 2018
 target_schema_year: 2017
 geoscale: national
 activity_schema: null

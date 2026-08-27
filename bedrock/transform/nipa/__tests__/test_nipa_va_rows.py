@@ -1,4 +1,4 @@
-"""Acceptance checks for ``NIPA_VA_compensation_2017`` and ``NIPA_VA_surplus_2017``.
+"""Acceptance checks for ``NIPA_VA_compensation_<year>`` and ``NIPA_VA_surplus_<year>``.
 
 Step 2's two large rows (#538). As with ``T00OTOP``, the bar is not "the method
 generates" but "the method reproduces the published 2017 row" -- and with 2017 as
@@ -8,11 +8,21 @@ claims: compensation runs on 69 separate NIPA controls, so it can lose mass
 between them; surplus runs on eight controls across five tables and has to keep a
 negative industry negative.
 
+For 2018-2024 the claim changes and so does the bar. ``V00300`` is the residual
+T18 solves for, so its later-year files are a **seed**: the level has to be that
+year's own eight-line assembly, the shares are deliberately frozen at 2017, and
+the sign structure has to survive both. The frozen shares are weak here in a way
+they are not for ``T00OTOP`` -- 12.51% summary drift against 2.10% -- which is
+the reason the tests below assert that nothing moved them rather than that they
+are close to anything.
+
 Runs the real methods against the real workbooks, so it is slow and needs the
-2017 ``BEA_NIPA`` and ``BEA_Detail_Use_SUT`` FBAs.
+``BEA_NIPA`` FBA for every year and the 2017 ``BEA_Detail_Use_SUT``.
 """
 
 from __future__ import annotations
+
+import functools
 
 import numpy as np
 import pandas as pd
@@ -135,3 +145,63 @@ def test_surplus_keeps_the_negative_industry_negative(
     assert float(surplus['S00201']) == pytest.approx(
         float(published['S00201']), abs=1.0
     )
+
+
+# --------------------------------------------------------------------------
+# 2018-2024 -- the seed, not the replay
+# --------------------------------------------------------------------------
+
+#: The years ``NIPA_VA_surplus_<year>`` has a file for, less the benchmark.
+#: ``NIPA_VA_compensation_<year>`` is graded separately: it moves its shares on
+#: QCEW, so the frozen-share assertions below do not apply to it and the
+#: movement itself is tested in ``test_compensation_movement.py``.
+LATER_YEARS = tuple(range(2018, 2025))
+
+
+@functools.cache
+def _surplus(year: int) -> 'pd.Series[float]':
+    return _estimate(f'NIPA_VA_surplus_{year}', 'V00300')
+
+
+@pytest.mark.parametrize('year', LATER_YEARS)
+def test_surplus_later_years_take_their_own_assembly(year: int) -> None:
+    """The level is that year's eight lines, not 2017's carried forward.
+
+    ``V00300`` is the residual T18 solves for, so what Step 2 owes it is a seed
+    of the right magnitude. That makes the level the part of this method that
+    still has to be right -- and it is the part that fails silently, since a
+    frozen level is a perfectly plausible-looking value-added row.
+    """
+    total = float(_surplus(year).sum())
+    assert total == pytest.approx(float(surplus_assembly(year)['value'].sum()), abs=1.0)
+    assert total != pytest.approx(float(surplus_assembly()['value'].sum()), abs=1.0)
+
+
+@pytest.mark.parametrize('year', LATER_YEARS)
+def test_surplus_later_years_leave_the_2017_shares_alone(year: int) -> None:
+    """Shares are frozen, and frozen means exactly rather than nearly.
+
+    ⚠️ The *decision* to freeze them is much weaker here than for ``T00OTOP`` --
+    summary composition drift reaches 12.51% by 2022 against ``T00OTOP``'s
+    2.10% -- and it is defensible only because T18 makes this row the residual
+    the balance overwrites. That is an argument for keeping the seed honest
+    about what it is, not for letting something move the weights unasked: if
+    they drift here, the measured 12.51% no longer bounds anything.
+    """
+    shares = _surplus(year) / float(_surplus(year).sum())
+    base = _surplus(2017) / float(_surplus(2017).sum())
+    assert float((shares - base).abs().sum()) < 1e-9
+
+
+@pytest.mark.parametrize('year', LATER_YEARS)
+def test_surplus_later_years_manufacture_no_new_negatives(year: int) -> None:
+    """``S00201`` stays negative and stays alone.
+
+    Both halves matter. A share method that clips at zero deletes the one
+    genuinely negative industry; one that lets the assembly drive a new industry
+    negative has invented a fact the published row does not support, and #710's
+    sign guard is what would have to catch it downstream.
+    """
+    estimate = _surplus(year)
+    assert float(estimate['S00201']) < 0
+    assert set(estimate[estimate < 0].index) == {'S00201'}
