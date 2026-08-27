@@ -644,9 +644,10 @@ def composed_seed(year: int) -> pd.DataFrame:
     services/transport      100  ``Census_SAS_Expenses`` / AIES
     agriculture              10  ERS
     utilities                 3  EIA 923 fuel receipts
+    mining                    6  Economic Census materials, sector 21
     ==================  =======  =======================================
 
-    The remaining 57 columns hold their 2017 structure, which says nothing
+    The remaining 51 columns hold their 2017 structure, which says nothing
     observes their movement rather than that none happened.
 
     ⚠️ **The seeds are overlaid cell-wise, never added.** ``materials_seed``
@@ -666,6 +667,11 @@ def composed_seed(year: int) -> pd.DataFrame:
     exists and is a **no-go**: graded on the benchmark holdout it is a wash, and
     it tracks where ``N`` is not. It is the seed most likely to be wired in by
     reflex, because it is built and it imports.
+
+    ⚠️ **Mining seeds six of its eight columns.** ``213111`` and ``21311A``
+    support activities are held because the census places only **6.7%** and
+    **15.6%** of those columns against 25-34% for extraction - mining support
+    buys labour and services, not materials. **$53.0B stays on 2017.**
 
     ⚠️ **Utilities covers ``221100``/``S00101``/``S00202`` only.** ``221200`` gas
     distribution was tested on form 176 and rejected - the only index that wins
@@ -687,6 +693,7 @@ def composed_seed(year: int) -> pd.DataFrame:
     )
     from bedrock.analysis.nowcasting.inputs_structure import (  # noqa: PLC0415
         materials_seed,
+        mining_seed,
         nonmaterial_seed,
     )
     from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415, E501
@@ -705,6 +712,7 @@ def composed_seed(year: int) -> pd.DataFrame:
         ('services/transport', services_transport_seed(year)),
         ('agriculture', agriculture_seed(year)),
         ('utilities', utilities_seed(year)),
+        ('mining', mining_seed(year)),
     ]
 
     claimed: dict[str, str] = {}

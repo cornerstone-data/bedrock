@@ -1309,6 +1309,26 @@ EXPENSE_TO_BEA = {
 #: NAICS sector prefixes that are manufacturing, on either code basis.
 MANUFACTURING = ('31', '32', '33')
 
+#: ⚠️ **Mining columns the census materials mix can seed, and the two it cannot.**
+#: ``Census_EC_MatFuel`` covers NAICS sector **21** in both vintages -- 399 rows
+#: and $76.2B in 2017, 309 and $103.4B in 2022 -- and every industry resolves to a
+#: BEA column, so this data was extracted and parsed all along and simply had no
+#: consumer.
+#:
+#: ✅ **The six extraction columns are seeded**, at 25-34% coverage of their BEA
+#: intermediate column against manufacturing's 51.2% on the same measure. Thinner,
+#: and far above the 3% that disqualified the EIA oil correspondence.
+#:
+#: ❌ **``213111`` and ``21311A`` support activities are held**, at **6.7%** and
+#: **15.6%**. Drilling and mining support buy labour and services, not materials,
+#: so the census measures too little of those columns to move them. That is a
+#: per-column call on measured coverage, per the holdout gate policy, not a
+#: verdict on the block.
+MINING_SEEDED = ('211000', '212100', '212230', '2122A0', '212310', '2123A0')
+
+#: Held: see :data:`MINING_SEEDED`. $53.0B stays on its 2017 mix.
+MINING_HELD = ('213111', '21311A')
+
 
 def _manufacturing_bea_industries() -> list[str]:
     """The BEA detail industry columns that are manufacturing."""
@@ -1815,7 +1835,9 @@ def census_mix_on_bea_industries(
     return grouped[0], grouped[1]
 
 
-def materials_seed(year: int, clean: bool = False) -> pd.DataFrame:
+def materials_seed(
+    year: int, clean: bool = False, columns: list[str] | None = None
+) -> pd.DataFrame:
     """The S3 seed: BEA's 2017 materials cells, moved on the census mix.
 
     ``commodity x BEA detail industry`` in $M, on the same axes as the benchmark
@@ -1859,12 +1881,38 @@ def materials_seed(year: int, clean: bool = False) -> pd.DataFrame:
 
     index = (mix / base_mix.where(base_mix > 0)).replace([np.inf, -np.inf], np.nan)
     use = _use_2017_detail()
-    man = _manufacturing_bea_industries()
+    man = columns if columns is not None else _manufacturing_bea_industries()
+    man = [c for c in man if c in use.columns]
     seed = use[man] * index.reindex(index=use.index, columns=man).fillna(1.0)
     totals, base_totals = seed.sum(axis=0), use[man].sum(axis=0)
     seed = seed.div(totals.where(totals != 0, np.nan), axis=1).mul(base_totals, axis=1)
     seed = seed.fillna(0.0)
     return seed.loc[(seed != 0).any(axis=1)]
+
+
+def mining_seed(year: int, clean: bool = False) -> pd.DataFrame:
+    """The mining materials seed: BEA's 2017 mining columns on the census mix.
+
+    ``commodity x BEA detail industry`` in $M on the benchmark Use axes, for
+    :data:`MINING_SEEDED` -- the same shape :func:`materials_seed` returns and the
+    same construction, differing only in which columns it is asked for.
+
+    ⚠️ **The data was never missing.** ``Census_EC_MatFuel`` pulls NAICS sector 21
+    beside 31-33 and always has; :func:`bea_industry` resolves every MATFUEL
+    industry in both vintages. What was missing was a caller.
+
+    ⚠️ **Two columns are held, not seeded** -- see :data:`MINING_HELD`. The gate
+    is coverage, measured: the six seeded columns place 25-34% of their BEA
+    column against manufacturing's 51.2%, while ``213111`` places **6.7%** and
+    ``21311A`` **15.6%**.
+
+    ⚠️ **This ships ungraded, on the same rule that let the materials seed ship.**
+    The benchmark holdout runs 2012 -> 2017 and ``Census_EC_MatFuel`` has no 2012
+    vintage, so the gate cannot decide here. The alternative is not a better
+    source, it is the frozen 2017 mix -- which asserts nothing changed in eight
+    years, a *stronger* claim than the data makes.
+    """
+    return materials_seed(year, clean=clean, columns=list(MINING_SEEDED))
 
 
 def _unit_to_bea(unit: str) -> str | None:
