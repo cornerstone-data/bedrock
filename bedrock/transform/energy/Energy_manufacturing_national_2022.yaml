@@ -8,6 +8,16 @@ year: &mecs_year 2022
 geoscale: national
 
 _attribution_sources:
+  BEA_use: &bea_use
+    year: 2017
+    activity_to_sector_mapping: Cornerstone_2025
+    exclusion_fields:
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
+                           'T001', 'T004', 'T007', 'T019']
+      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                           'MCIF']
+    attribution_method: equal
   transport_industries: &transport_industries
     - '481000'
     - '482000'
@@ -51,26 +61,49 @@ source_names:
     clean_fba_before_activity_sets:
       - !script_function:EIA_MECS estimate_suppressed_mecs_energy
     activity_sets:
-      direct_table_3_1:
+      table_3_1_coal:
         selection_fields:
           Description: Table 3.1
-          FlowName:
-            - Coal
-            - Natural Gas
-        attribution_method: direct
-      direct_table_2_1:
+          FlowName: Coal
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'212100': ''}
+      table_3_1_ng:
+        selection_fields:
+          Description: Table 3.1
+          FlowName: Natural Gas
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'221200': ''}
+      table_2_1:
         selection_fields:
           Description: Table 2.1
           FlowName:
             'Hydrocarbon Gas Liquids, excluding natural gasoline': HGL
             Other: Petroleum
-        attribution_method: direct
-      direct_table_2_1_ng:
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'324110': ''}
+      table_2_1_ng:
         selection_fields:
           Description: Table 2.1
           FlowName: Natural Gas
         clean_fba: !script_function:EIA_MECS keep_chemical_manufacturing
-        attribution_method: direct
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'221200': ''}
 
   BEA_Detail_Use_AfterRedef:
     year: 2017
