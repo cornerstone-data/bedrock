@@ -15,15 +15,23 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 
 **Snapshot date:** 2026-08-26 for Steps 1 and 4, re-run after the AIES-sourced
 `TRANS` and `TOP`'s purchaser-price residual (#611/#580) and the NAICS-2022
-goods Crosswalk (#734); **Step 3 is unchanged from the 2026-08-24 run**.
+goods Crosswalk (#734); **Step 3 is unchanged from the 2026-08-24 run** and **Step 2
+from the 2026-08-23 run**.
 
 **Step 3 has landed ([#497](https://github.com/cornerstone-data/bedrock/issues/497)),** so the 402 × 402 Use interior is in
 the report for the first time. Step 1 is a live `derive_initial_Y_pur`
 (`NIPA_final_dom_uses_2017`, Trade `F04000`, `Inventories_2017` on `F03000`).
-Step 4 is a live `derive_initial_supply_bridge`, and with **`TOP` and `SUB`
-(#580)** it populates **all twelve bridge columns** for 2017 for the first time.
-No component of the block is unsourced, so `T013`, `T014`, `T015` and `T016` are
-evaluable rather than NaN, and the block can finally be scored as a whole.
+**Step 2 is live for the first time** ([#538](https://github.com/cornerstone-data/bedrock/issues/538)):
+all three value-added rows are sourced, so every section in the diagnostic now
+has a candidate and none carries `candidate=None`. Step 4 is a live
+`derive_initial_supply_bridge`, and with **`TOP` and `SUB` (#580)** it populates
+**all twelve bridge columns** for 2017. No component of that block is unsourced,
+so `T013`, `T014`, `T015` and `T016` are evaluable rather than NaN.
+
+⚠️ **Step 2's 100% / 100% is not comparable to the other rows of that
+table.** Its methods take their within-group distribution from the 2017
+benchmark, which is the reference, so a 2017 run tests the plumbing and not the
+estimate. Read the Step 2 section before reading its numbers as quality.
 
 ---
 
@@ -32,7 +40,7 @@ evaluable rather than NaN, and the block can finally be scored as a whole.
 | block | step | shape | reference populates | reference total | candidate | coverage | accuracy |
 |---|---|---|---:|---:|---|---:|---:|
 | `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **96.0%** | **54.6%** |
-| `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
+| `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | live (all 3 rows) | **100.0%** | **100.0%** |
 | `use_intermediate_detail_sut` | 3 — intermediate interior | 402 × 402 | 44,281 cells | $14.86T | live | **100.0%** | **100.0%** |
 | `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (all 12 columns) | **99.2%** | **62.1%** |
 
@@ -163,29 +171,81 @@ rows from BEA_NIPA assigned to multiple activity sets` for `U20405` line 342
 ## Step 2 — Use table, value-added rows
 
 `use_va_detail_sut` · 3 rows × 402 industries · tolerance
-`rtol=0.01, atol=5e5, ramp=0.25` · **no candidate yet**
+`rtol=0.01, atol=5e5, ramp=0.25`
 
-The reference, the frame and the bar are settled; Step 2 supplies the candidate
-and the picture appears. The target:
+![Step 2 value added match](images/use_va_detail_sut_2017.png)
 
-| row | description | reference total |
-|---|---|---:|
-| `V00100` | Compensation of employees | $10.435T |
-| `T00OTOP` | Other taxes on production, less subsidies | $0.609T |
-| `V00300` | Gross operating surplus | $7.873T |
-| | **total (`VABAS`)** | **$18.917T** |
+| scope | absent | match | partial | miss | extra |
+|---|---:|---:|---:|---:|---:|
+| cells | 17 | 1,189 | 0 | 0 | 0 |
+| row totals | 0 | 3 | 0 | 0 | 0 |
+| column totals | 1 | 401 | 0 | 0 | 0 |
 
-1,189 of 1,206 cells are populated in the reference, so this block is nearly
-dense — unlike final demand, there is almost nowhere for a miss to hide as a
-structural zero.
+| | |
+|---|---:|
+| coverage | **100.0%** |
+| accuracy | **100.0%** |
+| candidate grand total | $18.9165T |
+| reference grand total | $18.9165T |
+| grand total error | **0.000016%** |
+| residual outside the frame | none |
 
-**The valuation is the thing to get right.** `T00OTOP` is *other* taxes on
-production less subsidies at basic prices. It is **not** the MUT's `V00200`,
-which is taxes on production *and imports* at producer prices. A candidate built
-on `V00200` will not match this reference, and the section deliberately does not
-alias the two — the gap shows as a `MISS`/`EXTRA` pair rather than a bad match.
+All three rows are sourced ([#538](https://github.com/cornerstone-data/bedrock/issues/538)):
+`V00100` from `NIPA_VA_compensation_2017`, `T00OTOP` from `NIPA_VA_othertax_2017`,
+`V00300` from `NIPA_VA_surplus_2017`, stacked by `derive_initial_value_added`.
 
-Turning it on: point `Section.candidate` at the Step 2 output.
+### Read this picture differently from the other two
+
+⚠️ **A solid green block is the floor here, not an achievement**, and it would be
+a mistake to read it as Step 2 being three times better than Step 4. Every one
+of the three methods takes its *level* from NIPA and its *within-group
+distribution* from the 2017 benchmark — which is the reference. With 2017 as
+both anchor and target the shares are the identity, so the only things this can
+catch are plumbing defects: mass lost between attribution groups, a row written
+to the wrong axis, a sign dropped. It catches those, and it has nothing to say
+about the movement series, because there isn't one yet.
+
+What the block therefore certifies is narrow and worth having: the orientation
+transpose, the `BEA_2017_Code` identity crosswalk rows, the 69-way compensation
+control set, and the eight-line `V00300` assembly all carry mass end to end
+without losing or misrouting any of it. The grand total is off by
+**0.000016%** — three million dollars on eighteen trillion, which is BEA's own
+rounding stacked three rows deep.
+
+**The test with real content is the same picture for a later year**, where the
+shares stop being the identity. It cannot be drawn yet: no 2018-2024 files
+exist, because compensation's QCEW movement series is blocked on the
+`FBS_outside_flowsa` attribution-source gap. Until then this section is a
+regression guard.
+
+### The 17 absent cells are the structural zeros, and one of them was a bug
+
+Neither side populates them, so they are genuinely nothing to say — but the list
+is worth reading, because it is an accounting statement rather than a data gap:
+
+| row | absent on | why |
+|---|---|---|
+| `V00100` | `4200ID`, `531HSO` | customs duties is a synthetic industry with no employees; owner-occupied housing has no wage bill |
+| `V00300` | `4200ID`, `814000` | private households have no operating surplus |
+| `T00OTOP` | `4200ID`, `814000`, and **11** government codes | a tax levied by government and remitted by a government producer nets out |
+
+⚠️ **Eleven government codes, not the canonical ten** — and finding that is what
+this picture bought on its first run. `tax_axis_conversion`'s prefix rule
+(`S00`, `G`) names ten; the eleventh is the US Postal Service, `491000`, a
+federal government enterprise whose BEA code is shaped like an industry's. Its
+published `T00OTOP` is zero like the other ten, so it was landing on zero only
+because the benchmark weight happened to be zero, not because the rule excluded
+it. Now named in `write_value_added_crosswalk.py`. **No 2017 number moves** —
+which is precisely why it would not have been found by a total.
+
+### The valuation, which is still the thing to get right
+
+`T00OTOP` is *other* taxes on production less subsidies at basic prices. It is
+**not** the MUT's `V00200`, which is taxes on production *and imports* at
+producer prices. The section deliberately does not alias the two, so a candidate
+built on `V00200` would show as a `MISS`/`EXTRA` pair rather than a bad match.
+⚠️ Note that `BEA_GDPbyIndustry`, added alongside these methods, publishes
+exactly `V00200` — its taxes column is not this row.
 
 ---
 
