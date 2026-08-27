@@ -1738,14 +1738,17 @@ class _FlowBy(pd.DataFrame):
 
         # if Geo Corr column is missing from the df or if all Geo Corr column is all 0s, add score based on geo
         if 'GeographicalCorrelation' not in fbs:
-            if fbs['LocationSystem'][0] == 'Census_Region':
+            if fbs.empty:
+                return fbs
+            location_system = fbs['LocationSystem'].iloc[0]
+            if location_system == 'Census_Region':
                 fbs = fbs.assign(GeographicalCorrelation=4)
-            elif fbs['LocationSystem'][0] == 'Census_Division':
+            elif location_system == 'Census_Division':
                 fbs = fbs.assign(GeographicalCorrelation=3)
             else:
                 # assign geo corr score by FIPS year
                 try:
-                    loc_match = re.search(r"\d{4}", fbs['LocationSystem'][0])
+                    loc_match = re.search(r"\d{4}", location_system)
                     assert loc_match is not None
                     fips = geo_get_all_fips(int(loc_match.group())).rename(  # type: ignore[arg-type]
                         columns={

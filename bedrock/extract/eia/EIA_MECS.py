@@ -666,7 +666,7 @@ def estimate_suppressed_mecs_energy(
 
 def keep_chemical_manufacturing(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     '''Keep MECS NAICS 325 (chemicals) and descendants. CEDA NEU NG is chemicals-only.'''
-    return fba.query("ActivityConsumedBy.str.startswith('325')")
+    return fba.query("ActivityConsumedBy.str.startswith('325')").reset_index(drop=True)
 
 
 # 2013 MECS Other energy / (energy + nonfuel) when the mapped NAICS has no
