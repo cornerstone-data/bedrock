@@ -669,9 +669,11 @@ def composed_seed(year: int) -> pd.DataFrame:
     reflex, because it is built and it imports.
 
     ⚠️ **Mining seeds six of its eight columns.** ``213111`` and ``21311A``
-    support activities are held because the census places only **6.7%** and
-    **15.6%** of those columns against 25-34% for extraction - mining support
-    buys labour and services, not materials. **$53.0B stays on 2017.**
+    support activities are held: well drilling and mining support buy labour and
+    services, not the materials the census measures, so a materials mix is not
+    expected to track them. Coverage agrees - **6.7%** and **15.6%** against
+    25-34% for extraction. This is the same exclusion agriculture makes, whose
+    ten columns are all farms and no ``115``. **$53.0B stays on 2017.**
 
     ⚠️ **Utilities covers ``221100``/``S00101``/``S00202`` only.** ``221200`` gas
     distribution was tested on form 176 and rejected - the only index that wins

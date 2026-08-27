@@ -1319,11 +1319,16 @@ MANUFACTURING = ('31', '32', '33')
 #: intermediate column against manufacturing's 51.2% on the same measure. Thinner,
 #: and far above the 3% that disqualified the EIA oil correspondence.
 #:
-#: ❌ **``213111`` and ``21311A`` support activities are held**, at **6.7%** and
-#: **15.6%**. Drilling and mining support buy labour and services, not materials,
-#: so the census measures too little of those columns to move them. That is a
-#: per-column call on measured coverage, per the holdout gate policy, not a
-#: verdict on the block.
+#: ❌ **``213111`` and ``21311A`` support activities are held.** Well drilling and
+#: mining support buy labour and services, not the materials the census measures,
+#: so a materials mix is not expected to track them (Wes, 2026-08-27). The
+#: coverage numbers agree rather than lead: **6.7%** and **15.6%** against 25-34%
+#: for extraction.
+#:
+#: ⚠️ **This is the same exclusion agriculture already makes.**
+#: ``agriculture_expense_seed.farm_industries`` returns ten ``111x``/``112x`` farm
+#: columns and no ``115`` support-services column, for the same reason. Support
+#: activities are held across the board here, not per-block.
 MINING_SEEDED = ('211000', '212100', '212230', '2122A0', '212310', '2123A0')
 
 #: Held: see :data:`MINING_SEEDED`. $53.0B stays on its 2017 mix.
