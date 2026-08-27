@@ -247,6 +247,16 @@ Census_AIES:
     naics:
       year: 2017
       hierarchy: parent-completeChild
+Census_AIES_MiscSector:
+  data_format: FBA
+  class:
+  - Money
+  # NAICS 484 only, carrying motor carrier revenue by commodity group - the
+  # 2023 continuation of Census_SAS Table 8 (#611)
+  activity_schema:
+    naics:
+      year: 2017
+      hierarchy: parent-completeChild
 Census_ARTS:
   data_format: FBA
   class:

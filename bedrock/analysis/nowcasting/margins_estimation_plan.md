@@ -386,8 +386,24 @@ domestic leg only. Bounded by their 3.8% share, and tested: deep sea, domestic
 and all-freight water revenue have near-identical volatility, so the split is not
 a distinct source of movement.
 
-⚠️ **2023–24 are unsourced.** SAS stops at 2022; AIES `miscsector` carries 2023
-and is not wired; 2024 is unpublished. Rail alone reaches 2024.
+✅ **2023 is sourced; 2024 is not.** SAS stops at 2022 and AIES carries 2023 for
+every mode that needed it: truck from `timeseries/aies/miscsector`
+(`RCPT_MOTR_*_DVAL`, the same eleven group names, so the crosswalk joins
+unchanged) and pipeline, water and air from `timeseries/aies/basic` at `TYPOP`
+`00`. `TRANSPORT_MARGIN_YEARS` is now `range(2017, 2024)` and the 2023 supply
+bridge is complete — T016 = 51,543,283 $M, all four subtotals resolving.
+
+⚠️ **2024 has no source.** Both AIES datasets return 204 for 2024. Rail reaches
+it on STB and water/air on FAF, but truck and pipeline are 79.7% of the column,
+so TRANS 2024 stays NaN until the next AIES release — the same shape as the
+TRADE 2024 gap.
+
+⚠️ **Air's 2023 control total is defective — open.** `481212` runs
+4,846/4,857/4,987/6,045 $M over 2019–2022 in SAS, unsuppressed, then AIES 2023
+publishes 13,271 $M, a 2.2× break, while its sibling `481112` moves −3.6%. Air
+is 1.5% of the column and its allocation scales by this total, so 2023 air is
+~1.6× too large. Carried as observed for now and flagged in the module
+docstring; it fails the artifact test truck passes.
 
 ### ⚠️ The open defect — the five modes collide per commodity
 

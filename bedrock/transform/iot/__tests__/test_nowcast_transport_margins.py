@@ -832,29 +832,71 @@ def test_supply_bridge_trans_is_zero_not_nan_off_the_receiving_set() -> None:
 
 def test_supply_bridge_leaves_unsourced_years_alone() -> None:
     """
-    2023 has no truck or pipeline source, so TRANS must stay unfilled.
+    2024 has no truck or pipeline source, so TRANS must stay unfilled.
 
     Filling it from a partial set of modes would break the identity silently.
+
+    ⚠️ **This used to be the 2023 assertion.** AIES carries truck
+    (``aies/miscsector``) and pipeline, water and air (``aies/basic``) for 2023,
+    so that year is now sourced and the gap moved to 2024 - where both AIES
+    datasets return 204. Rail reaches 2024 on STB alone, but truck and pipeline
+    are 79.7% of the column, so a 2024 fill would be a partial set.
     """
-    assert derive_initial_supply_bridge(2023)['TRANS'].isna().all()
+    assert derive_initial_supply_bridge(2024)['TRANS'].isna().all()
 
 
-def test_supply_bridge_trade_is_sourced_a_year_further_than_trans() -> None:
+def test_supply_bridge_trade_and_trans_both_reach_2023() -> None:
     """
-    TRADE now lands too, and reaches 2023 where TRANS stops at 2022.
+    Both margin columns now land in 2023, and both net to zero there.
 
-    ⚠️ **This test used to assert the opposite.** TRADE was expected to wait on
-    4a (#570) and 4d (#580), because the plan reached it as a rate on producer
-    value. The anchor-and-move construction in ``nowcast_trade_margins`` reaches
-    the same column from the *give-up* side instead, and the give-up is observed
-    - so like TRANS it never touches the nowcast base and carries no
-    circularity with Step 6b. The extra year is the Census series running to
-    2023 where SAS stops at 2022.
+    ⚠️ **This test has been rewritten twice, and the history is the point.** It
+    first asserted TRADE would wait on 4a (#570) and 4d (#580); the
+    anchor-and-move construction reached TRADE from the observed *give-up* side
+    instead, so it landed early. It then asserted TRADE ran a year further than
+    TRANS, because SAS stops at 2022. AIES closes that gap: truck comes from
+    ``aies/miscsector`` and pipeline, water and air from ``aies/basic``, so the
+    two columns now stop in the same year. Neither reaches 2024.
     """
     bridge_2023 = derive_initial_supply_bridge(2023)
     assert bridge_2023['TRADE'].notna().all()
-    assert bridge_2023['TRANS'].isna().all()
+    assert bridge_2023['TRANS'].notna().all()
+    # both are redistributions, so both net to zero
     assert abs(bridge_2023['TRADE'].sum()) < 1
+    assert abs(bridge_2023['TRANS'].sum()) < 1
+
+
+def test_aies_continues_the_sas_taxonomy_across_the_2023_seam() -> None:
+    """
+    The AIES truck groups join the SAS crosswalk unchanged, and still partition.
+
+    This is what makes the splice a *continuation* rather than a re-taxonomy:
+    AIES publishes the same eleven group names, so
+    ``Crosswalk_SAS_Group_to_BEA_2017.csv`` needs no AIES-specific rows. If
+    Census renames a group, this fails here rather than silently dropping that
+    group's revenue when the crosswalk join misses.
+    """
+    sas_2022 = set(tm.load_truck_group_revenue(2022).index)
+    aies_2023 = set(tm.load_truck_group_revenue(2023).index)
+    assert sas_2022 == aies_2023
+
+    crosswalk = set(tm.load_truck_crosswalk()['sas_group'])
+    # the crosswalk carries the ten identified groups; 'Other goods' is dropped
+    assert crosswalk <= aies_2023
+    assert aies_2023 - crosswalk == {tm.TRUCK_OTHER_GOODS}
+
+
+def test_pipeline_items_still_partition_naics_486_under_aies() -> None:
+    """
+    The four margin items partition NAICS 486 on both sides of the seam.
+
+    ``load_pipeline_item_revenue`` raises if they stop doing so, which is the
+    check that the detailed NAICS still match the four items BEA named. Running
+    it either side of 2023 is what proves AIES did not re-cut the industry.
+    """
+    for year in (2022, 2023):
+        revenue = tm.load_pipeline_item_revenue(year)
+        assert set(revenue.index) == set(PIPELINE_ITEM_CODES)
+        assert (revenue > 0).all()
 
 
 def test_supply_bridge_leaves_2024_trade_unsourced() -> None:
