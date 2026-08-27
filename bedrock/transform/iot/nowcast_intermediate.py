@@ -623,6 +623,106 @@ def carry_shares(seed: pd.DataFrame, factor: pd.Series, theta: float) -> pd.Data
     return out
 
 
+def composed_seed(year: int) -> pd.DataFrame:
+    """The 2017 benchmark with each graded survey seed overlaid on its own cells.
+
+    ``commodity x industry`` in USD, the same shape as
+    :func:`benchmark_intermediate`, which is what this replaces as the thing
+    :func:`carry_shares` starts from.
+
+    **Only the shape is taken.** Every seed returns BEA's own 2017 cells moved
+    on a survey *index*, and the block is rescaled again to ``GO - VAPRO`` in
+    :func:`apply_column_control`. So the dollar level here is never the estimate
+    - :func:`intermediate_column_control` is - and a seed changes *how a column
+    divides*, nothing else.
+
+    ==================  =======  =======================================
+    block               columns  source
+    ==================  =======  =======================================
+    manufacturing           232  Economic Census materials, then the
+                                 survey index on the non-materials cells
+    services/transport      100  ``Census_SAS_Expenses`` / AIES
+    agriculture              10  ERS
+    ==================  =======  =======================================
+
+    The remaining 60 columns hold their 2017 structure, which says nothing
+    observes their movement rather than that none happened.
+
+    ⚠️ **The seeds are overlaid cell-wise, never added.** ``materials_seed``
+    returns the *whole* manufacturing column, renormalised to its 2017 total;
+    ``nonmaterial_seed`` returns only the **23 non-materials rows**. Adding them
+    double-counts those rows - it put ``334111`` 55% above the benchmark at 2017,
+    where every seed must be the identity. Non-materials is written second and
+    wins on the rows it covers, because there its movement is the survey index
+    while ``materials_seed``'s is only the column renormalisation.
+
+    ⚠️ **Rows a seed does not carry keep their benchmark value**, which is why
+    each overlay is assigned on ``seed.index`` rather than reindexed to 402.
+    Reindexing filled the uncovered rows with ``NaN`` and made the grand total
+    ``NaN``.
+
+    ⚠️ **Trade is deliberately absent.** ``trade_expense_supplement.trade_seed``
+    exists and is a **no-go**: graded on the benchmark holdout it is a wash, and
+    it tracks where ``N`` is not. It is the seed most likely to be wired in by
+    reflex, because it is built and it imports.
+
+    ⚠️ **Utilities is absent because no seed builder exists.** EIA 923 graded
+    **GO** (+16.0% on ``N``, 3 of 3 columns) but ``utilities_expense_seed`` stops
+    at the grading and never produced a ``commodity x industry`` block, so those
+    three columns still hold 2017.
+
+    ⚠️ **``ore_seed`` is not applied separately** - ``531ORE`` is one of the 100
+    columns ``services_transport_seed`` already moves, and applying both would
+    index that column twice.
+
+    ⚠️ **At 2017 every seed is the identity**, verified against the benchmark on
+    each seed's own rows, so :func:`reproduction_check` still measures the column
+    rescale alone.
+    """
+    # Deferred: inputs_structure imports this module, so a module-level import
+    # here is a cycle. Same reason nowcast_va_taxes defers its analysis imports.
+    from bedrock.analysis.nowcasting.agriculture_expense_seed import (  # noqa: PLC0415
+        agriculture_seed,
+    )
+    from bedrock.analysis.nowcasting.inputs_structure import (  # noqa: PLC0415
+        materials_seed,
+        nonmaterial_seed,
+    )
+    from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415, E501
+        services_transport_seed,
+    )
+
+    base = benchmark_intermediate()
+    # Ordered: within manufacturing, non-materials is written after materials and
+    # so wins on the 23 rows they share.
+    overlays: list[tuple[str, pd.DataFrame]] = [
+        ('manufacturing', materials_seed(year)),
+        ('manufacturing', nonmaterial_seed(year)),
+        ('services/transport', services_transport_seed(year)),
+        ('agriculture', agriculture_seed(year)),
+    ]
+
+    claimed: dict[str, str] = {}
+    for block, overlay in overlays:
+        columns = [c for c in overlay.columns if c in base.columns]
+        clash = sorted(c for c in columns if claimed.get(c, block) != block)
+        if clash:
+            raise ValueError(
+                f'{block} and {claimed[clash[0]]} both seed {clash}, which would '
+                f'index those columns twice. The blocks are meant to partition '
+                f'the industries they reach.'
+            )
+        claimed.update({c: block for c in columns})
+        rows = [r for r in overlay.index if r in base.index]
+        # The seeds are in $M and the benchmark in USD. Only column shares are
+        # read downstream so the units would cancel, but a frame carrying two
+        # units is a trap for the next reader.
+        base.loc[rows, columns] = (
+            overlay.loc[rows, columns].astype(float) * MILLION_CURRENCY_TO_CURRENCY
+        )
+    return base
+
+
 def carried_column_shares(
     year: int, theta: float | None = None, margins: bool = True
 ) -> pd.DataFrame:
@@ -634,7 +734,7 @@ def carried_column_shares(
     """
     exponent = default_theta(year) if theta is None else theta
     return carry_shares(
-        benchmark_intermediate(), commodity_deflator(year, margins=margins), exponent
+        composed_seed(year), commodity_deflator(year, margins=margins), exponent
     )
 
 
