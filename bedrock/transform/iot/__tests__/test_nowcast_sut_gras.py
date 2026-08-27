@@ -1022,3 +1022,85 @@ def test_unknown_soft_stays_skipped() -> None:
     )
     assert 'T99' in out.skipped
     assert 'T99' not in out.soft_deferred
+
+
+def test_t18_closer_hits_vapro_and_keeps_t1() -> None:
+    """T18 moves the ``T005``/``VAPRO`` line without moving the column total.
+
+    The seed puts 6 of value added in ``i1`` against a target of 10, so the
+    closer adds 4 to ``V00300`` and takes 4 off the commodity rows in
+    proportion to ``|cell|`` - 8 and 4 of ``c1``/``c2``, so -8/3 and -4/3.
+    ``V00100`` must not move: it has its own source in T4, and putting the
+    slack anywhere but gross operating surplus is the thing this target
+    exists to prevent.
+    """
+    use_rows = ('c1', 'c2', 'V00100', 'V00300')
+    use_cols = ('i1', 'F01000')
+    use = pd.DataFrame(
+        [
+            [8.0, 3.0],
+            [4.0, 1.0],
+            [5.0, 0.0],
+            [1.0, 0.0],
+        ],
+        index=list(use_rows),
+        columns=list(use_cols),
+    )
+    supply = pd.DataFrame([[8.0], [4.0]], index=['c1', 'c2'], columns=['i1'])
+    va_rows = ('V00100', 'V00300')
+    industries = ['i1']
+    t18 = Target.on_margin(
+        'use',
+        'column',
+        pd.Series({'i1': 10.0}),
+        'test',
+        restrict_to=va_rows,
+        name='T18',
+        hard=True,
+        allow_negative=True,
+    )
+    masks = _masks(use, supply)
+    targets = TargetSet.of(
+        _t1(use[industries].sum()),
+        t18,
+        _t11(pd.Series({'c1': 0.0, 'c2': 0.0})),
+    )
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    residual = offset_targets(targets, frozen)
+    out = engine(free, residual, masks, close_rows_on_last=False, atol=1e-6)
+    restored = restore_fixed_blocks(out.blocks, frozen)
+
+    t18_res = next(t for t in residual if t.name == 'T18')
+    assert float(t18_res.evaluate(out.blocks).iloc[0]) == pytest.approx(
+        float(t18_res.values.iloc[0]), abs=1e-6
+    )
+    # T1 survives: the closer is column-neutral by construction.
+    assert float(restored['use']['i1'].sum()) == pytest.approx(18.0, abs=1e-6)
+    # and the intermediate part is what moved.
+    assert float(restored['use'].loc[['c1', 'c2'], 'i1'].sum()) == pytest.approx(
+        8.0, abs=1e-6
+    )
+
+
+def test_t18_requires_restrict_to_naming_v00300() -> None:
+    """The closer moves exactly one row, so a T18 that does not contain it is
+    a target the engine cannot impose - and saying so beats silently closing
+    on a different row.
+    """
+    t18 = Target.on_margin(
+        'use',
+        'column',
+        pd.Series({'i1': 1.0}),
+        'test',
+        restrict_to=('V00100',),
+        name='T18',
+        hard=True,
+        allow_negative=True,
+    )
+    use = _use_seed()
+    supply = _supply_seed()
+    masks = _masks(use, supply)
+    targets = TargetSet.of(_t1(use[list(INDUSTRIES)].sum()), _t11(), t18)
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    with pytest.raises(ValueError, match="must contain 'V00300'"):
+        engine(free, offset_targets(targets, frozen), masks)

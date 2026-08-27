@@ -101,10 +101,16 @@ import numpy as np
 import pandas as pd
 
 from bedrock.analysis.nowcasting.intermediate_structure_drift import (
-    BENCHMARK_SUT_ARCHIVE,
     LOCAL_USA_SUP_DIR,
 )
 from bedrock.analysis.nowcasting.value_added_timeseries import _cell, detail_to_summary
+
+# ⚠️ The archive name moved out of intermediate_structure_drift during Step 3 and
+# now has one canonical home in matrix_mappings. Step 2 was written against the
+# old location, so this import is the seam between the two lines of work.
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_BENCHMARK_DETAIL_SUT_ARCHIVE as BENCHMARK_SUT_ARCHIVE,
+)
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
 #: The two benchmarks the span runs between.  2007 is available in the same

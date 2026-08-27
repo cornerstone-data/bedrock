@@ -29,6 +29,17 @@ USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING = {
     "Use_SUT_detail": "Use_SUT_Framework_2017_DET.xlsx",
 }
 
+USA_BENCHMARK_DETAIL_SUT_YEARS = ta.Literal[2007, 2012, 2017]
+# The BEA benchmark detail Supply-Use panel ships as one zip holding one workbook
+# per table, each with a sheet per benchmark year, all three years already on the
+# 2017 code basis in one frame. The 2017 sheets are byte-identical to the
+# single-year workbooks in USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING.
+USA_BENCHMARK_DETAIL_SUT_ARCHIVE = "SUPPLY-USE_2026-08-24.zip"
+USA_BENCHMARK_DETAIL_SUT_MEMBER_MAPPING = {
+    "Supply_detail": "Supply_Detail.xlsx",
+    "Use_SUT_detail": "Use_SUT_Detail.xlsx",
+}
+
 USA_SUMMARY_MUT_NAMES = ta.Literal[
     "Make_summary",
     "Use_summary",

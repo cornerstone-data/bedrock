@@ -215,11 +215,23 @@ Structure is **function × object**, not commodity:
 | Direct expenditure — Capital Outlay | 434,947,070 |
 | Direct expenditure — Assistance and Subsidies | 68,172,649 |
 
-**Why this one works where the business surveys didn't.** The BEA government industries (`G*`) are
-mostly **not commodity-specific** to begin with, so the absence of a commodity split is not the
-disqualifier it was for manufacturing. What Step 3 needs for those industries is a **column total**,
-and `Current Operations − Salaries and Wages` is exactly that — annual, by function, by government
-type, for every year in the Phase 1 span.
+❌ **Superseded — the two claims this section used to make are both wrong.** They are left here with
+their correction because the reasoning was reused downstream. See
+[`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) §The government function bridge.
+
+> *"The BEA government industries (`G*`) are mostly not commodity-specific to begin with, so the
+> absence of a commodity split is not the disqualifier it was for manufacturing. What Step 3 needs
+> for those industries is a column total, and `Current Operations − Salaries and Wages` is exactly
+> that — annual, by function, by government type, for every year in the Phase 1 span."*
+
+1. ⚠️ **The `G*` columns are the *worst-drifting* in the Use table** — `S00500` 0.383, `S00600`
+   0.308, `GSLGO` 0.221 at detail over 2012→2017. A mix is exactly what they need, and a column
+   total is what they least need: Step 3 already takes the level as `GO − VAPRO`, observed on both
+   sides.
+2. ⚠️ **`Current Operations` is NOT published by function for every year.** It is a function × object
+   cross only for **2022-2024**; for 2017-2021 it is one economy-wide number. The 137→232 row jump
+   noted below *is* this, and it means there is no 2017 anchor at the seed year. `Capital Outlay` by
+   function, by contrast, really does run 2017-2024.
 
 Two bonuses beyond Step 3:
 
@@ -229,9 +241,11 @@ Two bonuses beyond Step 3:
   **open SLG Equipment/Structures/IP attribution bug** lives (§Step 0). Worth pointing at that bug
   directly.
 
-Caveats: this is **state and local only** — federal needs a separate source. Row counts jump from 137
-(2017-2021) to 232 (2022-2024), so something changed in coverage or published detail at 2022; check
-before treating the series as continuous. Federal and state tax/pension/employment siblings exist
+Caveats: this is **state and local only** — federal needs a separate source, and federal is 43.1% of
+the government block's misplaced dollars including the worst column in the table. ⚠️ Row counts jump
+from 137 (2017-2021) to 232 (2022-2024): that is the `Current Operations` function cross appearing at
+2022, measured in `gov_function_bridge.py --coverage`, and it makes the series **not** continuous on
+the object Step 3 needs. Federal and state tax/pension/employment siblings exist
 (`govsstatefin`, `govsstatetax`, `govsemp`, `govspension`, `govsschfin`) if needed.
 
 ### Agriculture: the best coverage of anything probed, and it already runs to 2025
@@ -291,7 +305,7 @@ extend to these two:
 | Sector | Verdict | What to use |
 |---|---|---|
 | Agriculture (`11`) | ✅ **Use it** | ERS FIWS intermediate product expenses; 89-91% mappable; already in bedrock; extend the yaml past 2023 to pick up 2024-2025 |
-| Government (`G*`) | ✅ **Use it** | `govslocalfin` Current Operations − Salaries and Wages as the column total; commodity split not expected for these industries anyway. Federal still needs a source |
+| Government (`G*`) | ❌ **Tested and rejected** | The column total is already free (`GO − VAPRO`), and the function → commodity bridge buys **+2.4%**: the function mix moves 0.046 in five years against a 0.201 commodity drift, and functions overlap by 36%. `Current Operations` by function exists only 2022-2024. See §The government function bridge |
 | Manufacturing (`31-33`) | ⚠️ Energy only | `CSTELEC`/`CSTFU` at 6-digit, 2018-2021 |
 | Services | ⚠️ Control totals only | SAS Table 3 at 227 six-digit NAICS. ⚠️ **SAS Table 5 is the structural one** and reaches 63 industries for 2013-2017 and 2020-2022 — tested in #705, rejected on the benchmark seam, not on depth |
 | Wholesale / retail | ❌ Nothing | absent from `exp02`. ⚠️ The **Business Expenses Supplement** does cover them, quinquennially — tested in #705, rejected on suppression |

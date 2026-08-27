@@ -15,16 +15,50 @@ recorded on each target's ``source`` so it cannot be lost:
 Real                          Placeholder (``PLACEHOLDER:`` prefixed)
 ============================  =========================================
 T1 gross output               T2 final-demand column totals
-T11-T16 identities            T4 compensation by industry group
-                              T6 product-tax economy-wide totals
+T18 value added               T4 compensation by industry group
+T11-T17 identities            T6 product-tax economy-wide totals
                               T7-T9 Supply column totals
 ============================  =========================================
 
 T1 is real because ``BEA_Detail_GrossOutput_IO_<year>`` is extracted for
-2017-2024, and T11-T16 are real because an identity needs no source at all. The
+2017-2024, T18 is real because ``UVA205-A`` publishes over the same span, and
+T11-T17 are real because an identity needs no source at all. The
 placeholders are the ones waiting on upstream nowcasts and on NIPA reads that
 are not yet wired; their **shapes, labels and aggregators are correct**, so an
 engine built against this set does not change when the values arrive.
+
+T1 and T18 are the two halves of one column
+-------------------------------------------
+
+T1 pins ``T005 + VAPRO``; **T18 pins ``VAPRO``**; together they pin ``T005``.
+
+Without T18 the income side carries no per-industry constraint at all - T4 is
+soft and aggregated to summary groups, T6 is a pair of economy-wide scalars,
+and T5 is unimposed - so value-added estimation error lands in the intermediate
+column total. That total is *the scale of a column of the technology matrix*,
+and it multiplies through the Leontief inverse into every downstream result.
+With T18 the same error lands inside value added instead, where the free row is
+``V00300`` - gross operating surplus, which BEA itself largely computes as a
+residual, and which nothing reads: it appears in no ``A``, no ``L`` and no
+emission factor. **Moving the slack off ``T005`` and onto ``V00300`` is the
+whole point of the target** (decided 2026-08-26;
+``bedrock/analysis/nowcasting/compensation_disaggregation_plan.md`` carries the
+measurement, including the 22 industries whose surplus is too thin to absorb
+much and need a sign census).
+
+✅ **The two sides come from one release, so they cannot disagree.** T1 reads
+the extracted ``UGO305-A`` parquet and T18's series is derived against
+``load_go_detail()`` - the two gross-output vectors are **identical to the
+dollar for every industry in every year 2017-2024**. So the ``T005`` the pair
+implies is exactly
+:func:`~bedrock.transform.iot.derived_intermediate_and_value_added.derive_detail_intermediate_inputs`,
+and no third quantity is smuggled in.
+
+⚠️ **T18 is where the estimate is, and T1 is not.** Gross output is published
+at 402 detail; value added is published on BEA's 191-row underlying frame and
+*allocated* down. So T18 carries an allocation's error where T1 carries none,
+which is the argument for T18 being the one that gives way first if this set
+ever has to be relaxed.
 
 ⚠️ :func:`~bedrock.utils.economic.balance.feasibility.precheck` **refuses to
 certify a set containing a placeholder** unless asked. A placeholder is
@@ -69,11 +103,15 @@ from typing import cast
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
+from bedrock.transform.iot.derived_intermediate_and_value_added import (
+    derive_detail_value_added,
+)
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
     EXCLUDED_COMMODITIES,
     ONE_TO_ONE_FD,
     SUPPLY_BRIDGE_COLUMNS,
+    VA_ROWS,
     balance_commodities,
     balance_industries,
     panel_labels,
@@ -215,6 +253,75 @@ def industry_output_target(year: int, gross_output: pd.Series | None = None) -> 
         'BEA UGO305-A detail gross output',
         name='T1',
         hard=True,
+    )
+
+
+# --------------------------------------------------------------------------
+# T18 - value added, the other sourced hard target
+# --------------------------------------------------------------------------
+
+
+def published_value_added(year: int) -> pd.Series:
+    """``VAPRO`` by detail industry, from BEA's ``UVA205-A``, million USD.
+
+    The mirror of :func:`published_gross_output`, and the one asymmetry between
+    them is worth stating plainly: gross output is **published** at 402 detail,
+    while value added is published on BEA's 191-row underlying frame and
+    *allocated* down by
+    :mod:`~bedrock.transform.iot.derived_intermediate_and_value_added`. So this
+    series carries an allocation where the gross-output one carries none.
+    """
+    values = derive_detail_value_added(year)
+    aligned = values.reindex(list(balance_industries())).astype(float)
+    if aligned.isna().any():
+        missing = list(aligned.index[aligned.isna()])
+        raise KeyError(f'value added for {year} is missing industries: {missing}')
+    aligned.index.name = 'industry'
+    return aligned
+
+
+def industry_value_added_target(
+    year: int, value_added: pd.Series | None = None
+) -> Target:
+    """T18. ``V00100 + T00OTOP + V00300 + T00TOP + T00SUB = VAPRO``, per industry.
+
+    The **income half of the Use column**, and the sibling of T1: T1 pins the
+    whole column and this pins the value-added part of it, so the two together
+    determine ``T005`` per industry. See the module docstring for why that
+    matters more than either target does alone.
+
+    The margin is a column margin **restricted to**
+    :data:`~bedrock.transform.iot.nowcast_mask.VA_ROWS` - neither a row margin
+    nor a plain column one, which is exactly what ``restrict_to`` exists for.
+
+    ⚠️ **All five rows, and subsidies enter negative.** ``VAPRO`` is
+    ``VABAS + T00TOP - T00SUB`` on BEA's published tables, but
+    :func:`~bedrock.transform.iot.nowcast_mask.published_2017_panel` normalises
+    the Use ``T00SUB`` row negative, so here it is a plain sum of five rows.
+    Measured on the published 2017 panel that sum reproduces the derived
+    ``VAPRO`` series to **2 per industry**. Written as ``VABAS + T00TOP -
+    T00SUB`` against the normalised panel it would be wrong by ``2 x T00SUB`` -
+    the same sign trap T12 was caught on.
+
+    ⚠️ ``allow_negative`` is set. ``S00201`` (state and local government
+    passenger transit) has a published 2017 ``VAPRO`` of **-10,069** and the
+    derived series is negative there in every year. That is BEA's number;
+    clipping it would be a fabrication.
+
+    Passing ``value_added`` injects the series instead of deriving it, which is
+    what lets this be exercised without the extract workbooks - the same
+    affordance :func:`industry_output_target` gives T1.
+    """
+    values = published_value_added(year) if value_added is None else value_added
+    return Target.on_margin(
+        'use',
+        'column',
+        values,
+        'BEA UVA205-A value added, allocated to BEA 2017 detail',
+        restrict_to=VA_ROWS,
+        name='T18',
+        hard=True,
+        allow_negative=True,
     )
 
 
@@ -475,6 +582,13 @@ def va_row_targets(year: int) -> list[Target]:
     hold-back that keeps GDP as out-of-sample evidence.
     Leaving it unimposed means those two value-added rows enter the balance
     as seed only, which is the price of the test being worth running.
+
+    ⚠️ **T5's absence is now load-bearing rather than merely tolerated.** With
+    T18 pinning ``VAPRO`` per industry the five value-added rows have a fixed
+    column total, so leaving ``V00300`` unconstrained is precisely what makes it
+    the row that absorbs the residual. Imposing T5 would push that slack back
+    out into ``T005`` and undo T18. **Do not impose T5 without re-deciding
+    T18.**
     """
     del year
     panel = published_2017_panel('use')
@@ -563,20 +677,25 @@ def supply_column_targets(year: int) -> list[Target]:
 # --------------------------------------------------------------------------
 
 
-def build_target_set(year: int, gross_output: pd.Series | None = None) -> TargetSet:
+def build_target_set(
+    year: int,
+    gross_output: pd.Series | None = None,
+    value_added: pd.Series | None = None,
+) -> TargetSet:
     """The full nowcast SUT target set for ``year``.
 
     Complete in shape; see the module docstring for which values are real.
     Feed it to :func:`~bedrock.utils.economic.balance.offset.offset_targets`
     together with the frozen blocks from
     :func:`~bedrock.utils.economic.balance.offset.split_fixed_blocks`.
-    ``gross_output`` injects T1 the same way
-    :func:`industry_output_target` does, so ``--check-engine`` can run
-    without the extract parquet.
+    ``gross_output`` and ``value_added`` inject T1 and T18 the same way
+    :func:`industry_output_target` and :func:`industry_value_added_target` do,
+    so ``--check-engine`` can run without the extract parquet.
     """
     return TargetSet(
         (
             industry_output_target(year, gross_output=gross_output),
+            industry_value_added_target(year, value_added=value_added),
             *identity_targets(),
             fd_column_targets(year),
             *va_row_targets(year),
@@ -636,7 +755,9 @@ __all__ = [
     'industry_group_aggregator',
     'REST_OF_WORLD_ADJUSTMENT',
     'industry_output_target',
+    'industry_value_added_target',
     'published_gross_output',
+    'published_value_added',
     'rest_of_world_adjustment_supply_make',
     'supply_column_targets',
     'target_set_summary',
