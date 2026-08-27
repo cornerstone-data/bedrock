@@ -220,6 +220,66 @@ The switch is a source change, not a method change: the rule stays "an industry
 holds its own products", only the table supplying the mix moves from the 2017
 benchmark to the nowcast year's Step 4a output.
 
+### ✅ Re-probed 2026-08-27 — two source rows below were wrong
+
+⚠️ **The table in the next section was written from the API *catalog*, and two of
+its rows do not return data.** Re-probed live against the Census API and the
+published workbooks on 2026-08-27. What is verified, per year, for the 2018-2023
+span the initial SUTs need:
+
+| branch | source | years that return data | notes |
+|---|---|---|---|
+| **Wholesale** (79% of nonfarm) | AWTS **Table 3** `2022_awts_inv_table3.xlsx` | ✅ **2015-2022** | One workbook, **years as columns** — a single fetch gets the series, not a per-year pull |
+| **Retail** (47%) | ARTS **`invent.xlsx`** | ✅ **2013-2022** | Same shape, years as columns |
+| **Manufacturing** | ASM **`timeseries/asm/area2017`** | ✅ **2018-2021** | 648 rows/year. Full stage set **beginning *and* end of year** |
+| **All three** | AIES **`timeseries/aies/inv`** | ✅ **2023 only** | 977 rows, sectors 31 / 42 / 44 / 51 |
+| Manufacturing | ASM `timeseries/asm/industry` | ❌ **none** | **204 No Content for every year 2018-2023.** Variables are published; no data is served |
+| All | AIES `timeseries/aies/inv` 1992-2022 | ❌ **none** | **204 for every year before 2023.** The "1992-2023" label is catalog metadata |
+
+❌ **`timeseries/asm/industry` is the endpoint the manufacturing row below names,
+and it is empty.** The working ASM surface is `area2017` — the same one
+`Census_ASM_Expenses` already uses. Its inventory variables are `INVFINB/E`,
+`INVWIPB/E`, `INVMATB/E`, `INVTOTB/E`, plus `INVRSVB/E` **LIFO reserve** and
+`INVCB/E`, each with a relative standard error and a flag.
+
+❌ **AIES's harmonised 1992-2023 history is not real for `inv`.** This closes
+probe task item 1 of
+[`annual_survey_expense_sources.md`](annual_survey_expense_sources.md), which
+records the backfill as an open question and hoped it would remove the survey
+seam. It does not: `aies/inv` behaves exactly like `aies/basic`, 2023 and nothing
+earlier.
+
+⚠️ **`aies/inv` publishes totals only** — `INV_E_TOT_DVAL`, with no
+finished/work-in-process/materials split. Stage structure for 2023 has to come
+from `aies/basic`'s `INV_E_*_VAL`, and for earlier years from ASM or
+`Census_EC_Inventories`.
+
+#### ⚠️ The gap this exposes: manufacturing 2022
+
+ASM `area2017` stops at **2021** and `aies/inv` starts at **2023**, so
+manufacturing has a one-year hole at 2022 that no annual survey covers. Wholesale
+and retail do not — AWTS and ARTS both reach 2022.
+
+✅ **2022 is a census year**, so `Census_EC_Inventories` (#664) fills it, at
+NAICS-6 by stage, already extracted for 2017 and 2022. The hole lands on an
+observation rather than on an interpolation, which is the best case available.
+
+**The resulting chain, per branch:**
+
+| branch | 2018-2021 | 2022 | 2023 |
+|---|---|---|---|
+| wholesale | AWTS Table 3 | AWTS Table 3 | `aies/inv` |
+| retail | ARTS `invent.xlsx` | ARTS `invent.xlsx` | `aies/inv` |
+| manufacturing | ASM `area2017` | `Census_EC_Inventories` | `aies/inv` |
+
+⚠️ **AWTS Table 3 is on a 2012 NAICS basis**, not 2017 — the header column reads
+`2012 NAICS Code`. That needs a vintage bridge before its codes meet BEA's, the
+same class of problem `Census_EC_MatFuel` has across its 2017/2022 vintages.
+
+⚠️ **The stock-versus-change rule is unchanged by any of this.** Every source
+above is a stock level. Structure from the source, **level from NIPA** — see the
+FIWS example below, where differencing gives -887 against a true -5,679.
+
 ### Annual inventory sources — every major branch is covered
 
 Probed 2026-08-16 against the Census API and the published survey workbooks. The
@@ -232,8 +292,8 @@ durable/nondurable rows.
 |---|---|---|---|
 | **Wholesale** (79% of nonfarm) | AWTS **Table 3**, `2022_awts_inv_table3.xlsx` | year-end inventories by NAICS kind of business — 42, 423, 4231, 4232, 4234, 42343 … | **1992–2022** |
 | **Retail** (47%) | ARTS **`invent.xlsx`** | end-of-year inventories by NAICS kind of business — 441, 4411, 4413, 442 … | **1992–2022** |
-| **Manufacturing** (2%) | ASM `timeseries/asm/industry` | `INVFINB/E`, `INVWIPB/E`, `INVMATB/E`, `INVTOTB/E` — **all three stages, per industry** | annual |
-| **All sectors** | AIES `timeseries/aies/basic` | `INV_E_FIN_VAL`, `INV_E_WIP_VAL`, `INV_E_MAT_VAL`, `INV_E_TOT_DVAL` | **2023 only** |
+| ~~**Manufacturing** (2%)~~ | ❌ ASM `timeseries/asm/industry` — **empty, see above; use `area2017`** | `INVFINB/E`, `INVWIPB/E`, `INVMATB/E`, `INVTOTB/E` — **all three stages, per industry** | annual |
+| **All sectors** | AIES `timeseries/aies/basic` (and `aies/inv`, ❌ 2023 only — see above) | `INV_E_FIN_VAL`, `INV_E_WIP_VAL`, `INV_E_MAT_VAL`, `INV_E_TOT_DVAL` | **2023 only** |
 | **Farm** | `USDA_ERS_FIWS` `Inventory` | Crops / Livestock / Purchased inputs | 1939–2025 |
 
 Verified end-2023 AIES totals: wholesale $10.32T, manufacturing $4.53T, retail
