@@ -18,6 +18,7 @@ from bedrock.publish.model_objects import (
     get_q,
     get_Rho,
     get_U,
+    get_V,
     get_x,
 )
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
@@ -39,13 +40,19 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_B_reaggregated,
     derive_cornerstone_U_set,
+    derive_cornerstone_U_set_reaggregated,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_V,
+    derive_cornerstone_V_reaggregated,
     derive_cornerstone_VA,
+    derive_cornerstone_VA_reaggregated,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
     derive_cornerstone_x_after_redefinition,
+    derive_cornerstone_x_reaggregated,
+    derive_cornerstone_y_nab,
     derive_cornerstone_y_nab_reaggregated,
+    derive_disagg_Ytot_reaggregated,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
@@ -67,7 +74,12 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_INDUSTRIES,
     CORNERSTONE_INDUSTRIES_ELEC,
 )
-from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
+from bedrock.utils.schemas.single_region_types import (
+    SingleRegionAqMatrixSet,
+    SingleRegionUMatrixSet,
+)
+from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
+from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 
 _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
@@ -94,6 +106,13 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_cornerstone_Aq_reaggregated,
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_B_reaggregated,
+    derive_cornerstone_V_reaggregated,
+    derive_cornerstone_U_set_reaggregated,
+    derive_cornerstone_VA_reaggregated,
+    derive_cornerstone_x_reaggregated,
+    derive_disagg_Ytot_reaggregated,
+    derive_cornerstone_y_nab,
+    derive_cornerstone_y_nab_reaggregated,
 ]
 
 
@@ -253,6 +272,52 @@ def test_reaggregate_b_is_q_weighted() -> None:
         _teardown()
 
 
+def test_get_U_commodity_axis_is_parent_not_children(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Published get_U rows/cols include 221100 and drop G/T/D (not just shape)."""
+    from bedrock.publish import model_objects  # noqa: PLC0415
+
+    commodities = list(CORNERSTONE_COMMODITIES)
+    industries = list(CORNERSTONE_INDUSTRIES)
+    udom = pd.DataFrame(1.0, index=commodities, columns=industries)
+    uimp = pd.DataFrame(0.0, index=commodities, columns=industries)
+    fd = pd.DataFrame(0.0, index=commodities, columns=list(FINAL_DEMANDS))
+    va = pd.DataFrame(0.0, index=list(VALUE_ADDEDS), columns=industries)
+    uset = SingleRegionUMatrixSet(Udom=udom, Uimp=uimp)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.cornerstone_disagg_pipeline.'
+        'electricity_reaggregation_enabled',
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.derived_cornerstone.'
+        'derive_cornerstone_U_set_reaggregated',
+        lambda: uset,
+    )
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.derived_cornerstone.derive_disagg_Ytot_reaggregated',
+        lambda: fd,
+    )
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_VA_reaggregated',
+        lambda: va,
+    )
+    model_objects.get_U.cache_clear()
+    try:
+        u = model_objects.get_U()
+        assert list(u.index[: len(commodities)]) == commodities
+        assert list(u.columns[: len(industries)]) == industries
+        assert ELECTRICITY_AGGREGATE in u.index
+        assert ELECTRICITY_AGGREGATE in u.columns
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            assert code not in u.index
+            assert code not in u.columns
+    finally:
+        model_objects.get_U.cache_clear()
+
+
 @pytest.mark.eeio_integration
 def test_reagg_internals_stay_407_published_are_405() -> None:
     _setup('test_usa_config_waste_disagg_electricity_reaggregation.yaml')
@@ -264,6 +329,7 @@ def test_reagg_internals_stay_407_published_are_405() -> None:
             b = derive_cornerstone_B_reaggregated()
             n = get_N()
             u = get_U()
+            v_pub = get_V()
             q = get_q()
             x = get_x()
         assert list(V.index) == CORNERSTONE_INDUSTRIES_ELEC
@@ -276,11 +342,24 @@ def test_reagg_internals_stay_407_published_are_405() -> None:
             assert code not in n.columns
             assert code not in q.index
             assert code not in x.index
+            assert code not in u.index
+            assert code not in u.columns
+            assert code not in v_pub.index
+            assert code not in v_pub.columns
         assert ELECTRICITY_AGGREGATE in n.columns
         assert ELECTRICITY_AGGREGATE in q.index
         assert ELECTRICITY_AGGREGATE in x.index
         assert list(b.columns) == CORNERSTONE_COMMODITIES
-        assert u.shape[1] >= len(CORNERSTONE_INDUSTRIES)
+        assert list(u.index[: len(CORNERSTONE_COMMODITIES)]) == list(
+            CORNERSTONE_COMMODITIES
+        )
+        assert list(u.columns[: len(CORNERSTONE_INDUSTRIES)]) == list(
+            CORNERSTONE_INDUSTRIES
+        )
+        assert ELECTRICITY_AGGREGATE in u.index
+        assert ELECTRICITY_AGGREGATE in u.columns
+        assert list(v_pub.index) == list(CORNERSTONE_INDUSTRIES)
+        assert list(v_pub.columns) == list(CORNERSTONE_COMMODITIES)
     finally:
         _teardown()
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -40,6 +41,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     PAIRS,
     STEPS,
     ImplId,
+    config_for_step,
     na_sectors_at_step,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pptx_write import write_pptx
@@ -485,6 +487,20 @@ def test_reaggregated_pair_table_and_hist_steps() -> None:
     assert '221110' not in na_sectors_at_step('reaggregation', 'three_way')
 
 
+def test_reagg_and_mecs_share_first_three_step_configs() -> None:
+    reagg = IMPLEMENTATIONS['reaggregation']
+    mecs = IMPLEMENTATIONS['mecs_mixed_units']
+    for step in ('footing', 'reallocation', 'three_way'):
+        assert config_for_step(reagg, step) == config_for_step(mecs, step)
+        assert na_sectors_at_step('reaggregation', step) == na_sectors_at_step(
+            'mecs_mixed_units', step
+        )
+    assert reagg.industrial_weights == mecs.industrial_weights == 'mecs'
+    assert config_for_step(reagg, 'reaggregation') != config_for_step(
+        mecs, 'mixed_units'
+    )
+
+
 def test_qx_grids_use_reaggregation_step_x() -> None:
     pair = PAIRS['reaggregated_vs_production']
     production = ImplBundle(
@@ -518,7 +534,7 @@ def test_load_impl_bundle_uses_pair_table_steps(
     )
 
     def fake_load(_impl: object, step_id: str) -> StepSnapshot:
-        return _step({'221100': 1.0})
+        return _step({'221100': 1.0}, q={'221100': 1.0e11}, x={'221100': 2.0e11})
 
     monkeypatch.setattr(sources, 'load_step', fake_load)
     pair = PAIRS['reaggregated_vs_production']
@@ -532,12 +548,124 @@ def test_load_impl_bundle_uses_pair_table_steps(
     )
     assert 'reaggregation' in production.steps
     assert 'mixed_units' not in production.steps
+    assert production.steps['reaggregation'].x is not None
+    assert production.steps['reaggregation'].q is not None
     mixed_pair = PAIRS['mecs_mixed_units_vs_production']
     production_mixed = sources.load_impl_bundle(
         IMPLEMENTATIONS['production'], table_steps=mixed_pair.table_steps
     )
     assert 'mixed_units' in production_mixed.steps
     assert 'reaggregation' not in production_mixed.steps
+
+
+def test_derive_step_first_three_dn_match_mecs_and_write_x(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Ladder steps share YAML flags; reagg impl does not collapse until last step.
+
+    Fake D/N are keyed off the live YAML flags so a wrong Aq branch or config
+    would make the first three 221100 columns diverge from ``mecs_mixed_units``.
+    """
+    from bedrock.analysis.electricity.current.diagnostics.deck import (  # noqa: PLC0415
+        sources,
+    )
+    from bedrock.utils.config.usa_config import (  # noqa: PLC0415
+        get_usa_config,
+        reset_usa_config,
+    )
+
+    aq_scaled_calls = {'n': 0}
+    aq_reagg_calls = {'n': 0}
+
+    def _fake_scaled() -> SimpleNamespace:
+        aq_scaled_calls['n'] += 1
+        return SimpleNamespace(
+            scaled_q=pd.Series({'221100': 1.0e11}, dtype=float, name='q')
+        )
+
+    def _fake_reagg() -> SimpleNamespace:
+        aq_reagg_calls['n'] += 1
+        return SimpleNamespace(
+            scaled_q=pd.Series({'221100': 1.2e11}, dtype=float, name='q')
+        )
+
+    def _fake_efs() -> SimpleNamespace:
+        cfg = get_usa_config()
+        if cfg.implement_electricity_reaggregation:
+            d = pd.Series({'221100': 2.55, '1111A0': 1.0}, dtype=float)
+        elif cfg.implement_electricity_disaggregation:
+            d = pd.Series(
+                {'221110': 8.0, '221121': 0.2, '221122': 0.1, '1111A0': 1.0},
+                dtype=float,
+            )
+        elif cfg.implement_electricity_reallocation:
+            d = pd.Series({'221100': 2.41, '1111A0': 1.0}, dtype=float)
+        else:
+            d = pd.Series({'221100': 2.40, '1111A0': 1.0}, dtype=float)
+        return SimpleNamespace(
+            D_new=d.rename('D').to_frame(),
+            N_new=(d * 1.1).rename('N').to_frame(),
+        )
+
+    def _fake_x() -> pd.Series[float]:
+        return pd.Series({'221100': 2.0e11}, dtype=float, name='x')
+
+    monkeypatch.setattr(
+        sources, 'impl_cache_dir', lambda impl, cfg: tmp_path / impl / cfg
+    )
+    monkeypatch.setattr(sources, '_write_class_mwh', lambda _folder: None)
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_scaled',
+        _fake_scaled,
+    )
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.derived_cornerstone.'
+        'derive_cornerstone_Aq_reaggregated',
+        _fake_reagg,
+    )
+    monkeypatch.setattr(
+        'bedrock.utils.validation.diagnostics_helpers.pull_efs_for_diagnostics',
+        _fake_efs,
+    )
+    monkeypatch.setattr('bedrock.publish.model_objects.get_x', _fake_x)
+
+    reagg = IMPLEMENTATIONS['reaggregation']
+    mecs = IMPLEMENTATIONS['mecs_mixed_units']
+    try:
+        for step in ('footing', 'reallocation', 'three_way'):
+            aq_scaled_calls['n'] = 0
+            aq_reagg_calls['n'] = 0
+            mixed_snap = sources.derive_step(mecs, step)
+            assert aq_scaled_calls['n'] == 1
+            assert aq_reagg_calls['n'] == 0
+            aq_scaled_calls['n'] = 0
+            reagg_snap = sources.derive_step(reagg, step)
+            assert aq_scaled_calls['n'] == 1
+            assert aq_reagg_calls['n'] == 0
+            assert mixed_snap.x is not None
+            assert reagg_snap.x is not None
+            assert mixed_snap.d is not None and reagg_snap.d is not None
+            assert mixed_snap.n is not None and reagg_snap.n is not None
+            if step == 'three_way':
+                assert '221100' not in mixed_snap.d.index
+                assert '221100' not in reagg_snap.d.index
+            else:
+                pd.testing.assert_series_equal(mixed_snap.d, reagg_snap.d)
+                pd.testing.assert_series_equal(mixed_snap.n, reagg_snap.n)
+                assert float(reagg_snap.d.loc['221100']) == pytest.approx(
+                    2.40 if step == 'footing' else 2.41
+                )
+
+        aq_scaled_calls['n'] = 0
+        aq_reagg_calls['n'] = 0
+        collapsed = sources.derive_step(reagg, 'reaggregation')
+        assert aq_reagg_calls['n'] == 1
+        assert aq_scaled_calls['n'] == 0
+        assert collapsed.x is not None
+        assert collapsed.d is not None
+        assert float(collapsed.d.loc['221100']) == pytest.approx(2.55)
+    finally:
+        reset_usa_config(should_reset_env_var=True)
 
 
 def test_reagg_ef_grid_headers_and_shared_ladder() -> None:
@@ -575,13 +703,16 @@ def test_reagg_ef_grid_headers_and_shared_ladder() -> None:
     assert top.headers[-1] == 'reaggregation'
     assert bottom.headers[-1] == 'reaggregation'
     dummy = ImplBundle('production', {s: shared_foot for s in STEPS})
-    for step in ('footing', 'reallocation'):
-        assert format_cell_pair(reagg, dummy, 'D', '221100', step, False) == (
-            format_cell_pair(mecs, dummy, 'D', '221100', step, False)
+    for kind in ('D', 'N'):
+        for step in ('footing', 'reallocation'):
+            assert format_cell_pair(reagg, dummy, kind, '221100', step, False) == (
+                format_cell_pair(mecs, dummy, kind, '221100', step, False)
+            )
+        assert format_cell_pair(reagg, dummy, kind, '221100', 'three_way', False) == NA
+        assert format_cell_pair(mecs, dummy, kind, '221100', 'three_way', False) == NA
+        assert format_cell_pair(reagg, dummy, kind, '221110', 'three_way', False) == (
+            format_cell_pair(mecs, dummy, kind, '221110', 'three_way', False)
         )
-    assert format_cell_pair(reagg, dummy, 'D', '221110', 'three_way', False) == (
-        format_cell_pair(mecs, dummy, 'D', '221110', 'three_way', False)
-    )
 
 
 def test_write_pptx_reaggregated_vs_production(tmp_path: Path) -> None:
