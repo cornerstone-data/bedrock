@@ -37,3 +37,19 @@ source_names:
         # attribution_source: set in Trade_Exports_<year>.yaml
         clean_parameter: F04000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+
+  # Physical electricity trade (#668): EIA Table 2.14 MWh × Census HS 2716
+  # unit value. Export year stubs merge source_names from this file so this
+  # source (and later gas) inherit without per-stub copy.
+  EIA_ElectricPowerAnnual:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: EIA_ElectricPowerAnnual
+    clean_fba_before_activity_sets: !clean_function:trade.utilities dollarize_electricity_trade_fba
+    activity_sets:
+      electricity_exports:
+        selection_fields:
+          FlowName: electricity exports
+        attribution_method: direct
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter

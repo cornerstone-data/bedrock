@@ -1,7 +1,8 @@
 # Census goods + BEA IntlServTrade exports for 2023.
 #
-# Method body: Trade_Exports_common.yaml. 1:m attribution uses Detail_Supply_2023
-# collapsed to commodity T007 (#729).
+# Method body: Trade_Exports_common.yaml. Merge source_names from common so
+# EIA electricity (and later gas) inherit without per-stub copy. Only Census /
+# IEA get year-specific Detail_Supply_2023 T007 attribution (#729).
 !include:Trade_Exports_common.yaml
 year: 2023
 sources_to_cache:
@@ -10,7 +11,7 @@ sources_to_cache:
     primary_action_type: Consumed
     geoscale: national
     clean_fbs: !clean_function:trade.attribution collapse_detail_supply_to_t007
-source_names:
+source_names: !include:Trade_Exports_common.yaml:source_names
   Census_USATrade:
     !include:Trade_Exports_common.yaml:source_names:Census_USATrade
     activity_sets:
