@@ -11,19 +11,21 @@ purchaser (PUR) price, commodity x SUT final-demand codes (MUT list minus
 purchaser codes), and the Use table's 402 x 402 intermediate interior
 (``derive_initial_U_intermediate``, Step 3 / #497 - the sourcing lives in
 ``bedrock.transform.iot.nowcast_intermediate``). Y source: the ``NIPA_final_dom_uses_<year>`` FBS methods
-(``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for 2017,
-``Trade_Exports_<year>`` on ``F04000`` via mapped Detail mass in
-``_trade_fbs_commodity_vector``. ``F03000`` (change in private
-inventories, #529) is present but all-zero. ``F05000`` is MUT-only and
-is not a Y column. The Supply bridge fills ``MCIF`` from
+(``bedrock/transform/nipa/NIPA_final_dom_uses_<year>.yaml``) plus, for
+``TRADE_OVERLAY_YEARS`` (2017-2024), ``Trade_Exports_<year>`` on ``F04000``
+via mapped Detail mass in ``_trade_fbs_commodity_vector``. ``F03000``
+(change in private inventories, #529) is sourced for 2017 only. ``F05000``
+is MUT-only and is not a Y column. The Supply bridge fills ``MCIF`` from
 ``Trade_Imports_<year>`` (same mapped Detail mass), ``MDTY`` from Census
 duty rates leveled to NIPA ``B235RC``, and ``MADJ`` from Census import
-charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ``
-destination codes and leveled to published Supply ``MADJ``, for 2017.
-``TRADE``/``TRANS`` are step 4c's margin columns and ``TOP``/``SUB`` are
-step 4d's tax and subsidy columns, all sourced for a run of years. ⚠️
-``SUB`` is stored negative, as BEA publishes it in the Supply table. ITA G+S scale lives in
-``bedrock.transform.trade.scale`` and is not applied here (#647).
+charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ`` destination
+codes — for 2017 leveled to published Supply ``MADJ``, for later years to
+that year's charge total with the published ``MADJ`` sign — for every year
+in ``TRADE_OVERLAY_YEARS``. ``TRADE``/``TRANS`` are step 4c's margin columns
+and ``TOP``/``SUB`` are step 4d's tax and subsidy columns, all sourced for
+a run of years. ⚠️ ``SUB`` is stored negative, as BEA publishes it in the
+Supply table. ITA G+S scale lives in ``bedrock.transform.trade.scale`` and
+is not applied here (#647).
 
 Each ``NIPA_final_dom_uses_<year>.yaml`` activity_set assigns its official BEA
 final-demand code directly to ``SectorConsumedBy`` via a
@@ -51,7 +53,8 @@ Trade FBS ``SectorProducedBy`` is BEA 2017 Detail (same include on
 ``Trade_Exports_<year>`` / ``Trade_Imports_<year>``). Overlay ``F04000``
 after the NIPA frame exists; do not send Trade through
 ``map_fbs_sectors_to_model_schema``. ``S00900`` / ``F04000`` is the rest-of-world
-identity ``-Y[S00900, F01000] + Supply_T016[S00900]`` (2017 only).
+identity ``-Y[S00900, F01000] + Supply_T016[S00900]`` (frozen 2017 Supply
+``T016``) for every trade-overlay year.
 """
 
 from __future__ import annotations
@@ -74,16 +77,25 @@ from bedrock.transform.iot.nowcast_trade_margins import (
     trade_margin_column,
 )
 from bedrock.transform.iot.nowcast_transport_margins import transport_margin_column
+from bedrock.transform.iot.nowcast_va_taxes import va_tax_rows
 from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.transform.trade.madj import madj_detail_usd
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
+from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
+
+#: Years with ``Trade_Exports_<year>`` / ``Trade_Imports_<year>`` and overlay
+#: of ``F04000`` / ``MCIF`` / ``MDTY`` / ``MADJ`` (#727).
+TRADE_OVERLAY_YEARS = range(2017, 2025)
 
 #: Years the transport margin can be built for. Truck and pipeline come from
-#: the Service Annual Survey, which stops at 2022; AIES carries 2023 and is
-#: not wired up, and 2024 is unpublished. Rail alone reaches 2024.
-TRANSPORT_MARGIN_YEARS = range(2017, 2023)
+#: the Service Annual Survey through 2022 and from AIES for 2023, which is the
+#: last published year: ``aies/basic`` and ``aies/miscsector`` both return 204
+#: for 2024. Rail (16.5%) and water/air (3.8%) reach 2024 on STB and FAF, but
+#: truck and pipeline are 79.7% of the column between them, so 2024 has no
+#: transport margin until the next AIES release.
+TRANSPORT_MARGIN_YEARS = range(2017, 2024)
 
 # Same 12 codes as analysis ``SUPPLY_BRIDGE_CODES``. Kept here so nowcast does
 # not import sections (sections already lazy-imports this module).
@@ -319,9 +331,9 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     price, commodity x SUT final-demand codes (no F05000).
 
     F03000 is Inventories_<year> for 2017 (#529); other years all-zero.
-    F04000 is mapped Trade_Exports_<year> Detail mass for 2017; other years
-    all-zero. S00900/F04000 uses the rest-of-world identity against Supply
-    T016 (2017).
+    F04000 is mapped Trade_Exports_<year> Detail mass for every year in
+    ``TRADE_OVERLAY_YEARS``. S00900/F04000 uses the rest-of-world identity
+    against frozen 2017 Supply T016.
     """
     fbs = FlowBySector.generateFlowBySector(
         f'NIPA_final_dom_uses_{year}', download_sources_ok=download_sources_ok
@@ -337,23 +349,156 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     y.index.name = 'commodity'
     y.columns.name = 'final_demand_code'
 
-    if year == 2017:
+    # Every year is padded onto the full BEA detail commodity list, not just the
+    # benchmark. A commodity absent from the groupby is one that receives no
+    # final domestic use at all - in 2017 that is 81 of the 402, and they are
+    # the same 81 that come back zero across all seventeen NIPA columns. Zero
+    # and absent are the same fact here, but only one of them survives a join,
+    # so the reindex has to happen before the frame is handed out (#621).
+    y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
+    if 'S00900' not in y.index:
+        y.loc['S00900'] = 0.0
+
+    if year in TRADE_OVERLAY_YEARS:
         exports = _trade_fbs_commodity_vector(
             f'Trade_Exports_{year}', download_sources_ok
         )
-        inventories = _inventories_fbs_commodity_vector(
-            f'Inventories_{year}', download_sources_ok
-        )
-        y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
         y['F04000'] = exports.reindex(y.index).fillna(0.0)
-        y['F03000'] = inventories.reindex(y.index).fillna(0.0)
-        if 'S00900' not in y.index:
-            y.loc['S00900'] = 0.0
         pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
         y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
 
+    if year == 2017:
+        inventories = _inventories_fbs_commodity_vector(
+            f'Inventories_{year}', download_sources_ok
+        )
+        y['F03000'] = inventories.reindex(y.index).fillna(0.0)
+
     y.index.name = 'commodity'
     return y.sort_index()
+
+
+#: The three ``VABAS`` rows Step 2 builds from NIPA, one FBS method each, and
+#: the Use row each writes.
+#:
+#: ⚠️ ``T00TOP``/``T00SUB`` are absent **from this dict**, and that is not the
+#: same as absent from the block. They are built on the commodity axis in Step
+#: 4d and converted to the industry axis by
+#: :mod:`bedrock.analysis.nowcasting.tax_axis_conversion`, which measured the
+#: conversion rather than assuming it: the Make matrix alone is useless (r =
+#: 0.202, 114.6% error - it sends petroleum tax to refineries and motor-vehicle
+#: tax to assemblers), but the producer/trade **level split** Step 4c already
+#: computes, plus a handful of named routings, reaches **r = 0.948** at 27.9%
+#: absolute error.
+#:
+#: So the older "their industry split is an output of Step 5's balance, not an
+#: input to it" is **withdrawn**: 27.9% is not a target and the balance still
+#: sets the final split under economy-wide soft targets, but a seed that good
+#: is an input, and Step 5 gets it. Two pieces of it are exact rather than
+#: estimated - customs duties are a lookup onto ``4200ID`` (38,513 against a
+#: Supply ``MDTY`` of 38,510) and the ten government columns are zero by the
+#: same accounting rule ``T00OTOP`` obeys.
+_VALUE_ADDED_METHODS = {
+    'V00100': 'NIPA_VA_compensation',
+    'T00OTOP': 'NIPA_VA_othertax',
+    'V00300': 'NIPA_VA_surplus',
+}
+
+#: The years all three methods have a file for. 2017 is the benchmark, and the
+#: horizon is the nowcast's rather than any source's - NIPA and ``UVA205-A``
+#: both run well past it.
+VALUE_ADDED_YEARS = tuple(range(2017, 2025))
+
+
+@functools.cache
+def derive_initial_value_added(
+    year: int, download_sources_ok: bool = False
+) -> pd.DataFrame:
+    """
+    Initial (pre-balance) value-added block of the Use table, basic price,
+    value-added code x industry, in USD (#538).
+
+    Runs the three ``NIPA_VA_*_<year>`` methods and stacks them. Each writes its
+    own row -- ``V00100`` compensation on 69 NIPA industry controls, ``T00OTOP``
+    on one, ``V00300`` on eight across five tables -- with the row code on
+    ``SectorProducedBy`` and the industry on ``SectorConsumedBy``, which is the
+    transpose of :func:`derive_initial_Y_pur`'s orientation.
+
+    ✅ **2017-2024, and the three rows are three different claims.** Reading
+    the block as "value added, nowcast" overstates two thirds of it, so what
+    each row is worth is worth keeping straight:
+
+    ``V00100``
+        An **estimate**. 2017 detail shares carried on QCEW payroll growth,
+        renormalised inside each of ``T60200D``'s 69 NIPA industry groups, then
+        rescaled to that group's published control - see
+        :mod:`bedrock.transform.nipa.compensation_movement`, which took a
+        ``clean_fba`` socket on the existing attribution source rather than the
+        ``FBS_outside_flowsa`` hatch that blocked it (#731). Graded -10.0%
+        against frozen shares on the observed 2012->2017 holdout.
+
+    ``T00OTOP``
+        A **level plus two lookups**. The ``T30500`` control is read per year
+        (+40.5% over the span); the housing block is rescaled to ``T70405``
+        ``B1031C`` and the farm block to ``T70305`` ``B1017C``, both published
+        annually and both exact against the benchmark; the remaining 56.7%
+        keeps 2017's within-block shape, which the held-out summary SUT
+        licenses at 1.01-2.10% drift. So 43.3% of the row is observed rather
+        than assumed. See :mod:`bedrock.transform.nipa.othertax_lookups` and
+        :mod:`bedrock.analysis.nowcasting.other_taxes_allocation`.
+
+    ``V00300``
+        A **seed**, and only a seed. Level from the eight-line NIPA assembly
+        per year, shares frozen at 2017 - where drift reaches **12.51%** by
+        2022, six times ``T00OTOP``'s. That is acceptable only because T18
+        changed what the row is: with ``VAPRO`` pinned per industry
+        (:func:`~bedrock.transform.iot.nowcast_targets.industry_value_added_target`)
+        gross operating surplus is the **residual the balance solves for**, and
+        the closer overwrites this distribution. Do not "improve" it with
+        ``TVA113`` - that is the grader, held out by Step 5's Decision 3.
+
+    ⚠️ **The summary SUT is a stale grader for 2019-2022.** Its own ``VAPRO``
+    total sits 0.09-1.21% below current-vintage ``UVA205-A`` in exactly those
+    four years and matches to the dollar in 2017, 2018, 2023 and 2024. So an
+    apparent 2.64% ``V00300`` assembly error in 2022 is the workbook being
+    behind, not the assembly being wrong - and ``V00300`` shows it at roughly
+    twice ``VAPRO``'s rate because it is the row a NIPA revision lands in.
+
+    ⚠️ **Rows may be negative and must stay so.** ``S00201`` state and local
+    passenger transit carries a ``V00300`` of -36,919 million in 2017 and stays
+    negative in every year; it is the only industry that does.
+    """
+    if year not in VALUE_ADDED_YEARS:
+        raise ValueError(
+            f'the value-added block is built for '
+            f'{min(VALUE_ADDED_YEARS)}-{max(VALUE_ADDED_YEARS)}; got {year}. '
+            f'Each row needs a NIPA_VA_*_{year} method file, and the benchmark '
+            f'attribution weights come from the 2017 detail Use SUT, which BEA '
+            f'publishes for no other year.'
+        )
+    rows = []
+    for code, method in _VALUE_ADDED_METHODS.items():
+        fbs = FlowBySector.generateFlowBySector(
+            f'{method}_{year}', download_sources_ok=download_sources_ok
+        )
+        resolved = _resolve_both_sector_columns(pd.DataFrame(fbs))
+        by_industry = resolved.groupby('SectorConsumedBy')['FlowAmount'].sum()
+        rows.append(by_industry.rename(code))
+
+    # The tax rows are converted from the Supply columns rather than estimated,
+    # so they are appended here instead of taking an FBS method of their own -
+    # see the note on _VALUE_ADDED_METHODS above.
+    tax_rows = va_tax_rows(year)
+    rows.extend(
+        ta.cast('pd.Series[float]', tax_rows.loc[code]) for code in ('T00TOP', 'T00SUB')
+    )
+
+    block = pd.DataFrame(rows).reindex(
+        index=list(USE_VALUE_ADDED_ROWS), columns=list(USA_2017_INDUSTRY_CODES)
+    )
+    block = block.fillna(0.0).astype(float)
+    block.index.name = 'value_added_code'
+    block.columns.name = 'industry'
+    return block
 
 
 @functools.cache
@@ -362,10 +507,12 @@ def derive_initial_supply_bridge(
 ) -> pd.DataFrame:
     """Commodity x Supply-bridge codes, USD, BEA 2017 Detail rows.
 
-    MCIF is mapped Trade_Imports_<year> Detail mass for 2017. MDTY is Census
-    duty rate × goods MCIF, leveled to NIPA B235RC, for 2017. MADJ is Census
-    GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes, leveled
-    to published Supply MADJ, for 2017.
+    MCIF is mapped Trade_Imports_<year> Detail mass for every year in
+    ``TRADE_OVERLAY_YEARS``. MDTY is Census duty rate × goods MCIF, leveled to
+    NIPA B235RC, for those years. MADJ is Census GEN_CHA_YR reassigned onto
+    2017 Supply MADJ destination codes — leveled to published Supply MADJ in
+    2017, and to that year's charge total with the published MADJ sign in
+    later years.
 
     ``T007`` is the row margin of the ``Detail_Supply_<year>`` FBS
     domestic-output block, and is sourced for every year **2017-2024** (#570).
@@ -428,7 +575,7 @@ def derive_initial_supply_bridge(
     )
     bridge.columns.name = 'supply_bridge_code'
     bridge['T007'] = _supply_fbs_commodity_vector(year, download_sources_ok)
-    if year == 2017:
+    if year in TRADE_OVERLAY_YEARS:
         bridge['MCIF'] = _trade_fbs_commodity_vector(
             f'Trade_Imports_{year}', download_sources_ok
         )

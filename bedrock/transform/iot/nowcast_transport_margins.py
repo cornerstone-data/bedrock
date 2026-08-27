@@ -16,6 +16,7 @@ dispatch rather than one allocator:
 mode         share   basis                                      state
 ===========  ======  =========================================  ==========
 **truck**    67.8%   revenue by commodity group, SAS Table 8    **built**
+                     (AIES ``miscsector`` from 2023)
 **rail**     16.5%   revenue by product, STB CRSR by STCC5      **built**
 **pipeline** 11.9%   four Census margin items -> commodity sets **built**
 **water**     2.3%   ton-miles x difficulty multiplier          **built**
@@ -43,7 +44,8 @@ Built first because it is the only mode needing no external allocation source:
 The four items are the four detailed pipeline NAICS, and they partition NAICS
 486 to the dollar in every year: ``4861`` crude oil, ``4862`` natural gas,
 ``48691`` refined petroleum products, ``48699`` all other. Census publishes them
-annually in **Service Annual Survey Table 2**, 2013-2022. Each maps to a named
+annually in **Service Annual Survey Table 2**, 2013-2022, and in **AIES**
+``timeseries/aies/basic`` at ``TYPOP`` ``00`` from 2023. Each maps to a named
 BEA 2017 commodity set in :data:`PIPELINE_CROSSWALK_PATH`, and within a set the
 margin is split proportionally.
 
@@ -93,10 +95,65 @@ groups partition Total Motor Carrier Revenue to the dollar; ten are used and
 pro rata "would not change the result". The hazardous-materials row is a
 cross-cut of the same revenue, not a group, and is excluded.
 
+**AIES continues Table 8 from 2023** on ``timeseries/aies/miscsector``, whose
+``RCPT_MOTR_<group>_DVAL`` items carry the *same eleven group names* - so
+:data:`TRUCK_CROSSWALK_PATH` joins them unchanged, and
+``test_aies_continues_the_sas_taxonomy_across_the_2023_seam`` fails if Census
+ever renames one. ``Census_AIES_MiscSector`` emits them under Table 8's own
+``FlowName`` strings, which is why everything below the source dispatch in
+:func:`load_truck_group_revenue` is one implementation across the seam.
+
+⚠️ **The shares step at the seam and it is not silent.** Mean |Δpp| across
+2022->2023 is 1.39 against 0.34 within SAS, four times the normal volatility,
+located exactly at the survey consolidation. It is carried as observed because
+the three artifact tests pass - the taxonomy is unchanged, the eleven groups
+still partition the published total, and the biggest movers ("Used household
+and office goods" 6.69% -> 9.94%, "Coal and petroleum products" 6.99% -> 9.56%)
+are consistent with the 2023 freight recession. This is the same verdict, on
+the same evidence, that the retail rate step got on the trade side. The level
+does not matter - it comes from the 2017 anchor - but the shares do.
+
 ⚠️ **Truck's commodity detail comes mostly from the weight, not the source.** Ten
 groups span 258 commodities, so unlike rail - where revenue is observed per
 commodity - most of the within-group split is inferred. BEA calls Table 8 *"a
 very aggregated level"* and faces the same limit.
+
+✅ Air's 2023 control total - closed on its own volume series
+--------------------------------------------------------------
+
+**``481212`` more than doubles across the AIES splice and it is not a real
+move.** Nonscheduled chartered freight air runs 4,846 / 4,857 / 4,987 / 6,045 $M
+over 2019-2022 in SAS Table 2 - unsuppressed - and AIES 2023 publishes
+13,271 $M. With ``481112`` that puts air freight revenue at **2.32x** its 2017
+level.
+
+**FAF settles it.** Air ton-miles for the same mode are **1.06x** 2017 in 2023,
+having fallen back from 1.32x in 2022, so the published revenue implies unit
+revenue doubling in one year - in the year air cargo rates collapsed from their
+pandemic peak. Wrong size and wrong sign:
+
+=====  =========  =========  ==============
+year   rev index  vol index  implied $/t-mi
+=====  =========  =========  ==============
+2021        1.18       1.16            1.02
+2022        1.68       1.32            1.27
+2023        2.32       1.06            **2.19**
+=====  =========  =========  ==============
+
+So from 2023 air's control moves on volume, holding unit revenue at its last
+observed value - see :func:`air_revenue_from_volume`. 2023 air revenue becomes
+14,386 $M rather than 24,734, unit revenue stays flat at 1.27, and air lands at
+**1.6% of TRANS**, back at the share the table above states. Uncorrected it
+would have been 2.7%.
+
+⚠️ **The comparison that misleads is 2022 -> 2023 alone.** Measured from the 2017
+anchor the two air codes grow 2.17x and 2.47x, which looks comparable and makes
+the seam look benign. It is the volume series, not the revenue series, that
+shows the break - which is why an independent source was needed to close this
+rather than more arithmetic on the same numbers.
+
+⚠️ **Water is not treated this way and must not be.** Its unit revenue moves -4%
+across the same seam (1.65 -> 1.58). Only air breaks.
 
 ⚠️ The three built modes do not yet fit jointly
 -----------------------------------------------
@@ -136,6 +193,10 @@ from bedrock.transform.iot.nowcast_margins import (
     load_margins_transactions_2017,
 )
 
+# The survey consolidation is one fact for both margin sides, so the year lives
+# in one place. The trade module holds no import of this one, so no cycle.
+from bedrock.transform.iot.nowcast_trade_margins import FIRST_AIES_YEAR
+
 #: The margin-item -> BEA 2017 commodity map, with the judgement calls recorded.
 PIPELINE_CROSSWALK_PATH = (
     Path(__file__).resolve().parents[2]
@@ -171,8 +232,19 @@ def load_pipeline_item_revenue(year: int) -> pd.Series:
     Raises if the four no longer partition NAICS 486, which is the check that
     the published taxonomy still matches the four items BEA named.
     """
-    fba = getFlowByActivity('Census_SAS', year)
-    table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
+    if year >= FIRST_AIES_YEAR:
+        # AIES replaced the Service Annual Survey from data year 2023. The four
+        # items and the NAICS 486 total are published on timeseries/aies/basic
+        # at TYPOP 00, and still partition to the dollar - the check below is
+        # what enforces that, and it is the same check either side of the seam.
+        source = 'Census_AIES'
+        fba = getFlowByActivity(source, year)
+        table2 = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
+    else:
+        source = 'Census_SAS'
+        fba = getFlowByActivity(source, year)
+        table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
+
     revenue = (
         table2[table2['ActivityProducedBy'].isin(PIPELINE_ITEM_CODES)]
         .groupby('ActivityProducedBy')['FlowAmount']
@@ -182,7 +254,7 @@ def load_pipeline_item_revenue(year: int) -> pd.Series:
     if revenue.isna().any():
         missing = sorted(revenue.index[revenue.isna()])
         raise ValueError(
-            f'Census_SAS Table 2 has no pipeline revenue for {missing} in {year}. '
+            f'{source} has no pipeline revenue for {missing} in {year}. '
             f'Those are BEA pipeline margin items; a missing one would silently '
             f'drop its commodity set from the allocation.'
         )
@@ -193,9 +265,9 @@ def load_pipeline_item_revenue(year: int) -> pd.Series:
     if published_total and abs(revenue.sum() / published_total - 1) > 1e-6:
         raise ValueError(
             f'The four pipeline margin items sum to {revenue.sum():,.0f} against a '
-            f'published NAICS 486 total of {published_total:,.0f} in {year}. They '
-            f'are meant to partition it exactly - a gap means the detailed NAICS '
-            f'no longer match the four items BEA named.'
+            f'published NAICS 486 total of {published_total:,.0f} in {year}, from '
+            f'{source}. They are meant to partition it exactly - a gap means the '
+            f'detailed NAICS no longer match the four items BEA named.'
         )
     return revenue
 
@@ -516,14 +588,19 @@ def load_truck_group_revenue(year: int) -> pd.Series:
     Raises if the groups stop partitioning the published total, which is the
     check that Table 8's taxonomy still matches what BEA describes.
     """
-    fba = getFlowByActivity('Census_SAS', year)
+    # AIES replaced the Service Annual Survey from data year 2023. Its parse
+    # emits the eleven groups and the total under Table 8's own FlowName
+    # strings, so everything below this dispatch is one implementation across
+    # the seam - including the group names, which join the crosswalk unchanged.
+    source = 'Census_AIES_MiscSector' if year >= FIRST_AIES_YEAR else 'Census_SAS'
+    fba = getFlowByActivity(source, year)
     table8 = fba[
         fba['Description'].astype(str).str.startswith('Table 8')
         & (fba['ActivityProducedBy'].astype(str) == TRUCK_NAICS)
     ]
     if table8.empty:
         raise ValueError(
-            f'Census_SAS Table 8 has no NAICS {TRUCK_NAICS} rows for {year}. That '
+            f'{source} Table 8 has no NAICS {TRUCK_NAICS} rows for {year}. That '
             f'is the only industry in the sheet carrying commodity detail, so '
             f'without it there is no truck allocator.'
         )
@@ -553,7 +630,7 @@ def load_truck_group_revenue(year: int) -> pd.Series:
         revenue.loc[suppressed.iloc[0]] = shortfall
     elif len(suppressed) > 1:
         raise ValueError(
-            f'Census_SAS Table 8 suppresses {len(suppressed)} commodity groups in '
+            f'{source} Table 8 suppresses {len(suppressed)} commodity groups in '
             f'{year}: {sorted(suppressed)}. One can be recovered by subtraction '
             f'from the published total; several cannot, and treating them as zero '
             f'would understate every other group once the shares renormalise.'
@@ -562,7 +639,8 @@ def load_truck_group_revenue(year: int) -> pd.Series:
     if published_total and abs(revenue.sum() / published_total - 1) > 1e-6:
         raise ValueError(
             f'The Table 8 commodity groups sum to {revenue.sum():,.0f} against a '
-            f'published {TRUCK_TOTAL_ITEM} of {published_total:,.0f} in {year}. '
+            f'published {TRUCK_TOTAL_ITEM} of {published_total:,.0f} in {year}, from '
+            f'{source}. '
             f'They are meant to partition it exactly - a gap means the hazardous '
             f'materials cross-cut has been swept in, or the taxonomy has changed.'
         )
@@ -851,15 +929,26 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
                 f'revenue, so the released total would understate the control.'
             )
         return float(rows['FlowAmount'].sum())
+    if mode_name == 'air' and int(year) > _AIR_LAST_OBSERVED_REVENUE_YEAR:
+        return air_revenue_from_volume(year)
     if mode_name in _SAS_FREIGHT_NAICS:
         codes = _SAS_FREIGHT_NAICS[mode_name]
-        fba = getFlowByActivity('Census_SAS', year)
-        table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
+        # Same seam as pipeline: SAS Table 2's detailed-NAICS revenue continues
+        # on timeseries/aies/basic from 2023. All five freight NAICS are
+        # published there, so neither mode falls back to a parent industry.
+        if year >= FIRST_AIES_YEAR:
+            source = 'Census_AIES'
+            fba = getFlowByActivity(source, year)
+            table2 = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
+        else:
+            source = 'Census_SAS'
+            fba = getFlowByActivity(source, year)
+            table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
         revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
         found = set(revenue['ActivityProducedBy'].astype(str))
         if found != set(codes):
             raise ValueError(
-                f'Census_SAS Table 2 is missing freight NAICS {sorted(set(codes) - found)} '
+                f'{source} is missing freight NAICS {sorted(set(codes) - found)} '
                 f'for {mode_name} in {year}. Falling back to the parent industry '
                 f'would put passenger revenue into a freight control - air is 2.6% '
                 f'margin on its output, so that error would be an order of magnitude.'
@@ -867,6 +956,80 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
         return float(revenue['FlowAmount'].sum())
 
     raise NotImplementedError(f'{mode_name} has no observed annual freight revenue.')
+
+
+def _published_air_revenue(year: int) -> float:
+    """Air freight revenue as published, USD. The 2022 anchor for the volume index."""
+    codes = _SAS_FREIGHT_NAICS['air']
+    fba = getFlowByActivity('Census_SAS', int(year))
+    table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
+    revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
+    found = set(revenue['ActivityProducedBy'].astype(str))
+    if found != set(codes):
+        raise ValueError(
+            f'Census_SAS Table 2 is missing air freight NAICS '
+            f'{sorted(set(codes) - found)} for {year}, which anchors the volume '
+            f'index.'
+        )
+    return float(revenue['FlowAmount'].sum())
+
+
+#: Last year air's freight revenue is taken as published. AIES 2023 is
+#: contradicted by air's own volume series - see :func:`air_revenue_from_volume`.
+_AIR_LAST_OBSERVED_REVENUE_YEAR = 2022
+
+
+def air_revenue_from_volume(year: int) -> float:
+    """Air freight revenue for *year*, USD, moved on FAF ton-miles.
+
+    ⚠️ **Air is the one mode whose published revenue is not used after 2022**, and
+    the reason is that its own allocation basis contradicts it.
+
+    ``481212`` nonscheduled chartered freight air runs 4,846 / 4,857 / 4,987 /
+    6,045 $M across 2019-2022 in SAS Table 2 - unsuppressed - and AIES 2023
+    publishes 13,271 $M. Taken with ``481112`` that puts air freight revenue at
+    **2.32x** its 2017 level. FAF ton-miles for the same mode put volume at
+    **1.06x**, having fallen back from 1.32x in 2022, so the published revenue
+    implies unit revenue **doubling in a single year** - in the year air cargo
+    rates collapsed from their pandemic peak. The move is the wrong size and the
+    wrong sign.
+
+    So from 2023 air's control moves on volume instead, holding unit revenue at
+    its last observed value::
+
+        revenue(year) = revenue(2022) x ton_miles(year) / ton_miles(2022)
+
+    **Volume is not a new source here** - FAF ton-miles is already air's
+    commodity allocator, so this uses what the mode is built on rather than
+    importing a fourth series to arbitrate.
+
+    ⚠️ **Holding unit revenue flat is deliberately conservative.** Air cargo
+    rates *fell* in 2023, so this still overstates the level somewhat; correcting
+    for the rate move would need a rate series the build does not carry, and
+    inventing one would be a worse error than the one being fixed.
+
+    ⚠️ **Water is not treated this way and must not be.** Its unit revenue moves
+    -4% across the same seam (1.65 -> 1.58), which is continuous. Only air breaks.
+
+    ⚠️ **Revisit when AIES publishes 2024.** If ``481212`` stays at the new level
+    it is a re-based series rather than a bad year, and the right fix becomes
+    re-anchoring rather than indexing off 2022.
+    """
+    anchor = _AIR_LAST_OBSERVED_REVENUE_YEAR
+    if int(year) <= anchor:
+        raise ValueError(
+            f'air_revenue_from_volume is for years after {anchor}; {year} has a '
+            f'published SAS revenue and should use it.'
+        )
+    label = VOLUME_MODES['air'][0]
+    volume_now = float(load_faf_ton_miles(label, int(year)).sum())
+    volume_anchor = float(load_faf_ton_miles(label, anchor).sum())
+    if volume_anchor <= 0:
+        raise ValueError(
+            f'BTS_FAF has no {anchor} air ton-miles, so air revenue cannot be '
+            f'indexed off it.'
+        )
+    return _published_air_revenue(anchor) * volume_now / volume_anchor
 
 
 def mode_coverage_ratio(mode_name: str, margins: pd.DataFrame | None = None) -> float:
@@ -903,6 +1066,17 @@ def mode_coverage_ratio(mode_name: str, margins: pd.DataFrame | None = None) -> 
         control.** It assumes source coverage is stable over time, which is a much
         smaller claim than choosing among constructions that disagreed by 11.8%, but
         it is still an assumption and nothing here tests it.
+
+        ⚠️ **It is a weak choice and is kept only for now.** For water and air the
+        ratio is not a coverage correction at all - it is standing in for a
+        domestic/international split that genuinely moves, and freezing a thing
+        that moves is the weakest link in the annual control. It survives on
+        bounded blast radius (the two modes are 3.8% of ``TRANS``) rather than on
+        evidence that it holds. Replacing it needs an observed domestic leg, not
+        a different frozen number; until then this is a known soft spot rather
+        than a settled method. The air correction above is a symptom of the same
+        gap: a frozen ratio passes any error in the revenue series straight
+        through to the margin.
     """
     give_up = _mode_give_up_2017(MODE_COMMODITIES[mode_name], margins)
     revenue = mode_freight_revenue(mode_name, ANCHOR_YEAR)

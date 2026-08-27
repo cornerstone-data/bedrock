@@ -70,6 +70,16 @@ BEA_Detail_Supply:
     bea:
       year: 2017
       hierarchy: flat
+BEA_Detail_Supply_PxI:
+  data_format: FBA
+  class:
+  - Money
+  # The 2022-moved mix. Still BEA 2017 codes on both axes - only the split
+  # inside 35 industry columns differs from BEA_Detail_Supply.
+  activity_schema:
+    bea:
+      year: 2017
+      hierarchy: flat
 BEA_Summary_Use_SUT:
   data_format: FBA
   class:
@@ -114,7 +124,22 @@ Census_EC_PxI:
 BEA_NIPA:
   data_format: FBA
   class:
+    # Class comes from each series' own MetricName (see _METRIC_TO_FLOW in
+    # BEA_NIPA.py). Employment is 6.4D/6.5D employee counts; Other is 6.6D's
+    # wages-per-FTE ratio and 1.14's chained-dollar lines, kept out of Money so
+    # a Class: Money selection cannot add real dollars to nominal ones.
     - Money
+    - Employment
+    - Other
+  activity_schema: null
+  sector_hierarchy: flat
+BEA_GDPbyIndustry:
+  data_format: FBA
+  class:
+    - Money
+  # TVA113 names its industries in words ("Farms", "Oil and gas extraction"),
+  # not in codes, so there is no activity schema to declare; a method reaches
+  # BEA sectors through an activity_to_sector_mapping crosswalk.
   activity_schema: null
   sector_hierarchy: flat
 BEA_IEA:
@@ -233,6 +258,16 @@ Census_AIES:
   - Money
   # AIES 2023 publishes the pre-2022 retail structure (452, 454), so it joins
   # the 2017-anchored margin rates without recoding
+  activity_schema:
+    naics:
+      year: 2017
+      hierarchy: parent-completeChild
+Census_AIES_MiscSector:
+  data_format: FBA
+  class:
+  - Money
+  # NAICS 484 only, carrying motor carrier revenue by commodity group - the
+  # 2023 continuation of Census_SAS Table 8 (#611)
   activity_schema:
     naics:
       year: 2017

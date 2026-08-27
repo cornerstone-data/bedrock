@@ -44,9 +44,33 @@ jobs:
       - name: Typecheck w/ mypy
         run: uv run mypy bedrock
 
+  # The hermetic tests, for feedback rather than for a shorter gate. They need no
+  # GCS credentials, so this job carries no id-token permission and no auth step,
+  # and it reports in about a minute while `test` is still fetching sources.
+  # `test` below still runs the whole suite, so a test classified wrongly in
+  # bedrock/conftest.py costs a minute here rather than a hole in the gate.
+  test-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Run the hermetic tests
+        run: uv run pytest -m 'not realdata'
+
+  # 30 rather than 15: Step 2's value-added block builds three NIPA FBS methods
+  # for each of 2017-2024, and that took the suite from 12.5 minutes to past the
+  # old ceiling - the job was still building NIPA_VA_surplus when it was killed.
+  # The time is source-building, not assertions, so the fix that actually pays is
+  # caching the FBA/FBS parquets between runs; this only stops the gate failing
+  # for the wrong reason in the meantime.
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     permissions:
       contents: 'read'

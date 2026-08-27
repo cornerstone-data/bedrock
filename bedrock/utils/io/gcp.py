@@ -345,6 +345,30 @@ def create_spreadsheet_in_folder(title: str, folder_id: str) -> str:
     return ta.cast(str, file['id'])
 
 
+_TRANSIENT_SHEETS_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
+
+
+def _is_transient_sheets_error(exc: BaseException) -> bool:
+    """True for transport timeouts / SSL blips and Sheets 429/5xx responses."""
+    if isinstance(exc, (TimeoutError, ConnectionError, ssl.SSLEOFError)):
+        return True
+    if isinstance(exc, HttpError) and exc.resp is not None:
+        try:
+            return int(exc.resp.status) in _TRANSIENT_SHEETS_HTTP_STATUS
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
+_retry_transient_sheets = tenacity.retry(
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_exponential(multiplier=1, min=2, max=30),
+    retry=tenacity.retry_if_exception(_is_transient_sheets_error),
+    reraise=True,
+)
+
+
+@_retry_transient_sheets
 def list_sheet_tabs(sheet_id: str) -> list[str]:
     """Return the ordered list of tab (worksheet) titles in a Google Sheet."""
     client = __sheets_client()
@@ -356,12 +380,16 @@ def list_sheet_tabs(sheet_id: str) -> list[str]:
     return [s["properties"]["title"] for s in meta.get("sheets", [])]
 
 
+@_retry_transient_sheets
 def read_sheet_tab(sheet_id: str, tab: str) -> pd.DataFrame:
     """
     Read a Google Sheets tab into a DataFrame.
 
     The first row is used as column headers. All cells come back as strings —
     callers that need numeric types should coerce column-wise.
+
+    Retries transient Sheets API failures (socket timeouts, SSL EOF, HTTP
+    429/5xx) with exponential backoff.
 
     Args:
         sheet_id: The Google Sheets document ID

@@ -333,11 +333,17 @@ def phi_for_sectors(
 ) -> pd.Series[float]:
     """Phi aligned to *sector_index* at *year* USD; identity when margins inactive."""
     if not margins_phi_active():
-        return pd.Series(1.0, index=sector_index, dtype=float)
-    phi_year = year if year is not None else get_usa_config().model_base_year
-    return derive_phi_cornerstone_usa_at_year(phi_year).reindex(
-        sector_index, fill_value=1.0
-    )
+        phi = pd.Series(1.0, index=sector_index, dtype=float)
+    else:
+        phi_year = year if year is not None else get_usa_config().model_base_year
+        phi = derive_phi_cornerstone_usa_at_year(phi_year).reindex(
+            sector_index, fill_value=1.0
+        )
+    if get_usa_config().implement_electricity_disaggregation:
+        for code in ('221110', '221121', '221122'):
+            if code in phi.index:
+                phi.loc[code] = 1.0
+    return phi
 
 
 def apply_phi_to_ef_vector(

@@ -5,173 +5,216 @@ description: Use this skill whenever the user wants to commit code changes to Gi
 
 # Graphite Stacked PRs Skill
 
-This skill governs how Claude helps commit code and create stacked PRs via Graphite CLI (`gt`).
-
-Claude acts autonomously: it **generates the commit message, branch name, and determines stack position** based on context — no need to prompt for these.
+Claude commits code and opens stacked PRs via the Graphite CLI (`gt`), generating commit messages, branch names, and stack position autonomously. Graphite manages stack comments automatically — never post or edit them.
 
 ---
 
-**Note:** Stack comments are managed automatically by Graphite — Claude must never post or edit stack comments.
+## Workflow
 
----
+Run these steps in order. Each step is mandatory.
 
-## Claude's Autonomous Decisions
+### 1. Sandbox setup (once per session)
 
-### Branch naming
-Use the format `<author>__<short-description>` with kebab-case for the description.
-
-**Detecting the author prefix:** Run `git config user.name` to get the current user, then run `gt log` or `git branch` and look at existing branch prefixes (the part before `__`) to find how that person's name maps to a prefix. For example, if `git config user.name` returns "Mo Li" and you see branches like `mo__fix-something`, the prefix is `mo`. If you see `btobin__add-feature` for "Brian Tobin", the prefix is `btobin`.
-
-Cache this value at the start of the workflow — never hardcode or guess a prefix format.
-
-**Examples** (assuming author is `mo`):
-- "fix the snapshot generation bug" → `mo__fix-snapshot-generation`
-- "add Redis caching to the data loader" → `mo__add-redis-caching`
-- "refactor auth middleware" → `mo__refactor-auth-middleware`
-
-Keep branch names short (3–5 words max after the `<author>__` prefix).
-
-### Commit messages
-Use [Conventional Commits](https://www.conventionalcommits.org/) format. Derive type and scope from context:
-- `feat(cache): add Redis caching layer`
-- `fix(snapshots): correct generation logic for edge cases`
-- `refactor(auth): simplify middleware token validation`
-
-Subject line under 72 characters. No period at end.
-
-### Stack position
-- Default: stack on top of the current branch (`gt log` to verify).
-- If the user says "on top of #245" or "after the auth PR", check out that branch first before running `gt create`.
-- If there's no existing stack, the base is `main`.
-
----
-
-## PR Body Template
-
-Every PR description (the `--body` passed to `gt submit`) must follow this template. Claude fills in all content based on context.
-
-```
-cc:
-Closes:
-
-## What changed? Why?
-
-<concise explanation of what was changed and the reason — 1 to 3 sentences, using inline code for file paths, flags, and identifiers>
-
-## Testing
-
-<brief description of how this was tested or will be tested>
-```
-
-**Rules:**
-- `cc:` — leave blank unless user specifies someone to notify.
-- `Closes:` — fill in related issue number if known (e.g., `Closes: #123`), otherwise leave blank.
-- **What changed? Why?** — factual, specific, technical. Mention file paths, parameter names, flags changed. No fluff.
-  - **Structure for scanability, not density.** Break the body into short paragraphs where each paragraph covers one logical change — e.g. primary refactor, secondary rename, downstream consequence each get their own paragraph. Topic shift = paragraph break. **Never** stuff multiple distinct changes into one paragraph separated by em dashes or semicolons; that produces walls of text reviewers skip.
-  - **Use bullets whenever you have 2+ enumerable artifacts** — file mappings, renames, deletions, parallel changes. One item per line. Even a 2-item list belongs in bullets if the items are file mappings or transformations; cramming `X → Y; A → B` into prose is the anti-pattern.
-  - **Keep each paragraph tight (1–3 sentences).** The body explains *why* and points to the moving parts; the reviewer reads the diff for detail.
-  - **Do not pre-state findings, analysis, or interpretation** that belong in a README, the code itself, or a follow-up discussion. If a finding is important enough to document, document it where it'll be discoverable later — not in PR body prose that will scroll out of view after merge.
-  - **Cut redundancy ruthlessly:** if the commit message says it, don't repeat it; if a bullet says it, don't restate it in surrounding prose; if the title says "step 3 of epic #337", the body shouldn't open with "this implements step 3 of epic #337".
-- **Testing** — a one-liner is fine (e.g., "will run snapshots generation"). Don't invent tests not described.
-- Use inline backticks for code identifiers, file paths, and CLI flags.
-
-**Examples:**
-
-Simple PR (one focused change — prose only):
-```
-cc:
-Closes:
-
-## What changed? Why?
-
-Drop the `adhoc` input from the snapshot-generation workflow and move the script from `bedrock/publish/snapshots/` to `bedrock/utils/snapshots/`. The `--adhoc` flag is no longer passed.
-
-## Testing
-
-will run snapshots generation
-```
-
-Complex PR (multiple artifacts + downstream consequence — paragraphs + bullets):
-```
-cc:
-Closes: #366
-
-## What changed? Why?
-
-Collapse three inflation/price-index modules into two domain-scoped helpers:
-
-- `inflation.py` + `inflate_to_target_year.py` → `inflation_helpers_ceda.py`
-- `inflate_cornerstone_to_target_year.py` → `inflation_helpers_cornerstone.py`
-
-Also renames `prepare_formatted_bea_price_index` → `derive_industry_price_index` (single consumer).
-
-The cornerstone path now sources its industry price index from `derive_industry_price_index` (409 BEA detail sectors) instead of CEDA's `obtain_inflation_factors_from_reference_data` (which filtered to `CEDA_V5_SECTORS` and dropped industries like `331314`). Fixes #366 for the cornerstone pipeline.
-
-## Testing
-
-Existing tests pass; 8 import sites verified.
-```
-
-Notice in the complex example:
-- File mappings get bullets (2+ enumerable items, never em-dashed prose).
-- Each topic shift (primary refactor → secondary rename → downstream consequence) gets its own paragraph.
-- No paragraph runs on past 3 sentences.
-
-**Anti-pattern (do not produce this — it's what the complex example fixes):**
-> Collapse three inflation/price-index modules into two domain-scoped helpers — `inflation.py` + `inflate_to_target_year.py` → `inflation_helpers_ceda.py`; `inflate_cornerstone_to_target_year.py` → `inflation_helpers_cornerstone.py`. Also renames `prepare_formatted_bea_price_index` → `derive_industry_price_index` (single consumer). The cornerstone path now sources its industry price index from `derive_industry_price_index` (409 BEA detail sectors) instead of CEDA's `obtain_inflation_factors_from_reference_data` (which filtered to `CEDA_V5_SECTORS` and dropped industries like `331314`); fixes #366 for the cornerstone pipeline.
-
-That single dense paragraph mashes 3 distinct topics together with em dashes and semicolons. Readers can't scan it.
-
----
-
-## Full Workflow
-
-### Creating a new stacked PR
+`gt` writes to `~/.local/share/graphite/` and `~/.config/graphite/`, neither of which are in Claude Code's sandbox write allowlist. Redirect via XDG vars and copy the auth config across:
 
 ```bash
-# 1. Check current stack position
-gt log
-
-# 2. Create branch + commit (Claude fills in message and branch name)
-gt create -a -m "fix(snapshots): correct generation logic" --name fix/snapshot-generation
-
-# 3. Submit PR — Claude generates the full body using the template above
-gt submit --title "Fix snapshots generation"
-# Then paste the PR body Claude generated into the GitHub editor
+mkdir -p "$TMPDIR/gt-config/graphite" "$TMPDIR/gt-data" \
+  && cp -r ~/.config/graphite/* "$TMPDIR/gt-config/graphite/"
 ```
 
-### After PR is created
+Prefix every `gt` call with the redirected vars:
 
-Steps after `gt submit`:
-1. Edit the PR body on GitHub to match the filled-in template Claude provides (using the `cc / Closes / What changed / Testing` template).
-2. **Do NOT post a stack comment** — Graphite automatically posts and maintains stack comments on all PRs when you use `gt submit`.
+```bash
+XDG_DATA_HOME="$TMPDIR/gt-data" XDG_CONFIG_HOME="$TMPDIR/gt-config" gt <subcommand>
+```
+
+Skipping the auth-config copy makes `gt submit` fail with `Please authenticate your Graphite CLI`.
+
+### 2. Detect author prefix
+
+Branch names use `<author>__<short-description>` — double underscore, kebab-case description, 3–5 words max (e.g. `mo__fix-snapshot-generation`).
+
+**Detect prefix from existing branches, NOT from `git config user.name`.** The real name often has no obvious mapping to the established prefix (e.g. "Mo Li" → `mo`, not `moli`). Past sessions created stuck stacks by skipping this step.
+
+1. Run `git branch -a | head -50` and read the prefix off this author's own existing branches (substring before `__`).
+2. Match by author identity, not string similarity. If `mo__decarb-…` exists alongside `user.name = "Mo Li"`, the prefix is `mo` — do not invent `moli`, `mo-li`, or `mo/`.
+3. Only if the author has no existing branches, fall back to `git config user.name` (shortest plausible token, lowercased).
+4. Separator is always `__`. A `/` separator is a signal that the prefix was fabricated.
+
+Cache the verified prefix for the rest of the session.
+
+### 3. Stage files explicitly
+
+**Never use `gt create -a` or `git add -A`** — both can sweep in plan/scratch markdown files (`*_plan.md`, `plan_*.md`) and other working docs that must not be pushed. Stage by name:
+
+```bash
+git add <file1> <file2> ...
+```
+
+Review the staged list with `git status` before continuing.
+
+### 4. Determine stack position
+
+- Default: stack on top of the current branch. Run `gt log` to verify.
+- If the user says "on top of #245" or "after the auth PR", `gt checkout` that branch first.
+- If there's no existing stack, the base is `main`.
+
+### 5. Create branch + commit
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) — derive type and scope from context. Subject under 72 chars, no trailing period.
+
+```bash
+XDG_DATA_HOME="$TMPDIR/gt-data" XDG_CONFIG_HOME="$TMPDIR/gt-config" \
+  gt create -m "feat(scope): short subject" --name <author>__<short-description>
+```
+
+Examples: `feat(cache): add Redis caching layer`, `fix(snapshots): correct generation logic for edge cases`, `refactor(auth): simplify middleware token validation`.
+
+### 6. Run CI checks
+
+Reproduce every `.github/workflows/ci.yml` job locally before submitting. If any check fails, fix → `gt modify` to amend → re-run.
+
+```bash
+uv run black --check .     # format
+uv run ruff check .        # lint
+uv run mypy bedrock        # typecheck
+uv run pytest              # unit tests
+```
+
+Repo-wide, not changed-files-only — that is what CI runs, and a scoped `mypy` can miss breakage in an importing module. Integration tests (`uv run pytest -v -m eeio_integration`) hit GCS and run in a separate workflow; run them when the change touches the model pipeline, snapshots, or IO.
+
+Do not push code that fails any of these.
+
+### 7. Submit PR
+
+```bash
+XDG_DATA_HOME="$TMPDIR/gt-data" XDG_CONFIG_HOME="$TMPDIR/gt-config" \
+  gt submit --no-interactive --publish
+```
+
+`gt submit` derives the PR title from the commit subject. It does **not** accept `--title` or `--body` flags, and in `--no-interactive` mode (the only mode available without a TTY) it leaves the GitHub PR template in place rather than populating the body. Patch the body in step 8.
+
+### 8. Patch PR body via REST API
+
+Draft the body against the template below, verify the length budget, then patch it on:
+
+```bash
+TOKEN=$(echo -e "protocol=https\nhost=github.com" | git credential fill 2>/dev/null \
+  | grep '^password=' | cut -d= -f2)
+BODY=$(cat <<'EOF'
+<the filled template>
+EOF
+)
+sed '/^<details>/,$d' <<<"$BODY" | wc -w   # must be <= 150; over budget means cut, not reword
+JSON=$(uv run python -c "import json,sys; print(json.dumps({'body': sys.stdin.read()}))" <<<"$BODY")
+curl -sS -X PATCH \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  -d "$JSON" \
+  https://api.github.com/repos/cornerstone-data/bedrock/pulls/<PR#>
+```
+
+`git credential fill` reuses the credentials git already uses for `git push`. `api.github.com` is in Claude Code's default network allowlist.
+
+If `gt submit` later updates the same PR (e.g. after `gt modify`), the patched body is preserved — Graphite only touches the body when creating new PRs interactively.
+
+#### Template
+
+```markdown
+cc:
+Closes:
+
+**Stack:** step <n> of <N> — <stack goal, 8 words max> (<prev> → this → <next>)
+**Plan:** <link to the plan / ladder doc>
+
+## What changed? Why?
+
+<2–3 sentences, present tense. Mechanism, not archaeology. Backticks for paths, identifiers, flags.>
+
+## Impact
+
+<Exactly 1 sentence on this repo's blast-radius axis: which configs' emission factors move.>
+
+## Review focus
+
+- <Up to 3 bullets, 1 line each: what to check, and what is verbatim or mechanical and safe to skim.>
+
+## Testing
+
+<Exactly 1 sentence: suites plus lint/type. Don't invent tests.>
+
+## Heads-up
+
+<1–2 lines: stale cache, rerun order, sequencing.>
+
+<details>
+<summary>Evidence</summary>
+
+<Before/after values, per-sector N/D deltas, tables, logs. Uncapped.>
+
+</details>
+```
+
+#### Which sections to include
+
+Always: `What changed? Why?`, `Impact`, `Testing`. The rest are gated — omit the heading entirely rather than writing "none":
+
+| Section        | Include only if                                   |
+| -------------- | ------------------------------------------------- |
+| `**Stack:**`   | the stack holds more than one PR                  |
+| `**Plan:**`    | a plan or ladder doc for this work exists in-repo |
+| `Review focus` | something non-obvious needs a human's eyes        |
+| `Heads-up`     | a human must _do_ something before or after merge |
+| `Evidence`     | there are real numbers to show                    |
+
+`cc:` stays blank unless the user names someone; `Closes:` unless an issue # is known.
+
+`Impact` is the one repo-specific slot: here it names which configs' emission factors move and whether the snapshot default shifts. Two worked examples:
+
+> Moves N and D under `2025_usa_cornerstone_v0_3`; `full_model` and `.SNAPSHOT_KEY` untouched.
+
+> No output change — refactor only, no config or snapshot touched.
+
+Another repo swaps that sentence for its own axis; the skeleton doesn't change.
+
+#### Length
+
+Caps are in sentences because sentences are countable: 2–3 for `What changed? Why?`, exactly 1 for `Impact` and `Testing`, at most 3 one-line bullets for `Review focus`, 1–2 lines for `Heads-up`.
+
+Everything above `<details>` must total **≤150 words** — run the `wc -w` line above before patching (it anchors on `^<details>`, so an inline mention of the tag in prose doesn't truncate the count). Over budget, move detail into the fold; the fold is uncapped, so cutting is lossless. Don't reword to squeeze under.
+
+#### Rules
+
+- **Write for the reviewer's decision, not the author's discovery.** Say what to check and what's a verbatim copy worth skimming. Why the old code was wrong belongs in a code comment or the plan doc — link it, don't retell it.
+- **No `## Also in this PR`.** Unrelated work is either one `Review focus` bullet or a sign the PR should split.
+- **Evidence is numbers, not narration.** Test counts and lint status compress to one line; before/after values go in the fold.
+- **No dated correction notes** and no "what changed since review" sections — the body states current truth.
 
 ---
 
-## Key Graphite CLI Commands
+## Key `gt` Commands
 
-| Command | Purpose |
-|---|---|
-| `gt log` | View current stack |
-| `gt create -a -m "msg" --name branch-name` | Stage all, commit, create branch in stack |
-| `gt submit --title "T" --body "B"` | Open PR for current branch |
-| `gt sync` | Sync stack with remote |
-| `gt restack` | Rebase stack after upstream changes |
-| `gt checkout <branch>` | Switch to a branch in the stack |
-| `gt modify -m "new msg"` | Amend commit message |
+| Command                                | Purpose                                            |
+| -------------------------------------- | -------------------------------------------------- |
+| `gt log`                               | View current stack                                 |
+| `gt create -m "msg" --name <branch>`   | Commit staged files and create branch in stack     |
+| `gt modify -m "new msg"`               | Amend the current commit (message and/or contents) |
+| `gt submit --no-interactive --publish` | Push branch and open PR                            |
+| `gt sync`                              | Sync stack with remote                             |
+| `gt restack`                           | Rebase stack after upstream changes                |
+| `gt checkout <branch>`                 | Switch branches in the stack                       |
 
-**Always use `gt` commands — never plain `git` when a `gt` equivalent exists.**
-
-**NEVER commit plan or scratch markdown files** (e.g., `*_plan.md`, `plan_*.md`, `*_plan_*.md`). These are local working documents and must not be pushed to the repository. When staging files, always review the list and exclude any plan/scratch docs. Prefer staging specific files by name over `git add -A` or `gt create -a`.
+Prefer `gt` over plain `git` whenever an equivalent exists.
 
 ---
 
-## Claude Output Checklist
+## Output Checklist
 
-For every stacked PR task, Claude must output all of the following as ready-to-copy blocks:
+For every stacked-PR task, Claude must output:
 
-1. ✅ `gt create` command — with commit message and branch name filled in
-2. ✅ `gt submit` command — with PR title filled in
-3. ✅ **PR body** — filled-in `cc / Closes / What changed? Why? / Testing` template, to paste into the GitHub PR description
+1. ✅ `gt create` — commit message and branch name filled in
+2. ✅ CI checks pass — black, ruff, mypy, pytest all clean (fix and `gt modify` if not)
+3. ✅ `gt submit` — actually run, returning the PR URL
+4. ✅ PR body — step 8 template patched onto the PR via REST, gated sections omitted, ≤150 words above the fold (`wc -w` verified)
 
-**Note:** Do NOT post stack comments — Graphite manages these automatically.
+Do NOT post stack comments — Graphite manages these automatically.

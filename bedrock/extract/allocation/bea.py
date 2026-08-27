@@ -5,8 +5,10 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from bedrock.transform.eeio.derived_2017 import (
-    derive_2017_V_usa,
+from bedrock.extract.iot.io_2017 import load_2017_V_after_redef_usa
+from bedrock.transform.eeio.cornerstone_expansion import (
+    commodity_corresp,
+    industry_corresp,
 )
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_U_set,
@@ -16,8 +18,11 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
-from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+from bedrock.utils.taxonomy.cornerstone.commodities import (
+    COMMODITIES,
+    WASTE_DISAGG_COMMODITIES,
+)
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 
 # Schema alignment: CEDA allocator sectors → Cornerstone use table.
 _WASTE_AGGREGATE = "562000"
@@ -30,19 +35,23 @@ _CEDA_331313_CORNERSTONE_PARTS = ("331313", "33131B")
 
 @functools.cache
 def load_bea_make_table() -> pd.DataFrame:
-    """
-    This is a wrapper function that loads the latest BEA Supply table.
-    WARNING: this table is 2017 Supply and is transposed from the 2012 Make,
-    so the rows are the industries and the columns are the commodities
-    """
+    """2017 after-redefinition Make in the Cornerstone 405 frame.
 
-    bea_make = derive_2017_V_usa()
-    assert (
-        bea_make.index == CEDA_V7_SECTORS
-    ).any(), "BEA make table has incorrect index."
-    assert (
-        bea_make.columns == CEDA_V7_SECTORS
-    ).any(), "BEA make table has incorrect columns."
+    ``industry_corresp @ V_2017 @ commodity_corresp.T`` — the same multiply as
+    Cornerstone baseline V (waste children via correspondence; no electricity
+    disaggregation). Allocation sectors are ``INDUSTRIES``. Uses after-redefinition
+    V so the cache does not depend on ``USAConfig.iot_before_or_after_redefinition``.
+    """
+    V_2017 = load_2017_V_after_redef_usa()
+    bea_make = industry_corresp() @ V_2017 @ commodity_corresp().T
+    bea_make.index.name = "sector"
+    bea_make.columns.name = "sector"
+    assert list(bea_make.index) == list(
+        INDUSTRIES
+    ), "BEA make table index is not Cornerstone industries."
+    assert list(bea_make.columns) == list(
+        COMMODITIES
+    ), "BEA make table columns are not Cornerstone commodities."
     return bea_make
 
 

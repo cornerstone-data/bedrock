@@ -584,6 +584,22 @@ source_names:
       # to the normal "unassigned rows" drop instead.
 
       FD_Structures2:
+        # This set selects by NAME, and must keep doing so. From 2020 BEA splits
+        # line 4 "Office" into two children - line 5 "Data centers" (LA001282)
+        # and line 6 "General, financial, and other" (LA001283) - which
+        # partition it exactly, to the dollar. Selecting by name takes the
+        # parent and ignores the children, which is right. Switching this set to
+        # a line range, or adding the two children to the list below, double
+        # counts the whole of Office from 2020 on. Neither child is in
+        # Sector_Crosswalk_BEA_NIPA_FD_Structures, and neither needs to be: BEA
+        # Detail has no data-centre commodity, so both are 2332A0, exactly where
+        # their parent already goes (#621).
+        #
+        # The split is still worth knowing about, just not here: data centres run
+        # from 10.0% of office structures in 2020 to 31.0% in 2024, while
+        # "General, financial, and other" falls in absolute terms. That is a
+        # composition shift inside one commodity, so it cannot reach this column
+        # - it reaches the intermediate block, where the two build differently.
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
         clean_parameter: F02S00
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter

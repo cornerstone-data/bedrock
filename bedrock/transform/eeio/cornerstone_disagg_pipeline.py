@@ -216,13 +216,11 @@ def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
         Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
         Ytot.index.name = 'sector'
     if electricity_disaggregation_enabled():
-        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
-            disaggregate_electricity_commodity_row_in_y,
-            get_electricity_commodity_row_weights,
+        from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+            apply_purchaser_allocation_to_y,
         )
 
-        w_row = get_electricity_commodity_row_weights()
-        Ytot = disaggregate_electricity_commodity_row_in_y(Ytot, w_row)
+        Ytot = apply_purchaser_allocation_to_y(Ytot)
         Ytot.index.name = 'sector'
     return Ytot
 
@@ -362,37 +360,36 @@ def electricity_conversion_factors(
     *,
     prices_by_class: Mapping[str, float] | None = None,
 ) -> tuple[float, pd.Series[float]]:
-    """Return (c_col, c_row) for generation sector unit conversion."""
+    """Return (c_col, c_row) for generation sector unit conversion.
+
+    ``c_col`` is eGRID / q_$. ``c_row`` is ``1/p`` on every A column.
+    ``prices_by_class`` is unused (kept for call-site compatibility).
+    """
+    del prices_by_class
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
-        us_total_net_generation_mwh,
+        egrid_mwh_for_io_year,
     )
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         GENERATION_SECTOR,
-        electricity_class_row_factors,
         electricity_output_factor,
     )
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        _go_p_and_td_shares,
+    )
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        ELECTRICITY_DISAGG_SECTORS,
+    )
 
-    # Call module-level facade for end-use helpers so unittest patches on
-    # ``cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh`` still apply.
     cfg = get_usa_config()
     q_usd = float(aq_scaled.scaled_q[GENERATION_SECTOR])
-    mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
+    mwh = float(egrid_mwh_for_io_year(cfg.model_base_year))
     c_col = electricity_output_factor(q_usd, mwh)
-    if prices_by_class is None:
-        prices = electricity_end_use_retail_prices_cents_kwh(cfg.usa_ghg_data_year)
-    else:
-        prices = dict(prices_by_class)
-    end_use_map = build_end_use_map()
-    y_row = _model_year_y_row_221110(aq_scaled)
-    adom_row = cast(pd.Series, aq_scaled.Adom.loc[GENERATION_SECTOR])
-    c_row = electricity_class_row_factors(
-        adom_row,
-        aq_scaled.scaled_q,
-        y_row,
-        prices,
-        end_use_map,
-        mwh,
-    )
+    p_share, _td = _go_p_and_td_shares()
+    q_elec = float(aq_scaled.scaled_q.reindex(ELECTRICITY_DISAGG_SECTORS).sum())
+    p = p_share * q_elec / mwh
+    if not (p > 0):
+        raise ValueError(f'electricity_conversion_factors: non-positive p={p!r}')
+    c_row = pd.Series(1.0 / p, index=aq_scaled.Adom.columns, dtype=float)
     return c_col, c_row
 
 

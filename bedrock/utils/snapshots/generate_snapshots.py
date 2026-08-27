@@ -157,6 +157,10 @@ def generate_snapshots(
         derive_y_for_national_accounting_balance_usa,
         derive_ydom_and_yimp_usa,
     )
+    from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
+        default_phi_panel_years,
+        derive_phi_cornerstone_usa_panel,
+    )
 
     # Assert clean state
     assert_cache_empty()
@@ -211,6 +215,14 @@ def generate_snapshots(
     write_snapshot(y_vector_set.ydom, 'ydom_USA')
     write_snapshot(y_vector_set.yimp, 'yimp_USA')
     logger.info(f'[TIMING] ydom_USA and yimp_USA completed in {time.time() - t0:.1f}s')
+
+    t0 = time.time()
+    logger.info('Generating Phi snapshot')
+    write_snapshot(
+        derive_phi_cornerstone_usa_panel(default_phi_panel_years()),
+        'Phi',
+    )
+    logger.info(f'[TIMING] Phi completed in {time.time() - t0:.1f}s')
 
     # Upload to GCS
     if not skip_upload:
