@@ -23,7 +23,7 @@ sources_to_cache:
 
 _attribution_sources:
   # Nested EPA_GHGI_T_3_25 below is inventory, not UMD T_3_25 (petroleum-systems CH4).
-  Energy_Cornerstone_2018: &mecs_energy_alloc
+  Energy_manufacturing_national_2018: &mecs_energy_alloc
     data_format: FBS
     geoscale: national
 
@@ -583,7 +583,7 @@ source_names:
              - Petroleum Industrial
          attribution_method: proportional
          attribution_source:
-           Energy_Cornerstone_2018:
+           Energy_manufacturing_national_2018:
              <<: *mecs_energy_alloc
              selection_fields:
                Flowable: Petroleum
@@ -606,7 +606,7 @@ source_names:
              - Natural Gas Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           Energy_Cornerstone_2018:
+           Energy_manufacturing_national_2018:
              <<: *mecs_energy_alloc
              selection_fields:
                Flowable: Natural Gas
@@ -629,7 +629,7 @@ source_names:
             - Coal Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           Energy_Cornerstone_2018:
+           Energy_manufacturing_national_2018:
              <<: *mecs_energy_alloc
              selection_fields:
                Flowable: Coal
@@ -700,10 +700,36 @@ source_names:
                     - Industry Industrial Other Coal
                 attribution_method: direct
 
-              petroleum_neu:
+              petroleum_neu_asphalt:
                 selection_fields:
                   PrimaryActivity:
                     'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
+                attribution_method: proportional
+                attribution_source:
+                  Energy_manufacturing_national_2018:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      Flowable: Petroleum
+                      Class: Other
+                      SectorConsumedBy:
+                        - '324121'
+                        - '324122'
+
+              petroleum_neu_hgl:
+                selection_fields:
+                  PrimaryActivity:
+                    Industry HGL: Industry Petroleum Products Non-energy
+                attribution_method: proportional
+                attribution_source:
+                  Energy_manufacturing_national_2018:
+                    <<: *mecs_energy_alloc
+                    selection_fields:
+                      Flowable: HGL
+                      Class: Other
+
+              petroleum_neu:
+                selection_fields:
+                  PrimaryActivity:
                     Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
                     Industry Lubricants: Industry Petroleum Products Non-energy
                     Industry Miscellaneous Products: Industry Petroleum Products Non-energy
@@ -714,21 +740,24 @@ source_names:
                     Industry Still Gas: Industry Petroleum Products Non-energy
                     Industry Waxes: Industry Petroleum Products Non-energy
                     Industry Natural Gasoline: Industry Petroleum Products Non-energy
-                    Industry HGL: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
-                  Energy_Cornerstone_2018:
+                  Energy_manufacturing_national_2018:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: Petroleum
                       Class: Other
+                    exclusion_fields:
+                      SectorConsumedBy:
+                        - '324121'
+                        - '324122'
 
               natural_gas_neu:
                 selection_fields:
                   PrimaryActivity: Industry Natural Gas to Chemical Plants
                 attribution_method: proportional
                 attribution_source:
-                  Energy_Cornerstone_2018:
+                  Energy_manufacturing_national_2018:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: Natural Gas
@@ -739,7 +768,7 @@ source_names:
                   PrimaryActivity: Transportation Lubricants
                 attribution_method: proportional
                 attribution_source:
-                  Energy_Cornerstone_2018:
+                  Energy_manufacturing_national_2018:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: Transport
