@@ -286,7 +286,7 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
 
     Tobacco is 26,278 $M lower than the default in 2024 and insurance 17,791 $M
     higher in 2020 - the ACA provider fee, which the default cannot see at all.
-    Half the summed absolute difference is 6.3% of the 2020 column and 7.7% of
+    Half the summed absolute difference is 6.3% of the 2020 column and 7.3% of
     the 2024 one, so this is a re-allocation of tens of billions rather than a
     refinement.
 
@@ -296,12 +296,19 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     column moves too - see ``residual_share_for_year``. A *fall* here would mean
     the residual had stopped moving.
 
-    ⚠️ **Tobacco was re-fit from 26,153 to 26,278 for #734.** #734 remapped the
-    Census NAICS 2022 activities onto the goods Crosswalk, which moves the Trade
-    FBS, which moves ``purchaser_base`` and so the residual's annual shares. It
-    was not caught before the merge because #734 and #733 were each green on
-    their own branch and neither was ever built with the other. The 2017 anchors
-    above are unmoved, so this is the shares re-fitting, not the level.
+    ⚠️ **Tobacco was re-fit from 26,153 to 26,278 for #734, and 2024's share from
+    7.7% to 7.3%.** #734 remapped the Census NAICS 2022 activities onto the goods
+    Crosswalk, which moves the Trade FBS, which moves ``purchaser_base`` and so
+    the residual's annual shares. It was not caught before the merge because #734
+    and #733 were each green on their own branch and neither was ever built with
+    the other. The 2017 anchors above are unmoved, so this is the shares
+    re-fitting, not the level.
+
+    ⚠️ **2024's share fell, and that is checked against the paragraph above rather
+    than waved through.** The number that would mean the residual had stopped
+    moving is the frozen-share one, **5.8%**. 7.3% is a long way above it, and
+    tobacco's own gap *grew* over the same change, so #734 re-allocated within a
+    residual that is still moving. A fall toward 5.8% is the one to stop for.
     """
     published = pt.published_top_by_commodity()
 
@@ -321,7 +328,7 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     assert {
         2020: gap_2020.abs().sum() / 2 / pt.top_column(2020).sum(),
         2024: gap_2024.abs().sum() / 2 / pt.top_column(2024).sum(),
-    } == pytest.approx({2020: 0.063, 2024: 0.077}, abs=0.003)
+    } == pytest.approx({2020: 0.063, 2024: 0.073}, abs=0.003)
 
 
 # --- the producer-level / trade-level split Step 4c consumes ----------------
