@@ -207,11 +207,11 @@ def load_impl_bundle(
         snap = load_step(impl, 'footing')
         if snap is None and derive:
             snap = derive_step(impl, 'footing')
-        steps: dict[StepId, StepSnapshot] = {}
+        copied: dict[StepId, StepSnapshot] = {}
         if snap is not None:
             for step_id in STEPS:
-                steps[step_id] = replace(snap)
-        return ImplBundle(impl_id=impl.id, steps=steps)
+                copied[step_id] = replace(snap)
+        return ImplBundle(impl_id=impl.id, steps=copied)
     steps: dict[StepId, StepSnapshot] = {}
     for step_id in STEPS:
         snap = load_step(impl, step_id)

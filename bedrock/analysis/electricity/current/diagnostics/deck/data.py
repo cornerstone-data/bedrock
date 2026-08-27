@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TypeGuard
 
 import pandas as pd
 
@@ -13,6 +14,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     CLASS_ORDER,
     GENERATION_SECTOR,
     STAR_SECTOR,
+    ImplId,
     StepId,
 )
 
@@ -46,7 +48,7 @@ class StepSnapshot:
 
 @dataclass
 class ImplBundle:
-    impl_id: str
+    impl_id: ImplId
     steps: dict[StepId, StepSnapshot] = field(default_factory=dict)
 
 
@@ -95,7 +97,7 @@ def class_mwh_from_parquet(path: Path) -> tuple[pd.Series, pd.Series | None]:
     return model, target
 
 
-def c_col_is_monetary(c_col: float | None) -> bool:
+def c_col_is_monetary(c_col: float | None) -> TypeGuard[float]:
     """True when ``c_col`` is MWh/$ from dollar generation ``q``, not ~1 from mixed ``q``."""
     if c_col is None or not math.isfinite(c_col) or c_col <= 0:
         return False

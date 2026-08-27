@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Callable, Iterator
+from typing import Any, Callable, Iterator
 from unittest.mock import patch
 
 import pytest
@@ -106,7 +106,7 @@ def _dollar_industrial_weights() -> Iterator[None]:
 
     orig = gtd.allocate_purchaser_gtd
 
-    def _wrapped(*args: object, **kwargs: object) -> object:
+    def _wrapped(*args: Any, **kwargs: Any) -> Any:
         kwargs = dict(kwargs)
         kwargs['industrial_weights'] = 'dollars'
         return orig(*args, **kwargs)
@@ -148,9 +148,9 @@ def test_vnorm_commodity_price_ratio_is_identity_at_year_to_self() -> None:
     """
     ratio = get_vnorm_adjusted_commodity_price_ratio(2017, 2017)
     max_abs_dev = (ratio - 1.0).abs().max()
-    assert max_abs_dev < 1e-12, (
-        f'Expected ratio == 1.0 at year=year, got max abs deviation {max_abs_dev:.2e}'
-    )
+    assert (
+        max_abs_dev < 1e-12
+    ), f'Expected ratio == 1.0 at year=year, got max abs deviation {max_abs_dev:.2e}'
 
 
 def test_v_inflation_uses_industry_row_axis(

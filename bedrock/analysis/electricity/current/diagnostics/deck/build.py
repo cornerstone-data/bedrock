@@ -60,9 +60,12 @@ def build_pair(
     help='Live-derive missing current and production steps (slow).',
 )
 def main(pair_key: str | None, build_all: bool, derive: bool) -> None:
-    if pair_key is None and not build_all:
+    if build_all:
+        keys = list(PAIRS)
+    elif pair_key is None:
         raise click.UsageError('pass --pair <name> or --all')
-    keys = list(PAIRS) if build_all else [pair_key]
+    else:
+        keys = [pair_key]
     written: list[Path] = []
     for key in keys:
         path = build_pair(PAIRS[key], derive=derive)

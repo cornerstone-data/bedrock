@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from PIL import Image
 
 from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     ImplBundle,
@@ -28,6 +30,8 @@ from bedrock.analysis.electricity.current.diagnostics.ef_comparison.vs_footing_f
 )
 from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.paths import (
     FIGURES_DIR as _PACK_FIGURES_DIR,
+)
+from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.paths import (
     PANEL_PNG as FROZEN_PANEL_PNG,
 )
 from bedrock.utils.validation.analysis.diagnostics_plots import _beyond_20_text
@@ -171,8 +175,6 @@ def frozen_panel_png(impl_id: ImplId, kind: str) -> Path | None:
 
 def stack_panel_pngs(paths: list[Path], out: Path) -> Path:
     """Stack 1×3 panel PNGs top-to-bottom without redrawing them."""
-    from PIL import Image
-
     images = [Image.open(p).convert('RGBA') for p in paths]
     width = max(im.width for im in images)
     aligned = []
@@ -197,10 +199,10 @@ def stack_panel_pngs(paths: list[Path], out: Path) -> Path:
 
 
 def _draw_hist_panel(
-    ax,
+    ax: Axes,
     pair: Pair,
     bundle: ImplBundle,
-    impl_id: str,
+    impl_id: ImplId,
     top: ImplBundle,
     bottom: ImplBundle,
     step_id: StepId,
@@ -211,9 +213,7 @@ def _draw_hist_panel(
     legend_fontsize: int = 8,
 ) -> None:
     title = HIST_PANEL_TITLE[step_id]
-    frame, drops = _panel_data(
-        pair, bundle, impl_id, top, bottom, step_id, kind
-    )
+    frame, drops = _panel_data(pair, bundle, impl_id, top, bottom, step_id, kind)
     if frame.empty or frame['perc_diff'].dropna().empty:
         ax.set_title(title)
         ax.text(
@@ -349,7 +349,7 @@ def _peer_baseline(
 def _panel_data(
     pair: Pair,
     bundle: ImplBundle,
-    impl_id: str,
+    impl_id: ImplId,
     top: ImplBundle,
     bottom: ImplBundle,
     step_id: StepId,

@@ -16,8 +16,10 @@ from bedrock.transform.eeio.electricity_gtd_allocation import (
     MECS_7_7_NAICS_OVERLAY,
     TABLE_7_7_DESCRIPTION,
     TABLE_7_7_ELECTRICITY_TOTAL,
+    EIAPurchaserAllocation,
     _dedupe_overlay,
     _fill_three_digit_suppressed,
+    _mecs_purchased_kwh_cached,
     _overlaid_3_1_mapping,
     _overlaid_3_1_subtraction,
     _overlay_naics_tuple,
@@ -51,7 +53,7 @@ def _fake_7_7_frame(
     amt['31-33'] = float(sum(amt[c] for c in three))
     if amounts_mkwh:
         amt.update(amounts_mkwh)
-    supp = {c: None for c in needed}
+    supp: dict[str, str | float | None] = {c: None for c in needed}
     if suppressed:
         supp.update(suppressed)
     return pd.DataFrame(
@@ -75,7 +77,7 @@ def _allocate(
     p_share: float = 0.1,
     td_share: float = 0.3,
     eia_year: int = 2017,
-) -> object:
+) -> EIAPurchaserAllocation:
     if targets is None:
         targets = {
             'Residential': 200.0,
@@ -225,7 +227,7 @@ def test_fill_three_digit_zeros_remaining_non_three_digit_qd() -> None:
 
 
 def test_empty_us_electricity_total_hard_errors() -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     empty = pd.DataFrame(
         {
             'Description': ['Table 3.1'],
@@ -242,11 +244,11 @@ def test_empty_us_electricity_total_hard_errors() -> None:
     ):
         with pytest.raises(ValueError, match='no US Table 7.7'):
             mecs_purchased_kwh(2018)
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
 
 
 def test_star_is_zero_and_missing_mapped_naics_hard_errors() -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     frame = _fake_7_7_frame()
     frame = frame.loc[frame['ActivityConsumedBy'] != '331110'].reset_index(drop=True)
     with patch(
@@ -255,11 +257,11 @@ def test_star_is_zero_and_missing_mapped_naics_hard_errors() -> None:
     ):
         with pytest.raises(ValueError, match='missing NAICS'):
             mecs_purchased_kwh(2018)
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
 
 
 def test_io_kwh_sum_excludes_manufacturing_total_row() -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     frame = _fake_7_7_frame()
     bills = pd.Series(1.0, index=list(industrial_manufacturing_pool()), dtype=float)
     with patch(
@@ -270,11 +272,11 @@ def test_io_kwh_sum_excludes_manufacturing_total_row() -> None:
         io_kwh = io_manufacturing_purchased_kwh(bills, 2018)
     assert '31-33' not in io_kwh.index
     assert float(io_kwh.sum()) != pytest.approx(float(naics.sum()))
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
 
 
 def test_one_to_one_zero_bill_still_gets_kwh() -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     frame = _fake_7_7_frame()
     pool = list(industrial_manufacturing_pool())
     bills = pd.Series(1.0, index=pool, dtype=float)
@@ -286,11 +288,11 @@ def test_one_to_one_zero_bill_still_gets_kwh() -> None:
         io_kwh = io_manufacturing_purchased_kwh(bills, 2018)
     assert _MFG_A in io_kwh.index
     assert float(io_kwh[_MFG_A]) > 0.0
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
 
 
 def test_many_to_one_zero_bill_member_gets_zero_kwh() -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     naics_to_io: dict[str, list[str]] = {}
     for io_key, naics_vals in _overlaid_3_1_mapping(set(_required_7_7_naics())).items():
         for n in naics_vals:
@@ -312,7 +314,7 @@ def test_many_to_one_zero_bill_member_gets_zero_kwh() -> None:
         io_kwh = io_manufacturing_purchased_kwh(bills, 2018)
     assert float(io_kwh.get(shared[0], 0.0)) == pytest.approx(0.0)
     assert float(sum(float(io_kwh.get(c, 0.0)) for c in shared[1:])) > 0.0
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
 
 
 def test_two_pool_identities_and_class_total() -> None:
@@ -441,7 +443,7 @@ def test_industrial_clip0_sum_zero_hard_errors() -> None:
 
 
 def test_mecs_purchased_kwh_returns_copy() -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     frame = _fake_7_7_frame()
     with patch(
         'bedrock.extract.flowbyactivity.getFlowByActivity',
@@ -451,26 +453,26 @@ def test_mecs_purchased_kwh_returns_copy() -> None:
         first.iloc[0] = -1.0
         second = mecs_purchased_kwh(2018)
     assert float(second.iloc[0]) != pytest.approx(-1.0)
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
 
 
 def test_cache_reset_clears_mecs_purchased_kwh() -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     frame = _fake_7_7_frame()
     with patch(
         'bedrock.extract.flowbyactivity.getFlowByActivity',
         return_value=frame,
     ):
         mecs_purchased_kwh(2018)
-    assert mecs_purchased_kwh.cache_info().currsize == 1
+    assert _mecs_purchased_kwh_cached.cache_info().currsize == 1
     _clear_electricity_caches_if_loaded()
-    assert mecs_purchased_kwh.cache_info().currsize == 0
+    assert _mecs_purchased_kwh_cached.cache_info().currsize == 0
 
 
 @pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', [2018, 2022])
 def test_post_overlay_naics_exist_in_table_7_7(year: int) -> None:
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()
     kwh = mecs_purchased_kwh(year)
     _required_7_7_naics(set(kwh.index.astype(str)))
     leftover = float(kwh.loc['31-33']) - float(
@@ -480,4 +482,4 @@ def test_post_overlay_naics_exist_in_table_7_7(year: int) -> None:
         assert abs(leftover) <= 1.0e6
     if year == 2022:
         assert float(kwh.loc['337']) > 0.0
-    mecs_purchased_kwh.cache_clear()
+    _mecs_purchased_kwh_cached.cache_clear()

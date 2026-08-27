@@ -48,12 +48,17 @@ def _class_row_values(
     bundle: ImplBundle,
 ) -> list[tuple[str, str, str, str]] | None:
     if impl.id in PUBLISHED_IMPLS:
-        rows: list[tuple[str, str, str, str]] = []
-        for model, target, label in published_class_mwh_rows(impl.id):
-            rows.append(
-                (label, format_twh(model), format_twh(target), format_ratio(model, target))
+        published_rows: list[tuple[str, str, str, str]] = []
+        for pub_mwh, pub_target, label in published_class_mwh_rows(impl.id):
+            published_rows.append(
+                (
+                    label,
+                    format_twh(pub_mwh),
+                    format_twh(pub_target),
+                    format_ratio(pub_mwh, pub_target),
+                )
             )
-        return rows
+        return published_rows
     mixed = bundle.steps.get('mixed_units')
     three_way = bundle.steps.get('three_way')
     step = None
@@ -66,23 +71,23 @@ def _class_row_values(
     model = step.class_mwh
     target = step.class_mwh_target
     groups = class_groups_for(impl.class_row_style)
-    rows: list[tuple[str, str, str, str]] = []
+    live_rows: list[tuple[str, str, str, str]] = []
     for label, members in groups:
         m = grouped_mwh(model, members)
         if target is None:
-            rows.append((label, format_twh(m), MISSING, MISSING))
+            live_rows.append((label, format_twh(m), MISSING, MISSING))
         else:
             t = grouped_mwh(target, members)
-            rows.append((label, format_twh(m), format_twh(t), format_ratio(m, t)))
+            live_rows.append((label, format_twh(m), format_twh(t), format_ratio(m, t)))
     m_tot = class_total_mwh(model)
     if target is None:
-        rows.append(('Total', format_twh(m_tot), MISSING, MISSING))
+        live_rows.append(('Total', format_twh(m_tot), MISSING, MISSING))
     else:
         t_tot = class_total_mwh(target)
-        rows.append(
+        live_rows.append(
             ('Total', format_twh(m_tot), format_twh(t_tot), format_ratio(m_tot, t_tot))
         )
-    return rows
+    return live_rows
 
 
 def class_mwh_grids(

@@ -19,8 +19,8 @@ os.makedirs(IN_DIR, exist_ok=True)
 
 
 def extract_raw_data() -> None:
-    for source, year in FBA_RAW_DATA:
-        source, year, config = load_fba_config(source, year)
+    for source_name, year_name in FBA_RAW_DATA:
+        source, year, config = load_fba_config(source_name, year_name)
         config['extract_data_from_raw_sources'] = True
         process_fba_config(source, year, config, call_only=True)
 

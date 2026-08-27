@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from PIL import Image
 
+from bedrock.analysis.electricity.current.diagnostics.deck import histograms as hist
 from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     NA,
     SAME,
@@ -32,6 +34,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.histograms import (
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     AGGREGATE_ONLY_NA,
     PAIRS,
+    STEPS,
     na_sectors_at_step,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pptx_write import write_pptx
@@ -39,6 +42,9 @@ from bedrock.analysis.electricity.current.diagnostics.deck.tables import (
     class_mwh_grids,
     ef_grids,
     format_cell_pair,
+)
+from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.published import (
+    published_ef,
 )
 
 
@@ -239,8 +245,6 @@ def test_ef_grids_two_tables() -> None:
 
 
 def test_stack_panel_pngs_preserves_pixels(tmp_path: Path) -> None:
-    from PIL import Image
-
     a = tmp_path / 'a.png'
     b = tmp_path / 'b.png'
     Image.new('RGB', (10, 4), (255, 0, 0)).save(a)
@@ -254,10 +258,6 @@ def test_stack_panel_pngs_preserves_pixels(tmp_path: Path) -> None:
 def test_write_hist_png_uses_frozen_vs_footing_panels(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from PIL import Image
-
-    from bedrock.analysis.electricity.current.diagnostics.deck import histograms as hist
-
     panel = tmp_path / 'panel'
     panel.mkdir()
     Image.new('RGB', (20, 8), (255, 0, 0)).save(
@@ -280,10 +280,6 @@ def test_write_hist_png_uses_frozen_vs_footing_panels(
 
 
 def test_published_original_n_matches_pptx() -> None:
-    from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.published import (
-        published_ef,
-    )
-
     assert published_ef('original', 'N', '221110', 'three_way') == pytest.approx(9.213)
     assert published_ef('original', 'N', '221110', 'mixed_units') == pytest.approx(
         10.070
@@ -300,8 +296,6 @@ def test_published_original_panel_is_on_disk() -> None:
 def test_write_pptx_five_slides(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from bedrock.analysis.electricity.current.diagnostics.deck import histograms as hist
-
     monkeypatch.setattr(hist, 'FIGURES_DIR', tmp_path / 'no_frozen_panels')
     model, target = _eia_class()
     sectors = {f'{i:06d}': float(i) for i in range(10)}
@@ -377,11 +371,15 @@ def test_production_tables_and_peer_histograms() -> None:
             ),
         },
     )
-    assert format_cell_pair(production, current, 'D', '221110', 'three_way', False) == NA
-    assert format_cell_pair(production, current, 'D', '221100', 'mixed_units', False) == (
-        '2.500'
+    assert (
+        format_cell_pair(production, current, 'D', '221110', 'three_way', False) == NA
     )
-    assert format_cell_pair(current, production, 'D', '221100', 'three_way', False) == NA
+    assert format_cell_pair(
+        production, current, 'D', '221100', 'mixed_units', False
+    ) == ('2.500')
+    assert (
+        format_cell_pair(current, production, 'D', '221100', 'three_way', False) == NA
+    )
     _top_class, bottom_class = class_mwh_grids(pair, current, production)
     assert bottom_class.rows[0][0] == '(no class MWh)'
     frame, _drops = _panel_data(
@@ -411,10 +409,7 @@ def test_write_pptx_current_vs_production(tmp_path: Path) -> None:
     )
     production = ImplBundle(
         'production',
-        {
-            step: _step(prod_sectors)
-            for step in ('footing', 'reallocation', 'three_way', 'mixed_units')
-        },
+        {step: _step(prod_sectors) for step in STEPS},
     )
     out = tmp_path / 'current_vs_production.pptx'
     write_pptx(

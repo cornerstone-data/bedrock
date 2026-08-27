@@ -9,6 +9,7 @@ from __future__ import annotations
 import functools
 import logging
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, cast
 
@@ -458,10 +459,6 @@ def mecs_purchased_kwh(mecs_year: int) -> pd.Series:
     return _mecs_purchased_kwh_cached(int(mecs_year)).copy()
 
 
-mecs_purchased_kwh.cache_clear = _mecs_purchased_kwh_cached.cache_clear  # type: ignore[method-assign]
-mecs_purchased_kwh.cache_info = _mecs_purchased_kwh_cached.cache_info  # type: ignore[method-assign]
-
-
 def _split_kwh_across_io(
     io_codes: tuple[str, ...],
     kwh: float,
@@ -520,7 +517,7 @@ def io_manufacturing_purchased_kwh(bills: pd.Series, mecs_year: int) -> pd.Serie
     return pd.Series(assigned, dtype=float)
 
 
-def _flatten_io_keys(mapping: dict[tuple[str, ...], object]) -> list[str]:
+def _flatten_io_keys(mapping: Mapping[tuple[str, ...], object]) -> list[str]:
     out: list[str] = []
     for key in mapping:
         out.extend(str(c) for c in key)

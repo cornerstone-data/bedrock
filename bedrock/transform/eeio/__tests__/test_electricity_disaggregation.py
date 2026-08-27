@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Callable, Iterator
+from typing import Any, Callable, Iterator
 from unittest.mock import patch
 
 import numpy as np
@@ -108,7 +108,7 @@ def dollar_industrial_weights() -> Iterator[None]:
 
     orig = gtd.allocate_purchaser_gtd
 
-    def _wrapped(*args: object, **kwargs: object) -> object:
+    def _wrapped(*args: Any, **kwargs: Any) -> Any:
         kwargs = dict(kwargs)
         kwargs['industrial_weights'] = 'dollars'
         return orig(*args, **kwargs)

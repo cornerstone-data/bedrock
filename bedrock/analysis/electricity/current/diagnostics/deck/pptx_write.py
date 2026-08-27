@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -33,7 +34,7 @@ NAVY = RGBColor(0x1F, 0x4E, 0x79)
 
 
 def _set_run_font(
-    run, *, size_pt: float, bold: bool = False, color: RGBColor | None = None
+    run: Any, *, size_pt: float, bold: bool = False, color: RGBColor | None = None
 ) -> None:
     run.font.size = Pt(size_pt)
     run.font.bold = bold
@@ -42,7 +43,7 @@ def _set_run_font(
         run.font.color.rgb = color
 
 
-def _add_title(slide, text: str) -> None:
+def _add_title(slide: Any, text: str) -> None:
     box = slide.shapes.add_textbox(
         Inches(0.35), Inches(0.12), Inches(12.6), Inches(0.45)
     )
@@ -54,7 +55,7 @@ def _add_title(slide, text: str) -> None:
     _set_run_font(run, size_pt=18, bold=True, color=NAVY)
 
 
-def _add_notes(slide, text: str, top_in: float = 6.55) -> None:
+def _add_notes(slide: Any, text: str, top_in: float = 6.55) -> None:
     box = slide.shapes.add_textbox(
         Inches(0.35), Inches(top_in), Inches(12.6), Inches(0.8)
     )
@@ -67,7 +68,7 @@ def _add_notes(slide, text: str, top_in: float = 6.55) -> None:
     _set_run_font(run, size_pt=10, color=RGBColor(0x33, 0x33, 0x33))
 
 
-def _fill_cell(cell, text: str, *, header: bool, alt: bool) -> None:
+def _fill_cell(cell: Any, text: str, *, header: bool, alt: bool) -> None:
     cell.text = ''
     p = cell.text_frame.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
@@ -92,7 +93,7 @@ def _fill_cell(cell, text: str, *, header: bool, alt: bool) -> None:
 
 
 def _add_table(
-    slide,
+    slide: Any,
     grid: TableGrid,
     *,
     left: float,
@@ -124,7 +125,7 @@ def _add_table(
 
 
 def _two_tables_slide(
-    prs: Presentation,
+    prs: Any,
     title: str,
     note: str,
     left_grid: TableGrid,
@@ -137,7 +138,7 @@ def _two_tables_slide(
     _add_notes(slide, note)
 
 
-def _image_slide(prs: Presentation, title: str, caption: str, png: Path) -> None:
+def _image_slide(prs: Any, title: str, caption: str, png: Path) -> None:
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _add_title(slide, title)
     slide.shapes.add_picture(
