@@ -60,6 +60,9 @@ and the only move left is the column rescale. A perfect score here says the
 plumbing is right, and says nothing at all about the years that matter. The
 movement is scored on the published summary panel by
 [`intermediate_structure_drift`](intermediate_structure_drift.py), not here.
+✅ **§Which cells actually carry annual data is the answer to what this row
+cannot say** — the same block coloured by where each cell's movement comes from,
+where the honest number is **33.8% of dollars observed**, not 100%.
 
 ⚠️ **Coverage and accuracy moved in opposite directions this snapshot, and that
 is the honest result.** `F03000` landing adds 256 populated cells against a
@@ -282,64 +285,78 @@ $6.0M on a $19.2B cell.
 ✅ **The seven published negative cells survive**, and the two structurally empty
 columns — `4200ID` customs duties and `814000` private households — stay empty.
 
-⚠️ **Two things here are seeds and will be overwritten at Step 5.** `VAPRO` is
-Step 2's, and Step 2 is unbuilt, so the column control carries 2017's
-value-added share of gross output forward; it is right economy-wide to within
-2.3% in every year 2018-2024 but drifts by industry, with `GSLG` 18.3% low at
-2022. ⚠️ **That `GSLG` figure is the column *level*, not
+⚠️ **The column control's `VAPRO` is no longer a seed.** It was, when this
+section was first written and Step 2 was unbuilt; Step 2 now supplies `VAPRO`'s
+split for 2017-2024 (#538, merged) and Step 5 pins it as T18. ⚠️ **`GSLG` at
+18.3% low in 2022 was the column *level*, not
 [#578](https://github.com/cornerstone-data/bedrock/issues/578)** — #578 is the
-commodity *mix* inside the government columns and is a separate, later job. NIPA
-`T31005` already matches the published government `T005` at $0 / $0 / $2M in
-2017 and is not wired up anywhere. And **θ = 1 is #497 as written, not a
-finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
-[#699](https://github.com/cornerstone-data/bedrock/issues/699).
+commodity *mix* inside the government columns and is a separate, later job. And
+**θ is no longer #497's 1.0**: it is fitted per span, 0.75 off the 2021-22 surge
+and 0.0 across it ([#699](https://github.com/cornerstone-data/bedrock/issues/699)).
 
----
+### Which cells actually carry annual data
 
-## Step 3 — Use table, the intermediate interior
+The match picture above says the block reproduces 2017. It says nothing about
+where the block's movement *away* from 2017 comes from, and that is the question
+Step 3 is answerable on. This is the same 402 × 402 block, coloured by
+provenance instead of by match — grey where a cell keeps its 2017 structure and
+moves only on the price carry, green where an annual survey observes it.
 
-`use_intermediate_detail_sut` · 402 commodities × 402 industries · tolerance
-`rtol=0.01, atol=5e5, ramp=0.25`
+![Step 3 seed coverage](images/intermediate_seed_coverage_2022.png)
 
-![Step 3 intermediate block match](images/use_intermediate_detail_sut_2017.png)
+⚠️ **The green is graded, because "seeded" is not one thing.** A survey datum
+almost never lands on a single cell: `Purchased freight transportation` is one
+number in the Service Annual Survey spread over 8 BEA commodities, and ERS
+publishes one farm sector whose index drives all 10 farm columns. So the green
+carries `N` — **how many cells share the single observation behind this cell** —
+with the darkest green at `N = 1`, where the datum *is* the cell. Reporting a
+cell fed by a number shared with 79 others in the same colour as one fed by a
+number about it alone would flatter the coverage badly.
 
-| scope | absent | match | partial | miss | extra |
+| band | columns | $M | seeded | of which N = 1 | median N |
 |---|---:|---:|---:|---:|---:|
-| cells | 117,323 | 44,281 | 0 | 0 | 0 |
-| row totals | 36 | 366 | 0 | 0 | 0 |
-| column totals | 2 | 400 | 0 | 0 | 0 |
+| agriculture | 13 | 272,102 | 78.7% | 0.0% | 20 |
+| mining | 8 | 195,477 | 31.5% | 22.4% | 1.5 |
+| utilities | 3 | 160,406 | 22.3% | 0.0% | 3 |
+| construction | 12 | 737,745 | — | — | — |
+| manufacturing | 231 | 3,561,508 | **67.1%** | **47.4%** | 4 |
+| trade | 20 | 1,545,723 | — | — | — |
+| transportation | 9 | 591,808 | 40.9% | 19.2% | 8 |
+| services | 94 | 6,494,741 | 31.5% | 5.3% | 9 |
+| government | 8 | 1,222,147 | — | — | — |
+| **total** | **402** | **14,856,988** | **33.8%** | | **7** |
 
-Grand total $14.856T against $14.856T, off by **0.002%**.
+**33.8% of the block's dollars are observed; 9,905 of 44,281 non-empty cells.**
 
-**Read the picture as a coverage map, not a score.** The candidate is
-`derive_initial_U_intermediate`: the published 2017 interior column-normalised,
-carried on the detail commodity price ratio at θ = 1, and rescaled to
-`GO_producer − VAPRO_seed`. At 2017 every carry factor is 1.0, so the block is
-the reference put through a per-column rescale — everything green is what that
-should look like, and anything else would have been a plumbing bug.
+⚠️ **Read the dollars, not the cell count, and read this against the column
+count rather than instead of it.** 330 of 402 *columns* move off the 2017 shape
+— that is the number in the plan and it is the optimistic reading, because a
+seeded column is not a column of seeded cells. `materials_seed` returns the
+whole manufacturing column renormalised, but the census only *observes* the
+materials rows; the rest of that column is the 2017 mix rescaled, which is
+carried. 33.8% of dollars is the honest reading of the same fact.
 
-⚠️ **The rescale is not the identity, and the residual is BEA's own rounding.**
-Published `T005` is one rounded number; the interior sums 402 separately rounded
-cells to a different one — $350M on $14.9T, at most $13M on a column. A *small*
-column wears that as a large fraction, so `atol` is what carries those cells
-rather than `rtol`: `334610` is $482M of intermediates and is rescaled by 1.05%,
-the largest relative error in the block, while the largest absolute error is
-$6.0M on a $19.2B cell.
+Three things the picture says that the totals do not:
 
-✅ **The seven published negative cells survive**, and the two structurally empty
-columns — `4200ID` customs duties and `814000` private households — stay empty.
+1. ✅ **Manufacturing is the strong block and it is strong in the right way** —
+   67.1% of its dollars observed and **47.4% at `N = 1`**, the only block where
+   most of the evidence is cell-specific. That is the Economic Census materials
+   detail, and it is visible as the dark diagonal.
+2. ⚠️ **Agriculture's 78.7% is the widest coverage and the weakest evidence** —
+   median `N` of 20, nothing at all at `N = 1`. ERS publishes one farm sector,
+   so every farm column moves identically in the commodities ERS names. High
+   coverage and low specificity are not the same property.
+3. ❌ **Construction, trade and government are entirely grey** — $3.5T, 24% of
+   the block, with no annual observation of their input mix at all. Those are
+   recorded verdicts rather than gaps in the work: trade is a measured no-go on
+   the benchmark holdout, construction has no Census product that splits its one
+   undifferentiated 51% cell, and government is #578. Each verdict's reopening
+   condition is in
+   [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md).
 
-⚠️ **Two things here are seeds and will be overwritten at Step 5.** `VAPRO` is
-Step 2's, and Step 2 is unbuilt, so the column control carries 2017's
-value-added share of gross output forward; it is right economy-wide to within
-2.3% in every year 2018-2024 but drifts by industry, with `GSLG` 18.3% low at
-2022. ⚠️ **That `GSLG` figure is the column *level*, not
-[#578](https://github.com/cornerstone-data/bedrock/issues/578)** — #578 is the
-commodity *mix* inside the government columns and is a separate, later job. NIPA
-`T31005` already matches the published government `T005` at $0 / $0 / $2M in
-2017 and is not wired up anywhere. And **θ = 1 is #497 as written, not a
-finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
-[#699](https://github.com/cornerstone-data/bedrock/issues/699).
+Reproduced by
+[`seed_coverage.py`](seed_coverage.py) — `--check` re-asserts the map and
+`--check-palette` re-runs the colour separation.
 
 ---
 
