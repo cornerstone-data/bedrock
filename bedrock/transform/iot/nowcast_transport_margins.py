@@ -118,30 +118,42 @@ groups span 258 commodities, so unlike rail - where revenue is observed per
 commodity - most of the within-group split is inferred. BEA calls Table 8 *"a
 very aggregated level"* and faces the same limit.
 
-⚠️ Air's 2023 control total breaks at the seam - open
------------------------------------------------------
+✅ Air's 2023 control total - closed on its own volume series
+--------------------------------------------------------------
 
 **``481212`` more than doubles across the AIES splice and it is not a real
-move.** Nonscheduled chartered freight air transportation runs 4,846 / 4,857 /
-4,987 / 6,045 $M over 2019-2022 in SAS Table 2 - unsuppressed, and moving a few
-percent a year - and then AIES 2023 publishes 13,271 $M, a 2.2x break. Its
-sibling ``481112`` (scheduled freight air) moves -3.6% over the same seam, which
-is what a freight-recession year should look like, so this is a coverage or
-definition change in one code rather than a change in air freight.
+move.** Nonscheduled chartered freight air runs 4,846 / 4,857 / 4,987 / 6,045 $M
+over 2019-2022 in SAS Table 2 - unsuppressed - and AIES 2023 publishes
+13,271 $M. With ``481112`` that puts air freight revenue at **2.32x** its 2017
+level.
 
-The effect is bounded but real: air is 1.5% of the column, and
-:func:`mode_freight_revenue` scales air's whole allocation by this total, so
-2023 air is roughly 1.6x too large - about 9,700 $M pushed onto the commodities
-air serves, which worsens the joint-fit defect below rather than creating a new
-one.
+**FAF settles it.** Air ton-miles for the same mode are **1.06x** 2017 in 2023,
+having fallen back from 1.32x in 2022, so the published revenue implies unit
+revenue doubling in one year - in the year air cargo rates collapsed from their
+pandemic peak. Wrong size and wrong sign:
 
-⚠️ **This fails the artifact test that truck passes.** Truck's step survives
-because the taxonomy is unchanged, the groups still partition, and the movers
-are plausible; ``481212`` fails on a smooth four-year series breaking 2.2x in
-one step. It is carried as observed **for now** so that 2023 is built from one
-consistent rule, and flagged here rather than silently patched. The candidates
-if it is taken up: hold ``481212`` at its 2022 level, trend it off 2019-2022, or
-drop it and rescale air off ``481112`` alone on the 2017 ratio.
+=====  =========  =========  ==============
+year   rev index  vol index  implied $/t-mi
+=====  =========  =========  ==============
+2021        1.18       1.16            1.02
+2022        1.68       1.32            1.27
+2023        2.32       1.06            **2.19**
+=====  =========  =========  ==============
+
+So from 2023 air's control moves on volume, holding unit revenue at its last
+observed value - see :func:`air_revenue_from_volume`. 2023 air revenue becomes
+14,386 $M rather than 24,734, unit revenue stays flat at 1.27, and air lands at
+**1.6% of TRANS**, back at the share the table above states. Uncorrected it
+would have been 2.7%.
+
+⚠️ **The comparison that misleads is 2022 -> 2023 alone.** Measured from the 2017
+anchor the two air codes grow 2.17x and 2.47x, which looks comparable and makes
+the seam look benign. It is the volume series, not the revenue series, that
+shows the break - which is why an independent source was needed to close this
+rather than more arithmetic on the same numbers.
+
+⚠️ **Water is not treated this way and must not be.** Its unit revenue moves -4%
+across the same seam (1.65 -> 1.58). Only air breaks.
 
 ⚠️ The three built modes do not yet fit jointly
 -----------------------------------------------
@@ -917,6 +929,8 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
                 f'revenue, so the released total would understate the control.'
             )
         return float(rows['FlowAmount'].sum())
+    if mode_name == 'air' and int(year) > _AIR_LAST_OBSERVED_REVENUE_YEAR:
+        return air_revenue_from_volume(year)
     if mode_name in _SAS_FREIGHT_NAICS:
         codes = _SAS_FREIGHT_NAICS[mode_name]
         # Same seam as pipeline: SAS Table 2's detailed-NAICS revenue continues
@@ -942,6 +956,80 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
         return float(revenue['FlowAmount'].sum())
 
     raise NotImplementedError(f'{mode_name} has no observed annual freight revenue.')
+
+
+def _published_air_revenue(year: int) -> float:
+    """Air freight revenue as published, USD. The 2022 anchor for the volume index."""
+    codes = _SAS_FREIGHT_NAICS['air']
+    fba = getFlowByActivity('Census_SAS', int(year))
+    table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
+    revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
+    found = set(revenue['ActivityProducedBy'].astype(str))
+    if found != set(codes):
+        raise ValueError(
+            f'Census_SAS Table 2 is missing air freight NAICS '
+            f'{sorted(set(codes) - found)} for {year}, which anchors the volume '
+            f'index.'
+        )
+    return float(revenue['FlowAmount'].sum())
+
+
+#: Last year air's freight revenue is taken as published. AIES 2023 is
+#: contradicted by air's own volume series - see :func:`air_revenue_from_volume`.
+_AIR_LAST_OBSERVED_REVENUE_YEAR = 2022
+
+
+def air_revenue_from_volume(year: int) -> float:
+    """Air freight revenue for *year*, USD, moved on FAF ton-miles.
+
+    ⚠️ **Air is the one mode whose published revenue is not used after 2022**, and
+    the reason is that its own allocation basis contradicts it.
+
+    ``481212`` nonscheduled chartered freight air runs 4,846 / 4,857 / 4,987 /
+    6,045 $M across 2019-2022 in SAS Table 2 - unsuppressed - and AIES 2023
+    publishes 13,271 $M. Taken with ``481112`` that puts air freight revenue at
+    **2.32x** its 2017 level. FAF ton-miles for the same mode put volume at
+    **1.06x**, having fallen back from 1.32x in 2022, so the published revenue
+    implies unit revenue **doubling in a single year** - in the year air cargo
+    rates collapsed from their pandemic peak. The move is the wrong size and the
+    wrong sign.
+
+    So from 2023 air's control moves on volume instead, holding unit revenue at
+    its last observed value::
+
+        revenue(year) = revenue(2022) x ton_miles(year) / ton_miles(2022)
+
+    **Volume is not a new source here** - FAF ton-miles is already air's
+    commodity allocator, so this uses what the mode is built on rather than
+    importing a fourth series to arbitrate.
+
+    ⚠️ **Holding unit revenue flat is deliberately conservative.** Air cargo
+    rates *fell* in 2023, so this still overstates the level somewhat; correcting
+    for the rate move would need a rate series the build does not carry, and
+    inventing one would be a worse error than the one being fixed.
+
+    ⚠️ **Water is not treated this way and must not be.** Its unit revenue moves
+    -4% across the same seam (1.65 -> 1.58), which is continuous. Only air breaks.
+
+    ⚠️ **Revisit when AIES publishes 2024.** If ``481212`` stays at the new level
+    it is a re-based series rather than a bad year, and the right fix becomes
+    re-anchoring rather than indexing off 2022.
+    """
+    anchor = _AIR_LAST_OBSERVED_REVENUE_YEAR
+    if int(year) <= anchor:
+        raise ValueError(
+            f'air_revenue_from_volume is for years after {anchor}; {year} has a '
+            f'published SAS revenue and should use it.'
+        )
+    label = VOLUME_MODES['air'][0]
+    volume_now = float(load_faf_ton_miles(label, int(year)).sum())
+    volume_anchor = float(load_faf_ton_miles(label, anchor).sum())
+    if volume_anchor <= 0:
+        raise ValueError(
+            f'BTS_FAF has no {anchor} air ton-miles, so air revenue cannot be '
+            f'indexed off it.'
+        )
+    return _published_air_revenue(anchor) * volume_now / volume_anchor
 
 
 def mode_coverage_ratio(mode_name: str, margins: pd.DataFrame | None = None) -> float:
@@ -978,6 +1066,17 @@ def mode_coverage_ratio(mode_name: str, margins: pd.DataFrame | None = None) -> 
         control.** It assumes source coverage is stable over time, which is a much
         smaller claim than choosing among constructions that disagreed by 11.8%, but
         it is still an assumption and nothing here tests it.
+
+        ⚠️ **It is a weak choice and is kept only for now.** For water and air the
+        ratio is not a coverage correction at all - it is standing in for a
+        domestic/international split that genuinely moves, and freezing a thing
+        that moves is the weakest link in the annual control. It survives on
+        bounded blast radius (the two modes are 3.8% of ``TRANS``) rather than on
+        evidence that it holds. Replacing it needs an observed domestic leg, not
+        a different frozen number; until then this is a known soft spot rather
+        than a settled method. The air correction above is a symptom of the same
+        gap: a frozen ratio passes any error in the revenue series straight
+        through to the margin.
     """
     give_up = _mode_give_up_2017(MODE_COMMODITIES[mode_name], margins)
     revenue = mode_freight_revenue(mode_name, ANCHOR_YEAR)

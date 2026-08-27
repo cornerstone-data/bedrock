@@ -12,6 +12,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
+from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.transform.eeio.nowcast import (
     TRANSPORT_MARGIN_YEARS,
     derive_initial_supply_bridge,
@@ -897,6 +898,45 @@ def test_pipeline_items_still_partition_naics_486_under_aies() -> None:
         revenue = tm.load_pipeline_item_revenue(year)
         assert set(revenue.index) == set(PIPELINE_ITEM_CODES)
         assert (revenue > 0).all()
+
+
+def test_air_revenue_does_not_break_against_its_own_volume_at_the_seam() -> None:
+    """Air's unit revenue must stay continuous across 2022 -> 2023.
+
+    The published AIES figure implies it doubling in one year, in the year air
+    cargo rates collapsed. ``air_revenue_from_volume`` moves the control on FAF
+    ton-miles instead, which is already air's own allocation basis.
+    """
+    label = tm.VOLUME_MODES['air'][0]
+
+    def unit(year: int) -> float:
+        rev = tm.mode_freight_revenue('air', year)
+        vol = float(tm.load_faf_ton_miles(label, year).sum())
+        return rev / vol
+
+    # flat by construction from 2023, and near 2022 rather than double it
+    assert unit(2023) == pytest.approx(unit(2022), rel=1e-6)
+
+
+def test_water_keeps_its_published_revenue_across_the_seam() -> None:
+    """Only air is volume-indexed; water's unit revenue is continuous already.
+
+    Water moves -4% across the same seam, so treating it the same way would
+    replace an observation with a model for no reason.
+    """
+    codes = tm._SAS_FREIGHT_NAICS['water']
+    fba = getFlowByActivity('Census_AIES', 2023)
+    rows = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
+    published = float(
+        rows[rows['ActivityProducedBy'].astype(str).isin(codes)]['FlowAmount'].sum()
+    )
+    assert tm.mode_freight_revenue('water', 2023) == pytest.approx(published)
+
+
+def test_air_volume_index_refuses_years_with_a_published_revenue() -> None:
+    """2022 and earlier have an observed SAS revenue and must use it."""
+    with pytest.raises(ValueError, match='published SAS revenue'):
+        tm.air_revenue_from_volume(2022)
 
 
 def test_supply_bridge_leaves_2024_trade_unsourced() -> None:

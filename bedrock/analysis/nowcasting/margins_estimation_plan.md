@@ -398,12 +398,32 @@ it on STB and water/air on FAF, but truck and pipeline are 79.7% of the column,
 so TRANS 2024 stays NaN until the next AIES release — the same shape as the
 TRADE 2024 gap.
 
-⚠️ **Air's 2023 control total is defective — open.** `481212` runs
+✅ **Air's 2023 control total — closed on FAF volume.** `481212` runs
 4,846/4,857/4,987/6,045 $M over 2019–2022 in SAS, unsuppressed, then AIES 2023
-publishes 13,271 $M, a 2.2× break, while its sibling `481112` moves −3.6%. Air
-is 1.5% of the column and its allocation scales by this total, so 2023 air is
-~1.6× too large. Carried as observed for now and flagged in the module
-docstring; it fails the artifact test truck passes.
+publishes 13,271 $M, putting air freight revenue at 2.32× its 2017 level. FAF
+air ton-miles are 1.06×, down from 1.32× in 2022, so the published revenue
+implies unit revenue **doubling in the year air cargo rates collapsed** — wrong
+size and wrong sign.
+
+From 2023 air's control moves on volume, holding unit revenue at its last
+observed value: `revenue(2022) × ton_miles(year) / ton_miles(2022)`. FAF is
+already air's commodity allocator, so no fourth series was imported to arbitrate.
+2023 air revenue becomes 14,386 $M rather than 24,734, and air lands at **1.6% of
+TRANS** against the 2.7% it would otherwise have taken.
+
+⚠️ Water is deliberately *not* treated this way: its unit revenue moves −4%
+across the same seam. Only air breaks.
+
+⚠️ **The 2022→2023 comparison alone is misleading** — from the 2017 anchor the
+two air codes grow 2.17× and 2.47×, which looks benign. It took the volume
+series to show the break, which is why this needed an independent source rather
+than more arithmetic on the revenue numbers.
+
+⚠️ **The frozen 2017 coverage ratio is a weak choice, kept for now.** For water
+and air it is not a coverage correction — it stands in for a domestic/international
+split that genuinely moves. The air defect is a symptom of the same gap: a frozen
+ratio passes any revenue error straight through to the margin. Replacing it needs
+an observed domestic leg, not a different frozen number.
 
 ### ⚠️ The open defect — the five modes collide per commodity
 
