@@ -57,3 +57,8 @@ bedrock/analysis/**/output/
 !bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**
 !bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.parquet
 !bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.json
+# Pre-MECS Industrial-weight freeze (EIA G/T/D mixed units + dollar manufacturing)
+!bedrock/analysis/electricity/historical/pre_mecs_industrial_weights/output/
+!bedrock/analysis/electricity/historical/pre_mecs_industrial_weights/output/**
+!bedrock/analysis/electricity/historical/pre_mecs_industrial_weights/output/**/*.parquet
+!bedrock/analysis/electricity/historical/pre_mecs_industrial_weights/output/**/*.json
