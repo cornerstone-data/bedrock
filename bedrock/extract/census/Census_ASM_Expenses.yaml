@@ -1,0 +1,75 @@
+author: US Census Bureau
+source_name: Annual Survey of Manufactures, Expenses by Kind
+source_url: https://www.census.gov/programs-surveys/asm.html
+bib_id: Census_ASM_Expenses
+
+# **The annual bridge between the two Economic Census materials breakouts.**
+#
+# `Census_EC_MatFuel` observes manufacturing's materials mix in 2017 and 2022
+# and nowhere in between, so the obvious first form for the nowcast span is a
+# linear interpolation between the two.  This source is what says that form is
+# wrong.  ASM publishes, for every year of the gap, each industry's cost of
+# materials, fuels, purchased electricity, contract work and resales, plus ten
+# named purchased-service cells - not the commodity mix, but the **level and the
+# coarse partition** of the very column being interpolated.
+#
+# ✅ **Measured, on a live pull of 2018-2021 against the two censuses.**  On the
+# 345 industries all three sources share, linear interpolation of the materials
+# bill between the 2017 and 2022 censuses overstates 2020 by **28.8%** in
+# aggregate and misses per-industry by a WAPE of **0.308**.  The observed path is
+# V-shaped - 3,053 / 2,966 / 2,636 / 3,109 $B over 2018-2021 - and no
+# interpolation between two endpoints five years apart can produce that shape.
+# Reproduce with `analysis/nowcasting/inputs_structure.py --annual`.
+#
+# ⚠️ **Match the scope before differencing this against `Census_EC_MatFuel`.**
+# The census materials universe is materials, parts and containers *plus* fuels,
+# which is `CSTMPRT + CSTFU` here - **not** `CSTMTOT`, which also carries
+# purchased electricity, contract work and resales and runs about 18% higher.
+# Against the matched scope the 2017 census to 2018 ASM step is a median 1.063
+# across industries, which is a year of materials inflation; against `CSTMTOT`
+# it is 1.181, which is a scope difference wearing a growth rate's clothes.
+#
+# ⚠️ **ASM is not conducted in an Economic Census year**, so 2017 and 2022 both
+# return `204 No Content`.  That is not an outage - those two years are the
+# census, and `Census_EC_MatFuel` is where they live.  2022 onward is AIES
+# rather than ASM, whose `EXPS_MAT_DVAL` is the successor series.
+#
+# ⚠️ **`31-33` is the all-manufacturing rollup and `NAICS2017` also publishes 3-,
+# 4- and 5-digit parents.**  Every level covers all of manufacturing, so summing
+# this FBA unfiltered multiplies it several times over.  The rows are kept
+# because the parents are the only control a suppression recovery could use;
+# filter to `len == 6` and to a `^\d+$` match before summing anything.  Note
+# `'31-33'` is five characters and survives a `len == 5` filter - the same trap
+# `Census_ASM_PxI` documents.
+#
+# ⚠️ **Amounts are Thousand USD**, as everywhere in the Census API.
+#
+# ⚠️ **No `source_catalog.yaml` entry yet, deliberately.** Nothing attributes
+# this source to sectors — it is read directly by
+# `analysis/nowcasting/inputs_structure.py` as a measurement of how wrong a
+# linear interpolation is. `return_true_source_catalog_name` would fall back to
+# `Census_ASM`, whose `activity_schema` names 2018 alone, so an FBS consumer
+# needs a real entry written for it rather than that inherited one. Write it
+# when the first FBS consumes this, not before.
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  # The `industry` endpoint carries the same variables but returns 204 for every
+  # year; `area2017` is the one that answers.
+  api_path: timeseries/asm/area2017?
+  url_params:
+    get: NAICS2017,CSTMTOT,CSTMPRT,CSTFU,CSTELEC,CSTCNT,CSTRSL,PCHADVT,PCHCMPQ,PCHCSVC,PCHDAPR,PCHEXSO,PCHPRTE,PCHRFUS,PCHRPR,PCHTAX,PCHTEMP,PCHTT,RCPTOT,VALADD
+    for: "us:*&time=__year__"
+    key: __apiKey__
+  key_param: key
+url_replace_fxn: !script_function:Census_ASM asm_pxi_URL_helper
+call_response_fxn: !script_function:Census_ASM asm_call
+parse_response_fxn: !script_function:Census_ASM asm_expenses_parse
+
+years:
+- 2018
+- 2019
+- 2020
+- 2021

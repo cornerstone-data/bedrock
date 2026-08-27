@@ -1,0 +1,20 @@
+{
+  "config": "2025_usa_cornerstone_v0_3_electricity_mixed_units",
+  "git_sha": "537cb0aa8d5ac22d2aefeb208dc83056765364e7",
+  "datetime_utc": "2026-08-22T22:31:26.707640+00:00",
+  "flags": {
+    "implement_electricity_reallocation": true,
+    "implement_electricity_disaggregation": true,
+    "implement_electricity_mixed_units": true,
+    "apply_io_year_adjustments": true,
+    "model_base_year": 2024,
+    "usa_ghg_data_year": 2024
+  },
+  "mixed_units": true,
+  "p": 71.55492202425425,
+  "p_note": "implied q_$[221110]/eGRID (today 1/c_col); not D0 p",
+  "c_col": 0.013975279012407282,
+  "generation_use_y_total": 4312557440.341,
+  "U[G,G]_udom": 8486136959.918574,
+  "F01000_generation": 561492440.0008721
+}

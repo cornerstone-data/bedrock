@@ -1,0 +1,25 @@
+# Census goods + BEA IntlServTrade exports for 2023.
+#
+# Method body: Trade_Exports_common.yaml. 1:m attribution uses Detail_Supply_2023
+# collapsed to commodity T007 (#729).
+!include:Trade_Exports_common.yaml
+year: 2023
+sources_to_cache:
+  Detail_Supply_2023:
+    data_format: FBS
+    primary_action_type: Consumed
+    geoscale: national
+    clean_fbs: !clean_function:trade.attribution collapse_detail_supply_to_t007
+source_names:
+  Census_USATrade:
+    !include:Trade_Exports_common.yaml:source_names:Census_USATrade
+    activity_sets:
+      goods_exports:
+        !include:Trade_Exports_common.yaml:source_names:Census_USATrade:activity_sets:goods_exports
+        attribution_source: Detail_Supply_2023
+  BEA_IEA:
+    !include:Trade_Exports_common.yaml:source_names:BEA_IEA
+    activity_sets:
+      service_exports:
+        !include:Trade_Exports_common.yaml:source_names:BEA_IEA:activity_sets:service_exports
+        attribution_source: Detail_Supply_2023

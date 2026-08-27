@@ -1,8 +1,6 @@
 import typing as ta
 
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR
-
-NON_MECS_INDUSTRIES: ta.List[CEDA_V7_SECTOR] = [
+NON_MECS_INDUSTRIES: ta.List[str] = [
     "1111A0",
     "1111B0",
     "111200",

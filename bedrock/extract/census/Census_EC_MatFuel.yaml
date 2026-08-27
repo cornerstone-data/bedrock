@@ -1,0 +1,98 @@
+author: US Census Bureau
+source_name: Economic Census, Materials Consumed by Kind
+source_url: https://www.census.gov/programs-surveys/economic-census.html
+source_publication_date: ''
+bib_id: Census_EC_MatFuel
+
+# **Materials consumed by kind of industry** - the commodity breakout of the
+# single largest, and single most opaque, part of a manufacturing industry's
+# intermediate input column.
+#
+# Why this source exists in bedrock, in one paragraph. Step 3 seeds the Use
+# table's intermediate block from the 2017 benchmark and carries it forward
+# (#497). The annual business surveys cannot refresh the goods side of that
+# seed: AIES `exp02` publishes all "materials, parts and supplies (not for
+# resale)" as **one undifferentiated cell**, which is 82.5% of manufacturing's
+# intermediate column, so only 8.3% of that column is commodity-mappable
+# annually (#564, analysis/nowcasting/annual_survey_expense_sources.md). The
+# commodity breakout is quinquennial Economic Census, and it is this dataset.
+#
+# ✅ **Measured, on a live pull of both vintages:**
+#
+#   - **66.0% of 2017 detail cost and 68.9% of 2022 sits on a named material**
+#     rather than a residual bucket - eight times the annual figure
+#   - **388 industries x 291 materials in 2017; 367 x 292 in 2022**, all at
+#     NAICS-6, all material codes 8-digit
+#   - the materials mix moved an index of dissimilarity of **0.153** between the
+#     two vintages, against 0.173 for the *whole* Use column over 2012-2017 - so
+#     the materials block is not the stable part of the column, and freezing it
+#     from 2017 to 2025 discards a movement this source observes
+#
+# See analysis/nowcasting/intermediate_estimation_plan.md.
+#
+# ⚠️ **`00772000` "Total Materials" is the industry total, not a material.** The
+# named codes sum to it exactly (median ratio 1.000 over 386 of 388 industries).
+# Summing this FBA unfiltered double counts the entire table. It is kept rather
+# than dropped because it is the control a suppression recovery has to subtract
+# published children from - the same role NAICS `00` plays in `Census_EC_PxI`.
+# `00772002` "Total Fuels" is the same thing for the fuels side and is small
+# ($7.3B in 2017, $13.0B in 2022).
+#
+# ⚠️ **The residual buckets are a third of the table**, and they are named so a
+# consumer can find them: `00970099` "Cost of all other materials and
+# components, parts, containers, and supplies consumed" ($487B / $614B) and
+# `00971000` "Materials, ingredients, containers, and supplies, nsk"
+# ($453B / $530B) are the two large ones, with `00970098`, `00973000`,
+# `00974000` and `00999828` behind them. They are the ceiling on what this
+# source can place.
+#
+# ⚠️ **Suppression is 9.1% of cells in 2017 and 7.5% in 2022** (`MATFUELCOST_F`
+# of `D`). Zeroed and recorded here, not dropped. Recovery against the
+# `00772000` control is follow-on work, on the pattern of
+# `estimate_suppressed_ec_pxi`.
+#
+# ⚠️ **The vintages sit on different NAICS bases** - `NAICS2017` against
+# `NAICS2022` - and share 345 industries and 291 materials, carrying 89.9% and
+# 90.6% of each year's cost. Check presence before differencing the two, rather
+# than reading an absence as a fall to zero.
+#
+# ⚠️ **One group call returns the whole dataset.** `EC1731MATFUEL` is titled
+# "Manufacturing" and `EC1721MATFUEL` "Mining", but both return the same 4,624
+# rows covering NAICS sectors 21 and 31-33; only the column list differs, with
+# the mining group adding `MATFUELQTY` (physical quantity) and this one not.
+# Cost is what Step 3 needs, so the manufacturing group is the one pulled.
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: http://api.census.gov/data/
+  api_path: __year__/__dataset__?
+  url_params:
+    get: __group__
+    # 2022 returns HTTP 400 without an explicit geography; 2017 tolerates its
+    # absence. Both are pulled at the national level, so set it for both.
+    for: "us:*"
+    key: __apiKey__
+  key_param: key
+url_replace_fxn: !script_function:Census_EC census_EC_URL_helper
+call_response_fxn: !script_function:Census_EC census_EC_call
+parse_response_fxn: !script_function:Census_EC census_EC_MatFuel_parse
+
+datasets:
+  ecnmatfuel:
+    '2017':
+      # Manufacturing: Materials Consumed by Kind of Industry for the U.S.: 2017
+      - EC1731MATFUEL
+      # https://api.census.gov/data/2017/ecnmatfuel.html
+    '2022':
+      # Manufacturing: Materials Consumed by Kind of Industry for the U.S.: 2022
+      - EC2231MATFUEL
+      # https://api.census.gov/data/2022/ecnmatfuel.html
+
+# The Economic Census is quinquennial. 2017 is the benchmark I-O year the whole
+# SUT is anchored on; **2022 is the point of this source** - it is the only
+# second observation of materials structure between the benchmark and the end of
+# the nowcast span, and it sits close to the middle of 2018-2025.
+years:
+- 2017
+- 2022
