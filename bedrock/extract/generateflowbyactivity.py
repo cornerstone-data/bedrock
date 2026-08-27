@@ -124,7 +124,7 @@ def assemble_urls_for_query(
         return [build_url]
 
 
-def _redact_secrets(url: str) -> str:
+def _redact_secrets(url: str | None) -> str:
     """A url with its API key replaced, for logging.
 
     ⚠️ **The key is a query parameter, so logging the url logs the secret.**
@@ -132,6 +132,8 @@ def _redact_secrets(url: str) -> str:
     request - so an unredacted log puts a live key into CI output, into any
     captured pytest log, and into whatever ships those onward.
     """
+    if url is None:
+        return '<no url>'
     return re.sub(
         r'(?i)((?:key|api_key|apikey|token)=)[^&\s]+',
         lambda m: m.group(1) + '***',
