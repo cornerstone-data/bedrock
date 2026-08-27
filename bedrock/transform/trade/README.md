@@ -65,8 +65,28 @@ Scored against the assembled nowcast columns (`use_fd_detail_sut` F04000 / `supp
 
 | direction | National % vs SUT | Pearson all / non-`S00*` | Spearman all / non-`S00*` | Top-20 Jaccard all / non-`S00*` | n_miss |
 | --- | --- | --- | --- | --- | --- |
+| F040 exports | +6.16% | 0.92 / 0.87 | 0.87 / 0.86 | 0.60 / 0.60 | 43 |
+| MCIF imports | +0.68% | 0.77 / 0.85 | 0.94 / 0.94 | 0.74 / 0.82 | 22 |
+
+⚠️ **Re-scored 2026-08-26, and exports moved in two directions at once.** Mapping
+the NAICS-2022 Census leaves onto the goods Crosswalk (#734) and extending the
+FBS span (#730) roughly **halved the export national error, +12.20% to +6.16%**,
+while the rank statistics *fell* — Pearson 0.96 → 0.92, top-20 Jaccard 0.67 →
+0.60, and `n_miss` 39 → 43. Imports improved on level (+1.14% → +0.68%) with the
+same `n_miss` movement, 18 → 22. Read the pair together rather than either alone:
+the extra mass lands closer to the published national total but is distributed
+across more Detail codes, so more leaves end up populated and a few of the
+previous top-20 hits drop out. The prior row is kept below for comparison.
+
+| prior (2026-08-14) | National % vs SUT | Pearson all / non-`S00*` | Spearman all / non-`S00*` | Top-20 Jaccard all / non-`S00*` | n_miss |
+| --- | --- | --- | --- | --- | --- |
 | F040 exports | +12.20% | 0.96 / 0.94 | 0.90 / 0.90 | 0.67 / 0.67 | 39 |
 | MCIF imports | +1.14% | 0.77 / 0.85 | 0.95 / 0.95 | 0.74 / 0.82 | 18 |
+
+⚠️ **The stored per-commodity baseline was NOT refreshed.** `score_2017_trade_detail`
+reports a handful of status changes against it (`311810` and `1121A0` exports,
+`112120`/`112300`/`311810` imports). They follow from the Crosswalk change and are
+expected, but `--update-baseline` is a deliberate call and has not been made.
 
 ## Residual / specials
 

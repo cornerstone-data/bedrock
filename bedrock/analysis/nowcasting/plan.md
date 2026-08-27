@@ -253,17 +253,26 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 ### SUT Supply — every column
 
-**Every column now has a candidate.** `MCIF`, `MADJ` and `MDTY` are 2017-only; `T007`, `TRADE`, `TRANS`, `TOP` and `SUB` are multi-year. As of 2026-08-22 the 2017 block scores 99.0% coverage and 0.092% on the grand total, and all four subtotals are evaluable.
+**Every column now has a candidate, and the block is complete and evaluable 2017-2023.** As of
+2026-08-26 **eight of the twelve columns run 2017-2024** — `T007`, `MCIF`, `MADJ`, `T013`, `MDTY`,
+`TOP`, `SUB`, `T015` — and only `TRADE`, `TRANS` and therefore `T014`/`T016` stop at 2023. The 2017
+block scores **99.2% coverage and 0.048% on the grand total** (was 99.0% / 0.092% before the
+2026-08-26 re-run), and all four subtotals are evaluable.
+
+⚠️ **2024 is a release date, not an engineering gap.** `timeseries/aies/basic` returns 204 for 2024
+and `aies/miscsector` 400. Truck and pipeline are 79.7% of `TRANS`, so no partial fill is honest —
+rail reaches 2024 on STB and water/air on FAF, but that is 20.3% of the column. There is no second
+source to try; the fix is the next AIES release, not more sourcing work.
 
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
 | cells / `T007` | Domestic output, commodity × industry, basic value | Nowcast gross industry output (`derived_gross_industry_output.py`) × commodity mix (port from `CalculateIntermediateUseAndCommodityMix.R`, #497) | ❌ **unsourced method** |
-| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528) / [#622](https://github.com/cornerstone-data/bedrock/pull/622) [#623](https://github.com/cornerstone-data/bedrock/pull/623) [#642](https://github.com/cornerstone-data/bedrock/pull/642)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647) |
-| `MADJ` | Import adjustment (c.i.f./f.o.b.) | Census `GEN_CHA_YR` mapped to Detail, reassigned onto 2017 Supply `MADJ` destination codes (signed shares), leveled to published Supply `MADJ` (`madj_detail_usd`) | ⏳ **2017 candidate** — charges + destination reassignment in `derive_initial_supply_bridge` |
-| `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge` |
+| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017-2024 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528), extended by [#730](https://github.com/cornerstone-data/bedrock/issues/730)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647). 1:m import rows still split on **frozen 2017 `MCIF`** ([#729](https://github.com/cornerstone-data/bedrock/issues/729)) |
+| `MADJ` | Import adjustment (c.i.f./f.o.b.) | Census `GEN_CHA_YR` mapped to Detail, reassigned onto 2017 Supply `MADJ` destination codes (signed shares), leveled to published Supply `MADJ` (`madj_detail_usd`) | ⏳ **2017-2024 candidate** — charges + destination reassignment in `derive_initial_supply_bridge`. 2017 ties to published; later years carry that year's mapped charge total with the published sign |
+| `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017-2024 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge`. ⚠️ Calculated Census duty ≠ collected duty in the tariff era, which is why the national sum is leveled to `B235RC` |
 | `TRADE` | Wholesale + retail margins, by commodity | 2017 published column moved by the Census wholesale/retail gross margin (`nowcast_trade_margins.py`, #612/#613) — **not** an aggregate of the nowcast Margins dataset | ⏳ **2017-2023 candidate** — receiving split is the **frozen 2017 mix** |
-| `TRANS` | Transportation margins, by commodity | Per-mode allocation of observed annual freight revenue (`Margins_Transport_<year>` FBS, #611) | ⏳ **2017-2022 candidate** — within-group weight frozen at 2017 (#672) |
-| `TOP` | Taxes on products | NIPA T30500 less customs duties, annually; ten **named NIPA product lines** placed on their own commodities (29.8% of the column) and the sales-tax residual on frozen 2017 shares (`nowcast_product_taxes.py`, #580) | ⏳ **2017-2024 candidate** — total observed to $1M; residual split frozen |
+| `TRANS` | Transportation margins, by commodity | Per-mode allocation of observed annual freight revenue (`nowcast_transport_margins.py`, #611). Truck from AIES `miscsector` `RCPT_MOTR_*_DVAL`; pipeline and water/air from `aies/basic`; rail from STB | ⏳ **2017-2023 candidate** — 2023 now sourced from **AIES**, which continues SAS Table 8 under the same eleven group names, so `Crosswalk_SAS_Group_to_BEA_2017.csv` joins unchanged. Within-group weight still frozen at 2017 (#672). **2024 waits on AIES publishing** |
+| `TOP` | Taxes on products | NIPA T30500 less customs duties, annually; ten **named NIPA product lines** placed on their own commodities (29.8% of the column) and the sales-tax residual on a **purchaser-price base** `T013 + T014` (`nowcast_product_taxes.py`, #580) | ⏳ **2017-2024 candidate** — total observed to $1M. ✅ **The residual is no longer frozen**: sourcing `TRADE`/`TRANS` (#611) gave the other 70% of the column an annual base, so `TOP` now **depends on margin coverage** and 2024 holds 2023's shares rather than reverting to 2017 |
 | `SUB` | Subsidies (stored negative) | NIPA T31300 annually; each commodity anchored on its published 2017 value and moved by its own NIPA **type line**, with 2020-21 `other` on BEA's published PPP-by-industry allocation (`nowcast_subsidies.py`, #580) | ⏳ **2017-2024 candidate** — 2022-24 `other` still on the anchor ([#689](https://github.com/cornerstone-data/bedrock/issues/689)) |
 
 **`TRADE`/`TRANS` and the Margins deliverable sit at two different levels of detail — build the finer
@@ -660,9 +669,12 @@ are 1B because they are not domestic; inventories are 1C.
   across all seventeen NIPA columns in 2017: they receive no final domestic use at all. Zero and
   absent are the same fact, but only one of them survives a join. Hoisted; 2017 is unchanged to the
   cent and 2018–2024 are now (402, 19).
-  ⚠️ `F03000` and `F04000` remain **all-zero for 2018–2024** — 1B and 1C are built for 2017 only, as
-  is the `S00900`/`F04000` rest-of-world identity. An annual `Y` is the 17 NIPA domestic columns and
-  two placeholders until those go annual.
+  ⚠️ **`F04000` is now annual; `F03000` is not.** As of [#730](https://github.com/cornerstone-data/bedrock/issues/730)
+  exports run **2017-2024** (2,211bn in 2017 to 3,139bn in 2024) from `Trade_Exports_<year>`, and the
+  `S00900`/`F04000` rest-of-world identity holds each year against frozen 2017 Supply `T016`. `F03000`
+  change in private inventories is **still 2017 only** (31.9bn) and all-zero after — 1C has not gone
+  annual ([#529](https://github.com/cornerstone-data/bedrock/issues/529)). So an annual `Y` is the 17
+  NIPA domestic columns plus exports, with inventories the one remaining placeholder.
 - ❌ Review all activity mappings; port the common yaml (#495).
 
 **1B — Trade** (#526, #528). ⏳ `F04000` exports plus the Supply-side import columns from one
@@ -1124,13 +1136,26 @@ gap may be misallocated rather than missing, which changes #606 from sourcing to
       severance) are placed on their own commodities and move at their *own* annual NIPA value.
       They diverge sharply from the column: tobacco 0.33x federal / 0.78x state by 2024 against a
       column at 1.42x, air transport 0.33x in 2020, severance 2.99x in 2022. The two constructions
-      differ by **3.7% of the 2020 column and 5.8% of the 2024 one** — 26,210 on tobacco in 2024,
-      17,602 on `5241XX` in 2020.
-    - **The remaining 70.2% is the frozen 2017 share vector**, deliberately. Two movers were built
-      and both rejected on measurement: a service-side-only `T007` mover drifts to 1.86x against a
-      1.53x control because the goods side absorbs the renormalisation, and an all-commodity `T007`
-      mover cannot move `S00402` (15,699 of 2017 `TOP`, eighth largest) because its `T007` is zero
-      by definition. The right base is purchaser value by commodity, which is Step 5's output.
+      differ by **6.3% of the 2020 column and 7.3% of the 2024 one** — 26,282 on tobacco in 2024,
+      17,791 on `5241XX` in 2020. ⚠️ **Those percentages grew when the residual started moving**
+      (they were 3.7% and 5.8% on frozen shares) and they **shift again whenever the Trade FBSs are
+      rebuilt**, because the purchaser-price base carries `MCIF`; the pin is
+      `test_the_two_constructions_diverge_where_the_named_lines_do`.
+    - ✅ **The remaining 70.2% now moves, as of 2026-08-26 (#611).** It sat on the frozen 2017 share
+      vector while two `T007` movers were built and both rejected on measurement — a service-side-only
+      mover drifts to 1.86x against a 1.53x control because the goods side absorbs the
+      renormalisation, and an all-commodity mover cannot move `S00402` (15,699 of 2017 `TOP`, eighth
+      largest) because its `T007` is zero by definition. The right base is purchaser value by
+      commodity, and **it did not have to wait for Step 5**: `T013 + T014` is assembled from the
+      bridge's own *components* (`residual_share_for_year`), which is not circular because `TOP`
+      itself sits in `T015` and is deliberately excluded from the base. That clears both objections —
+      `S00402`'s purchaser base is 174,312 in 2017 because secondhand goods are almost entirely trade
+      margin, so the margin layer reaches exactly what domestic output cannot, and the implied
+      rescale stays within **0.939-1.008** across 2017-2023 rather than drifting off the control.
+      ⚠️ **The pandemic years are the check**: 2020 accommodation `721000` falls 7,045 against the
+      frozen vector and air transport roughly halves — the sectors #580 worried the frozen vector
+      would get wrong. ⚠️ **2024 holds 2023's shares**, because `TRADE`/`TRANS` stop there; that is a
+      hold, not a measurement, and reverting to 2017 would undo six years of movement in one step.
     - The **producer/trade split** is carried by `top_by_level`, freezing each commodity's 2017
       trade-level share (`Wholesale + Retail − TRADE`, 391,162). ⚠️ Frozen per *commodity*, not per
       tax line — carrying it per line would move ~0.9% of the column and needs clipping.
@@ -1772,7 +1797,7 @@ gone.
 | 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531 (built — see §`F03000`), **#660**/**#664**/**#665** (the three `F03000` follow-ons), #547, #606 (`S00300`), **#575** (1d code list), **#576** (1f reconciliation), #621 (2018-2024 PCE), #635 (the swallowed `ValueError`) | — |
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
-| **4 Supply table** | **#570** (4a), **#579** (4b — *done*), **#571** (4c, parent) split into **#610** (2017 rates — *done*), **#611** (FAF transport chain — *in progress*), **#612** (annual trade levels — *done*), **#613** (apply to nowcast years, derive `TRADE`/`TRANS`), **#614** (validate per commodity), **#615** (deferred NAPCS concordance), **#620** (transport trend validation), **#580** (4d), **#581** (4e) | 4c's five sub-issues were filed after the first pass and are now on the board |
+| **4 Supply table** | **#570** (4a), **#579** (4b — *done*), **#571** (4c, parent) split into **#610** (2017 rates — *done*), **#611** (FAF transport chain — *done through 2023; 2024 waits on AIES*), **#612** (annual trade levels — *done*), **#613** (apply to nowcast years, derive `TRADE`/`TRANS`), **#614** (validate per commodity), **#615** (deferred NAPCS concordance), **#620** (transport trend validation), **#580** (4d), **#581** (4e) | 4c's five sub-issues were filed after the first pass and are now on the board |
 | 5 RAS | **#588** (balancer, parent — `gras_balance`, `engine`, and the soft mechanism landed; WEIGHTS uncalibrated), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
@@ -1811,7 +1836,12 @@ replaced by #572. **Every item on the board is now a trackable issue.**
   [`margins_estimation_plan.md`](margins_estimation_plan.md)):
 
   - `TRANS` (#611) allocates each mode's **observed annual freight revenue** over its receiving
-    commodities. Nothing in it touches the nowcast base.
+    commodities. Nothing in it touches the nowcast base. ✅ **Complete 2017-2023 as of 2026-08-26**:
+    2023 is sourced from **AIES**, which continues SAS Table 8 under the same eleven group names, so
+    `Crosswalk_SAS_Group_to_BEA_2017.csv` joins unchanged — truck from `aies/miscsector`
+    (`RCPT_MOTR_*_DVAL`), pipeline and water/air freight revenue from `aies/basic` at `TYPOP 00`.
+    ⚠️ `mode_freight_revenue` is a **third** SAS consumer beyond the two allocators, easy to miss,
+    and the column raises without it. **2024 waits on AIES publishing**, not on engineering.
   - `TRADE` (#612/#613) is **anchor-and-move**: the published 2017 column rescaled by the Census
     wholesale and retail gross margin. The *level* moves annually and so does the kind-of-business
     split; the **receiving split — which commodities get the margin — is the frozen 2017 product
