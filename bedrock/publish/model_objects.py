@@ -66,8 +66,30 @@ def assemble_extended_U(
     return out
 
 
+def _mixed_units_efs_active() -> bool:
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+    )
+
+    return electricity_mixed_units_enabled()
+
+
+def _reaggregation_efs_active() -> bool:
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_reaggregation_enabled,
+    )
+
+    return electricity_reaggregation_enabled()
+
+
 @functools.cache
 def get_V() -> pd.DataFrame:
+    if _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_V_reaggregated,
+        )
+
+        return derive_cornerstone_V_reaggregated()
     from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_V
 
     return derive_cornerstone_V()
@@ -75,6 +97,23 @@ def get_V() -> pd.DataFrame:
 
 @functools.cache
 def get_U() -> pd.DataFrame:
+    from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
+
+    if _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (
+            derive_cornerstone_U_set_reaggregated,
+            derive_cornerstone_VA_reaggregated,
+            derive_disagg_Ytot_reaggregated,
+        )
+
+        uset = derive_cornerstone_U_set_reaggregated()
+        intermediate = uset.Udom + uset.Uimp
+        fd_block = derive_disagg_Ytot_reaggregated()[list(FINAL_DEMANDS)]
+        return assemble_extended_U(
+            intermediate=intermediate,
+            fd=fd_block,
+            va=derive_cornerstone_VA_reaggregated(),
+        )
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
         derive_disagg_Ytot_with_trade,
     )
@@ -82,7 +121,6 @@ def get_U() -> pd.DataFrame:
         derive_cornerstone_U_set,
         derive_cornerstone_VA,
     )
-    from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
     uset = derive_cornerstone_U_set()
     intermediate = uset.Udom + uset.Uimp
@@ -96,6 +134,17 @@ def get_U() -> pd.DataFrame:
 
 @functools.cache
 def get_Udom() -> pd.DataFrame:
+    if _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (
+            derive_cornerstone_U_set_reaggregated,
+            derive_cornerstone_VA_reaggregated,
+        )
+
+        return assemble_extended_U(
+            intermediate=derive_cornerstone_U_set_reaggregated().Udom,
+            fd=None,
+            va=derive_cornerstone_VA_reaggregated(),
+        )
     from bedrock.transform.eeio.derived_cornerstone import (
         derive_cornerstone_U_set,
         derive_cornerstone_VA,
@@ -110,17 +159,15 @@ def get_Udom() -> pd.DataFrame:
 
 @functools.cache
 def get_x() -> pd.Series:
+    if _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (
+            derive_cornerstone_x_reaggregated,
+        )
+
+        return pd.Series(derive_cornerstone_x_reaggregated(), name='x')
     from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_x
 
     return pd.Series(derive_cornerstone_x(), name='x')
-
-
-def _mixed_units_efs_active() -> bool:
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
-        electricity_mixed_units_enabled,
-    )
-
-    return electricity_mixed_units_enabled()
 
 
 @functools.cache
@@ -131,6 +178,12 @@ def get_A() -> pd.DataFrame:
         )
 
         aq = derive_cornerstone_Aq_mixed_units()
+    elif _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_reaggregated,
+        )
+
+        aq = derive_cornerstone_Aq_reaggregated()
     else:
         from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
@@ -149,6 +202,12 @@ def get_Adom() -> pd.DataFrame:
         )
 
         return derive_cornerstone_Aq_mixed_units().Adom
+    if _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_reaggregated,
+        )
+
+        return derive_cornerstone_Aq_reaggregated().Adom
     from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
     return derive_Aq_usa().Adom
@@ -172,6 +231,12 @@ def get_B() -> pd.DataFrame:
         )
 
         return derive_cornerstone_B_mixed_units()
+    if _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_B_reaggregated,
+        )
+
+        return derive_cornerstone_B_reaggregated()
     from bedrock.transform.eeio.derived import (
         derive_B_usa_non_finetuned,
     )  # noqa: PLC0415, I001
@@ -188,7 +253,7 @@ def get_C() -> pd.DataFrame:
 
 @functools.cache
 def get_D() -> pd.DataFrame:
-    if _mixed_units_efs_active():
+    if _mixed_units_efs_active() or _reaggregation_efs_active():
         from bedrock.transform.eeio.derived import derive_C_usa  # noqa: PLC0415
 
         D = derive_C_usa() @ get_B()
@@ -259,6 +324,12 @@ def get_q() -> pd.Series:
         )
 
         return pd.Series(derive_cornerstone_Aq_mixed_units().scaled_q, name='q')
+    if _reaggregation_efs_active():
+        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+            derive_cornerstone_Aq_reaggregated,
+        )
+
+        return pd.Series(derive_cornerstone_Aq_reaggregated().scaled_q, name='q')
     from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
     return pd.Series(derive_Aq_usa().scaled_q, name='q')
@@ -278,6 +349,8 @@ def get_Phi() -> pd.DataFrame | None:
     sectors = get_N().columns
     panel = derive_phi_cornerstone_usa_panel(default_phi_panel_years())
     out = panel.reindex(sectors).astype(float)
+    if _reaggregation_efs_active() and '221100' in out.index:
+        out.loc['221100'] = 1.0
     out.index.name = 'sector'
     return out
 
@@ -296,6 +369,12 @@ def get_Rho() -> pd.DataFrame | None:
     sectors = get_N().columns
     panel = derive_price_index_panel(default_price_index_panel_years())
     out = panel.reindex(sectors).astype(float)
+    if _reaggregation_efs_active():
+        if '221110' not in panel.index:
+            raise ValueError(
+                'get_Rho: reaggregation restore requires 221110 on the 407 panel'
+            )
+        out.loc['221100'] = panel.loc['221110']
     out.index.name = 'sector'
     return out
 

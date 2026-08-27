@@ -1,7 +1,8 @@
 # Electricity disaggregation diagnostics
 
-Diagnostics for **current** production flags
-(`implement_electricity_disaggregation` / `implement_electricity_mixed_units`).
+Diagnostics for production electricity flags
+(`implement_electricity_disaggregation` / `implement_electricity_mixed_units` /
+`implement_electricity_reaggregation`).
 Conversion copy in live reports uses `electricity_conversion_factors` /
 `egrid_mwh_for_io_year` and flat `c_row = 1/p` (not Table 2.4 class `c_row`).
 
@@ -18,7 +19,7 @@ diagnostics/
   year_alignment/       # BLy vs E under A/q year handling
   hh_vs_interindustry/  # F01000 BLy attribution vs interindustry (not D0 class MWh)
   probes/               # one-off sector probes
-  deck/                 # five-slide PPTX (current vs pre-MECS vs original vs production)
+  deck/                 # five-slide PPTX (mecs_mixed_units vs pre-MECS vs original vs production vs reaggregated)
   output/               # reports/figures (gitignored)
   __tests__/
 ```
@@ -35,7 +36,8 @@ Run everything from the **repo root** with the project venv
    - `2025_usa_cornerstone_v0_3_electricity_footing` — footing
    - `2025_usa_cornerstone_v0_3_electricity_reallocation`
    - `2025_usa_cornerstone_v0_3_electricity_disaggregation`
-   - `2025_usa_cornerstone_v0_3_electricity_mixed_units` — FINAL
+   - `2025_usa_cornerstone_v0_3_electricity_mixed_units` — mixed units
+   - `2025_usa_cornerstone_v0_3_electricity_reaggregation` — collapse G/T/D to 221100
 
 2. **Sheet-based analyses** (`bly_dispersion`, `ef_comparison.plot_ef`) also need
    diagnostics workbooks (local Excel or live Google Sheets) — see below.
@@ -247,10 +249,11 @@ electricity-sector D/N by step, and 3-panel histograms. Writes ``.pptx`` under
 
 | Pair | Histograms |
 |---|---|
-| `current_vs_eia_gtd` | Both rows vs v0.3.1 footing (current generated; pre-MECS published PNG). MECS vs dollar-weight D/N is in the tables (**same** when they match). |
-| `current_vs_original` | Original row = published `v0.2_original_electricity_disagg_*`; bottom = current vs v0.3.1 |
+| `mecs_mixed_units_vs_eia_gtd` | Both rows vs v0.3.1 footing (mecs_mixed_units generated; pre-MECS published PNG). MECS vs dollar-weight D/N is in the tables (**same** when they match). |
+| `mecs_mixed_units_vs_original` | Original row = published `v0.2_original_electricity_disagg_*`; bottom = Post-MECS mixed-units vs v0.3.1 |
 | `eia_gtd_vs_original` | Published original PNGs over published `v0.3_eia_gtd_pre_mecs_*` |
-| `current_vs_production` | Both rows vs Cornerstone v0.3 production (non-disagg, margins on). Top = current electricity-disagg steps; bottom = production vs itself (0% check). Production has no G/T/D or class MWh. |
+| `mecs_mixed_units_vs_production` | Both rows vs Cornerstone v0.3 production (non-disagg, margins on). Top = mixed-units electricity-disagg steps; bottom = production vs itself (0% check). Production has no G/T/D or class MWh. |
+| `reaggregated_vs_production` | Both rows vs production. Slide 1 is 221100 q and x. Last column is reaggregation to monetary 221100 (margins on). |
 
 Identical D/N (or class MWh) cells are labeled **same**. Sectors not in the model
 at a step stay **N/A**. Missing live cache shows **—**. Original and pre-MECS
@@ -258,13 +261,14 @@ EIA G/T/D tables come from
 `historical/original_vs_eia_anchored_deck/tables.yaml`.
 
 ```bash
-python -m bedrock.analysis.electricity.current.diagnostics.deck --pair current_vs_eia_gtd
-python -m bedrock.analysis.electricity.current.diagnostics.deck --pair current_vs_production
+python -m bedrock.analysis.electricity.current.diagnostics.deck --pair mecs_mixed_units_vs_eia_gtd
+python -m bedrock.analysis.electricity.current.diagnostics.deck --pair mecs_mixed_units_vs_production
+python -m bedrock.analysis.electricity.current.diagnostics.deck --pair reaggregated_vs_production
 python -m bedrock.analysis.electricity.current.diagnostics.deck --all
 python -m bedrock.analysis.electricity.current.diagnostics.deck --all --derive
 ```
 
-``--derive`` live-runs missing **current** (post-MECS) electricity-disagg steps and the **production** (`2025_usa_cornerstone_v0_3`) cache.
+``--derive`` live-runs missing **mecs_mixed_units**, **reaggregation**, and **production** (`2025_usa_cornerstone_v0_3`) cache.
 
 ---
 

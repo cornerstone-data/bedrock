@@ -87,6 +87,7 @@ class USAConfig(BaseModel):
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
+    implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
@@ -186,6 +187,21 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'implement_electricity_mixed_units requires '
                 'implement_electricity_disaggregation'
+            )
+        if self.implement_electricity_reaggregation and not (
+            self.implement_electricity_disaggregation
+        ):
+            raise ValueError(
+                'implement_electricity_reaggregation requires '
+                'implement_electricity_disaggregation'
+            )
+        if (
+            self.implement_electricity_reaggregation
+            and self.implement_electricity_mixed_units
+        ):
+            raise ValueError(
+                'implement_electricity_reaggregation is mutually exclusive with '
+                'implement_electricity_mixed_units'
             )
         return self
 

@@ -23,6 +23,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.tables import (
     TableGrid,
     class_mwh_grids,
     ef_grids,
+    qx_grids,
 )
 
 SLIDE_W = Inches(13.333)
@@ -266,7 +267,13 @@ def write_pptx(
     d_png = write_hist_png(pair, top, bottom, 'D', png_dir / f'{pair.key}_D.png')
     n_png = write_hist_png(pair, top, bottom, 'N', png_dir / f'{pair.key}_N.png')
 
-    class_top, class_bottom = class_mwh_grids(pair, top, bottom)
+    use_qx = pair.table_steps[-1] == 'reaggregation'
+    if use_qx:
+        slide1_top, slide1_bottom = qx_grids(pair, top, bottom)
+        slide1_title = 'Overview of results: 221100 q and industry x'
+    else:
+        slide1_top, slide1_bottom = class_mwh_grids(pair, top, bottom)
+        slide1_title = 'Overview of results: Electricity MWh by use class'
     d_top, d_bottom = ef_grids(pair, top, bottom, 'D')
     n_top, n_bottom = ef_grids(pair, top, bottom, 'N')
 
@@ -276,10 +283,10 @@ def write_pptx(
 
     _two_tables_slide(
         prs,
-        'Overview of results: Electricity MWh by use class',
+        slide1_title,
         pair.slide1_note,
-        class_top,
-        class_bottom,
+        slide1_top,
+        slide1_bottom,
     )
     _two_tables_slide(
         prs,

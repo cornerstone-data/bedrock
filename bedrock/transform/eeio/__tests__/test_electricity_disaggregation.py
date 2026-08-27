@@ -16,14 +16,17 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.cornerstone_year_scaling import scale_cornerstone_q
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq,
+    derive_cornerstone_Aq_reaggregated,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
+    derive_cornerstone_B_reaggregated,
     derive_cornerstone_U_set,
     derive_cornerstone_U_with_negatives,
     derive_cornerstone_V,
@@ -62,6 +65,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
     cornerstone_sector_disagg_active,
     derive_disagg_Ytot_with_trade,
@@ -82,6 +86,8 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_cornerstone_Aq,
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
+    derive_cornerstone_Aq_reaggregated,
+    derive_cornerstone_B_reaggregated,
 ]
 
 

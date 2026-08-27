@@ -140,6 +140,7 @@ def calculate_national_accounting_balance_diagnostics(
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         electricity_mixed_units_enabled,
+        electricity_reaggregation_enabled,
     )
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
@@ -148,8 +149,11 @@ def calculate_national_accounting_balance_diagnostics(
     )
     from bedrock.transform.eeio.derived_cornerstone import (
         derive_cornerstone_Aq_mixed_units,
+        derive_cornerstone_Aq_reaggregated,
         derive_cornerstone_B_mixed_units,
+        derive_cornerstone_B_reaggregated,
         derive_cornerstone_y_nab_mixed_units,
+        derive_cornerstone_y_nab_reaggregated,
     )
     from bedrock.utils.validation.diagnostics_helpers import (
         apply_mixed_units_bly_diff_exemptions,
@@ -161,6 +165,10 @@ def calculate_national_accounting_balance_diagnostics(
         B_new = derive_cornerstone_B_mixed_units()
         Aq_set = derive_cornerstone_Aq_mixed_units()
         y_new = derive_cornerstone_y_nab_mixed_units()
+    elif electricity_reaggregation_enabled():
+        B_new = derive_cornerstone_B_reaggregated()
+        Aq_set = derive_cornerstone_Aq_reaggregated()
+        y_new = derive_cornerstone_y_nab_reaggregated()
     else:
         B_new = derive_B_usa_non_finetuned()
         Aq_set = derive_Aq_usa()

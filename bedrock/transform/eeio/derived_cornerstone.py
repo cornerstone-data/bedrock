@@ -54,6 +54,14 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
     electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
+    electricity_reaggregation_enabled,
+    reaggregate_electricity_children_aq,
+    reaggregate_electricity_children_b,
+    reaggregate_electricity_children_u,
+    reaggregate_electricity_children_v,
+    reaggregate_electricity_children_va,
+    reaggregate_electricity_children_x,
+    reaggregate_electricity_children_y,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
@@ -754,6 +762,57 @@ def derive_cornerstone_B_mixed_units() -> pd.DataFrame:
     return build_electricity_mixed_units_b(derive_cornerstone_B_non_finetuned(), c_col)
 
 
+@functools.cache
+def derive_cornerstone_Aq_reaggregated() -> SingleRegionAqMatrixSet:
+    """Published 405 A/q: collapse G/T/D after scaled+reanchor. No-op if flag off."""
+    return reaggregate_electricity_children_aq(derive_cornerstone_Aq_scaled())
+
+
+@functools.cache
+def derive_cornerstone_B_reaggregated() -> pd.DataFrame:
+    """Published 405 B: q-weight 407 B columns with post-reanchor scaled_q."""
+    aq = derive_cornerstone_Aq_scaled()
+    return reaggregate_electricity_children_b(
+        derive_cornerstone_B_non_finetuned(), aq.scaled_q
+    )
+
+
+@functools.cache
+def derive_cornerstone_V_reaggregated() -> pd.DataFrame:
+    """Excel Make: 3×3 collapse of 2017 ``derive_cornerstone_V`` (still 407)."""
+    return reaggregate_electricity_children_v(derive_cornerstone_V())
+
+
+@functools.cache
+def derive_cornerstone_U_set_reaggregated() -> SingleRegionUMatrixSet:
+    """Excel Use intermediates: 3×3 collapse of 2017 ``derive_cornerstone_U_set``."""
+    uset = derive_cornerstone_U_set()
+    udom = reaggregate_electricity_children_u(uset.Udom)
+    uimp = reaggregate_electricity_children_u(uset.Uimp)
+    return SingleRegionUMatrixSet(
+        Udom=cast(pt.DataFrame[UMatrix], udom),
+        Uimp=cast(pt.DataFrame[UMatrix], uimp),
+    )
+
+
+@functools.cache
+def derive_cornerstone_VA_reaggregated() -> pd.DataFrame:
+    """Excel VA: sum G/T/D industry columns of 2017 ``derive_cornerstone_VA``."""
+    return reaggregate_electricity_children_va(derive_cornerstone_VA())
+
+
+@functools.cache
+def derive_cornerstone_x_reaggregated() -> pd.Series[float]:
+    """Excel industry output: sum G/T/D of 2017 ``derive_cornerstone_x``."""
+    return reaggregate_electricity_children_x(derive_cornerstone_x())
+
+
+@functools.cache
+def derive_disagg_Ytot_reaggregated() -> pd.DataFrame:
+    """Excel FD: sum G/T/D commodity rows of 2017 ``derive_disagg_Ytot_with_trade``."""
+    return reaggregate_electricity_children_y(derive_disagg_Ytot_with_trade())
+
+
 # ---------------------------------------------------------------------------
 # Y vectors — disaggregation + inflation
 # ---------------------------------------------------------------------------
@@ -847,6 +906,15 @@ def derive_cornerstone_y_nab_mixed_units() -> pd.Series[float]:
     if not electricity_mixed_units_enabled():
         return derive_cornerstone_y_nab()
     aq = derive_cornerstone_Aq_mixed_units()
+    return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
+
+
+@functools.cache
+def derive_cornerstone_y_nab_reaggregated() -> pd.Series[float]:
+    """National-accounting y from collapsed Adom/q. No-op path uses scaled y_nab."""
+    if not electricity_reaggregation_enabled():
+        return derive_cornerstone_y_nab()
+    aq = derive_cornerstone_Aq_reaggregated()
     return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
 
 

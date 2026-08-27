@@ -199,3 +199,45 @@ def test_electricity_mixed_units_requires_disaggregation() -> None:
             },
             strict=True,
         )
+
+
+def test_electricity_reaggregation_config_parsing() -> None:
+    config = _load_usa_config_from_file_name(
+        'test_usa_config_waste_disagg_electricity_reaggregation.yaml'
+    )
+    assert config.implement_electricity_reaggregation is True
+    assert config.implement_electricity_disaggregation is True
+    assert config.implement_electricity_mixed_units is False
+
+
+def test_electricity_reaggregation_requires_disaggregation() -> None:
+    with pytest.raises(
+        ValueError,
+        match='implement_electricity_reaggregation requires',
+    ):
+        USAConfig.model_validate(
+            {
+                'implement_electricity_reaggregation': True,
+                'implement_electricity_disaggregation': False,
+                'implement_electricity_reallocation': True,
+                'implement_waste_disaggregation': True,
+            },
+            strict=True,
+        )
+
+
+def test_electricity_reaggregation_xor_mixed_units() -> None:
+    with pytest.raises(
+        ValueError,
+        match='implement_electricity_reaggregation is mutually exclusive',
+    ):
+        USAConfig.model_validate(
+            {
+                'implement_electricity_reaggregation': True,
+                'implement_electricity_mixed_units': True,
+                'implement_electricity_disaggregation': True,
+                'implement_electricity_reallocation': True,
+                'implement_waste_disaggregation': True,
+            },
+            strict=True,
+        )

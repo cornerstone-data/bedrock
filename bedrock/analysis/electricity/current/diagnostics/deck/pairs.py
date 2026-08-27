@@ -7,10 +7,12 @@ from typing import Literal
 
 from bedrock.utils.snapshots import releases
 
-ImplId = Literal['current', 'eia_gtd', 'original', 'production']
+ImplId = Literal[
+    'mecs_mixed_units', 'eia_gtd', 'original', 'production', 'reaggregation'
+]
 HistMode = Literal['pairwise', 'vs_footing']
 HistBaseline = Literal['own_footing', 'peer']
-StepId = Literal['footing', 'reallocation', 'three_way', 'mixed_units']
+StepId = Literal['footing', 'reallocation', 'three_way', 'mixed_units', 'reaggregation']
 ClassRowStyle = Literal['eia', 'original']
 Schema = Literal['disagg', 'aggregate']
 
@@ -28,12 +30,14 @@ STEP_COLUMN_LABEL: dict[StepId, str] = {
     'reallocation': 'reallocation',
     'three_way': '3-way split',
     'mixed_units': 'unit conversion',
+    'reaggregation': 'reaggregation',
 }
 
 HIST_PANEL_TITLE: dict[StepId, str] = {
     'reallocation': 'Co-production reallocation',
     'three_way': '3-way monetary split',
     'mixed_units': 'Conversion to physical units',
+    'reaggregation': 'Reaggregation to 221100',
 }
 
 FOOTING_CONFIG = '2025_usa_cornerstone_v0_3_electricity_footing'
@@ -41,12 +45,14 @@ PRODUCTION_CONFIG = '2025_usa_cornerstone_v0_3'
 REALLOC_CONFIG = '2025_usa_cornerstone_v0_3_electricity_reallocation'
 DISAGG_CONFIG = '2025_usa_cornerstone_v0_3_electricity_disaggregation'
 MIXED_CONFIG = '2025_usa_cornerstone_v0_3_electricity_mixed_units'
+REAGG_CONFIG = '2025_usa_cornerstone_v0_3_electricity_reaggregation'
 
 CONFIG_FOR_STEP: dict[StepId, str] = {
     'footing': FOOTING_CONFIG,
     'reallocation': REALLOC_CONFIG,
     'three_way': DISAGG_CONFIG,
     'mixed_units': MIXED_CONFIG,
+    'reaggregation': REAGG_CONFIG,
 }
 
 CHILD_SECTORS: tuple[str, ...] = ('221110', '221121', '221122')
@@ -78,6 +84,7 @@ NA_AT_STEP: dict[StepId, frozenset[str]] = {
     'reallocation': frozenset({STAR_SECTOR, '221110', '221121', '221122'}),
     'three_way': frozenset({AGGREGATE_SECTOR}),
     'mixed_units': frozenset({AGGREGATE_SECTOR}),
+    'reaggregation': frozenset({STAR_SECTOR, '221110', '221121', '221122'}),
 }
 
 CLASS_ORDER: tuple[str, ...] = (
@@ -127,12 +134,14 @@ class Pair:
     slide5_caption: str
     slide3_caption: str
     hist_baseline: HistBaseline = 'own_footing'
+    table_steps: tuple[StepId, ...] = STEPS
+    hist_steps: tuple[StepId, ...] = HIST_STEPS
 
 
 IMPLEMENTATIONS: dict[ImplId, Implementation] = {
-    'current': Implementation(
-        id='current',
-        title='Current (post-MECS)',
+    'mecs_mixed_units': Implementation(
+        id='mecs_mixed_units',
+        title='Post-MECS mixed-units disagg',
         footing_label='v0.3.1',
         snapshot_key=releases.v0_3_1,
         class_row_style='eia',
@@ -164,15 +173,24 @@ IMPLEMENTATIONS: dict[ImplId, Implementation] = {
         schema='aggregate',
         single_config=PRODUCTION_CONFIG,
     ),
+    'reaggregation': Implementation(
+        id='reaggregation',
+        title='Reaggregated 221100',
+        footing_label='v0.3.1',
+        snapshot_key=releases.v0_3_1,
+        class_row_style='eia',
+        industrial_weights='mecs',
+        schema='disagg',
+    ),
 }
 
 PAIRS: dict[str, Pair] = {
-    'current_vs_eia_gtd': Pair(
-        key='current_vs_eia_gtd',
-        top='current',
+    'mecs_mixed_units_vs_eia_gtd': Pair(
+        key='mecs_mixed_units_vs_eia_gtd',
+        top='mecs_mixed_units',
         bottom='eia_gtd',
         hist_mode='vs_footing',
-        filename='current_vs_eia_gtd.pptx',
+        filename='mecs_mixed_units_vs_eia_gtd.pptx',
         slide1_note=(
             'Class totals keep EIA Table 2.2 identities. MECS changes shares '
             'inside manufacturing, which this slide does not show.'
@@ -186,24 +204,24 @@ PAIRS: dict[str, Pair] = {
         ),
         slide4_extra_note='',
         slide5_caption=(
-            'Top: current (post-MECS) vs v0.3.1 electricity footing. '
+            'Top: Post-MECS mixed-units disagg vs v0.3.1 electricity footing. '
             'Bottom: EIA G/T/D (pre-MECS) vs the same footing '
             '(published PPTX panel). Compare the two rows for the MECS '
             'effect; cell-level N differences are on the table slide.'
         ),
         slide3_caption=(
-            'Top: current (post-MECS) vs v0.3.1 electricity footing. '
+            'Top: Post-MECS mixed-units disagg vs v0.3.1 electricity footing. '
             'Bottom: EIA G/T/D (pre-MECS) vs the same footing '
             '(published PPTX panel). Compare the two rows for the MECS '
             'effect; cell-level D differences are on the table slide.'
         ),
     ),
-    'current_vs_original': Pair(
-        key='current_vs_original',
+    'mecs_mixed_units_vs_original': Pair(
+        key='mecs_mixed_units_vs_original',
         top='original',
-        bottom='current',
+        bottom='mecs_mixed_units',
         hist_mode='vs_footing',
-        filename='current_vs_original.pptx',
+        filename='mecs_mixed_units_vs_original.pptx',
         slide1_note=(
             'Goal of EIA-anchored disaggregation is to match EIA end-use class '
             'MWh. Totals differ because EIA-anchored uses EIA trends for 2017 '
@@ -221,11 +239,11 @@ PAIRS: dict[str, Pair] = {
         ),
         slide5_caption=(
             'Top: original vs v0.2 footing (published PPTX panel). '
-            'Bottom: current (post-MECS) vs v0.3.1 electricity footing.'
+            'Bottom: Post-MECS mixed-units disagg vs v0.3.1 electricity footing.'
         ),
         slide3_caption=(
             'Top: original vs v0.2 footing (published PPTX panel). '
-            'Bottom: current (post-MECS) vs v0.3.1 electricity footing.'
+            'Bottom: Post-MECS mixed-units disagg vs v0.3.1 electricity footing.'
         ),
     ),
     'eia_gtd_vs_original': Pair(
@@ -261,34 +279,65 @@ PAIRS: dict[str, Pair] = {
             '(published PPTX panel).'
         ),
     ),
-    'current_vs_production': Pair(
-        key='current_vs_production',
-        top='current',
+    'mecs_mixed_units_vs_production': Pair(
+        key='mecs_mixed_units_vs_production',
+        top='mecs_mixed_units',
         bottom='production',
         hist_mode='vs_footing',
         hist_baseline='peer',
-        filename='current_vs_production.pptx',
+        filename='mecs_mixed_units_vs_production.pptx',
         slide1_note=(
             'Non-disagg production has no EIA end-use class split. '
             'Class MWh is only defined on the electricity-disaggregation path.'
         ),
         slide_ef_note=(
             'Production is 2025_usa_cornerstone_v0_3: aggregate 221100 at every '
-            'column, industry-average margins on, no G/T/D. Current is the '
-            'electricity-disagg chain (margins off). Matching values are '
-            'marked same. G/T/D and 221100* are N/A on production.'
+            'column, industry-average margins on, no G/T/D. Post-MECS mixed-units '
+            'disagg is the electricity-disagg chain (margins off). Matching '
+            'values are marked same. G/T/D and 221100* are N/A on production.'
         ),
         slide4_extra_note='',
         slide5_caption=(
-            'Top: current electricity disagg vs Cornerstone v0.3 production '
+            'Top: Post-MECS mixed-units disagg vs Cornerstone v0.3 production '
             '(non-disagg). Bottom: production vs itself (0% check). '
             'Shared baseline is production D/N, not the electricity footing.'
         ),
         slide3_caption=(
-            'Top: current electricity disagg vs Cornerstone v0.3 production '
+            'Top: Post-MECS mixed-units disagg vs Cornerstone v0.3 production '
             '(non-disagg). Bottom: production vs itself (0% check). '
             'Shared baseline is production D/N, not the electricity footing.'
         ),
+    ),
+    'reaggregated_vs_production': Pair(
+        key='reaggregated_vs_production',
+        top='production',
+        bottom='reaggregation',
+        hist_mode='vs_footing',
+        hist_baseline='peer',
+        filename='reaggregated_vs_production.pptx',
+        slide1_note=(
+            'Slide 1 is 221100 commodity q and industry x. Production has no '
+            'EIA class split; bottom values are the collapsed reaggregation step.'
+        ),
+        slide_ef_note=(
+            'Reaggregated vs production. Production is 2025_usa_cornerstone_v0_3 '
+            '(aggregate 221100, margins on). Reaggregation keeps realloc + 3-way '
+            '+ MECS then collapses G/T/D to monetary 221100. Matching values are '
+            'marked same. G/T/D and 221100* are N/A on production.'
+        ),
+        slide4_extra_note='',
+        slide5_caption=(
+            'Top: production vs itself (0% check). Bottom: Reaggregated vs '
+            'production. Shared baseline is production D/N, not the electricity '
+            'footing.'
+        ),
+        slide3_caption=(
+            'Top: production vs itself (0% check). Bottom: Reaggregated vs '
+            'production. Shared baseline is production D/N, not the electricity '
+            'footing.'
+        ),
+        table_steps=('footing', 'reallocation', 'three_way', 'reaggregation'),
+        hist_steps=('reallocation', 'three_way', 'reaggregation'),
     ),
 }
 

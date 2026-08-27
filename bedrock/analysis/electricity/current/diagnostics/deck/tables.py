@@ -13,15 +13,16 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     format_ef,
     format_ratio,
     format_twh,
+    format_usd,
     grouped_mwh,
     sector_ef_usd,
     values_match,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
+    AGGREGATE_SECTOR,
     IMPLEMENTATIONS,
     ROW_DISPLAY,
     STEP_COLUMN_LABEL,
-    STEPS,
     TABLE_ROW_SECTORS,
     Implementation,
     Pair,
@@ -88,6 +89,45 @@ def _class_row_values(
             ('Total', format_twh(m_tot), format_twh(t_tot), format_ratio(m_tot, t_tot))
         )
     return live_rows
+
+
+def _qx_row_values(bundle: ImplBundle, step_id: StepId) -> list[tuple[str, str, str]]:
+    step = bundle.steps.get(step_id)
+    q_val = None
+    x_val = None
+    if step is not None:
+        if step.q is not None and AGGREGATE_SECTOR in step.q.index:
+            q_val = float(step.q.loc[AGGREGATE_SECTOR])
+        if step.x is not None and AGGREGATE_SECTOR in step.x.index:
+            x_val = float(step.x.loc[AGGREGATE_SECTOR])
+    return [(AGGREGATE_SECTOR, format_usd(q_val), format_usd(x_val))]
+
+
+def qx_grids(
+    pair: Pair,
+    top: ImplBundle,
+    bottom: ImplBundle,
+) -> tuple[TableGrid, TableGrid]:
+    """Slide-1 q/x tables for the reaggregated-vs-production pair."""
+    top_impl = IMPLEMENTATIONS[pair.top]
+    bottom_impl = IMPLEMENTATIONS[pair.bottom]
+    step_id = pair.table_steps[-1]
+    headers = ('Sector', 'q (USD)', 'x (USD)')
+    top_rows = _qx_row_values(top, step_id)
+    bottom_rows = _qx_row_values(bottom, step_id)
+    bottom_marked: list[tuple[str, str, str]] = []
+    top_by_label = {r[0]: r for r in top_rows}
+    for row in bottom_rows:
+        label, q_cell, _x_cell = row
+        other = top_by_label.get(label)
+        if other is not None and other[1:] == row[1:] and q_cell != MISSING:
+            bottom_marked.append((label, SAME, SAME))
+        else:
+            bottom_marked.append(row)
+    return (
+        TableGrid(top_impl.title, headers, tuple(top_rows)),
+        TableGrid(bottom_impl.title, headers, tuple(bottom_marked)),
+    )
 
 
 def class_mwh_grids(
@@ -162,12 +202,13 @@ def ef_grids(
     top_impl = IMPLEMENTATIONS[pair.top]
     bottom_impl = IMPLEMENTATIONS[pair.bottom]
     return (
-        _ef_grid(top_impl, top, bottom, kind, mark_same=False),
-        _ef_grid(bottom_impl, bottom, top, kind, mark_same=True),
+        _ef_grid(pair, top_impl, top, bottom, kind, mark_same=False),
+        _ef_grid(pair, bottom_impl, bottom, top, kind, mark_same=True),
     )
 
 
 def _ef_grid(
+    pair: Pair,
     impl: Implementation,
     bundle: ImplBundle,
     other: ImplBundle,
@@ -175,19 +216,18 @@ def _ef_grid(
     *,
     mark_same: bool,
 ) -> TableGrid:
+    steps = pair.table_steps
     headers = (
         'GHG',
         'Electricity sector',
         impl.footing_label,
-        STEP_COLUMN_LABEL['reallocation'],
-        STEP_COLUMN_LABEL['three_way'],
-        STEP_COLUMN_LABEL['mixed_units'],
+        *[STEP_COLUMN_LABEL[step] for step in steps[1:]],
     )
     rows: list[tuple[str, ...]] = []
     for sector in TABLE_ROW_SECTORS:
         cells = [
             format_cell_pair(bundle, other, kind, sector, step, mark_same)
-            for step in STEPS
+            for step in steps
         ]
         rows.append(('Total GHG', ROW_DISPLAY[sector], *cells))
     return TableGrid(impl.title, headers, tuple(rows))

@@ -21,6 +21,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     ef_kg_per_usd,
     fill_mixed_c_col,
     format_twh,
+    format_usd,
     sector_ef_usd,
     star_aggregate,
     values_match,
@@ -35,6 +36,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.histograms import (
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     AGGREGATE_ONLY_NA,
+    IMPLEMENTATIONS,
     PAIRS,
     STEPS,
     ImplId,
@@ -45,6 +47,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.tables import (
     class_mwh_grids,
     ef_grids,
     format_cell_pair,
+    qx_grids,
 )
 from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.published import (
     published_ef,
@@ -161,7 +164,7 @@ def test_format_twh() -> None:
 
 def test_na_and_same_cells() -> None:
     left = ImplBundle(
-        'current',
+        'mecs_mixed_units',
         {
             'footing': _step({'221100': 2.409}),
             'reallocation': _step({'221100': 2.416}),
@@ -195,9 +198,9 @@ def test_na_and_same_cells() -> None:
 def test_class_mwh_same_when_totals_match() -> None:
     model, target = _eia_class()
     mixed = _step({'221100': 1.0}, class_mwh=model, target=target)
-    top = ImplBundle('current', {'mixed_units': mixed})
+    top = ImplBundle('mecs_mixed_units', {'mixed_units': mixed})
     bottom = ImplBundle('eia_gtd', {'mixed_units': mixed})
-    pair = PAIRS['current_vs_eia_gtd']
+    pair = PAIRS['mecs_mixed_units_vs_eia_gtd']
     top_grid, bottom_grid = class_mwh_grids(pair, top, bottom)
     assert bottom_grid.rows[0][1] == SAME
     assert top_grid.rows[-1][1] == '4,312.6 TWh'
@@ -223,7 +226,7 @@ def test_perc_frame_inner_join() -> None:
 
 
 def test_ef_grids_two_tables() -> None:
-    pair = PAIRS['current_vs_original']
+    pair = PAIRS['mecs_mixed_units_vs_original']
     original = ImplBundle(
         'original',
         {
@@ -232,7 +235,7 @@ def test_ef_grids_two_tables() -> None:
         },
     )
     current = ImplBundle(
-        'current',
+        'mecs_mixed_units',
         {
             'footing': _step({'221100': 2.409}),
             'three_way': _step({'221110': 7.197, '221121': 0.226, '221122': 0.0}),
@@ -319,7 +322,7 @@ def test_write_pptx_five_slides(
         {'221100': 2.39, **{f'{i:06d}': float(i) * 0.9 for i in range(10)}}
     )
     bundle_a = ImplBundle(
-        'current',
+        'mecs_mixed_units',
         {
             'footing': step_foot,
             'reallocation': step_re,
@@ -337,7 +340,9 @@ def test_write_pptx_five_slides(
         },
     )
     out = tmp_path / 'deck.pptx'
-    write_pptx(PAIRS['current_vs_eia_gtd'], bundle_a, bundle_b, out, png_dir=tmp_path)
+    write_pptx(
+        PAIRS['mecs_mixed_units_vs_eia_gtd'], bundle_a, bundle_b, out, png_dir=tmp_path
+    )
     assert out.is_file()
     with zipfile.ZipFile(out) as z:
         slides = [n for n in z.namelist() if n.startswith('ppt/slides/slide')]
@@ -356,17 +361,17 @@ def test_write_pptx_five_slides(
 
 
 def test_production_pair_schema_and_na() -> None:
-    pair = PAIRS['current_vs_production']
+    pair = PAIRS['mecs_mixed_units_vs_production']
     assert pair.hist_baseline == 'peer'
-    assert pair.top == 'current'
+    assert pair.top == 'mecs_mixed_units'
     assert pair.bottom == 'production'
     for step in ('footing', 'reallocation', 'three_way', 'mixed_units'):
         assert na_sectors_at_step('production', step) == AGGREGATE_ONLY_NA
-    assert '221110' not in na_sectors_at_step('current', 'three_way')
+    assert '221110' not in na_sectors_at_step('mecs_mixed_units', 'three_way')
 
 
 def test_production_tables_and_peer_histograms() -> None:
-    pair = PAIRS['current_vs_production']
+    pair = PAIRS['mecs_mixed_units_vs_production']
     prod_step = _step({'221100': 2.5, '1111A0': 2.0})
     production = ImplBundle(
         'production',
@@ -378,7 +383,7 @@ def test_production_tables_and_peer_histograms() -> None:
         },
     )
     current = ImplBundle(
-        'current',
+        'mecs_mixed_units',
         {
             'footing': _step({'221100': 2.4, '1111A0': 1.0}),
             'reallocation': _step({'221100': 2.41, '1111A0': 1.0}),
@@ -404,19 +409,19 @@ def test_production_tables_and_peer_histograms() -> None:
     _top_class, bottom_class = class_mwh_grids(pair, current, production)
     assert bottom_class.rows[0][0] == '(no class MWh)'
     frame, _drops = _panel_data(
-        pair, current, 'current', current, production, 'reallocation', 'D'
+        pair, current, 'mecs_mixed_units', current, production, 'reallocation', 'D'
     )
     by_sector = frame.set_index('sector')['perc_diff']
     assert by_sector.loc['1111A0'] == pytest.approx(-0.5)
 
 
-def test_write_pptx_current_vs_production(tmp_path: Path) -> None:
+def test_write_pptx_mecs_mixed_units_vs_production(tmp_path: Path) -> None:
     sectors = {f'{i:06d}': float(i) for i in range(10)}
     sectors.update({'221110': 8.0, '221121': 0.3, '221122': 0.1, '221100': 2.4})
     prod_sectors = {f'{i:06d}': float(i) * 0.95 for i in range(10)}
     prod_sectors['221100'] = 2.5
     current = ImplBundle(
-        'current',
+        'mecs_mixed_units',
         {
             'footing': _step(
                 {'221100': 2.39, **{f'{i:06d}': float(i) * 0.9 for i in range(10)}}
@@ -432,9 +437,9 @@ def test_write_pptx_current_vs_production(tmp_path: Path) -> None:
         'production',
         {step: _step(prod_sectors) for step in STEPS},
     )
-    out = tmp_path / 'current_vs_production.pptx'
+    out = tmp_path / 'mecs_mixed_units_vs_production.pptx'
     write_pptx(
-        PAIRS['current_vs_production'],
+        PAIRS['mecs_mixed_units_vs_production'],
         current,
         production,
         out,
@@ -446,3 +451,178 @@ def test_write_pptx_current_vs_production(tmp_path: Path) -> None:
         media = [n for n in z.namelist() if n.startswith('ppt/media/')]
     assert len(slides) == 5
     assert len(media) >= 2
+
+
+def test_no_legacy_pair_or_impl_keys() -> None:
+    assert 'current' not in IMPLEMENTATIONS
+    assert 'current_vs_eia_gtd' not in PAIRS
+    assert 'current_vs_original' not in PAIRS
+    assert 'current_vs_production' not in PAIRS
+    assert 'mixed_units_vs_production' not in PAIRS
+    assert 'reaggregation_vs_production' not in PAIRS
+    for key in PAIRS:
+        assert 'current' not in key
+
+
+def test_reaggregated_pair_table_and_hist_steps() -> None:
+    pair = PAIRS['reaggregated_vs_production']
+    assert pair.table_steps == (
+        'footing',
+        'reallocation',
+        'three_way',
+        'reaggregation',
+    )
+    assert pair.hist_steps == ('reallocation', 'three_way', 'reaggregation')
+    assert pair.top == 'production'
+    assert pair.bottom == 'reaggregation'
+    mixed_pair = PAIRS['mecs_mixed_units_vs_production']
+    assert mixed_pair.table_steps[-1] == 'mixed_units'
+    assert 'reaggregation' not in mixed_pair.table_steps
+    assert na_sectors_at_step('reaggregation', 'reaggregation') == frozenset(
+        {'221100*', '221110', '221121', '221122'}
+    )
+    assert '221100' not in na_sectors_at_step('reaggregation', 'reaggregation')
+    assert '221110' not in na_sectors_at_step('reaggregation', 'three_way')
+
+
+def test_qx_grids_use_reaggregation_step_x() -> None:
+    pair = PAIRS['reaggregated_vs_production']
+    production = ImplBundle(
+        'production',
+        {
+            'reaggregation': _step(
+                {'221100': 2.5}, q={'221100': 1.0e11}, x={'221100': 2.0e11}
+            )
+        },
+    )
+    reagg = ImplBundle(
+        'reaggregation',
+        {
+            'reaggregation': _step(
+                {'221100': 2.6}, q={'221100': 1.2e11}, x={'221100': 2.1e11}
+            )
+        },
+    )
+    top, bottom = qx_grids(pair, production, reagg)
+    assert top.headers == ('Sector', 'q (USD)', 'x (USD)')
+    assert top.rows[0][1] == format_usd(1.0e11)
+    assert top.rows[0][2] == format_usd(2.0e11)
+    assert bottom.rows[0][1] == format_usd(1.2e11)
+
+
+def test_load_impl_bundle_uses_pair_table_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bedrock.analysis.electricity.current.diagnostics.deck import (  # noqa: PLC0415
+        sources,
+    )
+
+    def fake_load(_impl: object, step_id: str) -> StepSnapshot:
+        return _step({'221100': 1.0})
+
+    monkeypatch.setattr(sources, 'load_step', fake_load)
+    pair = PAIRS['reaggregated_vs_production']
+    reagg = sources.load_impl_bundle(
+        IMPLEMENTATIONS['reaggregation'], table_steps=pair.table_steps
+    )
+    assert set(reagg.steps) == set(pair.table_steps)
+    assert 'mixed_units' not in reagg.steps
+    production = sources.load_impl_bundle(
+        IMPLEMENTATIONS['production'], table_steps=pair.table_steps
+    )
+    assert 'reaggregation' in production.steps
+    assert 'mixed_units' not in production.steps
+    mixed_pair = PAIRS['mecs_mixed_units_vs_production']
+    production_mixed = sources.load_impl_bundle(
+        IMPLEMENTATIONS['production'], table_steps=mixed_pair.table_steps
+    )
+    assert 'mixed_units' in production_mixed.steps
+    assert 'reaggregation' not in production_mixed.steps
+
+
+def test_reagg_ef_grid_headers_and_shared_ladder() -> None:
+    pair = PAIRS['reaggregated_vs_production']
+    shared_foot = _step({'221100': 2.4, '1111A0': 1.0})
+    shared_re = _step({'221100': 2.41, '1111A0': 1.0})
+    shared_3way = _step({'221110': 8.0, '221121': 0.2, '221122': 0.0, '1111A0': 1.0})
+    reagg = ImplBundle(
+        'reaggregation',
+        {
+            'footing': shared_foot,
+            'reallocation': shared_re,
+            'three_way': shared_3way,
+            'reaggregation': _step({'221100': 2.55, '1111A0': 1.0}),
+        },
+    )
+    mecs = ImplBundle(
+        'mecs_mixed_units',
+        {
+            'footing': shared_foot,
+            'reallocation': shared_re,
+            'three_way': shared_3way,
+            'mixed_units': _step(
+                {'221110': 8.0, '221121': 0.2, '221122': 0.0, '1111A0': 1.0},
+                mixed=True,
+                c_col=0.02,
+            ),
+        },
+    )
+    production = ImplBundle(
+        'production',
+        {step: _step({'221100': 2.5, '1111A0': 2.0}) for step in pair.table_steps},
+    )
+    top, bottom = ef_grids(pair, production, reagg, 'D')
+    assert top.headers[-1] == 'reaggregation'
+    assert bottom.headers[-1] == 'reaggregation'
+    dummy = ImplBundle('production', {s: shared_foot for s in STEPS})
+    for step in ('footing', 'reallocation'):
+        assert format_cell_pair(reagg, dummy, 'D', '221100', step, False) == (
+            format_cell_pair(mecs, dummy, 'D', '221100', step, False)
+        )
+    assert format_cell_pair(reagg, dummy, 'D', '221110', 'three_way', False) == (
+        format_cell_pair(mecs, dummy, 'D', '221110', 'three_way', False)
+    )
+
+
+def test_write_pptx_reaggregated_vs_production(tmp_path: Path) -> None:
+    sectors = {f'{i:06d}': float(i) for i in range(10)}
+    sectors.update({'221100': 2.55, '1111A0': 1.0})
+    reagg = ImplBundle(
+        'reaggregation',
+        {
+            'footing': _step({'221100': 2.4, **sectors}),
+            'reallocation': _step({'221100': 2.41, **sectors}),
+            'three_way': _step(
+                {'221110': 8.0, '221121': 0.2, '221122': 0.0, **sectors}
+            ),
+            'reaggregation': _step(
+                {'221100': 2.55, **sectors},
+                q={'221100': 1.2e11},
+                x={'221100': 2.1e11},
+            ),
+        },
+    )
+    production = ImplBundle(
+        'production',
+        {
+            step: _step(
+                {'221100': 2.5, **{f'{i:06d}': float(i) * 0.95 for i in range(10)}},
+                q={'221100': 1.0e11},
+                x={'221100': 2.0e11},
+            )
+            for step in PAIRS['reaggregated_vs_production'].table_steps
+        },
+    )
+    out = tmp_path / 'reaggregated_vs_production.pptx'
+    write_pptx(
+        PAIRS['reaggregated_vs_production'],
+        production,
+        reagg,
+        out,
+        png_dir=tmp_path,
+    )
+    assert out.is_file()
+    prs = PptxPresentation(str(out))
+    assert len(prs.slides) == 5
+    title = prs.slides[0].shapes[0].text_frame.paragraphs[0].runs[0].text
+    assert 'q and industry x' in title

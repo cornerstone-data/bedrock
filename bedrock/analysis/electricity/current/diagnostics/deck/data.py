@@ -219,6 +219,12 @@ def format_twh(mwh: float) -> str:
     return f'{mwh / 1e6:,.1f} TWh'
 
 
+def format_usd(value: float | None) -> str:
+    if value is None or not math.isfinite(value):
+        return MISSING
+    return f'{value / 1e9:,.2f} $B'
+
+
 def format_ratio(model: float, target: float) -> str:
     if target == 0.0:
         return MISSING

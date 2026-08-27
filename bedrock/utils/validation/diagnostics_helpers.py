@@ -719,6 +719,7 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     # Late-binding imports - these depend on global config
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         electricity_mixed_units_enabled,
+        electricity_reaggregation_enabled,
     )
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
@@ -726,7 +727,9 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     )
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_Aq_mixed_units,
+        derive_cornerstone_Aq_reaggregated,
         derive_cornerstone_B_mixed_units,
+        derive_cornerstone_B_reaggregated,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_d,
@@ -745,6 +748,9 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     if electricity_mixed_units_enabled():
         B_new = derive_cornerstone_B_mixed_units()
         Aq_set = derive_cornerstone_Aq_mixed_units()
+    elif electricity_reaggregation_enabled():
+        B_new = derive_cornerstone_B_reaggregated()
+        Aq_set = derive_cornerstone_Aq_reaggregated()
     else:
         B_new = derive_B_usa_non_finetuned()
         Aq_set = derive_Aq_usa()

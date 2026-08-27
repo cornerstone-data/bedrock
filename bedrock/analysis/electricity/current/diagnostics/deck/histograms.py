@@ -18,7 +18,6 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     GENERATION_SECTOR,
     HIST_PANEL_TITLE,
-    HIST_STEPS,
     IMPLEMENTATIONS,
     ImplId,
     Pair,
@@ -276,7 +275,7 @@ def render_one_row_hist(
     """Single 1×3 vs-footing row, matching ``plot_ef.write_panel_pngs`` layout."""
     setup_mpl(font_size=13)
     fig, axes = plt.subplots(1, 3, figsize=(30.0, 9.0), squeeze=False)
-    for c, step_id in enumerate(HIST_STEPS):
+    for c, step_id in enumerate(pair.hist_steps):
         _draw_hist_panel(
             axes[0][c],
             pair,
@@ -310,7 +309,7 @@ def render_hist_figure(
     row_ids = (pair.top, pair.bottom)
     for r, (bundle, impl_id) in enumerate(zip(row_bundles, row_ids)):
         impl = IMPLEMENTATIONS[impl_id]
-        for c, step_id in enumerate(HIST_STEPS):
+        for c, step_id in enumerate(pair.hist_steps):
             _draw_hist_panel(
                 axes[r][c],
                 pair,

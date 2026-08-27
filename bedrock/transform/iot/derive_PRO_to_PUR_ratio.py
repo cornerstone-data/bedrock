@@ -343,6 +343,9 @@ def phi_for_sectors(
         for code in ('221110', '221121', '221122'):
             if code in phi.index:
                 phi.loc[code] = 1.0
+    if get_usa_config().implement_electricity_reaggregation:
+        if '221100' in phi.index:
+            phi.loc['221100'] = 1.0
     return phi
 
 
