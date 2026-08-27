@@ -153,6 +153,26 @@ def test_non_mecs_industrial_codes_land_in_residual() -> None:
             assert code not in mfg
 
 
+def test_manufacturing_pool_matches_ghg_combustion_mecs_io_keys() -> None:
+    """Same Cornerstone 3.1 IO keys as GHG industrial coal/gas combustion."""
+    from bedrock.transform.allocation.co2.industrial_coal import (  # noqa: PLC0415
+        _get_mecs_3_1_naics_mappings as coal_maps,
+    )
+    from bedrock.transform.allocation.co2.industrial_natural_gas import (  # noqa: PLC0415
+        _get_mecs_3_1_naics_mappings as gas_maps,
+    )
+    from bedrock.transform.allocation.utils import flatten_items  # noqa: PLC0415
+
+    coal_map, coal_sub = coal_maps()
+    gas_map, gas_sub = gas_maps()
+    assert coal_map is gas_map
+    assert coal_sub is gas_sub
+    ghg_mfg = {str(c) for c in flatten_items(coal_map.keys())}
+    ghg_mfg.update(str(c) for c in flatten_items(coal_sub.keys()))
+    assert industrial_manufacturing_pool() == frozenset(ghg_mfg)
+    assert not (industrial_manufacturing_pool() & set(NON_MECS_INDUSTRIES))
+
+
 def test_self_use_industrial_fd_and_gtd_children_are_residual() -> None:
     mfg = industrial_manufacturing_pool()
     for code in (ELECTRICITY_AGGREGATE, 'F02E00', *ELECTRICITY_DISAGG_SECTORS):

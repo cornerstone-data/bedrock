@@ -2,6 +2,20 @@
 
 Pure allocator plus the 2017 cached getter and Use/Y/A/q writers.
 Table 2.2 / 2.14 / 3.1 loaders live in ``egrid_generation``.
+
+Table 7.7 purchased kWh is read from the ``EIA_MECS_Energy`` **FBA** parquet.
+This repo does not publish a standalone MECS Energy FBS: Tables 2.2 / 3.2
+also stay FBA and enter GHG only as attribution sources during FBS build.
+7.7 is the same pattern with a different consumer (G/T/D purchaser weights,
+not sector-attributed flows). An FBS pass would apply
+``estimate_suppressed_mecs_energy`` and the generic NAICS crosswalk; this
+path needs 3-digit Q/D residual fill and the Cornerstone MECS 3.1 hand map.
+
+Manufacturing NAICS→BEA IO uses ``CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*``,
+the same maps as GHG industrial coal/gas combustion. Residual Industrial
+purchasers are ``NON_MECS_INDUSTRIES`` (dollar bills here; BEA fuel Use in
+GHG). Multi-IO mapping keys split 7.7 kWh by electricity bills; GHG splits
+fuel by BEA Use of that commodity.
 """
 
 from __future__ import annotations
@@ -448,10 +462,11 @@ def mecs_purchased_kwh(mecs_year: int) -> pd.Series:
     ``Electricity total``. After * → 0 and 3-digit Q/D residual fill;
     remaining non-3-digit Q/D → 0. Index is MECS NAICS (includes ``31-33``
     for the residual identity only — do not put ``31-33`` into manufacturing
-    shares). Hard-error if the US Electricity-total frame is empty after
-    filters. A present Energy FBS without Table 7.7 rows is not
-    FBANotAvailableError and must not dollar-fallback. Do not call
-    ``estimate_suppressed_mecs_energy``.
+    shares).     Hard-error if the US Electricity-total frame is empty after
+    filters. Do not materialize an FBS: 7.7 is FBA-only purchaser
+    weights, not ``SectorConsumedBy`` flows. A present Energy FBS
+    without Table 7.7 rows is not FBANotAvailableError and must not
+    dollar-fallback. Do not call ``estimate_suppressed_mecs_energy``.
 
     Cached by year; each call returns a copy so callers cannot mutate the
     cached Series.
