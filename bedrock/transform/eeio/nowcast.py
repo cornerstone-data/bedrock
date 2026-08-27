@@ -490,8 +490,7 @@ def derive_initial_value_added(
     # see the note on _VALUE_ADDED_METHODS above.
     tax_rows = va_tax_rows(year)
     rows.extend(
-        ta.cast('pd.Series[float]', tax_rows.loc[code])
-        for code in ('T00TOP', 'T00SUB')
+        ta.cast('pd.Series[float]', tax_rows.loc[code]) for code in ('T00TOP', 'T00SUB')
     )
 
     block = pd.DataFrame(rows).reindex(

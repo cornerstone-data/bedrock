@@ -322,9 +322,7 @@ def industry_output(year: int) -> pd.Series:
 
 
 @functools.cache
-def market_share_matrix(
-    year: int, exclude_government: bool = False
-) -> pd.DataFrame:
+def market_share_matrix(year: int, exclude_government: bool = False) -> pd.DataFrame:
     """``D[c, i]``: industry ``i``'s share of commodity ``c``'s output in *year*.
 
     Normalised by the commodity's own output (the make block's **row** margin,
@@ -385,9 +383,7 @@ def t00top_row(year: int) -> pd.Series:
     shares = market_share_matrix(year, exclude_government=True)
     row = shares.mul(producer, axis=0).sum(axis=0).reindex(industries).fillna(0.0)
 
-    fuel_commodities = [
-        c for c in NAMED_TAX_LINES['motor fuel'][1] if c in trade.index
-    ]
+    fuel_commodities = [c for c in NAMED_TAX_LINES['motor fuel'][1] if c in trade.index]
     fuel_tax = float(trade.loc[fuel_commodities].sum())
     others = [i for i in trade_industries() if i != PETROLEUM_WHOLESALERS]
     weight = industry_output(year).reindex(others).fillna(0.0).clip(lower=0.0)
@@ -484,9 +480,7 @@ def t00sub_row(year: int) -> pd.Series:
         # In 2020-2021 the `other` column is BEA's PPP allocation rather than
         # the anchored line, and PPP on 5241XX is private-insurance support that
         # does not belong to a federal enterprise.
-        ppp_replaced = (
-            subsidy_type == 'other' and int(year) in PANDEMIC_YEARS
-        )
+        ppp_replaced = subsidy_type == 'other' and int(year) in PANDEMIC_YEARS
         column = parts[subsidy_type]
         for raw_commodity, raw_amount in column[column != 0.0].items():
             commodity, amount = str(raw_commodity), float(raw_amount)
@@ -642,9 +636,11 @@ def check() -> int:
     # levels would report that rounding as error and hide a real one behind it.
     sub_error = scores['T00SUB']['absolute_error']
     published_sub_row = published_row(use, 'T00SUB')
-    estimate_sub_row = (-t00sub_row(ANCHOR_YEAR) / million).reindex(
-        published_sub_row.index
-    ).fillna(0.0)
+    estimate_sub_row = (
+        (-t00sub_row(ANCHOR_YEAR) / million)
+        .reindex(published_sub_row.index)
+        .fillna(0.0)
+    )
     shape_error = float(
         (
             estimate_sub_row / estimate_sub_row.sum()

@@ -149,9 +149,9 @@ def test_t00sub_reproduces_the_published_row_exactly() -> None:
     """
     _, use = _frames()
     published = published_row(use, 'T00SUB')
-    estimate = (-vt.t00sub_row(vt.ANCHOR_YEAR) / MILLION).reindex(
-        published.index
-    ).fillna(0.0)
+    estimate = (
+        (-vt.t00sub_row(vt.ANCHOR_YEAR) / MILLION).reindex(published.index).fillna(0.0)
+    )
 
     shape_error = float(
         (estimate / estimate.sum() - published / published.sum()).abs().sum()
@@ -244,9 +244,11 @@ def test_excluding_government_moves_mass_rather_than_deleting_it() -> None:
     """
     year = vt.ANCHOR_YEAR
     government = vt.government_industries()
-    producer = top_by_level(year)['producer_level'].reindex(
-        vt.make_block(year).index
-    ).fillna(0.0)
+    producer = (
+        top_by_level(year)['producer_level']
+        .reindex(vt.make_block(year).index)
+        .fillna(0.0)
+    )
 
     plain = vt.market_share_matrix(year).mul(producer, axis=0).sum(axis=0)
     kept = (
