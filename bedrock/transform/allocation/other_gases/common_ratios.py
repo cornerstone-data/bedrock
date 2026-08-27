@@ -18,8 +18,9 @@ def derive_make_use_ratios_for_hfcs_from_other_sources() -> pd.Series[float]:
     industrial_refrigerator_production = float(
         ta.cast(ta.Any, bea_make.at[industrial_refrigerator, industrial_refrigerator])
     )
+    # Cornerstone Make has aggregate 335220 (all major household appliances).
     household_refrigerator_production = float(
-        ta.cast(ta.Any, bea_make.at["335222", "335222"])
+        ta.cast(ta.Any, bea_make.at["335220", "335220"])
     )
     production_ratio = industrial_refrigerator_production / (
         industrial_refrigerator_production + household_refrigerator_production

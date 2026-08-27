@@ -12,6 +12,12 @@ of the Supply bridge's ``T015`` block::
 published annually in NIPA, independent of the Supply table::
 
     TOP = T30500 taxes on products - customs and other import duties
+
+⚠️ **The residual is no longer frozen.** 70% of the column is general sales tax
+with no named NIPA line. It sat on frozen 2017 shares until ``TRADE`` and
+``TRANS`` were sourced (#611); it now moves on ``T013 + T014``, a
+purchaser-price base by commodity - see :func:`residual_share_for_year`. 2024
+holds 2023's shares, because the margin columns stop there.
         = (LA000236 + LA000238) - B235RC
 
 2017 gives 716,925 against the published Supply column's 716,926 - a $1M
@@ -434,12 +440,128 @@ def residual_share() -> pd.Series:
         output is also the wrong base for an import-heavy good: apparel sells more
         each year while ``315000`` produces less.
 
-    The real fix is a purchaser-price base by commodity, which is Step 5's output;
-    until then the honest construction is the frozen vector with the named lines
-    lifted out of it.
+    ✅ **The real fix landed, and it is :func:`purchaser_base`.** It was written
+    here as "Step 5's output", but the supply bridge reaches it first: once
+    ``TRADE`` and ``TRANS`` were sourced (#611), ``T013 + T014`` *is* a
+    purchaser-price base by commodity - supply at basic value plus the margins
+    that carry it to the purchaser - and it clears both objections above. See
+    :func:`residual_share_for_year`. This function is what 2024 still falls back
+    on, because the margin columns stop at 2023.
     """
     residual = residual_2017()
     return (residual / residual.sum()).rename('residual_share')
+
+
+#: Last year the margin columns reach, so the last year the purchaser-price base
+#: can be built. Kept local rather than imported from ``eeio.nowcast``, which
+#: imports this module.
+_LAST_MARGIN_YEAR = 2023
+
+
+@functools.cache
+def purchaser_base(year: int) -> pd.Series:
+    """``T013 + T014`` by commodity for *year*, USD - supply at purchaser value
+    less taxes.
+
+    This is the annual base the residual moves on. It is assembled from the
+    bridge's *components* rather than from
+    :func:`~bedrock.transform.eeio.nowcast.derive_initial_supply_bridge`, which
+    would be circular: the bridge calls :func:`top_column`, so ``TOP`` cannot
+    read the finished bridge back.
+
+    ⚠️ **Taxes are deliberately excluded from the base.** ``T015`` carries
+    ``TOP`` itself, so including it would make the tax its own allocator.
+    ``T013 + T014`` is the largest slice of purchaser value that ``TOP`` does not
+    appear in.
+    """
+    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        _supply_fbs_commodity_vector,
+        _trade_fbs_commodity_vector,
+    )
+    from bedrock.transform.iot.nowcast_trade_margins import (  # noqa: PLC0415
+        trade_margin_column,
+    )
+    from bedrock.transform.iot.nowcast_transport_margins import (  # noqa: PLC0415
+        transport_margin_column,
+    )
+    from bedrock.transform.trade.madj import madj_detail_usd  # noqa: PLC0415
+
+    index = pd.Index(USA_2017_COMMODITY_CODES, name='commodity')
+
+    def _v(series: pd.Series) -> pd.Series:
+        return pd.Series(series).reindex(index).fillna(0.0).astype(float)
+
+    # T013 = T007 + MCIF + MADJ
+    base = (
+        _v(_supply_fbs_commodity_vector(year, False))
+        + _v(_trade_fbs_commodity_vector(f'Trade_Imports_{year}', False))
+        + _v(madj_detail_usd(year, False))
+        # T014 = TRADE + TRANS
+        + _v(trade_margin_column(year))
+        + _v(transport_margin_column(year))
+    )
+    # The margin columns are signed - the modes that give margin up carry it
+    # negative - and a base must not be. A commodity whose margin give-up
+    # exceeds its own supply is a giver, not a buyer, of the tax base.
+    return base.clip(lower=0.0).rename('purchaser_base')
+
+
+def residual_share_for_year(year: int) -> pd.Series:
+    """The residual's commodity shares in *year*, summing to 1.
+
+    The 2017 residual moved by each commodity's growth in
+    :func:`purchaser_base`, then renormalised. This replaces the frozen 2017
+    vector for every year the margin columns reach.
+
+    **Why this base and not ``T007``.** Two ``T007`` movers were built and
+    rejected (see :func:`residual_share`); this one clears both objections:
+
+    ``S00402`` used and secondhand goods
+        Carries 15,699 $M of 2017 ``TOP``, eighth largest of any commodity, and
+        ``T007`` is **zero** for it by definition - it is not domestic output, so
+        the ``T007`` mover could not move a top-ten position. Its purchaser base
+        is 174,312 $M in 2017, because secondhand goods are almost entirely trade
+        margin. The margin layer reaches exactly what domestic output cannot.
+
+    **No renormalisation drift.** The one-sided ``T007`` mover reached 1.86x its
+    2017 level by 2024 against a control growing 1.53x. This base tracks the
+    control: the implied rescale stays within **0.939-1.008** across 2017-2023,
+    because purchaser value is what sales tax is actually levied on.
+
+    ⚠️ **The pandemic years are the check.** 2020 accommodation ``721000`` falls
+    7,045 $M against the frozen vector, air transport ``481000`` roughly halves,
+    and restaurants fall - the sectors #580 worried the frozen vector would get
+    wrong. The rejected ``T007`` service-side mover put accommodation at
+    -7,511 $M, so two independent bases agree on the size of the pandemic effect
+    and only this one reaches it without breaking the control total.
+
+    ⚠️ **2024 holds 2023's shares** rather than reverting to the frozen 2017
+    vector. ``TRADE`` and ``TRANS`` stop at 2023, so 2024 has no base; carrying
+    the last observed shares forward keeps the series continuous, where falling
+    back to 2017 would undo six years of movement in one step. It is a hold, not
+    a measurement.
+    """
+    year = int(year)
+    if year > _LAST_MARGIN_YEAR:
+        return residual_share_for_year(_LAST_MARGIN_YEAR)
+
+    residual = residual_2017()
+    base_now = purchaser_base(year).reindex(residual.index).fillna(0.0)
+    base_2017 = purchaser_base(ANCHOR_YEAR).reindex(residual.index).fillna(0.0)
+
+    ratio = (base_now / base_2017).replace([float('inf'), float('-inf')], 1.0)
+    # A commodity with no 2017 base cannot be moved; it keeps its frozen share.
+    ratio = ratio.where(base_2017 > 0, 1.0).fillna(1.0)
+
+    moved = (residual * ratio).clip(lower=0.0)
+    total = float(moved.sum())
+    if total <= 0:
+        raise ValueError(
+            f'The TOP residual moved to a non-positive total in {year}. The '
+            f'purchaser-price base is meant to be positive wherever the 2017 '
+            f'residual is, so this means the base collapsed.'
+        )
+    return (moved / total).rename('residual_share')
 
 
 # --- the column ------------------------------------------------------------
@@ -468,7 +590,7 @@ def top_decomposition(year: int) -> pd.DataFrame:
         )
 
     out = named_line_weights().mul(amounts, axis='columns')
-    out['residual'] = residual_share() * residual_total
+    out['residual'] = residual_share_for_year(year) * residual_total
     out['TOP'] = out.sum(axis='columns')
     return out
 

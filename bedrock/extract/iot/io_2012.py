@@ -12,6 +12,7 @@ from bedrock.utils.emissions.ghg import GHG_DETAILED
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_V5_INPUT_DIR
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
+from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.bea.v2012_commodity import (
     USA_2012_COMMODITY_CODES,
 )
@@ -21,7 +22,6 @@ from bedrock.utils.taxonomy.bea.v2012_final_demand import (
 from bedrock.utils.taxonomy.bea.v2012_industry import (
     USA_2012_INDUSTRY_CODES,
 )
-from bedrock.utils.taxonomy.ceda_sector_index import get_ceda_sector_index
 
 USA_IO_VECTOR_NAMES = ta.Literal[
     "q0",
@@ -45,6 +45,19 @@ USA_INDUSTRY_INDEX = pd.Index(USA_2012_INDUSTRY_CODES, name="industry")
 USA_COMMODITY_INDEX = pd.Index(USA_2012_COMMODITY_CODES, name="commodity")
 USA_FINAL_DEMAND_INDEX = pd.Index(USA_2012_FINAL_DEMAND_CODES, name="final_demand")
 GHG_DETAILED_INDEX = pd.Index(GHG_DETAILED)
+# PI/PC reduce 2012 detail onto the 400-code square used by 2017 weight math.
+_IO_2012_REDUCED_INDEX = pd.Index(CEDA_V7_SECTORS, name="sector", dtype=str)
+
+# 2012 tables label pump manufacturing ``33391A``; 2017+ detail tables use ``333914``.
+_IO_2012_TO_DETAIL_CODE = {"33391A": "333914"}
+
+
+def _relabel_2012_codes(obj: pd.DataFrame) -> pd.DataFrame:
+    return obj.rename(index=_IO_2012_TO_DETAIL_CODE, columns=_IO_2012_TO_DETAIL_CODE)
+
+
+def _relabel_2012_codes_series(obj: pd.Series[float]) -> pd.Series[float]:
+    return obj.rename(index=_IO_2012_TO_DETAIL_CODE)
 
 
 @functools.cache
@@ -56,7 +69,7 @@ def load_2012_VR_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("VR") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_INDUSTRY_INDEX
     df.columns = USA_COMMODITY_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -68,7 +81,7 @@ def load_2012_UR_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("UR") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_COMMODITY_INDEX
     df.columns = USA_INDUSTRY_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -80,7 +93,7 @@ def load_2012_URdom_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("URdom") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_COMMODITY_INDEX
     df.columns = USA_INDUSTRY_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -90,8 +103,8 @@ def load_2012_PI_usa() -> pd.DataFrame:
     """
     df = _load_usa_io_matrix("PI")
     df.columns = USA_INDUSTRY_INDEX
-    df.index = get_ceda_sector_index()
-    return df
+    df.index = _IO_2012_REDUCED_INDEX
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -101,8 +114,8 @@ def load_2012_PC_usa() -> pd.DataFrame:
     """
     df = _load_usa_io_matrix("PC")
     df.index = USA_COMMODITY_INDEX
-    df.columns = get_ceda_sector_index()
-    return df
+    df.columns = _IO_2012_REDUCED_INDEX
+    return _relabel_2012_codes(df)
 
 
 @functools.cache
@@ -113,7 +126,7 @@ def load_2012_gR_usa() -> pd.Series[float]:
     """
     ser = _load_usa_io_vector("gR") * MILLION_CURRENCY_TO_CURRENCY
     ser.index = USA_INDUSTRY_INDEX
-    return ser
+    return _relabel_2012_codes_series(ser)
 
 
 @functools.cache
@@ -123,7 +136,7 @@ def load_2012_pR_usa() -> pd.Series[float]:
     """
     ser = _load_usa_io_vector("pR")
     ser.index = USA_INDUSTRY_INDEX
-    return ser
+    return _relabel_2012_codes_series(ser)
 
 
 @functools.cache
@@ -134,7 +147,7 @@ def load_2012_qR_usa() -> pd.Series[float]:
     """
     ser = _load_usa_io_vector("qR") * MILLION_CURRENCY_TO_CURRENCY
     ser.index = USA_COMMODITY_INDEX
-    return ser
+    return _relabel_2012_codes_series(ser)
 
 
 def load_2012_YR_usa() -> pd.DataFrame:
@@ -145,7 +158,7 @@ def load_2012_YR_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("YR") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_COMMODITY_INDEX
     df.columns = USA_FINAL_DEMAND_INDEX
-    return df
+    return _relabel_2012_codes(df)
 
 
 @deprecated("CEDAv7 update")

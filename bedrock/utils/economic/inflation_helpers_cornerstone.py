@@ -51,7 +51,7 @@ from bedrock.utils.taxonomy.bea.v2017_commodity_sector import (
 from bedrock.utils.taxonomy.bea.v2017_industry_summary import (
     USA_2017_SUMMARY_INDUSTRY_CODES,
 )
-from bedrock.utils.taxonomy.bea_v2017_to_ceda_v7_helpers import (
+from bedrock.utils.taxonomy.bea_v2017_to_cornerstone_helpers import (
     load_bea_v2017_summary_to_cornerstone,
 )
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES

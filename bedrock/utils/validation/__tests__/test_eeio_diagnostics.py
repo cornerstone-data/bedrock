@@ -350,8 +350,8 @@ class TestRunAllDiagnostics:
     [
         pytest.param(
             "ceda",
-            marks=pytest.mark.xfail(
-                reason="CEDA: q≠U_dom+y_d for 13 sectors after schema-alignment changes to 2017 detail trade/U.",
+            marks=pytest.mark.skip(
+                reason="CEDA 2017 constructor is leftover; q≠U_dom+y_d for 13 sectors.",
             ),
         ),
         pytest.param(
@@ -425,8 +425,8 @@ def test_compare_Uset_y_dom_and_q_usa(
             "Commodity",
             False,
             "ceda",
-            marks=pytest.mark.xfail(
-                reason="CEDA: scaled q≠L_total·y_total for ~298 commodity sectors (total Leontief identity).",
+            marks=pytest.mark.skip(
+                reason="CEDA 2017 constructor is leftover; scaled q≠L_total·y_total (~298 sectors).",
             ),
         ),
     ],

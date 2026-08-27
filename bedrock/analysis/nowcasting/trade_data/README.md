@@ -11,7 +11,8 @@ Lives at `bedrock/analysis/nowcasting/trade_data/`. Notes and probes stay here u
 | [`plan_527_long.md`](plan_527_long.md) | Intended plan (with annual-summary IO note and 2017 `compare()` results) |
 | [`trade_data_source_options_527.md`](trade_data_source_options_527.md) | Full options writeup + 2017 validation findings |
 | [`probe_2017_trade_totals.py`](probe_2017_trade_totals.py) | 2017 national Census+BEA FBA totals vs the SUT targets and ITA (sanity; not the 2–3% bar) |
-| [`score_2017_trade_detail.py`](score_2017_trade_detail.py) | 2017 nowcast `F04000` / `MCIF` scorecard (national %, Pearson, Jaccard, `MISS` holes) |
+| [`score_2017_trade_fbs.py`](score_2017_trade_fbs.py) | Fast Trade FBS vs SUT `F04000` / `MCIF` (Crosswalk iteration; no NIPA / Inventories / `S00900`) |
+| [`score_2017_trade_detail.py`](score_2017_trade_detail.py) | Full nowcast-column `F04000` / `MCIF` scorecard (baseline gate; rebuilds FD + Inventories) |
 
 ### Working decision
 
@@ -21,7 +22,14 @@ The #557 commodity bars are scored on the **nowcast columns** (`derive_initial_Y
 
 ### Probes
 
-Requires local 2017 `Census_USATrade`, `BEA_IEA`, and `BEA_ITA` FBAs, plus NIPA FD / Trade FBS inputs for the nowcast scorer.
+**Iterate Crosswalk / Census parse:** Trade FBS only (local `Trade_*_2017` + SUT).
+
+```powershell
+uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_fbs
+uv run python -m bedrock.analysis.nowcasting.trade_data.score_2017_trade_fbs 336411 492000
+```
+
+**Baseline / #557 gate:** F040 from nowcast FD (`S00900` identity); MCIF from Trade FBS only (skips full supply bridge / STB). Needs NIPA FD + Inventories for exports; Census API when Inventories regenerates.
 
 ```powershell
 uv run python -m bedrock.analysis.nowcasting.trade_data.probe_2017_trade_totals

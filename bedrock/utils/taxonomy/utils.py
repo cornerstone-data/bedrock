@@ -237,7 +237,7 @@ def generate_check_json(
     for k, v in weighted_mapping.items():
         check_map[k] = {
             "label": src_labels[k],
-            "CEDA_V5": [{"code": ceda_k, "label": dst_labels[ceda_k]} for ceda_k in v],
+            "mapped": [{"code": dst_k, "label": dst_labels[dst_k]} for dst_k in v],
         }
 
     output_file = os.path.join(out_dir, filename)
