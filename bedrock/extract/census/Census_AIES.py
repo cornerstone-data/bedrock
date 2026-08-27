@@ -74,6 +74,12 @@ _TYPE_OF_OPERATION = {
     '42': '1X',  # merchant wholesalers, excluding MSBOs
     '44': '00',  # retail, all types of operation
     '45': '00',
+    # Transportation, carried for the *transport* margin rather than the trade
+    # one (#611): NAICS 486's four detailed items are the pipeline margin items,
+    # and they continue Census_SAS Table 2 from 2023. They are inert for the
+    # trade margin, which filters to FlowName 'Gross margins' and then reads
+    # NAICS 42 or 44-45 by name, so no transport row can reach it.
+    '48': '00',
 }
 
 #: Published variable -> the flow name ``Census_AWTS`` and ``Census_ARTS`` use.
@@ -189,9 +195,284 @@ def census_aies_parse(
     )
 
 
+# --- transport margins (#611) ----------------------------------------------
+
+#: ``RCPT_MOTR_<group>_DVAL`` -> the Table 8 group name it continues.
+#:
+#: These strings are **not cosmetic**: they are the join key into
+#: ``Crosswalk_SAS_Group_to_BEA_2017.csv``, and all ten identified groups match
+#: AIES's own published labels exactly, so the crosswalk carries across the
+#: survey consolidation unchanged. Verified against
+#: ``timeseries/aies/miscsector/variables.json``.
+#:
+#: ⚠️ ``RCPT_MOTR_HAZRD_DVAL`` is deliberately absent. Hazardous materials is a
+#: cross-cut of the same revenue rather than a twelfth group; including it would
+#: double-count and break the partition check downstream.
+_MOTOR_CARRIER_GROUPS = {
+    'RCPT_MOTR_AGR_DVAL': 'Agricultural products',
+    'RCPT_MOTR_ELECT_DVAL': (
+        'Electronic and precision instruments and motorized vehicles'
+    ),
+    'RCPT_MOTR_FUEL_DVAL': 'Coal and petroleum products',
+    'RCPT_MOTR_GRAIN_DVAL': 'Grains, alcohol, and tobacco products',
+    'RCPT_MOTR_METAL_DVAL': 'Base metal and machinery',
+    'RCPT_MOTR_NEWFRN_DVAL': ('New furniture and miscellaneous manufactured products'),
+    'RCPT_MOTR_OTH_DVAL': 'Other goods',
+    'RCPT_MOTR_PHARM_DVAL': 'Pharmaceutical and chemical products',
+    'RCPT_MOTR_STONE_DVAL': 'Stone, nonmetallic minerals, and metallic ores',
+    'RCPT_MOTR_USEDGD_DVAL': 'Used household and office goods',
+    'RCPT_MOTR_WOOD_DVAL': 'Wood products, textiles, and leathers',
+}
+
+#: The row the eleven groups partition.
+_MOTOR_CARRIER_TOTAL = 'Total Motor Carrier Revenue'
+
+#: SAS Table 8's row prefix, reproduced here so the AIES rows land in the same
+#: vocabulary as the years they continue - ``load_truck_group_revenue`` then
+#: switches source rather than carrying a second parallel implementation.
+_MOTOR_CARRIER_PREFIX = 'Estimated Revenue by Commodities Handled: '
+
+#: NAICS 484 is the only industry carrying commodity detail, exactly as in SAS
+#: Table 8.
+_MOTOR_CARRIER_NAICS = '484'
+
+
+def _census_aies_miscsector_filename(year: str | int) -> str:
+    return f'Census_AIES_MiscSector_{year}.csv'
+
+
+def census_aies_miscsector_call(*, resp: Any, **kwargs: Any) -> list[pd.DataFrame]:
+    """Convert the API response to a dataframe; 204 means the year is absent.
+
+    Mirrors :func:`census_aies_call`, including writing the raw table under
+    ``extract/input_data/`` so it can be staged to GCS for keyless CI.
+    """
+    if resp.status_code == 204:
+        log.warning(f'No AIES miscsector content for {resp.url}')
+        return [pd.DataFrame()]
+    payload = json.loads(resp.text)
+    df = pd.DataFrame(payload[1:], columns=payload[0])
+    out_dir = load_local_extract_input_dir(kwargs)
+    df.to_csv(
+        os.path.join(out_dir, _census_aies_miscsector_filename(kwargs['year'])),
+        index=False,
+    )
+    return [df]
+
+
+def census_aies_miscsector_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
+    """Load the cached miscsector table from local ``input_data``, or GCS."""
+    return [
+        load_from_gcs(
+            name=_census_aies_miscsector_filename(kwargs['year']),
+            sub_bucket=gcs_extract_input_sub_bucket_from_kwargs(kwargs),
+            local_dir=load_local_extract_input_dir(kwargs),
+            loader=pd.read_csv,
+        )
+    ]
+
+
+def census_aies_miscsector_parse(
+    *, df_list: list[pd.DataFrame], source: str, year: int | None, **_: Any
+) -> pd.DataFrame:
+    """Motor carrier revenue by commodity group, in SAS Table 8's vocabulary.
+
+    The eleven groups and the total are emitted with the same ``FlowName``
+    strings ``Census_SAS`` Table 8 uses, so the truck allocator reads one row
+    vocabulary across the 2022/2023 survey seam.
+    """
+    df = pd.concat(df_list, sort=False)
+    if df.empty:
+        raise ValueError(
+            f'{source} returned no rows for {year}. AIES currently publishes '
+            f'2023 only - Census_SAS Table 8 carries 2015-2022, and later years '
+            f'are not released yet.'
+        )
+
+    df['NAICS'] = df['NAICS'].astype(str).str.strip()
+    rows = df[df['NAICS'] == _MOTOR_CARRIER_NAICS]
+    if rows.empty:
+        raise ValueError(
+            f'{source} {year} has no NAICS {_MOTOR_CARRIER_NAICS} rows. That is '
+            f'the only industry carrying commodity detail, so without it there '
+            f'is no truck allocator.'
+        )
+
+    flow_names = {
+        **{k: f'{_MOTOR_CARRIER_PREFIX}{v}' for k, v in _MOTOR_CARRIER_GROUPS.items()},
+        'RCPT_MOTR_VAL': _MOTOR_CARRIER_TOTAL,
+    }
+    present = [c for c in flow_names if c in rows.columns]
+    missing = sorted(set(flow_names) - set(present))
+    if missing:
+        raise ValueError(
+            f'{source} {year} is missing {missing}. The eleven commodity groups '
+            f'are meant to partition {_MOTOR_CARRIER_TOTAL} exactly; a dropped '
+            f'variable would silently shrink every share once they renormalise.'
+        )
+
+    df = (
+        rows.melt(
+            id_vars=['NAICS'],
+            value_vars=present,
+            var_name='Variable',
+            value_name='FlowAmount',
+        )
+        .rename(columns={'NAICS': 'ActivityProducedBy'})
+        .assign(
+            FlowName=lambda x: x['Variable'].map(flow_names),
+            # Census_SAS carries the sheet in Description and the truck loader
+            # filters on it; keep that contract.
+            Description='Table 8',
+            Year=str(year),
+        )
+        .drop(columns='Variable')
+    )
+    df['FlowAmount'] = pd.to_numeric(df['FlowAmount'], errors='coerce') * _THOUSANDS
+
+    # AIES publishes no suppression flag on these items, but the truck loader
+    # reads the column to recover a single suppressed group by subtraction.
+    df['Suppressed'] = None
+
+    return (
+        df.assign(
+            Unit='USD',
+            Class='Money',
+            SourceName=source,
+            Compartment=None,
+            FlowType='TECHNOSPHERE_FLOW',
+            Location=US_FIPS,
+            # provisional pending a source-specific assessment
+            DataReliability=5,
+            DataCollection=5,
+        )
+        .pipe(assign_fips_location_system, 2024)
+        .reset_index(drop=True)
+    )
+
+
 if __name__ == '__main__':
     from bedrock.extract.flowbyactivity import getFlowByActivity
     from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 
     generateFlowByActivity(source='Census_AIES', year='2023')
     fba = getFlowByActivity('Census_AIES', 2023)
+
+
+#: AIES expense variables, mapped to the expense each names.  The keys are the
+#: successor series to :data:`~Census_ASM.ASM_EXPENSE_FLOWS`, and the two line up
+#: one for one on the concepts the materials work needs:
+#: ``EXPS_MAT_DVAL`` is ASM's ``CSTMPRT`` and ``EXPS_FUEL_VAL`` its ``CSTFU``.
+#:
+#: ✅ **Verified additive against the published control.**  ``EXPS_MAT_DVAL +
+#: EXPS_FUEL_VAL + EXPS_ELEC_VAL + EXPS_CONTRACT_VAL + EXPS_RESALE_VAL`` sums to
+#: ``EXPS_CSTMTOT_DVAL`` at 99.77% in aggregate, median per-industry ratio
+#: 1.0000, within 1% for 324 of 360 manufacturing industries -- the same
+#: decomposition ASM's ``CSTMTOT`` has, so the splice is a scope match rather
+#: than an approximation.
+AIES_EXPENSE_FLOWS = {
+    'EXPS_MAT_DVAL': 'Cost of materials, parts and containers',
+    'EXPS_FUEL_VAL': 'Cost of fuels',
+    'EXPS_ELEC_VAL': 'Cost of purchased electricity',
+    'EXPS_CONTRACT_VAL': 'Cost of contract work',
+    'EXPS_RESALE_VAL': 'Cost of goods purchased for resale',
+    'EXPS_ADVERT_VAL': 'Purchased advertising services',
+    'EXPS_COMMSVC_VAL': 'Purchased communication services',
+    'EXPS_DATAPROC_VAL': 'Purchased data processing and hosting services',
+    'EXPS_PROFTECH_VAL': 'Purchased professional and technical services',
+    'EXPS_TEMPSTAF_VAL': 'Purchased personnel supply services',
+    'EXPS_REFUSE_VAL': 'Purchased refuse removal services',
+    'EXPS_MACH_REP_VAL': 'Purchased machinery repair and maintenance',
+    'EXPS_BUILD_REP_VAL': 'Purchased building repair and maintenance',
+    'EXPS_RENT_BUILD_VAL': 'Rental of buildings',
+    'EXPS_RENT_MACH_VAL': 'Rental of machinery and equipment',
+    'EXPS_EXSOFT_VAL': 'Purchased software expensed',
+    'EXPS_COMPTR_OTHEQ_VAL': 'Purchased computers and peripherals expensed',
+    'EXPS_OTHER_VAL': 'All other operating expenses',
+}
+
+#: Totals of the cells beside them, kept so a consumer can check additivity.
+#: ⚠️ Summing this FBA unfiltered counts the table several times over.
+AIES_EXPENSE_CONTROLS = ('EXPS_CSTMTOT_DVAL', 'EXPS_TOT_DVAL', 'RCPT_TOT_VAL')
+
+
+def census_aies_expenses_parse(
+    *, df_list: list[pd.DataFrame], year: int, **_: Any
+) -> pd.DataFrame:
+    """Format the AIES expense-by-kind table into a long FBA.
+
+    ``ActivityConsumedBy`` is the purchasing NAICS industry and ``FlowName`` the
+    expense kind, matching :func:`~Census_ASM.asm_expenses_parse` exactly so the
+    two surveys stack into one annual panel.
+
+    ⚠️ **The expense detail is manufacturing only, at every NAICS level.**  This
+    is the single most important thing to know before reaching for this source.
+    AIES lists 883 six-digit industries, but only sectors 31-33 carry any
+    expense cell: 42 publishes ``EXPS_TOT_DVAL`` alone, and 21, 22, 23 and
+    51-81 publish **nothing at all**, at 2-, 3-, 4-, 5- and 6-digit alike.  So
+    this does *not* source the service industries that drift worst
+    (analysis/nowcasting/intermediate_estimation_plan.md, §Where the drift
+    sits); it confirms #564's finding rather than overturning it.
+
+    ⚠️ **And it does not cover mining**, which ``Census_EC_MatFuel`` does.  The
+    2023 observation is narrower than the census it extends.
+
+    ⚠️ **2023 is the only year.**  2022 predates the consolidated survey and
+    2024 is not published; both return ``204 No Content``.  So the annual
+    materials panel is census 2017, ASM 2018-2021, census 2022, AIES 2023, and
+    the estimation span ends there.  Adding 2024 once it publishes is #707,
+    Phase 2 work tied to a 2024 table; 2025 is out of scope.
+
+    ⚠️ **Every NAICS level is kept**, including the ``31-33`` rollup, on the same
+    reasoning as :func:`~Census_ASM.asm_expenses_parse`: the parents are the only
+    available control, and ``'31-33'`` is five characters, so match ``^\\d+$``
+    before filtering on length.
+    """
+    df = pd.concat(df_list, sort=False)
+
+    value_columns = [
+        column
+        for column in (*AIES_EXPENSE_FLOWS, *AIES_EXPENSE_CONTROLS)
+        if column in df.columns
+    ]
+    long = df.melt(
+        id_vars=['NAICS'],
+        value_vars=value_columns,
+        var_name='FlowName',
+        value_name='FlowAmount',
+    ).rename(columns={'NAICS': 'ActivityConsumedBy'})
+    long['FlowAmount'] = pd.to_numeric(long['FlowAmount'], errors='coerce')
+    # ⚠️ A missing cell is withheld; a published zero is a real zero, and AIES
+    # publishes a great many of them because the expense block is manufacturing
+    # only. Dropping both would delete the evidence for that; only the withheld
+    # ones go.
+    withheld = int(long['FlowAmount'].isna().sum())
+    long = long[long['FlowAmount'].notna()].copy()
+
+    long['Description'] = long['FlowName'].map(
+        AIES_EXPENSE_FLOWS
+        | {code: f'{code} (control)' for code in AIES_EXPENSE_CONTROLS}
+    )
+    long['ActivityProducedBy'] = None
+    long['Year'] = year
+    long['Location'] = US_FIPS
+    long['Unit'] = 'Thousand USD'
+    long['Class'] = 'Money'
+    long['FlowType'] = 'TECHNOSPHERE_FLOW'
+
+    long = assign_fips_location_system(long, year)
+    long['SourceName'] = 'Census_AIES_Expenses'
+    long['DataReliability'] = 5
+    long['DataCollection'] = 5
+    long['Compartment'] = None
+
+    log.info(
+        'Census_AIES_Expenses %s: %s rows over %s industries and %s expense '
+        'kinds; %s cells withheld and dropped.',
+        year,
+        len(long),
+        long['ActivityConsumedBy'].nunique(),
+        long['FlowName'].nunique(),
+        withheld,
+    )
+    return long

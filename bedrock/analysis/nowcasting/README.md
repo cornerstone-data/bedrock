@@ -16,6 +16,23 @@ uv run python -m bedrock.analysis.nowcasting.plots --section use_fd_detail_sut
 # the Step 4c margin anchor against the published Supply columns
 uv run python -m bedrock.analysis.nowcasting.margins_2017_baseline --check
 
+# how fast a frozen 2017 input structure goes stale, and whether inflation fixes it (Step 3)
+uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
+
+# what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
+uv run python -m bedrock.analysis.nowcasting.row_control_exposure
+
+# what can be sourced for manufacturing's input column (needs the
+# Census_EC_MatFuel, Census_EC_Expenses, Census_ASM_Expenses and
+# Census_AIES_Expenses FBAs)
+uv run python -m bedrock.analysis.nowcasting.inputs_structure --all
+
+# the non-materials cells, and the seed they carry
+uv run python -m bedrock.analysis.nowcasting.inputs_structure --services
+
+# how good the MATFUEL suppression fill is, against masked truth
+uv run python -m bedrock.analysis.nowcasting.inputs_structure --holdout
+
 # the copies embedded in the progress report
 uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir <report images dir> --no-report
@@ -48,10 +65,15 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   |---|---|---|---|
   | `use_fd_detail_sut` | 1 — Use final-demand columns | 402 × 19 | exported CSV |
   | `use_va_detail_sut` | 2 — Use value-added rows | 3 × 402 | none yet |
+  | `use_intermediate_detail_sut` | 3 — Use intermediate interior | 402 × 402 | `derive_initial_U_intermediate` |
   | `supply_bridge_detail_sut` | 4 — Supply imports, margins, taxes and the basic→purchaser subtotals | 402 × 12 | `derive_initial_supply_bridge` (MCIF) |
 
-  Those three are the whole of what a published 2017 detail reference supports
-  outside the two 402 × 402 interiors.
+  The first three are the whole of what a published 2017 detail reference
+  supports *outside* the two 402 × 402 interiors.
+  `use_intermediate_detail_sut` is one of those interiors: 161,604 cells is too
+  many to read as a picture but not too many to score, and the section machinery
+  reports the totals, the margins and a status count without anyone looking at
+  the grid. The Supply interior — the Make table, Step 4a — is still undeclared.
 - `plots.py` — the renderer and its CLI. Draws the interior as a single raster
   `imshow`, with the row totals as a strip down the right edge and the column
   totals along the bottom, on the same colour scale. `palette_separation()`
@@ -66,6 +88,47 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   columns, commodity by commodity, and reports what each residual is. `--check`
   exits non-zero if a count regresses. Writes the per-commodity comparison and
   the rate table to `output/`.
+- `intermediate_structure_drift.py` — the Step 3 measurements
+  ([#497](https://github.com/cornerstone-data/bedrock/issues/497)): the index of
+  dissimilarity between a carried input structure and a published one, computed
+  on column shares with the column total given, because Step 5 holds both
+  margins of that block and only the structure survives. `--drift` scores frozen
+  2017 against the summary Use SUT 2018-2024, `--inflation` scores the price-index
+  carry against it, `--holdout` runs the out-of-sample 2012 → 2017 detail version,
+  `--where` locates the drift by column, `--revision` measures BEA's own restatement
+  of a year it had already published, `--theta` fits the carry exponent,
+  `--control` scores the built column control against the published summary
+  `T005`, and `--seed` reports the built block year by year. Prints only; writes
+  nothing.
+- `row_control_exposure.py` — what `MCIF` and `F04000` error costs the
+  intermediate block. Step 3's commodity row is the residual
+  `T001 = T016 − Σ_FD Y`, so trade error lands in the interior; this scores it per
+  commodity, weighted by how much of the commodity goes to industry rather than to
+  final demand. Prints only; writes nothing.
+- `inputs_structure.py` — what can be sourced for manufacturing's intermediate
+  input column. Was `materials_structure.py`; renamed because the sources it
+  reads now reach **86% of that column**, 79 points of which are materials.
+  `--coverage` classifies every `MATFUEL` code into `direct` (one BEA detail
+  commodity), `group` (a BEA group needing a within-group split) and `residual`
+  (Census could not place it); `--groups` splits the group tier onto commodities
+  on 2017 Use shares and scores the prior against Census's own placements (72%
+  land on the right commodity, against 47% for an economy-wide prior);
+  `--vintage` reconciles the 2017/2022 NAICS revision onto one 365-industry
+  basis carrying 100% of both years; `--annual` scores linear interpolation
+  against the observed ASM/AIES path and rejects it — off by 28.8% in 2020 and
+  wrong in sign for 2023; `--movement` scores the 2017 → 2022
+  materials mix on the same index of dissimilarity as
+  `intermediate_structure_drift.py`, both on the full frame and on the
+  unsuppressed subsample, which is the one to quote; `--where` ranks industries
+  by dollars reallocated; `--recovery` shows what filling the withheld cells
+  changed; `--holdout` masks published cells and recovers them, which is the
+  measurement behind the suppression prior and the error bar on every recovered
+  cell. `--services` measures the named non-materials cells against BEA's own
+  2017 Use rows — they disagree by factors of **0.40 to 8.01**, which is why
+  `nonmaterial_seed()` carries an *index* rather than a level — and reports what
+  that index does to the block, which is +23.8% by 2023 against a frozen 2017.
+  Reads the `Census_EC_MatFuel`, `Census_EC_Expenses`, `Census_ASM_Expenses` and
+  `Census_AIES_Expenses` FBAs; prints only.
 - [`trade_data/`](trade_data/README.md) — Step 1d/4b source evaluation for the
   trade columns (#527): three 2017 probes scoring a Census goods + BEA services
   extract against the SUT targets — Use `F04000` for exports, Supply `MCIF` /
@@ -110,6 +173,11 @@ local run.
   Step 2, splitting `V00100` from NIPA's ~74 industries to BEA 2017 detail:
   wages and supplements separately, QCEW payroll as the movement series, and
   the sectors where QCEW does not work.
+- [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) — Step 3,
+  the Use table's commodity × industry interior: why the estimand is the
+  cross-structure rather than any level, how fast a frozen 2017 structure decays,
+  why the inflation carry turns harmful from 2022, and a re-sort of #577 / #578 /
+  #564 by whether a source delivers a mix or only a total.
 - [`margins_estimation_plan.md`](margins_estimation_plan.md) — Step 4c, the
   transaction-level Margins table and the Supply `TRADE`/`TRANS` columns: BEA's
   own method from the 2009 IO manual chapter 8 checked against the 2017 tables,

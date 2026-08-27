@@ -1,11 +1,19 @@
-!include:BEA_detail_target.yaml
+# Output is a BEA commodity vector, not a NAICS industry vector: this method
+# feeds the nowcast's initial Use-table final demand, and its PCE and equipment
+# columns have to reproduce the PCE/PEQ bridges cell for cell. The bridges name
+# BEA commodities, so the target schema has to as well (issue #546).
+!include:BEA_detail_commodity_target.yaml
 year: &nipa_year 2022
-target_naics_year: 2017
+target_schema_year: 2017
 geoscale: national
-activity_schema: None
+activity_schema: null
 
 _attribution_sources:
   BEA: &bea # 2017 Make and Use tables
+    # Pinned to the benchmark year on purpose, in every nowcast year's file: the
+    # PCE and PEQ bridge workbooks and the detail Use SUT are published for
+    # benchmark years only. They supply the commodity SPLIT of each NIPA line;
+    # the level comes from this file's own NIPA year (issue #621).
     year: 2017
     activity_to_sector_mapping: BEA_2017_Detail
     exclusion_fields:
@@ -24,21 +32,289 @@ source_names:
     clean_fba_w_sec: !script_function:BEA_NIPA drop_unassigned
     activity_sets:
 
-      # FD_PCE:
-      #   activity_to_sector_mapping: BEA_NIPA_FD_PCE
-      #   selection_fields:
-      #     Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
-      #   assign_fields:
-      #     ActivityConsumedBy: Personal Consumption Expenditures
-      #   attribution_method: proportional
-      #   attribution_source: ## Change this to use the PCE Bridge directly
-      #     BEA_Detail_Use_SUT:
-      #       <<: *bea
-      #       selection_fields:
-      #         ActivityConsumedBy: {'F01000': ''}
+      FD_PCE:
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        # Issue #539: assign the official BEA final-demand code to SectorConsumedBy
+        # only after attribution/aggregation is complete - see
+        # assign_sector_consumed_by_from_clean_parameter's docstring (in
+        # bedrock/transform/flowbyclean.py) for why it can't be done any earlier
+        # (would corrupt PrimarySector resolution during attribution, since
+        # BEA_NIPA is a TECHNOSPHERE_FLOW source).
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+        exclusion_fields:
+          # Lines 343-402 are BEA's own memorandum/aggregate section (NPISH gross-output
+          # breakdown, "Additional aggregates", "Market-based PCE" variants) - restatements
+          # of figures already counted in lines 1-341, not additional categories. Several
+          # (e.g. "Child care", "Religious organizations' services to households") repeat an
+          # identical dollar figure from lines 1-341 under the same bare name and would
+          # otherwise be double-counted once matched to PCEBridge.
+          #
+          # Line 342 is NOT one of them and is handled by its own activity_set below: it is
+          # NPISH *net* final consumption expenditure, the second component of PCE alongside
+          # household expenditure, and the only place U20405 states it. Lines 343+ decompose
+          # it into gross output less receipts, which is what double-counts. Excluding the
+          # whole 342-402 block dropped 396,415 - the entire residual against PCEBridge.
+          Line: [343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356,
+                 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371,
+                 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386,
+                 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402,
+                 # Also exclude lines handled by their own dedicated activity_set below
+                 # (aliased to a different ActivityProducedBy before matching PCEBridge),
+                 # to avoid double-assigning these rows to both this and that activity_set.
+                 159, 52, 61, 60, 70,
+                 # "Less:" lines, negated in their own activity_set below
+                 149, 338]
+        attribution_method: proportional
+        # Match each NIPA line to its OWN rows of the bridge. Merging on sector
+        # alone weights every commodity by its bridge total across all PCE
+        # lines, which splits each line's total on the wrong basis (issue #547).
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_PCE_npish:
+        # U20405 line 342, NPISH net final consumption expenditure - the second
+        # component of PCE alongside household expenditure, and a PCEBridge
+        # category in its own right. NIPA spells it "(NPISHs)" and the bridge
+        # "(NPISH)", so the name is assigned to the bridge's spelling; the
+        # crosswalk already carries this category's 22 commodities under it.
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: 342 # "Final consumption expenditures of nonprofit institutions serving households (NPISHs)"
+        assign_fields:
+          ActivityProducedBy: "Final consumption expenditures of nonprofit institutions serving households (NPISH)"
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy'] # see FD_PCE (#547)
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_PCE_less_nonresident:
+        # U20405 lines 149 and 338 are "Less:" lines: NIPA states them as positive
+        # magnitudes that the table subtracts, while PCEBridge already carries them
+        # as negative (-1,562 and -199,435, both to S00900). Attributed as-is they
+        # reach S00900 with the right magnitude and the wrong sign, so negate first.
+        # Both names match PCEBridge's PCE Category exactly, so no assign_fields.
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        clean_fba: !clean_function:flowbyclean negate_flows
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: [149, # "Less: Personal remittances in kind to nonresidents"
+                 338] # "Less: Expenditures in the United States by nonresidents"
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_PCE_tenant_landlord_durables:
+        # NIPA "Tenant-occupied, including landlord durables" has no PCEBridge counterpart
+        # by name; PCEBridge's equivalent leaf category is "Tenant landlord durables".
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: 159 # "Tenant-occupied, including landlord durables"; Line uniquely selects this row
+        assign_fields:
+          ActivityProducedBy: Tenant landlord durables # matches PCEBridge's PCE Category name
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy'] # see FD_PCE (#547)
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      # The next 4 activity_sets handle NIPA names carrying a "(part of NNN)" annotation
+      # (indicating the line is a partial split of a broader BEA classification group NNN)
+      # that PCEBridge's PCE Category names don't carry. Only these 4 of the 8 "(part of
+      # NNN)" names in U20405 have a matching PCEBridge leaf once stripped; the other 4
+      # (Household appliances, Jewelry and watches, Magazines/newspapers/stationery,
+      # Personal care products) do not match under any stripped or aliased form found so
+      # far, so they are left as-is (dropped, same as other unmatched subtotals).
+
+      FD_PCE_sporting_equipment:
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: 52 # "Sporting equipment, supplies, guns, and ammunition (part of 80)"
+        assign_fields:
+          ActivityProducedBy: Sporting equipment, supplies, guns, and ammunition
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy'] # see FD_PCE (#547)
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_PCE_musical_instruments:
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: 61 # "Musical instruments (part of 80)"
+        assign_fields:
+          ActivityProducedBy: Musical instruments
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy'] # see FD_PCE (#547)
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_PCE_recreational_books:
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: 60 # "Recreational books (part of 90)"
+        assign_fields:
+          ActivityProducedBy: Recreational books
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy'] # see FD_PCE (#547)
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_PCE_luggage:
+        activity_to_sector_mapping: BEA_NIPA_FD_PCE
+        clean_parameter: F01000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U20405 # Table 2.4.5U. Personal Consumption Expenditures by Type of Product
+          Line: 70 # "Luggage and similar personal items (part of 119)"
+        assign_fields:
+          ActivityProducedBy: Luggage and similar personal items
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy'] # see FD_PCE (#547)
+        attribution_source:
+          BEA_PCEBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_IP_equipment:
+        # Table 5.5.5U (issue #496), attributed via BEA_PEQBridge.
+        #
+        # The line list is the table's rows AT THE BRIDGE'S OWN GRANULARITY, and
+        # has to be explicit: U50505 interleaves three levels, so selecting the
+        # whole table takes parents and their children together and double
+        # counts. Read off the hierarchy in SeriesCodeParents (see
+        # bedrock/analysis/nowcasting/compare_NIPA_to_IOT.nipa_flat_table), the
+        # excluded rows are
+        #   - aggregates above the bridge: lines 1-3 ("Private fixed investment
+        #     in equipment", "Equipment", "Information processing equipment")
+        #     and the other level-2 subtotals 12, 21, 32
+        #   - detail below the bridge: 7/8 under "Medical equipment and
+        #     instruments", 15/16 under "Engines and turbines", 34/35 under
+        #     "Furniture and fixtures", 37/38 under "Agricultural machinery",
+        #     41/42 under "Construction machinery", 43 under "Trucks, buses,
+        #     and truck trailers"
+        # The bridge's granularity is not one level: "Light trucks" (29) and
+        # "Other trucks, buses, and truck trailers" (31) are level 4 while their
+        # parent (line 22) is not a bridge category, so the rule is "the rows
+        # the bridge names", not "level 3".
+        activity_to_sector_mapping: BEA_NIPA_FD_Equipment
+        clean_parameter: F02E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50505 # Table 5.5.5U. Private Fixed Investment in Equipment by Type
+          Line: [4, 5, 6, 9, 10, 11, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26, 27, 28,
+                 30, 33, 36, 39, 40, 41, 44]
+                 # 45 is a "Less:" line, negated in its own activity_set below
+        attribution_method: proportional
+        # Match each line to its OWN rows of the bridge - see FD_PCE (issue #547)
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          BEA_PEQBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_IP_equipment_less_scrap:
+        # U50505 line 45 is a "Less:" line, the same shape as the two in PCE:
+        # NIPA states 8,820 as a positive magnitude that the table subtracts,
+        # while PEQBridge already carries it as -8,820, all of it on S00401.
+        # Attributed as-is it reaches S00401 with the right magnitude and the
+        # wrong sign, which is worth twice the line to the column total. The
+        # name matches the bridge's category exactly, so no assign_fields.
+        activity_to_sector_mapping: BEA_NIPA_FD_Equipment
+        clean_parameter: F02E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        clean_fba: !clean_function:flowbyclean negate_flows
+        selection_fields:
+          Table: U50505
+          Line: 45 # "Less: Sale of equipment scrap, excluding autos"
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          BEA_PEQBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
+
+      FD_IP_equipment_residential:
+        # Line 46 is a second row named "Equipment", 15,025, sitting under the
+        # residential branch rather than under line 2. The bridge calls the same
+        # 15,025 "Residential equipment", so it is renamed here to match - the
+        # bare name cannot be matched on, since it occurs twice in the table.
+        #
+        # Issue #547: this lands in F02R00, not F02E00. F02E00 is *nonresidential*
+        # private fixed investment in equipment, and line 46 sits under the
+        # residential branch - these are landlord durables, equipment bought for
+        # residential rental property. The PEQ bridge carries them because it
+        # covers private equipment investment as a whole, but BEA's Use table
+        # books them to residential, and the Use table is the target this method
+        # is bound to. Sending them to F02E00 overstated it by the full 15,025
+        # (335220 household appliances alone was 11,265) and understated F02R00
+        # by the same commodities, cell for cell.
+        #
+        # The bridge still supplies the commodity split - only the destination
+        # column changes.
+        activity_to_sector_mapping: BEA_NIPA_FD_Equipment
+        clean_parameter: F02R00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        selection_fields:
+          Table: U50505
+          Line: 46
+        assign_fields:
+          ActivityProducedBy: Residential equipment
+        attribution_method: proportional
+        attribute_on: ['PrimarySector', 'ActivityProducedBy']
+        attribution_source:
+          BEA_PEQBridge:
+            <<: *bea
+            selection_fields:
+              FlowName: "Purchasers' Value"
 
       FD_IP_direct:
         activity_to_sector_mapping: BEA_NIPA_FD_IP
+        clean_parameter: F02N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
           ActivityProducedBy:
@@ -49,6 +325,8 @@ source_names:
 
       FD_IP_proportional:
         activity_to_sector_mapping: BEA_NIPA_FD_IP
+        clean_parameter: F02N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T50605 # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
         exclusion_fields:
@@ -65,11 +343,11 @@ source_names:
 
       FD_Gov_FedD_CE:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06C00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Consumption expenditures
-          Line: 18 # disambiguate from Consumption expenditures at lines 2, 26 (same name, other Gov levels)
+          Line: 18 # "Consumption expenditures"; Line uniquely selects this row (also at lines 2, 26)
         assign_fields:
           ActivityProducedBy: Consumption expenditures (Federal Defense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Defense Consumption Expenditures
@@ -82,6 +360,8 @@ source_names:
 
       FD_Gov_FedD_Equipment:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -98,6 +378,8 @@ source_names:
 
       FD_Gov_FedD_IP:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -115,11 +397,11 @@ source_names:
 
       FD_Gov_FedD_Structures:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F06S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Structures
-          Line: 20 # disambiguate from Structures (28), (36) — same name, different Gov levels
+          Line: 20 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 28, 36)
         assign_fields:
           ActivityProducedBy: Structures (Federal Defense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Defense Investment in Structures
@@ -132,11 +414,11 @@ source_names:
 
       FD_Gov_FedND_CE:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07C00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Consumption expenditures
-          Line: 26 # disambiguate from Consumption expenditures at lines 2, 18 (same name, other Gov levels)
+          Line: 26 # "Consumption expenditures"; Line uniquely selects this row (also at lines 2, 18)
         assign_fields:
           ActivityProducedBy: Consumption expenditures (Federal Nondefense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Nondefense Consumption Expenditures
@@ -149,11 +431,11 @@ source_names:
 
       FD_Gov_FedND_Structures:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Structures
-          Line: 28 # disambiguate from Structures (20), (36) — same name, different Gov levels
+          Line: 28 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 20, 36)
         assign_fields:
           ActivityProducedBy: Structures (Federal Nondefense) # matches crosswalk key
           ActivityConsumedBy: Federal Government Nondefense Investment in Structures
@@ -166,6 +448,8 @@ source_names:
 
       FD_Gov_FedND_Equipment:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -182,6 +466,8 @@ source_names:
 
       FD_Gov_FedND_IP:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F07N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -199,6 +485,8 @@ source_names:
 
       FD_Gov_SLG_CE:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10C00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -215,6 +503,8 @@ source_names:
 
       FD_Gov_SLG_Equipment:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10E00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -231,11 +521,11 @@ source_names:
 
       FD_Gov_SLG_Structures:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
-          ActivityProducedBy:
-            - Structures
-          Line: 36 # disambiguate from Structures at lines 4, 12, 20, 28 (same name, other Gov levels)
+          Line: 36 # "Structures"; Line uniquely selects this row (also at lines 4, 12, 20, 28)
         assign_fields:
           ActivityProducedBy: Structures (State and Local) # matches crosswalk key
           ActivityConsumedBy: State and Local Investment in Structures
@@ -248,6 +538,8 @@ source_names:
 
       FD_Gov_SLG_IP:
         activity_to_sector_mapping: BEA_NIPA_FD_Gov
+        clean_parameter: F10N00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: T30905 # Table 3.9.5. Government Consumption Expenditures and Gross Investment
           ActivityProducedBy:
@@ -265,6 +557,8 @@ source_names:
 
       FD_Structures1:
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        clean_parameter: F02R00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
           ActivityProducedBy:
@@ -283,27 +577,36 @@ source_names:
             selection_fields:
               ActivityConsumedBy: {'F02R00': ''}
 
-      FD_Structures1_used:
-        # "Net purchases of used structures" recurs at both line 38 (Nonresidential) and
-        # line 48 (Residential); split out from FD_Structures1/2 so each occurrence can be
-        # relabeled to its own crosswalk key without affecting the other names in those lists.
-        activity_to_sector_mapping: BEA_NIPA_FD_Structures
-        selection_fields:
-          Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
-          ActivityProducedBy: Net purchases of used structures
-          Line: 48
-        assign_fields:
-          ActivityProducedBy: Net purchases of used structures (Residential) # matches crosswalk key
-          ActivityConsumedBy: Residential Investment
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Use_SUT:
-            <<: *bea
-            selection_fields:
-              ActivityConsumedBy: {'F02R00': ''}
+      # Note: no FD_Structures1_used counterpart for line 48 ("Net purchases of used
+      # structures", Residential) - unlike line 38 (Nonresidential, mapped to S00402),
+      # line 48 has no sector in the crosswalk at all, so a dedicated activity_set for
+      # it would always produce an empty FBA. An empty primary FBA raises a ValueError
+      # deep in harmonize_geoscale that gets caught by a blanket except-ValueError several
+      # frames up (bedrock/extract/flowbyactivity.py's ".prepare_fbs" activity_sets
+      # branch), which silently discards the *entire* method's output - not just this one
+      # activity_set. Leaving line 48 out of every activity_set here lets it fall through
+      # to the normal "unassigned rows" drop instead.
 
       FD_Structures2:
+        # This set selects by NAME, and must keep doing so. From 2020 BEA splits
+        # line 4 "Office" into two children - line 5 "Data centers" (LA001282)
+        # and line 6 "General, financial, and other" (LA001283) - which
+        # partition it exactly, to the dollar. Selecting by name takes the
+        # parent and ignores the children, which is right. Switching this set to
+        # a line range, or adding the two children to the list below, double
+        # counts the whole of Office from 2020 on. Neither child is in
+        # Sector_Crosswalk_BEA_NIPA_FD_Structures, and neither needs to be: BEA
+        # Detail has no data-centre commodity, so both are 2332A0, exactly where
+        # their parent already goes (#621).
+        #
+        # The split is still worth knowing about, just not here: data centres run
+        # from 10.0% of office structures in 2020 to 31.0% in 2024, while
+        # "General, financial, and other" falls in absolute terms. That is a
+        # composition shift inside one commodity, so it cannot reach this column
+        # - it reaches the intermediate block, where the two build differently.
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        clean_parameter: F02S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
           ActivityProducedBy:
@@ -337,10 +640,11 @@ source_names:
       FD_Structures2_used:
         # See note on FD_Structures1_used: this is the Nonresidential (line 38) occurrence.
         activity_to_sector_mapping: BEA_NIPA_FD_Structures
+        clean_parameter: F02S00
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
         selection_fields:
           Table: U50405 # Table 5.4.5. Private Fixed Investment in Structures by Type
-          ActivityProducedBy: Net purchases of used structures
-          Line: 38
+          Line: 38 # "Net purchases of used structures" (Nonresidential); also occurs at line 48
         assign_fields:
           ActivityProducedBy: Net purchases of used structures (Nonresidential) # matches crosswalk key
           ActivityConsumedBy: Nonresidential Investment in Structures

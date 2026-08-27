@@ -147,6 +147,109 @@ def asm_pxi_parse(*, df_list, year, **_):
     return df
 
 
+#: The ``Census_ASM_Expenses`` cost variables, mapped to the expense each names.
+#: ``CSTMTOT`` is deliberately absent: it is the sum of the five cost cells and
+#: would double the table, exactly as ``00772000`` does in ``Census_EC_MatFuel``.
+#: It is kept in the pull as a control and dropped here.
+ASM_EXPENSE_FLOWS = {
+    'CSTMPRT': 'Cost of materials, parts and containers',
+    'CSTFU': 'Cost of fuels',
+    'CSTELEC': 'Cost of purchased electricity',
+    'CSTCNT': 'Cost of contract work',
+    'CSTRSL': 'Cost of goods purchased for resale',
+    'PCHADVT': 'Purchased advertising services',
+    'PCHCMPQ': 'Purchased computers and peripherals expensed',
+    'PCHCSVC': 'Purchased communication services',
+    'PCHDAPR': 'Purchased data processing and hosting services',
+    'PCHEXSO': 'Purchased software expensed',
+    'PCHPRTE': 'Purchased professional and technical services',
+    'PCHRFUS': 'Purchased refuse removal services',
+    'PCHRPR': 'Purchased repair and maintenance services',
+    'PCHTEMP': 'Purchased personnel supply services',
+}
+
+#: Rows that are totals of the cells beside them, not expenses in their own
+#: right.  ``PCHTT`` totals the ``PCH*`` services, ``CSTMTOT`` the costs;
+#: ``RCPTOT`` and ``VALADD`` are output measures kept for scaling.
+ASM_EXPENSE_CONTROLS = ('CSTMTOT', 'PCHTT', 'RCPTOT', 'VALADD')
+
+#: ⚠️ Not an expense on a commodity.  ``PCHTAX`` is purchased-services *taxes*,
+#: which belong to the taxes-on-production block rather than to intermediate
+#: use, so it is pulled for completeness and excluded from the flows above.
+ASM_NON_COMMODITY = ('PCHTAX',)
+
+
+def asm_expenses_parse(*, df_list, year, **_):
+    """Format the ASM expense-by-kind table into a long FBA.
+
+    ``ActivityConsumedBy`` is the purchasing NAICS industry and ``FlowName`` the
+    expense kind -- the Use table's own orientation, and the same one
+    :func:`Census_EC.census_EC_MatFuel_parse` uses, so the two can be
+    differenced without a transpose.
+
+    ⚠️ **Every NAICS level is kept**, 3- through 6-digit plus the ``31-33``
+    all-manufacturing rollup, on the same reasoning as
+    :func:`asm_pxi_parse`: the parents are the only available control, and
+    ``'31-33'`` is five characters, so a consumer must match ``^\d+$`` before
+    filtering on length.
+
+    ⚠️ **The control columns are kept as rows** rather than dropped, so a
+    consumer can check additivity, but they are named in
+    :data:`ASM_EXPENSE_CONTROLS` and summing this FBA unfiltered counts the
+    table roughly three times.
+    """
+    df = pd.concat(df_list, sort=False)
+
+    value_columns = [
+        column
+        for column in (
+            *ASM_EXPENSE_FLOWS,
+            *ASM_EXPENSE_CONTROLS,
+            *ASM_NON_COMMODITY,
+        )
+        if column in df.columns
+    ]
+    long = df.melt(
+        id_vars=['NAICS2017'],
+        value_vars=value_columns,
+        var_name='FlowName',
+        value_name='FlowAmount',
+    ).rename(columns={'NAICS2017': 'ActivityConsumedBy'})
+    long['FlowAmount'] = pd.to_numeric(long['FlowAmount'], errors='coerce')
+    # ⚠️ A missing cell here is withheld, not zero, and ASM publishes no flag
+    # column to tell the two apart. Dropped rather than zero-filled so a
+    # consumer cannot silently read suppression as an absent expense.
+    withheld = int(long['FlowAmount'].isna().sum())
+    long = long[long['FlowAmount'].notna()].copy()
+
+    long['Description'] = long['FlowName'].map(
+        ASM_EXPENSE_FLOWS | {code: f'{code} (control)' for code in ASM_EXPENSE_CONTROLS}
+    )
+    long['ActivityProducedBy'] = None
+    long['Year'] = year
+    long['Location'] = US_FIPS
+    long['Unit'] = 'Thousand USD'
+    long['Class'] = 'Money'
+    long['FlowType'] = 'TECHNOSPHERE_FLOW'
+
+    long = assign_fips_location_system(long, year)
+    long['SourceName'] = 'Census_ASM_Expenses'
+    long['DataReliability'] = 5
+    long['DataCollection'] = 5
+    long['Compartment'] = None
+
+    log.info(
+        'Census_ASM_Expenses %s: %s rows over %s industries and %s expense '
+        'kinds; %s cells withheld and dropped.',
+        year,
+        len(long),
+        long['ActivityConsumedBy'].nunique(),
+        long['FlowName'].nunique(),
+        withheld,
+    )
+    return long
+
+
 def _numeric_naics_level(fba: pd.DataFrame) -> pd.DataFrame:
     """Add ``naics``/``level``, dropping the ``31-33`` all-manufacturing rows.
 

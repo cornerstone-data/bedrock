@@ -13,7 +13,12 @@ uv run python -m bedrock.analysis.nowcasting.plots \
     --dpi 110 --out-dir bedrock/analysis/nowcasting/images --no-report   # the copies below
 ```
 
-**Snapshot date:** 2026-08-22. Step 1 is a live `derive_initial_Y_pur`
+**Snapshot date:** 2026-08-26 for Steps 1 and 4, re-run after the AIES-sourced
+`TRANS` and `TOP`'s purchaser-price residual (#611/#580) and the NAICS-2022
+goods Crosswalk (#734); **Step 3 is unchanged from the 2026-08-24 run**.
+
+**Step 3 has landed ([#497](https://github.com/cornerstone-data/bedrock/issues/497)),** so the 402 × 402 Use interior is in
+the report for the first time. Step 1 is a live `derive_initial_Y_pur`
 (`NIPA_final_dom_uses_2017`, Trade `F04000`, `Inventories_2017` on `F03000`).
 Step 4 is a live `derive_initial_supply_bridge`, and with **`TOP` and `SUB`
 (#580)** it populates **all twelve bridge columns** for 2017 for the first time.
@@ -26,17 +31,27 @@ evaluable rather than NaN, and the block can finally be scored as a whole.
 
 | block | step | shape | reference populates | reference total | candidate | coverage | accuracy |
 |---|---|---|---:|---:|---|---:|---:|
-| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **95.5%** | **55.1%** |
+| `use_fd_detail_sut` | 1 — final demand | 402 × 19 | 1,253 cells | $22.24T | live | **96.0%** | **54.6%** |
 | `use_va_detail_sut` | 2 — value added | 3 × 402 | 1,189 cells | $18.92T | *none yet* | — | — |
-| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (all 12 columns) | **99.0%** | **61.8%** |
+| `use_intermediate_detail_sut` | 3 — intermediate interior | 402 × 402 | 44,281 cells | $14.86T | live | **100.0%** | **100.0%** |
+| `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (all 12 columns) | **99.2%** | **62.1%** |
 
 **coverage** = of the cells the reference populates, how many we populate.
 **accuracy** = of the cells we populate, how many land within tolerance.
 
-Those three blocks are the whole of what a published 2017 detail reference
-supports outside the two 402 × 402 interiors. The reference columns are the
-denominator: they are what "done" looks like, and they are known before the
-corresponding step is built.
+The first three of those blocks are the whole of what a published 2017 detail
+reference supports *outside* the two 402 × 402 interiors, and Step 3 is one of
+those interiors. The reference columns are the denominator: they are what "done"
+looks like, and they are known before the corresponding step is built.
+
+⚠️ **Step 3's 100%/100% is not comparable to the other rows, and it must not be
+read as "Step 3 is finished".** Steps 1 and 4 build their blocks from
+independent sources and are scored against an answer they never saw. Step 3 is
+*seeded from this very reference*, so at 2017 the carry factor is 1.0 everywhere
+and the only move left is the column rescale. A perfect score here says the
+plumbing is right, and says nothing at all about the years that matter. The
+movement is scored on the published summary panel by
+[`intermediate_structure_drift`](intermediate_structure_drift.py), not here.
 
 ⚠️ **Coverage and accuracy moved in opposite directions this snapshot, and that
 is the honest result.** `F03000` landing adds 256 populated cells against a
@@ -174,6 +189,53 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 
 ---
 
+## Step 3 — Use table, the intermediate interior
+
+`use_intermediate_detail_sut` · 402 commodities × 402 industries · tolerance
+`rtol=0.01, atol=5e5, ramp=0.25`
+
+![Step 3 intermediate block match](images/use_intermediate_detail_sut_2017.png)
+
+| scope | absent | match | partial | miss | extra |
+|---|---:|---:|---:|---:|---:|
+| cells | 117,323 | 44,281 | 0 | 0 | 0 |
+| row totals | 36 | 366 | 0 | 0 | 0 |
+| column totals | 2 | 400 | 0 | 0 | 0 |
+
+Grand total $14.856T against $14.856T, off by **0.002%**.
+
+**Read the picture as a coverage map, not a score.** The candidate is
+`derive_initial_U_intermediate`: the published 2017 interior column-normalised,
+carried on the detail commodity price ratio at θ = 1, and rescaled to
+`GO_producer − VAPRO_seed`. At 2017 every carry factor is 1.0, so the block is
+the reference put through a per-column rescale — everything green is what that
+should look like, and anything else would have been a plumbing bug.
+
+⚠️ **The rescale is not the identity, and the residual is BEA's own rounding.**
+Published `T005` is one rounded number; the interior sums 402 separately rounded
+cells to a different one — $350M on $14.9T, at most $13M on a column. A *small*
+column wears that as a large fraction, so `atol` is what carries those cells
+rather than `rtol`: `334610` is $482M of intermediates and is rescaled by 1.05%,
+the largest relative error in the block, while the largest absolute error is
+$6.0M on a $19.2B cell.
+
+✅ **The seven published negative cells survive**, and the two structurally empty
+columns — `4200ID` customs duties and `814000` private households — stay empty.
+
+⚠️ **Two things here are seeds and will be overwritten at Step 5.** `VAPRO` is
+Step 2's, and Step 2 is unbuilt, so the column control carries 2017's
+value-added share of gross output forward; it is right economy-wide to within
+2.3% in every year 2018-2024 but drifts by industry, with `GSLG` 18.3% low at
+2022. ⚠️ **That `GSLG` figure is the column *level*, not
+[#578](https://github.com/cornerstone-data/bedrock/issues/578)** — #578 is the
+commodity *mix* inside the government columns and is a separate, later job. NIPA
+`T31005` already matches the published government `T005` at $0 / $0 / $2M in
+2017 and is not wired up anywhere. And **θ = 1 is #497 as written, not a
+finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
+[#699](https://github.com/cornerstone-data/bedrock/issues/699).
+
+---
+
 ## Step 4 — Supply table, bridge to purchaser value
 
 `supply_bridge_detail_sut` · 402 commodities × 12 bridge codes · tolerance
@@ -195,6 +257,28 @@ Turning it on: point `Section.candidate` at the Step 2 output.
 | reference grand total | $111.28T |
 | grand total error | **0.092%** |
 
+### What moved since 2026-08-24
+
+Coverage 99.0% → **99.2%**, accuracy 61.8% → **62.1%**, grand total error
+0.092% → **0.048%**, and `T013`/`T016` lost their last whole-column miss. None
+of that is Step 4a: it is the **Trade FBSs rebuilt on the NAICS-2022 goods
+Crosswalk** ([#734](https://github.com/cornerstone-data/bedrock/issues/734)),
+which moved `MCIF` (misses 27 → 22, coverage 90.9% → 92.6%) and carried through
+`T013` and `T016`.
+
+Two method changes landed with it and neither shows in the 2017 scores, because
+both are replays in the benchmark year:
+
+- **`TRANS` reaches 2023** ([#611](https://github.com/cornerstone-data/bedrock/issues/611)),
+  sourced from **AIES**, which continues SAS Table 8 under the same eleven group
+  names. ⚠️ 2024 is a *release date*, not an engineering gap — truck and pipeline
+  are 79.7% of the column and the AIES 2024 endpoints return 204/400.
+- **`TOP`'s residual stopped being frozen** ([#580](https://github.com/cornerstone-data/bedrock/issues/580)).
+  The other 70.2% of the column now moves on a purchaser-price base `T013 + T014`
+  rather than on 2017 shares. ⚠️ **So `TOP` now depends on margin coverage**, and
+  2024 holds 2023's shares. The two constructions differ by 6.3% of the 2020
+  column and 7.3% of the 2024 one.
+
 ### What moved since 2026-08-21
 
 Coverage 65.0% → **99.0%**, accuracy 54.1% → **61.8%**, whole-column misses
@@ -205,7 +289,8 @@ sourced to complete. Two columns landed, and with them the four subtotals:
   this branch) — NIPA T30500 taxes on products less customs duties for the
   annual total, ten named NIPA product lines placed on their own commodities
   (29.8% of the column), and the general-sales-tax residual on frozen 2017
-  shares. **2017-2024.**
+  shares. **2017-2024.** (⚠️ The residual stopped being frozen on 2026-08-26 —
+  see the entry above.)
 - **`SUB` is sourced** (same issue) — NIPA T31300 for the total, each commodity
   anchored on its published 2017 value and moved by its own NIPA type line.
   ⚠️ 2020 and 2021 replace the `other` type — 84% of the column in those years —
@@ -228,17 +313,17 @@ annual measurement instead of on the column's growth rate: for `TOP` that is
 | code | absent | match | partial | miss | extra | coverage | accuracy |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | `T007` | 3 | **399** | 0 | 0 | 0 | **100.0%** | **100.0%** |
-| `MCIF` | 99 | 24 | 247 | 27 | 5 | 90.9% | 8.7% |
+| `MCIF` | 102 | 26 | 250 | 22 | 2 | 92.6% | 9.4% |
 | `MADJ` | 396 | **6** | 0 | 0 | 0 | **100.0%** | **100.0%** |
-| `T013` | 1 | 216 | 184 | 1 | 0 | 99.8% | 54.0% |
+| `T013` | 1 | 225 | 176 | 0 | 0 | **100.0%** | 56.1% |
 | `TRADE` | 128 | **274** | 0 | 0 | 0 | **100.0%** | **100.0%** |
 | `TRANS` | 139 | 6 | 257 | 0 | 0 | **100.0%** | 2.3% |
 | `T014` | 120 | 132 | 150 | 0 | 0 | **100.0%** | 46.8% |
-| `MDTY` | 194 | 68 | 118 | 4 | 18 | 97.9% | 33.3% |
+| `MDTY` | 194 | 67 | 119 | 4 | 18 | 97.9% | 32.8% |
 | `TOP` | 63 | **339** | 0 | 0 | 0 | **100.0%** | **100.0%** |
 | `SUB` | 387 | **15** | 0 | 0 | 0 | **100.0%** | **100.0%** |
 | `T015` | 59 | 279 | 63 | 0 | 1 | **100.0%** | 81.3% |
-| `T016` | 3 | 200 | 192 | 1 | 6 | 99.7% | 50.3% |
+| `T016` | 3 | 205 | 188 | 0 | 6 | **100.0%** | 51.4% |
 
 **`T007`, `TRADE` and `TOP` are exact.** 399 of 399, 274 of 274 and 339 of 339
 populated cells land inside tolerance — not "close", but every cell. `T007`'s

@@ -70,6 +70,16 @@ BEA_Detail_Supply:
     bea:
       year: 2017
       hierarchy: flat
+BEA_Detail_Supply_PxI:
+  data_format: FBA
+  class:
+  - Money
+  # The 2022-moved mix. Still BEA 2017 codes on both axes - only the split
+  # inside 35 industry columns differs from BEA_Detail_Supply.
+  activity_schema:
+    bea:
+      year: 2017
+      hierarchy: flat
 BEA_Summary_Use_SUT:
   data_format: FBA
   class:
@@ -239,6 +249,16 @@ Census_AIES:
   - Money
   # AIES 2023 publishes the pre-2022 retail structure (452, 454), so it joins
   # the 2017-anchored margin rates without recoding
+  activity_schema:
+    naics:
+      year: 2017
+      hierarchy: parent-completeChild
+Census_AIES_MiscSector:
+  data_format: FBA
+  class:
+  - Money
+  # NAICS 484 only, carrying motor carrier revenue by commodity group - the
+  # 2023 continuation of Census_SAS Table 8 (#611)
   activity_schema:
     naics:
       year: 2017

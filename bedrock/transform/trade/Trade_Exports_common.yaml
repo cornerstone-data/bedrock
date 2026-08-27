@@ -1,0 +1,39 @@
+# National goods + services exports mapped to BEA 2017 Detail.
+#
+# Everything except the year and Detail_Supply attribution lives here. Each
+# Trade_Exports_<year> stub caches Detail_Supply_<year> with
+# collapse_detail_supply_to_t007 and names that cache key as attribution_source
+# (#729).
+!include:BEA_detail_commodity_target.yaml
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+source_names:
+  Census_USATrade:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: Census_USATrade
+    activity_sets:
+      goods_exports:
+        selection_fields:
+          FlowName: ALL_VAL_YR
+        attribution_method: proportional
+        # attribution_source: set in Trade_Exports_<year>.yaml
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+
+  BEA_IEA:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: BEA_IEA_exports
+    activity_sets:
+      service_exports:
+        selection_fields:
+          FlowName: Exports
+        exclusion_fields:
+          ActivityProducedBy: [AllTypesOfService]
+        attribution_method: proportional
+        # attribution_source: set in Trade_Exports_<year>.yaml
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
