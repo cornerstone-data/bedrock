@@ -18,6 +18,7 @@ diagnostics/
   year_alignment/       # BLy vs E under A/q year handling
   hh_vs_interindustry/  # F01000 BLy attribution vs interindustry (not D0 class MWh)
   probes/               # one-off sector probes
+  deck/                 # five-slide PPTX (current vs pre-MECS vs original)
   output/               # reports/figures (gitignored)
   __tests__/
 ```
@@ -154,8 +155,9 @@ python -m bedrock.analysis.electricity.current.diagnostics.ef_comparison.analyze
 | `electricity_reallocation/` | Suite PNGs for that step vs v0.3.1 electricity footing |
 | `electricity_disaggregation/` | Suite PNGs for 3-way vs v0.3.1 electricity footing |
 | `electricity_mixed_units/` | Suite PNGs for mixed units vs v0.3.1 electricity footing |
-| `panel/ef_panels_vs_v0_3_N.png` | 3-panel N % hist |
-| `panel/ef_panels_vs_v0_3_D.png` | 3-panel D % hist |
+| `panel/v0.2_original_electricity_disagg_{N,D}.png` | Frozen original vs v0.2 footing (2026-07-30); not overwritten by `plot_ef` |
+| `panel/v0.3_eia_gtd_pre_mecs_{N,D}.png` | Frozen EIA G/T/D pre-MECS vs v0.3.1 footing (2026-08-24); not overwritten by `plot_ef` |
+| `panel/ef_panels_vs_v0_3_{N,D}.png` | Live `plot_ef` write path (absent until a new sheet run) |
 | `panel/n_variance_*.csv`, `n_variance_explained.md` | From `analyze_n_variance` |
 
 Dropped sectors (e.g. mixed-units `221110` kg/MWh vs kg/USD) are footnoted on figures.
@@ -235,6 +237,36 @@ Prints to stdout (no dedicated output file).
 
 ---
 
+## 7. Comparison PPTX — `deck/`
+
+Five-slide decks matching the original-vs-EIA-anchored template: class MWh,
+electricity-sector D/N by step, and 3-panel histograms. Writes ``.pptx`` under
+``output/deck/``. Existing BLy / footing-plot / full-trace scripts stay as they are.
+
+| Pair | Histograms |
+|---|---|
+| `current_vs_eia_gtd` | Both rows vs v0.3.1 footing (current generated; pre-MECS frozen). MECS vs dollar-weight D/N is in the tables (**same** when they match). |
+| `current_vs_original` | Original row = frozen `v0.2_original_electricity_disagg_*`; bottom = current vs v0.3.1 |
+| `eia_gtd_vs_original` | Frozen `v0.2_original_electricity_disagg_*` over frozen `v0.3_eia_gtd_pre_mecs_*` |
+
+Identical D/N (or class MWh) cells are labeled **same**. Sectors not in the model
+at a step stay **N/A**. Missing freeze/cache files show **—**.
+
+```bash
+python -m bedrock.analysis.electricity.current.diagnostics.deck --pair current_vs_eia_gtd
+python -m bedrock.analysis.electricity.current.diagnostics.deck --all
+python -m bedrock.analysis.electricity.current.diagnostics.deck --all --derive
+```
+
+``--derive`` live-runs missing current (MECS) and pre-MECS (dollar-weight) steps.
+Original stays freeze-only. Vs-footing pairs load v0.2 / v0.3.1 D/N from the
+release snapshots when a footing freeze is absent.
+
+Extend the pre-MECS freeze (D, class MWh, optional 3-way) with
+``python -m bedrock.analysis.electricity.historical.pre_mecs_industrial_weights.write_freeze``.
+
+---
+
 ## Suggested order
 
 1. Sheet cache + BLy waterfalls (`bly_dispersion`) and EF plots (`ef_comparison.plot_ef`)
@@ -248,5 +280,6 @@ Prints to stdout (no dedicated output file).
 
 ```bash
 python -m pytest bedrock/analysis/electricity/current/diagnostics/__tests__ \
+    bedrock/analysis/electricity/current/diagnostics/deck/__tests__ \
     bedrock/analysis/electricity/current/eia_gtd/__tests__ -q
 ```

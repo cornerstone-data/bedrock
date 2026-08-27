@@ -8,6 +8,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 OUT_DIR = PACKAGE_DIR / 'output'
 
 MIXED_CONFIG = '2025_usa_cornerstone_v0_3_electricity_mixed_units'
+DISAGG_CONFIG = '2025_usa_cornerstone_v0_3_electricity_disaggregation'
 
 SNAPSHOT_FILES = ('q.parquet', 'N.parquet')
 
