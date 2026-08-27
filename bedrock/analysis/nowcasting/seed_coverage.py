@@ -124,8 +124,13 @@ from bedrock.analysis.nowcasting.plots import (  # noqa: E402
 
 IMAGE_DIR = Path(__file__).parent / 'images'
 
-#: The census year, where the seeds are strongest and every source publishes.
-DEFAULT_YEAR = 2022
+#: The year :func:`best_year` ranks first on the two scored indicators -- it is
+#: chosen by measurement, not by convention.  ⚠️ On reliability and
+#: technological correlation the four candidate years separate by less than
+#: 0.06, so what actually picks 2021 is coverage.  **The substantive argument
+#: for 2022 -- the only year whose census mix is read in the year the census ran
+#: -- is temporal correlation, which is not computed yet.**
+DEFAULT_YEAR = 2021
 
 #: ``ABSENT`` white, ``CARRIED`` cool grey.  ``SEEDED`` is the ramp below.
 ABSENT, CARRIED, SEEDED = 0, 1, 2
@@ -215,16 +220,159 @@ def band_order(codes: pd.Index) -> tuple[list[str], list[tuple[str, int, int]]]:
 
 
 # --------------------------------------------------------------------------
+# Pedigree scoring, on the EPA LCA data-quality ladder: 1 best, 5 worst.
+# --------------------------------------------------------------------------
+
+#: **Reliability**, per source, on the EPA pedigree's measured -> estimated
+#: ladder.  ⚠️ These are judgements about collection method, not measurements,
+#: and they are the most arguable numbers in this module -- they sit in one
+#: table so a disagreement is a one-line change rather than an argument.
+#:
+#: ``census``            complete mandatory enumeration, published as filed,
+#: 					   in a year the census actually ran
+#: ``census_interpolated`` the same census, read *between* its two vintages
+#: ``census_held``       the same census, carried past its 2022 vintage
+#:
+#: ⚠️ **The last two score 1, exactly as ``census`` does, and that is
+#: deliberate.**  How old a source is relative to the year it is used for is
+#: **temporal correlation** -- a third pedigree indicator, scored on data age --
+#: not reliability, which is about how the data were collected.  An interpolated
+#: census mix was still collected by a complete mandatory enumeration.  The
+#: labels are kept apart so the temporal indicator can be added later without
+#: re-deriving anything; they are **not scored** here (Wes, deferred).
+#: ``census_recovered``  same, but Census withheld the cell and it was
+#:                       re-estimated here: a calculation, not a measurement,
+#:                       which is the 1/2 -> 3 degrade
+#:                       :mod:`bedrock.utils.mapping.dqi` already applies
+#: ``asm``               Annual Survey of Manufactures -- a probability sample
+#: ``sas`` / ``aies``    annual business surveys, sampled and item-imputed
+#: ``eia923``            mandatory plant-level filing, verified, but a fuel
+#:                       bill rather than the purchase this cell wants
+#: ``ers``               modelled national farm-income estimates, not a survey
+#:                       of purchases
+#: ``carried``           no observation at all
+RELIABILITY: dict[str, int] = {
+    'census': 1,
+    'eia923': 2,
+    'census_interpolated': 1,
+    'census_held': 1,
+    'census_recovered': 3,
+    'asm': 3,
+    'sas': 3,
+    'aies': 3,
+    'ers': 4,
+    'carried': 5,
+}
+
+#: Which source supplies the manufacturing expense cells, by year.  Mirrors
+#: ``inputs_structure.EXPENSE_SOURCES``: the census years are stronger evidence
+#: than the sample years between them, which is why 2022 scores best.
+EXPENSE_SOURCE_YEARS: dict[str, tuple[int, ...]] = {
+    'census': (2017, 2022),
+    'asm': (2018, 2019, 2020, 2021),
+    'aies': (2023,),
+}
+
+#: Years the shipped figure is claimed to stand for.  ⚠️ **2018 and 2019 are
+#: deliberately not in here** -- see :func:`year_stability`.
+STABLE_YEARS: tuple[int, ...] = (2020, 2021, 2022, 2023)
+
+#: Widest spread in seeded dollars across :data:`STABLE_YEARS` that still lets
+#: one figure stand for all of them, in percentage points.
+STABILITY_BAND = 3.0
+
+
+#: Worst score, used for every carried cell on both indicators.
+WORST = 5
+
+#: NAICS digits BEA detail sits at.  A source collected coarser than this is
+#: mapping *down*, which is the degrade condition in
+#: :func:`bedrock.utils.mapping.dqi.adjust_dqi_reliability_collection_scores`.
+BEA_DETAIL_DIGITS = 6
+
+
+def expense_source_for(year: int) -> str:
+    """Which survey supplies the manufacturing expense cells in *year*."""
+    for source, years in EXPENSE_SOURCE_YEARS.items():
+        if year in years:
+            return source
+    return 'asm'
+
+
+def _ladder(count: int) -> int:
+    """``1, 2, 3-4, 5-9, >=10`` cells sharing one datum -> ``1..5``.
+
+    The steps are roughly geometric because the difference that matters is
+    1-vs-2, not 30-vs-40.  ⚠️ The thresholds are a choice, not a finding.
+    """
+    if count <= 1:
+        return 1
+    if count == 2:
+        return 2
+    if count <= 4:
+        return 3
+    if count <= 9:
+        return 4
+    return WORST
+
+
+def _depth_score(depth: int) -> int:
+    """NAICS digits collected at -> ``1..5``, one step per digit of shortfall."""
+    return int(min(WORST, max(1, 1 + (BEA_DETAIL_DIGITS - int(depth)))))
+
+
+def technological_correlation(frame: pd.DataFrame) -> pd.DataFrame:
+    """Add ``tc_commodity``, ``tc_industry`` and the combined ``tc``.
+
+    Two axes, because the question has two halves and they fail independently:
+
+    **Commodity.** ``1`` when the reported item *is* that BEA commodity, worse
+    as one item is spread over more of them.  Driven by ``k``.
+
+    **Industry.** ``1`` when the source reports the specific BEA industry, worse
+    when it collected at an aggregation BEA splits finer -- a 2-digit survey
+    NAICS against a 6-digit BEA industry -- or when one index drives many
+    columns.  Driven by the **worse** of the digit shortfall and ``m``, since
+    either alone breaks the correlation.
+
+    ⚠️ **Combined by the mean, rounded up.**  Taking the max would let one weak
+    axis erase a strong one, and the mean alone would flatter a cell that is
+    exact on commodity and hopeless on industry.  Both sub-scores are kept, so a
+    different combination can be taken without re-deriving anything.
+    """
+    out = frame.copy()
+    out['tc_commodity'] = out['k'].map(_ladder).astype(int)
+    out['tc_industry'] = np.maximum(
+        out['m'].map(_ladder).astype(int), out['depth'].map(_depth_score).astype(int)
+    )
+    out['tc'] = np.ceil((out['tc_commodity'] + out['tc_industry']) / 2).astype(int)
+    return out
+
+
+# --------------------------------------------------------------------------
 # Fan-out, one function per seed.  Each returns long ``commodity, industry, n``.
 # --------------------------------------------------------------------------
 
 
-def _records(pairs: list[tuple[str, str, int]]) -> pd.DataFrame:
-    frame = pd.DataFrame(pairs, columns=['commodity', 'industry', 'n'])
+#: Long-frame columns every ``_*_fanout`` emits.  ``k`` is the commodity
+#: fan-out, ``m`` the industry fan-out, ``depth`` the NAICS digits the source
+#: collected at, and ``source`` keys :data:`RELIABILITY`.
+OBSERVATION_COLUMNS = ('commodity', 'industry', 'k', 'm', 'depth', 'source')
+
+
+def _records(pairs: list[tuple[str, str, int, int, int, str]]) -> pd.DataFrame:
+    """Long observations, keeping the **most specific** one per cell.
+
+    Sorted by ``n`` then by the source's reliability, so where two seeds reach
+    the same cell the surviving row is the one that says the most about it.
+    """
+    frame = pd.DataFrame(list(pairs), columns=list(OBSERVATION_COLUMNS))
     if frame.empty:
         return frame
-    grouped = frame.groupby(['commodity', 'industry'], as_index=False)['n'].min()
-    return pd.DataFrame(grouped)
+    frame['n'] = frame['k'] * frame['m']
+    frame['reliability'] = frame['source'].map(RELIABILITY).astype(float)
+    frame = frame.sort_values(['n', 'reliability'])
+    return frame.drop_duplicates(subset=['commodity', 'industry'], keep='first')
 
 
 def _materials_fanout(year: int, columns: tuple[str, ...] | None) -> pd.DataFrame:
@@ -242,12 +390,30 @@ def _materials_fanout(year: int, columns: tuple[str, ...] | None) -> pd.DataFram
     rows = _benchmark().index
     fba = materials(vintage)
 
-    pairs: list[tuple[str, str, int]] = []
-    for material, industry, tier, bea in zip(
+    # ⚠️ Only a census year reads a census. `materials_seed` interpolates the
+    # mix between the 2017 and 2022 vintages for everything in between, so in a
+    # non-census year even an unsuppressed cell is a calculation rather than an
+    # observation -- the same 1/2 -> 3 degrade `dqi` applies when a value stops
+    # being a direct representation.
+    if year in VINTAGES:
+        vintage_source = 'census'
+    elif year > VINTAGES[-1]:
+        vintage_source = 'census_held'
+    else:
+        vintage_source = 'census_interpolated'
+
+    def source_of(recovery: object) -> str:
+        # A cell Census withheld and this pipeline re-estimated is a calculation,
+        # not a measurement, which is the distinction `dqi` degrades 1/2 -> 3 on.
+        return 'census_recovered' if isinstance(recovery, str) else vintage_source
+
+    pairs: list[tuple[str, str, int, int, int, str]] = []
+    for material, industry, tier, bea, recovery in zip(
         fba['material'].astype(str),
         fba['industry'].astype(str),
         fba['tier'].astype(str),
         fba['bea'],
+        fba['SuppressionRecovery'],
         strict=True,
     ):
         column = bea_industry(industry)
@@ -263,7 +429,9 @@ def _materials_fanout(year: int, columns: tuple[str, ...] | None) -> pd.DataFram
         if not members:
             continue
         for commodity in members:
-            pairs.append((commodity, str(column), len(members)))
+            pairs.append(
+                (commodity, str(column), len(members), 1, 6, source_of(recovery))
+            )
     return _records(pairs)
 
 
@@ -279,7 +447,8 @@ def _nonmaterial_fanout(year: int) -> pd.DataFrame:
     wide = expense_panel().pivot_table(
         index='bea_industry', columns=['kind', 'year'], values='FlowAmount'
     )
-    pairs: list[tuple[str, str, int]] = []
+    source = expense_source_for(year)
+    pairs: list[tuple[str, str, int, int, int, str]] = []
     for kind, codes in EXPENSE_TO_BEA.items():
         present = [c for c in codes if c in rows]
         if not present:
@@ -292,7 +461,7 @@ def _nonmaterial_fanout(year: int) -> pd.DataFrame:
             if str(industry) not in columns:
                 continue
             for commodity in present:
-                pairs.append((commodity, str(industry), len(present)))
+                pairs.append((commodity, str(industry), len(present), 1, 6, source))
     return _records(pairs)
 
 
@@ -312,17 +481,26 @@ def _services_fanout(year: int) -> pd.DataFrame:
         per_survey.setdefault(str(naics), []).append(str(bea))
 
     panel = _panel_for(year)
-    pairs: list[tuple[str, str, int]] = []
+    source = 'aies' if year >= 2023 else 'sas'
+    pairs: list[tuple[str, str, int, int, int, str]] = []
     for naics, industries in per_survey.items():
         items = usable_items(naics, year, panel=panel)
         for item in items:
             present = [c for c in SAS_ITEM_TO_BEA.get(item, ()) if c in rows]
             if not present:
                 continue
-            n = len(present) * len(industries)
             for industry in industries:
                 for commodity in present:
-                    pairs.append((commodity, industry, n))
+                    pairs.append(
+                        (
+                            commodity,
+                            industry,
+                            len(present),
+                            len(industries),
+                            len(str(naics)),
+                            source,
+                        )
+                    )
     return _records(pairs)
 
 
@@ -337,15 +515,16 @@ def _agriculture_fanout(year: int) -> pd.DataFrame:
 
     rows = _benchmark().index
     industries = [str(c) for c in farm_industries()]
-    pairs: list[tuple[str, str, int]] = []
+    pairs: list[tuple[str, str, int, int, int, str]] = []
     for item in usable_items(year, BASE_YEAR):
         present = [c for c in FIWS_ITEM_TO_BEA.get(item, ()) if c in rows]
         if not present:
             continue
-        n = len(present) * len(industries)
         for industry in industries:
             for commodity in present:
-                pairs.append((commodity, industry, n))
+                pairs.append(
+                    (commodity, industry, len(present), len(industries), 2, 'ers')
+                )
     return _records(pairs)
 
 
@@ -359,26 +538,29 @@ def _utilities_fanout(year: int) -> pd.DataFrame:
     rows = _benchmark().index
     index = relative_index(year, 2017)
     industries = [c for c in ELECTRIC if c in _benchmark().columns]
-    pairs: list[tuple[str, str, int]] = []
+    pairs: list[tuple[str, str, int, int, int, str]] = []
     for commodity in index.index:
         if str(commodity) not in rows:
             continue
         for industry in industries:
-            pairs.append((str(commodity), str(industry), len(industries)))
+            pairs.append(
+                (str(commodity), str(industry), 1, len(industries), 6, 'eia923')
+            )
     return _records(pairs)
 
 
-def fanout(year: int = DEFAULT_YEAR) -> pd.DataFrame:
-    """``N`` per cell, ``NaN`` where no annual source reaches it.
+@functools.cache
+def _observations(year: int = DEFAULT_YEAR) -> pd.DataFrame:
+    """Every seeded cell in *year*, one row each, most specific observation kept.
 
-    Commodity x industry on the benchmark axes.  See the module docstring for
-    what ``N`` counts and why the minimum wins where seeds overlap.
+    The single place the five seeds are combined.  Both :func:`fanout`, which
+    draws the picture, and :func:`pedigree_cells`, which scores it, read this,
+    so the map and the scores cannot disagree about which cells are seeded.
     """
     from bedrock.analysis.nowcasting.inputs_structure import (  # noqa: PLC0415
         MINING_SEEDED,
     )
 
-    block = _benchmark()
     frames = [
         _materials_fanout(year, None),
         _materials_fanout(year, MINING_SEEDED),
@@ -388,7 +570,40 @@ def fanout(year: int = DEFAULT_YEAR) -> pd.DataFrame:
         _utilities_fanout(year),
     ]
     stacked = pd.concat([f for f in frames if not f.empty], ignore_index=True)
-    best = stacked.groupby(['commodity', 'industry'], as_index=False)['n'].min()
+    block = _benchmark()
+    inside = stacked['commodity'].isin(block.index.astype(str)) & stacked[
+        'industry'
+    ].isin(block.columns.astype(str))
+    stacked = stacked[inside]
+    # A cell the benchmark leaves empty cannot be seeded: there is no 2017 value
+    # for an index to move, and every seed is an index on BEA's own cell.
+    nonzero = pd.Series(block.abs().stack())
+    nonzero = nonzero[nonzero != 0.0]
+    live = {
+        (str(c), str(i))
+        for c, i in zip(
+            nonzero.index.get_level_values(0),
+            nonzero.index.get_level_values(1),
+            strict=True,
+        )
+    }
+    keys = list(zip(stacked['commodity'], stacked['industry'], strict=True))
+    stacked = stacked[[key in live for key in keys]]
+    return (
+        stacked.sort_values(['n', 'reliability'])
+        .drop_duplicates(subset=['commodity', 'industry'], keep='first')
+        .reset_index(drop=True)
+    )
+
+
+def fanout(year: int = DEFAULT_YEAR) -> pd.DataFrame:
+    """``N`` per cell, ``NaN`` where no annual source reaches it.
+
+    Commodity x industry on the benchmark axes.  See the module docstring for
+    what ``N`` counts and why the minimum wins where seeds overlap.
+    """
+    block = _benchmark()
+    best = _observations(year)
     out = pd.DataFrame(np.nan, index=block.index, columns=block.columns)
     rows = best['commodity'].to_numpy()
     cols = best['industry'].to_numpy()
@@ -454,6 +669,175 @@ def coverage(year: int = DEFAULT_YEAR) -> pd.DataFrame:
         'median_N': float(n.where(state == SEEDED).stack().median()),
     }
     return frame
+
+
+def pedigree_cells(year: int = DEFAULT_YEAR) -> pd.DataFrame:
+    """Every non-empty cell of the block, scored on both pedigree indicators.
+
+    One row per cell: ``band``, ``dollars`` (2017 basis, absolute), ``source``,
+    ``k``, ``m``, ``n``, ``reliability``, ``tc_commodity``, ``tc_industry``,
+    ``tc``.  Carried cells are included and score :data:`WORST` on both -- they
+    are the majority of the block and excluding them would score the seeds
+    against themselves.
+
+    ⚠️ **Dollars are the 2017 benchmark's, not the seeded year's.**  The seeds
+    move shares and Step 5 owns the level, so the benchmark is the only
+    consistent weight available at cell resolution across every band.
+    """
+    block_ = _benchmark()
+    observed = technological_correlation(_observations(year))
+
+    stacked = pd.Series(block_.abs().stack())
+    stacked = stacked[stacked != 0.0]
+    cells = stacked.rename('dollars').reset_index()
+    cells.columns = ['commodity', 'industry', 'dollars']
+    cells['commodity'] = cells['commodity'].astype(str)
+    cells['industry'] = cells['industry'].astype(str)
+
+    merged = cells.merge(
+        observed[
+            [
+                'commodity',
+                'industry',
+                'k',
+                'm',
+                'n',
+                'source',
+                'reliability',
+                'tc_commodity',
+                'tc_industry',
+                'tc',
+            ]
+        ],
+        on=['commodity', 'industry'],
+        how='left',
+    )
+    carried = merged['source'].isna()
+    merged.loc[carried, 'source'] = 'carried'
+    for column in ('reliability', 'tc_commodity', 'tc_industry', 'tc'):
+        merged.loc[carried, column] = float(WORST)
+    # A carried cell has no observation behind it, so `n` is undefined rather
+    # than large.  It is left NaN and the N-weighted aggregation says what it
+    # does with that.
+    merged['seeded'] = ~carried
+    merged['band'] = merged['industry'].map(band_of)
+    return merged
+
+
+def _weighted(frame: pd.DataFrame, column: str, weight: pd.Series) -> float:
+    total = float(weight.sum())
+    return float((frame[column] * weight).sum() / total) if total else float('nan')
+
+
+def pedigree_summary(year: int = DEFAULT_YEAR) -> pd.DataFrame:
+    """Mean reliability and technological correlation, under two weightings.
+
+    **By dollars** -- what a dollar of this block is worth as evidence. This is
+    the headline: it answers "how good is the number we are shipping".
+
+    **By N x dollars** -- the same, with each cell weighted by how many cells
+    share its observation as well as by its size. It deliberately *up*-weights
+    the spread-thin evidence, so the gap between the two columns is a direct
+    read on how much of the block's quality rests on data that had to be
+    allocated. ⚠️ Carried cells have no ``N``; they are given ``N = 1`` here,
+    which is the most generous choice available and still leaves them at 5.
+    """
+    cells = pedigree_cells(year)
+    dollars = cells['dollars']
+    n_dollars = cells['dollars'] * cells['n'].fillna(1.0)
+
+    records = []
+    for name, _ in BANDS:
+        part = cells[cells['band'] == name]
+        if part.empty:
+            continue
+        records.append(
+            {
+                'band': name,
+                '$M': float(part['dollars'].sum()),
+                'seeded_%': 100.0
+                * float(part.loc[part['seeded'], 'dollars'].sum())
+                / float(part['dollars'].sum()),
+                'reliability_$': _weighted(part, 'reliability', part['dollars']),
+                'tc_$': _weighted(part, 'tc', part['dollars']),
+                'reliability_N$': _weighted(
+                    part, 'reliability', part['dollars'] * part['n'].fillna(1.0)
+                ),
+                'tc_N$': _weighted(part, 'tc', part['dollars'] * part['n'].fillna(1.0)),
+            }
+        )
+    table = pd.DataFrame(records).set_index('band')
+    table.loc['TOTAL'] = {
+        '$M': float(dollars.sum()),
+        'seeded_%': 100.0
+        * float(cells.loc[cells['seeded'], 'dollars'].sum())
+        / float(dollars.sum()),
+        'reliability_$': _weighted(cells, 'reliability', dollars),
+        'tc_$': _weighted(cells, 'tc', dollars),
+        'reliability_N$': _weighted(cells, 'reliability', n_dollars),
+        'tc_N$': _weighted(cells, 'tc', n_dollars),
+    }
+    return table
+
+
+def pedigree_by_source(year: int = DEFAULT_YEAR) -> pd.DataFrame:
+    """The same scores grouped by which source supplied the cell."""
+    cells = pedigree_cells(year)
+    total = float(cells['dollars'].sum())
+    records = []
+    for source, part in cells.groupby('source', dropna=False):
+        records.append(
+            {
+                'source': str(source),
+                'cells': float(len(part)),
+                '$M': float(part['dollars'].sum()),
+                '$M_%': 100.0 * float(part['dollars'].sum()) / total,
+                'reliability': _weighted(part, 'reliability', part['dollars']),
+                'tc_commodity': _weighted(part, 'tc_commodity', part['dollars']),
+                'tc_industry': _weighted(part, 'tc_industry', part['dollars']),
+                'tc': _weighted(part, 'tc', part['dollars']),
+            }
+        )
+    table = pd.DataFrame(records).set_index('source')
+    return table.sort_values('$M', ascending=False)
+
+
+def best_year(years: tuple[int, ...] = STABLE_YEARS) -> pd.DataFrame:
+    """Score every candidate year, best first -- which one to put on a slide.
+
+    ``score`` is the mean of the two dollar-weighted indicators, both
+    lower-is-better, with reliability breaking ties.
+
+    ⚠️ **Coverage is the wrong ranking, and it points the other way.** 2020 and
+    2021 observe ~1.9 points more of the block than 2022 does and so win on
+    ``tc``, which barely separates the years at all (0.06 across four). What
+    separates them is **reliability**, which moves 0.29 -- because
+    ``materials_seed`` interpolates the mix between the 2017 and 2022 census
+    vintages, so in any year that is not a census year the largest seeded block
+    in the table is a calculation between two measurements rather than either of
+    them. 2022 reads the 2022 census; 2020 and 2021 read a line drawn through it.
+
+    ⚠️ **2022's lower coverage is a measured extract gap, not a property of the
+    census.** ``Census_EC_Expenses`` 2022 carries **222 of the 232** BEA
+    manufacturing industries that ``Census_ASM_Expenses`` 2021 carries, for all
+    ten expense kinds, and that 4.3% shortfall is most of the 4.3-point drop in
+    manufacturing coverage. Closing it would make 2022 win on both indicators.
+    """
+    records = []
+    for year in years:
+        total = pedigree_summary(year).loc['TOTAL']
+        records.append(
+            {
+                'year': year,
+                'seeded_%': float(total['seeded_%']),
+                'reliability_$': float(total['reliability_$']),
+                'tc_$': float(total['tc_$']),
+                'score': (float(total['reliability_$']) + float(total['tc_$'])) / 2.0,
+                'expense_source': expense_source_for(year),
+            }
+        )
+    table = pd.DataFrame(records).set_index('year')
+    return table.sort_values(['score', 'reliability_$'])
 
 
 # --------------------------------------------------------------------------
@@ -667,15 +1051,6 @@ def render(year: int = DEFAULT_YEAR, path: Path | None = None, dpi: int = 200) -
     return path
 
 
-#: Years the shipped figure is claimed to stand for.  ⚠️ **2018 and 2019 are
-#: deliberately not in here** -- see :func:`year_stability`.
-STABLE_YEARS: tuple[int, ...] = (2020, 2021, 2022, 2023)
-
-#: Widest spread in seeded dollars across :data:`STABLE_YEARS` that still lets
-#: one figure stand for all of them, in percentage points.
-STABILITY_BAND = 3.0
-
-
 def year_stability(years: tuple[int, ...] = STABLE_YEARS) -> pd.DataFrame:
     """Seeded share per year -- the check on shipping **one** figure.
 
@@ -742,6 +1117,34 @@ def check(year: int = DEFAULT_YEAR, years: bool = False) -> int:
             f'{len(stray)} columns seeded here are not overlaid: {stray[:6]}'
         )
 
+    cells = pedigree_cells(year)
+    live = int((_benchmark() != 0.0).sum().sum())
+    if len(cells) != live:
+        failures.append(f'pedigree scored {len(cells)} cells, block has {live}')
+    for column in ('reliability', 'tc', 'tc_commodity', 'tc_industry'):
+        outside = cells[(cells[column] < 1) | (cells[column] > WORST)]
+        if not outside.empty:
+            failures.append(
+                f'{len(outside)} cells score outside 1..{WORST} on {column}'
+            )
+    carried_rows = cells[~cells['seeded']]
+    if not carried_rows.empty and not bool(
+        (carried_rows['reliability'] == WORST).all()
+        and (carried_rows['tc'] == WORST).all()
+    ):
+        failures.append('a carried cell scores better than worst on an indicator')
+    seeded_share = (
+        100.0
+        * float(cells.loc[cells['seeded'], 'dollars'].sum())
+        / float(cells['dollars'].sum())
+    )
+    reported = float(coverage(year)['seeded_%'].astype(float).loc['TOTAL'])
+    drift = abs(seeded_share - reported)
+    if drift > 0.01:
+        failures.append(
+            f'pedigree and coverage disagree on the seeded share by {drift:.2f} points'
+        )
+
     worst = palette_separation()
     floor = float(worst['delta_e'].min())
     if floor < 27.0:
@@ -754,6 +1157,11 @@ def check(year: int = DEFAULT_YEAR, years: bool = False) -> int:
     table = coverage(year)
     print(table.round(1).to_string())
     print(f'\npalette worst-pair separation dE {floor:.1f}')
+
+    print()
+    print(pedigree_summary(year).round(2).to_string())
+    print()
+    print(pedigree_by_source(year).round(2).to_string())
 
     if years:
         spread = year_stability()
@@ -781,17 +1189,24 @@ def check(year: int = DEFAULT_YEAR, years: bool = False) -> int:
     help='Also assert one figure stands for 2020-2023 (slow).',
 )
 @click.option('--check-palette', is_flag=True, help='Print the separation table.')
+@click.option(
+    '--best-year', 'best_year_', is_flag=True, help='Rank the years on the pedigree.'
+)
 @click.option('--dpi', default=200, show_default=True, type=int)
 def main(
     year: int,
     run_check: bool,
     check_years: bool,
     check_palette: bool,
+    best_year_: bool,
     dpi: int,
 ) -> None:
     """Render the intermediate block's provenance map."""
     if check_palette:
         print(palette_separation().to_string(index=False))
+        return
+    if best_year_:
+        print(best_year().round(3).to_string())
         return
     if run_check or check_years:
         sys.exit(check(year, years=check_years))

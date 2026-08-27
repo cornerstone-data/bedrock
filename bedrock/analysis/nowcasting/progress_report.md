@@ -62,7 +62,7 @@ movement is scored on the published summary panel by
 [`intermediate_structure_drift`](intermediate_structure_drift.py), not here.
 ✅ **§Which cells actually carry annual data is the answer to what this row
 cannot say** — the same block coloured by where each cell's movement comes from,
-where the honest number is **33.8% of dollars observed**, not 100%.
+where the honest number is **35.7% of dollars observed**, not 100%.
 
 ⚠️ **Coverage and accuracy moved in opposite directions this snapshot, and that
 is the honest result.** `F03000` landing adds 256 populated cells against a
@@ -300,7 +300,7 @@ The match picture above says the block reproduces 2017. It says nothing about
 where the block's movement *away* from 2017 comes from, and that is the only
 question Step 3 is answerable on.
 
-![Step 3 seed coverage](images/intermediate_seed_coverage_2022.png)
+![Step 3 seed coverage](images/intermediate_seed_coverage_2021.png)
 
 **How to read it.** This is the same 402 × 402 intermediate block as the match
 picture — commodities down the side, the industries that buy them across the
@@ -339,32 +339,33 @@ reaching across nearly every buying industry on a small number of shared survey
 items: wide, but weak per cell. And the three solid grey column blocks —
 construction, trade, government — are where no annual source reaches at all.
 
-⚠️ **One figure, not one per year.** The mappings behind `N` do not depend on
-the year, so the map is nearly year-invariant; measured, the seeded share moves
-**1.9 points across 2020-2023** (35.7 / 35.7 / 33.8 / 34.6), which is inside the
-band where one picture stands for the span. ⚠️ **2018 and 2019 are the
-exception and are excluded on purpose** — the SAS expense panel jumps straight
-from 2017 to 2020, with no 2018 or 2019 vintage in it, so services and
-transportation hold their 2017 columns entirely and the block reads **19.5%**
-rather than 33.8%. A 2018 figure would be showing the missing SAS vintages, not
-the seeds. `--check-years` re-measures this rather than trusting it.
+⚠️ **One figure, not one per year, and 2021 is chosen by measurement.** The
+mappings behind `N` do not depend on the year, so the map is nearly
+year-invariant; measured, the seeded share moves **1.9 points across 2020-2023**
+(35.7 / 35.7 / 33.8 / 34.6), inside the band where one picture stands for the
+span. `best_year` ranks 2021 first — see §Data quality below for why that is a
+weaker claim than it sounds. ⚠️ **2018 and 2019 are excluded on purpose** — the
+SAS expense panel jumps straight from 2017 to 2020, with no 2018 or 2019 vintage
+in it, so services and transportation hold their 2017 columns entirely and the
+block reads **19.5%**. A 2018 figure would be showing the missing SAS vintages,
+not the seeds. `--check-years` re-measures this rather than trusting it.
 
-Dollar-weighted, at 2022:
+Dollar-weighted, at 2021:
 
 | band | columns | $M | seeded | of which N = 1 | median N |
 |---|---:|---:|---:|---:|---:|
 | agriculture | 13 | 272,102 | 78.7% | 0.0% | 20 |
-| mining | 8 | 195,477 | 31.5% | 22.4% | 1.5 |
+| mining | 8 | 195,477 | 31.7% | 22.5% | 1 |
 | utilities | 3 | 160,406 | 22.3% | 0.0% | 3 |
 | construction | 12 | 737,745 | — | — | — |
-| manufacturing | 231 | 3,561,508 | **67.1%** | **47.4%** | 4 |
+| manufacturing | 231 | 3,561,508 | **71.4%** | **51.2%** | 4 |
 | trade | 20 | 1,545,723 | — | — | — |
-| transportation | 9 | 591,808 | 40.9% | 19.2% | 8 |
-| services | 94 | 6,494,741 | 31.5% | 5.3% | 9 |
+| transportation | 9 | 591,808 | 42.8% | 19.9% | 8 |
+| services | 94 | 6,494,741 | 33.3% | 6.6% | 9 |
 | government | 8 | 1,222,147 | — | — | — |
-| **total** | **402** | **14,856,988** | **33.8%** | | **7** |
+| **total** | **402** | **14,856,988** | **35.7%** | | **7** |
 
-**33.8% of the block's dollars are observed; 9,905 of 44,281 non-empty cells.**
+**35.7% of the block's dollars are observed; 10,398 of 44,281 non-empty cells.**
 
 ⚠️ **Read the dollars, not the cell count, and read this against the column
 count rather than instead of it.** 330 of 402 *columns* move off the 2017 shape
@@ -372,12 +373,12 @@ count rather than instead of it.** 330 of 402 *columns* move off the 2017 shape
 seeded column is not a column of seeded cells. `materials_seed` returns the
 whole manufacturing column renormalised, but the census only *observes* the
 materials rows; the rest of that column is the 2017 mix rescaled, which is
-carried. 33.8% of dollars is the honest reading of the same fact.
+carried. 35.7% of dollars is the honest reading of the same fact.
 
 Three things the picture says that the totals do not:
 
 1. ✅ **Manufacturing is the strong block and it is strong in the right way** —
-   67.1% of its dollars observed and **47.4% at `N = 1`**, the only block where
+   71.4% of its dollars observed and **51.2% at `N = 1`**, the only block where
    most of the evidence is cell-specific. That is the Economic Census materials
    detail, and it is visible as the dark diagonal.
 2. ⚠️ **Agriculture's 78.7% is the widest coverage and the weakest evidence** —
@@ -392,10 +393,122 @@ Three things the picture says that the totals do not:
    condition is in
    [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md).
 
+### Data quality — pedigree scores
+
+The map says *whether* a cell is observed. This scores *how well*, on a variant
+of the EPA LCA data-quality pedigree: **1 is best, 5 is worst**, and the two
+indicators are kept separate rather than blended into one number.
+
+**Reliability** is how the data were collected — complete mandatory enumeration
+(1), a mandatory plant-level filing (2), a probability sample or a cell Census
+withheld and we re-estimated (3), modelled national estimates (4), no
+observation at all (5).
+
+**Technological correlation** is whether the datum is about *this* cell, on two
+axes that fail independently. *Commodity*: 1 when the reported item is that BEA
+commodity, degrading as one item is spread over more of them. *Industry*: 1 when
+the source reports that specific BEA industry, degrading on the **worse** of two
+things — collecting at an aggregation BEA splits finer (a 2-digit survey NAICS
+against a 6-digit BEA industry) or one index driving many columns. The two are
+combined by the mean, rounded up.
+
+By source, at 2021, dollar-weighted:
+
+| source | cells | $M | % of block | reliability | tc commodity | tc industry | tc |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| carried | 33,883 | 9,550,627 | 64.3% | 5.00 | 5.00 | 5.00 | 5.00 |
+| SAS | 1,538 | 2,414,907 | 16.3% | 3.00 | 1.97 | 3.83 | 3.17 |
+| Economic Census materials | 4,122 | 2,335,200 | 15.7% | **1.00** | 1.76 | **1.00** | **1.44** |
+| ASM expenses | 4,300 | 222,289 | 1.5% | 3.00 | 2.33 | 1.00 | 1.85 |
+| ERS | 179 | 214,053 | 1.4% | 4.00 | 2.09 | 5.00 | 3.72 |
+| EIA 923 | 11 | 68,772 | 0.5% | 2.00 | 1.00 | 3.00 | 2.00 |
+| Census, suppression recovered | 248 | 51,140 | 0.3% | 3.00 | 1.80 | 1.00 | 1.46 |
+
+**The two aggregations**, by band. `$` weights each cell by its dollars — what a
+dollar of this block is worth as evidence. `N$` weights by `N × dollars`, which
+deliberately *up*-weights the spread-thin evidence, so **the gap between the two
+columns is a direct read on how much of a band's quality rests on data that had
+to be allocated**:
+
+| band | seeded | reliability `$` | tc `$` | reliability `N$` | tc `N$` |
+|---|---:|---:|---:|---:|---:|
+| agriculture | 78.7% | 4.21 | 4.00 | 4.01 | 3.89 |
+| mining | 31.7% | 3.76 | 3.88 | 2.14 | 3.34 |
+| utilities | 22.3% | 4.33 | 4.33 | 3.61 | 3.61 |
+| construction | — | 5.00 | 5.00 | 5.00 | 5.00 |
+| manufacturing | 71.4% | **2.30** | **2.49** | 1.50 | 2.82 |
+| trade | — | 5.00 | 5.00 | 5.00 | 5.00 |
+| transportation | 42.8% | 4.14 | 4.35 | 3.48 | 4.14 |
+| services | 33.3% | 4.33 | 4.38 | 3.36 | 4.03 |
+| government | — | 5.00 | 5.00 | 5.00 | 5.00 |
+| **total** | **35.7%** | **3.98** | **4.05** | **3.04** | **3.76** |
+
+⚠️ **The whole-block score is poor and it should be** — two thirds of the
+block's dollars are carried and score 5 on both indicators by construction.
+The number that says something about the *work* is manufacturing's **2.30 / 2.49**,
+and the Economic Census materials row's **1.00 / 1.44**: where this pipeline has
+a census, the evidence is close to the best the pedigree allows.
+
+⚠️ **Reliability and tc disagree about agriculture, and that is the point of
+keeping them apart.** ERS scores 4 on reliability (modelled national estimates)
+*and* 5 on industry correlation (one farm sector driving ten columns) — it is
+weak on both counts for different reasons. SAS is the mirror image: reliability
+3, commodity correlation 1.97 — the items are close to BEA commodities — but
+industry correlation 3.83, because the survey NAICS are coarser than BEA detail.
+Blending these into one number would hide which fix would help.
+
+⚠️ **Two things are deliberately not scored.** **Temporal correlation** is a
+third pedigree indicator, scored on data age, and is not computed yet (Wes).
+It is the indicator that would separate the candidate years: `materials_seed`
+interpolates the census mix between the 2017 and 2022 vintages and holds it
+afterwards, so **2022 is the only year whose largest seeded block is read in the
+year the census actually ran** — but on reliability and tc alone the four years
+separate by under 0.06, so what picks 2021 is coverage. Expect the presentation
+year to move to 2022 once temporal correlation lands. **Data collection** (share
+of establishments represented) is also unscored.
+
+⚠️ **The ladders are choices, not findings.** The 1/2/3-4/5-9/≥10 steps and the
+per-source reliability assignments sit in one table at the top of
+[`seed_coverage.py`](seed_coverage.py) so a disagreement is a one-line change.
+The degrade-on-mapping-down principle follows
+[`dqi.py`](../../utils/mapping/dqi.py), which already applies it repo-wide.
+
 Reproduced by [`seed_coverage.py`](seed_coverage.py) — `--check` re-asserts the
 map, `--check-years` re-measures the one-figure claim, and `--check-palette`
 re-runs the colour separation (worst pair dE 29.0 against a floor of 27, binding
 on grey against the light end of the ramp under deuteranopia).
+
+#### Where this stopped — 2026-08-27
+
+Shipped and checked: the provenance map at 2021, the prose figure description,
+and the two pedigree indicators with both aggregations. `--check`,
+`--check-years`, `--check-palette` and `--best-year` all pass.
+
+Open, in the order they were set down:
+
+1. ▶️ **Letters on the figure.** Wes: annotate regions with letters keyed to
+   descriptions in the caption, rather than text drawn on the raster. Deferred
+   deliberately — the prose description above was to come first and is the
+   thing to judge before adding marks.
+2. ▶️ **Temporal correlation**, the third pedigree indicator, scored on data age
+   (the EPA rubric bands roughly 1-25 years). Not started, by decision. ⚠️ It is
+   the indicator that decides the presentation year: without it 2021 wins on
+   coverage, with it 2022 should win because its census mix is read in-year.
+   ⚠️ **Do not fold data age into reliability** — that crosses DQ categories,
+   and an earlier pass of this work did exactly that and had to be reverted.
+3. ▶️ **Data collection**, a fourth indicator (share of establishments
+   represented), also unscored.
+4. ⚠️ **`Census_EC_Expenses` 2022 covers 222 of 232 BEA manufacturing
+   industries** where `Census_ASM_Expenses` 2021 covers all 232, for all ten
+   expense kinds. That 4.3% shortfall is most of why the census year has *lower*
+   coverage than the sample years around it. Not diagnosed — it may be
+   suppression, or an extraction gap.
+5. ⚠️ **The SAS expense panel has no 2018 or 2019 vintage**, so those years read
+   19.5% against 35.7%. The vintages exist and are not fetched.
+
+The rubric's ladders and per-source reliability scores are judgements, collected
+at the top of [`seed_coverage.py`](seed_coverage.py) so they can be argued with
+in one place rather than re-derived.
 
 ---
 
