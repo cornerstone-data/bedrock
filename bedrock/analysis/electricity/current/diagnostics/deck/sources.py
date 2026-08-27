@@ -1,11 +1,17 @@
-"""Resolve D/N/q/class-MWh for one implementation from freeze, cache, or derive."""
+"""Resolve D/N/q/class-MWh from the deck cache or a live derive.
+
+``current`` uses the electricity-disagg YAML chain. ``production`` uses
+``2025_usa_cornerstone_v0_3`` once and repeats it at every table column.
+Original and pre-MECS EIA G/T/D table/histogram values come from
+``historical/original_vs_eia_anchored_deck``, not from freeze parquets.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
+from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch
 
 import pandas as pd
 
@@ -17,17 +23,14 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     series_from_parquet,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
-    CONFIG_FOR_STEP,
     STEPS,
     Implementation,
     StepId,
+    config_for_step,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.paths import impl_cache_dir
-from bedrock.analysis.electricity.historical.original_elec_disagg_implementation import (
-    paths as original_paths,
-)
-from bedrock.analysis.electricity.historical.pre_mecs_industrial_weights import (
-    paths as pre_mecs_paths,
+from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.published import (
+    PUBLISHED_IMPLS,
 )
 
 logger = logging.getLogger(__name__)
@@ -70,13 +73,7 @@ def _load_folder(folder: Path, *, mixed: bool) -> StepSnapshot | None:
 
 
 def _candidate_dirs(impl: Implementation, step_id: StepId) -> list[Path]:
-    config = CONFIG_FOR_STEP[step_id]
-    dirs = [impl_cache_dir(impl.id, config)]
-    if impl.id == 'original':
-        dirs.append(original_paths.config_dir(config))
-    elif impl.id == 'eia_gtd':
-        dirs.append(pre_mecs_paths.config_dir(config))
-    return dirs
+    return [impl_cache_dir(impl.id, config_for_step(impl, step_id))]
 
 
 def load_step(impl: Implementation, step_id: StepId) -> StepSnapshot | None:
@@ -112,19 +109,6 @@ def load_footing_from_snapshot(impl: Implementation) -> StepSnapshot:
     d.rename('D').to_frame().to_parquet(cache / 'D.parquet')
     n.rename('N').to_frame().to_parquet(cache / 'N.parquet')
     return StepSnapshot(d=d.astype(float), n=n.astype(float), mixed=False)
-
-
-def dollar_weights_patch() -> object:
-    import bedrock.transform.eeio.electricity_gtd_allocation as gtd  # noqa: PLC0415
-
-    orig = gtd.allocate_purchaser_gtd
-
-    def _wrapped(*args: object, **kwargs: object) -> object:
-        kwargs = dict(kwargs)
-        kwargs['industrial_weights'] = 'dollars'
-        return orig(*args, **kwargs)
-
-    return patch.object(gtd, 'allocate_purchaser_gtd', _wrapped)
 
 
 def _write_class_mwh(folder: Path) -> None:
@@ -175,25 +159,18 @@ def derive_step(impl: Implementation, step_id: StepId) -> StepSnapshot:
         pull_efs_for_diagnostics,
     )
 
-    config = CONFIG_FOR_STEP[step_id]
+    config = config_for_step(impl, step_id)
     reset_usa_config()
     clear_all_publish_caches()
     set_global_usa_config(config)
-    patch_cm = dollar_weights_patch() if impl.industrial_weights == 'dollars' else None
-    if patch_cm is not None:
-        patch_cm.start()
-    try:
-        if electricity_mixed_units_enabled():
-            aq_mon = derive_cornerstone_Aq_scaled()
-            c_col, _c_row = electricity_conversion_factors(aq_mon)
-            aq = derive_cornerstone_Aq_mixed_units()
-        else:
-            aq = derive_cornerstone_Aq_scaled()
-            c_col = None
-        efs = pull_efs_for_diagnostics()
-    finally:
-        if patch_cm is not None:
-            patch_cm.stop()
+    if electricity_mixed_units_enabled():
+        aq_mon = derive_cornerstone_Aq_scaled()
+        c_col, _c_row = electricity_conversion_factors(aq_mon)
+        aq = derive_cornerstone_Aq_mixed_units()
+    else:
+        aq = derive_cornerstone_Aq_scaled()
+        c_col = None
+    efs = pull_efs_for_diagnostics()
 
     folder = impl_cache_dir(impl.id, config)
     folder.mkdir(parents=True, exist_ok=True)
@@ -209,7 +186,7 @@ def derive_step(impl: Implementation, step_id: StepId) -> StepSnapshot:
     (folder / 'run_metadata.json').write_text(
         json.dumps(metadata, indent=2), encoding='utf-8'
     )
-    if step_id in ('three_way', 'mixed_units') and impl.id != 'original':
+    if impl.schema == 'disagg' and step_id in ('three_way', 'mixed_units'):
         _write_class_mwh(folder)
     mixed = step_id == 'mixed_units'
     loaded = _load_folder(folder, mixed=mixed)
@@ -224,10 +201,26 @@ def load_impl_bundle(
     derive: bool = False,
     load_snapshot_footing: bool = False,
 ) -> ImplBundle:
+    if impl.id in PUBLISHED_IMPLS:
+        return ImplBundle(impl_id=impl.id, steps={})
+    if impl.single_config is not None:
+        snap = load_step(impl, 'footing')
+        if snap is None and derive:
+            snap = derive_step(impl, 'footing')
+        steps: dict[StepId, StepSnapshot] = {}
+        if snap is not None:
+            for step_id in STEPS:
+                steps[step_id] = replace(snap)
+        return ImplBundle(impl_id=impl.id, steps=steps)
     steps: dict[StepId, StepSnapshot] = {}
     for step_id in STEPS:
         snap = load_step(impl, step_id)
-        if snap is None and step_id == 'footing' and load_snapshot_footing:
+        if (
+            snap is None
+            and step_id == 'footing'
+            and load_snapshot_footing
+            and impl.schema == 'disagg'
+        ):
             try:
                 snap = load_footing_from_snapshot(impl)
             except Exception as exc:
@@ -237,7 +230,7 @@ def load_impl_bundle(
                     impl.snapshot_key,
                     exc,
                 )
-        if snap is None and derive and impl.id != 'original':
+        if snap is None and derive and impl.schema == 'disagg':
             snap = derive_step(impl, step_id)
         if snap is not None:
             steps[step_id] = snap

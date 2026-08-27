@@ -1,0 +1,124 @@
+# Published original vs EIA-anchored G/T/D (pre-MECS) comparison tables.
+# Source: electricity disagg results comparison original vs eia anchored.pptx
+# (Dropbox Documentation/). Do not regenerate from freeze parquets.
+source:
+  pptx: electricity disagg results comparison original vs eia anchored.pptx
+  dropbox_documentation: D:\Dropbox\ERG Work\2025_07_15_Cornerstone\Tasks\Electricity Disagg\Documentation
+
+implementations:
+  original:
+    footing_label: v0.2
+    class_mwh:
+      - {label: Residential, model_mwh: 771500000.0, target_mwh: 1450000000.0}
+      - {label: Com+Ind+Trans sales, model_mwh: 3417700000.0, target_mwh: 2424200000.0}
+      - {label: Total, model_mwh: 4191000000.0, target_mwh: 4011200000.0}
+    D:
+      '221100':
+        footing: 2.386
+        reallocation: 2.393
+        three_way: null
+        mixed_units: null
+      '221100*':
+        footing: null
+        reallocation: null
+        three_way: 2.448
+        mixed_units: 2.448
+      '221110':
+        footing: null
+        reallocation: null
+        three_way: 7.138
+        mixed_units: 7.138
+      '221121':
+        footing: null
+        reallocation: null
+        three_way: 0.225
+        mixed_units: 0.225
+      '221122':
+        footing: null
+        reallocation: null
+        three_way: 0.0
+        mixed_units: 0.0
+    N:
+      '221100':
+        footing: 2.776
+        reallocation: 2.784
+        three_way: null
+        mixed_units: null
+      '221100*':
+        footing: null
+        reallocation: null
+        three_way: 3.216
+        mixed_units: 3.510
+      '221110':
+        footing: null
+        reallocation: null
+        three_way: 9.213
+        mixed_units: 10.070
+      '221121':
+        footing: null
+        reallocation: null
+        three_way: 0.424
+        mixed_units: 0.426
+      '221122':
+        footing: null
+        reallocation: null
+        three_way: 0.083
+        mixed_units: 0.085
+  eia_gtd:
+    footing_label: v0.3.1
+    class_mwh:
+      - {label: Residential, model_mwh: 1548800000.0, target_mwh: 1548800000.0}
+      - {label: Com+Ind+Trans+Exports, model_mwh: 2763800000.0, target_mwh: 2763800000.0}
+      - {label: Total, model_mwh: 4312600000.0, target_mwh: 4312600000.0}
+    D:
+      '221100':
+        footing: 2.409
+        reallocation: 2.416
+        three_way: null
+        mixed_units: null
+      '221100*':
+        footing: null
+        reallocation: null
+        three_way: 2.468
+        mixed_units: 2.468
+      '221110':
+        footing: null
+        reallocation: null
+        three_way: 7.197
+        mixed_units: 7.197
+      '221121':
+        footing: null
+        reallocation: null
+        three_way: 0.226
+        mixed_units: 0.226
+      '221122':
+        footing: null
+        reallocation: null
+        three_way: 0.0
+        mixed_units: 0.0
+    N:
+      '221100':
+        footing: 2.812
+        reallocation: 2.820
+        three_way: null
+        mixed_units: null
+      '221100*':
+        footing: null
+        reallocation: null
+        three_way: 3.034
+        mixed_units: 3.034
+      '221110':
+        footing: null
+        reallocation: null
+        three_way: 8.622
+        mixed_units: 8.622
+      '221121':
+        footing: null
+        reallocation: null
+        three_way: 0.360
+        mixed_units: 0.360
+      '221122':
+        footing: null
+        reallocation: null
+        three_way: 0.119
+        mixed_units: 0.119

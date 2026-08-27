@@ -19,7 +19,6 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     IMPLEMENTATIONS,
-    NA_AT_STEP,
     ROW_DISPLAY,
     STEP_COLUMN_LABEL,
     STEPS,
@@ -28,6 +27,12 @@ from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     Pair,
     StepId,
     class_groups_for,
+    na_sectors_at_step,
+)
+from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.published import (
+    PUBLISHED_IMPLS,
+    published_class_mwh_rows,
+    published_ef,
 )
 
 
@@ -42,6 +47,13 @@ def _class_row_values(
     impl: Implementation,
     bundle: ImplBundle,
 ) -> list[tuple[str, str, str, str]] | None:
+    if impl.id in PUBLISHED_IMPLS:
+        rows: list[tuple[str, str, str, str]] = []
+        for model, target, label in published_class_mwh_rows(impl.id):
+            rows.append(
+                (label, format_twh(model), format_twh(target), format_ratio(model, target))
+            )
+        return rows
     mixed = bundle.steps.get('mixed_units')
     three_way = bundle.steps.get('three_way')
     step = None
@@ -108,8 +120,11 @@ def _cell_for_step(
     sector: str,
     step_id: StepId,
 ) -> float | None | str:
-    if sector in NA_AT_STEP[step_id]:
+    if sector in na_sectors_at_step(bundle.impl_id, step_id):
         return NA
+    if bundle.impl_id in PUBLISHED_IMPLS:
+        value = published_ef(bundle.impl_id, kind, sector, step_id)
+        return NA if value is None else value
     step = bundle.steps.get(step_id)
     if step is None:
         return None

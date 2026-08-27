@@ -22,6 +22,7 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     values_match,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.histograms import (
+    _panel_data,
     frozen_panel_png,
     pairwise_frame,
     perc_frame,
@@ -29,11 +30,11 @@ from bedrock.analysis.electricity.current.diagnostics.deck.histograms import (
     write_hist_png,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
-    IMPLEMENTATIONS,
+    AGGREGATE_ONLY_NA,
     PAIRS,
+    na_sectors_at_step,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pptx_write import write_pptx
-from bedrock.analysis.electricity.current.diagnostics.deck.sources import load_step
 from bedrock.analysis.electricity.current.diagnostics.deck.tables import (
     class_mwh_grids,
     ef_grids,
@@ -155,9 +156,9 @@ def test_na_and_same_cells() -> None:
         {
             'footing': _step({'221100': 2.409}),
             'reallocation': _step({'221100': 2.416}),
-            'three_way': _step({'221110': 7.197, '221121': 0.226, '221122': 0.0}),
+            'three_way': _step({'221110': 8.0, '221121': 0.226, '221122': 0.0}),
             'mixed_units': _step(
-                {'221110': 7.197, '221121': 0.226, '221122': 0.0},
+                {'221110': 8.0, '221121': 0.226, '221122': 0.0},
                 mixed=True,
                 c_col=1.0,
             ),
@@ -232,6 +233,9 @@ def test_ef_grids_two_tables() -> None:
     assert top.headers[2] == 'v0.2'
     assert bottom.headers[2] == 'v0.3.1'
     assert top.rows[2][1] == '221110 (G)'
+    n_top, _n_bottom = ef_grids(pair, original, current, 'N')
+    assert n_top.rows[2][4] == '9.213'
+    assert n_top.rows[2][5] == '10.070'
 
 
 def test_stack_panel_pngs_preserves_pixels(tmp_path: Path) -> None:
@@ -262,7 +266,7 @@ def test_write_hist_png_uses_frozen_vs_footing_panels(
     Image.new('RGB', (20, 8), (0, 0, 255)).save(
         panel / hist.FROZEN_PANEL_PNG[('eia_gtd', 'D')]
     )
-    monkeypatch.setattr(hist, 'PANEL_DIR', panel)
+    monkeypatch.setattr(hist, 'FIGURES_DIR', panel)
     out = tmp_path / 'hist.png'
     write_hist_png(
         PAIRS['eia_gtd_vs_original'],
@@ -275,10 +279,21 @@ def test_write_hist_png_uses_frozen_vs_footing_panels(
     assert im.size == (20, 16)
 
 
-def test_frozen_original_panel_is_v0_2() -> None:
+def test_published_original_n_matches_pptx() -> None:
+    from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.published import (
+        published_ef,
+    )
+
+    assert published_ef('original', 'N', '221110', 'three_way') == pytest.approx(9.213)
+    assert published_ef('original', 'N', '221110', 'mixed_units') == pytest.approx(
+        10.070
+    )
+    assert published_ef('eia_gtd', 'N', '221110', 'three_way') == pytest.approx(8.622)
+
+
+def test_published_original_panel_is_on_disk() -> None:
     path = frozen_panel_png('original', 'D')
-    if path is None:
-        pytest.skip('frozen original panel PNG is not on disk')
+    assert path is not None
     assert path.name == 'v0.2_original_electricity_disagg_D.png'
 
 
@@ -287,7 +302,7 @@ def test_write_pptx_five_slides(
 ) -> None:
     from bedrock.analysis.electricity.current.diagnostics.deck import histograms as hist
 
-    monkeypatch.setattr(hist, 'PANEL_DIR', tmp_path / 'no_frozen_panels')
+    monkeypatch.setattr(hist, 'FIGURES_DIR', tmp_path / 'no_frozen_panels')
     model, target = _eia_class()
     sectors = {f'{i:06d}': float(i) for i in range(10)}
     sectors.update({'221110': 8.0, '221121': 0.3, '221122': 0.1, '221100': 2.4})
@@ -325,17 +340,93 @@ def test_write_pptx_five_slides(
     assert len(media) >= 2
 
 
-def test_load_original_mixed_freeze() -> None:
-    snap = load_step(IMPLEMENTATIONS['original'], 'mixed_units')
-    assert snap is not None
-    assert snap.d is not None
-    assert '221110' in snap.d.index
-    assert snap.mixed is True
-    assert snap.class_mwh is not None
+def test_production_pair_schema_and_na() -> None:
+    pair = PAIRS['current_vs_production']
+    assert pair.hist_baseline == 'peer'
+    assert pair.top == 'current'
+    assert pair.bottom == 'production'
+    for step in ('footing', 'reallocation', 'three_way', 'mixed_units'):
+        assert na_sectors_at_step('production', step) == AGGREGATE_ONLY_NA
+    assert '221110' not in na_sectors_at_step('current', 'three_way')
 
 
-def test_load_pre_mecs_n_freeze() -> None:
-    snap = load_step(IMPLEMENTATIONS['eia_gtd'], 'mixed_units')
-    assert snap is not None
-    assert snap.n is not None
-    assert '221110' in snap.n.index
+def test_production_tables_and_peer_histograms() -> None:
+    pair = PAIRS['current_vs_production']
+    prod_step = _step({'221100': 2.5, '1111A0': 2.0})
+    production = ImplBundle(
+        'production',
+        {
+            'footing': prod_step,
+            'reallocation': prod_step,
+            'three_way': prod_step,
+            'mixed_units': prod_step,
+        },
+    )
+    current = ImplBundle(
+        'current',
+        {
+            'footing': _step({'221100': 2.4, '1111A0': 1.0}),
+            'reallocation': _step({'221100': 2.41, '1111A0': 1.0}),
+            'three_way': _step(
+                {'221110': 8.0, '221121': 0.2, '221122': 0.0, '1111A0': 1.0}
+            ),
+            'mixed_units': _step(
+                {'221110': 8.0, '221121': 0.2, '221122': 0.0, '1111A0': 1.0},
+                mixed=True,
+                c_col=0.02,
+            ),
+        },
+    )
+    assert format_cell_pair(production, current, 'D', '221110', 'three_way', False) == NA
+    assert format_cell_pair(production, current, 'D', '221100', 'mixed_units', False) == (
+        '2.500'
+    )
+    assert format_cell_pair(current, production, 'D', '221100', 'three_way', False) == NA
+    _top_class, bottom_class = class_mwh_grids(pair, current, production)
+    assert bottom_class.rows[0][0] == '(no class MWh)'
+    frame, _drops = _panel_data(
+        pair, current, 'current', current, production, 'reallocation', 'D'
+    )
+    by_sector = frame.set_index('sector')['perc_diff']
+    assert by_sector.loc['1111A0'] == pytest.approx(-0.5)
+
+
+def test_write_pptx_current_vs_production(tmp_path: Path) -> None:
+    sectors = {f'{i:06d}': float(i) for i in range(10)}
+    sectors.update({'221110': 8.0, '221121': 0.3, '221122': 0.1, '221100': 2.4})
+    prod_sectors = {f'{i:06d}': float(i) * 0.95 for i in range(10)}
+    prod_sectors['221100'] = 2.5
+    current = ImplBundle(
+        'current',
+        {
+            'footing': _step(
+                {'221100': 2.39, **{f'{i:06d}': float(i) * 0.9 for i in range(10)}}
+            ),
+            'reallocation': _step(
+                {'221100': 2.4, **{f'{i:06d}': float(i) for i in range(10)}}
+            ),
+            'three_way': _step(sectors),
+            'mixed_units': _step(sectors, mixed=True, c_col=0.02),
+        },
+    )
+    production = ImplBundle(
+        'production',
+        {
+            step: _step(prod_sectors)
+            for step in ('footing', 'reallocation', 'three_way', 'mixed_units')
+        },
+    )
+    out = tmp_path / 'current_vs_production.pptx'
+    write_pptx(
+        PAIRS['current_vs_production'],
+        current,
+        production,
+        out,
+        png_dir=tmp_path,
+    )
+    assert out.is_file()
+    with zipfile.ZipFile(out) as z:
+        slides = [n for n in z.namelist() if n.startswith('ppt/slides/slide')]
+        media = [n for n in z.namelist() if n.startswith('ppt/media/')]
+    assert len(slides) == 5
+    assert len(media) >= 2

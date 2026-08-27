@@ -26,7 +26,10 @@ from bedrock.analysis.electricity.current.diagnostics.ef_comparison.vs_footing_f
     DroppedSector,
     format_drop_footnote,
 )
-from bedrock.analysis.electricity.current.diagnostics.paths import OUT_DIR
+from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.paths import (
+    FIGURES_DIR as _PACK_FIGURES_DIR,
+    PANEL_PNG as FROZEN_PANEL_PNG,
+)
 from bedrock.utils.validation.analysis.diagnostics_plots import _beyond_20_text
 from bedrock.utils.validation.analysis.plotting import (
     DEFAULT_XLIM,
@@ -40,19 +43,7 @@ MIXED_UNITS_DROP = 'mixed units are incompatible for plotting (kg/MWh vs kg/USD)
 NOT_IN_FOOTING = 'not present in footing (cannot compare on a shared sector code)'
 ONLY_IN_FOOTING = 'present only in footing (aggregate electricity; not in this step)'
 
-PANEL_DIR = OUT_DIR / 'ef' / 'panel'
-
-# Archived 1×3 panels (names are off the plot_ef write path so a later
-# sheet run cannot overwrite them). Do not redraw for vs-footing decks.
-# v0.2 (2026-07-30): original disagg vs Cornerstone v0.2 footing.
-# v0.3 (2026-08-24): EIA-anchored G/T/D before MECS vs v0.3.1 electricity
-# footing. Mixed-units N matches the 3-way panel (flat 1/p). Not post-MECS.
-FROZEN_PANEL_PNG: dict[tuple[ImplId, str], str] = {
-    ('original', 'D'): 'v0.2_original_electricity_disagg_D.png',
-    ('original', 'N'): 'v0.2_original_electricity_disagg_N.png',
-    ('eia_gtd', 'D'): 'v0.3_eia_gtd_pre_mecs_D.png',
-    ('eia_gtd', 'N'): 'v0.3_eia_gtd_pre_mecs_N.png',
-}
+FIGURES_DIR = _PACK_FIGURES_DIR
 
 
 def _sector_names(index: pd.Index) -> pd.Series:
@@ -170,11 +161,11 @@ def _panel_df(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def frozen_panel_png(impl_id: ImplId, kind: str) -> Path | None:
-    """Return the on-disk 1×3 panel for this implementation, if present."""
+    """Return the published 1×3 panel for this implementation, if present."""
     name = FROZEN_PANEL_PNG.get((impl_id, kind))
     if name is None:
         return None
-    path = PANEL_DIR / name
+    path = FIGURES_DIR / name
     return path if path.is_file() else None
 
 
@@ -263,9 +254,11 @@ def _draw_hist_panel(
         )
 
 
-def _footing_suptitle(impl_id: ImplId, kind: str) -> str:
+def _footing_suptitle(pair: Pair, impl_id: ImplId, kind: str) -> str:
     kind_label = 'direct EF (D)' if kind == 'D' else 'total EF (N)'
-    if IMPLEMENTATIONS[impl_id].footing_label == 'v0.2':
+    if pair.hist_baseline == 'peer':
+        vs = 'vs Cornerstone v0.3 production (non-disagg)'
+    elif IMPLEMENTATIONS[impl_id].footing_label == 'v0.2':
         vs = 'vs Cornerstone v0.2 footing'
     else:
         vs = 'vs Cornerstone v0.3.1 electricity footing'
@@ -277,6 +270,8 @@ def render_one_row_hist(
     bundle: ImplBundle,
     impl_id: ImplId,
     kind: str,
+    top: ImplBundle,
+    bottom: ImplBundle,
 ) -> Figure:
     """Single 1×3 vs-footing row, matching ``plot_ef.write_panel_pngs`` layout."""
     setup_mpl(font_size=13)
@@ -287,8 +282,8 @@ def render_one_row_hist(
             pair,
             bundle,
             impl_id,
-            bundle,
-            bundle,
+            top,
+            bottom,
             step_id,
             kind,
             footnote_y=-0.18,
@@ -298,7 +293,7 @@ def render_one_row_hist(
     later_ymax = max(axes[0][i].get_ylim()[1] for i in range(1, 3))
     for i in range(1, 3):
         axes[0][i].set_ylim(0, later_ymax)
-    fig.suptitle(_footing_suptitle(impl_id, kind), fontsize=16)
+    fig.suptitle(_footing_suptitle(pair, impl_id, kind), fontsize=16)
     fig.tight_layout(rect=(0, 0.06, 1, 0.96))
     return fig
 
@@ -333,6 +328,24 @@ def render_hist_figure(
     return fig
 
 
+def _peer_baseline(
+    pair: Pair,
+    top: ImplBundle,
+    bottom: ImplBundle,
+) -> StepSnapshot | None:
+    if pair.hist_baseline != 'peer':
+        return None
+    for bundle in (top, bottom):
+        if IMPLEMENTATIONS[bundle.impl_id].schema != 'aggregate':
+            continue
+        snap = bundle.steps.get('footing')
+        if snap is None and bundle.steps:
+            snap = next(iter(bundle.steps.values()))
+        if snap is not None:
+            return snap
+    return None
+
+
 def _panel_data(
     pair: Pair,
     bundle: ImplBundle,
@@ -355,7 +368,7 @@ def _panel_data(
         else:
             frame, drops = pairwise_frame(bottom_step, top_step, kind)
         return _panel_df(frame), drops
-    footing = bundle.steps.get('footing')
+    footing = _peer_baseline(pair, top, bottom) or bundle.steps.get('footing')
     if footing is None:
         return pd.DataFrame(columns=['sector', 'sector_name', 'perc_diff']), []
     frame, drops = vs_footing_frame(step, footing, kind)
@@ -378,7 +391,7 @@ def write_hist_png(
                 rows.append(frozen)
                 continue
             row_path = path.parent / f'{pair.key}_{impl_id}_{kind}_row.png'
-            fig = render_one_row_hist(pair, bundle, impl_id, kind)
+            fig = render_one_row_hist(pair, bundle, impl_id, kind, top, bottom)
             save_and_close(fig, row_path)
             rows.append(row_path)
         return stack_panel_pngs(rows, path)

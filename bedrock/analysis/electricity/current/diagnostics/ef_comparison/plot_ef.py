@@ -169,8 +169,8 @@ def write_panel_pngs(
             fontsize=16,
         )
         fig.tight_layout(rect=(0, 0.06, 1, 0.96))
-        # Live write path. Archived original / pre-MECS panels use different
-        # names (v0.2_original_electricity_disagg_*, v0.3_eia_gtd_pre_mecs_*).
+        # Live write path. Published original / pre-MECS panels live in
+        # historical/original_vs_eia_anchored_deck/figures/.
         out = out_dir / f'ef_panels_vs_v0_3_{ef_kind}.png'
         save_and_close(fig, out)
 

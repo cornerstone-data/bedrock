@@ -113,8 +113,8 @@ def c_col_from_q_usd_and_mwh(q_usd: float, mwh: float) -> float:
 def fill_mixed_c_col(bundle: ImplBundle) -> None:
     """Recover monetary ``c_col`` for mixed units from 3-way dollar ``q`` / mixed MWh ``q``.
 
-    Needed when the freeze omitted metadata, or when ``c_col`` was computed after
-    generation ``q`` was already converted to MWh (identity ~1).
+    Needed when ``c_col`` was computed after generation ``q`` was already
+    converted to MWh (identity ~1).
     """
     mixed = bundle.steps.get('mixed_units')
     if mixed is None or not mixed.mixed:

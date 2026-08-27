@@ -53,11 +53,11 @@ def build_pair(
     default=None,
     help='Build one pair. Default with --all is every pair.',
 )
-@click.option('--all', 'build_all', is_flag=True, help='Build all three PPTX files.')
+@click.option('--all', 'build_all', is_flag=True, help='Build all four PPTX files.')
 @click.option(
     '--derive',
     is_flag=True,
-    help='Live-derive missing current / pre-MECS steps (slow).',
+    help='Live-derive missing current and production steps (slow).',
 )
 def main(pair_key: str | None, build_all: bool, derive: bool) -> None:
     if pair_key is None and not build_all:

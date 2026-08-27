@@ -7,10 +7,12 @@ from typing import Literal
 
 from bedrock.utils.snapshots import releases
 
-ImplId = Literal['current', 'eia_gtd', 'original']
+ImplId = Literal['current', 'eia_gtd', 'original', 'production']
 HistMode = Literal['pairwise', 'vs_footing']
+HistBaseline = Literal['own_footing', 'peer']
 StepId = Literal['footing', 'reallocation', 'three_way', 'mixed_units']
 ClassRowStyle = Literal['eia', 'original']
+Schema = Literal['disagg', 'aggregate']
 
 STEPS: tuple[StepId, ...] = (
     'footing',
@@ -35,6 +37,7 @@ HIST_PANEL_TITLE: dict[StepId, str] = {
 }
 
 FOOTING_CONFIG = '2025_usa_cornerstone_v0_3_electricity_footing'
+PRODUCTION_CONFIG = '2025_usa_cornerstone_v0_3'
 REALLOC_CONFIG = '2025_usa_cornerstone_v0_3_electricity_reallocation'
 DISAGG_CONFIG = '2025_usa_cornerstone_v0_3_electricity_disaggregation'
 MIXED_CONFIG = '2025_usa_cornerstone_v0_3_electricity_mixed_units'
@@ -66,6 +69,8 @@ ROW_DISPLAY: dict[str, str] = {
     '221121': '221121 (T)',
     '221122': '221122 (D)',
 }
+
+AGGREGATE_ONLY_NA = frozenset({STAR_SECTOR, '221110', '221121', '221122'})
 
 # Sector is not in the model at this step (sample N/A), distinct from missing data.
 NA_AT_STEP: dict[StepId, frozenset[str]] = {
@@ -105,6 +110,8 @@ class Implementation:
     snapshot_key: str
     class_row_style: ClassRowStyle
     industrial_weights: Literal['mecs', 'dollars'] | None
+    schema: Schema = 'disagg'
+    single_config: str | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +126,7 @@ class Pair:
     slide4_extra_note: str
     slide5_caption: str
     slide3_caption: str
+    hist_baseline: HistBaseline = 'own_footing'
 
 
 IMPLEMENTATIONS: dict[ImplId, Implementation] = {
@@ -146,6 +154,16 @@ IMPLEMENTATIONS: dict[ImplId, Implementation] = {
         class_row_style='original',
         industrial_weights=None,
     ),
+    'production': Implementation(
+        id='production',
+        title='Cornerstone v0.3 production (non-disagg)',
+        footing_label='v0.3',
+        snapshot_key=releases.v0_3_1,
+        class_row_style='eia',
+        industrial_weights=None,
+        schema='aggregate',
+        single_config=PRODUCTION_CONFIG,
+    ),
 }
 
 PAIRS: dict[str, Pair] = {
@@ -170,13 +188,13 @@ PAIRS: dict[str, Pair] = {
         slide5_caption=(
             'Top: current (post-MECS) vs v0.3.1 electricity footing. '
             'Bottom: EIA G/T/D (pre-MECS) vs the same footing '
-            '(frozen 2026-08-24 panel). Compare the two rows for the MECS '
+            '(published PPTX panel). Compare the two rows for the MECS '
             'effect; cell-level N differences are on the table slide.'
         ),
         slide3_caption=(
             'Top: current (post-MECS) vs v0.3.1 electricity footing. '
             'Bottom: EIA G/T/D (pre-MECS) vs the same footing '
-            '(frozen 2026-08-24 panel). Compare the two rows for the MECS '
+            '(published PPTX panel). Compare the two rows for the MECS '
             'effect; cell-level D differences are on the table slide.'
         ),
     ),
@@ -202,11 +220,11 @@ PAIRS: dict[str, Pair] = {
             'match because generation uses a unique price conversion.'
         ),
         slide5_caption=(
-            'Top: original vs v0.2 footing (frozen 2026-07-30 panel). '
+            'Top: original vs v0.2 footing (published PPTX panel). '
             'Bottom: current (post-MECS) vs v0.3.1 electricity footing.'
         ),
         slide3_caption=(
-            'Top: original vs v0.2 footing (frozen 2026-07-30 panel). '
+            'Top: original vs v0.2 footing (published PPTX panel). '
             'Bottom: current (post-MECS) vs v0.3.1 electricity footing.'
         ),
     ),
@@ -232,15 +250,44 @@ PAIRS: dict[str, Pair] = {
             'match because generation uses a unique price conversion.'
         ),
         slide5_caption=(
-            'Top: original vs v0.2 footing (frozen 2026-07-30 panel). '
+            'Top: original vs v0.2 footing (published PPTX panel). '
             'Bottom: EIA G/T/D (pre-MECS) vs v0.3.1 electricity footing '
-            '(frozen 2026-08-24 panel). Less variance on the EIA row when '
+            '(published PPTX panel). Less variance on the EIA row when '
             'generation uses a constant price.'
         ),
         slide3_caption=(
-            'Top: original vs v0.2 footing (frozen 2026-07-30 panel). '
+            'Top: original vs v0.2 footing (published PPTX panel). '
             'Bottom: EIA G/T/D (pre-MECS) vs v0.3.1 electricity footing '
-            '(frozen 2026-08-24 panel).'
+            '(published PPTX panel).'
+        ),
+    ),
+    'current_vs_production': Pair(
+        key='current_vs_production',
+        top='current',
+        bottom='production',
+        hist_mode='vs_footing',
+        hist_baseline='peer',
+        filename='current_vs_production.pptx',
+        slide1_note=(
+            'Non-disagg production has no EIA end-use class split. '
+            'Class MWh is only defined on the electricity-disaggregation path.'
+        ),
+        slide_ef_note=(
+            'Production is 2025_usa_cornerstone_v0_3: aggregate 221100 at every '
+            'column, industry-average margins on, no G/T/D. Current is the '
+            'electricity-disagg chain (margins off). Matching values are '
+            'marked same. G/T/D and 221100* are N/A on production.'
+        ),
+        slide4_extra_note='',
+        slide5_caption=(
+            'Top: current electricity disagg vs Cornerstone v0.3 production '
+            '(non-disagg). Bottom: production vs itself (0% check). '
+            'Shared baseline is production D/N, not the electricity footing.'
+        ),
+        slide3_caption=(
+            'Top: current electricity disagg vs Cornerstone v0.3 production '
+            '(non-disagg). Bottom: production vs itself (0% check). '
+            'Shared baseline is production D/N, not the electricity footing.'
         ),
     ),
 }
@@ -250,3 +297,15 @@ def class_groups_for(style: ClassRowStyle) -> tuple[tuple[str, tuple[str, ...]],
     if style == 'original':
         return ORIGINAL_CLASS_GROUPS
     return EIA_CLASS_GROUPS
+
+
+def config_for_step(impl: Implementation, step_id: StepId) -> str:
+    if impl.single_config is not None:
+        return impl.single_config
+    return CONFIG_FOR_STEP[step_id]
+
+
+def na_sectors_at_step(impl_id: ImplId, step_id: StepId) -> frozenset[str]:
+    if IMPLEMENTATIONS[impl_id].schema == 'aggregate':
+        return AGGREGATE_ONLY_NA
+    return NA_AT_STEP[step_id]
