@@ -1,9 +1,42 @@
 # Plan — estimating the Use table's intermediate block (Step 3)
 
 Step 3 of [`plan.md`](plan.md) — the commodity × industry interior of the SUT Use
-table, 402 × 402, **purchaser value, before redefinitions**. The last incomplete
-block of the 2017 build and the only one with no section in
-[`sections.py`](sections.py).
+table, 402 × 402, **purchaser value, before redefinitions**.
+
+✅ **Status, 2026-08-27: built, sectioned, and seeded from the surveys.** The
+line above used to read "the last incomplete block of the 2017 build and the only
+one with no section in `sections.py`"; both halves are now false.
+`use_intermediate_detail_sut` is registered and runnable, and
+`nowcast_intermediate.composed_seed` starts the carry from the graded survey
+seeds rather than the frozen 2017 benchmark.
+
+⚠️ **The level was never this step's to estimate.** `GO − VAPRO` supplies it, and
+Step 2 now supplies `VAPRO`'s split for 2017-2024 (#538). What the seeds changed
+is the **shape**, which had been 2017's in every year.
+
+| block | columns | source | graded |
+|---|---:|---|---|
+| manufacturing | 232 | Economic Census materials, then the survey index on the non-materials cells | ships ungraded — the census mix is the only observation there is |
+| services / transportation | 100 | `Census_SAS_Expenses` / AIES | **GO**, +11.5% on `N` |
+| agriculture | 10 | ERS | **GO**, +17.9%, 9 of 10 columns |
+| — | 60 | hold 2017 | nothing observes their movement |
+
+The three partition the industries they reach — checked in `composed_seed`, not
+assumed — and at 2017 the composition is the identity to **0.000008 USD on a
+$14.86T block**, so `reproduction_check` still measures the column rescale alone.
+At 2022, **321 of 402 columns** move off the 2017 shape.
+
+⚠️ **One open build item: utilities.** EIA 923 graded **GO** (+16.0% on `N`, 3 of
+3 columns) but `utilities_expense_seed` stops at the grading and never produced a
+commodity × industry block, so those three columns still hold 2017. A verdict
+without a builder.
+
+⚠️ **Trade stays out.** It is a **no-go** on the benchmark holdout — it tracks
+where `N` is not — and `trade_expense_supplement.trade_seed` is built and
+imports cleanly, which makes it the seed most likely to be wired in by reflex.
+
+⚠️ **`ore_seed` is not applied separately** — `531ORE` is already one of the 100
+columns `services_transport_seed` moves; applying both indexes it twice.
 
 Issues: [#497](https://github.com/cornerstone-data/bedrock/issues/497) (the
 method), [#577](https://github.com/cornerstone-data/bedrock/issues/577)
