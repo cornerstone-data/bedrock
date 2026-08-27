@@ -1,0 +1,79 @@
+author: US Bureau of Economic Analysis
+source_name: GDP by Industry
+source_url: https://www.bea.gov/data/gdp/gdp-industry
+bib_id: BEA_GDPbyIndustry
+url:
+  base_url: https://apps.bea.gov/industry/Release/ZIP/GDPbyInd.zip
+
+# One release archive holds every table and every year, so there is one file to
+# cache rather than one call per year. No API key: BEA's GDPbyIndustry API
+# dataset carries the same tables but needs a UserID, and this archive does not.
+files:
+- ValueAdded.xlsx
+
+# Table TVA113, Components of Value Added by Industry - the one BEA product that
+# states gross operating surplus BY INDUSTRY directly, annually, rather than
+# leaving it to be assembled from eight NIPA lines on four incompatible
+# partitions (#538). Each industry row is its value added at producer prices,
+# followed by compensation, taxes on production and imports less subsidies, and
+# gross operating surplus.
+#
+# The '-A' suffix is the annual sheet; '-Q' is quarterly and is not read.
+#
+# Other sheets in this workbook, none of them read yet: TVA105 value added by
+# industry (the same numbers as TVA113's industry rows), TVA106 real value added,
+# TVA104 chain-type price indexes, TVA103 quantity indexes. The sibling archives
+# GrossOutput.xlsx and IntermediateInputs.xlsx are one `files` line each if Step
+# 3 wants them.
+#
+# ⚠️ THIS OVERLAPS BEA_Detail_GrossOutput_IO, AND CONSOLIDATION IS FILED AS #694.
+# BEA ships two sibling zips from the same release page: GDPbyInd.zip (this one,
+# summary grain) and UGdpByInd.zip (underlying detail, ~198 industry rows).
+# extract/iot/gdp.py already reads UGdpByInd's GrossOutput.xlsx - as UGO305-A
+# detail gross output and UGO304-A detail price index - but gets it from GCS as a
+# manually extracted workbook, pinned to BEA_DATA_VERSION = "2025Q2". So
+# GrossOutput.xlsx is duplicated between the two sources.
+#
+# ⚠️ Do not merge them by moving files. The 2025Q2 pin is deliberate (Q2 is the
+# annual release carrying the Detail update) and the two archives are currently
+# DIFFERENT vintages - this one says "published June 25, 2026", the
+# underlying-detail one "September 25, 2025". Dropping the pin would silently
+# move gross output under electricity disaggregation and
+# derived_gross_industry_output. See #694 for the proposed shape.
+#
+# ⚠️ There is no underlying-detail counterpart to TVA113. UGdpByInd's
+# ValueAdded.xlsx carries UVA201-UVA210 - quantity and price indexes, real value
+# added, UVA205 value added totals - and no components table. Compensation,
+# taxes and gross operating surplus are published at summary grain only, which is
+# why NIPA_VA_surplus_2017.yaml cannot get a finer industry axis from here.
+sheets:
+- TVA113-A
+
+# Read GDPbyInd.zip from extract/input_data/BEA_GDPbyIndustry/ (or GCS
+# extract-input if it is not cached yet) rather than re-downloading ~2.4MB from
+# BEA every run. Set to True to refresh after a BEA release.
+extract_data_from_raw_sources: False
+
+call_response_fxn: !script_function:BEA_GDPbyIndustry gdp_by_industry_call
+gcs_fxn: !script_function:BEA_GDPbyIndustry gdp_by_industry_load_gcs
+parse_response_fxn: !script_function:BEA_GDPbyIndustry gdp_by_industry_parse
+
+call_all_years: True
+
+# TVA113-A runs 1997-2024. Only the years the nowcast can use are declared, to
+# keep the FBA set small; the parser emits every year the sheet carries and the
+# framework slices, so extending this list needs no code change.
+years:
+- 2012
+- 2013
+- 2014
+- 2015
+- 2016
+- 2017
+- 2018
+- 2019
+- 2020
+- 2021
+- 2022
+- 2023
+- 2024

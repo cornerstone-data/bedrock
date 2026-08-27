@@ -248,7 +248,7 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 | Block | Status |
 |---|---|
-| Value added (`V00100`, `T00OTOP`, `V00300`) | ⏳ 24 NIPA tables extracted and reconciled (#536); three FBS methods to build — Step 2 |
+| Value added (`V00100`, `T00OTOP`, `V00300`) | ✅ **All three rows built for 2017** (#538): `NIPA_VA_compensation` on 69 `T60200D` industry controls, `NIPA_VA_othertax` on one, `NIPA_VA_surplus` on eight across five tables. The `use_va_detail_sut` diagnostic is on and **every cell of the 3 × 402 block matches**. ⏳ 2018-2024 blocked on the compensation movement series |
 | Value added (`T00TOP`, `T00SUB`) by industry | ⏳ Built by commodity (Step 4d); the industry row is a *conversion*, and the market-share operator fails it (r=0.20) — **Step 5 solves the split**, seeded at r=0.95 by the Step 4c level split plus the government-column exclusion. Construction converts exactly; the residual is 20 named industries. See Step 2 |
 | Intermediate (commodity × industry) | ❌ Method identified (#497), not built — Step 3. Scoped in [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md): both margins are Step 5 targets, so the estimand is the **cross-structure**, which drifts 3.1%→10.2% of column dollars across 2018-2024 at summary and **17.3% per five years at detail**, while the inflation carry moves it +4.5% to **−12.6%** depending on the span |
 
@@ -897,6 +897,97 @@ modules. Reasoning, and the evidence behind it:
   `FBS_outside_flowsa` source via `FBS_datapull_fxn` and let the yaml do **one** proportional
   attribution against it — proportional normalises within group, so the control holds by construction,
   and the arithmetic stays readable.
+
+✅ **`T00OTOP` is settled and measured — 2026-08-23, #538.** The line above says frozen 2017 shares
+are "all `T00OTOP` can honestly be", which was a concession. It should not have been: measured in
+[`other_taxes_allocation.py`](other_taxes_allocation.py), this is the best-behaved of the three rows.
+
+⚠️ **It is a property tax, not an income tax, and the intuitive allocator is the worst one.** NIPA
+`T30500` puts **88.1%** of the state-and-local line in *recurrent taxes on immovable property*, with
+license taxes and special assessments making up the rest — and corporate income tax is not in taxes
+on production at all, it is a distribution of surplus inside `V00300`. So an output-proportional
+allocator, scored against the published 2017 detail row, gives correlation **0.590** with an absolute
+error of **92.3% of the row**; `VABAS` gives 0.711/88.4%, gross operating surplus 0.927/71.0%,
+compensation 0.050/120.3%. Output-proportional misses `531HSO` alone by −150,567 on a published
+178,599, because the effective rate runs 0.49% at p10 to **15.20%** on `531HST` around an
+economy-wide 1.80%.
+
+✅ **The row is concentrated enough that its big cells are lookups.** Three real-estate codes carry
+**46.3%**, twenty industries carry 68.1% (HHI 0.109), and BEA publishes the two biggest blocks:
+`T70405` `B1031C` is the `531HSO`+`531HST` pair to the dollar (254,103), `T70305` `B1017C` is the ten
+farm codes within 3 (9,408 vs 9,405), and all ten government industry codes are zero by the same
+accounting rule §4d found for `T00TOP`. **Neither lookup is a 2017 coincidence** — against the
+summary SUT's own rows the housing line is exact in six of the eight years 2017-2024 and the farm
+line in seven, the misses being 2021-22 vintage mismatches.
+
+✅ **And the frozen part is graded, not assumed.** Composition drift on the summary SUT is
+**1.01-2.10%** of the row across 2018-2024 while the level grows **40.5%** — assessed property values
+move with the price level far more than they move relative to each other. Frozen shares are two
+orders of magnitude better than the allocator that looked obvious. ⚠️ **The summary SUT is evidence
+here, never an input**: Decision 3 holds it out of the target set for exactly this, so the control
+comes from NIPA (`T30500` `LA000365` + `LA000237`, closing to 9 on 608,542) and the summary table only
+grades the result out of sample.
+
+✅ **Built, and the 2017 replay is exact.** [`NIPA_VA_othertax_2017.yaml`](../../transform/nipa/NIPA_VA_othertax_2017.yaml)
+is one activity set — the `T30500` control attributed across the 392 non-government industries on the
+benchmark row, transposed onto `SectorProducedBy` — and reproduces the published row at correlation
+**1.0000**, 389 industries of 389, zero on government, off by the control's own 9 of rounding. It is
+the first method in the `NIPA_VA_*` family and it proves the whole seam: the three `BEA_2017_Code`
+identity crosswalk rows, `Sector_Crosswalk_BEA_NIPA_VA.csv`, the melted `BEA_Detail_Use_SUT` as an
+attribution source, and `assign_use_row_from_clean_parameter`.
+
+🚧 **And it turned up a blocker that lands squarely on `V00100`.** The housing and farm lookups are
+*not* in the shipped method. They cannot be their own activity sets — NIPA states no "other taxes on
+production excluding housing and farm" line, so a third set's control is still the whole 608,533 and
+the three sum to 872,044 — and the alternative, folding them into the weight vector, needs an
+**`FBS_outside_flowsa` attribution source, which does not work**: `get_flowby_from_config` builds a
+`FlowBySector` for that `data_format` while `attribute_flows_to_sectors` then calls `map_to_sectors`,
+which only `FlowByActivity` defines. All four existing uses of the hatch are top-level sources.
+
+⚠️ **That is the same hatch the compensation design above commits to** — "build the moved-share vector
+as a cached `FBS_outside_flowsa` source and let the yaml do one `proportional` attribution against
+it". It has to be cleared before `V00100`, and finding it on the 1.8% row rather than the 30.9% one is
+the argument for having built `T00OTOP` first. For `T00OTOP` itself the cost of going without is
+bounded: 1.92% against 1.68% of row error in 2024, smaller than the control's own 2.9% vintage error
+in 2021.
+
+The residual open item is unchanged — the honest allocator for the non-housing, non-farm remainder is
+**capital stock in structures, i.e. BEA Fixed Assets**, the same missing extractor CFC wants for 40%
+of `V00300` (open question 5). At 1.8% of output, seed-only in Step 5 and 1.9% drift, it is not on the
+critical path.
+
+✅ **`V00100` and `V00300` built for 2017 too — 2026-08-23, #538.** All three rows now generate, and the
+`use_va_detail_sut` diagnostic runs on the full 3 × 402 block with **every cell matching** (worst 2.6
+million on a 178 billion cell, a relative error of 1.5e-5 — BEA's own rounding).
+
+- **`V00100`** runs on the **69 `T60200D` industry groups as separate controls**, not one national
+  total, because those 69 leaves ✅ **partition the 71 BEA summary industries exactly** and 63 of them
+  equal a summary industry's published compensation *to the dollar*. So the frozen 2017 shares only
+  have to hold within a summary industry.
+- ❌ **The plan's headline decision — split wages from supplements — is reversed on measurement.**
+  `T60300D` matches `T60200D` at 69 groups, but `T61000D`/`T61100D` publish only **16**, so splitting
+  imposes a coarse group's supplement rate on industries whose own rates differ and misplaces
+  **99,025, 0.95% of the row**. "NIPA publishes both halves by industry" does not help when it
+  publishes them at coarser grain than the total. See
+  [`compensation_allocation.py`](compensation_allocation.py).
+- **`V00300`** is eight controls across five tables on one industry distribution, and stays plain
+  deliberately: four of its components have industry tables on **mutually incompatible partitions**
+  (20 / 21 / 12+financial / 63 groups) and three have no axis at all, so a component build imposes
+  four coarse partitions at once — the same 0.95% mistake, four times over. ⚠️ It also keeps `S00201`
+  at its published **−36,919**; no step may assume positivity.
+- ✅ **The value-added-by-industry extractor is built — and it is the summary SUT, not a new source.**
+  [`BEA_GDPbyIndustry`](../../extract/bea/BEA_GDPbyIndustry.yaml) reads BEA's GDP-by-Industry release
+  archive (table `TVA113`, *Components of Value Added by Industry*, annual, no API key), which does
+  state gross operating surplus by industry directly. ⚠️ **Measured: all 71 BEA summary industries'
+  `V003` match a `TVA113` surplus row to the dollar, and all 71 `V001` match compensation** — BEA's
+  industry accounts and the SUTs are the same estimates published twice. So "the highest-value missing
+  source" was the wrong framing: it is not missing, it is the table Decision 3 holds in the test set,
+  under a different name. Worth having as an FBA (versioned, citable, and the natural loader for the
+  test set); **consuming it as a Step 2 input is a testing-strategy decision, not a data-availability
+  one**, and is left open.
+- ⏳ **2018-2024 are not written.** Every method holds its within-group shares at 2017; for 2017 that
+  is complete (QCEW growth is the identity) and for later years it is not. Compensation needs the
+  moved-share source, which is blocked on the `FBS_outside_flowsa` gap above.
 
 ✅ **#536 done — 24 NIPA tables added to `BEA_NIPA.yaml`**, all annual and complete for 2012-2024, at
 ~950 extra FBA rows per year. Reconciliation through the FBA is pinned by

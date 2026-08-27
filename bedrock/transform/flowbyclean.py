@@ -532,6 +532,53 @@ def assign_sector_consumed_by_from_clean_parameter(
     return fbs.assign(SectorConsumedBy=code)
 
 
+def assign_use_row_from_clean_parameter(fbs: FlowBySector, **_: Any) -> FlowBySector:
+    """
+    The transpose of :func:`assign_sector_consumed_by_from_clean_parameter`,
+    for activity sets whose output is a Use table *row* rather than a Use
+    table *column* (issue #538).
+
+    The final-demand methods produce cells of the form (commodity consumed by
+    an ``F`` code), so the attributed sector is already in the right column and
+    only ``SectorConsumedBy`` has to be filled in. The value-added methods
+    produce cells of the form (``V00100`` produced by an industry): the
+    attributed sector is the **consuming industry** and ``clean_parameter``
+    names the row. So this moves the attributed sector from
+    ``SectorProducedBy`` to ``SectorConsumedBy`` and writes the row code into
+    ``SectorProducedBy``.
+
+    Why the sector arrives on the wrong side in the first place: an
+    ``activity_to_sector_mapping`` fills ``SectorProducedBy`` from
+    ``ActivityProducedBy``, and ``BEA_NIPA`` states its industry there. Leaving
+    it there through attribution is deliberate and is the same reasoning as
+    #539 - ``BEA_NIPA`` is a ``FlowType='TECHNOSPHERE_FLOW'`` source, so
+    ``add_primary_secondary_columns()`` prioritizes ``...ConsumedBy``, and any
+    value written to ``SectorConsumedBy`` before attribution would capture
+    ``PrimarySector`` and silently corrupt the weights. Both columns therefore
+    get their final values only here, after attribution and aggregation.
+
+    Refuses to run if ``SectorConsumedBy`` already holds anything, because that
+    would mean the activity set produced two-sided cells and the transpose
+    would discard one side rather than reorient it.
+    """
+    code = fbs.config.get('clean_parameter')
+    if code is None:
+        raise ValueError(
+            'clean_parameter (the target SectorProducedBy value, i.e. the Use '
+            'table row) is required in config to use '
+            'assign_use_row_from_clean_parameter'
+        )
+    occupied = fbs['SectorConsumedBy'].replace('', pd.NA).notna()
+    if occupied.any():
+        raise ValueError(
+            f'assign_use_row_from_clean_parameter would overwrite '
+            f'{int(occupied.sum())} populated SectorConsumedBy value(s) in '
+            f'{fbs.full_name}. It expects the attributed industry on '
+            f'SectorProducedBy and nothing on SectorConsumedBy.'
+        )
+    return fbs.assign(SectorConsumedBy=fbs['SectorProducedBy'], SectorProducedBy=code)
+
+
 def define_parentincompletechild_descendants(
     fba: FlowByActivity, activity_col: str = 'ActivityConsumedBy', **_: Any
 ) -> FlowByActivity:

@@ -83,6 +83,7 @@ from bedrock.transform.trade.madj import madj_detail_usd
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
+from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
 #: Years with ``Trade_Exports_<year>`` / ``Trade_Imports_<year>`` and overlay
 #: of ``F04000`` / ``MCIF`` / ``MDTY`` / ``MADJ`` (#727).
@@ -374,6 +375,61 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
 
     y.index.name = 'commodity'
     return y.sort_index()
+
+
+#: The three ``VABAS`` rows Step 2 builds, one FBS method each, and the Use row
+#: each writes.  ``T00TOP``/``T00SUB`` are deliberately absent: they are built on
+#: the commodity axis in Step 4d and their industry split is an output of Step
+#: 5's balance, not an input to it.
+_VALUE_ADDED_METHODS = {
+    'V00100': 'NIPA_VA_compensation',
+    'T00OTOP': 'NIPA_VA_othertax',
+    'V00300': 'NIPA_VA_surplus',
+}
+
+
+@functools.cache
+def derive_initial_value_added(
+    year: int, download_sources_ok: bool = False
+) -> pd.DataFrame:
+    """
+    Initial (pre-balance) value-added block of the Use table, basic price,
+    value-added code x industry, in USD (#538).
+
+    Runs the three ``NIPA_VA_*_<year>`` methods and stacks them. Each writes its
+    own row -- ``V00100`` compensation on 69 NIPA industry controls, ``T00OTOP``
+    on one, ``V00300`` on eight across five tables -- with the row code on
+    ``SectorProducedBy`` and the industry on ``SectorConsumedBy``, which is the
+    transpose of :func:`derive_initial_Y_pur`'s orientation.
+
+    ⚠️ **2017 only.** Every method holds its within-group shares at the 2017
+    benchmark, so for 2017 they are complete and for later years they are not:
+    compensation still needs the QCEW movement series, which is blocked on the
+    ``FBS_outside_flowsa`` attribution-source gap. Rather than return a
+    silently frozen block, this raises for other years.
+
+    ⚠️ **Rows may be negative and must stay so.** ``S00201`` state and local
+    passenger transit carries a ``V00300`` of -36,919 million.
+    """
+    if year != 2017:
+        raise ValueError(
+            f'the value-added block is built for 2017 only; got {year}. The '
+            f'later-year files need the compensation movement series first - '
+            f'see NIPA_VA_compensation_2017.yaml.'
+        )
+    rows = []
+    for code, method in _VALUE_ADDED_METHODS.items():
+        fbs = FlowBySector.generateFlowBySector(
+            f'{method}_{year}', download_sources_ok=download_sources_ok
+        )
+        resolved = _resolve_both_sector_columns(pd.DataFrame(fbs))
+        by_industry = resolved.groupby('SectorConsumedBy')['FlowAmount'].sum()
+        rows.append(by_industry.rename(code))
+    block = pd.DataFrame(rows).reindex(columns=list(USA_2017_INDUSTRY_CODES))
+    block = block.fillna(0.0).astype(float)
+    block.index.name = 'value_added_code'
+    block.columns.name = 'industry'
+    return block
 
 
 @functools.cache

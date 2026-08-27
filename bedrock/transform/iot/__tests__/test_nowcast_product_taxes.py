@@ -284,9 +284,9 @@ def test_2024_holds_2023_shares_rather_than_reverting_to_2017() -> None:
 def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     """Sized on commodities, not just lines, against the default proposal itself.
 
-    Tobacco is 26,153 $M lower than the default in 2024 and insurance 17,791 $M
+    Tobacco is 26,278 $M lower than the default in 2024 and insurance 17,791 $M
     higher in 2020 - the ACA provider fee, which the default cannot see at all.
-    Half the summed absolute difference is 6.3% of the 2020 column and 7.7% of
+    Half the summed absolute difference is 6.3% of the 2020 column and 7.3% of
     the 2024 one, so this is a re-allocation of tens of billions rather than a
     refinement.
 
@@ -295,6 +295,20 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     (#611) gave the residual a purchaser-price base, so the other 70% of the
     column moves too - see ``residual_share_for_year``. A *fall* here would mean
     the residual had stopped moving.
+
+    ⚠️ **Tobacco was re-fit from 26,153 to 26,278 for #734, and 2024's share from
+    7.7% to 7.3%.** #734 remapped the Census NAICS 2022 activities onto the goods
+    Crosswalk, which moves the Trade FBS, which moves ``purchaser_base`` and so
+    the residual's annual shares. It was not caught before the merge because #734
+    and #733 were each green on their own branch and neither was ever built with
+    the other. The 2017 anchors above are unmoved, so this is the shares
+    re-fitting, not the level.
+
+    ⚠️ **2024's share fell, and that is checked against the paragraph above rather
+    than waved through.** The number that would mean the residual had stopped
+    moving is the frozen-share one, **5.8%**. 7.3% is a long way above it, and
+    tobacco's own gap *grew* over the same change, so #734 re-allocated within a
+    residual that is still moving. A fall toward 5.8% is the one to stop for.
     """
     published = pt.published_top_by_commodity()
 
@@ -304,14 +318,17 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     gap_2024 = pt.top_column(2024) - default(2024)
     gap_2020 = pt.top_column(2020) - default(2020)
 
-    assert gap_2024['312200'] / MILLION == pytest.approx(-26_153, abs=100)
-    assert gap_2020['5241XX'] / MILLION == pytest.approx(17_791, abs=100)
-    assert gap_2020.abs().sum() / 2 / pt.top_column(2020).sum() == pytest.approx(
-        0.063, abs=0.003
-    )
-    assert gap_2024.abs().sum() / 2 / pt.top_column(2024).sum() == pytest.approx(
-        0.077, abs=0.003
-    )
+    # Grouped rather than asserted one at a time: these are fitted bands, so when
+    # a source under ``purchaser_base`` moves them they tend to move together,
+    # and a chain of bare asserts reports only the first and hides the rest.
+    assert {
+        '312200 2024': gap_2024['312200'] / MILLION,
+        '5241XX 2020': gap_2020['5241XX'] / MILLION,
+    } == pytest.approx({'312200 2024': -26_278, '5241XX 2020': 17_791}, abs=100)
+    assert {
+        2020: gap_2020.abs().sum() / 2 / pt.top_column(2020).sum(),
+        2024: gap_2024.abs().sum() / 2 / pt.top_column(2024).sum(),
+    } == pytest.approx({2020: 0.063, 2024: 0.073}, abs=0.003)
 
 
 # --- the producer-level / trade-level split Step 4c consumes ----------------
@@ -330,7 +347,13 @@ def test_trade_level_share_is_a_share() -> None:
 def test_the_two_levels_add_back_to_the_column() -> None:
     levels = pt.top_by_level(2024)
 
-    assert levels['producer_level'].add(levels['trade_level']).equals(levels['TOP'])
+    # Not ``.equals``: ``producer_level`` is *defined* as ``TOP - trade_level``,
+    # so this asks whether ``(a - b) + b == a`` in binary floating point, which
+    # is not guaranteed and is luck rather than a property of the split. It held
+    # until the shares moved under #734. What the test is actually for is that
+    # nothing is lost or double-counted between the two levels.
+    rebuilt = levels['producer_level'].add(levels['trade_level'])
+    assert rebuilt.to_numpy() == pytest.approx(levels['TOP'].to_numpy(), rel=1e-12)
     assert (levels['producer_level'] >= 0).all()
 
 
